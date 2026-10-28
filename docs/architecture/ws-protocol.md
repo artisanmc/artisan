@@ -1,268 +1,179 @@
-# WS Protocol — plugin ↔ backend
+# WS protocol — hub ↔ server
 
-`papi_placeholders_fetch {request_id}` requests the connected server's current
-PlaceholderAPI catalog. `papi_placeholders_result` echoes `{request_id,ok,
-placeholders?:[{placeholder,expansion}],truncated?,error?:"fetch_error"}`.
-Only registered expansions' explicit lists are used, normalized to `%id_params%`;
-empty/broken expansions contribute no suggestions. Collection runs on the Bukkit
-main thread. Limits: 2,000 entries, 256 characters per token, 128 KiB of names.
-The backend binds replies to the exact requested authenticated connection,
-releases pending requests on disconnect, and times out old plugins after 5 s.
+> The protocol between the hub (the editor's web server, `plugin/hub` module) and the Minecraft
+> servers it reaches. Source of truth: `plugin/core/…/protocol/EditorRequest.kt` (incoming
+> messages), `plugin/paper/…/ws/WsClient.kt` (a leaf's client), `plugin/hub/…/PluginChannel.kt`
+> and `RemoteServer.kt` (hub side). When you change a message, update this file.
 
-## Console membership
+Since phase F (2026-10), there is no backend: the protocol inherited from the
+backend ↔ plugin relay is spoken by the hub. The **same** set of messages serves two transports:
 
-`hello.editor_access_mode` is `invitation` (default, including legacy/unknown
-values) or `console`, persisted on the authenticated server key. The plugin
-reads `editor.access_mode` at startup/reload. Console/RCON-only
-`artisan member add <email>` sends `member_add {request_id,email}` on that
-connection. `member_add_result` echoes `request_id` with `ok`, optional
-`already_member`, or `error` (`unauthorized`, `console_disabled`, `invalid_email`,
-`account_not_found`). No caller-supplied network or role is accepted: the backend
-adds an existing account as `member` to the key's network, preserving existing
-roles. Missing/replaced connections cannot grant access; replies time out after
-15 seconds in the plugin. Repeating the command is idempotent.
+| Transport | When | Class |
+|---|---|---|
+| In process | The server that hosts the hub (single server, or a network's hub) | `LocalServerLink` (`core`): the message goes to the WebSocket handlers, the response comes back through `deliver`, 10 s timeout. |
+| WebSocket `/ws/plugin` | A network leaf (`web.hub` set) | `WsClient` on the leaf, `PluginChannel` + `RemoteServer` on the hub, 30 s timeout per request. |
 
-## Hosted-to-server copies (`project_copy_v1`)
+The hub interprets no content: every REST route of the editor becomes a protocol message
+(`project_read`, `project_write`, `project_draft_publish`…) passed by `ServerLink`
+(`core`) to the existing handlers (see `rest-endpoints.md`).
 
-`hello.capabilities` negotiates `project_copy_v1`. `project_copy` carries
-`request_id`, stable `operation_id`, `target_id`, `fingerprint` and `action`:
-`begin` adds `minecraft_version`, sorted `modules` IDs and sorted `files`
-descriptors `{path,size,sha256}`; `chunk` adds `path`, byte `offset` and
-`content_base64`; `commit` verifies and activates; `status` queries the durable receipt.
-The fingerprint is SHA-256 of UTF-8 compact JSON in exact property order
-`{target_id,minecraft_version,modules,files}`, with descriptor order `path,size,sha256`.
-`project_copy_result` echoes correlation, operation, folder and fingerprint plus
-`ok`, `state: missing|staging|activated`, optional `error`, and the complete
-`file_hashes` map on activation. Backend accepts only the requesting authenticated connection.
+## A leaf connecting
 
-Bounds: 5,000 files, 16 MiB per file, 64 MiB total, 192 KiB decoded chunks,
-eight pending operations per server. Manifest is mandatory; exact Minecraft
-version and required module IDs are checked. Public `.artisan/editor.yaml` is
-included; private drafts/history, unsafe paths and duplicate case-folded paths are excluded.
-Plugin stages outside discovered roots, verifies every size/digest before one activation,
-and keeps receipts for idempotent recovery after lost ACK. Staging expires after
-24 hours without effective writes; status polling does not renew it. Expired
-operations return `operation_expired` and require a new operation ID. Activated roots never expire.
-Windows syncs file contents and atomically renames; directory fsync is unavailable,
-so abrupt power-loss guarantees follow the existing filesystem publication boundary.
+A leaf connects to the WebSocket address derived from `web.hub` (`hubWebSocketUrl`, `PluginConfig.kt`:
+`"10.0.0.5:8765"` → `ws://10.0.0.5:8765/ws/plugin`, bare host → port 8765, `https://…` → `wss://…`,
+`ws(s)://` URL kept as is) and sends `hello`.
+Reconnection with exponential backoff (1 s → 60 s); OkHttp ping every 30 s. The leaf
+does not open the socket until its suite database is open (`database_id` unknown,
+issue #42): it retries every 2 s. A hub whose database is still opening closes a `hello`
+with 1008 ("not open yet: retry"); the leaf comes back through its backoff.
 
-Backend reserves the folder before sending and suppresses hello/list discovery
-until the exact activation receipt is verified. Reconnect/pong maintenance resumes
-authorized operations; revoked actors permit only status reconciliation, never upload.
-After the destination anchor commits, resource-pack rebuild/push runs and retries
-from a durable `resource_pack_pending` flag if needed.
+**`hello`** (leaf → hub). Fields sent by `WsClient` and read by the hub:
 
-## Atomic mixed publication (2026-09-13)
+| Field | Read by the hub for |
+|---|---|
+| `protocol_version` | `ProtocolVersion.CURRENT` (`"1.4"`). Major different from the hub's: server listed `updateRequired`, nothing more is sent to it (503 `plugin_update_required`). Minor below 1: no `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). Minor below 2 (`EDITOR_BUNDLES`): no `editor_bundle` advertised, so never an `editor_bundle_fetch`. Minor below 3 (`TEMPLATES`): no `templates` advertised; `template_fetch`, `template_copy` and `project_origins_fetch` answer 501 `plugin_update_required` on the hub side. Minor below 4 (`DOCUMENT_CHECKS`): no `documents_check`, the MCP tool `write_document` refuses (`plugin_update_required`). |
+| `server_key` | The **network secret** (inherited field name). Compared in constant time; wrong or empty: close 1008. |
+| `server_uuid` | The server's Server id (`plugins/Artisan/server-id`): its identity everywhere — `/api/v1/servers/:server`, `server_key_id`, prefix of its Projects (`<server id>.<folder>`), key of `Servers`. Missing, or equal to the hub's (copied folder): close 1008. |
+| `database_id` | Identifier of the suite database (`artisan_meta`, generated once). The hub refuses a `hello` whose identifier differs from its own, and any `hello` if it is itself on H2: a network shares one MySQL/MariaDB database. |
+| `proxy_name` | The server's name in the network (root key `name`, otherwise the server's folder name). `[A-Za-z0-9_-]{1,64}`. An attribute: the label in the server list; a renamed server keeps its id. |
+| `plugin_version`, `minecraft_version` | Shown in the server list; the Minecraft version picks the item catalog. |
+| `installed_modules` | `[{id, version, editor_bundle?, templates?}]`: presence of the modules (`GET …/modules`). `templates` = `[{id, title, version, seed_project?, system?, files:[{path, hash, size}]}]` (`TemplateDeclaration.toWire()`, minor 3): the templates the module offers to copy into a Project, without their content (ADR `module-templates`). `system: true` (API 2.12.0): its system elements, kept in the module's folder (`SystemFiles`), never offered for copying. `editor_bundle` = `{sdk, hash, size}` (`EditorBundleDeclaration.toWire()`, minor 2) when the module registered its jar's editor view (`api.getEditorBundles()`): targeted `@artisan/editor-sdk` version, SHA-256 hex of the script, size in bytes; the hub serves it under `GET …/modules/:module/ui.js`. This field and the six following form the server's advertisement, a single `ServerAnnouncement` type (`core/protocol`): built by the server, re-read by `RemoteServer`, served by `EditorServer.announcement()`. |
+| `data_sources` | `[{ref, module_id?, schema?, schema_hint?, stability?, key_field?}]` (`DataSourceReport`). `schema[]` = `{name, type, description}`, `type` being the field's `ModelFieldType` kind (`string`, `number`, `integer`, `boolean`, `list`, `object`, `item` for a field declared by `FieldKind`, as in 1.x; `ltext`, `enum`, `map`… possible since API 2.0.0). The editor treats a kind it does not know as text. |
+| `declared_models` | `model/v1` Documents declared by modules: `ModelDeclaration.toWire()`, or the map from `declare(Map)` (`@Sunset`) verbatim. |
+| `editor_screens` | Declared config screens: `{id, module_id, label, table, project_id}`. |
+| `declared_actions` | Actions registered in `ActionRegistry`, Artisan's included: `{name, args: [ModelField], primary?, module_id?}` (`module_id` missing = core action). The editor derives the selector and the form of module actions from it (`GET …/actions`, ADR `extensible-document-kinds` R1). |
+| `document_kinds` | Document kinds registered in `DocumentKindRegistry`, Artisan's included: `{kind, dir, schema_versions, id_prefix?, module_id?}` (`module_id` missing = core kind). The editor compares with the kinds its modules contribute and flags a kind the active server does not list (`GET …/document-kinds`, ADR `extensible-document-kinds` W6). Missing from a `hello` older than 2.1.0: nothing is flagged. |
+| `declared_game_events` | Game events registered in `GameEventRegistry` (the `triggers` module's core catalog included): `{name, group, frequency: rare\|normal, context: [ModelField], cancellable, effects: [ModelField], module_id?}`. The editor derives a Trigger's `on:` selector, the `{event.…}` values and the `set_event` form from it (`GET …/game-events`, ADR `triggers-and-variables`). Without a server, the editor reads the core catalog from `testdata/core-game-events.json`. Missing from an older `hello`: empty list. |
+| `player_commands` | Player commands declared by modules (`PlayerCommandReport`): `{id, module_id?, name, aliases, permission?, description: {lang: text}, arguments: [{name, type, required, values}], console_allowed, opens_menu?, children: [same shape]}`, without an executor; `opens_menu`: the menu the command opens in place of an executor. Served by `GET …/player-commands`; the editor no longer uses it for editing: a module command is the `command/v1` file that the module's `player_commands` system template keeps in its folder. Missing from an older `hello`: empty list. Returned by `modules_changed` each time a command is added or removed. |
+| `server_config` | Editable `config.yml` as dotted keys (never `environment.yml`). |
 
-The `hello` capability `project_mixed_write_v1` enables `project_write` with
-`operation_id` and `binaries: [{path, content_base64, base_hash}]` alongside text
-files, deletes and renames. All text/binary CAS checks precede one recoverable
-publisher journal and one reload; duplicate or private paths are rejected.
-The same operation ID replays its receipt after a lost acknowledgement without
-overwriting later edits. Older plugins retain text writes; mixed writes return
-`plugin_update_required` without sending a partial alternative.
-Hosted project operations do not use this WebSocket channel.
+`RemoteServer` also reads `custom_items_hash` if present (old `hello`); `WsClient` no longer
+sends it, the hash follows through `custom_items_changed`.
 
-> Référence du protocole WebSocket entre le plugin Kotlin et le backend.
-> Source de vérité du code : `backend/src/ws/hub.ts`, `editor/src/lib/ws/pluginBridge.ts`, plugin `WsClient.kt`.
-> Quand tu modifies un message, mets à jour ce fichier (cf. `.claude/skills/sync-docs/doc-impact-map.yaml`).
+**`hello_ack`** (hub → leaf): `{session_id, server_id, editor_url, network_name,
+resource_pack}`. `server_id` repeats the `hello`'s `server_uuid`, `network_name` the hub
+server's name. `resource_pack` is the last pack the hub served to this server
+(`{url, hash}`), or `{}`: an object without an address leaves the server with the pack it already has
+(`PackUpdate.Incomplete`), `null` would remove it. The hub applies the `hello` (protocol
+version, modules, configuration) before sending `hello_ack`: an editor request that follows
+the ack sees the server as it announced itself, never with an empty `hello`. Before `hello_ack`,
+`WsClient.request` answers `null` without sending anything.
 
-## Versioning / forward-compat
-
-### Private drafts (`project_drafts_v1`, 2026-09-13)
-
-Negotiated in `hello.capabilities`. `project_draft_request` carries `request_id`,
-`project_id`, backend-verified `owner_id`, `action`; replies use
-`project_draft_result` with `{ok,error?,draft?,drafts?,wrote?,content_base64?}`.
-Correlation is bound to the exact authenticated plugin connection.
-Actions: `list/read/create/update/discard/publish/write_blob/read_blob`;
-backend-only migration actions: `import/list_all/purge_owner`.
-**Depuis 2026-09-26** (ADR `snapshot-mirror-and-backend-history`), le backend ne s'en sert
-plus que pour rapatrier les brouillons encore sur disque (`list_all`, `read_blob`) et purger
-ceux des comptes supprimés (`purge_owner`) ; les brouillons vivent dans `project_drafts`.
-Mutations carry `operation_id`; existing draft changes carry `expected_revision`.
-`create/update` carry `draft_id,name,snapshot`; `import` carries the full `draft`.
-The `artisan-draft/v1` envelope has no project ID and preserves owner, revision,
-status, source, timestamps, baseline/tree/initialTree and renames. Binary snapshot
-maps `binaryBaseline/binaryTree` use `{hash,size}`; `write_blob` transports
-`hash,content_base64` separately without advancing revision. Publication finalizes
-files and terminal draft state on storage, with a recoverable journal.
-The plugin sends the durable publication receipt before reloading runtime menus
-and commands. Reload continues under the project mutation lock and announces
-`projects_reloaded`; a slow/failed reload cannot withhold an already committed
-receipt. Backend draft RPCs time out after 30 seconds; the editor allows 45 seconds
-to receive that structured outcome and retains the same operation ID on timeout.
-Structurally impossible target hierarchies are rejected before the commit intent.
-Completed publisher journals move atomically into `.artisan/transactions/.receipts/`
-after their durable completion marker. Recovery scans only pending journals;
-legacy completed journals are archived on their first recovery pass. Duplicate
-operation IDs still read their retained receipt, and owner revocation scrubs
-both pending journals and archived receipts. `project_list` returns identities
-from the loaded snapshot without triggering disk discovery or recovery.
-`storage_error` is an uncertain outcome; retry the same `operation_id` after recovery.
-Legacy draft IDs retain their exact envelope spelling; uppercase-bearing IDs and
-Windows device names use an encoded private directory on every OS, preserving
-case-distinct IDs when projects move between filesystems.
-`list_all` accepts an empty administrative owner and returns every unrevoked state.
-`purge_owner` persists a private revocation marker, blocking restored owner data.
-`hello_ack.bundle_url` carries `BUNDLE_BASE_URL` (fallback `API_BASE_URL`) for
-plugin-side resource-pack downloads; `resource_pack.url` remains player-facing.
-Resource-pack refresh skips an old database project only when the plugin confirms
-`unknown_project`; a timeout/offline project still preserves the previous pack.
-Ordinary reads/exports/runtime never include `.artisan/drafts/`.
-
-`hello` carries `protocol_version: "1"` + `core_version`. Unknown message types are logged + ignored (forward-compat). Tout endpoint REST associé est sous `/api/v1/`.
-
-**Version de contenu (`content_version`, ADR `content-version-negotiation`, 2026-10-01).** `hello.content_version?: number` = version du **format de contenu de projet** que le plugin sait lire. Absente = `1` (ancien wire DSL) ; `2` = étapes structurées keyed (ADR `structured-action-wire`). Le backend suit la version par connexion, l'expose via `GET /networks/:id/servers-status` (`contentVersion`), et **refuse les écritures de contenu** (`project_write`, publication `project_draft_request`) sous `MIN_CONTENT_VERSION` (= 2) avec l'erreur `plugin_update_required` — on ne produit jamais de fichiers qu'un plugin en retard ne saurait pas lire. L'éditeur affiche « plugin obsolète » pour ce serveur.
+**`session_replaced`** (hub → leaf): another server connected with the same server id;
+the old connection is closed (last one wins, see `invariants.md`).
 
 ## Messages
 
-### Project identity and durable rename (2026-09-12)
+Size: Jetty limits an incoming message to 64 KiB by default. `/ws/plugin` raises the limit to
+32 MiB (message and frame) once the `hello` is accepted (`PluginChannel.welcome`): Project
+read responses, editor bundle. Before that, a larger `hello` closes the connection.
 
-`hello.capabilities` negotiates `project_rename`. `project_roots` reports
-`{project_id, identity: "folder" | "addon", module_id?}` on hello, list, reload and module
-registration. `module_id` names the module owning an add-on root when it registered with
-`register(projectId, dir, moduleId)`; the backend stores it in `projects.owner_module`. Add-on IDs remain registered and immutable; folder roots can rename.
-`project_rename` carries `request_id`, durable `operation_id`, `project_id` and
-`target_project_id`; `project_rename_result` echoes them with `ok` and `error`.
-The backend reserves the target and blocks text/config/binary writes while pending.
-The plugin journals the filesystem operation; hello `project_rename_results`
-replays successful receipts before discovery. Lost replies retry with the same
-operation ID in the background; listings exclude reserved source/target roots
-and return `pending_renames`, while unrelated projects stay available.
-SQL keeps the immutable Project primary key.
-`rename_error` remains pending; definite rejection releases the reservation.
-On server-initiated WebSocket close, the client acknowledges `onClosing` so
-`onClosed` schedules reconnection (including replacement close code 1012).
-Hello reads a cached immutable identity snapshot from the last completed reload
-or mutation; the OkHttp callback neither scans the disk nor waits on root locks.
-Authenticated receipts must match the operation's server and both identities.
-`project_renamed` notifies editors with `server_key_id`, immutable `project_id`,
-`previous_disk_id` and `disk_id`; tree caches are invalidated for both names.
-Explicit `identity_migrations: [{from: "boutique_shop", to: "boutique_addon"}]`
-requires a registered `boutique_addon` root. Occupied destinations stop migration;
-drafts and other foreign keys retain their anchor. Retired folder IDs are reserved
-by the plugin against stale creates until a future generation-aware create API.
+Every request carries a `request_id`; the response repeats it, with type `<request>_result`
+(unless noted) and `{ok, error?, message?}`. An unknown type or a missing required field:
+the message is ignored (`EditorRequest.parse` returns `null`).
 
-| Message | Sens | Contenu clé |
+### Hub → server (editor requests)
+
+| Message | Response | Content |
 |---|---|---|
-| `hello` | plugin → backend | `server_key`, `current_bundle_hash`, `local_project_ids?: string[]` — ids des projects présents sur le disque du plugin ; le backend crée un stub vide (`createProject`) pour chacun qu'il ne connaît pas encore (cf. `hello_ack` ci-dessous), `custom_items_hash?`, `installed_modules?: {id, version}[]` — modules enregistrés dans le `ModuleRegistry` au moment de la connexion ; le backend persiste par server_key (`server_modules`), l'éditeur lit pour gater la visibilité des modules (activation par présence, spec 2026-06-15 §8). Absent sur anciens plugins. `data_sources?: {ref, module_id?, schema?: {name, type, description}[], schema_hint?, stability?: "static" | "dynamic", key_field?}[]` — data sources enregistrées dans le `DataSourceRegistry` au moment de l'envoi. Alimente le source picker de l'éditeur. `stability`/`key_field` (2026-07-15) : axe statique/dynamique **déclaré** par le module — `static` = jeu de Row keys énumérable (place-able en **mode placement** de menu, `key_field` = champ clé de ligne) ; `dynamic`/absent par défaut (legacy). `module_id`/`schema` absents sur plugins pré-schéma (legacy `schema_hint` seulement). Absent/vide sur les vieux plugins. `snapshot_hashes?: {id, hash}[]` (capacité `snapshot_mirror_v1`, 2026-09-26) — empreinte du Snapshot de chaque Project, la même que `project_read_result.hash` : le backend s'en sert pour savoir si son miroir est encore valide (cf. § Miroir du Snapshot). |
-| `modules_changed` | plugin → backend | `{ type, server_key, installed_modules: {id, version}[], data_sources: {ref, module_id?, schema?: {name, type, description}[], schema_hint?, stability?: "static" | "dynamic", key_field?}[] }` — émis quand un module se `register()`-e après l'envoi du `hello` (ex: plugin tiers `onEnable`). Le backend re-exécute `persistServerModules` pour la même session. `data_sources` : data sources enregistrées dans le `DataSourceRegistry` au moment de l'envoi. Alimente le source picker de l'éditeur. `stability`/`key_field` (2026-07-15) : axe statique/dynamique **déclaré** par le module — `static` = jeu de Row keys énumérable (place-able en **mode placement** de menu, `key_field` = champ clé de ligne) ; `dynamic`/absent par défaut (legacy). `module_id`/`schema` absents sur plugins pré-schéma (legacy `schema_hint` seulement). Absent/vide sur les vieux plugins. |
-| `hello_ack` | backend → plugin | `api_url`, `editor_url: string` — `EDITOR_URL` env, URL browser-facing de l'éditeur, purement informative (affichée par `/artisan editor`), `server_url: string` — deep link vers la page de ce serveur dans l'éditeur (`${EDITOR_URL}/networks/${netRow.slug ?? netRow.id}/servers/${skRow.slug ?? skRow.id}` ; fallback plain `EDITOR_URL` si le `server_key`/network est introuvable). Le plugin préfère `server_url`, avec fallback sur `editor_url`. `network_name: string` — nom du network du `server_key`. `resource_pack: { url, hash } \| null`. **Plus de `project_hashes` / `needs_sync` / `latest_bundle_hash` / `deleted_project_ids`** : le backend ne détient plus de contenu, il n'a donc rien à comparer ni à annoncer (ADR `server-disk-only-storage`). Les `local_project_ids` du `hello` restent utiles — un project présent sur le disque et inconnu du backend y est enregistré, **identité seulement**. |
-| `draft_update` | backend → plugin | `menu_id`, `menu_yaml` — transport en place (`POST /api/v1/user/projects/:projectId/draft` → `broadcastDraftUpdate`), producteur client à venir |
-| `ping` / `pong` | backend ↔ plugin | keepalive OkHttp 30s |
-| `resource_pack_updated` | backend → plugin | `{ url, hash }` — broadcast après chaque rebuild (écriture d'asset, copie de Project, et tout `projects_reloaded` — donc chaque publication de brouillon — **seulement si le hash a changé**). En mode délégation, c'est ce message qui écrit le zip et lance `delegate-reload-command` |
-| `custom_items_changed` | plugin → backend | `{ hash }` — hot-reload Nexo/Oraxen/ItemsAdder |
-| `custom_items_request` | backend → plugin | `{}` — demande le bundle complet |
-| `custom_items_bundle` | plugin → backend | `{ hash, data }` — `data = base64(gzip(zip))` |
-| `declared_models` (champ de `hello` / `modules_changed`) | plugin → backend | Documents `model/v1` déclarés par les modules (`api.models.declare`), verbatim (id namespacé, `version` + `migrations` déclaratives). Persistés dans `server_declared_models` (upsert + prune, miroir `data_sources`), servis à l'éditeur via `GET …/servers/:sid/models` (ADR composable-data-models §4). |
-| `session_replaced` | backend → plugin | `{type, reason}` — un autre serveur vient de se connecter avec **cette** clé ; celui-ci est évincé du relais. Un seul WARN côté plugin, aucun retry : personne ne regarde la console au moment où ça tombe, mais tout le monde la lit après coup. |
-| `project_deleted` | backend → plugin | `{ project_id }` — project supprimé côté éditeur, le plugin move-to-trash |
-| `data_source_fetch` | backend → plugin | `{type, request_id, ref, params, filter, sort, limit, args}` — preview request relayed from `POST …/data-sources/preview`. Corrélé par `request_id`, timeout 5 s côté backend (couvre les vieux plugins qui ignorent le type). `args` = valeurs d'essai pour l'interpolation `{arg}`. |
-| `data_source_fetch_result` | plugin → backend | `{type, request_id, ok, rows?, truncated?, error?, message?}` — réponse du plugin (fetch `player = null` sur le main thread + shaping `ContextBinder`, rows tronquées à 50 / ≤ 256 KB). `error` ∈ `unknown_source` / `player_required` / `fetch_error`. |
-| `import_sources_list` | backend → plugin | `{type, request_id}` — demande les métadonnées des racines d'import read-only configurées par l'administrateur pour l'assistant. Corrélé par `request_id`, timeout 5 s côté backend ; un ancien plugin qui ignore ce type aboutit donc à `timeout`, sans fallback implicite. |
-| `import_sources_list_result` | plugin → backend | `{type, request_id, ok, sources?:[{id,label,files:[{path,size}],error?}], error?, message?}` — chemins relatifs et tailles seulement, jamais le contenu. Le parcours se fait hors callback OkHttp ; une source dépassant 5 000 fichiers autorisés renvoie `error: "too_many_entries"` avec une liste vide, jamais un listing partiel. |
-| `import_sources_read` | backend → plugin | `{type, request_id, selections:[{source_id,paths:string[]}]} ` — lecture à la demande des fichiers sélectionnés, corrélée avec un timeout de 10 s. Le plugin revalide les sources et chemins au moment de la lecture ; les racines restent strictement read-only. Un ancien plugin qui ignore ce type aboutit à `timeout`. |
-| `import_sources_read_result` | plugin → backend | `{type, request_id, ok, files?:[{source_id,path,content}], error?, message?}` — contenu texte UTF-8 uniquement, réponse atomique (aucun fichier si l'un échoue). Limites : 200 fichiers, 1 MiB par fichier, 8 MiB cumulés. `error` ∈ `invalid_input` / `unknown_source` / `invalid_path` / `unsupported_file` / `not_found` / `too_many_files` / `file_too_large` / `too_large` / `invalid_utf8` / `read_error`. |
-| `editor_screens` (champ de `hello` / `modules_changed`) | plugin → backend | Config screens déclarés par les modules (`api.screens.declare`), verbatim : `{id (namespacé), module_id, label, table, project_id}`. Persistés dans `server_editor_screens` (upsert + prune, miroir `declared_models`), servis à l'éditeur via `GET …/servers/:sid/screens` (ADR `module-config-screens` §2). Purement déclaratif — rien n'est interprété plugin-side. |
-| `project_read` | backend → plugin | `{type, request_id, project_id, if_hash?}` — l'arbre complet d'un Project lu sur le disque du serveur, relayé depuis `GET …/servers/:sid/projects/:pid/files` (ADR `server-disk-only-storage`, P0). Corrélé par `request_id`, timeout 5 s. Généralise `config_read`, qui ne portait qu'une Table. |
-| `projects_reloaded` | plugin → backend, puis backend → éditeurs | `{type, projects:[{id, hash}]}` — le plugin vient de relire ses Projects (`/artisan reload`, ou une de ses propres écritures). Une édition faite à la main sur le disque ne compte QU'à ce moment-là : sans cette annonce, l'éditeur garderait sa dernière version connue jusqu'à ce que quelqu'un pense à actualiser. Le backend oublie ce qu'il savait de ces arbres et relaie aux éditeurs du serveur, en ajoutant `server_key_id`, puis reconstruit le resource pack en arrière-plan (cf. `resource_pack_updated`). L'empreinte voyage avec : qui l'a déjà n'a rien à refaire. Pour un plugin `snapshot_mirror_v1`, elle devient aussi le hash annoncé du miroir, qui se remplit en arrière-plan. |
-| `project_read_result` | plugin → backend | `{type, request_id, ok, hash?, unchanged?, files?, error?, message?}` — `files = [{path, content}]` en chemins relatifs triés, plafond 8 MiB cumulés (mesuré : les vrais projects font 8 à 43 Ko, deux ordres de grandeur de marge → pas de découpage). `.artisan/editor.yaml` **inclus** (l'éditeur en est propriétaire), `.artisan/history/`, `.artisan-trash/` et `.artisan-sync.yaml` exclus. `error` ∈ `invalid_path` / `unknown_project` / `too_large` / `read_error`. **`hash`** est l'empreinte de l'instantané (texte + binaires annoncés + documents en échec) : l'appelant la conserve et la rend en `if_hash` à la visite suivante ; si elle correspond, la réponse est `{ok, unchanged: true, hash}` et **rien n'est transporté**. Elle est calculée par le plugin SEUL et lui est simplement rendue — aucune convention inter-langage à tenir. |
-| `project_write` | backend → plugin | `{type, request_id, project_id, files:[{path, content, base_hash}], deletes?:[{path, base_hash}], renames?:[{from, to, base_hash}], create?}` — `renames` = **déplacements** déclarés par l'éditeur : l'arbre seul ne distingue pas un renommage d'un « supprimer + créer », donc sans cette intention la corbeille archive une suppression qui n'en est pas une et l'historique du fichier devient orphelin. Appliqués **avant** les écritures (on peut renommer et modifier dans le même enregistrement) ; même CAS que le reste, et une destination déjà occupée est un conflit. — l'éditeur écrit les fichiers du serveur (ADR `server-disk-only-storage`, P1), relayé depuis `PUT …/servers/:sid/projects/:pid/files`, timeout 10 s. `base_hash` = SHA-256 du contenu chargé par l'éditeur ; `null` = « je m'attends à ce qu'il n'y ait pas de fichier ici ». Chemins autorisés = tout sauf corbeille et métadonnées de sync — `.artisan/editor.yaml` **est** écrivable (l'éditeur en est propriétaire). |
-| `project_write_result` | plugin → backend | `{type, request_id, ok, conflicts?, error?, message?}` — **tout ou rien** : un seul `base_hash` périmé annule l'écriture entière et remonte `error: "conflict"` avec `conflicts = [{path, disk}]`, `disk` étant le contenu actuel (`null` = supprimé sur disque) pour que l'éditeur affiche le diff sans second aller-retour. La réponse porte aussi `disk_files` — l'état **réel** du dossier : un renommage fait à la main ressemble à une suppression, et sans cette liste « garder ma version » recrée l'ancien fichier à côté du nouveau. Avant tout écrasement ou suppression, l'ancien contenu part dans `.artisan/history/<rel>/<ms>` (anneau de 20, cf. décision 5). `error` ∈ `invalid_path` / `unknown_project` / `conflict` / `write_error`. |
-| `project_history` | backend → plugin | `{type, request_id, project_id, path}` — les versions archivées d'**un** fichier (corbeille `.artisan/history/`, ADR `server-disk-only-storage` décision 5), relayé depuis `GET …/projects/:pid/history?path=…`. Corrélé, timeout 5 s. |
-| `project_history_result` | plugin → backend | `{type, request_id, ok, versions?, error?, message?}` — `versions = [{at, content}]`, **la plus récente d'abord**. Un fichier jamais écrasé rend une liste vide, pas une erreur. **Restaurer n'a pas de message dédié** : c'est un `project_write` normal du contenu choisi, donc soumis au même compare-and-swap. `error` ∈ `invalid_path` / `unknown_project` / `read_error`. |
-| `config_read` | backend → plugin | `{type, request_id, project_id, table}` — lecture live des fichiers d'une Table de Config screen, relayée depuis `POST …/config/read`. Corrélé par `request_id`, timeout 5 s. |
-| `config_read_result` | plugin → backend | `{type, request_id, ok, files?, error?, message?}` — `files = [{path, content}]` lus sur disque (cap 1 MiB cumulés). `error` ∈ `invalid_path` / `unknown_project` / `too_large` / `read_error`. |
-| `config_write` | backend → plugin | `{type, request_id, project_id, files, deletes?}` — écriture live depuis `POST …/config/write` (ADR `module-config-screens` §3 : le backend **relaie sans stocker**). Timeout 10 s. |
-| `config_write_result` | plugin → backend | `{type, request_id, ok, error?, message?}` — le plugin écrit les fichiers et hot-reload. Rien n'est journalisé côté backend : la révision du 2026-07-30 (« une racine gérée est une racine versionnée ») est tombée avec l'historique, le disque étant désormais la seule vérité. `error` ∈ `invalid_path` / `unknown_project` / `write_error`. |
-| `player_inventory_fetch` | backend → plugin | `{type, request_id, player}` — snapshot de l'inventaire d'un joueur en ligne, relayé depuis `GET …/player-inventory?player=X` (panneau de capture, ADR `captured-items-and-module-field-kit`). Corrélé par `request_id`, timeout 5 s. |
-| `player_inventory_result` | plugin → backend | `{type, request_id, ok, slots?, error?, message?}` — slots non-vides (0-35 storage, 36-39 armure, 40 offhand) : `{slot, stack_yaml (ItemStack Bukkit sérialisé, clé racine "item:"), display {material?, head_texture?, enchanted?, count?, name?}}` — descripteur dérivé génériquement des composants vanilla, `material` enrichi en ref custom (`nexo:<id>`) si reconnu. `error` ∈ `player_not_found` / `fetch_error`. |
-| `online_players_fetch` | backend → plugin | `{type, request_id}` — qui est connecté, relayé depuis `GET …/players`. Alimente les sélecteurs de joueur de l'éditeur (panneau de capture, « Prévisualiser en tant que » du canvas) pour qu'un admin choisisse dans une liste au lieu de taper un pseudo à l'aveugle. Corrélé par `request_id`, timeout 5 s. |
-| `online_players_result` | plugin → backend | `{type, request_id, ok, players?, error?, message?}` — noms tels que le serveur les connaît, triés (casse ignorée). Serveur hors ligne ou timeout → la route répond une liste vide, jamais une erreur : le sélecteur retombe sur la saisie libre. |
-| `plugin_update` | backend → plugin | `{type, request_id}` — envoyé seulement si le `hello` annonce la capacité `plugin_update_v1` (un vieux plugin ne reçoit jamais la demande). Relayé depuis `POST …/servers/:sid/plugin-update`, timeout 120 s. Le message ne porte **rien** : le plugin lit lui-même `GET /api/v1/plugin-release` puis télécharge `/artisan.jar` (Bearer server key). |
-| `plugin_update_result` | plugin → backend | `{type, request_id, ok, version?, error?}` — le JAR est posé dans `plugins/update/<nom du JAR courant>`, Paper l'applique au prochain démarrage. Rien n'est écrit avant d'avoir vérifié la signature Ed25519 de `artisan-plugin
-<version>
-<sha256>` avec la clé publique embarquée, ni pour une version qui n'est pas strictement plus récente (`1.0.<build>`, dev = 0). `error` ∈ `no_release` / `not_newer` / `invalid_signature` / `download_failed` / `write_failed`. Jusqu'au `hello` suivant, le backend retient la version installée (`pluginUpdatePending` de `servers-status`). `hello.plugin_version` porte la vraie version du JAR depuis 2026-10-05 (avant : `"1.0.0"` en dur). |
+| `project_list` | `project_list_result` | `{project_ids, project_roots:[{project_id, identity: "folder"\|"addon", module_id?}], resource_inventory}` — what the server has loaded (snapshot), not a disk scan. |
+| `project_read` | `project_read_result` | Request `{project_id, if_hash?}`. Response `{hash, files:[{path, content}], failed:[{path, reason}], binaries:[{path, hash, size}]}`, or `{unchanged: true, hash}` if `if_hash` equals the hash. Binaries advertised, not carried. Cap of 8 MiB of text (`too_large`). Invisible paths excluded (see `invariants.md`). |
+| `project_write` | `project_write_result` | `{project_id, operation_id, files:[{path, content, base_hash}], deletes:[{path, base_hash}], renames:[{from, to, base_hash}], binaries?:[{path, content_base64\|null, base_hash}], create?}`. Per-file CAS, all or nothing; conflict: `{error: "conflict", conflicts:[{path, disk}], disk_files}`. The tree that would be written first goes through `DocumentCheck` (like `documents_check`): failure → `{error: "invalid_documents", message, problems:[{path, stage, message}]}`, nothing written. `create` creates a new Project's folder. A replayed `operation_id` returns the response already given. |
+| `project_history` | `project_history_result` | `{project_id, path}` → `versions:[{at, content}]`, most recent first, read from `.artisan/history/<path>/`. Nothing feeds this folder any more (`ProjectPublisher.withHistory` is the identity): only earlier archives stay readable. |
+| `asset_read` | `asset_read_result` | `{project_id, path}` → `{content_base64, hash}`, read from disk on demand. |
+| `project_draft_publish` | `project_draft_publish_result` | Publishing a draft kept by the hub, see below. |
+| `project_create` | `project_create_result` | `{project_id}`: empty folder under the core root. Name `[A-Za-z0-9][A-Za-z0-9_-]{0,127}` outside Windows reserved names, otherwise `invalid_name`; already taken (case ignored, or Add-on root) `project_exists`. Minor 1. |
+| `project_delete` | `project_delete_result` | `{project_id}`: folder moved to `<root>/.artisan-trash/<id>-<UTC timestamp>/`, never erased. `unknown_project`, `addon_immutable`. Minor 1. |
+| `project_rename` | `project_rename_result` | `{project_id, target_project_id}`: atomic move of the folder, `.artisan/` (drafts, journals) included. `destination_exists` (never overwrites), `invalid_path`, `unknown_project`, `addon_immutable`. No recovery journal. Minor 1. |
+| `config_read` | `config_read_result` | `{project_id, table}` → `files:[{path, content}]` (folder of YAML or `<table>.yaml`), cap 1 MiB. |
+| `config_write` | `config_write_result` | `{project_id, files:[{path, content}], deletes}`: direct write of a config screen table, then reload. |
+| `server_config_write` | `server_config_write_result` | `{changes}`: each key validated (known key, default's type, paths under the root, `project:image` refs), `config.yml` rewritten, reload. Response `{server_config?, error?: "invalid_config"}`. Nothing is written if a change is refused. |
+| `online_players_fetch` | `online_players_result` | Sorted `players`. Offline or timeout: the route returns an empty list. |
+| `papi_placeholders_fetch` | `papi_placeholders_result` | `{placeholders:[{placeholder, expansion}], truncated}`; 2,000 entries max. |
+| `head_texture_fetch` | `head_texture_result` | `{id}` (HeadDatabase id, 1–10 digits) → base64 `texture`. Errors `hdb_unavailable`, `head_not_found`, `invalid_input`, `fetch_error`. |
+| `editor_bundle_fetch` | `editor_bundle_fetch_result` | `{module_id}` → `{module_id, sdk, hash, content}`: the module's editor view script, as UTF-8 text (≤ 4 MiB, `EditorBundleDeclaration.MAX_SIZE`). `not_found` if the module has no bundle; `too_large` if the JSON would exceed 12 MiB (escaped control characters), under OkHttp's 16 MiB queue. The hub checks that the content's SHA-256 equals the advertised `hash`. Minor 2. |
+| `template_fetch` | `template_fetch_result` | `{module_id, template_id}` → `{module_id, template, files:[{path, content_base64}]}`: a template's files as delivered (default version, read-only in the editor). `not_found`. Minor 3. |
+| `template_copy` | `template_copy_result` | `{project_id, module_id, template_id, paths?, replace}`: copies the template (or `paths`) into the Project, files and `.artisan/origins.yaml` in one journaled commit (`TemplateCopies`), then reload → `{written, unchanged}`, Project paths. A YAML file goes under the name it has in the Project, otherwise as `.yml`; a `paths` entry may name a file under either extension. An existing file with different content is never overwritten without `replace`: `{error: "conflict", conflicts:[path]}`, nothing written. `unknown_path`, `unknown_project`, `invalid_path`. A system template is only copied into its module's folder (a reset): elsewhere `system_template`. Minor 3. |
+| `documents_check` | `documents_check_result` | `{project_id, files:[{path, content}], deletes:[path]}` → `{problems:[{path, stage, message}]}`: would the files load on this server? The files replace or remove those of the loaded Project, then each path of `files` goes through five stages (`DocumentCheck`): `layout` (a Document's location), `yaml`, `schema` (JSON schema of its `schema:` shipped in the jar, `docs/schema`), `actions` (each prefixed action, `guilds:rank_delete`, is declared by this server, with declared arguments and the required ones present; `ActionCheck`, skipped when the server declares none), `engine` (the server's `ProjectReader` on a temporary copy). Nothing is written. The types, schemas and reader are the server's, not the hub's. `invalid_path`, `too_large` (> 2M characters), `unknown_project`, `check_error`. Minor 4 (ADR `mcp-server`). |
+| `project_origins_fetch` | `project_origins_fetch_result` | `{project_id}` → `origins: {path: {module, template, version, hash}}`, read from `.artisan/origins.yaml`: where a template's copied files come from. Not from the database: server off, 503 `server_offline`. Minor 3. |
+| `player_inventory_fetch` | `player_inventory_result` | `{player}` → `slots:[{slot, stack_yaml, display}]` (0-35, armor 36-39, off hand 40). `player_not_found`. |
+| `data_source_fetch` | `data_source_fetch_result` | `{ref, params, filter, sort, limit, args}` → `{rows, truncated}` (50 rows, ≤ 256 KB). `unknown_source`, `player_required`, `fetch_error`. |
+| `nexo_glyphs_list` / `nexo_glyph_read` | `nexo_glyphs_list_result` / `nexo_glyph_read_result` | Nexo glyphs read from `plugins/Nexo/glyphs/` (no Nexo API); `{glyphs:[{id, texture, available}]}` then `{content_base64}`. |
+| `custom_items_request` | `custom_items_bundle` | No `request_id`. The server answers `{hash, data}`, `data = base64(gzip(zip))`, catalog in `items.json`. |
+| `resource_pack_updated` | — | `{url, hash}`: the pack the hub just received for this server, served under `/resource-pack/<sha1>.zip` by the hub and, when `web.pack-cdn` took it, by the pack host, whose address `url` then is. The server applies it (`ResourcePackManager`): delegated to its pack plugin (Nexo, Oraxen, ItemsAdder; `resource-pack.delegate-to-dir`), which sends it, or else added by Artisan to each player's pack stack (`resource-pack.enabled`), players downloading it from `url`. A leaf downloads it through the hub address it knows (`web.hub`). |
 
-## HeadDatabase previews
+### Server → hub (announcements and requests)
 
-## Quota des ressources personnelles
+| Message | Content |
+|---|---|
+| `projects_reloaded` | `{projects:[{id, hash}]}` after each reload (`/artisan reload`, write, publish). The hub relays it to the editor's tabs on `/ws/editor`, ids prefixed `<server id>.`. Fire-and-forget. |
+| `modules_changed` | `{installed_modules, data_sources, declared_models, editor_screens, declared_actions, document_kinds, declared_game_events, player_commands}`: a module registered after the `hello`; the hub replaces these fields (`ServerAnnouncement.updatedBy`: a missing field keeps its value). |
+| `custom_items_changed` | `{hash}`: Nexo/Oraxen/ItemsAdder reloaded; the hub asks for the bundle again. |
+| `editor_link` | `{request_id, player_id, player_name, permissions, host?}`: `/artisan editor` typed on a leaf. The hub consults no permission, it takes the ones the leaf read (`artisan.editor.view` required) and answers `editor_link_result` `{ok, url}` or `{error: "too_soon", retry_after}` / `invalid_input`. Leaf timeout 15 s. |
+| `editor_permissions` | `{players: {uuid: [permissions]}}`: every minute, the editor permissions of online players. The hub applies them to the sessions this server issued and closes those of a player without `artisan.editor.view`. No response. |
+| `editor_logout` | `{request_id, player_id}`: `/artisan editor logout` typed on a leaf. The hub closes all the player's sessions and answers `editor_logout_result` `{ok, closed}`. |
+| `editor_sessions` | `{request_id}`: `/artisan editor sessions` typed on a leaf. The hub answers `editor_sessions_result` `{ok, sessions: [{id, player_name, permissions, server, last_active_at, online}]}`, `online` meaning a tab is open on the hub. An older hub does not answer: the leaf says the hub is offline after 15 s. |
+| `editor_revoke` | `{request_id, id}`: `/artisan editor revoke` typed on a leaf. The hub closes the one session whose public id starts with `id` and answers `editor_revoke_result` `{ok, revoked}`. |
 
-Le `hello` annonce `resource_quota_v2` pour accepter un quota effectif nullable. `project_list_result.resource_inventory` rapporte les fichiers YAML de `menus/`, `dialogs/` et `commands/`, avec `project_id`, `path` et `origin` (`personal` ou `module`). Le scan lit le disque, même si un YAML est invalide ; une lecture incomplète renvoie une erreur. Le backend relaie `commercial_policy: {enabled: true, quota, pro_until: null}` dans les mutations soumises au quota (`project_write`, `asset_write`, `config_write`, publication `project_draft_request`). `quota` est la limite effective de la version payée, ou Free après expiration ; `null` signifie illimité, `0` aucune allocation. Le plugin accepte uniquement un entier positif ou nul ≤ 2147483647, ou le null explicite, et ne réinterprète plus Pro en quota fixe. Champ absent, chaîne ou nombre fractionnaire sont invalides.
+### Private drafts (`project_draft_publish`)
 
-Un quota fini reste compatible avec `resource_quota_v1` grâce à `pro_until: null`. Une limite illimitée exige v2 sur toutes les connexions d'écriture actives du serveur ; sinon `plugin_update_required` (503), sans envoi ambigu. Le plugin revérifie l'inventaire dans son exécuteur sérialisé avant publication atomique. `quota_denied` interdit l'opération entière ; `inventory_unavailable` échoue fermé. Les anciennes versions sans capacité sont refusées pour ces mutations ; l’application des limites du plan est permanente et ne dépend plus d’un interrupteur global.
+Drafts live in the suite database and the hub serves them itself (`ProjectDrafts`,
+ADR `server-identity-and-versions`), offline server included: `list`, `read`, `read_blob`,
+`create`, `update`, `discard`, `write_blob` never go to the server. `owner_id` is the UUID of the
+session's player, supplied by the hub. Mutations: `operation_id` (receipt in the database, replayable);
+an existing draft requires `expected_revision`. Blobs go into `artisan_contents`.
 
-Les racines enregistrées par les modules sont exemptées. Au-dessus du quota, seule la suppression explicite d'une ressource personnelle est admise ; le runtime, la lecture et les fichiers sur disque restent accessibles. Le quota est par serveur et indépendant du nom de l'offre : le catalogue standard fixe Free à 10 et Pro à 250 ressources personnelles ; une offre custom peut porter une autre limite ou être illimitée.
+Only publishing goes to the server: `project_draft_publish` `{project_id, operation_id, draft,
+blobs: {hash: base64}, author_id, author_name}` (the binaries the draft changes).
+`DraftPublication` (`core`) checks each file against the disk (compare-and-swap), writes everything
+in one commit with its receipt (`.artisan/transactions/`), answers `{ok, wrote}`, `conflict` or `invalid_documents` (the draft's tree goes through `DocumentCheck` before the CAS, like `project_write`), **then**
+reloads. The hub only marks the draft published after this response; a lost response is
+replayed under the same `operation_id`, which the server recognizes.
 
-`head_texture_fetch` (backend → plugin) carries `{type, request_id, id}`; `id` is a numeric HDB id (1–10 digits). The plugin resolves the ItemStack on the Bukkit main thread and extracts its `textures` profile property through `ItemDescriptor`. `head_texture_result` replies `{type, request_id, ok, texture?, error?}` with Base64 texture data (≤16 KiB); errors are `hdb_unavailable`, `head_not_found`, `invalid_input`, or `fetch_error`. The backend accepts the correlated response only from the requested server, with a 5 s timeout for offline/old plugins. No protocol version bump: this is an additive optional preview exchange.
+### Commercial quota
 
-`hello.server_config` (plugin → backend) carries the editable `config.yml` as flat dotted keys (the leaf keys of the bundled defaults; `server_key`/`ws_url` and the database credentials live in `environment.yml` and are never sent). The backend keeps it in memory (`lib/serverConfig.ts`), serves it at `GET …/servers/:sid/server-config` and reads `resource-pack.container-textures.*` when building the pack. `server_config_write` (backend → plugin) `{type, request_id, changes}` relays `PATCH …/servers/:sid/server-config`; the plugin validates every change (known key, default's type, paths under the server root, `projet:image` refs), rewrites `config.yml`, replies `server_config_write_result` `{ok, server_config?, error?: "invalid_config", message?}` then reloads (new hello). Nothing written when one change is refused. Older plugins send no `server_config`: the backend answers `server_offline` without asking. Additive, no version bump (ADR `server-config-from-editor`).
+`ProjectMutations` still applies a quota if a mutation carries `commercial_policy`. The hub
+never sends one: no limit applies.
 
-`nexo_glyphs_list` / `nexo_glyph_read` (backend → plugin) carry `{type, request_id}` and `{type, request_id, glyph_id}`. The plugin reads Nexo's glyph configs straight from `plugins/Nexo/glyphs/` (no Nexo API, works with Nexo disabled; bitmap glyphs skipped) and resolves each texture like Nexo does: `pack/assets`, then `pack/external_packs/` folders, then its zips. Replies `nexo_glyphs_list_result` `{ok, glyphs:[{id, texture, available}]}` (metadata only — a Bun WS frame caps at 16 MiB) and `nexo_glyph_read_result` `{ok, content_base64?, error?}` (`not_found` / `read_error`). The glyph id is a lookup key, never a path; `..` in a texture key is refused. Correlated per server, 10 s timeout; old plugins time out. Additive, no version bump.
+## `/ws/editor`
 
-## Auth du WS éditeur (`GET /ws/editor`)
+Browser ← hub WebSocket (`EditorChannel`). Opening: session cookie carrying
+`artisan.editor.view` and an `Origin` header of the same host, otherwise 403. The hub only sends
+`projects_reloaded` `{server_key_id, projects:[{id, hash}]}` (`server_key_id` = server id, the hub's
+included); from the browser it reads nothing but ignores the editor's heartbeat (`ping` every 60 s,
+under the 5 min idle timeout).
+The editor opens it directly (`new EditorWs(handlers)`), without a ticket: the cookie is enough, and
+opens it again when it drops (1 s, doubling up to 30 s).
+Each socket is tied to its session's public id: an open socket is what the Sessions screen calls
+"Editor open" (`EditorChannel.online`, this hub only: ADR `peer-servers` sends one network's
+editing traffic through one server at a time). When a session is closed here (`Sessions.onClosed`:
+revoke, logout, permission loss), its sockets are closed with code **4401** `session_closed`; the
+editor then stops reconnecting and goes back to `/login?expired=1`.
 
-Accounts-only : un seul chemin d'authentification, ticket one-shot (le chemin `?token=` de la trust dance anonyme a été supprimé en Task 7 — cf. `docs/decisions/accounts-only-editing.md`) :
+## Removed in phase F (do not reintroduce without an ADR)
 
-| Chemin | Query param | Auth | Abonnement |
-|---|---|---|---|
-| Ticket one-shot (user) | `?ticket=` | ticket minté via `POST /api/v1/user/ws-ticket` (cookie auth), consommé une fois à l'upgrade (`wsTickets.redeemTicket`) | l'ensemble des `serverKeyId` sur tous les networks du user (memberships → networks → server_keys, `listServerKeyIdsForUser`) |
+`draft_update`, application-level `ping`/`pong`, `project_deleted`, `project_copy`,
+the old `project_rename` with `operation_id` and journal (+ `hello.project_rename_results`), `asset_write`, `plugin_update`,
+`member_add`, `import_sources_list|read`, `bundle_available`, as well as the `hello` fields
+`capabilities`, `content_version`, `snapshot_hashes`, `local_project_ids`,
+`editor_access_mode`. Cloud state recoverable at commit `ccade092` (branch `v2`).
 
-Le ticket (`backend/src/lib/wsTickets.ts`) est en mémoire (Map), one-shot (supprimé au premier `redeemTicket`, même si expiré), TTL 30 s — cohérent avec la posture single-instance actuelle (cf. audit prod-readiness). `?ticket=` invalide/inconnu/expiré → 401 avant l'upgrade.
+## Plugin side: one handler per message
 
-Côté hub (`hub.ts`), une conn éditeur porte un `Set<serverKeyId>` (`editorTokenToServers`) — l'ensemble des serveurs du user. `broadcastDraftUpdate`, `pushModuleEvent`, `pushProjectDeleted` délivrent à toute conn dont le set contient le `serverKeyId` visé.
+An incoming message becomes an `EditorRequest` (`core`, `protocol` package), a sealed type.
+`SyncedMenuProvider.dispatch` routes each type through an exhaustive `when`; adding a message
+without a handler does not compile.
 
-Côté éditeur (`editor/src/lib/editorWs.ts`), `EditorWs.connectAsUser(apiUrl, onDraftUpdate)` fetch un ticket frais (`credentials: "include"`) puis ouvre `?ticket=`. Reconnexion = ré-appeler `connectAsUser` (le ticket est one-shot, pas réutilisable).
+| Handler | Module | Messages |
+|---|---|---|
+| `ProjectReads` | `core` | `project_list`, `project_read`, `project_history`, `asset_read`, `config_read` |
+| `ProjectWrites` | `core` | `project_write`, `config_write`, `project_draft_publish`, `project_create`, `project_delete`, `project_rename` (disk: `ProjectFolders`) |
+| `ServerQueries` | `paper` | `online_players_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `editor_bundle_fetch`, `data_source_fetch`, `server_config_write`, `nexo_glyph*` |
+| `TemplateRequests` | `core` | `template_fetch`, `template_copy`, `project_origins_fetch` (disk: `TemplateCopies`, `ProjectOrigins`) |
+| `DocumentChecks` | `core` | `documents_check` (no writes: `DocumentCheck` on a temporary copy) |
+| `SyncedMenuProvider` | `paper` | `hello_ack`, `resource_pack_updated`, `session_replaced`, `custom_items_request` |
 
-## Flux de données (orientation)
-
-Le contenu ne transite plus par le backend : il vit sur le disque du serveur, et
-le backend n'est qu'un **relais** (ADR `server-disk-only-storage`).
-
-```
-[Editor browser]
-   │ GET  /api/v1/networks/:n/servers/:s/projects/:p/files   (lecture)
-   │ PUT  /api/v1/networks/:n/servers/:s/projects/:p/files   (écriture, sur geste)
-   ▼
-[Backend Bun/Hono]           ← relaie, ne stocke aucun contenu
-   │ WS /ws/plugin  (hub.ts) : project_read / project_write
-   ▼
-[Plugin Kotlin]              ← SEUL écrivain
-   │ lit l'arbre disque · CAS par fichier · corbeille .artisan/history/
-   └ écrit sur disque → hot-reload menus
-```
-
-## Invariants liés (détaillés dans `invariants.md`)
-
-- Account deletion revokes outstanding editor tickets and closes live editor sockets belonging to that User (1008). Server keys removed with an unmanaged network are disconnected locally after commit. No `project_deleted` or file-write message is sent to Minecraft.
-
-- **Une clé serveur = UN serveur vivant** : au `hello`, le backend évince la connexion précédente liée à la même clé (dernier arrivé gagne). Le relais choisit « la première connexion trouvée » — avec N instances sur une clé, chacune ayant son propre disque, on lirait l'une et écrirait l'autre, puis on basculerait en silence quand la première tombe.
-- **Un seul écrivain** : le plugin. Le backend relaie et n'arbitre jamais — il n'a aucune copie avec quoi arbitrer. La protection contre l'écrasement concurrent est le **compare-and-swap par fichier** de `project_write` (tout ou rien, conflits rendus avec le contenu disque).
-- **Snapshot hash partagé** : `BundleHasher.snapshotHash` et `hashUtils.computeProjectSnapshotHash` suivent le vecteur `testdata/project-snapshot-hash-conformance.json` pour les stockages serveur et hébergé.
-- **OkHttp thread** : `SyncedMenuProvider.handleMessage` tourne sur le callback WS d'OkHttp — pas d'I/O bloquant direct.
-
-## Miroir du Snapshot (2026-09-26)
-
-ADR `snapshot-mirror-and-backend-history`. Pour un plugin qui annonce `snapshot_mirror_v1`,
-le backend garde le dernier Snapshot de chaque Project (`project_snapshots` + `snapshot_blobs`)
-et le sert **sans aller-retour** tant que son hash égale le dernier hash annoncé.
-
-- **Hash annoncé** (mémoire, `lib/snapshotMirror.ts`) : fixé par `hello.snapshot_hashes`,
-  mis à jour par `projects_reloaded` et par chaque lecture via le plugin ; effacé à la
-  déconnexion du dernier plugin de la clé, par `disconnectServerKey`, et par un `hello` sans
-  la capacité. Toute écriture relayée (`project_write`, `asset_write`, `config_write`,
-  publication de brouillon, renommage, copie) le rend **inconnu** et périme les lectures en
-  vol (compteur de génération).
-- **Lecture** (`lib/projectTreeReads.ts`, seul point de passage : éditeur, assets, resource
-  pack) : miroir au bon hash → servi ; sinon `project_read` avec `if_hash` = hash du miroir,
-  `unchanged` le confirme, un arbre complet le remplace. `if_hash` de l'éditeur se tranche
-  côté backend.
-- **Remplissage** : après le `hello` (une fois les identités enregistrées) et à chaque
-  `projects_reloaded`, en file séquentielle par serveur.
-- **Liste des Projects** (`GET …/servers/:sid/projects`) : `listProjectsFromSnapshot` rend
-  les ids du dernier `hello`/`projects_reloaded`, sans `project_list`. `resource_inventory`
-  (quota) reste un scan disque en direct via `project_list`.
-- **Ancien plugin** : chemin d'avant inchangé (fusion des lectures en vol + cache 5 s).
-- **Serveur déconnecté** : la lecture rend la dernière copie avec `offline_since` (date de réception), sans plugin ; la liste des Projects (`listProjectsForEditor`) rend ceux qui ont une copie, marqués `offline`. Sans copie : hors ligne comme avant.
-- **Versions** : chaque Snapshot rangé qui diffère du précédent crée une Version ; `project_history` ne sert plus que de repli pour un Project sans Version, et le plugin n'alimente plus `.artisan/history/`.
+The `core` handlers see Projects only through `ProjectWorkspace` (snapshot,
+disk executor, `reload(projectIds)` which only re-reads the named Projects: each write
+re-reads its own, a rename the old and the new id). Every response goes out through `Replies`; no
+blocking I/O on the WebSocket callback thread (see `invariants.md`).

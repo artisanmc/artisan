@@ -1,15 +1,25 @@
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
+import { useUiStore } from "@/state/uiStore";
+import { act, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Stage } from "./Stage";
 
 vi.mock("react-konva", () => ({
   Stage: (p: any) => <div data-testid="konva-stage">{p.children}</div>,
   Layer: (p: any) => <div>{p.children}</div>,
-  Group: (p: any) => <div data-testid="konva-group" data-name={p.name}>{p.children}</div>,
-  Rect: () => <div />, Image: () => <div />, Text: () => <div />, Line: () => <div />,
-  Transformer: () => <div />, Arrow: () => <div />, Circle: () => <div />,
+  Group: (p: any) => (
+    <div data-testid="konva-group" data-name={p.name}>
+      {p.children}
+    </div>
+  ),
+  Rect: () => <div />,
+  Image: () => <div />,
+  Text: () => <div />,
+  Line: () => <div />,
+  Transformer: () => <div />,
+  Arrow: () => <div />,
+  Circle: () => <div />,
 }));
 vi.mock("use-image", () => ({ default: () => [null, "loaded"] }));
 vi.mock("./title/composer/TitleRender", () => ({ TitleRender: () => <div /> }));
@@ -18,29 +28,49 @@ vi.mock("./Edges", () => ({ Edges: () => <div data-testid="edges" /> }));
 const PID = "p1" as ProjectId;
 function project(): Project {
   return {
-    id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
-    menus: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
-            { id: "m2", projectId: PID, title: [], rows: 3, layers: [] } as any],
-    commands: [], assets: [], dataSources: [], importedConnectors: [],
-    i18nKeys: {}, defaultLang: "en", dialogs: [], canvasLayout: { m1: { x: 0, y: 0 } } as any,
+    id: PID,
+    name: "p",
+    source: "user_created",
+    createdAt: "",
+    updatedAt: "",
+    documents: {
+      menu: [
+        { id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
+        { id: "m2", projectId: PID, title: [], rows: 3, layers: [] } as any,
+      ],
+      command: [],
+      dialog: [],
+    },
+    assets: [],
+    dataSources: [],
+    importedConnectors: [],
+    i18nKeys: {},
+    defaultLang: "en",
+    canvasLayout: { "menu/m1": { x: 0, y: 0 } } as any,
   } as Project;
 }
 
-describe("Stage — planche dérivée", () => {
+describe("Stage — derived board", () => {
   beforeEach(() => {
-    useAccountStore.setState({ account: { id: "a" as any, projects: [project()], projectOrder: [PID] } } as any);
+    useProjectsStore.setState({
+      openProjects: { projects: [project()], projectOrder: [PID] },
+    } as any);
   });
-  it("rend tous les Documents du project, même ceux jamais posés à la main", () => {
+  it("renders every Document of the project, even those never placed by hand", () => {
     render(<Stage projectId={PID} />);
     const names = screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
     expect(names).toContain("menu:m1");
     expect(names).toContain("menu:m2");
   });
-  it("shows only manual frames in project view even when the project is folded", () => {
-    useAccountStore.setState({ account: { id: "a" as any, projects: [{ ...project(),
-      canvasProjectCollapsed: true,
-      canvasGroups: [{ id: "crafts", name: "Crafts", menuIds: ["m2"] }],
-    }], projectOrder: [PID] } } as any);
+  it("shows only folder frames in project view even when the project is folded", () => {
+    const filed = project();
+    (filed.documents.menu![1] as any).folder = "crafts";
+    useProjectsStore.setState({
+      openProjects: {
+        projects: [{ ...filed, canvasProjectCollapsed: true }],
+        projectOrder: [PID],
+      },
+    } as any);
     render(<Stage projectId={PID} />);
     const names = screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
     expect(names).not.toContain("board-group:@project/p1");
@@ -48,13 +78,45 @@ describe("Stage — planche dérivée", () => {
     expect(names).toContain("menu:m1");
     expect(names).toContain("menu:m2");
   });
-  it("keeps legacy folded group menus visible on the board and in document view", () => {
-    useAccountStore.setState({ account: { id: "a" as any, projects: [{ ...project(),
-      canvasGroups: [{ id: "crafts", name: "Crafts", menuIds: ["m1", "m2"], collapsed: true }],
-    }], projectOrder: [PID] } } as any);
+  it("keeps a folder's menus visible on the board and in document view", () => {
+    const filed = project();
+    for (const m of filed.documents.menu!) (m as any).folder = "crafts";
+    useProjectsStore.setState({
+      openProjects: {
+        projects: [filed],
+        projectOrder: [PID],
+      },
+    } as any);
     const { rerender } = render(<Stage projectId={PID} />);
-    expect(screen.getAllByTestId("konva-group").some((g) => g.getAttribute("data-name") === "menu:m1")).toBe(true);
-    rerender(<Stage projectId={PID} focus={"m1" as any} />);
-    expect(screen.getAllByTestId("konva-group").some((g) => g.getAttribute("data-name") === "menu:m1")).toBe(true);
+    expect(
+      screen.getAllByTestId("konva-group").some((g) => g.getAttribute("data-name") === "menu:m1"),
+    ).toBe(true);
+    rerender(<Stage projectId={PID} focus={"menu/m1" as any} />);
+    expect(
+      screen.getAllByTestId("konva-group").some((g) => g.getAttribute("data-name") === "menu:m1"),
+    ).toBe(true);
+  });
+  it("narrows the board to one folder, and shows everything again when cleared", () => {
+    const filed = project();
+    (filed.documents.menu![1] as any).folder = "crafts/armes";
+    useProjectsStore.setState({
+      openProjects: { projects: [filed], projectOrder: [PID] },
+    } as any);
+    useUiStore.getState().setBoardFolder(PID, "crafts/armes");
+    render(<Stage projectId={PID} />);
+    const names = () =>
+      screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
+    expect(names()).toContain("menu:m2");
+    expect(names()).not.toContain("menu:m1");
+    expect(screen.getByText(/crafts\/armes/)).toBeInTheDocument();
+    act(() => useUiStore.getState().setBoardFolder(PID, null));
+    expect(names()).toContain("menu:m1");
+  });
+  it("ignores a folder filter that no longer exists", () => {
+    useUiStore.getState().setBoardFolder(PID, "gone");
+    render(<Stage projectId={PID} />);
+    const names = screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
+    expect(names).toContain("menu:m1");
+    useUiStore.getState().setBoardFolder(PID, null);
   });
 });

@@ -1,3 +1,4 @@
+import { menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { autoLayout, projectBoard, rearrangeProjectLayout } from "./autoLayout";
@@ -19,7 +20,7 @@ const menu = (id: string, opens?: string) =>
                   material: "PAPER",
                   click: {
                     left: {
-                      steps: [{ kind: "action", action: { type: "open_menu", menuId: opens } }],
+                      steps: [{ kind: "action", action: { name: "open_menu", value: opens } }],
                     },
                   },
                 },
@@ -38,14 +39,16 @@ function makeProject(over: Partial<Project> = {}): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
     ...over,
   } as Project;
@@ -54,36 +57,47 @@ function makeProject(over: Partial<Project> = {}): Project {
 describe("autoLayout", () => {
   it("places every Document of the project, even those never put on the board", () => {
     const project = makeProject({
-      menus: [menu("m1", "m2"), menu("m2")],
-      commands: [{ id: "c1", steps: [], arguments: [] } as never],
-      dialogs: [{ id: "d1", buttons: [] } as never],
+      documents: {
+        menu: [menu("m1", "m2"), menu("m2")],
+        command: [{ id: "c1", steps: [], arguments: [] } as never],
+        dialog: [{ id: "d1", buttons: [] } as never],
+      },
     });
-    expect(Object.keys(autoLayout(project)).sort()).toEqual(["c1", "d1", "m1", "m2"]);
+    expect(Object.keys(autoLayout(project)).sort()).toEqual([
+      "command/c1",
+      "dialog/d1",
+      "menu/m1",
+      "menu/m2",
+    ]);
   });
 
   it("keeps a position the user set by hand", () => {
     const project = makeProject({
-      menus: [menu("m1", "m2"), menu("m2")],
-      canvasLayout: { m2: { x: 900, y: 12 } } as never,
+      documents: {
+        menu: [menu("m1", "m2"), menu("m2")],
+      },
+      canvasLayout: { "menu/m2": { x: 900, y: 12 } } as never,
     });
-    expect(autoLayout(project).m2).toEqual({ x: 900, y: 12 });
+    expect(autoLayout(project)["menu/m2"]).toEqual({ x: 900, y: 12 });
   });
 
   it("arranges linked menus in navigation order", () => {
-    const project = makeProject({ menus: [menu("m1", "m2"), menu("m2")] });
+    const project = makeProject({ documents: { menu: [menu("m1", "m2"), menu("m2")] } });
     const layout = autoLayout(project);
-    expect(layout.m1!.x).toBeLessThan(layout.m2!.x);
+    expect(layout["menu/m1"]!.x).toBeLessThan(layout["menu/m2"]!.x);
   });
 
   it("reports the gutter of unlinked Documents", () => {
-    const project = makeProject({ menus: [menu("m1", "m2"), menu("m2"), menu("lonely")] });
+    const project = makeProject({
+      documents: { menu: [menu("m1", "m2"), menu("m2"), menu("lonely")] },
+    });
     const board = projectBoard(project);
     expect(board.gutter).not.toBeNull();
-    expect(board.layout.lonely!.y).toBeGreaterThan(board.gutter!.y);
+    expect(board.layout["menu/lonely"]!.y).toBeGreaterThan(board.gutter!.y);
   });
 
   it("does not recompute for an edit that leaves the graph unchanged", () => {
-    const project = makeProject({ menus: [menu("m1", "m2"), menu("m2")] });
+    const project = makeProject({ documents: { menu: [menu("m1", "m2"), menu("m2")] } });
     const edited = { ...project, updatedAt: "later" };
     expect(projectBoard(edited)).toBe(projectBoard(project));
   });
@@ -102,7 +116,7 @@ describe("rearrangeProjectLayout — modes", () => {
           positions: String(index),
           display: {
             click: {
-              left: { steps: [{ kind: "action", action: { type: "open_menu", menuId: target } }] },
+              left: { steps: [{ kind: "action", action: { name: "open_menu", value: target } }] },
             },
           },
           states: [],
@@ -110,24 +124,26 @@ describe("rearrangeProjectLayout — modes", () => {
       },
     ],
   });
-  /** Un menu principal qui ouvre huit sous-menus : le rank qui fait une colonne de dix. */
+  /** A main menu opening eight submenus: the rank that makes a column of ten. */
   const fanout = () => {
     const children = ["a", "b", "c", "d", "e", "f", "g", "h"];
     return makeProject({
-      menus: [opens("main", children), ...children.map((c) => opens(c, []))] as never,
+      documents: {
+        menu: [opens("main", children), ...children.map((c) => opens(c, []))] as never,
+      },
     });
   };
 
-  it("columns libère les positions ; un autre mode les persiste toutes", () => {
+  it("columns releases the positions; another mode persists them all", () => {
     const project = fanout();
     expect(rearrangeProjectLayout(project, undefined, "columns")!.canvasLayout).toEqual({});
     for (const mode of ["wrap", "auto", "cluster", "force"] as const) {
       const layout = rearrangeProjectLayout(project, undefined, mode)!.canvasLayout;
-      expect(Object.keys(layout), mode).toHaveLength(project.menus.length);
+      expect(Object.keys(layout), mode).toHaveLength(menusOf(project).length);
     }
   });
 
-  it("deux modes donnent deux dispositions distinctes", () => {
+  it("two modes give two distinct layouts", () => {
     const project = fanout();
     const wrap = rearrangeProjectLayout(project, undefined, "wrap")!.canvasLayout;
     const cluster = rearrangeProjectLayout(project, undefined, "cluster")!.canvasLayout;

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://docs.artisanmc.net/schema/menu/v1.json",
   "title": "Artisan Menu",
-  "description": "Format intermédiaire d'un menu Artisan. Source de vérité unique pour un menu.",
+  "description": "An Artisan menu.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -96,18 +96,18 @@
   "properties": {
     "schema": {
       "const": "menu/v1",
-      "description": "Version du schéma. Verrouillée pour permettre les migrations applicables au load."
+      "description": "Schema version. Fixed, so that migrations can apply on load."
     },
     "id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]{0,63}$",
-      "description": "LEGACY, ignoré. L'identité d'un Document est le nom de son fichier (le reader force la valeur et signale une divergence). Toléré en lecture pour les projects antérieurs ; plus jamais écrit."
+      "description": "LEGACY, ignored. A Document's identity is its file name (the reader overrides this value and reports a mismatch). Still read in older Projects; never written."
     },
     "title": {
       "oneOf": [
         {
           "type": "string",
-          "description": "Forme canonique sucre : titre = une seule couche plain ('{i18n:key}' ou littéral)."
+          "description": "Shorthand: the title as one plain layer ('{i18n:key}' or literal text)."
         },
         {
           "type": "array",
@@ -115,14 +115,14 @@
             "oneOf": [
               {
                 "type": "string",
-                "description": "Entrée string = couche plain."
+                "description": "A string entry is a plain layer."
               },
               {
                 "$ref": "#/$defs/MenuTitleLayer"
               }
             ]
           },
-          "description": "Couches de titre, ordonnées. Vide = pas de titre. Format pixel-perfect (offsets, fonts) documenté dans editor-internals.md."
+          "description": "Title layers, in order; empty means no title. Layers carry pixel offsets and fonts."
         }
       ]
     },
@@ -137,7 +137,7 @@
         45,
         54
       ],
-      "description": "Taille de l'inventaire en nombre de positions. chest = multiple de 9 (max 54) ; hopper = 5 ; dropper = 9. Validation croisée avec inventory_type."
+      "description": "Number of positions. chest: a multiple of 9 (max 54); hopper: 5; dropper: 9. Checked against inventory_type."
     },
     "inventory_type": {
       "type": "string",
@@ -147,12 +147,12 @@
         "dropper"
       ],
       "default": "chest",
-      "description": "Type de conteneur. Absent = chest (rétro-compatible). chest = grille 9×rows ; hopper = 5×1 ; dropper = 3×3."
+      "description": "Container type, chest when absent. chest: 9 × rows; hopper: 5 × 1; dropper: 3 × 3."
     },
     "vanilla_texture": {
       "type": "boolean",
       "default": true,
-      "description": "Texture vanilla du conteneur. false : fenêtre transparente (haut et bas), le menu apporte sa propre texture par des glyphs de titre. Le pack rend alors la texture de ce type de conteneur (generic_54 / hopper / dispenser.png) transparente pour tout le serveur, et le plugin la redessine sur les autres fenêtres de ce type."
+      "description": "The container's vanilla texture. false: a transparent window, the menu draws its own texture with title glyphs. The resource pack then makes that container texture transparent server-wide, and the server redraws it on other windows of that type."
     },
     "player_inventory": {
       "type": "string",
@@ -161,56 +161,56 @@
         "hidden"
       ],
       "default": "visible",
-      "description": "Bas de la fenêtre. visible = le vrai inventaire du joueur, non modifiable ; les positions ≥ size sont ignorées. hidden = seulement les boutons du menu : les positions size..size+35 désignent les slots joueur (rawSlot protocole : size..size+26 inventaire principal, size+27..size+35 barre rapide). Dans les deux cas le contenu n'existe que côté client."
+      "description": "The window's bottom half. visible: the player's real inventory, locked; positions ≥ size are ignored. hidden: only the menu's buttons; positions size..size+35 are the player slots (size..size+26 main inventory, size+27..size+35 hotbar). Either way the content exists only client-side."
     },
     "permission": {
       "type": "string",
-      "description": "Permission requise pour ouvrir le menu. Si absente, ouvert à tous."
+      "description": "Permission required to open the menu. Absent: anyone can open it."
     },
     "inputs": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/ContextInput"
       },
-      "description": "Forme canonique (optionnelle) : slots nommées exposées par le menu — signature de paramètres (primitifs alimentés par les arguments de Command), shaping partagé (filter/sort/limit) et typage éditeur. Un élément peut aussi itérer une ref de source directement (iterates.source: \"ns:id\") sans la déclarer ici."
+      "description": "Optional named inputs of the menu: its parameters (filled by command arguments or the caller), shared filter/sort/limit, and editor typing. An element can also iterate a source ref directly (iterates.source: \"ns:id\") without declaring it here."
     },
     "context_inputs": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/ContextInput"
       },
-      "description": "Forme legacy de `inputs` — toujours acceptée en lecture ; l'export émet `inputs`."
+      "description": "Legacy form of `inputs`: still read, never written."
     },
     "notes": {
       "type": "string",
       "maxLength": 2048,
-      "description": "Notes internes de l'admin (jamais rendues aux joueurs). Survivent au round-trip JSON ↔ YAML, contrairement aux commentaires YAML qui sont perdus à la conversion."
+      "description": "The admin's internal notes, never shown to players. Unlike YAML comments, they survive the editor."
     },
     "background": {
       "$ref": "#/$defs/Appearance",
-      "description": "Apparence par défaut des positions Minecraft non couvertes par un Element visible."
+      "description": "Default look of the positions no visible element covers."
     },
     "open_requirements": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/Condition"
       },
-      "description": "Conditions à valider à l'ouverture. Si une échoue, le menu ne s'ouvre pas."
+      "description": "Conditions checked on open. If one fails, the menu does not open."
     },
     "open_actions": {
       "type": "string",
-      "description": "Action DSL exécutée à l'ouverture du menu (chaîne d'actions + branches if, cf. ADR action-dsl)."
+      "description": "Actions run when the menu opens."
     },
     "close_actions": {
       "type": "string",
-      "description": "Action DSL exécutée à la fermeture du menu (cf. ADR action-dsl)."
+      "description": "Actions run when the menu closes."
     },
     "elements": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/Element"
       },
-      "description": "Forme canonique : liste plate des éléments du menu. L'ordre du document = ordre d'empilement ; en cas de collision de slot, le dernier gagne."
+      "description": "The menu's elements, as a flat list. Later elements are drawn on top: when two share a slot, the last one wins."
     },
     "layers": {
       "type": "array",
@@ -218,19 +218,19 @@
       "items": {
         "$ref": "#/$defs/Layer"
       },
-      "description": "Forme legacy : enveloppe layers (id/name sans comportement runtime). Toujours acceptée en lecture ; l'export émet `elements` à plat."
+      "description": "Legacy wrapper around elements: still read, never written. Write `elements`."
     },
     "metadata": {
       "type": "object",
       "additionalProperties": true,
-      "description": "Métadonnées calculées par l'éditeur. Non éditables manuellement.",
+      "description": "Metadata computed by the editor. Not edited by hand.",
       "properties": {
         "uses_plugins": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Liste des plugins tiers référencés via component_ref ou ContextInput.source. Calculée automatiquement."
+          "description": "Third-party plugins the menu references. Computed."
         },
         "created_at": {
           "type": "string",
@@ -259,25 +259,25 @@
         "id": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_-]{0,63}$",
-          "description": "Identifiant slug du layer, unique dans le menu."
+          "description": "Layer id, unique in the menu."
         },
         "name": {
           "type": "string",
           "minLength": 1,
           "maxLength": 64,
-          "description": "Nom affiché dans le panel layer de l'éditeur."
+          "description": "Name shown in the editor."
         },
         "notes": {
           "type": "string",
           "maxLength": 1024,
-          "description": "Notes internes de l'admin (jamais rendues aux joueurs)."
+          "description": "The admin's internal notes, never shown to players."
         },
         "elements": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/Element"
           },
-          "description": "Elements contenus dans ce layer. Last-placed-wins en cas de chevauchement."
+          "description": "The layer's elements. When two share a slot, the last one wins."
         }
       }
     },
@@ -291,19 +291,19 @@
         "id": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]{0,63}$",
-          "description": "Identifiant stable de l'Element, unique au sein du menu."
+          "description": "Stable element id, unique in the menu."
         },
         "positions": {
           "oneOf": [
             {
               "type": "integer",
               "minimum": 0,
-              "description": "Position unique — forme canonique pour un seul slot (pas de quotes)."
+              "description": "One position (no quotes)."
             },
             {
               "type": "string",
               "pattern": "^\\d+(-\\d+)?(,\\d+(-\\d+)?)*$",
-              "description": "Range \"10-43\" ou liste séparée par virgules \"0,8,18-20\"."
+              "description": "A range \"10-43\" or a comma list \"0,8,18-20\"."
             },
             {
               "type": "array",
@@ -319,14 +319,14 @@
                   }
                 ]
               },
-              "description": "Liste YAML de positions et/ou ranges."
+              "description": "A YAML list of positions and ranges."
             }
           ],
-          "description": "Position(s) Minecraft occupée(s) : int nu, range/liste string, ou liste YAML."
+          "description": "The slots the element occupies: a number, a range or comma list string, or a YAML list."
         },
         "iterates": {
           "$ref": "#/$defs/Iterates",
-          "description": "Si présent, l'Element devient itératif : pour chaque item du contextInput nommé `source` (de type \"list\"), le moteur évalue les apparences de l'Element (display + states) avec l'item courant exposé sous `alias`, accessible via {alias.field}. Mutuellement exclusif avec component_ref."
+          "description": "Makes the element repeat: once per item of the list `source`, with the current item exposed as {alias} and {alias.field}."
         },
         "tags": {
           "type": "array",
@@ -342,7 +342,7 @@
           "items": {
             "$ref": "#/$defs/State"
           },
-          "description": "États gardés, essayés dans l'ordre AVANT le display (les champs d'apparence portés par l'Element lui-même). Le premier dont le `if` passe gagne ; si aucun ne passe, le display est rendu. Un état est une apparence ENTIÈRE, pas un patch."
+          "description": "Guarded states, tried in order before the element's own look. The first whose `if` passes is shown; if none passes, the element's own fields are. A state is a whole look, not a patch."
         }
       },
       "allOf": [
@@ -351,7 +351,7 @@
         }
       ],
       "unevaluatedProperties": false,
-      "description": "Un Element : ses clés structurelles (`id`, `positions`, `iterates`, `places`, `states`, `tags`) plus, À PLAT, les champs de son display."
+      "description": "An element: its structural keys (`id`, `positions`, `iterates`, `places`, `states`, `tags`) plus, at the same level, the fields of its look."
     },
     "ContextInput": {
       "type": "object",
@@ -360,12 +360,12 @@
         "name",
         "type"
       ],
-      "description": "Slot nommée et typée exposée par le menu. Peuplée à l'ouverture par auto-binding par nom (depuis l'appelant : args de commande, contextInputs de l'appelant, alias d'iteration courant — cf. §15.4) ou via un ConnectorBinding attaché.",
+      "description": "A named, typed input of the menu. Filled on open by name from the caller (command arguments, the caller's inputs, the current iteration alias) or by an attached data source.",
       "properties": {
         "name": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]{0,63}$",
-          "description": "Slug exposé comme {name} dans les champs du menu. Unique au sein du menu."
+          "description": "Name exposed as {name} in the menu's fields. Unique in the menu."
         },
         "type": {
           "type": "string",
@@ -381,15 +381,15 @@
         },
         "row_of": {
           "type": "string",
-          "description": "Pour type=\"object\"/\"list\" : ref de la data source dont cette slot porte le MODELE de ligne (fournie par l'appelant - pas fetchee, contrairement a `source`). Outillage editeur uniquement (completion, apercu) ; le runtime l'ignore."
+          "description": "For type \"object\" or \"list\": the data source whose row shape this input carries (the caller supplies the value). Editor only; the server ignores it."
         },
         "default": {
           "type": "string",
-          "description": "Valeur fallback si l'appelant ne passe rien et qu'aucune data source n'est attachée. Supporte les placeholders."
+          "description": "Value used when the caller passes nothing and no data source is attached. Placeholders work."
         },
         "source": {
           "$ref": "#/$defs/ConnectorBinding",
-          "description": "Si présent, la valeur de la slot est fetchée par une data source au lieu d'être passée par l'appelant. Valide uniquement sur type=\"list\" ou type=\"object\"."
+          "description": "When present, a data source supplies the value instead of the caller. Only for type \"list\" or \"object\"."
         }
       }
     },
@@ -399,26 +399,26 @@
       "required": [
         "ref"
       ],
-      "description": "Référence (côté consommateur) vers une data source (homemade Artisan ou registered par un plugin tiers en V2). Attaché à un ContextInput via `source`. Le plugin appelle la data source au render et obtient une liste/objet typé qui peuple la slot.",
+      "description": "A data source attached to an input through `source`. The server queries it on render and fills the input with the list or object it returns.",
       "properties": {
         "ref": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$",
-          "description": "Identifiant de la data source sous forme \"namespace:source\". Ex: \"chestshop:items\", \"essentials:warps\", \"jobs:list\"."
+          "description": "Data source id, \"namespace:source\", e.g. \"essentials:warps\"."
         },
         "params": {
           "type": "object",
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Paramètres passés à la data source (varient par data source). Supportent {name} pour interpoler les autres contextInputs du menu."
+          "description": "Parameters for the data source (each source has its own). {name} reads the menu's other inputs."
         },
         "filter": {
           "type": "object",
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Filtres appliqués sur les champs de la data. Supportent {name} pour interpoler les autres contextInputs. Ex: { \"category\": \"{category}\" } ne garde que les items dont category == valeur de l'input \"category\"."
+          "description": "Filters on the data's fields; {name} reads the menu's other inputs. { \"category\": \"{category}\" } keeps the items whose category equals the input \"category\"."
         },
         "sort": {
           "type": "object",
@@ -429,7 +429,7 @@
           "properties": {
             "by": {
               "type": "string",
-              "description": "Nom du champ de tri."
+              "description": "Field to sort by."
             },
             "direction": {
               "type": "string",
@@ -445,7 +445,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 1000,
-          "description": "Nombre max d'items retournés. Absent = pas de limite (la liste complète est paginée par l'Element qui itère la slot)."
+          "description": "Maximum number of items. Absent: no limit (the iterating element pages the full list)."
         }
       }
     },
@@ -455,16 +455,16 @@
       "required": [
         "source"
       ],
-      "description": "Iteration : pour chaque item du contextInput `source` (type \"list\"), le moteur évalue les apparences de l'Element (display + states) avec l'item courant exposé sous `alias`. Les champs accèdent aux propriétés de l'item via {alias.field}.",
+      "description": "Repeats the element once per item of the list `source`; fields read the current item as {alias.field}.",
       "properties": {
         "source": {
           "type": "string",
-          "description": "Nom d'un input du menu OU ref de source directe (`ns:id` / `pack:id`) — sucre canonique, résolue au rendu ; ref pendante = liste vide (non-hermétique)."
+          "description": "A menu input's name, or a source ref (`ns:id` / `pack:id`). An unknown ref gives an empty list."
         },
         "alias": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]{0,63}$",
-          "description": "Nom local de l'item courant dans la scope de l'Element. Exposé comme {alias} et {alias.field}."
+          "description": "Name of the current item inside the element, exposed as {alias} and {alias.field}."
         }
       }
     },
@@ -511,18 +511,18 @@
           "items": {
             "$ref": "#/$defs/Condition"
           },
-          "description": "Conditions ANDées. Si absent, matche toujours (fallback)."
+          "description": "Conditions, all required. Absent: always matches."
         },
         "asset": {
           "type": "string"
         },
         "material": {
           "type": "string",
-          "description": "Material vanilla (DIAMOND), ou un placeholder : {input_name} pour un contextInput, {alias.field} dans un Element qui itère."
+          "description": "A vanilla material (DIAMOND), or a placeholder: {input_name} for an input, {alias.field} in a repeating element."
         },
         "head": {
           "type": "string",
-          "description": "Tête custom quand material = PLAYER_HEAD : hdb:<id> (HeadDatabase), basehead:<base64>, ou playerhead:<pseudo> (placeholders résolus au rendu). Ignoré pour tout autre material."
+          "description": "Custom head when material is PLAYER_HEAD: hdb:<id> (HeadDatabase), basehead:<base64> or playerhead:<name> (placeholders work). Ignored for other materials."
         },
         "count": {
           "type": "integer",
@@ -534,13 +534,10 @@
           "$ref": "#/$defs/LText"
         },
         "lore": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/LText"
-          }
+          "$ref": "#/$defs/Lore"
         },
         "enchants": {
-          "description": "Enchantements appliqués à l'item. Forme canonique : map id → niveau ({ sharpness: 5 }). Les ids courts (sharpness), namespacés (minecraft:sharpness) et legacy Bukkit (DAMAGE_ALL) sont acceptés en lecture ; un id inconnu du serveur est ignoré avec un WARN. Les niveaux au-delà du max vanilla sont autorisés.",
+          "description": "Enchantments, as id → level ({ sharpness: 5 }). Short, namespaced (minecraft:sharpness) and legacy Bukkit ids are read; an unknown id is skipped with a warning. Levels above vanilla's maximum are allowed.",
           "oneOf": [
             {
               "type": "object",
@@ -573,7 +570,7 @@
         "enchanted": {
           "type": "boolean",
           "default": false,
-          "description": "Effet brillant sans enchantement réel. Redondant quand `enchants` est présent (les vrais enchantements brillent déjà)."
+          "description": "Enchantment glint without an enchantment. Not needed with `enchants`."
         },
         "custom_model_data": {
           "type": "string"
@@ -581,11 +578,11 @@
         "unbreakable": {
           "type": "boolean",
           "default": false,
-          "description": "Item incassable (la durabilité ne descend pas)."
+          "description": "Unbreakable item."
         },
         "hide": {
           "type": "array",
-          "description": "Sections du tooltip masquées au joueur (ItemFlag Bukkit, orthographe courte).",
+          "description": "Tooltip sections hidden from the player (Bukkit ItemFlag, short spelling).",
           "items": {
             "type": "string",
             "enum": [
@@ -604,11 +601,11 @@
         "color": {
           "type": "string",
           "pattern": "^#[0-9a-fA-F]{6}$",
-          "description": "Teinte #rrggbb — armure de cuir, potion, étoile de feu d'artifice. Ignorée sur tout autre material."
+          "description": "Colour #rrggbb for leather armour, potions and firework stars. Ignored on other materials."
         },
         "nbt": {
           "type": "string",
-          "description": "SNBT brut appliqué en dernier, après tous les autres champs (échappatoire). Best-effort : une erreur de parse est loggée en WARN et l'item est rendu sans."
+          "description": "Raw SNBT applied last, after every other field (an escape hatch). A parse error is logged and the item renders without it."
         },
         "component_ref": {
           "type": "string",
@@ -627,7 +624,7 @@
         "notes": {
           "type": "string",
           "maxLength": 1024,
-          "description": "Notes internes de l'admin (jamais rendues aux joueurs)."
+          "description": "The admin's internal notes, never shown to players."
         },
         "item": {
           "type": "string",
@@ -671,7 +668,7 @@
       ]
     },
     "Appearance": {
-      "description": "Une apparence complète et auto-suffisante — un ETAT gardé par son `if`. Un state REMPLACE le display, il ne le complète pas : ce qu'il n'écrit pas est absent, jamais hérité (ADR element-display-and-states). Une apparence complète et auto-suffisante. Le `if` détermine si cette apparence s'active. Si l'Element a `iterates`, les champs peuvent référencer {alias.field} pour accéder aux propriétés de l'item courant.",
+      "description": "A complete look, shown when its `if` passes. A state replaces the element's own look: what it does not write is absent, never inherited. In a repeating element, fields can read {alias.field}.",
       "type": "object",
       "allOf": [
         {
@@ -681,7 +678,7 @@
       "unevaluatedProperties": false
     },
     "State": {
-      "description": "Un état gardé d'un Element : une apparence ENTIÈRE plus son `if`. Sans `if` il matcherait toujours et masquerait le display pour de bon — il est donc obligatoire (ADR element-display-and-states).",
+      "description": "A guarded state: a whole look plus its `if`. The `if` is required (without it the state would always hide the element's own look).",
       "allOf": [
         {
           "$ref": "#/$defs/Appearance"
@@ -713,11 +710,11 @@
       }
     },
     "ClickHandler": {
-      "description": "Une chaîne d'actions. Wire canonique : une LISTE de steps (ou un step unique). Une string = ancien Action DSL (legacy, ré-écrit structuré). Cf. ADR structured-action-wire.",
+      "description": "An action chain: a list of steps (or a single step). A plain string is the legacy Action DSL.",
       "oneOf": [
         {
           "type": "string",
-          "description": "Ancien Action DSL (legacy)."
+          "description": "Legacy Action DSL."
         },
         {
           "$ref": "#/$defs/Action"
@@ -740,18 +737,18 @@
           "properties": {
             "steps": {
               "type": "string",
-              "description": "Forme legacy enveloppée — chaîne Action DSL dans un objet {steps}."
+              "description": "Legacy wrapper: an Action DSL string inside {steps}."
             }
           }
         }
       ]
     },
     "Step": {
-      "description": "Un step : une action sans argument (string nue), une action (map à une clé), ou un bloc if/do/else.",
+      "description": "A step: an action without arguments (a bare string), an action (a one-key map), or an if/do/else block.",
       "oneOf": [
         {
           "type": "string",
-          "description": "Action sans argument (`- close_menu`)."
+          "description": "An action without arguments (`- close_menu`)."
         },
         {
           "$ref": "#/$defs/Action"
@@ -762,11 +759,11 @@
       ]
     },
     "LText": {
-      "description": "Un texte de slot structurel (ADR field-local-translations) : soit une string ('{i18n:key}' ou littéral, identique pour toutes les langues), soit une map field-local { LangCode: texte } résolue langue demandée → defaultLang → n'importe quelle entrée. La forme legacy {key} reste lue par le plugin (elle matche la branche map, la clé 'key' étant un LangCode valide).",
+      "description": "A text: a string ('{i18n:key}' or literal, the same in every language) or a { language: text } map, resolved as the player's language, then the default language, then any entry.",
       "oneOf": [
         {
           "type": "string",
-          "description": "Forme canonique : '{i18n:key}' (référence) ou littéral inline."
+          "description": "'{i18n:key}' (a reference) or literal text."
         },
         {
           "type": "object",
@@ -776,7 +773,33 @@
               "type": "string"
             }
           },
-          "description": "Map field-local { lang: texte }."
+          "description": "A { language: text } map."
+        }
+      ]
+    },
+    "Lore": {
+      "description": "A lore: a list of lines, or, translated, a list of lines per language ({ en: [...], fr: [...] }), each with its own line count.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LText"
+          },
+          "description": "A list of lines; a line may be a legacy { language: text } map."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "patternProperties": {
+            "^[a-z]{2,3}(_[A-Za-z]{2,4})?$": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "A list of lines per language."
         }
       ]
     },
@@ -973,7 +996,7 @@
       ]
     },
     "Action": {
-      "description": "Une action = map à une clé (le nom de l'action). 1 arg → la valeur EST l'arg ; 0 arg → null ; multi → une map. Texte = LText (field-local). Cf. ADR structured-action-wire.",
+      "description": "An action is a one-key map, the key being the action's name. One argument: the value is the argument; none: null (or a bare string step); several: a map.",
       "oneOf": [
         {
           "type": "object",
@@ -1562,11 +1585,60 @@
               "type": "string"
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "set_event"
+          ],
+          "description": "Triggers only: sets the effects the current event declares (join message, death message…). Texts are translated per reader. Ignored with a warning outside a Trigger. `cancel_event` takes no argument and is written as a bare step.",
+          "properties": {
+            "set_event": {
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": [
+                      "number",
+                      "boolean"
+                    ]
+                  },
+                  {
+                    "$ref": "#/$defs/LText"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "An action declared on the server outside the core: a module's, always prefixed by its namespace (`guilds:rank_delete`), or `module_command` / `cancel_event`. Its arguments come from its declaration, which this schema does not know.",
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "propertyNames": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$"
+              },
+              {
+                "enum": [
+                  "module_command",
+                  "cancel_event"
+                ]
+              }
+            ]
+          }
         }
       ]
     },
     "Condition": {
-      "description": "Condition d'un `if` — keyed (canonique) ou legacy type-tagged (lu, ré-écrit keyed).",
+      "description": "An `if` condition: the keyed form (write this one) or the legacy `type:` form (still read).",
       "oneOf": [
         {
           "$ref": "#/$defs/ConditionKeyed"
@@ -1583,19 +1655,19 @@
         "source",
         "placements"
       ],
-      "description": "Mode placement : épingle des rows d'une source STATIQUE (matchées par key_field) à des page+slot explicites. Mutuellement exclusif avec iterates.",
+      "description": "Placement: pins rows of a static source (matched by key) to explicit pages and slots. Not with `iterates`.",
       "properties": {
         "source": {
           "type": "string",
-          "description": "Nom d'un input du menu OU ref de source directe (`ns:id` / `pack:id`)."
+          "description": "A menu input's name, or a source ref (`ns:id` / `pack:id`)."
         },
         "alias": {
           "type": "string",
-          "description": "Alias local du row."
+          "description": "Local name of the row."
         },
         "key_field": {
           "type": "string",
-          "description": "Row key de la source."
+          "description": "The row's key in the source."
         },
         "placements": {
           "type": "array",
@@ -1654,7 +1726,7 @@
       }
     },
     "ConditionKeyed": {
-      "description": "Condition = map à une clé (nom de la condition). `or:`/`and:` prennent une liste, `not:` une condition.",
+      "description": "A condition is a one-key map, the key being its name. `or:` and `and:` take a list, `not:` takes one condition.",
       "oneOf": [
         {
           "type": "object",
@@ -2084,7 +2156,7 @@
             },
             "placeholder": {
               "type": "string",
-              "description": "PAPI (%vault_eco_balance%), contextInput ({category}), ou champ d'iteration ({alias.field})."
+              "description": "A PlaceholderAPI value (%vault_eco_balance%), an input ({category}) or an iteration field ({alias.field})."
             },
             "value": {
               "type": "string"

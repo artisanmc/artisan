@@ -2,54 +2,6 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { expect, it, vi } from "vitest";
 import { ItemEditor } from "./ItemEditor";
 
-it("returns from the existing cheat sheet to the item without losing field edits", async () => {
-  render(
-    <ItemEditor
-      source={<input aria-label="source" defaultValue="STONE" />}
-      appearance={{}}
-      inherited={{ lore: [] }}
-      preview={{ lore: [] }}
-      onText={vi.fn()}
-      onCount={vi.fn()}
-      onAdvanced={vi.fn()}
-    />,
-  );
-  fireEvent.click(screen.getByRole("button", { name: /modifier l.item/i }));
-  fireEvent.change(screen.getByLabelText("source"), { target: { value: "DIAMOND" } });
-  fireEvent.click(screen.getByRole("button", { name: /ouvrir l’aide-mémoire/i }));
-  const help = screen.getByRole("dialog", { name: "Aide-mémoire" });
-  expect(within(help).getByText("Afficher un placeholder")).toBeInTheDocument();
-  fireEvent.keyDown(help, { key: "Escape" });
-  await waitFor(() =>
-    expect(screen.queryByRole("dialog", { name: "Aide-mémoire" })).not.toBeInTheDocument(),
-  );
-  expect(screen.getByRole("dialog", { name: /modifier l.item/i })).toBeInTheDocument();
-  expect(screen.getByLabelText("source")).toHaveValue("DIAMOND");
-});
-
-it("copies an available context placeholder with braces", async () => {
-  const writeText = vi.fn().mockResolvedValue(undefined);
-  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
-  render(
-    <ItemEditor
-      source={null}
-      appearance={{}}
-      inherited={{ lore: [] }}
-      preview={{ lore: [] }}
-      entries={[{ path: "quest.name", type: "string", origin: "iteration", sample: "First quest" }]}
-      onText={vi.fn()}
-      onCount={vi.fn()}
-      onAdvanced={vi.fn()}
-    />,
-  );
-  fireEvent.click(screen.getByRole("button", { name: /modifier l.item/i }));
-  expect(screen.getByText("{quest.name}")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Copier {quest.name}" }));
-  await waitFor(() => expect(writeText).toHaveBeenCalledWith("{quest.name}"));
-  expect(await screen.findByRole("button", { name: "Copié ! {quest.name}" })).toBeInTheDocument();
-  expect(screen.queryByRole("status")).not.toBeInTheDocument();
-});
-
 it("keeps the preview in place and edits in a modal closed by Done or Escape", async () => {
   render(
     <ItemEditor
@@ -174,4 +126,30 @@ it("shows an empty lore field rather than a {base.lore} placeholder when nothing
   );
   fireEvent.click(screen.getByRole("button", { name: /modifier l.item/i }));
   expect(screen.queryByDisplayValue("{base.lore}")).not.toBeInTheDocument();
+});
+
+it("edits the name and lore in rich editors next to the item's in-game tooltip", () => {
+  render(
+    <ItemEditor
+      source={null}
+      appearance={{}}
+      inherited={{ lore: [] }}
+      preview={{ material: "DIAMOND_SWORD", title: "<gold>Rare sword", lore: ["A reward"] }}
+      title="<gold>Rare sword"
+      lore="A reward"
+      onText={vi.fn()}
+      onCount={vi.fn()}
+      onAdvanced={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /modifier l.item/i }));
+  const dialog = screen.getByRole("dialog", { name: /modifier l.item/i });
+  const editors = [...dialog.querySelectorAll(".cm-content")].map((node) => node.textContent);
+  // Rich view: the tags are hidden, the text shows styled.
+  expect(editors).toEqual(["Rare sword", "A reward"]);
+  // No click action on an item's text: the game ignores it there.
+  expect(within(dialog).queryByRole("button", { name: /^Action au clic/ })).toBeNull();
+  expect(within(dialog).getAllByRole("button", { name: /^Dégradé/ })).toHaveLength(2);
+  const column = within(dialog).getByTestId("item-preview-column");
+  expect(within(column).getByTestId("mc-tooltip")).toBeInTheDocument();
 });

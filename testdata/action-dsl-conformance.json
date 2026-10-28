@@ -311,5 +311,31 @@
     "dsl": "open_previous_menu",
     "canonicalDsl": "open_previous_menu",
     "ast": [{ "kind": "action", "action": { "type": "open_previous_menu" } }]
+  },
+  {
+    "name": "open_menu of another project",
+    "dsl": "open_menu shop:main with category=\"armor\"",
+    "canonicalDsl": "open_menu shop:main with category=\"armor\"",
+    "ast": [
+      {
+        "kind": "action",
+        "action": {
+          "type": "open_menu",
+          "menuId": "shop:main",
+          "context": { "category": "armor" }
+        }
+      }
+    ]
+  },
+  {
+    "name": "open_dialog of a project with a dash in its name",
+    "dsl": "open_dialog my-shop:confirm clear",
+    "canonicalDsl": "open_dialog my-shop:confirm clear",
+    "ast": [
+      {
+        "kind": "action",
+        "action": { "type": "open_dialog", "dialogId": "my-shop:confirm", "clearContext": true }
+      }
+    ]
   }
 ]

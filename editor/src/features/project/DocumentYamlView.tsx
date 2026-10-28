@@ -1,40 +1,50 @@
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
+import { documentKindDef, isDocumentKind } from "@/domain/documentKinds";
+import { documentPath } from "@/domain/documentLayout";
+import { findDocumentRef } from "@/domain/documents";
 import type { Project } from "@/domain/types";
+import { rebuildServerPackInBackground } from "@/features/project/resourcePackSync";
 import { adoptDiskIntoProject } from "@/features/project/saveProjectToDisk";
 import { hashContent } from "@/lib/contentHash";
 import { projectClient } from "@/lib/projectClient";
-import { useAccountStore } from "@/state/accountStore";
+import { MODULE_FILE, yamlPathOnDisk } from "@/lib/yamlFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { FileHistory } from "./FileHistory";
 
-/** Le fichier d'un Document : son dossier dit sa nature, son nom son identité. */
+/**
+ * A Document's file (by key, or a bare id: `findDocumentRef`): its folder says its kind, its name
+ * its identity, the disk its extension (`yamlPathOnDisk`).
+ */
 export function documentRelPath(project: Project, id: string): string | null {
-  if (project.menus.some((m) => m.id === id)) return `menus/${id}.yaml`;
-  if (project.commands.some((c) => c.id === id)) return `commands/${id}.yaml`;
-  if ((project.dialogs ?? []).some((d) => d.id === id)) return `dialogs/${id}.yaml`;
-  return null;
+  const found = findDocumentRef(project, id);
+  if (!found) return null;
+  // A kind nobody registered (its module is absent) keeps its folder name as the kind.
+  const dir = isDocumentKind(found.kind) ? documentKindDef(found.kind).dir : found.kind;
+  const path = documentPath(dir, found.doc.id, found.doc.folder);
+  return yamlPathOnDisk(path, useProjectBaselineStore.getState().get(project.id) ?? {});
+}
+
+/** The project's module file, under the name the disk gives it. */
+export function moduleFileRelPath(project: Project): string {
+  return yamlPathOnDisk(MODULE_FILE, useProjectBaselineStore.getState().get(project.id) ?? {});
 }
 
 /**
- * Le fichier d'un Document, tel quel — la « code mode » qui a déclenché toute
- * l'épopée files-first (« a feature request (a "code mode" showing a Document's
- * YAML beside the visual editor) escalated into the storage question »).
+ * A Document's file, as is — the "code mode".
  *
- * **L'écriture est verbatim.** L'ADR `yaml-assisted-editing` canonicalisait même
- * depuis l'onglet YAML, et réservait le verbatim aux fichiers étrangers ; c'est
- * ce qui effaçait les commentaires d'un admin sur SES propres menus. Cette règle
- * a été écrite quand l'éditeur web était la surface principale et le fichier une
- * projection. Depuis `server-disk-only-storage`, le disque est le seul store et
- * l'édition à la main un chemin de plein droit : ce que tu tapes est ce qui
- * atterrit.
+ * **Writing is verbatim.** Canonicalising even from the YAML tab erased an
+ * admin's comments on THEIR own menus. Since `server-disk-only-storage`, the
+ * disk is the only store and hand editing is a first-class path: what you
+ * type is what lands.
  *
- * Contrepartie assumée : les deux modes ne produisent plus les mêmes octets pour
- * le même contenu. Toucher l'éditeur visuel régénère le document et reformate —
- * mais tu as le texte sous les yeux, donc c'est visible au lieu d'être une
- * surprise après coup.
+ * Accepted trade-off: the two modes no longer produce the same bytes for the
+ * same content. Touching the visual editor regenerates the document and
+ * reformats it — but the text is right in front of you, so it is visible
+ * instead of a surprise afterwards.
  */
 export function DocumentYamlView({
   project,
@@ -42,12 +52,11 @@ export function DocumentYamlView({
 }: {
   project: Project;
   relPath: string;
-  networkId?: string;
   serverId?: string;
 }) {
   const { t } = useTranslation();
   const baseline = useProjectBaselineStore((s) => s.baselines[project.id]);
-  const replaceProject = useAccountStore((s) => s.replaceProject);
+  const replaceProject = useProjectsStore((s) => s.replaceProject);
   const original = baseline?.[relPath] ?? "";
   const [text, setText] = useState(original);
   const [saving, setSaving] = useState(false);
@@ -64,8 +73,8 @@ export function DocumentYamlView({
     try {
       const request = pending.current ?? {
         operationId: crypto.randomUUID(),
-        // Le compare-and-swap habituel : le hash de ce qu'on croyait trouver.
-        // Une écriture verbatim n'est pas une écriture privilégiée.
+        // The usual compare-and-swap: the hash of what we expected to find. A
+        // verbatim write is not a privileged write.
         files: [{ path: relPath, content: text, base_hash: await hashContent(original) }],
         deletes: [] as [],
       };
@@ -78,17 +87,18 @@ export function DocumentYamlView({
       }
       pending.current = null;
       const written = request.files[0]!.content;
-      // La base avance, et le Project est re-parsé depuis le texte écrit : sans
-      // ça l'éditeur visuel continuerait d'afficher l'ancienne version.
+      // The base moves forward, and the Project is re-parsed from the written text:
+      // otherwise the visual editor would keep showing the old version.
       useProjectBaselineStore.getState().set(project.id, {
         ...(useProjectBaselineStore.getState().get(project.id) ?? {}),
         [relPath]: written,
       });
       const current =
-        useAccountStore.getState().account.projects.find((item) => item.id === project.id) ??
+        useProjectsStore.getState().openProjects.projects.find((item) => item.id === project.id) ??
         project;
       replaceProject(adoptDiskIntoProject(current, { [relPath]: written }, []));
       toast.success(t("save.saved"));
+      rebuildServerPackInBackground(t, project.serverKeyId);
     } catch {
       toast.error(t("save.failed"));
     } finally {

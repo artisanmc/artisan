@@ -1,0 +1,47 @@
+name: Artisan
+version: '${version}'
+main: net.artisanmc.plugin.ArtisanPlugin
+api-version: '1.21'
+folia-supported: true
+softdepend: [Vault, PlaceholderAPI, WorldGuard, Nexo, Oraxen, ItemsAdder, HeadDatabase]
+description: Artisan GUI editor plugin
+# Downloaded by Paper at startup, kept out of the jar (ADR suite-foundation-database).
+# Same versions as build.gradle.kts.
+libraries:
+  - com.zaxxer:HikariCP:6.2.1
+  - com.h2database:h2:2.3.232
+  - com.mysql:mysql-connector-j:9.1.0
+  - org.mariadb.jdbc:mariadb-java-client:3.5.1
+  - org.eclipse.jetty:jetty-server:12.1.12
+  - org.eclipse.jetty.websocket:jetty-websocket-jetty-server:12.1.12
+commands:
+  artisan:
+    description: Artisan commands
+    usage: /artisan <menu <id>|reload|sync <status|reject>|editor|dump-title <id>>
+permissions:
+  artisan.admin:
+    description: Run /artisan reload, sync and dump-title
+    default: op
+  artisan.menu:
+    description: Open any menu by id with /artisan menu
+    default: true
+  artisan.editor:
+    description: Allows opening the Artisan web editor with every editor right
+    default: op
+    children:
+      artisan.editor.view: true
+      artisan.editor.edit: true
+      artisan.editor.publish: true
+      artisan.editor.config: true
+  artisan.editor.view:
+    description: Open the editor and read projects
+    default: op
+  artisan.editor.edit:
+    description: Change projects in the editor
+    default: op
+  artisan.editor.publish:
+    description: Publish projects to this server
+    default: op
+  artisan.editor.config:
+    description: Change the server configuration from the editor
+    default: op

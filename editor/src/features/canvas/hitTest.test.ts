@@ -1,5 +1,6 @@
+import { menusOf } from "@/domain/documents";
 import type { InventoryType, Menu, MenuId, Project } from "@/domain/types";
-import { mockAccount } from "@/mock/fixtures";
+import { mockOpenProjects } from "@/mock/fixtures";
 import { describe, expect, it } from "vitest";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
@@ -20,12 +21,12 @@ function singleMenuProject(inventoryType: InventoryType): {
     inventoryType,
     layers: [],
   } as unknown as Menu;
-  const project = { menus: [menu], commands: [], dialogs: [] } as unknown as Project;
-  return { project, layout: { [id]: { x: 0, y: 0 } }, menuId: id };
+  const project = { documents: { menu: [menu], command: [], dialog: [] } } as unknown as Project;
+  return { project, layout: { [`menu/${id}`]: { x: 0, y: 0 } }, menuId: id };
 }
 
 describe("hitTestSlot", () => {
-  const personal = mockAccount().projects[0]!;
+  const personal = mockOpenProjects().projects[0]!;
   const layout = autoLayout(personal);
 
   it("returns null when point is outside any menu box", () => {
@@ -33,8 +34,8 @@ describe("hitTestSlot", () => {
   });
 
   it("returns the chest slot under the cursor", () => {
-    const menu = personal.menus[0]!;
-    const pos = layout[menu.id]!;
+    const menu = menusOf(personal)[0]!;
+    const pos = layout[`menu/${menu.id}`]!;
     // Aim at slot index 13 (row 1, col 4) — center of the cell.
     const col = 13 % 9;
     const row = Math.floor(13 / 9);
@@ -44,8 +45,8 @@ describe("hitTestSlot", () => {
   });
 
   it("returns null when the point falls in the title bar above the chest grid", () => {
-    const menu = personal.menus[0]!;
-    const pos = layout[menu.id]!;
+    const menu = menusOf(personal)[0]!;
+    const pos = layout[`menu/${menu.id}`]!;
     // Aim inside the title bar.
     const x = pos.x + TEX_FIRST_SLOT_X + 10;
     const y = pos.y + TEX_TITLE_H / 2;
@@ -53,8 +54,8 @@ describe("hitTestSlot", () => {
   });
 
   it("returns null when the point falls in the player-inv area below the chest grid", () => {
-    const menu = personal.menus[0]!;
-    const pos = layout[menu.id]!;
+    const menu = menusOf(personal)[0]!;
+    const pos = layout[`menu/${menu.id}`]!;
     // Just past the chest grid bottom.
     const x = pos.x + TEX_FIRST_SLOT_X + 10;
     const y = pos.y + TEX_TITLE_H + menu.rows * TEX_SLOT_STRIDE + 10;
@@ -102,7 +103,7 @@ describe("screenToWorld", () => {
 describe("hitTestSlot — player inventory (player_inventory: hidden)", () => {
   function chest(playerInventory?: "hidden") {
     const { project, layout, menuId } = singleMenuProject("chest");
-    if (playerInventory) (project.menus[0] as Menu).playerInventory = playerInventory;
+    if (playerInventory) (menusOf(project)[0] as Menu).playerInventory = playerInventory;
     return { project, layout, menuId };
   }
   const center = (mc: { x: number; y: number }) => ({

@@ -16,7 +16,7 @@ it("retains the plugin explanation when publishing a draft fails", async () => {
       ),
     ),
   );
-  await expect(publishDraft("p1", "d1", 1)).rejects.toMatchObject({
+  await expect(publishDraft("p1", "d1", 1, "op1")).rejects.toMatchObject({
     code: "write_error",
     status: 422,
     detail: "AccessDeniedException: menus/shop.yaml",

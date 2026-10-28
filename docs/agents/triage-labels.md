@@ -1,11 +1,11 @@
 # Triage labels
 
-| Rôle canonique | Label GitHub | Sens |
+| Canonical role | GitHub label | Meaning |
 | --- | --- | --- |
-| `needs-triage` | `needs-triage` | À évaluer par le mainteneur |
-| `needs-info` | `needs-info` | En attente d'informations |
-| `ready-for-agent` | `ready-for-agent` | Spécifié et prêt pour un agent autonome |
-| `ready-for-human` | `ready-for-human` | Nécessite une intervention humaine |
-| `wontfix` | `wontfix` | Ne sera pas traité |
+| `needs-triage` | `needs-triage` | To be assessed by the maintainer |
+| `needs-info` | `needs-info` | Waiting for information |
+| `ready-for-agent` | `ready-for-agent` | Specified and ready for an autonomous agent |
+| `ready-for-human` | `ready-for-human` | Needs a human |
+| `wontfix` | `wontfix` | Will not be handled |
 
-Lorsqu'un skill mentionne un rôle de triage, utiliser le label GitHub correspondant.
+When a skill mentions a triage role, use the matching GitHub label.

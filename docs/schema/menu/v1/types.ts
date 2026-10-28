@@ -1,23 +1,23 @@
 /**
  * Artisan — Menu schema v1 — TypeScript types
  *
- * Source de vérité pour le format intermédiaire d'un menu.
- * Maintenu à la main, en miroir de schema.json. Les deux DOIVENT rester synchrones.
+ * Source of truth for a menu's intermediate format.
+ * Maintained by hand, mirroring schema.json. The two MUST stay in sync.
  *
- * Vocabulaire :
- *   - "position"     : position Minecraft dans l'inventaire (0-53). Ce que le jeu appelle "slot".
- *   - "Element"      : objet Artisan (bouton, décoration, liste paginée, grid de data...) qui occupe une ou plusieurs positions.
- *   - "Layer"        : conteneur qui groupe des Elements liés thématiquement.
- *                      Ordonnés bottom→top dans Menu.layers ; render walk top→bottom avec fall-through naturel.
- *   - "Appearance"   : variante visuelle d'un Element. Évaluée dans l'ordre, première dont `if` matche gagne.
- *                      Pas de partial override — chaque Appearance est complète et auto-suffisante.
- *   - "ContextInput" : slot nommée et typée que le menu déclare via Menu.contextInputs. Peuplée à l'ouverture
- *                      par auto-binding par nom (depuis l'appelant) ou via un ConnectorBinding attaché.
- *                      Exposée comme {name} dans les champs du menu. Cf. main-spec §14, §15.4.
- *   - "ConnectorBinding" : référence (côté consommateur) vers une data source (homemade Artisan ou registered par plugin tier en V2)
- *                          qui expose une liste/objet typé. Attaché à un ContextInput via `source`. Les Elements
- *                          itèrent via `iterates: { source: <input_name>, alias }` et accèdent aux champs
- *                          de l'item courant via {alias.field}.
+ * Vocabulary:
+ *   - "position"     : Minecraft position in the inventory (0-53). What the game calls a "slot".
+ *   - "Element"      : Artisan object (button, decoration, paginated list, data grid...) that occupies one or more positions.
+ *   - "Layer"        : container that groups thematically related Elements.
+ *                      Ordered bottom→top in Menu.layers; render walks top→bottom with natural fall-through.
+ *   - "Appearance"   : visual variant of an Element. Evaluated in order, the first whose `if` matches wins.
+ *                      No partial override — each Appearance is complete and self-sufficient.
+ *   - "ContextInput" : named, typed slot that the menu declares via Menu.contextInputs. Populated on open
+ *                      by auto-binding by name (from the caller) or via an attached ConnectorBinding.
+ *                      Exposed as {name} in the menu's fields. See main-spec §14, §15.4.
+ *   - "ConnectorBinding" : reference (consumer side) to a data source (homemade Artisan or registered by a third-party plugin in V2)
+ *                          that exposes a typed list/object. Attached to a ContextInput via `source`. Elements
+ *                          iterate via `iterates: { source: <input_name>, alias }` and access the fields
+ *                          of the current item via {alias.field}.
  */
 
 // ============================================================================
@@ -27,19 +27,19 @@
 export interface Menu {
   schema: "menu/v1";
   id: string;
-  /** Couches de titre, ordonnées. Vide = pas de titre. Format pixel-perfect (offsets, fonts) documenté dans editor-internals.md. */
+  /** Title layers, ordered. Empty = no title. Pixel-perfect format (offsets, fonts) documented in editor-internals.md. */
   title: MenuTitleLayer[];
   size: 9 | 18 | 27 | 36 | 45 | 54;
-  /** Bas de la fenêtre. Absent = "visible" (vrai inventaire, positions ≥ size ignorées). "hidden" : positions size..size+35 = slots joueur (rawSlot). */
+  /** Bottom of the window. Absent = "visible" (real inventory, positions ≥ size ignored). "hidden": positions size..size+35 = player slots (rawSlot). */
   player_inventory?: "visible" | "hidden";
-  /** Absent/true = texture vanilla. false : fenêtre transparente (coffre, entonnoir, dropper), cf. schema.json. */
+  /** Absent/true = vanilla texture. false: transparent window (chest, hopper, dropper), see schema.json. */
   vanilla_texture?: boolean;
   permission?: string;
-  /** Notes internes de l'admin (jamais rendues aux joueurs). Round-trip-safe JSON ↔ YAML. */
+  /** Internal admin notes (never shown to players). Round-trip-safe JSON ↔ YAML. */
   notes?: string;
-  /** Apparence par défaut des positions non couvertes par un Element visible (fall-through ultime). */
+  /** Default appearance of positions not covered by a visible Element (ultimate fall-through). */
   background?: Appearance;
-  /** Slots nommées que le menu expose. Peuplées à l'ouverture par auto-binding par nom (cf. main-spec §15.4) ou par un ConnectorBinding (cf. §14). Référencées via {name} dans tout champ texte du menu. */
+  /** Named slots the menu exposes. Populated on open by auto-binding by name (see main-spec §15.4) or by a ConnectorBinding (see §14). Referenced via {name} in any text field of the menu. */
   context_inputs?: ContextInput[];
   open_requirements?: Condition[];
   /** Action chains as Action DSL strings (cf. ADR `action-dsl`). */
@@ -54,18 +54,21 @@ export interface Menu {
 // ============================================================================
 
 /**
- * Un texte de slot structurel (ADR `field-local-translations`) : soit une string
- * (`'{i18n:key}'` ou littéral, identique pour toutes les langues), soit une map
- * field-local `{ lang: texte }` résolue langue demandée → defaultLang → défaut.
+ * A structural slot text (ADR `field-local-translations`): either a string
+ * (`'{i18n:key}'` or literal, identical for all languages), or a field-local
+ * map `{ lang: text }` resolved requested language → defaultLang → default.
  */
 export type LText = string | Record<string, string>;
 
-/** Taille de police autorisée pour les title-layers text/textarea. */
+/** Lore: a list of lines, or a list of lines per language (`{ en: [...], fr: [...] }`). */
+export type Lore = LText[] | Record<string, string[]>;
+
+/** Allowed font size for text/textarea title layers. */
 export type TitleFontSize = 8 | 12 | 16 | 20 | 24 | 32;
 
 /**
- * Couche de titre. Format pixel-perfect (pixel offsets, fonts custom) documenté
- * dans editor-internals.md. Le titre d'un menu est un tableau ordonné de ces couches.
+ * Title layer. Pixel-perfect format (pixel offsets, custom fonts) documented
+ * in editor-internals.md. A menu's title is an ordered array of these layers.
  */
 export type MenuTitleLayer =
   | { kind: "background"; asset_id: string }
@@ -90,24 +93,24 @@ export type MenuTitleLayer =
 // ============================================================================
 
 export interface ContextInput {
-  /** Slug exposé comme {name} dans les champs du menu. Unique au sein du menu. */
+  /** Slug exposed as {name} in the menu's fields. Unique within the menu. */
   name: string;
   type: "player" | "string" | "integer" | "number" | "boolean" | "list" | "object";
-  /** Valeur fallback si l'appelant ne passe rien et qu'aucune data source n'est attachée. Supporte les placeholders. */
+  /** Fallback value if the caller passes nothing and no data source is attached. Supports placeholders. */
   default?: string;
-  /** Si présent, la valeur de la slot est fetchée par une data source au lieu d'être passée par l'appelant. Valide uniquement sur type="list" ou type="object". */
+  /** If present, the slot's value is fetched by a data source instead of being passed by the caller. Valid only on type="list" or type="object". */
   source?: ConnectorBinding;
 }
 
 export interface ConnectorBinding {
-  /** "namespace:source", ex: "chestshop:items", "essentials:warps", "jobs:list". */
+  /** "namespace:source", e.g. "chestshop:items", "essentials:warps", "jobs:list". */
   ref: string;
-  /** Paramètres passés à la data source (varient par data source). Supportent {name} pour interpoler les autres contextInputs du menu. */
+  /** Parameters passed to the data source (vary per data source). Support {name} to interpolate the menu's other contextInputs. */
   params?: Record<string, string>;
-  /** Filtres appliqués sur les champs de la data avant render. Supportent {name} pour interpoler les autres contextInputs. Ex: { category: "{category}" } pour filtrer par la valeur de l'input "category". */
+  /** Filters applied on the data's fields before render. Support {name} to interpolate the other contextInputs. E.g. { category: "{category}" } to filter by the value of the "category" input. */
   filter?: Record<string, string>;
   sort?: { by: string; direction?: "asc" | "desc" };
-  /** Default = nombre de positions de l'Element qui itère cette slot. Max 1000. */
+  /** Default = number of positions of the Element iterating this slot. Max 1000. */
   limit?: number;
 }
 
@@ -124,13 +127,13 @@ export interface MenuMetadata {
 // ============================================================================
 
 export interface Layer {
-  /** Slug stable, unique dans le menu. */
+  /** Stable slug, unique within the menu. */
   id: string;
-  /** Nom affiché dans le panel layer de l'éditeur. */
+  /** Name shown in the editor's layer panel. */
   name: string;
-  /** Notes internes de l'admin (jamais rendues aux joueurs). */
+  /** Internal admin notes (never shown to players). */
   notes?: string;
-  /** Elements dans ce layer. Last-placed-wins en cas d'overlap. */
+  /** Elements in this layer. Last-placed-wins on overlap. */
   elements: Element[];
 }
 
@@ -139,28 +142,28 @@ export interface Layer {
 // ============================================================================
 
 /**
- * Un Element : ses clés structurelles, plus — À PLAT — les champs de son
- * **display**, l'apparence rendue quand aucun état ne s'applique. D'où
- * l'extension d'`Appearance` : au premier niveau d'un Element, tout ce qui n'est
- * pas structurel est un champ du display.
+ * An Element: its structural keys, plus — FLAT — the fields of its
+ * **display**, the appearance rendered when no state applies. Hence
+ * the extension of `Appearance`: at the top level of an Element, everything that is
+ * not structural is a display field.
  */
 export interface Element extends Appearance {
-  /** Identifiant stable, unique dans le menu (toutes layers confondues). */
+  /** Stable identifier, unique within the menu (across all layers). */
   id: string;
-  /** "15" pour position unique, "10-43" pour une range. */
+  /** "15" for a single position, "10-43" for a range. */
   positions: string;
   /**
-   * États gardés, essayés dans l'ordre AVANT le display. Le premier dont le `if`
-   * passe gagne ; si aucun ne passe, le display est rendu. Un état est une
-   * apparence ENTIÈRE, pas un patch : ce qu'il n'écrit pas est absent, jamais
-   * hérité du display (ADR `element-display-and-states`).
+   * Guarded states, tried in order BEFORE the display. The first whose `if`
+   * passes wins; if none passes, the display is rendered. A state is a
+   * WHOLE appearance, not a patch: what it does not write is absent, never
+   * inherited from the display (ADR `element-display-and-states`).
    */
   states?: Appearance[];
   /**
-   * Si présent, l'Element devient itératif : pour chaque item du contextInput nommé `source`
-   * (de type "list"), le moteur évalue ses apparences avec l'item courant exposé sous `alias`,
-   * accessible via {alias.field}. La liste source peut venir de l'appelant ou d'une data source —
-   * transparent côté Element. Mutuellement exclusif avec component_ref dans une appearance.
+   * If present, the Element becomes iterative: for each item of the contextInput named `source`
+   * (of type "list"), the engine evaluates its appearances with the current item exposed as `alias`,
+   * accessible via {alias.field}. The source list can come from the caller or from a data source —
+   * transparent to the Element. Mutually exclusive with component_ref in an appearance.
    */
   iterates?: { source: string; alias: string };
   template_ref?: TemplateRef | null;
@@ -169,31 +172,32 @@ export interface Element extends Appearance {
 
 export interface Appearance {
   image?: import("./imageButtonGeometry").ImageButtonImage;
-  /** Conditions ANDées. Si absent, matche toujours (fallback, à placer en dernier). */
+  /** ANDed conditions. If absent, always matches (fallback, put it last). */
   if?: Condition[];
   asset?: string;
-  /** "DIAMOND" littéral, {input_name} pour un contextInput, ou {alias.field} dans un Element qui itère. */
+  /** Literal "DIAMOND", {input_name} for a contextInput, or {alias.field} in an iterating Element. */
   material?: string;
   /**
-   * Référence ou expression d'item complet : quantité et métadonnées sont héritées
-   * de l'item désigné, puis écrasées par les champs de présentation explicites.
-   * Mutuellement exclusif avec `material`.
+   * Reference or expression of a full item: quantity and metadata are inherited
+   * from the designated item, then overridden by the explicit presentation fields.
+   * Mutually exclusive with `material`.
    */
   item?: string;
-  /** Tête custom : hdb:<id>, basehead:<base64>, ou playerhead:<pseudo>. Ignoré si material ≠ PLAYER_HEAD. */
+  /** Custom head: hdb:<id>, basehead:<base64>, or playerhead:<name>. Ignored if material ≠ PLAYER_HEAD. */
   head?: string;
   count?: number;
   title?: LText;
-  lore?: LText[];
-  /** `replace` : cette lore ÉCARTE celle de l'item de base. Absent = elle s'y ajoute (défaut) ; écrire `{base.lore}` la positionne soi-même. */
+  /** Lines, or a list of lines per language (canonical translated form). */
+  lore?: Lore;
+  /** `replace`: this lore DISCARDS the base item's. Absent = it is added to it (default); write `{base.lore}` to position it yourself. */
   lore_mode?: "replace";
-  /** Map id → niveau ({ sharpness: 5 }) ; la forme liste est lue mais jamais écrite. */
+  /** Map id → level ({ sharpness: 5 }); the list form is read but never written. */
   enchants?: Record<string, number> | { id: string; level?: number }[];
-  /** Effet brillant sans enchantement réel. Redondant quand `enchants` est présent. */
+  /** Glint effect without a real enchantment. Redundant when `enchants` is present. */
   enchanted?: boolean;
   custom_model_data?: string;
   unbreakable?: boolean;
-  /** Sections du tooltip masquées (ItemFlag Bukkit, orthographe courte). */
+  /** Hidden tooltip sections (Bukkit ItemFlag, short spelling). */
   hide?: (
     | "enchants"
     | "attributes"
@@ -205,13 +209,13 @@ export interface Appearance {
     | "armor_trim"
     | "stored_enchants"
   )[];
-  /** Teinte #rrggbb — cuir / potion / étoile de feu d'artifice. */
+  /** #rrggbb tint — leather / potion / firework star. */
   color?: string;
-  /** SNBT brut appliqué en dernier (échappatoire, best-effort). */
+  /** Raw SNBT applied last (escape hatch, best-effort). */
   nbt?: string;
   component_ref?: string;
   click?: ClickMap | null;
-  /** Notes internes de l'admin (jamais rendues aux joueurs). */
+  /** Internal admin notes (never shown to players). */
   notes?: string;
 }
 
@@ -234,13 +238,13 @@ export interface ClickMap {
 }
 
 /**
- * Une chaîne d'actions (ADR `structured-action-wire`). Wire canonique : une
- * **liste de steps** structurés (ou un step unique). Une **string** = ancien
- * Action DSL (legacy, lu et ré-écrit structuré) ; `{ steps: string }` = forme
- * legacy enveloppée.
+ * An action chain (ADR `structured-action-wire`). Canonical wire: a
+ * **list of structured steps** (or a single step). A **string** = old
+ * Action DSL (legacy, read and rewritten as structured); `{ steps: string }` = wrapped
+ * legacy form.
  *
- * Un step = une action sans argument (string nue), une action `{ <nom>: args }`,
- * ou un bloc `{ if, do, else }`. Le texte des actions est un {@link LText}.
+ * A step = an action without arguments (bare string), an action `{ <name>: args }`,
+ * or an `{ if, do, else }` block. The actions' text is an {@link LText}.
  */
 export type ClickHandler =
   | string
@@ -253,21 +257,21 @@ export type StructuredStep =
   | StructuredAction
   | { if: StructuredCondition[]; do: StructuredStep[]; else?: StructuredStep[] };
 
-/** Action = map à une clé : `{ <nom>: args }` (1 arg → valeur, multi → map). */
+/** Action = single-key map: `{ <name>: args }` (1 arg → value, several → map). */
 export type StructuredAction = Record<string, unknown>;
 
-/** Condition = map à une clé : `{ <nom>: args }` (`or:`/`and:` = liste, `not:` = condition). */
+/** Condition = single-key map: `{ <name>: args }` (`or:`/`and:` = list, `not:` = condition). */
 export type StructuredCondition = Record<string, unknown>;
 
-/** Un cas conditionnel dans un Step `if`. */
+/** A conditional case in an `if` Step. */
 export interface IfCase {
   conditions: Condition[];
-  /** Opérateurs de jonction entre conditions (par défaut tout ANDé). */
+  /** Join operators between conditions (all ANDed by default). */
   joins?: ("and" | "or")[];
   steps: Step[];
 }
 
-/** Une étape d'un handler de clic : soit une action, soit une branche conditionnelle. */
+/** A step of a click handler: either an action or a conditional branch. */
 export type Step =
   | { kind: "action"; action: Action }
   | { kind: "if"; cases: IfCase[]; else?: Step[] };
@@ -294,23 +298,23 @@ export interface OpenMenuAction   {
   menu_id: string;
   close_current?: boolean;
   /**
-   * Override explicite de l'auto-binding par nom (cf. main-spec §15.4). Chaque entrée
-   * peuple un contextInput du menu cible ; les valeurs supportent {name} pour interpoler
-   * la scope courante (args de commande, contextInputs de l'appelant, alias d'iteration).
+   * Explicit override of auto-binding by name (see main-spec §15.4). Each entry
+   * populates a contextInput of the target menu; values support {name} to interpolate
+   * the current scope (command args, the caller's contextInputs, iteration alias).
    */
   context?: Record<string, string>;
-  /** Désactive l'auto-binding par nom (l'override `context` reste actif). */
+  /** Disables auto-binding by name (the `context` override stays active). */
   clear_context?: boolean;
 }
 export interface CloseMenuAction  { type: "close_menu"; }
 /**
- * Ré-ouvre l'écran précédent de l'historique de navigation du joueur (bouton
- * retour). Consomme l'historique : menu → wiki → item, deux retours ramènent au
- * menu (pas de va-et-vient item ↔ wiki). No-op sans écran précédent ; garder le
- * bouton avec le placeholder `has_previous_menu`.
+ * Reopens the previous screen from the player's navigation history (back
+ * button). Consumes the history: menu → wiki → item, two backs return to the
+ * menu (no item ↔ wiki back-and-forth). No-op without a previous screen; guard the
+ * button with the `has_previous_menu` placeholder.
  */
 export interface OpenPreviousMenuAction { type: "open_previous_menu"; }
-export interface GiveItemAction   { type: "give_item"; material: string; count: number; nbt?: string; name?: string; lore?: string[]; }
+export interface GiveItemAction   { type: "give_item"; material: string; count: number; nbt?: string; name?: string; lore?: LText[]; }
 export interface TakeItemAction   { type: "take_item"; material: string; count: number; nbt?: string; }
 export interface GiveMoneyAction  { type: "give_money"; amount: number; currency?: string; }
 export interface TakeMoneyAction  { type: "take_money"; amount: number; currency?: string; }
@@ -355,9 +359,9 @@ export interface HasItemCondition           { type: "has_item"; material: string
 export interface HasXpCondition             { type: "has_xp"; amount: number; }
 export interface HasLevelCondition          { type: "has_level"; level: number; }
 /**
- * Compare un placeholder à une valeur. Le placeholder peut être un PAPI (%vault_eco_balance%),
- * un contextInput ({category}), ou un champ d'iteration ({shop.rarity}). Remplace les anciennes
- * conditions data_field_* — utiliser {alias.field} sur un Element qui itère.
+ * Compares a placeholder to a value. The placeholder can be a PAPI (%vault_eco_balance%),
+ * a contextInput ({category}), or an iteration field ({shop.rarity}). Replaces the old
+ * data_field_* conditions — use {alias.field} on an iterating Element.
  */
 export interface PlaceholderEqualsCondition { type: "placeholder_equals"; placeholder: string; value: string; }
 export interface PlaceholderMatchCondition  { type: "placeholder_match"; placeholder: string; regex: string; }
@@ -374,7 +378,7 @@ export interface OrCondition  { type: "or"; of: Condition[]; }
 export interface ExpressionCondition { type: "expression"; expr: string; }
 
 // ============================================================================
-// TEMPLATES (stockés à part)
+// TEMPLATES (stored separately)
 // ============================================================================
 
 export interface Template {
@@ -426,7 +430,7 @@ export type ClickType = (typeof CLICK_TYPES)[number];
 // VALIDATION HELPERS
 // ============================================================================
 
-/** Parse "15" ou "10-43" en intervalle [from, to] inclusif. Renvoie null si invalide. */
+/** Parses "15" or "10-43" into an inclusive [from, to] interval. Returns null if invalid. */
 export function parsePositions(positions: string): { from: number; to: number } | null {
   const m = /^(\d+)(?:-(\d+))?$/.exec(positions);
   if (!m) return null;
@@ -451,14 +455,14 @@ export interface LayoutCheck {
 }
 
 /**
- * Vérifie ids uniques cross-layer + positions in-bounds + layer ids uniques + cohérence iterates/component_ref
- * + résolution des `iterates.source` contre les contextInputs.
- * Overlap intra-layer = warning (last-placed-wins, pas une erreur).
- * Cross-layer overlap = OK (pattern fall-through intentionnel).
+ * Checks cross-layer unique ids + in-bounds positions + unique layer ids + iterates/component_ref consistency
+ * + resolution of `iterates.source` against the contextInputs.
+ * Intra-layer overlap = warning (last-placed-wins, not an error).
+ * Cross-layer overlap = OK (intentional fall-through pattern).
  */
 export function validateMenuLayout(menu: Pick<Menu, "size" | "layers" | "context_inputs" | "player_inventory">): LayoutCheck {
   const errors: string[] = [];
-  // Positions adressables : le menu, plus les 36 slots joueur quand le bas est masqué.
+  // Addressable positions: the menu, plus the 36 player slots when the bottom is hidden.
   const limit = menu.size + (menu.player_inventory === "hidden" ? 36 : 0);
   const warnings: string[] = [];
   const seenElementIds = new Set<string>();
@@ -479,19 +483,19 @@ export function validateMenuLayout(menu: Pick<Menu, "size" | "layers" | "context
       }
       seenElementIds.add(el.id);
 
-      // iterates / component_ref mutex + iterates.source résoluble en contextInput de type "list"
+      // iterates / component_ref mutex + iterates.source resolvable to a contextInput of type "list"
       if (el.iterates) {
         for (const app of [el, ...(el.states ?? [])]) {
           if (app.component_ref) {
-            errors.push(`Element "${el.id}" mélange iterates et appearance.component_ref — incompatibles.`);
+            errors.push(`Element "${el.id}" mixes iterates and appearance.component_ref — incompatible.`);
             break;
           }
         }
         const input = inputsByName.get(el.iterates.source);
         if (!input) {
-          errors.push(`Element "${el.id}" iterates.source "${el.iterates.source}" ne référence aucun contextInput.`);
+          errors.push(`Element "${el.id}" iterates.source "${el.iterates.source}" does not reference any contextInput.`);
         } else if (input.type !== "list") {
-          errors.push(`Element "${el.id}" iterates.source "${el.iterates.source}" doit être un contextInput de type "list" (actuellement "${input.type}").`);
+          errors.push(`Element "${el.id}" iterates.source "${el.iterates.source}" must be a contextInput of type "list" (currently "${input.type}").`);
         }
       }
 

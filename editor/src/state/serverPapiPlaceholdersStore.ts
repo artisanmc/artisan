@@ -1,15 +1,14 @@
 import type { PapiPlaceholder } from "@/components/PlaceholderInput";
+import { apiFetch } from "@/lib/api/client";
 import { create } from "zustand";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 export interface PapiServerScope {
   userId: string;
-  networkId: string;
   serverId: string;
 }
 
 export const papiScopeKey = (scope: PapiServerScope) =>
-  JSON.stringify([scope.userId, scope.networkId, scope.serverId]);
+  JSON.stringify([scope.userId, scope.serverId]);
 
 interface State {
   key: string | null;
@@ -36,12 +35,10 @@ export const useServerPapiPlaceholdersStore = create<State>((set) => {
       set({ key, placeholders: [] });
       const promise = (async () => {
         try {
-          const response = await fetch(
-            `${API_URL}/api/v1/networks/${encodeURIComponent(scope.networkId)}/servers/${encodeURIComponent(scope.serverId)}/papi-placeholders`,
-            { credentials: "include", signal: AbortSignal.timeout(7_000) },
+          const body = await apiFetch<{ placeholders?: unknown }>(
+            `/api/v1/servers/${encodeURIComponent(scope.serverId)}/papi-placeholders`,
+            { timeoutMs: 7_000 },
           );
-          if (!response.ok) return;
-          const body = await response.json();
           if (generation !== request || !Array.isArray(body.placeholders)) return;
           set({ placeholders: body.placeholders });
         } catch {

@@ -1,85 +1,221 @@
-# Structure d'un project sur disque
+# Structure of a project on disk
 
-Les fichiers sont la **source de vérité** (ADR `files-first-source-of-truth`) : le disque est
-lossless, l'éditeur n'a pas de représentation privilégiée.
+Files are the **source of truth** (ADR `files-first-source-of-truth`): the disk is
+lossless, the editor has no privileged representation.
 
 ```
-plugins/Artisan/projects/
+plugins/Artisan/modules/
   <project_id>/
-    manifest.yaml
-    menus/<menu_id>.yaml
-    dialogs/<dialog_id>.yaml
-    lang/<lang>.yaml               ← arborescence YAML (cf. ci-dessous)
-    items/<captured_item_id>.yml   ← ItemStacks capturés (refs material `item:<id>`), YAML Bukkit verbatim
-    data/<source_id>.yaml          ← Project sources (schema data/v1, refs `pack:<id>`)
-    templates/<id>.yaml            ← schema template/v1, résolus au load plugin
-    models/<id>.yaml               ← schema model/v1, ignorés par le plugin
-    .artisan-sync.yaml             ← SyncMetadata (syncedHash, backendHash, syncedAt)
-    .artisan/editor.yaml           ← état de la planche éditeur
+    artisan-module.yml             ← module file (`schema: module/v1`), formerly manifest.yaml
+    menus/<menu_id>.yml            ← one folder per Document kind (see below)
+    commands/<command_id>.yml
+    dialogs/<dialog_id>.yml
+    <folder>/                      ← thematic folder (see below), same kind folders
+      menus/<menu_id>.yml
+      dialogs/<dialog_id>.yml
+      <subfolder>/menus/…          ← up to 3 levels
+    lang/<lang>.yml                ← YAML tree (see below)
+    items/<captured_item_id>.yml   ← captured ItemStacks (material refs `item:<id>`), Bukkit YAML verbatim
+    data/<source_id>.yml           ← Project sources (schema data/v1, refs `pack:<id>`)
+    templates/<id>.yml             ← schema template/v1, resolved at plugin load
+    models/<id>.yml                ← schema model/v1; `<id>` = the source it types (owned model), otherwise the model id, the identity remains the internal `id:`
+    assets/{glyphs,textures,fonts}/ ← images and fonts (binaries, written by publication)
+    .artisan/editor.yaml           ← editor board state (the only `.artisan*` the editor writes)
+    .artisan/project-id            ← project UUID, written once by the plugin (keeps Versions and drafts across a rename)
+    .artisan/drafts/<id>/          ← drafts from before the suite database, no longer read
+    .artisan/transactions/         ← publication journal, receipts in `.receipts/`
+    .artisan/history/              ← archives from before 2026-09-26, read only
 ```
 
-Les fichiers `data/` portent les Data models **inlinés** ; les valeurs `ltext` sont des clés i18n
-résolues au bind, les valeurs item des refs material.
+Before 2026-10, the root was `plugins/Artisan/projects/`. On first startup, the plugin
+moves it to `modules/` (`ModulesRootMigration`): each folder keeps its name (namespace, qualified
+refs) and its `.artisan/project-id` (Versions, drafts), the old folder stays as
+`projects.artisan-migrated/` and `modules/.artisan-migrations.yaml` prevents the migration from replaying.
+A failure puts everything back and keeps `projects/`. Design: `design-projets-en-modules.md`
+(project files), of which this is batch 1; the rest (editor per module, add-on roots) follows.
 
-Les chemins dont le **premier segment** commence par `.artisan` sont hors hash, jamais uploadés et
-invisibles au scan disque — cf. `invariants.md` § Exclusion `.artisan*` universelle. Idem pour
-`.artisan-trash/`, au top de `projectsDir`.
+## YAML extensions and the module file
 
-## `manifest.yaml` — `lore_max_width`
+The plugin and the editor write `.yml` (the Bukkit/Paper norm) and also read `.yaml` (what
+Artisan wrote before) everywhere: Documents, `lang/`, `data/`, `models/`, `templates/`, `assets/` descriptors
+(`model/YamlFiles.kt`, `lib/yamlFiles.ts`). The same file under both extensions is an
+error: a Document is refused (`duplicate_id`), any other file is read from its `.yml` copy
+and the log names the other. The file that makes a folder a module is `artisan-module.yml`
+(`schema: module/v1`, same fields as `manifest/v1`), read first, then `manifest.yml` and
+`manifest.yaml` (`model/ModuleFile.kt`). `ProjectContentApi.read` finds a file under either
+extension, and `read("manifest.yaml")` returns the module file whatever its name.
+An editor save rewrites each file under the extension it has on disk
+(`keepYamlExtensions`), and so does a config screen.
 
-Largeur max d'une ligne de lore, en **pixels MC** (avances de la police vanilla, +1 px par caractère
-gras ; ~6 px par caractère courant). Absent ou `0` = pas de retour à la ligne ; les projets créés
-depuis l'éditeur naissent avec `240`. Le plugin découpe chaque ligne **après** résolution des
-placeholders (`render/LoreWrap.kt`), l'aperçu éditeur applique le même algorithme
-(`lib/loreWrap.ts`) — contrat figé par `testdata/lore-wrap-conformance.json`. On coupe sur les
-espaces, un mot trop long déborde seul, et une ligne de continuation rouvre les balises
-MiniMessage encore ouvertes (chaque ligne de lore est parsée seule). Le lore de l'item de base
-n'est pas redécoupé, sauf placé par `{base.lore}`. Réglable dans les paramètres du projet
-(bouton YAML = `manifest.yaml` verbatim).
+A file that already exists is rewritten under its name: the copy of a template or of a system
+element (`TemplateCopies`, `SystemFiles`), the file of a module command
+(`commands/<name>.yml`), a draft publication. Only a new file takes `.yml`
+(`YamlFiles.onDisk`, editor-side `yamlPathFor`). A module template keeps the names
+under which the module ships it (often `.yaml`): the editor compares its files with those of the folder
+without the extension (`TemplateFileState.projectPath`), and `template_copy` accepts either
+spelling.
 
-## `manifest.yaml` — `escape_goes_back`
+**Migration at startup** (`YmlMigration`, called by `ProjectRoots` when the server starts,
+once per folder and per startup): each folder of `plugins/Artisan/modules/` (a module's own
+folder included) has its `.yaml` files renamed to `.yml` and its `manifest.yaml` to
+`artisan-module.yml`, in one journaled commit (`ProjectPublisher`), along with the keys of
+`.artisan/origins.yaml`. Only names change: the bytes stay, a renamed `manifest.yaml`
+keeps `schema: manifest/v1` until the editor next writes it. The `.artisan*`
+metadata keeps its name. A file whose `.yml` copy already exists stays
+as is, named in the log. An add-on root outside `modules/` and a configuration root
+are not touched: the add-on reads its files there as it wrote them.
 
-Booléen, absent = `false`. Vrai : Échap dans un menu du projet rouvre l'écran précédent de la pile
-de navigation (comme `open_previous_menu`) au lieu de la vider ; pile vide = fermeture normale.
-Seule la raison de fermeture `PLAYER` déclenche le retour — `close_menu` (`PLUGIN`) ferme tout.
-Câblé dans `render/MenuListener.kt` (tick suivant, comme le vidage d'historique). Les dialogs ne
-sont pas concernés.
+A draft started before the migration still names `menus/shop.yaml`: the editor, when
+resuming it (`followDisk`), renames its paths as the disk writes them, and the plugin does the
+same at publication (`DraftPublication`). A change made under the old name is therefore
+kept, without conflict.
 
-## `lang/` — arborescence, pas fichier plat
+A Project is identified by the name of its folder on its server; for the hub and the editor, it
+is called `<server id>.<folder>`, whatever the server (see `entities.md`). `.artisan-sync.yaml` (old
+cloud sync metadata) may linger on an old server: it stays excluded and ignored.
 
-Chaque `.` de la clé est un niveau (`menus:` → `<menu_id>:` → `elements:` → …). Le runtime adresse
-par clé pointée.
+## Document folders — the kind registry
 
-- **Codec d'écriture** (seul writer) : `editor/src/lib/langTree.ts` — `nestLangTree`.
-- **Miroir de lecture** : `plugin/…/yaml/LangFlattener.kt`.
-- **Verrouillé par** le vecteur partagé `testdata/lang-tree-conformance.json`.
+The `menus/`, `commands/` and `dialogs/` folders are named nowhere in hard-coded form (ADR
+`extensible-document-kinds`, decision 10). Each Document **kind** is an entry of a registry
+— `editor/src/domain/documentKinds.ts` (`kind`, `dir`, `idPrefix`, `schemaVersion`, `rank`) and
+`plugin/core/.../model/DocumentKinds.kt`, Kotlin facade of the API's `DocumentKindRegistry`
+(`kind`, `dir`, `schemaVersions`, `idPrefix`; core kinds are registered there by
+`coreRegistry()`, a module adds its own through `api.getDocumentKinds()`) — and everything that walks
+a project loops over this registry: the editor's import (`projectFromFiles`) and write (`projectToFiles`)
+through the per-kind codecs (`schema/documentCodecs.ts`, a `<kind>V1ToDomain` reader and a
+`<kind>V1FromDomain` writer per kind), the plugin's `ProjectReader` through
+a reader per kind, the resource inventory and the provider's reference tables.
 
-Les trois readers (plugin, import éditeur, mutation module) acceptent **arbre / plat legacy /
-mélange** — rien à migrer. Une clé bloquée par une feuille (`a.b` et `a.b.c` coexistent) reste
-pointée à la racine plutôt que perdue.
+In memory, a Project is a **single container**: `Project.documents[kind]` (editor) and
+`RuntimeProject.documents[kind]` (plugin). `menusOf(project)`, `runtime.menus` and the like
+are typed **read** accessors on this container, never a second store. A folder
+whose kind is not registered stays opaque: the editor round-trips it in
+`moduleData.<dir>.__files`, the plugin does not read it. A kind registered by a module without a core
+reader is read as a **raw document** (`RuntimeRawDocument`: the YAML mapping, `schema:` checked against the
+declared labels, the file name as id) and handed back to the module by
+`ProjectContentApi.documents(projectId, kind)` (W6).
 
-## Textes structurels — field-local (ADR `field-local-translations`)
+## Thematic folders
 
-Depuis 2026-09-30, les textes **structurels** (titre de menu, `title`/`lore` d'apparence, `title`/
-`body`/labels de dialog) vivent **dans le document**, pas dans `lang/`. Un slot texte est soit une
-**string** (littéral, ou ref `{i18n:key}`, identique pour toutes les langues), soit une **map
-field-local `{ <lang>: texte }`** (résolue langue demandée → `defaultLang` → n'importe quelle entrée).
-La forme string est un sucre pour `{<defaultLang>: texte}`. Un champ structurel n'est jamais à la
-fois string et map.
+A module stores its Documents in free folders that mix kinds:
+`boutique/menus/shop.yaml`, `boutique/commands/shop.yaml`, `boutique/armes/menus/swords.yaml`.
+The rule is a pure function of paths, written twice and locked by
+`testdata/document-layout-conformance.json`: `model/DocumentLayout.kt` (plugin, read by
+`ProjectReader` and `ResourceInventory`) and `domain/documentLayout.ts` (editor, read by
+`projectFromFiles`, `adoptLateDocuments` and `projectToFiles`).
 
-`lang/` ne porte donc plus que : les **textes d'action** (sérialisés en refs `@key` à l'intérieur de
-l'Action DSL — une string DSL ne peut pas contenir de map), les **clés sans site** de présentation
-(`artisan.duration.*`) et les **adresses des data sources** (ADR `bare-data-files` ④). En
-conséquence, le sous-système d'**adresses positionnelles** (`I18nAddresses.kt` côté plugin,
-`i18nKeys.ts`/`i18nSites.ts` côté éditeur) n'est plus un contrat de rendu pour les documents —
-le runtime lit la map du slot. Vecteur retiré : `testdata/i18n-address-conformance.json`.
+- A Document is `<folders…>/<kind dir>/<id>.yaml` (or `.yml`), with 0 to 3 thematic folders
+  (slug `^[a-z0-9][a-z0-9_-]*$`).
+- **The id remains the file name.** The folder enters neither the id, nor the references,
+  nor the `lang/` or board keys: moving a Document only changes its path.
+  The editor carries it in `Document.folder` and a rename records the move under
+  the Document's folder (`renamedDocumentFiles`).
+- **An id is unique per kind in the module.** Two files of the same kind and the same id,
+  in two folders: both are refused (`duplicate_id`). Two kinds can share
+  an id (a menu and a `shop` command): `.artisan/editor.yaml` then stores the board
+  (`layout`, `edges`) by `<kind>/<id>`, and the editor flags this sharing on opening.
+- A kind folder only contains files (`kind_dir_subfolder` otherwise). A thematic
+  folder cannot bear the name of a resource (`lang`, `items`, `data`, `models`,
+  `templates`, `assets`, `overrides`, `config`: `reserved_folder`) nor exceed 3 levels
+  (`too_deep`). Resources stay at the module root.
+- A refused file is reported (`onSkip`, plugin side) and never lost: the editor keeps it
+  in `Project.unreadFiles` and rewrites it as is. What does not have the shape of a Document
+  (a file placed directly in a thematic folder, an unregistered kind folder)
+  stays in `moduleData.<first folder>.__files`, and `adoptLateDocuments` reads it when
+  the kind arrives.
+- In the editor, the sidebar tree creates, renames, deletes folders and moves
+  Documents into them; on the board, each top-level folder is a frame.
+  `.artisan/editor.yaml` keeps under `folders:` the color and position of these frames, and
+  the still-empty folders (nothing else on disk would remember them):
+  `folders: { boutique: { color: "#a855f7", position: { x: 120, y: 240 } }, vide: {} }`.
 
-`title: "Retour"` et `title: { fr: Retour, en: Back }` coexistent ; un champ string est lu comme la
-valeur du `defaultLang` (donc détecté comme non traduit pour les autres langues). Migration
-paresseuse : un projet inline mono-langue se lit à l'identique, la promotion string → map ne se fait
-qu'à la saisie d'une deuxième langue. La lecture reste tolérante à l'ancienne forme adressée.
+The `data/` files carry the Data models **inlined**; `ltext` values are i18n keys
+resolved at bind, item values are material refs.
 
-## Champ `title` d'un menu
+Paths whose **first segment** starts with `.artisan` are outside the hash and
+invisible to the disk scan — see `invariants.md` § Universal `.artisan*` exclusion. Same for
+`.artisan-trash/`, at the top of `projectsDir`.
 
-Un `MenuTitleLayer[]` — `background` / `glyph` / `text` / `textarea` / `external_glyph`. Format YAML
-et pipeline de rendu pixel-perfect (pixel offsets, fonts custom) : `editor-internals.md`.
+## Module file — `lore_max_width`
+
+Maximum width of a lore line, in **MC pixels** (vanilla font advances, +1 px per bold
+character; ~6 px per common character). Absent or `0` = no wrapping; projects created
+from the editor are born with `240`. The plugin splits each line **after** placeholder
+resolution (`render/LoreWrap.kt`), the editor preview applies the same algorithm
+(`lib/loreWrap.ts`) — contract frozen by `testdata/lore-wrap-conformance.json`. It breaks on
+spaces, a word that is too long overflows alone, and a continuation line reopens the MiniMessage
+tags still open (each lore line is parsed alone). The lore of the base item
+is not re-split, unless placed by `{base.lore}`. Adjustable in the project settings
+(YAML button = the module file verbatim).
+
+## Module file — `escape_goes_back`
+
+Boolean, absent = `false`. True: Escape in a project menu reopens the previous screen of the navigation
+stack (like `open_previous_menu`) instead of clearing it; empty stack = normal close.
+Only the `PLAYER` close reason triggers the back — `close_menu` (`PLUGIN`) closes everything.
+Wired in `listener/MenuListener.kt` (next tick, like the history clearing). Dialogs are not
+affected.
+Spigot does not give the close reason (`MenuCloseReason.UNKNOWN`): the back does not apply there.
+
+## `lang/` — a tree, not a flat file
+
+Each `.` of the key is a level (`menus:` → `<menu_id>:` → `elements:` → …). The runtime addresses
+by dotted key.
+
+- **Write codec** (only writer): `editor/src/lib/langTree.ts` — `nestLangTree`.
+- **Read mirror**: `plugin/…/yaml/LangFlattener.kt`.
+- **Locked by** the shared vector `testdata/lang-tree-conformance.json`.
+
+The three readers (plugin, editor import, module mutation) accept **tree / legacy flat /
+mixed** — nothing to migrate. A key blocked by a leaf (`a.b` and `a.b.c` coexist) stays
+dotted at the root rather than being lost.
+
+A `lang/` key that no Document and no data source of the module reads at import is
+**kept as is**: an add-on's messages (ArtisanAuctions, a bundle declared
+`inFolder`), a key added by the admin. The editor notes it in `Project.keptLangKeys`
+(`projectFromFiles`) and rewrites it from `i18nKeys` on every export (`keptLangEntries`): a
+change in Translations applies, a deletion removes it, a key that a site owns
+in the meantime goes back to it. Keys under `menus.`, `commands.`, `dialogs.`, `sources.` and
+`artisan.` belong to the editor. Before, an export only kept the keys without a site and the data
+sources: a Deploy wiped out the rest.
+
+An add-on stores its **system messages** in the `lang/` of its folder with
+`MessageBundleDeclaration.files(...).inFolder(folder)` (API 2.17.0): Artisan reads the
+server's files there instead of `plugins/<Plugin>/lang/`, moves them there once
+(`LangFolderMove`, a file whose language already exists in the folder stays and the log
+names it), and rereads the bundle at every project reload (`Translations.reloadFolderBundles`).
+The jar still answers for missing keys.
+
+## Structural texts — field-local (ADR `field-local-translations`)
+
+Since 2026-09-30, **structural** texts (menu title, appearance `title`/`lore`, dialog `title`/
+`body`/labels) live **in the document**, not in `lang/`. A text slot is either a
+**string** (literal, or `{i18n:key}` ref, identical for all languages), or a **field-local
+map `{ <lang>: text }`** (resolved requested language → `defaultLang` → any entry).
+The string form is sugar for `{<defaultLang>: text}`. A structural field is never
+both string and map.
+
+`lang/` therefore only carries: **action texts** (serialized as `@key` refs inside the
+Action DSL — a DSL string cannot contain a map), presentation **keys without a site**
+(`artisan.duration.*`) and **data source addresses** (ADR `bare-data-files` ④). As a
+consequence, the **positional addresses** subsystem (`I18nAddresses.kt` plugin-side,
+`i18nKeys.ts`/`i18nSites.ts` editor-side) is no longer a rendering contract for documents —
+the runtime reads the slot's map. Vector removed: `testdata/i18n-address-conformance.json`.
+
+`title: "Retour"` and `title: { fr: Retour, en: Back }` coexist; a string field is read as the
+`defaultLang` value (hence detected as untranslated for the other languages). Lazy
+migration: a single-language inline project reads identically, the string → map promotion only happens
+when a second language is entered. Reading stays tolerant of the old addressed form.
+
+A translated **lore** is a list of lines **per language** (`lore: { en: [...], fr: [...] }`):
+each language has its own line count and the fallback (requested language → `defaultLang` →
+any) applies to the whole block. Without translation, it is a plain list of lines.
+The "one `{lang: text}` map per line" form is still read (plugin `LoreDeserializer`, editor
+`menuV1ToDomain.loreText`, which regroups it into one block per language) but is no longer written
+(`schema/fieldText.ts` `loreWire`).
+
+## `title` field of a menu
+
+A `MenuTitleLayer[]` — `background` / `glyph` / `text` / `textarea` / `external_glyph`. YAML format
+and pixel-perfect rendering pipeline (pixel offsets, custom fonts): `editor-internals.md`.

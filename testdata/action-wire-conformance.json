@@ -1,0 +1,810 @@
+{
+  "$comment": "Structured action wire (ADR structured-action-wire): both stacks must read `wire` and `canonical` as the same chain, and the editor must write `canonical` back: the shortest form (ADR extensible-document-kinds W4) — an argument at its declared default is dropped, a primary argument alone is written bare. `names` is the top-level step sequence (an action's wire name, or `if`). Plugin: KeyedStepParser; editor: lib/actions/structuredSteps.ts. Unknown action keys (module Actions, ADR extensible-document-kinds decision 5) are pinned by a later batch.",
+  "cases": [
+    {
+      "name": "arg-less action: null value and bare string are the same step",
+      "wire": [
+        {
+          "close_menu": null
+        },
+        "open_previous_menu",
+        {
+          "close_dialog": null
+        }
+      ],
+      "canonical": [
+        "close_menu",
+        "open_previous_menu",
+        "close_dialog"
+      ],
+      "names": [
+        "close_menu",
+        "open_previous_menu",
+        "close_dialog"
+      ]
+    },
+    {
+      "name": "one argument: the value is the argument",
+      "wire": [
+        {
+          "give_xp": 5
+        },
+        {
+          "give_level": 2
+        },
+        {
+          "give_money": 100
+        },
+        {
+          "take_money": 25.5
+        }
+      ],
+      "canonical": [
+        {
+          "give_xp": 5
+        },
+        {
+          "give_level": 2
+        },
+        {
+          "give_money": 100
+        },
+        {
+          "take_money": 25.5
+        }
+      ],
+      "names": [
+        "give_xp",
+        "give_level",
+        "give_money",
+        "take_money"
+      ]
+    },
+    {
+      "name": "text as defaultLang string",
+      "wire": [
+        {
+          "send_message": "Welcome!"
+        },
+        {
+          "broadcast": "{i18n:shop.vip_purchased}"
+        }
+      ],
+      "canonical": [
+        {
+          "send_message": "Welcome!"
+        },
+        {
+          "broadcast": "{i18n:shop.vip_purchased}"
+        }
+      ],
+      "names": [
+        "send_message",
+        "broadcast"
+      ]
+    },
+    {
+      "name": "text as field-local language map",
+      "wire": [
+        {
+          "send_message": {
+            "en": "Welcome!",
+            "fr": "Bienvenue !"
+          }
+        }
+      ],
+      "canonical": [
+        {
+          "send_message": {
+            "en": "Welcome!",
+            "fr": "Bienvenue !"
+          }
+        }
+      ],
+      "names": [
+        "send_message"
+      ]
+    },
+    {
+      "name": "run_command: `as: player` collapses to the bare command",
+      "wire": [
+        {
+          "run_command": {
+            "command": "spawn",
+            "as": "player"
+          }
+        },
+        {
+          "run_command": {
+            "command": "lp user {player} parent add vip",
+            "as": "console"
+          }
+        }
+      ],
+      "canonical": [
+        {
+          "run_command": "spawn"
+        },
+        {
+          "run_command": {
+            "command": "lp user {player} parent add vip",
+            "as": "console"
+          }
+        }
+      ],
+      "names": [
+        "run_command",
+        "run_command"
+      ]
+    },
+    {
+      "name": "open_menu: a bare ref and a one-key map are the same target",
+      "wire": [
+        {
+          "open_menu": "shop_main"
+        },
+        {
+          "open_menu": {
+            "menu_id": "boutique:shop_main"
+          }
+        }
+      ],
+      "canonical": [
+        {
+          "open_menu": "shop_main"
+        },
+        {
+          "open_menu": "boutique:shop_main"
+        }
+      ],
+      "names": [
+        "open_menu",
+        "open_menu"
+      ]
+    },
+    {
+      "name": "open_menu with context and clear_context keeps the map",
+      "wire": [
+        {
+          "open_menu": {
+            "menu_id": "shop_category",
+            "context": {
+              "category": "{cat.id}"
+            },
+            "clear_context": true
+          }
+        }
+      ],
+      "canonical": [
+        {
+          "open_menu": {
+            "menu_id": "shop_category",
+            "context": {
+              "category": "{cat.id}"
+            },
+            "clear_context": true
+          }
+        }
+      ],
+      "names": [
+        "open_menu"
+      ]
+    },
+    {
+      "name": "open_dialog: bare ref, and map with context",
+      "wire": [
+        {
+          "open_dialog": "confirm"
+        },
+        {
+          "open_dialog": {
+            "dialog_id": "confirm",
+            "context": {
+              "price": "{item.price}"
+            }
+          }
+        }
+      ],
+      "canonical": [
+        {
+          "open_dialog": "confirm"
+        },
+        {
+          "open_dialog": {
+            "dialog_id": "confirm",
+            "context": {
+              "price": "{item.price}"
+            }
+          }
+        }
+      ],
+      "names": [
+        "open_dialog",
+        "open_dialog"
+      ]
+    },
+    {
+      "name": "give_item / take_item: a bare material means one of it; the count is always written back",
+      "wire": [
+        {
+          "give_item": "DIAMOND"
+        },
+        {
+          "take_item": "EMERALD"
+        },
+        {
+          "give_item": {
+            "material": "DIAMOND",
+            "count": 5
+          }
+        }
+      ],
+      "canonical": [
+        {
+          "give_item": {
+            "material": "DIAMOND",
+            "count": 1
+          }
+        },
+        {
+          "take_item": {
+            "material": "EMERALD",
+            "count": 1
+          }
+        },
+        {
+          "give_item": {
+            "material": "DIAMOND",
+            "count": 5
+          }
+        }
+      ],
+      "names": [
+        "give_item",
+        "take_item",
+        "give_item"
+      ]
+    },
+    {
+      "name": "play_sound: bare name, or map with volume and pitch; a default volume is not written back",
+      "wire": [
+        {
+          "play_sound": "ENTITY_PLAYER_LEVELUP"
+        },
+        {
+          "play_sound": {
+            "sound": "ENTITY_PLAYER_LEVELUP",
+            "volume": 1,
+            "pitch": 1.2
+          }
+        }
+      ],
+      "canonical": [
+        {
+          "play_sound": "ENTITY_PLAYER_LEVELUP"
+        },
+        {
+          "play_sound": {
+            "sound": "ENTITY_PLAYER_LEVELUP",
+            "pitch": 1.2
+          }
+        }
+      ],
+      "names": [
+        "play_sound",
+        "play_sound"
+      ]
+    },
+    {
+      "name": "teleport keeps only the given optional angles",
+      "wire": [
+        {
+          "teleport": {
+            "world": "nether",
+            "x": 0,
+            "y": 64,
+            "z": 0,
+            "yaw": 90
+          }
+        }
+      ],
+      "canonical": [
+        {
+          "teleport": {
+            "world": "nether",
+            "x": 0,
+            "y": 64,
+            "z": 0,
+            "yaw": 90
+          }
+        }
+      ],
+      "names": [
+        "teleport"
+      ]
+    },
+    {
+      "name": "show_title: a bare text is the title and writes back bare; the map carries subtitle and timings",
+      "wire": [
+        {
+          "show_title": "VIP"
+        },
+        {
+          "show_title": {
+            "title": {
+              "en": "VIP",
+              "fr": "VIP"
+            },
+            "subtitle": "§7Welcome",
+            "fade_in": 5,
+            "stay": 40,
+            "fade_out": 5
+          }
+        }
+      ],
+      "canonical": [
+        {
+          "show_title": "VIP"
+        },
+        {
+          "show_title": {
+            "title": {
+              "en": "VIP",
+              "fr": "VIP"
+            },
+            "subtitle": "§7Welcome",
+            "fade_in": 5,
+            "stay": 40,
+            "fade_out": 5
+          }
+        }
+      ],
+      "names": [
+        "show_title",
+        "show_title"
+      ]
+    },
+    {
+      "name": "pagination: null targets every iterating element, a string targets one",
+      "wire": [
+        {
+          "pagination_next": null
+        },
+        {
+          "pagination_prev": "grid"
+        }
+      ],
+      "canonical": [
+        {
+          "pagination_next": null
+        },
+        {
+          "pagination_prev": "grid"
+        }
+      ],
+      "names": [
+        "pagination_next",
+        "pagination_prev"
+      ]
+    },
+    {
+      "name": "set_arg family and run_actions",
+      "wire": [
+        {
+          "set_arg": {
+            "arg": "page",
+            "value": "1"
+          }
+        },
+        {
+          "set_arg_cycle_next": {
+            "arg": "cat",
+            "list": "{categories}"
+          }
+        },
+        {
+          "set_arg_cycle_prev": {
+            "arg": "cat",
+            "list": "{categories}"
+          }
+        },
+        {
+          "run_actions": "{row.on_buy}"
+        }
+      ],
+      "canonical": [
+        {
+          "set_arg": {
+            "arg": "page",
+            "value": "1"
+          }
+        },
+        {
+          "set_arg_cycle_next": {
+            "arg": "cat",
+            "list": "{categories}"
+          }
+        },
+        {
+          "set_arg_cycle_prev": {
+            "arg": "cat",
+            "list": "{categories}"
+          }
+        },
+        {
+          "run_actions": "{row.on_buy}"
+        }
+      ],
+      "names": [
+        "set_arg",
+        "set_arg_cycle_next",
+        "set_arg_cycle_prev",
+        "run_actions"
+      ]
+    },
+    {
+      "name": "if: the condition list is an implicit AND",
+      "wire": [
+        {
+          "if": [
+            {
+              "has_permission": "shop.vip"
+            },
+            {
+              "has_money": 100
+            }
+          ],
+          "do": [
+            {
+              "take_money": 100
+            },
+            {
+              "give_item": {
+                "material": "DIAMOND",
+                "count": 1
+              }
+            }
+          ]
+        }
+      ],
+      "canonical": [
+        {
+          "if": [
+            {
+              "has_permission": "shop.vip"
+            },
+            {
+              "has_money": 100
+            }
+          ],
+          "do": [
+            {
+              "take_money": 100
+            },
+            {
+              "give_item": {
+                "material": "DIAMOND",
+                "count": 1
+              }
+            }
+          ]
+        }
+      ],
+      "names": [
+        "if"
+      ]
+    },
+    {
+      "name": "if / else if / else: an if at the head of the else is the next case",
+      "wire": [
+        {
+          "if": [
+            {
+              "has_level": 30
+            }
+          ],
+          "do": [
+            {
+              "send_message": "Gold"
+            }
+          ],
+          "else": [
+            {
+              "if": [
+                {
+                  "has_level": 10
+                }
+              ],
+              "do": [
+                {
+                  "send_message": "Silver"
+                }
+              ],
+              "else": [
+                {
+                  "send_message": "Bronze"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "canonical": [
+        {
+          "if": [
+            {
+              "has_level": 30
+            }
+          ],
+          "do": [
+            {
+              "send_message": "Gold"
+            }
+          ],
+          "else": [
+            {
+              "if": [
+                {
+                  "has_level": 10
+                }
+              ],
+              "do": [
+                {
+                  "send_message": "Silver"
+                }
+              ],
+              "else": [
+                {
+                  "send_message": "Bronze"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "names": [
+        "if"
+      ]
+    },
+    {
+      "name": "or / and / not are explicit nodes; scalar and object conditions",
+      "wire": [
+        {
+          "if": [
+            {
+              "or": [
+                {
+                  "world_is": "world_nether"
+                },
+                {
+                  "and": [
+                    {
+                      "time_is": "night"
+                    },
+                    {
+                      "not": {
+                        "has_item": {
+                          "material": "TORCH",
+                          "count": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "do": [
+            "close_menu"
+          ]
+        }
+      ],
+      "canonical": [
+        {
+          "if": [
+            {
+              "or": [
+                {
+                  "world_is": "world_nether"
+                },
+                {
+                  "and": [
+                    {
+                      "time_is": "night"
+                    },
+                    {
+                      "not": {
+                        "has_item": {
+                          "material": "TORCH",
+                          "count": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "do": [
+            "close_menu"
+          ]
+        }
+      ],
+      "names": [
+        "if"
+      ]
+    },
+    {
+      "name": "every remaining core condition",
+      "wire": [
+        {
+          "if": [
+            {
+              "random_chance": 0.1
+            },
+            {
+              "cooldown_passed": "daily"
+            },
+            {
+              "player_in_region": "spawn"
+            },
+            {
+              "has_xp": 50
+            },
+            {
+              "placeholder_equals": {
+                "placeholder": "%vault_eco_balance%",
+                "value": "0"
+              }
+            },
+            {
+              "placeholder_match": {
+                "placeholder": "%player_name%",
+                "regex": "^A"
+              }
+            },
+            {
+              "pagination_at_first": null
+            },
+            {
+              "pagination_at_last": "grid"
+            },
+            {
+              "expression": "{player.level} > 5"
+            },
+            {
+              "time_is": {
+                "from_ticks": 13000,
+                "to_ticks": 23000
+              }
+            }
+          ],
+          "do": [
+            {
+              "give_xp": 1
+            }
+          ]
+        }
+      ],
+      "canonical": [
+        {
+          "if": [
+            {
+              "random_chance": 0.1
+            },
+            {
+              "cooldown_passed": "daily"
+            },
+            {
+              "player_in_region": "spawn"
+            },
+            {
+              "has_xp": 50
+            },
+            {
+              "placeholder_equals": {
+                "placeholder": "%vault_eco_balance%",
+                "value": "0"
+              }
+            },
+            {
+              "placeholder_match": {
+                "placeholder": "%player_name%",
+                "regex": "^A"
+              }
+            },
+            {
+              "pagination_at_first": null
+            },
+            {
+              "pagination_at_last": "grid"
+            },
+            {
+              "expression": "{player.level} > 5"
+            },
+            {
+              "time_is": {
+                "from_ticks": 13000,
+                "to_ticks": 23000
+              }
+            }
+          ],
+          "do": [
+            {
+              "give_xp": 1
+            }
+          ]
+        }
+      ],
+      "names": [
+        "if"
+      ]
+    },
+    {
+      "name": "a module's action passes through verbatim: bare name, scalar, argument map",
+      "wire": [
+        "quests:refresh",
+        {
+          "quests:start": "intro"
+        },
+        {
+          "quests:notify": {
+            "text": {
+              "en": "Hi",
+              "fr": "Salut"
+            },
+            "then": [
+              {
+                "give_xp": 1
+              }
+            ]
+          }
+        }
+      ],
+      "canonical": [
+        "quests:refresh",
+        {
+          "quests:start": "intro"
+        },
+        {
+          "quests:notify": {
+            "text": {
+              "en": "Hi",
+              "fr": "Salut"
+            },
+            "then": [
+              {
+                "give_xp": 1
+              }
+            ]
+          }
+        }
+      ],
+      "names": [
+        "quests:refresh",
+        "quests:start",
+        "quests:notify"
+      ]
+    },
+    {
+      "name": "a single map handler is one step, a list is a chain",
+      "wire": {
+        "open_menu": "shop_main"
+      },
+      "canonical": [
+        {
+          "open_menu": "shop_main"
+        }
+      ],
+      "names": [
+        "open_menu"
+      ]
+    },
+    {
+      "name": "an empty chain",
+      "wire": [],
+      "canonical": [],
+      "names": []
+    }
+  ]
+}

@@ -1,5 +1,6 @@
+import { menusOf } from "@/domain/documents";
 import type { Menu, MenuId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { beforeEach, expect, it, vi } from "vitest";
 import { canvasClipboardActions } from "./useCanvasKeyboard";
@@ -24,9 +25,8 @@ const menu = (id: MenuId, elements: { id: string; positions: string }[]): Menu =
   }) as unknown as Menu;
 
 const positionsIn = (menuId: MenuId) =>
-  useAccountStore
-    .getState()
-    .account.projects[0]!.menus.find((m) => m.id === menuId)!
+  menusOf(useProjectsStore.getState().openProjects.projects[0]!)
+    .find((m) => m.id === menuId)!
     .layers.flatMap((l) => l.elements.map((e) => e.positions));
 
 const copy = async (menuId: MenuId, ids: string[]) => {
@@ -35,22 +35,23 @@ const copy = async (menuId: MenuId, ids: string[]) => {
 };
 
 beforeEach(() => {
-  useAccountStore.setState({
-    account: {
-      id: "acc",
+  useProjectsStore.setState({
+    openProjects: {
       projectOrder: [PID],
       projects: [
         {
           id: PID,
-          menus: [
-            menu(A, [
-              { id: "x", positions: "0" },
-              { id: "y", positions: "1" },
-            ]),
-            menu(B, [{ id: "z", positions: "4" }]),
-          ],
-          commands: [],
-          dialogs: [],
+          documents: {
+            menu: [
+              menu(A, [
+                { id: "x", positions: "0" },
+                { id: "y", positions: "1" },
+              ]),
+              menu(B, [{ id: "z", positions: "4" }]),
+            ],
+            command: [],
+            dialog: [],
+          },
           dataSources: [],
           i18nKeys: {},
           canvasLayout: {},

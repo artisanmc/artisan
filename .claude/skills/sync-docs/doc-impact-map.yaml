@@ -6,53 +6,44 @@
 # CLAUDE.md is a ROUTER, not a reference: it only holds commands, the three
 # consequential pitfalls, the module import rule and the doc routing table.
 # Only map to it when a change actually touches one of those. Everything else
-# belongs in docs/architecture/*, CONTEXT.md, docs-site/ or .env.example.
+# belongs in docs/architecture/*, CONTEXT.md or docs/site/.
+# AGENTS.md mirrors CLAUDE.md: update both together.
 
 mappings:
   # --- Plugin: user-visible surface ---
 
-  - touches: "plugin/src/main/resources/config.yml"
+  - touches: "plugin/paper/src/main/resources/config.yml"
     updates:
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "docs/site/getting-started/install-admin.md"
     reason: "User-visible plugin config (Reference + Config sections)"
 
-  - touches: "plugin/src/main/kotlin/**/PluginConfig.kt"
+  - touches: "plugin/*/src/main/kotlin/**/PluginConfig.kt"
     updates:
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "docs/site/getting-started/install-admin.md"
     reason: "Plugin config schema / defaults"
 
-  - touches: "plugin/src/main/kotlin/**/ArtisanCommand.kt"
+  - touches: "plugin/*/src/main/kotlin/**/ArtisanCommand.kt"
     updates:
       - "docs/architecture/plugin-commands.md"
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "docs/site/getting-started/install-admin.md"
       - "CLAUDE.md"
-    reason: "Commands: dev detail in plugin-commands.md, user table in install-admin §5, one-line list in CLAUDE.md"
+      - "AGENTS.md"
+    reason: "Commands: dev detail in plugin-commands.md, user table in install-admin, one-line list in CLAUDE.md"
 
-  - touches: "plugin/src/main/kotlin/**/ResourcePackDelegator.kt"
+  - touches: "plugin/*/src/main/kotlin/**/ResourcePackDelegator.kt"
     updates:
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
-    reason: "Resource pack distribution modes (install-admin §8)"
+      - "docs/site/getting-started/install-admin.md"
+    reason: "Resource pack distribution modes (install-admin, Resource packs section)"
 
   # --- Plugin: sync, hashing, disk layout (the invariants) ---
 
-  - touches: "plugin/src/main/kotlin/**/BundleHasher.kt"
+  - touches: "plugin/*/src/main/kotlin/**/ContentHash.kt"
     updates:
       - "docs/architecture/invariants.md"
       - "testdata/project-snapshot-hash-conformance.json"
-    reason: "Hash algorithm — must stay byte-order sorted and conformance vector regenerated on both sides"
+    reason: "Snapshot hash — computed by the plugin only; keep byte-order sorting and regenerate the vector on purpose"
 
-  - touches: "backend/src/lib/hashUtils.ts"
-    updates:
-      - "docs/architecture/invariants.md"
-      - "testdata/project-snapshot-hash-conformance.json"
-    reason: "Backend half of the cross-language hash equality"
-
-  - touches: "plugin/src/main/kotlin/**/ProjectDeleter.kt"
-    updates:
-      - "docs/architecture/invariants.md"
-    reason: ".artisan-trash/ handling"
-
-  - touches: "plugin/src/main/kotlin/**/yaml/LangFlattener.kt"
+  - touches: "plugin/*/src/main/kotlin/**/yaml/LangFlattener.kt"
     updates:
       - "docs/architecture/project-files.md"
       - "testdata/lang-tree-conformance.json"
@@ -64,97 +55,237 @@ mappings:
       - "testdata/lang-tree-conformance.json"
     reason: "lang/ tree writer (the only writer)"
 
-  - touches: "plugin/src/main/kotlin/**/I18nAddresses.kt"
+  - touches: "plugin/*/src/main/kotlin/**/engine/KeyedStepParser.kt"
+    updates:
+      - "docs/architecture/testing.md"
+      - "testdata/action-wire-conformance.json"
+    reason: "Structured action wire reader — mirror of lib/actions/structuredSteps.ts, locked by shared vector"
+
+  - touches: "editor/src/lib/actions/structuredSteps.ts"
+    updates:
+      - "docs/architecture/testing.md"
+      - "testdata/action-wire-conformance.json"
+    reason: "Structured action wire codec (the only writer) — locked by shared vector"
+
+  - touches: "editor/src/domain/documentKinds.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "docs/decisions/extensible-document-kinds.md"
+    reason: "Document kind registry (editor): a kind's folder, id prefix and schema label decide the project layout"
+
+  - touches: "plugin/*/src/main/kotlin/**/model/DocumentLayout.kt"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "testdata/document-layout-conformance.json"
+    reason: "Where a module's Documents live (themed folders) — mirror of documentLayout.ts, locked by shared vector"
+
+  - touches: "editor/src/domain/documentLayout.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "testdata/document-layout-conformance.json"
+    reason: "Where a module's Documents live (themed folders) — mirror of DocumentLayout.kt, locked by shared vector"
+
+  - touches: "editor/src/{domain/folders.ts,state/projects/foldersSlice.ts}"
+    updates:
+      - "docs/architecture/editor-internals.md"
+      - "docs/architecture/project-files.md"
+    reason: "Folder tree and board folder frames; folders: in .artisan/editor.yaml"
+
+  - touches: "editor/src/schema/documentCodecs.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+    reason: "Per-kind file codecs driving projectFromFiles and projectToFiles"
+
+  - touches: "editor/src/schema/*FromDomain.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "docs/architecture/editor-internals.md"
+    reason: "Writing side of the editor's files <-> domain codec: a file form changes here and in its *ToDomain reader"
+
+  - touches: "editor/src/schema/projectToFiles.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "docs/architecture/editor-internals.md"
+    reason: "Writing side of the editor's files <-> domain codec: a file form changes here and in its *ToDomain reader"
+
+  - touches: "plugin/*/src/main/kotlin/**/model/DocumentKinds.kt"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "docs/decisions/extensible-document-kinds.md"
+    reason: "Document kind registry (plugin) — Kotlin façade of the API's DocumentKindRegistry: folders, schema labels read by ProjectReader and ResourceInventory"
+
+  - touches: "plugin/api/src/main/java/**/DocumentKind*.java"
+    updates:
+      - "docs/architecture/api-surface.md"
+      - "docs/architecture/modules.md"
+      - "docs/architecture/ws-protocol.md"
+    reason: "Document kind contract of the module API (W6): declaration fields are the document_kinds wire"
+
+  - touches: "editor/src/state/serverDocumentKindsStore.ts"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "Kinds the active server registers; drives the not-synchronised warning in the tree and NewDocumentDialog"
+
+  - touches: "plugin/*/src/main/kotlin/**/engine/RuntimeProject.kt"
+    updates:
+      - "docs/architecture/project-files.md"
+    reason: "RuntimeProject.documents is the one store of a project's Documents; menus/commands/dialogs are its typed façade"
+
+  - touches: "plugin/*/src/main/kotlin/**/I18nAddresses.kt"
     updates:
       - "docs/architecture/project-files.md"
       - "testdata/i18n-address-conformance.json"
     reason: "Canonical i18n addresses, derived on both sides"
 
-  # --- Module API surface (3 layers) ---
+  - touches: "editor/src/domain/actionArgs.ts"
+    updates:
+      - "testdata/action-wire-conformance.json"
+      - "docs/architecture/testing.md"
+      - "docs/architecture/editor-internals.md"
+    reason: "Wire value ⇄ argument map rule (mirror of ActionDeclaration.normalize/canonical): the canonical form the editor writes is locked by the shared vector"
 
-  - touches: "plugin/src/main/kotlin/net/artisanmc/modules/api/"
+  - touches: "editor/src/features/inspector/properties/ActionEditor.tsx"
+    updates:
+      - "docs/architecture/editor-internals.md"
+      - "editor/src/locales/en.ts"
+      - "editor/src/locales/fr.ts"
+    reason: "Declaration-driven action form (W4): a new argument widget or label needs its i18n keys and its line in the internals doc"
+
+  - touches: "editor/src/domain/actionTextSlots.ts"
+    updates:
+      - "testdata/i18n-address-conformance.json"
+      - "docs/architecture/testing.md"
+    reason: "Editor half of the action-text addressing (mirror of assignI18nAddresses), locked by the shared vector"
+
+  - touches: "plugin/*/src/main/kotlin/**/engine/CoreActions.kt"
+    updates:
+      - "testdata/core-actions.json"
+      - "docs/architecture/testing.md"
+      - "docs/decisions/extensible-document-kinds.md"
+    reason: "The core action vocabulary; the shared vector is generated from it (ARTISAN_WRITE_VECTORS=1) and imported by the editor"
+
+  - touches: "tools/minecraft-assets/*.ts"
+    updates:
+      - "tools/minecraft-assets/README.md"
+      - "CLAUDE.md"
+      - "AGENTS.md"
+    reason: "Minecraft asset generators: what each script does and run order in the README, one-line pipeline in CLAUDE.md (Assets MC)"
+
+  - touches: "editor/src/lib/pack/**"
+    updates:
+      - "testdata/resource-pack-conformance.json"
+    reason: "The editor owns the pack builder and its byte-for-byte vector since the backend was removed: an intended zip change updates entries/sha1 in the same commit"
+
+  # --- Module API surface (2 layers: plugin + editor) ---
+
+  - touches: "plugin/api/src/main/"
     updates:
       - "docs/architecture/api-surface.md"
       - "docs/architecture/modules.md"
       - "CHANGELOG.md"
     reason: "Public module API — affects every module, must hit CHANGELOG + api-surface"
 
-  - touches: "backend/src/modules/api/"
-    updates:
-      - "docs/architecture/modules.md"
-    reason: "Backend module API surface"
-
   - touches: "editor/packages/editor-sdk/src/**"
     updates:
       - "docs/architecture/modules.md"
-    reason: "Frontend module API surface (@artisan/editor-sdk — FrontendModule, registerModule)"
+      - "docs/architecture/editor-internals.md"
+      - "docs/decisions/extensible-document-kinds.md"
+    reason: "Frontend module API surface (@artisan/editor-sdk — FrontendModule, registerModule, DocumentKindContribution)"
 
-  # --- Backend: protocol, REST, data model ---
-
-  - touches: "backend/src/ws/hub.ts"
+  - touches: "editor/src/lib/moduleDocumentKinds.ts"
     updates:
-      - "docs/architecture/ws-protocol.md"
-    reason: "WS message table + data flow"
+      - "docs/architecture/editor-internals.md"
+      - "docs/architecture/modules.md"
+    reason: "Host side of FrontendModule.documents: how a contribution enters the kind table, the codecs and the visitors"
 
-  - touches: "backend/src/protocol.ts"
+  - touches: "editor/src/domain/documentKindVisitors.ts"
     updates:
-      - "docs/architecture/ws-protocol.md"
-      - "docs/architecture/versioning.md"
-      - "CHANGELOG.md"
-    reason: "WS protocol shape — needs a version bump consideration"
+      - "docs/architecture/editor-internals.md"
+    reason: "Per-kind text sites and chain slots: what translations, rekey, GC and edges can see of a Document"
 
-  - touches: "backend/src/routes/**"
+  - touches: "editor/src/modules/*/*Kind.tsx"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "A core kind's contribution (menus, commands, dialogs) — the reference implementation of the kind contract"
+
+  - touches: "editor/src/features/canvas/DocumentGroup.tsx"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "Generic board node of a module's kind: preview-only rule"
+
+  # --- Hub (editor web server) and protocol ---
+
+  - touches: "plugin/hub/src/main/kotlin/**/*Routes.kt"
     updates:
       - "docs/architecture/rest-endpoints.md"
     reason: "REST index points at the route file — add/remove/rename must be reflected"
 
-  - touches: "backend/src/app.ts"
+  - touches: "plugin/hub/src/main/kotlin/**/{HubServer,EditorApi,Http,Relay}.kt"
     updates:
       - "docs/architecture/rest-endpoints.md"
+    reason: "Route mounting, session/origin checks and relay status codes (Conventions section)"
+
+  - touches: "plugin/hub/src/main/kotlin/**/{PluginChannel,RemoteServer,EditorChannel,Servers}.kt"
+    updates:
+      - "docs/architecture/ws-protocol.md"
+    reason: "/ws/plugin and /ws/editor: hello fields read by the hub, relayed messages, server naming"
+
+  - touches: "plugin/core/src/main/kotlin/**/protocol/**"
+    updates:
+      - "docs/architecture/ws-protocol.md"
+    reason: "Message types, fields and handlers"
+
+  - touches: "plugin/core/src/main/kotlin/**/protocol/ProtocolVersion.kt"
+    updates:
+      - "docs/architecture/ws-protocol.md"
+      - "docs/architecture/versioning.md"
       - "CHANGELOG.md"
-    reason: "Route mounts are part of the versioned REST surface"
+    reason: "Protocol version — a major bump stops hub and leaves from talking until both update"
 
-  - touches: "backend/src/db/schema.ts"
+  - touches: "plugin/paper/src/main/kotlin/**/ws/WsClient.kt"
     updates:
-      - "backend/drizzle/"
-      - "docs/architecture/entities.md"
-      - "CONTEXT.md"
-      - "CHANGELOG.md"
-    reason: "Schema change requires db:generate + entity doc, and may shift the glossary"
+      - "docs/architecture/ws-protocol.md"
+    reason: "Leaf client: hello payload, reconnection, editor_link"
 
-  - touches: "backend/src/lib/sessionManager.ts"
+  - touches: "plugin/hub/src/main/kotlin/**/{Sessions,WebConfig,PackStore,VanillaAssets}.kt"
     updates:
       - "docs/architecture/entities.md"
-    reason: "Session lifecycle / cookie semantics (Auth & comptes)"
+      - "docs/site/getting-started/install-admin.md"
+    reason: "What the hub keeps (sessions, packs, caches) and the web settings admins configure"
 
-  - touches: "backend/src/lib/membershipGuard.ts"
+  - touches: "plugin/*/src/main/kotlin/**/config/{EnvironmentFile,NetworkSecret}.kt"
     updates:
+      - "docs/site/getting-started/install-admin.md"
       - "docs/architecture/entities.md"
-    reason: "Membership checks used by network endpoints"
+    reason: "environment.yml template (web.*, database) and network secret resolution"
 
-  - touches: "backend/src/lib/networkTransferStorage.ts"
+  - touches: "plugin/core/src/main/kotlin/**/project/{ProjectDraftStore,ProjectPublisher,ProjectPathPolicy}.kt"
     updates:
+      - "docs/architecture/invariants.md"
       - "docs/architecture/entities.md"
-    reason: "Network transfer storage + table"
+      - "docs/architecture/project-files.md"
+    reason: "Drafts, publication journal and private .artisan paths on disk"
+
+  - touches: "docker/network/**"
+    updates:
+      - "CLAUDE.md"
+      - "AGENTS.md"
+      - "docs/site/getting-started/install-admin.md"
+    reason: "Hub + leaf example (commands section, network setup guide)"
 
   # --- Editor ---
 
   - touches: "editor/src/features/canvas/**"
     updates:
       - "docs/architecture/editor-internals.md"
-      - "docs-site/src/content/docs/editor/"
+      - "docs/site/editor/"
     reason: "Canvas internals + user-visible editor UX"
-
-  - touches: "editor/src/components/SchemaForm/"
-    updates:
-      - "docs/architecture/editor-internals.md"
-    reason: "SchemaForm is the module form multiplier"
 
   - touches: "editor/src/components/ui/"
     updates:
       - "editor/src/features/design-system/DesignSystemPage.tsx"
       - "docs/architecture/editor-internals.md"
-    reason: "Design system: a new/changed component needs its specimen on /admin/design in the same commit"
+    reason: "Design system: a new/changed component needs its specimen on /design in the same commit"
 
   - touches: "editor/src/styles/globals.css"
     updates:
@@ -167,6 +298,11 @@ mappings:
       - "docs/architecture/editor-internals.md"
     reason: "UI shell — project tab structure"
 
+  - touches: "editor/src/features/project/publish/**"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "Publish workflow (deploy CAS, conflict sources, review)"
+
   - touches: "editor/src/components/ProjectSidebar.tsx"
     updates:
       - "docs/architecture/editor-internals.md"
@@ -175,7 +311,7 @@ mappings:
   - touches: "editor/src/routes/settings.tsx"
     updates:
       - "docs/architecture/editor-internals.md"
-      - "docs-site/src/content/docs/editor/"
+      - "docs/site/editor/"
     reason: "/settings is user-facing — section list + Apparence flow"
 
   - touches: "editor/src/routes/networks.$networkId.servers.$serverId.projects.$projectId.tsx"
@@ -191,15 +327,11 @@ mappings:
       - "CHANGELOG.md"
     reason: "Types are hand-aligned (editor types.ts + plugin) and fixtures must stay green; a shipped version is never edited, it gets a new folder"
 
-  - touches: ".env.example"
-    updates:
-      - "CLAUDE.md"
-    reason: "Only if a variable changes something operational documented in the router (URLs, test DB)"
-
   - touches: "docker-compose.yml"
     updates:
       - "CLAUDE.md"
-      - "docs-site/src/content/docs/contributing/"
+      - "AGENTS.md"
+      - "docs/site/contributing/"
     reason: "Stack layout (commands section + contributing guide)"
 
   - touches: "*/package.json"

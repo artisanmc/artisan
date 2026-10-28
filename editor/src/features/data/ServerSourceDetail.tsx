@@ -7,16 +7,16 @@ import {
   type ServerDataSource,
   previewDataSource,
 } from "@/lib/api/dataSources";
-import { getNetworkServersStatus } from "@/lib/api/networks";
+import { listServers } from "@/lib/api/servers";
+import { copyText } from "@/lib/clipboard";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 interface ServerSourceDetailProps {
-  networkId: string;
   serverId: string;
   source: ServerDataSource;
-  /** Kept for call-site compat; sets d'items now live at the MENU level. */
+  /** Kept for call-site compat; item sets live at the MENU level. */
   projectId?: ProjectId;
 }
 
@@ -26,7 +26,7 @@ type PreviewState =
   | { kind: "done"; result: PreviewResult };
 
 /** Detail view of one server data source: schema table, copyable ref, live preview. */
-export function ServerSourceDetail({ networkId, serverId, source }: ServerSourceDetailProps) {
+export function ServerSourceDetail({ serverId, source }: ServerSourceDetailProps) {
   const { t } = useTranslation();
   const [preview, setPreview] = useState<PreviewState>({ kind: "idle" });
   const [online, setOnline] = useState<boolean | null>(null);
@@ -37,10 +37,10 @@ export function ServerSourceDetail({ networkId, serverId, source }: ServerSource
   useEffect(() => {
     setPreview({ kind: "idle" });
     let cancelled = false;
-    getNetworkServersStatus(networkId)
-      .then((status) => {
+    listServers()
+      .then((servers) => {
         if (cancelled) return;
-        setOnline(status.servers.find((s) => s.id === serverId)?.online ?? false);
+        setOnline(servers.find((s) => s.id === serverId)?.online ?? false);
       })
       .catch(() => {
         if (!cancelled) setOnline(null); // unknown — leave preview enabled, errors surface on click
@@ -48,16 +48,16 @@ export function ServerSourceDetail({ networkId, serverId, source }: ServerSource
     return () => {
       cancelled = true;
     };
-  }, [networkId, serverId, source.ref]);
+  }, [serverId, source.ref]);
 
   const runPreview = async () => {
     setPreview({ kind: "loading" });
-    const result = await previewDataSource(networkId, serverId, { ref: source.ref });
+    const result = await previewDataSource(serverId, { ref: source.ref });
     setPreview({ kind: "done", result });
   };
 
   const copyRef = async () => {
-    await navigator.clipboard.writeText(source.ref);
+    await copyText(source.ref);
     toast.success(t("dataSources.refCopied"));
   };
 
@@ -84,7 +84,7 @@ export function ServerSourceDetail({ networkId, serverId, source }: ServerSource
           type="button"
           onClick={copyRef}
           title={t("dataSources.copyRef")}
-          className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+          className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
         >
           {t("dataSources.copyRef")}
         </button>
@@ -157,7 +157,6 @@ export function ServerSourceDetail({ networkId, serverId, source }: ServerSource
           </div>
         ) : null}
       </section>
-
     </div>
   );
 }

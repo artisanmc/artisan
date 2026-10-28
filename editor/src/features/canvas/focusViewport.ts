@@ -9,18 +9,20 @@ const MAX_FIT_SCALE = 1;
 /**
  * Where to put a single menu when its view opens: centred, and scaled down only
  * if it doesn't fit. Never scales *up* — a small menu stays pixel-exact rather
- * than being blown up to fill the region.
+ * than being blown up to fill the region. `maxScale` lets a module's node, drawn
+ * in vector text, grow up to that factor.
  */
 export function fitViewport(
   view: { w: number; h: number },
   box: { width: number; height: number },
+  maxScale: number = MAX_FIT_SCALE,
 ): ViewportState {
   if (view.w <= 0 || view.h <= 0 || box.width <= 0 || box.height <= 0) {
     return { x: 0, y: 0, scale: 1 };
   }
   const availableW = Math.max(1, view.w - MARGIN * 2);
   const availableH = Math.max(1, view.h - TOP_GUTTER - MARGIN);
-  const scale = Math.min(MAX_FIT_SCALE, availableW / box.width, availableH / box.height);
+  const scale = Math.min(maxScale, availableW / box.width, availableH / box.height);
   return {
     scale,
     x: (view.w - box.width * scale) / 2,
@@ -29,9 +31,9 @@ export function fitViewport(
 }
 
 /**
- * Le cadrage de `fitViewport`, pour un Document posé n'importe où sur la
- * planche : même échelle (jamais au-delà de 1:1), son coin haut-gauche à
- * l'endroit où `fitViewport` place l'origine.
+ * The `fitViewport` framing, for a Document placed anywhere on the board:
+ * same scale (never above 1:1), its top-left corner where `fitViewport`
+ * places the origin.
  */
 export function centerViewport(
   view: { w: number; h: number },

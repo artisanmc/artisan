@@ -1,0 +1,94 @@
+package net.artisanmc.modules.api.action;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import net.artisanmc.modules.api.OwnedRegistry;
+import net.artisanmc.modules.api.annotations.Stable;
+import net.artisanmc.modules.api.annotations.Internal;
+import net.artisanmc.modules.api.command.CommandRegistry;
+import net.artisanmc.modules.api.datasource.DataSourceRegistry;
+import org.jetbrains.annotations.Nullable;
+
+/**
+ * The action vocabulary ({@code api.actionRegistry}): every name a chain may use, core and module
+ * alike, with its declaration. The engine dispatches a step to {@link #find} by name; an unknown
+ * name is skipped with a warning (a module's action after the module left). Same mechanism as
+ * {@link DataSourceRegistry} and {@link CommandRegistry}: a registration from a module's
+ * {@code onEnable} is owned by it and leaves with it.
+ */
+@Stable
+public final class ActionRegistry implements OwnedRegistry {
+    private final ConcurrentHashMap<String, RegisteredAction> actions = new ConcurrentHashMap<>();
+
+    /** Owner captured for registrations happening right now; see {@link OwnedRegistry#bindOwner}. */
+    private volatile @Nullable String currentOwner;
+
+    @Internal
+    @Override
+    public void bindOwner(@Nullable String moduleId) {
+        currentOwner = moduleId;
+    }
+
+    /** Registers {@code decl}; throws {@link DuplicateActionException} if its name is taken. */
+    @Stable
+    public void register(ActionDeclaration decl) {
+        if (actions.putIfAbsent(decl.getName(), new RegisteredAction(decl, currentOwner)) != null) {
+            throw new DuplicateActionException(decl.getName());
+        }
+    }
+
+    /** Removes the action {@code name}; false if none was registered. */
+    @Stable
+    public boolean unregister(String name) {
+        return actions.remove(name) != null;
+    }
+
+    @Internal
+    @Override
+    public void unregisterOwnedBy(String moduleId) {
+        actions.values().removeIf(r -> moduleId.equals(r.getModuleId()));
+    }
+
+    @Internal
+    @Override
+    public void unregisterLoadedBy(ClassLoader loader) {
+        actions.values().removeIf(r -> r.getDeclaration().getHandler().getClass().getClassLoader() == loader);
+    }
+
+    /** The declaration of {@code name}, or null. */
+    @Stable
+    public @Nullable ActionDeclaration find(String name) {
+        RegisteredAction entry = actions.get(name);
+        return entry == null ? null : entry.getDeclaration();
+    }
+
+    @Stable
+    public boolean has(String name) {
+        return actions.containsKey(name);
+    }
+
+    /** A snapshot of the registered names. */
+    @Stable
+    public Set<String> names() {
+        return Set.copyOf(actions.keySet());
+    }
+
+    /** The declarations, sorted by name. */
+    @Stable
+    public List<ActionDeclaration> declarations() {
+        return actions.values().stream()
+            .map(RegisteredAction::getDeclaration)
+            .sorted(Comparator.comparing(ActionDeclaration::getName))
+            .toList();
+    }
+
+    /** Declarations with their owning module id, sorted by name. */
+    @Stable
+    public List<RegisteredAction> registered() {
+        return actions.values().stream()
+            .sorted(Comparator.comparing(r -> r.getDeclaration().getName()))
+            .toList();
+    }
+}

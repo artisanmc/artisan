@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rebaseDraft } from "./draftRebase";
+import { followDisk, rebaseDraft } from "./draftRebase";
 
 const current = (files: Record<string, string>) => ({ files, binaries: {} });
 
@@ -77,5 +77,129 @@ describe("rebaseDraft", () => {
       { files: { "icon.png": "" }, binaries: { "icon.png": { hash: "new", size: 2 } } },
     );
     expect(conflicts).toEqual([]);
+  });
+});
+
+describe("followDisk", () => {
+  it("renames a draft's files as the disk now spells them, an edit kept", () => {
+    const next = followDisk(
+      {
+        baseline: { "menus/a.yaml": "a", "manifest.yaml": "m", "lang/fr.yaml": "x" },
+        initialTree: { "menus/a.yaml": "a", "manifest.yaml": "m", "lang/fr.yaml": "x" },
+        tree: { "menus/a.yaml": "mine", "manifest.yaml": "m", "lang/fr.yaml": "x" },
+      },
+      { "menus/a.yml": "a", "artisan-module.yml": "m", "lang/fr.yaml": "x" },
+    );
+    expect(next?.tree).toEqual({
+      "menus/a.yml": "mine",
+      "artisan-module.yml": "m",
+      "lang/fr.yaml": "x",
+    });
+    expect(next?.baseline).toEqual({
+      "menus/a.yml": "a",
+      "artisan-module.yml": "m",
+      "lang/fr.yaml": "x",
+    });
+  });
+
+  it("folds a draft holding both spellings onto the disk's, keeping the new one", () => {
+    // An older resume took `shop.yml` from the disk beside the draft's `shop.yaml`: the
+    // same id twice hid the menu.
+    const both = { "menus/shop.yaml": "old", "menus/shop.yml": "new" };
+    const next = followDisk(
+      { baseline: { ...both }, initialTree: { ...both }, tree: { ...both } },
+      { "menus/shop.yml": "new" },
+    );
+    expect(next?.tree).toEqual({ "menus/shop.yml": "new" });
+    expect(next?.baseline).toEqual({ "menus/shop.yml": "new" });
+    expect(next?.initialTree).toEqual({ "menus/shop.yml": "new" });
+  });
+
+  it("keeps the edit made under the old spelling when folding", () => {
+    const next = followDisk(
+      {
+        baseline: { "menus/shop.yaml": "old", "menus/shop.yml": "new" },
+        tree: { "menus/shop.yaml": "mine", "menus/shop.yml": "new" },
+      },
+      { "menus/shop.yml": "new" },
+    );
+    expect(next?.tree).toEqual({ "menus/shop.yml": "mine" });
+    expect(next?.baseline).toEqual({ "menus/shop.yml": "old" });
+  });
+
+  it("drops a file the disk removed and the draft left as loaded", () => {
+    const next = followDisk(
+      {
+        baseline: { "commands/boutique.yaml": "raw", "menus/a.yaml": "a" },
+        initialTree: { "commands/boutique.yaml": "canonical", "menus/a.yaml": "a" },
+        tree: { "commands/boutique.yaml": "canonical", "menus/a.yaml": "mine" },
+      },
+      { "menus/a.yaml": "a" },
+    );
+    expect(next?.tree).toEqual({ "menus/a.yaml": "mine" });
+    expect(next?.baseline).toEqual({ "menus/a.yaml": "a" });
+    expect(next?.initialTree).toEqual({ "menus/a.yaml": "a" });
+  });
+
+  it("keeps a move made in an earlier session when the disk respells the moved file", () => {
+    // Moved into `catalogue/` while the disk said `.yaml`; the disk then went to `.yml`. The
+    // root copy must not come back: the same id twice hides both from the editor.
+    const draft = {
+      baseline: { "boutique_categories/keys.yaml": "old" },
+      initialTree: { "catalogue/boutique_categories/keys.yaml": "old" },
+      tree: { "catalogue/boutique_categories/keys.yaml": "old" },
+    };
+    const next = followDisk(draft, { "boutique_categories/keys.yml": "new" });
+    expect(next?.tree ?? draft.tree).toEqual({ "catalogue/boutique_categories/keys.yaml": "old" });
+  });
+
+  it("forgets a file the draft deleted once the disk removed it too", () => {
+    const next = followDisk(
+      {
+        baseline: { "a.yaml": "a", "b.yaml": "b" },
+        initialTree: { "a.yaml": "a" },
+        tree: { "a.yaml": "a" },
+      },
+      { "a.yaml": "a" },
+    );
+    expect(next?.baseline).toEqual({ "a.yaml": "a" });
+    expect(next?.tree).toEqual({ "a.yaml": "a" });
+  });
+
+  it("takes a file the disk added or rewrote", () => {
+    const next = followDisk(
+      {
+        baseline: { "a.yaml": "old" },
+        initialTree: { "a.yaml": "old" },
+        tree: { "a.yaml": "old" },
+      },
+      { "a.yaml": "new", "b.yaml": "added" },
+    );
+    expect(next?.tree).toEqual({ "a.yaml": "new", "b.yaml": "added" });
+    expect(next?.baseline).toEqual({ "a.yaml": "new", "b.yaml": "added" });
+  });
+
+  it("keeps a file the draft changed, with its base, for publishing to report", () => {
+    const draft = {
+      baseline: { "a.yaml": "old" },
+      initialTree: { "a.yaml": "old" },
+      tree: { "a.yaml": "mine" },
+    };
+    expect(followDisk(draft, {})).toBeNull();
+  });
+
+  it("leaves a renamed path to the draft", () => {
+    const draft = {
+      baseline: { "old.yaml": "x" },
+      initialTree: { "old.yaml": "x" },
+      tree: { "new.yaml": "x" },
+      renames: [{ from: "old.yaml", to: "new.yaml" }],
+    };
+    expect(followDisk(draft, {})).toBeNull();
+  });
+
+  it("returns null when the disk did not move", () => {
+    const draft = { baseline: { "a.yaml": "a" }, tree: { "a.yaml": "b" } };
+    expect(followDisk(draft, { "a.yaml": "a" })).toBeNull();
   });
 });

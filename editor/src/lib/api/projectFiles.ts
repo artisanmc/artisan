@@ -1,15 +1,12 @@
 import type { PlannedDelete, PlannedWrite } from "@/features/project/diskSave";
-import { projectFetch } from "@/lib/projectFetch";
 import { isPrivateProjectPath } from "@/lib/projectFileVisibility";
-import type { ProjectSummary } from "./networks";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+import { ApiError, apiFetch } from "./client";
+import type { ProjectSummary } from "./servers";
 
 /**
- * Lecture / écriture des fichiers d'un Project **sur le disque du serveur**
- * (ADR `server-disk-only-storage`). Le backend relaie au plugin ; il ne détient
- * aucune copie, donc serveur hors ligne = Project inouvrable, jamais un repli
- * périmé.
+ * Reading / writing a Project's files **on the server's disk** (ADR
+ * `server-disk-only-storage`). The hub relays to the plugin; it holds no copy,
+ * so server offline = Project cannot be opened, never a stale fallback.
  */
 
 export type ProjectFilesError =
@@ -23,43 +20,15 @@ export type ProjectFilesError =
   | "too_large"
   | "network_error"
   | "forbidden"
-  | "quota_denied"
-  | "inventory_unavailable"
   | "plugin_update_required";
-export interface EditorAccessDto {
-  enabled: boolean;
-  quota: number | null;
-  proUntil: string | null;
-  inventoryAvailable: boolean;
-  count: number | null;
-  reason: "free_quota_reached" | "free_quota_exceeded" | "inventory_unavailable" | null;
-  projectOrigin: "personal" | "module";
-}
-
-export type ServerEditorAccessDto = Omit<EditorAccessDto, "projectOrigin">;
-
-export async function getServerEditorAccess(networkId: string, serverId: string): Promise<ServerEditorAccessDto> {
-  const res = await fetch(`${API_URL}/api/v1/networks/${encodeURIComponent(networkId)}/servers/${encodeURIComponent(serverId)}/editor-access`, { credentials: "include", cache: "no-store" });
-  const body = await res.json().catch(() => null) as ServerEditorAccessDto | null;
-  if (body && (res.ok || res.status === 503 && body.reason === "inventory_unavailable")) return body;
-  throw new Error("editor_access_unavailable");
-}
-
-export async function getEditorAccess(projectId: string): Promise<EditorAccessDto | null> {
-  const res = await fetch(`${API_URL}/api/v1/projects/${encodeURIComponent(projectId)}/editor-access`, { credentials: "include", cache: "no-store" });
-  if (res.status === 422) return null;
-  const body = await res.json().catch(() => null) as EditorAccessDto | null;
-  if (res.ok || res.status === 503 && body?.reason === "inventory_unavailable") return body;
-  throw new Error("editor_access_unavailable");
-}
 
 export interface ProjectFileConflict {
   path: string;
-  /** Contenu actuel sur disque ; `null` = le fichier y a été supprimé. */
+  /** Current content on disk; `null` = the file was deleted there. */
   disk: string | null;
 }
 
-/** Un Document que le serveur n'a pas réussi à charger, et pourquoi. */
+/** A Document the server failed to load, and why. */
 export interface FailedDocument {
   path: string;
   reason: string;
@@ -73,14 +42,14 @@ export type ProjectReadResult =
       binaries?: { path: string; hash: string; size: number }[];
       failed: FailedDocument[];
       hash: string | null;
-      /** Serveur éteint : dernière copie connue du backend, reçue à cette date. */
+      /** Server off: the hub's last known copy, received at this date. */
       offlineSince?: string;
-      /** Jamais publié : rien sur le disque, tout est dans le brouillon. */
+      /** Never published: nothing on disk, everything is in the draft. */
       unpublished?: boolean;
     }
   /**
-   * Le serveur porte exactement l'empreinte annoncée : rien n'a été transporté,
-   * et la dernière version connue reste valable — elle vient d'être revalidée.
+   * The server holds exactly the announced fingerprint: nothing was transferred,
+   * and the last known version stays valid — it was just revalidated.
    */
   | { ok: true; unchanged: true; hash: string | null; offlineSince?: string; unpublished?: boolean }
   | { ok: false; error: ProjectFilesError };
@@ -91,10 +60,16 @@ export type ProjectWriteResult =
       ok: false;
       error: "conflict";
       conflicts: ProjectFileConflict[];
-      /** L'état réel du dossier — de quoi voir qu'un fichier renommé est apparu. */
+      /** The folder's real state — enough to see that a renamed file appeared. */
       diskFiles: string[];
     }
   | { ok: false; error: ProjectFilesError; code?: string; status?: number; message?: string };
+
+/** The hub's code when it is one of ours; a transport failure is `network_error`; else `fallback`. */
+function refusal(error: unknown, fallback: ProjectFilesError): ProjectFilesError {
+  const failure = ApiError.from(error);
+  return failure.status === 0 ? "network_error" : knownError(failure.code, fallback);
+}
 
 function knownError(raw: unknown, fallback: ProjectFilesError): ProjectFilesError {
   const codes: ProjectFilesError[] = [
@@ -107,39 +82,32 @@ function knownError(raw: unknown, fallback: ProjectFilesError): ProjectFilesErro
     "write_error",
     "too_large",
     "forbidden",
-    "quota_denied",
-    "inventory_unavailable",
     "plugin_update_required",
   ];
   return codes.includes(raw as ProjectFilesError) ? (raw as ProjectFilesError) : fallback;
 }
 
-function base(networkId: string, serverId: string | undefined, diskId: string | undefined): string {
-  if (diskId === undefined)
-    return `${API_URL}/api/v1/projects/${encodeURIComponent(networkId)}/files`;
-  return `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/projects/${encodeURIComponent(diskId)}/files`;
+/** A Project named by its id, or by its folder on a given server. */
+export type ProjectTarget = string | { serverId: string; diskId: string };
+
+function base(target: ProjectTarget): string {
+  if (typeof target === "string") return `/api/v1/projects/${encodeURIComponent(target)}/files`;
+  return `/api/v1/servers/${target.serverId}/projects/${encodeURIComponent(target.diskId)}/files`;
 }
 
-/** L'arbre complet du Project, lu à la demande sur le disque du serveur. */
+/** The Project's full tree, read on demand from the server's disk. */
 export async function readProjectFiles(
-  networkId: string,
-  serverId?: string,
-  diskId?: string,
+  target: ProjectTarget,
   /**
-   * L'empreinte qu'on détient déjà. Le serveur ne renvoie l'arbre que s'il a
-   * changé — sinon il répond `unchanged`, et on garde ce qu'on avait sans avoir
-   * transporté plusieurs secondes de fichiers pour l'apprendre.
+   * The fingerprint we already hold. The server only sends the tree back if it
+   * changed — otherwise it answers `unchanged`, and we keep what we had without
+   * transferring seconds' worth of files to learn it.
    */
   ifHash?: string | null,
 ): Promise<ProjectReadResult> {
   try {
-    const url = ifHash
-      ? `${base(networkId, serverId, diskId)}?if_hash=${encodeURIComponent(ifHash)}`
-      : base(networkId, serverId, diskId);
-    const res = await projectFetch(diskId === undefined ? networkId : undefined, url, {
-      credentials: "include",
-    });
-    const body = (await res.json().catch(() => null)) as {
+    const url = ifHash ? `${base(target)}?if_hash=${encodeURIComponent(ifHash)}` : base(target);
+    const body = await apiFetch<{
       files?: { path: string; content: string }[];
       binaries?: { path: string; hash: string; size: number }[];
       failed?: FailedDocument[];
@@ -147,9 +115,7 @@ export async function readProjectFiles(
       unchanged?: boolean;
       offlineSince?: string;
       unpublished?: boolean;
-      error?: string;
-    } | null;
-    if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
+    } | null>(url);
     const offline = {
       ...(body?.offlineSince ? { offlineSince: body.offlineSince } : {}),
       ...(body?.unpublished ? { unpublished: true } : {}),
@@ -165,20 +131,18 @@ export async function readProjectFiles(
       hash: body?.hash ?? null,
       ...offline,
     };
-  } catch {
-    return { ok: false, error: "network_error" };
+  } catch (error) {
+    return { ok: false, error: refusal(error, "read_error") };
   }
 }
 
 /**
- * Écrit le delta sur le disque du serveur. Un 409 rapporte les fichiers qui ont
- * bougé, **avec leur contenu disque** — de quoi afficher le diff sans second
- * aller-retour. Rien n'a été écrit dans ce cas : le plugin applique tout ou rien.
+ * Writes the delta to the server's disk. A 409 reports the files that moved,
+ * **with their disk content** — enough to show the diff without a second round
+ * trip. Nothing was written in that case: the plugin applies all or nothing.
  */
 export async function writeProjectFiles(
-  networkId: string,
-  serverId: string | undefined,
-  diskId: string | undefined,
+  target: ProjectTarget,
   plan: {
     files: PlannedWrite[];
     deletes: PlannedDelete[];
@@ -189,25 +153,23 @@ export async function writeProjectFiles(
   },
 ): Promise<ProjectWriteResult> {
   try {
-    const res = await projectFetch(
-      diskId === undefined ? networkId : undefined,
-      base(networkId, serverId, diskId),
-      {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          files: plan.files,
-          deletes: plan.deletes,
-          renames: plan.renames ?? [],
-          create: plan.create === true,
-          ...(plan.operationId ? { operationId: plan.operationId } : {}),
-          ...(plan.binaries ? { binaries: plan.binaries } : {}),
-        }),
+    await apiFetch(base(target), {
+      method: "PUT",
+      json: {
+        files: plan.files,
+        deletes: plan.deletes,
+        renames: plan.renames ?? [],
+        create: plan.create === true,
+        ...(plan.operationId ? { operationId: plan.operationId } : {}),
+        ...(plan.binaries ? { binaries: plan.binaries } : {}),
       },
-    );
-    if (res.status === 409) {
-      const body = (await res.json().catch(() => null)) as {
+    });
+    return { ok: true };
+  } catch (error) {
+    const failure = ApiError.from(error);
+    if (failure.status === 0) return { ok: false, error: "network_error" };
+    if (failure.status === 409) {
+      const body = failure.body as {
         conflicts?: ProjectFileConflict[];
         disk_files?: string[];
       } | null;
@@ -218,30 +180,21 @@ export async function writeProjectFiles(
         diskFiles: body?.disk_files ?? [],
       };
     }
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as {
-        error?: string;
-        message?: unknown;
-      } | null;
-      return {
-        ok: false,
-        error: knownError(body?.error, "write_error"),
-        code: typeof body?.error === "string" ? body.error : "write_error",
-        status: res.status,
-        ...(typeof body?.message === "string" ? { message: body.message } : {}),
-      };
-    }
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "network_error" };
+    return {
+      ok: false,
+      error: knownError(failure.code, "write_error"),
+      code: failure.hasCode ? failure.code : "write_error",
+      status: failure.status,
+      ...(failure.detail !== undefined ? { message: failure.detail } : {}),
+    };
   }
 }
 
 export interface FileVersion {
-  /** Millis de l'archivage. */
+  /** Archive time in milliseconds. */
   at: number;
   content: string;
-  /** Présent quand l'historique vient des Versions ; `null` = le serveur. */
+  /** Present when the history comes from Versions; `null` = the server. */
   author?: { id: string; name: string } | null;
 }
 
@@ -250,31 +203,23 @@ export type ProjectHistoryResult =
   | { ok: false; error: ProjectFilesError };
 
 /**
- * Les versions archivées d'UN fichier — la corbeille que le plugin écrit avant
- * chaque écrasement (ADR `server-disk-only-storage` décision 5), la plus récente
- * d'abord.
+ * The archived versions of ONE file — the trash the plugin writes before each
+ * overwrite (ADR `server-disk-only-storage` decision 5), most recent first.
  *
- * Restaurer n'a pas d'appel dédié : on remet le contenu choisi dans l'éditeur et
- * on enregistre. C'est une écriture comme une autre, donc elle passe par le même
- * compare-and-swap — restaurer ne peut pas écraser dans le dos de quelqu'un.
+ * Restoring has no dedicated call: the chosen content is put back in the
+ * editor and saved. It is a write like any other, so it goes through the same
+ * compare-and-swap — a restore cannot overwrite behind someone's back.
  */
 export async function readFileHistory(
-  networkId: string,
-  serverId: string | undefined,
-  diskId: string | undefined,
+  target: ProjectTarget,
   path: string,
 ): Promise<ProjectHistoryResult> {
   try {
-    const url = `${base(networkId, serverId, diskId).replace(/\/files$/, "/history")}?path=${encodeURIComponent(path)}`;
-    const res = await fetch(url, { credentials: "include" });
-    const body = (await res.json().catch(() => null)) as {
-      versions?: FileVersion[];
-      error?: string;
-    } | null;
-    if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
+    const url = `${base(target).replace(/\/files$/, "/history")}?path=${encodeURIComponent(path)}`;
+    const body = await apiFetch<{ versions?: FileVersion[] } | null>(url);
     return { ok: true, versions: body?.versions ?? [] };
-  } catch {
-    return { ok: false, error: "network_error" };
+  } catch (error) {
+    return { ok: false, error: refusal(error, "read_error") };
   }
 }
 
@@ -283,36 +228,26 @@ export type ProjectListResult =
   | { ok: false; error: ProjectFilesError };
 
 /**
- * Les Projects présents sur le disque du serveur, **maintenant**.
+ * The Projects present on the server's disk, **now**.
  *
- * Le backend n'en tient plus de liste : elle se périmait au premier dossier
- * renommé ou supprimé (ADR `server-disk-only-storage`). Le nom du dossier EST
- * l'identité du Project — le renommer le renomme, immédiatement.
+ * The hub keeps no list of them: it went stale on the first renamed or deleted
+ * folder (ADR `server-disk-only-storage`). The folder name IS the Project's
+ * identity — renaming it renames the Project, immediately.
  *
- * Serveur hors ligne → erreur, et donc liste vide : ses Projects ne sont de
- * toute façon pas ouvrables.
+ * Server offline → error, hence an empty list: its Projects cannot be opened
+ * anyway.
  */
-export async function listServerProjects(
-  networkId: string,
-  serverId: string,
-): Promise<ProjectListResult> {
+export async function listServerProjects(serverId: string): Promise<ProjectListResult> {
   try {
-    const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/projects`,
-      { credentials: "include" },
+    const body = await apiFetch<{ project_ids?: string[]; projects?: ProjectSummary[] } | null>(
+      `/api/v1/servers/${serverId}/projects`,
     );
-    const body = (await res.json().catch(() => null)) as {
-      project_ids?: string[];
-      projects?: ProjectSummary[];
-      error?: string;
-    } | null;
-    if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
     return {
       ok: true,
       projectIds: body?.project_ids ?? [],
       ...(body?.projects ? { projects: body.projects } : {}),
     };
-  } catch {
-    return { ok: false, error: "network_error" };
+  } catch (error) {
+    return { ok: false, error: refusal(error, "read_error") };
   }
 }

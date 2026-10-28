@@ -11,24 +11,31 @@ describe("fetchServerDataSourcesUser", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await fetchServerDataSourcesUser("net1", "srv1");
+    const result = await fetchServerDataSourcesUser("srv1");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/networks/net1/servers/srv1/data-sources"),
+      expect.stringContaining("/api/v1/servers/srv1/data-sources"),
       expect.objectContaining({ credentials: "include" }),
     );
     expect(result).toEqual([
-      { ref: "shop:items", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
+      {
+        ref: "shop:items",
+        moduleId: null,
+        schema: [],
+        schemaHint: null,
+        stability: null,
+        keyField: null,
+      },
     ]);
   });
 
   it("returns [] on a non-OK response", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
-    expect(await fetchServerDataSourcesUser("net1", "srv1")).toEqual([]);
+    expect(await fetchServerDataSourcesUser("srv1")).toEqual([]);
   });
 
   it("returns [] on a network error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("boom")));
-    expect(await fetchServerDataSourcesUser("net1", "srv1")).toEqual([]);
+    expect(await fetchServerDataSourcesUser("srv1")).toEqual([]);
   });
 });

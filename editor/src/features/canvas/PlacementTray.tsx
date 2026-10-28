@@ -19,13 +19,13 @@ const LABEL_HEIGHT = 9;
 const TRAY_HEIGHT = CARDS_TOP + CELL + LABEL_GAP + LABEL_HEIGHT + PAD;
 
 /**
- * Les lignes qu'il reste à poser, sous le menu qui les attend.
+ * The rows still to place, under the menu waiting for them.
  *
- * Le mécanisme de pose existait déjà (armer une ligne, taper un slot) mais vivait
- * dans le panneau de propriétés : ajouter une catégorie ne se voyait nulle part
- * sur la planche. Le plateau n'apparaît QUE s'il reste du travail — c'est un
- * signal, pas un meuble — et il suit le **Preview context**, donc son contenu
- * change quand on navigue d'une catégorie à l'autre.
+ * The placing mechanism already existed (arm a row, tap a slot) but lived in
+ * the properties panel: adding a category showed nowhere on the board. The
+ * tray ONLY appears when there is work left — it is a signal, not furniture —
+ * and it follows the **Preview context**, so its content changes when
+ * navigating from one category to another.
  *
  * Cf. ADR `parameterised-menu-over-menu-per-category`.
  */
@@ -38,7 +38,7 @@ export function PlacementTray({
 }: {
   menu: Menu;
   project: Project | undefined;
-  /** Portée d'aperçu déjà résolue par le menu (contexte + sources). */
+  /** Preview scope already resolved by the menu (context + sources). */
   scope: Record<string, unknown>;
   boxWidth: number;
   boxHeight: number;
@@ -52,7 +52,7 @@ export function PlacementTray({
 
   if (!project) return null;
 
-  // Un plateau par Élément en mode placement — en pratique il y en a un.
+  // One tray per Element in placement mode — in practice there is one.
   const pending: {
     elementId: string;
     keyField: string;
@@ -114,8 +114,8 @@ export function PlacementTray({
                 armed?.menuId === menu.id &&
                 armed.elementId === group.elementId &&
                 armed.key === key;
-              // La tuile porte l'apparence de l'Élément, résolue contre SA ligne :
-              // on voit ce qu'on va poser, pas un carré gris.
+              // The tile carries the Element's appearance, resolved against ITS row:
+              // you see what you are about to place, not a grey square.
               const rawMaterial = group.material
                 ? previewItem(
                     { material: group.material },

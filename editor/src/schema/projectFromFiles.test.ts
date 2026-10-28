@@ -1,12 +1,13 @@
-// P3 files-first (ADR files-first-source-of-truth): the file tree is the
+import { menusOf } from "@/domain/documents";
+// ADR files-first-source-of-truth: the file tree is the
 // canonical, lossless Project representation. This suite locks the editor-side
 // full-project importer `projectFromFiles` as the exact inverse of
-// `transform()` — domain → files → domain → files must be a fixed point
+// `projectToFiles()` — domain → files → domain → files must be a fixed point
 // (total — the export is a pure function of the Project, no timestamps).
 import type { DataModelId, DataSourceId, MenuId, Project, ProjectId } from "@/domain/types";
-import { transform } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
-import { projectFromFiles } from "./projectFromFiles";
+import { parseEditorEdges, parseEditorLayout, projectFromFiles } from "./projectFromFiles";
+import { projectToFiles } from "./projectToFiles";
 
 const PID = "p_roundtrip" as ProjectId;
 const base = `plugins/Artisan/projects/${PID}`;
@@ -41,64 +42,66 @@ function fixture(): Project {
       "dialogs.d1.title": { en: "Confirm" },
       k_btn_ok: { en: "OK" },
     },
-    menus: [
-      {
-        id: "m1" as MenuId,
-        projectId: PID,
-        title: [{ kind: "plain", value: { key: "menus.m1.title" } }],
-        rows: 3,
-        contextInputs: [{ kind: "sourceRef", name: "items", ref: "pack:ds_items" }],
-        layers: [
-          {
-            id: "l1" as never,
-            name: "default",
-            elements: [
-              {
-                id: "grid",
-                positions: "10-16",
-                display: {
-                  material: "STONE",
-                  title: { key: "k_row_title" },
-                  click: {
-                    left: {
-                      steps: [{ kind: "action", action: { type: "open_menu", menuId: "m1" } }],
+    documents: {
+      menu: [
+        {
+          id: "m1" as MenuId,
+          projectId: PID,
+          title: [{ kind: "plain", value: { key: "menus.m1.title" } }],
+          rows: 3,
+          contextInputs: [{ kind: "sourceRef", name: "items", ref: "pack:ds_items" }],
+          layers: [
+            {
+              id: "l1" as never,
+              name: "default",
+              elements: [
+                {
+                  id: "grid",
+                  positions: "10-16",
+                  display: {
+                    material: "STONE",
+                    title: { key: "k_row_title" },
+                    click: {
+                      left: {
+                        steps: [{ kind: "action", action: { name: "open_menu", value: "m1" } }],
+                      },
                     },
                   },
+                  states: [],
                 },
-                states: [],
-              },
-              {
-                id: "tplbound",
-                positions: "20",
-                display: { material: "{item.icon}", title: { key: "k_tpl_title" } },
-                states: [],
-                iterates: { source: "items", alias: "item" },
-              },
-            ],
-          },
-        ],
-      },
-    ],
-    commands: [
-      {
-        id: "c1" as never,
-        projectId: PID,
-        name: "shop",
-        arguments: [{ name: "target", type: "player", required: true }],
-        steps: [{ kind: "action", action: { type: "open_menu", menuId: "m1" } }],
-      },
-    ],
-    dialogs: [
-      {
-        id: "d1" as never,
-        projectId: PID,
-        title: { key: "dialogs.d1.title" },
-        canCloseWithEscape: true,
-        body: [],
-        inputs: [],
-        buttons: [{ id: "ok", label: { key: "k_btn_ok" }, steps: [] }],
-      },
-    ],
+                {
+                  id: "tplbound",
+                  positions: "20",
+                  display: { material: "{item.icon}", title: { key: "k_tpl_title" } },
+                  states: [],
+                  iterates: { source: "items", alias: "item" },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      command: [
+        {
+          id: "c1" as never,
+          projectId: PID,
+          name: "shop",
+          arguments: [{ name: "target", type: "player", required: true }],
+          steps: [{ kind: "action", action: { name: "open_menu", value: "m1" } }],
+        },
+      ],
+      dialog: [
+        {
+          id: "d1" as never,
+          projectId: PID,
+          title: { key: "dialogs.d1.title" },
+          canCloseWithEscape: true,
+          body: [],
+          inputs: [],
+          buttons: [{ id: "ok", label: { key: "k_btn_ok" }, steps: [] }],
+        },
+      ],
+    },
     capturedItems: [
       {
         id: "ci_key" as never,
@@ -203,8 +206,8 @@ function fixture(): Project {
         value: { motd: { key: "k_motd" }, discount: 5 },
       },
     ],
-    canvasLayout: { ["m1" as MenuId]: { x: 40, y: 80 } },
-    canvasEdges: { "m1->d1": { from: { side: "right", t: 0.5 } } },
+    canvasLayout: { "menu/m1": { x: 40, y: 80 } },
+    canvasEdges: { "menu/m1->dialog/d1": { from: { side: "right", t: 0.5 } } },
     moduleData: {
       shopmod: { __files: { "shop.yaml": "schema: shopmod/v1\nitems: []\n" } },
     },
@@ -212,42 +215,50 @@ function fixture(): Project {
   return p as unknown as Project;
 }
 
-describe("projectFromFiles (files → domain, inverse of transform)", () => {
-  it("ignores malformed group metadata and stale or duplicate memberships", () => {
-    const files = transform(fixture());
-    files[`plugins/Artisan/projects/${PID}/.artisan/editor.yaml`] = JSON.stringify({ groups: [
-      null, { id: "bad", name: 42, menuIds: ["m1"] },
-      { id: "valid", name: "Crafts", menuIds: ["m1", "m1", "missing"], position: { x: "wrong", y: 4 } },
-      { id: "duplicate", name: "Other", menuIds: ["m1"] },
-    ] });
-    expect(projectFromFiles(PID, files).canvasGroups).toEqual([{ id: "valid", name: "Crafts", nodeIds: ["m1"] }]);
+describe("projectFromFiles (files → domain, inverse of projectToFiles)", () => {
+  it("reads folder metadata tolerantly and ignores the legacy groups key", () => {
+    const files = projectToFiles(fixture());
+    files[`plugins/Artisan/projects/${PID}/.artisan/editor.yaml`] = JSON.stringify({
+      groups: [{ id: "valid", name: "Crafts", menuIds: ["m1"] }],
+      folders: {
+        boutique: { color: "#a855f7", position: { x: "wrong", y: 4 } },
+        Bad: { color: "#000000" },
+        menus: {},
+      },
+    });
+    const p = projectFromFiles(PID, files);
+    expect(p.folders).toEqual({ boutique: { color: "#a855f7" } });
+    expect(p).not.toHaveProperty("canvasGroups");
   });
-  it("round-trips visual groups of any Document kind without changing any file", () => {
+  it("round-trips themed folders of any Document kind with their frame color and position", () => {
     const original = fixture();
-    const grouped = {
-      ...original,
-      canvasGroups: [{ id: "crafts", name: "Crafts", nodeIds: ["m1", "c1", "d1"], color: "#a855f7",
-        position: { x: 120, y: 240 } }],
-    };
-    const files = transform(grouped);
+    const filed = structuredClone(original);
+    for (const doc of Object.values(filed.documents).flat()) doc.folder = "crafts";
+    filed.folders = { crafts: { color: "#a855f7", position: { x: 120, y: 240 } }, vide: {} };
+    const files = projectToFiles(filed);
     const restored = projectFromFiles(PID, files, { name: "Round Trip" });
-    expect(restored.canvasGroups).toEqual(grouped.canvasGroups);
-    const before = transform(original);
-    for (const [path, content] of Object.entries(before)) {
-      if (!path.endsWith(".artisan/editor.yaml")) expect(files[path]).toEqual(content);
-    }
-    expect(transform(restored)).toEqual(files);
+    expect(restored.folders).toEqual(filed.folders);
+    expect(
+      Object.values(restored.documents)
+        .flat()
+        .map((d) => d.folder),
+    ).toEqual(
+      Object.values(filed.documents)
+        .flat()
+        .map(() => "crafts"),
+    );
+    expect(projectToFiles(restored)).toEqual(files);
   });
 
   it("is a fixed point: domain → files → domain → files", () => {
-    const files1 = transform(fixture());
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
-    const files2 = transform(p2);
+    const files1 = projectToFiles(fixture());
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
+    const files2 = projectToFiles(p2);
     expect(files2).toEqual(files1);
   });
 
   it("reconstructs table sources with model identity and LText rows", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     const table = p2.dataSources.find((d) => d.id === ("ds_items" as DataSourceId));
     expect(table).toBeDefined();
     if (table?.shape !== "table") throw new Error("expected table shape");
@@ -279,7 +290,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
   });
 
   it("reconstructs config sources with LText values", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     const cfg = p2.dataSources.find((d) => d.id === ("ds_cfg" as DataSourceId));
     if (cfg?.shape !== "config") throw new Error("expected config shape");
     expect(cfg.name).toBe("Settings");
@@ -291,7 +302,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
   });
 
   it("preserves data models verbatim (minimessage kind survives via models/)", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     // The config source's beside-doc also imports as a model (ADR
     // bare-data-files) — the fixture's models must survive verbatim among them.
     for (const m of fixture().dataModels ?? []) {
@@ -300,28 +311,61 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
   });
 
   it("preserves captured item name + display through .artisan/editor.yaml", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     expect(p2.capturedItems).toEqual(fixture().capturedItems);
   });
 
   it("restores board state and the element's own iteration binding", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
-    expect(p2.canvasLayout).toEqual({ m1: { x: 40, y: 80 } });
-    expect(p2.canvasEdges).toEqual({ "m1->d1": { from: { side: "right", t: 0.5 } } });
-    const el = p2.menus[0]!.layers.flatMap((l) => l.elements).find((e) => e.id === "tplbound")!;
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
+    expect(p2.canvasLayout).toEqual({ "menu/m1": { x: 40, y: 80 } });
+    expect(p2.canvasEdges).toEqual({ "menu/m1->dialog/d1": { from: { side: "right", t: 0.5 } } });
+    const el = menusOf(p2)[0]!
+      .layers.flatMap((l) => l.elements)
+      .find((e) => e.id === "tplbound")!;
     expect(el.iterates).toEqual({ source: "items", alias: "item" });
     expect(el.display!.material).toBe("{item.icon}");
   });
 
+  it("moves a position saved under a bare id to every Document of that id", () => {
+    const documents = {
+      menu: [{ id: "shop" }],
+      command: [{ id: "shop" }, { id: "buy" }],
+    } as unknown as Project["documents"];
+    expect(
+      parseEditorLayout(
+        {
+          shop: { x: 1, y: 2 },
+          buy: { x: 3, y: 4 },
+          "command/shop": { x: 5, y: 6 },
+          gone: { x: 0, y: 0 },
+        },
+        documents,
+      ),
+    ).toEqual({
+      "menu/shop": { x: 1, y: 2 },
+      "command/shop": { x: 5, y: 6 },
+      "command/buy": { x: 3, y: 4 },
+    });
+    expect(
+      parseEditorEdges(
+        {
+          "buy->shop": { from: { side: "top", t: 0 } },
+          "buy->gone": { to: { side: "left", t: 1 } },
+        },
+        documents,
+      ),
+    ).toEqual({ "command/buy->menu/shop": { from: { side: "top", t: 0 } } });
+  });
+
   it("re-emits unclaimed module files verbatim via moduleData.__files", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     expect(p2.moduleData).toEqual({
       shopmod: { __files: { "shop.yaml": "schema: shopmod/v1\nitems: []\n" } },
     });
   });
 
   it("imports per-row Tables (granularity kept, rows ordered, hand-added file appended)", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     const cats = p2.dataSources.find((d) => d.id === ("ds_cats" as DataSourceId));
     if (cats?.shape !== "table") throw new Error("expected table shape");
     expect(cats.granularity).toBe("row");
@@ -329,7 +373,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
 
     // A row file dropped in by hand (FTP/agent), absent from _source.yaml's
     // order, is still imported — appended after the declared order.
-    const files = transform(fixture());
+    const files = projectToFiles(fixture());
     files[`${base}/data/ds_cats/handmade.yaml`] =
       "id: handmade\nname: sources.categories.handmade.name\ndesc: ''\nprice: 1\ntags: []\nrarity: common\non_buy: { type: command, run: say hi }\nprices: {}\n";
     const p3 = projectFromFiles(PID, files, { name: "Round Trip" });
@@ -411,7 +455,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
   it("keeps the .artisan meta authoritative over the derived descriptor", () => {
     // The editor channel records what the capture panel showed; it wins so a
     // plugin-enriched material (nexo reverse-lookup) isn't downgraded on import.
-    const files = transform(fixture());
+    const files = projectToFiles(fixture());
     const p2 = projectFromFiles(PID, files, { name: "Round Trip" });
     expect(p2.capturedItems?.[0]?.display).toEqual({
       material: "nexo:arcanist_key",
@@ -424,7 +468,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
 // so it can differ from the platform-unique internal id. Files always carry the
 // DISK id: reading must not depend on the two matching, and writing must keep
 // emitting the disk id or the plugin would receive a tree under a directory it
-// does not use (incident 2026-08-12).
+// does not use.
 describe("disk id ≠ internal id", () => {
   const DISK = "boutique_shop";
   const INTERNAL = "proj_58967c930e9e";
@@ -444,7 +488,7 @@ describe("disk id ≠ internal id", () => {
     expect(project.id).toBe(INTERNAL);
     expect(project.diskId).toBe(DISK);
     // The menu is found — before the prefix normalisation the tree parsed empty.
-    expect(project.menus.map((m) => m.id)).toEqual(["shop"]);
+    expect(menusOf(project).map((m) => m.id)).toEqual(["shop"]);
   });
 
   it("writes back under the disk id, not the internal id", () => {
@@ -452,9 +496,24 @@ describe("disk id ≠ internal id", () => {
       name: "boutique_shop",
       diskId: DISK,
     });
-    const out = transform(project);
+    const out = projectToFiles(project);
     const keys = Object.keys(out.files ?? out);
     expect(keys.every((k) => k.startsWith(`plugins/Artisan/projects/${DISK}/`))).toBe(true);
     expect(keys.some((k) => k.includes(INTERNAL))).toBe(false);
   });
+});
+
+it("reads a module of .yml files and its artisan-module.yml", () => {
+  const p = projectFromFiles(PID, {
+    [`${base}/artisan-module.yml`]: "schema: module/v1\ndefault_lang: fr\nlanguages: [fr]\n",
+    [`${base}/manifest.yaml`]: "schema: manifest/v1\ndefault_lang: en\n",
+    [`${base}/menus/main.yml`]: "title: Boutique\nsize: 27\n",
+    [`${base}/data/settings.yml`]: "discount: 10\n",
+    [`${base}/lang/fr.yaml`]: "k: ancien\n",
+    [`${base}/lang/fr.yml`]: "k: nouveau\n",
+  });
+  expect(p.defaultLang).toBe("fr");
+  expect(menusOf(p).map((m) => m.id)).toEqual(["main"]);
+  expect(p.dataSources.map((s) => String(s.id))).toEqual(["settings"]);
+  expect(Object.entries(p.i18nKeys).find(([key]) => key === "k")?.[1].fr).toBe("nouveau");
 });

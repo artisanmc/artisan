@@ -1,6 +1,14 @@
 import { SplitPane } from "@/components/SplitPane";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { McActionBar, McChat, McMotd, McTitle, McTooltip } from "@/components/mc-preview";
+import { MmTextField } from "@/components/minimessage";
 import { Badge } from "@/components/ui/badge";
+import {
+  Breadcrumb,
+  BreadcrumbCurrent,
+  BreadcrumbSwitcher,
+  breadcrumbLinkClass,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChangeList } from "@/components/ui/change-list";
@@ -20,9 +28,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSearch,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  matchesMenuSearch,
 } from "@/components/ui/dropdown-menu";
+import { EditorHeader } from "@/components/ui/editor-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileDiff } from "@/components/ui/file-diff";
 import { FileDropzone } from "@/components/ui/file-dropzone";
@@ -30,7 +41,11 @@ import { SaveFilledIcon } from "@/components/ui/filled-icons";
 import { FormField } from "@/components/ui/form-field";
 import { GuidedTour } from "@/components/ui/guided-tour";
 import { HBar } from "@/components/ui/h-bar";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ResetButton } from "@/components/ui/reset-button";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Sheet,
   SheetBody,
@@ -40,28 +55,28 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Breadcrumb,
-  BreadcrumbCurrent,
-  BreadcrumbSwitcher,
-  breadcrumbLinkClass,
-} from "@/components/ui/breadcrumb";
+import { SortableList } from "@/components/ui/sortable-list";
 import { Spinner } from "@/components/ui/spinner";
 import { StatCard } from "@/components/ui/stat-card";
 import { Switch } from "@/components/ui/switch";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TagInput } from "@/components/ui/tag-input";
 import { Tooltip } from "@/components/ui/tooltip";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { CanvasToolbar } from "@/features/canvas/CanvasToolbar";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { ACTION_FAMILIES, actionAppearance, familyColors } from "@/lib/actions/actionFamily";
+import { LORE } from "@/lib/mm/profiles";
+import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useUiStore } from "@/state/uiStore";
 import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
- * Living style guide rendered at /admin/design. Every token, utility class
+ * Living style guide rendered at /design. Every token, utility class
  * and ui/ primitive of the editor is shown live here — when adding a new
  * component or token, add its specimen to this page in the same commit.
  *
@@ -97,7 +112,31 @@ const COLOR_GROUPS: { key: string; tokens: string[] }[] = [
       "--danger-soft",
     ],
   },
+  {
+    key: "kinds",
+    tokens: [
+      ...["menu", "command", "dialog", "trigger", "module"].flatMap((k) => [
+        `--kind-${k}`,
+        `--kind-${k}-soft`,
+        `--kind-${k}-line`,
+      ]),
+      ...ACTION_FAMILIES.flatMap((f) => [`--fam-${f}`, `--fam-${f}-soft`]),
+      "--fam-logic-line",
+      "--mc-chat-bg",
+    ],
+  },
 ];
+
+/** One action per family, for the IconTile specimen. */
+const SPECIMEN_ACTIONS = [
+  ["send_message", "message"],
+  ["play_sound", "effect"],
+  ["open_menu", "navigation"],
+  ["give_money", "reward"],
+  ["teleport", "world"],
+  ["set_arg", "logic"],
+  ["quests:start", "module"],
+] as const;
 
 const RADII = ["--r-xs", "--r-sm", "--r-md", "--r-lg", "--r-xl", "--r-pill"];
 const SHADOWS = ["--shadow-sm", "--shadow-md", "--shadow-lg"];
@@ -111,16 +150,103 @@ const BTN_CLASSES = [
   "btn btn-danger",
   "btn btn-discord",
 ];
-const SAMPLE_YAML = `# Réglages boutique — géré par Artisan
-# Remise appliquée à toute la boutique (0 à 100).
+const SAMPLE_YAML = `# Shop settings — managed by Artisan
+# Discount applied to the whole shop (0 to 100).
 whole_shop_discount: 10
 placeholders:
-  # Placeholder disponible : %price%.
+  # Available placeholder: %price%.
   price_display: "%price% tokens"
 `;
 
 const BADGE_VARIANTS = ["amber", "sage", "terra", "brick"] as const;
 const BADGE_CLASSES = ["badge-amber", "badge-sage", "badge-terra", "badge-brick"];
+
+const SAMPLE_LORE =
+  "<gray>Forged in <gradient:#ff3d00:#ffb300>dragon fire</gradient>.\n<gold>★★★★☆</gold>";
+
+// A guild member's card: the case of the "computed text" pill.
+const SAMPLE_MEMBER_LORE = [
+  "<gray>Grade : <red>{m.rank}",
+  '{m.online ? "<green>En ligne" : "<gray>Hors ligne"}',
+  "",
+  '{m.can_promote ? "<yellow>Clic gauche : promouvoir" : ""}',
+  '{m.can_demote ? "<yellow>Clic droit : rétrograder" : ""}',
+  '{m.can_kick ? "<red>Shift + clic droit : exclure" : ""}',
+  "<gray>Membre depuis {m.joined.ago()}",
+].join("\n");
+
+const SAMPLE_MEMBER: PlaceholderEntry[] = [
+  { path: "m.rank", type: "string", sample: "Officier", origin: "iteration" },
+  { path: "m.online", type: "boolean", sample: "true", origin: "iteration" },
+  { path: "m.can_promote", type: "boolean", sample: "true", origin: "iteration" },
+  { path: "m.can_demote", type: "boolean", sample: "false", origin: "iteration" },
+  { path: "m.can_kick", type: "boolean", sample: "true", origin: "iteration" },
+  { path: "m.joined.ago()", type: "string", sample: "40 j", origin: "iteration" },
+];
+
+function MiniMessageSpecimens() {
+  const { t } = useTranslation();
+  const [lore, setLore] = useState(SAMPLE_LORE);
+  const [member, setMember] = useState(SAMPLE_MEMBER_LORE);
+  const [color, setColor] = useState("#5ab4ff");
+  return (
+    <div className="card flex flex-col gap-6 p-5">
+      <div className="flex flex-col gap-2">
+        <span className="mono text-[11px] text-[var(--text-faint)]">
+          {'<MmTextField profile={LORE} layout="column">'}
+        </span>
+        <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.mmEditorHint")}</p>
+        <MmTextField value={lore} onChange={setLore} profile={LORE} layout="column" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="mono text-[11px] text-[var(--text-faint)]">
+          {'<MmTextField profile={LORE} entries={…} layout="column">'}
+        </span>
+        <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.mmExprHint")}</p>
+        <MmTextField
+          value={member}
+          onChange={setMember}
+          profile={LORE}
+          entries={SAMPLE_MEMBER}
+          layout="column"
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="mono text-[11px] text-[var(--text-faint)]">
+          {"<McChat> <McTooltip> <McMotd> <McActionBar> <McTitle>"}
+        </span>
+        <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.mcPreviewHint")}</p>
+        <div className="flex flex-wrap items-start gap-4">
+          <McChat messages={["<green>Ready</green> <gray>— 3 players online"]} />
+          <McTooltip
+            title="<aqua>Diamond Sword"
+            enchants={["Sharpness V"]}
+            lore={["<gray>Sharp."]}
+          />
+          <McMotd motd={"<gold>Artisan</gold> <gray>1.21\n<yellow>Open!"} />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <McActionBar text="<green>+25 coins" />
+          <McTitle title="<gold><bold>Victory" subtitle="<gray>Round 3" />
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="mono text-[11px] text-[var(--text-faint)]">{"<Popover>"}</span>
+        <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.popoverHint")}</p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className="btn btn-outline btn-sm self-start">
+              {color}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent>
+            <input className="input" value={color} onChange={(e) => setColor(e.target.value)} />
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  );
+}
 
 function Section({
   id,
@@ -151,6 +277,7 @@ export function DesignSystemPage() {
   const { t } = useTranslation();
   const [splitSize, setSplitSize] = useState(160);
   const [tourOpen, setTourOpen] = useState(false);
+  const [segValue, setSegValue] = useState<"chest" | "hopper" | "dropper">("chest");
   const tourTarget = useRef<HTMLButtonElement>(null);
 
   return (
@@ -182,11 +309,11 @@ export function DesignSystemPage() {
             Primalcraft
           </a>
           <BreadcrumbSwitcher
-            current="survie"
+            current="survival"
             items={[
               { id: "lobby", label: "Lobby" },
-              { id: "survie", label: "Survie" },
-              { id: "creatif", label: "Créatif" },
+              { id: "survival", label: "Survival" },
+              { id: "creative", label: "Creative" },
             ]}
             onSelect={() => {}}
             searchPlaceholder={t("breadcrumb.searchServers")}
@@ -196,8 +323,8 @@ export function DesignSystemPage() {
       </Section>
       <Section id="file-diff" title={t("save.diffLabel")}>
         <FileDiff
-          before={"name: Boutique\nprice: 10\nenabled: true\n"}
-          after={"name: Boutique\nprice: 20\nenabled: true\n"}
+          before={"name: Shop\nprice: 10\nenabled: true\n"}
+          after={"name: Shop\nprice: 20\nenabled: true\n"}
         />
       </Section>
       <Section id="tooltip" title={t("drafts.save")}>
@@ -221,18 +348,19 @@ export function DesignSystemPage() {
       <Section id="change-list" title={t("drafts.changes")}>
         <ChangeList
           before={{
-            "menus/shop.yaml": "title: Boutique\nsize: 27\nprice: 10\n",
-            "menus/old.yaml": "title: Ancien\n",
+            "menus/shop.yaml": "title: Shop\nsize: 27\nprice: 10\n",
+            "menus/old.yaml": "title: Old\n",
           }}
           after={{
-            "menus/shop.yaml": "title: Boutique\nsize: 27\nprice: 20\n",
-            "menus/new.yaml": "title: Ancien\n",
+            "menus/shop.yaml": "title: Shop\nsize: 27\nprice: 20\n",
+            "menus/new.yaml": "title: Old\n",
             "lang/en.yaml": "shop.title: Shop\n",
           }}
           renames={[{ from: "menus/old.yaml", to: "menus/new.yaml" }]}
+          problems={{ "menus/shop.yaml": ["schema: price is not allowed"] }}
         />
       </Section>
-      {/* ── Rules ─────────────────────────────────────────────────────── */}
+      {/* Rules */}
       <Section id="guidelines" title={t("adminDesign.guidelines.heading")}>
         <div className="card p-5">
           <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[13px] text-[var(--text-mut)]">
@@ -243,7 +371,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Color tokens ──────────────────────────────────────────────── */}
+      {/* Color tokens */}
       <Section id="colors" title={t("adminDesign.sections.colors")}>
         <div className="flex items-center gap-3">
           <span className="text-[13px] text-[var(--text-mut)]">{t("adminDesign.themeHint")}</span>
@@ -263,7 +391,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Typography ────────────────────────────────────────────────── */}
+      {/* Typography */}
       <Section id="typography" title={t("adminDesign.sections.typography")}>
         <div className="card flex flex-col gap-5 p-5">
           <div className="flex flex-col gap-1">
@@ -292,10 +420,14 @@ export function DesignSystemPage() {
             <span className="mono text-[11px] text-[var(--text-faint)]">.field-label</span>
             <span className="field-label">Field label</span>
           </div>
+          <div className="flex flex-col gap-1">
+            <span className="mono text-[11px] text-[var(--text-faint)]">.section-label</span>
+            <span className="section-label">Section label</span>
+          </div>
         </div>
       </Section>
 
-      {/* ── Radii & shadows ───────────────────────────────────────────── */}
+      {/* Radii & shadows */}
       <Section id="radii-shadows" title={t("adminDesign.sections.radiiShadows")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-wrap items-end gap-5">
@@ -323,7 +455,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── CSS utility classes ───────────────────────────────────────── */}
+      {/* CSS utility classes */}
       <Section id="css-utilities" title={t("adminDesign.sections.cssUtilities")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-wrap items-center gap-3">
@@ -380,7 +512,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── React primitives (components/ui) ──────────────────────────── */}
+      {/* React primitives (components/ui) */}
       <Section id="primitives" title={t("adminDesign.sections.primitives")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-col gap-2">
@@ -412,6 +544,19 @@ export function DesignSystemPage() {
             </FormField>
           </div>
           <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<ResetButton modified onReset label>"}
+            </span>
+            <div className="flex max-w-xs items-center gap-1">
+              <Input defaultValue="Changed" />
+              <ResetButton modified onReset={() => {}} label="Reset" />
+            </div>
+            <div className="flex max-w-xs items-center gap-1">
+              <Input defaultValue="Original" />
+              <ResetButton modified={false} onReset={() => {}} label="Reset" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Badge variant>"}</span>
             <div className="flex flex-wrap items-center gap-2.5">
               {BADGE_VARIANTS.map((variant) => (
@@ -422,14 +567,71 @@ export function DesignSystemPage() {
             </div>
           </div>
           <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<IconTile> · actionAppearance()"}
+            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              {SPECIMEN_ACTIONS.map(([name, family]) => (
+                <span key={name} className="flex items-center gap-1.5 text-[12.5px]">
+                  <IconTile icon={actionAppearance(name).icon} {...familyColors(family)} />
+                  {t(`actionCatalog.families.${family}`)}
+                </span>
+              ))}
+              <IconTile
+                icon={TerminalSquare}
+                fg="var(--kind-command)"
+                soft="var(--kind-command-soft)"
+                size="lg"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Segmented>"}</span>
+            <Segmented
+              label="Segmented"
+              options={[
+                { value: "chest", label: "Chest" },
+                { value: "hopper", label: "Hopper" },
+                { value: "dropper", label: "Dropper" },
+              ]}
+              value={segValue}
+              onChange={setSegValue}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<EditorHeader> · kindAppearance()"}
+            </span>
+            <div className="flex flex-col gap-2">
+              {(["menu", "command", "dialog", "trigger"] as const).map((kind) => (
+                <div key={kind} className="panel overflow-hidden rounded-[var(--r-md)]">
+                  <EditorHeader
+                    kind={kind}
+                    eyebrow={kind.charAt(0).toUpperCase() + kind.slice(1)}
+                    title={kind === "command" ? "/shop" : "Shop"}
+                    meta={<span className="chip cursor-default text-[12px]">meta</span>}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">.mc-text</span>
+            <div className="text-[13px]">
+              <MiniMessageInline
+                className="mc-text"
+                source="<green>Healed <white>Alex</white> for 10 hearts."
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Skeleton>"}</span>
             <div className="flex max-w-sm flex-col gap-2">
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-20 w-full" />
             </div>
             <p className="text-[11.5px] text-[var(--text-faint)]">
-              À la forme de ce qui va s'afficher : la mise en page ne saute pas quand les données
-              arrivent. Pour une attente courte et localisée, préférer {"<Spinner>"}.
+              {t("adminDesign.specimens.skeletonHint")}
             </p>
           </div>
           <div className="flex flex-col gap-2">
@@ -437,15 +639,17 @@ export function DesignSystemPage() {
             <div className="flex items-center gap-2">
               <Spinner />
               <span className="text-[13px] text-[var(--text-mut)]">
-                Lecture des fichiers du serveur…
+                {t("adminDesign.specimens.spinnerLabel")}
               </span>
             </div>
             <p className="text-[11.5px] text-[var(--text-faint)]">
-              Toujours accompagné de ce qu'on attend : un rond qui tourne seul n'informe de rien.
+              {t("adminDesign.specimens.spinnerHint")}
             </p>
           </div>
           <SwitchSpecimen />
+          <TagInputSpecimen />
           <CheckboxSpecimen />
+          <SortableListSpecimen />
           <div className="flex max-w-sm flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">
               {"<FileDropzone file onFile accept label prompt hint>"}
@@ -487,12 +691,15 @@ export function DesignSystemPage() {
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Collapsible>"}</span>
             <div className="max-w-md">
-              <Collapsible title="Paramètres avancés" meta={<Badge variant="sage">3</Badge>}>
+              <Collapsible
+                title={t("adminDesign.specimens.collapsibleTitle")}
+                meta={<Badge variant="sage">3</Badge>}
+              >
                 <p className="text-[13px] text-[var(--text-mut)]">
-                  Contenu démonté tant que la section est repliée.
+                  {t("adminDesign.specimens.collapsibleBody")}
                 </p>
               </Collapsible>
-              <Collapsible title="Section ouverte par défaut" defaultOpen>
+              <Collapsible title={t("adminDesign.specimens.collapsibleOpenTitle")} defaultOpen>
                 <p className="text-[13px] text-[var(--text-mut)]">defaultOpen</p>
               </Collapsible>
             </div>
@@ -546,6 +753,7 @@ export function DesignSystemPage() {
                 <DropdownMenuItem>Item three</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <SearchableMenuSpecimen />
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Card>"}</span>
@@ -560,7 +768,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Search palette ────────────────────────────────────────────── */}
+      {/* Search palette */}
       <Section id="search-palette" title={t("adminDesign.sections.searchPalette")}>
         <div className="card flex flex-col gap-4 p-5">
           <span className="text-[12px] text-[var(--text-mut)]">
@@ -575,16 +783,12 @@ export function DesignSystemPage() {
               </span>
             </div>
             <div className="py-1">
-              <div className="px-3 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-                {t("search.groupMenu")}
-              </div>
+              <div className="section-label px-3 pt-2.5 pb-1">{t("search.groupMenu")}</div>
               <div className="flex w-full items-center gap-2.5 bg-[var(--brand-soft)] px-3 py-2 text-left text-[13px] text-[var(--text)]">
                 <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
                 <span className="flex-1 truncate">Shop</span>
               </div>
-              <div className="px-3 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-                {t("search.groupCommand")}
-              </div>
+              <div className="section-label px-3 pt-2.5 pb-1">{t("search.groupCommand")}</div>
               <div className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-[var(--text-mut)]">
                 <TerminalSquare className="size-[15px] shrink-0 text-[var(--text-faint)]" />
                 <span className="flex-1 truncate">/heal</span>
@@ -599,15 +803,15 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Canvas toolbar ────────────────────────────────────────────── */}
+      {/* Canvas toolbar */}
       <Section id="canvas-toolbar" title={t("adminDesign.sections.canvasToolbar")}>
         <div className="card flex flex-col gap-4 p-5">
           <span className="mono text-[11px] text-[var(--text-faint)]">{"<CanvasToolbar>"}</span>
           <span className="text-[12px] text-[var(--text-mut)]">
             Bottom-center DOM toolbar (absolute, z-20). Two mode buttons (Select / Pan), active
             state via --brand-soft, plus a rearrange-mode dropdown. Hotkeys:{" "}
-            <kbd className="mono text-[11px]">V</kbd> /{" "}
-            <kbd className="mono text-[11px]">H</kbd> / Space-hold (temporary pan).
+            <kbd className="mono text-[11px]">V</kbd> / <kbd className="mono text-[11px]">H</kbd> /
+            Space-hold (temporary pan).
           </span>
           {/* Live render in a relative container to avoid absolute positioning overflow */}
           <div className="relative h-16 overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)]">
@@ -616,7 +820,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Shared app components ─────────────────────────────────────── */}
+      {/* Shared app components */}
       <Section id="app-components" title={t("adminDesign.sections.appComponents")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-col gap-2">
@@ -648,7 +852,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Data viz ──────────────────────────────────────────────────── */}
+      {/* Code editor */}
       <Section id="codeEditor" title={t("adminDesign.sections.codeEditor")}>
         <div className="card flex flex-col gap-2 p-5">
           <span className="mono text-[11px] text-[var(--text-faint)]">{"<YamlCodeEditor>"}</span>
@@ -666,6 +870,10 @@ export function DesignSystemPage() {
             <YamlCodeEditor value={SAMPLE_YAML} ariaLabel="YamlCodeEditor readOnly" readOnly />
           </div>
         </div>
+      </Section>
+
+      <Section id="minimessage" title={t("adminDesign.sections.minimessage")}>
+        <MiniMessageSpecimens />
       </Section>
 
       <Section id="dataViz" title={t("adminDesign.sections.dataViz")}>
@@ -752,6 +960,7 @@ function FileDropzoneSpecimen() {
 }
 
 function WorkspaceViewSpecimen() {
+  const { t } = useTranslation();
   const [active, setActive] = useState(false);
   return (
     <div className="relative h-56 overflow-hidden rounded-[var(--r-lg)] border border-[var(--border-soft)]">
@@ -762,8 +971,7 @@ function WorkspaceViewSpecimen() {
       </div>
       <WorkspaceView active={active} onExit={() => setActive(false)} title="WorkspaceView">
         <p className="text-[13px] text-[var(--text-mut)]">
-          Vue de travail qui remplace le canvas dans la zone centrale (panneau opaque, keep-alive).
-          Le canvas reste monté dessous — jamais display:none. Échap / × reviennent au canvas.
+          {t("adminDesign.specimens.workspaceViewBody")}
         </p>
       </WorkspaceView>
     </div>
@@ -771,6 +979,7 @@ function WorkspaceViewSpecimen() {
 }
 
 function CheckboxSpecimen() {
+  const { t } = useTranslation();
   const [on, setOn] = useState(true);
   return (
     <div className="flex flex-col gap-2">
@@ -778,18 +987,65 @@ function CheckboxSpecimen() {
         {"<Checkbox checked onCheckedChange>"}
       </span>
       <div className="flex items-center gap-3">
-        <Checkbox checked={on} onCheckedChange={setOn} aria-label="Appliquer à tous" />
-        <Checkbox checked={false} disabled onCheckedChange={() => {}} aria-label="Désactivé" />
+        <Checkbox
+          checked={on}
+          onCheckedChange={setOn}
+          aria-label={t("adminDesign.specimens.applyToAll")}
+        />
+        <Checkbox
+          checked={false}
+          disabled
+          onCheckedChange={() => {}}
+          aria-label={t("adminDesign.specimens.disabled")}
+        />
       </div>
       <p className="text-[11.5px] text-[var(--text-faint)]">
-        Pour un état de formulaire confirmé explicitement. Un réglage persistant qui change le
-        résultat en jeu garde {"<Switch>"}.
+        {t("adminDesign.specimens.checkboxHint")}
+      </p>
+    </div>
+  );
+}
+
+function SortableListSpecimen() {
+  const { t } = useTranslation();
+  const [rows, setRows] = useState(() => [
+    t("adminDesign.specimens.sortableRow1"),
+    t("adminDesign.specimens.sortableRow2"),
+    t("adminDesign.specimens.sortableRow3"),
+  ]);
+  return (
+    <div className="flex max-w-sm flex-col gap-2">
+      <span className="mono text-[11px] text-[var(--text-faint)]">
+        {"<SortableList ids onMove>{(index, handle) => …}</SortableList>"}
+      </span>
+      <SortableList
+        ids={rows}
+        onMove={(from, to) =>
+          setRows((list) => {
+            const next = [...list];
+            next.splice(to, 0, next.splice(from, 1)[0]!);
+            return next;
+          })
+        }
+        className="flex flex-col gap-1"
+        itemClassName="flex items-center gap-2 rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface-raised)] py-1.5 pr-3 pl-1"
+      >
+        {(index, handle) => (
+          <>
+            {handle}
+            <span className="text-[13px] text-[var(--text)]">{rows[index]}</span>
+          </>
+        )}
+      </SortableList>
+      <p className="text-[11.5px] text-[var(--text-faint)]">
+        {t("adminDesign.specimens.sortableHint")}
       </p>
     </div>
   );
 }
 
 function SwitchSpecimen() {
+  const { t } = useTranslation();
   const [on, setOn] = useState(true);
   return (
     <div className="flex flex-col gap-2">
@@ -797,12 +1053,65 @@ function SwitchSpecimen() {
         {"<Switch checked onCheckedChange>"}
       </span>
       <div className="flex items-center gap-3">
-        <Switch checked={on} onCheckedChange={setOn} aria-label="Texture par défaut" />
-        <Switch checked={false} disabled onCheckedChange={() => {}} aria-label="Désactivé" />
+        <Switch
+          checked={on}
+          onCheckedChange={setOn}
+          aria-label={t("adminDesign.specimens.defaultTexture")}
+        />
+        <Switch
+          checked={false}
+          disabled
+          onCheckedChange={() => {}}
+          aria-label={t("adminDesign.specimens.disabled")}
+        />
       </div>
       <p className="text-[11.5px] text-[var(--text-faint)]">
-        Pour un réglage enregistré qui change le résultat en jeu. Un masquage d'aperçu garde l'œil.
+        {t("adminDesign.specimens.switchHint")}
       </p>
     </div>
+  );
+}
+
+function TagInputSpecimen() {
+  const { t } = useTranslation();
+  const [values, setValues] = useState(["1h", "6h", "24h"]);
+  return (
+    <div className="flex max-w-sm flex-col gap-2">
+      <span className="mono text-[11px] text-[var(--text-faint)]">
+        {"<TagInput values onAdd onRemove label removeLabel>"}
+      </span>
+      <TagInput
+        values={values}
+        label={t("dataSources.addValue")}
+        placeholder={t("dataSources.addValuePlaceholder")}
+        removeLabel={(v) => t("dataSources.removeValue", { value: v })}
+        onAdd={(v) => {
+          setValues((prev) => [...prev, v]);
+          return true;
+        }}
+        onRemove={(i) => setValues((prev) => prev.filter((_, j) => j !== i))}
+      />
+    </div>
+  );
+}
+
+/** `DropdownMenuSearch`: the field filters the items as one types; ↓ then Enter picks. */
+function SearchableMenuSpecimen() {
+  const [query, setQuery] = useState("");
+  const items = ["Ouvrir un menu", "Fermer le menu", "Donner un objet", "Téléporter"].filter((i) =>
+    matchesMenuSearch(i, query),
+  );
+  return (
+    <DropdownMenu onOpenChange={(open) => !open && setQuery("")}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline">{"<DropdownMenuSearch>"}</Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuSearch value={query} onValueChange={setQuery} placeholder="Search…" />
+        {items.map((i) => (
+          <DropdownMenuItem key={i}>{i}</DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

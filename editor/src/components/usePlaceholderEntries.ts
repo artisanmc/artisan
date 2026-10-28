@@ -1,8 +1,8 @@
-import { useMemo } from "react";
-import { useAccountStore } from "@/state/accountStore";
-import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
-import { compute, type FieldLocation, type PlaceholderEntry } from "@/lib/placeholderCatalog";
 import type { ProjectId } from "@/domain/types";
+import { type FieldLocation, type PlaceholderEntry, compute } from "@/lib/placeholderCatalog";
+import { useProjectsStore } from "@/state/projectsStore";
+import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
+import { useMemo } from "react";
 
 /**
  * Subscribe to the active project and recompute the placeholder catalog when
@@ -15,12 +15,15 @@ export function usePlaceholderEntries(
   projectId: ProjectId,
   location: FieldLocation,
 ): PlaceholderEntry[] {
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const serverSources = useServerDataSourcesStore((s) => s.sources);
   return useMemo(() => {
     if (!project) return [];
     const rowSchemas = Object.fromEntries(
-      serverSources.map((src) => [src.ref, src.schema.map((f) => ({ name: f.name, type: f.type }))]),
+      serverSources.map((src) => [
+        src.ref,
+        src.schema.map((f) => ({ name: f.name, type: f.type })),
+      ]),
     );
     return compute(project, location, rowSchemas);
   }, [project, location, serverSources]);

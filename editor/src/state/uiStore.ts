@@ -33,6 +33,7 @@ export interface DraggingNewLayer {
 
 export interface CenterRequest {
   projectId: string;
+  /** The Document's key (`docKey`). */
   docId: string;
   nonce: number;
 }
@@ -43,7 +44,7 @@ interface UiState {
   setLastActiveProjectId: (id: ProjectId | null) => void;
   /**
    * Last workspace tab the user viewed (overview / translations /
-   * data-sources / history). Persisted so a page reload — which bounces
+   * resources / history). Persisted so a page reload — which bounces
    * through /session — can return to the same tab, not just the same project.
    */
   lastActiveTab: string | null;
@@ -82,11 +83,10 @@ interface UiState {
   editorPaneWidth: number;
   setEditorPaneWidth: (w: number) => void;
   /**
-   * Le panneau d'édition est l'inspecteur de la sélection : il n'existe que
-   * s'il y a quelque chose à inspecter. Les paramètres du PROJECT, eux, ne
-   * correspondent à aucune sélection — ce drapeau est le « rien de sélectionné,
-   * mais montre-moi quand même le project » posé par la racine de l'arbre.
-   * Éphémère : jamais persisté.
+   * The edit panel is the selection's inspector: it only exists when there is
+   * something to inspect. The PROJECT settings match no selection — this flag
+   * is the "nothing selected, but show me the project anyway" set by the tree
+   * root. Ephemeral: never persisted.
    */
   projectSettingsOpen: boolean;
   setProjectSettingsOpen: (open: boolean) => void;
@@ -142,7 +142,7 @@ interface UiState {
   toggleHiddenLayer: (menuId: MenuId, index: number) => void;
   clearHiddenLayers: () => void;
   /**
-   * v3 title composer — invoke AFTER `accountStore.removeMenuTitleLayer` to
+   * v3 title composer — invoke AFTER `projectsStore.removeMenuTitleLayer` to
    * keep UI state in sync with the new layer indices. Without this, a stale
    * `selectedLayerKey` would point at the shifted-up neighbour (or nothing),
    * and `hiddenLayerKeys` would still flag indices that no longer exist.
@@ -155,7 +155,7 @@ interface UiState {
    */
   applyLayerDeleted: (menuId: MenuId, deletedIndex: number) => void;
   /**
-   * v3 title composer — invoke AFTER `accountStore.reorderMenuTitleLayers`
+   * v3 title composer — invoke AFTER `projectsStore.reorderMenuTitleLayers`
    * to remap `selectedLayerKey` and `hiddenLayerKeys` indices to match the
    * post-move ordering. Mirrors the splice semantics: pull element out at
    * `fromIndex`, insert at `toIndex`. Entries in other menus are untouched.
@@ -174,46 +174,44 @@ interface UiState {
    */
   searchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
-  /**
-   * AI assistant overlay — whether the right-side chat Sheet is open.
-   * Transient session state: deliberately NOT persisted (see partialize).
-   */
-  assistantPanelOpen: boolean;
-  setAssistantPanelOpen: (open: boolean) => void;
-  /** Width (px) of the AI assistant pane when docked on the right (desktop). */
-  assistantPaneWidth: number;
-  setAssistantPaneWidth: (w: number) => void;
-  /** Mode d'interaction du canvas : main (pan, défaut) ou sélection (clic + marquee). Persisté. */
+  /** Canvas interaction mode: hand (pan, default) or select (click + marquee). Persisted. */
   canvasMode: "select" | "hand";
   setCanvasMode: (m: "select" | "hand") => void;
-  /** Dernier mode de réarrangement choisi dans la barre. Persisté. */
+  /** Last rearrange mode chosen in the toolbar. Persisted. */
   arrangeMode: ArrangeMode;
   setArrangeMode: (m: ArrangeMode) => void;
   /**
-   * Pan/zoom sauvegardé de la planche principale, indexé par projectId. Permet de
-   * quitter la planche (ex. ouvrir la vue d'un élément unique) puis d'y revenir
-   * exactement au même endroit + zoom, y compris après un rechargement.
+   * Saved pan/zoom of the main board, keyed by projectId. Lets the user leave
+   * the board (e.g. open a single element's view) and come back to exactly the
+   * same place + zoom, including after a reload.
    */
   canvasViewports: Record<string, ViewportState>;
   minimapVisible: boolean;
   setMinimapVisible: (visible: boolean) => void;
   setCanvasViewport: (projectId: ProjectId, viewport: ViewportState) => void;
   /**
-   * Pan/zoom de la vue individuelle, **partagé par tous les documents** et
-   * persisté : le cadrage suit l'utilisateur quand il passe d'un menu à un
-   * autre, au lieu de repartir du cadrage par défaut à chaque ouverture.
-   * `null` = jamais réglé, la vue s'ajuste alors au document.
-   * `canvasViewports` conserve séparément le cadrage de chaque projet.
+   * Pan/zoom of the single view, **shared by all documents** and persisted: the
+   * framing follows the user from one menu to another, instead of resetting to
+   * the default framing on every open.
+   * `null` = never set, the view then fits the document.
+   * `canvasViewports` keeps each project's framing separately.
    */
   documentViewport: ViewportState | null;
   setDocumentViewport: (viewport: ViewportState | null) => void;
   /**
-   * « Centre la planche sur ce Document » (`goToDocument`). Éphémère, jamais
-   * persisté ; le `nonce` fait qu'un second clic sur le même Document recentre.
-   * La planche du project la consomme dès qu'elle peut y répondre.
+   * "Center the board on this Document" (`goToDocument`). Ephemeral, never
+   * persisted; the `nonce` makes a second click on the same Document re-center.
+   * The project's board consumes it as soon as it can respond.
    */
   centerRequest: CenterRequest | null;
   requestCenter: (projectId: string, docId: string) => void;
+  /**
+   * "Show only this folder" on a project's board, keyed by projectId
+   * (`features/canvas/folderFilter.ts`). Ephemeral, never persisted: a reload
+   * shows the whole board again.
+   */
+  boardFolders: Record<string, string>;
+  setBoardFolder: (projectId: string, folder: string | null) => void;
   clearCenterRequest: (nonce: number) => void;
 }
 
@@ -234,14 +232,13 @@ export const useUiStore = create<UiState>()(
         // Sync the i18next instance lazily — importing here keeps the
         // store free of a hard dep on the i18n module at module load.
         import("@/i18n").then(({ default: i18n }) => i18n.changeLanguage(lang));
-        // Sync to backend if logged-in. Fire-and-forget — UI doesn't block.
+        // Sync to the player's profile if logged-in. Fire-and-forget — UI doesn't block.
         // Dynamic imports avoid module-load-time circular deps with authStore.
         import("./authStore").then(({ useAuthStore }) => {
           const user = useAuthStore.getState().currentUser;
           if (!user) return;
-          const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
           import("@/lib/api/auth").then(({ patchMe }) =>
-            patchMe({ apiUrl }, { editor_language: lang }).catch(() => {
+            patchMe({ editor_language: lang }).catch(() => {
               console.warn("editor_language sync to backend failed (offline?)");
             }),
           );
@@ -375,10 +372,6 @@ export const useUiStore = create<UiState>()(
       setDraggingNewLayer: (payload) => set({ draggingNewLayer: payload }),
       searchOpen: false,
       setSearchOpen: (open) => set({ searchOpen: open }),
-      assistantPanelOpen: false,
-      setAssistantPanelOpen: (open) => set({ assistantPanelOpen: open }),
-      assistantPaneWidth: 380,
-      setAssistantPaneWidth: (w) => set({ assistantPaneWidth: w }),
       canvasMode: "hand",
       setCanvasMode: (m) => set({ canvasMode: m }),
       arrangeMode: "columns",
@@ -388,6 +381,12 @@ export const useUiStore = create<UiState>()(
       setMinimapVisible: (minimapVisible) => set({ minimapVisible }),
       documentViewport: null,
       setDocumentViewport: (viewport) => set({ documentViewport: viewport }),
+      boardFolders: {},
+      setBoardFolder: (projectId, folder) =>
+        set((s) => {
+          const { [projectId]: _, ...rest } = s.boardFolders;
+          return { boardFolders: folder ? { ...rest, [projectId]: folder } : rest };
+        }),
       centerRequest: null,
       requestCenter: (projectId, docId) =>
         set((s) => ({
@@ -406,9 +405,12 @@ export const useUiStore = create<UiState>()(
       version: 1,
       migrate: (persisted, version) => {
         const p = (persisted ?? {}) as Partial<UiState>;
-        // delete (not set undefined) so merge's {...current, ...p} keeps the
+        // Drop the key (not set undefined) so merge's {...current, ...p} keeps the
         // new default rather than spreading an explicit undefined over it.
-        if (version < 1) delete p.canvasMode;
+        if (version < 1) {
+          const { canvasMode: _dropped, ...rest } = p;
+          return rest as UiState;
+        }
         return p as UiState;
       },
       // armedMaterial is session state; don't persist it.
@@ -422,19 +424,25 @@ export const useUiStore = create<UiState>()(
         editorLang: state.editorLang,
         flowCanvasHeight: state.flowCanvasHeight,
         editorPaneWidth: state.editorPaneWidth,
-        assistantPaneWidth: state.assistantPaneWidth,
         canvasMode: state.canvasMode,
         arrangeMode: state.arrangeMode,
         canvasViewports: state.canvasViewports,
         minimapVisible: state.minimapVisible,
-        // Persisté : le cadrage de la vue
-        // individuelle suit l'utilisateur, page à page et après rechargement.
+        // Persisted: the single view's framing follows the user, page to page and
+        // after a reload.
         documentViewport: state.documentViewport,
       }),
-      // Discard retired inspector tabs and restore the editor language.
+      // Discard retired inspector tabs and the retired assistant pane width,
+      // and restore the editor language.
       merge: (persisted, current) => {
-        const p = { ...(persisted ?? {}) } as Partial<UiState> & { editorTab?: unknown };
-        delete p.editorTab;
+        const {
+          editorTab: _editorTab,
+          assistantPaneWidth: _assistantPaneWidth,
+          ...p
+        } = (persisted ?? {}) as Partial<UiState> & {
+          editorTab?: unknown;
+          assistantPaneWidth?: unknown;
+        };
         if (p.editorLang) {
           import("@/i18n").then(({ default: i18n }) => i18n.changeLanguage(p.editorLang));
         }

@@ -1,21 +1,17 @@
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import type { ProjectSummary } from "@/lib/api/networks";
-import {
-  type ServerConfig,
-  ServerConfigError,
-  getServerConfig,
-  patchServerConfig,
-} from "@/lib/api/serverConfig";
+import { rebuildServerPackInBackground } from "@/features/project/resourcePackSync";
+import { ApiError } from "@/lib/api/client";
+import { type ServerConfig, getServerConfig, patchServerConfig } from "@/lib/api/serverConfig";
+import type { ProjectSummary } from "@/lib/api/servers";
 import { listAssets } from "@/lib/api/userAssets";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 const TEXTURES = "resource-pack.container-textures.";
-const SOURCE_FIELD = /^assistant\.import-sources\.([^.]+)\.([^.]+)$/;
 
-/** Vanilla container layout: square, 256 px or an HD multiple (cf. backend vanillaGui.ts). */
+/** Vanilla container layout: square, 256 px or an HD multiple. */
 const containerLayout = (w: number, h: number) => w === h && w >= 256 && w % 256 === 0;
 
 /**
@@ -24,11 +20,9 @@ const containerLayout = (w: number, h: number) => w === h && w >= 256 && w % 256
  * only sends the keys that changed.
  */
 export function ServerConfigSection({
-  networkId,
   serverKeyId,
   projects,
 }: {
-  networkId: string;
   serverKeyId: string;
   projects: ProjectSummary[];
 }) {
@@ -41,13 +35,13 @@ export function ServerConfigSection({
 
   useEffect(() => {
     let cancelled = false;
-    getServerConfig(networkId, serverKeyId)
+    getServerConfig(serverKeyId)
       .then((res) => !cancelled && setConfig(res.config))
       .catch(() => !cancelled && setConfig(null));
     return () => {
       cancelled = true;
     };
-  }, [networkId, serverKeyId]);
+  }, [serverKeyId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,12 +74,7 @@ export function ServerConfigSection({
       return JSON.stringify(next) === JSON.stringify(config[key]) ? rest : { ...rest, [key]: next };
     });
   };
-  const label = (key: string) => {
-    const source = SOURCE_FIELD.exec(key);
-    if (source)
-      return `${source[1]} · ${t(`serverConfig.sourceFields.${source[2]}`, { defaultValue: source[2] })}`;
-    return t(`serverConfig.fields.${key}`, { defaultValue: key });
-  };
+  const label = (key: string) => t(`serverConfig.fields.${key}`, { defaultValue: key });
   /** `"<key>: <code>"` from the plugin → "<label> : <explanation>". */
   const refusal = (detail: string) => {
     const [key, code] = detail.split(": ");
@@ -100,13 +89,14 @@ export function ServerConfigSection({
   const save = async () => {
     setSaving(true);
     try {
-      setConfig(await patchServerConfig(networkId, serverKeyId, changes));
+      setConfig(await patchServerConfig(serverKeyId, changes));
       setChanges({});
+      // Changing container textures requires rebuilding the pack.
+      if (Object.keys(changes).some((key) => key.startsWith(TEXTURES)))
+        rebuildServerPackInBackground(t, serverKeyId);
     } catch (e) {
       setError(
-        e instanceof ServerConfigError && e.detail
-          ? refusal(e.detail)
-          : t("serverConfig.saveFailed"),
+        e instanceof ApiError && e.detail ? refusal(e.detail) : t("serverConfig.saveFailed"),
       );
     } finally {
       setSaving(false);
@@ -192,7 +182,6 @@ export function ServerConfigSection({
     ["textures", keys.filter((k) => k.startsWith(TEXTURES))],
     ["resourcePack", keys.filter((k) => k.startsWith("resource-pack.") && !k.startsWith(TEXTURES))],
     ["editor", keys.filter((k) => k.startsWith("editor."))],
-    ["assistant", keys.filter((k) => k.startsWith("assistant."))],
   ];
   const grouped = new Set(groups.flatMap(([, ks]) => ks));
   groups.push(["other", keys.filter((k) => !grouped.has(k))]);
@@ -213,7 +202,7 @@ export function ServerConfigSection({
         {error && <p className="text-[12px] text-[var(--danger)]">{error}</p>}
         <button
           type="button"
-          className="btn-primary btn-sm"
+          className="btn btn-primary btn-sm"
           disabled={saving || Object.keys(changes).length === 0}
           onClick={save}
         >

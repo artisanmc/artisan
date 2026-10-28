@@ -1,7 +1,7 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ModelFieldsEditor } from "./ModelFieldsEditor";
 import { ConfigValueForm, SourceRowsTable } from "./SourceValueEditor";
@@ -15,8 +15,11 @@ function makeProject(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataModels: [
       {
@@ -51,18 +54,17 @@ function makeProject(): Project {
     ],
     i18nKeys: { ["sources.ranks.vip.name" as never]: { en: "VIP" } } as Project["i18nKeys"],
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   } as unknown as Project;
 }
 
-const project = () => useAccountStore.getState().account.projects[0]!;
+const project = () => useProjectsStore.getState().openProjects.projects[0]!;
 const tableSource = () =>
   project().dataSources[0] as Extract<Project["dataSources"][number], { shape: "table" }>;
 
 beforeEach(() => {
-  useAccountStore.setState({
-    account: { id: "acc" as never, projects: [makeProject()], projectOrder: [PID] },
+  useProjectsStore.setState({
+    openProjects: { projects: [makeProject()], projectOrder: [PID] },
   } as never);
   useUiStore.setState({ activeLang: "en" } as never);
 });
@@ -78,7 +80,10 @@ describe("SourceRowsTable", () => {
     fireEvent.click(screen.getByRole("button", { name: /ajouter un enchantement/i }));
     view.rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     fireEvent.change(screen.getByPlaceholderText("sharpness"), { target: { value: "sharpness" } });
-    expect(tableSource().rows[0]!.icon).toEqual({ extends: "DIAMOND_SWORD", enchants: { sharpness: 1 } });
+    expect(tableSource().rows[0]!.icon).toEqual({
+      extends: "DIAMOND_SWORD",
+      enchants: { sharpness: 1 },
+    });
   });
   it("edits an icon quantity without losing its material or enchantments", () => {
     const p = project();
@@ -123,16 +128,14 @@ describe("SourceRowsTable", () => {
   });
 
   it("shows a duplicate Row key error without changing the stored value", () => {
-    useAccountStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
-    useAccountStore
-      .getState()
-      .setSourceValue({
-        projectId: PID,
-        sourceId: "ranks" as never,
-        row: 1,
-        path: ["id"],
-        value: "member",
-      });
+    useProjectsStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
+    useProjectsStore.getState().setSourceValue({
+      projectId: PID,
+      sourceId: "ranks" as never,
+      row: 1,
+      path: ["id"],
+      value: "member",
+    });
     render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
 
     const input = screen.getByDisplayValue("member");
@@ -146,16 +149,14 @@ describe("SourceRowsTable", () => {
   });
 
   it("clears a Row key error when an index-keyed editor is reused", () => {
-    useAccountStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
-    useAccountStore
-      .getState()
-      .setSourceValue({
-        projectId: PID,
-        sourceId: "ranks" as never,
-        row: 1,
-        path: ["id"],
-        value: "member",
-      });
+    useProjectsStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
+    useProjectsStore.getState().setSourceValue({
+      projectId: PID,
+      sourceId: "ranks" as never,
+      row: 1,
+      path: ["id"],
+      value: "member",
+    });
     const view = render(
       <SourceRowsTable projectId={PID} project={project()} source={tableSource()} />,
     );
@@ -327,14 +328,14 @@ describe("ModelFieldsEditor", () => {
   });
 });
 
-// ─── stable row identity (model-ref "items mixed across rows" regression) ────
+// Stable row identity (model-ref "items mixed across rows" regression)
 // Index keys made React reuse a stateful child (RowKeyEditor draft) for a
 // DIFFERENT row after a mid-list delete. Keys are now identity-derived from
 // the Row key value.
 describe("SourceRowsTable — stable row keys", () => {
   it("keeps a row's in-progress key draft bound to the SAME row when the row above is deleted", () => {
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       const ds = p.dataSources[0] as { rows: Record<string, unknown>[] };
       ds.rows = [
         { id: "alpha", name: { key: "k_a" }, price: 1, tagline: "", rules: "" },
@@ -353,8 +354,8 @@ describe("SourceRowsTable — stable row keys", () => {
     expect((betaInput as HTMLInputElement).value).toBe("beta-renamed");
 
     // Delete the FIRST row (alpha) from the store (as the ✕ button would).
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       const ds = p.dataSources[0] as { rows: Record<string, unknown>[] };
       ds.rows = ds.rows.filter((r) => r.id !== "alpha");
       return s;
@@ -369,12 +370,12 @@ describe("SourceRowsTable — stable row keys", () => {
   });
 });
 
-// ─── composable kinds widgets (map / enum / union) ───────────────────────────
+// Composable kinds widgets (map / enum / union)
 
 describe("ValueEditor — map / enum / union widgets", () => {
   function seedComposable() {
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       p.dataModels = [
         {
           id: "m_q" as never,
@@ -467,12 +468,12 @@ describe("ValueEditor — map / enum / union widgets", () => {
   });
 });
 
-// ─── slice 3: hints, asymmetric validation, master-detail, conditions ────────
+// Hints, asymmetric validation, master-detail, conditions
 
 describe("form generator — hints + validation (§7)", () => {
   function seedHinted(masterDetail = false) {
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       p.dataModels = [
         {
           id: "m_h" as never,
@@ -570,12 +571,12 @@ describe("form generator — hints + validation (§7)", () => {
   });
 });
 
-// ─── untyped config source (ADR bare-data-files: never a dead end) ───────────
+// Untyped config source (ADR bare-data-files: never a dead end)
 
 describe("ConfigValueForm — schemaless file", () => {
   function seedUntyped() {
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       p.dataModels = [];
       p.dataSources = [
         {
@@ -610,12 +611,12 @@ describe("ConfigValueForm — schemaless file", () => {
   });
 });
 
-// ─── ADR yaml-assisted-editing ⑨: hints are visible, the key stays visible ───
+// ADR yaml-assisted-editing ⑨: hints are visible, the key stays visible
 
 describe("field hints in the form", () => {
   function seedHinted() {
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       p.dataModels = [];
       p.dataSources = [
         {
@@ -660,5 +661,170 @@ describe("field hints in the form", () => {
     );
     expect(screen.getByText("Remise globale")).toBeInTheDocument();
     expect(screen.getByText("whole_shop_discount")).toBeInTheDocument();
+  });
+});
+
+// A module's Settings screen: panels per group, switches, tags, chips
+
+describe("ConfigValueForm — settings layout", () => {
+  function seedSettings() {
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
+      p.dataModels = [];
+      p.dataSources = [
+        {
+          id: "config" as never,
+          name: "config",
+          shape: "config",
+          fields: [
+            {
+              name: "auctions",
+              label: "Auctions",
+              type: {
+                kind: "object",
+                fields: [
+                  { name: "enabled", type: { kind: "boolean" } },
+                  { name: "durations", type: { kind: "list", of: { kind: "string" } } },
+                  {
+                    name: "include",
+                    type: { kind: "list", of: { kind: "enum", values: ["sale", "auction"] } },
+                  },
+                ],
+              },
+            },
+          ],
+          value: { auctions: { enabled: true, durations: ["1h", "6h"], include: ["sale"] } },
+        },
+      ] as never;
+      return s;
+    });
+  }
+  const auctions = () =>
+    (project().dataSources[0] as unknown as { value: { auctions: Record<string, unknown> } }).value
+      .auctions;
+  // Re-renders from the store, as the screen does.
+  function Live() {
+    const p = useProjectsStore((s) => s.openProjects.projects[0]) as Project;
+    return <ConfigValueForm projectId={PID} project={p} source={p.dataSources[0] as never} />;
+  }
+  const renderForm = () => render(<Live />);
+
+  it("gives each top-level group its own titled panel", () => {
+    seedSettings();
+    renderForm();
+    const panel = screen.getByTestId("settings-section-auctions");
+    expect(within(panel).getByRole("heading", { name: "Auctions" })).toBeInTheDocument();
+  });
+
+  it("edits a boolean with a switch", () => {
+    seedSettings();
+    renderForm();
+    fireEvent.click(screen.getByRole("switch", { name: "enabled" }));
+    expect(auctions().enabled).toBe(false);
+  });
+
+  it("edits a list of words as tags", () => {
+    seedSettings();
+    renderForm();
+    const field = screen.getByRole("textbox", { name: /add a value|ajouter une valeur/i });
+    fireEvent.change(field, { target: { value: "24h" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(auctions().durations).toEqual(["1h", "6h", "24h"]);
+    fireEvent.click(screen.getByRole("button", { name: /remove 1h|retirer 1h/i }));
+    expect(auctions().durations).toEqual(["6h", "24h"]);
+  });
+
+  it("picks a subset of a closed set with toggle chips", () => {
+    seedSettings();
+    renderForm();
+    const auction = screen.getByRole("button", { name: "auction" });
+    expect(auction).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(auction);
+    expect(auctions().include).toEqual(["sale", "auction"]);
+    fireEvent.click(screen.getByRole("button", { name: "sale" }));
+    expect(auctions().include).toEqual(["auction"]);
+  });
+});
+
+// A map keyed by numbers holding small objects (guild levels): one row per
+// entry, and the next number added in one click.
+
+describe("ConfigValueForm — map as a table", () => {
+  const level = (name: string, label: string) => ({
+    name,
+    label,
+    type: { kind: "integer" },
+    min: 0,
+  });
+  function seedLevels(typed: boolean) {
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
+      p.dataModels = [];
+      p.dataSources = [
+        {
+          id: "settings" as never,
+          name: "settings",
+          shape: "config",
+          fields: typed
+            ? [
+                { name: "language", type: { kind: "string" } },
+                {
+                  name: "levels",
+                  label: "Levels",
+                  type: {
+                    kind: "map",
+                    of: {
+                      kind: "object",
+                      fields: [level("xp", "XP needed"), level("max-members", "Members at most")],
+                    },
+                  },
+                },
+              ]
+            : [],
+          value: {
+            language: "en",
+            levels: { "0": { xp: 0, "max-members": 5 }, "1": { xp: 1, "max-members": 7 } },
+          },
+        },
+      ] as never;
+      return s;
+    });
+  }
+  const levels = () =>
+    (project().dataSources[0] as unknown as { value: { levels: Record<string, unknown> } }).value
+      .levels;
+  function Live() {
+    const p = useProjectsStore((s) => s.openProjects.projects[0]) as Project;
+    return <ConfigValueForm projectId={PID} project={p} source={p.dataSources[0] as never} />;
+  }
+
+  it("shows one row per level with a column per field, in its own panel", () => {
+    seedLevels(true);
+    render(<Live />);
+    const panel = screen.getByTestId("settings-section-levels");
+    const table = within(panel).getByRole("table");
+    expect(within(table).getByRole("columnheader", { name: /XP needed/ })).toBeInTheDocument();
+    expect(within(table).getAllByRole("row")).toHaveLength(3); // header + 2 levels
+    fireEvent.change(within(screen.getByTestId("map-row-levels.1")).getByDisplayValue("7"), {
+      target: { value: "9" },
+    });
+    expect(levels()["1"]).toEqual({ xp: 1, "max-members": 9 });
+  });
+
+  it("adds the next level from the last one, and removes one", () => {
+    seedLevels(true);
+    render(<Live />);
+    fireEvent.click(screen.getByRole("button", { name: /add 2|ajouter 2/i }));
+    expect(levels()["2"]).toEqual({ xp: 1, "max-members": 7 });
+    fireEvent.click(screen.getByRole("button", { name: /remove entry 0|supprimer l'entrée 0/i }));
+    expect(Object.keys(levels())).toEqual(["1", "2"]);
+  });
+
+  it("reads numbered entries of an untyped file as a table too", () => {
+    seedLevels(false);
+    render(<Live />);
+    expect(screen.getByTestId("map-table-levels")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /add 2|ajouter 2/i }));
+    expect(levels()["2"]).toEqual({ xp: 1, "max-members": 7 });
   });
 });

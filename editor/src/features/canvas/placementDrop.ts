@@ -1,20 +1,12 @@
+import { menusOf } from "@/domain/documents";
 import type { ElementId, MenuId, Placement, ProjectId } from "@/domain/types";
 import { lookupPath } from "@/lib/placeholders";
-import { useAccountStore } from "@/state/accountStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { buildPreviewScope } from "./menuPreviewScope";
 import { capturePlacementCache, matchPlacementRow } from "./placement";
-
-/** @dnd-kit id prefix for a draggable palette row. Payload rides in `data`. */
-export const PLACEMENT_ROW_DRAG_PREFIX = "row:";
-
-/** `data.current` shape carried by a palette-row draggable. */
-export interface PlacementRowDragData {
-  /** `material` = resolved preview material — feeds the shared drag overlay. */
-  placementRow: { menuId: string; elementId: string; key: string; material?: string };
-}
 
 /**
  * Pin a static-source row into an element's placement layout at `position` on the
@@ -31,9 +23,9 @@ export function pinPlacementRow(opts: {
   position: number;
 }): void {
   const { projectId, menuId, elementId, key, position } = opts;
-  const account = useAccountStore.getState();
-  const project = account.account.projects.find((p) => p.id === projectId);
-  const menu = project?.menus.find((m) => m.id === menuId);
+  const openProjects = useProjectsStore.getState();
+  const project = openProjects.openProjects.projects.find((p) => p.id === projectId);
+  const menu = menusOf(project).find((m) => m.id === menuId);
   const el = menu?.layers.flatMap((l) => l.elements).find((e) => e.id === elementId);
   if (!project || !menu || !el?.places) return;
   const appearance = el.display;
@@ -58,5 +50,5 @@ export function pinPlacementRow(opts: {
   if (cachedDisplay && Object.keys(cachedDisplay).length > 0)
     placement.cachedDisplay = cachedDisplay;
 
-  account.setElementPlacement({ projectId, menuId, elementId, placement });
+  openProjects.setElementPlacement({ projectId, menuId, elementId, placement });
 }

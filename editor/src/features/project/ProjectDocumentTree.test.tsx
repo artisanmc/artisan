@@ -1,11 +1,21 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectDocumentTree } from "./ProjectDocumentTree";
+import { dropDocument, withDropPreview } from "./documentDrag";
+
+const router = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  params: { serverId: "srv" } as Record<string, string>,
+}));
+vi.mock("@tanstack/react-router", () => ({
+  useNavigate: () => router.navigate,
+  useParams: () => router.params,
+}));
 
 const PID = "p1" as ProjectId;
 function project(): Project {
@@ -15,12 +25,14 @@ function project(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      { id: "m1", projectId: PID, title: [], rows: 3, layers: [] },
-      { id: "m2", projectId: PID, title: [], rows: 3, layers: [] },
-    ],
-    commands: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] }],
-    dialogs: [],
+    documents: {
+      menu: [
+        { id: "m1", projectId: PID, title: [], rows: 3, layers: [] },
+        { id: "m2", projectId: PID, title: [], rows: 3, layers: [] },
+      ],
+      command: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] }],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     i18nKeys: {},
@@ -30,37 +42,78 @@ function project(): Project {
 }
 
 beforeEach(() => {
-  useAccountStore.setState({
-    account: { id: "a" as never, projects: [project()], projectOrder: [PID] },
+  router.navigate.mockReset();
+  router.params = { serverId: "srv" };
+  useProjectsStore.setState({
+    openProjects: { projects: [project()], projectOrder: [PID] },
   } as never);
 });
 
 describe("ProjectDocumentTree", () => {
-  it("liste les documents par catégorie", () => {
+  it("nests filed documents under their folders, which fold", async () => {
+    const filed = project();
+    (filed.documents.menu![0] as { folder?: string }).folder = "boutique/armes";
+    (filed.documents.command![0] as { folder?: string }).folder = "boutique";
+    useProjectsStore.setState({
+      openProjects: { projects: [filed], projectOrder: [PID] },
+    } as never);
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    const boutique = screen.getByRole("button", { name: "boutique" });
+    expect(boutique).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "armes" })).toBeInTheDocument();
+    expect(screen.getByText("m1")).toBeInTheDocument();
+    expect(screen.getByText("m2")).toBeInTheDocument();
+    await userEvent.setup().click(boutique);
+    expect(screen.queryByText("m1")).toBeNull();
+    expect(screen.queryByText("/heal")).toBeNull();
+    expect(screen.getByText("m2")).toBeInTheDocument();
+  });
+
+  it("colors a folder like its board frame, a sub-folder like its top folder's", () => {
+    const filed = project();
+    (filed.documents.menu![0] as { folder?: string }).folder = "boutique/armes";
+    filed.folders = { boutique: { color: "#a855f7" }, vide: {} };
+    useProjectsStore.setState({
+      openProjects: { projects: [filed], projectOrder: [PID] },
+    } as never);
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    const icon = (name: string) =>
+      screen.getByRole("button", { name }).querySelector("svg:nth-of-type(2)") as SVGElement;
+    expect(icon("boutique").style.color).toBe("rgb(168, 85, 247)");
+    expect(icon("armes").style.color).toBe("rgb(168, 85, 247)");
+    // An empty folder has no frame on the board: no color.
+    expect(icon("vide").style.color).toBe("");
+  });
+
+  it("lists the documents kind after kind", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     expect(screen.getByText("/heal")).toBeInTheDocument();
     expect(screen.getByText("m1")).toBeInTheDocument();
   });
 
-  it("porte une icône par catégorie, pas une par document", () => {
+  it("gives each document its kind's tile, with no header per kind", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     const menus = screen.getByRole("list", { name: /menus/i });
-    expect(within(menus).getAllByRole("button", { name: /^m\d$/ })).toHaveLength(2);
-    for (const row of within(menus).getAllByRole("button", { name: /^m\d$/ })) {
-      expect(row.querySelector("svg")).toBeNull();
-    }
-    const heading = screen.getByText(/^menus$/i);
-    expect(heading.parentElement?.querySelector("svg")).not.toBeNull();
+    const rows = within(menus).getAllByRole("button", { name: /^m\d$/ });
+    expect(rows).toHaveLength(2);
+    for (const row of rows) expect(row.querySelector("svg")).not.toBeNull();
+    expect(screen.queryByText(/^menus$/i)).toBeNull();
   });
 
-  it("ouvre un document au clic", () => {
+  it("highlights the document open in the view", () => {
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} activeId="command/c1" />);
+    expect(screen.getByText("/heal").closest("button")).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("m1").closest("button")).not.toHaveAttribute("aria-current");
+  });
+
+  it("opens a document on click", () => {
     const onOpen = vi.fn();
     render(<ProjectDocumentTree projectId={PID} onOpen={onOpen} />);
     fireEvent.click(screen.getByText("/heal"));
-    expect(onOpen).toHaveBeenCalledWith("c1");
+    expect(onOpen).toHaveBeenCalledWith("command/c1");
   });
 
-  it("la ligne racine ouvre les paramètres du project sans rien sélectionner", () => {
+  it("the root row opens the project settings without selecting anything", () => {
     useSelectionStore.getState().set(["m1" as never]);
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     fireEvent.click(screen.getByTestId("project-settings"));
@@ -68,12 +121,144 @@ describe("ProjectDocumentTree", () => {
     expect(useSelectionStore.getState().ids.size).toBe(0);
   });
 
-  it("propose de créer un menu, une commande et un dialogue", async () => {
+  it("offers to create a menu, a command and a dialog", async () => {
     const user = userEvent.setup();
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     await user.click(screen.getByTestId("project-create"));
     expect(screen.getByText(/Nouveau menu|New menu/i)).toBeInTheDocument();
     expect(screen.getByText(/Nouvelle commande|New command/i)).toBeInTheDocument();
     expect(screen.getByText(/Nouveau dialogue|New dialog/i)).toBeInTheDocument();
+  });
+});
+
+describe("ProjectDocumentTree data", () => {
+  const withData = () => {
+    const p = project();
+    p.dataModels = [
+      { id: "m_speaker" as never, name: "speaker", keyField: "id", fields: [] },
+      {
+        id: "shop:category" as never,
+        name: "category",
+        keyField: "id",
+        fields: [],
+        provenance: "module",
+      },
+    ];
+    p.dataSources = [
+      { id: "speakers" as never, name: "speakers", shape: "config", fields: [], value: {} },
+      {
+        id: "npcs" as never,
+        name: "npcs",
+        shape: "table",
+        modelId: "m_speaker" as never,
+        rows: [],
+      },
+      {
+        id: "categories" as never,
+        name: "categories",
+        shape: "table",
+        modelId: "shop:category" as never,
+        rows: [],
+      },
+    ];
+    useProjectsStore.setState({ openProjects: { projects: [p], projectOrder: [PID] } } as never);
+  };
+
+  it("lists the project's own tables and config sheets, not a module's data", () => {
+    withData();
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    const data = screen.getByRole("list", { name: /^(Données|Data)$/ });
+    expect(within(data).getByText("speakers")).toBeInTheDocument();
+    expect(within(data).getByText("npcs")).toBeInTheDocument();
+    // Typed by the shop module's model: its module's screen edits it.
+    expect(screen.queryByText("categories")).toBeNull();
+  });
+
+  it("a folder holding only data is not empty", () => {
+    withData();
+    const p = useProjectsStore.getState().openProjects.projects[0]!;
+    useProjectsStore.setState({
+      openProjects: { projects: [{ ...p, documents: {} }], projectOrder: [PID] },
+    } as never);
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    expect(screen.getByText("speakers")).toBeInTheDocument();
+  });
+
+  it("opens a data source on its page", () => {
+    withData();
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    fireEvent.click(screen.getByText("speakers"));
+    expect(router.navigate).toHaveBeenCalledWith({
+      to: "/servers/$serverId/projects/$projectId/data/$dataSourceId",
+      params: { serverId: "srv", projectId: PID, dataSourceId: "speakers" },
+    });
+  });
+
+  it("highlights the data source open in the view", () => {
+    withData();
+    router.params = { serverId: "srv", projectId: PID, dataSourceId: "npcs" };
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    expect(screen.getByText("npcs").closest("button")).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("speakers").closest("button")).not.toHaveAttribute("aria-current");
+  });
+
+  it("creates a data table from the + menu and opens it", async () => {
+    const user = userEvent.setup();
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    await user.click(screen.getByTestId("project-create"));
+    await user.click(screen.getByTestId("project-create-table"));
+    const [created] = useProjectsStore.getState().openProjects.projects[0]!.dataSources;
+    expect(created?.shape).toBe("table");
+    expect(router.navigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: { serverId: "srv", projectId: PID, dataSourceId: String(created!.id) },
+      }),
+    );
+  });
+});
+
+describe("ProjectDocumentTree drag", () => {
+  const linked = () => {
+    const p = project();
+    (p.documents.command![0] as { steps: unknown[] }).steps = [
+      { kind: "action", action: { name: "open_menu", value: "m1" } },
+    ];
+    p.folders = { boutique: {} };
+    useProjectsStore.setState({ openProjects: { projects: [p], projectOrder: [PID] } } as never);
+  };
+
+  it("files a dragged document in the folder it is dropped on, and back at the root", () => {
+    linked();
+    const folder = () =>
+      (
+        useProjectsStore.getState().openProjects.projects[0]!.documents.menu![1] as {
+          folder?: string;
+        }
+      ).folder;
+    dropDocument(PID, "menu/m2", "folder:boutique");
+    expect(folder()).toBe("boutique");
+    dropDocument(PID, "menu/m2", null);
+    expect(folder()).toBe("boutique");
+    dropDocument(PID, "menu/m2", "folder:");
+    expect(folder()).toBeUndefined();
+  });
+
+  it("previews the dragged document in the folder under the pointer, in the tree's order", () => {
+    const groups = [
+      {
+        type: "menu",
+        items: [
+          { id: "a", label: "a", type: "menu", folder: "" },
+          { id: "b", label: "b", type: "menu", folder: "boutique" },
+        ],
+      },
+    ];
+    const keyOf = (it: { type: string; id: string }) => `${it.type}/${it.id}`;
+    expect(withDropPreview(groups, { key: "menu/a", target: null }, keyOf)).toBe(groups);
+    const preview = withDropPreview(groups, { key: "menu/a", target: "boutique" }, keyOf);
+    expect(preview[0]!.items.map((it) => [it.id, it.folder])).toEqual([
+      ["a", "boutique"],
+      ["b", "boutique"],
+    ]);
   });
 });

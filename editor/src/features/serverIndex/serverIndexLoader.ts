@@ -5,9 +5,9 @@ import { projectFromFiles } from "@/schema/projectFromFiles";
 
 export interface ServerProjectsResult {
   status: "ready" | "unavailable";
-  /** L'état **publié** de chaque project lisible, dans l'ordre du serveur. */
+  /** The **published** state of each readable project, in the server's order. */
   projects: Project[];
-  /** Les projects listés mais illisibles ou inparsables (leur dossier). */
+  /** Projects listed but unreadable or unparsable (their folder). */
   failed: string[];
 }
 
@@ -21,37 +21,32 @@ const cache = new Map<string, Cached>();
 export const clearServerIndexCache = (): void => cache.clear();
 
 /**
- * Lit **sans effet de bord** l'arbre publié de tous les projects d'un serveur.
+ * Reads the published tree of all of a server's projects **without side
+ * effects**.
  *
- * `useProjectLoader` ouvre UN project pour l'éditer : il pose le runtime, le
- * serveur actif, le brouillon, le compte. Ici on ne fait que lire : aucun store
- * partagé n'est touché, donc charger tous les projects ne peut pas déranger celui
- * qu'on édite. Le backend sert chaque lecture depuis son miroir tant que le hash
- * annoncé n'a pas bougé ; on présente le nôtre pour ne rien retransporter.
+ * `useProjectLoader` opens ONE project to edit it: it sets the runtime, the
+ * active server, the draft, the projects store. Here we only read: no shared store
+ * is touched, so loading every project cannot disturb the one being edited.
+ * The hub serves each read from its mirror as long as the announced hash has
+ * not moved; we present ours so nothing is transferred again.
  *
- * Les brouillons n'y figurent pas : c'est ce que le serveur exécute.
+ * Drafts are not included: this is what the server runs.
  */
 export async function loadServerProjects(args: {
-  networkId: string;
   serverId: string;
 }): Promise<ServerProjectsResult> {
-  const { networkId, serverId } = args;
-  const listing = await listServerProjects(networkId, serverId);
+  const { serverId } = args;
+  const listing = await listServerProjects(serverId);
   if (!listing.ok) return { status: "unavailable", projects: [], failed: [] };
 
-  const summaries = diskProjectsToSummaries(
-    networkId,
-    serverId,
-    listing.projectIds,
-    listing.projects,
-  );
+  const summaries = diskProjectsToSummaries(serverId, listing.projectIds, listing.projects);
   const outcomes = await Promise.all(
     summaries.map(async (summary) => {
       const diskId = summary.externalId ?? summary.id;
-      const key = `${networkId}/${serverId}/${diskId}`;
+      const key = `${serverId}/${diskId}`;
       const known = cache.get(key);
       try {
-        const read = await readProjectFiles(networkId, serverId, diskId, known?.hash);
+        const read = await readProjectFiles({ serverId, diskId }, known?.hash);
         if (!read.ok) return { diskId, project: null };
         if (read.unchanged) {
           if (known) return { diskId, project: known.project };

@@ -1,0 +1,10 @@
+web:
+  enabled: true
+  port: 8765
+  bind: ""
+  url: "http://localhost:8765"
+  role: "hub"
+  name: "hub"
+  secret: "local-network-secret"
+database:
+  type: "h2"

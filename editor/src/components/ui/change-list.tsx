@@ -1,6 +1,6 @@
 import { cn } from "@/lib/cx";
 import { ChevronRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileDiff, diffStats } from "./file-diff";
 
@@ -91,6 +91,8 @@ export interface ChangeListProps extends ChangeSet {
   afterLabel?: string;
   /** Files opened on first render; defaults to all of them when there are few. */
   openLimit?: number;
+  /** Problems found in a file, by its path: counted on its header, listed above its diff, opened first. */
+  problems?: Record<string, string[]>;
   className?: string;
 }
 
@@ -99,6 +101,7 @@ export function ChangeList({
   beforeLabel,
   afterLabel,
   openLimit = 5,
+  problems = {},
   className,
   before,
   after,
@@ -112,8 +115,21 @@ export function ChangeList({
     [before, after, renames, binaryBefore, binaryAfter],
   );
   const [open, setOpen] = useState<ReadonlySet<string>>(
-    () => new Set(changes.length <= openLimit ? changes.map((c) => c.path) : []),
+    () =>
+      new Set(
+        changes.length <= openLimit
+          ? changes.map((c) => c.path)
+          : changes.filter((c) => problems[c.path]?.length).map((c) => c.path),
+      ),
   );
+  // Problems that arrive after the first render (a server check) open their file.
+  const flagged = changes
+    .filter((c) => problems[c.path]?.length)
+    .map((c) => c.path)
+    .join("\n");
+  useEffect(() => {
+    if (flagged) setOpen((s) => new Set([...s, ...flagged.split("\n")]));
+  }, [flagged]);
   if (changes.length === 0)
     return <p className="text-sm text-[var(--text-mut)]">{t("changes.empty")}</p>;
   const added = changes.reduce((n, c) => n + c.added, 0);
@@ -171,6 +187,11 @@ export function ChangeList({
                 </span>
               ) : null}
             </span>
+            {problems[change.path]?.length ? (
+              <span className="badge badge-brick shrink-0">
+                {t("changes.problems", { count: problems[change.path]!.length })}
+              </span>
+            ) : null}
             {!change.binary && (
               <span className="shrink-0 font-mono">
                 <span className="text-[var(--success)]">+{change.added}</span>{" "}
@@ -178,6 +199,13 @@ export function ChangeList({
               </span>
             )}
           </button>
+          {open.has(change.path) && problems[change.path]?.length ? (
+            <ul className="space-y-1 border-b border-[var(--border)] bg-[var(--danger-soft)] px-3 py-2 text-[12.5px] text-[var(--text)]">
+              {problems[change.path]!.map((problem) => (
+                <li key={problem}>{problem}</li>
+              ))}
+            </ul>
+          ) : null}
           {open.has(change.path) &&
             (change.binary ? (
               <p className="p-3 text-xs text-[var(--text-mut)]">{t("changes.binary")}</p>

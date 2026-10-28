@@ -1,3 +1,4 @@
+import { menusOf } from "@/domain/documents";
 import { projectId } from "@/domain/ids";
 import { getText } from "@/lib/i18n";
 import { projectFromFiles } from "@/schema/projectFromFiles";
@@ -7,14 +8,13 @@ import { matchPlacementRow, placementAtSlot, resolvePlacementSlot } from "./plac
 import { sourceIsContextFiltered } from "./placementScope";
 
 /**
- * Reproduction du bug d'aperçu signalé en prod le 2026-08-17 sur la boutique :
- * des slots affichent `{item.name}` / `{item.lore}` / `{item.price_display}`
- * au lieu des vraies valeurs.
+ * Reproduction of a boutique preview bug: slots showed `{item.name}` /
+ * `{item.lore}` / `{item.price_display}` instead of the real values.
  *
- * Le menu est PARAMÉTRÉ : ses placements couvrent toutes les catégories, mais
- * son input `category` n'en vaut qu'une (`les_cles` par défaut) et le filtre de
- * la source s'applique. L'aperçu ne peut donc résoudre qu'une catégorie — reste
- * à savoir ce qu'il fait des autres.
+ * The menu is PARAMETERISED: its placements cover every category, but its
+ * `category` input holds only one (`les_cles` by default) and the source
+ * filter applies. The preview can therefore resolve only one category — the
+ * question is what it does with the others.
  */
 const MENU = [
   "schema: menu/v1",
@@ -51,7 +51,7 @@ const MENU = [
   "",
 ].join("\n");
 
-/** Deux lignes comme le serveur les rend vraiment (vérifié en prod). */
+/** Two rows as the server really renders them. */
 const ROWS = [
   {
     id: "cle_legendaire",
@@ -82,20 +82,20 @@ function load() {
     "plugins/Artisan/projects/boutique_shop/menus/shop_category.yaml": MENU,
   };
   const project = projectFromFiles(projectId("boutique_shop"), files, { name: "Boutique" });
-  return { project, menu: project.menus[0]! };
+  return { project, menu: menusOf(project)[0]! };
 }
 
-describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
-  it("le filtre de l'input ne laisse passer que la catégorie prévisualisée", () => {
+describe("shop preview — placements outside the preview context", () => {
+  it("the input filter only lets the previewed category through", () => {
     const { project, menu } = load();
     const scope = buildPreviewScope(menu, project, { "boutique:items": ROWS });
-    // Le filtre `category: '{category}'` s'interpole avec le défaut `les_cles`.
+    // The `category: '{category}'` filter interpolates with the `les_cles` default.
     expect((scope.items as unknown[]).map((r) => (r as { id: string }).id)).toEqual([
       "cle_legendaire",
     ]);
   });
 
-  it("un placement dont la ligne n'est pas dans le contexte est PENDANT, pas brut", () => {
+  it("a placement whose row is not in the context is PENDING, not raw", () => {
     const { project, menu } = load();
     const scope = buildPreviewScope(menu, project, { "boutique:items": ROWS });
     const element = menu.layers[0]!.elements[0]!;
@@ -116,7 +116,7 @@ describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
     });
     expect(inContext.title).toBe("Clé légendaire");
 
-    // Celui d'une autre catégorie : le slot ne doit pas afficher le gabarit.
+    // One from another category: the slot must not show the template.
     const outOfContext = resolvePlacementSlot({
       places,
       appearance,
@@ -133,29 +133,29 @@ describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
   });
 
   /**
-   * La suite de ce bug, signalée le 2026-08-29 : le menu s'affichait couvert de
-   * cases pointillées, « comme en mode pagination », alors qu'il est en
-   * placement pur. Ce n'était pas un territoire réservé — c'étaient les
-   * placements des AUTRES catégories, pendants, occupant leurs slots.
+   * Follow-up of that bug: the menu showed up covered in dashed slots, "as in
+   * pagination mode", while it is in pure placement mode. It was not a reserved
+   * area — it was the placements of the OTHER categories, dangling, occupying
+   * their slots.
    *
-   * Une source filtrée par le contexte ne rend qu'une tranche du tout : une clé
-   * absente n'y prouve rien, donc elle ne doit pas laisser de trace à l'écran.
-   * Sans filtre contextuel, la même absence est un vrai trou et doit se voir.
+   * A source filtered by the context renders only a slice of the whole: a
+   * missing key proves nothing there, so it must leave no trace on screen.
+   * Without a context filter, the same absence is a real hole and must show.
    */
-  it("hors contexte, un placement ne laisse pas de case pointillée", () => {
+  it("out of context, a placement leaves no dotted slot", () => {
     const { menu } = load();
     expect(sourceIsContextFiltered(menu, menu.layers[0]!.elements[0]!.places!.source)).toBe(true);
   });
 
-  it("le slot partagé rend le placement DU contexte, pas le premier de la liste", () => {
-    // Le cœur du bug de prod : un menu paramétré réutilise les mêmes slots
-    // d'une catégorie à l'autre. Prendre le premier placement de la position
-    // tombait à côté dès que l'aperçu montrait une autre catégorie — aucune
-    // ligne liée, et le survol affichait `{item.name}` tel quel.
+  it("the shared slot renders the placement OF the context, not the first in the list", () => {
+    // The core of the bug: a parameterised menu reuses the same slots from one
+    // category to another. Taking the first placement at the position missed
+    // as soon as the preview showed another category — no row bound, and the
+    // hover showed `{item.name}` verbatim.
     const { project, menu } = load();
     const places = menu.layers[0]!.elements[0]!.places!;
 
-    // Deux placements sur la MÊME position, deux catégories différentes.
+    // Two placements on the SAME position, two different categories.
     const shared = [
       { key: "cle_legendaire", page: 0, position: 20 },
       { key: "spawner_a_poule", page: 0, position: 20 },
@@ -166,7 +166,7 @@ describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
     const rows = scope[places.source];
     expect(placementAtSlot(twoOnOneSlot, rows, 0, 20)?.key).toBe("cle_legendaire");
 
-    // Et si c'est l'autre catégorie qui est prévisualisée, c'est l'autre qui gagne.
+    // And if the other category is previewed, the other one wins.
     const spawners = buildPreviewScope(
       menu,
       project,
@@ -180,10 +180,10 @@ describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
     );
   });
 
-  it("le lore de l'apparence est bien lisible (et pas un objet)", () => {
+  it("the appearance's lore is readable (and not an object)", () => {
     const { project, menu } = load();
     const appearance = menu.layers[0]!.elements[0]!.display!;
-    // C'est ce que le tooltip lit. Si ça rend "" ou un objet, le survol ment.
+    // This is what the tooltip reads. If it renders "" or an object, the hover lies.
     const loreRaw = appearance.lore ? getText(project, appearance.lore, "fr") : "";
     expect(typeof loreRaw).toBe("string");
     expect(loreRaw).toContain("{item.lore}");

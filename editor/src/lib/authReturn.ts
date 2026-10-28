@@ -1,4 +1,4 @@
-export function safeAuthReturn(value: unknown, fallback = "/account"): string {
+export function safeAuthReturn(value: unknown, fallback = "/"): string {
   if (
     typeof value !== "string" ||
     !value.startsWith("/") ||
@@ -8,8 +8,4 @@ export function safeAuthReturn(value: unknown, fallback = "/account"): string {
   )
     return fallback;
   return value;
-}
-
-export function pricingSignupUrl(planId: string): string {
-  return `/signup?${new URLSearchParams({ next: `/pricing?${new URLSearchParams({ plan: planId })}` })}`;
 }

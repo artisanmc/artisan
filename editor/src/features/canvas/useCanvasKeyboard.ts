@@ -1,14 +1,22 @@
+import { commandsOf, docKey, menusOf } from "@/domain/documents";
 import type { Command, Element, ElementId, Menu, MenuId, ProjectId } from "@/domain/types";
+import { isTypingTarget } from "@/lib/keyboard";
 import { formatPositions, parsePositions } from "@/lib/positions";
-import { useAccountStore } from "@/state/accountStore";
+import { systemDocuments } from "@/lib/systemDocuments";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
+import { useModulesStore } from "@/state/modulesStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CLIPBOARD_VERSION,
+  type ClipboardPayload,
   type ElementCopy,
+  collectTexts,
   readClipboard,
   rewriteIds,
   writeClipboard,
@@ -24,10 +32,10 @@ const findElement = (
   elementId: ElementId,
   scopeMenuId?: string | null,
 ): { menuId: MenuId; element: Element } | null => {
-  const account = useAccountStore.getState().account;
-  const project = account.projects.find((p) => p.id === projectId);
+  const openProjects = useProjectsStore.getState().openProjects;
+  const project = openProjects.projects.find((p) => p.id === projectId);
   if (!project) return null;
-  for (const menu of project.menus) {
+  for (const menu of menusOf(project)) {
     // Element ids collide across menus — honour the selection's owning menu.
     if (scopeMenuId && menu.id !== scopeMenuId) continue;
     for (const layer of menu.layers) {
@@ -38,25 +46,18 @@ const findElement = (
   return null;
 };
 
-const isEditableTarget = (target: EventTarget | null) => {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
-  const tag = el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
-};
-
 export const findSelectedEntities = (
   projectId: ProjectId,
   ids: string[],
   scopeMenuId?: string | null,
 ) => {
-  const account = useAccountStore.getState().account;
-  const project = account.projects.find((p) => p.id === projectId);
+  const openProjects = useProjectsStore.getState().openProjects;
+  const project = openProjects.projects.find((p) => p.id === projectId);
   if (!project)
     return { menus: [] as Menu[], commands: [] as Command[], elements: [] as ElementCopy[] };
   const idSet = new Set(ids);
   const elements: ElementCopy[] = [];
-  for (const menu of project.menus) {
+  for (const menu of menusOf(project)) {
     // Scope element matching to the selection's menu so a shared id (e.g.
     // `grid` in two menus) doesn't copy/duplicate both.
     if (scopeMenuId && menu.id !== scopeMenuId) continue;
@@ -70,8 +71,8 @@ export const findSelectedEntities = (
   // view keeps its menu selected): copying the items must not copy the menu.
   const owners = new Set(elements.map((e) => e.sourceMenuId));
   return {
-    menus: project.menus.filter((m) => idSet.has(m.id) && !owners.has(m.id)),
-    commands: project.commands.filter((c) => idSet.has(c.id)),
+    menus: menusOf(project).filter((m) => idSet.has(docKey("menu", m.id)) && !owners.has(m.id)),
+    commands: commandsOf(project).filter((c) => idSet.has(docKey("command", c.id))),
     elements,
   };
 };
@@ -84,22 +85,23 @@ export const findSelectedEntities = (
  *   4. The first menu in the project
  */
 const resolveTargetMenu = (projectId: ProjectId, elements: ElementCopy[]): MenuId | null => {
-  const account = useAccountStore.getState().account;
-  const project = account.projects.find((p) => p.id === projectId);
+  const openProjects = useProjectsStore.getState().openProjects;
+  const project = openProjects.projects.find((p) => p.id === projectId);
   if (!project) return null;
   const sel = [...useSelectionStore.getState().ids];
   for (const id of sel) {
-    if (project.menus.some((m) => m.id === id)) return id as MenuId;
+    const menu = menusOf(project).find((m) => docKey("menu", m.id) === id);
+    if (menu) return menu.id;
   }
   for (const id of sel) {
-    for (const m of project.menus) {
+    for (const m of menusOf(project)) {
       if (m.layers.some((l) => l.elements.some((el) => el.id === id))) return m.id;
     }
   }
   for (const ec of elements) {
-    if (project.menus.some((m) => m.id === ec.sourceMenuId)) return ec.sourceMenuId;
+    if (menusOf(project).some((m) => m.id === ec.sourceMenuId)) return ec.sourceMenuId;
   }
-  return project.menus[0]?.id ?? null;
+  return menusOf(project)[0]?.id ?? null;
 };
 
 /**
@@ -138,10 +140,11 @@ const placeElements = (
   elements: ElementCopy[],
   options: { skipSourcePositions: boolean; anchor?: number },
   onError?: (m: string) => void,
+  texts?: ClipboardPayload["texts"],
 ) => {
-  const account = useAccountStore.getState().account;
-  const project = account.projects.find((p) => p.id === projectId);
-  const menu = project?.menus.find((m) => m.id === menuId);
+  const openProjects = useProjectsStore.getState().openProjects;
+  const project = openProjects.projects.find((p) => p.id === projectId);
+  const menu = menusOf(project).find((m) => m.id === menuId);
   if (!menu) {
     onError?.("Target menu not found");
     return;
@@ -172,7 +175,7 @@ const placeElements = (
     for (const p of fit) extra.add(p);
     const placed: Element = { ...ec.element, positions: formatPositions(fit) };
     try {
-      useAccountStore.getState().addElement({ projectId, menuId, element: placed });
+      useProjectsStore.getState().addElement({ projectId, menuId, element: placed, texts });
     } catch (e) {
       onError?.(e instanceof Error ? e.message : "paste failed");
     }
@@ -191,6 +194,7 @@ const copySelection = async (
     useSelectionStore.getState().menuId,
   );
   if (menus.length === 0 && commands.length === 0 && elements.length === 0) return;
+  const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
   try {
     await writeClipboard({
       kind: "artisan.clipboard",
@@ -198,6 +202,7 @@ const copySelection = async (
       menus,
       commands,
       elements,
+      ...(project ? { texts: collectTexts(project, { menus, commands, elements }) } : {}),
     });
   } catch (e) {
     onError?.(e instanceof Error ? e.message : "copy failed");
@@ -221,11 +226,12 @@ const pasteFromClipboard = async (
   });
   try {
     if (rewritten.menus.length > 0 || rewritten.commands.length > 0) {
-      useAccountStore.getState().pasteEntities({
+      useProjectsStore.getState().pasteEntities({
         projectId,
         menus: rewritten.menus,
         commands: rewritten.commands,
         offset: { x: 80, y: 80 },
+        texts: payload.texts,
       });
     }
     if (rewritten.elements.length > 0) {
@@ -239,6 +245,7 @@ const pasteFromClipboard = async (
           rewritten.elements,
           { skipSourcePositions: false, anchor: anchor?.position },
           onError,
+          payload.texts,
         );
       }
     }
@@ -258,7 +265,7 @@ const duplicateSelection = (projectId: ProjectId, ids: string[], onError?: (m: s
   const rewritten = rewriteIds({ menus, commands, elements });
   try {
     if (rewritten.menus.length > 0 || rewritten.commands.length > 0) {
-      useAccountStore.getState().pasteEntities({
+      useProjectsStore.getState().pasteEntities({
         projectId,
         menus: rewritten.menus,
         commands: rewritten.commands,
@@ -282,14 +289,27 @@ const duplicateSelection = (projectId: ProjectId, ids: string[], onError?: (m: s
   }
 };
 
-/** Delete menus/commands/dialogs and the selected items of menus alike. */
-const deleteSelection = (projectId: ProjectId, ids: string[]) => {
-  const store = useAccountStore.getState();
+/**
+ * Delete menus/commands/dialogs and the selected items of menus alike. A module's system
+ * menu or dialog is never deleted: [onKept] is told, Reset is what puts it back.
+ */
+const deleteSelection = (projectId: ProjectId, selected: string[], onKept?: () => void) => {
+  const store = useProjectsStore.getState();
+  const project = store.openProjects.projects.find((p) => p.id === projectId);
+  const system = project
+    ? systemDocuments(
+        project,
+        useModulesStore.getState().active,
+        useProjectTemplatesStore.getState().entries[projectId]?.origins ?? {},
+      )
+    : new Map<string, string>();
+  if (selected.some((id) => system.has(id))) onKept?.();
+  const ids = selected.filter((id) => !system.has(id));
   const { elements } = findSelectedEntities(projectId, ids, useSelectionStore.getState().menuId);
   for (const { sourceMenuId, element } of elements) {
     store.deleteElement({ projectId, menuId: sourceMenuId, elementId: element.id as ElementId });
   }
-  const owners = new Set<string>(elements.map((e) => e.sourceMenuId));
+  const owners = new Set<string>(elements.map((e) => docKey("menu", e.sourceMenuId)));
   store.deleteFromProject({ projectId, nodeIds: ids.filter((id) => !owners.has(id)) });
 };
 
@@ -298,16 +318,20 @@ interface UseCanvasKeyboardArgs {
   onError?: (message: string) => void;
   /** Slot under the cursor at paste time; null → the paste picks its own slot. */
   getPasteAnchor?: () => PasteAnchor | null;
+  /** Escape with nothing selected (the board narrowed to a folder shows everything again). */
+  onIdleEscape?: () => void;
 }
 
 export function useCanvasKeyboard({
   projectId,
   onError,
   getPasteAnchor,
+  onIdleEscape,
 }: UseCanvasKeyboardArgs): void {
+  const { t } = useTranslation();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isEditableTarget(e.target)) return;
+      if (isTypingTarget(e.target)) return;
 
       const cmdOrCtrl = e.ctrlKey || e.metaKey;
 
@@ -322,12 +346,12 @@ export function useCanvasKeyboard({
 
       if (cmdOrCtrl && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
-        useAccountStore.temporal.getState().undo();
+        useProjectsStore.temporal.getState().undo();
         return;
       }
       if (cmdOrCtrl && ((e.key === "z" && e.shiftKey) || e.key === "y")) {
         e.preventDefault();
-        useAccountStore.temporal.getState().redo();
+        useProjectsStore.temporal.getState().redo();
         return;
       }
       if (cmdOrCtrl && e.key === "c") {
@@ -366,7 +390,7 @@ export function useCanvasKeyboard({
               if (flow.sub.clickType !== undefined && flow.sub.stateIndex !== undefined) {
                 const candidate = findElement(projectId, id as ElementId, sel.menuId);
                 if (candidate) {
-                  useAccountStore.getState().removeElementStep({
+                  useProjectsStore.getState().removeElementStep({
                     projectId,
                     menuId: candidate.menuId,
                     elementId: id as ElementId,
@@ -379,7 +403,7 @@ export function useCanvasKeyboard({
                 }
               }
               // Command step (no clickType / stateIndex on the sub).
-              useAccountStore.getState().removeCommandStep({
+              useProjectsStore.getState().removeCommandStep({
                 projectId,
                 commandId: id as never,
                 path: flow.sub.path,
@@ -391,7 +415,7 @@ export function useCanvasKeyboard({
               const candidate = findElement(projectId, ids[0]! as ElementId, sel.menuId);
               if (candidate && flow.sub.stateIndex > 0) {
                 // Default state (index 0) is protected.
-                useAccountStore.getState().removeAppearance({
+                useProjectsStore.getState().removeAppearance({
                   projectId,
                   menuId: candidate.menuId,
                   elementId: ids[0]! as ElementId,
@@ -429,27 +453,27 @@ export function useCanvasKeyboard({
                   (p) => p.position === sel.focusedSlot && p.page === page,
                 );
                 if (hit) {
-                  useAccountStore.getState().removeElementPlacement({
+                  useProjectsStore.getState().removeElementPlacement({
                     projectId,
                     menuId: candidate.menuId,
                     elementId,
                     key: hit.key,
                   });
                 } else {
-                  useAccountStore.getState().deleteElement({
+                  useProjectsStore.getState().deleteElement({
                     projectId,
                     menuId: candidate.menuId,
                     elementId,
                   });
                 }
               } else if (sel.focusedSlot != null) {
-                useAccountStore.getState().clearSlot({
+                useProjectsStore.getState().clearSlot({
                   projectId,
                   menuId: candidate.menuId,
                   position: sel.focusedSlot,
                 });
               } else {
-                useAccountStore.getState().deleteElement({
+                useProjectsStore.getState().deleteElement({
                   projectId,
                   menuId: candidate.menuId,
                   elementId,
@@ -459,7 +483,7 @@ export function useCanvasKeyboard({
               return;
             }
           }
-          deleteSelection(projectId, ids);
+          deleteSelection(projectId, ids, () => onError?.(t("canvas.systemDocumentKept")));
           useSelectionStore.getState().clear();
         } catch (err) {
           onError?.(err instanceof Error ? err.message : "delete failed");
@@ -473,12 +497,14 @@ export function useCanvasKeyboard({
           flow.clear();
           return;
         }
-        useSelectionStore.getState().clear();
+        const selection = useSelectionStore.getState();
+        if (selection.ids.size > 0 || selection.folder !== null) selection.clear();
+        else if (!e.defaultPrevented) onIdleEscape?.();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [projectId, onError, getPasteAnchor]);
+  }, [projectId, onError, getPasteAnchor, onIdleEscape, t]);
 }
 
 export const canvasClipboardActions = {

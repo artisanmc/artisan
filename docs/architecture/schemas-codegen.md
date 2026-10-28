@@ -1,17 +1,19 @@
-# Schémas & types — source de vérité, types à la main, enforcement ajv
+# Schemas & types — source of truth, hand-written types, ajv enforcement
 
-## Source de vérité
+## Source of truth
 
-Pour chaque schéma versionné, la vérité est le fichier `docs/schema/<name>/v1/schema.json` (JSON Schema **2020-12**). Tout le reste (types Kotlin, types TS, exemples, fixtures) doit se conformer à ce fichier.
+For each versioned schema, the truth is the file `docs/schema/<name>/v1/schema.json` (JSON Schema **2020-12**). Everything else (Kotlin types, TS types, examples, fixtures) must conform to this file.
 
-## Types écrits à la main
+The `description`s are in **English** and short: `get_kind_guide` (MCP, assistant) shows them to the model, line by line (`SchemaOutline`). A shape kept for reading only carries a description that starts with `Legacy` or `LEGACY` (or a `$defs` named `…Legacy`): the outline leaves it out.
 
-Les types ne sont **pas générés** — ils sont **écrits à la main** dans les deux langages, en modélisant fidèlement les unions discriminées du schéma :
+## Hand-written types
 
-- **Plugin (Kotlin)** : `sealed class` avec une sous-classe `data class` par variante (ex. `Condition`/`Action` → une sous-classe typée par `type`), désérialisation polymorphe Jackson (`@JsonTypeInfo(use = NAME, property = "type")` + `@JsonSubTypes`).
-- **Éditeur (TS)** : unions discriminées (`type Condition = HasPermission | HasMoney | …`), une interface par variante, discriminant `type` littéral.
+The types are **not generated** — they are **written by hand** in both languages, faithfully modeling the schema's discriminated unions:
 
-**Quicktype a été évalué et écarté (NO-GO)** : il aplatit les `oneOf` discriminés par `const` en une seule god-object `data class`/`interface` (tous champs nullables), sans sous-classes ni annotations Jackson, et crashe sur un `const` booléen. Détail et verdict complet dans `docs/schema/CODEGEN.md`. Pas de génération de code.
+- **Plugin (Kotlin)**: `sealed class` with one `data class` subclass per variant (e.g. `Condition`/`Action` → one typed subclass per `type`), Jackson polymorphic deserialization (`@JsonTypeInfo(use = NAME, property = "type")` + `@JsonSubTypes`).
+- **Editor (TS)**: discriminated unions (`type Condition = HasPermission | HasMoney | …`), one interface per variant, literal `type` discriminant.
+
+**Quicktype was evaluated and rejected (NO-GO)**: it flattens `oneOf`s discriminated by `const` into a single god-object `data class`/`interface` (all fields nullable), with no subclasses or Jackson annotations, and crashes on a boolean `const`. Details and full verdict in `docs/schema/CODEGEN.md`. No code generation.
 
 ## Enforcement
 
@@ -21,107 +23,110 @@ Offsets default to zero, are bounded to ±4096 pixels and move the centered imag
 inside its clipped footprint. New editor buttons explicitly use `native`.
 This additive field uses the existing v1 appearance format and requires an updated
 plugin for rendering. Editor, canonical TS and Kotlin types mirror it manually.
-`menu/v1/imageButtons.ts` supplies shared semantic checks to editor/backend:
+`menu/v1/imageButtons.ts` supplies shared semantic checks to the editor (pack builder included):
 fixed, in-bounds rectangular positions without overlap (including other layers).
 Comma-separated ranges and YAML position lists support vertical rectangles.
 `menuImageButton.test.ts`, `imageButtons.test.ts` and `MenuRendererImageButtonTest`
 cover serialization, resource-pack generation, conditional images and clicks.
 
-`menu/v1` porte `lore_mode: replace` sur les apparences. Sans ce champ, le lore explicite s'AJOUTE sous le lore de la base. Les valeurs de données `item` composent récursivement `{ extends: <ref ou item>, title?, lore?, count?, ... }` : champs absents hérités, lore ajouté de la même façon. `{base.title}`, `{base.lore}`, `{base.count}` et `{base.material}` désignent la base immédiatement résolue ; écrire `{base.lore}` positionne le lore de base au lieu de le laisser en tête (jamais les deux). Un lore vide n'efface le lore hérité que sous `lore_mode: replace` ; la résolution est bornée à 32 niveaux.
+`menu/v1` carries `$defs/Lore` (2026-10-24, additive): an appearance's `lore` accepts, in addition to the list of `LText`, a list of lines per language `{ <lang>: string[] }`. Types: `Lore` in `menu/v1/types.ts`, `LoreDeserializer` on the plugin side (same `List<LocalizedText>`, one block per language joined by `\n`). Tests: `FieldLocalTextTest`, `menuV1ToDomain.test.ts`, `projectToFilesInline.test.ts`.
 
-Dans un champ de modèle `item`, `title` et `lore` sont des sites i18n, y compris sous `extends`. `itemTextFields.ts` définit les sites parcourus à l'import et au rekey ; l'export écrit les littéraux de la langue par défaut et les traductions à leurs adresses canoniques.
+`menu/v1` carries `lore_mode: replace` on appearances. Without this field, explicit lore is ADDED under the base's lore. `item` data values compose recursively `{ extends: <ref or item>, title?, lore?, count?, ... }`: missing fields inherited, lore added the same way. `{base.title}`, `{base.lore}`, `{base.count}` and `{base.material}` designate the immediately resolved base; writing `{base.lore}` positions the base lore instead of leaving it first (never both). An empty lore only clears the inherited lore under `lore_mode: replace`; resolution is bounded to 32 levels.
 
-`menu/v1` porte aussi `Appearance.item` (liaison vers un item complet), exclusif de `material`. Schéma et types : `docs/schema/menu/v1/`. Tests : `menuItemBinding.test.ts` et `MenuRendererItemValueTest`.
+In an `item` model field, `title` and `lore` are i18n sites, including under `extends`. `itemTextFields.ts` defines the sites walked at import and rekey; export writes the default language's literals and the translations at their canonical addresses.
 
-### `menu/v2` et `menu/v3` repliés dans `menu/v1` (2026-09-17)
+`menu/v1` also carries `Appearance.item` (binding to a full item), exclusive with `material`. Schema and types: `docs/schema/menu/v1/`. Tests: `menuItemBinding.test.ts` and `MenuRendererItemValueTest`.
 
-Les deux versions ont vécu six jours, le temps d'ajouter `Appearance.item` puis `lore_mode`. Leurs
-migrations (`MenuV1ToV2`, `MenuV2ToV3`) étaient des `data.copy(schema = to)` : **zéro transformation**,
-donc trois noms pour un seul format, un ternaire de choix de version à l'export et trois schémas JSON
-compilés côté validateurs. Les deux champs ont été repliés dans `menu/v1` et les dossiers `v2`/`v3`
-supprimés.
+### `menu/v2` and `menu/v3` folded into `menu/v1` (2026-09-17)
 
-C'est une **dérogation explicite à la règle forward-only** ci-dessous (« on ne modifie jamais un
-schéma après ship »). Elle tient parce qu'aucune donnée n'était transformée et que les deux versions
-n'avaient pas quitté la semaine de leur release. Le prix payé est une **tolérance en lecture
-permanente** : `menu/v2` et `menu/v3` restent acceptés par le lecteur plugin (`ProjectReader.menuSchemaVersions`)
-et par les deux validateurs (`LEGACY_VERSIONS`), parce que des projets portant ces étiquettes sont
-sur des disques de serveurs. L'écriture, elle, n'émet plus que `menu/v1`. Ne pas rejouer ce pli : la
-prochaine version de schéma qui transforme quoi que ce soit est définitivement acquise.
+The two versions lived six days, long enough to add `Appearance.item` then `lore_mode`. Their
+migrations (`MenuV1ToV2`, `MenuV2ToV3`) were a `data.copy(schema = to)`: **zero transformation**,
+so three names for a single format, a version-choice ternary at export and three JSON schemas
+compiled on the validator side. Both fields were folded into `menu/v1` and the `v2`/`v3` folders
+deleted.
 
-La cohérence types ↔ schéma n'est **pas** garantie par codegen mais par validation :
+This is an **explicit exception to the forward-only rule** below ("a schema is never modified
+after shipping"). It holds because no data was transformed and the two versions
+had not outlived the week of their release. The price paid is a **permanent read
+tolerance**: `menu/v2` and `menu/v3` remain accepted by the plugin reader (`ProjectReader.menuSchemaVersions`)
+and by both validators (`LEGACY_VERSIONS`), because projects carrying these labels are
+on server disks. Writing only emits `menu/v1` now. Do not replay this fold: the
+next schema version that transforms anything is definitively acquired.
 
-- Validateur **ajv** (draft 2020-12) : `editor/src/schema/validateMenuV1.ts` + `editor/src/schema/validateMenuV1.test.ts`.
-- Exemples canoniques : `docs/schema/menu/v1/examples/*.json` (au moins un par variante d'union + menus complets).
-- **Phase 2 Action DSL (2026-07-21)** : les chaînes d'actions de clic (`ClickHandler.steps`, `open_actions`/`close_actions`, `command.steps`, actions de boutons de dialogue) sont désormais une **string Action DSL** (cf. ADR `action-dsl`), plus un tableau structuré `{kind,action|cases}`. Le plugin lit la string via le codec `actiondsl` → `DslToEngine` ; `StepParser`/`ActionParser`/`ConditionParser` (Map→objet) restent uniquement pour les chemins non-migrés (`if` d'apparence, `requirements`, `fallback`, API modules). Changement **in-place `menu/v1`** (pas encore en prod).
-- **Ergonomie format, tranche ① (2026-07-23)** : `command/v1` — champ canonique **`actions`** (string DSL ; `steps` = alias legacy accepté en lecture), `name` optionnel (défaute sur `id`, l'export ne l'écrit que s'il diffère). `menu/v1` — click handler **collapsé** : `click.left: "<dsl>"` directement (forme `{steps}` legacy acceptée). Writers (éditeur `transform.ts`) émettent les formes canoniques ; readers tolérants sur les 3 couches (éditeur `*ToDomain`, backend `projectImport`, plugin Jackson `@JsonCreator` délégant + `CommandYaml.actions: Any?` désambiguïsé par type). Cf. spec `2026-07-23-menu-format-ergonomics.md`.
-- **Ergonomie format, tranches ②–③ (2026-07-23)** : `menu/v1` — **layers aplatis** : forme canonique = liste plate `elements` top-level (ordre document = empilement, dernier gagne par slot ; enveloppe `layers` legacy acceptée en lecture, domaine éditeur garde `Layer`, import plat → une layer default). **Title** : sucre string (`title: "Shop"` = une couche plain) émis quand le titre est une seule couche plain sans couleur ; **une seule forme LText string** (`"{i18n:key}"` ou littéral) pour les `value` de couches — la forme objet `{key}` devient import-only ; entrées string nues dans un tableau de couches = couches plain. Readers tolérants aux deux formes sur les 3 couches (`parseTitleNode`/`titleLayer` éditeur, `importTitle*` backend, `MenuTitleParser.parseLText` plugin).
-- **Ergonomie format, tranches ④–⑤ (2026-07-23)** : `positions` accepte int nu / range nu / liste YAML mixte (normalisé en spec string par `positionsSpec` sur les 3 couches ; l'export émet un int nu pour un slot unique). `context_inputs` → **`inputs`** (canonique, optionnel ; legacy accepté partout — `@JsonAlias` plugin). **Sucre ref directe** : `iterates.source` / `places.source` acceptent une ref de source (`ns:id` / `pack:id`) sans déclaration d'input — résolue une fois par `MenuRenderer.open` (exposée sous sa propre clé d'args), ref pendante = liste vide silencieuse (non-hermétique). `inputs` reste pour : signature de paramètres (primitifs des Commands), shaping partagé, typage/autocomplete éditeur.
-- **`appearances` retiré au profit de display + `states` (2026-08-17)** : un Element porte son **display à plat** (`material`, `title`, `lore`, `click`… au premier niveau, comme les autres plugins de menu) et ses alternatives gardées sous **`states`** — essayés dans l'ordre AVANT le display, qui est le repli. Un état **remplace**, il n'hérite rien (merge examiné et écarté). `menu/v1` muté sur place, **sans shim de lecture** : `appearances` n'est plus lu nulle part, les menus déployés ont été réécrits (le plugin ne tournait que sur le serveur de test). Schéma : `Element` = `allOf AppearanceFields` + clés structurelles + `unevaluatedProperties: false` ; `states[]` = `$defs/State` (Appearance + `if` requis, sinon l'état masquerait le display pour toujours). Espace de noms partagé verrouillé par `testdata/element-structural-keys.json` (suites éditeur + plugin). Compilation en ordre de RÉSOLUTION (states puis display) avec les ADRESSES i18n inchangées (`default` = display, `stateN` = `states[N-1]`) : aucune clé `lang/` ne bouge. Cf. ADR `element-display-and-states`.
-- **Item templates SUPPRIMÉS (2026-07-31)** : `template/v1` et le dossier `docs/schema/template/` n'existent plus, `menu/v1` perd `iterates.template` / `places.template` / `template_ref` (mutation assumée, pas de v2 — cf. ADR `item-templates-and-data-library` révision 2026-07-31). Une apparence appartient au menu qui la rend : l'élément porte toujours ses `appearances`. Un `templates/` legacy sur disque est **inliné à l'import éditeur** (`projectFromFiles`, clés `item_templates.*` ré-adressées en `menus.<m>.elements.<el>.*`, verrouillé par `templateMigration.test.ts`) et jamais réécrit ; `ProjectReader.resolveTemplates` garde la lecture côté plugin en compat le temps que les serveurs déployés soient re-sauvegardés. L'entrée P2a ci-dessous est donc **historique**.
-- **P2a templates fichiers (2026-07-23)** : nouveau **`template/v1`** (`docs/schema/template/v1/`) — `templates/<id>.yaml` porte source/alias/key_field/group_by/appearances ; les éléments liés émettent une **ref** `iterates.template` / `places.template` (plus d'inline, `appearances` optionnelles sur Element). Résolution **au load plugin** (`ProjectReader.resolveTemplates` → éléments effectifs, compiler/renderer template-unaware) ; hand-edit d'un template + reload = tous les menus consommateurs suivent. Backend importe `templates/` → `itemTemplates` + refs → `templateId` (fix au passage : `places` était perdu à l'import backend). `manifest.files.templates` additif ; menu/v1 : def `Places` ajoutée, `Iterates.source` sans pattern (refs directes). **P2b models fichiers** : nouveau **`model/v1`** (`docs/schema/model/v1/`) — `models/<id>.yaml` porte les champs **verbatim** (refs cross-model préservées) = store lossless éditeur ; `data/<id>.yaml` reste dénormalisé/self-contained pour le runtime, le plugin ignore `models/`. Backend importe `models/` → `dataModels`. **P3a files-first (2026-07-24)** : l'importeur full-project vit désormais **côté éditeur** (`editor/src/schema/projectFromFiles.ts`, inverse exact de `transform()`, verrouillé par le fixed-point `projectFromFiles.test.ts`) ; le miroir backend `projectImport.ts` est supprimé (reste `lib/projectFiles.ts` pour `readOwnerModuleFromFiles`). Le gap `data/` est comblé : `data/v1` gagne `name` (nom d'affichage) et `model` (back-ref lossless table → `models/<id>.yaml`, **ignorés par le plugin**) ; l'import retype les rows via le model (ltext → LText). Les métadonnées d'items capturés (`name` + `display`) vivent dans `.artisan/editor.yaml` (section `items:`, hash-exclue) ; fichier data sans `model:` → model synthétisé `mdl_<sourceId>` depuis les fields aplatis (canonicalisé au prochain export). **Tranche 1 composable-data-models (2026-07-25, ADR éponyme)** : `model/v1` + `data/v1` gagnent les kinds **`map`** (`of`), **`enum`** (`values`), **`union`** (`tag` + `variants[{name, fields}]`) — dénormalisés **inline** dans data/v1 (le plugin walk valeur+schéma, ltext localisés à toute profondeur, variante choisie par le tag, model-blind inchangé). **Granularité par-row** : `data/<id>/` = `_source.yaml` (méta + fields + `order:`) + un fichier par row nommé par le Row key slugifié ; fichier ajouté à la main hors `order` = appendé (tri byte) ; readers 3 couches (transform/projectFromFiles/ProjectReader). Fix au passage : les rows/items de listes du Table UI sont keyés par identité (Row key), plus par index — le bug « items mélangés entre catégories ». **Tranche 2 (même jour)** : canal de déclaration — `api.models.declare(model/v1)` plugin-side (passthrough opaque) → `hello.declared_models` → table `server_declared_models` (migration 0026, upsert+prune miroir data_sources) → `GET …/servers/:sid/models` → injection au load éditeur (`injectDeclaredModels` : provenance `module`, shape read-only, remplace les copies stale, JAMAIS émis dans `models/`) ; `model/v1` gagne `version` + `migrations` (pas déclaratifs : rename_field/set_default/rename_enum_value/rename_variant — vocabulaire fermé, op inconnue ignorée) ; `data/v1` gagne `model_version` (version sous laquelle les rows ont été écrites) ; moteur `domain/modelMigrations.ts` appliqué au load quand `model_version` retarde, matérialisé au prochain save. **Tranche 3 (même jour)** : les champs `model/v1` portent les hints (`label`/`help`/`section`) + la validation (`required`/`default`/`min`/`max`/`pattern`/`locked`) — enforcement asymétrique (bloquant en form : clamp min/max, select enum, locked read-only ; hand-edit = signalé `aria-invalid` jamais réécrit) ; `master_detail` (model-level) bascule la Table en liste+form ; nouveau kind **`conditions`** (vocabulaire core §6 — valeurs = Condition[] wire via le codec unique, éditées avec le ConditionListEditor des appearances, opaques au runtime).
-- CI : `.github/workflows/schema.yml` valide les exemples contre `schema.json` sur chaque PR (pas de step de codegen-drift — la vérité = schéma + ajv).
+Types ↔ schema consistency is **not** guaranteed by codegen but by validation:
 
-> **Côté éditeur (P1.1 ✅)** : l'export émet la forme canonique `menu/v1` et un oracle « golden pack → export → ajv » (`editor/src/features/export/canonical.test.ts`) prouve la conformité ; `docs/schema/menu/v1/types.ts` est aligné sur le schéma.
-> **Côté plugin (P1.2 ✅)** : le parsing est conforme au canonique. Seul écart introduit par P1.1 corrigé : `ConditionParser` lit désormais `of` (et non `all`/`any`) pour les conditions composites `and`/`or`. Un oracle cross-stack (`plugin/src/test/kotlin/net/artisanmc/plugin/engine/CanonicalConformanceTest.kt`) parse les exemples canoniques de l'éditeur (`docs/schema/menu/v1/examples/canonical-button.json`, `canonical-conditional.json`) à travers `BundleCompiler` sans erreur. Le parsing reste tolérant en lecture (title string-ou-array, `if` map-ou-array).
+- **ajv** validator (draft 2020-12): `editor/src/schema/validateMenuV1.ts` + `editor/src/schema/validateMenuV1.test.ts`.
+- Canonical examples: `docs/schema/menu/v1/examples/*.json` (at least one per union variant + complete menus).
+- **Action DSL phase 2 (2026-07-21)**: click action chains (`ClickHandler.steps`, `open_actions`/`close_actions`, `command.steps`, dialog button actions) are now an **Action DSL string** (see ADR `action-dsl`), no longer a structured `{kind,action|cases}` array. The plugin reads the string through the `actiondsl` codec → `DslToEngine`; `StepParser`/`ActionParser`/`ConditionParser` (Map→object) remain only for non-migrated paths (appearance `if`, `requirements`, `fallback`, module API). **In-place `menu/v1`** change (not in prod yet).
+- **Format ergonomics, slice ① (2026-07-23)**: `command/v1` — canonical field **`actions`** (DSL string; `steps` = legacy alias accepted on read), optional `name` (defaults to `id`, export only writes it if it differs). `menu/v1` — **collapsed** click handler: `click.left: "<dsl>"` directly (legacy `{steps}` form accepted). Writers (editor `schema/*V1FromDomain.ts`, then `transform.ts`) emit the canonical forms; readers tolerant on all 3 layers (editor `*ToDomain`, backend `projectImport`, plugin Jackson delegating `@JsonCreator` + `CommandYaml.actions: Any?` disambiguated by type). See spec `2026-07-23-menu-format-ergonomics.md`.
+- **Format ergonomics, slices ②–③ (2026-07-23)**: `menu/v1` — **flattened layers**: canonical form = flat top-level `elements` list (document order = stacking, last wins per slot; legacy `layers` envelope accepted on read, editor domain keeps `Layer`, flat import → one default layer). **Title**: string sugar (`title: "Shop"` = one plain layer) emitted when the title is a single plain layer with no color; **a single LText string form** (`"{i18n:key}"` or literal) for layers' `value` — the `{key}` object form becomes import-only; bare string entries in a layers array = plain layers. Readers tolerant of both forms (`titleLayer` in `menuV1ToDomain.ts` on the editor side, `MenuTitleParser.parseLText` on the plugin side).
+- **Format ergonomics, slices ④–⑤ (2026-07-23)**: `positions` accepts bare int / bare range / mixed YAML list (normalized to a spec string by `positionsSpec` on all 3 layers; export emits a bare int for a single slot). `context_inputs` → **`inputs`** (canonical, optional; legacy accepted everywhere — plugin `@JsonAlias`). **Direct ref sugar**: `iterates.source` / `places.source` accept a source ref (`ns:id` / `pack:id`) without an input declaration — resolved once per `MenuRenderer.open` (exposed under its own args key), dangling ref = silently empty list (non-hermetic). `inputs` remains for: parameter signature (Command primitives), shared shaping, editor typing/autocomplete.
+- **`appearances` removed in favor of display + `states` (2026-08-17)**: an Element carries its **flat display** (`material`, `title`, `lore`, `click`… at the top level, like other menu plugins) and its guarded alternatives under **`states`** — tried in order BEFORE the display, which is the fallback. A state **replaces**, it inherits nothing (merge examined and rejected). `menu/v1` mutated in place, **with no read shim**: `appearances` is no longer read anywhere, deployed menus were rewritten (the plugin only ran on the test server). Schema: `Element` = `allOf AppearanceFields` + structural keys + `unevaluatedProperties: false`; `states[]` = `$defs/State` (Appearance + required `if`, otherwise the state would mask the display forever). Shared namespace locked by `testdata/element-structural-keys.json` (editor + plugin suites). Compilation in RESOLUTION order (states then display) with i18n ADDRESSES unchanged (`default` = display, `stateN` = `states[N-1]`): no `lang/` key moves. See ADR `element-display-and-states`.
+- **Item templates REMOVED (2026-07-31)**: `template/v1` and the `docs/schema/template/` folder no longer exist, `menu/v1` loses `iterates.template` / `places.template` / `template_ref` (accepted mutation, no v2 — see ADR `item-templates-and-data-library` revision 2026-07-31). An appearance belongs to the menu that renders it: the element always carries its `appearances`. A legacy `templates/` on disk is **inlined at editor import** (`projectFromFiles`, `item_templates.*` keys re-addressed to `menus.<m>.elements.<el>.*`, locked by `templateMigration.test.ts`) and never rewritten; `ProjectReader.resolveTemplates` keeps reading on the plugin side for compat until deployed servers are re-saved. The P2a entry below is therefore **historical**.
+- **P2a file templates (2026-07-23)**: new **`template/v1`** (`docs/schema/template/v1/`) — `templates/<id>.yaml` carries source/alias/key_field/group_by/appearances; linked elements emit a **ref** `iterates.template` / `places.template` (no more inline, `appearances` optional on Element). Resolution **at plugin load** (`ProjectReader.resolveTemplates` → effective elements, template-unaware compiler/renderer); hand-editing a template + reload = all consuming menus follow. Backend imports `templates/` → `itemTemplates` + refs → `templateId` (fix along the way: `places` was lost at backend import). `manifest.files.templates` additive; menu/v1: `Places` def added, `Iterates.source` without pattern (direct refs). **P2b file models**: new **`model/v1`** (`docs/schema/model/v1/`) — `models/<id>.yaml` carries the fields **verbatim** (cross-model refs preserved) = the editor's lossless store; `data/<id>.yaml` remains denormalized/self-contained for the runtime, the plugin ignores `models/`. Backend imports `models/` → `dataModels`. **P3a files-first (2026-07-24)**: the full-project importer now lives **on the editor side** (`editor/src/schema/projectFromFiles.ts`, exact inverse of `transform()`, locked by the fixed-point `projectFromFiles.test.ts`); the backend mirror `projectImport.ts` is deleted (`lib/projectFiles.ts` remains for `readOwnerModuleFromFiles`). The `data/` gap is closed: `data/v1` gains `name` (display name) and `model` (lossless back-ref table → `models/<id>.yaml`, **ignored by the plugin**); import retypes rows via the model (ltext → LText). Captured items' metadata (`name` + `display`) lives in `.artisan/editor.yaml` (`items:` section, hash-excluded); a data file without `model:` → synthesized model `mdl_<sourceId>` from the flattened fields (canonicalized at the next export). **Composable-data-models slice 1 (2026-07-25, same-named ADR)**: `model/v1` + `data/v1` gain the kinds **`map`** (`of`), **`enum`** (`values`), **`union`** (`tag` + `variants[{name, fields}]`) — denormalized **inline** in data/v1 (the plugin walks value+schema, ltext localized at any depth, variant chosen by the tag, model-blind unchanged). **Per-row granularity**: `data/<id>/` = `_source.yaml` (meta + fields + `order:`) + one file per row named by the slugified Row key; a file added by hand outside `order` = appended (byte sort); 3-layer readers (transform/projectFromFiles/ProjectReader). Fix along the way: Table UI rows/list items are keyed by identity (Row key), no longer by index — the "items mixed between categories" bug. **Slice 2 (same day)**: declaration channel — `api.models.declare(model/v1)` plugin-side (opaque passthrough) → `hello.declared_models` → `server_declared_models` table (migration 0026, upsert+prune mirroring data_sources) → `GET …/servers/:sid/models` → injection at editor load (`injectDeclaredModels`: `module` provenance, read-only shape, replaces stale copies, NEVER emitted into `models/`); `model/v1` gains `version` + `migrations` (not declarative: rename_field/set_default/rename_enum_value/rename_variant — closed vocabulary, unknown op ignored); `data/v1` gains `model_version` (version under which the rows were written); `domain/modelMigrations.ts` engine applied at load when `model_version` lags, materialized at the next save. **Slice 3 (same day)**: `model/v1` fields carry the hints (`label`/`help`/`section`) + validation (`required`/`default`/`min`/`max`/`pattern`/`locked`) — asymmetric enforcement (blocking in the form: min/max clamp, enum select, locked read-only; hand-edit = flagged `aria-invalid` never rewritten); `master_detail` (model-level) switches the Table to list+form; new kind **`conditions`** (core vocabulary §6 — values = wire Condition[] via the single codec, edited with the appearances' ConditionListEditor, opaque to the runtime).
+- **Declared actions (2026-10-26)**: `$defs.Action` gains one last branch for the actions the server declares at runtime: a single-key object, named either with a namespace (`^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$`, `guilds:rank_delete`: add-ons prefix all of theirs), or `module_command` or `cancel_event` (the two Artisan declares without a prefix). Its arguments are not checked by the schema. A misspelled core name (`send_mesage`) is still refused; a misspelled prefixed name (`guilds:rank_delet`) passes, only execution flags it. No branch for conditions: a module declares none. Additive. `CoreActionSchemaConformanceTest` ignores this branch (no `required`). Needed since Deploy goes through `DocumentCheck` (ADR `mcp-server`, decision 8): without it, the MSGuilds and artisan-attribution menus were refused.
+- CI: `.github/workflows/schema.yml` validates the examples against `schema.json` on every PR (no codegen-drift step — truth = schema + ajv).
 
-## Schéma `data/v1` (Project sources, depuis 2026-07-20)
+> **Editor side (P1.1 ✅)**: export emits the canonical `menu/v1` form and a "golden pack → export → ajv" oracle (`editor/src/schema/projectToFilesCanonical.test.ts`) proves conformance; `docs/schema/menu/v1/types.ts` is aligned with the schema.
+> **Plugin side (P1.2 ✅)**: parsing conforms to the canonical form. The only gap introduced by P1.1 was fixed: `ConditionParser` now reads `of` (not `all`/`any`) for composite `and`/`or` conditions. A cross-stack oracle (`plugin/core/src/test/kotlin/net/artisanmc/plugin/engine/CanonicalConformanceTest.kt`) parses the editor's canonical examples (`docs/schema/menu/v1/examples/canonical-button.json`, `canonical-conditional.json`) through `MenuCompiler` without error. Parsing stays tolerant on read (title string-or-array, `if` map-or-array).
 
-`docs/schema/data/v1/schema.json` décrit les fichiers `data/<source_id>.yaml` d'un Bundle (Project sources, ADR `project-sources-and-data-models`) : `{ schema, id, shape: table|config, key_field?, fields, rows?|value? }`, kinds concrets uniquement (les Data models de l'éditeur sont inlinés à l'export — pas de kind `model` dans le wire). Enforcement : oracle export `editor/src/features/export/dataV1.test.ts` (domain → `serializeDataSource` → forme attendue) + oracle parse plugin `plugin/src/test/kotlin/net/artisanmc/plugin/ProjectDataSourceTest.kt` (fixtures YAML → `ProjectReader`/`BundleDataSource`, localisation ltext). Exemples : `docs/schema/data/v1/examples/*.yaml`.
+## `data/v1` schema (Project sources, since 2026-07-20)
 
-## Règle de modification
+`docs/schema/data/v1/schema.json` describes a Project's `data/<source_id>.yaml` files (Project sources, ADR `project-sources-and-data-models`): `{ schema, id, shape: table|config, key_field?, fields, rows?|value? }`, concrete kinds only (the editor's Data models are inlined at export — no `model` kind in the wire). Enforcement: export oracle `editor/src/schema/dataV1FromDomain.test.ts` (domain → `projectToFiles` → expected shape) + plugin parse oracle `plugin/core/src/test/kotlin/net/artisanmc/plugin/ProjectDataSourceTest.kt` (YAML fixtures → `ProjectReader`/`RuntimeDataSource`, ltext localization). Examples: `docs/schema/data/v1/examples/*.yaml`.
 
-Modifier un `docs/schema/*/v1/schema.json` ⇒ dans le même mouvement :
+## Modification rule
 
-1. Aligner les types à la main (éditeur **et** plugin).
-2. Garder les exemples / fixtures verts (`editor/src/schema/validateMenuV1`).
-3. Ne jamais éditer un schéma `v1` déjà shippé en breaking — créer un `v2` (cf. `docs/architecture/versioning.md`).
+Modifying a `docs/schema/*/v1/schema.json` ⇒ in the same move:
 
-## Gaps runtime documentés
+1. Align the hand-written types (editor **and** plugin).
+2. Keep the examples / fixtures green (`editor/src/schema/validateMenuV1`).
+3. Never edit an already-shipped `v1` schema in a breaking way — create a `v2` (see `docs/architecture/versioning.md`).
 
-**Fermés (2026-06-11)** :
+## Documented runtime gaps
 
-- ✅ branches `if` d'un step-tree de clic — `StepParser` + `ActionExecutor.executeSteps`
-  (cases/joins/else, joins gauche→droite sans précédence), menus **et** commandes ;
-- ✅ actions `set_arg` / `set_arg_cycle_next` / `set_arg_cycle_prev` — mutation des args de
-  contexte + re-render du menu courant ; le contexte est replié d'action en action dans un
-  même clic ;
+**Closed (2026-06-11)**:
+
+- ✅ `if` branches of a click step-tree — `StepParser` + `ActionExecutor.executeSteps`
+  (cases/joins/else, joins left→right without precedence), menus **and** commands;
+- ✅ `set_arg` / `set_arg_cycle_next` / `set_arg_cycle_prev` actions — mutation of the
+  context args + re-render of the current menu; the context is folded from action to action within a
+  single click;
 - ✅ `context_inputs` + `iterates` (Phase A, plan `2026-06-11-data-driven-runtime-A-iteration.md`) —
-  `ContextBinder` (§15.4 : l'appelant gagne, defaults coercés), rendu fenêtré par page
-  (pageSize = slots de l'élément), `{alias.field}` via `ArgResolver` (matériel inclus),
-  scope d'item par slot au clic (`MenuSession.slotArgs`) ;
-- ✅ pagination — `pagination_next/prev` avancent/reculent avec clamp + re-render ;
-  `pagination_at_first/last` réelles (état dans `ExecutionContext.pagination`/`pageInfo`,
-  aucune modification d'interface `MenuProvider`).
-- ✅ navigation arrière — `open_previous_menu` (pile LIFO par joueur, menus + dialogs) et
-  placeholders `has_previous_menu` / `previous_menu.*` ; vocabulaire `menu/v1` étendu, pas de
-  breaking (cf. `action-steps.md` §open_previous_menu).
+  `ContextBinder` (§15.4: the caller wins, defaults coerced), windowed rendering per page
+  (pageSize = the element's slots), `{alias.field}` via `ArgResolver` (material included),
+  per-slot item scope at click (`MenuSession.slotArgs`);
+- ✅ pagination — `pagination_next/prev` advance/go back with clamp + re-render;
+  real `pagination_at_first/last` (state in `ExecutionContext.pagination`/`pageInfo`,
+  no `MenuProvider` interface change).
+- ✅ back navigation — `open_previous_menu` (LIFO stack per player, menus + dialogs) and
+  `has_previous_menu` / `previous_menu.*` placeholders; `menu/v1` vocabulary extended, no
+  breaking change (see `action-steps.md` §open_previous_menu).
 
-**Restants** (le plugin ne les exécute pas encore — projets séparés) :
+**Remaining** (the plugin does not execute them yet — separate projects):
 
-- `open_requirements` / `open_actions` / `close_actions` / `background` top-level
-  (implémentés nulle part : ni domaine éditeur, ni runtime — rejetés par le gate assistant).
+- top-level `open_requirements` / `open_actions` / `close_actions` / `background`
+  (implemented nowhere: neither editor domain nor runtime — rejected by the assistant gate).
 
-Le schéma les décrit (l'éditeur peut produire/valider certains), mais le runtime plugin les
-ignore tant que les projets dédiés ne sont pas livrés.
+The schema describes them (the editor can produce/validate some), but the plugin runtime
+ignores them until the dedicated projects ship.
 
-## Champs additifs `menu/v1` — alignement manuel
+## Additive `menu/v1` fields — manual alignment
 
-Champs ajoutés après le gel P1.0 du schéma, alignés à la main sur les trois couches :
+Fields added after the P1.0 schema freeze, aligned by hand on the three layers:
 
-| Champ | Type schema | `docs/schema/menu/v1/types.ts` | `editor/src/domain/types.ts` | Plugin (`AppearanceYaml`) |
+| Field | Schema type | `docs/schema/menu/v1/types.ts` | `editor/src/domain/types.ts` | Plugin (`AppearanceYaml`) |
 |---|---|---|---|---|
-| `Appearance.head` | `string` (optionnel) | `head?: string` | `head?: string` | `val head: String?` |
+| `Appearance.head` | `string` (optional) | `head?: string` | `head?: string` | `val head: String?` |
 
-Les trois préfixes reconnus par `HeadRef` (plugin) : `hdb:<id>`, `basehead:<base64>`, `playerhead:<name>` (placeholder-aware, ex. `%player%`). Une valeur brute `eyJ…` sans préfixe est tolérée comme `basehead`. Le champ n'est honoré que quand `material` vaut `PLAYER_HEAD`.
+The three prefixes recognized by `HeadRef` (plugin): `hdb:<id>`, `basehead:<base64>`, `playerhead:<name>` (placeholder-aware, e.g. `%player%`). A raw `eyJ…` value without a prefix is tolerated as `basehead`. The field is only honored when `material` is `PLAYER_HEAD`.
 
-### Détails avancés d'item (2026-07-29)
+### Advanced item details (2026-07-29)
 
-Sept champs **additifs optionnels** sur `Appearance`, tous appliqués par `net.artisanmc.plugin.render.ItemDetails` :
+Seven **optional additive fields** on `Appearance`, all applied by `net.artisanmc.plugin.render.ItemDetails`:
 
-| Champ wire | Domaine éditeur | Plugin (`AppearanceYaml`) |
+| Wire field | Editor domain | Plugin (`AppearanceYaml`) |
 |---|---|---|
-| `enchants` (map `{id: level}`, liste `[{id, level}]` en lecture) | `enchants?: ItemEnchant[]` | `val enchants: Any?` |
+| `enchants` (map `{id: level}`, list `[{id, level}]` on read) | `enchants?: ItemEnchant[]` | `val enchants: Any?` |
 | `enchanted` (bool) | `enchanted?: boolean` | `val enchanted: Boolean` |
 | `custom_model_data` (string) | `customModelData?: string` | `val customModelData: String?` |
 | `unbreakable` (bool) | `unbreakable?: boolean` | `val unbreakable: Boolean` |
@@ -129,75 +134,75 @@ Sept champs **additifs optionnels** sur `Appearance`, tous appliqués par `net.a
 | `color` (`#rrggbb`) | `color?: string` | `val color: String?` |
 | `nbt` (SNBT) | `nbt?: string` | `val nbt: String?` |
 
-`enchanted` et `custom_model_data` étaient déclarés dans le schéma depuis P1.0 mais **morts** (ni portés par `AppearanceYaml`, ni appliqués par `MenuRenderer.buildItem`) — cette tranche les implémente enfin plutôt que d'introduire des noms concurrents.
+`enchanted` and `custom_model_data` had been declared in the schema since P1.0 but were **dead** (neither carried by `AppearanceYaml` nor applied by `MenuRenderer.buildItem`) — this slice finally implements them rather than introducing competing names.
 
-Conventions partagées entre l'éditeur (`editor/src/domain/itemAdvanced.ts`) et le plugin (`ItemDetails.kt`), qui se **mirroitent** — changer l'un impose de changer l'autre :
+Conventions shared between the editor (`editor/src/domain/itemAdvanced.ts`) and the plugin (`ItemDetails.kt`), which **mirror** each other — changing one requires changing the other:
 
-- **Ids d'enchantement tolérants en lecture** : `sharpness`, `minecraft:sharpness`, `SHARPNESS`, legacy Bukkit `DAMAGE_ALL`. La forme canonique écrite est toujours l'id court en map. Un id inconnu du serveur est **ignoré avec un WARN** (jamais une erreur de menu).
-- **Niveaux au-delà du max vanilla autorisés** (`ignoreLevelRestriction`) — les serveurs en usent ; l'UI se contente d'avertir.
-- **`enchanted` est omis à l'écriture quand `enchants` est non-vide** : de vrais enchantements brillent déjà, le flag ne porte son sens que seul.
-- **`hide`** : orthographe courte (`attributes`) canonique, spelling Bukkit (`HIDE_ATTRIBUTES`) et l'ancien `HIDE_POTION_EFFECTS` → `additional` acceptés en lecture.
-- **`nbt`** : appliqué **en dernier**, après tout le reste, via `Bukkit.getUnsafe().modifyItemStack` (API dépréciée — seule voie sur 1.21.4). Best-effort : un SNBT refusé est loggé en WARN et l'item est rendu sans, jamais blanchi.
-- **`color`** : n'a d'effet que sur `LeatherArmorMeta` / `PotionMeta` ; sur tout autre material c'est silencieusement sans objet (pas une erreur). L'éditeur n'affiche le champ que pour les materials teintables (`isColorable`).
+- **Enchantment ids tolerant on read**: `sharpness`, `minecraft:sharpness`, `SHARPNESS`, legacy Bukkit `DAMAGE_ALL`. The canonical form written is always the short id in a map. An id unknown to the server is **ignored with a WARN** (never a menu error).
+- **Levels beyond the vanilla max allowed** (`ignoreLevelRestriction`) — servers use them; the UI only warns.
+- **`enchanted` is omitted on write when `enchants` is non-empty**: real enchantments already glow, the flag only has meaning alone.
+- **`hide`**: short spelling (`attributes`) canonical, Bukkit spelling (`HIDE_ATTRIBUTES`) and the old `HIDE_POTION_EFFECTS` → `additional` accepted on read.
+- **`nbt`**: applied **last**, after everything else, via `Bukkit.getUnsafe().modifyItemStack` (deprecated API — only way on 1.21.4). Best-effort: a refused SNBT is logged as WARN and the item is rendered without it, never blanked.
+- **`color`**: only has an effect on `LeatherArmorMeta` / `PotionMeta`; on any other material it is silently moot (not an error). The editor only shows the field for dyeable materials (`isColorable`).
 
-Resté dans **`menu/v1`** : purement additif et optionnel, donc non-breaking (cf. `versioning.md`).
+Kept in **`menu/v1`**: purely additive and optional, therefore non-breaking (see `versioning.md`).
 
-**Extraction d'items capturés** — `editor/src/domain/capturedStack.ts` lit ces mêmes détails depuis le `stackYaml` d'un item capturé (l'ItemStack Bukkit sérialisé verbatim). Il gère les **deux formes** de sérialisation qui circulent : legacy Bukkit (`type`/`amount`/`meta{enchants, ItemFlags, custom-model-data, color}`) et Paper moderne (`id`/`count`/`components{minecraft:enchantments, …}`, avec ou sans l'enveloppe `levels` supprimée en 1.21.5). Une troisième forme s'ajoute aux deux précédentes : les **composants encodés en chaîne** (`minecraft:enchantments: '{"minecraft:sharpness":5}'`) — c'est celle que Paper produit réellement. `decodeComponent` les décode (JSON strict, puis passe de tolérance SNBT pour les clés nues et les suffixes de type `5s`/`1b`) ; `custom_name` et `item_name` sont des composants **texte** et restent hors décodage. Aucun aller-retour plugin n'est nécessaire : tout est déjà dans le YAML. Le parse est mémoïsé (`capturedStackDetails`) car `resolveDisplayRef` l'appelle par slot rendu.
+**Captured item extraction** — `editor/src/domain/capturedStack.ts` reads these same details from the `stackYaml` of a captured item (the Bukkit ItemStack serialized verbatim). It handles the **two forms** of serialization in circulation: legacy Bukkit (`type`/`amount`/`meta{enchants, ItemFlags, custom-model-data, color}`) and modern Paper (`id`/`count`/`components{minecraft:enchantments, …}`, with or without the `levels` envelope removed in 1.21.5). A third form adds to the previous two: **string-encoded components** (`minecraft:enchantments: '{"minecraft:sharpness":5}'`) — this is what Paper actually produces. `decodeComponent` decodes them (strict JSON, then an SNBT tolerance pass for bare keys and type suffixes like `5s`/`1b`); `custom_name` and `item_name` are **text** components and stay out of decoding. No plugin round trip is needed: everything is already in the YAML. Parsing is memoized (`capturedStackDetails`) because `resolveDisplayRef` calls it per rendered slot.
 
-`readCapturedItems` (import, `projectFromFiles.ts`) dérive son descripteur d'affichage via ce même parseur depuis 2026-07-29 — auparavant c'étaient des regex sur le YAML brut (`"nexo:id":"…"`, `text: "…"`) qui ne matchaient pas la forme encodée. **La précédence est inchangée** : `.artisan/editor.yaml` `items:` reste autoritaire quand il est présent, car il enregistre ce que le panneau de capture affichait — dont un material enrichi par le reverse-lookup custom-item du plugin, que le stack seul n'exprime pas toujours. La dérivation ne sert qu'aux fichiers ajoutés à la main ou écrits par un module.
+`readCapturedItems` (import, `projectFromFiles.ts`) has derived its display descriptor through this same parser since 2026-07-29 — previously it was regexes on the raw YAML (`"nexo:id":"…"`, `text: "…"`) that did not match the encoded form. **Precedence is unchanged**: `.artisan/editor.yaml` `items:` remains authoritative when present, because it records what the capture panel displayed — including a material enriched by the plugin's custom-item reverse lookup, which the stack alone does not always express. Derivation only serves files added by hand or written by a module.
 
 ### `inventory_type` (Chest / Hopper / Dropper)
 
-Champ **additif optionnel** au niveau menu (`menu/v1`) : `inventory_type ∈ {chest, hopper, dropper}`, **défaut `chest`**. **Absent ⇒ chest** → full back-compat : tous les menus existants restent des coffres sans migration de données.
+**Optional additive** field at the menu level (`menu/v1`): `inventory_type ∈ {chest, hopper, dropper}`, **default `chest`**. **Missing ⇒ chest** → full back-compat: all existing menus remain chests with no data migration.
 
-Changements de schéma (additifs, non-breaking) :
+Schema changes (additive, non-breaking):
 
-- `inventory_type` : enum optionnel (`default: "chest"`).
-- `size` : enum relaxé à `[5, 9, 18, 27, 36, 45, 54]` (ajout de `5` pour le hopper).
-- Cross-validation `allOf` : `chest` ⇒ `size` multiple de 9 ; `hopper` ⇒ `size = 5` ; `dropper` ⇒ `size = 9`.
+- `inventory_type`: optional enum (`default: "chest"`).
+- `size`: enum relaxed to `[5, 9, 18, 27, 36, 45, 54]` (adding `5` for the hopper).
+- `allOf` cross-validation: `chest` ⇒ `size` a multiple of 9; `hopper` ⇒ `size = 5`; `dropper` ⇒ `size = 9`.
 
-Resté dans **`menu/v1`** (pas de dossier `v2`) : l'ajout est additif et non-breaking, donc la règle « nouveau schema version = nouveau dossier » (qui cible les changements *breaking*) ne s'applique pas — cf. `docs/architecture/versioning.md`.
+Kept in **`menu/v1`** (no `v2` folder): the addition is additive and non-breaking, so the "new schema version = new folder" rule (which targets *breaking* changes) does not apply — see `docs/architecture/versioning.md`.
 
-Types alignés à la main sur les trois couches :
+Types aligned by hand on the three layers:
 
-| Couche | Source |
+| Layer | Source |
 |---|---|
-| Type éditeur | `InventoryType` dans `editor/src/domain/types.ts` |
-| Géométrie (single source of truth) | table `INVENTORY_TYPES` dans `editor/src/features/canvas/inventoryTypes.ts` (cols, rows fixes, origine slot-0 en px MC, hauteur de box, clé texture, type Bukkit) |
-| Plugin | `MenuYaml.inventoryType` (défaut `chest`) |
+| Editor type | `InventoryType` in `editor/src/domain/types.ts` |
+| Geometry (single source of truth) | `INVENTORY_TYPES` table in `editor/src/features/canvas/inventoryTypes.ts` (fixed cols, rows, slot-0 origin in MC px, box height, texture key, Bukkit type) |
+| Plugin | `MenuYaml.inventoryType` (default `chest`) |
 
-Export (`serializeMenuToV1`) : émet `inventory_type` **uniquement si ≠ chest**, et `size = slotCount(type, rows)`. Import (`menuV1ToDomain`) : le lit (défaut `chest`) et calcule les rows par type. Plugin : `MenuRenderer` crée l'inventaire via `InventoryType.HOPPER`/`DROPPER` pour les types non-chest (branche sur le **type**, pas la taille — dropper = 9 slots comme un coffre 1 ligne).
+Export (`menuV1FromDomain`): emits `inventory_type` **only if ≠ chest**, and `size = slotCount(type, rows)`. Import (`menuV1ToDomain`): reads it (default `chest`) and computes rows per type. Plugin: `MenuRenderer` creates the inventory via `InventoryType.HOPPER`/`DROPPER` for non-chest types (branches on the **type**, not the size — dropper = 9 slots like a 1-row chest).
 
-### `player_inventory` (bas de la fenêtre, 2026-09-25)
+### `player_inventory` (bottom of the window, 2026-09-25)
 
-Champ **additif optionnel** au niveau menu : `player_inventory ∈ {visible, hidden}`, **défaut
-`visible`** — les menus existants ne changent pas. `hidden` : les positions `size..size+35` désignent
-les slots joueur (rawSlot protocole, 27 principal puis 9 barre rapide) et le bas n'affiche que les
-boutons du menu. Le schéma ne borne pas les positions (JSON Schema ne compare pas à `size`) : la borne
-vit dans `validateMenuLayout` (`types.ts`) et dans l'éditeur (`positionCount`).
+**Optional additive** field at the menu level: `player_inventory ∈ {visible, hidden}`, **default
+`visible`** — existing menus do not change. `hidden`: positions `size..size+35` designate
+the player slots (protocol rawSlot, 27 main then 9 hotbar) and the bottom only shows the menu's
+buttons. The schema does not bound the positions (JSON Schema does not compare to `size`): the bound
+lives in `validateMenuLayout` (`types.ts`) and in the editor (`positionCount`).
 
-| Couche | Source |
+| Layer | Source |
 |---|---|
-| Type éditeur | `PlayerInventoryMode`, `Menu.playerInventory` (stocké seulement si `hidden`) |
-| Géométrie | `positionCount`, `slotMcXY(i, type, rows)`, `positionToCell`/`cellToPosition` dans `inventoryTypes.ts` (`playerInvY` par type) |
+| Editor type | `PlayerInventoryMode`, `Menu.playerInventory` (stored only if `hidden`) |
+| Geometry | `positionCount`, `slotMcXY(i, type, rows)`, `positionToCell`/`cellToPosition` in `inventoryTypes.ts` (`playerInvY` per type) |
 | Plugin | `MenuYaml.playerInventory` → `PlayerInventoryMode` → `MenuSlots.slotLimit` |
 
-Export : émis **uniquement si `hidden`**. Resté dans `menu/v1` (additif). Runtime : cf.
-`invariants.md` « Le contenu des menus n'existe que côté client ».
+Export: emitted **only if `hidden`**. Kept in `menu/v1` (additive). Runtime: see
+`invariants.md` "Menu content only exists client-side".
 
-### `vanilla_texture` (fond de conteneur transparent, 2026-09-25)
+### `vanilla_texture` (transparent container background, 2026-09-25)
 
-Booléen **additif optionnel**, **défaut `true`**. `false` : fenêtre
-transparente en jeu (coffre, entonnoir ou dropper), le menu apporte sa texture par des glyphs de titre. Domaine éditeur
-`Menu.vanillaTexture?: false` (stocké seulement à `false`), export émis seulement à `false`, plugin
-`MenuYaml.vanillaTexture`. Effets hors du menu (pack + réinjection sur les autres coffres) :
-`invariants.md` « Conteneurs transparents ».
+**Optional additive** boolean, **default `true`**. `false`: transparent window
+in game (chest, hopper or dropper), the menu brings its texture through title glyphs. Editor domain
+`Menu.vanillaTexture?: false` (stored only at `false`), export emitted only at `false`, plugin
+`MenuYaml.vanillaTexture`. Effects outside the menu (pack + re-injection on other chests):
+`invariants.md` "Transparent containers: global on the pack side, reinjected via the title".
 
-## Statut / phasage
+## Status / phasing
 
-| Phase | Portée | Statut |
+| Phase | Scope | Status |
 |---|---|---|
-| **P1.0** | `menu/v1` : schéma canonique + validateur ajv + CI | ✅ fait |
-| **P1.1** | Conformité éditeur (export `menu/v1` canonique + `types.ts` aligné sur le schéma + oracle ajv `editor/src/features/export/canonical.test.ts`) | ✅ fait |
-| **P1.2** | Conformité plugin (`ConditionParser` lit `of` pour `and`/`or` + oracle cross-stack « exemples éditeur compilent dans le plugin ») | ✅ fait |
-| **P2** | `command` / `dialog` / `translations` / `manifest` / `template` (même traitement) | à faire |
+| **P1.0** | `menu/v1`: canonical schema + ajv validator + CI | ✅ done |
+| **P1.1** | Editor conformance (canonical `menu/v1` export + `types.ts` aligned with the schema + ajv oracle `editor/src/schema/projectToFilesCanonical.test.ts`) | ✅ done |
+| **P1.2** | Plugin conformance (`ConditionParser` reads `of` for `and`/`or` + cross-stack oracle "editor examples compile in the plugin") | ✅ done |
+| **P2** | `command` / `dialog` / `translations` / `manifest` / `template` (same treatment) | to do |

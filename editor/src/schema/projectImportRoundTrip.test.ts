@@ -4,16 +4,16 @@
 // the seeded content. Fixtures are the ACTUAL Boutique add-on bootstrap files
 // (Boutique/src/main/resources/bootstrap/), inlined verbatim.
 import type { Project, ProjectId } from "@/domain/types";
-import { transform } from "@/features/export/transform";
 import { flattenLangTree } from "@/lib/langTree";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { projectFromFiles } from "./projectFromFiles";
+import { projectToFiles } from "./projectToFiles";
 
 const PROJECT_ID = "boutique_shop";
 const base = `plugins/Artisan/projects/${PROJECT_ID}`;
 
-const MANIFEST = `schema: manifest/v1
+const MANIFEST = `schema: module/v1
 project_id: boutique_shop
 default_lang: fr
 languages: [fr]
@@ -129,13 +129,13 @@ categories:
 `;
 
 const bootstrapFiles: Record<string, string> = {
-  [`${base}/manifest.yaml`]: MANIFEST,
-  [`${base}/lang/fr.yaml`]: LANG_FR,
-  [`${base}/menus/shop_main.yaml`]: MENU_SHOP_MAIN,
-  [`${base}/menus/shop_category.yaml`]: MENU_SHOP_CATEGORY,
-  [`${base}/commands/boutique.yaml`]: COMMAND_BOUTIQUE,
-  [`${base}/dialogs/confirm_purchase.yaml`]: DIALOG_CONFIRM,
-  [`${base}/boutique/shop.yaml`]: SHOP_YAML,
+  [`${base}/artisan-module.yml`]: MANIFEST,
+  [`${base}/lang/fr.yml`]: LANG_FR,
+  [`${base}/menus/shop_main.yml`]: MENU_SHOP_MAIN,
+  [`${base}/menus/shop_category.yml`]: MENU_SHOP_CATEGORY,
+  [`${base}/commands/boutique.yml`]: COMMAND_BOUTIQUE,
+  [`${base}/dialogs/confirm_purchase.yml`]: DIALOG_CONFIRM,
+  [`${base}/boutique/shop.yml`]: SHOP_YAML,
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: parsed YAML assertions
@@ -147,10 +147,10 @@ function roundTrip(): {
   rawOut: Record<string, string>;
 } {
   const project = projectFromFiles(PROJECT_ID as ProjectId, bootstrapFiles);
-  const rawOut = transform(project);
+  const rawOut = projectToFiles(project);
   const out: Record<string, Json> = {};
   for (const [path, content] of Object.entries(rawOut)) {
-    if (!path.endsWith(".yaml")) continue;
+    if (!path.endsWith(".yml")) continue;
     const rel = path.slice(base.length + 1);
     // lang files are emitted as YAML trees — flatten them back to dotted keys
     // so the assertions below read domain addresses, not file shape (the shape
@@ -160,20 +160,20 @@ function roundTrip(): {
   return { project, out, rawOut };
 }
 
-describe("projectImport round-trip (Boutique bootstrap → import → transform)", () => {
+describe("projectImport round-trip (Boutique bootstrap → import → projectToFiles)", () => {
   it("moves structural title text into the document (field-local)", () => {
     const { out } = roundTrip();
     // A single plain layer whose value is a bare string re-exports as that string.
-    expect(out["menus/shop_main.yaml"]!.title).toBe("Boutique");
-    expect(out["menus/shop_category.yaml"]!.title).toBe("Boutique — {category_name}");
+    expect(out["menus/shop_main.yml"]!.title).toBe("Boutique");
+    expect(out["menus/shop_category.yml"]!.title).toBe("Boutique — {category_name}");
   });
 
   it("preserves every input (name/type/source ref + filter) under the canonical `inputs` key", () => {
     const { out } = roundTrip();
-    expect(out["menus/shop_main.yaml"]!.inputs).toEqual([
+    expect(out["menus/shop_main.yml"]!.inputs).toEqual([
       { name: "cats", type: "list", source: { ref: "boutique:categories" } },
     ]);
-    expect(out["menus/shop_category.yaml"]!.inputs).toEqual([
+    expect(out["menus/shop_category.yml"]!.inputs).toEqual([
       { name: "category", type: "string" },
       { name: "category_name", type: "string", default: "" },
       {
@@ -189,7 +189,7 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
 
     // Steps re-export structured (ADR structured-action-wire). Targets + context
     // survive the structured→domain→structured round-trip.
-    const mainGrid = out["menus/shop_main.yaml"]!.elements[0];
+    const mainGrid = out["menus/shop_main.yml"]!.elements[0];
     expect(mainGrid.iterates).toEqual({ source: "cats", alias: "cat" });
     expect(mainGrid.click.left).toEqual([
       {
@@ -200,7 +200,7 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
       },
     ]);
 
-    const catLayers = out["menus/shop_category.yaml"]!.elements;
+    const catLayers = out["menus/shop_category.yml"]!.elements;
     expect(catLayers[0].click.left).toEqual([
       {
         open_dialog: {
@@ -215,16 +215,16 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
     ]);
     expect(catLayers[1].click.left).toEqual([{ open_menu: "shop_main" }]);
 
-    expect(out["commands/boutique.yaml"]!.actions).toEqual([{ open_menu: "shop_main" }]);
+    expect(out["commands/boutique.yml"]!.actions).toEqual([{ open_menu: "shop_main" }]);
 
-    const buttons = out["dialogs/confirm_purchase.yaml"]!.buttons;
+    const buttons = out["dialogs/confirm_purchase.yml"]!.buttons;
     expect(buttons[0].actions).toEqual([{ run_command: "boutique:buy {item_id}" }]);
     expect(buttons[1].actions).toEqual([{ open_menu: "shop_category" }]);
   });
 
-  it("keeps only siteless presentation keys in lang/fr.yaml", () => {
+  it("keeps only siteless presentation keys in lang/fr.yml", () => {
     const { out } = roundTrip();
-    const fr = out["lang/fr.yaml"] ?? {};
+    const fr = out["lang/fr.yml"] ?? {};
     // Structural bootstrap keys moved field-local into the documents.
     expect(fr["boutique.shop_main.title"]).toBeUndefined();
     expect(fr["boutique.shop_category.title"]).toBeUndefined();
@@ -233,9 +233,9 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
     expect(Object.keys(fr).every((k) => k.startsWith("artisan."))).toBe(true);
   });
 
-  it("keeps lang/fr.yaml a nested tree, not one dotted key per line", () => {
+  it("keeps lang/fr.yml a nested tree, not one dotted key per line", () => {
     const { rawOut } = roundTrip();
-    const raw = rawOut[`${base}/lang/fr.yaml`]!;
+    const raw = rawOut[`${base}/lang/fr.yml`]!;
     expect(raw).toMatch(/^artisan:$/m);
     expect(raw).not.toMatch(/^boutique\./m);
     expect((parse(raw) as Json).artisan.duration.days).toBe("{n}d");
@@ -244,12 +244,12 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
   it("keeps literal appearance text field-local in the document", () => {
     const { out } = roundTrip();
     // A literal element title is inlined as-is (placeholders intact), not keyed.
-    expect(out["menus/shop_main.yaml"]!.elements[0].title).toBe("{cat.name}");
+    expect(out["menus/shop_main.yml"]!.elements[0].title).toBe("{cat.name}");
   });
 
-  it("re-emits unclaimed module files (boutique/shop.yaml) verbatim", () => {
+  it("re-emits unclaimed module files (boutique/shop.yml) verbatim", () => {
     const { rawOut } = roundTrip();
-    expect(rawOut[`${base}/boutique/shop.yaml`]).toBe(SHOP_YAML);
+    expect(rawOut[`${base}/boutique/shop.yml`]).toBe(SHOP_YAML);
   });
 });
 
@@ -257,12 +257,14 @@ describe("manifest lore_max_width", () => {
   it("round-trips, and stays absent when unset", () => {
     const withWidth = {
       ...bootstrapFiles,
-      [`${base}/manifest.yaml`]: `${MANIFEST}\nlore_max_width: 240\n`,
+      [`${base}/artisan-module.yml`]: `${MANIFEST}\nlore_max_width: 240\n`,
     };
     const project = projectFromFiles(PROJECT_ID as ProjectId, withWidth);
     expect(project.loreMaxWidth).toBe(240);
-    expect(parse(transform(project)[`${base}/manifest.yaml`]!).lore_max_width).toBe(240);
-    expect(parse(roundTrip().rawOut[`${base}/manifest.yaml`]!)).not.toHaveProperty("lore_max_width");
+    expect(parse(projectToFiles(project)[`${base}/artisan-module.yml`]!).lore_max_width).toBe(240);
+    expect(parse(roundTrip().rawOut[`${base}/artisan-module.yml`]!)).not.toHaveProperty(
+      "lore_max_width",
+    );
   });
 });
 
@@ -270,13 +272,17 @@ describe("manifest escape_goes_back", () => {
   it("round-trips, and stays absent when unset", () => {
     const withBack = {
       ...bootstrapFiles,
-      [`${base}/manifest.yaml`]: `${MANIFEST}
+      [`${base}/artisan-module.yml`]: `${MANIFEST}
 escape_goes_back: true
 `,
     };
     const project = projectFromFiles(PROJECT_ID as ProjectId, withBack);
     expect(project.escapeGoesBack).toBe(true);
-    expect(parse(transform(project)[`${base}/manifest.yaml`]!).escape_goes_back).toBe(true);
-    expect(parse(roundTrip().rawOut[`${base}/manifest.yaml`]!)).not.toHaveProperty("escape_goes_back");
+    expect(parse(projectToFiles(project)[`${base}/artisan-module.yml`]!).escape_goes_back).toBe(
+      true,
+    );
+    expect(parse(roundTrip().rawOut[`${base}/artisan-module.yml`]!)).not.toHaveProperty(
+      "escape_goes_back",
+    );
   });
 });

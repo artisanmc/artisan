@@ -1,0 +1,7 @@
+# Groups of the docs sidebar on artisanmc.net, in order (one folder each).
+- { label: Getting started, directory: getting-started }
+- { label: Configuration, directory: configuration }
+- { label: Network, directory: network }
+- { label: Editor, directory: editor }
+- { label: Developers, directory: developers }
+- { label: Contributing, directory: contributing }

@@ -1,21 +1,14 @@
 import * as persisted from "@/features/project/persistedDrafts";
 import { useAuthStore } from "@/state/authStore";
-import { useDemoStore } from "@/state/demoStore";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { uploadAsset, uploadFontAsset } from "./userAssets";
-vi.mock("@/state/accountStore", () => ({
-  useAccountStore: { getState: () => ({ setAccount: vi.fn() }) },
+vi.mock("@/state/projectsStore", () => ({
+  useProjectsStore: { getState: () => ({ setOpenProjects: vi.fn() }) },
 }));
 let readers: Array<{ result: string; onload?: () => void }>;
 beforeEach(() => {
   readers = [];
-  useAuthStore.setState({ currentUser: null });
-  useDemoStore.getState().setSession({
-    principal: { kind: "guest", id: "guest" },
-    projectId: "demo",
-    csrfToken: "csrf",
-    expiresAt: "2099-01-01",
-  });
+  useAuthStore.setState({ currentUser: { id: "owner" } } as never);
   vi.stubGlobal(
     "FileReader",
     class {
@@ -30,7 +23,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  useDemoStore.getState().setSession(null);
+  useAuthStore.setState({ currentUser: null });
 });
 test.each(["png", "font"])(
   "claim write barrier waits for deferred %s serialization and its upload ACK",
@@ -45,10 +38,10 @@ test.each(["png", "font"])(
     const file = new File(["x"], type === "png" ? "image.png" : "font.ttf");
     const uploading =
       type === "png"
-        ? uploadAsset("demo", { file, type: "glyph", name: "image" })
-        : uploadFontAsset("demo", { file, name: "font" });
+        ? uploadAsset("shop", { file, type: "glyph", name: "image" })
+        : uploadFontAsset("shop", { file, name: "font" });
     let confirmed = false;
-    const barrier = persisted.waitForDraftWrites("demo").then(() => {
+    const barrier = persisted.waitForDraftWrites("shop").then(() => {
       confirmed = true;
     });
     await vi.waitFor(() => expect(readers).toHaveLength(1));
@@ -65,14 +58,14 @@ test.each(["png", "font"])(
 );
 test("a changed principal during file preparation cannot upload to the next identity", async () => {
   const mutation = vi.spyOn(persisted, "mutateDraftAssets");
-  const uploading = uploadAsset("demo", {
+  const uploading = uploadAsset("shop", {
     file: new File(["x"], "image.png"),
     type: "glyph",
     name: "image",
   });
   const rejection = expect(uploading).rejects.toThrow("session_changed");
   await vi.waitFor(() => expect(readers).toHaveLength(1));
-  useDemoStore.getState().setSession(null);
+  useAuthStore.setState({ currentUser: { id: "someone-else" } } as never);
   readers[0]!.onload!();
   await rejection;
   expect(mutation).not.toHaveBeenCalled();

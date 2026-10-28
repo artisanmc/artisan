@@ -1,43 +1,43 @@
 import type { ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect, useMemo } from "react";
 import { type SelectionContext, selectionContext } from "./selectionContext";
 
 export interface Inspector {
-  /** Le panneau doit-il exister ? */
+  /** Should the panel exist? */
   open: boolean;
   ctx: SelectionContext;
 }
 
 /**
- * La règle d'ouverture du panneau d'édition, écrite UNE fois. Le panneau est
- * monté à deux endroits (la planche et la vue focus) ; la dupliquer là-bas,
- * c'est se garantir qu'ils divergeront.
+ * The edit panel's opening rule, written ONCE. The panel is mounted in two
+ * places (the board and the focus view); duplicating it there guarantees
+ * they will diverge.
  *
- * Règle : présent ssi quelque chose est sélectionné — ou si l'utilisateur a
- * explicitement demandé les paramètres du project, qui ne correspondent à
- * aucune sélection.
+ * Rule: present iff something is selected — or the user explicitly asked for
+ * the project settings, which match no selection.
  */
 export function useInspector(projectId: ProjectId): Inspector {
   const ids = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const folder = useSelectionStore((s) => s.folder);
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const projectSettingsOpen = useUiStore((s) => s.projectSettingsOpen);
   const setProjectSettingsOpen = useUiStore((s) => s.setProjectSettingsOpen);
 
   const ctx = useMemo(
-    () => selectionContext(project, ids, selectionMenuId),
-    [project, ids, selectionMenuId],
+    () => selectionContext(project, ids, selectionMenuId, folder),
+    [project, ids, selectionMenuId, folder],
   );
 
-  // Sélectionner quoi que ce soit range les paramètres du project : sans ça,
-  // revenir à une sélection vide les rouvrirait alors que l'utilisateur vient
-  // justement de désélectionner pour dégager le canvas.
+  // Selecting anything puts the project settings away: otherwise going back to
+  // an empty selection would reopen them right after the user deselected to
+  // clear the canvas.
   useEffect(() => {
-    if (ids.size > 0 && projectSettingsOpen) setProjectSettingsOpen(false);
-  }, [ids.size, projectSettingsOpen, setProjectSettingsOpen]);
+    if ((ids.size > 0 || folder !== null) && projectSettingsOpen) setProjectSettingsOpen(false);
+  }, [ids.size, folder, projectSettingsOpen, setProjectSettingsOpen]);
 
-  return { open: ids.size > 0 || projectSettingsOpen, ctx };
+  return { open: ids.size > 0 || folder !== null || projectSettingsOpen, ctx };
 }

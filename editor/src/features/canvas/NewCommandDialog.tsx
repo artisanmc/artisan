@@ -1,16 +1,13 @@
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { docKey } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useUniqueDocumentId } from "./newDocumentId";
 
 interface NewCommandDialogProps {
   projectId: ProjectId;
@@ -20,43 +17,37 @@ interface NewCommandDialogProps {
 }
 
 function slugify(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
 }
 
-function deriveUniqueId(name: string, existingIds: Set<string>): string {
-  const base = "cmd_" + (slugify(name) || "cmd");
-  if (!existingIds.has(base)) return base;
-  let n = 1;
-  while (existingIds.has(`${base}_${n}`)) n++;
-  return `${base}_${n}`;
-}
-
-export function NewCommandDialog({ projectId, open, position, onOpenChange }: NewCommandDialogProps) {
+export function NewCommandDialog({
+  projectId,
+  open,
+  position,
+  onOpenChange,
+}: NewCommandDialogProps) {
   const [name, setName] = useState("");
   const { t } = useTranslation();
 
-  const existingIdsStr = useAccountStore((s) => {
-    const project = s.account.projects.find((p) => p.id === projectId);
-    if (!project) return "";
-    return [
-      ...project.commands.map((c) => c.id),
-      ...project.menus.map((m) => m.id),
-      ...project.dialogs.map((d) => d.id),
-    ].join(",");
-  });
-  const existingIds = new Set(existingIdsStr ? existingIdsStr.split(",") : []);
-
-  const derivedId = name.trim() ? deriveUniqueId(name, existingIds) : "";
+  // Free across every kind of the project, module kinds included.
+  const derivedId = useUniqueDocumentId(
+    projectId,
+    name.trim() ? `cmd_${slugify(name) || "cmd"}` : "",
+  );
 
   const submit = () => {
     if (!name.trim()) return;
-    const id = useAccountStore.getState().createCommand({
+    const id = useProjectsStore.getState().createCommand({
       projectId,
       id: derivedId,
       name: name.trim(),
       position,
     });
-    useSelectionStore.getState().set([id]);
+    useSelectionStore.getState().set([docKey("command", id)]);
     setName("");
     onOpenChange(false);
   };
@@ -73,18 +64,25 @@ export function NewCommandDialog({ projectId, open, position, onOpenChange }: Ne
               placeholder="shop"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+              }}
               autoFocus
             />
             {derivedId && (
               <span className="font-mono text-xs text-[var(--text-mut)]">
-                {t("canvas.idPreviewLabel")} <span className="text-[var(--text-mut)]">{derivedId}</span>
+                {t("canvas.idPreviewLabel")}{" "}
+                <span className="text-[var(--text-mut)]">{derivedId}</span>
               </span>
             )}
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>{t("canvas.cancel")}</Button>
-            <Button onClick={submit} disabled={!name.trim()}>{t("canvas.create")}</Button>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              {t("canvas.cancel")}
+            </Button>
+            <Button onClick={submit} disabled={!name.trim()}>
+              {t("canvas.create")}
+            </Button>
           </div>
         </div>
       </DialogContent>

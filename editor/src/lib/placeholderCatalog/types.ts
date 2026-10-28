@@ -1,4 +1,11 @@
-import type { ClickType, CommandId, DialogId, ElementId, MenuId } from "@/domain/types";
+import type {
+  ClickType,
+  CommandId,
+  CommandNodePath,
+  DialogId,
+  ElementId,
+  MenuId,
+} from "@/domain/types";
 
 /**
  * Locates a text field within the project so the catalog knows which
@@ -9,9 +16,11 @@ export type FieldLocation =
   | { kind: "menu"; menuId: MenuId }
   | { kind: "element"; menuId: MenuId; elementId: ElementId }
   | { kind: "action"; menuId: MenuId; elementId: ElementId; clickType: ClickType }
-  | { kind: "command"; commandId: CommandId }
+  | { kind: "command"; commandId: CommandId; sub?: CommandNodePath }
   | { kind: "dialog"; dialogId: DialogId }
-  | { kind: "dialog-action"; dialogId: DialogId; buttonId: string };
+  | { kind: "dialog-action"; dialogId: DialogId; buttonId: string }
+  /** A Trigger's chain: the builtin `{player}` and the `{event.…}` values its event binds. */
+  | { kind: "event"; values: PlaceholderEntry[] };
 
 export type PlaceholderType =
   | "player"

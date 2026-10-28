@@ -1,5 +1,5 @@
 import type { ProjectDraft } from "@/features/project/draft";
-import { projectFetch } from "@/lib/projectFetch";
+import { ApiError, apiRequest, errorOf } from "./client";
 import type { ProjectFileConflict } from "./projectFiles";
 
 export interface PersistedDraft {
@@ -12,50 +12,60 @@ export interface PersistedDraft {
   snapshot: ProjectDraft;
   source: string;
   updatedAt: string;
-  /** Fichiers modifiés des deux côtés depuis la base, calculés par le backend à l'ouverture. */
+  /** Files changed on both sides since the base, computed by the hub on open. */
   conflicts?: ProjectFileConflict[];
 }
-export class DraftApiError extends Error {
+/**
+ * The `ApiError` of a draft route: the hub's code and status, plus what its
+ * body says about the draft (the server's copy on a conflict, the files that
+ * changed on both sides, the folder's real content).
+ */
+export class DraftApiError extends ApiError {
   constructor(
-    public code: string,
-    public status: number,
-    public draft?: PersistedDraft,
-    public conflicts: ProjectFileConflict[] = [],
-    public diskFiles: string[] = [],
-    public detail?: string,
+    code: string,
+    status: number,
+    readonly draft?: PersistedDraft,
+    readonly conflicts: ProjectFileConflict[] = [],
+    readonly diskFiles: string[] = [],
+    detail?: string,
   ) {
-    super(code);
+    super(code, status, null, detail);
+    this.name = "DraftApiError";
+  }
+
+  /** Any failure of a draft call as a `DraftApiError`. */
+  static override from(error: unknown): DraftApiError {
+    if (error instanceof DraftApiError) return error;
+    const failure = ApiError.from(error);
+    const body = failure.body as {
+      draft?: PersistedDraft;
+      conflicts?: ProjectFileConflict[];
+      disk_files?: string[];
+    } | null;
+    return new DraftApiError(
+      failure.hasCode ? failure.code : "draft_error",
+      failure.status,
+      body?.draft,
+      body?.conflicts ?? [],
+      body?.disk_files ?? [],
+      failure.detail,
+    );
   }
 }
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const base = (projectId: string) => `/api/v1/user/projects/${encodeURIComponent(projectId)}/drafts`;
 async function call(projectId: string, suffix = "", method = "GET", body?: unknown) {
-  // The plugin channel waits up to 30s; allow its response to reach the browser.
-  const signal = AbortSignal.timeout(45_000);
-  const response = await projectFetch(
-    projectId,
-    `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}/drafts${suffix}`,
-    {
+  try {
+    // The plugin channel waits up to 30s; allow its response to reach the browser.
+    const response = await apiRequest(`${base(projectId)}${suffix}`, {
       method,
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      signal,
-    },
-  ).catch((error: unknown) => {
-    if (signal.aborted) throw new DraftApiError("fetch_timeout", 504);
-    throw error;
-  });
-  const data = await response.json();
-  if (!response.ok)
-    throw new DraftApiError(
-      data.error ?? "draft_error",
-      response.status,
-      data.draft,
-      data.conflicts,
-      data.disk_files,
-      typeof data.message === "string" ? data.message : undefined,
-    );
-  return data;
+      json: body,
+      timeoutMs: 45_000,
+    });
+    if (!response.ok) throw await errorOf(response);
+    return await response.json();
+  } catch (error) {
+    throw DraftApiError.from(error);
+  }
 }
 export async function listDrafts(projectId: string): Promise<PersistedDraft[]> {
   return (await call(projectId)).drafts;
@@ -80,7 +90,8 @@ export async function updateDraft(
   snapshot: ProjectDraft,
   operationId: string,
 ): Promise<PersistedDraft> {
-  return (
+  // The hub keeps the snapshot as sent and answers without it: it is the one we have.
+  const draft: PersistedDraft = (
     await call(projectId, `/${encodeURIComponent(id)}`, "PUT", {
       revision,
       name,
@@ -88,6 +99,7 @@ export async function updateDraft(
       operationId,
     })
   ).draft;
+  return draft.snapshot ? draft : { ...draft, snapshot };
 }
 export async function discardDraft(
   projectId: string,
@@ -124,13 +136,17 @@ export async function uploadDraftBlob(
   ).draft;
 }
 
-/** Les octets d'une image modifiée dans ce brouillon (privée, jamais publiée). */
-export async function readDraftBlob(projectId: string, id: string, hash: string): Promise<Uint8Array> {
-  const response = await projectFetch(
-    projectId,
-    `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}/drafts/${encodeURIComponent(id)}/blobs/${hash}`,
-    { credentials: "include" },
-  );
+/** The bytes of an image changed in this draft (private, never published). */
+export async function readDraftBlob(
+  projectId: string,
+  id: string,
+  hash: string,
+): Promise<Uint8Array> {
+  const response = await apiRequest(
+    `${base(projectId)}/${encodeURIComponent(id)}/blobs/${hash}`,
+  ).catch((error: unknown) => {
+    throw DraftApiError.from(error);
+  });
   if (!response.ok) throw new DraftApiError("blob_unavailable", response.status);
   return new Uint8Array(await response.arrayBuffer());
 }

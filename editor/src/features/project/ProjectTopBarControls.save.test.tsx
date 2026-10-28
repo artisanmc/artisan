@@ -1,0 +1,421 @@
+import type { I18nKey, Project, ProjectId } from "@/domain/types";
+import { syncPersistedDraft, usePersistedDraftStore } from "@/features/project/persistedDrafts";
+import { saveProjectToDisk } from "@/features/project/saveProjectToDisk";
+import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
+import { useAuthStore } from "@/state/authStore";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
+import { useUiStore } from "@/state/uiStore";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ProjectTopBarControls } from "./ProjectTopBarControls";
+
+vi.mock("@/features/project/saveProjectToDisk", async () => {
+  const actual = await vi.importActual<typeof import("@/features/project/saveProjectToDisk")>(
+    "@/features/project/saveProjectToDisk",
+  );
+  return { ...actual, saveProjectToDisk: vi.fn(async () => ({ ok: true, wrote: 1 })) };
+});
+
+vi.mock("@/features/project/persistedDrafts", async () => {
+  const actual = await vi.importActual<typeof import("@/features/project/persistedDrafts")>(
+    "@/features/project/persistedDrafts",
+  );
+  return { ...actual, syncPersistedDraft: vi.fn(async () => {}) };
+});
+
+const DEPLOY = /^(Deploy|Déployer)/;
+async function deployAndConfirm() {
+  fireEvent.click(screen.getByRole("button", { name: DEPLOY }));
+  const review = await screen.findByRole("dialog");
+  fireEvent.click(
+    within(review).getByRole("button", { name: /Deploy to the server|Déployer sur le serveur/ }),
+  );
+}
+
+vi.mock("@tanstack/react-router", async () => {
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  return {
+    ...actual,
+    useNavigate: () => () => {},
+    useParams: () => ({}),
+    useSearch: () => ({ tab: "overview" }),
+    Link: ({ children, to, params: _params, ...props }: any) => (
+      <a href={to} {...props}>
+        {children}
+      </a>
+    ),
+  };
+});
+
+function baseProject(name: string): Project {
+  return {
+    id: "p1" as ProjectId,
+    diskId: "p1",
+    name,
+    source: "user_created",
+    createdAt: "2026-09-14T00:00:00.000Z",
+    updatedAt: "2026-09-14T00:00:00.000Z",
+    defaultLang: "en",
+    i18nKeys: {},
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
+    assets: [],
+    dataSources: [],
+    canvasLayout: {},
+    serverKeyId: "sk1",
+  };
+}
+
+/**
+ * Regression: the Save button serialised the `project` prop, which comes from
+ * a `useState` frozen at load (`useProjectLoader`). All edits live in
+ * `useProjectsStore`, so saving wrote the Project as it was when OPENED and
+ * silently lost the whole session's work.
+ */
+describe("ProjectTopBarControls — Enregistrer", () => {
+  it("explains how to recover a conflicting backend draft", async () => {
+    const p = baseProject("Boutique");
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
+    } as never);
+    useProjectDraftStore.getState().save("p1", {
+      baseline: {},
+      initialTree: {},
+      tree: { "artisan-module.yml": "changed" },
+      at: 0,
+    });
+    vi.mocked(saveProjectToDisk).mockResolvedValueOnce({
+      ok: false,
+      error: "write_error",
+      code: "draft_conflict",
+      status: 409,
+    });
+    render(<ProjectTopBarControls project={p} projectId={p.id} />);
+    await deployAndConfirm();
+    expect(await screen.findByRole("dialog")).toHaveTextContent(/Créer une copie|Create a copy/);
+  });
+  it("shows, copies and reopens the last save failure", async () => {
+    const user = userEvent.setup();
+    const p = baseProject("edited");
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
+    } as never);
+    useProjectDraftStore.getState().save("p1", {
+      baseline: {},
+      initialTree: {},
+      tree: { "artisan-module.yml": "changed" },
+      at: 0,
+    });
+    vi.mocked(saveProjectToDisk).mockResolvedValueOnce({
+      ok: false,
+      error: "write_error",
+      status: 422,
+      message: "AccessDeniedException: menus/shop.yml",
+    });
+    render(<ProjectTopBarControls project={p} projectId={p.id} />);
+    await deployAndConfirm();
+    expect(await screen.findByRole("dialog")).toHaveTextContent(
+      "AccessDeniedException: menus/shop.yml",
+    );
+    await user.click(screen.getByRole("button", { name: /Copy details|Copier les détails/ }));
+    expect(await navigator.clipboard.readText()).toContain("AccessDeniedException: menus/shop.yml");
+    expect(await navigator.clipboard.readText()).toContain("HTTP 422");
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: /Save options|Options d’enregistrement/ }));
+    await user.click(screen.getByRole("menuitem", { name: /Last save error|Dernière erreur/ }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent(
+      "AccessDeniedException: menus/shop.yml",
+    );
+    await user.keyboard("{Escape}");
+    await deployAndConfirm();
+    await waitFor(() => expect(saveProjectToDisk).toHaveBeenCalledTimes(2));
+    await user.click(screen.getByRole("button", { name: /Save options|Options d’enregistrement/ }));
+    expect(
+      screen.queryByRole("menuitem", { name: /Last save error|Dernière erreur/ }),
+    ).not.toBeInTheDocument();
+  });
+  beforeEach(() => {
+    vi.mocked(saveProjectToDisk).mockReset();
+    vi.mocked(saveProjectToDisk).mockResolvedValue({ ok: true, wrote: 1 });
+    vi.mocked(syncPersistedDraft).mockClear();
+    useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
+  });
+
+  it("saves the LIVE store state, not the prop frozen at load time", async () => {
+    const stale = baseProject("état au chargement");
+    const live = baseProject("état après édition");
+    useProjectsStore.setState({
+      openProjects: { projects: [live], projectOrder: [live.id] },
+    } as never);
+    // Save is only enabled when there is work in progress: the draft says so,
+    // so a dirty draft is needed to be able to click.
+    useProjectDraftStore.getState().save("p1", {
+      baseline: { "menus/m.yml": "a\n" },
+      tree: { "menus/m.yml": "b\n" },
+      initialTree: { "menus/m.yml": "a\n" },
+      at: 0,
+    });
+
+    render(<ProjectTopBarControls project={stale} projectId={"p1" as ProjectId} />);
+    await deployAndConfirm();
+
+    await waitFor(() => expect(saveProjectToDisk).toHaveBeenCalled());
+    const savedProject = vi.mocked(saveProjectToDisk).mock.calls[0]![0];
+    expect(savedProject.name).toBe("état après édition");
+  });
+
+  /**
+   * The button alone carries "do you have work in progress?": enabled when
+   * there is something to write, disabled otherwise — a button that does
+   * nothing already says there is nothing to do.
+   */
+  it("is inactive when nothing has changed since load", () => {
+    const p = baseProject("intact");
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
+    } as never);
+    const tree = { "menus/m.yml": "a\n" };
+    useProjectDraftStore.getState().save("p1", {
+      baseline: tree,
+      tree,
+      initialTree: { ...tree },
+      at: 0,
+    });
+
+    render(<ProjectTopBarControls project={p} projectId={"p1" as ProjectId} />);
+    expect(screen.getByRole("button", { name: DEPLOY })).toBeDisabled();
+  });
+
+  it("waits for an offline server: Deploy explains why, opens no review and writes nothing", async () => {
+    const p = baseProject("hors ligne");
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
+    } as never);
+    useProjectDraftStore.getState().save("p1", {
+      baseline: { "menus/m.yml": "a\n" },
+      tree: { "menus/m.yml": "b\n" },
+      initialTree: { "menus/m.yml": "a\n" },
+      at: 0,
+    });
+    vi.mocked(saveProjectToDisk).mockClear();
+
+    render(<ProjectTopBarControls project={p} projectId={"p1" as ProjectId} offline />);
+    const deploy = screen.getByRole("button", { name: DEPLOY });
+    expect(deploy).toHaveAttribute("aria-disabled");
+    fireEvent.click(deploy);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(saveProjectToDisk).not.toHaveBeenCalled();
+  });
+
+  it("shows the changes before deploying and writes nothing when cancelled", async () => {
+    const p = baseProject("revue");
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
+    } as never);
+    useProjectDraftStore.getState().save("p1", {
+      baseline: {},
+      initialTree: {},
+      tree: { "artisan-module.yml": "changed" },
+      at: 0,
+    });
+    render(<ProjectTopBarControls project={p} projectId={p.id} />);
+    fireEvent.click(screen.getByRole("button", { name: DEPLOY }));
+    const review = await screen.findByRole("dialog");
+    expect(within(review).getByRole("button", { name: /artisan-module\.yml/ })).toBeInTheDocument();
+    expect(within(review).getAllByText(/New|Nouveau/).length).toBeGreaterThan(0);
+    fireEvent.click(within(review).getByRole("button", { name: /^(Cancel|Annuler)$/ }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(saveProjectToDisk).not.toHaveBeenCalled();
+  });
+
+  describe("cross-project controls in the review", () => {
+    const command = (id: string, name: string) => ({
+      id,
+      projectId: "x",
+      name,
+      arguments: [],
+      steps: [],
+    });
+    function openReviewWith(index: {
+      scope: string;
+      status: "loading" | "ready";
+      projects: Project[];
+      failed: string[];
+    }) {
+      const p = {
+        ...baseProject("revue"),
+        documents: { ...baseProject("revue").documents, command: [command("c1", "craft")] },
+      } as unknown as Project;
+      useProjectsStore.setState({
+        openProjects: { projects: [p], projectOrder: [p.id] },
+      } as never);
+      useProjectDraftStore.getState().save("p1", {
+        baseline: {},
+        initialTree: {},
+        tree: { "artisan-module.yml": "changed" },
+        at: 0,
+      });
+      useServerIndexStore.setState(index);
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
+      fireEvent.click(screen.getByRole("button", { name: DEPLOY }));
+    }
+
+    it("warns about a command another project already claims, without blocking the deploy", async () => {
+      const shop = {
+        ...baseProject("Boutique"),
+        id: "shop" as ProjectId,
+        diskId: "shop",
+        documents: {
+          command: [command("c2", "craft")],
+        },
+      } as unknown as Project;
+      openReviewWith({ scope: "n1/s1", status: "ready", projects: [shop], failed: [] });
+      const review = await screen.findByRole("dialog");
+      expect(review).toHaveTextContent(/\/craft .* p1:c1, shop:c2/);
+      expect(
+        within(review).getByRole("button", {
+          name: /Deploy to the server|Déployer sur le serveur/,
+        }),
+      ).toBeEnabled();
+    });
+
+    it("does not pretend the checks passed while the other projects are loading", async () => {
+      openReviewWith({ scope: "n1/s1", status: "loading", projects: [], failed: [] });
+      const review = await screen.findByRole("dialog");
+      expect(review).toHaveTextContent(/pas encore faits|not done yet/);
+      expect(review).not.toHaveTextContent(/Aucun conflit|No conflict/);
+    });
+  });
+
+  it("saves the draft to the suite database without deploying it", async () => {
+    const p = baseProject("brouillon");
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
+    } as never);
+    usePersistedDraftStore.setState({
+      sessions: { p1: { ownerId: "u1", drafts: [], status: "pending" } },
+    });
+    try {
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
+      fireEvent.click(screen.getByRole("button", { name: /^(Save|Enregistrer)$/ }));
+      await waitFor(() => expect(syncPersistedDraft).toHaveBeenCalledWith("p1", true));
+      expect(saveProjectToDisk).not.toHaveBeenCalled();
+    } finally {
+      usePersistedDraftStore.setState({ sessions: {} });
+    }
+  });
+
+  it("shows Save as a disk icon with a tooltip, and Deploy with a play icon beside its label", () => {
+    const p = baseProject("icônes");
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
+    } as never);
+    usePersistedDraftStore.setState({
+      sessions: { p1: { ownerId: "u1", drafts: [], status: "pending" } },
+    });
+    try {
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
+      const save = screen.getByRole("button", { name: /^(Save|Enregistrer)$/ });
+      expect(save).toHaveTextContent(/^$/);
+      expect(save).not.toHaveAttribute("title");
+      expect(save.querySelector('svg[data-icon="save-filled"]')).not.toBeNull();
+      const deploy = screen.getByRole("button", { name: DEPLOY });
+      expect(deploy).toHaveTextContent(/Deploy|Déployer/);
+      expect(deploy.querySelector("svg.lucide-play")).toHaveAttribute("fill", "currentColor");
+    } finally {
+      usePersistedDraftStore.setState({ sessions: {} });
+    }
+  });
+
+  it.each([
+    ["pending", /not saved to your openProjects yet|pas encore enregistrées sur votre compte/],
+    ["saved", /Draft saved to your openProjects|Brouillon enregistré sur votre compte/],
+    ["offline", /Local copy only|Copie locale seulement/],
+    ["conflict", /another session|autre session/],
+  ] as const)("explains the %s draft state in a tooltip", async (status, text) => {
+    const p = baseProject("bulle");
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
+    } as never);
+    usePersistedDraftStore.setState({ sessions: { p1: { ownerId: "u1", drafts: [], status } } });
+    try {
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
+      fireEvent.focus(
+        screen.getByRole("button", { name: /^(Save|Saved|Enregistrer|Enregistré)$/ }),
+      );
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(text);
+    } finally {
+      usePersistedDraftStore.setState({ sessions: {} });
+    }
+  });
+
+  it("spins the save icon while the draft is being saved", () => {
+    const p = baseProject("en cours");
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
+    } as never);
+    usePersistedDraftStore.setState({
+      sessions: { p1: { ownerId: "u1", drafts: [], status: "saving" } },
+    });
+    try {
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
+      const save = screen.getByRole("button", { name: /^(Saving…|Enregistrement…)$/ });
+      expect(save).toHaveAttribute("aria-disabled", "true");
+      expect(save.querySelector(".animate-spin")).not.toBeNull();
+    } finally {
+      usePersistedDraftStore.setState({ sessions: {} });
+    }
+  });
+
+  it("marks the draft as saved once the suite database holds it", () => {
+    const p = baseProject("à jour");
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
+    } as never);
+    usePersistedDraftStore.setState({
+      sessions: { p1: { ownerId: "u1", drafts: [], status: "saved" } },
+    });
+    try {
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
+      const save = screen.getByRole("button", { name: /^(Saved|Enregistré)$/ });
+      expect(save).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(save);
+      expect(syncPersistedDraft).not.toHaveBeenCalled();
+    } finally {
+      usePersistedDraftStore.setState({ sessions: {} });
+    }
+  });
+});
+
+/**
+ * Regression: the Translations tab badge counted missing entries on the
+ * `project` prop frozen at load time, so it only moved on page reload, even
+ * once every translation was filled in.
+ */
+describe("ProjectTopBarControls — Translations badge", () => {
+  it("updates live when a translation is filled in", () => {
+    const key = "k1" as I18nKey;
+    const stale: Project = { ...baseProject("trad"), i18nKeys: { [key]: { en: "Hi", fr: "" } } };
+    useProjectsStore.setState({
+      openProjects: { projects: [stale], projectOrder: [stale.id] },
+    } as never);
+    useUiStore.setState({ activeLang: "fr" });
+
+    render(<ProjectTopBarControls project={stale} projectId={stale.id} />);
+    const tab = screen.getByTestId("open-view-translations");
+    expect(within(tab).getByText("1")).toBeInTheDocument();
+
+    act(() =>
+      useProjectsStore
+        .getState()
+        .setI18nValue({ projectId: stale.id, lt: { key }, lang: "fr", value: "Salut" }),
+    );
+    expect(within(tab).queryByText("1")).not.toBeInTheDocument();
+  });
+});

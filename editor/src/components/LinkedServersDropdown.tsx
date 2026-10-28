@@ -1,5 +1,3 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,17 +6,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
-import {
-  type NetworkServersStatus,
-  type ServerStatusEntry,
-  getNetworkServersStatus,
-  isPluginOutdated,
-  updateServerPlugin,
-} from "@/lib/api/networks";
-import { useCallback, useEffect, useState } from "react";
+import { useServersStatus } from "@/components/useServersStatus";
+import type { ServerSummary } from "@/lib/api/servers";
 import { useTranslation } from "react-i18next";
-
-const POLL_MS = 15_000;
 
 type TFn = ReturnType<typeof useTranslation>["t"];
 
@@ -39,27 +29,11 @@ export function ServerRow({
   s,
   lang,
   t,
-  onUpdatePlugin,
 }: {
-  s: ServerStatusEntry;
+  s: ServerSummary;
   lang: string;
   t: TFn;
-  onUpdatePlugin?: () => Promise<void>;
 }) {
-  const [updating, setUpdating] = useState(false);
-  const [updateError, setUpdateError] = useState<string | null>(null);
-  const update = async () => {
-    if (!onUpdatePlugin) return;
-    setUpdating(true);
-    setUpdateError(null);
-    try {
-      await onUpdatePlugin();
-    } catch (e) {
-      setUpdateError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setUpdating(false);
-    }
-  };
   return (
     <div className="flex flex-col gap-0.5 px-2.5 py-1.5">
       <div className="flex items-center gap-2">
@@ -74,48 +48,22 @@ export function ServerRow({
         <span className="truncate text-[13px] text-[var(--text)]">
           {s.label ?? s.id.slice(0, 8)}
         </span>
-        {s.isCurrent ? <Badge variant="sage">{t("linkedServers.current")}</Badge> : null}
       </div>
       <div className="pl-3.5 font-mono text-[11px] text-[var(--text-faint)]">
         {s.online ? (
           <>
             {t("linkedServers.online")}
-            {s.lastSeenIp ? ` · ${s.lastSeenIp}` : ""}
-            {s.lastMcVersion ? ` · ${s.lastMcVersion}` : ""}
+            {s.minecraftVersion ? ` · ${s.minecraftVersion}` : ""}
           </>
         ) : s.lastSeenAt ? (
-          <>
-            {t("linkedServers.lastSeen", { when: relTime(s.lastSeenAt, lang) })}
-            {s.lastSeenIp ? ` · ${s.lastSeenIp}` : ""}
-          </>
+          t("linkedServers.lastSeen", { when: relTime(s.lastSeenAt, lang) })
         ) : (
           t("linkedServers.neverConnected")
         )}
       </div>
-      {isPluginOutdated(s) ? (
+      {s.updateRequired ? (
         <div className="pl-3.5 text-[11px] text-[var(--danger)]">
-          {t("linkedServers.pluginOutdated")}
-        </div>
-      ) : null}
-      {s.pluginUpdatePending ? (
-        <div className="pl-3.5 text-[11px] text-[var(--text-mut)]">
-          {t("linkedServers.pluginUpdatePending", { version: s.pluginUpdatePending })}
-        </div>
-      ) : s.pluginUpdateVersion && onUpdatePlugin ? (
-        <div className="flex flex-col gap-1 pl-3.5 pt-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-[var(--text-mut)]">
-              {t("linkedServers.pluginUpdateAvailable", { version: s.pluginUpdateVersion })}
-            </span>
-            <Button size="sm" variant="primary" disabled={updating} onClick={update}>
-              {t(updating ? "linkedServers.pluginUpdating" : "linkedServers.pluginUpdate")}
-            </Button>
-          </div>
-          {updateError ? (
-            <span className="text-[11px] text-[var(--danger)]">
-              {t("linkedServers.pluginUpdateFailed", { error: updateError })}
-            </span>
-          ) : null}
+          {t("linkedServers.updateRequired")}
         </div>
       ) : null}
     </div>
@@ -123,52 +71,42 @@ export function ServerRow({
 }
 
 /**
- * Status dot (beside the server in the breadcrumb) + dropdown listing every server key in the current network with
- * live online/offline state, last-seen time and last IP. Polls every 15s.
- * Seule action : installer la dernière version du plugin. Replaces the single-server ServerStatusBadge.
+ * Status dot (beside the server in the breadcrumb) + dropdown showing the
+ * server holding the open project, with its live state and last-seen time.
+ * Polls every 15s.
  */
 export function LinkedServersDropdown({
-  networkId,
   currentServerKeyId,
   downHint,
+  offline = false,
 }: {
-  networkId: string | null | undefined;
   currentServerKeyId?: string;
-  /** Explication du hors-ligne du serveur courant, affichée en infobulle sur le badge. */
+  /** Why the current server is offline, shown as a tooltip on the badge. */
   downHint?: string;
+  /** The open project could not reach its server: red at once, without waiting for the next poll. */
+  offline?: boolean;
 }) {
   const { t, i18n } = useTranslation();
-  const [data, setData] = useState<NetworkServersStatus | null>(null);
+  const { data } = useServersStatus();
 
-  const refresh = useCallback(async () => {
-    if (!networkId) return;
-    try {
-      setData(await getNetworkServersStatus(networkId, currentServerKeyId));
-    } catch {
-      /* silent — keep last known state */
-    }
-  }, [networkId, currentServerKeyId]);
+  if (data === null) return null;
 
-  useEffect(() => {
-    refresh();
-    const id = setInterval(refresh, POLL_MS);
-    return () => clearInterval(id);
-  }, [refresh]);
-
-  if (!networkId || data === null) return null;
-
-  const { online, total } = data;
-  // Ce qui compte sur cette page, c'est l'état du serveur qui PORTE le project
-  // ouvert : son contenu vit sur son disque, donc il conditionne tout (ADR
-  // `server-disk-only-storage`). L'agrégat réseau ne disait rien de ça — « 2/2 »
-  // pouvait s'afficher pendant que TON serveur était le seul à manquer.
-  // Le détail des autres serveurs reste dans le menu déroulant.
-  const current = currentServerKeyId
-    ? data.servers.find((s) => s.id === currentServerKeyId)
-    : undefined;
-  const up = current ? current.online : online > 0;
+  const online = data.filter((s) => s.online).length;
+  const total = data.length;
+  // What matters here is the state of the server that HOLDS the open project:
+  // its content lives on its disk, so it conditions everything (ADR
+  // `server-disk-only-storage`). The hub aggregate could show "2/2" while
+  // YOUR server was the only one missing.
+  const current = currentServerKeyId ? data.find((s) => s.id === currentServerKeyId) : undefined;
+  const up = !offline && (current ? current.online && !current.updateRequired : online > 0);
   const label = current
-    ? t(current.online ? "linkedServers.up" : "linkedServers.down")
+    ? t(
+        current.updateRequired
+          ? "linkedServers.updateRequired"
+          : current.online
+            ? "linkedServers.up"
+            : "linkedServers.down",
+      )
     : t("linkedServers.count", { online, total });
 
   const trigger = (
@@ -195,20 +133,13 @@ export function LinkedServersDropdown({
   return (
     <DropdownMenu>
       {downHint ? <Tooltip content={downHint}>{trigger}</Tooltip> : trigger}
-      {/* Le project ouvert vit sur le disque d'UN serveur : c'est celui-là, et
-          lui seul, qui a quelque chose à dire ici. Lister tout le parc du network
-          à cet endroit répondait à une question que personne ne se pose depuis
-          cette page (ADR `server-disk-only-storage`). */}
+      {/* The open project lives on ONE server's disk: only that server has
+          something to say here (ADR `server-disk-only-storage`). */}
       <DropdownMenuContent align="end" className="min-w-[16rem]">
         <DropdownMenuLabel>{t("linkedServers.serverTitle")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {current ? (
-          <ServerRow
-            s={current}
-            lang={i18n.language}
-            t={t}
-            onUpdatePlugin={() => updateServerPlugin(networkId, current.id).then(refresh)}
-          />
+          <ServerRow s={current} lang={i18n.language} t={t} />
         ) : (
           <div className="px-2.5 py-2 text-[12px] text-[var(--text-faint)]">
             {t("linkedServers.empty")}

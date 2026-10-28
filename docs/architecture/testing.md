@@ -1,84 +1,79 @@
-# Tests — couverture par couche
+# Tests — coverage by layer
 
-Zones couvertes, pas liste de fichiers — `glob **/*.test.*` donne la liste exacte et à jour.
+Areas covered, not a file list — `glob **/*Test.kt` / `**/*.test.*` gives the exact list.
+There has been no backend suite since phase F (2026-10).
 
-| Couche | Lancer | Zones couvertes |
+| Layer | Run | Areas covered |
 |---|---|---|
-| Backend (~47 fichiers) | `cd backend && bun run test` | hub WS, bundles, server-keys, ws-ticket, auth (signup/login/Discord/session), networks + branches + commits + merge engine, custom items, resource pack (builder / font json / asset index / space offsets / storage), assets (PATCH height, duplicate), version-conflict guard, project import, miroir du Snapshot (store, validité, lecture, branchement hub). |
-| Plugin (~45 fichiers) | `cd plugin && ./gradlew test` | bundle hash/download, conflict detection, full-sync intégration (MockWebServer), action parse/exec (incl. `show_title`), title parser/compiler + offset encoder, asset catalog, resource pack manager/delegator, config, project deleter, local push, empreintes du Snapshot au `hello`. |
-| Éditeur (≥120 fichiers) | `cd editor && npm test` | expr DSL (lexer/parser/eval/template), canvas + édition de Document, export (transform/validate/zip), i18n, custom items & assets Library, title composer v3, merge/conflits, auth UI, networks/setup/account routes. |
-| E2E éditeur | `cd editor && npx playwright test` | `smoke.spec.ts` — canvas charge, sidebar visible (1 test). |
-| E2E client | `e2e/client/run.sh` (workflow `e2e-client.yml`) | Vrai client Minecraft contre un vrai Paper : menus en paquets, cf. ci-dessous. |
+| Plugin `core` | `cd plugin && ./gradlew :core:test` | Action language, expressions and templates, YAML parsers, Project reading, drafts and publish journal (`ProjectPublisherRecoveryTest`), snapshot hash, conformance vectors. |
+| Plugin `hub` | `./gradlew :hub:test` | Web server (link session, permissions, same origin, port in use), routes inherited from the backend (`EditorApiTest`), `/ws/plugin` (secret, protocol version, link requested by a leaf, offline server), vanilla catalog and textures. |
+| Plugin `runtime` | `./gradlew :artisan-runtime:test` | Action engine and conditions without the plugin (`ConditionEvaluatorTest`, `ContextBinderTest`, `TemplateScopeTest`, `ModuleConditionsTest`), items and custom items, translations (`TranslationsTest`, `LangManagerTest`), `environment.yml` and pool (`PooledDatabaseTest`), scheduler, navigation history, package DAG. MockBukkit without `ArtisanPlugin`. |
+| Plugin `paper` | `./gradlew :paper:test` | Menu rendering (MockBukkit), packet contract (`MenuSlotsContractTest`), protocol handlers (`Project*ChannelTest`, `ConfigChannelTest`, live fetch), `LocalServerLink`, `WsClient` (MockWebServer), resource pack (manager, delegation), network secret, the engine tests that load `ArtisanPlugin` (`ActionExecutorTest`, `ActionRegistryDispatchTest`, navigation). |
+| Plugin `api`, `database` | `./gradlew test` | Java-friendly surface (`ApiSurfaceIsJavaFriendlyTest`), connection pools. |
+| Editor | `cd editor && npm test` | Expr DSL, canvas + Document editing, files ↔ domain codec (`schema/`, round trip per kind), export (validate/zip), i18n, title composer, resource pack in the browser (`lib/pack/`), drafts and conflicts, routes, a Document kind contributed by a module end to end (`lib/moduleDocumentKinds.test.tsx`: a "quest" kind goes through registries, selection, panel, listings, search, texts, edges, board and store). |
+| Editor E2E | `cd editor && npm run test:e2e` | `smoke.spec.ts` — the app starts on `npm run dev`, API mocked to 401: an anonymous visitor lands on `/login`, with no page error. |
 
-E2E cross-stack (éditeur → backend → plugin de bout en bout) : **non automatisé**, test manuel via
-Docker.
+Static checks on the editor, in CI with the tests: `npm run typecheck` (`tsc -b`, tests
+included; the build only types `tsconfig.app.json`), `npx biome lint .` on the whole editor, and the
+Biome format on only the files changed by the PR (`biome format --changed`).
 
-## Backend — `bun run test`, jamais `bun test`
+Editor → hub → server E2E: **not automated**, manual test on `docker compose` (single server)
+or `docker/network/compose.yml` (hub + leaf).
 
-Le wrapper `scripts/test.ts` redirige `DATABASE_URL` vers la DB `artisan_test` (auto-create +
-migrate) avant de spawner vitest. `bun test` direct bypasse le wrapper, et les `beforeEach(clearAll)`
-des tests vident alors la DB **dev** `artisan` — incident réel le 2026-06-01, toutes les données dev
-wipées. Si tu vois `bun test src/...` dans un terminal d'agent, c'est un bug.
+## Conformance vectors
 
-Garde mécanique : `db/index.ts` throw si `NODE_ENV=test` et que le nom de la DB ne contient pas
-`test`.
+These shared vectors lock an equality between implementations (Kotlin ↔ TS). Changing
+the algorithm = updating both sides **and** regenerating the vector.
 
-Override l'URL admin via `ADMIN_DATABASE_URL` si Postgres n'est pas sur
-`postgres/postgres@localhost:5432`.
-
-## Vecteurs de conformance cross-langage
-
-Trois vecteurs partagés verrouillent une égalité entre implémentations Kotlin et TS. Changer l'algo
-= mettre à jour les deux côtés **et** régénérer le vecteur.
-
-| Vecteur | Asservi par |
+| Vector | Enforced by |
 |---|---|
-| `testdata/project-hash-conformance.json` | `BundleHashConformanceTest` (plugin) + `hashUtils.test.ts` (backend) |
-| `testdata/lang-tree-conformance.json` | `LangFlattener` (plugin) + `langTree.ts` (éditeur) |
-| `testdata/i18n-address-conformance.json` | `I18nAddresses.kt` (plugin) + sites i18n éditeur |
+| `testdata/action-wire-conformance.json` | `ActionWireConformanceTest` (plugin, `KeyedStepParser` + binding by `CoreActions`) + `lib/actions/actionWireConformance.test.ts` (editor, `structuredSteps.ts`): the keyed structured wire (ADR `structured-action-wire`). Each case gives a `wire` (accepted variant), its `canonical` form (what the editor writes) and the `names` of the head steps; both stacks must read `wire` and `canonical` as the same chain (binding by `CoreActions.bind`, numbers compared as doubles: `volume: 1` and the default `1.0` are the same value for a handler), and the editor must rewrite `canonical`: the shortest form (`domain/actionArgs.ts`, `canonicalActionValue`) — required argument always written (declared default if missing), optional argument at its default omitted, lone primary bare, `{name: null}` for a declaration with arguments where none is set, bare name with no declared argument. Module Actions go through as is (`quests:*`). |
+| `docs/schema/menu/v1/schema.json` `$defs.Action` | `CoreActionSchemaConformanceTest` (core): every published action has exactly one `ActionSchema` in `CoreActions` (names, arguments, required, types, defaults), and none more; `ActionRegistryDispatchTest` (paper): the core handlers cover this vocabulary, a module action is bound and executed by the registry (ADR `extensible-document-kinds` R1). |
+| `testdata/action-dsl-conformance.json`, `action-dsl-eval-conformance.json` | `ActionDslConformanceTest`, `LeafEvalConformanceTest` (plugin) + `lib/actionDsl/*.test.ts` (editor) — the legacy DSL, read but no longer written |
+| `testdata/template-conformance.json` | `TemplateConformanceTest` (plugin) + `lib/expr/template/conformance.test.ts` (editor) |
+| `testdata/lang-tree-conformance.json` | `LangFlattener` (plugin) + `langTree.ts` (editor) |
+| `testdata/lore-wrap-conformance.json` | `LoreWrapConformanceTest` (plugin) + `loreWrap.test.ts` (editor) |
+| `testdata/document-layout-conformance.json` | `DocumentLayoutConformanceTest` (plugin, `model/DocumentLayout.kt`) + `domain/documentLayout.test.ts` (editor): where a module's Documents live (thematic folders, id = file name, errors `duplicate_id`, `kind_dir_subfolder`, `reserved_folder`, `invalid_folder`, `too_deep`) |
+| `testdata/doc-ref-conformance.json` | `DocRefConformanceTest` (plugin) + `domain/docRef.test.ts` (editor) |
+| `testdata/element-structural-keys.json` | `ElementStructuralKeysTest` (plugin) + `schema/elementStructuralKeys.test.ts` (editor) |
+| `testdata/i18n-address-conformance.json` | `I18nAddressConformanceTest` (plugin) + `i18nAddressConformance.test.ts` (editor). The `step_addresses` cases give a legacy DSL string (`dsl`) or keyed `steps` (structured wire, module actions included) with the `declared_actions` they use: the addressing of action texts is driven by each action's schema (`assignI18nAddresses(steps, prefix, schemaOf)` on the plugin side, `walkStepTextSlots` on the editor side) — legacy slot per argument (`message`, `show_title`, `show_subtitle`), otherwise `<prefix>.<action>.<arg>` numbered by occurrence, text lists in `_2`, `_3`… |
+| `testdata/core-actions.json` | `CoreActionsVectorTest` (core): generated from `CoreActions.kt` (`declared_actions` + `i18n_slots` shape), regenerated by `ARTISAN_WRITE_VECTORS=1`. The editor **imports** this file as the core actions table (`lib/actions/coreActions.ts`): it carries no hand-written copy of it. |
+| `testdata/project-snapshot-hash-conformance.json` | `ProjectSnapshotHashConformanceTest` (plugin only: the editor does not recompute the hash) |
+| `testdata/resource-pack-conformance.json` | `lib/pack/resourcePackConformance.test.ts` (editor): zip byte for byte. The editor's pack builder now owns it — the backend script that generated it went away with the backend; an intended change to the zip updates the vector's `entries`/`sha1` in the same commit. The SHA-1 does not depend on the host's time zone: the fixed date of the zip entries is built in local time (`ZIP_MTIME`, `resourcePackBuilder.ts`), because fflate writes the DOS timestamp from the `Date`'s local fields. |
 
-## Menus en paquets — checklist manuelle
+## Packet menus — manual checklist
 
-Le contenu des menus n'existe que côté client (cf. `invariants.md`) : les tests plugin verrouillent
-le contrat (`MenuSlotsContractTest`, faux `ClientSlotSink`) mais pas le comportement du client
-Minecraft réel. Mineflayer a été écarté (réimplémente le protocole, donc indisponible à la sortie
-d'une nouvelle version de Minecraft, précisément quand le risque est là).
+Menu content exists only on the client side (see `invariants.md`): the plugin tests lock
+the contract (`MenuSlotsContractTest`, fake `ClientSlotSink`) but not the behavior of the real
+Minecraft client. No automated client bot (Mineflayer ruled out: costly, and unavailable when a
+new Minecraft version ships, precisely when the risk is there).
 
-**Automatisé** — `e2e/client/` : un mod Fabric client (`mod/`, Mojang names, sans Fabric API)
-déroule un scénario au tick et écrit `ok`/`FAIL` par contrôle dans un fichier résultat ;
-`run.sh` monte un Paper jetable (`online-mode=false`, plugin + `fixtures/projects/`, joueur
-`Offline` op via `ops.json`) puis lance le client via HeadlessMC (`-lwjgl --offline` : ni écran, ni
-compte). Pas de backend : le projet est lu sur le disque. Le workflow `e2e-client.yml` ne tourne que
-sur les fichiers ci-dessous (et à la main), avec et sans le plugin PacketEvents autonome. Couvert
-aujourd'hui : les cases marquées *Automatisé* ; les cases visuelles (textures, glyphs, pack refusé)
-demandent un rendu réel et restent manuelles.
-Nouvelle version de Minecraft : monter `MC_VERSION` du workflow et `minecraft_version` du mod.
+`MenuPacketInterceptorTest` covers the Netty handler on an `EmbeddedChannel` with a fake codec
+(placement, rewrite, silent sends, a failing rewrite); the server's classes are only met in game.
 
-**Déclencheurs** : mise à jour de Minecraft ou de PacketEvents, toute modification de
-`PacketEventsMenuPackets.kt` / `MenuWindows.kt` / `MenuSlots.kt`. Aussi dans la checklist de release
+**Triggers**: a Minecraft update, any change to `render/packets/` (`NmsMenuPackets.kt`,
+`MenuPacketInterceptor.kt`, `MenuPacketRewriter.kt`, `MenuWindows.kt`) or `MenuSlots.kt`. Also in the release checklist
 (`versioning.md` §11.1).
 
-Sur `./gradlew deploy`, avec un menu `player_inventory: hidden` qui pose de la pierre sur toutes les
-positions (haut et bas) et un menu `visible` :
+On `./gradlew deploy`, with a `player_inventory: hidden` menu that puts stone on all
+positions (top and bottom) and a `visible` menu:
 
-- [x] Pierre partout en haut et en bas (`hidden`). *Automatisé.*
-- [x] Clic, shift-clic, double-clic, touche numérique, touche F : rien ne bouge, rien n'est récupéré. *Automatisé.*
-- [x] Ramasser un objet au sol menu ouvert : le bas reste celui du menu. *Automatisé.*
-- [x] Passer d'un menu A à un menu B (bouton `open_menu`) : B s'affiche entier, sans reste de A. *Automatisé.*
-- [x] Retour : `A → B → C` puis bouton `open_previous_menu` deux fois ramène à A (jamais de va-et-vient C↔B) ; sans historique, le placeholder `{has_previous_menu}` est faux et le retour ne fait rien. *Automatisé.*
-- [x] Fermeture : le vrai inventaire revient intact. *Automatisé (menu `hidden`).*
-- [x] `/data get entity @s Inventory` menu ouvert = le vrai inventaire (rien côté serveur). *Automatisé.*
-- [x] `visible` : le vrai inventaire s'affiche et n'est pas modifiable. *Automatisé.*
-- [ ] `vanilla_texture: false` : fenêtre transparente (haut et bas), la glyph du menu s'affiche, les
-  items restent au-dessus de la glyph.
-- [ ] Même serveur : un vrai coffre, un tonneau, un ender chest et un double coffre gardent leur
-  texture vanilla (réinjectée), titre à sa place ; idem juste après `/artisan reload`.
-- [x] Joueur qui refuse le pack : coffres vanilla normaux, aucun caractère manquant dans les titres.
-  *Automatisé (vrai coffre, avant et après `/artisan reload`) : le serveur croit les coffres
-  transparents (`fixtures/cache/`), le client refuse le pack.*
-- [ ] Menus entonnoir et dropper en `vanilla_texture: false` : fenêtres transparentes ; un vrai
-  entonnoir, un distributeur et un dropper gardent leur texture (réinjectée), un vrai coffre n'est
-  pas touché tant qu'aucun menu coffre n'est transparent.
-- [ ] Avec le plugin PacketEvents installé à côté (copie relocalisée + plugin autonome) : démarrage
-  sans erreur et tout ce qui précède tient. *Automatisé pour les cases automatisées (variante
-  `standalone` du workflow) ; les cases visuelles restent à vérifier à la main.*
+- [ ] Stone everywhere, top and bottom (`hidden`).
+- [ ] Click, shift-click, double-click, number key, F key: nothing moves, nothing is picked up.
+- [ ] Pick up an item from the ground with the menu open: the bottom stays the menu's.
+- [ ] Go from menu A to menu B (`open_menu` button): B displays in full, with no leftover of A.
+- [ ] Back: `A → B → C` then the `open_previous_menu` button twice brings back A (never back-and-forth C↔B); without history, the `{has_previous_menu}` placeholder is false and back does nothing.
+- [ ] Closing: the real inventory comes back intact.
+- [ ] `/data get entity @s Inventory` with the menu open = the real inventory (nothing server-side).
+- [ ] `visible`: the real inventory displays and cannot be modified.
+- [ ] `vanilla_texture: false`: transparent window (top and bottom), the menu's glyph displays, the
+  items stay above the glyph.
+- [ ] Same server: a real chest, a barrel, an ender chest and a double chest keep their
+  vanilla texture (re-injected), title in place; same right after `/artisan reload`.
+- [ ] Player who refuses the pack: normal vanilla chests, no missing character in the titles.
+- [ ] Hopper and dropper menus with `vanilla_texture: false`: transparent windows; a real
+  hopper, dispenser and dropper keep their texture (re-injected), a real chest is not
+  touched as long as no chest menu is transparent.
+- [ ] With ViaVersion + ViaBackwards and an older client, and with ProtocolLib or PacketEvents installed
+  alongside: startup without errors and everything above holds.
+- [ ] On Paper, Folia, Leaf and Spigot 26.x; Spigot 1.21.x refuses to start with its message.

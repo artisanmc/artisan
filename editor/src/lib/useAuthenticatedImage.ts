@@ -1,3 +1,4 @@
+import { apiRequest } from "@/lib/api/client";
 import { useEffect, useState } from "react";
 import useImage from "use-image";
 import { useProjectPrincipalId } from "./projectPrincipal";
@@ -34,7 +35,7 @@ export function useAuthenticatedImageUrl(url: string) {
       const load = () => {
         entry.retryTimer = undefined;
         if (entry.controller.signal.aborted) return;
-        void fetch(url, { credentials: "include", signal: entry.controller.signal })
+        void apiRequest(url, { signal: entry.controller.signal })
           .then(async (response) => {
             if (!response.ok) {
               if (response.status >= 500 && retries < 2 && !entry.controller.signal.aborted) {

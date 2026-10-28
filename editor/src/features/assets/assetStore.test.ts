@@ -1,13 +1,29 @@
-import { describe, expect, it, beforeEach } from "vitest";
 import type { Asset } from "@/domain/asset";
+import { beforeEach, describe, expect, it } from "vitest";
 import { useAssetStore } from "./assetStore";
 
 const a1: Asset = {
-  id: "asset_1", projectId: "p1", type: "texture", name: "bg_a",
-  width: 16, height: 16, ascent: null, codepoint: null, fontMeta: null,
-  contentHash: "hash1", createdAt: "", updatedAt: "",
+  id: "asset_1",
+  projectId: "p1",
+  type: "texture",
+  name: "bg_a",
+  width: 16,
+  height: 16,
+  ascent: null,
+  codepoint: null,
+  fontMeta: null,
+  contentHash: "hash1",
+  createdAt: "",
+  updatedAt: "",
 };
-const a2: Asset = { ...a1, id: "asset_2", name: "ico", type: "glyph", codepoint: 0xE000, ascent: 7 };
+const a2: Asset = {
+  ...a1,
+  id: "asset_2",
+  name: "ico",
+  type: "glyph",
+  codepoint: 0xe000,
+  ascent: 7,
+};
 
 describe("assetStore", () => {
   beforeEach(() => useAssetStore.getState().reset());
@@ -34,7 +50,7 @@ describe("assetStore", () => {
     useAssetStore.getState().upsertAsset({ ...a1, name: "bg_a_renamed" });
     const list = useAssetStore.getState().assets;
     expect(list).toHaveLength(1);
-    expect(list[0].name).toBe("bg_a_renamed");
+    expect(list[0]!.name).toBe("bg_a_renamed");
   });
 
   it("removeAsset removes by id", () => {

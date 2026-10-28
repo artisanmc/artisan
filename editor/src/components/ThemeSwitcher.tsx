@@ -1,12 +1,11 @@
-import { useThemeStore, type Theme } from "@/state/themeStore";
-import { useTranslation } from "react-i18next";
+import { type Theme, useThemeStore } from "@/state/themeStore";
 import { Moon, Sun } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /**
  * Binary segmented-control: [☾ Dark] [☀ Light]
  * No "system" option — OS preference is the implicit default until the user
- * makes a choice, which sticks in localStorage + backend.
- * No CSS transition on swap — hard cut per spec §3.
+ * makes a choice, which persists. No CSS transition on swap.
  */
 export function ThemeSwitcher() {
   const { t } = useTranslation();
@@ -14,13 +13,12 @@ export function ThemeSwitcher() {
   const setTheme = useThemeStore((s) => s.setTheme);
 
   const options: { value: Theme; label: string; Icon: typeof Moon }[] = [
-    { value: "dark",  label: t("settings.appearance.themeDark"),  Icon: Moon },
-    { value: "light", label: t("settings.appearance.themeLight"), Icon: Sun  },
+    { value: "dark", label: t("settings.appearance.themeDark"), Icon: Moon },
+    { value: "light", label: t("settings.appearance.themeLight"), Icon: Sun },
   ];
 
   return (
-    <div
-      role="group"
+    <fieldset
       aria-label={t("settings.appearance.theme")}
       className="inline-flex rounded-[var(--r-md)] border border-[var(--border)] overflow-hidden"
     >
@@ -42,6 +40,6 @@ export function ThemeSwitcher() {
           {label}
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }

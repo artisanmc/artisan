@@ -1,12 +1,17 @@
 name: API version
 
-# Une PR qui touche les sources de l'API publique doit monter la plus haute version
-# `Since` de docs/architecture/api-surface.md au-dessus de la dernière release : c'est
-# elle que publish-api.yml publiera au merge. Exemption (KDoc, formatage) : label
+# A PR touching the public API sources must raise the highest `Since` version in
+# docs/architecture/api-surface.md above the last release: that is the version
+# publish-api.yml publishes on merge. Exemption (KDoc, formatting): label
 # `api:no-release`.
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
+    # Only the PRs the check can fail: it reads nothing else.
+    paths:
+      - plugin/api/src/main/**
+      - docs/architecture/api-surface.md
+      - deploy/api-version.mjs
 
 permissions:
   contents: read
@@ -14,6 +19,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
         with:

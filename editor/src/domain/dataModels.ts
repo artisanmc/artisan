@@ -1,6 +1,6 @@
 import { createLText, deleteLText, getText } from "@/lib/i18n";
 import { adoptBareLTexts } from "./i18nSites";
-import { applyModelMigrations, type ModelMigration } from "./modelMigrations";
+import { type ModelMigration, applyModelMigrations } from "./modelMigrations";
 import type {
   DataModel,
   DataModelId,
@@ -104,7 +104,8 @@ export function defaultValueForModelType(
       // A field's declared `default` (§7) wins over the kind default — it
       // doubles as the migration `set_default` value.
       for (const f of type.fields)
-        obj[f.name] = f.default !== undefined ? f.default : defaultValueForModelType(f.type, models, visited);
+        obj[f.name] =
+          f.default !== undefined ? f.default : defaultValueForModelType(f.type, models, visited);
       return obj;
     }
     case "model": {
@@ -123,12 +124,16 @@ export function defaultValueForModelType(
       if (!first) return {};
       const obj: Record<string, unknown> = { [type.tag]: first.name };
       for (const f of first.fields)
-        obj[f.name] = f.default !== undefined ? f.default : defaultValueForModelType(f.type, models, visited);
+        obj[f.name] =
+          f.default !== undefined ? f.default : defaultValueForModelType(f.type, models, visited);
       return obj;
     }
     // The wire-shaped Condition[] the core engine evaluates — empty chain.
     case "conditions":
       return [];
+    // A Document id, none chosen yet.
+    case "document_ref":
+      return "";
   }
 }
 
@@ -150,6 +155,7 @@ export function modelFieldTypeToFieldType(
     case "minimessage":
     case "minimessage_multiline":
     case "actions":
+    case "document_ref":
       return { kind: "string" };
     case "number":
     case "integer":
@@ -312,12 +318,13 @@ export function sourceTypeAtPath(
  */
 export function normalizeDataSources(project: Project): void {
   project.dataSources = (project.dataSources ?? []).filter(
-    (d) => (d as { shape?: string }).shape === "table" || (d as { shape?: string }).shape === "config",
+    (d) =>
+      (d as { shape?: string }).shape === "table" || (d as { shape?: string }).shape === "config",
   );
   if (!project.dataModels) project.dataModels = [];
 }
 
-// ── Field edits: schema change + synchronous value migration ─────────────────
+// Field edits: schema change + synchronous value migration.
 // "Data migrated, references dangled" (ADR project-sources-and-data-models):
 // the editor owns models, rows, and config values — one edit rewrites them all
 // in the same transaction. Consumers of a changed field ({alias.field}
@@ -349,7 +356,8 @@ export function releaseValueLTexts(
       if (isLTextNode(value)) deleteLText(project, value);
       return;
     case "list":
-      if (Array.isArray(value)) for (const el of value) releaseValueLTexts(project, el, type.of, visited);
+      if (Array.isArray(value))
+        for (const el of value) releaseValueLTexts(project, el, type.of, visited);
       return;
     case "object":
       if (typeof value === "object" && value !== null && !Array.isArray(value)) {
@@ -376,7 +384,8 @@ export function releaseValueLTexts(
       if (typeof value !== "object" || value === null || Array.isArray(value)) return;
       const obj = value as Record<string, unknown>;
       const variant = type.variants.find((v) => v.name === obj[type.tag]);
-      if (variant) releaseValueLTexts(project, value, { kind: "object", fields: variant.fields }, visited);
+      if (variant)
+        releaseValueLTexts(project, value, { kind: "object", fields: variant.fields }, visited);
       return;
     }
     default:
@@ -593,7 +602,8 @@ function forEachModelInstance(
       }
       case "map":
         if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-          for (const v of Object.values(value as Record<string, unknown>)) walk(type.of, v, visited);
+          for (const v of Object.values(value as Record<string, unknown>))
+            walk(type.of, v, visited);
         }
         return;
       case "union": {
@@ -651,7 +661,7 @@ export function applyFieldEdit(project: Project, target: FieldEditTarget, edit: 
   applyEditToFields(ownerFields, edit);
 }
 
-// ─── module-declared models (ADR composable-data-models §4/§5) ───────────────
+// Module-declared models (ADR composable-data-models §4/§5)
 
 /** model/v1 document (as reported at Presence) → DataModel, provenance "module". */
 export function declaredModelToDomain(doc: Record<string, unknown>): DataModel | null {
@@ -675,19 +685,16 @@ export function declaredModelToDomain(doc: Record<string, unknown>): DataModel |
  * table whose `modelVersion` lags its declaration. Mutates `project`; returns
  * whether any migration ran (the caller persists on the next save).
  */
-export function injectDeclaredModels(
-  project: Project,
-  docs: Record<string, unknown>[],
-): boolean {
-  const declared = docs
-    .map(declaredModelToDomain)
-    .filter((m): m is DataModel => m !== null);
+export function injectDeclaredModels(project: Project, docs: Record<string, unknown>[]): boolean {
+  const declared = docs.map(declaredModelToDomain).filter((m): m is DataModel => m !== null);
   if (declared.length === 0 && !(project.dataModels ?? []).some((m) => m.provenance === "module")) {
     return false;
   }
   const declaredIds = new Set(declared.map((m) => m.id));
   project.dataModels = [
-    ...(project.dataModels ?? []).filter((m) => !declaredIds.has(m.id) && m.provenance !== "module"),
+    ...(project.dataModels ?? []).filter(
+      (m) => !declaredIds.has(m.id) && m.provenance !== "module",
+    ),
     ...declared,
   ];
   let migrated = false;

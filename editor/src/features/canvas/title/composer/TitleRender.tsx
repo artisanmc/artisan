@@ -1,11 +1,12 @@
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
-import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
+import { menusOf } from "@/domain/documents";
 import type { MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { getText } from "@/lib/i18n";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
-import { useAccountStore } from "@/state/accountStore";
+import { getText } from "@/lib/i18n";
+import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
@@ -16,8 +17,8 @@ import { McFontText } from "../McFontText";
 import { VanillaMcText, vanillaTextWidth } from "../VanillaMcText";
 import { WidthResizeHandle } from "./WidthResizeHandle";
 import { snapDragPosition } from "./snap";
-import { useTitleLayerDrag } from "./useTitleLayerDrag";
 import { asTextFrame, patchTextFrame, textAnchorOffset } from "./textFrame";
+import { useTitleLayerDrag } from "./useTitleLayerDrag";
 
 const TAG_RX = /<[^>]+>/g;
 
@@ -120,8 +121,8 @@ const MC_TITLE_LABEL_Y = 6;
  */
 const GLYPH_Y_BASE = 13;
 /**
- * MC default font character height in pixels. Used as the approximated
- * font size for MiniMessageKonvaText (vector fallback, not pixel-perfect).
+ * MC default font character height in pixels. Used as a text layer's line
+ * height for its outline and hit area.
  */
 const MC_FONT_HEIGHT_PX = 8;
 
@@ -142,22 +143,21 @@ interface TitleRenderProps {
  * backdrop + every layer in array order (first = bottom). Designed to live
  * inside an existing `<Stage><Layer>`; the caller owns Stage sizing.
  *
- * Always interactive (v3): clicks on layers select them via
- * `uiStore.selectedLayerKey`, drags update positions via `useTitleLayerDrag`,
- * and image layers expose `ResizeHandles` when selected. Clicks on the
+ * Always interactive: clicks on layers select them via
+ * `uiStore.selectedLayerKey`, drags update positions via `useTitleLayerDrag`.
+ * Image layers are not resizable (assets are pixel-perfect). Clicks on the
  * title-bar grey backdrop (non-layer area) clear the selection.
  *
  * Layer body rendering matches the plugin runtime:
  *  - background → big glyph anchored below the title bar (matches negative
  *    ascent push in TitleCompiler)
  *  - glyph → image at intrinsic asset size, scaled
- *  - text → McFontText (bitmap font, if `fontAssetId` bound) or
- *    MiniMessageKonvaText (vector fallback)
- *  - external_glyph → dashed amber placeholder until SP5
+ *  - text → McFontText (bitmap font)
+ *  - external_glyph → dashed amber placeholder
  */
 export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const menu = project?.menus.find((m) => m.id === menuId);
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const menu = menusOf(project).find((m) => m.id === menuId);
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
   const selectedLayerKey = useUiStore((s) => s.selectedLayerKey);
@@ -169,7 +169,8 @@ export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
   const previewCtx = useMemo(
-    () => (project && menu ? buildPreviewScope(menu, project, snapshots, menuPreviewArgs[menuId]) : {}),
+    () =>
+      project && menu ? buildPreviewScope(menu, project, snapshots, menuPreviewArgs[menuId]) : {},
     [project, menu, snapshots, menuPreviewArgs, menuId],
   );
 
@@ -220,7 +221,12 @@ export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
             : undefined;
         const text =
           layer.kind === "text" || layer.kind === "plain" || layer.kind === "textarea"
-            ? renderPreview(getText(project, layer.value, activeLang), previewCtx, project, activeLang)
+            ? renderPreview(
+                getText(project, layer.value, activeLang),
+                previewCtx,
+                project,
+                activeLang,
+              )
             : "";
         const selected = selectedLayerKey?.menuId === menuId && selectedLayerKey?.index === idx;
 
@@ -368,8 +374,8 @@ function LayerNode({
     [layer.kind, asset, fontRefAscent, scale, onPositionChange, anchorOffset],
   );
 
-  // Intrinsic bounding-box for image-kind layers — drives both the selection
-  // outline and the ResizeHandles geometry. Falls back to a sane default when
+  // Intrinsic bounding-box for image-kind layers — drives the selection
+  // outline. Falls back to a sane default when
   // the asset hasn't loaded yet (or is missing).
   const imageW = (asset?.width ?? (layer.kind === "background" ? TITLE_BAR_W : 8)) * scale;
   const imageH = (asset?.height ?? (layer.kind === "background" ? MC_TITLE_H : 8)) * scale;
@@ -386,7 +392,8 @@ function LayerNode({
       : [];
   const textareaTotalH =
     layer.kind === "textarea"
-      ? Math.max(0, textareaLines.length - 1) * layer.lineHeight + Math.max(layer.lineHeight, layer.size ?? 8)
+      ? Math.max(0, textareaLines.length - 1) * layer.lineHeight +
+        Math.max(layer.lineHeight, layer.size ?? 8)
       : 0;
 
   // Per-kind body. Background and glyph share the image path.
@@ -437,46 +444,43 @@ function LayerNode({
     const lines = hardLines.flatMap((l) =>
       wrapLineJs(l, Math.floor((layer.width * 8) / (layer.size ?? 8))),
     );
-    body = (
-      lines.map((line, i) => {
-          const lineWidth = Math.floor(measureLineWidthJs(line) * (layer.size ?? 8) / 8);
-          const lineX =
-            layer.alignment === "center"
-              ? (anchorOffset - Math.floor(lineWidth / 2)) * scale
-              : layer.alignment === "right"
-                ? (anchorOffset - lineWidth) * scale
-                : 0;
-          const lineY = i * layer.lineHeight * scale;
-          return fontAsset ? (
-            <McFontText
-              // biome-ignore lint/suspicious/noArrayIndexKey: stateless rendered lines follow their visual row.
-              key={i}
-              text={line}
-              font={fontAsset}
-              x={lineX}
-              y={lineY + (fontRefAscent != null ? fontRefAscent * scale : BASELINE_Y_PX * scale)}
-              scale={scale}
-              listening={false}
-            />
-          ) : (
-            <VanillaMcText
-              // biome-ignore lint/suspicious/noArrayIndexKey: stateless rendered lines follow their visual row.
-              key={i}
-              source={line}
-              x={lineX}
-              y={lineY}
-              scale={scale}
-              sizeScale={(layer.size ?? 8) / 8}
-              defaultColor="#404040"
-              listening={false}
-            />
-          );
-        })
-    );
+    body = lines.map((line, i) => {
+      const lineWidth = Math.floor((measureLineWidthJs(line) * (layer.size ?? 8)) / 8);
+      const lineX =
+        layer.alignment === "center"
+          ? (anchorOffset - Math.floor(lineWidth / 2)) * scale
+          : layer.alignment === "right"
+            ? (anchorOffset - lineWidth) * scale
+            : 0;
+      const lineY = i * layer.lineHeight * scale;
+      return fontAsset ? (
+        <McFontText
+          // biome-ignore lint/suspicious/noArrayIndexKey: stateless rendered lines follow their visual row.
+          key={i}
+          text={line}
+          font={fontAsset}
+          x={lineX}
+          y={lineY + (fontRefAscent != null ? fontRefAscent * scale : BASELINE_Y_PX * scale)}
+          scale={scale}
+          listening={false}
+        />
+      ) : (
+        <VanillaMcText
+          // biome-ignore lint/suspicious/noArrayIndexKey: stateless rendered lines follow their visual row.
+          key={i}
+          source={line}
+          x={lineX}
+          y={lineY}
+          scale={scale}
+          sizeScale={(layer.size ?? 8) / 8}
+          defaultColor="#404040"
+          listening={false}
+        />
+      );
+    });
   } else if (layer.kind === "external_glyph") {
     // external_glyph — runtime resolves these; in the editor we show a
-    // dashed placeholder labelled with `provider:glyphName` (SP5 will do
-    // proper rendering).
+    // dashed placeholder labelled with `provider:glyphName`.
     body = (
       <>
         <Rect
@@ -562,19 +566,11 @@ function LayerNode({
       {/* Hit area — only listening when selected. Unselected layers are
           click-through so the underlying menu remains reachable. When
           selected, this Rect captures pointer events for drag and click. */}
-      <Rect
-        x={0}
-        y={0}
-        width={hitW}
-        height={hitH}
-        fill="rgba(0,0,0,0.001)"
-        listening={selected}
-      />
+      <Rect x={0} y={0} width={hitW} height={hitH} fill="rgba(0,0,0,0.001)" listening={selected} />
       {body}
       {selected ? (
         <>
-          {/* Yellow 1-px stroke around the bounding box. Matches the v3 design
-              spec (was emerald in v2). */}
+          {/* Yellow 1-px stroke around the bounding box. */}
           <Rect
             x={-1}
             y={-1}
@@ -593,7 +589,7 @@ function LayerNode({
               currentWidth={textFrame.width}
               scale={scale}
               onResize={(newWidth) => {
-                useAccountStore.getState().updateMenuTitleLayer({
+                useProjectsStore.getState().updateMenuTitleLayer({
                   projectId: _packId,
                   menuId,
                   index,
@@ -607,4 +603,3 @@ function LayerNode({
     </Group>
   );
 }
-

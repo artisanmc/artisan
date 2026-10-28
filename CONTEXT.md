@@ -7,17 +7,39 @@ definition wins (or this file gets updated in the same change).
 Terms are listed alphabetically. Each entry is a 1-3 sentence canonical
 definition followed by examples and explicit non-examples where helpful.
 
+## Action
+
+A single leaf step of an **Action chain** — the invocable unit of the chain's
+vocabulary (`give_item`, `send_message`, `open_menu`, `start_quest`), as opposed to
+the chain itself. The vocabulary is **core-owned but module-extensible**: a Module
+may declare additional actions, each with typed arguments, one of which may be a
+**Document reference** — which makes that argument a resolved target, exactly as
+`open_menu` names a Menu.
+
+Non-examples:
+- An **Action chain** is the ordered sequence of Actions (with `if`/`else`); one
+  Action is one line.
+- A **Command** is invoked on its own; an Action is embedded in a chain. A Module
+  may back a declared Action with a registered command, but they are distinct.
+- `run_command ns:cmd` is not a declared Action — it is the opaque escape hatch:
+  same effect, an untyped string argument, so no resolved reference.
+
+_Avoid_: verbe, verb
+
 ## Action chain
 
 An ordered sequence of **Steps** — each Step a leaf **action** (`give_item`,
 `send_message`, `open_menu`…) or an `if` / `else if` / `else` branch over typed
 **conditions** — that runs when something triggers it: an **Element**'s click, a
-**Command** invocation, or a data-source `actions` field. `Step[]` in the domain.
-Its canonical text serialization is the **Action DSL**.
+**Command** invocation, a **Trigger**'s **Game event**, or a data-source `actions` field. `Step[]` in the domain.
+On disk and on the wire it is a YAML list keyed by name (`- send_message: "Hi"`,
+`- if: [...]`), the **keyed action wire** of ADR `structured-action-wire`; the
+older **Action DSL** string is only read, never written.
 
 A chain may **invoke** another chain stored on a **Data source** row/config
 (`actions` field) via the `run_actions <expr>` action — the called chain runs
-inline with the resolved-from row/config as its self-scope. Cf. ADR `action-dsl`.
+inline with the resolved-from row/config as its self-scope. Cf. ADRs `action-dsl`
+and `structured-action-wire`.
 
 Non-examples:
 - A single **action** (`open_menu`) is not an Action chain — it is one leaf Step
@@ -27,17 +49,26 @@ Non-examples:
 
 ## Action DSL
 
-The compact, indentation-based text language that is the canonical serialization
-of an **Action chain** — one statement per action, `if …:` / `else if …:` /
-`else:` blocks, `and`/`or`/`not` over typed condition atoms, `"literal"` or
-`@key` for text. It is the on-disk and wire form (hand-writable in a data-source
-`actions` field's YAML), not merely an editor view. Cf. ADR `action-dsl`.
+**Legacy, read-only (since 2026-10-15).** The compact, indentation-based text
+language that *was* the serialization of an **Action chain** — one statement per
+action, `if …:` / `else if …:` / `else:` blocks, `and`/`or`/`not` over typed
+condition atoms, `"literal"` or `@key` for text. ADR `structured-action-wire`
+replaced it with the **keyed action wire** (a YAML list, one single-key map per
+action or condition): both the editor and the plugin still *read* a DSL string so
+files written before keep loading, but nothing writes one any more. Cf. ADRs
+`action-dsl` (superseded on this point) and `structured-action-wire`.
+
+If you meet the DSL in code (`actiondsl/`, `lib/actionDsl/`, `DslToEngine`) it is
+the legacy reader, not the format to extend: a new action or condition goes into
+the keyed wire (`KeyedStepParser`, `lib/actions/structuredSteps.ts`).
 
 Non-examples:
-- The verbose structured tree (`{kind:"if", cases:[…]}`) is the *old* wire form
-  the Action DSL replaces, not the Action DSL.
-- An **Expression** (`balance >= 100`) is a value sub-language the Action DSL
-  *hosts* in its condition atoms — not a separate statement language. It has a
+- The keyed action wire (`- open_menu: { menu_id: shop }`) is the current form,
+  not the Action DSL.
+- The verbose structured tree (`{kind:"if", cases:[…]}`) is the form the DSL
+  replaced first, not the Action DSL either.
+- An **Expression** (`balance >= 100`) is a value sub-language an Action chain's
+  conditions *host* in its condition atoms — not a separate statement language. It has a
   second, independent host: the **Template**.
 
 ## Appearance
@@ -70,17 +101,17 @@ Non-examples:
 ## Board group
 
 A visual container on the canvas: each **Project** is the default outer group on the server-wide canvas. Its frame is hidden in the project's own view.
-Within a Project, selected **Menus** can form one named, movable, colored
-group; a Menu belongs to at most one manual group, with no nested manual groups.
-Groups always remain expanded; their background uses the chosen color at 15% opacity.
-Grouping changes only editor metadata, never Document files or runtime navigation.
+Within a Project, each top-level **Folder** holding Documents is drawn as a frame
+around them (sub-folders included); its color and position are editor metadata.
+Filing Documents "in a frame" files them in that Folder. There are no other manual
+groups. Frames always remain expanded; their background uses the chosen color at 15% opacity.
 
 ## Bundle — **retired term** (2026-08-12)
 
 A Bundle *was* the hash-keyed materialization of a **Project**, announced by the
 backend (`bundle_available`) and downloaded by the plugin. The mechanism no
-longer exists: the backend stores no Project content and never writes to a
-server's disk, so there is nothing to publish, hash, announce, or fetch (ADR
+longer exists (the backend itself was removed in 2026-10): nothing stores a second
+copy of Project content, so there is nothing to publish, hash, announce, or fetch (ADR
 `server-disk-only-storage`). A Project's files on the server *are* the Project —
 there is no second artifact to name.
 
@@ -120,7 +151,7 @@ Non-examples:
 
 ## Command
 
-One of the three **Document** kinds: an admin-authored chat/slash command
+One of the **Document** kinds: an admin-authored chat/slash command
 (`commands/<id>.yaml`) — a trigger, typed arguments, and the **action chains**
 that run when a player invokes it (`open_menu`, `send_message`, …). Its arguments
 feed a **Menu**'s `contextInputs` by name. Commands are also a cross-module
@@ -140,7 +171,7 @@ editor's sidebar that edits one of the module's files, **live against the
 connected Server** (greyed out while the Server is offline). Declared as data
 alongside the module's models and data sources — never coded; a module may
 declare several (e.g. one per data type), and a module that declares models
-without declaring screens gets a default "Données" screen. A screen offers two
+without declaring screens gets a default "Data" screen. A screen offers two
 modes over the same file — a generated **form** and the **raw YAML** — and a
 declared schema is **optional**: without one the file is still editable, its
 keys shown as literal fields (cf. ADR `yaml-assisted-editing`; the schema buys
@@ -153,6 +184,22 @@ Non-examples:
   data is edited in Config screens, not there.
 - A custom editor route a module ships as code is not a Config screen — Config
   screens are core-generated from declarations.
+
+## Conversation
+
+A branching dialogue tree — lines and player **choices**, where picking a reply
+follows a branch and each option is gated by **conditions**. One of the **Document**
+kinds (its own file `conversations/<id>.yaml`, its own editor). Distinct from a
+**Dialog**: a Dialog is one native Minecraft screen (title, body, inputs, buttons);
+a Conversation is the branching whole. Any trigger opens one with
+`open_conversation <ref>` — an NPC interaction, a menu button, a command — and one
+Conversation may be opened by several triggers.
+
+Non-examples:
+- A **Dialog** is not a Conversation — the native single screen vs. the branching
+  tree; a Conversation choice may open a Dialog, but they are different kinds.
+- A linear run of `send_message` / `open_dialog` steps is not a Conversation — no
+  branch means no tree.
 
 ## Data model
 
@@ -274,7 +321,7 @@ Non-examples:
 
 ## Dialog
 
-One of the three **Document** kinds: an admin-authored dialog screen
+One of the **Document** kinds: an admin-authored dialog screen
 (`dialogs/<id>.yaml`) — Minecraft's native dialog UI (title, body, inputs,
 buttons), as opposed to the inventory grid of a **Menu**. A standalone document
 with a stable id, living beside the Project's other Documents in its file tree.
@@ -285,10 +332,11 @@ Non-examples:
 
 ## Document
 
-One of the three editable units a **Project** contains — a **Menu**, a
-**Command**, or a **Dialog** — each one file on disk (`menus/<id>.yaml`,
+One of the editable units a **Project** contains — a **Menu**, a **Command**, a
+**Dialog**, a **Conversation**… — each one file on disk (`menus/<id>.yaml`,
 `commands/<id>.yaml`, `dialogs/<id>.yaml`), edited as a standalone document with a
-stable id. **Document** is the canonical umbrella, and code now matches: a Project's
+stable id. A Document may sit in a **Folder** (`boutique/menus/<id>.yaml`); its id is
+still the file name. **Document** is the canonical umbrella, and code now matches: a Project's
 `documentCount`, the `DocumentView` component, and the `.../document.$documentId`
 route. (The CustomEvent `artisan:open_element` / `OPEN_ELEMENT_EVENT` retains the
 legacy "element" name internally — Document is the term going forward.)
@@ -300,8 +348,21 @@ Non-examples:
   resources the Documents reference. They are still **files of the Project**
   (`lang/`, `assets/`): a glyph or a background is authored content, not a build
   artifact, so it lives on the server's disk with everything else (ADR
-  `assets-on-server-disk`). The backend keeps no copy: no `assets` table, no
-  volume — only a throwaway cache keyed by content hash.
+  `assets-on-server-disk`). Nothing keeps a copy elsewhere; the resource pack is
+  rebuilt from them in the editor.
+
+## Folder
+
+A themed group of **Documents** inside a module (a **Project** folder), of any kinds:
+`boutique/` holds `boutique/menus/`, `boutique/commands/`, `boutique/dialogs/`, laid out
+like the module root, and up to three levels of sub-folders. A Folder is pure
+arrangement: it is not part of a Document's id, so moving a Document changes no
+reference, translation key or board key, and an id stays unique per kind across the
+whole module. Resources (`lang/`, `items/`, `data/`…) stay at the module root.
+
+Non-examples:
+- A kind folder (`menus/`) is not a Folder: it holds files only, never sub-folders.
+- A **Board group** is how the canvas draws a top-level Folder; the Folder is on disk.
 
 ## Document reference
 
@@ -318,17 +379,19 @@ Non-examples:
   server-wide, so two Projects claiming one name still conflict (the deploy
   review warns).
 - A data-source ref (`pack:<id>`, `boutique:category`) is not a Document
-  reference — `ns:id` there names a module or Project source.
+  reference — `ns:id` there names a module or Project source. A `pack:<id>`
+  still resolves by the bare-id rule above: the fetching menu's Project first,
+  then the one Project of the server that defines it (no qualified form).
 
 ## Draft
 
-A named, private working copy of a **Project**, owned by a user and persisted in
-the backend. Its Project determines the Network and Server; a user may have
-several drafts for the same Project. It stores a file baseline, edited tree and
-rename intentions. Saving a draft does not publish it: explicit publication
-uses the plugin's file compare-and-swap. Browser copies are recovery backups.
-An AI task will act on a user's draft through the same operations, with separate
-publication authorization; there is no permanent shared "AI draft".
+A named, private working copy of a **Project**, owned by a player (Minecraft UUID
+of the editor session) and stored in the suite database, beside the Project's
+**Versions**: it survives the server being offline, a hub change or a lost machine.
+A player may have several drafts for the same Project. It stores a file baseline, edited
+tree and rename intentions. Saving a draft does not publish it: explicit
+publication commits files and the draft's final state in one atomic,
+compare-and-swap-checked write. Browser copies are recovery backups.
 
 ## Element
 
@@ -365,13 +428,40 @@ so every method can be documented, mirrored server-side and locked by a
 conformance vector. Cf. ADR `expression-parity`.
 
 Expressions have exactly **two hosts**: the condition atoms of an **Action chain**
-(via the **Action DSL**), and the expression segments of a **Template**. They are
+(keyed wire or legacy **Action DSL**), and the expression segments of a **Template**. They are
 not a standalone artifact — an Expression is always embedded in something.
 
 Non-examples:
-- The **Action DSL** is a statement language (one action per line, `if`/`else`
-  blocks). An Expression is one value, and appears *inside* it.
+- An **Action chain** is a list of statements (actions, `if`/`else` branches).
+  An Expression is one value, and appears *inside* one of its conditions.
 - The surrounding text of a lore line is a **Template**, not an Expression.
+
+## Game event
+
+A named, declared game event a **Trigger** can listen to (`player_death`,
+`player_join`, `quests:completed`), with a typed, read-only context
+(`event.location`, `event.cause`) and declared **effects**, the only things a chain
+may change on it (`cancel_event`, `set_event: { join_message: … }`), never an
+un-cancel. Core events are bare names; a Module declares its own, namespaced, and
+fires them. Only synchronous, discrete, player-bound events qualify:
+continuous ones (`player_move`, per tick) and asynchronous ones (chat) are
+excluded. Cf. ADR
+`triggers-and-variables`.
+
+Non-examples:
+- A **Module event** (`ConfigReloadEvent` on `api.events`) is not a Game event —
+  it tells code that content changed; no authored chain listens to it.
+
+## Hub
+
+The server whose plugin serves the editor (web server on `web.port`, 8765 by
+default): `web.hub` empty, the default. A lone server is its own hub. In a
+**Network**, the **Leaves** connect to the hub's `/ws/plugin`, and the editor
+reaches them through it. ADR `editor-web-server`.
+
+Non-examples:
+- Not a proxy: the hub is an ordinary Paper server; Velocity runs no Artisan code.
+- Not the cloud backend's `ws/hub.ts`, removed in phase F.
 
 ## Item set
 
@@ -384,7 +474,7 @@ An item set is **not an entity**: it is an Element carrying `iterates` (paginati
 or `places` (hand-pinned rows) plus its own display and states. It therefore
 belongs to the Menu that renders it — two Menus showing the same source each own
 their look, and editing one cannot silently change the other. Created from
-« Données du menu » (`createMenuSet`), which seeds the display from the source's
+"Data" (`createMenuSet`), which seeds the display from the source's
 schema.
 
 Non-examples:
@@ -426,26 +516,28 @@ Non-examples:
 - The translation **value** (`"Buy now"` in `en`) is not the key site; the key
   site is the slot the value is filed under.
 
-## Link
+## Leaf
 
-The **act of binding a Server to its credential**, always initiated from the
-editor: a logged-in user adds a Server to a **Network** on the web, which creates
-the Server row (keyless — `hash` NULL until redeemed) and prints a **link code**;
-the admin runs **`/artisan link <code>`** on the Minecraft server, which redeems
-the code for the Server's **key** (minted at redeem time), writes it to
-`config.yml`, and connects. Re-issuing a code for an existing Server and
-re-running `link` **rotates** its key in place — same Server row, same Projects,
-no duplicate key. Ownership afterwards moves only via a Network **transfer**.
-See `docs/decisions/editor-first-server-linking.md`.
+A server of a **Network** that does not serve the editor (`web.hub` set): its
+plugin connects to the **Hub** at `web.hub` with the **Network secret** and
+its name, then answers the editor's requests relayed by the hub. `/artisan editor`
+typed on a leaf asks the hub for the **Login link**.
 
-Non-examples:
-- A **transfer** is not a Link — transfer moves already-owned things between
-  owners with its own safeguards; Link binds a Server to its key.
-- "Claim" / "setup" are not canonical — domain and code say Link
-  (`link_codes`, `/artisan link`, `POST /link/:code/redeem`). The old WS pairing
-  (`/artisan setup`) and web `claim` flow were removed 2026-07-15.
-- Post-link, `/artisan editor` printing the Server deep-link is not a Link — the
-  binding already exists; the command is informative only.
+## Link — **retired term** (2026-10)
+
+*Was* the act of binding a Server to its cloud credential (`/artisan link <code>`,
+link codes, server keys). Removed with the backend in phase F: a server needs no
+credential to serve its own editor, and a **Leaf** joins its **Hub** with
+`web.hub` and the **Network secret**. State recoverable at commit `ccade092`.
+_Avoid_: link code, server key, claim, setup.
+
+## Login link
+
+The single-use link `/artisan editor` prints in game (`/login/<token>`, valid
+60 seconds, one per player per minute). Opening it starts an **editor session**
+(cookie, 12 hours, in the hub's memory) that carries the player's UUID, name and
+`artisan.editor.*` permissions as they were when the link was requested. It is
+the only way into the editor: there are no accounts.
 
 ## LText
 
@@ -453,28 +545,22 @@ A reference to a localizable string. On disk (ADR `field-local-translations`,
 2026-09-30) a **structural** slot — menu title, appearance title/lore, dialog
 title/body/label — holds either a bare string (the default language's literal,
 or a `{i18n:key}` ref) or a field-local `{ <lang>: text }` map, so a Document
-carries its own languages. An **action** text (inside the Action DSL string) and
-a **data-source** value still use a stable **key** into the project's `i18nKeys`
+carries its own languages. An **action** text in the keyed action wire takes the
+same two forms (ADR `structured-action-wire`); only a legacy Action DSL string
+(`@key`) and a **data-source** value still use a stable **key** into the project's `i18nKeys`
 map. The editor's in-memory domain carries the LText (the key), never the
 resolved string — resolution happens at render/export against the active
 language with a fallback chain. A fresh domain LText is minted with a random
 provisional key (`lt_<rand>`); canonicalization to a semantic key happens lazily
 at the deploy/export/persist boundary, not per edit.
 
-## Membership
+## Membership — **retired term** (2026-10)
 
-A user's belonging to a **Network**, carrying a **role** that scopes what they may
-do there. Two roles exist: **owner** (governance — billing, transfer,
-Network deletion, member management, key rotation) and **member** (full editorial
-access to every Server and Project of the Network, nothing destructive at Network
-level). Roles are per-Network: the same user may be owner of one Network and
-member of another. The role set is expected to grow — owner/member is the current
-vocabulary, not a closed law.
-
-Non-examples:
-- A Membership is **not** per-Server or per-Project — access is granted at
-  Network granularity (finer ACLs are deliberately out of the domain today).
-- The owning user is not the Network; see **Network**.
+*Was* a user account's role (owner/member) in a cloud **Network**. There are no
+accounts any more: editor access is a player's Bukkit permissions
+(`artisan.editor.view|edit|publish|config`), read when they request a **Login link**,
+and granted with a permissions plugin (LuckPerms…), not by invitation.
+_Avoid_: member, owner, invitation, access request, transfer.
 
 ## Menu
 
@@ -512,9 +598,9 @@ _Avoid_: browser history, breadcrumb (this is a stack, not a path).
 ## Module
 
 A **capability** of the platform — one coherent vertical of functionality
-(menus, commands, translations, dialogs, shop, quests…) built in three symmetric
-layers: plugin (`ArtisanModule`), backend (`BackendModule`), editor
-(`FrontendModule`), wired through a `ModuleRegistry`. A Module is the *logical*
+(menus, commands, translations, dialogs, shop, quests…) built in two symmetric
+layers: plugin (`ArtisanModule`) and editor (`FrontendModule`), wired through a
+`ModuleRegistry` (a third, backend layer existed until phase F, 2026-10). A Module is the *logical*
 unit of capability, deliberately distinct from the artifact that ships it.
 
 Two families, split by **distribution**:
@@ -546,38 +632,35 @@ Non-examples:
 
 ## Network
 
-A group of **Servers** under one ownership/team — the unit of ownership, access
-(**memberships** with roles), billing (a paid **Plan version**), and handover (**transfer**).
-**Not** a Minecraft proxy topology: a Network is who-owns-what, not which servers
-sit behind a proxy (the two often coincide but needn't). A User may belong to
-several Networks and a Network has several members — so a Network is **not** a
-User/Account, but the shared container they have access to.
+The servers one editor reaches: a **Hub** and the **Leaves** that share its
+**Network secret**. A lone server is a Network of one (its hub). It has no name of
+its own: the hub's server name is what leaves see as `network_name`. It is not an
+ownership or billing unit any more, and not the proxy topology either — though in practice the
+hub and leaves are often the servers behind one Velocity proxy, whose forwarding
+secret can serve as the Network secret.
+
+A Network of more than one server shares one suite database (MySQL or MariaDB):
+each server records its own **Versions** there, and any server can become the hub
+without moving data. A lone server may keep its embedded database.
 
 Non-examples:
-- A Bungee/Velocity proxy cluster doesn't define a Network — ownership does;
-  Artisan never sees the proxy topology.
-- The owning **User** is not the Network; users are *members* of Networks.
+- A Velocity/Bungee proxy is not the Network and runs no Artisan code.
+- The cloud Network (accounts, members, plans) was removed in phase F (2026-10).
 
-## Plan and entitlements
+## Network secret
 
-A **standard plan** is a code-managed commercial offer with a stable key (`free`
-or `pro`). Its billing interval and version identify immutable conditions;
-database and payment-provider IDs are environment-specific references.
-A **custom offer** is an independent copy of standard conditions, managed in the
-admin console and private to one Network. A draft grants no access; publishing
-makes the offer available to its intended Network, subject to payment readiness.
+The shared secret a **Leaf** presents to the **Hub** on `/ws/plugin` (sent as
+`server_key` in `hello`, a legacy field name). Resolved in order: `web.secret`,
+the Velocity forwarding secret from `config/paper-global.yml`, then a secret the
+hub generates once in `plugins/Artisan/network-secret` (to copy to each leaf).
 
-A **Plan version** fixes price, billing and credit cadence, limits and capabilities.
-Changing published conditions creates a successor; existing subscribers retain
-their paid version. Billing cadence and credit cadence are distinct: standard
-annual Pro is paid yearly but grants credits monthly.
+## Plan and entitlements — **retired term** (2026-10)
 
-**Entitlements** are a Network's effective limits and capabilities, resolved from
-an active **manual assignment**, otherwise its confirmed paid version until expiry,
-then from Free. A manual assignment grants a published plan's full rights and
-recurring credits without payment, optionally until a fixed date. Features check these
-rights rather than a plan name or the denormalized `tier` flag. A null limit means
-unlimited; zero means no allowance.
+*Was* the cloud's commercial model (Free/Pro plans, custom offers, AI credits,
+resource quotas). Removed in phase F: the core is free and Add-ons are sold once on
+marketplaces. `ProjectMutations` still understands a `commercial_policy` quota,
+but nothing sends one.
+_Avoid_: plan, tier, credits, quota, Pro.
 
 ## Placement
 
@@ -619,22 +702,22 @@ over the WS link — not something authored in the editor. It answers "what is
 actually live on this server right now?": at minimum whether the Server is
 **online** (≥1 plugin instance connected) and **which Modules** are installed
 there (`installed_modules`). The live connection is the source of truth; the
-editor reads a persisted projection of it (`server_modules` rows + an `online`
-boolean) to gate which UI to show.
+editor reads the hub's in-memory copy of it (from the leaf's `hello` and
+`modules_changed`, or straight from the plugin for the hub's own server) to gate
+which UI to show.
 
 Examples:
 - The Quests add-on appears in the editor only when the Server's Presence
   includes the `quests` module — "installed on the server → visible in the editor."
-- A Server reads as online the moment one instance connects; how *many* instances
-  are connected is not surfaced (Presence exposes a boolean, never a count).
+- A Leaf reads as online while its `/ws/plugin` socket is open; a second
+  connection under the same name replaces the first.
 
 Non-examples:
 - **Authored config** is not Presence — Presence is the live mirror, config is the
   declared intent. A Module may be configured for a Server yet absent from its
   Presence (not actually installed), or installed yet unconfigured.
-- The **server key** is not Presence — the key is the durable credential; Presence
-  is the transient "is it connected, and with what" fact that the key's instances
-  report.
+- The **Network secret** is not Presence — it is the durable credential; Presence
+  is the transient "is it connected, and with what" fact.
 
 ## Preview context
 
@@ -658,46 +741,45 @@ Non-examples:
 
 ## Project
 
-**Storage (revised 2026-09-27, ADR `server-only-projects`):** every account
-Project belongs to a **Server**, linked or not; account-owned hosted projects are
-retired. Published content lives on the server disk; private **Drafts** and
-**Versions** live in the backend, and the editor shows the server's current
-**Snapshot**. A Project on an unlinked Server has no published content yet — only
-drafts — until its first publication. A temporary demo belongs to its DemoSession,
-without a fake User, Network or Server; it is disposable and leaves only through
-export.
+**Storage (revised 2026-10):** every Project belongs to a **Server**; its
+published content lives on that server's disk. Its **Versions** and **Drafts**
+live in the suite database. The editor shows the server's current **Snapshot**.
+Hosted projects and the demo are gone.
 
 The editable collection of GUI content — its **Menus**,
 **Commands**, **Dialogs**, translations, and assets. A Project is a tree of files
-on its owning disk: Minecraft server or durable backend volume. That disk is the
-authority for published content; publication is explicit. A text editor
+on its server's disk. That disk is the authority for published content; publication is explicit. A text editor
 can still edit server files directly. The web editor is a client of the project's
 files (cf. ADR `files-first-source-of-truth`). A Project belongs to
 **exactly one Server**.
 A Server holds **one or more** Projects. The Project is
 the granular unit of organisation *and* of **portability**: a server's content is
 split into Projects so each can be exported, shared, and imported independently.
-ZIP export is available everywhere, demo included; ZIP import is withdrawn
-until it can target a Server. Projects are never live-linked to one another.
+Projects are exported and imported as ZIP; they are never live-linked to one another.
 
-A Project has **two identifiers, and only one of them is global**. Its *disk id*
-is the directory name the owning server uses, and it is unique **per server**
-only — an Add-on bootstraps the same one everywhere it is installed, so
-`boutique_addon` names a different Project on every server that runs the Boutique
-Add-on. Its *internal id* is unique platform-wide and is what the backend rows
-address. Editor URLs use the exact folder/module ID within a Network + Server
-(server Projects) or the current DemoSession. The
-internal ID remains the key for drafts, history, relationships and content APIs.
-Renaming changes the public folder ID, never that internal key. Old slugs and
-completed rename sources resolve only when unambiguous in the location; current
-folder IDs take precedence. Treating a disk id as global is what let one
-server overwrite another tenant's Project (2026-08-12); see
-`docs/architecture/entities.md` § `projects.externalId`.
+A Project's identity is a **project id** generated once and kept with its files,
+so a renamed folder — by the editor or by hand — keeps its Versions and Drafts. A
+copied folder that arrives with an id already used on the same Server gets a new
+one. An Add-on's Project is identified by its manifest instead (`boutique_addon`
+names a different Project on every server that runs the Boutique Add-on). Its
+**folder name**, unique **per server**, is what people see; its id, everywhere the
+hub and the editor name it, is `<server id>.<folder>` (`f3a1….shop`), on the Hub's
+own server as on a Leaf (issue #43).
+
+**Which "project id" is which.** Three values go by that name; the wire keeps
+its spellings (the protocol does not move fast), the code says which one it holds:
+- the generated identity above — `.artisan/project-id`, `project_key` in the suite
+  database, `projectKey` in Kotlin;
+- the **folder** — `project_id` in the `/ws/plugin` messages (`EditorRequest`), and
+  `projectId` in the runtime model and the add-on API (`RuntimeProject.projectId`,
+  `ProjectRootRegistry.register(projectId, …)`): a folder name, the namespace of
+  Document references;
+- the editor's id, `<server id>.<folder>` — `projectId` in the hub's REST answers
+  and in the editor.
 
 This is the **canonical** domain term, and code/DB/API/UI **now all say `project`**
-(`projects` table, `projectId`, `createProject`, `/projects` routes, `project_id` /
-`project_hashes` WS fields, the `plugins/Artisan/projects/` disk dir, and the
-editor UI). It was historically called **`pack`** in code/DB/API and labelled
+(`projectId`, `/projects` routes, `project_id` WS fields, the
+`plugins/Artisan/projects/` disk dir, and the editor UI). It was historically called **`pack`** in code/DB/API and labelled
 **"Workspace"** in the UI; the 2026-06-18 full-stack rename brought every layer onto
 `project`. "Pack" was rejected as the domain word because it collides with Artisan's
 own generated **resource pack** (and the Minecraft "texture pack" reflex);
@@ -731,13 +813,13 @@ A directory a **Module** declares as editable from the editor. Its *kind*
 decides what the files inside are worth, and the Module chooses by deciding
 where to put them (cf. ADR `yaml-assisted-editing`):
 
-- A **project root** holds a **Project** — its files are versioned, survive the
-  server, can be edited while the server is offline, and carry translations in
-  their own `lang/`. It may live inside the Module's own plugin directory, so
-  "versioned" never means "moved into Artisan's folder".
+- A **project root** holds a **Project** — its files go through private drafts
+  and compare-and-swap publication, and carry translations in their own `lang/`.
+  It may live inside the Module's own plugin directory, so a project root never
+  means "moved into Artisan's folder".
 - A **plain root** is any other declared directory (typically a plugin's own
-  config): editable live against the Server, with no history, no offline
-  editing, and no translations of ours — its content is consumed by its owner,
+  config): editable live against the Server, with no drafts and no
+  translations of ours — its content is consumed by its owner,
   so its wording is its owner's business.
 
 Non-examples:
@@ -747,26 +829,25 @@ Non-examples:
 
 ## Server
 
-A single Minecraft server within a **Network** — what **Projects** attach to and
-deploy onto. Identified and authenticated by its **key** (a rotatable bearer
-secret, hashed in the `server_keys` row); code/DB call the entity `server_key` /
-`serverKeyId`. A Server belongs to one Network and holds one or more Projects.
+A single Minecraft server running Artisan — what **Projects** attach to and
+deploy onto. It holds one or more Projects on its disk. In a **Network** it is
+either the **Hub** or a **Leaf**. Its identity is a **server id** generated once, at
+its first start, and that id names it everywhere: hub routes, editor URLs,
+`server_key_id`, the prefix of its Project ids (`<server id>.<folder>`), the hub's own
+server included (issue #43). Its **name** (`name`, else its server folder name, the
+name Velocity routes by) is an attribute that may change:
+a renamed Server keeps its Versions and everything else attached to it. Two
+Servers of a Network never share a name. Whether it is **online** is its
+**Presence**, a runtime fact, not part of the entity.
 
-The **key** is the Server's *credential*, not the Server: rotating it — or running
-several plugin instances on one key — leaves the same Server. Whether a Server is
-**online** (≥1 instance currently connected) is its **Presence**, a runtime fact,
-not part of the entity.
-
-A Server is **unlinked** until `/artisan link` redeems its key: it exists in its
-Network and can hold Projects made of drafts only, prepared before the plugin is
-installed. Linking changes nothing about those Projects; their first publication
-creates their folders on the disk.
+On the wire the server id is `server_uuid` (`hello`), `server_id` (`hello_ack`) and
+`server_key_id` (editor channel). In the suite database every table keys a server
+by its `artisan_servers` row instead (`server_id INT`): that is the **server row**
+(`ServerRow` in Kotlin), never the server id.
 
 Non-examples:
-- The bearer secret is **not** the Server; it's the credential. Rotation swaps the
-  secret, same Server.
-- A connected plugin process is a runtime *instance* of the Server, not a separate
-  Server (instances may share one key).
+- The cloud server key and "unlinked Server" are gone (phase F, 2026-10): a
+  Server exists for the editor only while it runs Artisan.
 
 ## Snapshot
 
@@ -778,18 +859,48 @@ Non-examples:
 - A hand edit on the server disk is **not** in the Snapshot until the next reload.
 - A **Draft** is never a Snapshot: it is unpublished work.
 
-## Version
+## Trigger
 
-A recorded state of a server Project: every **Snapshot** that differs from the
-previous one, with its date and author (the user
-who published, or the server itself after a hand edit and reload). Versions are
-browsable per file or for the whole Project. Restoring one never publishes: it
-loads that content into the user's **Draft**, which is then published normally.
-_Avoid_: commit, backup, trash (the retired on-disk `.artisan/history/`)
+A **Document** kind (`triggers/<id>.yml`) that binds one **Game event** to an
+**Action chain**: when the event fires for a player, the optional `if` conditions
+and `cooldown_seconds` are checked, then the chain runs with the event's context bound as
+`{event.…}`. ADR `triggers-and-variables`. In the sense of ADR
+`extensible-document-kinds`, a Trigger is the Document whose only chain slot is
+its entry point.
 
 Non-examples:
-- Several hand edits between two reloads form a single Version.
-- A Draft autosave is not a Version; only what the server loads is.
+- A **Command** is not a Trigger — a player invokes it; a Trigger reacts to
+  something that happened in the game.
+- A Bukkit listener in a Module's code is not a Trigger — it is code; a Trigger is
+  authored content in the closed action vocabulary.
+- A chain slot of another kind (an Element's click, an NPC's `right_click`) is a
+  trigger in the board's sense, not a Trigger Document.
+
+## Variable
+
+A declared, typed, persistent value (`variables/<id>.yml`): scope `player` or
+`server`, type `string`, `number`, `boolean` or `location`, optional expiry. Written
+by `set_var` / `add_var` / `clear_var`, read as `{var.<id>}` and by `has_var`;
+stored in the suite database, so a Network shares a player's values. Cf. ADR
+`triggers-and-variables`.
+
+Non-examples:
+- A context input set by `set_arg` is not a Variable — it lives for one menu
+  session and is never stored.
+- A cooldown is not a Variable — it only answers "has this delay passed?".
+
+## Version
+
+A recorded state of a server **Project**: one per **Snapshot** that differs from
+the previous Version, with its date and author. Publishing from the editor makes a
+Version authored by the publishing player; a hand edit on the server disk becomes a
+Version when the plugin loads it (start or `/artisan reload`), with no author and
+marked as changed on disk.
+_Avoid_: commit, backup.
+
+Non-examples:
+- A **Draft** save is not a Version: only what the server loads is recorded.
+- A reload that loads identical files records nothing.
 
 ## Template
 

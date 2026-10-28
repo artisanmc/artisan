@@ -1,5 +1,7 @@
+import type { Asset } from "@/domain/asset";
 import type { Modifier } from "@dnd-kit/core";
 import { afterEach, expect, it } from "vitest";
+import { draggableProps } from "./dragPayload";
 import { anchorImageDragToCursor } from "./imageButtonDrag";
 import { setStageGeometryProvider } from "./stageGeometry";
 
@@ -10,12 +12,29 @@ function drag(start: { x: number; y: number }, scale: number) {
     viewport: { x: 0, y: 0, scale },
     wrapperRect: { left: 0, top: 0, right: 1000, bottom: 800 },
   }));
-  return {
+  const args: Parameters<Modifier>[0] = {
     activatorEvent: new MouseEvent("mousedown", { clientX: start.x, clientY: start.y }),
-    active: { id: "image", data: { current: { imageButton: { width: 48, height: 16 } } } },
-    activeNodeRect: { left: 20, top: 100, width: 96, height: 108 },
+    active: {
+      id: "image",
+      data: {
+        current: draggableProps({
+          kind: "imageButton",
+          asset: { id: "a1", projectId: "p1", width: 48, height: 16 } as Asset,
+        }).data,
+      },
+      rect: { current: { initial: null, translated: null } },
+    },
+    activeNodeRect: { left: 20, top: 100, width: 96, height: 108, right: 116, bottom: 208 },
+    draggingNodeRect: null,
+    containerNodeRect: null,
+    over: null,
+    overlayNodeRect: null,
+    scrollableAncestors: [],
+    scrollableAncestorRects: [],
     transform: { x: 500 - start.x, y: 350 - start.y, scaleX: 1, scaleY: 1 },
-  } as Parameters<Modifier>[0];
+    windowRect: null,
+  };
+  return args;
 }
 
 it.each([0.5, 1, 2.5])(

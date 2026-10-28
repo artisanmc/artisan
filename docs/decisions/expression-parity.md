@@ -4,7 +4,7 @@
 in each language, locked by `testdata/template-conformance.json`; `ArgResolver`
 deleted; `until()` shipped, `date()` deferred (see Out of scope); step 6 (retiring
 the modules' pre-formatted fields) pending. Supersedes the "closed grammar, no string methods"
-stance of `docs/superpowers/specs/2026-05-03-expression-dsl-design.md`, which the
+stance of `docs/archive/specs/2026-05-03-expression-dsl-design.md`, which the
 editor implementation had already outgrown. CONTEXT.md gains **Expression** and
 **Template** in the same change.
 
@@ -118,7 +118,7 @@ That is the failure this ADR exists to prevent, more than any particular method.
 
 9. **One table is the documentation, the parity checklist and the conformance
    vector.** Every entry of the method vocabulary has a row with an example, in
-   `docs-site/src/content/docs/editor/expressions.md`. A method absent from that
+   `docs/site/editor/expressions.md`. A method absent from that
    table has no doc, no test and no server implementation — the omission that
    caused this ADR becomes structurally impossible.
 

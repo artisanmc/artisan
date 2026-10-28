@@ -22,31 +22,33 @@ function project(
     id: id as ProjectId,
     name: id.toUpperCase(),
     defaultLang: "en",
-    menus: (docs.menus ?? []).map((m) => {
-      const title = text(`t_${m.id}`, m.title);
-      return {
-        id: m.id,
+    documents: {
+      menu: (docs.menus ?? []).map((m) => {
+        const title = text(`t_${m.id}`, m.title);
+        return {
+          id: m.id,
+          projectId: id,
+          rows: 3,
+          layers: [],
+          title: title ? [{ kind: "plain", value: title }] : [],
+        };
+      }),
+      command: (docs.commands ?? []).map((c) => ({
+        id: c.id,
         projectId: id,
-        rows: 3,
-        layers: [],
-        title: title ? [{ kind: "plain", value: title }] : [],
-      };
-    }),
-    commands: (docs.commands ?? []).map((c) => ({
-      id: c.id,
-      projectId: id,
-      name: c.name,
-      arguments: [],
-      steps: [],
-    })),
-    dialogs: (docs.dialogs ?? []).map((d) => ({
-      id: d.id,
-      projectId: id,
-      title: text(`d_${d.id}`, d.title) ?? { key: `d_${d.id}` },
-      buttons: [],
-      body: [],
-      inputs: [],
-    })),
+        name: c.name,
+        arguments: [],
+        steps: [],
+      })),
+      dialog: (docs.dialogs ?? []).map((d) => ({
+        id: d.id,
+        projectId: id,
+        title: text(`d_${d.id}`, d.title) ?? { key: `d_${d.id}` },
+        buttons: [],
+        body: [],
+        inputs: [],
+      })),
+    },
     i18nKeys,
     ...extra,
   } as unknown as Project;
@@ -88,6 +90,18 @@ describe("indexProjectDocuments", () => {
     expect([...a, ...b].map((d) => d.ref)).toEqual(["core:main", "boutique:main"]);
   });
 
+  it("indexes a module's kind", () => {
+    const base = project("attribution", {}, { diskId: "attribution" });
+    const withKind = {
+      ...base,
+      documents: { ...base.documents, "attribution:rewards": [{ id: "paliers" }] },
+    } as unknown as Project;
+    const docs = indexProjectDocuments(withKind, "en");
+    expect(docs.map((d) => [d.kind, d.ref])).toEqual([
+      ["attribution:rewards", "attribution:paliers"],
+    ]);
+  });
+
   it("carries the project name so a result can say where it lives", () => {
     const [doc] = indexProjectDocuments(project("core", { menus: [{ id: "x" }] }), "en");
     expect(doc?.projectName).toBe("CORE");
@@ -109,7 +123,7 @@ describe("toSearchEntries", () => {
 
   it("targets the owning project, not the one being edited", () => {
     const catalogue = entries.find((e) => e.label === "Catalogue");
-    expect(catalogue?.target).toEqual({ openId: "main", projectUrlId: "boutique" });
+    expect(catalogue?.target).toEqual({ openId: "main", kind: "menu", projectUrlId: "boutique" });
     expect(catalogue?.group).toBe("menu");
     expect(catalogue?.context).toEqual({ key: "search.ctxInProject", owner: "BOUTIQUE" });
   });

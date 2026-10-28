@@ -1,20 +1,19 @@
 import { hashContent } from "../../lib/contentHash";
 
 /**
- * Planification de l'enregistrement sur le disque du serveur (ADR
- * `server-disk-only-storage`, P2).
+ * Planning a save to the server's disk (ADR `server-disk-only-storage`).
  *
- * L'éditeur conserve la **base** — le contenu de chaque fichier tel qu'il l'a
- * chargé. Enregistrer ne pousse pas l'arbre entier : on compare à la base, on
- * n'envoie que le delta, et chaque entrée porte le hash de sa base pour que le
- * plugin refuse si le disque a bougé entre-temps. Un fichier que personne n'a
- * touché n'est jamais réécrit, donc ne peut jamais entrer en conflit.
+ * The editor keeps the **base** — each file's content as it was loaded.
+ * Saving does not push the whole tree: it compares to the base, sends only
+ * the delta, and each entry carries its base hash so the plugin refuses if the
+ * disk moved meanwhile. A file nobody touched is never rewritten, so it can
+ * never conflict.
  */
 
 export interface PlannedWrite {
   path: string;
   content: string;
-  /** Hash du contenu attendu sur disque ; `null` = « il ne devait pas y en avoir ». */
+  /** Hash of the content expected on disk; `null` = "there should be none". */
   base_hash: string | null;
 }
 
@@ -26,11 +25,11 @@ export interface PlannedDelete {
 export interface WritePlan {
   files: PlannedWrite[];
   deletes: PlannedDelete[];
-  /** Rien à enregistrer — l'appelant peut s'épargner l'aller-retour. */
+  /** Nothing to save — the caller can skip the round trip. */
   empty: boolean;
 }
 
-/** Contenus rel-keyed → plan d'écriture minimal, chemins triés. */
+/** Rel-keyed contents → minimal write plan, sorted paths. */
 export async function planWrite(
   baseline: Record<string, string>,
   next: Record<string, string>,
@@ -43,8 +42,8 @@ export async function planWrite(
     files.push({
       path,
       content,
-      // Le jeton décrit ce qu'on croyait trouver sur disque, donc il se calcule
-      // sur la BASE et jamais sur le nouveau contenu.
+      // The token describes what we expected on disk, so it is computed on the
+      // BASE, never on the new content.
       base_hash: before === undefined ? null : await hashContent(before),
     });
   }
@@ -59,10 +58,10 @@ export async function planWrite(
 }
 
 /**
- * `transform()` produit des chemins canoniques
- * (`plugins/Artisan/projects/<diskId>/<rel>`) ; le protocole plugin parle en
- * chemins relatifs au project. Ce qui n'appartient pas au project est écarté —
- * une écriture ne sort jamais de son propre arbre.
+ * `projectToFiles()` produces canonical paths
+ * (`plugins/Artisan/projects/<diskId>/<rel>`); the plugin protocol speaks in
+ * project-relative paths. Anything outside the project is dropped — a write
+ * never leaves its own tree.
  */
 export function toRelative(
   canonical: Record<string, string>,
@@ -77,16 +76,16 @@ export function toRelative(
 }
 
 /**
- * Transforme un « supprimer l'ancien + créer le nouveau » en **déplacement**,
- * quand l'éditeur a déclaré un renommage.
+ * Turns "delete the old + create the new" into a **move** when the editor
+ * declared a rename.
  *
- * L'arbre seul ne peut pas distinguer les deux, mais l'éditeur, lui, sait. Sans
- * cette traduction, renommer un Document archive une suppression qui n'en est
- * pas une et laisse son historique orphelin du nouveau nom.
+ * The tree alone cannot tell the two apart, but the editor can. Without this
+ * translation, renaming a Document archives a deletion that is not one and
+ * orphans its history from the new name.
  *
- * Le `base_hash` du déplacement porte sur l'ANCIEN chemin — c'est lui que le
- * serveur doit retrouver intact. Et si le contenu a aussi changé, l'écriture qui
- * suit se base sur ce même contenu, puisque le fichier déplacé le porte encore.
+ * The move's `base_hash` is about the OLD path — that is what the server must
+ * find intact. And if the content changed too, the following write is based
+ * on that same content, since the moved file still holds it.
  */
 export async function applyRenames(
   plan: WritePlan,
@@ -99,18 +98,18 @@ export async function applyRenames(
 
   for (const { from, to } of renames) {
     const was = baseline[from];
-    // Un renommage dont la source n'est pas dans la base ne décrit rien que le
-    // serveur puisse vérifier : on le laisse retomber en création normale.
+    // A rename whose source is not in the base describes nothing the server can
+    // check: it falls back to a plain create.
     if (was === undefined) continue;
     applied.push({ from, to, base_hash: await hashContent(was) });
-    // L'ancien chemin ne se supprime plus : il se déplace.
+    // The old path is no longer deleted: it is moved.
     deletes = deletes.filter((d) => d.path !== from);
     files = files.map((f) =>
-      // Après le déplacement, la destination porte l'ancien contenu : c'est LUI
-      // que le compare-and-swap doit attendre, pas « aucun fichier ».
+      // After the move, the destination holds the old content: that is what the
+      // compare-and-swap must expect, not "no file".
       f.path === to ? { ...f, base_hash: applied[applied.length - 1]!.base_hash } : f,
     );
-    // Contenu inchangé : le déplacement suffit, rien à réécrire.
+    // Unchanged content: the move is enough, nothing to rewrite.
     const target = files.find((f) => f.path === to);
     if (target && target.content === was) files = files.filter((f) => f.path !== to);
   }

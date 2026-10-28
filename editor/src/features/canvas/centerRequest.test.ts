@@ -6,17 +6,19 @@ import { COMMAND_BOX } from "./menuLayout";
 
 const project = {
   id: "p1",
-  menus: [],
-  commands: [{ id: "cmd", name: "cmd", arguments: [], steps: [] }],
-  dialogs: [],
+  documents: {
+    menu: [],
+    command: [{ id: "cmd", name: "cmd", arguments: [], steps: [] }],
+    dialog: [],
+  },
 } as unknown as Project;
-const layout = { cmd: { x: 400, y: 200 } };
+const layout = { "command/cmd": { x: 400, y: 200 } };
 const size = { w: 1200, h: 900 };
 
 describe("viewportForCenterRequest", () => {
   it("frames the requested document of this board", () => {
     const v = viewportForCenterRequest(
-      { projectId: "p1", docId: "cmd", nonce: 1 },
+      { projectId: "p1", docId: "command/cmd", nonce: 1 },
       "p1",
       project,
       layout,

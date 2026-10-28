@@ -1,9 +1,9 @@
 import type {
-  Dialog as DomainDialog,
   DialogBody,
-  DialogInput,
   DialogButton,
   DialogId,
+  DialogInput,
+  Dialog as DomainDialog,
   I18nKey,
   LText,
   ProjectId,
@@ -24,7 +24,11 @@ export interface DialogImportResult {
 
 export function dialogV1ToDomain(
   src: Json,
-  opts: { projectId: ProjectId; lang: string; translations?: Record<string, Record<string, string>> },
+  opts: {
+    projectId: ProjectId;
+    lang: string;
+    translations?: Record<string, Record<string, string>>;
+  },
 ): DialogImportResult {
   const i18nKeys: Record<string, Record<string, string>> = {};
   const unsupported: string[] = [];
@@ -67,9 +71,20 @@ export function dialogV1ToDomain(
     .map((i): DialogInput | null => {
       switch (i.type) {
         case "text":
-          return { type: "text", id: i.id, label: text(i.label), default: i.default ?? "", maxLength: i.max_length ?? 32 };
+          return {
+            type: "text",
+            id: i.id,
+            label: text(i.label),
+            default: i.default ?? "",
+            maxLength: i.max_length ?? 32,
+          };
         case "bool":
-          return { type: "bool", id: i.id, label: text(i.label), default: String(i.default) === "true" };
+          return {
+            type: "bool",
+            id: i.id,
+            label: text(i.label),
+            default: String(i.default) === "true",
+          };
         case "number_range":
           return {
             type: "number_range",
@@ -84,7 +99,10 @@ export function dialogV1ToDomain(
             type: "single_option",
             id: i.id,
             label: text(i.label),
-            options: ((i.options as Json[]) ?? []).map((o) => ({ value: o.value, label: text(o.label) })),
+            options: ((i.options as Json[]) ?? []).map((o) => ({
+              value: o.value,
+              label: text(o.label),
+            })),
             default: i.default ?? "",
           };
         default:
@@ -97,7 +115,7 @@ export function dialogV1ToDomain(
   const buttons: DialogButton[] = ((src.buttons as Json[]) ?? []).map((b) => ({
     id: b.id,
     label: text(b.label),
-    // dialog/v1 button `actions` is an Action DSL string (Phase 2). Unlike the
+    // dialog/v1 button `actions` is an Action DSL string. Unlike the
     // old flat-action wire, if-branches now round-trip.
     steps: parseSteps(b.actions),
   }));

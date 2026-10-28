@@ -10,44 +10,46 @@ function project(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      {
-        id: "m_shop",
-        projectId: PID,
-        title: [{ kind: "plain", value: { key: "k_title" } }],
-        rows: 3,
-        layers: [
-          {
-            id: "L1",
-            name: "default",
-            elements: [
-              {
-                id: "el_buy",
-                positions: "13",
-                display: {
-                  material: "DIAMOND",
-                  title: { key: "k_buytitle" },
-                  lore: { key: "k_buylore" },
+    documents: {
+      menu: [
+        {
+          id: "m_shop",
+          projectId: PID,
+          title: [{ kind: "plain", value: { key: "k_title" } }],
+          rows: 3,
+          layers: [
+            {
+              id: "L1",
+              name: "default",
+              elements: [
+                {
+                  id: "el_buy",
+                  positions: "13",
+                  display: {
+                    material: "DIAMOND",
+                    title: { key: "k_buytitle" },
+                    lore: { key: "k_buylore" },
+                  },
+                  states: [],
                 },
-                states: [],
-              },
-            ],
-          },
-        ],
-      } as any,
-    ],
-    commands: [{ id: "c_heal", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
-    dialogs: [
-      {
-        id: "d_confirm",
-        projectId: PID,
-        title: { key: "k_dtitle" },
-        canCloseWithEscape: true,
-        body: [{ type: "text", text: { key: "k_dbody" } }],
-        inputs: [],
-        buttons: [{ id: "btn_ok", label: { key: "k_btn" }, steps: [] }],
-      } as any,
-    ],
+              ],
+            },
+          ],
+        } as any,
+      ],
+      command: [{ id: "c_heal", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
+      dialog: [
+        {
+          id: "d_confirm",
+          projectId: PID,
+          title: { key: "k_dtitle" },
+          canCloseWithEscape: true,
+          body: [{ type: "text", text: { key: "k_dbody" } }],
+          inputs: [],
+          buttons: [{ id: "btn_ok", label: { key: "k_btn" }, steps: [] }],
+        } as any,
+      ],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
@@ -65,7 +67,7 @@ function project(): Project {
 }
 
 describe("buildSearchIndex", () => {
-  it("indexe menus, commandes, dialogs (niveau élément)", () => {
+  it("indexes menus, commands, dialogs (element level)", () => {
     const idx = buildSearchIndex(project(), "en");
     expect(idx.find((e) => e.group === "menu" && e.label === "Shop")?.target.openId).toBe("m_shop");
     expect(idx.find((e) => e.group === "command" && e.label === "/heal")?.target.openId).toBe(
@@ -75,13 +77,18 @@ describe("buildSearchIndex", () => {
       "d_confirm",
     );
   });
-  it("indexe les items de menu avec cible = menu + slot", () => {
+  it("indexes menu items with target = menu + slot", () => {
     const idx = buildSearchIndex(project(), "en");
     const item = idx.find((e) => e.group === "content" && e.label === "DIAMOND");
-    expect(item?.target).toEqual({ openId: "m_shop", selectId: "el_buy", focusedSlot: 13 });
+    expect(item?.target).toEqual({
+      openId: "m_shop",
+      kind: "menu",
+      selectId: "el_buy",
+      focusedSlot: 13,
+    });
     expect(item?.context).toEqual({ key: "search.ctxInMenu", owner: "Shop" });
   });
-  it("indexe les textes (titre/lore d'item, corps + bouton de dialog)", () => {
+  it("indexes texts (item title/lore, dialog body + button)", () => {
     const idx = buildSearchIndex(project(), "en");
     expect(idx.some((e) => e.label === "Buy now" && e.target.selectId === "el_buy")).toBe(true);
     expect(idx.some((e) => e.label === "Costs 10 coins" && e.target.selectId === "el_buy")).toBe(
@@ -95,28 +102,28 @@ describe("buildSearchIndex", () => {
 });
 
 describe("searchQuery", () => {
-  it("filtre par sous-chaîne insensible à la casse", () => {
+  it("filters by case-insensitive substring", () => {
     const idx = buildSearchIndex(project(), "en");
     const r = searchQuery(idx, "diam");
     expect(r.some((e) => e.label === "DIAMOND")).toBe(true);
     expect(r.every((e) => e.haystack.includes("diam"))).toBe(true);
   });
-  it("chercher le nom du menu propriétaire surface ses items", () => {
+  it("searching the owning menu's name surfaces its items", () => {
     const r = searchQuery(buildSearchIndex(project(), "en"), "shop");
-    expect(r.some((e) => e.label === "DIAMOND")).toBe(true); // l'item est trouvé via owner "Shop"
+    expect(r.some((e) => e.label === "DIAMOND")).toBe(true); // the item is found via owner "Shop"
   });
-  it("classe élément avant contenu, exact/préfixe avant sous-chaîne", () => {
+  it("ranks element before content, exact/prefix before substring", () => {
     const idx = buildSearchIndex(project(), "en");
     const r = searchQuery(idx, "shop");
     expect(r[0]?.group).toBe("menu");
   });
-  it("requête vide renvoie []", () => {
+  it("empty query returns []", () => {
     expect(searchQuery(buildSearchIndex(project(), "en"), "  ")).toEqual([]);
   });
 });
 
 describe("groupResultsForDisplay", () => {
-  it("rend chaque groupe contigu en préservant l'ordre d'apparition + l'ordre intra-groupe", () => {
+  it("keeps each group contiguous, preserving appearance order + intra-group order", () => {
     const e = (id: string, group: any) => ({
       id,
       group,
@@ -124,7 +131,7 @@ describe("groupResultsForDisplay", () => {
       haystack: id,
       target: { openId: id },
     });
-    // ordre par score (entrée) : menuA, command, menuB, content  → menuB doit rejoindre menuA
+    // score order (input): menuA, command, menuB, content → menuB must join menuA
     const input = [
       e("menuA", "menu"),
       e("cmd", "command"),

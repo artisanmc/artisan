@@ -1,5 +1,6 @@
-import type { useAccountStore } from "@/state/accountStore";
+import { docKey, findDocumentByKey, menusOf } from "@/domain/documents";
 import { parsePositions } from "@/lib/positions";
+import type { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { type RefObject, useCallback, useState } from "react";
@@ -10,11 +11,11 @@ import type { ViewportState } from "./usePanZoom";
 const emptyTarget: ContextMenuTarget = { kind: "entity", selectedIds: [] };
 
 const slotIsFilled = (
-  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number],
+  project: ReturnType<typeof useProjectsStore.getState>["openProjects"]["projects"][number],
   menuId: string,
   position: number,
 ): boolean => {
-  const menu = project.menus.find((m) => m.id === menuId);
+  const menu = menusOf(project).find((m) => m.id === menuId);
   if (!menu) return false;
   const positionStr = String(position);
   return menu.layers.some((l) =>
@@ -23,19 +24,21 @@ const slotIsFilled = (
 };
 
 const selectedElementAt = (
-  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number],
+  project: ReturnType<typeof useProjectsStore.getState>["openProjects"]["projects"][number],
   menuId: string,
   position: number,
   ids: ReadonlySet<string>,
 ): boolean =>
-  !!project.menus
+  !!menusOf(project)
     .find((m) => m.id === menuId)
     ?.layers.some((l) =>
       l.elements.some((el) => ids.has(el.id) && parsePositions(el.positions).includes(position)),
     );
 
 interface UseStageContextMenuArgs {
-  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined;
+  project:
+    | ReturnType<typeof useProjectsStore.getState>["openProjects"]["projects"][number]
+    | undefined;
   layout: Record<string, { x: number; y: number }>;
   viewport: ViewportState;
   wrapperRef: RefObject<HTMLDivElement | null>;
@@ -79,12 +82,8 @@ export function useStageContextMenu({
         slotHit &&
         selected.ids.size > 1 &&
         ((selected.menuId === null &&
-          selected.ids.has(slotHit.menuId) &&
-          [...selected.ids].every((id) =>
-            [project.menus, project.commands, project.dialogs].some((nodes) =>
-              nodes?.some((n) => n.id === id),
-            ),
-          )) ||
+          selected.ids.has(docKey("menu", slotHit.menuId)) &&
+          [...selected.ids].every((id) => findDocumentByKey(project, id) !== undefined)) ||
           selectedElementAt(project, slotHit.menuId, slotHit.position, selected.ids));
       if (keepsSelection) {
         setCtxMenu({

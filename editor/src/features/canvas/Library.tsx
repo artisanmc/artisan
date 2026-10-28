@@ -7,12 +7,10 @@ import { useDraggable } from "@dnd-kit/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { draggableProps } from "./dragPayload";
 import { useTextureStore } from "./textureStore";
 
-/** ID prefix for Library items inside the top-level DndContext. */
-export const LIBRARY_DRAG_PREFIX = "lib:";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+import { API_URL } from "@/lib/api/client";
 
 const TILE_SIZE = 48;
 const GAP = 6;
@@ -21,33 +19,23 @@ interface ItemTileProps {
   item: LibraryItem;
   textureBase: string;
   version: string;
-  isCustom: boolean;
-  serverKeyId?: string;
   bundleReady: boolean;
   tints?: Record<number, string>;
 }
 
-function ItemTile({
-  item,
-  textureBase,
-  version,
-  isCustom,
-  serverKeyId,
-  bundleReady,
-  tints,
-}: ItemTileProps) {
+function ItemTile({ item, textureBase, version, bundleReady, tints }: ItemTileProps) {
   const armed = useUiStore((s) => s.armedMaterial === item.id);
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `${LIBRARY_DRAG_PREFIX}${item.id}`,
-    data: { material: item.id },
-  });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable(
+    draggableProps({ kind: "material", material: item.id }),
+  );
   const tileRef = useRef<HTMLButtonElement>(null);
   const setRendered = useTextureStore((s) => s.setRendered);
   const renderedSrc = useTextureStore((s) =>
     item.model ? (s.renderedByMaterial[item.id.toLowerCase()] ?? null) : null,
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `tints` comes from `item` (tile keyed by item.id); a new object reference must not rerun a 3D render already cached per material
   useEffect(() => {
     if (!item.model || !bundleReady || !tileRef.current) return;
     let cancelled = false;
@@ -55,7 +43,7 @@ function ItemTile({
       (entries) => {
         if (!entries[0]?.isIntersecting) return;
         observer.disconnect();
-        renderToCanvas(item.model!, version, isCustom, serverKeyId, tints).then((src) => {
+        renderToCanvas(item.model!, version, tints).then((src) => {
           if (cancelled || !src) return;
           setRendered(item.id, src);
         });
@@ -67,7 +55,7 @@ function ItemTile({
       cancelled = true;
       observer.disconnect();
     };
-  }, [item.model, bundleReady, version, isCustom, serverKeyId, setRendered]);
+  }, [item.id, item.model, bundleReady, version, setRendered]);
 
   return (
     <button
@@ -219,18 +207,12 @@ export function Library() {
               }}
             >
               {(rows[virtualRow.index] ?? []).map((item) => {
-                const isCustom = customData.items.some((c) => c.id === item.id);
-                const textureBase = isCustom
-                  ? `${API_URL}/api/v1/textures/custom/${customData.serverKeyId}`
-                  : `${API_URL}/api/v1/textures/${version}`;
                 return (
                   <ItemTile
                     key={item.id}
                     item={item}
-                    textureBase={textureBase}
+                    textureBase={`${API_URL}/api/v1/textures/${version}`}
                     version={version}
-                    isCustom={isCustom}
-                    serverKeyId={isCustom ? customData.serverKeyId : undefined}
                     bundleReady={bundleReady}
                     tints={item.tints}
                   />

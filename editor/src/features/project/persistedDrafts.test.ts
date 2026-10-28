@@ -10,6 +10,7 @@ import {
   copyPersistedDraft,
   discardPersistedDraft,
   loadPersistedDrafts,
+  markDraftPending,
   publishPersistedDraft,
   resolveDraftConflict,
   syncPersistedDraft,
@@ -229,7 +230,7 @@ it("ignores a stale draft listing when this session acknowledged a newer revisio
   );
 });
 
-it("separates local backups between accounts and restores them on return", () => {
+it("separates local backups between players and restores them on return", () => {
   useProjectDraftStore.getState().setOwner("u1");
   useProjectDraftStore.getState().save("p1", snapshot);
   useProjectDraftStore.getState().setOwner("u2");
@@ -440,7 +441,7 @@ it("treats a discard conflict on an already closed draft as done", async () => {
   expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
 });
 
-/** Charge le brouillon, édite manifest.yaml, puis simule une autre session qui a écrit le même fichier. */
+/** Loads the draft, edits manifest.yaml, then simulates another session that wrote the same file. */
 async function setupSameFileConflict(): Promise<void> {
   vi.mocked(api.listDrafts).mockResolvedValue([remote]);
   await loadPersistedDrafts("p1", "u1");
@@ -457,7 +458,7 @@ async function setupSameFileConflict(): Promise<void> {
   await syncPersistedDraft("p1");
 }
 
-it("rebase une autre session et adopte en silence les fichiers qu'elle a seuls touchés", async () => {
+it("rebases another session and silently adopts the files only it touched", async () => {
   vi.mocked(api.listDrafts).mockResolvedValue([remote]);
   await loadPersistedDrafts("p1", "u1");
   const mine = useProjectDraftStore.getState().get("p1")!;
@@ -490,7 +491,7 @@ it("rebase une autre session et adopte en silence les fichiers qu'elle a seuls t
   expect(local.remote?.revision).toBe(2);
 });
 
-it("signale un fichier édité des deux côtés et cesse d'écrire tant que ce n'est pas tranché", async () => {
+it("flags a file edited on both sides and stops writing until it is settled", async () => {
   await setupSameFileConflict();
   const session = usePersistedDraftStore.getState().sessions.p1;
   expect(session?.draftConflict?.conflicts).toEqual([{ path: "manifest.yaml", disk: "theirs" }]);
@@ -501,7 +502,7 @@ it("signale un fichier édité des deux côtés et cesse d'écrire tant que ce n
   expect(api.updateDraft).toHaveBeenCalledOnce();
 });
 
-it("tranche un conflit : garder ma version écrit à la révision distante", async () => {
+it("settles a conflict: keeping my version writes at the remote revision", async () => {
   await setupSameFileConflict();
   vi.mocked(api.updateDraft).mockImplementation(async (_p, _id, revision, _name, saved) => ({
     ...remote,
@@ -516,13 +517,13 @@ it("tranche un conflit : garder ma version écrit à la révision distante", asy
   expect(useProjectDraftStore.getState().get("p1")?.remote?.revision).toBe(3);
 });
 
-it("tranche un conflit : prendre l'autre session ne réécrit rien", async () => {
+it("settles a conflict: taking the other session rewrites nothing", async () => {
   await setupSameFileConflict();
   vi.mocked(api.updateDraft).mockClear();
   await resolveDraftConflict("p1", { "manifest.yaml": "disk" });
   expect(api.updateDraft).not.toHaveBeenCalled();
   expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe("theirs");
-  // La version de l'autre session n'est pas publiée : la base reste le disque.
+  // The other session's version is not published: the base stays the disk.
   expect(useProjectDraftStore.getState().get("p1")?.baseline["manifest.yaml"]).toBe("base");
   expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
   expect(usePersistedDraftStore.getState().sessions.p1?.draftConflict).toBeUndefined();
@@ -535,7 +536,7 @@ const revisionOf = (revision: number, tree: Record<string, string>) => ({
   snapshot: { baseline: disk, tree, initialTree: disk, at: 1 },
 });
 
-it("garde la base sur le disque quand il reprend le travail d'une autre session", async () => {
+it("keeps the base on disk when it takes over another session's work", async () => {
   vi.mocked(api.listDrafts).mockResolvedValue([revisionOf(1, disk)]);
   await loadPersistedDrafts("p1", "u1");
   const mine = useProjectDraftStore.getState().get("p1")!;
@@ -554,11 +555,11 @@ it("garde la base sur le disque quand il reprend le travail d'une autre session"
   const saved = vi.mocked(api.updateDraft).mock.calls.at(-1)![4];
   expect(saved.tree).toEqual({ "g.yaml": "A", "m.yaml": "B" });
   expect(saved.baseline).toEqual(disk);
-  // Relu par le backend (rebase contre le disque), le travail de B survit.
+  // Re-read by the hub (rebase against the disk), B's work survives.
   expect(rebaseDraft(saved, { files: disk, binaries: {} }).snapshot.tree["m.yaml"]).toBe("B");
 });
 
-it("ne signale pas de conflit sur un fichier changé depuis la dernière révision commune", async () => {
+it("does not flag a conflict on a file changed since the last common revision", async () => {
   const shared = { ...disk, "m.yaml": "S" };
   vi.mocked(api.listDrafts).mockResolvedValue([revisionOf(1, shared)]);
   await loadPersistedDrafts("p1", "u1");
@@ -572,7 +573,7 @@ it("ne signale pas de conflit sur un fichier changé depuis la dernière révisi
   expect(useProjectDraftStore.getState().get("p1")?.tree).toEqual({ "g.yaml": "A", "m.yaml": "B" });
 });
 
-it("ne vide pas la base d'images locale quand le brouillon distant n'en porte pas", async () => {
+it("does not empty the local image base when the remote draft carries none", async () => {
   vi.mocked(api.listDrafts).mockResolvedValue([remote]);
   await loadPersistedDrafts("p1", "u1");
   const mine = useProjectDraftStore.getState().get("p1")!;
@@ -597,7 +598,7 @@ it("ne vide pas la base d'images locale quand le brouillon distant n'en porte pa
   expect(local.binaryTree).toEqual(binaries);
 });
 
-it("détecte un conflit de révision à l'ouverture quand une autre session a avancé le brouillon", async () => {
+it("detects a revision conflict on open when another session advanced the draft", async () => {
   vi.mocked(api.listDrafts).mockResolvedValue([remote]);
   await loadPersistedDrafts("p1", "u1");
   const mine = useProjectDraftStore.getState().get("p1")!;
@@ -612,4 +613,243 @@ it("détecte un conflit de révision à l'ouverture quand une autre session a av
   const session = usePersistedDraftStore.getState().sessions.p1;
   expect(session?.status).toBe("conflict");
   expect(session?.draftConflict?.conflicts).toEqual([{ path: "manifest.yaml", disk: "theirs" }]);
+});
+
+it("keeps local work as a new draft when its hub draft no longer exists", async () => {
+  useProjectDraftStore.getState().save("p1", {
+    ...snapshot,
+    remote: { id: "old-disk-draft", name: "My work", revision: 3, ownerId: "u1" },
+  });
+  vi.mocked(api.listDrafts).mockResolvedValue([]);
+  vi.mocked(api.readDraft).mockRejectedValue(new api.DraftApiError("draft_not_found", 404));
+  await loadPersistedDrafts("p1", "u1");
+  expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+
+  vi.mocked(api.createDraft).mockImplementation(async (_p, id, name, saved) => ({
+    ...remote,
+    id,
+    name,
+    snapshot: saved,
+  }));
+  await syncPersistedDraft("p1");
+  expect(vi.mocked(api.createDraft).mock.calls[0]?.[3].tree).toEqual(snapshot.tree);
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
+});
+
+it("creates the draft again when an update finds it gone", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  useProjectDraftStore.getState().save("p1", {
+    ...useProjectDraftStore.getState().get("p1")!,
+    tree: { "manifest.yaml": "newer" },
+  });
+  vi.mocked(api.updateDraft).mockRejectedValue(new api.DraftApiError("draft_not_found", 404));
+  vi.mocked(api.createDraft).mockImplementation(async (_p, id, name, saved) => ({
+    ...remote,
+    id,
+    name,
+    snapshot: saved,
+  }));
+  await syncPersistedDraft("p1");
+  expect(vi.mocked(api.createDraft).mock.calls[0]?.[1]).toBe("d1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
+});
+
+it("discards a draft the hub no longer holds without failing", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  vi.mocked(api.discardDraft).mockRejectedValue(new api.DraftApiError("draft_not_found", 404));
+  await discardPersistedDraft("p1");
+  expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
+});
+
+it("recovers a draft stuck on a pending save the hub no longer knows, and can discard it", async () => {
+  const stuck = {
+    ...snapshot,
+    remote: {
+      id: "old-disk-draft",
+      name: "My work",
+      revision: 3,
+      ownerId: "u1",
+      pendingMutation: {
+        operationId: "op-old",
+        kind: "save" as const,
+        id: "old-disk-draft",
+        name: "My work",
+        revision: 3,
+        snapshot,
+      },
+    },
+  };
+  useProjectDraftStore.getState().save("p1", stuck);
+  vi.mocked(api.listDrafts).mockResolvedValue([]);
+  vi.mocked(api.readDraft).mockRejectedValue(new api.DraftApiError("draft_not_found", 404));
+  await loadPersistedDrafts("p1", "u1");
+  expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+
+  useProjectDraftStore.getState().save("p1", stuck);
+  await discardPersistedDraft("p1");
+  expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
+});
+
+it("starts a new draft when the one it points at was discarded or published, keeping newer local work", async () => {
+  useProjectDraftStore.getState().save("p1", {
+    ...snapshot,
+    tree: { "manifest.yaml": "edited after discard" },
+    remote: { id: "d1", name: "My work", revision: 2, ownerId: "u1", acknowledged: "older" },
+  });
+  vi.mocked(api.listDrafts).mockResolvedValue([]);
+  vi.mocked(api.readDraft).mockResolvedValue({ ...remote, revision: 2, status: "discarded" });
+  await loadPersistedDrafts("p1", "u1");
+  expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
+  expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe(
+    "edited after discard",
+  );
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+});
+
+it("never sends server metadata the editor must not see in a draft", async () => {
+  useProjectDraftStore.getState().save("p1", {
+    baseline: {
+      "manifest.yaml": "base",
+      ".artisan/project-id": "uuid\n",
+      ".artisan/editor.yaml": "schema: x",
+    },
+    tree: {
+      "manifest.yaml": "edited",
+      ".artisan/project-id": "uuid\n",
+      ".artisan/editor.yaml": "schema: x",
+    },
+    initialTree: { "manifest.yaml": "base", ".artisan/project-id": "uuid\n" },
+    at: 1,
+  });
+  vi.mocked(api.listDrafts).mockResolvedValue([]);
+  await loadPersistedDrafts("p1", "u1");
+  vi.mocked(api.createDraft).mockImplementation(async (_p, id, name, saved) => ({
+    ...remote,
+    id,
+    name,
+    snapshot: saved,
+  }));
+  await syncPersistedDraft("p1");
+  const sent = vi.mocked(api.createDraft).mock.calls[0]![3];
+  expect(Object.keys(sent.baseline).sort()).toEqual([".artisan/editor.yaml", "manifest.yaml"]);
+  expect(Object.keys(sent.tree).sort()).toEqual([".artisan/editor.yaml", "manifest.yaml"]);
+  expect(Object.keys(sent.initialTree ?? {})).toEqual(["manifest.yaml"]);
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
+});
+
+it("creates a draft whose creation never landed instead of calling it a conflict", async () => {
+  useProjectDraftStore.getState().save("p1", {
+    ...snapshot,
+    remote: { id: "never-created", name: "Brouillon", revision: 0, ownerId: "u1" },
+  });
+  vi.mocked(api.listDrafts).mockResolvedValue([]);
+  await loadPersistedDrafts("p1", "u1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+  vi.mocked(api.createDraft).mockImplementation(async (_p, id, name, saved) => ({
+    ...remote,
+    id,
+    name,
+    snapshot: saved,
+  }));
+  await syncPersistedDraft("p1");
+  expect(vi.mocked(api.createDraft).mock.calls[0]?.[1]).toBe("never-created");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
+});
+
+it("leaves the conflict state when the conflicting draft is gone from the hub", async () => {
+  useProjectDraftStore
+    .getState()
+    .save("p1", { ...snapshot, remote: { id: "d1", name: "My work", revision: 2, ownerId: "u1" } });
+  usePersistedDraftStore.setState({
+    sessions: { p1: { ownerId: "u1", drafts: [], status: "conflict" } as never },
+  });
+  vi.mocked(api.readDraft).mockRejectedValue(new api.DraftApiError("draft_not_found", 404));
+  await syncPersistedDraft("p1");
+  expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+});
+
+it("keeps a draft whose 404 is not the draft's: the hub has no such Project", async () => {
+  useProjectDraftStore
+    .getState()
+    .save("p1", { ...snapshot, remote: { id: "d1", name: "My work", revision: 2, ownerId: "u1" } });
+  vi.mocked(api.listDrafts).mockRejectedValue(new api.DraftApiError("unknown_project", 404));
+  await loadPersistedDrafts("p1", "u1");
+  expect(useProjectDraftStore.getState().get("p1")?.remote?.id).toBe("d1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("rejected");
+  expect(usePersistedDraftStore.getState().sessions.p1?.error).toBe("unknown_project");
+});
+
+it("does not send a refused draft again until it changes, and clears its pending mutation", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  useProjectDraftStore.getState().save("p1", {
+    ...useProjectDraftStore.getState().get("p1")!,
+    tree: { "manifest.yaml": "my edit" },
+  });
+  vi.mocked(api.updateDraft).mockRejectedValue(new api.DraftApiError("forbidden", 403));
+  await syncPersistedDraft("p1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("rejected");
+  expect(useProjectDraftStore.getState().get("p1")?.remote?.pendingMutation).toBeUndefined();
+  // The interval: nothing goes out for the same snapshot.
+  await syncPersistedDraft("p1");
+  expect(api.updateDraft).toHaveBeenCalledTimes(1);
+  // The Save button sends it as it is.
+  await syncPersistedDraft("p1", true);
+  expect(api.updateDraft).toHaveBeenCalledTimes(2);
+  // An edit sends it again on its own.
+  vi.mocked(api.updateDraft).mockImplementation(async (_p, id, revision, name, saved) => ({
+    ...remote,
+    id,
+    name,
+    revision: revision + 1,
+    snapshot: saved,
+  }));
+  useProjectDraftStore.getState().save("p1", {
+    ...useProjectDraftStore.getState().get("p1")!,
+    tree: { "manifest.yaml": "fixed" },
+  });
+  markDraftPending("p1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+  await syncPersistedDraft("p1");
+  expect(api.updateDraft).toHaveBeenCalledTimes(3);
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
+});
+
+it("keeps the pending mutation and retries when the hub did not answer", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  useProjectDraftStore.getState().save("p1", {
+    ...useProjectDraftStore.getState().get("p1")!,
+    tree: { "manifest.yaml": "my edit" },
+  });
+  vi.mocked(api.updateDraft).mockRejectedValue(new api.DraftApiError("storage_error", 503));
+  await syncPersistedDraft("p1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("offline");
+  expect(useProjectDraftStore.getState().get("p1")?.remote?.pendingMutation?.kind).toBe("save");
+  await syncPersistedDraft("p1");
+  expect(api.updateDraft).toHaveBeenCalledTimes(2);
+});
+
+it("starts over from the listing when a save finds the draft closed elsewhere", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  useProjectDraftStore.getState().save("p1", {
+    ...useProjectDraftStore.getState().get("p1")!,
+    tree: { "manifest.yaml": "newer work" },
+  });
+  vi.mocked(api.updateDraft).mockRejectedValue(new api.DraftApiError("draft_closed", 409));
+  vi.mocked(api.listDrafts).mockResolvedValue([]);
+  vi.mocked(api.readDraft).mockResolvedValue({ ...remote, status: "published" });
+  await syncPersistedDraft("p1");
+  const session = usePersistedDraftStore.getState().sessions.p1;
+  expect(session?.status).toBe("pending");
+  expect(session?.draftConflict).toBeUndefined();
+  // The newer work stays, as a draft to create.
+  expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
+  expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe("newer work");
 });

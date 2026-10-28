@@ -1,48 +1,109 @@
 import { parseDocRef, projectNamespace } from "@/domain/docRef";
+import { isDocKey, parseDocKey } from "@/domain/documents";
+import { documentKindContribution } from "@artisan/editor-sdk";
 import { type ProjectUrlIdentity, projectUrlId } from "./projectUrlId";
 
+/**
+ * [documentId]: the Document the focus view shows; [kind] says which, an id being unique
+ * within its kind only (`?kind=`).
+ */
 export function projectDestination(
-  networkId: string | null | undefined,
   project: string | ProjectUrlIdentity,
   serverId?: string | null,
   documentId?: string,
+  kind?: string,
 ) {
   const projectId = typeof project === "string" ? project : projectUrlId(project);
-  if (!networkId)
-    return documentId
-      ? {
-          to: "/demo/projects/$projectId/document/$documentId" as const,
-          params: { projectId, documentId },
-        }
-      : { to: "/demo/projects/$projectId" as const, params: { projectId } };
   if (serverId)
     return documentId
       ? {
-          to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId" as const,
-          params: { networkId, serverId, projectId, documentId },
+          to: "/servers/$serverId/projects/$projectId/document/$documentId" as const,
+          params: { serverId, projectId, documentId },
+          ...(kind ? { search: { kind } } : {}),
         }
       : {
-          to: "/networks/$networkId/servers/$serverId/projects/$projectId" as const,
-          params: { networkId, serverId, projectId },
+          to: "/servers/$serverId/projects/$projectId" as const,
+          params: { serverId, projectId },
         };
-  // Tout Project de compte appartient à un serveur (ADR `server-only-projects`) :
-  // sans serveur connu, on revient au Network.
-  return { to: "/networks/$networkId" as const, params: { networkId } };
+  // Every open Project belongs to a server (ADR `server-only-projects`):
+  // without a known server, go back to the server list.
+  return { to: "/servers" as const };
 }
 
 /**
- * La vue d'un Document atteint par une référence (`main` ou `boutique:main`) :
- * un id qualifié ouvre le project qu'il nomme, par son dossier — l'identifiant
- * que les URLs de project acceptent déjà.
+ * The view of a Document reached by a reference (`main` or `boutique:main`), or by its key
+ * (`menu/main`, `menu/boutique:main`): a qualified id opens the project it names, by its
+ * folder — the id project URLs already accept.
  */
 export function documentDestination(
-  networkId: string | null | undefined,
   current: ProjectUrlIdentity,
   serverId: string | null | undefined,
   ref: string,
 ) {
-  const { namespace, id } = parseDocRef(ref);
+  const keyed = isDocKey(ref) ? parseDocKey(ref) : null;
+  const { namespace, id } = parseDocRef(keyed?.id ?? ref);
   const here = projectNamespace({ id: current.id, diskId: current.diskId ?? undefined });
   const project = namespace === null || namespace === here ? current : namespace;
-  return projectDestination(networkId, project, serverId, id);
+  return projectDestination(project, serverId, id, keyed?.kind);
+}
+
+/**
+ * Where a module's Config screen opens. A screen whose table lives in one of the listed
+ * Projects (its module folder) opens inside it, on the folder's draft; any other (a
+ * configuration root, never listed) opens as the standalone screen that writes on Save.
+ */
+export function screenDestination(
+  screen: { id: string; projectId?: string | null },
+  serverId: string,
+  projects: ProjectUrlIdentity[],
+) {
+  const owner = screen.projectId
+    ? projects.find((p) => projectUrlId(p) === screen.projectId)
+    : undefined;
+  if (owner)
+    return {
+      to: "/servers/$serverId/projects/$projectId/screen/$screenId" as const,
+      params: { serverId, projectId: projectUrlId(owner), screenId: screen.id },
+    };
+  return {
+    to: "/servers/$serverId/screens/$screenId" as const,
+    params: { serverId, screenId: screen.id },
+  };
+}
+
+/**
+ * The page of a collection kind's Documents in a project (SDK 1.9), at the kind's folder
+ * name: a shop's `…/projects/boutique_addon/catalogue`.
+ */
+export function collectionDestination(
+  project: string | ProjectUrlIdentity,
+  serverId: string,
+  kind: string,
+) {
+  const projectId = typeof project === "string" ? project : projectUrlId(project);
+  return {
+    to: "/servers/$serverId/projects/$projectId/$collectionDir" as const,
+    params: { serverId, projectId, collectionDir: documentKindContribution(kind)?.dir ?? kind },
+  };
+}
+
+/** The page of one of a Project's own data sources (a table, a config sheet): `…/data/speakers`. */
+export function dataSourceDestination(
+  project: string | ProjectUrlIdentity,
+  serverId: string,
+  dataSourceId: string,
+) {
+  const projectId = typeof project === "string" ? project : projectUrlId(project);
+  return {
+    to: "/servers/$serverId/projects/$projectId/data/$dataSourceId" as const,
+    params: { serverId, projectId, dataSourceId },
+  };
+}
+
+/** The anchor of the data sources section on the server page. */
+export const SERVER_SOURCES_ANCHOR = "data-sources";
+
+/** The server page, scrolled to the data sources its modules declare. */
+export function serverSourcesDestination(serverId: string) {
+  return { to: "/servers/$serverId" as const, params: { serverId }, hash: SERVER_SOURCES_ANCHOR };
 }

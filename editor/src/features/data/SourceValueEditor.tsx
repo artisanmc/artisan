@@ -1,5 +1,8 @@
 import { RevealField } from "@/components/RevealField";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
+import { TagInput } from "@/components/ui/tag-input";
 import { defaultValueForModelType, sourceRootFields } from "@/domain/dataModels";
 import type {
   Condition,
@@ -13,14 +16,23 @@ import type {
 } from "@/domain/types";
 import { ItemValueField } from "@/features/canvas/ItemValueField";
 import { resolveRowTexts } from "@/features/canvas/menuPreviewScope";
-import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
+import { ConditionListEditor } from "@/features/inspector/properties/ConditionListEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
 import { getText } from "@/lib/i18n";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
-import { useEffect, useRef, useState } from "react";
+import { Plus, X } from "lucide-react";
+import {
+  type CSSProperties,
+  Fragment,
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -87,9 +99,79 @@ function safeRegexTest(pattern: string, s: string): boolean {
   }
 }
 
+/**
+ * How a value form lays itself out. `compact` fits a sheet cell or a side pane;
+ * `settings` is a page of its own (a module's Settings screen): one panel per
+ * top-level group, each label and its help beside the control.
+ */
+export type FormLayout = "compact" | "settings";
+const FormLayoutContext = createContext<FormLayout>("compact");
+
+/** Control sizes of the settings layout: the inspector's, one step under the page inputs. */
+const SETTINGS_INPUT = "h-8 rounded-[var(--r-xs)] px-2.5 py-0 text-[13px]";
+const ICON_BUTTON =
+  "flex size-7 shrink-0 items-center justify-center rounded-[var(--r-xs)] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--danger)]";
+const ADD_BUTTON =
+  "inline-flex h-7 shrink-0 items-center gap-1.5 self-start whitespace-nowrap rounded-[var(--r-xs)] border border-[var(--border)] border-dashed px-2.5 text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]";
+
+function asRecord(v: unknown): Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : {};
+}
+
+/** Cell kinds a map table edits in place: one short control each. */
+const TABLE_CELL_KINDS = new Set<ModelFieldType["kind"]>([
+  "string",
+  "number",
+  "integer",
+  "boolean",
+  "enum",
+]);
+
+/**
+ * Columns of a map shown as a table on a settings page: a map whose values are
+ * objects of short scalar fields (guild levels, price tiers). One row per
+ * entry instead of one block of stacked rows per entry. null: not tabular.
+ */
+export function mapTableColumns(type: ModelFieldType, models: DataModel[]): ModelField[] | null {
+  if (type.kind !== "map") return null;
+  const fields = resolveObjectFields(type.of, models);
+  if (!fields || fields.length === 0) return null;
+  return fields.every((f) => TABLE_CELL_KINDS.has(f.type.kind)) ? fields : null;
+}
+
+/** A map key that is a level/rank number: `0`, `1`, `12` (no sign, no leading zero). */
+function isIndexKey(key: string): boolean {
+  return /^(0|[1-9]\d*)$/.test(key);
+}
+
+/**
+ * The entry the add button appends to a map keyed by numbers: the next number,
+ * starting from a copy of the last entry (a new level is most often the
+ * previous one, tuned). null when the keys are not all numbers — the admin
+ * names the key.
+ */
+export function nextIndexedEntry(
+  obj: Record<string, unknown>,
+  of: ModelFieldType,
+  models: DataModel[],
+): { key: string; value: unknown } | null {
+  const keys = Object.keys(obj);
+  if (keys.length === 0 || !keys.every(isIndexKey)) return null;
+  const last = keys.reduce((a, b) => (Number(b) > Number(a) ? b : a));
+  const previous = obj[last];
+  const value =
+    typeof previous === "object" && previous !== null && !Array.isArray(previous)
+      ? { ...(previous as Record<string, unknown>) }
+      : defaultValueForModelType(of, models);
+  return { key: String(Number(last) + 1), value };
+}
+
 /** Key input + add button for a map entry (kind=map values). */
 function MapEntryAdder({ existing, onAdd }: { existing: string[]; onAdd: (key: string) => void }) {
   const { t } = useTranslation();
+  const settings = useContext(FormLayoutContext) === "settings";
   const [draft, setDraft] = useState("");
   const commit = () => {
     const k = draft.trim();
@@ -104,14 +186,19 @@ function MapEntryAdder({ existing, onAdd }: { existing: string[]; onAdd: (key: s
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && commit()}
         placeholder={t("dataSources.mapKeyPlaceholder")}
-        className="h-6 w-28 px-2 font-mono text-[11px]"
+        className={
+          settings
+            ? `${SETTINGS_INPUT} w-36 font-mono text-[12px]`
+            : "h-6 w-28 px-2 font-mono text-[11px]"
+        }
       />
       <button
         type="button"
         onClick={commit}
-        className="btn-ghost h-6 rounded px-2 text-[10px]"
+        className={settings ? ADD_BUTTON : "btn-ghost h-6 rounded px-2 text-[11px]"}
         aria-label={t("dataSources.addMapEntry")}
       >
+        {settings ? <Plus size={13} /> : null}
         {t("dataSources.addMapEntry")}
       </button>
     </div>
@@ -129,7 +216,7 @@ interface RowKeyEditorProps {
 
 function RowKeyEditor({ projectId, sourceId, row, fieldName, type, value }: RowKeyEditorProps) {
   const { t } = useTranslation();
-  const setSourceValue = useAccountStore((s) => s.setSourceValue);
+  const setSourceValue = useProjectsStore((s) => s.setSourceValue);
   const [draft, setDraft] = useState(String(value ?? ""));
   const [error, setError] = useState<"required" | "duplicate" | null>(null);
   const errorId = `row-key-error-${sourceId}-${row}`;
@@ -138,6 +225,7 @@ function RowKeyEditor({ projectId, sourceId, row, fieldName, type, value }: RowK
   // rendered with identity-derived React keys, so after a mid-list delete the
   // same instance keeps its row datum while its `row` index prop shifts — an
   // in-progress draft must survive that shift.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sourceId/fieldName are reset triggers (row identity), not values read by the effect
   useEffect(() => {
     setDraft(String(value ?? ""));
     setError(null);
@@ -174,7 +262,7 @@ function RowKeyEditor({ projectId, sourceId, row, fieldName, type, value }: RowK
         aria-describedby={error ? errorId : undefined}
       />
       {error ? (
-        <p id={errorId} className="text-[10px] text-[var(--danger)]">
+        <p id={errorId} className="text-[11px] text-[var(--danger)]">
           {t(error === "required" ? "dataSources.rowKeyRequired" : "dataSources.rowKeyDuplicate")}
         </p>
       ) : null}
@@ -209,12 +297,13 @@ export function ValueEditor({
   field?: ModelField;
 }) {
   const { t } = useTranslation();
-  const setSourceValue = useAccountStore((s) => s.setSourceValue);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
-  const addSourceListItem = useAccountStore((s) => s.addSourceListItem);
-  const removeSourceListItem = useAccountStore((s) => s.removeSourceListItem);
-  const replaceSourceValueTyped = useAccountStore((s) => s.replaceSourceValueTyped);
+  const setSourceValue = useProjectsStore((s) => s.setSourceValue);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
+  const addSourceListItem = useProjectsStore((s) => s.addSourceListItem);
+  const removeSourceListItem = useProjectsStore((s) => s.removeSourceListItem);
+  const replaceSourceValueTyped = useProjectsStore((s) => s.replaceSourceValueTyped);
   const activeLang = useUiStore((s) => s.activeLang);
+  const settings = useContext(FormLayoutContext) === "settings";
   const models = project.dataModels ?? [];
   const set = (v: unknown) => setSourceValue({ projectId, sourceId, row, path, value: v });
   const replaceTyped = (v: unknown) =>
@@ -247,7 +336,11 @@ export function ValueEditor({
           onChange={(e) => set(e.target.value)}
           // Capped: on a full-width Config screen an uncapped text input
           // stretches across the whole page.
-          className="h-7 min-w-24 max-w-md px-2 text-[12px]"
+          className={
+            settings
+              ? `${SETTINGS_INPUT} w-full max-w-sm`
+              : "h-7 min-w-24 max-w-md px-2 text-[12px]"
+          }
           aria-label={String(path[path.length - 1])}
           aria-invalid={patternBad || requiredBad}
         />
@@ -274,7 +367,7 @@ export function ValueEditor({
             if (field?.max !== undefined && n > field.max) n = field.max;
             set(n);
           }}
-          className="h-7 w-24 px-2 text-[12px]"
+          className={settings ? `${SETTINGS_INPUT} w-36` : "h-7 w-24 px-2 text-[12px]"}
           aria-label={String(path[path.length - 1])}
           aria-invalid={outOfBounds}
         />
@@ -291,28 +384,49 @@ export function ValueEditor({
           />
         </div>
       );
-    case "boolean":
-      return (
-        <input
-          type="checkbox"
+    case "boolean": {
+      const toggle = (
+        <Switch
           checked={value === true}
-          onChange={(e) => set(e.target.checked)}
-          className="h-4 w-4 accent-[var(--brand)]"
+          onCheckedChange={set}
           aria-label={String(path[path.length - 1])}
         />
       );
+      // Centred on the row's first line, like a text field's value.
+      return settings ? <div className="flex h-8 items-center">{toggle}</div> : toggle;
+    }
     case "item": {
-      const source = project.dataSources?.find(s => s.id === sourceId);
-      const root = source?.shape === "table" && row !== null ? source.rows[row] : source?.shape === "config" ? source.value : {};
-      const owner = path.slice(0, -1).reduce<unknown>((obj, key) => obj && typeof obj === "object" ? (obj as Record<string | number, unknown>)[key] : undefined, root);
-      const current = resolveRowTexts([owner as Record<string, unknown> ?? {}], project)[0];
-      return <ItemValueField projectId={projectId} value={value} onChange={set} scope={{ item: current }} />;
+      const source = project.dataSources?.find((s) => s.id === sourceId);
+      const root =
+        source?.shape === "table" && row !== null
+          ? source.rows[row]
+          : source?.shape === "config"
+            ? source.value
+            : {};
+      const owner = path
+        .slice(0, -1)
+        .reduce<unknown>(
+          (obj, key) =>
+            obj && typeof obj === "object"
+              ? (obj as Record<string | number, unknown>)[key]
+              : undefined,
+          root,
+        );
+      const current = resolveRowTexts([(owner as Record<string, unknown>) ?? {}], project)[0];
+      return (
+        <ItemValueField
+          projectId={projectId}
+          value={value}
+          onChange={set}
+          scope={{ item: current }}
+        />
+      );
     }
     case "actions":
       return <ActionFieldEditor projectId={projectId} value={value} onChange={set} />;
     case "minimessage":
     case "minimessage_multiline": {
-      // Same kit as the SchemaForm minimessage widgets: rendered facade at
+      // MiniMessage widget kit: rendered facade at
       // rest, raw markup in a PlaceholderInput on focus. Plain string value.
       const multiline = type.kind === "minimessage_multiline";
       const text = typeof value === "string" ? value : "";
@@ -324,7 +438,11 @@ export function ValueEditor({
           multiline={multiline}
           rows={multiline ? 3 : undefined}
           className={
-            multiline ? "w-full min-w-48 text-[12px]" : "h-7 w-full min-w-24 px-2 text-[12px]"
+            multiline
+              ? "w-full min-w-48 text-[12px]"
+              : settings
+                ? `${SETTINGS_INPUT} w-full max-w-md`
+                : "h-7 w-full min-w-24 px-2 text-[12px]"
           }
           placeholder={String(path[path.length - 1])}
           facade={<MiniMessageInline source={text} className="font-mono text-xs" />}
@@ -335,14 +453,16 @@ export function ValueEditor({
       // Sentinel ({key:""}) = not minted yet — mint runs on row/field add, so
       // this only shows transiently on non-conforming hand-imported data.
       if (!isLTextNode(value) || value.key === "")
-        return <span className="text-[10px] text-[var(--text-faint)]">—</span>;
+        return <span className="text-[11px] text-[var(--text-faint)]">—</span>;
       return (
         <Input
           value={getText(project, value, activeLang)}
           onChange={(e) =>
             setI18nValue({ projectId, lt: value, lang: activeLang, value: e.target.value })
           }
-          className="h-7 w-full min-w-24 px-2 text-[12px]"
+          className={
+            settings ? `${SETTINGS_INPUT} w-full max-w-sm` : "h-7 w-full min-w-24 px-2 text-[12px]"
+          }
           aria-label={String(path[path.length - 1])}
           data-lang={activeLang}
         />
@@ -351,6 +471,97 @@ export function ValueEditor({
     case "list": {
       const items = Array.isArray(value) ? value : [];
       const itemKeys = stableKeys(items.map((el) => listItemIdentity(el, type.of, models)));
+      const of = type.of;
+      const testId = `list-${path.join(".")}`;
+      if (settings && (of.kind === "string" || of.kind === "number" || of.kind === "integer")) {
+        // A list of words (durations, currency ids, materials): tags in one field.
+        return (
+          <div className="w-full max-w-sm" data-testid={testId}>
+            <TagInput
+              values={items.map((el) => String(el ?? ""))}
+              label={t("dataSources.addValue")}
+              placeholder={t("dataSources.addValuePlaceholder")}
+              removeLabel={(v) => t("dataSources.removeValue", { value: v })}
+              onAdd={(raw) => {
+                if (of.kind === "string") {
+                  set([...items, raw]);
+                  return true;
+                }
+                const n = Number(raw.replace(",", "."));
+                if (!Number.isFinite(n)) return false;
+                set([...items, of.kind === "integer" ? Math.round(n) : n]);
+                return true;
+              }}
+              onRemove={(index) => removeSourceListItem({ projectId, sourceId, row, path, index })}
+            />
+          </div>
+        );
+      }
+      if (settings && of.kind === "enum") {
+        // A subset of a closed set: every choice shown, the picked ones lit.
+        // A hand-written value outside the set stays visible so it can be removed.
+        const extra = items.filter(
+          (el): el is string => typeof el === "string" && !of.values.includes(el),
+        );
+        return (
+          <div className="flex min-h-8 flex-wrap items-center gap-1.5" data-testid={testId}>
+            {[...of.values, ...extra].map((v) => {
+              const on = items.includes(v);
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => set(on ? items.filter((el) => el !== v) : [...items, v])}
+                  className={cx("chip", on && "is-active")}
+                >
+                  {v}
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
+      if (settings) {
+        return (
+          <div className="flex w-full flex-col gap-2" data-testid={testId}>
+            {items.map((el, i) => (
+              <div
+                key={itemKeys[i]}
+                className="flex w-full items-start gap-2 rounded-[var(--r-sm)] border border-[var(--border-soft)] py-1 pr-1 pl-3"
+              >
+                <div className="min-w-0 flex-1 py-1">
+                  <ValueEditor
+                    projectId={projectId}
+                    sourceId={sourceId}
+                    row={row}
+                    path={[...path, i]}
+                    type={of}
+                    value={el}
+                    project={project}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeSourceListItem({ projectId, sourceId, row, path, index: i })}
+                  className={ICON_BUTTON}
+                  aria-label={t("dataSources.removeItem")}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => addSourceListItem({ projectId, sourceId, row, path })}
+              className={ADD_BUTTON}
+            >
+              <Plus size={13} />
+              {t("dataSources.addListItem")}
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="flex w-full flex-col gap-1" data-testid={`list-${path.join(".")}`}>
           {items.map((el, i) => (
@@ -369,7 +580,7 @@ export function ValueEditor({
               <button
                 type="button"
                 onClick={() => removeSourceListItem({ projectId, sourceId, row, path, index: i })}
-                className="mt-1 rounded px-1 text-[10px] text-[var(--text-faint)] hover:text-rose-300"
+                className="mt-1 rounded px-1 text-[11px] text-[var(--text-faint)] hover:text-rose-300"
                 aria-label={t("dataSources.removeItem")}
               >
                 ✕
@@ -379,7 +590,7 @@ export function ValueEditor({
           <button
             type="button"
             onClick={() => addSourceListItem({ projectId, sourceId, row, path })}
-            className="btn-ghost h-6 self-start rounded px-2 text-[10px]"
+            className="btn-ghost h-6 self-start rounded px-2 text-[11px]"
           >
             {t("dataSources.addItem")}
           </button>
@@ -391,7 +602,11 @@ export function ValueEditor({
         <select
           value={typeof value === "string" ? value : (type.values[0] ?? "")}
           onChange={(e) => set(e.target.value)}
-          className="input h-7 w-auto px-1 text-[12px]"
+          className={
+            settings
+              ? `select ${SETTINGS_INPUT} w-auto min-w-36 pr-8`
+              : "select h-7 w-auto rounded-[var(--r-xs)] py-0 pr-7 pl-2 text-[12px]"
+          }
           aria-label={String(path[path.length - 1])}
         >
           {type.values.map((v) => (
@@ -407,6 +622,73 @@ export function ValueEditor({
           ? (value as Record<string, unknown>)
           : {};
       const entries = Object.entries(obj);
+      const columns = settings ? mapTableColumns(type, models) : null;
+      if (columns) {
+        return (
+          <MapTable
+            ctx={{ projectId, sourceId, row, project }}
+            path={path}
+            columns={columns}
+            obj={obj}
+            onAdd={(k, v) => set({ ...obj, [k]: v })}
+            onAddNamed={(k) => set({ ...obj, [k]: defaultValueForModelType(type.of, models) })}
+            onRemove={(k) => {
+              const next = { ...obj };
+              delete next[k];
+              replaceTyped(next);
+            }}
+            next={nextIndexedEntry(obj, type.of, models)}
+          />
+        );
+      }
+      if (settings) {
+        return (
+          <div
+            className="flex w-full max-w-xl flex-col gap-2"
+            data-testid={`map-${path.join(".")}`}
+          >
+            {entries.length > 0 ? (
+              // One grid for every entry, so the keys line up in one column.
+              <div className="grid grid-cols-[auto_minmax(0,24rem)_auto] items-start gap-x-3 gap-y-1.5">
+                {entries.map(([k]) => (
+                  <Fragment key={k}>
+                    <code className="max-w-40 break-all pt-1.5 font-mono text-[12px] text-[var(--text-mut)]">
+                      {k}
+                    </code>
+                    <div className="min-w-0">
+                      <ValueEditor
+                        projectId={projectId}
+                        sourceId={sourceId}
+                        row={row}
+                        path={[...path, k]}
+                        type={type.of}
+                        value={obj[k]}
+                        project={project}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = { ...obj };
+                        delete next[k];
+                        replaceTyped(next);
+                      }}
+                      className={cx(ICON_BUTTON, "mt-0.5")}
+                      aria-label={t("dataSources.removeMapEntry", { key: k })}
+                    >
+                      <X size={14} />
+                    </button>
+                  </Fragment>
+                ))}
+              </div>
+            ) : null}
+            <MapEntryAdder
+              existing={Object.keys(obj)}
+              onAdd={(k) => set({ ...obj, [k]: defaultValueForModelType(type.of, models) })}
+            />
+          </div>
+        );
+      }
       return (
         <div className="flex flex-col gap-1" data-testid={`map-${path.join(".")}`}>
           {entries.map(([k]) => (
@@ -428,7 +710,7 @@ export function ValueEditor({
                   delete next[k];
                   replaceTyped(next);
                 }}
-                className="mt-1 rounded px-1 text-[10px] text-[var(--text-faint)] hover:text-rose-300"
+                className="mt-1 rounded px-1 text-[11px] text-[var(--text-faint)] hover:text-rose-300"
                 aria-label={t("dataSources.removeMapEntry", { key: k })}
               >
                 ✕
@@ -450,7 +732,11 @@ export function ValueEditor({
       const active = type.variants.find((v) => v.name === obj[type.tag]) ?? type.variants[0];
       return (
         <div
-          className="flex flex-col gap-1 rounded border border-[var(--border-soft)] p-1.5"
+          className={
+            settings
+              ? "flex w-full flex-col gap-2"
+              : "flex flex-col gap-1 rounded border border-[var(--border-soft)] p-1.5"
+          }
           data-testid={`union-${path.join(".")}`}
         >
           <select
@@ -465,7 +751,11 @@ export function ValueEditor({
                 fresh[f.name] = defaultValueForModelType(f.type, models);
               replaceTyped(fresh);
             }}
-            className="input h-7 w-auto self-start px-1 font-mono text-[11px]"
+            className={
+              settings
+                ? `select ${SETTINGS_INPUT} w-auto min-w-36 self-start pr-8 font-mono text-[12px]`
+                : "select h-7 w-auto self-start rounded-[var(--r-xs)] py-0 pr-7 pl-2 font-mono text-[11px]"
+            }
             aria-label={type.tag}
           >
             {type.variants.map((v) => (
@@ -474,7 +764,17 @@ export function ValueEditor({
               </option>
             ))}
           </select>
-          {active ? (
+          {active && settings ? (
+            <div className="border-[var(--border-soft)] border-l-2 pl-4">
+              <FieldRows
+                ctx={{ projectId, sourceId, row, project }}
+                fields={active.fields}
+                obj={obj}
+                path={path}
+                captionRem={12}
+              />
+            </div>
+          ) : active ? (
             <div className="ml-1 flex flex-col gap-1">
               {active.fields.map((f) => (
                 <div key={f.name} className="flex items-start gap-1.5">
@@ -504,11 +804,18 @@ export function ValueEditor({
     case "object":
     case "model": {
       const fields = resolveObjectFields(type, models);
-      if (!fields) return <span className="text-[10px] text-[var(--text-faint)]">—</span>;
-      const obj =
-        typeof value === "object" && value !== null && !Array.isArray(value)
-          ? (value as Record<string, unknown>)
-          : {};
+      if (!fields) return <span className="text-[11px] text-[var(--text-faint)]">—</span>;
+      const obj = asRecord(value);
+      if (settings) {
+        const ctx = { projectId, sourceId, row, project };
+        // The root of the page splits into panels; deeper (a list item, a map
+        // value) the fields are plain rows inside whatever holds them.
+        return path.length === 0 ? (
+          <SettingsSections ctx={ctx} fields={fields} obj={obj} />
+        ) : (
+          <FieldRows ctx={ctx} fields={fields} obj={obj} path={path} captionRem={12} />
+        );
+      }
       return (
         <div className="flex w-full flex-col gap-1 rounded border border-[var(--border-soft)] p-2">
           {fields.map((f, i) => (
@@ -525,12 +832,12 @@ export function ValueEditor({
                   {f.label ? (
                     <>
                       <span className="block text-[11px] text-[var(--text-mut)]">{f.label}</span>
-                      <span className="block font-mono text-[9px] text-[var(--text-faint)]">
+                      <span className="block font-mono text-[10px] text-[var(--text-faint)]">
                         {f.name}
                       </span>
                     </>
                   ) : (
-                    <span className="block font-mono text-[10px] text-[var(--text-faint)]">
+                    <span className="block font-mono text-[11px] text-[var(--text-faint)]">
                       {f.name}
                     </span>
                   )}
@@ -549,7 +856,7 @@ export function ValueEditor({
                   {/* Visible, not a tooltip: the explanation is why a config
                       file feels more helpful than a form. */}
                   {f.help ? (
-                    <p className="mt-0.5 text-[10px] leading-snug text-[var(--text-faint)]">
+                    <p className="mt-0.5 text-[11px] leading-snug text-[var(--text-faint)]">
                       {f.help}
                     </p>
                   ) : null}
@@ -561,6 +868,337 @@ export function ValueEditor({
       );
     }
   }
+}
+
+interface FormCtx {
+  projectId: Project["id"];
+  sourceId: DataSource["id"];
+  row: number | null;
+  project: Project;
+}
+
+/** Width of the label column at the top level of a panel. */
+const CAPTION_REM = 16;
+/** A nested group's indent: its 2px rule + 1rem padding. */
+const INDENT_REM = 1.125;
+
+/**
+ * Label, technical key and help of a field. The key never hides behind the
+ * label: it is what the admin looks for in the file over SSH (ADR
+ * yaml-assisted-editing ⑨). The help is text, not a tooltip.
+ */
+function FieldCaption({ field }: { field: ModelField }) {
+  return (
+    <div className="min-w-0 pt-1.5">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        {field.label ? (
+          <span className="font-medium text-[13px] text-[var(--text)]">{field.label}</span>
+        ) : null}
+        <code
+          className={cx(
+            "break-all font-mono",
+            field.label
+              ? "text-[11px] text-[var(--text-faint)]"
+              : "text-[12.5px] text-[var(--text)]",
+          )}
+        >
+          {field.name}
+        </code>
+      </div>
+      {field.help ? (
+        <p className="mt-0.5 text-[12px] text-[var(--text-faint)] leading-snug">{field.help}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * A tabular map on a settings page: one row per entry, its key first, one
+ * column per field. The cells use the compact controls; the column header
+ * shows the label and the field's key (ADR yaml-assisted-editing ⑨), the help
+ * on hover.
+ */
+function MapTable({
+  ctx,
+  path,
+  columns,
+  obj,
+  next,
+  onAdd,
+  onAddNamed,
+  onRemove,
+}: {
+  ctx: FormCtx;
+  path: (string | number)[];
+  columns: ModelField[];
+  obj: Record<string, unknown>;
+  next: { key: string; value: unknown } | null;
+  onAdd: (key: string, value: unknown) => void;
+  onAddNamed: (key: string) => void;
+  onRemove: (key: string) => void;
+}) {
+  const { t } = useTranslation();
+  const keys = Object.keys(obj);
+  return (
+    <div className="flex w-full flex-col gap-2" data-testid={`map-table-${path.join(".")}`}>
+      {keys.length > 0 ? (
+        <Table className="w-auto min-w-full">
+          <THead>
+            <TR className="hover:bg-transparent">
+              <TH className="w-px whitespace-nowrap">
+                {next ? "#" : t("dataSources.mapKeyColumn")}
+              </TH>
+              {columns.map((c) => (
+                <TH key={c.name} title={c.help} className="whitespace-nowrap normal-case">
+                  <span className="block">{c.label ?? c.name}</span>
+                  {c.label ? (
+                    <code className="block font-mono text-[10.5px] text-[var(--text-faint)] tracking-normal">
+                      {c.name}
+                    </code>
+                  ) : null}
+                </TH>
+              ))}
+              <TH className="w-px">
+                <span className="sr-only">{t("dataSources.removeItem")}</span>
+              </TH>
+            </TR>
+          </THead>
+          <TBody>
+            <FormLayoutContext.Provider value="compact">
+              {keys.map((k) => {
+                const entry = asRecord(obj[k]);
+                return (
+                  <TR key={k} data-testid={`map-row-${[...path, k].join(".")}`}>
+                    <TD className="py-1.5">
+                      <code className="font-mono text-[12px] text-[var(--text-mut)]">{k}</code>
+                    </TD>
+                    {columns.map((c) => (
+                      <TD key={c.name} className="py-1.5">
+                        <ValueEditor
+                          projectId={ctx.projectId}
+                          sourceId={ctx.sourceId}
+                          row={ctx.row}
+                          path={[...path, k, c.name]}
+                          type={c.type}
+                          value={entry[c.name]}
+                          project={ctx.project}
+                          field={c}
+                        />
+                      </TD>
+                    ))}
+                    <TD className="py-1.5 pr-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onRemove(k)}
+                        className={ICON_BUTTON}
+                        aria-label={t("dataSources.removeMapEntry", { key: k })}
+                      >
+                        <X size={14} />
+                      </button>
+                    </TD>
+                  </TR>
+                );
+              })}
+            </FormLayoutContext.Provider>
+          </TBody>
+        </Table>
+      ) : null}
+      {/* The help is text, not only a tooltip (ADR yaml-assisted-editing ⑨). */}
+      {columns.some((c) => c.help) ? (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[12px] leading-snug">
+          {columns
+            .filter((c) => c.help)
+            .map((c) => (
+              <Fragment key={c.name}>
+                <dt className="text-[var(--text-mut)]">{c.label ?? c.name}</dt>
+                <dd className="text-[var(--text-faint)]">{c.help}</dd>
+              </Fragment>
+            ))}
+        </dl>
+      ) : null}
+      {next ? (
+        <button type="button" onClick={() => onAdd(next.key, next.value)} className={ADD_BUTTON}>
+          <Plus size={13} />
+          {t("dataSources.addMapRow", { key: next.key })}
+        </button>
+      ) : (
+        <MapEntryAdder existing={keys} onAdd={onAddNamed} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The fields of an object as settings rows: label column beside the control
+ * once there is room, stacked when the pane is narrow. A nested object opens an
+ * indented group whose label column shrinks by the indent, so every control of
+ * a panel starts on the same line.
+ */
+function FieldRows({
+  ctx,
+  fields,
+  obj,
+  path,
+  captionRem,
+  divided = false,
+}: {
+  ctx: FormCtx;
+  fields: ModelField[];
+  obj: Record<string, unknown>;
+  path: (string | number)[];
+  captionRem: number;
+  divided?: boolean;
+}) {
+  const models = ctx.project.dataModels ?? [];
+  return (
+    <div
+      className={cx("@container flex flex-col", divided && "divide-y divide-[var(--border-soft)]")}
+    >
+      {fields.map((f, i) => {
+        const nested = f.locked ? null : resolveObjectFields(f.type, models);
+        const pad = divided ? "py-3" : "py-1.5";
+        return (
+          <div key={f.name} className={pad}>
+            {/* §7 `section` hint: header when it changes from the previous field. */}
+            {f.section && f.section !== fields[i - 1]?.section ? (
+              <div className="eyebrow pb-2">{f.section}</div>
+            ) : null}
+            {nested ? (
+              <>
+                <FieldCaption field={f} />
+                <div className="mt-1.5 border-[var(--border-soft)] border-l-2 pl-4">
+                  <FieldRows
+                    ctx={ctx}
+                    fields={nested}
+                    obj={asRecord(obj[f.name])}
+                    path={[...path, f.name]}
+                    captionRem={Math.max(8, captionRem - INDENT_REM)}
+                  />
+                </div>
+              </>
+            ) : (
+              <div
+                className="grid gap-x-8 gap-y-1.5 @xl:grid-cols-[var(--caption-w)_minmax(0,1fr)]"
+                style={{ "--caption-w": `${captionRem}rem` } as CSSProperties}
+              >
+                <FieldCaption field={f} />
+                <div className="min-w-0">
+                  <ValueEditor
+                    projectId={ctx.projectId}
+                    sourceId={ctx.sourceId}
+                    row={ctx.row}
+                    path={[...path, f.name]}
+                    type={f.type}
+                    value={obj[f.name]}
+                    project={ctx.project}
+                    field={f}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Root of a settings page: each top-level group (an object field) is a panel
+ * titled by its label; top-level loose values share a panel without a title.
+ */
+function SettingsSections({
+  ctx,
+  fields,
+  obj,
+}: {
+  ctx: FormCtx;
+  fields: ModelField[];
+  obj: Record<string, unknown>;
+}) {
+  const models = ctx.project.dataModels ?? [];
+  const groups: (
+    | { field: ModelField; nested: ModelField[] }
+    | { field: ModelField; table: true }
+    | { loose: ModelField[] }
+  )[] = [];
+  for (const f of fields) {
+    const nested = f.locked ? null : resolveObjectFields(f.type, models);
+    const last = groups[groups.length - 1];
+    if (nested) groups.push({ field: f, nested });
+    // A table needs the panel's width, not the control column beside a caption.
+    else if (!f.locked && mapTableColumns(f.type, models)) groups.push({ field: f, table: true });
+    else if (last && "loose" in last) last.loose.push(f);
+    else groups.push({ loose: [f] });
+  }
+  return (
+    <div className="flex w-full max-w-4xl flex-col gap-4">
+      {groups.map((g) =>
+        "loose" in g ? (
+          <section
+            key={`loose:${g.loose[0]?.name}`}
+            className="panel rounded-[var(--r-md)] px-5 py-1"
+          >
+            <FieldRows
+              ctx={ctx}
+              fields={g.loose}
+              obj={obj}
+              path={[]}
+              captionRem={CAPTION_REM}
+              divided
+            />
+          </section>
+        ) : (
+          <section
+            key={g.field.name}
+            className="panel rounded-[var(--r-md)] px-5 pt-4 pb-1"
+            data-testid={`settings-section-${g.field.name}`}
+          >
+            <header className="flex flex-wrap items-baseline gap-x-2">
+              <h2 className="font-bold font-display text-[14px] text-[var(--text)]">
+                {g.field.label ?? g.field.name}
+              </h2>
+              {g.field.label ? (
+                <code className="font-mono text-[11px] text-[var(--text-faint)]">
+                  {g.field.name}
+                </code>
+              ) : null}
+            </header>
+            {g.field.help ? (
+              <p className="mt-0.5 text-[12px] text-[var(--text-faint)] leading-snug">
+                {g.field.help}
+              </p>
+            ) : null}
+            {"table" in g ? (
+              <div className="mt-3 pb-4">
+                <ValueEditor
+                  projectId={ctx.projectId}
+                  sourceId={ctx.sourceId}
+                  row={ctx.row}
+                  path={[g.field.name]}
+                  type={g.field.type}
+                  value={obj[g.field.name]}
+                  project={ctx.project}
+                  field={g.field}
+                />
+              </div>
+            ) : (
+              <div className="mt-1">
+                <FieldRows
+                  ctx={ctx}
+                  fields={g.nested}
+                  obj={asRecord(obj[g.field.name])}
+                  path={[g.field.name]}
+                  captionRem={CAPTION_REM}
+                  divided
+                />
+              </div>
+            )}
+          </section>
+        ),
+      )}
+    </div>
+  );
 }
 
 /**
@@ -579,8 +1217,8 @@ export function SourceRowsTable({
   source: DataSource & { shape: "table" };
 }) {
   const { t } = useTranslation();
-  const addSourceRow = useAccountStore((s) => s.addSourceRow);
-  const removeSourceRow = useAccountStore((s) => s.removeSourceRow);
+  const addSourceRow = useProjectsStore((s) => s.addSourceRow);
+  const removeSourceRow = useProjectsStore((s) => s.removeSourceRow);
   const fields = sourceRootFields(project, source);
   const model = (project.dataModels ?? []).find((candidate) => candidate.id === source.modelId);
   const rowKeys = stableKeys(source.rows.map((row) => row[model?.keyField ?? "id"]));
@@ -617,7 +1255,7 @@ export function SourceRowsTable({
                     key={f.name}
                     title={f.help}
                     className={cx(
-                      "sticky top-0 z-10 whitespace-nowrap bg-[var(--surface-raised)] px-2 py-1 font-mono text-[10px] uppercase text-[var(--text-faint)]",
+                      "sticky top-0 z-10 whitespace-nowrap bg-[var(--surface-raised)] px-2 py-1 font-mono text-[11px] uppercase text-[var(--text-faint)]",
                       i === 0 && "left-0 z-20",
                     )}
                   >
@@ -665,7 +1303,7 @@ export function SourceRowsTable({
                     <button
                       type="button"
                       onClick={() => removeSourceRow({ projectId, sourceId: source.id, index: i })}
-                      className="rounded px-1.5 py-0.5 text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+                      className="rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
                       aria-label={t("dataSources.removeRow")}
                     >
                       ✕
@@ -709,8 +1347,8 @@ function MasterDetailTable({
   rowKeys: string[];
 }) {
   const { t } = useTranslation();
-  const addSourceRow = useAccountStore((s) => s.addSourceRow);
-  const removeSourceRow = useAccountStore((s) => s.removeSourceRow);
+  const addSourceRow = useProjectsStore((s) => s.addSourceRow);
+  const removeSourceRow = useProjectsStore((s) => s.removeSourceRow);
   const [selectedKey, setSelectedKey] = useState<string | null>(rowKeys[0] ?? null);
   // Selection is by Row key (identity, not position — a row must never inherit
   // its neighbour's form state). But editing the key field IS a rename: the
@@ -768,7 +1406,7 @@ function MasterDetailTable({
                 removeSourceRow({ projectId, sourceId: source.id, index: selected });
                 setSelectedKey(null);
               }}
-              className="rounded px-1.5 py-0.5 text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+              className="rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
               aria-label={t("dataSources.removeRow")}
             >
               ✕ {t("dataSources.removeRow")}
@@ -796,10 +1434,13 @@ export function ConfigValueForm({
   projectId,
   project,
   source,
+  layout = "settings",
 }: {
   projectId: Project["id"];
   project: Project;
   source: DataSource & { shape: "config" };
+  /** `compact` inside a side pane that already frames the form. */
+  layout?: FormLayout;
 }) {
   // A bare file with no schema beside it (ADR bare-data-files: untyped =
   // literal values, never an error) still gets a form, inferred from what is
@@ -809,15 +1450,17 @@ export function ConfigValueForm({
 
   return (
     <div data-testid="config-value-form">
-      <ValueEditor
-        projectId={projectId}
-        sourceId={source.id}
-        row={null}
-        path={[]}
-        type={{ kind: "object", fields }}
-        value={source.value}
-        project={project}
-      />
+      <FormLayoutContext.Provider value={layout}>
+        <ValueEditor
+          projectId={projectId}
+          sourceId={source.id}
+          row={null}
+          path={[]}
+          type={{ kind: "object", fields }}
+          value={source.value}
+          project={project}
+        />
+      </FormLayoutContext.Provider>
     </div>
   );
 }
@@ -835,7 +1478,22 @@ function literalType(v: unknown): ModelFieldType {
   if (typeof v === "boolean") return { kind: "boolean" };
   if (Array.isArray(v)) return { kind: "list", of: literalType(v[0]) };
   if (v !== null && typeof v === "object") {
-    return { kind: "object", fields: literalFields(v as Record<string, unknown>) };
+    const obj = v as Record<string, unknown>;
+    // Entries keyed by number holding objects (levels, tiers): a map, so the
+    // form can add and remove entries — the fields are the union of the entries'.
+    const values = Object.values(obj);
+    if (
+      values.length > 0 &&
+      Object.keys(obj).every(isIndexKey) &&
+      values.every((e) => e !== null && typeof e === "object" && !Array.isArray(e))
+    ) {
+      const fields = new Map<string, ModelField>();
+      for (const e of values)
+        for (const f of literalFields(e as Record<string, unknown>))
+          if (!fields.has(f.name)) fields.set(f.name, f);
+      return { kind: "map", of: { kind: "object", fields: [...fields.values()] } };
+    }
+    return { kind: "object", fields: literalFields(obj) };
   }
   return { kind: "string" };
 }

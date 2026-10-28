@@ -19,7 +19,7 @@ interface MaterialPickerProps {
   /** Trigger element rendered by the consumer (a small icon button typically). */
   trigger: React.ReactNode;
   onPick: (material: string) => void;
-  /** When set, adds a "Capturés" tab: pick a captured item or capture straight
+  /** When set, adds a "Captured" tab: pick a captured item or capture straight
    *  from a player's inventory mirror (returns an `item:<id>` ref). */
   projectId?: import("@/domain/types").ProjectId;
 }
@@ -162,7 +162,7 @@ function Tile({ name, label, onClick }: { name: string; label: string; onClick: 
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="text-[8px] text-[var(--text-mut)]">{label.slice(0, 4)}</span>
+        <span className="text-[9.5px] text-[var(--text-mut)]">{label.slice(0, 4)}</span>
       )}
     </button>
   );

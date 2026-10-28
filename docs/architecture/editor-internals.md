@@ -1,20 +1,71 @@
 # Editor & rendering internals
 
+> **Phase F (2026-10):** no more backend. The editor is served by the plugin (build
+> `npm run build`, same origin as the hub API; ADR
+> `editor-web-server`) and keeps only that mode. Demo, accounts, billing, administration,
+> public pricing pages, hosted projects and copy to Minecraft are removed
+> (sections dropped from this file); the assistant stays in the repo, outside the build. The
+> dated entries below that mention "the backend" describe cloud behavior: the
+> same route is now served by the hub (see `rest-endpoints.md`), without snapshot mirror,
+> without Versions (empty list) and without server-side draft rebase.
+
 `ServerPlaceholderInput` wraps the catalog-agnostic `PlaceholderInput` for live
 PlaceholderAPI `%…%` completion in title, lore, dialog and action text fields,
 including `RevealField` and module MiniMessage fields. `{…}` keeps its own catalog.
-`serverPapiPlaceholdersStore` scopes declarations by account/Network/Server,
+`serverPapiPlaceholdersStore` scopes declarations by session/Network/Server,
 deduplicates pending requests and ignores late replies after scope changes/logout.
 The root refreshes every 15 s and on `projects_reloaded`; fields refresh on focus.
-Offline/errors clear suggestions; demo/no-server contexts have no server catalog.
+Offline/errors clear suggestions.
 Only expansion-declared tokens are offered, without an external catalog or guessed prefixes.
 
-Draft API requests allow 45 seconds so the backend's 30-second plugin response
-window can complete. A local transport timeout becomes retryable `fetch_timeout`
+Draft API requests allow 45 seconds so the hub's 30-second response window for a
+leaf server can complete (10 s for the hub's own server). A local transport timeout becomes retryable `fetch_timeout`
 (504), preserving the pending operation ID: a publication may already be durable
 even if its acknowledgement is lost. The plugin confirms the durable write before
 runtime reload, which separately announces `projects_reloaded`. Regression coverage:
-`editor/src/lib/api/projectDrafts.test.ts` (28-second success and backend timeout).
+`editor/src/lib/api/projectDrafts.test.ts` (28-second success and server timeout).
+
+## Client API (`lib/api/client.ts`, issue #45)
+
+A single transport to the hub: `apiFetch(path, init)` (JSON response) and `apiRequest(path,
+init)` (the `Response`, for binaries and for routes whose status is part of the contract,
+like the 202 of `rename`). `API_URL` is declared there and nowhere else; the session
+cookie goes with every call; `init.json` encodes the body, `init.timeoutMs` sets a
+local timeout. All of `lib/api/*` and every one-off call (head textures, PAPI placeholders,
+authenticated images, model rendering, resource pack) go through it: no more raw
+`fetch` in `src/`.
+
+A single error class, `ApiError { code, status, body, detail }`: `code` is the hub's `error`
+(`http_<status>` if it sends none, `hasCode` tells which), `status` is the HTTP status;
+a transport failure is `network_error` (status 0), a local timeout `fetch_timeout` (504,
+like the hub for a silent plugin), a cancellation `aborted`. `ApiError.from(e)` normalizes
+any exception. Modules that return an `{ok:false, error}` result classify
+by `code` (never by status alone), `network_error` apart. `DraftApiError` is the case of the
+draft routes (`draft`, `conflicts`, `diskFiles` read from the body);
+`AuthUnreachableError` and `ServerConfigError` are gone: `getMe` rejects an `ApiError`
+for anything that is not a 401, `patchServerConfig` rejects the hub's `ApiError` (`detail`
+carries the plugin's explanation). Tests: `src/lib/api/client.test.ts`.
+
+## Open Projects store (`state/projectsStore.ts`, `state/projects/*Slice.ts`, issue #46)
+
+`useProjectsStore` remains the entry point for importers (70 production modules), but its
+code lives per domain in `state/projects/`: one slice per file (`projectsSlice`,
+`dialogsSlice`, `commandsSlice`, `menusSlice`, `elementsSlice`, `canvasSlice`, `i18nSlice`,
+`dataSlice`), each exporting its interface and `createXSlice(context)`, and `helpers.ts` for
+what several slices share (the `gc*LTexts`, `shiftPlayerPositions`…). `ProjectsState`
+(`types.ts`) is the intersection of the slices plus `openProjects` (`{ projects, projectOrder }`, type `OpenProjects`; the old `Account` and its always-empty `id` are gone, there are no accounts); `ProjectsSliceContext` is what
+a slice receives: `set`, `get`, `clearTemporal` and the mutators of `mutate.ts`
+(`mutateProject`, `mutateMenu`, `mutateElement`, `mutateAppearance`, `mutateClickHandler`,
+`mutateCommand`, `mutateDialog`). An action internal to the Project goes through one of them: a single
+`produce`, the target lookup, **nothing at all** if it is missing, the body, then `updatedAt`
+stamped — unless the body returns `false` (early exit) or with `{ touch: false }`
+(board, sources: these actions never stamped). The store composes the slices under
+`temporal` (zundo, `partialize` on `account`): same actions, same undo history,
+nothing changes for the editor.
+
+Next steps, store by store, alongside and not instead: give a slice its own
+store (`useDialogsStore`…) and migrate its importers, then limit zundo to what is undoable;
+the data switch (`account` split) last.
 
 ## Image buttons
 
@@ -48,7 +99,7 @@ move the image within its clipped area; they never change click targets. Existin
 images keep their fit/footprint when replaced; **Fit slots to image** is explicit.
 `menu/v1/imageButtonGeometry.ts` shares canvas/resource-pack sizing and centering, and
 `imageButtonArea` — the rectangle of raw slots a button covers and its image origin — used
-by the editor (`imageButtonRect`, `rectanglePositions`) and the backend (`imageButtons.ts`),
+by the editor (`imageButtonRect`, `rectanglePositions`) and its pack builder (`lib/pack/imageButtons.ts`),
 mirrored by the plugin (`ImageButtonLayout.kt`, same test cases). With `player_inventory:
 hidden`, a rectangle may sit in the inventory rows or the hotbar, never across two sections.
 `useAuthenticatedImageUrl` shares authenticated PNG requests and blob URLs by
@@ -59,8 +110,14 @@ aborting pending downloads and revoking blob URLs; account/content changes canno
 reuse a different scope. Regression coverage: `useAuthenticatedImage.test.tsx`.
 Transient HTTP 5xx preview failures retry twice (500 ms, then 1 s) while mounted;
 permanent 4xx failures are not retried. Unmount/session change cancels pending retries.
+In the self-hosted build (`SELF_HOSTED`), `assetPreviewUrl` and `fontGlyphUrl` resolve to
+routes the plugin already serves (`features/assets/localAssetUrl.ts`): the draft blob
+(`…/drafts/:id/blobs/:hash`) when the bytes changed in the private draft, otherwise the
+published file (`/api/v1/projects/:id/binary?path=`). Asset CRUD runs in the browser
+(`features/assets/localAssets.ts`, a port of the former backend `assetHandlers.ts` on top of
+the draft snapshot and blobs), switched at the `lib/api/userAssets.ts` boundary.
 
-Backend `imageButtons.ts` collects all display/state variants from menu files and
+The pack builder (`lib/pack/imageButtons.ts`) collects all display/state variants from menu files and
 resizes PNGs with nearest-neighbour sampling into 18-pixel slot cells. Contain
 centres with transparent padding; stretch fills the rectangle; native keeps source pixels.
 Source assets are unchanged. Derived keys include the asset SHA-256, pixel dimensions, fit and Y,
@@ -73,71 +130,51 @@ footprints produce no active image button. Plain title text renders after images
 
 ## Project display name
 
-`ProjectTopBarControls` subscribes to the current account project's name so
+`features/project/ProjectTopBarControls` subscribes to the current project's name so
 settings edits update the header immediately, falling back to the loaded name.
 `projectFromFiles` defaults Boutique-owned projects (`manifest.module: boutique`)
 to `Boutique` when their metadata name is absent or matches their internal/disk ID.
 Explicit custom names remain unchanged; IDs and folder names are unaffected.
 
-## Temporary demo workspace
+## Publish workflow (`features/project/publish/`)
 
-`features/demo/DemoWorkspace.tsx` composes the shared `ProjectWorkspace` under
-`/demo/projects/$projectId`; the document child also uses `DocumentView`.
-`projectPrincipal` selects the matching cookie-backed guest before the account
-principal, including during sign-in. Shared `projectFetch` adds guest CSRF only
-to that project's mutations and observes authoritative expiry headers. Capability
-metadata hides AI/import/delete/copy/live server actions; components do not branch
-on storage kind. The example bytes live in `backend/src/templates/demo-project.json`
-and pass the normal menu schema and project loader tests.
+Save (account draft) and Deploy (the only disk write, compare-and-swap) live in
+`features/project/publish/`: `publishFlow.ts` is the pure reducer (`saving`, the
+deploy `review`, the `conflict` modal with its source `save | open | draft`, tree,
+disk files and per-file choices, the last failure), tested without React;
+`usePublishFlow(projectId, offline)` runs the workflow against the stores and the hub
+(conflicts found at draft open, silent rebase of a draft conflict without diverging
+file, the `OPEN_DEPLOY_REVIEW` event of the History tab); `SaveControls` and
+`ConflictResolutionDialog` only render. A new conflict always starts with no choice.
+Opening the review also asks the server whether the changed files would load
+(`checkDocuments`, `POST …/check`, the `documents_check` Deploy runs before writing): the
+review's `documents` is `pending`, then `ready` with its problems or `unavailable` (never read
+as a green light). `DeployReviewDialog` lists each problem on its file in the `ChangeList`
+(`problems` prop: a count on the header, the lines above the diff, the file opened) and
+disables Deploy while there are any. A reply is kept only for the review it was asked for.
 
-`demoLifecycle` flushes edits and awaits serialized draft/asset writes, including
-file preparation before the upload starts, before
-authentication. A session-scoped return path restores the demo after OAuth.
-Confirmation restores the guest recovery scope and loads its persisted draft
-session when account return or direct reload has not completed that initialization.
-An unavailable session blocks claim submission; it never bypasses confirmation.
-Claims persist their owner, project, operation and destination before dispatch;
-retry includes `projectId` so account-bound recovery also works after cookie loss.
-Only confirmed target unavailability permits an explicit replacement operation.
-On confirmed receipt, local text/binary edits and rename intent move to the account
-scope while immutable project/draft IDs stay stable. Account-generation checks
-prevent late logout/relogin responses from repopulating private state.
-Texture initialization clears prior custom/rendered caches on project or principal
-changes and ignores late catalog, model-preload and rendering results.
+## Workspace page (`features/project/ProjectCanvasPage.tsx`)
 
-The profile's `DeleteAccountSection` requests an email after a Dialog confirmation. Public `/delete-account` renders `DeleteAccountConfirmation` and submits only on an explicit click. `accountDeletionToken.ts` reads the fragment into memory and removes it before analytics initializes; reloading requires reopening the email link. Successful deletion clears local auth and invalidates pending profile hydration so a late `/me` cannot restore the removed identity.
+The page keeps only loading (`useProjectLoader`) and layout (topbar, canvas,
+secondary views `?tab=`). The rest is named: `WorkspaceGate` (auth hydration, login
+redirect, load failure, skeleton — via `projectLoadStatus`), `useProjectDeepLinks` (`?doc=`,
+canonical folder id, rename, opening a Document from the board),
+`useActiveLangFallback`, `useWorkspaceDnd` (sensors + `DndContext` callbacks) on top of the pure
+decoding in `workspaceDrop.ts` (`dragStartMaterial`, `decodeDragEnd` → `WorkspaceDrop`), and
+`WorkspaceDragOverlay`.
 
-Les titres de l’interface (`h1`–`h6`, `.display`, `.font-display`) utilisent `--font-display: "Inter", sans-serif` en graisse 700, chargé depuis Bunny Fonts dans `editor/index.html`. Le texte courant et le monospace gardent leurs polices ; les polices de rendu Minecraft restent indépendantes. Spécimen dans `/admin/design`.
+## Tests and CI
 
-## Tests et CI
+The selection of an element is resolved in its owner menu before any lookup of a command, dialog or menu carrying the same ID. The nodes of these entities ignore a scoped selection for their highlight; a click on the node resets that scope. A scoped element that has disappeared stays unknown, without selecting another entity with the same name.
 
-La sélection d'un élément est résolue dans son menu propriétaire avant toute recherche de commande, dialogue ou menu portant le même ID. Les nœuds de ces entités ignorent une sélection scoped pour leur surbrillance ; un clic sur le nœud réinitialise ce scope. Un élément scoped disparu reste inconnu, sans sélectionner une autre entité homonyme.
+`vitest.config.ts` excludes all `**/e2e/**` folders so Playwright tests are not loaded into Vitest. Browser scenarios are still run by `playwright.config.ts` (`tests/e2e`) and `playwright.migration.config.ts` (`e2e/migration.spec.ts`). The editor CI must pass before the production deploy workflow starts.
 
-`vitest.config.ts` exclut tous les dossiers `**/e2e/**` pour ne pas charger les tests Playwright dans Vitest. Les scénarios navigateur restent exécutés par `playwright.config.ts` (`tests/e2e`) et `playwright.migration.config.ts` (`e2e/migration.spec.ts`). La CI éditeur doit réussir avant que le workflow de déploiement production démarre.
+> Editor implementation details + title rendering pipeline. Read when touching
+> the title composer, the canvas / element editing.
 
-> Détails d'implémentation éditeur + pipeline de rendu du titre. Consulté quand on touche
-> au title composer, au canvas / à l'édition d'élément, ou au `<SchemaForm>`.
+## Menu YAML format — `title` field
 
-## `<SchemaForm>` — générateur de formulaires depuis JSON Schema
-
-`editor/src/components/SchemaForm/` génère des formulaires React depuis un JSON Schema. Couvre `string` (texte / textarea via `format: "long"` / select via `enum`), `number`/`integer`, `boolean`, `object` (nesting), `array` (avec + / −).
-
-**Pour ajouter un widget custom** (color picker, asset picker, MiniMessage editor, etc.) :
-
-```ts
-import { SchemaForm } from "@/components/SchemaForm/SchemaForm";
-import { ColorPicker } from "@/components/widgets/ColorPicker";
-
-<SchemaForm schema={schema} value={value} onChange={setValue} widgets={{ color: ColorPicker }} />
-```
-
-Le widget est routé via le champ `format` du schema (e.g. `{ type: "string", format: "color" }`).
-
-**Hors scope V1 :** `oneOf` / `anyOf` / `if/then/else` / `$ref` resolution. À ajouter quand un module en a besoin.
-
-## Format menu YAML — champ `title`
-
-Depuis SP3, `title` est un tableau de couches typées (`MenuTitleLayer[]`). Format legacy (chaîne brute ou `{i18n:key}`) toléré au parsing plugin pour rétro-compat. Runtime YAML inchangé depuis v3 : seul l'éditeur évolue.
+Since SP3, `title` is an array of typed layers (`MenuTitleLayer[]`). The legacy format (raw string or `{i18n:key}`) is tolerated by the plugin parser for backward compatibility. Runtime YAML unchanged since v3: only the editor changes.
 
 ```yaml
 title:
@@ -152,8 +189,8 @@ title:
       key: i18nKey_xyz
     x: 8
     y: 5
-    color: "#FFAA00"     # optionnel
-    font_asset_id: ...   # optionnel (SP4)
+    color: "#FFAA00"     # optional
+    font_asset_id: ...   # optional (SP4)
   - kind: textarea
     value:
       key: i18nKey_block
@@ -162,7 +199,7 @@ title:
     width: 168
     line_height: 10
     alignment: left      # left | center | right
-    font_asset_id: ...   # optionnel (SP4)
+    font_asset_id: ...   # optional (SP4)
   - kind: external_glyph
     provider: oraxen     # nexo | oraxen | itemsadder
     glyph_name: my_glyph
@@ -170,512 +207,616 @@ title:
     y: 5
 ```
 
-Le kind `textarea` (SP5) est un bloc multi-ligne : la string i18n est split sur `\n` au runtime, puis chaque ligne word-wrappée pour tenir dans `width` (px). Chaque sous-ligne rendue à `(x, y + i * line_height)` avec l'`alignment` partagé. `font_asset_id` optionnel s'applique à toutes les lignes. Mots plus larges que `width` débordent (soft constraint).
+The `textarea` kind (SP5) is a multi-line block: the i18n string is split on `\n` at runtime, then each line is word-wrapped to fit in `width` (px). Each sub-line is rendered at `(x, y + i * line_height)` with the shared `alignment`. The optional `font_asset_id` applies to all lines. Words wider than `width` overflow (soft constraint).
 
-Le plugin embarque `assets/artisan/asset-index.json` (schéma **v2**) dans le zip RP pour mapper `asset_id → name + type + codepoint? + ascent + height + width + namespace?` et déclarer la table `offsets` (codepoint hex → pixel advance).
+The plugin embeds `assets/artisan/asset-index.json` (schema **v2**) in the RP zip to map `asset_id → name + type + codepoint? + ascent + height + width + namespace?` and to declare the `offsets` table (hex codepoint → pixel advance).
 
 ## Title Composer — pixel offsets (spaces font)
 
-Pour positionner chaque layer à son `x` exact, le backend embarque dans `assets/artisan/font/default.json` un provider `space` (MC 1.20+) mappant 18 codepoints (`U+F800..U+F811`) à des advances en pixels (puissances de 2 ±1/±2/.../±256 → portée ±511 px par décomposition gourmande, **plus avec réutilisation** des chars). On évite `U+F900..U+FAFF` (CJK Compatibility Ideographs) où la font vanilla a des glyphes qui empêcheraient le provider `space` de s'appliquer.
+To position each layer at its exact `x`, the pack (built by the editor) embeds in `assets/artisan/font/default.json` a `space` provider (MC 1.20+) mapping 18 codepoints (`U+F800..U+F811`) to pixel advances (powers of 2 ±1/±2/.../±256 → range ±511 px by greedy decomposition, **or more with reuse** of chars). We avoid `U+F900..U+FAFF` (CJK Compatibility Ideographs) where the vanilla font has glyphs that would prevent the `space` provider from applying.
 
-Pipeline :
+Pipeline:
 
-1. **Backend** — `backend/src/lib/spaceOffsets.ts` = source de vérité de la table. `buildDefaultFontJson` ajoute le provider `space` après les bitmaps. `buildAssetIndex` (v2) émet `offsets` (codepoint hex uppercase → advance) + un `width` par entrée.
-2. **Plugin** — `AssetCatalog` parse `offsets` à chaque update RP et construit un `OffsetEncoder` (`net.artisanmc.plugin.render.OffsetEncoder`). `TitleCompiler.compileTitle` track `currentX`, insère `offsetEncoder.encode(targetX - currentX)` avant chaque body de layer, avance `currentX = targetX + estimateBodyWidth(layer)`.
-3. **Estimation de largeur** (best-effort) : Image → `AssetEntry.width` (fallback 16) ; Text → `length * 6` (heuristique imprécise) ; ExternalGlyph → 8 px.
+1. **Editor** — `editor/src/lib/pack/spaceOffsets.ts` = source of truth for the table (`fontJsonBuilder.ts`, `assetIndexBuilder.ts`). `buildDefaultFontJson` adds the `space` provider after the bitmaps. `buildAssetIndex` (v2) emits `offsets` (uppercase hex codepoint → advance) + a `width` per entry.
+2. **Plugin** — `AssetCatalog` parses `offsets` on each RP update and builds an `OffsetEncoder` (`net.artisanmc.plugin.render.OffsetEncoder`). `TitleCompiler.compileTitle` tracks `currentX`, inserts `offsetEncoder.encode(targetX - currentX)` before each layer body, advances `currentX = targetX + estimateBodyWidth(layer)`.
+3. **Width estimation** (best-effort): Image → `AssetEntry.width` (fallback 16); Text → `length * 6` (imprecise heuristic); ExternalGlyph → 8 px.
 
-**Coordonnées x** : `layer.x` = pixels depuis le bord gauche du coffre (`chest-x 0`). Le titre MC est dessiné à `titleLabelX = 8`. `TitleCompiler` initialise `currentX = TITLE_LABEL_X = 8` pour absorber ce décalage : `x=8` → offset nul, `x=0` → offset `-8`.
+**x coordinates**: `layer.x` = pixels from the left edge of the chest (`chest-x 0`). The MC title is drawn at `titleLabelX = 8`. `TitleCompiler` initializes `currentX = TITLE_LABEL_X = 8` to absorb this shift: `x=8` → zero offset, `x=0` → offset `-8`.
 
-L'encoder plugin est **lenient** : ne lève jamais d'exception, retourne `""` si table vide (catalog pas chargé), best-effort hors plage. Côté backend, `encodeOffset` est **strict** (throw) pour attraper les bugs à la source.
+The plugin encoder is **lenient**: never throws, returns `""` if the table is empty (catalog not loaded), best-effort outside the range. On the editor side, `encodeOffset` is **strict** (throws) to catch bugs at the source.
 
 ## Custom fonts (SP4)
 
-Import MCFonts via "Import font" dans l'AssetsTab : drop d'un `.zip` (`font.json` + glyph PNGs). Le backend parse/valide/stocke (`data/assets/{projectId}/fonts/{asset_id}/`) et crée une row `Asset` `type=font` + `fontMeta = { namespace, glyphMap }`. À la régén RP : `assets/artisan/font/<name>.json` + `textures/font/<name>/*.png` embarqués. Éditeur : `TitleRender` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
+Import MCFonts via "Import font" in the AssetsTab: drop a `.zip` (`font.json` + glyph PNGs). The editor parses/validates the font (`lib/pack/mcFontsParser.ts`), writes it to the draft then, on publish, under the Project's `assets/fonts/` (`lib/pack/assetDiskWrite.ts`). On RP regen: `assets/artisan/font/<name>.json` + `textures/font/<name>/*.png` embedded. Editor: `TitleRender` renders pixel-perfect via `McFontText` (Konva composition of the glyph PNGs).
 
-Background = "gros glyph" : sa hauteur vient de l'ascent de l'asset (`y = 13 - ascent`).
+Background = "big glyph": its height comes from the asset's ascent (`y = 13 - ascent`).
 
-**Glyph layers = Y par calque.** `layer.y` est le haut de l'image en pixels coffre. Le plugin (`TitleCompiler`) rend un glyph dont `y == 13 - ascent` avec `artisan:default`, sinon via `<font:artisan:glyph_y{Y}>`. Le backend (`rebuildResourcePack` → `glyphPlacementsFromMenus`) lit les `menus/*.yaml` de chaque Project et émet `assets/artisan/font/glyph_y{Y}.json` pour les seuls couples (glyph, Y) utilisés : chaque provider recharge sa texture côté client, donc pas de matrice complète comme `text_y`. Plancher partagé par les 3 couches : `y >= 13 - height` (MC refuse `ascent > height`). `LayerEditForm` expose X/Y et "Caler en fond de coffre" (x=0, y=17) ; l'`AssetPicker` reçoit `projectId` et propose l'upload (`AssetUploadDialog.onUploaded` → pick direct).
+**Glyph layers = Y per layer.** `layer.y` is the top of the image in chest pixels. The plugin (`TitleCompiler`) renders a glyph whose `y == 13 - ascent` with `artisan:default`, otherwise via `<font:artisan:glyph_y{Y}>`. The pack builder (`lib/pack/buildServerPack.ts` → `glyphPlacementsFromMenus`) reads the `menus/*.yaml` of each Project and emits `assets/artisan/font/glyph_y{Y}.json` only for the (glyph, Y) pairs in use: each provider reloads its texture on the client, so no full matrix like `text_y`. Floor shared by the 3 layers: `y >= 13 - height` (MC rejects `ascent > height`). `LayerEditForm` exposes X/Y and "Align as chest background" (x=0, y=17); the `AssetPicker` receives `projectId` and offers upload (`AssetUploadDialog.onUploaded` → direct pick).
 
 ## Title Composer UX v3
 
-- **Édition in-place** : les layers sont édités **directement sur le project canvas** via une 3ᵉ colonne (`LayersPanel`, ~280 px, toujours visible). Plus de focus mode dédié au titre.
-- **Layout 3 colonnes** : Project canvas | `MenuProperties` (rows/permission/actions) | `LayersPanel`. Rendu dans l'onglet `overview` du project (route server-scoped ci-dessous ; `project.$projectId.tsx` n'est plus qu'un redirect legacy).
-- **`LayersPanel`** = Header + `AddLayerControls` (`+ Image` / `+ Text`) + liste drag-reorderable de `LayerListItem` + `LayerEditForm`.
-- **Sélection** : `uiStore.selectedLayerKey: { menuId, index } | null` ; `uiStore.lastSelectedMenuId` sticky (le panel survit aux clics dans le vide).
-- **Types UI** : 2 visibles — Image (collapse `background` + `glyph` avec flag `stretchToChest`) et Text. Au save, Image se split runtime en `background`/`glyph`. Glyphs externes : branche propre, pas de bouton dédié en v3.
-- **Texte** = MiniMessage tags inline (`<gold>`, `<bold>`…), preview live. Pas de `color` per-layer (coloring 100% par tags).
-- **Manipulation directe** : drag pour repositionner ; corner-drag (`ResizeHandles`) pour redimensionner (aspect-locked ; shift = no-op en v3).
-- **Sémantique resize — IMPORTANT** : redimensionner un glyph mute l'**asset** (tous les menus qui le référencent changent). Pour une taille per-menu : bouton **"Duplicate glyph"** (`LayerEditForm`) → copie l'asset (nouveau codepoint + PNG) et repointe le layer.
-- **Cursor-based attach** : drag depuis `+ Image`/`+ Text` → drop près d'un menu → attache au plus proche (seuil 200 px). Click sans drag → last-selected menu.
-- **Fichiers v3** sous `editor/src/features/canvas/title/composer/` : `LayersPanel.tsx`, `LayerListItem.tsx`, `LayerEditForm.tsx`, `AddLayerControls.tsx`, `ResizeHandles.tsx`, `TitleRender.tsx`, `useTitleLayerDrag.ts`, `dragPlacement.ts`, `attachLayerAtCursor.ts`, `screenToCanvasCoords.ts` ; `stageGeometry.ts` (dans `features/canvas/`).
+- **In-place editing**: layers are edited **directly on the project canvas** via a 3rd column (`LayersPanel`, ~280 px, always visible). No more dedicated focus mode for the title.
+- **3-column layout**: Project canvas | `MenuProperties` (rows/permission/actions) | `LayersPanel`. Rendered in the project's `overview` tab (server-scoped route below; `project.$projectId.tsx` is now only a legacy redirect).
+- **`LayersPanel`** = Header + `AddLayerControls` (`+ Image` / `+ Text`) + drag-reorderable list of `LayerListItem` + `LayerEditForm`.
+- **Selection**: `uiStore.selectedLayerKey: { menuId, index } | null`; `uiStore.lastSelectedMenuId` sticky (the panel survives clicks on empty space).
+- **UI types**: 2 visible — Image (collapses `background` + `glyph` with a `stretchToChest` flag) and Text. On save, Image splits at runtime into `background`/`glyph`. External glyphs: own branch, no dedicated button in v3.
+- **Text** = inline MiniMessage tags (`<gold>`, `<bold>`…), live preview. No per-layer `color` (coloring 100% by tags).
+- **Direct manipulation**: drag to reposition. No resizing of image layers (pixel-perfect assets; `ResizeHandles` removed 2026-10-21).
+- **Resize semantics — IMPORTANT**: resizing a glyph mutates the **asset** (every menu that references it changes). For a per-menu size: **"Duplicate glyph"** button (`LayerEditForm`) → copies the asset (new codepoint + PNG) and repoints the layer.
+- **Cursor-based attach**: drag from `+ Image`/`+ Text` → drop near a menu → attaches to the nearest one (200 px threshold). Click without drag → last-selected menu.
+- **v3 files** under `editor/src/features/canvas/title/composer/`: `LayersPanel.tsx`, `LayerListItem.tsx`, `LayerEditForm.tsx`, `AddLayerControls.tsx`, `TitleRender.tsx`, `useTitleLayerDrag.ts`, `dragPlacement.ts`, `attachLayerAtCursor.ts`, `screenToCanvasCoords.ts`; `stageGeometry.ts` (in `features/canvas/`).
 
-**Texte unifié dans le composer** : `+ Texte` crée un `textarea` (une ou plusieurs lignes), avec largeur réglable par champ ou poignée droite et alignement gauche/centre/droite. Les anciens `text` et `textarea` restent lisibles ; le formulaire commun convertit un ancien `text` lors de son édition, en conservant sa clé i18n et ses propriétés. La simple sélection ne modifie pas le document.
+**Unified text in the composer**: `+ Text` creates a `textarea` (one or more lines), with width adjustable by field or right handle and left/center/right alignment. The old `text` and `textarea` stay readable; the common form converts an old `text` when it is edited, keeping its i18n key and properties. Merely selecting it does not modify the document.
 
-Le bouton « Ajuster l’interligne » est placé à côté du libellé Interligne, avec une infobulle explicitant taille + 2 px (max. 32). L’alignement horizontal occupe une ligne distincte.
+The "Adjust line spacing" button sits next to the Line spacing label, with a tooltip explaining size + 2 px (max. 32). Horizontal alignment gets its own row.
 
-**Cadre fixe** : le X affiché est le bord gauche du cadre. Le format runtime conserve son ancrage historique : X du texte à gauche, au centre ou à droite. `textFrame.ts` traduit entre les deux (`xRuntime = xCadre + offsetAlignement`) lors des changements de largeur/alignement. `TitleRender` place le groupe au bord gauche et les lignes à l'intérieur ; le drag reconvertit vers l'ancrage runtime. Largeur et interligne sont en pixels MC, indépendants de la taille de police. Le centrage suit les arrondis entiers de `TitleCompiler`, avec mesure des balises et du gras.
-- **Supprimés vs v2** : `FocusComposer.tsx`, `ComposerCanvas.tsx`, `AddLayerBar.tsx`, `LayerSidePanel.tsx`, `TitleThumbnail.tsx` (+ tests).
+**Fixed frame**: the displayed X is the left edge of the frame. The runtime format keeps its historical anchoring: text X on the left, center or right. `textFrame.ts` translates between the two (`xRuntime = xFrame + alignmentOffset`) when width/alignment change. `TitleRender` places the group at the left edge and the lines inside; the drag converts back to the runtime anchor. Width and line spacing are in MC pixels, independent of font size. Centering follows the integer rounding of `TitleCompiler`, with measurement of tags and bold.
+- **Removed vs v2**: `FocusComposer.tsx`, `ComposerCanvas.tsx`, `AddLayerBar.tsx`, `LayerSidePanel.tsx`, `TitleThumbnail.tsx` (+ tests).
 
-## Édition d'un Document — panneau Propriétés (`EditorPane`)
+## Editing a Document — Properties panel (`EditorPane`)
 
-Le Document sélectionné s'édite dans le panneau de droite. L'ancien **mode focus** plein-écran (forké, `features/element-editor/` + `FocusButton` + `useElementDblClickNav`) a été retiré 2026-06-06 : doublon de l'onglet Edit + bugs de routing. Le 2026-06-13, une **vue individuelle** deep-linkable l'a remplacé sur des bases saines — un seul rendu partagé avec la planche, pas d'éditeur forké (cf. section « Planche curée » plus bas). La route `.../document.$documentId` est donc à nouveau présente, mais avec une implémentation différente.
+The selected Document is edited in the right-hand panel. The old full-screen **focus mode** (forked, `features/element-editor/` + `FocusButton` + `useElementDblClickNav`) was removed 2026-06-06: duplicate of the Edit tab + routing bugs. On 2026-06-13, a deep-linkable **individual view** replaced it on sound foundations — a single rendering shared with the board, no forked editor (see the "Curated board" section below). The `.../document.$documentId` route is therefore back, but with a different implementation.
 
-- **`features/canvas/EditorPane.tsx`** — panneau **Propriétés**, sans onglets, qui rend directement `<FlowCanvas>`. Un bouton **YAML** dans son en-tête remplace `<FlowCanvas>` par `<DocumentYamlView>` (écriture verbatim) sur le fichier du Document sélectionné — celui du menu parent pour un élément ; chemin via `documentRelPath`, partagé avec la bascule de `DocumentView`. Sans sélection, les paramètres du projet ouverts, le bouton ouvre `manifest.yaml`. Le panneau Boutons est indépendant (voir ci-dessous). **Le set d'items se crée au NIVEAU DU MENU et n'existe qu'à travers l'élément qui le rend** (ADR `item-templates-and-data-library`, révision 2026-07-31) : `MenuDataSection` porte un bloc « Set d'items » par liste ; `createMenuSet` crée un élément auto-suffisant en mode `iterates` ou `places`. En placement, `PlacementRowsPanel` liste les rows du contexte d'aperçu courant en tuiles draggables (`PLACEMENT_ROW_DRAG_PREFIX`, dépôt géré par `MenuGroup`/`pinPlacementRow`).
-- **Boutons** — `features/project/ProjectLibrary.tsx` : panneau du canvas avec trois onglets **Items du jeu / Items capturés / Images**, sans gestion des ressources graphiques. `ProjectLibraryWorkspace` enveloppe la planche ou la vue individuelle sous le même `DndContext` ; panneau à gauche sur desktop, sous la scène sur mobile. Il charge items et assets même sans sélection, indépendamment de l'ouverture des panneaux. L'ouverture est persistée et liée au dernier projet ouvert (`projectLibraryStore`), jamais à la sélection. Échap ferme Boutons avant la navigation de Document ; les dialogues et champs conservent leur propre gestion d'Échap. La catégorie historique `graphics` est migrée vers `items` ; `captured` est désormais une catégorie de premier niveau.
-- **Ressources** — onglet central `?tab=resources` du projet pour gérer les images et polices (`AssetsTab`, détails avec retour à la grille). Il complète les sélecteurs contextuels du menu sans dupliquer les fichiers. Ordre de navigation : Canvas / Traductions / Données / Ressources / Assistant ; raccourcis numériques 4 pour Ressources, 5 pour Assistant.
-- **`features/flow/FlowCanvas.tsx`** — éditeur unifié de la sélection courante (`useSelectionStore`). Route par type :
-  - 0 sélection → `ProjectProperties`
-  - menu → `MenuProperties` (+ `LayersPanel` titre)
-  - élément (slot) → state cards (material / title / lore / conditions + click handlers en pseudo-code)
-  - command → identité + args + step tree
-  - dialog → title / body / buttons + actions par bouton
-  - multi-sélection → "select one item" (multi-edit hors V1)
-- **Sélection → Propriétés** : sélectionner un menu / slot / commande / dialogue affiche directement ses propriétés sans changer la catégorie ni fermer Boutons. L'ancien `uiStore.editorTab` est supprimé et ignoré à la réhydratation.
-- **Têtes custom (PLAYER_HEAD)** : choisir `PLAYER_HEAD` comme material d'un state révèle une ligne « tête custom » sous le sélecteur de material. Un select choisit la source (`HeadDatabase` / `Base64` / `Player name`) et un champ de valeur apparaît à côté. Coller `hdb:<id>` ou une chaîne brute `eyJ…` détecte la source automatiquement. Choisir la source `playerhead` sur un champ vide écrit directement `playerhead:{player.name}` — le placeholder de contexte du joueur qui ouvre le menu, le cas courant — et un bouton « Joueur actuel » réinsère ce placeholder quand la valeur a été remplacée par un pseudo littéral (`VIEWER_HEAD` dans `features/flow/headField.ts`). `headPreviewUrl` convertit base64 et noms littéraux en rendu 3D mc-heads.net ; `useHeadPreviewUrl` ajoute la résolution HDB via le serveur actif (`GET …/head-texture?id=…`). Cache mémoire par network/serveur/id, demandes identiques mutualisées, succès réutilisable 10 min et échecs retentés après 30 s tant que l'aperçu est monté ; anciennes réponses isolées lors d'un changement de serveur. HDB absent, tête inconnue ou placeholder non résolu → icône générique. Le hook alimente slots Konva, ghosts, overlays, cartes de state et sélecteurs de material.
+- **`features/inspector/EditorPane.tsx`** — **Properties** panel, no tabs, which directly renders `<SelectionInspector>`. A **YAML** button in its header replaces `<SelectionInspector>` with `<DocumentYamlView>` (verbatim writing) on the selected Document's file — the parent menu's file for an element; path via `documentRelPath`, shared with the `DocumentView` toggle. With no selection, project settings open, the button opens the module file (`artisan-module.yml`, or the name it has on disk: `moduleFileRelPath`). The Buttons panel is independent (see below). **The item set is created AT MENU LEVEL and exists only through the element that renders it** (ADR `item-templates-and-data-library`, revision 2026-07-31): `MenuDataSection` carries an "Item set" block per list; `createMenuSet` creates a self-sufficient element in `iterates` or `places` mode. In placement, `PlacementRowsPanel` lists the rows of the current preview context as draggable tiles (`placementRow` payload, drop handled by `MenuGroup`/`pinPlacementRow`).
+- **Buttons** — `features/project/ProjectLibrary.tsx`: canvas panel with three tabs **Game items / Captured items / Images**, without graphic resource management. `ProjectLibraryWorkspace` wraps the board or the individual view under the same `DndContext`; what a drag carries (`material`, `imageButton`, `placementRow`) and the state target (`stateMaterial`) go through dnd-kit's `data`, typed by `features/canvas/dragPayload.ts` (`draggableProps` / `droppableProps` at the source, `readDrag` / `readDrop` in `onDragEnd`) — the id is only a unique key, never read back; panel on the left on desktop, under the stage on mobile. It loads items and assets even with no selection, independently of whether the panels are open. The open state is persisted and tied to the last opened project (`projectLibraryStore`), never to the selection. Escape closes Buttons before Document navigation; dialogs and fields keep their own Escape handling. The historical `graphics` category is migrated to `items`; `captured` is now a top-level category.
+- **Resources** — central tab `?tab=resources` of the project to manage images and fonts (`AssetsTab`, detail views with return to the grid). It complements the menu's contextual pickers without duplicating files. Navigation order: Canvas / Translations / Resources / History; numeric shortcuts 1-4 in that order.
+- **`features/inspector/`** — the Properties panel feature: the frame (`EditorPane`, `FloatingEditorPane`), the `SelectionInspector.tsx` router, the per-type editors (`element/`: `ElementEditor` + state cards `StateCards.tsx`; `command/CommandEditor.tsx`; `dialog/DialogEditor.tsx`, also referenced as `component` by `modules/{commands,dialogs}`), `properties/` (`ProjectProperties`, `MenuProperties`, `ActionEditor`, `ConditionListEditor`…) and `chain/` (Action chain editor). The item sub-editors shared with the board (`AdvancedItemSection`, `ItemBindingEditor`, `ItemHeadField`) live in `features/canvas/item/`.
+- **`features/inspector/SelectionInspector.tsx`** — unified editor of the current selection (`useSelectionStore`). Routes by type:
+  - 0 selection → `ProjectProperties`
+  - menu → `MenuProperties` (+ title `LayersPanel`)
+  - element (slot) → state cards (material / title / lore / conditions + click handlers as pseudo-code)
+  - command → identity + args + step tree
+  - dialog → title / body / buttons + actions per button
+  - Document of a module kind → the `component` of its contribution (section "Document kinds contributed by a module" below)
+  - multi-selection → "select one item" (multi-edit out of V1)
+- **Selection → Properties**: selecting a menu / slot / command / dialog directly shows its properties without changing the category or closing Buttons. The old `uiStore.editorTab` is removed and ignored on rehydration.
+- **Custom heads (PLAYER_HEAD)**: choosing `PLAYER_HEAD` as a state's material reveals a "custom head" row under the material selector. A select chooses the source (`HeadDatabase` / `Base64` / `Player name`) and a value field appears next to it. Pasting `hdb:<id>` or a raw `eyJ…` string detects the source automatically. Choosing the `playerhead` source on an empty field directly writes `playerhead:{player.name}` — the context placeholder of the player who opens the menu, the common case — and a "Current player" button reinserts that placeholder when the value has been replaced by a literal player name (`VIEWER_HEAD` in `features/canvas/item/headField.ts`). `headPreviewUrl` converts base64 and literal names into a 3D mc-heads.net render; `useHeadPreviewUrl` adds HDB resolution via the active server (`GET …/head-texture?id=…`). In-memory cache per network/server/id, identical requests shared, success reusable for 10 min and failures retried after 30 s while the preview is mounted; old responses isolated on server change. HDB missing, unknown head or unresolved placeholder → generic icon. The hook feeds Konva slots, ghosts, overlays, state cards and material selectors.
 
-- **Têtes vanilla en 3D** : les cubes de tête de `mcModelRenderer.headDef` utilisent `yFlip: false` : le découpage du skin place déjà le visage au sud et le dessus en haut. Les retourner exposait une face omise au-dessus et le visage à l'arrière. Le test de géométrie passe par `renderToCanvas` et vérifie par rayons la surface supérieure et les UV du visage.
+- **Vanilla heads in 3D**: the head cubes of `mcModelRenderer.headDef` use `yFlip: false`: the skin slicing already puts the face to the south and the top up. Flipping them exposed an omitted face on top and the face at the back. The geometry test goes through `renderToCanvas` and checks the top surface and the face UVs by ray casting.
 
-### URLs et identité des projets (2026-09-14)
+### Declaration-driven action form (`properties/ActionEditor.tsx`, since 2026-10-15)
 
-`projectUrlId` choisit exactement `externalId ?? diskId ?? id` ;
-`projectDestination` compose les routes serveur, hébergées et démo sans lookup
-global. Les liens de documents, recherche, add-ons, import et copie l’utilisent.
-Le loader transmet Network + serveur à la résolution d’identité, puis utilise
-uniquement l’ID interne pour le contenu et les brouillons. Le cache inclut
-l’utilisateur, le Network, le serveur et la référence URL.
-`ResolvedProjectContext` donne cette ancre à la vue de document ; celle-ci ne
-cherche jamais un nom public parmi les projets chargés. Après résolution, une
-ancienne URL est remplacée par l’ID courant en conservant document, query et hash.
-La démo résout `/demo/projects/demo` via sa session et transmet son ancre au
-même workspace. Un renommage modifie l’URL mais garde les buffers et leur base CAS.
-`onProjectRenamed` actualise également le nom dans le compte et l’identité en
-cache lorsqu’il correspondait à l’ancien ID de dossier. Les libellés de la
-sidebar et des propriétés suivent ainsi le renommage ; un nom personnalisé
-distinct est conservé et la relecture retrouve le même nom en base.
-Le champ ID de `ProjectProperties` affiche lui aussi `projectUrlId(project)`,
-pas l’ancre interne immuable.
+A domain action is `{ name, value }` (`domain/types.ts`): the wire name and its canonical value, texts as `LText{key}` nodes at the `ltext` slots — core and module actions alike (ADR `extensible-document-kinds`, W4). Every reader goes through the declaration (`CORE_ACTIONS` imported from `testdata/core-actions.json` ∪ the server's `declared_actions`, `useDeclaredActionOf`) via `domain/actionArgs.ts`: `normalizeActionArgs` (wire value → argument map, server rule: `null` = none, a map whose keys are declared = the map, otherwise the primary), `canonicalActionValue` (map → shortest form: required always written — declared default if missing —, optional at its default omitted, primary alone bare, otherwise map; `null` if nothing), `actionArgs(action, decl).get/set`, `withActionArg`. Document refs are `document_ref(kind)` arguments (R3): `actionDocumentRefs` / `walkDocumentRefs` feed `deriveEdges`, the clipboard (`remapAction`), `setMenuId` and `previewCallContexts` — none of them knows `open_menu`.
 
-### Reconnexion d'un Project (depuis 2026-09-08)
+- **`ActionEditor`** renders `DeclaredActionForm`: one row per declared argument, label `actionEditor.args.<action>.<arg>` (fallback: the argument name), help `actionEditor.help.<action>.<arg>`, hint `actionEditor.hints.<action>` for an action with no argument. `ArgInput` picks the widget by kind: `ltext` → `TextArgInput` (existing key or literal, removable if optional), `document_ref` → `MenuRefInput` (titled dropdown, other projects of the server qualified `project:id`) or `KindRefSelect` (select via `documentsOf(project, kind)`), `map(string)` next to a `document_ref` → `ContextMapInput` (context inputs of the target), `list(ltext|string)` → `ListArgInput`, `number`/`integer` → `NumberInput` (`NUMBER_BOUNDS`), `boolean` → checkbox, `enum` → segments (≤ 3 values) or select, `string` → `Input`. `ARG_WIDGETS` overrides by `"<action>.<arg>"`: `MaterialInput` (give/take_item), `SoundInput`, `IterableTargetSelect` (pagination), `ExpressionInput` (command, `set_arg.value`, cycle lists, `run_actions`). `module_command` gets `ModuleCommandInput` (select of the commands the server's modules declare, `useServerPlayerCommandsStore` ← `GET /api/v1/servers/:id/player-commands`) and `ModuleCommandArgsInput` (one row per argument the command declares, empty = the bound value of the same name; a key it does not declare is flagged; an undeclared command falls back to JSON). `CommandEditor` shows, on a node whose steps call `module_command`, that the module reads its arguments by name, and `domain/moduleCommands.ts` `argDrift` lists the declared ones missing (not mapped by the step), retyped, or apparently renamed. An undeclared action (module offline) is edited as raw JSON (`JsonValueInput`). Adding a core action to the form = declare it in `CoreActions.kt` (regenerated vector) + its `en.ts`/`fr.ts` labels; a module action needs nothing on the editor side.
+- **Action chain editor** (`features/inspector/chain/`): a single `StepTree` (rows and `if` blocks in `StepRows.tsx`) for all chains. A project chain is addressed by `ChainAddress` (`domain/chainAddress.ts`: `element` {menu, element, state, click} | `command` | `dialogButton`); `ActionChainEditor` renders it and `storeChainOps` routes each edit to the reducers of its owner (no `if` on a dialog button, `chainAllowsIf`). `ControlledStepsEditor` (module data) passes the same tree with `controlledChainOps` (value + `onChange`, immer). Drag and drop: a single `DndContext` per chain (`StepTree`), each `Step[]` (`StepList`) is also a drop zone; a step can enter an `if`/`else if`/`else` branch, leave it or change branch. `ChainOps.move(from, to)` takes two `StepPath`s and the `move*Step` reducers apply `moveStepMut` (`domain/stepPath.ts`, refuses an `if` dropped into itself); the target is computed by `stepDrop.ts` (smallest zone under the pointer, before/after depending on the center). Action row: generic summary from the declaration (primary first, then `k=v`, `(k)` for a true flag; `ltext` rendered as MiniMessage); each row shows its family tile and the translated action name (`actionCatalog.names`, technical name on hover), `if` / `else` are in logic color with a rail per level; `AddStepLine` lists `ACTION_TYPES` (the names of `CORE_ACTIONS`) and seeds via `defaultDeclaredAction` (`features/inspector/chain/defaults.ts`: `CORE_SEEDS` + declared defaults + first menu for a required `document_ref`).
+- **"Add step" menu** (`AddStepLine`, `StepRows.tsx`): a `DropdownMenuSearch` at the top live-filters the core actions, those of modules and the `If` block (label or name, case- and accent-insensitive: `matchesMenuSearch`); ↓ moves to the first item then arrows navigate, Enter in the field takes the first result, a keystroke on an item returns to the field instead of the menu's type-ahead. The field is cleared on close.
+- **Legacy DSL**: `lib/actionDsl/ast.ts` keeps its typed AST (`DslAction`, locked by `testdata/action-dsl-conformance.json`); `domainSteps.ts` projects it to `{name, value}` and back. `lib/i18nMigration.ts` folds the typed form (`{type, menuId…}`) of a project persisted before W4 through the same adapter.
 
-`useProjectLoader` retente la lecture 15 secondes après chaque réponse
-`server_offline` / `network_error`, sans requêtes concurrentes ni reconstruction
-répétée de l'affichage hors ligne. Une lecture réussie (y compris `unchanged`)
-efface `offline` et `stale` ; les réponses tardives et timers sont ignorés à la
-sortie du Project. Un brouillon modifié conserve sa base de compare-and-swap.
-Depuis le 2026-09-13, une première ouverture attend une lecture serveur réussie,
-même avec cache ou brouillon local. Une coupure préserve le buffer déjà ouvert ;
-les échecs de transport backend et `fetch_timeout` sont également retentés.
-Depuis le 2026-10-02, plus de bandeau : le badge serveur de la topbar porte l'état
-hors-ligne et son infobulle (`downHint` de `LinkedServersDropdown`) en donne la
-raison exacte (date de la copie, brouillon, jamais publié). L'état reste local à
-la topbar du Project ouvert.
+### Document kinds contributed by a module (`FrontendModule.documents`, batch 5, since 2026-10-15)
 
-### Paramètres avancés d'un item (depuis 2026-07-29)
+A module declares its Document kinds in its `FrontendModule` (`documents: DocumentKindContribution[]`, SDK): `kind`, `dir`, `schemaVersion`, `idPrefix`, `label` (host i18n key or label), `icon`, `component` (the Properties panel view, `{projectId, documentId, document, item?}`), `title(doc, {project, lang})`, `listByTitle`, `create({id, projectId})`, `parse`/`serialize` (the file codec), `ltextSites(doc)` (its texts, for Translations, rekey at deploy and GC), `chainSlots(doc)` (its action chains: `{name, steps, prefix, label?}`, for edges and addressing of action texts), and `board` (`size`, `summary`, `render`, `items`). The core kinds (menus, commands, dialogs, triggers) are declared the same way (`src/modules/{menus,commands,dialogs,triggers}/*Kind.tsx`) — dogfooding; the SDK registry refuses a kind contributed by two modules. `board.accent` accepts a hex or a `var(--kind-…)` token, which `DocumentGroup` resolves (`useCssVar`) to follow the theme.
 
-Sous le lore de chaque state card, `features/flow/AdvancedItemSection.tsx` replie derrière un `<Collapsible>` tout ce qui dépasse material/titre/lore : **enchantements** (id + niveau, `datalist` sur le catalogue vanilla de `domain/itemAdvanced.ts` mais **saisie libre acceptée** pour le moddé), effet brillant sans enchant, custom model data, incassable, sections de tooltip masquées, **couleur** (affichée uniquement si le material est teintable — cuir / potion / étoile de feu d'artifice), et **NBT brut**. Un badge sur le trigger compte les valeurs posées (`countAdvanced`) pour qu'un item configuré ne cache pas sa propre configuration. Les mutations passent par l'action de store unique `setAppearanceAdvanced` (patch partiel ; une clé à `undefined` efface le champ).
+- **Host bridge** — `lib/moduleDocumentKinds.ts`: `registerEditorModule(mod)` is a module's only entry point (`main.tsx` for the core, `modulesStore` / `ConfigScreenPage` for Presence-gated modules): it registers the module in the SDK and pushes each contribution into the registries the host already reads — kinds table (`domain/documentKinds.ts`, rank after the core kinds, folder and schema checked if the kind is already known), file codecs (`schema/documentCodecs.ts`), visitors (`domain/documentKindVisitors.ts`). The domain knows nothing about React: the view, label and board overrides stay on the contribution, read by `documentKindContribution(kind)` (SDK) from the surfaces that render.
+- **Properties panel via registry** — `selectionContext` returns `{ kind: "document", documentKind, id }` for a Document of a non-core kind; `SelectionInspector` resolves `documentKindContribution(kind).component` for menu / command / dialog / document and renders it in an `h-full min-h-0 overflow-y-auto` container; with no registered module (a surface rendered alone, a test), the built-in core editors still answer; without a view, `projectPanel.noEditor`. The YAML button follows: `documentRelPath` = `<kind dir>/<id>.yaml`.
+- **Listings** — `buildProjectDocuments`: one group per registry kind (registry order) then the kinds present without a module; label = id, or the `title` if `listByTitle` (commands); `documentLabel` goes through the contribution's `title`. `ProjectDocumentTree` takes icon and label from the contribution (fallback `FileText`, `t(label, {defaultValue})`) and offers a "+" entry per module kind → `NewDocumentDialog` (id prefix, conflict via `hasDocument`, `createDocument`). The four "new Document" dialogs validate the id the same way (`features/canvas/newDocumentId.ts`, via `hasDocument`: unique across the whole project, module kinds included); menu, dialog and module kind share `NewPrefixedIdDialog`, the command derives its id from the name (`useUniqueDocumentId`, suffix `_1`, `_2`…). The search palette indexes one Document per kind (`group` = the kind); the sidebar counter and `liveDocumentIds` read the facade (`documentCount`, `documentIds`).
+- **Store** — `state/projects/documentsSlice.ts`: `createDocument({projectId, kind, id, position})` (seed `create`, texts minted at their canonical keys by `mintLTexts` over `ltextSites`), `updateDocument` (whole replacement, for a module's view), `editDocumentChain({projectId, kind, id, slot, lang, edit})` (in-place edit of a `chainSlots`: GC of the texts of removed steps, minting of new ones under the slot's `prefix`; this is what the chain address `{kind: "document", docKind, docId, slot}` of `chainOps.ts` calls, so the `ActionChainEditor` works as is on a Trigger's chain), `setDocumentId({projectId, kind, oldId, newId})` (id, `rekeyDocument`, layout, edges, groups, **every `document_ref` of this kind** repointed via `walkDocumentRefs` over all `chainSlots`, `recordRename` of the file). Core kinds keep their dedicated reducers.
+- **i18n and edges** — `visitProjectLTexts`, `visitProjectStepChains`, `rekeyProject` and `gcDocumentLTexts` iterate `allDocuments` × visitors: a module kind is translated, rekeyed and cleaned like a core kind. `deriveEdges` adds a trigger `{ kind: "chain", documentId, slot, label? }` per `document_ref` found in a chain slot of a non-core kind; `EdgeTooltip` displays it.
+- **Triggers** (`src/modules/triggers/`, ADR `triggers-and-variables`) — the core Game events catalog is read from the `testdata/core-game-events.json` vector (written by the plugin), merged with the active server's `declared_game_events` (`state/serverGameEventsStore.ts`, `useGameEvents`): the picker works without a server and marks "module missing" what the active server does not declare. The page (`TriggerEditor.tsx`) wraps the chain in `ChainEventProvider` (the chosen event) and an `ActionScopeProvider` `{kind: "event", values}` (the `{event.…}` offered in texts). `cancel_event` / `set_event` (`lib/actions/eventActions.ts`) are never in the generic action list: `AddStepLine` offers them under "This event", based on the `cancellable` and `effects` of the chain's event. Kind color: `--kind-trigger` (raspberry).
+- **Board: preview only** — `DocumentGroup` (Konva) is the node of every non-core kind: host chrome (`board.size` box or `DOCUMENT_BOX` 140×48, id, `board.summary` line or the kind, selection, drag, double-click → individual view) around an optional `board.render` — a **react-konva** component, rendered in a `Group listening={false}`: nothing inside receives the pointer. `board.items(doc, ctx)` (SDK 1.2) lists the Document's parts under the header (`title` title, then `id · summary`), one `{id, label, detail?}` row each, drawn by the host: the node grows with the rows (`documentBoxSize`, `DOCUMENT_ITEMS`), a click selects the part like a menu element (`ids = {item}`, `menuId` = the Document's id) and `selectionContext` returns `{kind: "document", …, item}`, which the panel passes to `component` as `item`. SDK 1.5: a row can carry a `marker` (badge before the label: its rank when the parts chain; when all have one, a line links the badges) and a `hover` (`{title?, text?, lines?}`, MiniMessage) that `DocumentItemTooltip` displays on hover (`state/documentItemHoverStore.ts`, mounted by `Stage`); `board.accent` colors the node (border, header band). SDK 1.8: a row can carry an `icon` (item value as the Document holds it: material, captured `item:<id>`, map `{extends, title, lore…}`), resolved by `resolveItem` like a menu button and drawn 16 px before the label (`RowIcon`, head included; the first two letters of the material when there is no texture). Editing happens in the Properties panel. `nodeBox`, `Edges`, `serverGraph` (node + ref target) and `ServerCanvasPage` (filter chip labeled by the contribution) know the kind through the registry. SDK 1.9: a kind with `collection` has no node (`boardGraph`, applied by `projectBoard`, rearrangement and `ServerCanvasPage`); its Documents live in the page of their collection (`features/screens/CollectionView.tsx`) and the sidebar's `CollectionNode` entry, and never go into a folder (`moveToFolder`, `useCollectionsAtRoot`). **Core exception, not to be generalized**: in-place editing of menus on the board (slots, layers, item drops, `focus` branches of `Stage`) is specific to the menu kind and stays that way; a module kind never edits on the board.
+- **Unsynced kind (W6)**: the server reports its kinds to Presence (`document_kinds`, `GET …/document-kinds`), loaded into `state/serverDocumentKindsStore.ts` from `__root.tsx`. `isKindSyncedOn(state, kind)` is false for a kind the active server answered without listing (never for a missing answer: older plugin); `DocumentGroups` then marks the group header (amber dot, `title`), `NewDocumentDialog` shows `canvas.kindNotSynced`. Core kinds are never marked.
 
-Le format wire de ces champs et les conventions partagées avec le plugin sont dans `schemas-codegen.md` § « Détails avancés d'item ».
+### Module views loaded at runtime (since 2026-10-17, ADR `runtime-editor-modules`)
 
-Les champs de modèle `item` utilisent `ItemValueField`, adaptateur du composant `ItemEditor` partagé avec les propriétés canvas. `ItemBindingEditor` choisit la source ; texte et quantité exposent héritage et réinitialisation. Les mentions d'héritage apparaissent uniquement si la base fournit une valeur pour le champ ; si la base porte du lore, une case « Remplacer le lore de l'item de base » et le bouton « Insérer le lore source » (qui écrit `{base.lore}`) apparaissent. `resolveItem` résout récursivement `extends` (ref ou objet), puis applique les surcharges avec un snapshot `base` (titre/lore/count/material). **Le lore de base est conservé par défaut** : le lore explicite s'ajoute dessous, quelle que soit la forme de la source. Il n'est écarté que sur `lore_mode: replace` (la case) ou quand `{base.lore}` figure dans le texte — le placeholder le positionne alors lui-même, sans doublon. Un lore explicite vide n'efface donc plus rien sans la case. Le plugin suit la même composition ; les références circulaires sont bornées. Les champs Material préservent la casse des refs et expressions.
+A module can serve its view from its jar instead of the copy compiled into the editor.
 
-Le hook SDK optionnel `FrontendModule.migrateProject(project)` s'exécute après injection des modèles, dans le loader projet et les copies temporaires des écrans de configuration. Boutique déplace le lore historique dans `icon` et retire le champ du modèle effectif, même sans menus chargés. Les templates liés remplacent `{alias.lore}` par `{base.lore}` — le placeholder suffit à positionner le lore, sans remplacement explicite. Après une sauvegarde catalogue seule, les resolveurs TS/Kotlin reconnaissent encore cet ancien placeholder lorsque la row n'a plus de lore et que son icône étendue en porte : ils insèrent le lore complet une fois à cette position. Les écrans live écrivent les textes d'item dans la langue par défaut de leur copie, car leur sauvegarde transporte uniquement les fichiers de la table.
+- **Loading** — `state/modulesStore.ts`: for each active module, the advertised bundle (`installed_modules[].editor_bundle`, `lib/api/modules.ts`) first goes through `distribution/runtimeBundle.ts`: version check (`sdkCompatibility`, refusal before download), `fetch` of `…/modules/:module/ui.js?v=<hash>`, rewrite of shared imports (`es-module-lexer/js`) to `blob:` modules that re-export the editor's instances (`distribution/sharedModules.ts`: `react`, `react-dom`, `react/jsx-runtime`, `@artisan/editor-sdk`), import of the bundle as `blob:`, check of the default export (`id` = served module, `sdk` compatible). Refusal or failure → entry of `modules.manifest.ts` if it exists; `origins` / `refused` report it. A bundle advertised `local: true` (read by the server from a file, `dev.editor-bundles` of environment.yml, `LocalEditorBundles.kt`) has the `local` origin, and `components/LocalBundlesNotice.tsx` flags it at the top of the page. A failing module does not block the others.
+- **SDK host** — `lib/editorHost.ts`, installed in `main.tsx` before any module: `useProject`, `useContentLang` (`uiStore.activeLang`), `useUiLang` (`uiStore.editorLang`), `updateDocument` (`documentsSlice.updateDocument`, which accepts `texts`: Document and texts in a single undo step), `newTextKey`, `textValue`, `fieldText` (`schema/fieldText.ts`), `projectLangs`, `selectDocumentItem` (SDK 1.2: selects a `board.items` part of the Document, or the Document with `item: null`), `notify` (sonner), and `components` (SDK 1.1, `distribution/hostComponents.tsx`, passed to `installHost` by `main.tsx`): `ActionChainEditor` → `features/data/ActionFieldEditor` (chain in file format, literal text), `MaterialInput` → `features/canvas/MaterialField` (also used by the `material` argument of actions), `ItemInput` (SDK 1.3) → `features/canvas/item/ItemSpecField`: the menu item form (`ItemEditor`) on a literal item spec (vanilla or custom `material`, or captured `item:<id>`, `title`, `lore` as lines, advanced fields) and, with `onMatchChange`, the comparison criteria (`domain/itemMatch.ts`, those of the plugin's `ItemComparison`) checked by default according to the item (`defaultItemMatch`, mirror of `defaultComparisons`); unchecking writes an explicit `match` list. The block (`MatchCriteria`) has two modes, "Exact copy" (`[exact]`, which covers everything) and "By criteria": these list what the item carries with the compared value (`itemMatchFacts`), the identity (`custom_item` for a custom item, otherwise `material`) locked once checked; criteria with no value to compare (no name, no lore…) are folded under "More criteria", open when one is checked. `match` format unchanged. `MiniMessageInput` (SDK 1.4) → `components/MiniMessageField`: the common MiniMessage field (`RevealField`: rendering, then source + live rendering below), also used by the `minimessage` arguments of actions and the literal text of a module chain. `SortableList` (SDK 1.10) → `components/ui/sortable-list`: the design system's handle-reordered list. `ConditionsEditor` (SDK 1.11) → `features/inspector/properties/ConditionsField`: `ConditionListEditor` (the one of `if` branches and Triggers) on an `if:` list in file format; only the entries `isDecodableCondition` (`lib/actions/structuredSteps.ts`) accepts whole are decoded, the others (a module's condition, a `{type: …}` form, a malformed group) are written back as they were after the edited conditions, and a line says so (`conditions.keptUnknown`). `DocumentRefInput` (SDK 1.11) → `features/inspector/properties/DocumentRefField`: the picker of the actions' `document_ref` argument (`ActionEditor` uses it too), a titled dropdown for `menu`, a `<select>` for any other kind, Documents of the server's other projects qualified `<namespace>:<id>`.
+- **Subcommands of a command** — `CommandNode` (`domain/types.ts`) carries what a command and each of its subcommands have in common (name, aliases, permission, `LText` description, `enabled`, arguments, steps, `subcommands`, `wire`); `Command` extends it with its id. A node is addressed by its indexes from the root (`CommandNodePath`, `[]` = the root; `domain/commandNodes.ts`: `commandNodeAt`, `walkCommandNodes`). Each `commandsSlice` reducer takes an optional `sub?`, as does the chain address (`{kind: "command", commandId, sub}`) and the placeholder catalog (the node's arguments). A node's texts live under `commands.<id>.subcommands.<i>…`: by index, so two siblings with the same name never share a key; the readable path of the Translations tab keeps the typed words (`commands.ah sell.description`). `visitCommandLTexts` and `commandChainSlots` walk the whole tree, so rekey, GC, board links (`commandStepLists`) and menu rename do too. `CommandEditor`: a Subcommands panel (`SubcommandTree`, one row per fully typed node, `enabled` switch, add under the chosen node, delete with its texts) chooses the node that Settings, Arguments and Steps edit (the whole row is the click target; its switch and remove button keep their click); the id is only settable on the root.
+- **Commands on the board** — `CommandGroup` draws a command and, below it, one row per subcommand (`walkCommandNodes`, indented by depth, struck through and faded when it or a parent is disabled; height `commandBox`, `COMMAND_ROWS`). A Document opened by a subcommand, and not by the root itself, starts from that subcommand's row (`commandRowRefs` → `subCommandAnchors`, default `from` anchor of `Edges`; a hand-placed anchor still takes priority). A module command is a `command/v1` Document of its folder like any other (system template `player_commands`, generated by the plugin): "modified" / "new version" asterisks and Reset of system elements, nothing specific to commands. A click on a subcommand row selects the command with the inspector on that subcommand: the node `CommandEditor` edits lives in `useCommandNodeStore` (`state/commandNodeStore.ts`, ephemeral), which the row sets before the selection opens the inspector; opening another command resets it to its root. Hovering a link the command draws outlines in green the rows whose steps open its target (`rowsOpening`, read from `useEdgeHoverStore`).
+- **Kind label** — `contributionLabel` (`lib/moduleDocumentKinds.ts`): `labels[interface language]`, otherwise `label` read as a host i18n key or literal; used by the tree, the palette, the server board and `NewDocumentDialog`.
+- **Late-arriving kind** — `adoptLateDocuments` (`schema/projectFromFiles.ts`, store action `adoptLateDocuments`) reads the `<dir>/<id>.yaml` files left in `moduleData[<dir>].__files` when a kind is registered after the Project was read; `__root.tsx` calls it on every open Project when `modulesStore` goes to `ready`, and `useProjectLoader` when a Project is installed (the kind may have arrived during its construction, after its files were read: typical case of a Project reopened from cache).
+- **Building** — `@artisan/editor-sdk/bundle` (`artisanModuleBundle`) gives the Vite config of a bundle. A module outside the repo takes the SDK via `npm pack` of `packages/editor-sdk`; example: the quests view, in the MSQuests repo (`editor/`), not in the editor.
 
-`ItemEditor` garde une carte compacte (texture/tête résolue, titre, count, trois lignes de lore, enchantements) et ouvre ses champs dans le `Dialog` partagé du design system. Le corps défile ; « Terminé », la croix ou Échap ferment la modale et restituent le focus à la carte, sans sauvegarde distincte. Les adaptateurs catalogue/menu partagent aussi `HeadField`. Les actions propres au menu passent par le slot `details`, visible seulement pendant l'édition. Un écran déclaré charge son module avant de construire le formulaire, pour exécuter ses migrations même si le chargement global de présence n'a pas fini.
+### Project URLs and identity (2026-09-14)
 
-`ItemContextSidebar` affiche les mêmes entrées contextualisées que l’autocomplétion de `ItemEditor`, avec les champs `base.*`, regroupement par origine, recherche et copie entre accolades (erreur explicite si le presse-papiers échoue). Le panneau passe sous le formulaire sur écran étroit et reste repliable. Il ouvre `PatternsGallery` dans une Sheet imbriquée : fermer l’aide conserve la modale et les champs montés.
+`projectUrlId` chooses exactly `externalId ?? diskId ?? id`;
+`projectDestination` composes server, hosted and demo routes without a global
+lookup. Document, search, add-on, import and copy links use it.
+The loader passes Network + server to identity resolution, then uses
+only the internal ID for content and drafts. The cache includes
+the user, the Network, the server and the URL reference.
+`ResolvedProjectContext` gives this anchor to the document view; the latter
+never looks up a public name among the loaded projects. After resolution, an
+old URL is replaced by the current ID, keeping document, query and hash.
+The demo resolves `/demo/projects/demo` through its session and passes its anchor to the
+same workspace. A rename changes the URL but keeps the buffers and their CAS base.
+`onProjectRenamed` also updates the name in the account and the cached
+identity when it matched the old folder ID. The labels of the
+sidebar and the properties thus follow the rename; a distinct custom name
+is kept and re-reading finds the same name in the database.
+The ID field of `ProjectProperties` also shows `projectUrlId(project)`,
+not the immutable internal anchor.
 
-Les champs texte des actions (commande, contexte passé à `open_menu`, valeur de `set_arg`, messages, titres) utilisent le même `PlaceholderInput` et le même catalogue (`lib/placeholderCatalog`) que le lore : indication « Tape { », autocomplétion, pas de barre d'insertion. Un clic d'élément passe sa `FieldLocation` `action` ; les étapes d'une commande la reçoivent par `ActionScopeProvider` (`{ kind: "command" }` → arguments + `{player}`) ; ailleurs, seul `{player}` est proposé. Le catalogue expose l'alias d'un élément en `iterates` **ou** `places`, y compris sur une source serveur (schéma rapporté) ou une ref directe `ns:id`. Seul `ItemEditor` ajoute `base.*`, qui n'existe qu'au rendu d'un item. Le catalogue ne propose que ce que le plugin fournit : ni `{slot}`, ni `{material}`, ni `{pagination.*}` (l'aperçu canvas lie encore `pagination`, pas le runtime). Il propose en revanche partout (menu, élément, action, dialog) les placeholders de navigation `{has_previous_menu}` (booléen, pour conditionner un bouton retour) et `{previous_menu}`, `{previous_menu.id}`, `{previous_menu.title}` — alimentés au rendu par l'historique de navigation du joueur.
+### Reconnecting a Project (since 2026-09-08)
 
-La modale `ItemEditor` occupe toujours `100dvh - 2rem` ; son corps flexible remplit la hauteur restante entre le titre et le footer, tout en conservant les scrolls indépendants.
+`useProjectLoader` retries the read 15 seconds after each
+`server_offline` / `network_error` response, without concurrent requests or repeated
+rebuilding of the offline display. A successful read (including `unchanged`)
+clears `offline` and `stale`; late responses and timers are ignored when
+leaving the Project. A modified draft keeps its compare-and-swap base.
+Since 2026-09-13, a first open waits for a successful server read,
+even with a cache or local draft. A disconnection preserves the already open buffer;
+backend transport failures and `fetch_timeout` are also retried.
+Since 2026-10-02, no more banner: the topbar's server badge carries the offline
+state and its tooltip (`downHint` of `LinkedServersDropdown`) gives the exact
+reason (date of the copy, draft, never published). The state stays local to the
+topbar of the open Project.
 
-Sur desktop, le formulaire et `ItemContextSidebar` défilent indépendamment dans une grille bornée ; `contain:size` empêche le catalogue de déterminer la hauteur de la modale. Sur mobile, le panneau reste sous les champs avec une hauteur maximale de 20 rem et son propre scroll.
+Since 2026-10-16, the loader state is a pure reducer (`projectLoadState.ts`,
+named events `started` / `located` / `opened` / `settled` / `connectionLost` /
+`readFailed` / `loadFailed` / `validated`, tested without React); the read itself
+(`readFromHub` → `readAndOpen`, `resumeDraft`, `settleOffline`) lives outside the hook.
+`projectLoadStatus` says what the workspace shows (`loading | ready | error`).
 
-La copie d’un placeholder affiche une coche sur le bouton concerné pendant 1,5 s, sans message de succès séparé ; le timer est nettoyé au démontage.
-Le bloc `ItemBindingEditor` affiche un champ Icône compact (miniature + libellé). Les liaisons affichent leur chemin exact (par exemple `item.icon`), sans traduction ni interprétation des termes propres aux modules. Son picker regroupe Catalogue (liaisons `Appearance.item`) et Bibliothèque (items fixes). `itemBindingOptions` suit les modèles des inputs et les alias d'itération/placement ; seules les feuilles `item` sont proposées. Les modules déclarent `dataSourceModels` pour typer leurs sources même sans schéma serveur. Quantité et enchantements affichent les valeurs du catalogue et un reset après personnalisation ; l'expression reste dans un volet avancé.
-Avant `FrontendModule.localPreviewRows`, l'hôte résout les `LText` des `dataSources` dans la langue d'aperçu et avec les traductions du projet propriétaire. Boutique peut ainsi assembler le lore sans convertir les références en `[object Object]` ; ses rows incluent `price_display` formaté et les items imbriqués des catégories.
+### Advanced item settings (since 2026-07-29)
 
-**Lore additif par défaut** (révision 2026-09-17, additif depuis 2026-08-06). Les lignes de l'apparence s'ajoutent sous celles de l'item — `extends` compris, qui imposait le remplacement — et son titre explicite remplace celui de la base (`MenuRendererCapturedLoreTest`, `MenuRendererItemValueTest`). Remplacer demande `lore_mode: replace` ; `{base.lore}` reste disponible pour choisir la position. `normalizeBaseLore` (appelé en fin de `projectFromFiles`) retire les `{base.lore}` de TÊTE écrits du temps où il fallait réclamer le lore de base — dans toutes les langues d'un site, et dans les valeurs d'item des rows, où une ligne est un nœud LText adressé par sa position. Un token ailleurs qu'en tête, ou présent dans une seule langue, reste intact. Un champ absent conserve toujours la valeur héritée.
+Under the lore of each state card, `features/canvas/item/AdvancedItemSection.tsx` folds behind a `<Collapsible>` everything beyond material/title/lore: **enchantments** (id + level, `datalist` on the vanilla catalog of `domain/itemAdvanced.ts` but **free input accepted** for modded), glint effect without enchant, custom model data, unbreakable, hidden tooltip sections, **color** (shown only if the material is dyeable — leather / potion / firework star), and **raw NBT**. A badge on the trigger counts the values set (`countAdvanced`) so a configured item does not hide its own configuration. Mutations go through the single store action `setAppearanceAdvanced` (partial patch; a key set to `undefined` clears the field).
 
-**Extraction d'un item capturé.** Reste l'échappatoire quand on veut *éditer* ce que l'item porte. Le bouton « Extraire les détails » (visible seulement sur ces refs) parse le `stackYaml` via `domain/capturedStack.ts` et **éclate la ref en champs réels** — material, count, titre, lore et tout le bloc avancé. L'opération demande confirmation car elle est destructrice au sens du lien : le slot ne suit plus l'item capturé s'il est recapturé. C'est le compromis assumé : la ref est vivante mais opaque, les champs sont morts mais éditables.
+The wire format of these fields and the conventions shared with the plugin are in `schemas-codegen.md` § "Advanced item details".
 
-**Glint.** `SlotItem` dessine un halo violet + une étoile `✦` en haut-gauche (le compteur de stack occupe le bas-droite) quand l'apparence porte des enchants ou le flag, **ou** quand la ref capturée en porte (`resolveDisplayRef` interroge le stack sérialisé, pas seulement le descripteur `.artisan/editor.yaml` — les vieilles captures et les items écrits par un module n'ont pas de descripteur). Ce n'est **pas** une réplique du shader vanilla : teinter uniquement les pixels opaques du sprite demanderait un filtre Konva caché par slot, ce qu'un menu à 54 slots ne peut pas payer. Le marqueur est sans ambiguïté à cette taille, ce qui est le besoin du canvas. `ItemTooltip` liste en plus les enchantements entre le nom et le lore, à l'orthographe vanilla (`Sharpness V`, pas de numéral pour les enchants mono-niveau).
+The `item` model fields use `ItemValueField`, an adapter of the `ItemEditor` component shared with the canvas properties. `ItemBindingEditor` chooses the source; text and quantity expose inheritance and reset. Inheritance notes appear only if the base provides a value for the field; if the base carries lore, a "Replace the base item lore" checkbox and the "Insert source lore" button (which writes `{base.lore}`) appear. `resolveItem` recursively resolves `extends` (ref or object), then applies the overrides with a `base` snapshot (title/lore/count/material). **The base lore is kept by default**: the explicit lore is appended below it, whatever the form of the source. It is discarded only on `lore_mode: replace` (the checkbox) or when `{base.lore}` appears in the text — the placeholder then positions it itself, without duplicates. An empty explicit lore therefore no longer erases anything without the checkbox. The plugin follows the same composition; circular references are bounded. Material fields preserve the case of refs and expressions.
+
+The optional SDK hook `FrontendModule.migrateProject(project)` runs after template injection, in the project loader and the temporary copies of the config screens. Boutique moves the historical lore into `icon` and removes the field from the effective model, even without loaded menus. Linked templates replace `{alias.lore}` with `{base.lore}` — the placeholder is enough to position the lore, with no explicit replacement. After a catalog-only save, the TS/Kotlin resolvers still recognize this old placeholder when the row no longer has lore and its extended icon carries some: they insert the full lore once at this position. Live screens write item texts in the default language of their copy, because their save carries only the table's files.
+
+`ItemEditor` keeps a compact card (resolved texture/head, title, count, three lore lines, enchantments) and opens its fields in the design system's shared `Dialog`. The body scrolls; "Done", the cross or Escape close the modal and return focus to the card, with no separate save. The catalog/menu adapters also share `HeadField`. Menu-specific actions go through the `details` slot, visible only while editing. A declared screen loads its module before building the form, to run its migrations even if the global presence loading has not finished.
+
+The placeholders in scope (the same contextualized entries as the `ItemEditor` autocomplete, with the `base.*` fields) are browsed in the toolbar's Library (`PlaceholderLibrary`); the former `ItemContextSidebar` panel is removed (2026-10-28).
+
+The text fields of actions (command, context passed to `open_menu`, value of `set_arg`, messages, titles) use the same `PlaceholderInput` and the same catalog (`lib/placeholderCatalog`) as the lore: "Type {" hint, autocompletion, no insertion bar. An element click passes its `FieldLocation` `action`; the steps of a command receive it through `ActionScopeProvider` (`{ kind: "command" }` → arguments + `{player}`); elsewhere, only `{player}` is offered. The catalog exposes the alias of an element in `iterates` **or** `places`, including on a server source (reported schema) or a direct `ns:id` ref. Only `ItemEditor` adds `base.*`, which exists only when rendering an item. The catalog offers only what the plugin provides: no `{slot}`, no `{material}`, no `{pagination.*}` (the canvas preview still binds `pagination`, not the runtime). It does, however, offer everywhere (menu, element, action, dialog) the navigation placeholders `{has_previous_menu}` (boolean, to condition a back button) and `{previous_menu}`, `{previous_menu.id}`, `{previous_menu.title}` — fed at render time by the player's navigation history.
+
+The `ItemEditor` modal always takes `100dvh - 2rem`; its flexible body fills the remaining height between the title and the footer, while keeping independent scrolls.
+
+On desktop, the form and the preview column scroll independently in a bounded grid; the form keeps a stable scrollbar gutter (`scrollbar-gutter: stable` + right padding) so its scrollbar never covers the fields.
+The `ItemBindingEditor` block shows a compact Icon field (thumbnail + label). Bindings display their exact path (for example `item.icon`), without translation or interpretation of module-specific terms. Its picker groups Catalog (`Appearance.item` bindings) and Library (fixed items). `itemBindingOptions` follows the input models and the iteration/placement aliases; only `item` leaves are offered. Modules declare `dataSourceModels` to type their sources even without a server schema. Quantity and enchantments show the catalog values and a reset after customization; the expression stays in an advanced pane.
+Before `FrontendModule.localPreviewRows`, the host resolves the `LText`s of the `dataSources` in the preview language and with the translations of the owning project. Boutique can thus assemble the lore without turning references into `[object Object]`; its rows include the formatted `price_display` and the nested items of the categories.
+
+**Additive lore by default** (revision 2026-09-17, additive since 2026-08-06). The appearance's lines are appended under those of the item — `extends` included, which used to force replacement — and its explicit title replaces the base's (`MenuRendererCapturedLoreTest`, `MenuRendererItemValueTest`). Replacing requires `lore_mode: replace`; `{base.lore}` remains available to choose the position. `normalizeBaseLore` (called at the end of `projectFromFiles`) removes the LEADING `{base.lore}` written back when the base lore had to be claimed — in all languages of a site, and in the item values of rows, where a line is an LText node addressed by its position. A token elsewhere than at the head, or present in only one language, stays intact. An absent field always keeps the inherited value.
+
+**Extracting a captured item.** Remains the escape hatch when you want to *edit* what the item carries. The "Extract the details" button (visible only on these refs) parses the `stackYaml` via `domain/capturedStack.ts` and **explodes the ref into real fields** — material, count, title, lore and the whole advanced block. The operation asks for confirmation because it is destructive in the sense of the link: the slot no longer follows the captured item if it is recaptured. This is the accepted trade-off: the ref is live but opaque, the fields are dead but editable.
+
+**Glint.** `SlotItem` draws a purple halo + a `✦` star at the top left (the stack counter occupies the bottom right) when the appearance carries enchants or the flag, **or** when the captured ref carries some (`resolveDisplayRef` queries the serialized stack, not only the `.artisan/editor.yaml` descriptor — old captures and items written by a module have no descriptor). It is **not** a replica of the vanilla shader: tinting only the opaque pixels of the sprite would require a hidden Konva filter per slot, which a 54-slot menu cannot afford. The marker is unambiguous at this size, which is what the canvas needs. `ItemTooltip` additionally lists the enchantments between the name and the lore, with vanilla spelling (`Sharpness V`, no numeral for single-level enchants).
 
 ## Canvas component layout (refactor 2026-06-02)
 
-`features/canvas/MenuGroup.tsx` (1066 → 591 lignes) éclaté : `SlotItem.tsx`, `PaginationControls.tsx`, `menuFanout.ts` (fanout positionnel pur, testé), `useMenuClick.ts` (armed-material tap-to-place), `useMenuDrag.ts` (cross-project via project-mini DOM walk), `useSlotDrag.ts` (selection drag + Alt).
+`features/canvas/MenuGroup.tsx` (1066 → 591 lines) split: `SlotItem.tsx`, `PaginationControls.tsx`, `menuFanout.ts` (pure positional fanout, tested), `useMenuClick.ts` (armed-material tap-to-place), `useMenuDrag.ts` (cross-project via project-mini DOM walk), `useSlotDrag.ts` (selection drag + Alt).
 
-`features/canvas/Stage.tsx` (528 → 351 lignes) éclaté : `ArmedBanner.tsx`, `useStageTouch.ts` (long-press → context menu), `useStageContextMenu.ts`.
+`features/canvas/Stage.tsx` (528 → 351 lines) split: `ArmedBanner.tsx`, `useStageTouch.ts` (long-press → context menu), `useStageContextMenu.ts`.
 
-Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 591, Stage 351) — split supplémentaire différé.
+Since 2026-10-16 (Stage had grown back to 791 lines): `useStageBoard` (board / focus `layout` table + group drag), `useStageFraming` (restored, persisted viewport, focus framing `refitFocus`, `centerRequest`; `useElementSize`), `useHeldPanKeys` (Space / Alt), `useStageDropTargets` (the three single-tenant registries + paste anchor), `StageContextMenu` (context menu wired to the canvas commands). What only the board owns lives in `BoardChrome.tsx`: `BoardChrome` (empty state, group controls, minimap), `BoardGroupsLayer`, `useBoardCreation` + `BoardCreationDialogs` (create "here"). Focus mounts none of it; `Stage` keeps only the common core (~400 lines).
 
-### Clic droit et sélection multiple (depuis 2026-10-05)
+Since 2026-10-16 (MenuGroup had grown back to 855 lines, a 772-line component): `menuSlots.ts` (pure, tested: `resolveMenuSlots` — content of each slot, paginated iteration, placements, fanout — `paginationContext`, `edgeTriggerPositions`), `useSlotPointer.ts` (click / tap on a slot: drop of the armed placement row or armed material, otherwise selection), `useMenuPreviewSnapshots.ts` (live snapshots of the menu's sources), `MenuBackground.tsx` (vanilla texture / transparent window), `SlotDragGhosts.tsx`. `MenuGroup`: 397 lines.
 
-Konva émet `click` pour **tous** les boutons : `usePrimaryButtonOnly` (branché sur le wrapper du
-`Stage`) avale en capture les `pointer/mouse down/up` non primaires, sinon le clic droit réduisait la
-sélection avant `contextmenu`. Ctrl/⌘/Shift+clic sur un item → `selectionStore.toggleElement(id,
-menuId)` : sélection d'items d'**un seul** menu, jamais le menu lui-même (repart à zéro si autre menu).
-`useStageContextMenu` garde la sélection (cible `entity`) quand le slot visé porte un item sélectionné
-ou un menu d'une sélection de nœuds. `deleteSelection` (`useCanvasKeyboard.ts`, menu contextuel + Suppr)
-supprime items et nœuds, en épargnant le menu qui contient les items sélectionnés.
+Note: target ≤250 for Stage not reached (399) — the common board / focus core stays there.
 
-### Coller des items à un slot (depuis 2026-10-04)
+### Right-click and multi-selection (since 2026-10-05)
 
-`pasteFromClipboard(projectId, onError, anchor?)` (`useCanvasKeyboard.ts`) accepte un `PasteAnchor`
-`{ menuId, position }`. Ctrl/⌘+V le calcule via `Stage.getPasteAnchor` (dernière position du curseur
-sur le wrapper → `screenToWorld` → `hitTestSlot`) ; le clic droit sur un slot propose « Coller ici »
-avec le slot visé. Avec ancre : le menu ciblé est celui de l'ancre (prioritaire sur la sélection), et le
-groupe copié est décalé linéairement pour que sa plus petite position tombe sur l'ancre (disposition
-relative conservée). Slot pris → premier groupe libre après lui (`findFreePositions`) ; élément qui
-sortirait de la grille → ses positions copiées. Sans ancre (curseur hors d'un slot) : comportement
-historique (`resolveTargetMenu` + positions d'origine). Duplicate (⌘D) n'utilise pas d'ancre.
+Konva emits `click` for **all** buttons: `usePrimaryButtonOnly` (wired on the `Stage` wrapper)
+swallows non-primary `pointer/mouse down/up` in capture, otherwise right-click reduced the
+selection before `contextmenu`. Ctrl/⌘/Shift+click on an item → `selectionStore.toggleElement(id,
+menuId)`: selection of items of **a single** menu, never the menu itself (starts over if another menu).
+`useStageContextMenu` keeps the selection (`entity` target) when the targeted slot carries a selected item
+or a menu of a node selection. `deleteSelection` (`useCanvasKeyboard.ts`, context menu + Del)
+deletes items and nodes, sparing the menu that contains the selected items.
 
-## Types d'inventaire (Chest / Hopper / Dropper, depuis 2026-06-14)
+### Pasting items into a slot (since 2026-10-04)
 
-Un menu est un coffre (défaut), un hopper (5×1) ou un dropper (3×3). La **single source of truth** est la table `INVENTORY_TYPES` dans `features/canvas/inventoryTypes.ts` : par type elle porte `cols`, les `rows` fixes (`null` pour le chest = `menu.rows`), l'origine du slot 0 en px MC (`firstSlotX/Y`), la hauteur de box (`null` = calculée depuis les rows pour le chest), la clé texture et le type Bukkit. Helpers : `colsFor`, `rowsFor`, `slotCount`, `slotMcXY` (stride constant `MC_SLOT_STRIDE = 18`).
+`pasteFromClipboard(projectId, onError, anchor?)` (`useCanvasKeyboard.ts`) accepts a `PasteAnchor`
+`{ menuId, position }`. Ctrl/⌘+V computes it via `Stage.getPasteAnchor` (last cursor position
+on the wrapper → `screenToWorld` → `hitTestSlot`); right-click on a slot offers "Paste here"
+with the targeted slot. With an anchor: the targeted menu is the anchor's (taking priority over the selection), and the
+copied group is shifted linearly so its smallest position lands on the anchor (relative layout
+kept). Slot taken → first free group after it (`findFreePositions`); element that
+would fall outside the grid → its copied positions. Without an anchor (cursor outside a slot): historical
+behavior (`resolveTargetMenu` + original positions). Duplicate (⌘D) uses no anchor.
 
-**Title composer width-agnostic** : les trois GUI conteneurs vanilla font **176 px MC de large** avec le titre à `(8, 6)`. Seules la **hauteur de box** et la **grille de slots** varient par type — aucune paramétrisation de largeur n'est nécessaire dans le title composer.
+## Inventory types (Chest / Hopper / Dropper, since 2026-06-14)
 
-**Fonds (`MenuGroup`)** : le chest utilise la texture deux-tranches `generic_54.png` (header + slice de lignes répétée). Le hopper et le dropper utilisent une **image de box complète** (`hopper.png` / `dispenser.png`). `MenuGroup` branche via `usesSingleBackground(type)`.
+A menu is a chest (default), a hopper (5×1) or a dropper (3×3). The **single source of truth** is the `INVENTORY_TYPES` table in `features/canvas/inventoryTypes.ts`: per type it carries `cols`, the fixed `rows` (`null` for chest = `menu.rows`), the origin of slot 0 in MC px (`firstSlotX/Y`), the box height (`null` = computed from the rows for chest), the texture key and the Bukkit type. Helpers: `colsFor`, `rowsFor`, `slotCount`, `slotMcXY` (constant stride `MC_SLOT_STRIDE = 18`).
 
-**Hit-test + drag paramétrés par type** : `hitTest.ts` et `useSlotDrag.ts` lisent cols / origine / rows depuis la table — plus aucun hardcode des 9 colonnes du chest.
+**Title composer width-agnostic**: the three vanilla container GUIs are **176 MC px wide** with the title at `(8, 6)`. Only the **box height** and the **slot grid** vary by type — no width parameterization is needed in the title composer.
 
-**Inventaire du joueur (`player_inventory`, 2026-09-25)** : `Menu.playerInventory` (absent = `visible`, stocké seulement si `hidden`). En `hidden`, les positions `size..size+35` (rawSlot protocole) sont éditables sur les 4 lignes vanilla sous le menu : `slotMcXY(i, type, rows)` place les positions `≥ slotCount` sur ces cellules (`playerInvY` par type, `null` = après les lignes du coffre ; +4 px avant la barre rapide), `positionCount` donne le nombre adressable (`MenuGroup`, clavier, `MenuProperties`), `hitTestSlot` les retourne. Les déplacements de sélection passent par une grille visuelle (`positionToCell` / `cellToPosition` : lignes du menu puis 4 lignes de 9) au lieu de `% cols`. Redimensionner le menu ou changer de type **décale** les positions joueur (`shiftPlayerPositions` dans `accountStore`) pour que chaque bouton reste sur le même slot joueur ; le refus de rétrécissement ne porte plus que sur les positions du menu. Les image buttons restent limités à la grille du menu.
+**Backgrounds (`MenuGroup`)**: chest uses the two-slice texture `generic_54.png` (header + repeated row slice). Hopper and dropper use a **full box image** (`hopper.png` / `dispenser.png`). `MenuGroup` branches via `usesSingleBackground(type)`.
 
-**Texture par défaut (`vanilla_texture`, 2026-09-25)** : en mode titre composé, `VanillaTextureLayer` est la première ligne fixe de `LayersPanel` (non déplaçable, non supprimable) avec un `Switch` (`components/ui/switch.tsx`, spécimen `/admin/design`) — l'œil des layers reste un masquage d'aperçu, le `Switch` un réglage enregistré qui change le jeu. Désactivée (tous types de conteneur), `MenuGroup` ne dessine plus la texture mais `transparentOutline(type, rows)` : cadre pointillé (garde une forme de hit pour le drag) et cellules de slot en traits légers, menu **et** 36 slots joueur, selon la géométrie du type. Repasser en titre vanilla réactive la texture.
+**Hit-test + drag parameterized by type**: `hitTest.ts` and `useSlotDrag.ts` read cols / origin / rows from the table — no more hardcoding of the chest's 9 columns.
 
-**Switch de type = keep+warn** : `MenuProperties` expose un sélecteur de type (Chest / Hopper / Dropper) ; le sélecteur de rows n'apparaît que pour le chest. Passer à un conteneur plus petit **conserve** les éléments hors-plage et affiche un chip d'avertissement — jamais de suppression silencieuse (`setMenuField` keep+warn).
+**Player inventory (`player_inventory`, 2026-09-25)**: `Menu.playerInventory` (absent = `visible`, stored only if `hidden`). When `hidden`, positions `size..size+35` (protocol rawSlot) are editable on the 4 vanilla rows under the menu: `slotMcXY(i, type, rows)` places positions `≥ slotCount` on these cells (`playerInvY` per type, `null` = after the chest rows; +4 px before the hotbar), `positionCount` gives the addressable count (`MenuGroup`, keyboard, `MenuProperties`), `hitTestSlot` returns them. Selection moves go through a visual grid (`positionToCell` / `cellToPosition`: menu rows then 4 rows of 9) instead of `% cols`. Resizing the menu or changing type **shifts** the player positions (`shiftPlayerPositions` in `projectsStore`) so each button stays on the same player slot; the refusal to shrink now concerns only the menu's positions. Image buttons stay limited to the menu grid.
 
-## Canvas edges (liens entre nœuds)
+**Default texture (`vanilla_texture`, 2026-09-25)**: in composed title mode, `VanillaTextureLayer` is the first fixed row of `LayersPanel` (not movable, not deletable) with a `Switch` (`components/ui/switch.tsx`, specimen `/design`) — the layers' eye remains a preview hide, the `Switch` a saved setting that changes the game. Disabled (all container types), `MenuGroup` no longer draws the texture but `transparentOutline(type, rows)`: dotted frame (keeps a hit shape for the drag) and slot cells in light strokes, menu **and** 36 player slots, according to the type's geometry. Going back to a vanilla title reactivates the texture.
 
-Les liens menu/commande/dialog sont dérivés des actions (`deriveEdges.ts`, inchangé) puis
-routés par `edgeRouting.ts` (pur, testé) : côté de sortie/entrée choisi par `autoSide` —
-deux nœuds côte à côte (écart horizontal) se relient toujours par leurs côtés gauche/droit,
-deux nœuds empilés dans une colonne par haut/bas, axe dominant sinon. Les ancres auto d'un
-même côté sont **centrées** et réparties symétriquement tous les `ANCHOR_GAP_PX` (24 px,
-resserré si le côté est trop court, marge coins 10 px), dans l'ordre de la position du nœud
-opposé pour éviter les croisements (depuis 2026-09-25 ; avant, chaque ancre visait la
-projection du nœud opposé, ce qui la collait aux coins). Tracé bézier cubique à tangentes perpendiculaires
-au bord (longueur ∝ distance, clamp 24–160 px). Rendu : `Edges.tsx` en Konva `Arrow`
-(tête de flèche côté cible), hover → `EdgeTooltip`, clic → sélection + 2 poignées
-draggables le long du bord (snap périmètre via `closestAnchorOnBox`).
+**Type switch = keep+warn**: `MenuProperties` exposes a type selector (Chest / Hopper / Dropper); the rows selector appears only for chest. Switching to a smaller container **keeps** out-of-range elements and shows a warning chip — never silent deletion (`setMenuField` keep+warn).
 
-Overrides manuels : `project.canvasEdges[edgeId] = { from?, to? }` avec
-`EdgeAnchor = { side, t∈[0,1] }` (ratio → survit au resize). Edge id = `"source->target"`.
-Les overrides sont des pins exacts : jamais écartés par la séparation auto — deux ancres
-manuelles peuvent se superposer ; seules les ancres auto cèdent le gap minimal
-`ANCHOR_SEP_PX` (16 px) à une ancre forcée trop proche. « Réarranger » les libère toutes
-(`releaseBoardPositions` conserve les ancres internes aux groupes et libère celles de la planche ; `rearrangeCanvasGroup` libère seulement les ancres internes du groupe visé).
-Actions store : `setEdgeAnchor` / `clearEdgeAnchor` (double-clic poignée = reset) ;
-pruning sur `deleteFromProject`, rekey sur rename d'id (`setMenuId`/`setCommandId`/`setDialogId`).
-Persistance : `edges` + `layout` dans **`.artisan/editor.yaml`** (fichier
-d'état éditeur hash-exclu — un déplacement de carte ne redéploie plus le
-serveur ; ADR `files-first-source-of-truth` #3). Legacy : `editor_layout` /
-`editor_edges` dans `manifest.yaml`, toujours lus en fallback par
-`projectImport.ts`. Le plugin n'uploade jamais `.artisan/*` ; le backend
-préserve ses copies aux deux points d'ingestion (`local_push`, `POST
+## Canvas edges (links between nodes)
+
+Menu/command/dialog links are derived from actions (`deriveEdges.ts`, unchanged) then
+routed by `edgeRouting.ts` (pure, tested): exit/entry side chosen by `autoSide` —
+two nodes side by side (horizontal gap) are always linked by their left/right sides,
+two nodes stacked in a column by top/bottom, dominant axis otherwise. The auto anchors of the
+same side are **centered** and spread symmetrically every `ANCHOR_GAP_PX` (24 px,
+tightened if the side is too short, 10 px corner margin), in the order of the position of the
+opposite node to avoid crossings (since 2026-09-25; before, each anchor aimed at the
+projection of the opposite node, which stuck it to the corners). Cubic bezier path with tangents perpendicular
+to the edge (length ∝ distance, clamp 24–160 px). Rendering: `Edges.tsx` as a Konva `Arrow`
+(arrowhead on the target side), hover → `EdgeTooltip`, click → selection + 2 handles
+draggable along the edge (perimeter snap via `closestAnchorOnBox`).
+
+Manual overrides: `project.canvasEdges[edgeId] = { from?, to? }` with
+`EdgeAnchor = { side, t∈[0,1] }` (ratio → survives resize). Edge id = `"source->target"`.
+Overrides are exact pins: never pushed away by the auto separation — two manual
+anchors can overlap; only auto anchors yield the minimum gap
+`ANCHOR_SEP_PX` (16 px) to a forced anchor that is too close. "Rearrange" frees them all
+(`releaseBoardPositions` keeps the anchors internal to groups and frees those of the board; `rearrangeCanvasGroup` frees only the internal anchors of the targeted group).
+Store actions: `setEdgeAnchor` / `clearEdgeAnchor` (double-click handle = reset);
+pruning on `deleteFromProject`, rekey on id rename (`setMenuId`/`setCommandId`/`setDialogId`).
+**Document key (`docKey`, since 2026-10-24).** An id is unique only within its kind
+(`project-files.md`): the board, selection, edges, Properties and deep links
+designate a Document by `<kind>/<id>` (`domain/documents.ts`: `docKey`, `parseDocKey`,
+`findDocumentByKey`, `resolveDocKey` for a bare id coming from a URL or a module). Keys of
+`canvasLayout`, `CanvasGroup.nodeIds`, `Edge.source`/`target` (the target takes the kind that the
+reference names), edge ids `source->target`, Konva id of nodes, selected ids when
+`selection.menuId === null`. A menu element stays selected by its bare id, bounded by the bare id
+of its menu; a part (`board.items`) of a module Document is bounded by its
+Document's key. The focus view takes `?kind=` next to the path id (no encoded `/` in the path).
+Reading `editor.yaml` (and an imported project): a bare key goes to **every** Document of that
+id (`parseEditorLayout`), a bare edge end to the first; writing keeps only
+keys. On load, `useSharedIdNotice` flags with a toast the ids that two kinds share
+(`sharedDocumentIds`). A new Document keeps an id that is free in all kinds (`newDocumentId`).
+
+Persistence: `edges` + `layout` in **`.artisan/editor.yaml`** (hash-excluded
+editor state file — moving a card no longer redeploys the
+server; ADR `files-first-source-of-truth` #3). Legacy: `editor_layout` /
+`editor_edges` in `manifest.yaml`, still read as a fallback by
+`projectImport.ts`. The plugin never uploads `.artisan/*`; the backend
+preserves its copies at both ingestion points (`local_push`, `POST
 /bundles`).
 
-## Planche curée + panneau + vue individuelle (depuis 2026-06-13)
+## Curated board + panel + individual view (since 2026-06-13)
 
-Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supersède le focus mode de `2026-06-02`). Le canvas n'est plus un canvas libre qui force tout en grille : c'est une **planche curée**, doublée d'un panneau source-de-vérité et d'une vue individuelle deep-linkable. **Invariant n°1** : un seul rendu/éditeur par type de Document, partagé entre planche et vue individuelle — c'est ce qui supprime la divergence qui avait causé le revert du focus mode. **Étendu 2026-09-05 aux *hôtes*** : un seul rendu par type de Document, et autant d'hôtes que de sémantiques distinctes, pas un de plus. La planche et le focus partageaient bien `MenuGroup`, mais avaient deux hôtes de stage pour une sémantique identique — d'où la re-divergence (cf. « Mode focus »).
+See `docs/archive/specs/2026-06-13-workspace-board-curation-design.md` (supersedes the focus mode of `2026-06-02`). The canvas is no longer a free canvas that forces everything into a grid: it is a **curated board**, backed by a source-of-truth panel and a deep-linkable individual view. **Invariant no. 1**: a single renderer/editor per Document type, shared between board and individual view — this is what removes the divergence that caused the revert of focus mode. **Extended 2026-09-05 to *hosts***: a single renderer per Document type, and as many hosts as there are distinct semantics, not one more. The board and focus did share `MenuGroup`, but had two stage hosts for identical semantics — hence the re-divergence (see "Focus mode").
 
-### `canvasLayout` = positions fixées (planche dérivée, depuis 2026-09-25)
+### `canvasLayout` = pinned positions (derived board, since 2026-09-25)
 
-**Révise la curation du 2026-06-13** (spec `docs/specs/server-registry-and-derived-canvas.md`, décision 5). La planche montre **tous** les Documents du project, arrangés automatiquement ; `canvasLayout` ne liste plus les membres, il garde seulement les positions posées à la main (un glisser-déposer écrit une position fixée). Les anciennes entrées de `canvasLayout` deviennent donc des positions fixées, conservées à l'identique.
+**Revises the curation of 2026-06-13** (spec `docs/specs/server-registry-and-derived-canvas.md`, decision 5). The board shows **all** the project's Documents, arranged automatically; `canvasLayout` no longer lists the members, it only keeps the hand-placed positions (a drag-and-drop writes a pinned position). The old `canvasLayout` entries therefore become pinned positions, kept as is.
 
-Les positions et modifications sont conservées par `useDraftSync` dans une copie
-locale, puis sauvegardées automatiquement via le stockage résolu (voir ci-dessous). Après un enregistrement qui efface le brouillon,
-la première modification conserve comme référence l'état précédent s'il correspond
-exactement à la base enregistrée : la bascule Clés / Texte en clair doit ainsi
-activer Enregistrer dès le premier changement. La normalisation au chargement
-reste exclue des modifications utilisateur. Après réhydratation, les bases sont comparées par
-contenu, jamais par identité d'objet : le rechargement ne doit pas reclasser un
-brouillon modifié comme propre et le faire abandonner à l'ouverture suivante.
-Les écritures locales en attente sont vidées sur `pagehide`, passage de la page
-à l'état caché et démontage du hook. L'écriture sur le serveur reste explicite.
+Positions and modifications are kept by `useDraftSync` in a local
+copy, then saved automatically through the resolved storage (see below). After a save that clears the draft,
+the first modification keeps as reference the previous state if it matches
+the saved base exactly: adding a language must thus
+enable Save from the very first change. Normalization on load
+stays excluded from user modifications. After rehydration, the bases are compared by
+content, never by object identity: reloading must not reclassify a
+modified draft as clean and have it dropped on the next open.
+Pending local writes are flushed on `pagehide`, when the page goes
+hidden and on hook unmount. Writing to the server stays explicit.
 
-**Brouillons persistés (2026-09-13)** : `persistedDrafts.ts` charge les brouillons
-privés après validation de l'ouverture, restaure la sélection et synchronise l'arbre avec
-révision attendue. La copie locale est isolée par compte ; un ancien brouillon
-sans identifiant backend devient une copie distincte. Un accusé de réception
-ne remplace jamais les frappes effectuées pendant la requête. Un conflit de
-révision conserve le travail local et bloque l'écriture jusqu'à création d'une
-copie. `PersistedDraftControls` (modale large, liste à gauche, diffs à droite) propose
-copies nommées, sélection et comparaison base/arbre via `ChangeList`, depuis le chevron
-de Déployer, sans bloc permanent dans la topbar.
+**Persisted drafts (2026-09-13)**: `persistedDrafts.ts` loads private
+drafts after validation of the open, restores the selection and syncs the tree with
+the expected revision. The local copy is isolated per account; an old draft
+without a backend identifier becomes a distinct copy. An acknowledgement
+never overwrites keystrokes made during the request. A revision
+conflict keeps the local work and blocks writing until a copy is created. **Errors are classified by the hub's code, never by HTTP status alone**
+(`errorStatus`, 2026-10-14): `draft_migration_pending` → `migration_pending`; `draft_conflict`,
+`draft_exists`, `draft_closed`, `conflict`, `operation_*` → `conflict`; 5xx, 401, 408, 429 and
+network error → `offline` (replayed every 15 s, pending mutation kept); any other
+4xx (`forbidden`, `unknown_project`, `invalid_draft`…) → `rejected`: the mutation is cleared,
+the same snapshot is **not** resent (fingerprint kept in `session.rejected`), a modification
+(`markDraftPending`) or the Save button (`syncPersistedDraft(id, true)`) resends it. Only
+`draft_not_found` means "draft gone" (`gone`); `draft_closed` during a save
+reloads the list (`loadPersistedDrafts`) instead of staying in `conflict`. `PersistedDraftControls` (large modal, list on the left, diffs on the right) offers
+named copies, selection and base/tree comparison via `ChangeList`, from the Deploy
+chevron, with no permanent block in the topbar.
 
-**Enregistrer / Déployer (2026-09-18)** : deux gestes dans `SaveControls`.
-Enregistrer (visible avec une session de brouillons) vide le debounce puis force
-`syncPersistedDraft`. Bouton icône (disquette pleine `SaveFilledIcon`, `Spinner` pendant la
-sauvegarde) : `Tooltip` selon le statut de session (`drafts.tooltip.*`), libellé court en
-`aria-label`. Inactif via `aria-disabled` quand `saved` ou en cours, jamais `disabled` :
-un bouton `disabled` ne reçoit pas le survol et n’afficherait pas sa bulle. Déployer garde
-son libellé, précédé d’une icône lecture pleine. L'autosauvegarde du brouillon reste active. Déployer ouvre
-`DeployReviewDialog` : base du serveur contre `projectTree` du Project vivant,
-renommages et binaires compris. Seule la confirmation appelle `saveProjectToDisk`.
-Les mutations portent un `operationId` et un snapshot figés dans le secours local
-isolé par propriétaire : après ACK perdu, rejouer cette opération avant d'envoyer
-les frappes suivantes. Un rejet définitif 4xx libère cette opération ; un échec
-incertain la conserve. Les références `binaryBaseline`/`binaryTree` voyagent avec
-les edits texte. `migration_pending` suspend la sauvegarde sans effacer le secours.
-Lorsqu'un clic Déployer récupère le résultat d'une publication antérieure après
-timeout, `saveProjectToDisk` avance la base vers ce résultat puis publie le brouillon
-restant si la version demandée diffère. Le reçu ancien ne suffit pas à annoncer
-la réussite des nouvelles modifications. Un échec de cette seconde publication
-reste visible ; les modifications effectuées pendant l'envoi restent en brouillon.
-Les ZIPs et arbres génériques excluent brouillons, transactions et marqueur de
-renommage privés ; `.artisan/editor.yaml` reste partagé. L'import texte refuse
-les binaires, dans l'attente du parcours portable complet.
+**Save / Deploy (2026-09-18)**: two actions in `SaveControls`.
+Save (visible with a drafts session) flushes the debounce then forces
+`syncPersistedDraft`. Icon button (filled floppy disk `SaveFilledIcon`, `Spinner` during
+saving): `Tooltip` according to the session status (`drafts.tooltip.*`), short label as
+`aria-label`. Inactive via `aria-disabled` when `saved` or in progress, never `disabled`:
+a `disabled` button does not receive hover and would not show its bubble. Deploy keeps
+its label, preceded by a filled play icon. Draft autosave stays active. Deploy opens
+`DeployReviewDialog`: server base against the live Project's `projectTree`,
+renames and binaries included. Only confirmation calls `saveProjectToDisk`.
+Mutations carry an `operationId` and a snapshot frozen in the local rescue copy
+isolated per owner: after a lost ACK, replay this operation before sending
+the next keystrokes. A definitive 4xx rejection releases this operation; an uncertain
+failure keeps it. The `binaryBaseline`/`binaryTree` references travel with
+the text edits. `migration_pending` suspends saving without clearing the rescue copy.
+When a Deploy click retrieves the result of an earlier publication after a
+timeout, `saveProjectToDisk` advances the base to that result then publishes the remaining
+draft if the requested version differs. The old receipt is not enough to announce
+the success of the new modifications. A failure of this second publication
+stays visible; modifications made during the upload stay in draft.
+Generic ZIPs and trees exclude private drafts, transactions and rename
+marker; `.artisan/editor.yaml` stays shared. Text import refuses
+binaries, pending the full portable flow.
 
-Les échecs d'enregistrement ouvrent un `Dialog` avec raison traduite, code d'origine
-et statut HTTP disponible, ainsi que le champ `message` fourni par le plugin.
-`DraftApiError.detail` conserve ce message sans remplacer le code d'erreur.
-`saveProjectToDisk` conserve ces diagnostics de publication
-du brouillon ; `writeProjectFiles` les conserve pour l'écriture directe.
-`SaveControls` intercepte aussi les exceptions de préparation. Le détail est copiable
-et consultable dans le chevron jusqu'au prochain succès ou au démontage du contrôle.
-La pastille rouge reste réservée aux états `offline` / `conflict` du brouillon.
-Un listing de brouillons périmé ne remplace pas une révision confirmée par une
-autosauvegarde pendant sa lecture. Un brouillon bloqué est relu avant synchronisation :
-si son snapshot distant actif est strictement identique au local, sa révision est
-réconciliée sans écriture. Une différence de contenu ou une édition pendant la lecture
-maintient le conflit et préserve le travail local.
-Un point sur le chevron signale seulement un conflit ou une sauvegarde non confirmée.
-**Conflits à l'ouverture (2026-09-26)** : le backend rend le brouillon rebasé sur le
-Snapshot et ses `conflicts` ; `loadPersistedDrafts`/`selectPersistedDraft` les posent
-dans `session.openConflicts`, et `ProjectTopBarControls` ouvre la même modale que pour
-un conflit d'enregistrement (`conflictSource: "open"`). Appliquer met à jour la base du
-brouillon et le marque à sauvegarder, **sans publier** ; `consumeOpenConflicts` évite de
-reproposer les mêmes conflits.
-**Conflit entre deux sessions (2026-09-29)** : une écriture refusée en `409
-draft_conflict` (l'autre session a avancé la révision) n'enchaîne plus des relectures
-silencieuses. `persistedDrafts` rebase l'arbre local sur le snapshot distant
-(`rebaseDraft`, module partagé avec le backend) : les fichiers que l'autre session a
-seuls touchés sont repris en silence, les fichiers divergents deviennent
-`session.draftConflict`, et `ProjectTopBarControls` ouvre la modale de conflit
-(`conflictSource: "draft"`, bouton « Prendre celle de l'autre session »). Aucune
-écriture n'est tentée tant que le conflit n'est pas tranché ; `resolveDraftConflict`
-applique les choix, avance la révision locale et resynchronise (sans réécriture si tout
-vient de l'autre session). Même détection au chargement quand la révision listée diffère
-de la locale ; un rebase sans fichier divergent est appliqué d'office, sans modale.
-La fusion est à trois voies depuis la dernière révision acquittée (`remote.base`, arbre
-mémorisé à chaque acquittement), pas depuis le disque : un fichier déjà modifié dans le
-brouillon partagé n'est pas un conflit. Elle ne touche **jamais** `baseline`, qui reste le
-disque publié — y mettre le travail non publié de l'autre session le ferait omettre à la
-publication et annuler par le rebase backend contre le Snapshot (correctif 2026-10-02).
-**Onglets (2026-09-29)** : une écriture réussie est diffusée par `BroadcastChannel`
-(`draftBroadcast`). Un autre onglet du même navigateur sans travail local recharge son
-brouillon et l'arbre du Project tout seul ; un onglet avec des modifications voit le
-conflit se présenter immédiatement. Le cross-appareil reste couvert par le `409`.
-**Server-only (2026-09-27, ADR `server-only-projects`)** : plus de section « projets
-hébergés », de copie vers Minecraft ni d'import ZIP ; la démo n'a plus de réclamation,
-son bouton **Exporter** (`runExportDraftZip`) télécharge le brouillon courant (texte de
-l'éditeur, images publiées ou privées). `useProjectLoader` expose `unpublished` ;
-l'infobulle du badge serveur l'annonce quand le serveur n'est pas connecté.
-**Serveur éteint (2026-09-26)** : `readProjectFiles` rend `offlineSince` ; `useProjectLoader` ouvre alors le Project en `offline` + `stale`, expose `offlineSince` et revérifie toutes les 15 s ; l'infobulle du badge serveur affiche la date de la copie. Depuis le 2026-10-02, plus de bandeau `ProjectStaleNotice` — l'état est porté par le badge serveur et son infobulle (`downHint`).
-**Versions (2026-09-26, onglet depuis 2026-10-04)** : la vue `?tab=history` du workspace
-(`ProjectHistory`, 6ᵉ entrée de la nav, masquée sans `runtime.serverId` donc en démo) liste
-les Versions — badge « Déploiement » (auteur) ou « Modif. serveur » (auteur `null`). « Voir les
-changements » ouvre `VersionDiffDialog` : `ChangeList` de la Version contre `previousId`
-(binaires compris). Restaurer (`restoreVersionIntoDraft`) remplace l'arbre texte de l'éditeur
-par celui de la Version (`adoptDiskIntoProject`), donc le brouillon, **sans publier** ; les
-images du brouillon restent telles quelles. `FileHistory` affiche l'auteur
-quand l'historique vient des Versions.
-Les actions vident d'abord le debounce local via `draftFlush`.
-`saveProjectToDisk` publie la révision sauvegardée via l'API de brouillons ;
-création/import sans session garde le chemin existant. Une modification pendant
-la publication reste un nouveau travail basé sur les fichiers publiés.
-Le transport MCP reste futur ; il réutilisera les mêmes opérations et contrôles.
+Save failures open a `Dialog` with a translated reason, the original code
+and HTTP status when available, as well as the `message` field provided by the plugin.
+`DraftApiError.detail` keeps this message without replacing the error code.
+`saveProjectToDisk` keeps these draft publication diagnostics;
+`writeProjectFiles` keeps them for direct writing.
+`SaveControls` also intercepts preparation exceptions. The detail can be copied
+and viewed in the chevron until the next success or the control's unmount.
+The red dot stays reserved for the draft's `offline` / `conflict` states.
+A stale draft listing does not replace a revision confirmed by an
+autosave during its read. A blocked draft is re-read before syncing:
+if its active remote snapshot is strictly identical to the local one, its revision is
+reconciled without a write. A content difference or an edit during the read
+maintains the conflict and preserves the local work.
+A dot on the chevron signals only a conflict or an unconfirmed save.
+**Conflicts on open (2026-09-26, cloud — the hub does not rebase)**: the backend returned the draft rebased onto the
+Snapshot and its `conflicts`; `loadPersistedDrafts`/`selectPersistedDraft` put them
+in `session.openConflicts`, and `ProjectTopBarControls` opens the same modal as for
+a save conflict (`conflictSource: "open"`). Applying updates the draft's base
+and marks it to be saved, **without publishing**; `consumeOpenConflicts` avoids
+re-proposing the same conflicts.
+**Draft resumed on a disk that moved (2026-10-22)**: since the hub no longer rebases, a
+resumed draft showed (and republished) the disk state at its creation: a file
+that a module removes at startup stayed in the editor. `useProjectLoader` passes the
+draft through `followDisk` (`draftRebase.ts`) on each disk read: a file
+that the disk changed, added or removed, and that the draft left as opened
+(compared to `initialTree`, not to the bytes of the base that opening reformats), takes
+the disk's version, base included. A file modified in the draft stays its own;
+publishing will flag it. A file that the draft deleted (in its base, absent from
+its tree) stays deleted, even when resumed in a later session where `initialTree` no
+longer has it: otherwise a moved Document came back to its old path when the disk
+rewrote it (`.yml` rename), and the same duplicate id hid both copies. A draft that holds a file under its
+two spellings (`.yaml` and `.yml`, left by an earlier resume) is folded onto
+the disk's (`spelledAsDisk`), with the text the draft modified: the two
+formed a `duplicate_id` that each save kept.
+**Conflict between two sessions (2026-09-29)**: a write refused with `409
+draft_conflict` (the other session advanced the revision) no longer chains silent
+re-reads. `persistedDrafts` rebases the local tree onto the remote snapshot
+(`rebaseDraft`, module shared with the backend): files that the other session alone
+touched are taken silently, diverging files become
+`session.draftConflict`, and `ProjectTopBarControls` opens the conflict modal
+(`conflictSource: "draft"`, "Take the other session's" button). No
+write is attempted until the conflict is settled; `resolveDraftConflict`
+applies the choices, advances the local revision and resyncs (without rewriting if everything
+comes from the other session). Same detection on load when the listed revision differs
+from the local one; a rebase with no diverging file is applied outright, without a modal.
+The merge is three-way from the last acknowledged revision (`remote.base`, tree
+memorized at each acknowledgement), not from the disk: a file already modified in the
+shared draft is not a conflict. It **never** touches `baseline`, which stays the
+published disk — putting the other session's unpublished work there would make it omitted at
+publication and undone by the backend rebase against the Snapshot (fix 2026-10-02).
+**Tabs (2026-09-29)**: a successful write is broadcast via `BroadcastChannel`
+(`draftBroadcast`). Another tab of the same browser with no local work reloads
+its draft and the Project tree by itself; a tab with modifications sees the
+conflict presented immediately. Cross-device remains covered by the `409`.
+**Server-only (2026-09-27, ADR `server-only-projects`)**: no more "hosted
+projects" section, copy to Minecraft or ZIP import; the demo no longer has a claim,
+its **Export** button (`runExportDraftZip`) downloads the current draft (editor
+text, published or private images). `useProjectLoader` exposes `unpublished`;
+the server badge's tooltip announces it when the server is not connected.
+**Server off (2026-09-26, cloud — the hub never returns `offlineSince`)**: `readProjectFiles` returns `offlineSince`; `useProjectLoader` then opens the Project as `offline` + `stale`, exposes `offlineSince` and rechecks every 15 s; the server badge's tooltip shows the date of the copy. Since 2026-10-02, no more `ProjectStaleNotice` banner — the state is carried by the server badge and its tooltip (`downHint`).
+**Versions (2026-09-26, tab since 2026-10-04; the hub returns an empty list)**: the workspace's `?tab=history` view
+(`ProjectHistory`, 6th entry of the nav, hidden without `runtime.serverId` so in the demo) lists
+the Versions — "Deployment" badge (author) or "Server edit" (author `null`). "See
+changes" opens `VersionDiffDialog`: `ChangeList` of the Version against `previousId`
+(binaries included). Restore (`restoreVersionIntoDraft`) replaces the editor's text tree
+with the Version's (`adoptDiskIntoProject`), so the draft, **without publishing**; the
+draft's images stay as they are. `FileHistory` shows the author
+when the history comes from Versions.
+Actions first flush the local debounce via `draftFlush`.
+`saveProjectToDisk` publishes the saved revision via the drafts API;
+creation/import without a session keeps the existing path. A modification during
+publication remains new work based on the published files.
+The MCP transport remains future; it will reuse the same operations and checks.
 
-- `projectBoard(project)` (`features/canvas/autoLayout.ts`) renvoie les positions (`layout` / `allLayout`), cadres (`groups`), identifiants représentants des Documents et gouttière. `groupedBoard.ts` arrange d'abord chaque groupe manuel, puis son cadre avec les Documents non groupés ; `serverBoard` arrange ensuite les cadres de Projects. `arrangeBoard` reste le moteur dagre `LR` de chaque niveau, avec exclusion des retours du calcul des couches, alignement des commandes et conservation des positions fixées. Les entrées externes guident le choix de la racine d'un groupe. Mémoïsation par forme du graphe, groupes, nom et positions : éditer un slot sans changer les liens ne recalcule rien.
-- Un Project forme le cadre racine sur la planche serveur uniquement. Dans sa propre vue, `Stage` masque ce cadre ; seuls les groupes manuels restent visibles. Sélection de ≥2 Documents (Menus, Commandes ou Dialogs, éventuellement mêlés) → **Grouper la sélection** (barre flottante ou menu contextuel), puis nom et couleur ; un seul niveau manuel, appartenance exclusive. `BoardGroupControls` gère nom/couleur/dissociation ; `BoardGroupFrames` partage le rendu entre planches. Déplacer l'en-tête translate les membres en une opération annulable ; dissocier conserve les Documents. Les changements sont dans `canvasGroups` (`nodeIds`), sérialisés comme `groups` dans `.artisan/editor.yaml`, jamais dans les fichiers des Documents. Renommer/supprimer un Document (ou déplacer un Menu) maintient les appartenances ; les imports ignorent les groupes invalides ou vides, et lisent encore l'ancien champ `menuIds`.
-- Les groupes restent toujours ouverts, y compris les anciens états `collapsed` / `project_collapsed`, désormais ignorés et non réexportés. La couleur optionnelle `color` accepte uniquement `#RRGGBB` ; bleu par défaut pour un groupe manuel sans couleur. Le fond, bandeau inclus, est rendu à 15 % d'opacité, la bordure à 65 %, le titre reste opaque ; le fond ne capture pas les interactions. Création et édition restent dans le Project ; la planche serveur réutilise les couleurs sauvegardées.
-- Tailles des nœuds : **uniquement** `menuBoxSize` / `COMMAND_BOX` / `DIALOG_BOX` (`menuLayout.ts`), les mêmes que le rendu. Coordonnées = coins haut-gauche (dagre renvoie des centres, convertis).
-- Action `releaseBoardPositions({projectId})` : réarrange uniquement le niveau extérieur, chaque groupe étant un bloc dimensionné selon son contenu et relié par ses liens entrants/sortants. `rearrangeProjectLayout` capture les positions visibles avant calcul pour conserver exactement les positions relatives internes, même non fixées manuellement. Sans groupe, conserve le comportement historique de remise à zéro. Bouton **Réarranger** de `CanvasToolbar` ; annulable par Ctrl+Z (zundo).
-- Action `rearrangeCanvasGroup({projectId, groupId})`, accessible par **Groupes → nom → Réarranger le contenu** : libère uniquement les positions des membres, garde l'origine du cadre et toutes les positions extérieures, adapte la taille du cadre. Les deux actions sauvegardent leur résultat dans les métadonnées existantes `canvasLayout` / `canvasGroups.position`, sans changer les Documents ; aucune migration. `deleteFromProject({projectId, nodeIds})` retire le Document du project et sa position fixée.
-- Recalcul complet à chaque changement de graphe, sans insertion locale ni cache : la stabilité de l'arrangement entre deux éditions reste une question ouverte de la spec.
-- **Planche générale** (lecture seule) : route `…/servers/$serverId/canvas` (`features/serverCanvas/ServerCanvasPage.tsx`), lien « Planche générale » sur la page du serveur. Charge chaque project du serveur par `useProjectLoader` (brouillon compris), graphe `deriveServerGraph(projects)` avec la résolution lexicale des références (`domain/docRef.ts` → `resolveDocRef`, miroir de `DocumentTable` côté plugin, verrouillé par `testdata/doc-ref-conformance.json`) : id nu cherché d'abord dans le project du Document source, puis sur le serveur s'il est unique ; `project:id` vise ce project ; id nu absent du project et porté par plusieurs autres = lien ambigu, non dessiné, filtres project / type / id dans l'URL. Rendu par les mêmes `MenuGroup` / `CommandGroup` / `DialogGroup`, dans un calque `listening={false}` : aucun geste d'édition possible ; un calque de zones cliquables ouvre le Document dans son project.
+- `projectBoard(project)` (`features/canvas/autoLayout.ts`) returns the positions (`layout` / `allLayout`), frames (`groups`), representative identifiers of the Documents and gutter. `groupedBoard.ts` first arranges each folder frame, then the Project's frame with the Documents outside any folder; `serverBoard` then arranges the Project frames. `arrangeBoard` remains the dagre `LR` engine of each level, with exclusion of back-edges from the layer computation, alignment of commands and preservation of pinned positions. External entries guide the choice of a group's root. Memoization by graph shape, groups, name and positions: editing a slot without changing the links recomputes nothing.
+- A Project forms the root frame on the server board only. In its own view, `Stage` hides this frame; only the folder frames remain visible. **A frame = a top-level thematic folder** (`domain/canvasGroups.ts` → `folderGroups`) that contains at least one Document, at any depth; there is no manual group anymore. Selecting one or more Documents → **File in a folder**: name (slug, existing folders suggested) and color; the folder is created if needed then the Documents are moved there (`moveToFolder`, their pinned positions are released to be rearranged within the frame). `BoardGroupControls` handles creation; `BoardGroupFrames` shares the rendering between boards. The whole background of a frame captures the mouse (except in hand mode, `interactive`): a click selects the folder (`useSelectionStore.selectFolder`, exclusive with `ids`, `folder` context of `selectionContext`) and the Properties panel shows `FolderProperties` (name applied on leaving the field, color, show only, rearrange, remove); a drag translates the frame and its members in a single undoable operation (`moveCanvasGroup`). A rectangular selection therefore no longer starts inside a frame. Renaming a folder renames the frame, removing it moves its content up one level. A Document dropped on another folder's frame is filed there (`commitNodeDrag`: pointer in `folderAt`, then `moveToFolder`); dropped elsewhere, it keeps its position and its folder. Nothing is filed from the focus view (no `groups` layer) nor for a system element. Color and position live in `Project.folders` (`FolderMeta`), serialized as `folders:` in `.artisan/editor.yaml`; the old `groups` key is ignored.
+- **Show only this folder** (··· menu of a folder in the tree, or **Folders → name** on the board): `useUiStore.boardFolders[projectId]`, ephemeral. `boardForFolder` (`features/canvas/folderFilter.ts`) keeps in `layout` only the Documents of the folder and its subfolders, at the positions of the whole board; a top-level folder keeps its frame, a subfolder has none. `useFolderFraming` frames the view once per chosen folder; the **Folder: … · Show everything** chip removes the filter. A double-click on the background of a folder frame applies it to that folder (`BoardGroupFrames`); Escape with no selection removes it (`onIdleEscape` of `useCanvasKeyboard`, the selection, folder included, clears first). In the sidebar tree, a folder's icon takes the color of the frame of its top-level folder, none for an empty folder (no frame). A filter whose folder has disappeared is ignored.
+- **Folder tree** (`features/project/ProjectDocumentTree.tsx`): recursive `FolderNode` (open by default) before the root categories; ··· menu of a folder: new subfolder (up to 3 levels), rename, delete (content moves up to the parent); **+ → New folder** at the root; ··· menu of a Document: **Move to** (root or any other folder). Dragging a Document row onto a folder files it there (the collapsed folder opens on hover), dropping it outside any folder puts it back at the root (`documentDrag.tsx`: dnd-kit `DndContext` specific to the tree, innermost zone under the pointer, ghost row in `DragOverlay`, `withDropPreview` already shows the Document in the target folder at its sorted place, `useGlidingRows` animates the shift of rows; the order stays type then label, only the folder changes): same `moveToFolder`, so the Document joins the frame of its new folder and the frame adjusts to its members; a system element cannot be dragged. `FolderNameDialog` dialog. Store actions in `state/projects/foldersSlice.ts` (`createFolder`, `moveToFolder`, `renameFolder`, `deleteFolder`, `setFolderColor`); each file move goes through `recordRename`, so publication moves the files instead of deleting and recreating. `FolderOperationError` errors: `invalid_name`, `too_deep`, `exists`. An empty folder exists only in `Project.folders`.
+- Frames always stay open, including the old `project_collapsed` state, ignored and not re-exported. The optional `color` accepts only `#RRGGBB`; blue by default for a folder with no color. The background, banner included, is rendered at 15% opacity, the border at 65%, the title stays opaque; the background does not capture interactions. Creation and editing stay in the Project; the server board reuses the saved colors.
+- Node sizes: **only** `menuBoxSize` / `COMMAND_BOX` / `DIALOG_BOX` (`menuLayout.ts`), the same as the rendering. Coordinates = top-left corners (dagre returns centers, converted).
+- Fixed-size nodes (command, dialog, module Document) do not widen for their title: title and subtitle are cut with an ellipsis (`wrap="none"`, `ellipsis`), and the full title is shown in a native tooltip on hover (`showFullTitle`, `features/canvas/nodeTitle.ts`).
+- `releaseBoardPositions({projectId})` action: rearranges only the outer level, each group being a block sized by its content and linked by its incoming/outgoing links. `rearrangeProjectLayout` captures the visible positions before computing to keep the internal relative positions exactly, even if not manually pinned. Without groups, keeps the historical reset behavior. **Rearrange** button of `CanvasToolbar`; undoable with Ctrl+Z (zundo).
+- `rearrangeCanvasGroup({projectId, groupId})` action, reachable via **Folders → name → Rearrange contents**: releases only the members' positions, keeps the frame origin and all outside positions, adapts the frame size. Both actions save their result in the existing `canvasLayout` / `folders.<folder>.position` metadata, without changing the Documents; no migration. `deleteFromProject({projectId, nodeIds})` removes the Document from the project and its pinned position.
+- Full recomputation on each graph change, with no local insertion or cache: the stability of the arrangement between two edits remains an open question of the spec.
+- **General board** (read-only): route `…/servers/$serverId/canvas` (`features/serverCanvas/ServerCanvasPage.tsx`), "Server board" link on the server page. Loads each project of the server via `useProjectLoader` (draft included), graph `deriveServerGraph(projects)` with lexical resolution of references (`domain/docRef.ts` → `resolveDocRef`, mirror of `DocumentTable` on the plugin side, locked by `testdata/doc-ref-conformance.json`): bare id looked up first in the source Document's project, then on the server if unique; `project:id` targets that project; a bare id absent from the project and carried by several others = ambiguous link, not drawn, project / type / id filters in the URL. Rendered by the same `MenuGroup` / `CommandGroup` / `DialogGroup`, in a `listening={false}` layer: no editing gesture possible; a layer of clickable zones opens the Document in its project.
 
-### `Project.moduleData` — état opaque par module
+### `Project.moduleData` — opaque per-module state
 
-`Project.moduleData?: Record<string, unknown>` porte l'état d'un module tiers, keyé par id de module (ex. `"boutique"`) — le host ne l'interprète jamais. Round-trip files-first : `projectFromFiles` seed `moduleData[<dir>] = { __files: Record<relPath, content> }` pour un dossier de project non reconnu ; le module éditeur normalise `__files` à sa forme structurée à la première lecture, et dérive son `exportFiles()` depuis `moduleData` ; `transform()` ré-émet les `__files` verbatim des namespaces sans module registré. Action store : `setModuleData(projectId, moduleId, data)` (Immer `produce`, remplace tout le namespace, préserve les autres).
+`Project.moduleData?: Record<string, unknown>` carries the state of a third-party module, keyed by module id (e.g. `"boutique"`) — the host never interprets it. Files-first round-trip: `projectFromFiles` seeds `moduleData[<dir>] = { __files: Record<relPath, content> }` for an unrecognized project folder; the editor module normalizes `__files` to its structured form on first read, and derives its `exportFiles()` from `moduleData`; `transform()` re-emits the `__files` verbatim of namespaces without a registered module. Store action: `setModuleData(projectId, moduleId, data)` (Immer `produce`, replaces the whole namespace, preserves the others).
 
-Exemple historique (avant le stockage disk-only ; module boutique, V1.5 — `docs/architecture/modules.md` §15) : le plugin Add-on Boutique (ID actuel boutique_addon ; dossier physique editor inchangé) bootstrappe `plugins/Boutique/editor/boutique/shop.yaml` sur disque ; un `local_push` sur ce project stub seed `moduleData.boutique.__files["shop.yaml"]` (le préfixe du dossier module est retiré des clés `__files`). `@artisan/boutique-editor` (presence-gated `/m/boutique`) lit ce state, le normalise en catalogue structuré (categories/items) au premier accès, expose un form d'édition (pas de `<SchemaForm>` générique, §8), et sa fonction `exportFiles()` régénère `boutique/shop.yaml` depuis `moduleData.boutique` à chaque deploy — round-trip complet sans que le host `Project` n'ait besoin de connaître la forme du catalogue.
+Historical example (before disk-only storage; boutique module, V1.5 — `docs/architecture/modules.md` §15): the Boutique Add-on plugin (current ID boutique_addon; physical editor folder unchanged) bootstraps `plugins/Boutique/editor/boutique/shop.yaml` on disk; a `local_push` on this stub project seeds `moduleData.boutique.__files["shop.yaml"]` (the module folder prefix is removed from the `__files` keys). `@artisan/boutique-editor` (presence-gated `/m/boutique`) reads this state, normalizes it into a structured catalog (categories/items) on first access, exposes an editing form (no generic `<SchemaForm>`, §8), and its `exportFiles()` function regenerates `boutique/shop.yaml` from `moduleData.boutique` on each deploy — full round-trip without the `Project` host needing to know the shape of the catalog.
 
-### Panneau Boutons redimensionnable
+### Resizable Buttons panel
 
-Le panneau Boutons utilise `SplitPane` avec `secondaryPosition="start"` à gauche
-(bord droit redimensionnable), ou en bas si mobile/espace central <600 px.
-Le store `projectLibraryStore` persiste largeur/hauteur sous
-`artisan-library-size`, ainsi que le projet ouvert (null si fermé) et la catégorie.
-Le canvas reste monté pendant ouverture, fermeture, resize et changement d'orientation.
-Le bouton Boutons est un outil flottant arrondi en haut à droite du canvas, rendu par `ProjectLibraryWorkspace` dans le panneau principal du split uniquement si le panneau est fermé. Bouton et panneau sont visibles uniquement sur la planche et les vues individuelles de menus, jamais dans les vues commande ou dialogue ni les onglets secondaires. L'état d'ouverture est conservé au retour au canvas. La croix ferme le panneau et fait réapparaître l’outil ; aucun bouton Boutons dans la topbar.
-L’en-tête regroupe onglets et fermeture sans ligne de titre supplémentaire ; les filtres du catalogue restent sur une ligne défilante horizontalement, pour préserver la hauteur de grille.
+The Buttons panel uses `SplitPane` with `secondaryPosition="start"` on the left
+(resizable right edge), or at the bottom on mobile/central space <600 px.
+The `projectLibraryStore` store persists width/height under
+`artisan-library-size`, as well as the open project (null if closed) and the category.
+The canvas stays mounted during opening, closing, resizing and orientation changes.
+The Buttons button is a rounded floating tool at the top right of the canvas, rendered by `ProjectLibraryWorkspace` in the split's main panel only if the panel is closed. Button and panel are visible only on the board and the individual menu views, never in command or dialog views nor secondary tabs. The open state is kept when returning to the canvas. The cross closes the panel and makes the tool reappear; no Buttons button in the topbar.
+The header groups tabs and close without an extra title row; the catalog filters stay on a horizontally scrolling line, to preserve grid height.
 
-### Registre du project — barre de gauche (le panneau de droite est retiré)
+### Copying between projects: texts follow (since 2026-10-18)
 
-**Depuis 2026-10-02**, les Documents du project vivent **uniquement dans la barre de gauche** : `ProjectElementsSidebar`, `ProjectPanel`, le bouton Éléments de la topbar, `uiStore.projectPanelOpen` et le drawer mobile droit sont supprimés. À droite ne reste que l'inspecteur de la sélection (`ProjectWorkspacePanels`).
+The clipboard (`features/canvas/clipboard.ts`) carries `texts` (key → language → value), read by
+`collectTexts` in the source project (`visitMenuLTexts`, `visitCommandLTexts`, `visitElementLTexts`).
+On paste, `pasteEntities` and `addElement` **lend** them to the target project for the keys it does not
+have (`lendTexts`), clone under fresh keys as before, then take them back (`returnTexts`): a copy
+from another project, or of a template's default version, keeps its texts without leaving an orphan key.
 
-- **`ProjectDocumentTree`** (`features/project/`) : les Documents groupés par type (`buildProjectDocuments`), **une icône par catégorie** dans l'en-tête et aucune sur les lignes ; menu `···` (éditer, supprimer). `header="name"` ajoute une ligne nom + actions (démo) ; `header="none"` quand la ligne du project les porte déjà.
-- **`ProjectActions`** : deux boutons icône, ⚙ (`openProjectSettings`) et + (créer menu / commande / dialogue), posés **à droite du nom** sur la ligne du project ouvert de « Mes projets » (et des projects de module). Plus de ligne « Paramètres du projet ».
-- **`ProjectSidebar`** : plus de sélecteur de serveur ni de lien vers le network (le fil d'Ariane de la topbar les remplace, voir UI shell). Le compteur de Documents suit directement le nom. Un project ouvert absent de la liste visible (project non listé) s'affiche en tête avec nom, actions et Documents.
-- **Démo** : la racine monte `DemoSidebar` sur `/demo/projects/…` (logo + `ProjectDocumentTree header="name"`), la démo n'ayant ni compte ni liste de serveur.
-- Largeur de la barre : **264 px** (`NavigationSidebar`). L'étape « Retrouvez chaque élément » de la visite guidée vise `data-tour="elements"` (l'arbre), ou le bouton qui ouvre la barre si elle est repliée.
+### Module templates (since 2026-10-18, ADR `module-templates`)
 
-**Arbre du project ouvert** : la barre de gauche déplie `ProjectDocumentTree` (`header="none"`) sous la ligne du project **ouvert**, dès que ce project est chargé dans le compte ; un clic ferme le drawer mobile et passe par `goToDocument`. Le groupe est un `role="group"` nommé « Documents de … », pas un `tree` ARIA (pas de navigation clavier d'arbre). Les **autres projects** du serveur portent un chevron (`aria-expanded`) dès que l'index serveur les connaît : dépliés, ils listent leurs Documents **publiés** en lecture (`DocumentGroups` sans `editable`, donc sans menu `···`), et un clic ouvre le Document dans son project (par son dossier).
+`ModuleTemplatesDialog` (`features/templates/`, "From a module…" entry of the `+` of `ProjectActions`,
+present if the server advertises a template): the templates of `installed_modules[].templates`
+(`modulesStore.active`), each file with its state (`templateStates.ts`: not added, project file,
+identical, modified, removed, new version), computed from `.artisan/origins.yaml`
+(`GET …/origins`) and the SHA-256 of the **published** files (`projectBaselineStore`), via
+`useProjectTemplates` / `projectTemplatesStore`. Actions:
+- **Add to project** / **Update** (intact copies of an older version) /
+  **Reset to module version** (one file): `POST …/templates`, written by the server. A conflict (409)
+  lists the files and offers to replace them. Disabled as long as the draft has unpublished
+  changes: after the copy the project is re-read from disk (`requestReload`).
+- **View / Compare** a file: the module's version read-only (`YamlCodeEditor readOnly`) or
+  its diff with the published file (`FileDiff`), "Copy text".
+- **Open default version**: the template read as a never-stored Project (`templateProject`, via
+  `projectFromFiles`); you tick menus, items and commands, `templateClipboard` puts them on the clipboard
+  with their texts, to paste on the board (Ctrl+V). No read-only board for now.
 
-- **Ligne racine** (nom du project) : clic → `openProjectSettings()`, et un `+` à côté ouvre la **création** (Menu / Commande / Dialogue). Depuis 2026-09-05 c'est le registre qui crée, pas le panneau de droite — celui-ci n'apparaît qu'à la sélection, donc il ne pouvait plus héberger « Nouveau menu ». Les dialogues y gagnent une entrée qu'ils n'avaient pas. Création **sans position** : le Document apparaît sur la planche à la place que lui donne l'arrangement.
+In the tree, a Document copied from a template carries a discreet mark (`DocumentRow`): a puzzle icon
+when identical, an asterisk otherwise — brand colour (modified) or amber (the module ships a new
+version). No text chip: the tooltip (and accessible name) says which, and names the module.
 
-- Recherche texte.
-- Plus de bouton ajouter / retirer du canvas (retiré le 2026-09-25) : tout Document est sur la planche.
-- **Clic** sur le label → ouvre la vue individuelle. **Menu contextuel `···`** : éditer / supprimer du project.
-- 3ᵉ zone du layout overview desktop (panneau · planche · `EditorPane`).
-- Helper de label partagé `documentLabel(project, id, lang)` (`useProjectDocuments.ts`) — utilisé aussi par l'en-tête de `DocumentView`.
 
-### Le panneau = inspecteur de la sélection
+**System elements** (`system: true` template, API 2.12.0): absent from `ModuleTemplatesDialog`.
+`lib/systemDocuments.ts` (pure) recognizes a system Document by the origin recorded at its path.
+In the tree (`ProjectDocumentTree`, `templateOrigin`): puzzle piece with tooltip, dot only if modified
+or new version, neither "Move" nor "Delete" but **Reset** (confirmed, `POST …/templates`
+`replace` on that path, disabled as long as the draft has changes). Board: `SystemTag` above
+the menu or dialog (`useSystemDocuments`); `deleteSelection` keeps them and says so (`canvas.systemDocumentKept`).
+### Project registry — left bar (the right panel is removed)
 
-Depuis 2026-09-05. Le panneau d'édition était **toujours** affiché et mangeait de la place sur le canvas, alors que son contenu dépendait déjà entièrement de la sélection (`FlowCanvas` : rien → `ProjectProperties`, menu → `MenuProperties`, item → `ElementEditor`…). Sa **présence** suit désormais la même règle que son contenu.
+**Since 2026-10-02**, the project's Documents live **only in the left bar**: `ProjectElementsSidebar`, `ProjectPanel`, the topbar's Elements button, `uiStore.projectPanelOpen` and the right mobile drawer are removed. Only the selection inspector remains on the right (`ProjectWorkspacePanels`).
 
-> Le panneau existe **ssi** quelque chose est sélectionné — ou si l'utilisateur a explicitement demandé les paramètres du project.
+- **`ProjectDocumentTree`** (`features/project/`): the Documents grouped by type (`buildProjectDocuments`), **one icon per category** in the header and none on the rows; `···` menu (edit, delete). `header="name"` adds a name + actions row (demo); `header="none"` when the project row already carries them.
+- **`ProjectActions`**: two icon buttons, ⚙ (`openProjectSettings`) and + (create menu / command / dialog), placed **to the right of the name** on the row of the open project in "My projects" (and of module projects). No more "Project settings" row.
+- **`ProjectSidebar`**: no more server selector or link to the network (the topbar breadcrumb replaces them, see UI shell). Exception: the plugin-served editor (`SELF_HOSTED`) mounts `ServerSelector` under the logo (→ `/`), with the state of each hub server (`useNetworkServersStatus`, re-read every 15 s: online, offline, "update required" if `updateRequired`); a server connected to the hub after loading appears there (`withServersStatus`). `/` and `/servers` lead to the hub's server, and the resource pack is rebuilt for the published project's server (`requestResourcePackRebuild(serverId)`). The module list is re-read on each `projects_reloaded` of the active server, without going back through "loading": an add-on that registers its folder after startup appears there without reloading the page (a server's page does the same). The Documents counter follows the name directly: live for an open project, otherwise read from the server index (`useServerIndexStore`, published state); it counts the Documents of all kinds (a module's commands are among them: `command/v1` files of its folder). Before the index is loaded, a never-opened project has no counter. An open project absent from the visible list (unlisted project) is shown at the top with name, actions and Documents.
+- **Demo**: the root mounts `DemoSidebar` on `/demo/projects/…` (logo + `ProjectDocumentTree header="name"`), the demo having neither account nor server list.
+- Bar width: **264 px** by default, resizable on desktop by dragging its right edge (220–520 px; arrows / Home / End on the focused handle, double-click resets). The width is persisted with `pinned` in `sidebarStore` (`artisan-navigation`, clamped on rehydrate); the reserved space follows it. Mobile keeps 264 px. The "Find every element" step of the guided tour targets `data-tour="elements"` (the tree), or the button that opens the bar if it is collapsed.
 
-- **`features/project/selectionContext.ts`** — fonction pure `selectionContext(project, ids, selectionMenuId)` → `none | multi | menu | element | command | dialog | unknown`. **Une seule** dérivation de la nature de la sélection, partagée par le dispatch de `FlowCanvas` **et** par le gating des onglets ; deux dispatches séparés finiraient par ne plus être d'accord. Elle porte aussi la résolution scopée d'un id d'élément (un `grid` peut exister dans deux menus — cf. `selectionStore.menuId`).
-- **`features/project/useInspector.ts`** — la règle d'ouverture, écrite une fois : `open = ids.size > 0 || projectSettingsOpen`.
-- **Fermer** — deux sorties, toutes deux `dismissInspector()` (`projectSettings.ts` : vide la sélection **et** rabaisse `projectSettingsOpen`) : le clic sur le fond du canvas (`Stage.onStageClick`, le geste qui veut dire « j'ai fini ») et une **croix** dans l'en-tête du panneau. La croix n'est pas décorative : les paramètres du project survivent à une sélection vide **par construction** — c'est ce qui les distingue d'une sélection — donc sans sortie explicite ils restaient ouverts indéfiniment.
-- **`features/project/CanvasWithInspector.tsx`** — scène + inspecteur, monté par la planche **et** par la vue focus. Desktop : le panneau flotte au-dessus du canvas, donc le masquer découvre du canvas **sans reflow**. Mobile : il occupe une vraie hauteur, la scène la récupère. (Le composant existe pour la raison qui a coûté `SoloMenuStage` : la règle ne doit pas être écrite à deux endroits.)
-- **Catalogues indépendants** — les items et images de boutons appartiennent au panneau Boutons, accessible sans sélection ; les fichiers partagés sont gérés dans l'onglet Ressources. Fermer Propriétés ne ferme pas Boutons, et réciproquement. Le bouton d'aide d'un menu vide ouvre directement Items du jeu ; les sélecteurs de matériau et d'image restent accessibles depuis leurs champs.
-- **`ProjectProperties`** ne garde que ce qui est vraiment du project — identité (id + badge de source), nom, description, compte d'assets, suppression. Les compteurs menus/commandes doublonnaient l'arbre et les boutons de création y ont déménagé.
-- **Paramètres du project** — ils ne correspondent à aucune sélection, donc ils se demandent explicitement. Geste unique dans `features/project/projectSettings.ts` (`openProjectSettings()` : vide la sélection, lève `uiStore.projectSettingsOpen`, éphémère et jamais persisté), avec **trois portes d'entrée** : la ligne racine du `ProjectPanel` (nom du project + icône réglages), le **clic droit sur le fond du canvas** (branche `empty` du `ContextMenu` — c'est justement le geste qui désélectionne, donc celui après lequel on les cherche) et le **kebab ⋮ de la topbar**. Sélectionner quoi que ce soit rabaisse le drapeau, sinon désélectionner pour dégager le canvas les rouvrirait.
-- **Pas d'entrée « Paramètres » sur une ENTITÉ au clic droit** : `useStageContextMenu` **sélectionne déjà** l'entité visée (`:85`), donc le clic droit sur un menu ouvre le panneau tout seul — comme le clic gauche (`useMenuClick` : `set([menu.id])`, plus `setEditorTab("edit")`). L'affordance existait déjà ; elle était juste invisible tant que le panneau était toujours là.
+**Open project tree**: the left bar unfolds `ProjectDocumentTree` (`header="none"`) under the row of the **open** project, as soon as this project is loaded in the account; a click closes the mobile drawer and goes through `goToDocument`. The group is a `role="group"` named "Documents of …", not an ARIA `tree` (no tree keyboard navigation). The server's **other projects** carry a chevron (`aria-expanded`) as soon as the server index knows them: unfolded, they list their **published** Documents read-only (`DocumentGroups` without `editable`, so no `···` menu), and a click opens the Document in its project (by its folder).
 
-### Vue individuelle (deep-linkable)
+- **Root row** (project name): click → `openProjectSettings()`, and a `+` next to it opens **creation** (Menu / Command / Dialog). Since 2026-09-05 it is the registry that creates, not the right panel — the latter appears only on selection, so it could no longer host "New menu". Dialogs gain an entry they did not have. Creation **without position**: the Document appears on the board at the place the arrangement gives it.
 
-`features/project/DocumentView.tsx`, monté par la route enfant `…/projects/$projectId/document.$documentId.tsx`. La route overview bascule dessus via `useChildMatches()` (`childMatches.length > 0 → <Outlet/>`) — donc rechargement, bouton retour navigateur et lien partageable fonctionnent.
+- Text search.
+- No more add / remove from canvas button (removed 2026-09-25): every Document is on the board.
+- **Click** on the label → opens the individual view. **`···` context menu**: edit / delete from the project.
+- 3rd zone of the desktop overview layout (panel · board · `EditorPane`).
+- Shared label helper `documentLabel(project, id, lang)` (`useProjectDocuments.ts`) — also used by the `DocumentView` header.
 
-- **Dispatch par type** : menu → `<Stage projectId focus={documentId}>` (le **stage de la planche**, cf. « Mode focus » ci-dessous) en `primary` d'un `SplitPane` + `EditorPane` en `secondary` ; commande / dialog → `FlowCanvas` centré (`max-w-3xl`).
-- Sélection posée via `useSelectionStore.set([documentId])` au montage → `FlowCanvas` (clé sur la sélection) et `MenuGroup` éditent par le **même** chemin que la planche. Introuvable → `EmptyState`.
-- **INVARIANT** : `DocumentView` ne réimplémente aucun éditeur — il monte les mêmes renderers que la planche (`MenuGroup` en solo, `FlowCanvas`). Pas de second éditeur (≠ focus mode 2026-06-02, forké puis reverté).
-- **Échap = retour planche** : `DocumentView` pose un listener `keydown` window qui rappelle `back()` sur `Escape`, **sauf** si le focus est dans un `INPUT`/`TEXTAREA`/`contentEditable`, si une modale/menu/liste est ouverte (`[role=dialog|menu|listbox]`), ou si l'événement est déjà `defaultPrevented`. Le bouton « Retour au canvas » affiche un badge clavier `<kbd>Esc</kbd>`.
-- **Mémorisation pan/zoom** : le `Stage` restaure son `viewport` depuis `uiStore.canvasViewports[projectId]` au montage et le réécrit à chaque changement. Le cadrage est **persisté dans le navigateur par projet**, y compris après fermeture ou rechargement. Le composant interne est remonté au changement de projet ou de mode pour restaurer le bon cadrage. En **mode focus**, `uiStore.documentViewport` conserve un cadrage partagé par tous les Documents.
-- **Minimap** : `CanvasMinimap` affiche les rectangles issus de `nodeBox(project, id, layout)` dans un SVG superposé à la planche, sans second Stage Konva. Le rectangle de vue suit le pan/zoom ; clic hors du rectangle = recentrage, glissement = déplacement sans changer le zoom. Les bornes incluent les documents et la vue courante ; leur projection reste fixe pendant le glissement. Les flèches du clavier déplacent la vue quand la minimap a le focus. Le bouton à côté de Boutons dans `ProjectLibraryWorkspace` ouvre la minimap puis disparaît pendant son affichage ; la minimap est ancrée à 8 px du coin inférieur droit et sa croix la ferme en faisant réapparaître le bouton ; `uiStore.minimapVisible` persiste cette préférence (visible par défaut). La minimap est réservée à la planche.
+### The panel = selection inspector
 
-- **Bulle de navigation** : le bouton « Retour au canvas » garde sa largeur et son libellé sur une seule ligne (`shrink-0`, `whitespace-nowrap`) ; le titre du Document est tronqué quand les sidebars réduisent l'espace disponible.
+Since 2026-09-05. The editing panel was **always** displayed and ate canvas space, whereas its content already depended entirely on the selection (`SelectionInspector`: nothing → `ProjectProperties`, menu → `MenuProperties`, item → `ElementEditor`…). Its **presence** now follows the same rule as its content.
 
-### Mode focus (`<Stage focus={documentId}>`)
+> The panel exists **iff** something is selected — or if the user explicitly asked for the project settings.
 
-Depuis 2026-09-05, la vue individuelle d'un menu n'a plus de stage à elle : elle monte le `Stage` de la planche avec une prop `focus`. `features/project/SoloMenuStage.tsx` est **supprimé** — il ne réimplémentait que ~20 % de la chrome du `Stage`, et la vue document y perdait le dépôt d'items depuis la Bibliothèque (silencieusement : `setStageDropTarget` n'était jamais enregistré), les raccourcis clavier, la sélection, les guides d'alignement et les liens.
+- **`features/project/selectionContext.ts`** — pure function `selectionContext(project, ids, selectionMenuId)` → `none | multi | menu | element | command | dialog | unknown`. **A single** derivation of the nature of the selection, shared by the `SelectionInspector` dispatch **and** by tab gating; two separate dispatches would end up disagreeing. It also carries the scoped resolution of an element id (a `grid` can exist in two menus — see `selectionStore.menuId`).
+- **`features/project/useInspector.ts`** — the opening rule, written once: `open = ids.size > 0 || projectSettingsOpen`.
+- **Closing** — two exits, both `dismissInspector()` (`projectSettings.ts`: clears the selection **and** lowers `projectSettingsOpen`): a click on the canvas background (`Stage.onStageClick`, the gesture meaning "I'm done") and a **cross** in the panel header. The cross is not decorative: the project settings survive an empty selection **by construction** — that is what distinguishes them from a selection — so without an explicit exit they stayed open indefinitely.
+- **`features/project/CanvasWithInspector.tsx`** — stage + inspector, mounted by the board **and** by the focus view. Desktop: the panel floats above the canvas, so hiding it reveals canvas **without reflow**. Mobile: it takes real height, the stage gets it back. (The component exists for the reason that cost `SoloMenuStage`: the rule must not be written in two places.)
+- **Independent catalogs** — the items and button images belong to the Buttons panel, accessible without selection; shared files are managed in the Resources tab. Closing Properties does not close Buttons, and vice versa. The help button of an empty menu opens Game items directly; the material and image pickers stay accessible from their fields.
+- **`ProjectProperties`** keeps only what is truly project-level — identity (id + source badge), name, description, asset count, deletion. The menu/command counters duplicated the tree and the creation buttons moved there.
+- **Project settings** — they match no selection, so they are requested explicitly. Single gesture in `features/project/projectSettings.ts` (`openProjectSettings()`: clears the selection, raises `uiStore.projectSettingsOpen`, ephemeral and never persisted), with **three entry points**: the root row of `ProjectPanel` (project name + settings icon), the **right-click on the canvas background** (`empty` branch of `ContextMenu` — precisely the gesture that deselects, hence the one after which you look for them) and the **⋮ kebab of the topbar**. Selecting anything lowers the flag, otherwise deselecting to clear the canvas would reopen them.
+- **No "Settings" entry on an ENTITY right-click**: `useStageContextMenu` **already selects** the targeted entity (`:85`), so right-clicking a menu opens the panel by itself — like left-click (`useMenuClick`: `set([menu.id])`, plus `setEditorTab("edit")`). The affordance already existed; it was just invisible as long as the panel was always there.
 
-Toute la différence tient dans la table `layout` :
+### Individual view (deep-linkable)
+
+`features/project/DocumentView.tsx`, mounted by the child route `…/projects/$projectId/document.$documentId.tsx`. The overview route switches to it via `useChildMatches()` (`childMatches.length > 0 → <Outlet/>`) — so reload, browser back button and shareable link work.
+
+- **Dispatch by type**: menu, and module Document whose kind declares `board.items`, → `<Stage projectId focus={documentId}>` (the **board's stage**, see "Focus mode" below) as `primary` of a `SplitPane` + `EditorPane` as `secondary`: the node alone, where a click on a row edits the part in the panel (`DocumentGroup` in `solo`: neither moved nor reopened; framed by `fitViewport` up to ×2, `FOCUS_NODE_MAX_SCALE`, the node being vector text); command / dialog / other kind → centered `SelectionInspector` (`max-w-3xl`).
+- Selection set via `useSelectionStore.set([documentId])` on mount → `SelectionInspector` (keyed on the selection) and `MenuGroup` edit through the **same** path as the board. Not found → `EmptyState`.
+- **INVARIANT**: `DocumentView` reimplements no editor — it mounts the same renderers as the board (`MenuGroup` in solo, `SelectionInspector`). No second editor (≠ focus mode 2026-06-02, forked then reverted).
+- **Escape = back to board**: `DocumentView` sets a window `keydown` listener that calls `back()` on `Escape`, **unless** focus is in an `INPUT`/`TEXTAREA`/`contentEditable`, a modal/menu/list is open (`[role=dialog|menu|listbox]`), or the event is already `defaultPrevented`. The "Back to canvas" button shows a keyboard badge `<kbd>Esc</kbd>`.
+- **Pan/zoom memory**: the `Stage` restores its `viewport` from `uiStore.canvasViewports[projectId]` on mount and rewrites it on every change. The framing is **persisted in the browser per project**, including after closing or reloading. The inner component is remounted on project or mode change to restore the right framing. In **focus mode**, `uiStore.documentViewport` keeps a framing shared by all Documents.
+- **Minimap**: `CanvasMinimap` shows the rectangles from `nodeBox(project, id, layout)` in an SVG overlaid on the board, without a second Konva Stage. The view rectangle follows pan/zoom; click outside the rectangle = recenter, drag = move without changing zoom. The bounds include the documents and the current view; their projection stays fixed during the drag. Keyboard arrows move the view when the minimap has focus. The button next to Buttons in `ProjectLibraryWorkspace` opens the minimap then disappears while it is shown; the minimap (148 px wide, 96 px below the `sm` breakpoint, 11:7 ratio) is anchored 8 px from the bottom-right corner and its cross closes it, making the button reappear; `uiStore.minimapVisible` persists this preference (visible by default). The minimap is reserved to the board.
+
+- **Navigation bubble**: the "Back to canvas" button keeps its width and its label on a single line (`shrink-0`, `whitespace-nowrap`); the Document title is truncated when the sidebars reduce the available space.
+
+### Focus mode (`<Stage focus={documentId}>`)
+
+Since 2026-09-05, a menu's individual view no longer has a stage of its own: it mounts the board's `Stage` with a `focus` prop. `features/project/SoloMenuStage.tsx` is **removed** — it reimplemented only ~20% of the `Stage` chrome, and the document view lost there the item drop from the Library (silently: `setStageDropTarget` was never registered), the keyboard shortcuts, the selection, the alignment guides and the links.
+
+The whole difference lies in the `layout` table:
 
 ```ts
 const layout = focus ? { [focus]: { x: 0, y: 0 } } : projectBoard(project).layout;
 ```
 
-- La planche montre tous les Documents, arrangés (`projectBoard`) ; le focus fabrique une **planche synthétique d'un seul Document** posé à l'origine, sans consulter `canvasLayout`.
-- Tout ce qui consomme `layout` suit sans le savoir : `Edges` (aucune arête, les deux bouts ne sont jamais tous deux présents), `GhostChips` (tous les liens du Document deviennent des pastilles), `useMarqueeSelection`, `hitTestSlot`, `setStageDropTarget`.
-- `MenuGroup` reçoit `solo` → non déplaçable (aucune position de planche à écrire), pas de double-clic « ouvrir ».
-- Chrome retirée en focus : l'`EmptyState` et les entrées « Créer un menu / une commande / un dialogue **ici** » du `ContextMenu` (les trois `onCreate*At` deviennent optionnelles — elles posent une position de planche). Copier / coller / dupliquer / supprimer restent.
-- Cadrage : `fitViewport` (`features/canvas/focusViewport.ts`, ex-`features/project/soloViewport.ts`) centre le menu à l'ouverture, sans jamais l'agrandir, puis ne se bat plus avec l'utilisateur (`touchedRef`) ; double-clic sur le fond = recadrer.
-- **Changement de comportement assumé** : le fond se comporte comme sur la planche — glisser en mode select fait un marquee (nouveau en focus), le pan passe par l'outil main / Espace / Alt. Avant, en vue document, glisser n'importe où pannait.
+- The board shows all Documents, arranged (`projectBoard`); focus builds a **synthetic one-Document board** placed at the origin, without consulting `canvasLayout`.
+- Everything that consumes `layout` follows without knowing: `Edges` (no edge, the two ends are never both present), `GhostChips` (all the Document's links become chips), `useMarqueeSelection`, `hitTestSlot`, `setStageDropTarget`.
+- `MenuGroup` receives `solo` → not draggable (no board position to write), no "open" double-click.
+- Chrome removed in focus: the `EmptyState` and the "Create a menu / command / dialog **here**" entries of the `ContextMenu` (the three `onCreate*At` become optional — they set a board position). Copy / paste / duplicate / delete remain.
+- Framing: `fitViewport` (`features/canvas/focusViewport.ts`, formerly `features/project/soloViewport.ts`) centers the menu on open, never enlarging it, then stops fighting the user (`touchedRef`); double-click on the background = reframe.
+- **Deliberate behavior change**: the background behaves as on the board — dragging in select mode makes a marquee (new in focus), panning goes through the hand tool / Space / Alt. Before, in document view, dragging anywhere panned.
 
-**INVARIANT à ne pas casser** : `setStageDropTarget` / `setStageSlotHitTest` / `setStageGeometryProvider` sont des registres globaux **mono-locataire**. Ça tient parce que la route overview fait `childMatches.length > 0 ? <Outlet/> : <Stage/>` — jamais deux `Stage` montés en même temps. Le focus **remplace** la planche, il ne coexiste pas avec elle.
+**INVARIANT not to break**: `setStageDropTarget` / `setStageSlotHitTest` / `setStageGeometryProvider` are **single-tenant** global registries. This holds because the overview route does `childMatches.length > 0 ? <Outlet/> : <Stage/>` — never two `Stage`s mounted at the same time. Focus **replaces** the board, it does not coexist with it.
 
-### Chips fantômes (liens hors-planche)
+### Ghost chips (off-board links)
 
-`features/canvas/GhostChips.tsx` + `offBoardLinks.ts`. Un nœud sur la planche qui référence une cible **absente** de la planche affiche un chip `→ cible`. Depuis la planche dérivée (2026-09-25), tout Document existant y figure : sur la planche, une pastille ne signale plus qu'une cible absente du project (ref qui pendouille, ou menu d'un autre project). `offBoardLinks(edges, layout)` retourne les liens (source on-board, cible off-board), dédupliqués. `visibleEdges(edges, layout)` (`Edges.tsx`) ne trace des edges qu'entre nœuds présents. Helper de géométrie partagé `nodeBox(project, id, layout)` (`menuLayout.ts`) utilisé par `Edges` **et** `GhostChips`.
+`features/canvas/GhostChips.tsx` + `offBoardLinks.ts`. A node on the board that references a target **absent** from the board shows a `→ target` chip (the target's label rendered as MiniMessage in the vanilla MC font via `VanillaMcText`, like menu titles; `vanillaTextWidth` width of the raw text). Since the derived board (2026-09-25), every existing Document is on it: on the board, a chip now only signals a target absent from the project (dangling ref, or a menu of another project). `offBoardLinks(edges, layout)` returns the links (on-board source, off-board target), deduplicated. `visibleEdges(edges, layout)` (`Edges.tsx`) draws edges only between present nodes. Shared geometry helper `nodeBox(project, id, layout)` (`menuLayout.ts`) used by `Edges` **and** `GhostChips`.
 
-Le clic dépend du mode, via la prop optionnelle `onOpen` : sur la **planche**, aucun (il n'y a rien à poser, et écrire une position pour un Document inexistant polluerait `canvasLayout`) ; en **focus**, `dispatchOpenElement(target)` — il n'y a pas de planche à peupler, la pastille devient le moyen de circuler de Document en Document, y compris vers des Documents jamais posés sur la planche.
+The click depends on the mode, via the optional `onOpen` prop: on the **board**, none (there is nothing to place, and writing a position for a nonexistent Document would pollute `canvasLayout`); in **focus**, `dispatchOpenElement(target)` — there is no board to populate, the chip becomes the way to move from Document to Document, including to Documents never placed on the board.
 
-### Aller à un Document : `goToDocument` (depuis 2026-10-02)
+### Go to a Document: `goToDocument` (since 2026-10-02)
 
-`features/project/goToDocument.ts` est la **seule** façon d'aller à un Document depuis l'arbre (gauche et droite), la palette ⌘K et la planche générale. Dans le project courant, il **reste sur la planche** : sélection du Document (l'inspecteur s'ouvre), puis `uiStore.requestCenter(projectId, docId)` et retour à la planche (on quitte la vue focus ou un onglet). Le `Stage` de la planche consomme la demande (`viewportForCenterRequest` → `centerViewport`, même cadrage que `fitViewport` mais à la position du Document, jamais au-delà de 1:1) dès qu'il a une taille et que le Document est placé, puis l'efface ; le `nonce` fait qu'un second clic sur le même Document recentre. `centerRequest` est éphémère (hors `partialize`).
+`features/project/goToDocument.ts` is the **only** way to go to a Document from the tree (left and right), the ⌘K palette and the server board. In the current project, it **stays on the board**: selection of the Document (the inspector opens), then `uiStore.requestCenter(projectId, docId)` and return to the board (leaving the focus view or a tab). The board's `Stage` consumes the request (`viewportForCenterRequest` → `centerViewport`, same framing as `fitViewport` but at the Document's position, never beyond 1:1) as soon as it has a size and the Document is placed, then clears it; the `nonce` makes a second click on the same Document recenter. `centerRequest` is ephemeral (outside `partialize`).
 
-Vers un autre project (référence qualifiée `boutique:main`, arbre d'un autre project, planche générale), la navigation passe par le **lien profond `?doc=<id>`** (`ProjectSearch.doc`) : `ProjectCanvasPage` le transforme en `goToDocument` une fois le project chargé, ce qui retire le paramètre de l'URL.
+To another project (qualified reference `boutique:main`, tree of another project, server board), navigation goes through the **deep link `?doc=<id>`** (`ProjectSearch.doc`): `ProjectCanvasPage` (hook `useProjectDeepLinks`) turns it into `goToDocument` once the project is loaded, which removes the parameter from the URL.
 
-### Entrées dans la vue individuelle
+### Entries into the individual view
 
-**Double-clic** sur un nœud de la planche : `dispatchOpenElement(id)` (`features/canvas/canvasEvents.ts`) émet le CustomEvent `artisan:open_element` (`OPEN_ELEMENT_EVENT`), écouté par la route overview qui `navigate` vers la route Document (`documentDestination`, qui suit aussi une référence qualifiée). Les pastilles de lien de la vue focus passent par le même événement. Un clic simple dans l'arbre ou la palette ne l'ouvre plus : il centre la planche (`goToDocument`).
+**Double-click** on a board node: `dispatchOpenElement(id)` (`features/canvas/canvasEvents.ts`) emits the CustomEvent `artisan:open_element` (`OPEN_ELEMENT_EVENT`), listened to by the overview route which `navigate`s to the Document route (`documentDestination`, which also follows a qualified reference). The link chips of the focus view go through the same event. A single click in the tree or the palette no longer opens it: it centers the board (`goToDocument`).
 
 ### Mobile (< lg)
 
-Les Documents du project sont dans le **drawer de navigation** (barre de gauche), comme sur desktop ; il n'y a plus de drawer droit. Le canvas occupe la zone centrale, l'inspecteur reste sous lui.
+The project's Documents are in the **navigation drawer** (left bar), as on desktop; there is no right drawer anymore. The canvas occupies the central area, the inspector stays below it.
 
-## Modes d'interaction + guides d'alignement (depuis 2026-06-14)
+## Interaction modes + alignment guides (since 2026-06-14)
 
-Cf. `docs/superpowers/specs/2026-06-14-canvas-modes-and-alignment-design.md`.
+See `docs/archive/specs/2026-06-14-canvas-modes-and-alignment-design.md`.
 
-### `canvasMode` (select / hand) — toolbar + raccourcis
+### `canvasMode` (select / hand) — toolbar + shortcuts
 
-`uiStore.canvasMode: "select" | "hand"` (persisté via `partialize`, défaut `"select"`) + `setCanvasMode`.
-**Mode `hand`** : le `<KonvaStage>` est `draggable`, le curseur passe en `grab`/`grabbing`, les clics sur le vide ne sélectionnent pas (sauf placement d'`armedMaterial`, conservé).
-**Mode `select`** (défaut) : le stage est `non draggable` — le drag sur le vide active le marquee.
+`uiStore.canvasMode: "select" | "hand"` (persisted via `partialize`, default `"select"`) + `setCanvasMode`.
+**`hand` mode**: the `<KonvaStage>` is `draggable`, the cursor becomes `grab`/`grabbing`, clicks on empty space do not select (except `armedMaterial` placement, kept).
+**`select` mode** (default): the stage is `non draggable` — dragging on empty space activates the marquee.
 
-- **`CanvasToolbar.tsx`** (`features/canvas/`) : overlay DOM `absolute bottom-4 left-1/2 -translate-x-1/2 z-20`, deux boutons (icônes `MousePointer2` / `Hand` lucide), bouton actif mis en avant via `--brand-soft`. Labels + tooltips i18n (`canvas.modeSelect` / `canvas.modeHand`) avec hint hotkey.
-- **Raccourcis clavier** (`features/canvas/useCanvasKeyboard.ts`) : **V** → select, **H** → hand (ignorés si un input est focusé). **Espace maintenu** (dans `Stage.tsx`, reset sur `window blur`) → mode main temporaire (`spaceHeld`) ; relâché → retour au mode courant.
+- **`CanvasToolbar.tsx`** (`features/canvas/`): DOM overlay `absolute bottom-4 left-1/2 -translate-x-1/2 z-20`, two buttons (lucide `MousePointer2` / `Hand` icons), active button highlighted via `--brand-soft`. i18n labels + tooltips (`canvas.modeSelect` / `canvas.modeHand`) with hotkey hint.
+- **Keyboard shortcuts** (`features/canvas/useCanvasKeyboard.ts`): **V** → select, **H** → hand (ignored if an input is focused). **Space held** (in `Stage.tsx`, reset on `window blur`) → temporary hand mode (`spaceHeld`); released → back to the current mode.
 
-### Marquee (sélection rectangle, mode select uniquement)
+### Marquee (rectangle selection, select mode only)
 
-- **`useMarqueeSelection.ts`** — gère `pointerdown/move/up` sur le stage. `pointerdown` sur le vide (`e.target === stage`) démarre le rectangle ; `pointermove` l'agrandit (coords monde via `screenToWorld`) ; `pointerup` lance le hit-test puis supprime le rect.
-- **`marqueeHitTest.ts`** (pur) — `rectIntersectsBoxes(rect, boxes)` : intersection normalisée (pas inclusion totale) entre le rectangle de sélection et les `nodeBox` des nœuds présents dans le `layout`. Shift = ajout à la sélection existante ; sans Shift = remplacement.
-- **`MarqueeRect.tsx`** — overlay Konva sur le layer `overlay`, lit l'état du rect courant.
-- Clic sans drag sur le vide conserve le `clear` existant. Le `pointerup` du marquee supprime l'event de clic de suivi pour ne pas vider la sélection juste posée. Annulation si le pointer relâché hors du canvas.
+- **`useMarqueeSelection.ts`** — handles `pointerdown/move/up` on the stage. `pointerdown` on empty space (`e.target === stage`) starts the rectangle; `pointermove` grows it (world coords via `screenToWorld`); `pointerup` runs the hit-test then removes the rect.
+- **`marqueeHitTest.ts`** (pure) — `rectIntersectsBoxes(rect, boxes)`: normalized intersection (not full containment) between the selection rectangle and the `nodeBox`es of the nodes present in `layout`. Shift = add to the existing selection; without Shift = replace.
+- **`MarqueeRect.tsx`** — Konva overlay on the `overlay` layer, reads the current rect state.
+- Click without drag on empty space keeps the existing `clear`. The marquee's `pointerup` suppresses the follow-up click event so it does not empty the selection just set. Cancelled if the pointer is released outside the canvas.
 
-### Guides d'alignement + snapping
+### Alignment guides + snapping
 
-- **`alignmentGuides.ts`** (pur) — `alignmentGuides(dragged, others, threshold) → { snapX?, snapY?, guides[] }`. Compare **left / centerX / right** et **top / centerY / bottom** du nœud déplacé avec ceux de chaque autre nœud ; retient le meilleur candidat par axe dans le `threshold` (≈ 8 px monde) ; émet des `Guide { axis, pos, from, to }` couvrant les extrémités des nœuds alignés.
-- **`useNodeAlignment.ts`** — hook câblé dans le `onDragMove` des groupes de nœuds (`MenuGroup` board, `CommandGroup`, `DialogGroup`). Guarde sur `e.target` pour que les drags d'enfants (slots) ne déclenchent pas le snap/téléportation. Repositionne le nœud Konva (`node.x(snapX)` / `node.y(snapY)`) et publie les guides actifs dans `alignmentStore`.
-- **`alignmentStore.ts`** — guides actifs (état léger, non persisté). Vidé à `dragEnd` (position finale persistée via `setCanvasPosition` existant).
-- **`AlignmentGuidesOverlay.tsx`** — `<Layer>` overlay, lignes Konva `<Line>` brand (`--brand`) en pointillé, `listening={false}`.
-- **Alt maintenu** pendant le drag → `alignmentGuides` court-circuité (déplacement libre, sans snap ni guide).
+- **`alignmentGuides.ts`** (pure) — `alignmentGuides(dragged, others, threshold) → { snapX?, snapY?, guides[] }`. Compares **left / centerX / right** and **top / centerY / bottom** of the dragged node with those of every other node; keeps the best candidate per axis within `threshold` (≈ 8 world px); emits `Guide { axis, pos, from, to }` covering the ends of the aligned nodes.
+- **`useNodeAlignment.ts`** — hook wired into the `onDragMove` of the node groups (`MenuGroup` board, `CommandGroup`, `DialogGroup`). Guards on `e.target` so that child drags (slots) do not trigger snap/teleport. Repositions the Konva node (`node.x(snapX)` / `node.y(snapY)`) and publishes the active guides in `alignmentStore`.
+- **`alignmentStore.ts`** — active guides (light state, not persisted). Cleared on `dragEnd` (final position persisted via the existing `setCanvasPosition`).
+- **`AlignmentGuidesOverlay.tsx`** — overlay `<Layer>`, dotted brand (`--brand`) Konva `<Line>`s, `listening={false}`.
+- **Alt held** during the drag → `alignmentGuides` short-circuited (free movement, no snap or guide).
 
-## Recherche (palette Cmd+K) + panneau toggleable (depuis 2026-06-14)
+## Search (Cmd+K palette) + toggleable panel (since 2026-06-14)
 
-Cf. `docs/superpowers/specs/2026-06-14-search-palette-and-sidebar-toggle-design.md`.
+See `docs/archive/specs/2026-06-14-search-palette-and-sidebar-toggle-design.md`.
 
-### Module de recherche (`editor/src/features/search/`)
+### Search module (`editor/src/features/search/`)
 
-- **`searchIndex.ts`** — `buildSearchIndex(project, lang) → SearchEntry[]` : index plat couvrant les noms de menus/commandes/dialogs, les matériaux des items de menu, et les textes i18n (titres/lores d'items, corps/labels de boutons de dialogs). Chaque `SearchEntry` porte un contexte structuré `{ key, owner }` (clé de traduction i18n + id du propriétaire) traduit dans la palette via `t()` — aucune string en dur. `searchQuery(entries, query)` filtre et ranke ; `groupResultsForDisplay(results)` regroupe par catégorie pour l'affichage.
-- **`SearchPalette.tsx`** — overlay combobox/listbox (conforme a11y). Navigation clavier ↑/↓/Enter/Esc. Sur sélection : navigue vers la vue individuelle du Document (`…/document.$documentId`) ; pour les matches d'items de menu, sous-sélectionne le slot correspondant. Ouverte via `useGlobalSearchShortcut` **ou** le bouton 🔍 de la topbar.
-- **`useGlobalSearchShortcut.ts`** — écoute Cmd+K (Mac) / Ctrl+K (Windows/Linux) ; ignore Shift. Monte/démonte le listener de façon propre.
+- **`searchIndex.ts`** — `buildSearchIndex(project, lang) → SearchEntry[]`: flat index covering the names of menus/commands/dialogs, the Documents of module kinds, the materials of menu items, and the i18n texts (item titles/lores, dialog bodies/button labels). Each `SearchEntry` carries a structured context `{ key, owner }` (i18n translation key + owner id) translated in the palette via `t()` — no hardcoded string. `searchQuery(entries, query)` filters and ranks; `groupResultsForDisplay(results)` groups by category for display.
+- **`SearchPalette.tsx`** — combobox/listbox overlay (a11y compliant). Keyboard navigation ↑/↓/Enter/Esc. On selection: navigates to the Document's individual view (`…/document.$documentId`); for menu item matches, sub-selects the corresponding slot. Opened via `useGlobalSearchShortcut` **or** the 🔍 button of the topbar.
+- **`useGlobalSearchShortcut.ts`** — listens for Cmd+K (Mac) / Ctrl+K (Windows/Linux); ignores Shift. Mounts/unmounts the listener cleanly.
 
-### Index serveur (`editor/src/features/serverIndex/`, depuis 2026-10-02)
+### Server index (`editor/src/features/serverIndex/`, since 2026-10-02)
 
-Lecture de **tous les projects du serveur**, en dehors du project édité. L'édition, le brouillon, les conflits et la publication restent **par project** : l'index est un modèle de lecture, jamais un second éditeur.
+Reads **all of the server's projects**, outside the project being edited. Editing, drafts, conflicts and publication stay **per project**: the index is a read model, never a second editor.
 
-- **`serverIndexLoader.ts`** — `loadServerProjects({networkId, serverId})` liste les projects du disque du serveur puis lit chaque arbre **publié** (`readProjectFiles`, en parallèle). **Aucun effet de bord** : il ne touche ni runtime, ni serveur actif, ni brouillon, ni compte (contrairement à `useProjectLoader`, qui ouvre UN project pour l'éditer). Cache par hash : un `unchanged` réutilise le `Project` déjà parsé. Un project illisible ou inparsable est rendu dans `failed`, sans retirer les autres.
-- **`serverIndexStore.ts`** — état éphémère (`scope` = `<network>/<server>` tels que l'URL les nomme). Changer de serveur vide les projects du précédent ; un résultat arrivé pour un autre scope est ignoré.
-- **`useServerIndexLoader.ts`** — monté par `ProjectCanvasPage` ; charge en arrière-plan une fois le project édité prêt. L'ouverture ne l'attend jamais.
-- **`serverIndex.ts`** — pur. `indexProjectDocuments(project, lang)` donne les Documents avec leur identité qualifiée `ref = <dossier>:<id>` (le dossier disque, `diskId ?? id`, est le **namespace** : le même id dans deux projects reste deux Documents). `toSearchEntries` les adapte à la palette.
-- **`serverChecks.ts`** — `checkServerIssues(edited, others)` : ce que déployer `edited` (état de travail) risque de casser **sur le serveur**, face à l'état publié des autres projects, parce que le plugin range menus, dialogs et commandes dans des tables uniques sans notion de project. Trois familles : `command_conflict` (même nom ou alias entre deux commandes — le plugin n'en enregistre qu'une, `CommandRegistrar`), `duplicate_id` (même id de menu ou de dialog dans deux projects — le dernier chargé gagne en silence) et `broken_link` (lien du project édité vers une cible absente ou définie par plusieurs projects, via `deriveServerGraph`). Ne rapporte que ce qui **implique** le project édité ; ce sont des avertissements, jamais un blocage. `serverChecksFor(edited, indexState)` ajoute l'état : tant que l'index charge (`pending`) ou n'a pas pu lire (`unavailable`), les contrôles ne sont **pas** faits et ne se lisent jamais comme un feu vert ; des projects illisibles les rendent `incomplets`.
-- **Revue de déploiement** : `DeployReviewDialog` affiche ces contrôles au-dessus de la liste des changements (`ServerChecksSection`, clés `deploy.checks.*`) ; `ProjectTopBarControls` les calcule à l'ouverture de la revue, depuis `useServerIndexStore`.
-- **Palette** : `SearchPalette` ajoute les Documents des autres projects (menus, commandes, dialogs — pas leur contenu) après ceux du project édité, avec le nom du project en contexte (`search.ctxInProject`) ; le nom du project est cherchable. Le project édité n'y figure jamais en double. Sélectionner un résultat navigue vers l'autre project.
+- **`serverIndexLoader.ts`** — `loadServerProjects({networkId, serverId})` lists the projects on the server's disk then reads each **published** tree (`readProjectFiles`, in parallel). **No side effects**: it touches neither runtime, active server, draft nor account (unlike `useProjectLoader`, which opens ONE project to edit it). Hash cache: an `unchanged` reuses the already-parsed `Project`. An unreadable or unparsable project is returned in `failed`, without removing the others.
+- **`serverIndexStore.ts`** — ephemeral state (`scope` = `<network>/<server>` as the URL names them). Changing server clears the previous one's projects; a result that arrived for another scope is ignored.
+- **`useServerIndexLoader.ts`** — mounted by `ProjectCanvasPage`; loads in the background once the edited project is ready. Opening never waits for it.
+- **`serverIndex.ts`** — pure. `indexProjectDocuments(project, lang, moduleCommands?)` gives the Documents (menus, commands, dialogs, module kinds, then the commands declared by its module) with their qualified identity `ref = <folder>:<id>` (the disk folder, `diskId ?? id`, is the **namespace**: the same id in two projects remains two Documents). `toSearchEntries` adapts them to the palette.
+- **`serverChecks.ts`** — `checkServerIssues(edited, others)`: what deploying `edited` (working state) risks breaking **on the server**, against the published state of the other projects, because the plugin stores menus, dialogs and commands in single tables with no notion of project. Three families: `command_conflict` (same name or alias between two commands — `CommandRegistrar` leaves the label to the first loaded project, removes the alias or the whole command from the other and logs it as an error), `duplicate_id` (same menu or dialog id in two projects — the last loaded wins silently) and `broken_link` (link from the edited project to a missing target or one defined by several projects, via `deriveServerGraph`). Reports only what **involves** the edited project; these are warnings, never a block. `serverChecksFor(edited, indexState)` adds the state: while the index is loading (`pending`) or could not read (`unavailable`), the checks are **not** done and never read as a green light; unreadable projects make them `incomplete`.
+- **Deploy review**: `DeployReviewDialog` shows these checks above the list of changes (`ServerChecksSection`, `deploy.checks.*` keys); `ProjectTopBarControls` computes them when the review opens, from `useServerIndexStore`.
+- **Palette**: `SearchPalette` adds the Documents of the other projects (menus, commands, dialogs — not their content) after those of the edited project, with the project name as context (`search.ctxInProject`); the project name is searchable. The edited project never appears twice. Selecting a result navigates to the other project.
 
-L'index montre l'état **publié** : le brouillon d'un project non édité n'y est pas. Il se rafraîchit à chaque ouverture d'un project (peu coûteux : cache par hash), pas à la suite d'un Déployer en cours de session.
+The index shows the **published** state: the draft of a non-edited project is not in it. It refreshes each time a project is opened (cheap: hash cache), not after a Deploy during the session.
 
-### Fil d'Ariane de la topbar (depuis 2026-10-02)
+### Topbar breadcrumb (since 2026-10-02)
 
-`ProjectBreadcrumb` (`components/`) remplace le nom seul du project en tête de la topbar : **serveur › project**. Le serveur est un `BreadcrumbSwitcher` : il ouvre la liste des serveurs du network (pastille en ligne/hors ligne, champ de recherche au-delà de 7) et en choisir un mène à sa page. Le network n'apparaît plus qu'en infobulle du serveur (2026-10-08), pour laisser la place aux onglets ; sa page reste accessible depuis la liste `/networks` et le compte. La pastille d'état devant le serveur (`LinkedServersDropdown`) garde son propre menu. Hors network (démo), seul le project s'affiche. Rendu par `components/ui/breadcrumb.tsx` (`Breadcrumb`, `BreadcrumbCurrent`, `BreadcrumbSwitcher`, `breadcrumbLinkClass` ; spécimens sur `/admin/design`). Les onglets de la topbar n'affichent que leur icône (nom en infobulle avec le raccourci).
+`ProjectBreadcrumb` (`components/`) replaces the project name alone at the head of the topbar: **server › project**. The server is a `BreadcrumbSwitcher`: it opens the list of the network's servers (online/offline dot, search field beyond 7) and choosing one leads to its page. The network now appears only as the server's tooltip (2026-10-08), to leave room for the tabs; its page stays reachable from the `/networks` list and the account. The status dot before the server (`LinkedServersDropdown`) keeps its own menu. Outside a network (demo), only the project is shown. Rendered by `components/ui/breadcrumb.tsx` (`Breadcrumb`, `BreadcrumbCurrent`, `BreadcrumbSwitcher`, `breadcrumbLinkClass`; specimens on `/design`). The topbar tabs show only their icon (name in the tooltip with the shortcut).
 
-## UI shell — Project + Settings (depuis 2026-05-27)
-
-Facturation admin : l'onglet `BillingAssignmentsTab` sélectionne un Network, une version
-publiée éligible et une expiration locale facultative ; Free retire l'attribution. Le
-formulaire est réinitialisé au changement de Network. `UserMenu` affiche le plan effectif
-et `CreditsPage` distingue l'attribution administrative d'un abonnement payant.
-
-Le menu `UserMenu` de la sidebar affiche le plan du Network sélectionné sous le
-nom utilisateur (nom de souscription, ou Free sans souscription active). Sa section
-« Utilisation des ressources » reprend `EditorAccessNotice` pour le serveur
-sélectionné, directement via `GET /networks/:networkId/servers/:serverId/editor-access`,
-même sans Project. Le compteur couvre tous ses Projects personnels ; les modules
-restent exemptés. Un changement de serveur réinitialise le compteur et ignore les
-anciennes réponses. Le bandeau est retiré de `ProjectWorkspace`.
-L'inventaire est chargé à l'ouverture du menu et rafraîchi toutes les 15 secondes
-tant qu'il reste ouvert ; quotas, alertes et réessai conservent leur logique.
+## UI shell — Project + Settings (since 2026-05-27)
 
 `features/onboarding/EditorTour` and `editorTourController` coordinate a welcome and six brief guided-tour steps in
 the shared Project workspace: navigation/demo, canvas, Buttons/properties,
 Elements, tabs, then Save or keeping the demo. Automatic presentation is claimed
-once per account through `PATCH /auth/me`; anonymous demos keep browser state.
+once per player through `PATCH /auth/me` (the hub keeps it in `plugins/Artisan/editor-prefs/<uuid>.json`); anonymous demos keep browser state.
 Later/close preserves progress without another automatic opening; the project
 menu resumes an unfinished tour or replays a completed one. Guest progress is
 transferred only on the matching return from explicit demo authentication, without
@@ -685,358 +826,246 @@ or project documents, then restore the previous view. Other dialogs suspend the
 tour; unavailable targets are skipped after layout settles. Mobile Elements uses
 its toggle to avoid opening another modal. The last step requires explicit completion.
 
-La navigation globale est enveloppée par `NavigationSidebar` dans `__root.tsx` :
-sur desktop, zone de survol invisible de 8 px sans espace réservé au repos ;
-bouton flottant en haut à gauche et overlay de 216 px, décalé de 8 px des bords,
-icônes `PanelLeftOpen`/`PanelLeftClose` en miroir du toggle Éléments à droite,
-avec coins arrondis et contenu découpé dans le même contour ;
-repli après 300 ms hors du panneau. Les menus portallés et le focus clavier
-retiennent l'ouverture ; Échap ferme le panneau temporaire et rend le focus au
-bouton. Le bouton Menu reste visible : clic = ouverture fixe sans bordure (216 px),
-second clic = fermeture et retour au survol. `sidebarStore.pinned` est persisté sous `artisan-navigation` ; le rechargement restaure ce choix. Le survol temporaire et le drawer mobile restent éphémères. Le drawer mobile
-conserve une ouverture explicite avec bouton et backdrop. Même shell pour l'admin.
+Global navigation is wrapped by `NavigationSidebar` in `__root.tsx`:
+on desktop, an invisible 8 px hover zone with no space reserved at rest;
+floating button at the top left and a 216 px overlay, offset 8 px from the edges,
+`PanelLeftOpen`/`PanelLeftClose` icons mirroring the Elements toggle on the right,
+with rounded corners and content clipped to the same outline;
+collapses after 300 ms outside the panel. Portaled menus and keyboard focus
+keep it open; Escape closes the temporary panel and returns focus to the
+button. The Menu button stays visible: click = fixed opening without border (216 px),
+second click = close and return to hover. `sidebarStore.pinned` is persisted under `artisan-navigation`; reloading restores this choice. Temporary hover and the mobile drawer stay ephemeral. The mobile drawer
+keeps an explicit opening with button and backdrop. Same shell for admin.
 
-La création de projet depuis le réseau (`NewProjectModal`) utilise un formulaire :
-Entrée dans le nom ou la description déclenche la même soumission que « Créer ».
-Un nom vide ou une création déjà en cours bloque la soumission ; « Annuler »
-ferme la modal sans créer de projet.
+Project creation from the network (`NewProjectModal`) uses a form:
+Enter in the name or description triggers the same submission as "Create".
+An empty name or a creation already in progress blocks submission; "Cancel"
+closes the modal without creating a project.
 
-Le logo géométrique fourni est conservé dans `editor/public/logo.svg`, partagé entre les marques des sidebars, les écrans d’authentification/setup/accueil et le favicon SVG déclaré dans `editor/index.html`.
-Le texte de marque des sidebars et de l’authentification utilise `ArtisanWordmark`, une version inline du SVG fourni : Inter 700, approche -8, couleur héritée du thème. Le SVG inline permet de réutiliser la police chargée via Bunny Fonts.
-Sur mobile (<1024 px), la topbar utilise une grille de deux lignes, conserve les onglets à icônes et impose des cibles tactiles de 44 px. Le panneau Boutons masque temporairement l’inspecteur sans vider la sélection ; un changement de sélection ferme Boutons. Les panneaux restent indépendants sur desktop.
+The logo is pixel art (sources and generator in the project's `branding/logo-pixel/`). `editor/public/logo.svg` is the 16×16 crafting-table block, used only as the SVG favicon declared in `editor/index.html`. Icon-only spots (the home link shown next to the breadcrumb when the navigation is collapsed) use `ArtisanSymbol`: the wordmark's A alone, `public/symbol-dark.svg` or `symbol-light.svg` (9×8 grid shown ×3, 27×24).
+The brand of the sidebars, authentication and marketing pages is `ArtisanWordmark` alone (no icon next to it, the A of the wordmark is the symbol): `public/wordmark-dark.svg` or `wordmark-light.svg` depending on `useThemeStore`, a 39×8 grid shown ×3 (117×24) with `image-rendering: pixelated`.
+On mobile (<1024 px), the topbar uses a two-row grid, keeps the icon tabs and enforces 44 px touch targets. The Buttons panel temporarily hides the inspector without clearing the selection; a selection change closes Buttons. Panels stay independent on desktop.
 
-Les propriétés activent aussi `SplitPane.animatePresence` sur desktop (`ProjectWorkspacePanels`) et mobile (`CanvasWithInspector`, split toujours monté). Changer la sélection ne relance pas l’animation : seule la présence du panneau la déclenche.
+The properties also enable `SplitPane.animatePresence` on desktop (`ProjectWorkspacePanels`) and mobile (`CanvasWithInspector`, split always mounted). Changing the selection does not replay the animation: only the panel's presence triggers it.
 
-`usePanelPresence` conserve le contenu 200 ms pendant la sortie et annule le démontage à la réouverture. Éléments anime translation/opacité ; le menu anime aussi sa largeur réservée. Boutons active `SplitPane.animatePresence` (largeur/hauteur), désactivé pendant le drag. Les panneaux sortants sont `inert` et `aria-hidden` ; `prefers-reduced-motion` supprime l’attente et les transitions CSS.
+`usePanelPresence` keeps the content for 200 ms during exit and cancels the unmount on reopening. Elements animates translation/opacity; the menu also animates its reserved width. Buttons enables `SplitPane.animatePresence` (width/height), disabled during drag. Exiting panels are `inert` and `aria-hidden`; `prefers-reduced-motion` removes the wait and the CSS transitions.
 
-La marge gauche de la topbar réserve 48 px au bouton de navigation flottant ; elle passe à 12 px sur desktop lorsque la navigation est fixe et occupe déjà sa propre colonne.
-Sur desktop, la topbar et le lien de marque des sidebars partagent une hauteur de 48 px et commencent à 8 px du haut. Le panneau flottant retire son padding supérieur interne pour compenser son décalage de 8 px ; son contour utilise un ring sans modifier les dimensions. Le toggle de 36 px est centré à 32 px du haut.
+The topbar's left margin reserves 48 px for the floating navigation button; it goes to 12 px on desktop when navigation is pinned and already occupies its own column.
+On desktop, the topbar and the sidebars' brand link share a 48 px height and start 8 px from the top. The floating panel removes its internal top padding to compensate for its 8 px offset; its outline uses a ring without changing dimensions. The 36 px toggle is centered 32 px from the top.
 
-La sidebar (`components/NewProjectDialog`) suit la même soumission native. Les deux
-modals restent ouvertes avec le nom saisi si le serveur refuse la création ; elles
-affichent une erreur traduite et le placeholder `mon_projet` / `my_project`.
-Le succès de `createProject` confirme l'écriture du manifeste sur le disque serveur,
-puis la liste est relue depuis ce disque.
+The sidebar (`components/NewProjectDialog.tsx`, the only creation modal — the duplicate
+`features/account/NewProjectDialog.tsx` was removed with the cloud-era code, issue #44)
+follows the same native submission. Both modals stay open with the entered name if the
+server refuses the creation; they display a translated error and the placeholder
+`mon_projet` / `my_project`.
+The success of `createProject` confirms the manifest write on the server disk,
+then the list is re-read from that disk.
 
-Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
+See `docs/archive/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 
-- **`ProjectSidebar`** (sticky, `routes/__root.tsx`) — brand cliquable (→ `/networks`) en haut + `ServerSelector` (label via `displayServerLabel`) + section Projects filtrée par server actif (drag-reorder via `account.projectOrder`) + section **Modules installés** (un groupe par module : son canvas « Éditeur », ses Config screens, sa route `/m/<id>`). Le découpage projects plats / groupes de modules vit dans `features/projects/projectGroups.ts` (`buildProjectGroups`, pur) — **la page d'un serveur (`/networks/$networkId/servers/$serverId`) affiche la même chose en lisant la même fonction**, et lit ses Projects sur le disque du serveur (`listServerProjects`) comme la sidebar + ⚙ Settings sticky bottom. Depuis les routes slugs (phase 4a), les params URL `networkId`/`serverId` peuvent porter un slug : la sidebar les résout en ids réels (match `id` OU `slug` contre `networksStore` / les `serverKeys` fetchés) avant tout filtrage de projects ; `ServerSelector` matche pareillement `serverId|serverSlug`. Les flows de création hors sidebar (hub `/networks`, network detail, setup wizard) appellent `networksStore.bumpRefresh()` après chaque create/delete — la sidebar écoute `refreshToken` et refetch networks + server entries (sinon elle resterait stale jusqu'au reload). Accounts-only (Task 8) : plus de session-mode, toujours cookie user + `listNetworks`.
-- **`/networks/$networkId/servers/$serverId/projects/$projectId`** — route canonique server-scoped (`/project/$projectId` redirige). Onglets via `?tab=` : `overview` (canvas Konva, default), `translations` (`TranslationPanelContent`), `data-sources` (`DataSourcesPanelContent`), `resources` (`AssetsTab` — images et polices), `assistant` (`AssistantBody`). **Depuis 2026-07-20**, les vues secondaires **remplacent le canvas** dans la zone centrale (elles ne flottent plus en modal) : chaque est un `WorkspaceView` (`components/ui/workspace-view.tsx`) — panneau opaque `absolute inset-0` **keep-alive** (monté à la 1ʳᵉ activation, reste monté `hidden` ensuite → filtres/chat/sélection survivent au switch) qui recouvre le `centerContent`. Le canvas reste **monté dessous** (jamais `display:none`, sinon le `ResizeObserver` du `Stage` re-mesurerait) ; il est juste caché visuellement. La `ProjectSidebar` interne (arbre `ProjectPanel`, colonne droite partagée avec les propriétés, toggle `projectPanelOpen`) est **persistante** across toutes les vues ; seul le centre swap entre canvas, détail Document (`<Outlet/>` quand `useChildMatches` non vide — mutuellement exclusif avec le `Stage`) et vues secondaires. Échap / × reviennent au canvas (`exitToCanvas`, `?tab=undefined`).
-- **Source picker (`SourcePickerOptions`, `MenuProperties.tsx`)** — liste désormais les data sources live du serveur connecté (`useServerDataSourcesStore`, endpoint `GET /api/v1/networks/:networkId/servers/:serverId/data-sources`, cookie auth, section "On this server"), en plus des project data ; les refs restent librement saisissables (invariant hermétique). Le flow « import de connecteurs » YAML a été retiré le 2026-07-17 (mort — remplacé par les sources reportées serveur).
-- **`SourceShapingEditor` (`properties/SourceShapingEditor.tsx`)** — éditeur visuel monté sous chaque `SourceRefInputRow` : filtre égalité (`filter: Record<field, value>`, valeur littérale ou `{arg}`), tri mono-clé (`sort.by`/`direction`), `limit`. Aucun changement runtime — édite les mêmes champs opaques `ContextInput.sourceRef` (round-trip YAML inchangé). Autocomplétion via `<datalist>` : champs depuis `serverSource.schema` (fallback saisie libre si `[]`), valeurs `{arg}` depuis les `contextInputs` de type `primitive` du menu.
-- **`MenuDataSection` (`properties/MenuDataSection.tsx`)** — section « Données du menu » sous `ContextInputsEditor` : une carte par `sourceRef` consommé (ref, badge module, résumé des filtres actifs). Preview live via `previewDataSource` (`POST …/data-sources/preview`) avec les filtres du menu + un formulaire de valeurs d'essai pour chaque token `{arg}` détecté (`extractArgTokens`). Refs `pack:*` (project data) : pas de preview serveur, juste un hint renvoyant vers l'onglet Data.
-- **Top bar** (`ProjectTopBarControls.tsx`) : surface compacte arrondie (`--r-lg`), groupes espacés sans séparateurs. Identité projet/serveur, navigation en capsules (`--r-md`, fond doux actif), outils contextuels puis recherche compacte, Enregistrer (brouillon) puis Déployer, menu `⋯` et Éléments tout à droite. Boutons et annuler/rétablir sur Canvas ; langue sur Canvas et Traductions. Les libellés des onglets se replient en icônes avant xl ; les groupes peuvent revenir à la ligne sous md. Raccourcis numériques en infobulles, routage et badges inchangés. Actualiser reste dans `⋯` via `RefreshProjectButton.renderTrigger`, avec confirmation montée hors menu. Abandonner les modifications reste dans le chevron de Déployer.
-- **Colonnes droites (`ProjectWorkspacePanels`)** : canvas, `EditorPane` pleine hauteur, puis arbre `ProjectPanel` de 240 px tout à droite. Les propriétés apparaissent uniquement avec sélection/paramètres projet sur le canvas ou un menu ; commandes/dialogues individuels gardent leur éditeur central. Un `SplitPane` horizontal règle la largeur des propriétés (`editorPaneWidth`, persistée et plafonnée selon la place disponible). Aucune division verticale des propriétés. Le bouton Éléments est à droite de la topbar ; fermer l’arbre conserve les propriétés et inversement. Dans l’arbre, `ArrowLeftToLine` ajoute au canvas et `ArrowRightToLine` en retire. `DockedInspectorContext` empêche un second inspecteur flottant. Le canvas garde le même montage quand les panneaux changent. Mobile : scène/propriétés restent en split vertical.
-- **`/settings`** — sidebar de sections (V1 = Apparence, héberge `EditorLangSwitcher`) + main content.
-- **`/admin`** — console super-admin. `routes/admin.tsx` est un **layout route** (gate admin + `<Outlet/>`) avec pages enfants `admin.index.tsx` (IA, `AssistantConfigForm`) et `admin.design.tsx` (`DesignSystemPage`). Pas d'onglets : sur `/admin*` (et user admin), `__root.tsx` remplace la `ProjectSidebar` par **`AdminSidebar`** (`components/AdminSidebar.tsx`) — même shell (brand top, `UserMenu` bottom, drawer mobile conservé), nav de sections IA / Design system + lien « Retour à l'éditeur » (→ `/networks`). **Gate côté composant** via `authStore` (mirror de `account.tsx`) : retourne `null` tant que `isLoading`, puis « admins only » si `!currentUser.isAdmin` (le `isAdmin` vient du `/me`). Le backend reste de toute façon gardé `requireAdmin` sur `/api/v1/admin/*`. Le client API (`lib/api/adminConfig.ts`) est en **cookie** (`credentials:"include"`). L'entrée « Console admin » sur `/account` n'apparaît que pour les admins. Clé API **write-only** : le GET ne renvoie jamais la clé (`keySet: boolean`), le champ vide laisse la clé inchangée.
+`/settings` has four sections: **Appearance**, **AI apps** (`features/mcp/McpAppsSection.tsx`,
+`#ai`: the `/mcp` address to copy, the authorized MCP clients and their revocation; "disabled" when the
+hub answers 404, without `web.mcp`) and, for `artisan.editor.config`, **Editor
+address** (`features/settings/EditorAddressSection.tsx`, `/api/v1/editor-address`): name of the
+address on the tunnel server, checked while typing, then connection link on the
+new address. `#address` opens this section. Also for `artisan.editor.config`, **Sessions**
+(`features/settings/EditorSessionsSection.tsx`, `/api/v1/editor-sessions`, `#sessions`): the open
+editor sessions of the network, with "You", "Editor open", last activity (to the hour), origin
+server and rights; **Close** revokes one, one's own after a confirmation, then
+`authStore.sessionClosed()` sends the tab to `/login?expired=1`. As long as the address has no name,
+`EditorAddressBanner` offers it at the top of a server's page; "Later" hides it for
+this browser (`localStorage`).
 
-## Rendu data source live + mode placement (depuis 2026-07-15)
+`/oauth/consent` (`features/mcp/ConsentPage.tsx`, ADR `mcp-server`): the page where `/oauth/authorize`
+sends the player to approve an AI client. When not logged in, it says to type `/artisan editor` and
+waits for the cookie (re-reads the session every 4 s, the link opens another tab); then it names
+the client, what it will be able to do (read, write drafts) and will not be able to do (deploy), and
+sends the browser back to the address the hub returns (`code` or `access_denied`). Without
+`artisan.editor.edit`, Authorize is disabled. A draft that a client created (`source: "ai"`)
+carries an AI badge in the Drafts list (`PersistedDraftControls`).
 
-Le canvas rend de **vraies lignes** de data source (plus juste un sample statique), et un `Element` de menu a un 2ᵉ mode d'affichage à côté de `iterates` : le **mode placement** (`el.places`), réservé aux sources **statiques**. Cf. ADR `data-source-stability-and-placement` + `CONTEXT.md` (Data source / Placement / Row key).
+- **`ProjectSidebar`** (sticky, `routes/__root.tsx`) — clickable brand (→ `/servers`) at the top + `ServerSelector` (label via `displayServerLabel`) + one folder = one module (design `projets-en-modules`, 2026-10-19): **Installed modules** section first, one plugin module per row, sorted by name until the admin reorders them. With a single folder (add-on root or `moduleFolder`), the row is that folder under the module's name, its Config screens and its `/m/<id>` route below; otherwise the module's name sits above its folders. A module with no folder and nothing to configure does not appear. What a module manages (screens, `/m/<id>` route) collapses with it: nothing shows until its row is open (or the displayed page is one of these entries). Entries are neutral-tile rows, without header, like the Documents of a folder. A module's commands are `command/v1` Documents of its folder, listed and opened like the others; a module without a folder shows none (the plugin serves them from memory, nothing to edit). Then **My modules**: the admin's folders, filtered by active server, and "+ New module". Both lists reorder by dragging the folder's whole row, no handle (`SortableFolders`): 5 px of mouse movement or a 250 ms long press before a drag starts, so a click still opens/folds the folder and a swipe still scrolls; the click that ends a drag is swallowed so the link does not navigate. The order is a viewer preference kept in this browser, per server and per section (`state/sidebarOrderStore.ts`, localStorage `artisan-sidebar-order`, `applyOrder`: stored ids first, new folders after in their default order). A configuration root (`role: config`, `registerConfig`) appears in no list, it is opened through the module's screens. A screen whose table lives in one of the listed folders (the module's folder) opens **in that folder** (`/servers/$serverId/projects/$projectId/screen/$screenId`, `features/screens/ProjectScreenView.tsx`, link via `screenDestination` of `lib/projectNavigation.ts`): it edits the folder's working copy, so its draft, and goes to the server with Deploy, with no Save button or YAML tab; the folder remains the active project, open in the sidebar with its screens in its block. A screen of a configuration root keeps the standalone page `/servers/$serverId/screens/$screenId` (`ConfigScreenPage`, live writing). A screen that declares a `component` renders the module's `FrontendModule.screens[component]` view (`features/screens/ModuleScreenView.tsx`) in place of the generated form, on the same working copy. The split between plugin modules / admin modules lives in `features/projects/projectGroups.ts` (`buildModuleList`, pure, on top of `buildProjectGroups`) — **a server's page (`/servers/$serverId`, `$serverId` = server UUID) shows the same thing by reading the same function**, and reads its folders on the server's disk (`listServerProjects`) like the sidebar + sticky bottom ⚙ Settings. Since the slug routes (phase 4a), the URL params `networkId`/`serverId` may carry a slug: the sidebar resolves them to real ids (match `id` OR `slug` against `networksStore` / the fetched `serverKeys`) before any project filtering; `ServerSelector` likewise matches `serverId|serverSlug`. Creation flows outside the sidebar (`/networks` hub, network detail, setup wizard) call `networksStore.bumpRefresh()` after each create/delete — the sidebar listens to `refreshToken` and refetches networks + server entries (otherwise it would stay stale until reload). Accounts-only (Task 8): no more session mode, always user cookie + `listNetworks`.
+- **`/servers/$serverId/projects/$projectId`** — canonical server-scoped route (`$serverId` = server UUID, no more network level) (`/project/$projectId` redirects). Tabs via `?tab=`: `overview` (Konva canvas, default), `translations` (`TranslationPanelContent`), `resources` (`AssetsTab` — images and fonts), `assistant` (`AssistantBody`). **Since 2026-07-20**, the secondary views **replace the canvas** in the central area (they no longer float in a modal): each is a `WorkspaceView` (`components/ui/workspace-view.tsx`) — opaque `absolute inset-0` **keep-alive** panel (mounted on first activation, stays mounted `hidden` afterwards → filters/chat/selection survive the switch) that covers the `centerContent`. The canvas stays **mounted underneath** (never `display:none`, otherwise the `Stage`'s `ResizeObserver` would re-measure); it is only visually hidden. The inner `ProjectSidebar` (`ProjectPanel` tree, right column shared with the properties, `projectPanelOpen` toggle) is **persistent** across all views; only the center swaps between canvas, Document detail (`<Outlet/>` when `useChildMatches` is non-empty — mutually exclusive with the `Stage`) and secondary views. Escape / × return to the canvas (`exitToCanvas`, `?tab=undefined`). The former `data-sources` tab was removed on 2026-10-28: a Project's own data are rows of the sidebar tree (`DataSourceRows`) opening `…/projects/$projectId/data/$dataSourceId` (`DataSourceView`), the server's sources a section of the server page (`ServerSourcesPanel`, anchor `#data-sources`); an old `?tab=data-sources` link falls back to the canvas.
+- **Source picker (`SourcePickerOptions`, `MenuProperties.tsx`)** — now lists the live data sources of the connected server (`useServerDataSourcesStore`, endpoint `GET /api/v1/servers/:serverId/data-sources`, cookie auth, "On this server" section), in addition to project data; refs stay freely typeable (hermetic invariant). The YAML "connector import" flow was removed on 2026-07-17 (dead — replaced by server-reported sources).
+- **`SourceShapingEditor` (`properties/SourceShapingEditor.tsx`)** — visual editor mounted under each `SourceRefInputRow`: equality filter (`filter: Record<field, value>`, literal value or `{arg}`), single-key sort (`sort.by`/`direction`), `limit`. No runtime change — edits the same opaque `ContextInput.sourceRef` fields (YAML round-trip unchanged). Autocompletion via `<datalist>`: fields from `serverSource.schema` (fallback to free input if `[]`), `{arg}` values from the menu's `primitive`-type `contextInputs`.
+- **`MenuDataSection` (`properties/MenuDataSection.tsx`)** — "Menu data" section under `ContextInputsEditor`: one card per consumed `sourceRef` (ref, module badge, summary of active filters). Live preview via `previewDataSource` (`POST …/data-sources/preview`) with the menu's filters + a form of trial values for each detected `{arg}` token (`extractArgTokens`). `pack:*` refs (project data): no server preview; the data are edited from their row in the sidebar.
+- **Top bar** (`ProjectTopBarControls.tsx`): compact rounded surface (`--r-lg`), groups spaced without separators. Project/server identity, capsule navigation (`--r-md`, soft active background), contextual tools then compact search, Save (draft) then Deploy, `⋯` menu and Elements at the far right. Buttons and undo/redo on Canvas; language on Canvas and Translations. Tab labels fold into icons before xl; groups can wrap below md. Numeric shortcuts in tooltips, routing and badges unchanged. Refresh stays in `⋯` via `RefreshProjectButton.renderTrigger`, with confirmation mounted outside the menu. Discarding changes stays in the Deploy chevron.
+- **Right columns (`ProjectWorkspacePanels`)**: canvas, full-height `EditorPane`, then the 240 px `ProjectPanel` tree at the far right. Properties appear only with a selection/project settings on the canvas or a menu; individual commands/dialogs keep their central editor. A horizontal `SplitPane` sets the properties width (`editorPaneWidth`, persisted and capped according to available space). No vertical split of the properties. The Elements button is at the right of the topbar; closing the tree keeps the properties and vice versa. In the tree, `ArrowLeftToLine` adds to the canvas and `ArrowRightToLine` removes. `DockedInspectorContext` prevents a second floating inspector. The canvas keeps the same mounting when panels change. Mobile: stage/properties stay in a vertical split.
+- **`/settings`** — sections sidebar (V1 = Appearance, hosts `EditorLangSwitcher`) + main content.
 
-- **Snapshots live** — `state/serverSnapshotsStore.ts` (`rowsByRef`, `loadSnapshot` via `previewDataSource`, dedupe module-level, le live gagne). `menuPreviewScope.resolveSourceRef`/`buildPreviewScope` acceptent un param `snapshots?` : pour un `sourceRef` serveur, résolution **rows locales de module (`FrontendModule.localPreviewRows`, ex. boutique) > snapshot live** (jamais pour `pack:`) ; le fallback `importedConnectors.sample` a été retiré (2026-07-17). `MenuGroup`/`ItemTooltip` chargent les refs serveur de la menu et bâtissent le scope avec.
-- **Rendu placement** (`features/canvas/placement.ts`, pur + testé) — `placementTotalPages` (= max(page)+1), `matchPlacementRow` (match par `keyField`, stringifié), `resolvePlacementSlot` (live row > `cachedDisplay` > **dangling** = slot vide ; pas d'override par-placement — l'apparence vient du template), `capturePlacementCache` (snapshot name/material/lore pour offline). `MenuGroup` branche `el.places` dans la pré-passe pagination **et** dans `elementsByPosition` (une entrée par placement de la page courante) ; `ItemTooltip` miroir (bind alias, override title/lore, fallback cache) ; `menuFanout` **skip** `places` comme `iterates`. Le mode placement réutilise la navigation de pagination in-menu existante (`PaginationControls`).
-- **Authoring** — `features/flow/PlacementField.tsx`, frère de `IterationField` dans `FlowCanvas` (positions + itération masqués quand `places` est set, XOR). Le toggle n'apparaît que si la menu binde une source **statique** (`serverDataSourcesStore` `stability === "static"` + `keyField`). Palette de lignes `RowChip` (`useDraggable` @dnd-kit, `id = row:<elementId>:<key>`, payload dans `data`) ; liste des placements (page/slot, remove — pas d'override par-placement). `enable()` seed `{ source: <1ʳᵉ source statique>, alias: "item", keyField, placements: [] }`.
-- **Drop → placement** — `placementDrop.ts` : `pinPlacementRow` (glue partagée : lit les stores, capture `cachedDisplay`, préserve un override existant au re-pin, page courante depuis `paginationStore`). Registre `stageDropTarget.setStageSlotHitTest`/`tryStageSlotHit` (renvoie le `SlotHit` sans placer, enregistré par `Stage`). Le `onDragEnd` du route projet route les ids `row:` → hit-test → même menu → `pinPlacementRow`. **Fallback tap-to-place mobile** : `uiStore.armedPlacement` — taper une ligne l'arme, les slots de la menu ciblée deviennent des cibles (même vides, surlignées) → `pinPlacementRow`.
-- **Reducers** (`accountStore`) : `setElementPlaces` (clear iterates), `setElementIterates` (clear places — XOR bidirectionnel), `setElementPlacement` (upsert par `key`), `removeElementPlacement`. **Export** (`transform.ts`) : `places:` frère de `iterates`, `keyField`→`key_field` snake, override title/lore via `i18nRef` ; `cachedDisplay` **jamais exporté** (éditeur-only, fallback offline).
+## Live data source rendering + placement mode (since 2026-07-15)
 
-## Project sources & Data models (depuis 2026-07-20)
+The canvas renders **real rows** of a data source (no longer just a static sample), and a menu `Element` has a 2nd display mode alongside `iterates`: **placement mode** (`el.places`), reserved for **static** sources. See ADR `data-source-stability-and-placement` + `CONTEXT.md` (Data source / Placement / Row key).
 
-Les sources manuelles de projet (`pack:<id>`) sont passées de « YAML libre preview-only » à du **contenu déployable à schéma déclaré**. Cf. ADR `project-sources-and-data-models` + `CONTEXT.md` (Data source / Data model).
+- **Live snapshots** — `state/serverSnapshotsStore.ts` (`rowsByRef`, `loadSnapshot` via `previewDataSource`, module-level dedupe, live wins). `menuPreviewScope.resolveSourceRef`/`buildPreviewScope` accept a `snapshots?` param: for a server `sourceRef`, resolution is **module local rows (`FrontendModule.localPreviewRows`, e.g. boutique) > live snapshot** (never for `pack:`); the `importedConnectors.sample` fallback was removed (2026-07-17). `MenuGroup`/`ItemTooltip` load the menu's server refs and build the scope with them. A ref named directly by an element (`iterates.source: "ns:id"`, runtime sugar, no declared input) is loaded too (`directSourceRefs`) and put in the scope under its ref, as `MenuRenderer` does.
+- **Placement rendering** (`features/canvas/placement.ts`, pure + tested) — `placementTotalPages` (= max(page)+1), `matchPlacementRow` (match by `keyField`, stringified), `resolvePlacementSlot` (live row > `cachedDisplay` > **dangling** = empty slot; no per-placement override — the appearance comes from the template), `capturePlacementCache` (name/material/lore snapshot for offline). `MenuGroup` branches `el.places` in the pagination pre-pass **and** in `elementsByPosition` (one entry per placement of the current page); `ItemTooltip` mirrors it (bind alias, title/lore override, cache fallback); `menuFanout` **skips** `places` like `iterates`. Placement mode reuses the existing in-menu pagination navigation (`PaginationControls`).
+- **Authoring** — `features/flow/PlacementField.tsx`, sibling of `IterationField` in `SelectionInspector` (positions + iteration hidden when `places` is set, XOR). The toggle appears only if the menu binds a **static** source (`serverDataSourcesStore` `stability === "static"` + `keyField`). Row palette `RowChip` (`useDraggable` @dnd-kit, `id = row:<elementId>:<key>`, payload in `data`); list of placements (page/slot, remove — no per-placement override). `enable()` seeds `{ source: <1st static source>, alias: "item", keyField, placements: [] }`.
+- **Drop → placement** — `placementDrop.ts`: `pinPlacementRow` (shared glue: reads the stores, captures `cachedDisplay`, preserves an existing override on re-pin, current page from `paginationStore`). Registry `stageDropTarget.setStageSlotHitTest`/`tryStageSlotHit` (returns the `SlotHit` without placing, registered by `Stage`). The project route's `onDragEnd` routes `row:` ids → hit-test → same menu → `pinPlacementRow`. **Mobile tap-to-place fallback**: `uiStore.armedPlacement` — tapping a row arms it, the targeted menu's slots become targets (even empty ones, highlighted) → `pinPlacementRow`.
+- **Reducers** (`projectsStore`): `setElementPlaces` (clears iterates), `setElementIterates` (clears places — bidirectional XOR), `setElementPlacement` (upsert by `key`), `removeElementPlacement`. **Export** (`schema/menuV1FromDomain.ts`): `places:` sibling of `iterates`, `keyField`→snake `key_field`, title/lore override via `i18nRef`; `cachedDisplay` **never exported** (editor-only, offline fallback).
 
-Au runtime, les listes/objets chargés automatiquement par `MenuRenderer` (inputs avec `source` ou refs directes dans `iterates`/`places`) restent locaux au menu, pagination comprise. `ExecutionContext.sourceArgs` conserve leurs valeurs d'origine : `open_menu` ne les hérite pas tant qu'elles n'ont pas été remplacées. Le menu cible recharge donc ses sources avec les nouveaux paramètres, y compris après un aller-retour catégorie → menu principal → autre catégorie. Les arguments fournis par l'appelant et les valeurs explicitement transmises via `with`/`context` restent prioritaires et conservent leur type. Un dialogue peut lire les sources héritées ; leur provenance est conservée jusqu'au prochain `open_menu`, sauf transmission explicite.
+## Project sources & Data models (since 2026-07-20)
 
-**Historique de navigation** (`engine/NavigationHistoryStore.kt`) : une pile LIFO par joueur (menus **et** dialogs). `open_menu` / `open_dialog` y empilent l'écran quitté, `open_previous_menu` le dépile et le rouvre **sans** ré-empiler l'écran courant — la pile décroît à chaque retour, donc `menu → wiki → item` revient au menu en deux retours (pas de va-et-vient `item ↔ wiki`). Pile vide = no-op. `SyncedMenuProvider.openMenu`/`openDialog` enregistrent l'écran courant et injectent, en `sourceArgs` (donc jamais hérités par un `open_menu`, chaque écran a son propre précédent), les placeholders `{has_previous_menu}` et `{previous_menu.id}` / `.title`. La pile est vidée au `PlayerQuitEvent` et quand un menu se ferme **sans** ouvrir d'autre écran (ESC, `close_menu`) : `MenuListener.onClose` le vérifie au tick suivant (écran courant inchangé, aucun menu Artisan ouvert), car chaque navigation ferme aussi l'inventaire précédent. Une navigation vers un menu/dialog introuvable n'empile rien (`undoPushIfNotShown`) ; une navigation vers l'écran juste avant (même kind/id/project, args ignorés) est repliée en retour (`collapseReturn`).
+Manual project sources (`pack:<id>`) went from "free preview-only YAML" to **deployable content with a declared schema**. See ADR `project-sources-and-data-models` + `CONTEXT.md` (Data source / Data model).
 
-- **Domaine** (`domain/types.ts` + `domain/dataModels.ts`) — `DataModel` = schéma récursif nommé (`ModelFieldType` : string/number/integer/boolean/**ltext**/**minimessage** (+ `_multiline`)/**item**/list/object/**model** ref, cycles interdits via `wouldCreateModelCycle` ; minimessage = string stockée, affordance d'édition seulement), Row key déclaré sur le model. `DataSource` = union `table` (`modelId` + `rows`) | `config` (`fields` inline + `value` objet). `applyFieldEdit` = **un edit de champ réécrit schéma + toutes les valeurs possédées** (rows des tables du model, occurrences imbriquées via refs, configs) avec release/coercition ltext — « données migrées, références danglées ». Les sources legacy (sans `shape`) sont **reset** au load (`normalizeDataSources`, `useProjectLoader`).
+At runtime, the lists/objects automatically loaded by `MenuRenderer` (inputs with `source` or direct refs in `iterates`/`places`) stay local to the menu, pagination included. `ExecutionContext.sourceArgs` keeps their original values: `open_menu` does not inherit them until they have been replaced. The target menu therefore reloads its sources with the new parameters, including after a category → main menu → other category round trip. Arguments supplied by the caller and values explicitly passed via `with`/`context` keep priority and keep their type. A dialog can read inherited sources; their provenance is kept until the next `open_menu`, unless explicitly passed.
+
+**Navigation history** (`session/NavigationHistoryStore.kt`): one LIFO stack per player (menus **and** dialogs). `open_menu` / `open_dialog` push the screen being left onto it, `open_previous_menu` pops it and reopens it **without** re-pushing the current screen — the stack shrinks on each return, so `menu → wiki → item` returns to the menu in two returns (no `item ↔ wiki` back-and-forth). Empty stack = no-op. `SyncedMenuProvider.openMenu`/`openDialog` record the current screen and inject, as `sourceArgs` (so never inherited by an `open_menu`, each screen has its own previous), the placeholders `{has_previous_menu}` and `{previous_menu.id}` / `.title`. The stack is cleared on `PlayerQuitEvent` and when a menu closes **without** opening another screen (ESC, `close_menu`): `MenuListener.onClose` checks this on the next tick (current screen unchanged, no Artisan menu open), because each navigation also closes the previous inventory. A navigation to an unknown menu/dialog pushes nothing (`undoPushIfNotShown`); a navigation to the screen just before (same kind/id/project, args ignored) is folded into a return (`collapseReturn`).
+
+- **Domain** (`domain/types.ts` + `domain/dataModels.ts`) — `DataModel` = named recursive schema (`ModelFieldType`: string/number/integer/boolean/**ltext**/**minimessage** (+ `_multiline`)/**item**/list/object/**model** ref, cycles forbidden via `wouldCreateModelCycle`; minimessage = stored string, editing affordance only), Row key declared on the model. `DataSource` = union `table` (`modelId` + `rows`) | `config` (inline `fields` + `value` object). `applyFieldEdit` = **one field edit rewrites schema + all owned values** (table rows of the model, nested occurrences via refs, configs) with ltext release/coercion — "data migrated, references dangled". Legacy sources (without `shape`) are **reset** on load (`normalizeDataSources`, `useProjectLoader`).
 - **Row creation** -- the store chooses the first free positive integer for a number/integer Row key, otherwise the first free textual row_n identifier; gaps are reused.
-- **i18n** — chaque valeur ltext d'une row est un Key site normal (`visitDataSourceLTexts` dans `domain/i18nSites.ts`), clé canonique lisible et entièrement lowercase `sources.<sourceName>.<rowKey>.<fieldPath>` (listes suffixées `_2`…, fallback positionnel `row_n` tant que la Row key normalisée est vide ou dupliquée). Les noms de source sont stockés lowercase et uniques après `trim().toLowerCase()` ; l'UI refuse les collisions avec une erreur inline. Les clés opaques existantes sont migrées au chargement ; renommer la source, modifier la Row key ou changer la structure rekey automatiquement les sites en conservant toutes les traductions. Mint au add (row/champ/élément de liste), release au remove, usages/Traductions gratuits via le visiteur.
+- **i18n** — each ltext value of a row is a normal Key site (`visitDataSourceLTexts` in `domain/i18nSites.ts`), readable canonical key, fully lowercase `sources.<sourceName>.<rowKey>.<fieldPath>` (lists suffixed `_2`…, positional `row_n` fallback as long as the normalized Row key is empty or duplicated). Source names are stored lowercase and unique after `trim().toLowerCase()`; the UI refuses collisions with an inline error. Existing opaque keys are migrated on load; renaming the source, changing the Row key or changing the structure automatically rekeys the sites while keeping all translations. Mint on add (row/field/list element), release on remove, usages/Translations for free via the visitor.
 - **Row-key invariant** -- a textual Row key is stored as trim().toLowerCase() and is unique case-insensitively within the source. An empty or duplicate manual edit is rejected inline without touching row data or translations; canonical ltext paths use that validated key: sources.<sourceName>.<rowKey>.<fieldPath> in lowercase. Positional row_n during visitation is defensive only for legacy/imported rows with invalid empty or duplicate keys; a generated row_n is instead a real stored Row-key value. Invalid imported rows are not silently renamed because their IDs may be externally referenced.
-- **UI** (`features/data/`) — édition **form-only** (le pane CodeMirror YAML est mort) : `ModelFieldsEditor` (rename blur-commit, retype avec migration, kinds imbriqués, refs de models cycle-guardées, sélecteur Row key, ajout de champ = draft derrière bouton dashed — les inputs toujours visibles faisaient croire à un champ déjà créé), `SourceValueEditor` (`SourceRowsTable` = **sheet scrollable** : colonnes min-width + scroll horizontal, header / 1ʳᵉ colonne / colonne actions sticky ; cellule item → `MaterialRefField`, cellule ltext → langue active via `setI18nValue`, cellule minimessage → `RevealField` façade `MiniMessageInline` comme les widgets SchemaForm, list/object récursifs ; `ConfigValueForm` pour la shape config). Sidebar : boutons `+ Table` / `+ Config` (une Table auto-crée son Data model). Delete d'une source : `window.confirm` avant `removeProjectDataSource`.
-- **Export** (`features/export/transform.ts`, ADR `bare-data-files` depuis 2026-07-26) — `emitDataSources` écrit des fichiers **NUS** : `data/<id>.yaml` = liste de rows pures (table) ou mapping pur (objet/config), **jamais** de `fields:`/`shape:` inline. Le schéma part à côté : `models/<sourceId>.yaml` (doc model/v1 complet pour un model *possédé* — usage unique, pas référencé par un kind `model` — identité `id:` dans le doc ; sinon ref une-ligne `model:`), `_source.yaml` minimal (`name`/`model`/`model_version`/`order`) en per-row. Valeurs ltext → **littéral de la langue par défaut** inliné ; autres langues émises dans `lang/` par **adresse** key-site (`dataSourceI18n`), clés data exclues du fichier de langue par défaut. Hints `help` du model → bloc de commentaires généré (marqueur `# ──`, régénéré) + bloc d'en-tête main préservé (`DataSource.headerComment`). Import (`projectFromFiles`) : détection nue mapping/liste, résolution beside (`modelRefs`/`modelFileDoc`), reconnexion des littéraux à l'adresse canonique (`ltData` + rekey), `adoptBareLTexts` au post-injection des models déclarés (loader). Les adresses keyent sur l'**id** de la source (renommer ne re-adresse pas).
-- **Modes i18n `extract` / `inline`** (`Project.i18nMode`, depuis 2026-08-03) — quelle forme prennent les textes sur le disque (**superseded le 2026-09-30** par l'ADR `field-local-translations`, cf. bullet suivant). `extract` (défaut, et ce que veut dire l'absence du champ) : `{i18n:key}` dans les documents, toutes les langues dans `lang/`, langue par défaut comprise. `inline` : le document porte le **littéral de la langue par défaut** (`textSerializer` dans `transform.ts` — titres de menu, title/lore d'apparence, labels de dialog ; `stepsToDsl` n'émet plus de `@key` mais des `"littéraux"`), les **autres** langues partent dans `lang/<code>.yaml` à l'**adresse canonique** du site, et **aucun** `lang/<défaut>.yaml` n'est écrit. Généralise aux menus/commandes/dialogs ce que les fichiers data font déjà (ADR `bare-data-files` ④). L'adresse d'un site = la clé canonique que `rekeyProject` assigne juste avant l'export ; le plugin la redérive de la structure du fichier (`engine/I18nAddresses.kt`), égalité verrouillée par `testdata/i18n-address-conformance.json` (23 cas, mêmes deux côtés). Import (`projectFromFiles`) : un littéral mint une clé comme avant, puis `adoptAddressedTranslations` (`domain/i18nSites.ts`) recolle les entrées `lang/` adressées au site — sans ça les autres langues flotteraient, listées mais rattachées à rien, perdues à l'export suivant. Le mode est persisté dans `.artisan/editor.yaml` (`i18n_mode: inline`, hash-exclu, écrit seulement s'il s'écarte du défaut) : c'est une forme de fichier, pas du contenu. Round-trip point fixe (`transformInline.test.ts`). **UI** : segmented control « Sur le disque » (Clés / Texte en clair) dans la barre de stats du panneau Traductions (`features/translations/TranslationPanel.tsx`, `ShapeTab`), action `setProjectI18nMode` ; bascule derrière un `window.confirm` (elle réécrit tout l'arbre au prochain save, donc change le hash du bundle), no-op silencieux si on reclique le mode courant. Doc user : `docs-site/.../editor/translations.md`.
-- **Textes structurels field-local** (ADR `field-local-translations`, depuis 2026-09-30) - les titres de menu, `title`/`lore` d'apparence et `title`/`body`/labels de dialog portent leurs langues **dans le document** : un slot texte est une string (littéral ou `{i18n:key}`) ou une map `{ <lang>: texte }`. `transform.ts` (`fieldTextOf`) écrit la map depuis `project.i18nKeys[site.key]` - une string seule quand seul le `defaultLang` a une valeur ; l'import (`menuV1ToDomain` / `dialogV1ToDomain` / `projectFromFiles`, helper `isLangMap`) range la map sous une clé mintée. `lang/` ne porte plus que les textes d'action (refs `@key` dans l'Action DSL), les clés sans site et les data sources. Côté plugin, `model/LocalizedText.kt` lit la map avec repli langue demandée → `defaultLang`. Les adresses positionnelles ne sont plus un contrat de rendu pour les documents (vecteur `testdata/i18n-address-conformance.json` retiré).
+- **UI** (`features/data/`) — **form-only** editing (the YAML CodeMirror pane is dead): `ModelFieldsEditor` (rename blur-commit, retype with migration, nested kinds, cycle-guarded model refs, Row key selector, adding a field = draft behind a dashed button — always-visible inputs made it look like a field was already created), `SourceValueEditor` (`SourceRowsTable` = **scrollable sheet**: min-width columns + horizontal scroll, sticky header / 1st column / actions column; item cell → `ItemValueField`, ltext cell → active language via `setI18nValue`, minimessage cell → `RevealField` `MiniMessageInline` facade like the SchemaForm widgets, recursive list/object; `ConfigValueForm` for the config shape). `ConfigValueForm` has two layouts (`layout`): `settings` by default (a module's Config screens: one `panel` per top-level group, row with label + key + help on the left and control on the right beyond 36 rem, stacked below; nested object = indented group whose label column shrinks accordingly, to align all controls of a panel; boolean → `Switch`, scalar list → `TagInput`, enum list → toggle chips, map → key/value grid; a map whose values are objects of scalar fields → a table in its own panel, one row per entry, one column per field, and when every key is a number the add button appends the next number from a copy of the last entry; an untyped file infers such a map from numbered keys holding objects), and `compact` in `DataSourceEditor`, like the sheet's cells. Where: each own source (`ownDataSources`, `domain/projectData.ts`: a source typed by a module-declared model is left out, its module's screen edits it) is a row of its folder's tree after the Documents (`DataSourceRows`, tile `--kind-data`, `Table2` for a table, `Braces` for a config); the folder's **+** menu offers *New data table* / *New data sheet* (`addProjectDataSource` returns the new id, the page opens on it; a Table auto-creates its Data model); the folder's count includes them. The page `DataSourceView` (route `…/data/$dataSourceId`, Escape back to the board) hosts `DataSourceEditor`. Deleting a source: `window.confirm` before `removeProjectDataSource` (row `···` menu or the editor's button, which leaves the page). On disk nothing changed (`data/<id>.yaml`). The server's sources: `ServerSourcesPanel` on the server page (grouped list `ServerSourcesSection` + `ServerSourceDetail`), reached from the source picker (`serverSourcesDestination`).
+- **Export** (`schema/dataV1FromDomain.ts`, ADR `bare-data-files` since 2026-07-26) — `emitDataSources` writes **BARE** files: `data/<id>.yaml` = list of pure rows (table) or pure mapping (object/config), **never** inline `fields:`/`shape:`. The schema goes alongside: `models/<sourceId>.yaml` (full model/v1 doc for an *owned* model — single use, not referenced by a `model` kind — identity `id:` in the doc; otherwise a one-line `model:` ref), minimal `_source.yaml` (`name`/`model`/`model_version`/`order`) per row. ltext values → **default-language literal** inlined; other languages emitted in `lang/` by key-site **address** (`dataSourceI18n`), data keys excluded from the default language file. A mapping whose keys are all numbers is written with plain keys (`0:`, not `"0":`). The model's `help` hints → generated comment block (`# ──` marker, regenerated) + preserved main header block (`DataSource.headerComment`). Import (`projectFromFiles`): bare mapping/list detection, beside resolution (`modelRefs`/`modelFileDoc`, indexed by **file name** = source id, the doc's inner `id:` as fallback — same rule as `ProjectReader.readProjectModels`), reconnection of literals to the canonical address (`ltData` + rekey), `adoptBareLTexts` at post-injection of declared models (loader). Addresses key on the source's **id** (renaming does not re-address).
+- **i18n modes `extract` / `inline`** (`Project.i18nMode`, 2026-08-03 → 2026-10-26) — **removed**. Superseded on 2026-09-30 by ADR `field-local-translations` (next bullet): since then, the writer (`schema/fieldText.ts`) ignored the mode, and the "On disk" segmented control (Keys / Plain text) of the Translations panel only changed `i18n_mode` in `.artisan/editor.yaml`, which the plugin does not read. The control, `setProjectI18nMode` and `Project.i18nMode` are removed; an `i18n_mode` still present in `editor.yaml` is ignored on read and disappears on the next save. Both former shapes stay readable on import.
+- **Field-local structural texts** (ADR `field-local-translations`, since 2026-09-30) - menu titles, appearance `title`/`lore` and dialog `title`/`body`/labels carry their languages **in the document**: a text slot is a string (literal or `{i18n:key}`) or a map `{ <lang>: text }`. `schema/fieldText.ts` (`fieldTextOf`) writes the map from `project.i18nKeys[site.key]` - a bare string when only `defaultLang` has a value; import (`menuV1ToDomain` / `dialogV1ToDomain` / `projectFromFiles`, `isLangMap` helper) files the map under a minted key. `lang/` now carries only action texts (`@key` refs in the Action DSL), keys with no site and data sources. On the plugin side, `model/LocalizedText.kt` reads the map with fallback requested language → `defaultLang`. Positional addresses are no longer a rendering contract for documents (`testdata/i18n-address-conformance.json` vector removed).
 
-- **Complétude i18n** — une valeur source explicitement vide est un contenu valide et volontaire. Le panneau ne compte comme manquante qu'une langue secondaire vide lorsque la source contient du texte ; `validate.ts` exige toujours que l'entrée source existe, mais accepte `""`. L'export conserve la chaîne vide pour que le runtime n'affiche pas la clé brute.
-- **Fichiers `lang/`** (`lib/langTree.ts`, depuis 2026-07-30) — `serializeLang` produit toujours une map de clés pointées triée byte-order, puis `nestLangTree` la convertit en **arborescence YAML** (chaque `.` = un niveau, chaque niveau retrié byte-order → fichier déterministe, donc hashable). L'inverse `flattenLangTree` sert aux trois readers (import `projectFromFiles`, mutation module backend, vue YAML du panneau Traductions à l'« Appliquer ») et tolère arbre / plat legacy / mélange. La vue YAML du panneau Traductions (`features/translations/translationsYaml.ts`) émet **la même arborescence**, commentaires portés par les feuilles via `commentBefore` (contexte seulement s'il n'est pas la clé mot pour mot — sets d'items prettifiés, `(unused)` ; puis `# <defaultLang>: <source>` hors langue par défaut). La structure de l'arbre remplace le tri par contexte comme regroupement. Miroir Kotlin `LangFlattener` (lecture seule — le plugin n'écrit jamais de `lang/`), égalité verrouillée par `testdata/lang-tree-conformance.json`. Une clé bloquée par une feuille (`a.b` + `a.b.c`) reste pointée à la racine ; valeurs non-string coercées, `null` → `""`, listes ignorées.
-- **Runtime plugin** — `ProjectReader` scanne `data/*.yaml` (tolérant par fichier, formes nue + legacy) → `BundleDataSource` ; il lit aussi `models/` au load (docs verbatim `{name, type}` aplatis vers le vocabulaire inline) et les déclarations JAR via le supplier `declaredModels`. Le namespace réservé `pack:` est résolu au **fetch seam** du renderer (`ProjectDataResolver`) ; les ltext se localisent au bind : **clé explicite > adresse key-site (`sources.<id>.<rowKey>.<champ>`) > littéral** ; une config binde son objet entier sans shaping (`ContextBinder` accepte `Any?`).
+- **Unused keys** (`findUnusedI18nKeys`, `lib/i18nUsages.ts`, "Remove N unused" button) — a key can be removed only if (1) no Key site carries it, (2) it is at an address only the editor derives (`menus.`, `commands.`, `dialogs.`, `sources.<id>.` of a **deleted** source, or a minted `lt_…` key) and (3) no text of the project cites it (`{i18n:key}` or `@key`, scan of the whole project). The rest of `lang/` with no site (`Project.keptLangKeys`: an add-on's messages read by its code such as `auctions.messages.*`, `MessageBundle` `inFolder`, `artisan.duration.*`, admin keys) is shown as `(lang/ only)` and never bulk-removed. Before 2026-10-26, (2) and (3) were missing: the button removed the modules' messages.
+- **i18n completeness** — an explicitly empty source value is valid, intentional content. The panel counts as missing only an empty secondary language when the source contains text . Export keeps the empty string so the runtime does not display the raw key.
+- **`lang/` files** (`lib/langTree.ts`, since 2026-07-30) — `serializeLang` always produces a byte-order-sorted dotted-key map, then `nestLangTree` converts it to a **YAML tree** (each `.` = one level, each level re-sorted byte-order → deterministic file, hence hashable). The inverse `flattenLangTree` serves the three readers (`projectFromFiles` import, backend module mutation, YAML view of the Translations panel on "Apply") and tolerates tree / legacy flat / mixed. The YAML view of the Translations panel (`features/translations/translationsYaml.ts`) emits **the same tree**, comments carried by the leaves via `commentBefore` (context only if it is not the key word for word — prettified item sets, `(unused)`; then `# <defaultLang>: <source>` outside the default language). The tree structure replaces sorting by context as grouping. Keys that no site reads on import (add-on messages, admin keys) are kept: `Project.keptLangKeys`, rewritten by `keptLangEntries` (`langV1FromDomain.ts`), see `project-files.md`. Kotlin mirror `LangFlattener` (read-only — the plugin never writes `lang/`), equality locked by `testdata/lang-tree-conformance.json`. A key blocked by a leaf (`a.b` + `a.b.c`) stays dotted at the root; non-string values coerced, `null` → `""`, lists ignored.
+- **Plugin runtime** — `ProjectReader` scans `data/*.yaml` (tolerant per file, bare + legacy forms) → `RuntimeDataSource`; it also reads `models/` on load (verbatim `{name, type}` docs flattened to the inline vocabulary) and the JAR declarations via the `declaredModels` supplier. The reserved `pack:` namespace is resolved at the renderer's **fetch seam** (`ProjectDataResolver`), with the rule of a bare Document reference id: the menu's Project first, then unique id on the server (ambiguous → the first loaded); ltexts are localized at bind: **explicit key > key-site address (`sources.<id>.<rowKey>.<field>`) > literal**; a config binds its whole object without shaping (`ContextBinder` accepts `Any?`).
 
-### Champ `actions` & Action DSL (depuis 2026-07-21)
+### `actions` field & Action DSL (since 2026-07-21)
 
-Les commandes de Project (`PackCommand`) initialisent `ExecutionContext.lang`
-via `LangManager.playerLang`, comme `/artisan menu`. `open_menu` / `open_dialog`
-conservent cette langue ; les titres et lores, boutons image compris, utilisent
-donc la langue du joueur ou celle configurée si `per_player_language` est désactivé.
+Project commands (`PackCommand`) initialize `ExecutionContext.lang`
+via `LangManager.playerLang`, like `/artisan menu`. `open_menu` / `open_dialog`
+keep this language; titles and lores, image buttons included, thus use
+the player's language or the configured one if `per_player_language` is disabled.
 
-Kind de champ `actions` (`ModelFieldType`) : une **Action chain** (`Step[]`) stockée comme **chaîne Action DSL** — la sérialisation texte compacte, écrivable à la main dans le YAML disque. Cf. ADR `action-dsl` + `CONTEXT.md` (Action chain / Action DSL).
+`actions` field kind (`ModelFieldType`): an **Action chain** (`Step[]`) stored as an **Action DSL string** — the compact text serialization, hand-writable in the on-disk YAML. See ADR `action-dsl` + `CONTEXT.md` (Action chain / Action DSL).
 
-- **Codec** (`editor/src/lib/actionDsl/`) — pur, sans Project : `lexer.ts` (tokenizer indentation-aware, `#` commentaires), `parser.ts` (`parseActionDsl` → `DslStep[]` : `if`/`else if`/`else`, 20 verbes, conditions typées + `%ph% ==/matches` → `placeholder_equals`/`_match`, fallback `expression`, `and`/`or`/`not` + parenthèses), `printer.ts` (`printActionDsl`, canonique). `ast.ts` = AST miroir du domaine avec texte explicite `DslText` (`{lit}` littéral | `{ref}` clé i18n `@key`). `fixtures/action-dsl-fixtures.json` = vecteurs de conformité `{dsl, ast, canonicalDsl}`, **contrat cross-stack** (futur miroir Kotlin), asservis par `actionDsl.test.ts`.
-- **Adaptateur** (`domainSteps.ts`) — `DslStep[]` ↔ domaine `Step[]`. Le domaine porte le texte en `LText{key}` qui ne distingue pas littéral vs ref : encodage réversible **préfixe `@`** dans la clé (`{ref:k}` ↔ `key:"@k"`, `{lit}` verbatim, convention `literalSteps`). Permet au `ControlledStepsEditor` existant de round-tripper sans perte (taper `@shop.vip` dans un champ texte relit un ref). L'enregistrement i18n Key-site des refs est différé (phase 1 = chaîne DSL opaque).
-- **UI** (`features/data/ActionFieldEditor.tsx`) — deux modes sur la **même** chaîne DSL : **Visuel** (`ControlledStepsEditor` pseudocode via l'adaptateur) et **Code** (textarea DSL brut = la forme disque). Erreur de parse → fallback textarea. Câblé dans `SourceValueEditor` (`case "actions"`).
-- **Export** — `serializeDataFieldType` émet `kind: "actions"` (le plugin le parsera+exécutera) ; `serializeDataValue` passe la chaîne verbatim. Schéma `data/v1` : `actions` dans l'enum des kinds.
-- **Différé** : parseur + évaluateur de feuille Kotlin (contre les mêmes fixtures), exécution runtime, litéraux de liste `[...]`, montants dynamiques, queue avancée du DSL d'expressions.
+- **Codec** (`editor/src/lib/actionDsl/`) — pure, no Project: `lexer.ts` (indentation-aware tokenizer, `#` comments), `parser.ts` (`parseActionDsl` → `DslStep[]`: `if`/`else if`/`else`, 20 verbs, typed conditions + `%ph% ==/matches` → `placeholder_equals`/`_match`, `expression` fallback, `and`/`or`/`not` + parentheses), `printer.ts` (`printActionDsl`, canonical). `ast.ts` = AST mirroring the domain with explicit text `DslText` (`{lit}` literal | `{ref}` i18n key `@key`). `fixtures/action-dsl-fixtures.json` = conformance vectors `{dsl, ast, canonicalDsl}`, **cross-stack contract** (future Kotlin mirror), enforced by `actionDsl.test.ts`.
+- **Adapter** (`domainSteps.ts`) — `DslStep[]` ↔ domain `Step[]`. The domain carries text as `LText{key}`, which does not distinguish literal vs ref: reversible **`@` prefix** encoding in the key (`{ref:k}` ↔ `key:"@k"`, `{lit}` verbatim, `literalSteps` convention). Lets the existing `ControlledStepsEditor` round-trip losslessly (typing `@shop.vip` in a text field reads back a ref). Key-site i18n registration of refs is deferred (phase 1 = opaque DSL string).
+- **UI** (`features/data/ActionFieldEditor.tsx`) — two modes on the **same** DSL string: **Visual** (`ControlledStepsEditor` pseudocode via the adapter) and **Code** (raw DSL textarea = the disk form). Parse error → textarea fallback. Wired in `SourceValueEditor` (`case "actions"`).
+- **Export** — `serializeDataFieldType` emits `kind: "actions"` (the plugin will parse+execute it); `serializeDataValue` passes the string verbatim. `data/v1` schema: `actions` in the kinds enum.
+- **Deferred**: Kotlin parser + sheet evaluator (against the same fixtures), runtime execution, list literals `[...]`, dynamic amounts, advanced tail of the expression DSL.
 
-## Export / import de project (.zip)
+## Project export / import (.zip)
 
-**Export** (`features/export/runExportZip.ts`) — l'archive est l'arbre de fichiers
-**tel que le backend le stocke**, pas une régénération depuis le domaine : flush de
-l'auto-save (`persistProject`), `GET /api/v1/user/projects/:id` → `files`, `buildZip`
-verbatim. Deux conséquences voulues : l'archive porte ce que le domaine ne modélise
-pas (`.artisan/editor.yaml`, les fichiers propres d'une racine Add-on), et **aucune
-validation ne peut bloquer la sortie des fichiers** — récupérer sa config ne dépend
-pas de sa validité (promesse anti-lock-in, ADR `files-first-source-of-truth`).
-Réseau requis : sans backend joignable l'export échoue, il n'y a pas de repli sur
-`transform()` (un repli produirait une archive *presque* fidèle sans le dire).
+**Export** (`features/export/runExportZip.ts`) — the archive is the file tree
+**as the server stores it**, not a regeneration from the domain: flush of
+the auto-save (`persistProject`), `GET /api/v1/user/projects/:id` → `files`, `buildZip`
+verbatim. Two intended consequences: the archive carries what the domain does not
+model (`.artisan/editor.yaml`, the own files of an Add-on root), and **no
+validation can block the output of the files** — recovering your config does not depend
+on its validity (anti-lock-in promise, ADR `files-first-source-of-truth`).
+Network required: with no reachable server the export fails, there is no fallback to
+`projectToFiles()` (a fallback would produce an *almost* faithful archive without saying so).
 
 **Import** (`features/export/runImportZip.ts`) — `zip → files → projectFromFiles`,
-sans format intermédiaire. `normalizeProjectFiles` (`projectZip.ts`) re-route les
-entrées sur `plugins/Artisan/projects/<id>/` quelle que soit la forme reçue : notre
-export, un dossier de project zippé directement depuis le serveur, un `manifest.yaml`
-à la racine, ou l'un des trois emballé dans un dossier supplémentaire. La racine est
-le dossier du `manifest.yaml` le **moins profond** ; l'id vient du `project_id` du
-manifest, sinon du nom de dossier. Erreurs typées `not_a_zip` / `no_manifest`.
+with no intermediate format. `normalizeProjectFiles` (`projectZip.ts`) re-routes
+the entries onto `plugins/Artisan/projects/<id>/` whatever the received shape:
+our export, a project folder zipped directly from the server, a module file
+(`artisan-module.yml`, `manifest.yaml`) at the root, or one of the three wrapped in an
+extra folder. The root is the folder of the **shallowest** module file; the id comes from the manifest's `project_id`,
+otherwise from the folder name. Typed errors `not_a_zip` / `no_manifest`.
 
-> L'export/import JSON (`projectFileIo.ts`, `.artisan.json`) a été supprimé le
-> 2026-07-30 : il sérialisait le domaine en mémoire, une seconde représentation du
-> project à côté de l'arbre de fichiers — exactement ce que `editorJson` avait déjà
-> coûté (P3a).
+> The JSON export/import (`projectFileIo.ts`, `.artisan.json`) was removed on
+> 2026-07-30: it serialized the in-memory domain, a second representation of the
+> project next to the file tree — exactly what `editorJson` had already
+> cost (P3a).
 
-## Import `menu/v1 → domain` (inverse de l'export)
+## The files ↔ domain codec (`editor/src/schema/`)
 
-`editor/src/schema/menuV1ToDomain.ts` est l'inverse pur de `features/export/transform.ts` : il prend un objet `menu/v1` canonique (wire, snake_case, ce que valide `validateMenuV1.ts`) et reconstruit un `Menu` domain. Signature `menuV1ToDomain(src, { projectId, lang, translations? }) → { menu, i18nKeys, unsupported }`. **Pur** : aucune mutation de project — les clés i18n allouées sont retournées dans `i18nKeys` (l'appelant les merge dans `project.i18nKeys`).
+Both directions live side by side, one module per kind and per direction: `<kind>V1ToDomain.ts` reads, `<kind>V1FromDomain.ts` writes (`menu`, `command`, `dialog`); `dataV1FromDomain.ts` writes `data/` and `models/` (with `yamlHints.ts` for generated comments), `langV1FromDomain.ts` the `lang/` entries, `fieldText.ts` the shape of a site text (string or per-language map). `projectFromFiles.ts` and `projectToFiles.ts` assemble the complete tree; `documentCodecs.ts` is the per-kind facade that both walk. Disk saving, the source editor and config screens all write through `projectToFiles`; `features/export/` keeps only the zip and validation. Round trip locked by `codecRoundTrip.test.ts` (examples `docs/schema/*/v1/examples`) and the fixed point of `projectFromFiles.test.ts`.
 
-- **Pont i18n** : un champ texte `menu/v1` est une `string`. Littéral → nouvelle clé (`newI18nKey`), valeur rangée sous `lang`. `{i18n:KEY}` → réf `LText{key:KEY}` ; si `translations[KEY]` fourni, copié dans `i18nKeys`. Les title-layers portent déjà `value:{key}` → réf directe. `lore` (string[]) → un seul `LText` (lignes jointes par `\n`).
-- **Vocab sous-ensemble** : seules les actions/conditions représentables côté domain sont mappées explicitement (un-snake + drop des champs absents du domain, p.ex. `has_money.currency`). Tout autre type (`has_item`, `give_money`, `teleport`…) part dans `unsupported` plutôt que de crasher.
-- **Remaps** : `size`→`rows` (÷9), `pagination_next/prev`→`paginate{direction}`, `context_inputs`→`contextInputs` (`primitive` vs `sourceRef` selon présence de `ref`).
-- **Round-trip** : l'oracle `menuV1ToDomain.roundtrip.test.ts` exporte un project domain riche puis le ré-importe. Note : un `if` d'appearance OR-joiné ne round-trip **pas** structurellement (l'export enrobe une liste pure-OR en une condition composite `{type:"or", of:[…]}`) — l'oracle utilise donc des AND-joins.
+### `menu/v1 → domain` import
 
-## Pipeline d'application IA (panel assistant — sous-plan 4a)
+`editor/src/schema/menuV1ToDomain.ts` is the pure inverse of `schema/menuV1FromDomain.ts`: it takes a canonical `menu/v1` object (wire, snake_case, what `validateMenuV1.ts` validates) and rebuilds a domain `Menu`. Signature `menuV1ToDomain(src, { projectId, lang, translations? }) → { menu, i18nKeys, unsupported }`. **Pure**: no project mutation — the allocated i18n keys are returned in `i18nKeys` (the caller merges them into `project.i18nKeys`).
 
-**Depuis le 2026-09-09 :** le chat envoie `background:true` et un `requestId` idempotent. `TaskTimeline` suit les tâches persistées via GET, restaure leurs résultats après rechargement et n'appelle Stop que sur clic explicite. Le temps écoulé, l'activité réelle et la présence du worker sont distincts ; le raisonnement reçu du fournisseur est dépliable. `taskProposals.ts` applique uniquement sur clic et après comparaison du hash de base avec le brouillon courant. `start_migration` rend le moteur de migration accessible au chat ; `MigrationPanel` montre ses résultats et reprises, sans mode à choisir. Les descriptions SSE/application immédiate ci-dessous documentent seulement le chemin historique de compatibilité.
+- **i18n bridge**: a `menu/v1` text field is a `string`. Literal → new key (`newI18nKey`), value stored under `lang`. `{i18n:KEY}` → `LText{key:KEY}` ref; if `translations[KEY]` is provided, copied into `i18nKeys`. Title-layers already carry `value:{key}` → direct ref. `lore` (string[]) → a single `LText` (lines joined by `\n`).
+- **Subset vocabulary**: only the actions/conditions representable on the domain side are explicitly mapped (un-snake + drop fields absent from the domain, e.g. `has_money.currency`). Any other type (`has_item`, `give_money`, `teleport`…) goes to `unsupported` rather than crashing.
+- **Remaps**: `size`→`rows` (÷9), `pagination_next/prev`→`paginate{direction}`, `context_inputs`→`contextInputs` (`primitive` vs `sourceRef` depending on the presence of `ref`).
+- **Round-trip**: the `menuV1ToDomain.roundtrip.test.ts` oracle exports a rich domain project then re-imports it. Note: an OR-joined appearance `if` does **not** round-trip structurally (the export wraps a pure-OR list into a composite condition `{type:"or", of:[…]}`) — the oracle therefore uses AND-joins.
 
-La logique qui relie le moteur backend SSE à l'éditeur (avant l'UI 4b) tient en trois morceaux découplés :
+## AI assistant (removed)
 
-- **Seed** (`features/export/transform.ts`) : `packToMenuV1(project)` → `serializeMenuToV1(menu, project)[]` produit les objets canoniques `menu/v1` qui seedent une conversation (`openConversation`). Même fonction que l'export fichier (`transform()` l'appelle) → la forme wire envoyée à l'IA est identique à celle déployée.
-- **Client SSE** (`lib/api/assistant.ts`) : l'endpoint étant **POST** (avec corps + auth Bearer), `EventSource` est inutilisable. `streamAssistant(token, conversationId, body)` est un async generator qui `fetch`, lit `response.body` via un reader, bufferise et découpe les frames sur `\n\n`, parsant chaque `event:`/`data:` en `{ type, ...payload }`.
-- **Apply** (`state/accountStore.ts` → `applyAssistantMenu`) : à réception d'un event `menu_written`, l'UI appelle l'action qui convertit le `menu/v1` via `menuV1ToDomain`, merge les clés i18n retournées dans `project.i18nKeys`, et insert/replace le menu par id. La suppression (`menu_deleted`) réutilise `deleteFromProject` existant — pas de nouvelle action.
+The AI application pipeline (`applyAssistant*` in the old `accountStore`, SSE client, chat panel, resumable zMenu migration) was removed with the backend: it no longer exists in the editor (issue #44). The `menuV1ToDomain` / `commandV1ToDomain` / `dialogV1ToDomain` converters remain for the `menu/v1 → domain` import above.
 
-Chaîne complète : `packToMenuV1` (seed) → backend → SSE → `streamAssistant` → `menuV1ToDomain` → `applyAssistantMenu`.
+## Design system (tokens + components)
 
-## Panel chat de l'assistant (sous-plan 4b — l'UI)
+`components/ui/sortable-list.tsx` exports `SortableList`: a vertical list reordered by a
+handle (`GripVertical`, dnd-kit) that each row places wherever it wants (`children(index, handle)`),
+moved by pointer (4 px threshold, vertical axis only) or keyboard (Space, ↑/↓, Space); the drop
+calls `onMove(from, to)` once. Lists nest. Replaces every move up/down
+arrow button; exposed to modules by SDK 1.10. Specimen: `/design`.
 
-Les réponses du chat et les réponses/raisonnements de `TaskTimeline` utilisent
-`features/assistant/AssistantMarkdown.tsx` : `react-markdown` + `remark-gfm`
-rendent titres, listes, liens, tableaux et code (inline ou blocs). Les fragments
-de réponse sont concaténés avant le rendu, y compris pendant une tâche en cours.
-Le HTML brut est ignoré et les URL utilisent le filtrage par défaut de
-`react-markdown`. Le style utilise les tokens du thème ; tableaux et blocs de
-code disposent d'un défilement horizontal. Les messages utilisateur restent du texte.
-
-**Depuis 2026-07-19/07-20**, l'assistant n'a plus de pane docké ni de drawer (`AssistantPane`/`AssistantPanel`/`assistantPanelOpen` supprimés). C'est une **vue secondaire comme les autres** : `?tab=assistant` ouvre `features/assistant/AssistantBody.tsx` dans un `WorkspaceView` qui remplace le canvas (cf. section « UI shell »). Corps `AssistantChat` :
-
-- **Ouverture** : entrée `Sparkles` du `WorkspaceViewNav` (topbar) → `?tab=assistant`. Monté keep-alive dans la zone centrale de la route project (le chat en cours survit au retour au canvas).
-- **Composer** : `<textarea>` (Enter = envoyer, Shift+Enter = nouvelle ligne) + bouton Envoyer (désactivé tant que vide / pendant le stream). Drag-drop de fichiers sur le panel → `file.text()` est stocké dans l'état `attachments` (`{ [filename]: contenu }`), un compteur s'affiche. Les `attachments` sont ré-envoyés à chaque message.
-- **Boucle SSE** : `send()` résout le project via `useAccountStore.getState()`, calcule `menus = packToMenuV1(project)` + `lang = project.defaultLang`, ouvre la conversation au premier message (`convId` mémorisé dans un `useRef`), puis itère `streamAssistant`. Événements : `text` → coalescé dans la bulle assistant courante (`appendAssistant`) ; `menu_written` → `applyAssistantMenu` + carte « créé/modifié » ; `menu_deleted` → `deleteFromProject` + carte « supprimé » ; `error` → toast. Toutes les strings passent par `t("assistant.*")` (namespace en + fr).
-
-Le re-seed (`menus` + `attachments`) à **chaque** message garantit que la working-copy backend reste alignée sur l'état éditeur (last-writer), même si l'admin a édité le project entre deux messages.
-
-### Sélection de modèle + solde de crédits (plan 4 de `2026-07-02-ai-model-system-design.md`)
-### Migration zMenu reprenable (2026-09-07)
-
-`MigrationPanel` et `lib/api/assistantMigration.ts` proposent un flux explicite
-distinct du chat SSE : analyse de la sélection serveur, information sur les crédits, démarrage,
-pause/reprise et lecture des propositions. La reconnexion utilise des GET de suivi,
-jamais un nouveau démarrage payant. Les réponses tardives sont filtrées par portée
-Project/conversation ; généré, appliqué au brouillon et à vérifier restent distincts.
-
-Depuis le 2026-09-08, aucun plafond de crédits propre à la migration n'est demandé ;
-seule la consommation s'affiche. `source_analysis_incomplete` est un avertissement :
-l'IA lit le fichier brut même si le parseur YAML échoue, sans expansion d'alias.
-`lib/analytics.ts` initialise PostHog et capture les pages uniquement si le token est renseigné.
-
-`features/assistant/migrationProposal.ts` vérifie le SHA-256 du JSON canonique sur
-un snapshot immuable, puis recontrôle la portée et le store courant après le calcul
-asynchrone, sans autre attente avant la mutation synchrone. V1 crée uniquement des
-cibles absentes (`baseHash: null`) : résultat sémantiquement identique déjà appliqué,
-cible différente en conflit, jamais de remplacement. La comparaison normalise le
-round-trip domain/wire et les clés i18n aléatoires, avec les valeurs de toutes les
-langues référencées. Les constructions non représentables et les changements de
-traductions séparés sont bloqués plutôt que perdus silencieusement.
-
-L'application passe par `applyAssistantMenu` et ne modifie que le brouillon local ;
-**Déployer** reste explicite. Le backend ne stocke pas un état « appliqué » global :
-il est dérivé du brouillon présent. La sonde de stockage écrit puis retire une petite
-clé temporaire ; son succès ne garantit pas la place nécessaire au brouillon entier.
-En cas d'indisponibilité, l'UI avertit sans masquer une application déjà réussie.
-
-
-Le sélecteur de modèle `ModelSelector` rend les tiers (`cheap` / `balanced` / `premium`) en badges cliquables avec estimation de coût (`~50 credits`), choix mémorisé dans l'action store. Chaque message SSE reçoit le `modelId` dans le header ; une soumission `send()` inclut le modèle choisi. Le solde de crédits s'affiche dans la barre top du panel via `BalanceChip` ; à la réception de l'event SSE final `credits {debited, balance}`, le composant met à jour le compte. Erreur 402 (`insufficient_credits`) → toast + CTA `/credits` (placeholder).
-
-## Design system (tokens + composants)
+`components/ui/tag-input.tsx` exports `TagInput`: a short list of scalar values edited
+as tags in a single field (Enter or comma adds, the cross removes). Specimen: `/design`.
+`.input`, `.textarea` and `.select` marked `aria-invalid="true"` take a `--danger`
+border (value flagged without being blocked, §7 of the Data models).
 
 `components/ui/guided-tour.tsx` exports `GuidedTour`, using semantic tokens and a
 Radix modal for keyboard focus, with responsive target highlighting. Escape defers
-the tour and restores focus. Specimen: `/admin/design`, section `guided-tour`.
+the tour and restores focus. Specimen: `/design`, section `guided-tour`.
 
-`components/ui/file-diff.tsx` affiche une comparaison unifiée serveur → éditeur,
-avec numéros de ligne, contexte, signes −/+, tokens `danger-soft`/`success-soft`
-et marqueurs LF/CRLF/saut final absent. Comme `git diff`, les suites inchangées se
-replient en une ligne dépliable, avec trois lignes de contexte (`context`). Les libellés
-des deux côtés sont configurables. `components/ui/change-list.tsx` liste les fichiers
-d'un changement (`listChanges` : nouveau, supprimé, modifié, renommé, binaire), avec
-un résumé +/− et un `FileDiff` dépliable par fichier. `components/ui/tooltip.tsx` (Radix,
-version alignée sur les primitives déjà installées) : bulle fléchée instantanée au survol
-et au focus, couleurs inversées `--text`/`--surface`, à préférer au `title` natif.
-`components/ui/filled-icons.tsx` porte les icônes pleines que Lucide ne fournit pas. Dans la liste, `FileDiff wrap` replie
-les longues lignes et n’a pas de hauteur max : un seul conteneur défile, l’en-tête du
-fichier reste collé en haut. Des zones de défilement imbriquées rendaient la fin des longs diffs illisible. Les contenus identiques et fichiers absents
-sont explicites. Le calcul LCS est borné à un million de cellules ; au-delà,
-les portions différentes apparaissent comme un remplacement complet.
-Spécimen dans `/admin/design`. `SaveControls` conserve l'arbre de la tentative
-refusée et compare chaque contenu `conflicts[].disk` à cet arbre dans un
-`Collapsible` (premier ouvert). Les choix de résolution restent explicites.
+`components/ui/file-diff.tsx` shows a unified server → editor comparison,
+with line numbers, context, −/+ signs, `danger-soft`/`success-soft` tokens
+and LF/CRLF/missing-final-newline markers. Like `git diff`, unchanged runs
+fold into one expandable line, with three lines of context (`context`). The labels
+of the two sides are configurable. `components/ui/change-list.tsx` lists the files
+of a change (`listChanges`: new, deleted, modified, renamed, binary), with
+a +/− summary and an expandable `FileDiff` per file. `components/ui/tooltip.tsx` (Radix,
+version aligned with the primitives already installed): instant arrowed bubble on hover
+and focus, inverted `--text`/`--surface` colors, to be preferred over the native `title`.
+`components/ui/reset-button.tsx` (`ResetButton`): the small reset next to a field that starts from an original value (module command, system element), disabled as long as the field equals the original, which shows modified fields at a glance.
+`components/ui/filled-icons.tsx` carries the filled icons that Lucide does not provide. In the list, `FileDiff wrap` folds
+long lines and has no max height: a single container scrolls, the file
+header stays stuck at the top. Nested scroll areas made the end of long diffs unreadable. Identical contents and missing files
+are explicit. The LCS computation is bounded to one million cells; beyond that,
+the differing portions appear as a complete replacement.
+Specimen in `/design`. `SaveControls` keeps the tree of the refused
+attempt and compares each `conflicts[].disk` content to that tree in a
+`Collapsible` (first one open). Resolution choices stay explicit.
 
-Source de vérité visuelle de l'éditeur, visualisable en live sur **`/admin/design`** (route `admin_.design.tsx`, gate admin, page `features/design-system/DesignSystemPage.tsx`).
+Visual source of truth of the editor, viewable live at **`/design`** (page `features/design-system/DesignSystemPage.tsx`; the route goes from `/admin/design` to `/design` with the removal of administration).
 
-**Règle pour tout nouveau développement UI** : passer en priorité par le design system — d'abord les composants `components/ui/` (Button, Input, FormField, Badge, EmptyState, Card, Dialog, Sheet, Tabs, DropdownMenu) ou les classes utilitaires de `styles/globals.css` (`.btn*`, `.input`, `.card`, `.chip`, `.badge*`, `.tab`, `.eyebrow`, `.field-label`, `.rule`…) ; si un composant manque, le **créer dans `components/ui/`** puis ajouter son spécimen à la page `/admin/design` dans le même commit. Jamais de hex/rgba en dur (toujours `var(--token)`) — exception : le canvas Konva, non thémable par CSS.
+**Rule for any new UI development**: go through the design system first — the `components/ui/` components first (Button, Input, FormField, Badge, EmptyState, Card, Dialog, Sheet, Tabs, DropdownMenu and its filter field `DropdownMenuSearch`) or the utility classes of `styles/globals.css` (`.btn*`, `.input`, `.card`, `.chip`, `.badge*`, `.tab`, `.eyebrow`, `.field-label`, `.rule`…); if a component is missing, **create it in `components/ui/`** then add its specimen to the `/design` page in the same commit. Never hardcoded hex/rgba (always `var(--token)`) — exception: the Konva canvas, not themable by CSS.
 
-Structure des tokens (`styles/globals.css`) en 3 couches :
-1. **Palette brute** : `--gray-*`, `--emerald-*`, `--red-*`, `--amber-*`, fonts (`--font-display` Spectral / `--font-body` Hanken Grotesque / `--font-mono` IBM Plex Mono), radii `--r-xs…--r-pill`.
-2. **Tokens sémantiques** (théméd dark défaut / light via `[data-theme]`) : `--surface*`, `--text*`, `--border*`, `--brand*`, `--success/--warning/--danger` (+ variantes `-soft`), `--shadow-sm/md/lg`.
-3. **Aliases shadcn** (`--background`, `--primary`, `--accent`…) mappés sur la couche 2, + bridge Tailwind `@theme`.
+Token structure (`styles/globals.css`) in 3 layers:
+1. **Raw palette**: `--gray-*`, `--emerald-*`, `--red-*`, `--amber-*`, fonts (`--font-display` Spectral / `--font-body` Hanken Grotesque / `--font-mono` IBM Plex Mono), radii `--r-xs…--r-pill`.
+2. **Semantic tokens** (themed dark default / light via `[data-theme]`): `--surface*`, `--text*`, `--border*`, `--brand*`, `--success/--warning/--danger` (+ `-soft` variants), `--shadow-sm/md/lg`.
+3. **shadcn aliases** (`--background`, `--primary`, `--accent`…) mapped onto layer 2, + Tailwind `@theme` bridge.
 
-Les composants ne référencent **que** la couche 2 (ou les aliases couche 3 pour les primitives shadcn).
+Components reference **only** layer 2 (or the layer 3 aliases for the shadcn primitives).
 
-### Primitives `Table` / `StatCard` / `HBar`
+The `globals.css` classes (`.btn*`, `.input`, `.card`, `.chip`…) live in `@layer components`: a Tailwind utility placed on the same element wins (`<Input className="h-8 font-mono">` is indeed 32 px in mono). Outside a layer, they silently beat all utilities.
 
-Trois nouveaux composants de présentation de données, visualisables en live sur **`/admin/design`** :
+**Semantic colors of forms.** `--kind-menu`, `--kind-command`, `--kind-dialog` and `--kind-module` (+ `-soft`, `-line`) carry the color of a document type outside the board, the same as on the board (green for a menu, amber for a command, purple for a dialog, blue for a module type without `board.accent`); `--kind-data` (slate) marks a Project's own data rows in the sidebar. `lib/documentKindAppearance.ts` (`kindAppearance(kind)`) gives the icon and colors of a type, a module's `accent` included; the sidebar document tree, search and `EditorHeader` read it. `EditorHeader` (`components/ui/editor-header.tsx`) opens a document's editor (command, dialog, menu and module documents in `SelectionInspector`, system command): type tile, colored overline, large title, meta on the right. `Lane panel` puts an editor section in a panel (command, dialog, menu properties: General, Appearance, Inventory, Data). `Segmented` (`components/ui/segmented.tsx`) chooses among a few side-by-side values (inventory type, rows, title mode). In the sidebar, each document carries its type's tile, with no per-type header; the open project forms a block and the open document is highlighted in it in the color of its type. Labels: `.field-label` (12 px, normal case, first letter capitalized) above a field, `.section-label` above a group; small spaced capitals stay reserved for `.eyebrow`. `--fam-<family>` (+ `-soft`) colors the families of chain actions: `logic`, `message`, `effect`, `navigation`, `reward`, `world`, `module` (`lib/actions/actionFamily.ts`: family and Lucide icon per action, a module action falls into `module`). The color stays on small marks (icon tile `IconTile`, nesting rails `--fam-logic-line`, keywords), never on a large background. `.mc-text` puts a MiniMessage preview on `--mc-chat-bg`, the in-game chat background, so `<white>` stays readable in light theme. Light theme: neutral light-gray page (`--surface` #f3f4f6), white panels and fields (`--surface-raised`, `--surface-inset`) with borders; the type tint behind a header (`.editor-header-wash`) is not applied there. Board nodes (command, dialog, module document) read `--node-*` via `useNodeColors()` (`features/canvas/nodeColors.ts`), title and border in the color of their type. Specimens on `/design`.
 
-- **`Table`** (`components/ui/Table.tsx`) — tableau multi-ligne scrollable, sortable par colonne, avec ligne d'en-tête collante. Headers `align-left/center/right`, cells alignées. Wrapper shadcn.
-- **`StatCard`** (`components/ui/StatCard.tsx`) — carte de métrique (label + valeur + contexte, optionnel badge trending). Utilisé dans les dashboards d'usage (`/admin/ai/usage`).
-- **`HBar`** (`components/ui/HBar.tsx`) — barre horizontale segmentée (répartition : couleurs par segment). Visualise les proportions (ex. usage par modèle). Tokens de couleur `--success` / `--warning` / `--danger` et variantes `-soft`.
-- **`Collapsible`** (`components/ui/collapsible.tsx`) — section repliable (trigger pleine largeur + chevron, `title` / `meta` pour un badge ou compteur, contrôlé ou non via `open`/`defaultOpen`). **Le contenu est démonté tant que la section est fermée** — c'est la raison d'être du composant : les sections lourdes que la plupart des utilisateurs n'ouvrent jamais (les paramètres avancés d'un item) ne coûtent rien. Spécimen sur `/admin/design`.
-- **`DataTable`** (`components/ui/data-table.tsx`) — visualiseur générique de lignes de preview, utilisé par l'explorateur de sources du serveur et la section « Données du menu » du menu. Deux vues : **Tableau** (colonnes = union des clés des lignes, ordre de première apparition) et **YAML**. Les lignes arrivent en JSON sur le WS, mais une cellule de tableau ne sait qu'aplatir un objet en blob d'une ligne — dès qu'une source imbrique (`stages` → `objectives` de `msquests:quests`, `items` de `boutique:categories`), la vue YAML est la seule lisible : indentée, colorée, **pliable**. Le toggle n'apparaît que si l'appelant passe `tableLabel` + `yamlLabel` (composant muet, il ne traduit pas) ; la vue Tableau reste le défaut. Sérialisation en `lineWidth: 0` — une string MiniMessage doit rester sur une ligne pour être copiable. Spécimen sur `/admin/design`.
-- **`YamlCodeEditor`** (`components/ui/yaml-code-editor.tsx`) — CodeMirror + `@codemirror/lang-yaml`. `readOnly` donne le **mode lecture** : même coloration, mêmes gouttières, même pliage, contenu non éditable (`onChange` devient optionnel), sélection et copie conservées. C'est ce mode qu'utilise la vue YAML de `DataTable`. Dette connue : `YAML_CM_THEME` code ses couleurs en hex et force `theme="dark"`, contrairement à la règle « couleurs via `var(--token)` » — visible le jour où une surface YAML atterrit sur un fond clair.
-- **`Checkbox`** (`components/ui/checkbox.tsx`) — case à cocher native teintée `accent-[var(--brand)]`, contrôlée (`checked` / `onCheckedChange`). Pour un état de formulaire confirmé explicitement (ex. « garder ce choix pour tous les fichiers suivants » dans l'import de projet) ; un réglage persistant qui change le résultat en jeu garde `<Switch>`. Spécimen sur `/admin/design`.
+### `Table` / `StatCard` / `HBar` primitives
 
-### Admin AI
+Three new data presentation components, viewable live at **`/design`**:
 
-Panel admin système de modèles IA, accessible à `/admin` (gate super-admin côté composant) :
+- **`Table`** (`components/ui/Table.tsx`) — scrollable multi-row table, sortable by column, with a sticky header row. Headers `align-left/center/right`, aligned cells. shadcn wrapper.
+- **`StatCard`** (`components/ui/StatCard.tsx`) — metric card (label + value + context, optional trending badge). Used in the usage dashboards (`/admin/ai/usage`).
+- **`HBar`** (`components/ui/HBar.tsx`) — segmented horizontal bar (breakdown: colors per segment). Visualizes proportions (e.g. usage per model). Color tokens `--success` / `--warning` / `--danger` and `-soft` variants.
+- **`Collapsible`** (`components/ui/collapsible.tsx`) — collapsible section (full-width trigger + chevron, `title` / `meta` for a badge or counter, controlled or not via `open`/`defaultOpen`). **The content is unmounted while the section is closed** — this is the component's reason for existing: heavy sections that most users never open (an item's advanced settings) cost nothing. Specimen on `/design`.
+- **`DataTable`** (`components/ui/data-table.tsx`) — generic viewer of preview rows, used by the server source explorer and the menu's "Menu data" section. Two views: **Table** (columns = union of the rows' keys, order of first appearance) and **YAML**. Rows arrive as JSON over the WS, but a table cell can only flatten an object into a one-line blob — as soon as a source nests (`stages` → `objectives` of `msquests:quests`, `items` of `boutique:categories`), the YAML view is the only readable one: indented, colored, **foldable**. The toggle appears only if the caller passes `tableLabel` + `yamlLabel` (mute component, it does not translate); the Table view remains the default. Serialization with `lineWidth: 0` — a MiniMessage string must stay on one line to be copyable. Specimen on `/design`.
+- **`YamlCodeEditor`** (`components/ui/yaml-code-editor.tsx`) — CodeMirror + `@codemirror/lang-yaml`. `readOnly` gives the **read mode**: same coloring, same gutters, same folding, non-editable content (`onChange` becomes optional), selection and copy kept. This is the mode used by `DataTable`'s YAML view. Known debt: `YAML_CM_THEME` hardcodes its colors in hex and forces `theme="dark"`, contrary to the "colors via `var(--token)`" rule — visible the day a YAML surface lands on a light background.
+- **`Checkbox`** (`components/ui/checkbox.tsx`) — native checkbox tinted `accent-[var(--brand)]`, controlled (`checked` / `onCheckedChange`). For an explicitly confirmed form state (e.g. "keep this choice for all following files" in project import); a persistent setting that changes the in-game result keeps `<Switch>`. Specimen on `/design`.
 
-- **`/admin/ai`** — catalogue + configuration
-  - Table `Table` des modèles (`GET /api/v1/admin/ai/models`) : id, provider, base model, status (activé/test).
-  - Actions : éditer champs (nom, prix, status), supprimer, tester.
-  - Sections « Providers » et « Settings » : configuration provider OpenAI-compatible (`GET/PUT /api/v1/admin/ai/providers`) et settings globaux (`GET/PUT /api/v1/admin/ai/settings`).
-  - Client API : `editor/src/lib/api/adminModels.ts` (`getModels`, `updateModel`, `deleteModel`, `testConnection`, etc.).
+- **`Popover`** (`components/ui/popover.tsx`) — small form anchored to its trigger (Radix Popover): unlike `DropdownMenu`, you can type in its fields. Used for the color, gradient, click and hover pickers of the MiniMessage bar. Specimen on `/design`.
 
-- **`/admin/ai/usage`** — dashboards agrégés
-  - Cartes `StatCard` : crédits utilisés (total, ce mois), marge estimée (prix vs coût provider).
-  - Graphiques `HBar` : répartition usage par modèle, par user.
-  - `GET /api/v1/admin/ai/usage/summary` (résumés) + `GET /api/v1/admin/ai/usage/logs` (détails).
-  - Client API : `editor/src/lib/api/adminAiUsage.ts` (`getUsageSummary`, `getUsageLogs`).
+## Rich MiniMessage editor (2026-10-24)
 
-- **`/admin/ai/usage/logs`** — événements détaillés
-  - Table avec filtres (user, date, model, status).
-  - Export CSV via bouton.
-  - `GET /api/v1/admin/ai/usage/logs?q=&format=csv` (backend `adminRoutes.ts`).
+A single source of truth, the MiniMessage string; two CodeMirror views on it.
 
-- **Profil utilisateur — onglet AI** (`/account`, tab `"ai"`)
-  - Vue consommation utilisateur (total, dernière utilisation).
-  - Formulaire grant de crédits (bouton « Ajouter des crédits » → modal `POST /api/v1/admin/ai/credits/grant`).
-  - Client API : shared `adminAiUsage.ts` (lectu résumé user) + endpoint spécifique grant.
+- **Layers.** `lib/mm/` is pure TypeScript, no React: `tree.ts` (**lossless** tree: `serialize(parseTree(s)) === s`, the markup being what the preview parser does not cover), `layout.ts` (styled ranges, markup to hide, visible units, "inherits the previous character" insertion point), `edit.ts` (toolbar operations: decorations, color, gradient, click, hover, palette style, clear; deletion that keeps tags; line break of a lore), `profiles.ts` (usage profiles + `diagnose`), `legacy.ts` (`§`/`&` → MiniMessage), `palettes.ts` (types, built-in palettes, `PaletteSource`). `lib/miniMessage.ts` exposes `parseMiniMessageSource` (segments with their source offsets, `perLine` for a lore); `parseMiniMessage` returns the same segments as before.
+- **Fidelity guarantee.** An operation rebuilds only the nodes it touches, then checks that the displayed text (`plainTextFromMiniMessage`) is unchanged; otherwise it escapes bare `<` and retries, or gives up. A text opened then closed is never rewritten. A tag that the profile forbids (click in a lore) stays in the text, flagged.
+- **Profiles** (`MmProfile`): `features`, `lines` (`single`, `joined`, `separate` = each line parsed alone like the entries of a lore), `maxLines`, `defaults` (what the game displays without a tag: white non-italic lore like `LenientText.loreLine` on the plugin side, gray MOTD…), `preview`. Built-in: `CHAT`, `ITEM_NAME`, `LORE`, `TITLE`, `ACTION_BAR`, `MOTD`; `registerMmProfile` for a module.
+- **Components.** `components/minimessage/`: `MmEditor` (`MmToolbar` bar filtered by the profile, rich/code view, Ctrl+B/I/U, `{` autocompletion, diagnostics, legacy conversion), `MmPreview` (the preview the profile asks for), `MmTextField` (editor + preview, `layout` `inline` | `column` | `none` when the screen places the preview itself), `mmCodeMirror.ts` (rich view: markup as `atomicRanges`, transaction filter that touches only visible characters, Backspace/Delete on a visible unit). `components/mc-preview/`: `McText` (vanilla bitmap font, tint, bold, sheared italic, underline, strikethrough, animated obfuscated, shadow; HTML fallback until the `/api/v1/textures/1.21.4/font/*` atlases are loaded), `McTooltip`, `McChat`, `McTitle`, `McActionBar`, `McMotd`, `McScene`. Presentational: the caller resolves placeholders and data. Game interface colors: `--mc-*` tokens of `globals.css`. The glyph tables live in `lib/mcFont/` (generated by `tools/minecraft-assets/gen-char-advances.ts`).
+- **Tools page** `/tools/text` (`features/tools/TextToolPage.tsx`, user menu "Text workshop"): one text per profile, preview on the right.
+- **"Edit item" dialog** (`features/canvas/ItemEditor.tsx`, shared by the states, source cells and `ItemSpecField`): title and lore in `MmEditor` (`ITEM_NAME`, `LORE`, context placeholders in autocompletion). Right column: `item/ItemPreviewColumn.tsx` (the item's slot, then `McTooltip` on the **resolved** preview, the project's `lore_max_width`, shrunk to the column width rather than cut), then the available context. The other forms keep `MiniMessageField`. The canvas hover tooltip (`features/canvas/ItemTooltip.tsx`) also draws with `McTooltip`: white non-italic lore by default as in game, wrapping at `lore_max_width` like `LoreWrap` on the plugin side.
+- **Wrap marker.** `MmEditor` `wrapWidth` (the dialog passes the project's `lore_max_width` to the lore): a dotted line marks where each line will be cut (`loreWrapPoints`, same computation as `wrapLore`/`LoreWrap.kt`). Nothing is written into the text: wrapping happens at render, once placeholders are resolved, so the marker is indicative when the line contains some.
+- **Expressions in the rich view (2026-10-27).** The rich view shows the logic, the preview shows the result, and there is one preview. A `{…}` is evaluated before MiniMessage: `richLayout` parses it as opaque filler (the tags in its strings are not the text's) and shows it whole as one atomic unit, `expr: "value"` for a plain placeholder (`{m.rank}`, `{m.joined.ago()}`), `"logic"` for the rest. `mmCodeMirror.ts` gives each one an `ExpressionWidget` that the owner draws (`ExpressionView.draw/erase`): `MmEditor` mounts a React root per widget (`updateDOM` redraws in place, so a text being typed keeps its focus; logic widgets ignore CodeMirror's events) rendering `ExpressionRules`. A placeholder is its name (`humanizePath(path)`, method in words: "time since Joined"), never its value; a computed text is its rules, read from the AST by `lib/expr/readable.ts` (`readExpression`): a `+` with a string or a ternary becomes a list, a ternary chain "If … → … / Else if … / Otherwise …" with the example player's case lit, `&&`/`||`/`!`/comparisons/methods in words, leading `\n` as "new line:"; texts are edited in place (`quoteText`, same quotes, dispatched with `mmInternal`), the rest in the Code view. The example player is `useSimulation(entries, base?)` (`lib/expr/sampleScope.ts`: the screen's preview data, then the placeholders' samples, then what the user set; `data` is the same as plain data; `sampleOf` falls back on the catalog's sample for a method path). `SimulationPanel` sets it: one control per variable the texts read (`variablesOf`, method targets and `base.*` aside: a switch for a boolean, a field for a number or one-line text). `MmTextField` puts it under its preview (`renderSample(value)`, a lore split on `\n` only, as `MenuRenderer` does); `ItemEditor` shares one simulation between the name, the lore and the item preview (`previewScope` + `previewFor`, given by `StateCards`), puts the panel under the preview. The `{` completion list wears the editor's surfaces (`.cm-tooltip` in `MM_THEME`, never the rich view's in-game colour or italic) and shows each placeholder's example value (yes/no for a boolean), else its type in words.
+- **Library (2026-10-27).** The toolbar's "Library" button (`PlaceholderLibrary`, shown when the text has placeholders) opens two tabs. Variables: the entries grouped by origin, searchable, each named in words with its sample; a click inserts `{path}` at the caret (at the end when the editor was never focused). Expressions: the recipes of `lib/expr/recipes.ts` ("show a text if…", yes/no, by number, count, join, time since/left), each a small form (variable picked among those of its type, dates by their name, or "Another variable…" typed by hand; time since/left also take "A fixed date…", written as its epoch millis `{1767225600000.ago()}` and read back as a date in the rich view) with a live preview for the example player; Insert writes the built `{…}`, which the rich view then reads as rules.
+- **Empty lore lines (2026-10-27).** As `MenuRenderer` does, `renderLore` (`lib/mm/loreLines.ts`) renders a lore line by line as written (a newline inside a `{…}` does not split) and drops a line whose `{…}`/`%…%` give no visible text; a line left empty as written stays. `resolveItem` and `MmTextField` (lore profile) go through it, so a rule sits on its own line instead of a single `{…}` glued with `"\n"`.
+- **Splitting and editing a rule (2026-10-27).** A logic block offers "One rule per line" when `splitIntoLines` (`lib/expr/splitLines.ts`) finds a `{…}` glued with `"\n"` (a lore only): each `c ? "\nX" : ""` becomes `{c ? "X" : ""}` on its own line (left out in game when it gives nothing), a conditional bare break becomes a plain empty line, texts split on their breaks; the source is printed back by `printExpression` (`lib/expr/print.ts`). A block built by a recipe (`matchRecipe`) offers "Edit": the recipe's form (`RecipeForm`, exported by `PlaceholderLibrary`) opens in the block, prefilled, and Apply replaces the `{…}`. The Library is an icon (`Variable`, `{x}`) among the formatting tools. Radix packages share one `react-dismissable-layer` (dialog, popover, dropdown, tooltip bumped together): with two copies, a popover opened from a dialog counted as outside it and closed the dialog (`popover-in-dialog.test.tsx`).
+- **Line limit.** `lineCount` counts the breaks seen by the player (`\n`, `<newline>`, `<br>`); the rich view refuses a modification that exceeds `lineCap(profile)` (Enter, paste, typed tag), the code view only flags it.
 
-### Placement tray and slot dragging
+## Public landing
 
-Preview context changes (canvas banner, board edges and properties selector) apply
-all call arguments through `uiStore.setMenuPreviewArgs` in one store update.
-Writing arguments separately exposes a partial context to the canvas reconciler,
-which can trigger the banner's first-context fallback and undo the selection.
-Single-field input edits continue to use `setMenuPreviewArg`.
-
-Item tooltips resolve the hovered element within its menu (`hoverStore.menuId` +
-`elementId`), since element IDs such as `player` can repeat across menus.
-`MenuGroup` supplies the menu on hover; leaving clears it. `ItemTooltip` subscribes
-to the current project so title/lore edits update live, and hides if the hovered
-menu disappears instead of falling back to a same-ID element in another menu.
-
-The canvas placement tray binds each row under the placement alias when resolving its material and supports nested source paths. Dragging a placed item updates only its keyed placement on the current page, using the preview context to disambiguate shared slots. Other placements and the display cache are preserved; dropping outside the menu removes only that placement. Alt-drag also moves the row, since a row has one placement. Placement drags bypass ordinary position-list mutations.
-Ordinary item paste, move, duplicate and selection moves preserve placement elements during empty-position cleanup: an empty ordinary position list is valid when places is set.
-Placement tray height includes the card top offset, icon, label gap, label height and bottom padding; stacked trays use that same height plus spacing to avoid overlap.
-
-### Project identity and rename (2026-09-12)
-
-The exporter no longer emits `manifest.project_id`. ZIP imports use the enclosing
-folder; rootless archives require a chosen target through `useProjectZipImport`.
-Explicit targets share `isValidProjectFolderName` with rename UI rules.
-Hosted imports (`importHostedProject`) send the file batch with operation id
-`<uuid>-files`, computed at send time: the backend only accepts `[a-zA-Z0-9_-]`, and the
-earlier `<uuid>:files` made every hosted ZIP import fail with `invalid_input` (fixed
-2026-09-25). A taken folder surfaces `destination_exists`; the import dialog then offers
-another folder name (`<folder>_2` prefilled) or **Overwrite**, which calls
-`importHostedProject(..., { overwrite: true })`: it reuses the hosted project of that folder
-(`listHostedProjects`) and writes the archive exactly, deleting files and binaries it lacks.
-`diskProjectsToSummaries` retains authoritative internal IDs and negotiated
-`capabilities.canRename` from server listings, with compatible legacy fallback.
-
-`RenameProjectButton` uses the neutral project rename API and keeps the operation
-UUID and target in session storage until a confirmed or terminal result. A
-pending operation remains recoverable when the server becomes unavailable.
-Listings retain durable pending anchors via `pendingRename` metadata even when
-their disk aliases are hidden; the shared summary factory keeps their retry row,
-and the server operation restores Retry after refresh without browser storage.
-`project_renamed` notifications flush pending local edits, rebind only matching
-server/internal IDs, invalidate cached hashes and trigger controlled loader
-revalidation. Relative draft trees, private owner identity and CAS baselines
-remain intact; an older autosave acknowledgement cannot replace newer edits.
-## Public product and pricing pages
-
-`features/marketing` hosts the public `/` landing and `/pricing` catalog. `MarketingLayout` reuses semantic tokens, existing buttons/cards/dialogs, shared navigation and an EN/FR language selector; public routes scroll without workspace sidebars and remain visible during auth hydration or an API outage. The demo and wiki links target `/demo` and `/wiki/`.
-
-`DemoAuthReturn` only recovers a pending demo from the default `/account` landing. It preserves explicit pricing, billing and public destinations instead of overriding them with an older demo intent.
-
-The landing links to `/demo` in a new tab (`target="_blank"`, `rel="noopener noreferrer"`). It does not embed or initialize a demo session. The `#editor` navigation anchor targets the product features section.
-
-Pricing reads the public billing catalog, never local price constants; loading, empty and failed catalogs are distinct. A selected plan returns through safe local `next` URLs, including Google/Discord, then requires network selection and an explicit checkout action. A network can be created in this flow. Membership and subscription checks precede payment; existing nonterminal subscriptions use the portal. Backend capability and duplicate-subscription guards remain authoritative. `/credits` restores the verified `networkId` returned by checkout, formats monthly/yearly periods, includes top-up bonuses and treats checkout return as pending until authoritative billing data arrives.
-
-Standard selection uses the catalogue's stable `key` and billing interval; limits,
-credit cadence and payment readiness come from the same API response. Free has no
-checkout. A loaded catalogue without Stripe remains visible with purchasing
-unavailable. `/credits` requests the selected Network's catalogue so eligible
-private offers appear there; it clears/reloads offers on Network changes. Credit
-cadence is distinct from billing interval, including monthly grants on annual Pro.
-
-Admin billing shows code-managed versions read-only. A custom offer starts as a
-copy of a standard version with independent limits, capabilities and conditions.
-Draft saving and explicit publication are separate; publication requires a target
-Network. Editing published terms creates a successor draft. The API independently
-enforces code-managed protection and private eligibility; hiding an action in the
-UI is not the authorization check.
-
-Admin billing has no separate editor-policy tab or enforcement switch. Free is the
-default Network plan. `/credits` displays `/billing/subscription.effectivePlan`
-independently of payment status, without exposing a portal for an absent subscription.
-Plan rows and forms distinguish `creditInterval` from billing `interval`: standard
-annual Pro displays 500 credits/month and annual billing; custom annual grants stay annual.
-
-## Hosted and server project context
-
-Both URL families mount `ProjectWorkspace`; `projectClient(immutableProjectId)` binds files,
-history and binary reads/writes independently of a server URL. Resolved project metadata
-supplies capabilities, Minecraft version and connection availability. Hosted opening clears
-stale active-server selection; capture and live model context follow capabilities.
-`projectPrincipal` owns the account principal accessor used by persisted draft operations.
-Asset mutations serialize with draft autosave and retain a frozen snapshot, bytes and
-operation ID for uncertain acknowledgements. A three-way merge preserves edits made while
-an upload runs. Protected canvas images are fetched with credentials into revocable blob
-URLs, scoped to the principal and versioned asset URL. ZIP imports use one mixed text/binary
-transaction and owner-scoped session recovery; exported files exclude private metadata.
-
-`CopyProjectToServerButton` composes into the shared topbar through `canCopyToServer`
-(missing capability defaults to false). `copyProjectToServer` sends one atomic backend
-copy request bound to a saved source revision, never a series of file writes. Explicit
-Apply waits for `waitForDraftWrites`, flushes typing, and uses the common publication
-path, which preserves later edits. Saved-version copy does not publish any draft.
-Browser recovery stores only the operation UUID and frozen destination/revision under
-owner/project scope; status/resume endpoints remain authoritative after lost ACKs.
-Logout clears recovery and invalidates asynchronous completions via a generation guard.
-Known pre-acceptance rejections release choices; uncertain requests retain them.
+`features/marketing` hosts the public `/` landing of artisanmc.net (`MarketingLayout`,
+semantic tokens, EN/FR language selector). The pricing page, billing catalogue, credits
+and demo links were removed with the cloud in phase F.

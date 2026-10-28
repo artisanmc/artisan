@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadUserProject } from "./userProjects";
 
 /**
- * Depuis la bascule « disque seul » (ADR `server-disk-only-storage`), cette
- * route ne sert plus qu'à l'**identité** d'un Project — nom, slug, serveur
- * propriétaire, network. Son contenu vient de `project_read`, sur le disque du
- * serveur, et n'a plus rien à faire ici.
+ * Since the switch to "disk only" (ADR `server-disk-only-storage`), this route
+ * only serves a Project's **identity** — name, slug, owning server, network.
+ * Its content comes from `project_read`, on the server's disk, and has nothing
+ * to do here.
  */
 describe("userProjects API client", () => {
   beforeEach(() => {
@@ -13,15 +13,15 @@ describe("userProjects API client", () => {
   });
 
   it("loadUserProject GET /api/v1/user/projects/:projectId returns the project identity", async () => {
-    global.fetch = vi.fn(async () =>
-      new Response(
-        JSON.stringify({
-          project: { id: "p1", name: "Boutique", externalId: "boutique_shop", hash: "h1" },
-          networkId: "net_1",
-          serverKeyId: "sk_1",
-        }),
-        { status: 200 },
-      ),
+    global.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            project: { id: "p1", name: "Boutique", externalId: "boutique_shop", hash: "h1" },
+            serverKeyId: "sk_1",
+          }),
+          { status: 200 },
+        ),
     );
 
     const res = await loadUserProject("p1");
@@ -36,11 +36,24 @@ describe("userProjects API client", () => {
     await expect(loadUserProject("p1")).rejects.toThrow();
   });
 
-  it("sends both location references and preserves the exact project ID", async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify({ project: { id: "internal", externalId: "My_Project" } })));
-    await loadUserProject("My_Project", "survival", "network-b");
+  it.each(["server_offline", "plugin_update_required"])(
+    "surfaces the hub's 503 %s as the error message",
+    async (code) => {
+      global.fetch = vi.fn(
+        async () => new Response(JSON.stringify({ error: code }), { status: 503 }),
+      );
+      await expect(loadUserProject("lobby.shop")).rejects.toThrow(code);
+    },
+  );
+
+  it("sends the server reference and preserves the exact project ID", async () => {
+    global.fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ project: { id: "internal", externalId: "My_Project" } })),
+    );
+    await loadUserProject("My_Project", "survival");
     const url = new URL(vi.mocked(fetch).mock.calls[0]![0] as string);
     expect(url.pathname).toBe("/api/v1/user/projects/My_Project");
-    expect(Object.fromEntries(url.searchParams)).toEqual({ server: "survival", network: "network-b" });
+    expect(Object.fromEntries(url.searchParams)).toEqual({ server: "survival" });
   });
 });

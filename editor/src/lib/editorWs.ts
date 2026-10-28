@@ -1,95 +1,76 @@
-const WS_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(/^http/, "ws");
-import type { ProjectRenamed } from "@/features/project/onProjectRenamed";
-
-export type DraftUpdateHandler = (
-  projectId: string,
-  menuId: string,
-  menuYaml: string,
-  updatedBy: string,
-) => void;
+import { API_URL } from "@/lib/api/client";
+const WS_URL = (API_URL || window.location.origin).replace(/^http/, "ws");
 
 export interface EditorWsHandlers {
-  onProjectRenamed?: (event: ProjectRenamed) => void;
-  onDraftUpdate?: DraftUpdateHandler;
-  /** Files-first P3c: the plugin reported a disk↔web divergence on this project. */
-  onSyncDivergence?: (projectId: string) => void;
-  /** The pending divergence was resolved (editor action or manual pushLocal). */
-  onDivergenceResolved?: (projectId: string) => void;
   /**
-   * Le plugin vient de relire ses Projects (`/artisan reload`, ou sa propre
-   * écriture). C'est le seul moment où une édition faite à la main sur le
-   * disque devient réelle — donc le seul moment où notre version connue peut
-   * être devenue fausse.
+   * The plugin just re-read its Projects (`/artisan reload`, or its own write).
+   * The only moment a hand edit on the disk becomes real — so the only moment
+   * our known version may have become wrong.
    */
   onProjectsReloaded?: (serverKeyId: string, projects: { id: string; hash: string }[]) => void;
+  /** The hub closed this tab's session: it was revoked or signed out elsewhere. */
+  onSessionClosed?: () => void;
 }
 
+/** Close code the hub sends when the tab's session was closed (`EditorChannel.SESSION_CLOSED`). */
+export const SESSION_CLOSED = 4401;
+/** Under the hub's 5 minute idle timeout: the socket stays open, and the tab counts as online. */
+const HEARTBEAT_MS = 60_000;
+const RETRY_MAX_MS = 30_000;
+
 /**
- * Live editor notifications over WS, authenticated via a one-shot ticket
- * minted from POST /api/v1/user/ws-ticket (`?ticket=`). Tickets are
- * single-use with a 30s TTL — callers reconnecting after a drop must call
- * `connectAsUser` again to mint a new one, not reuse the old ws URL.
+ * Live editor notifications over WS, authenticated by the session cookie alone.
+ * The open socket is also how the hub knows this tab is online (Sessions screen),
+ * so it is kept alive by a heartbeat and opened again when it drops.
  */
 export class EditorWs {
   private ws: WebSocket | null = null;
+  private heartbeat: ReturnType<typeof setInterval> | undefined;
+  private retry: ReturnType<typeof setTimeout> | undefined;
+  private retryMs = 1_000;
+  private stopped = false;
 
-  private constructor(
-    ticket: string,
-    private handlers: EditorWsHandlers,
-  ) {
-    this.ws = new WebSocket(`${WS_URL}/ws/editor?ticket=${encodeURIComponent(ticket)}`);
-    this.ws.onmessage = (evt) => {
-      let msg: {
-        type: string;
-        project_id?: string;
-        menu_id?: string;
-        menu_yaml?: string;
-        updated_by?: string;
-        server_key_id?: string;
-        previous_disk_id?: string;
-        disk_id?: string;
-        projects?: { id: string; hash: string }[];
-      };
+  constructor(private handlers: EditorWsHandlers) {
+    this.connect();
+  }
+
+  private connect(): void {
+    const ws = new WebSocket(`${WS_URL}/ws/editor`);
+    this.ws = ws;
+    ws.onopen = () => {
+      this.retryMs = 1_000;
+      this.heartbeat = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) ws.send("ping");
+      }, HEARTBEAT_MS);
+    };
+    ws.onclose = (evt) => {
+      clearInterval(this.heartbeat);
+      if (this.stopped || this.ws !== ws) return;
+      if (evt.code === SESSION_CLOSED) {
+        this.stopped = true;
+        this.handlers.onSessionClosed?.();
+        return;
+      }
+      this.retry = setTimeout(() => this.connect(), this.retryMs);
+      this.retryMs = Math.min(this.retryMs * 2, RETRY_MAX_MS);
+    };
+    ws.onmessage = (evt) => {
+      let msg: { type: string; server_key_id?: string; projects?: { id: string; hash: string }[] };
       try {
         msg = JSON.parse(evt.data as string);
       } catch {
         return;
       }
-      if (msg.type === "draft_update" && msg.project_id && msg.menu_id && msg.menu_yaml != null) {
-        this.handlers.onDraftUpdate?.(
-          msg.project_id,
-          msg.menu_id,
-          msg.menu_yaml,
-          msg.updated_by ?? "",
-        );
-      } else if (msg.type === "sync_divergence" && msg.project_id) {
-        this.handlers.onSyncDivergence?.(msg.project_id);
-      } else if (msg.type === "divergence_resolved" && msg.project_id) {
-        this.handlers.onDivergenceResolved?.(msg.project_id);
-      } else if (msg.type === "project_renamed" && msg.server_key_id && msg.project_id && msg.previous_disk_id && msg.disk_id) {
-        this.handlers.onProjectRenamed?.({ serverKeyId: msg.server_key_id, projectId: msg.project_id, previousDiskId: msg.previous_disk_id, diskId: msg.disk_id });
-      } else if (msg.type === "projects_reloaded" && msg.server_key_id) {
+      if (msg.type === "projects_reloaded" && msg.server_key_id) {
         this.handlers.onProjectsReloaded?.(msg.server_key_id, msg.projects ?? []);
       }
     };
   }
 
-  static async connectAsUser(
-    apiUrl: string,
-    handlers: DraftUpdateHandler | EditorWsHandlers,
-  ): Promise<EditorWs> {
-    const res = await fetch(`${apiUrl}/api/v1/user/ws-ticket`, {
-      method: "POST",
-      credentials: "include",
-    });
-    if (!res.ok) throw new Error(`Failed to obtain WS ticket (${res.status})`);
-    const { ticket } = (await res.json()) as { ticket: string };
-    const normalized: EditorWsHandlers =
-      typeof handlers === "function" ? { onDraftUpdate: handlers } : handlers;
-    return new EditorWs(ticket, normalized);
-  }
-
   disconnect(): void {
+    this.stopped = true;
+    clearInterval(this.heartbeat);
+    clearTimeout(this.retry);
     this.ws?.close();
     this.ws = null;
   }

@@ -1,47 +1,80 @@
+import { IconTile } from "@/components/ui/icon-tile";
+import type { ElementId, ProjectId } from "@/domain/types";
+import type { Project } from "@/domain/types";
+import { goToDocument } from "@/features/project/goToDocument";
+import {
+  indexProjectDocuments,
+  namespaceOf,
+  toSearchEntries,
+} from "@/features/serverIndex/serverIndex";
+import { serverIndexScope, useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { type KindAppearance, kindAppearance } from "@/lib/documentKindAppearance";
+import { contributionLabel } from "@/lib/moduleDocumentKinds";
+import { useProjectsStore } from "@/state/projectsStore";
+import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
+import { documentKindContribution } from "@artisan/editor-sdk";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { LayoutGrid, MessageSquare, Search, TerminalSquare } from "lucide-react";
-import type { ElementId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
-import { useUiStore } from "@/state/uiStore";
-import { useSelectionStore } from "@/state/selectionStore";
-import { buildSearchIndex, groupResultsForDisplay, searchQuery, type SearchEntry, type SearchGroup } from "./searchIndex";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
-import { goToDocument } from "@/features/project/goToDocument";
-import { indexProjectDocuments, namespaceOf, toSearchEntries } from "@/features/serverIndex/serverIndex";
-import { serverIndexScope, useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
-import type { Project } from "@/domain/types";
+import {
+  type SearchEntry,
+  type SearchGroup,
+  buildSearchIndex,
+  groupResultsForDisplay,
+  searchQuery,
+} from "./searchIndex";
 
 const NO_PROJECTS: Project[] = [];
 
-const GROUP_ICON: Record<SearchGroup, typeof Search> = {
-  menu: LayoutGrid, command: TerminalSquare, dialog: MessageSquare, content: Search,
+const GROUP_LABEL: Record<string, string> = {
+  menu: "search.groupMenu",
+  command: "search.groupCommand",
+  dialog: "search.groupDialog",
+  content: "search.groupContent",
 };
-const GROUP_LABEL: Record<SearchGroup, string> = {
-  menu: "search.groupMenu", command: "search.groupCommand", dialog: "search.groupDialog", content: "search.groupContent",
-};
+/** A Document's row wears its kind's tile; a text match stays neutral. */
+function groupAppearance(group: SearchGroup): KindAppearance {
+  if (group === "content")
+    return { icon: Search, fg: "var(--text-faint)", soft: "transparent", line: "transparent" };
+  return kindAppearance(group);
+}
+function groupLabel(group: SearchGroup, t: TFunction): string {
+  const key = GROUP_LABEL[group];
+  if (key) return t(key);
+  return contributionLabel(
+    documentKindContribution(group),
+    group,
+    t,
+    useUiStore.getState().editorLang,
+  );
+}
 
 export function SearchPalette({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const params = useParams({ strict: false }) as { networkId?: string; serverId?: string };
+  const params = useParams({ strict: false }) as { serverId?: string };
   const open = useUiStore((s) => s.searchOpen);
   const setOpen = useUiStore((s) => s.setSearchOpen);
   const activeLang = useUiStore((s) => s.activeLang);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeRowRef = useRef<HTMLButtonElement>(null);
 
-  const scope = params.networkId && params.serverId ? serverIndexScope(params.networkId, params.serverId) : null;
+  const scope = params.serverId ? serverIndexScope(params.serverId) : null;
   const serverProjects = useServerIndexStore((s) => (s.scope === scope ? s.projects : NO_PROJECTS));
   const editedNamespace = project ? namespaceOf(project) : projectId;
-
-  const index = useMemo(() => (project ? buildSearchIndex(project, activeLang) : []), [project, activeLang]);
-  // Les autres projects du serveur : leurs Documents seulement (pas leur contenu).
-  // Le project édité est déjà indexé en détail, et en direct — jamais en double.
+  const index = useMemo(
+    () => (project ? buildSearchIndex(project, activeLang) : []),
+    [project, activeLang],
+  );
+  // The server's other projects: their Documents only (not their content).
+  // The edited project is already indexed in detail, and live — never twice.
   const remote = useMemo(
     () =>
       toSearchEntries(
@@ -63,44 +96,68 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new query is the reset trigger for the highlighted row
   useEffect(() => setActive(0), [q]);
-  useEffect(() => { activeRowRef.current?.scrollIntoView?.({ block: "nearest" }); }, [active]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `active` moves which row holds activeRowRef; the ref itself is stable
+  useEffect(() => {
+    activeRowRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [active]);
 
   if (!open) return null;
 
   const choose = (entry: SearchEntry | undefined) => {
     if (!entry) return;
-    // Un Document d'un autre project s'ouvre centré sur sa planche (`?doc=`) ;
-    // un Document de ce project centre la planche courante.
+    // A Document from another project opens centered on its board (`?doc=`); a
+    // Document from this project centers the current board.
     goToDocument(navigate, {
-      networkId: params.networkId,
       serverId: params.serverId,
       project: project ?? { id: projectId },
       ref: entry.target.projectUrlId
         ? `${entry.target.projectUrlId}:${entry.target.openId}`
         : entry.target.openId,
+      kind: entry.target.kind,
     });
     if (entry.target.selectId) {
       // `openId` is the owning menu — scope the element selection to it so a
       // shared element id doesn't resolve to the wrong menu.
       useSelectionStore
         .getState()
-        .set([entry.target.selectId as ElementId], entry.target.focusedSlot ?? null, entry.target.openId);
+        .set(
+          [entry.target.selectId as ElementId],
+          entry.target.focusedSlot ?? null,
+          entry.target.openId,
+        );
     }
     setOpen(false);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") { setOpen(false); return; }
-    if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(results.length - 1, i + 1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(0, i - 1)); }
-    else if (e.key === "Enter") { e.preventDefault(); choose(results[active]); }
+    if (e.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((i) => Math.min(results.length - 1, i + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((i) => Math.max(0, i - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      choose(results[active]);
+    }
   };
 
   let lastGroup: SearchGroup | null = null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[12vh]" onClick={() => setOpen(false)}>
+    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click-to-dismiss is a mouse convenience; keyboard users close with Escape from the combobox
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[12vh]"
+      onClick={() => setOpen(false)}
+    >
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: only stops backdrop dismissal from mouse clicks inside the panel; no action to mirror on keyboard */}
+      {/* biome-ignore lint/a11y/useSemanticElements: a native <dialog> brings UA positioning/top-layer styles that conflict with this overlay layout */}
       <div
         role="dialog"
         aria-modal="true"
@@ -125,7 +182,13 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
             className="h-12 flex-1 bg-transparent text-[14px] text-[var(--text)] outline-none placeholder:text-[var(--text-faint)]"
           />
         </div>
-        <div id="search-results" role="listbox" className="max-h-[50vh] overflow-auto py-1">
+        <div
+          id="search-results"
+          // biome-ignore lint/a11y/useSemanticElements: ARIA combobox listbox with rich rows (icons, MiniMessage, group headers) — a native <select> cannot render them
+          role="listbox"
+          tabIndex={-1}
+          className="max-h-[50vh] overflow-auto py-1"
+        >
           {results.length === 0 ? (
             <div className="px-4 py-6 text-center text-[13px] text-[var(--text-faint)]">
               {q.trim() ? t("search.empty") : t("search.placeholder")}
@@ -134,27 +197,28 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
             results.map((r, i) => {
               const header = r.group !== lastGroup ? r.group : null;
               lastGroup = r.group;
-              const Icon = GROUP_ICON[r.group];
+              const look = groupAppearance(r.group);
               return (
                 <div key={r.id}>
                   {header && (
-                    <div className="px-3 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-                      {t(GROUP_LABEL[header])}
-                    </div>
+                    <div className="section-label px-3 pt-2.5 pb-1">{groupLabel(header, t)}</div>
                   )}
                   <button
                     type="button"
                     ref={i === active ? activeRowRef : undefined}
                     id={`search-opt-${r.id}`}
+                    // biome-ignore lint/a11y/useSemanticElements: rich option row inside an ARIA listbox; a native <option> cannot hold icons or styled text
                     role="option"
                     aria-selected={i === active}
                     onMouseEnter={() => setActive(i)}
                     onClick={() => choose(r)}
                     className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] ${
-                      i === active ? "bg-[var(--brand-soft)] text-[var(--text)]" : "text-[var(--text-mut)]"
+                      i === active
+                        ? "bg-[var(--brand-soft)] text-[var(--text)]"
+                        : "text-[var(--text-mut)]"
                     }`}
                   >
-                    <Icon className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+                    <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
                     <MiniMessageInline source={r.label} className="flex-1 truncate" />
                     {r.context && (
                       <span className="shrink-0 truncate text-[11px] text-[var(--text-faint)]">

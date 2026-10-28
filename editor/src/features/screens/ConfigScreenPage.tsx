@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MODULE_MANIFEST } from "@/distribution/modules.manifest";
-import { getModule, registerModule } from "@artisan/editor-sdk";
 import { useTextureInit } from "@/features/canvas/useTextureInit";
 import { ConfigValueForm, SourceRowsTable } from "@/features/data/SourceValueEditor";
 import {
@@ -13,12 +12,15 @@ import {
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
 import { readProjectFiles } from "@/lib/api/projectFiles";
 import { cx } from "@/lib/cx";
+import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { STALE_NOTICE_DELAY_MS, useSettledFlag } from "@/lib/useSettledFlag";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { screenCacheKey, useScreenCacheStore } from "@/state/screenCacheStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
+import { getModule } from "@artisan/editor-sdk";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ModuleScreenView } from "./ModuleScreenView";
 import { YamlFileEditor, yamlErrorsOf } from "./YamlFileEditor";
 import { resolveScreen } from "./screenList";
 import {
@@ -33,30 +35,28 @@ type Phase = "loading" | "offline" | "error" | "ready";
 /**
  * Generic module Config screen (ADR module-config-screens): reads the table's
  * files live from the server over the WS relay, edits a scratch working copy
- * in the account store (reusing the core form generator), writes back over the
+ * in the projects store (reusing the core form generator), writes back over the
  * same relay. Greyed out while the server is offline — the disk is the truth.
  */
 export function ConfigScreenPage({
-  networkId,
   serverId,
   screenId,
 }: {
-  networkId: string;
   serverId: string;
   screenId: string;
 }) {
   const { t } = useTranslation();
   const declared = useServerScreensStore((s) => s.screens);
-  const localProjects = useAccountStore((s) => s.account.projects);
-  const removeProject = useAccountStore((s) => s.removeProject);
+  const localProjects = useProjectsStore((s) => s.openProjects.projects);
+  const removeProject = useProjectsStore((s) => s.removeProject);
 
   const screen = useMemo(
     () => resolveScreen(screenId, declared, localProjects),
     [screenId, declared, localProjects],
   );
   const scratchId = screen ? screenScratchId(screen.id) : null;
-  const scratch = useAccountStore((s) =>
-    scratchId ? s.account.projects.find((p) => p.id === scratchId) : undefined,
+  const scratch = useProjectsStore((s) =>
+    scratchId ? s.openProjects.projects.find((p) => p.id === scratchId) : undefined,
   );
 
   // The screen edits a module-owned project without opening its canvas — load
@@ -66,18 +66,17 @@ export function ConfigScreenPage({
 
   const [phase, setPhase] = useState<Phase>("loading");
   /**
-   * L'écran montre la dernière version connue pendant que le serveur répond.
-   * Elle est DATÉE : on l'affiche, on le dit, et on n'ouvre pas l'édition —
-   * enregistrer depuis une base périmée ferait partir le compare-and-swap sur
-   * ce qui n'est plus là.
+   * The screen shows the last known version while the server answers. It is
+   * DATED: show it, say so, and do not open editing — saving from a stale base
+   * would send the compare-and-swap against what is no longer there.
    */
   const [stale, setStale] = useState(false);
-  // Différé : le bandeau ne sert que si l'attente dure. Voir `useSettledFlag`.
+  // Deferred: the banner is only useful if the wait lasts. See `useSettledFlag`.
   const [errorCode, setErrorCode] = useState<ConfigErrorCode | null>(null);
-  // Une revalidation en vol se résoudra d'elle-même : on n'en parle que si elle
-  // s'éternise. Un échec, lui, laisse l'écran daté ET l'édition fermée sans
-  // terme — il s'annonce sans attendre, sinon rien n'explique pourquoi on ne
-  // peut plus enregistrer.
+  // A revalidation in flight will resolve on its own: only mention it if it
+  // drags on. A failure leaves the screen dated AND editing closed
+  // indefinitely — it is announced right away, otherwise nothing explains why
+  // saving is no longer possible.
   const revalidating = useSettledFlag(stale && errorCode === null, STALE_NOTICE_DELAY_MS);
   const staleSettled = (stale && errorCode !== null) || revalidating;
   const [original, setOriginal] = useState<ConfigFile[]>([]);
@@ -94,22 +93,23 @@ export function ConfigScreenPage({
   // rewrite must not be mistaken for an edit: opening a screen changes nothing.
   const [baselineEmit, setBaselineEmit] = useState<Map<string, string>>(new Map());
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `screen` is re-memoized whenever the open projects change, which `upsertScratchProject` below does — depending on the object would refetch in a loop; only the screen's identity (id/projectId/table) must reload
   const load = useCallback(async () => {
     if (!screen) return;
     // A declared screen can open before the presence-driven lazy loader finishes.
     const entry = MODULE_MANIFEST.find((entry) => entry.id === screen.moduleId);
     if (entry && !getModule(entry.id)) {
       const module = await entry.load();
-      if (!getModule(entry.id)) registerModule(module);
+      registerEditorModule(module);
     }
     setErrorCode(null);
-    const cacheKey = screenCacheKey(networkId, serverId, screen.id);
+    const cacheKey = screenCacheKey(serverId, screen.id);
     const known = useScreenCacheStore.getState().get(cacheKey);
     if (known) {
-      // Rien à attendre : tout ce qu'il faut pour rendre l'écran a été rangé à
-      // la visite précédente, modèles déclarés compris.
+      // Nothing to wait for: everything needed to render the screen was stored on
+      // the previous visit, declared models included.
       const fromCache = buildScratchProject(screen, known.files, known.models as never);
-      useAccountStore.getState().upsertScratchProject(fromCache);
+      useProjectsStore.getState().upsertScratchProject(fromCache);
       setDeclaredModels(known.models as never);
       setOriginal(known.files);
       setDraft(null);
@@ -123,18 +123,18 @@ export function ConfigScreenPage({
     // the data file — read it too, or the form opens untyped. Absent (a
     // module-declared table types itself from the declaration) is not an error.
     const [models, res, beside, context] = await Promise.all([
-      fetchServerDeclaredModels(networkId, serverId),
-      configRead(networkId, serverId, { projectId: screen.projectId, table: screen.table }),
-      configRead(networkId, serverId, {
+      fetchServerDeclaredModels(serverId),
+      configRead(serverId, { projectId: screen.projectId, table: screen.table }),
+      configRead(serverId, {
         projectId: screen.projectId,
         table: besideModelPath(screen.table),
       }),
-      readProjectFiles(networkId, serverId, screen.projectId),
+      readProjectFiles({ serverId, diskId: screen.projectId }),
     ]);
     if (!res.ok) {
       setErrorCode(res.error);
-      // Une copie datée à l'écran vaut mieux qu'un écran d'erreur — mais elle
-      // reste datée, et l'édition reste fermée.
+      // A dated copy on screen beats an error screen — but it stays dated, and
+      // editing stays closed.
       if (!known) setPhase(res.error === "server_offline" ? "offline" : "error");
       return;
     }
@@ -147,7 +147,7 @@ export function ConfigScreenPage({
         : [];
     setItemContext(contextFiles);
     const project = buildScratchProject(screen, files, models, contextFiles);
-    useAccountStore.getState().upsertScratchProject(project);
+    useProjectsStore.getState().upsertScratchProject(project);
     setDeclaredModels(models);
     setBaselineEmit(
       new Map(diffScratchForWrite(project, screen, files).files.map((f) => [f.path, f.content])),
@@ -162,8 +162,7 @@ export function ConfigScreenPage({
     });
     setStale(false);
     setPhase("ready");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [networkId, serverId, screen?.id, screen?.projectId, screen?.table]);
+  }, [serverId, screen?.id, screen?.projectId, screen?.table]);
 
   useEffect(() => {
     void load();
@@ -174,8 +173,7 @@ export function ConfigScreenPage({
   useEffect(() => {
     if (!scratchId) return;
     return () => removeProject(scratchId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scratchId]);
+  }, [scratchId, removeProject]);
 
   // Text mode owns the truth while it is being typed; the form's serialization
   // takes over as soon as the text is valid and adopted back into the scratch.
@@ -184,7 +182,7 @@ export function ConfigScreenPage({
   const diff = useMemo(() => {
     if (!screen || phase !== "ready") return null;
     if (draft) {
-      // Canonicalisation immédiate: the typed text is parsed into the domain
+      // Immediate canonicalisation: the typed text is parsed into the domain
       // and re-emitted by the writer — unless it does not parse, in which case
       // the text itself is what we save (it is the admin's file).
       if (yamlErrors.length > 0) {
@@ -221,7 +219,7 @@ export function ConfigScreenPage({
     if (!screen || !scratch || !diff || !dirty) return;
     setSaving(true);
     try {
-      const res = await configWrite(networkId, serverId, {
+      const res = await configWrite(serverId, {
         projectId: screen.projectId,
         files: diff.files,
         deletes: diff.deletes,
@@ -239,7 +237,7 @@ export function ConfigScreenPage({
     } finally {
       setSaving(false);
     }
-  }, [networkId, serverId, screen, scratch, diff, dirty, original]);
+  }, [serverId, screen, scratch, diff, dirty, original]);
 
   if (!screen) {
     return (
@@ -252,6 +250,11 @@ export function ConfigScreenPage({
   const source = scratch?.dataSources.find(
     (d) => (d.id as string) === screen.table.split("/").pop(),
   );
+  // The module's own view when it ships one for this screen; otherwise the generated form.
+  const moduleView =
+    screen.component && screen.moduleId
+      ? getModule(screen.moduleId)?.screens?.[screen.component]
+      : undefined;
 
   return (
     <main
@@ -274,7 +277,7 @@ export function ConfigScreenPage({
                 onClick={() => {
                   if (draft && yamlErrors.length === 0 && screen) {
                     const rebuilt = buildScratchProject(screen, draft, declaredModels, itemContext);
-                    useAccountStore.getState().upsertScratchProject(rebuilt);
+                    useProjectsStore.getState().upsertScratchProject(rebuilt);
                     setDraft(null);
                   }
                   setMode("form");
@@ -352,7 +355,14 @@ export function ConfigScreenPage({
         mode === "form" &&
         scratch &&
         (source ? (
-          source.shape === "table" ? (
+          moduleView ? (
+            <ModuleScreenView
+              view={moduleView}
+              projectId={scratch.id}
+              source={source}
+              readOnly={stale}
+            />
+          ) : source.shape === "table" ? (
             <SourceRowsTable projectId={scratch.id} project={scratch} source={source} />
           ) : (
             <ConfigValueForm projectId={scratch.id} project={scratch} source={source} />

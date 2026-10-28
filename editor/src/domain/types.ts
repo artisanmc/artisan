@@ -1,19 +1,16 @@
 /**
- * Domain types for the Artisan editor scaffold.
+ * Domain types for the Artisan editor.
  *
- * - References (open_menu, source ref, i18n key) may dangle: a target id
- *   that doesn't resolve at runtime is a no-op (or the plugin surfaces an
- *   error to the player). The editor doesn't enforce hermeticity — projects
- *   can freely reference each other or have stale ids.
- * - "Element" is the canonical name (per main-spec §8.1); the old "Slot" name
- *   from the prior proto is dropped.
+ * References (open_menu, source ref, i18n key) may dangle: a target id that
+ * doesn't resolve at runtime is a no-op (or the plugin surfaces an error to
+ * the player). The editor doesn't enforce hermeticity — projects can freely
+ * reference each other or have stale ids.
  */
 
 import type { ItemEnchant, ItemHideFlag } from "./itemAdvanced";
 
 export type { ItemEnchant, ItemHideFlag };
 
-export type AccountId = string & { __brand: "AccountId" };
 export type ProjectId = string & { __brand: "ProjectId" };
 export type MenuId = string & { __brand: "MenuId" };
 export type CommandId = string & { __brand: "CommandId" };
@@ -43,8 +40,8 @@ export interface LText {
 }
 
 /**
- * Discrete font heights for `text` and `textarea` title layers. The backend
- * bakes one resource-pack font variant per (Y, size) pair. Restricted to
+ * Discrete font heights for `text` and `textarea` title layers. One
+ * resource-pack font variant is baked per (Y, size) pair. Restricted to
  * vanilla and upscale multiples — downscale (h<8) was dropped because
  * nearest-neighbor downsampling renders ASCII glyphs illegible and MC's
  * 1-pixel bold offset becomes visually dominant. Default 8 = vanilla.
@@ -90,8 +87,7 @@ export type MenuTitleLayer =
 
 export type ProjectSource = "user_created" | "imported" | "forked";
 
-export interface Account {
-  id: AccountId;
+export interface OpenProjects {
   projects: Project[];
   projectOrder: ProjectId[];
 }
@@ -105,10 +101,22 @@ export interface EdgeAnchor {
   t: number;
 }
 
+/**
+ * A frame on a module's board: one top-level themed folder and every Document
+ * filed under it, at any depth. Derived from `Document.folder` and
+ * `Project.folders` (`domain/canvasGroups.ts`), never stored.
+ */
+/** What the editor remembers about a themed folder (`Project.folders`). */
+export interface FolderMeta {
+  color?: string;
+  position?: { x: number; y: number };
+}
+
 export interface CanvasGroup {
+  /** The top-level folder's name, also what the frame shows. */
   id: string;
   name: string;
-  /** Any Document id in the project — menus, commands and dialogs alike. */
+  /** The key (`docKey`) of each Document it holds, whatever its kind. */
   nodeIds: string[];
   color?: string;
   position?: { x: number; y: number };
@@ -117,12 +125,12 @@ export interface CanvasGroup {
 export interface Project {
   id: ProjectId;
   /**
-   * L'id que le SERVEUR propriétaire utilise sur disque et sur le fil — le nom
-   * du dossier `plugins/Artisan/projects/<diskId>/`, donc le préfixe de toutes
-   * les clés de `files`. Unique par serveur seulement : un Add-on bootstrappe
-   * le même (`boutique_shop`) sur chaque serveur qui l'installe. Diffère de
-   * `id` (unique plateforme) quand un autre serveur détenait déjà cet id
-   * disque. Absent = identique à `id`.
+   * The id the owning SERVER uses on disk and on the wire — the name of the
+   * `plugins/Artisan/projects/<diskId>/` folder, hence the prefix of every key
+   * of `files`. Unique per server only: an Add-on bootstraps the same one
+   * (`boutique_shop`) on every server that installs it. Differs from `id`
+   * (platform-unique) when another server already held that disk id.
+   * Absent = same as `id`.
    */
   diskId?: string;
   name: string;
@@ -133,8 +141,13 @@ export interface Project {
   serverKeyId?: string;
   createdAt: string;
   updatedAt: string;
-  menus: Menu[];
-  commands: Command[];
+  /**
+   * Every Document of the project, by kind ("menu", "command", "dialog", a
+   * module's kind…) — the only store (ADR `extensible-document-kinds`,
+   * decision 10). Read through `domain/documents.ts` (`menusOf`,
+   * `documentsOf`); the kinds themselves are `domain/documentKinds.ts`.
+   */
+  documents: Record<string, Document[]>;
   /** Captured items — serialized game ItemStacks + display descriptors (optional on older projects). */
   capturedItems?: CapturedItem[];
   assets: Asset[];
@@ -142,10 +155,10 @@ export interface Project {
   /** Declared data shapes for Project sources (optional: absent on older stored projects = []). */
   dataModels?: DataModel[];
   /**
-   * @deprecated Dead since 2026-07-17 — the early "import connector YAML" flow
-   * was superseded by server-reported data sources (+ snapshots + module-local
-   * rows). Field kept optional so previously stored projects still parse;
-   * nothing reads or writes it anymore.
+   * @deprecated The early "import connector YAML" flow was superseded by
+   * server-reported data sources (+ snapshots + module-local rows). Field kept
+   * optional so previously stored projects still parse; nothing reads or
+   * writes it anymore.
    */
   importedConnectors?: ConnectorSpec[];
   i18nKeys: Record<I18nKey, Record<string, string>>;
@@ -155,20 +168,19 @@ export interface Project {
   /** Manifest `escape_goes_back`: ESC in a menu reopens the previous screen instead of closing. */
   escapeGoesBack?: boolean;
   /**
-   * How texts land on disk (ADR `files-first-source-of-truth` §4). `extract`
-   * (default, and what absent means) keeps `{i18n:key}` refs in the documents
-   * with every language in `lang/`; `inline` writes the default language's
-   * literal where it is read and keeps only the other languages in `lang/`,
-   * addressed by key site. Editor-only choice, persisted in
-   * `.artisan/editor.yaml` — both shapes are valid input for the plugin.
+   * Board position of each document, keyed by `<kind>/<id>` (`docKey`): an id is unique
+   * within its kind only.
    */
-  i18nMode?: "extract" | "inline";
-  dialogs: Dialog[];
-  canvasLayout: Record<MenuId | CommandId | DialogId, { x: number; y: number }>;
-  /** Visual-only groups, one level inside the project; stored in .artisan/editor.yaml. */
-  canvasGroups?: CanvasGroup[];
+  canvasLayout: Record<`${string}/${string}`, { x: number; y: number }>;
   /**
-   * Manual edge-endpoint overrides, keyed by edge id ("source->target").
+   * Editor metadata of themed folders, keyed by folder path (`boutique`,
+   * `boutique/armes`): a top-level folder's frame color and position, and the
+   * folders that hold no Document yet. Which Documents a folder holds is
+   * `Document.folder`. Stored in `.artisan/editor.yaml`.
+   */
+  folders?: Record<string, FolderMeta>;
+  /**
+   * Manual edge-endpoint overrides, keyed by edge id ("source->target", each end a `docKey`).
    * Editor-only metadata — exported as manifest `editor_edges`.
    */
   canvasEdges?: Record<string, { from?: EdgeAnchor; to?: EdgeAnchor }>;
@@ -176,10 +188,23 @@ export interface Project {
    * Per-module opaque state, keyed by module id (e.g. "boutique"). Owned by
    * the module's editor package; the host never interprets it. Round-trips
    * through editorJson. Modules derive their exportFiles() output from here.
-   * Backend file-import seeds `{ __files: Record<relPath, content> }` for
+   * File import seeds `{ __files: Record<relPath, content> }` for
    * unrecognized project dirs; modules normalize that on first read.
    */
   moduleData?: Record<string, unknown>;
+  /**
+   * Document-shaped files the layout refused (duplicate id, subfolder of a kind
+   * folder…; `domain/documentLayout.ts`), keyed by path relative to the module.
+   * Never read, written back verbatim so a save loses nothing.
+   */
+  unreadFiles?: Record<string, string>;
+  /**
+   * Keys of `lang/` that no Document or data source of the module read at import:
+   * an add-on's messages (ArtisanAuctions, a bundle `inFolder`), an admin's own keys.
+   * Written back from `i18nKeys` at each export, so a save keeps them; one removed
+   * from `i18nKeys` (Translations) goes, one a site owns by then is the site's.
+   */
+  keptLangKeys?: string[];
   /**
    * Owning Add-on module id (from `manifest.module`) when this is an Add-on's
    * dedicated project — drives the sidebar "Installed modules" grouping and is
@@ -187,6 +212,9 @@ export interface Project {
    */
   ownerModule?: string;
 }
+
+/** One editable unit of a Project, whatever its kind. A module's kind adds its own member. */
+export type Document = Menu | Command | Dialog;
 
 /** Container shape of a menu. Absent in stored data = "chest" (back-compat). */
 export type InventoryType = "chest" | "hopper" | "dropper";
@@ -201,6 +229,11 @@ export type PlayerInventoryMode = "visible" | "hidden";
 export interface Menu {
   id: MenuId;
   projectId: ProjectId;
+  /**
+   * Themed folder holding the file, `/`-separated (`boutique/armes`); absent at
+   * the module root. Not part of the id: moving changes no reference.
+   */
+  folder?: string;
   title: MenuTitleLayer[];
   rows: 1 | 2 | 3 | 4 | 5 | 6;
   /**
@@ -338,7 +371,7 @@ export interface Appearance {
   lore?: LText | null;
   loreMode?: "replace";
   click?: ClickMap;
-  // ── advanced details (see domain/itemAdvanced.ts for the wire form) ───────
+  // Advanced details (see domain/itemAdvanced.ts for the wire form)
   enchants?: ItemEnchant[];
   /** Glint with no real enchantment. Redundant — and dropped — when `enchants` is set. */
   enchanted?: boolean;
@@ -390,102 +423,21 @@ export interface IfCase {
   steps: Step[];
 }
 
-export type Action =
-  | {
-      type: "open_menu";
-      menuId: MenuId;
-      clearContext?: boolean;
-      /**
-       * Values passed to the target menu's contextInputs when it opens.
-       * Keys are the target input names; values are template strings
-       * that may reference placeholders from the caller scope (e.g.
-       * `{player}`, `{quest.name}`).
-       */
-      context?: Record<string, string>;
-    }
-  | { type: "close_menu" }
-  /**
-   * Re-open the previous screen from the player's navigation history — the back
-   * button. Consumes the history (menu → wiki → item: two backs return to the
-   * menu, never bounce between item and wiki). No-op when there is no previous
-   * screen; guard the button with `has_previous_menu`.
-   */
-  | { type: "open_previous_menu" }
-  | { type: "run_command"; command: string; as: "player" | "console" }
-  | { type: "send_message"; text: LText }
-  /**
-   * Display a Minecraft HUD title (and optional subtitle) to the
-   * triggering player. Mirrors Adventure's `Audience.showTitle(Title)`.
-   * `title` and `subtitle` are LText refs so they translate per-player;
-   * timings are ticks (50ms each). Defaults match Adventure: 10/70/20.
-   */
-  | {
-      type: "show_title";
-      title: LText;
-      subtitle?: LText;
-      fadeIn?: number;
-      stay?: number;
-      fadeOut?: number;
-    }
-  | { type: "give_item"; material: string; count: number }
-  | { type: "take_item"; material: string; count: number }
-  | { type: "take_money"; amount: number }
-  | { type: "give_money"; amount: number }
-  | { type: "give_xp"; amount: number }
-  | { type: "give_level"; amount: number }
-  /** Broadcast to every online player (vs send_message → triggering player only). */
-  | { type: "broadcast"; text: LText }
-  /** Play a sound to the triggering player. `sound` is a Bukkit Sound name. */
-  | { type: "play_sound"; sound: string; volume?: number; pitch?: number }
-  /** Teleport to coordinates. */
-  | {
-      type: "teleport";
-      world: string;
-      x: number;
-      y: number;
-      z: number;
-      yaw?: number;
-      pitch?: number;
-    }
-  /**
-   * Advance pagination of an iterating element. If `targetElementId` is
-   * unset the runtime paginates every iterating element in the current
-   * menu (handy for a single "Next page" button when there's only one
-   * list). With it set, only that element's pagination flips — useful
-   * when a menu has several iterables, each with its own pager.
-   */
-  | { type: "paginate"; direction: "next" | "prev"; targetElementId?: ElementId }
-  /**
-   * Mutate a context input of the current menu. `value` is an Expression
-   * (DSL). After the mutation, the runtime triggers a re-render of the
-   * current menu. `arg` MUST match an existing Menu.contextInputs[*].name.
-   */
-  | { type: "set_arg"; arg: string; value: string }
-  /**
-   * Cycle a context input through a list. `list` is an Expression
-   * evaluating to a list. The runtime finds the current value's index
-   * (looseEq), advances by ±1 wrapping at endpoints, and writes the
-   * new value to contextInput[arg]. Then triggers re-render.
-   *
-   * If `arg` is unknown or `list` doesn't evaluate to a non-empty list,
-   * the action is a no-op (warn-logged).
-   */
-  | { type: "set_arg_cycle_next"; arg: string; list: string }
-  | { type: "set_arg_cycle_prev"; arg: string; list: string }
-  | {
-      type: "open_dialog";
-      dialogId: DialogId;
-      context?: Record<string, string>;
-      clearContext?: boolean;
-    }
-  | { type: "close_dialog" }
-  /**
-   * Invoke an Action chain stored on a Data source `actions` field. `actions`
-   * is an Expression resolving to the chain (a table row's field or a config
-   * value); it runs inline with the resolved-from object as self-scope, depth
-   * capped at 16. Cf. ADR `action-dsl`.
-   */
-  | { type: "run_actions"; actions: string };
+/**
+ * An action step, as the wire carries it (ADR `structured-action-wire`, `extensible-document-kinds`
+ * R1/W4): `name` is its wire key (`open_menu`, `quests:start`), `value` its wire value in the
+ * canonical form (null for no argument, the primary argument's value alone, or an argument
+ * map), with one difference: a text argument (`ltext`, an entry of a `list(ltext)`) is an
+ * {@link LText} node once adopted. The vocabulary lives in the declarations — Artisan's own in
+ * `testdata/core-actions.json` (`lib/actions/coreActions.ts`), a module's in the server's
+ * `declared_actions` — and every reader goes through them (`domain/actionArgs.ts`): the form,
+ * the pseudocode, the i18n slots, the `document_ref` edges. An undeclared action is kept
+ * verbatim; the plugin binds and runs it through the action registry.
+ */
+export interface Action {
+  name: string;
+  value: unknown;
+}
 
 export type Condition =
   | { type: "has_permission"; perm: string }
@@ -517,27 +469,59 @@ export type Condition =
   | { type: "and"; of: Condition[] }
   | { type: "or"; of: Condition[] }
   /**
-   * Free-form boolean expression evaluated via the DSL (cf.
-   * web/src/lib/expr/). Used when typed conditions don't fit, e.g.
-   * comparisons with operators other than == or against runtime
-   * iteration fields.
+   * Free-form boolean expression evaluated via the DSL (cf. src/lib/expr/).
+   * Used when typed conditions don't fit, e.g. comparisons with operators
+   * other than == or against runtime iteration fields.
    */
   | { type: "expression"; expr: string };
 
-export interface Command {
-  id: CommandId;
-  projectId: ProjectId;
+/**
+ * What a command and each of its sub-commands carry (`command/v1`, and each node of its
+ * `subcommands`). A sub-command is typed after its parent's name, before its own
+ * arguments: `/ah sell 100`.
+ */
+export interface CommandNode {
   name: string;
   aliases?: string[];
   permission?: string;
-  description?: string;
+  /** Shown in the server's command list, per language. */
+  description?: LText;
+  /** `false`: a command is not registered, a sub-command does not exist. Absent: on. */
+  enabled?: boolean;
   arguments: CommandArg[];
   steps: Step[];
+  subcommands?: CommandNode[];
+  /**
+   * Keys of the node the editor does not edit yet (`requirements`, `fallback`,
+   * `cooldown`, `notes`, unknown keys), written back as read: a deploy never drops
+   * what the admin wrote by hand.
+   */
+  wire?: Record<string, unknown>;
 }
+
+export interface Command extends CommandNode {
+  id: CommandId;
+  projectId: ProjectId;
+  /**
+   * Themed folder holding the file, `/`-separated (`boutique/armes`); absent at
+   * the module root. Not part of the id: moving changes no reference.
+   */
+  folder?: string;
+}
+
+/** A sub-command by its indexes from the root: `[1, 0]` is the first child of the second. Empty: the root. */
+export type CommandNodePath = readonly number[];
 
 export interface CommandArg {
   name: string;
   type: "player" | "string" | "integer" | "number" | "boolean";
+  /**
+   * The file's own type when the editor has no control for it (`world`, `enum`,
+   * `item_material`): written back instead of [type] until the admin picks another.
+   */
+  wireType?: string;
+  /** Keys of the argument the editor does not edit (`values`, `description`), written back as read. */
+  wire?: Record<string, unknown>;
   required: boolean;
   /**
    * Reserved value `"{sender}"` on a `player` argument: omitted → bind whoever
@@ -643,7 +627,13 @@ export type ModelFieldType =
    * declares its own condition variants. Exported verbatim; the runtime side
    * treats it as opaque until evaluated through the core engine.
    */
-  | { kind: "conditions" };
+  | { kind: "conditions" }
+  /**
+   * A reference to a Document of kind `document` (`menu`, `dialog`, a module's
+   * kind), stored as its id — the type `open_menu`'s target has (ADR
+   * `extensible-document-kinds`, R3).
+   */
+  | { kind: "document_ref"; document: string };
 
 export interface UnionVariant {
   /** The tag value selecting this variant. */
@@ -654,7 +644,7 @@ export interface UnionVariant {
 export interface ModelField {
   name: string;
   type: ModelFieldType;
-  // ── presentation hints (ADR composable-data-models §7) — closed set, part
+  // Presentation hints (ADR composable-data-models §7) — closed set, part
   // of the declaration (same owner as the shape), invisible to the runtime.
   /** Display label in the generated form (fallback: the field name). */
   label?: string;
@@ -662,7 +652,7 @@ export interface ModelField {
   help?: string;
   /** Section header the field is grouped under. */
   section?: string;
-  // ── validation vocabulary (§7) — asymmetric enforcement: blocking inside
+  // Validation vocabulary (§7) — asymmetric enforcement: blocking inside
   // the generated form, surfaced-never-blocking for hand-edited files.
   required?: boolean;
   /** Prefill for fresh instances AND the `set_default` migration value. */
@@ -763,10 +753,8 @@ export type DataSource =
     };
 
 /**
- * Spec of a plugin-sourced connector. Either pushed to the editor via
- * WS at server connection (plan paid) or manually imported from a YAML
- * file generated by the Artisan plugin (plan free). Stored on the
- * project so exports ship with their connector specs.
+ * Spec of a plugin-sourced connector, stored on the project so exports ship
+ * with their connector specs.
  */
 export interface ConnectorSpec {
   /** Stable namespaced ref, e.g. "chestshop:items", "essentials:warps". */
@@ -779,6 +767,11 @@ export interface ConnectorSpec {
 export interface Dialog {
   id: DialogId;
   projectId: ProjectId;
+  /**
+   * Themed folder holding the file, `/`-separated (`boutique/armes`); absent at
+   * the module root. Not part of the id: moving changes no reference.
+   */
+  folder?: string;
   title: LText;
   canCloseWithEscape: boolean;
   body: DialogBody[];

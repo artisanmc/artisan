@@ -16,12 +16,14 @@ function project(canvasLayout: Record<string, { x: number; y: number }>): Projec
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      { id: MENU_A, projectId: PACK_ID, title: [], rows: 3, layers: [] },
-      { id: MENU_B, projectId: PACK_ID, title: [], rows: 3, layers: [] },
-    ],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [
+        { id: MENU_A, projectId: PACK_ID, title: [], rows: 3, layers: [] },
+        { id: MENU_B, projectId: PACK_ID, title: [], rows: 3, layers: [] },
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
@@ -44,8 +46,8 @@ describe("attachLayerAtCursor", () => {
     // (40 + 352/2, 40 + 34/2) = (216, 57). Cursor at (220, 50) → local
     // canvas (180, 10) → MC px (90, 5).
     const p = project({
-      [MENU_A]: { x: 40, y: 40 },
-      [MENU_B]: { x: 800, y: 40 },
+      [`menu/${MENU_A}`]: { x: 40, y: 40 },
+      [`menu/${MENU_B}`]: { x: 800, y: 40 },
     });
     const out = attachLayerAtCursor(p, geometry, { x: 220, y: 50 });
     expect(out).not.toBeNull();
@@ -56,8 +58,8 @@ describe("attachLayerAtCursor", () => {
 
   it("picks menu B when the cursor is far closer to its title-bar center", () => {
     const p = project({
-      [MENU_A]: { x: 40, y: 40 },
-      [MENU_B]: { x: 600, y: 40 },
+      [`menu/${MENU_A}`]: { x: 40, y: 40 },
+      [`menu/${MENU_B}`]: { x: 600, y: 40 },
     });
     // Menu B's center = (600 + 176, 40 + 17) = (776, 57). Cursor right on top.
     const out = attachLayerAtCursor(p, geometry, { x: 776, y: 57 });
@@ -68,8 +70,8 @@ describe("attachLayerAtCursor", () => {
 
   it("returns null when the cursor is farther than the threshold from every menu", () => {
     const p = project({
-      [MENU_A]: { x: 0, y: 0 },
-      [MENU_B]: { x: 0, y: 0 },
+      [`menu/${MENU_A}`]: { x: 0, y: 0 },
+      [`menu/${MENU_B}`]: { x: 0, y: 0 },
     });
     // Both menus' centers sit at (176, 17). Cursor at (900, 600) is well
     // beyond NEAREST_MENU_THRESHOLD_PX (200).
@@ -79,8 +81,8 @@ describe("attachLayerAtCursor", () => {
 
   it("respects the viewport transform (pan + scale)", () => {
     const p = project({
-      [MENU_A]: { x: 0, y: 0 },
-      [MENU_B]: { x: 600, y: 0 },
+      [`menu/${MENU_A}`]: { x: 0, y: 0 },
+      [`menu/${MENU_B}`]: { x: 600, y: 0 },
     });
     // Viewport panned by (100, 50) and scaled 2× — a screen cursor at
     // (452, 84) maps to canvas-space ((452-100)/2, (84-50)/2) = (176, 17)

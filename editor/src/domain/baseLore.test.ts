@@ -1,9 +1,10 @@
+import { menusOf } from "@/domain/documents";
 import type { Appearance, Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { normalizeBaseLore } from "./baseLore";
 
 const displayOf = (project: Project): Appearance =>
-  project.menus[0]!.layers[0]!.elements[0]!.display;
+  menusOf(project)[0]!.layers[0]!.elements[0]!.display;
 const keys = (project: Project): Record<string, Record<string, string>> =>
   project.i18nKeys as unknown as Record<string, Record<string, string>>;
 
@@ -12,16 +13,18 @@ const projectWith = (lore: { key: string }, keys: Record<string, Record<string, 
     id: "p",
     defaultLang: "en",
     i18nKeys: keys,
-    menus: [
-      {
-        id: "m",
-        layers: [
-          {
-            elements: [{ id: "e", display: { loreMode: "replace", lore }, states: [] }],
-          },
-        ],
-      },
-    ],
+    documents: {
+      menu: [
+        {
+          id: "m",
+          layers: [
+            {
+              elements: [{ id: "e", display: { loreMode: "replace", lore }, states: [] }],
+            },
+          ],
+        },
+      ],
+    },
   }) as unknown as Project;
 
 describe("base lore normalization", () => {
@@ -60,7 +63,9 @@ describe("base lore normalization", () => {
       id: "p",
       defaultLang: "en",
       i18nKeys: {},
-      menus: [],
+      documents: {
+        menu: [],
+      },
       dataSources: [
         {
           id: "categories",
@@ -97,7 +102,9 @@ describe("base lore normalization", () => {
         "sources.categories.vip.items.icon.lore": { fr: "{base.lore}", en: "{base.lore}" },
         "sources.categories.vip.items.icon.lore_2": { fr: "Rare", en: "Rare" },
       },
-      menus: [],
+      documents: {
+        menu: [],
+      },
       dataSources: [
         {
           id: "categories",
@@ -129,7 +136,7 @@ describe("base lore normalization", () => {
       extends: "item:1",
       lore: [{ key: "sources.categories.vip.items.icon.lore_2" }],
     });
-    // La ligne du token disparaît avec ses traductions ; les autres gardent les leurs.
+    // The token's line disappears with its translations; the others keep theirs.
     expect(keys(project)["sources.categories.vip.items.icon.lore"]).toBeUndefined();
     expect(keys(project)["sources.categories.vip.items.icon.lore_2"]).toEqual({
       fr: "Rare",
@@ -142,7 +149,9 @@ describe("base lore normalization", () => {
       id: "p",
       defaultLang: "fr",
       i18nKeys: { line: { fr: "{base.lore}", en: "Rare" } },
-      menus: [],
+      documents: {
+        menu: [],
+      },
       dataSources: [
         {
           id: "categories",

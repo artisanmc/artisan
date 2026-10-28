@@ -1,0 +1,21 @@
+{
+  "schema": "trigger/v1",
+  "on": "player_death",
+  "if": [
+    {
+      "not": {
+        "world_is": "arena"
+      }
+    }
+  ],
+  "do": [
+    {
+      "send_message": "<gray>Mort en <white>{event.location.x} {event.location.y} {event.location.z}</white> ({event.location.world})."
+    },
+    {
+      "set_event": {
+        "keep_level": true
+      }
+    }
+  ]
+}

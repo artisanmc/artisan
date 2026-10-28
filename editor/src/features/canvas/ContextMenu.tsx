@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { MenuId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -32,15 +32,15 @@ interface ContextMenuProps {
   onClose: () => void;
   onCopy: () => void;
   onPaste: () => void;
-  /** Clic droit sur un slot : coller les items copiés à partir de ce slot. */
+  /** Right-click on a slot: paste the copied items starting from this slot. */
   onPasteAt: (anchor: { menuId: MenuId; position: number }) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onMoveTo: (toProjectId: ProjectId) => void;
-  /** Fond du canvas : montrer les paramètres du project dans le panneau. */
+  /** Canvas background: show the project settings in the panel. */
   onOpenProjectSettings: () => void;
   onGroup?: () => void;
-  /** Absents en vue focus : créer « ici » suppose une position de planche. */
+  /** Absent in focus view: creating "here" requires a board position. */
   onCreateMenuAt?: (world: { x: number; y: number }) => void;
   onCreateCommandAt?: (world: { x: number; y: number }) => void;
   onCreateDialogAt?: (world: { x: number; y: number }) => void;
@@ -64,8 +64,11 @@ export function ContextMenu({
 }: ContextMenuProps) {
   const { t } = useTranslation();
   // Stable selector to avoid the new-array-per-render pitfall — we filter in a memo.
-  const projects = useAccountStore((s) => s.account.projects);
-  const otherProjects = useMemo(() => projects.filter((p) => p.id !== projectId), [projects, projectId]);
+  const projects = useProjectsStore((s) => s.openProjects.projects);
+  const otherProjects = useMemo(
+    () => projects.filter((p) => p.id !== projectId),
+    [projects, projectId],
+  );
 
   return (
     <DropdownMenu open={state.open} onOpenChange={(o) => !o && onClose()}>
@@ -88,7 +91,7 @@ export function ContextMenu({
             }}
           >
             {t("canvas.pasteHere")}
-            <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘V</span>
+            <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌘V</span>
           </DropdownMenuItem>
         ) : state.target.kind === "empty" ? (
           <>
@@ -125,31 +128,35 @@ export function ContextMenu({
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onPaste}>
               Paste
-              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘V</span>
+              <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌘V</span>
             </DropdownMenuItem>
           </>
         ) : (
           <>
             <DropdownMenuItem onSelect={onCopy} disabled={state.target.selectedIds.length === 0}>
               Copy
-              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘C</span>
+              <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌘C</span>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onPaste}>
               Paste
-              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘V</span>
+              <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌘V</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={onDuplicate}
               disabled={state.target.selectedIds.length === 0}
             >
               Duplicate
-              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘D</span>
+              <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌘D</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {onGroup && <DropdownMenuItem onSelect={onGroup}>{t("canvas.groups.createSelection")}</DropdownMenuItem>}
+            {onGroup && (
+              <DropdownMenuItem onSelect={onGroup}>
+                {t("canvas.groups.createSelection")}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onSelect={onDelete} disabled={state.target.selectedIds.length === 0}>
               Delete
-              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌫</span>
+              <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌫</span>
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger

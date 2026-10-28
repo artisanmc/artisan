@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Asset } from "@/domain/asset";
 import type { AssetId, I18nKey, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { LayerEditForm } from "./LayerEditForm";
 
@@ -15,6 +15,7 @@ vi.mock("@/features/assets/AssetPicker", () => ({
   AssetPicker: (props: any) =>
     props.open ? (
       <button
+        type="button"
         data-testid="asset-picker"
         data-type-filter={props.typeFilter}
         data-project-id={props.projectId}
@@ -25,15 +26,17 @@ vi.mock("@/features/assets/AssetPicker", () => ({
     ) : null,
 }));
 
-// Mock the backend API. Tests reach into the `duplicateAsset` spy.
+// Mock the assets API. Tests reach into the `duplicateAsset` spy.
 vi.mock("@/lib/api/userAssets", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api/userAssets")>("@/lib/api/userAssets");
+  const actual =
+    await vi.importActual<typeof import("@/lib/api/userAssets")>("@/lib/api/userAssets");
   return {
     ...actual,
     duplicateAsset: vi.fn(),
   };
 });
 
+import { menusOf } from "@/domain/documents";
 import { duplicateAsset } from "@/lib/api/userAssets";
 import { useAuthStore } from "@/state/authStore";
 
@@ -45,7 +48,7 @@ const A = (s: string) => s as AssetId;
 function makeAsset(id: string, name: string, overrides: Partial<Asset> = {}): Asset {
   return {
     id,
-    serverKeyId: "sk1",
+    projectId: PACK_ID,
     type: "glyph",
     name,
     width: 16,
@@ -64,9 +67,8 @@ function seedProject(
   layers: MenuTitleLayer[],
   i18nKeys: Record<string, Record<string, string>> = {},
 ) {
-  useAccountStore.setState({
-    account: {
-      id: "acc" as any,
+  useProjectsStore.setState({
+    openProjects: {
       projects: [
         {
           id: PACK_ID,
@@ -74,14 +76,16 @@ function seedProject(
           source: "user_created",
           createdAt: "",
           updatedAt: "",
-          menus: [{ id: MENU_ID, projectId: PACK_ID, title: layers, rows: 3, layers: [] }],
-          commands: [],
+          documents: {
+            menu: [{ id: MENU_ID, projectId: PACK_ID, title: layers, rows: 3, layers: [] }],
+            command: [],
+            dialog: [],
+          },
           assets: [],
           dataSources: [],
           importedConnectors: [],
           i18nKeys,
           defaultLang: "en",
-          dialogs: [],
           canvasLayout: {},
         },
       ],
@@ -118,14 +122,21 @@ describe("LayerEditForm — empty state", () => {
     });
     selectLayer(0);
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
-    expect(useAccountStore.getState().account.projects[0].menus[0].title[0].kind).toBe("text");
+    expect(menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!.kind).toBe(
+      "text",
+    );
     fireEvent.change(screen.getByTestId("textarea-width"), { target: { value: "100" } });
     fireEvent.change(container.querySelector("textarea")!, { target: { value: "Hello\nWorld" } });
-    const project = useAccountStore.getState().account.projects[0];
-    expect(project.menus[0].title[0]).toMatchObject({
-      kind: "textarea", value: { key: K("g") }, x: 8, y: 20, size: 12, width: 100,
+    const project = useProjectsStore.getState().openProjects.projects[0]!;
+    expect(menusOf(project)[0]!.title[0]).toMatchObject({
+      kind: "textarea",
+      value: { key: K("g") },
+      x: 8,
+      y: 20,
+      size: 12,
+      width: 100,
     });
-    expect(project.i18nKeys.g).toEqual({ en: "Hello\nWorld", fr: "Bonjour" });
+    expect(project.i18nKeys[K("g")]).toEqual({ en: "Hello\nWorld", fr: "Bonjour" });
   });
 
   it("renders an empty-state hint when no layer is selected", () => {
@@ -143,9 +154,7 @@ describe("LayerEditForm — empty state", () => {
 
   it("renders empty state when the menu doesn't exist on the project", () => {
     seedProject([{ kind: "text", value: { key: K("g") }, x: 0, y: 0 }]);
-    useUiStore.setState(
-      { selectedLayerKey: { menuId: "ghost" as MenuId, index: 0 } } as any,
-    );
+    useUiStore.setState({ selectedLayerKey: { menuId: "ghost" as MenuId, index: 0 } } as any);
     render(<LayerEditForm projectId={PACK_ID} />);
     expect(screen.getByText(/sélectionne un élément/i)).toBeTruthy();
   });
@@ -185,7 +194,7 @@ describe("LayerEditForm — image layer (background)", () => {
     render(<LayerEditForm projectId={PACK_ID} />);
     fireEvent.click(screen.getByRole("button", { name: /choisir une image/i }));
     fireEvent.click(screen.getByTestId("asset-picker"));
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as any).assetId).toBe("g_new");
   });
 });
@@ -204,7 +213,7 @@ describe("LayerEditForm — image layer (glyph)", () => {
     const inputs = screen.getAllByRole("spinbutton") as HTMLInputElement[];
     const yInput = inputs.find((i) => Number(i.value) === 4)!;
     fireEvent.change(yInput, { target: { value: "30" } });
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as any).y).toBe(30);
   });
 
@@ -233,7 +242,7 @@ describe("LayerEditForm — image layer (glyph)", () => {
 
     expect(duplicateAsset).toHaveBeenCalledWith("p1", "g1");
     expect(useAssetStore.getState().assets.find((a) => a.id === "g2")).toBeTruthy();
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as any).assetId).toBe("g2");
   });
 
@@ -244,17 +253,16 @@ describe("LayerEditForm — image layer (glyph)", () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(duplicateAsset).not.toHaveBeenCalled();
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as any).assetId).toBe("g1");
   });
 });
 
 describe("LayerEditForm — text layer — X/Y position inputs", () => {
   beforeEach(() => {
-    seedProject(
-      [{ kind: "text", value: { key: K("greet") }, x: 8, y: 5 }],
-      { [K("greet")]: { en: "Hello" } },
-    );
+    seedProject([{ kind: "text", value: { key: K("greet") }, x: 8, y: 5 }], {
+      [K("greet")]: { en: "Hello" },
+    });
     selectLayer(0);
   });
 
@@ -272,7 +280,7 @@ describe("LayerEditForm — text layer — X/Y position inputs", () => {
     const inputs = screen.getAllByRole("spinbutton") as HTMLInputElement[];
     const yInput = inputs.find((i) => Number(i.value) === 5)!;
     fireEvent.change(yInput, { target: { value: "20" } });
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as any).y).toBe(20);
   });
 
@@ -281,17 +289,16 @@ describe("LayerEditForm — text layer — X/Y position inputs", () => {
     const inputs = screen.getAllByRole("spinbutton") as HTMLInputElement[];
     const xInput = inputs.find((i) => Number(i.value) === 8)!;
     fireEvent.change(xInput, { target: { value: "16" } });
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as any).x).toBe(16);
   });
 });
 
 describe("LayerEditForm — text layer", () => {
   beforeEach(() => {
-    seedProject(
-      [{ kind: "text", value: { key: K("greet") }, x: 8, y: 5 }],
-      { [K("greet")]: { en: "Hello" } },
-    );
+    seedProject([{ kind: "text", value: { key: K("greet") }, x: 8, y: 5 }], {
+      [K("greet")]: { en: "Hello" },
+    });
     selectLayer(0);
   });
 
@@ -308,9 +315,9 @@ describe("LayerEditForm — text layer", () => {
 
     const input = container.querySelector("input, textarea")!;
     fireEvent.change(input, { target: { value: "<gold>Hi</gold>" } });
-    expect(
-      useAccountStore.getState().account.projects[0]!.i18nKeys[K("greet")]!.en,
-    ).toBe("<gold>Hi</gold>");
+    expect(useProjectsStore.getState().openProjects.projects[0]!.i18nKeys[K("greet")]!.en).toBe(
+      "<gold>Hi</gold>",
+    );
   });
 
   it("renders a live preview area that contains the resolved value", () => {
@@ -325,10 +332,9 @@ describe("LayerEditForm — text layer — font picker", () => {
   }
 
   beforeEach(() => {
-    seedProject(
-      [{ kind: "text", value: { key: K("greet") }, x: 8, y: 5 }],
-      { [K("greet")]: { en: "Hello" } },
-    );
+    seedProject([{ kind: "text", value: { key: K("greet") }, x: 8, y: 5 }], {
+      [K("greet")]: { en: "Hello" },
+    });
     selectLayer(0);
   });
 
@@ -348,22 +354,21 @@ describe("LayerEditForm — text layer — font picker", () => {
     useAssetStore.setState({ assets: [makeFont(A("f1"), "my_font")] } as any);
     render(<LayerEditForm projectId={PACK_ID} />);
     fireEvent.change(screen.getByLabelText(/police personnalisée/i), { target: { value: "f1" } });
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as any).fontAssetId).toBe("f1");
   });
 
   it("selecting the empty option clears fontAssetId", () => {
     useAssetStore.setState({ assets: [makeFont(A("f1"), "my_font")] } as any);
-    seedProject(
-      [{ kind: "text", value: { key: K("greet") }, x: 8, y: 5, fontAssetId: A("f1") }],
-      { [K("greet")]: { en: "Hello" } },
-    );
+    seedProject([{ kind: "text", value: { key: K("greet") }, x: 8, y: 5, fontAssetId: A("f1") }], {
+      [K("greet")]: { en: "Hello" },
+    });
     selectLayer(0);
     render(<LayerEditForm projectId={PACK_ID} />);
     const select = screen.getByLabelText(/police personnalisée/i) as HTMLSelectElement;
     expect(select.value).toBe("f1");
     fireEvent.change(select, { target: { value: "" } });
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as any).fontAssetId).toBeUndefined();
   });
 
@@ -375,9 +380,7 @@ describe("LayerEditForm — text layer — font picker", () => {
 
 describe("LayerEditForm — external glyph layer", () => {
   beforeEach(() => {
-    seedProject([
-      { kind: "external_glyph", provider: "oraxen", glyphName: "coin", x: 0, y: 0 },
-    ]);
+    seedProject([{ kind: "external_glyph", provider: "oraxen", glyphName: "coin", x: 0, y: 0 }]);
     selectLayer(0);
   });
 
@@ -392,14 +395,14 @@ describe("LayerEditForm — external glyph layer", () => {
   it("changing provider dispatches updateMenuTitleLayer", () => {
     render(<LayerEditForm projectId={PACK_ID} />);
     fireEvent.change(screen.getByLabelText(/provider/i), { target: { value: "nexo" } });
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as any).provider).toBe("nexo");
   });
 
   it("typing in the name input dispatches updateMenuTitleLayer", () => {
     render(<LayerEditForm projectId={PACK_ID} />);
     fireEvent.change(screen.getByLabelText(/glyph name/i), { target: { value: "diamond" } });
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as any).glyphName).toBe("diamond");
   });
 });
@@ -439,14 +442,15 @@ describe("LayerEditForm — textarea layer", () => {
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
     const ta = container.querySelector("textarea") as HTMLTextAreaElement;
     fireEvent.change(ta, { target: { value: "line1\nline2\nline3" } });
-    const updated = useAccountStore.getState().account.projects[0]!.i18nKeys.t1?.en;
+    const updated = useProjectsStore.getState().openProjects.projects[0]!.i18nKeys[K("t1")]?.en;
     expect(updated).toBe("line1\nline2\nline3");
   });
 
   it("clicking center alignment updates layer.alignment", () => {
     render(<LayerEditForm projectId={PACK_ID} />);
     fireEvent.click(screen.getByTestId("textarea-align-center"));
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0] as any;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!
+      .title[0] as any;
     expect(layer.alignment).toBe("center");
   });
 
@@ -456,9 +460,14 @@ describe("LayerEditForm — textarea layer", () => {
     for (const alignment of ["center", "right", "left"] as const) {
       fireEvent.click(screen.getByTestId(`textarea-align-${alignment}`));
       fireEvent.change(screen.getByTestId("textarea-width"), { target: { value: "120" } });
-      const layer = useAccountStore.getState().account.projects[0].menus[0].title[0];
+      const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
       if (layer.kind !== "textarea") throw new Error("Expected text block");
-      const anchor = alignment === "center" ? Math.floor(layer.width / 2) : alignment === "right" ? layer.width : 0;
+      const anchor =
+        alignment === "center"
+          ? Math.floor(layer.width / 2)
+          : alignment === "right"
+            ? layer.width
+            : 0;
       expect(layer.x - anchor).toBe(left);
       expect(Number((screen.getByTestId("textarea-x") as HTMLInputElement).value)).toBe(left);
     }
@@ -468,10 +477,10 @@ describe("LayerEditForm — textarea layer", () => {
     render(<LayerEditForm projectId={PACK_ID} />);
     const lh = screen.getByTestId("textarea-line-height") as HTMLInputElement;
     fireEvent.change(lh, { target: { value: "0" } });
-    let layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0] as any;
+    let layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0] as any;
     expect(layer.lineHeight).toBe(1);
     fireEvent.change(lh, { target: { value: "999" } });
-    layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0] as any;
+    layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0] as any;
     expect(layer.lineHeight).toBe(32);
   });
 
@@ -512,7 +521,8 @@ describe("LayerEditForm — textarea layer", () => {
     render(<LayerEditForm projectId={PACK_ID} />);
     const input = screen.getByTestId("textarea-width") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "100" } });
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0] as any;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!
+      .title[0] as any;
     expect(layer.width).toBe(100);
   });
 
@@ -520,10 +530,10 @@ describe("LayerEditForm — textarea layer", () => {
     render(<LayerEditForm projectId={PACK_ID} />);
     const input = screen.getByTestId("textarea-width") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "1" } });
-    let layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0] as any;
+    let layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0] as any;
     expect(layer.width).toBe(8);
     fireEvent.change(input, { target: { value: "9999" } });
-    layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0] as any;
+    layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0] as any;
     expect(layer.width).toBe(256);
   });
 });
@@ -543,7 +553,7 @@ describe("LayerEditForm — text layer size", () => {
     render(<LayerEditForm projectId={PACK_ID} />);
     const select = screen.getByLabelText(/size|taille/i);
     fireEvent.change(select, { target: { value: "16" } });
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as { size?: number }).size).toBe(16);
   });
 
@@ -552,7 +562,7 @@ describe("LayerEditForm — text layer size", () => {
     selectLayer(0);
     render(<LayerEditForm projectId={PACK_ID} />);
     fireEvent.change(screen.getByLabelText(/size|taille/i), { target: { value: "8" } });
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as { size?: number }).size).toBeUndefined();
   });
 
@@ -566,24 +576,41 @@ describe("LayerEditForm — text layer size", () => {
 
 describe("LayerEditForm — textarea layer size + lineHeight align", () => {
   it("renders the size dropdown for textarea layers", () => {
-    seedProject([{
-      kind: "textarea", value: { key: K("k") }, x: 0, y: 20,
-      width: 168, lineHeight: 10, alignment: "left",
-    }]);
+    seedProject([
+      {
+        kind: "textarea",
+        value: { key: K("k") },
+        x: 0,
+        y: 20,
+        width: 168,
+        lineHeight: 10,
+        alignment: "left",
+      },
+    ]);
     selectLayer(0);
     render(<LayerEditForm projectId={PACK_ID} />);
     expect(screen.getByLabelText(/size|taille/i)).toBeTruthy();
   });
 
   it("'Aligner lineHeight' button sets lineHeight to size + 2", () => {
-    seedProject([{
-      kind: "textarea", value: { key: K("k") }, x: 0, y: 20,
-      width: 168, lineHeight: 10, alignment: "left", size: 16,
-    }]);
+    seedProject([
+      {
+        kind: "textarea",
+        value: { key: K("k") },
+        x: 0,
+        y: 20,
+        width: 168,
+        lineHeight: 10,
+        alignment: "left",
+        size: 16,
+      },
+    ]);
     selectLayer(0);
     render(<LayerEditForm projectId={PACK_ID} />);
-    fireEvent.click(screen.getByRole("button", { name: /ajuster l.interligne|adjust line spacing/i }));
-    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    fireEvent.click(
+      screen.getByRole("button", { name: /ajuster l.interligne|adjust line spacing/i }),
+    );
+    const layer = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0]!;
     expect((layer as { lineHeight: number }).lineHeight).toBe(18);
   });
 });

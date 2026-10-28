@@ -1,5 +1,7 @@
 import { ArtisanWordmark } from "@/components/ArtisanWordmark";
+import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
+import { ownDataSources } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
 import {
   DocumentGroups,
@@ -7,14 +9,16 @@ import {
   ProjectDocumentTree,
 } from "@/features/project/ProjectDocumentTree";
 import { goToDocument } from "@/features/project/goToDocument";
+import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
-import { projectDestination } from "@/lib/projectNavigation";
+import { projectDestination, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
 import {
   DndContext,
   type DragEndEvent,
   type Modifier,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -24,224 +28,154 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useState } from "react";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-/** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
+/** Restrict translation to the vertical axis so a folder can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
-import type { ProjectId } from "@/domain/types";
-import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
+import { docKey, documentCount, resolveDocKey } from "@/domain/documents";
+import {
+  type ModuleGroupEntry,
+  type PluginModule,
+  buildModuleList,
+  diskProjectsToSummaries,
+} from "@/features/projects/projectGroups";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
-import { type ProjectSummary, getNetwork, listNetworks } from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
+import type { ProjectSummary, ServerSummary } from "@/lib/api/servers";
 import { displayServerLabel } from "@/lib/serverLabel";
-import { urlNetworkId, urlServerId } from "@/lib/urlIds";
-import { useAccountStore } from "@/state/accountStore";
+import { urlServerId } from "@/lib/urlIds";
 import { useModulesStore } from "@/state/modulesStore";
-import { useNetworksStore } from "@/state/networksStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
+import { applyOrder, sidebarOrderOf, useSidebarOrderStore } from "@/state/sidebarOrderStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronRight, Folder, FolderOpen, GripVertical } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  Settings,
+  Table2,
+  type Terminal,
+} from "lucide-react";
 import { NewProjectDialog } from "./NewProjectDialog";
-import type { ServerEntry } from "./ServerSelector";
+import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
+import { useServersStatus } from "./useServersStatus";
 
 export function ProjectSidebar() {
   const { t } = useTranslation();
-  const networks = useNetworksStore((s) => s.networks);
-  const setNetworks = useNetworksStore((s) => s.setNetworks);
-  const storeRefreshToken = useNetworksStore((s) => s.refreshToken);
-  const localProjects = useAccountStore((s) => s.account.projects);
-  const projectOrder = useAccountStore((s) => s.account.projectOrder);
-  const reorderProjects = useAccountStore((s) => s.reorderProjects);
+  const localProjects = useProjectsStore((s) => s.openProjects.projects);
+  const projectOrder = useProjectsStore((s) => s.openProjects.projectOrder);
+  const sidebarOrders = useSidebarOrderStore((s) => s.orders);
+  const setSidebarOrder = useSidebarOrderStore((s) => s.setOrder);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
   const serverScreens = useServerScreensStore((s) => s.screens);
-  // distance: 5 — small movement before drag activates.
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const indexedProjects = useServerIndexStore((s) => s.projects);
   const [serverProjects, setServerProjects] = useState<ProjectSummary[]>([]);
-  // Trois états, comme la page d'un serveur : on lit, on a lu, on n'a pas pu
-  // lire. Une liste vide affirmée pendant la lecture se lit comme un serveur
-  // sans Projects, et le bouton de création invite alors à écrire sur un
-  // disque qu'on ne joint pas.
+  // Three states, like a server page: reading, read, could not read. An empty
+  // list asserted while reading reads as a server without Projects, and the
+  // create button then invites writing to a disk that cannot be reached.
   const [projectsStatus, setProjectsStatus] = useState<"loading" | "ready" | "unavailable">(
     "loading",
   );
-  const [allServerEntries, setAllServerEntries] = useState<ServerEntry[]>([]);
+  const [updateRequired, setUpdateRequired] = useState(false);
+  // The hub's servers with their live state, re-read every 15 s: a server that
+  // connected since loading shows up at once.
+  const { data: serversStatus } = useServersStatus();
+  const allServerEntries = useMemo(() => serverEntriesOf(serversStatus ?? []), [serversStatus]);
+  // Share the ids so every surface can build links the same way.
+  useEffect(() => {
+    useServersStore.getState().setServers(allServerEntries);
+  }, [allServerEntries]);
   const [refetchToken, setRefetchToken] = useState(0);
   useEffect(() => {
-    const renamed = () => setRefetchToken((token) => token + 1);
-    window.addEventListener("ifz:project_renamed", renamed);
-    return () => window.removeEventListener("ifz:project_renamed", renamed);
+    const reread = () => setRefetchToken((token) => token + 1);
+    window.addEventListener("ifz:project_renamed", reread);
+    // A reload can add or drop folders: an add-on registers its own after the server started.
+    window.addEventListener(PROJECTS_RELOADED_EVENT, reread);
+    return () => {
+      window.removeEventListener("ifz:project_renamed", reread);
+      window.removeEventListener(PROJECTS_RELOADED_EVENT, reread);
+    };
   }, []);
 
-  // Active network + server: URL params first, then persisted selection.
-  // Since the slug routes (phase 4a), URL params may carry slugs instead of
-  // ids — resolve them to real ids here so all downstream matching (project
-  // filtering, link building) stays id-based.
-  // Routes without params (settings, credits…) fall back to the persisted
-  // selection (stores) so navigating there doesn't silently "deselect" the
+  // Active server: URL param first, then persisted selection. Routes without params (settings, credits…) fall back to the
+  // persisted selection so navigating there doesn't silently "deselect" the
   // server while the project list stays scoped to it.
-  const storedNetworkId = useNetworksStore((s) => s.activeId);
   const storedServerId = useServersStore((s) => s.activeServerId);
   const urlParams = useParams({ strict: false }) as {
-    networkId?: string;
     serverId?: string;
     projectId?: string;
   };
-  const rawNetworkParam = urlParams.networkId ?? storedNetworkId ?? networks[0]?.id ?? null;
-  const activeNetworkId = rawNetworkParam
-    ? (networks.find((n) => n.id === rawNetworkParam || n.slug === rawNetworkParam)?.id ??
-      rawNetworkParam)
-    : null;
-  // Only trust the persisted server if it still exists in the active network —
-  // a deleted server must not filter the project list down to nothing.
+  // Only trust the persisted server if the hub still lists it — a deleted
+  // server must not filter the project list down to nothing.
   const storedServerValid =
-    storedServerId != null &&
-    allServerEntries.some(
-      (e) =>
-        e.serverId === storedServerId &&
-        (activeNetworkId == null || e.networkId === activeNetworkId),
-    );
+    storedServerId != null && allServerEntries.some((e) => e.serverId === storedServerId);
   const rawServerParam =
     urlParams.serverId ?? (urlParams.projectId ? null : storedServerValid ? storedServerId : null);
-  // Server slugs are only unique per network ("server" exists in many) — scope
-  // the lookup to the active network or a slug could resolve to another
-  // network's server and the workspace list would filter to the wrong projects.
   const activeServerId = rawServerParam
     ? (allServerEntries.find(
-        (e) =>
-          (activeNetworkId == null || e.networkId === activeNetworkId) &&
-          (e.serverId === rawServerParam || e.serverSlug === rawServerParam),
+        (e) => e.serverId === rawServerParam || e.serverSlug === rawServerParam,
       )?.serverId ?? rawServerParam)
     : null;
 
-  // URL-facing forms: links carry slugs, everything else stays id-based.
-  const netParam = urlNetworkId(networks, activeNetworkId);
-  const srvParam = urlServerId(allServerEntries, activeNetworkId, activeServerId);
+  // URL-facing form: links carry slugs, everything else stays id-based.
+  const srvParam = urlServerId(allServerEntries, activeServerId);
 
   // Persist the URL-driven selection so param-less routes keep it. Only store
   // resolved ids (never raw slugs) — the entry lookup guarantees that.
   useEffect(() => {
-    if (urlParams.networkId && activeNetworkId && networks.some((n) => n.id === activeNetworkId)) {
-      if (useNetworksStore.getState().activeId !== activeNetworkId) {
-        useNetworksStore.getState().setActiveId(activeNetworkId);
-      }
-    }
     if (urlParams.serverId) {
       const resolved = allServerEntries.find(
-        (e) =>
-          (activeNetworkId == null || e.networkId === activeNetworkId) &&
-          (e.serverId === urlParams.serverId || e.serverSlug === urlParams.serverId),
+        (e) => e.serverId === urlParams.serverId || e.serverSlug === urlParams.serverId,
       )?.serverId;
       if (resolved && useServersStore.getState().activeServerId !== resolved) {
         useServersStore.getState().setActiveServerId(resolved);
       }
     }
-  }, [urlParams.networkId, urlParams.serverId, activeNetworkId, networks, allServerEntries]);
-
-  // `networks.length` est lu comme condition, pas comme déclencheur : l'ajouter
-  // en dépendance relancerait le fetch au retour de `setNetworks`, en boucle dès
-  // que le refresh token est levé. Seul le bump doit déclencher.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: déclencheur volontairement limité au bump
-  useEffect(() => {
-    // Refetch on refresh bump too — a network created in the wizard/hub would
-    // otherwise never reach the store (only fetched when empty).
-    if (networks.length === 0 || storeRefreshToken > 0) {
-      listNetworks()
-        .then(setNetworks)
-        .catch(() => {});
-    }
-  }, [storeRefreshToken]);
+  }, [urlParams.serverId, allServerEntries]);
 
   /**
-   * Les Projects du serveur actif, lus sur SON disque à chaque rafraîchissement.
+   * The active server's Projects, read from ITS disk on every refresh.
    *
-   * Le backend n'en tient plus de liste : elle se périmait au premier dossier
-   * renommé ou supprimé (ADR `server-disk-only-storage`). Le nom du dossier EST
-   * l'identité — le renommer le renomme dans l'éditeur, sans réconciliation.
-   * Serveur hors ligne → on le dit (`projectsStatus`) : ses Projects ne sont
-   * pas ouvrables, et rien ne sert d'inviter à en créer un de plus.
+   * The hub keeps no list of them: it went stale at the first renamed or
+   * deleted folder (ADR `server-disk-only-storage`). The folder name IS the
+   * identity — renaming it renames it in the editor, with no reconciliation.
+   * Offline server → say so (`projectsStatus`): its Projects cannot be opened,
+   * and there is no point inviting to create another one.
    */
-  // `refetchToken` et `storeRefreshToken` ne sont pas lus dans l'effet : ce sont
-  // justement les signaux « relis le disque » (Project créé, changement ailleurs).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: dépendances = signaux de rafraîchissement
+  // `refetchToken` is not read in the effect: it is precisely the "re-read the
+  // disk" signal (Project created, renamed elsewhere, server reloaded).
+  const listedServer = useRef<string | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: dependencies = refresh signals
   useEffect(() => {
-    if (!activeNetworkId) {
-      setServerProjects([]);
-      setProjectsStatus("loading");
-      return;
-    }
     let cancelled = false;
-    setProjectsStatus("loading");
+    // A re-read of the same server keeps its list on screen until the answer arrives.
+    if (listedServer.current !== activeServerId) setProjectsStatus("loading");
+    listedServer.current = activeServerId;
     if (!activeServerId) {
-      // Tout Project appartient à un serveur (ADR `server-only-projects`).
+      // Every Project belongs to a server (ADR `server-only-projects`).
       setServerProjects([]);
       setProjectsStatus("ready");
       return;
     }
-    listServerProjects(activeNetworkId, activeServerId).then((res) => {
+    listServerProjects(activeServerId).then((res) => {
       if (cancelled) return;
       setServerProjects(
-        res.ok
-          ? diskProjectsToSummaries(activeNetworkId, activeServerId, res.projectIds, res.projects)
-          : [],
+        res.ok ? diskProjectsToSummaries(activeServerId, res.projectIds, res.projects) : [],
       );
       setProjectsStatus(res.ok ? "ready" : "unavailable");
+      setUpdateRequired(!res.ok && res.error === "plugin_update_required");
     });
     return () => {
       cancelled = true;
     };
-  }, [activeNetworkId, activeServerId, refetchToken, storeRefreshToken]);
-
-  // Fetch all server entries across all networks.
-  // Mêmes signaux de rafraîchissement que ci-dessus ; `activeNetworkId` re-scope
-  // la liste quand on change de network sans que `networks` bouge.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: dépendances = signaux de rafraîchissement
-  useEffect(() => {
-    if (networks.length === 0) {
-      setAllServerEntries([]);
-      return;
-    }
-    let cancelled = false;
-    Promise.all(
-      networks.map((n) =>
-        getNetwork(n.id).then((d) => ({
-          network: n,
-          serverKeys: d.serverKeys,
-          projects: d.projects,
-        })),
-      ),
-    )
-      .then((results) => {
-        if (cancelled) return;
-        const entries: ServerEntry[] = results.flatMap((r) =>
-          r.serverKeys.map((sk) => ({
-            serverId: sk.id,
-            serverSlug: sk.slug,
-            serverLabel: displayServerLabel(sk),
-            networkId: r.network.id,
-            networkSlug: r.network.slug,
-            networkName: r.network.name,
-          })),
-        );
-        setAllServerEntries(entries);
-        // Share the slugs so every surface can build slug-based links.
-        useServersStore.getState().setServers(entries);
-        // La liste des Projects ne vient PLUS d'ici : elle se demande au disque
-        // du serveur actif (effet ci-dessous). Les lignes en base ne décrivent
-        // plus ce qui existe — elles ancrent ce que le backend possède
-        // (assets, resource pack, conversations) — ADR `server-disk-only-storage`.
-      })
-      .catch(() => {
-        if (!cancelled) setAllServerEntries([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [networks, activeNetworkId, refetchToken, storeRefreshToken]);
+  }, [activeServerId, refetchToken]);
 
   const serverIds = new Set(serverProjects.map((p) => p.id));
   const optimisticEntries: ProjectSummary[] = localProjects
@@ -251,12 +185,10 @@ export function ProjectSidebar() {
       name: p.name,
       hash: "",
       updatedAt: p.updatedAt,
-      networkId: (p as unknown as { networkId?: string }).networkId ?? "",
       serverKeyId: (p as unknown as { serverKeyId?: string }).serverKeyId ?? "",
     }));
   const allProjects = [...serverProjects, ...optimisticEntries];
 
-  // Filter by active server (URL-driven).
   const filteredServerProjects = activeServerId
     ? allProjects.filter((p) => p.serverKeyId === activeServerId)
     : allProjects;
@@ -272,260 +204,163 @@ export function ProjectSidebar() {
   }
   const remaining = [...idToProject.values()].sort((a, b) => a.id.localeCompare(b.id));
   const finalList = [...ordered, ...remaining];
-  // Add-on-owned projects surface under "Installed modules", not the flat list
-  // (ADR addon-owned-project-roots) — même regroupement que la page d'un
-  // serveur, calculé une seule fois dans `buildProjectGroups`.
-  const { flatProjects, moduleGroups } = buildProjectGroups({
+  // One folder = one module: the plugins' modules with their folders and screens,
+  // then the admin's own — same split as a server page, computed once in `buildModuleList`.
+  const built = buildModuleList({
     projects: finalList,
     screens: serverScreens,
     mountedModuleIds,
     localProjects,
   });
-
-  // Nombre de Documents par Project : uniquement ceux qu'on a réellement ouverts
-  // (compte vivant, il suit les éditions). Le `documentCount` calculé côté
-  // backend est mort avec la copie des fichiers (ADR `server-disk-only-storage`)
-  // — le recalculer coûterait une lecture disque par Project juste pour peupler
-  // une sidebar. Un Project jamais ouvert n'affiche donc pas de badge.
-  const liveCount = new Map(
-    localProjects.map((p) => [p.id, p.menus.length + p.commands.length + p.dialogs.length]),
+  // Both lists in the order the admin dragged them to, on this server.
+  const pluginModules = applyOrder(
+    built.pluginModules,
+    sidebarOrderOf(sidebarOrders, activeServerId, "installed"),
+    (m) => m.id,
   );
-  const countFor = (p: ProjectSummary): number | null => liveCount.get(p.id as ProjectId) ?? null;
+  const projectRows = applyOrder(
+    built.contentModules,
+    sidebarOrderOf(sidebarOrders, activeServerId, "mine"),
+    (p) => p.id,
+  );
 
-  // Le project ouvert a-t-il une ligne dans la liste ? Sinon (démo, project non
-  // listé), il s'affiche en tête avec ses Documents.
+  // Document count per Project: live for the ones opened (it follows edits), else
+  // their published state from the server index, already read in the background to
+  // expand them. Before the index is in, a Project never opened shows no badge.
+  // Its own data (tables, config sheets) are rows of the tree too: they count.
+  const countOf = (p: Project) => documentCount(p) + ownDataSources(p).length;
+  const liveCount = new Map(localProjects.map((p) => [p.id as string, countOf(p)]));
+  // Ids carry their server: another server's index matches none of these rows.
+  const indexedCount = new Map(indexedProjects.map((p) => [p.id as string, countOf(p)]));
+  const countFor = (p: ProjectSummary): number | null =>
+    liveCount.get(p.id) ?? indexedCount.get(p.id) ?? null;
+
+  // Does the open project have a row in the list? Otherwise (demo, unlisted
+  // project), it is shown at the top with its Documents.
   const openProjectId = urlParams.projectId;
-  // La liste des projects n'est rendue qu'avec un network ; les modules toujours.
-  const visibleRows = [
-    ...(activeNetworkId ? flatProjects : []),
-    ...moduleGroups.flatMap((g) => g.projects),
-  ];
+  const visibleRows = [...pluginModules.flatMap((m) => m.projects), ...projectRows];
   const openIsListed =
     !!openProjectId &&
     visibleRows.some((p) => p.id === openProjectId || projectUrlId(p) === openProjectId);
 
-  const onDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const ids = flatProjects.map((p) => p.id);
-    const oldIndex = ids.indexOf(active.id as string);
-    const newIndex = ids.indexOf(over.id as string);
-    if (oldIndex === -1 || newIndex === -1) return;
-    reorderProjects(arrayMove(ids, oldIndex, newIndex) as ProjectId[]);
-  };
-
   return (
     <nav className="flex h-full flex-col gap-3.5 px-3 py-2">
       <Link
-        to="/networks"
+        to="/"
         onClick={() => useSidebarStore.getState().close()}
         className="flex h-12 shrink-0 items-center gap-1 rounded-[10px] px-1.5 transition-colors hover:bg-[var(--surface-hover)]"
       >
-        <img
-          src="/logo.svg"
-          alt=""
-          aria-hidden="true"
-          width={28}
-          height={28}
-          className="size-7 shrink-0"
-        />
         <ArtisanWordmark />
       </Link>
 
+      <ServerSelector servers={allServerEntries} />
+
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
         {openProjectId && !openIsListed && (
-          <UnlistedOpenProject urlId={openProjectId} networkId={netParam} serverId={srvParam} />
+          <UnlistedOpenProject urlId={openProjectId} serverId={srvParam} />
         )}
-        {activeNetworkId ? (
+        {pluginModules.length > 0 && (
           <div className="flex flex-col">
-            <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-              {t("sidebar.myProjects")}
-            </div>
-            {projectsStatus !== "ready" && (
-              <div className="px-2.5 pb-1 text-[11.5px] text-[var(--text-faint)]">
-                {projectsStatus === "loading"
-                  ? t("sidebar.loadingProjects")
-                  : t("sidebar.projectsUnavailable")}
-              </div>
-            )}
-            <DndContext
-              sensors={sensors}
-              onDragEnd={onDragEnd}
-              modifiers={[restrictToVerticalAxis]}
+            <div className="section-label px-2 pt-0.5 pb-2">{t("sidebar.installedModules")}</div>
+            <SortableFolders
+              ids={pluginModules.map((m) => m.id)}
+              onReorder={(ids) => setSidebarOrder(activeServerId, "installed", ids)}
             >
-              <SortableContext
-                items={flatProjects.map((p) => p.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <ul className="flex flex-col">
-                  {flatProjects.map((w) => (
-                    <SortableProjectItem
-                      key={w.id}
-                      id={w.id}
-                      urlId={projectUrlId(w)}
-                      name={w.name}
-                      count={countFor(w)}
-                      networkId={urlNetworkId(networks, w.networkId) || netParam}
-                      serverId={
-                        urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam
-                      }
-                    />
-                  ))}
-                </ul>
-              </SortableContext>
-            </DndContext>
-            {projectsStatus === "ready" && (
-              <NewProjectDialog
-                networkId={netParam}
-                serverKeyId={activeServerId}
-                onCreated={() => setRefetchToken((n) => n + 1)}
-                trigger={
-                  <button
-                    type="button"
-                    className="mt-1 block w-full cursor-pointer rounded-[10px] px-2.5 py-2 text-left text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                  >
-                    {t("sidebar.newProject")}
-                  </button>
-                }
-              />
-            )}
-          </div>
-        ) : (
-          <div className="rounded-[14px] border border-dashed border-[var(--border)] px-3 py-3 text-[11.5px] leading-relaxed text-[var(--text-mut)]">
-            {t("sidebar.noNetworkHint")}
+              {pluginModules.map((m) => (
+                <SortablePluginModuleItem
+                  key={m.id}
+                  module={m}
+                  countFor={countFor}
+                  serverId={srvParam}
+                  serverIdOf={(p) => urlServerId(allServerEntries, p.serverKeyId) || srvParam}
+                />
+              ))}
+            </SortableFolders>
           </div>
         )}
-
-        <div className="mt-4 flex flex-col">
-          <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-            {t("sidebar.installedModules")}
-          </div>
-          {moduleGroups.length === 0 ? (
-            <div className="rounded-[14px] border border-dashed border-[var(--border)] px-3 py-3 text-center text-[11px] text-[var(--text-faint)]">
-              {t("sidebar.noModules")}
+        <div className={pluginModules.length > 0 ? "mt-4 flex flex-col" : "flex flex-col"}>
+          <div className="section-label px-2 pt-0.5 pb-2">{t("sidebar.myModules")}</div>
+          {projectsStatus !== "ready" && (
+            <div className="px-2.5 pb-1 text-[11.5px] text-[var(--text-faint)]">
+              {projectsStatus === "loading"
+                ? t("sidebar.loadingProjects")
+                : updateRequired
+                  ? t("linkedServers.updateRequired")
+                  : t("sidebar.projectsUnavailable")}
             </div>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {moduleGroups.map((g) =>
-                g.collapsed ? (
-                  // One project, no screen (boutique) → a SINGLE entry named
-                  // after the module that opens the editor directly.
-                  <OwnedProjectItem
-                    key={g.id}
-                    id={g.projects[0]!.id}
-                    urlId={projectUrlId(g.projects[0]!)}
-                    name={g.label}
-                    count={countFor(g.projects[0]!)}
-                    networkId={urlNetworkId(networks, g.projects[0]!.networkId) || netParam}
-                    serverId={
-                      urlServerId(
-                        allServerEntries,
-                        g.projects[0]!.networkId,
-                        g.projects[0]!.serverKeyId,
-                      ) || srvParam
-                    }
-                  />
-                ) : (
-                  <li key={g.id} className="flex flex-col">
-                    {/* TODO(P2): render the module's icon once modules ship real icons */}
-                    <div className="px-2.5 pt-0.5 pb-1 text-[12px] font-semibold text-[var(--text)]">
-                      {g.label}
-                    </div>
-                    <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
-                      {g.projects.map((w) => (
-                        <OwnedProjectItem
-                          key={w.id}
-                          id={w.id}
-                          urlId={projectUrlId(w)}
-                          // Under a module group the canvas entry is "Éditeur"
-                          // (ADR module-config-screens §2) — the group header
-                          // already carries the module's name. Only a module
-                          // owning several projects needs their real names.
-                          name={g.projects.length === 1 ? t("screens.editorEntry") : w.name}
-                          count={countFor(w)}
-                          networkId={urlNetworkId(networks, w.networkId) || netParam}
-                          serverId={
-                            urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam
-                          }
-                        />
-                      ))}
-                      {g.screens.map((s) => (
-                        <ScreenItem
-                          key={s.id}
-                          screen={s}
-                          networkId={netParam}
-                          serverId={srvParam}
-                        />
-                      ))}
-                      {g.hasScreen && (
-                        <li>
-                          <Link
-                            to="/m/$moduleId"
-                            params={{ moduleId: g.id }}
-                            onClick={() => useSidebarStore.getState().close()}
-                            className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                          >
-                            <span className="truncate flex-1">{t("sidebar.configuration")}</span>
-                          </Link>
-                        </li>
-                      )}
-                    </ul>
-                  </li>
-                ),
-              )}
-            </ul>
+          )}
+          <SortableFolders
+            ids={projectRows.map((p) => p.id)}
+            onReorder={(ids) => setSidebarOrder(activeServerId, "mine", ids)}
+          >
+            {projectRows.map((w) => (
+              <SortableProjectItem
+                key={w.id}
+                id={w.id}
+                urlId={projectUrlId(w)}
+                name={w.name}
+                count={countFor(w)}
+                serverId={urlServerId(allServerEntries, w.serverKeyId) || srvParam}
+              />
+            ))}
+          </SortableFolders>
+          {projectsStatus === "ready" && (
+            <NewProjectDialog
+              serverKeyId={activeServerId}
+              onCreated={() => setRefetchToken((n) => n + 1)}
+              trigger={
+                <button
+                  type="button"
+                  className="mt-1 block w-full cursor-pointer rounded-[10px] px-2.5 py-2 text-left text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                >
+                  {t("sidebar.newModule")}
+                </button>
+              }
+            />
           )}
         </div>
       </div>
 
       <UserMenu
-        networkId={activeNetworkId}
-        serverId={activeServerId}
-        serverLabel={
-          allServerEntries.find(
-            (entry) => entry.networkId === activeNetworkId && entry.serverId === activeServerId,
-          )?.serverLabel ?? undefined
-        }
+        serverLabel={allServerEntries.find((e) => e.serverId === activeServerId)?.serverLabel}
       />
     </nav>
   );
 }
 
+/** The selector's rows, straight from what the hub lists. */
+export function serverEntriesOf(servers: ServerSummary[]): ServerEntry[] {
+  return servers.map((s) => ({
+    serverId: s.id,
+    serverLabel: displayServerLabel(s),
+    online: s.online,
+    updateRequired: s.updateRequired === true,
+  }));
+}
+
 /**
- * Le lien vers un Project, avec la seule décision qui varie : on a le contexte
- * network+serveur, ou pas. Les deux branches sont écrites en dur pour que le
- * routeur les type — le `to`/`params` calculé imposait deux `as any`, donc
- * aucune erreur de route n'était plus détectée ici.
+ * The link to a Project, with the only decision that varies: server context
+ * or not. Both branches are written out so the router types them —
+ * a computed `to`/`params` required two `as any`, hiding route errors.
  */
 function ProjectLink({
   projectId,
-  internalId,
-  networkId,
   serverId,
   className,
   children,
 }: {
   projectId: string;
-  internalId: string;
-  networkId: string | null;
   serverId: string | null;
   className: string;
   children: ReactNode;
 }) {
   const close = () => useSidebarStore.getState().close();
-  return networkId ? (
+  return (
     <Link
-      {...projectDestination(networkId, projectId, serverId ?? undefined)}
+      {...projectDestination(projectId, serverId ?? undefined)}
       onClick={close}
-      className={className}
-    >
-      {children}
-    </Link>
-  ) : (
-    <Link
-      to="/project/$projectId"
-      params={{ projectId: internalId }}
-      onClick={close}
+      // The row is dragged, not the link: the browser's own link drag would cancel it.
+      draggable={false}
       className={className}
     >
       {children}
@@ -533,31 +368,30 @@ function ProjectLink({
   );
 }
 
-/** Module Config screen link under "Installed modules" (ADR module-config-screens). */
+/**
+ * A plugin module's Config screen link (ADR module-config-screens). A screen of the
+ * module's folder opens inside that folder, on its draft (`screenDestination`).
+ */
 function ScreenItem({
   screen,
-  networkId,
   serverId,
+  projects,
 }: {
   screen: ServerEditorScreen;
-  networkId: string | null;
   serverId: string | null;
+  projects: ProjectSummary[];
 }) {
   const params = useParams({ strict: false }) as { screenId?: string };
   const isActive = params.screenId === screen.id;
-  if (!networkId || !serverId) return null;
+  if (!serverId) return null;
   return (
     <li>
       <Link
-        to="/networks/$networkId/servers/$serverId/screens/$screenId"
-        params={{ networkId, serverId, screenId: screen.id }}
+        {...screenDestination(screen, serverId, projects)}
         onClick={() => useSidebarStore.getState().close()}
-        className={
-          isActive
-            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors"
-            : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-        }
+        className={entryRowClass(isActive)}
       >
+        <EntryTile icon={Table2} />
         <span className="truncate flex-1" title={screen.label}>
           {screen.label}
         </span>
@@ -567,34 +401,36 @@ function ScreenItem({
 }
 
 /**
- * Les Documents du project ouvert, sous sa ligne : la barre de gauche devient
- * le registre (ADR à venir sur la sidebar unique). Ne s'affiche qu'une fois le
- * project chargé dans le compte, donc jamais pour un project simplement listé.
+ * The open project's Documents, under its row. Only shown once the project is
+ * loaded in the projects store, so never for a project that is merely listed.
  */
 function ActiveProjectDocuments({
   id,
   urlId,
-  networkId,
   serverId,
 }: {
   id: string;
   urlId?: string;
-  networkId: string | null;
   serverId: string | null;
 }) {
   const navigate = useNavigate();
-  const project = useAccountStore((s) =>
-    s.account.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
+  const { documentId } = useParams({ strict: false }) as { documentId?: string };
+  const { kind } = useSearch({ strict: false }) as { kind?: string };
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
   );
   if (!project) return null;
   return (
-    <div data-tour="elements" className="ml-3 border-l border-[var(--border)] pl-1">
+    <div data-tour="elements" className="px-1.5 pt-0.5">
       <ProjectDocumentTree
         projectId={project.id}
         header="none"
+        activeId={
+          documentId && (kind ? docKey(kind, documentId) : resolveDocKey(project, documentId))
+        }
         onOpen={(documentId) => {
           useSidebarStore.getState().close();
-          goToDocument(navigate, { networkId, serverId, project, ref: documentId });
+          goToDocument(navigate, { serverId, project, ref: documentId });
         }}
       />
     </div>
@@ -602,21 +438,19 @@ function ActiveProjectDocuments({
 }
 
 /**
- * Le project ouvert quand aucune ligne de la liste ne le porte : la démo (pas de
- * network) ou un project que la liste du serveur ne montre pas. Sans ce bloc,
- * ses Documents n'auraient plus de place, depuis le retrait du panneau de droite.
+ * The open project when no row of the list holds it: the demo (no server) or
+ * a project the server's list does not show. Without this block its Documents
+ * would have nowhere to go.
  */
 function UnlistedOpenProject({
   urlId,
-  networkId,
   serverId,
 }: {
   urlId: string;
-  networkId: string | null;
   serverId: string | null;
 }) {
-  const project = useAccountStore((s) =>
-    s.account.projects.find((p) => p.id === urlId || projectUrlId(p) === urlId),
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((p) => p.id === urlId || projectUrlId(p) === urlId),
   );
   if (!project) return null;
   return (
@@ -628,28 +462,23 @@ function UnlistedOpenProject({
         </span>
         <ProjectActions projectId={project.id} />
       </div>
-      <ActiveProjectDocuments
-        id={project.id}
-        urlId={urlId}
-        networkId={networkId}
-        serverId={serverId}
-      />
+      <ActiveProjectDocuments id={project.id} urlId={urlId} serverId={serverId} />
     </div>
   );
 }
 
-/** Paramètres et création, sur la ligne du project ouvert — une fois chargé. */
+/** Settings and creation, on the open project's row — once loaded. */
 function ActiveProjectActions({ id, urlId }: { id: string; urlId?: string }) {
-  const project = useAccountStore((s) =>
-    s.account.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
   );
   return project ? <ProjectActions projectId={project.id} /> : null;
 }
 
 /**
- * Un project du serveur qui n'est pas ouvert, vu depuis l'index serveur (état
- * publié) : ses Documents en lecture, dépliables à la demande. Un clic ouvre le
- * Document dans son project. Rien n'est rendu tant que l'index ne le connaît pas.
+ * A server project that is not open, seen through the server index (published
+ * state): its Documents read-only, expandable on demand. A click opens the
+ * Document in its project. Nothing is rendered until the index knows it.
  */
 function useIndexedProject(urlId: string | undefined, id: string): Project | undefined {
   return useServerIndexStore((s) =>
@@ -659,17 +488,15 @@ function useIndexedProject(urlId: string | undefined, id: string): Project | und
 
 function OtherProjectDocuments({
   project,
-  networkId,
   serverId,
 }: {
   project: Project;
-  networkId: string;
   serverId: string | null;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   return (
-    // biome-ignore lint/a11y/useSemanticElements: un groupe nommé de listes de navigation, pas un formulaire — <fieldset> serait faux.
+    // biome-ignore lint/a11y/useSemanticElements: a named group of navigation lists, not a form — <fieldset> would be wrong.
     <div
       role="group"
       aria-label={t("sidebar.projectDocuments", { name: project.name })}
@@ -679,9 +506,9 @@ function OtherProjectDocuments({
         project={project}
         onOpen={(documentId) => {
           useSidebarStore.getState().close();
-          // Ouvre ce project, centré sur le Document (`?doc=`, cf. goToDocument).
+          // Opens this project, centred on the Document (`?doc=`, cf. goToDocument).
           void navigate({
-            ...projectDestination(networkId, projectNamespace(project), serverId ?? undefined),
+            ...projectDestination(projectNamespace(project), serverId ?? undefined),
             search: { doc: documentId },
           } as never);
         }}
@@ -714,104 +541,64 @@ function ExpandToggle({
   );
 }
 
-/** Add-on-owned project link under "Installed modules" — like a project item but
- *  not reorderable (its placement is the module's, not the user's). */
-function OwnedProjectItem({
-  id,
-  urlId,
-  name,
-  count,
-  networkId,
-  serverId,
-}: {
+interface ProjectItemProps {
   id: string;
   /** Exact folder/module ID in this location. */
   urlId?: string;
   name: string;
   count: number | null;
-  networkId: string | null;
   serverId: string | null;
-}) {
-  const { t } = useTranslation();
-  const params = useParams({ strict: false }) as { projectId?: string };
-  const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
-  return (
-    <li className="flex flex-col">
-      <div className="flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
-        <ProjectLink
-          projectId={urlId ?? id}
-          internalId={id}
-          networkId={networkId}
-          serverId={serverId}
-          className={
-            isActiveProject
-              ? "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
-              : "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
-          }
-        >
-          <span className="min-w-0 truncate" title={name}>
-            {name}
-          </span>
-          {count != null && (
-            <span
-              title={t("serverDetail.documentCount", { count })}
-              aria-label={t("serverDetail.documentCount", { count })}
-              className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
-            >
-              {count}
-            </span>
-          )}
-        </ProjectLink>
-        {isActiveProject && <ActiveProjectActions id={id} urlId={urlId} />}
-      </div>
-      {isActiveProject && (
-        <ActiveProjectDocuments id={id} urlId={urlId} networkId={networkId} serverId={serverId} />
-      )}
-    </li>
-  );
 }
 
-function SortableProjectItem({
+function SortableProjectItem(props: ProjectItemProps) {
+  const sortable = useSortable({ id: props.id });
+  return <ProjectItem {...props} sortable={sortable} />;
+}
+
+/**
+ * A folder's row: a link that opens it, its Documents under it once open (or on
+ * demand, from the published state). [sortable] makes the whole row draggable,
+ * without a handle; [children] goes under the row (a plugin module's screens).
+ */
+function ProjectItem({
   id,
   urlId,
   name,
   count,
-  networkId,
   serverId,
-}: {
-  id: string;
-  /** Exact folder/module ID in this location. */
-  urlId?: string;
-  name: string;
-  count: number | null;
-  networkId: string | null;
-  serverId: string | null;
+  sortable,
+  children,
+  defaultExpanded = false,
+}: ProjectItemProps & {
+  sortable?: ReturnType<typeof useSortable>;
+  children?: ReactNode;
+  /** Opens the row on mount: the page shown is one of its children. */
+  defaultExpanded?: boolean;
 }) {
-  const { t } = useTranslation();
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    setActivatorNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
   const params = useParams({ strict: false }) as { projectId?: string };
   const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
   const indexed = useIndexedProject(urlId, id);
-  const [expanded, setExpanded] = useState(false);
-  const canExpand = !isActiveProject && !!indexed && !!networkId;
+  // A module's screens and commands fold with it: shown once the row is open, or when one of them is.
+  const hasChildren = children != null && children !== false;
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const canExpand = !isActiveProject && (!!indexed || hasChildren);
   const [collapsed, setCollapsed] = useState(false);
+  const open = isActiveProject ? !collapsed : expanded;
 
   return (
-    <li ref={setNodeRef} style={style} className="flex flex-col">
-      <div className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
+    <li
+      {...sortableItemProps(sortable)}
+      className={
+        // The open project stands out as one block: its row and its Documents.
+        isActiveProject && !collapsed
+          ? "my-1 flex flex-col rounded-[12px] border border-[var(--border-soft)] bg-[var(--surface-raised)] pb-1.5"
+          : "flex flex-col"
+      }
+    >
+      <div
+        {...sortable?.listeners}
+        className="group flex select-none items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]"
+      >
         {isActiveProject ? (
           <ExpandToggle
             name={name}
@@ -825,12 +612,10 @@ function SortableProjectItem({
         )}
         <ProjectLink
           projectId={urlId ?? id}
-          internalId={id}
-          networkId={networkId}
           serverId={serverId}
           className={
             isActiveProject
-              ? "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
+              ? "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--text)] transition-colors [&_svg]:text-[var(--brand)]"
               : "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
           }
         >
@@ -840,34 +625,258 @@ function SortableProjectItem({
             <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
           )}
           <span className="min-w-0 truncate">{name}</span>
-          {count != null && (
-            <span
-              title={t("serverDetail.documentCount", { count })}
-              aria-label={t("serverDetail.documentCount", { count })}
-              className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
-            >
-              {count}
-            </span>
-          )}
+          {/* Open, its tree lists the Documents: the count would only take the name's room. */}
+          {count != null && !isActiveProject && <DocumentCount count={count} />}
         </ProjectLink>
         {isActiveProject && <ActiveProjectActions id={id} urlId={urlId} />}
-        <button
-          type="button"
-          aria-label="Reorder project"
-          ref={setActivatorNodeRef}
-          {...attributes}
-          {...listeners}
-          className="flex h-auto w-6 shrink-0 cursor-grab items-center justify-center rounded text-[var(--text-faint)] transition-opacity hover:text-[var(--text-mut)] active:cursor-grabbing lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100"
-        >
-          <GripVertical className="size-3.5" />
-        </button>
       </div>
       {isActiveProject && !collapsed && (
-        <ActiveProjectDocuments id={id} urlId={urlId} networkId={networkId} serverId={serverId} />
+        <ActiveProjectDocuments id={id} urlId={urlId} serverId={serverId} />
       )}
-      {canExpand && expanded && (
-        <OtherProjectDocuments project={indexed} networkId={networkId} serverId={serverId} />
+      {canExpand && expanded && indexed && (
+        <OtherProjectDocuments project={indexed} serverId={serverId} />
       )}
+      {/* Inside the open project's block, aligned with its Documents. */}
+      {open && children && (isActiveProject ? <div className="px-1.5">{children}</div> : children)}
     </li>
   );
+}
+
+function DocumentCount({ count }: { count: number }) {
+  const { t } = useTranslation();
+  return (
+    <span
+      title={t("serverDetail.documentCount", { count })}
+      aria-label={t("serverDetail.documentCount", { count })}
+      className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[11px] font-medium tabular-nums text-[var(--text-faint)]"
+    >
+      {count}
+    </span>
+  );
+}
+
+/**
+ * A plugin's module. With one folder, the row is that folder under the module's
+ * name; otherwise the module's name heads its folders. Its screens follow.
+ */
+interface PluginModuleItemProps {
+  module: PluginModule;
+  countFor: (p: ProjectSummary) => number | null;
+  serverId: string | null;
+  serverIdOf: (p: ProjectSummary) => string | null;
+}
+
+function SortablePluginModuleItem(props: PluginModuleItemProps) {
+  const sortable = useSortable({ id: props.module.id });
+  return <PluginModuleItem {...props} sortable={sortable} />;
+}
+
+function PluginModuleItem({
+  module,
+  countFor,
+  serverId,
+  serverIdOf,
+  sortable,
+}: PluginModuleItemProps & { sortable?: ReturnType<typeof useSortable> }) {
+  const params = useParams({ strict: false }) as { screenId?: string };
+  // The page shown is one of the module's: it opens folded out, so the active row is visible.
+  const showsChild = module.entries.some(
+    (e) => e.kind === "screen" && e.screen.id === params.screenId,
+  );
+  const [expanded, setExpanded] = useState(showsChild);
+  const entries = module.entries.length > 0 && (
+    <ModuleEntries entries={module.entries} serverId={serverId} projects={module.projects} />
+  );
+  const [only] = module.projects;
+  if (only && module.projects.length === 1) {
+    return (
+      <ProjectItem
+        id={only.id}
+        urlId={projectUrlId(only)}
+        name={module.label}
+        count={countFor(only)}
+        serverId={serverIdOf(only)}
+        defaultExpanded={showsChild}
+        sortable={sortable}
+      >
+        {entries}
+      </ProjectItem>
+    );
+  }
+  return (
+    <li {...sortableItemProps(sortable)} className="flex flex-col">
+      <div
+        {...sortable?.listeners}
+        className="flex select-none items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]"
+      >
+        <ExpandToggle
+          name={module.label}
+          expanded={expanded}
+          onToggle={() => setExpanded((v) => !v)}
+        />
+        {/* TODO: render the module's icon once modules ship real icons */}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-left text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
+        >
+          <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+          <span className="min-w-0 truncate">{module.label}</span>
+        </button>
+      </div>
+      {expanded && module.projects.length > 0 && (
+        <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
+          {module.projects.map((p) => (
+            <ProjectItem
+              key={p.id}
+              id={p.id}
+              urlId={projectUrlId(p)}
+              name={p.name}
+              count={countFor(p)}
+              serverId={serverIdOf(p)}
+            />
+          ))}
+        </ul>
+      )}
+      {expanded && entries}
+    </li>
+  );
+}
+
+/**
+ * What a plugin module alone manages: its screens and its configuration, one row each
+ * with its tile, like the Documents of a folder (no header).
+ */
+function ModuleEntries({
+  entries,
+  serverId,
+  projects,
+}: {
+  entries: ModuleGroupEntry[];
+  serverId: string | null;
+  projects: ProjectSummary[];
+}) {
+  const { t } = useTranslation();
+  return (
+    <ul className="flex flex-col">
+      {entries.map((e) =>
+        e.kind === "screen" ? (
+          <ScreenItem
+            key={`s:${e.screen.id}`}
+            screen={e.screen}
+            serverId={serverId}
+            projects={projects}
+          />
+        ) : (
+          <li key={`c:${e.moduleId}`}>
+            <Link
+              to="/m/$moduleId"
+              params={{ moduleId: e.moduleId }}
+              onClick={() => useSidebarStore.getState().close()}
+              className={entryRowClass(false)}
+            >
+              <EntryTile icon={Settings} />
+              <span className="truncate flex-1">{t("sidebar.configuration")}</span>
+            </Link>
+          </li>
+        ),
+      )}
+    </ul>
+  );
+}
+
+/** A module entry's row: the frame and type of a Document's row in the tree. */
+function entryRowClass(active: boolean): string {
+  return `flex items-center gap-2 rounded-[10px] py-[5px] pr-2 pl-1.5 text-[13px] leading-5 text-[var(--text)] transition-colors ${
+    active ? "bg-[var(--surface-hover)] font-semibold" : "hover:bg-[var(--surface-hover)]"
+  }`;
+}
+
+/** A neutral tile for a module's screen or configuration. */
+function EntryTile({ icon }: { icon: typeof Terminal }) {
+  return (
+    <span className="flex shrink-0" aria-hidden>
+      <IconTile icon={icon} fg="var(--text-mut)" soft="var(--surface-raised-2)" size="xs" />
+    </span>
+  );
+}
+
+/**
+ * A list of the sidebar's folders that the admin reorders by dragging a row, with
+ * no handle (SortableJS style). A few pixels of mouse movement, or a long press on
+ * touch, before a drag starts: below that, the press stays a click that opens or
+ * folds the folder, and a swipe still scrolls the sidebar.
+ */
+function SortableFolders({
+  ids,
+  onReorder,
+  children,
+}: {
+  ids: string[];
+  onReorder: (ids: string[]) => void;
+  children: ReactNode;
+}) {
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
+  // The press that ends a drag must not open the folder it lands on: dnd-kit stops
+  // the click's propagation, not the link's navigation.
+  const releaseClick = useRef<(() => void) | null>(null);
+  const swallowClicks = () => {
+    releaseClick.current?.();
+    const swallow = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener("click", swallow, true);
+    releaseClick.current = () => window.removeEventListener("click", swallow, true);
+  };
+  // The click follows the release in the same task: let it through the swallow first.
+  const allowClicks = () => {
+    const release = releaseClick.current;
+    releaseClick.current = null;
+    if (release) setTimeout(release, 0);
+  };
+  useEffect(() => () => releaseClick.current?.(), []);
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    allowClicks();
+    if (!over || active.id === over.id) return;
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from === -1 || to === -1) return;
+    onReorder(arrayMove(ids, from, to));
+  };
+  return (
+    <DndContext
+      sensors={sensors}
+      modifiers={[restrictToVerticalAxis]}
+      onDragStart={swallowClicks}
+      onDragEnd={onDragEnd}
+      onDragCancel={allowClicks}
+    >
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        <ul className="flex flex-col">{children}</ul>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+/** A sortable folder's `<li>`: it follows the pointer, above its neighbours. */
+function sortableItemProps(sortable: ReturnType<typeof useSortable> | undefined) {
+  if (!sortable) return {};
+  return {
+    ref: sortable.setNodeRef,
+    style: {
+      transform: CSS.Transform.toString(sortable.transform),
+      transition: sortable.transition,
+      position: sortable.isDragging ? ("relative" as const) : undefined,
+      zIndex: sortable.isDragging ? 1 : undefined,
+      // Its own surface while it floats, or the rows under it show through.
+      background: sortable.isDragging ? "var(--surface-raised)" : undefined,
+      borderRadius: sortable.isDragging ? 10 : undefined,
+      boxShadow: sortable.isDragging ? "var(--shadow-md)" : undefined,
+    },
+    "data-dragging": sortable.isDragging || undefined,
+  };
 }

@@ -32,6 +32,16 @@ describe("validateMenuV1", () => {
     expect(validateMenuV1(m).valid).toBe(true);
   });
 
+  it("accepts a lore as one list per language, and the legacy map per line", () => {
+    const m = structuredClone(canonicalButton) as Record<string, any>;
+    m.layers[0].elements[0].lore = { en: ["Members", "", "Click"], fr: ["Membres", "Clic"] };
+    expect(validateMenuV1(m).valid).toBe(true);
+    m.layers[0].elements[0].lore = ["", { en: "Members", fr: "Membres" }];
+    expect(validateMenuV1(m).valid).toBe(true);
+    m.layers[0].elements[0].lore = { en: ["Members"], "BAD KEY": ["x"] };
+    expect(validateMenuV1(m).valid).toBe(false);
+  });
+
   it("accepts a field-local lang map on a title layer", () => {
     const m = structuredClone(canonicalButton) as Record<string, any>;
     m.title = [{ kind: "plain", value: { en: "Shop", fr: "Boutique" } }];
@@ -124,7 +134,9 @@ describe("validateMenuV1 — structured action wire", () => {
   });
 
   it("accepts the legacy wrapped {steps} handler", () => {
-    expect(validateMenuV1(withElement({ click: { left: { steps: 'send_message "hi"' } } })).valid).toBe(true);
+    expect(
+      validateMenuV1(withElement({ click: { left: { steps: 'send_message "hi"' } } })).valid,
+    ).toBe(true);
   });
 
   it("accepts keyed scalar, multi-arg, bare string and null actions", () => {
@@ -156,7 +168,9 @@ describe("validateMenuV1 — structured action wire", () => {
   });
 
   it("accepts a single action map as a handler (single-step sugar)", () => {
-    expect(validateMenuV1(withElement({ click: { left: { send_message: "Hello" } } })).valid).toBe(true);
+    expect(validateMenuV1(withElement({ click: { left: { send_message: "Hello" } } })).valid).toBe(
+      true,
+    );
   });
 
   it("accepts a keyed condition on an appearance if", () => {
@@ -164,6 +178,8 @@ describe("validateMenuV1 — structured action wire", () => {
   });
 
   it("rejects an unknown action verb", () => {
-    expect(validateMenuV1(withElement({ click: { left: [{ teleport_all: true }] } })).valid).toBe(false);
+    expect(validateMenuV1(withElement({ click: { left: [{ teleport_all: true }] } })).valid).toBe(
+      false,
+    );
   });
 });

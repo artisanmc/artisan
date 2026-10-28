@@ -1,23 +1,28 @@
+import { docKey, documentKeys, findDocumentByKey, menusOf, parseDocKey } from "@/domain/documents";
 import type { EdgeAnchor, Project } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
-import { useAccountStore } from "@/state/accountStore";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useEffect, useMemo, useState } from "react";
 import { Arrow, Circle } from "react-konva";
-import { deriveEdges, type Edge } from "./deriveEdges";
-import { anchorPoint, closestAnchorOnBox, routeEdges, type Box } from "./edgeRouting";
+import { type Edge, deriveEdges } from "./deriveEdges";
+import { type Box, anchorPoint, closestAnchorOnBox, routeEdges } from "./edgeRouting";
+import { groupEdges } from "./groupedBoard";
 import { nodeBox } from "./menuLayout";
 import { findPreviewCallContexts } from "./previewCallContexts";
 import { nextCallContext } from "./previewCallNavigation";
-import { groupEdges } from "./groupedBoard";
+import { subCommandAnchors } from "./subCommandAnchors";
 
-/** Ne garde que les edges dont les deux extrémités sont sur la planche. */
-export function visibleEdges(edges: Edge[], layout: Record<string, { x: number; y: number }>): Edge[] {
+/** Keeps only the edges whose two ends are on the board. */
+export function visibleEdges(
+  edges: Edge[],
+  layout: Record<string, { x: number; y: number }>,
+): Edge[] {
   return edges.filter((e) => layout[e.source] && layout[e.target]);
 }
 
@@ -27,20 +32,27 @@ interface EdgesProps {
   representatives?: Record<string, string>;
 }
 
-function deriveHighlightSet(project: Project, ids: ReadonlySet<string>): Set<string> {
+/** The keys of the Documents a selection touches: a Document itself, or the menu of a selected element. */
+function deriveHighlightSet(
+  project: Project,
+  ids: ReadonlySet<string>,
+  scope: string | null,
+): Set<string> {
   const out = new Set<string>();
   for (const id of ids) {
-    if (
-      project.menus.some((m) => m.id === id) ||
-      project.commands.some((c) => c.id === id) ||
-      (project.dialogs ?? []).some((d) => d.id === id)
-    ) {
+    if (scope === null && findDocumentByKey(project, id)) {
       out.add(id);
       continue;
     }
-    for (const m of project.menus) {
+    // A module Document's part is scoped by its Document's key.
+    if (scope !== null && findDocumentByKey(project, scope)) {
+      out.add(scope);
+      continue;
+    }
+    for (const m of menusOf(project)) {
+      if (scope !== null && m.id !== scope) continue;
       if (m.layers.some((l) => l.elements.some((el) => el.id === id))) {
-        out.add(m.id);
+        out.add(docKey("menu", m.id));
         break;
       }
     }
@@ -50,27 +62,37 @@ function deriveHighlightSet(project: Project, ids: ReadonlySet<string>): Set<str
 
 export function Edges({ project, layout, representatives }: EdgesProps) {
   const selectedIds = useSelectionStore((s) => s.ids);
+  const selectionScope = useSelectionStore((s) => s.menuId);
   const activeLang = useUiStore((s) => s.activeLang);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
   const setMenuPreviewArgs = useUiStore((s) => s.setMenuPreviewArgs);
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
 
   /**
-   * Cliquer un lien vers un menu paramétré fait ce que ferait un joueur :
-   * on entre dedans par cet appel. Recliquer avance d'un contexte — c'est la
-   * navigation de catégorie en catégorie, sans passer par un panneau.
+   * Clicking a link to a parameterised menu does what a player would do: enter
+   * it through that call. Clicking again advances one context — category to
+   * category navigation, without going through a panel.
    * Cf. ADR `parameterised-menu-over-menu-per-category`.
    */
   const enterEdge = (edge: Edge) => {
-    const target = project.menus.find((m) => m.id === edge.target);
+    const target = menusOf(project).find((m) => docKey("menu", m.id) === edge.target);
     if (!target || (target.contextInputs ?? []).length === 0) return;
     const contexts = findPreviewCallContexts(target, project, snapshots, activeLang);
-    const next = nextCallContext(contexts, menuPreviewArgs[target.id], edge.source);
+    const from = parseDocKey(edge.source)?.id;
+    const next = nextCallContext(contexts, menuPreviewArgs[target.id], from);
     if (!next) return;
     setMenuPreviewArgs(target.id, next.args);
   };
 
-  const highlightSet = useMemo(() => new Set([...deriveHighlightSet(project, selectedIds)].map((id) => representatives?.[id] ?? id)), [project, selectedIds, representatives]);
+  const highlightSet = useMemo(
+    () =>
+      new Set(
+        [...deriveHighlightSet(project, selectedIds, selectionScope)].map(
+          (id) => representatives?.[id] ?? id,
+        ),
+      ),
+    [project, selectedIds, selectionScope, representatives],
+  );
   const hoveredEdgeId = useEdgeHoverStore((s) => s.edge?.id ?? null);
   const setHover = useEdgeHoverStore((s) => s.set);
   const moveHover = useEdgeHoverStore((s) => s.move);
@@ -85,17 +107,9 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
 
   const boxes = useMemo(() => {
     const out: Record<string, Box> = {};
-    for (const m of project.menus) {
-      const box = nodeBox(project, m.id, layout);
-      if (box) out[m.id] = box;
-    }
-    for (const c of project.commands) {
-      const box = nodeBox(project, c.id, layout);
-      if (box) out[c.id] = box;
-    }
-    for (const d of project.dialogs ?? []) {
-      const box = nodeBox(project, d.id, layout);
-      if (box) out[d.id] = box;
+    for (const id of documentKeys(project)) {
+      const box = nodeBox(project, id, layout);
+      if (box) out[id] = box;
     }
     return out;
   }, [project, layout]);
@@ -107,8 +121,19 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
     anchor: EdgeAnchor;
   } | null>(null);
 
+  const edges = useMemo(
+    () => visibleEdges(groupEdges(deriveEdges(project), representatives ?? {}), boxes),
+    [project, boxes, representatives],
+  );
+
   const overrides = useMemo(() => {
-    const base = project.canvasEdges ?? {};
+    // A sub-command's link leaves from its row, unless the user pinned that end.
+    const rowAnchors = subCommandAnchors(project, edges, boxes);
+    const pinned = project.canvasEdges ?? {};
+    const base: typeof pinned = { ...pinned };
+    for (const [id, { from }] of Object.entries(rowAnchors)) {
+      base[id] = { ...pinned[id], from: pinned[id]?.from ?? from };
+    }
     if (!dragOverride) return base;
     return {
       ...base,
@@ -117,12 +142,9 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
         [dragOverride.end]: dragOverride.anchor,
       },
     };
-  }, [project.canvasEdges, dragOverride]);
+  }, [project, edges, boxes, dragOverride]);
 
-  const routed = useMemo(
-    () => routeEdges({ edges: visibleEdges(groupEdges(deriveEdges(project), representatives ?? {}), boxes), boxes, overrides }),
-    [project, boxes, overrides, representatives],
-  );
+  const routed = useMemo(() => routeEdges({ edges, boxes, overrides }), [edges, boxes, overrides]);
 
   const selectEdge = (id: string) => {
     useEdgeSelectionStore.getState().select(id);
@@ -179,7 +201,9 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
           if (!box) return null;
           const pt = end === "from" ? selectedRouted.from : selectedRouted.to;
           const reset = () =>
-            useAccountStore.getState().clearEdgeAnchor({ projectId: project.id, edgeId: edge.id, end });
+            useProjectsStore
+              .getState()
+              .clearEdgeAnchor({ projectId: project.id, edgeId: edge.id, end });
           return (
             <Circle
               key={`${edge.id}:${end}`}
@@ -197,7 +221,7 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
               }}
               onDragEnd={() => {
                 if (dragOverride) {
-                  useAccountStore.getState().setEdgeAnchor({
+                  useProjectsStore.getState().setEdgeAnchor({
                     projectId: project.id,
                     edgeId: dragOverride.edgeId,
                     end: dragOverride.end,

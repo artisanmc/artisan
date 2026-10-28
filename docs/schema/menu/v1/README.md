@@ -1,138 +1,148 @@
 # Artisan — Menu schema v1
 
-Format intermédiaire d'un menu Artisan. C'est le **contrat** entre l'éditeur web (`editor.artisanmc.net`) et le plugin Minecraft : tant que les deux côtés respectent ce schéma, ils sont découplés.
+Intermediate format of an Artisan menu. It is the **contract** between the web editor (`editor.artisanmc.net`) and the Minecraft plugin: as long as both sides respect this schema, they are decoupled.
 
-## Fichiers
+## Files
 
-| Fichier | Rôle |
+| File | Role |
 |---|---|
-| `schema.json` | JSON Schema (Draft 2020-12), source de vérité validable par machine |
-| `types.ts` | Types TypeScript pour l'éditeur et le futur MCP server |
-| `examples/minimal.json` | Plus petit menu valide (1 layer, 1 element). |
-| `examples/shop-with-states.json` | Shop avec apparences conditionnelles (3 variantes pour le bouton VIP). |
-| `examples/paginated-quests.json` | Liste paginée avec boutons prev/next auto-bind. |
-| `examples/multi-paginated.json` | Deux listes paginées dans le même menu, binding explicite via `element_id`. |
-| `examples/deco-with-conditional-button.json` | Pattern phare : layer décoration + layer items, fall-through quand un bouton est conditionnel. |
-| `examples/data-driven-shop.json` | Element itératif sur un `contextInput` de type `list` peuplé par la data source `chestshop:items` — un slot par item shop, avec apparences conditionnelles sur `{shop.rarity}`. |
+| `schema.json` | JSON Schema (Draft 2020-12), machine-validatable source of truth |
+| `types.ts` | TypeScript types for the editor and the future MCP server |
+| `examples/minimal.json` | Smallest valid menu (1 layer, 1 element). |
+| `examples/shop-with-states.json` | Shop with conditional appearances (3 variants for the VIP button). |
+| `examples/paginated-quests.json` | Paginated list with auto-bound prev/next buttons. |
+| `examples/multi-paginated.json` | Two paginated lists in the same menu, explicit binding via `element_id`. |
+| `examples/deco-with-conditional-button.json` | Flagship pattern: decoration layer + items layer, fall-through when a button is conditional. |
+| `examples/data-driven-shop.json` | Iterative Element over a `contextInput` of type `list` populated by the `chestshop:items` data source — one slot per shop item, with conditional appearances on `{shop.rarity}`. |
 
-## Vocabulaire
+## Vocabulary
 
-Pour éviter la confusion :
+To avoid confusion:
 
-- **Position** (Minecraft) : un emplacement dans l'inventaire, indexé de 0 à 53. Ce que le jeu appelle "slot".
-- **Element** (Artisan) : l'objet manipulé par l'admin (bouton, décoration, liste paginée...). Un Element occupe une ou plusieurs positions et a une ou plusieurs apparences.
-- **Layer** : conteneur qui groupe des Elements liés thématiquement (décoration, items, navigation...). Les layers sont ordonnés bottom→top et permettent du chevauchement contrôlé entre couches.
-- **Appearance** : variante visuelle d'un Element. Évaluée dans l'ordre, première dont la condition matche gagne.
-- **Bundle** (séparé du Project) : artefact runtime signé que le plugin télécharge depuis le CDN. Concept distinct du project.
+- **Position** (Minecraft): a location in the inventory, indexed from 0 to 53. What the game calls a "slot".
+- **Element** (Artisan): the object manipulated by the admin (button, decoration, paginated list...). An Element occupies one or more positions and has one or more appearances.
+- **Layer**: container that groups thematically related Elements (decoration, items, navigation...). Layers are ordered bottom→top and allow controlled overlap between layers.
+- **Appearance**: visual variant of an Element. Evaluated in order, the first whose condition matches wins.
+- **Bundle** (separate from the Project): signed runtime artifact that the plugin downloads from the CDN. A concept distinct from the project.
 
-## Modèle conceptuel
+## Conceptual model
 
 ```
 Menu
  ├── meta (schema, id, title, size, permission)
  ├── lifecycle (open_requirements, open_actions, close_actions)
- ├── background : Appearance     ← fallback ultime quand aucun layer ne rend
- └── layers : Layer[]            ← ordre bottom → top
+ ├── background : Appearance     ← ultimate fallback when no layer renders
+ └── layers : Layer[]            ← order bottom → top
        └── Layer
-            ├── id (slug, ex. "decoration")
-            ├── name (affiché dans l'éditeur)
+            ├── id (slug, e.g. "decoration")
+            ├── name (shown in the editor)
             └── elements : Element[]
                   └── Element
                        ├── id           (stable, unique cross-layer)
-                       ├── positions    ("15" ou "10-43")
-                       ├── <champs du display>          ← à plat sur l'Element
-                       ├── states ?     : Appearance[]   ← essayés AVANT le display
+                       ├── positions    ("15" or "10-43")
+                       ├── <display fields>             ← flat on the Element
+                       ├── states ?     : Appearance[]   ← tried BEFORE the display
                        ├── template_ref ?
                        └── tags ?
 ```
 
-## Sémantique de rendu
+## Rendering semantics
 
-Pour chaque position 0 à `size-1`, le moteur fait :
+For each position 0 to `size-1`, the engine does:
 
-1. Parcourt les layers de **haut en bas** (`menu.layers` lu en ordre inverse — dernier de la liste = top)
-2. Pour chaque layer, identifie l'Element qui revendique cette position (last-placed-wins en cas d'overlap intra-layer)
-3. Évalue les `states` de l'Element dans l'ordre. **Le premier dont `if` passe gagne** → render à cette position, terminé pour ce slot
-4. Si aucun état ne passe, le **display** (les champs d'apparence portés à plat par l'Element) est rendu — c'est le repli, il s'applique toujours
-5. Aucun layer ne fournit un Element rendu → render `menu.background` si défini, sinon position vide (AIR)
+1. Walks the layers from **top to bottom** (`menu.layers` read in reverse order — last in the list = top)
+2. For each layer, identifies the Element that claims this position (last-placed-wins on intra-layer overlap)
+3. Evaluates the Element's `states` in order. **The first whose `if` passes wins** → render at this position, done for this slot
+4. If no state passes, the **display** (the appearance fields carried flat by the Element) is rendered — it is the fallback, it always applies
+5. No layer provides a rendered Element → render `menu.background` if defined, otherwise empty position (AIR)
 
-## Décisions de design
+## Design decisions
 
-### Layers first-class
+### First-class Layers
 
-Les Layers sont des entités à part entière (`Layer` avec id, name, elements), pas juste des tags. Pourquoi :
+Layers are entities in their own right (`Layer` with id, name, elements), not just tags. Why:
 
-- **Copy-paste cross-menus** : on copie un layer entier d'un menu à un autre, en une opération atomique
-- **Symbols / Templates de layers** (V2) : un layer "navigation moderne" devient un Symbol instanciable
-- **Marketplace** (V3) : un créateur peut vendre un project "Layer décoration médiéval"
-- **Mental model** : Photoshop / Figma traitent les layers comme des conteneurs avec enfants
+- **Cross-menu copy-paste**: copy an entire layer from one menu to another, in one atomic operation
+- **Layer Symbols / Templates** (V2): a "modern navigation" layer becomes an instantiable Symbol
+- **Marketplace** (V3): a creator can sell a project "Medieval decoration layer"
+- **Mental model**: Photoshop / Figma treat layers as containers with children
 
-### Display à plat + states, sans partial override
+### Flat display + states, without partial override
 
-Le cas nominal — un Element, une apparence — s'écrit **sans emballage** : `material`, `title`,
-`lore`, `click` sont des clés de l'Element, comme dans les autres plugins de menu. C'est ce que
-100 % des Elements réels utilisent. Les alternatives conditionnelles vivent sous `states`.
+The nominal case — one Element, one appearance — is written **without wrapping**: `material`, `title`,
+`lore`, `click` are keys of the Element, as in other menu plugins. This is what
+100% of real Elements use. The conditional alternatives live under `states`.
 
-Un état **remplace** le display, il ne le complète pas : ce qu'il n'écrit pas est **absent**,
-jamais hérité. Le merge (« le state ne dit que ce qui change ») a été examiné et écarté — il
-demande d'inventer des règles (effacer un lore hérité, fusionner les `click`, redéfinir
-partiellement un `nbt`) sans aucune donnée d'usage pour les informer. Bénéfices du remplacement :
+A state **replaces** the display, it does not complete it: what it does not write is **absent**,
+never inherited. The merge ("the state only says what changes") was examined and rejected — it
+requires inventing rules (clearing an inherited lore, merging the `click`s, partially redefining an
+`nbt`) with no usage data to inform them. Benefits of replacement:
 
-- Chaque apparence est self-contained (pas de « j'hérite de quoi déjà ? »)
-- Plus AI-friendly (lire un état suffit à savoir ce qui s'affiche)
-- Le moteur prend le premier état qui matche, sinon le display, point
+- Each appearance is self-contained (no "what do I inherit again?")
+- More AI-friendly (reading one state is enough to know what is displayed)
+- The engine takes the first state that matches, otherwise the display, period
 
-Prix à payer, assumé : un Element multi-états répète les champs communs. L'éditeur ne masque PAS
-ce prix — « Ajouter un état » crée un état **vide**, et le bloc de pierre qu'il affiche
-immédiatement enseigne la sémantique ; « Dupliquer » est le geste explicite d'à côté.
+Price to pay, accepted: a multi-state Element repeats the common fields. The editor does NOT hide
+this price — "+ Add state" creates an **empty** state, and the stone block it immediately shows
+teaches the semantics; "Duplicate" is the explicit gesture next to it.
 
-Cf. ADR `element-display-and-states`.
+See ADR `element-display-and-states`.
 
-### Pas de validation d'overlap stricte
+### No strict overlap validation
 
-Au sein d'un même layer, deux Elements peuvent revendiquer la même position : **last-placed-wins**, l'éditeur affiche un warning mais ne bloque pas. C'est plus permissif que d'errorer, et ça permet à l'admin de superposer rapidement sans friction.
+Within a single layer, two Elements can claim the same position: **last-placed-wins**, the editor shows a warning but does not block. This is more permissive than erroring, and lets the admin superimpose quickly without friction.
 
-Entre layers différents, l'overlap est **intentionnel** (c'est le pattern fall-through pour les boutons conditionnels + déco en dessous).
+Between different layers, overlap is **intentional** (it is the fall-through pattern for conditional buttons + decoration underneath).
 
-### Chemins de références
+### Reference paths
 
-- `pagination_next.element_id` / `pagination_prev.element_id` / `pagination_at_first.element_id` / `pagination_at_last.element_id` réfèrent un Element par son `id` (cross-layer, unique dans le menu).
-- `template_ref.id` réfère un template stocké à part.
+- `pagination_next.element_id` / `pagination_prev.element_id` / `pagination_at_first.element_id` / `pagination_at_last.element_id` reference an Element by its `id` (cross-layer, unique in the menu).
+- `template_ref.id` references a separately stored template.
 
-### Choix conservés
+### Retained choices
 
-**`size` enum.** Limité à `{9, 18, 27, 36, 45, 54}` via `enum`.
+**`size` enum.** Limited to `{9, 18, 27, 36, 45, 54}` via `enum`.
 
-**`custom_model_data` est une string.** 1.21.4+ uniquement.
+**`custom_model_data` is a string.** 1.21.4+ only.
 
-**`asset` vs `material`.** Tous les deux optionnels. Asset prime si présent (rendu via CMD string). Material seul = item vanilla. Ni l'un ni l'autre = position visiblement AIR (utile pour les Elements purement structurels).
+**`asset` vs `material`.** Both optional. Asset takes precedence if present (rendered via CMD string). Material alone = vanilla item. Neither = visibly AIR position (useful for purely structural Elements).
 
-**Click `null` dans une Appearance.** Signifie "non-cliquable explicitement". Si `click` est juste absent (undefined), l'Appearance n'est pas cliquable non plus — `null` sert juste à expliciter l'intention pour la lisibilité.
+**Click `null` in an Appearance.** Means "explicitly non-clickable". If `click` is simply absent (undefined), the Appearance is not clickable either — `null` just makes the intent explicit for readability.
 
-**Composants tiers.** `ClickHandler = StandardClick | ComponentClick`, discriminé par `use_component_default`.
+**Third-party components.** `ClickHandler = StandardClick | ComponentClick`, discriminated by `use_component_default`.
 
-## Format des champs texte
+## Text field format
 
-Tous les champs texte du schéma (`title`, `lore[]`, `send_message.text`, `broadcast.text`, `cooldown.message`, `give_item.name`, `give_item.lore[]`, etc.) suivent une convention de contenu unifiée :
+All text fields of the schema (`title`, `lore[]`, `send_message.text`, `broadcast.text`, `cooldown.message`, `give_item.name`, `give_item.lore[]`, etc.) follow a unified content convention:
 
-- **Format MiniMessage** (Adventure / Paper) — tags `<color>`, `<bold>`, `<gradient>`, `<click>`, `<hover>`, etc. Cf. https://docs.advntr.dev/minimessage/format.html
-- **Référence i18n inline** : `{i18n:menu.shop.title}` est résolu à l'exécution depuis le fichier translations du project (cf. `translations/v1`).
-- **Placeholders PAPI** : `%player_name%`, `%vault_eco_balance%`, `%args_target%` (si ouvert depuis une commande), etc.
-- **Codes legacy `§a`** acceptés en input mais convertis en MiniMessage au save (canonicalisation backend, opt-out project).
+- **MiniMessage format** (Adventure / Paper) — tags `<color>`, `<bold>`, `<gradient>`, `<click>`, `<hover>`, etc. See https://docs.advntr.dev/minimessage/format.html
+- **Inline i18n reference**: `{i18n:menu.shop.title}` is resolved at runtime from the project's translations file (see `translations/v1`).
+- **PAPI placeholders**: `%player_name%`, `%vault_eco_balance%`, `%args_target%` (if opened from a command), etc.
+- **Legacy `§a` codes** accepted as input but converted to MiniMessage on save (backend canonicalization, project opt-out).
 
-Ordre de résolution côté plugin : (1) `{i18n:...}` → valeur stockée pour la langue active, (2) `%placeholder%` → résolu via PAPI, (3) parse MiniMessage final → Component Adventure envoyé au joueur.
+Resolution order on the plugin side: (1) `{i18n:...}` → value stored for the active language, (2) `%placeholder%` → resolved via PAPI, (3) final MiniMessage parse → Adventure Component sent to the player.
 
-Schéma : aucun changement — les champs restent `string`. C'est une convention de contenu, validée et rendue par le moteur de l'éditeur et du plugin.
+Schema: no change — the fields remain `string`. It is a content convention, validated and rendered by the editor and plugin engine.
 
-## Contexte du menu et data sources
+**Translated lore.** `lore` is a list of lines, or a list of lines **per language** (`$defs/Lore`):
 
-Tout flux de données entrant dans un menu — qu'il vienne de l'appelant ou d'une data source tierce — passe par `Menu.contextInputs`. Chaque entrée est une **slot nommée et typée** que le menu déclare ; sa valeur peut venir de trois sources :
+```yaml
+lore:
+  en: ["<gray>Members: <white>{r.members}", "", "<aqua>[Left click] <white>manage the permissions"]
+  fr: ["<gray>Membres : <white>{r.members}", "", "<aqua>[Clic gauche] <white>gérer les permissions"]
+```
 
-- **Appelant** : la commande ou le menu parent passe la valeur à l'ouverture (auto-binding par nom, cf. main-spec §15.4).
-- **Data source** : la slot porte un `source: ConnectorBinding` ; le moteur appelle la data source référencée et stocke le résultat.
-- **Default** : valeur littérale fallback.
+Each language has its own number of lines; a missing language falls back as a whole to `defaultLang`. The legacy form (a `{ lang: text }` map per line) remains valid when reading, the editor no longer writes it.
 
-Un Element devient itératif en pointant `iterates: { source, alias }` vers une slot de type `"list"` (peu importe que la liste vienne de l'appelant ou d'une data source — c'est opaque côté Element). Les champs accèdent à l'item courant via `{alias.field}`. Concept détaillé en `main-spec.md` section 14.
+## Menu context and data sources
+
+Every data flow entering a menu — whether from the caller or from a third-party data source — goes through `Menu.contextInputs`. Each entry is a **named, typed slot** that the menu declares; its value can come from three sources:
+
+- **Caller**: the command or parent menu passes the value at open time (auto-binding by name, see main-spec §15.4).
+- **Data source**: the slot carries a `source: ConnectorBinding`; the engine calls the referenced data source and stores the result.
+- **Default**: literal fallback value.
+
+An Element becomes iterative by pointing `iterates: { source, alias }` to a slot of type `"list"` (whether the list comes from the caller or from a data source doesn't matter — it is opaque to the Element). Fields access the current item via `{alias.field}`. Concept detailed in `main-spec.md` section 14.
 
 ```json
 {
@@ -174,25 +184,25 @@ Un Element devient itératif en pointant `iterates: { source, alias }` vers une 
 }
 ```
 
-Règles :
+Rules:
 
-- `iterates` et `appearance.component_ref` sont **mutuellement exclusifs** sur un même Element. `validateMenuLayout` flag les erreurs.
-- `iterates.source` doit pointer vers un `contextInput` déclaré et de type `"list"`. `validateMenuLayout` flag les erreurs.
-- `ConnectorBinding.source` est valide uniquement sur `type: "list"` et `type: "object"`.
-- Les valeurs `params` / `filter` du `ConnectorBinding` interpolent les autres `contextInputs` du menu via `{name}`.
-- Pas de cycle dans les dépendances entre `contextInputs` : si `filter` réfère `{X}`, la slot `X` doit être résoluble en amont (appelant ou data source sans dépendance circulaire).
-- Conditions sur les champs de l'item d'iteration : utiliser `placeholder_equals` / `placeholder_match` avec `{alias.field}` comme placeholder. Les anciennes conditions `data_field_*` ont été retirées.
-- Le namespace du `ref` (`chestshop`, `essentials`, `jobs`, ...) est ajouté automatiquement à `metadata.uses_plugins`.
+- `iterates` and `appearance.component_ref` are **mutually exclusive** on a single Element. `validateMenuLayout` flags the errors.
+- `iterates.source` must point to a declared `contextInput` of type `"list"`. `validateMenuLayout` flags the errors.
+- `ConnectorBinding.source` is valid only on `type: "list"` and `type: "object"`.
+- The `params` / `filter` values of the `ConnectorBinding` interpolate the menu's other `contextInputs` via `{name}`.
+- No cycle in the dependencies between `contextInputs`: if `filter` references `{X}`, slot `X` must be resolvable upstream (caller or data source without circular dependency).
+- Conditions on the fields of the iteration item: use `placeholder_equals` / `placeholder_match` with `{alias.field}` as the placeholder. The old `data_field_*` conditions have been removed.
+- The `ref` namespace (`chestshop`, `essentials`, `jobs`, ...) is automatically added to `metadata.uses_plugins`.
 
-## Navigation arrière (retour)
+## Back navigation (return)
 
-L'action sans argument **`open_previous_menu`** rouvre l'écran précédent de
-l'historique du joueur (menu **ou** dialog). L'historique est une **pile LIFO** :
-`open_menu` / `open_dialog` empilent l'écran quitté, `open_previous_menu` le
-dépile sans ré-empiler l'écran courant. Conséquence voulue : `menu → wiki → item`
-revient au menu en **deux** retours, sans va-et-vient `item ↔ wiki`. Pile vide =
-no-op. Un `open_menu` vers l'écran juste avant (même id, args ignorés) compte
-comme un retour, pour qu'un bouton retour câblé en `open_menu` ne boucle pas.
+The argument-less action **`open_previous_menu`** reopens the previous screen from the
+player's history (menu **or** dialog). The history is a **LIFO stack**:
+`open_menu` / `open_dialog` push the screen being left, `open_previous_menu` pops it
+without pushing the current screen. Intended consequence: `menu → wiki → item`
+returns to the menu in **two** backs, with no `item ↔ wiki` back-and-forth. Empty stack =
+no-op. An `open_menu` to the screen just before (same id, args ignored) counts
+as a back, so that a back button wired as `open_menu` does not loop.
 
 ```yaml
 elements:
@@ -202,22 +212,22 @@ elements:
       left:
         - open_previous_menu
     states:
-      # Le bouton n'apparaît que s'il y a un historique : sans état qui matche,
-      # le display vide laisse la position en AIR.
+      # The button only appears if there is a history: with no matching state,
+      # the empty display leaves the position as AIR.
       - if:
           - expression: has_previous_menu
         material: ARROW
         title: { en: "Back", fr: "Retour" }
 ```
 
-Placeholders disponibles au rendu de tout écran : `{has_previous_menu}`
-(booléen) et `{previous_menu.id}` / `{previous_menu.title}` (l'écran précédent).
+Placeholders available when rendering any screen: `{has_previous_menu}`
+(boolean) and `{previous_menu.id}` / `{previous_menu.title}` (the previous screen).
 
-## Rafraîchir après une commande de module
+## Refreshing after a module command
 
-`set_arg` re-rend le menu courant **sans** les données qu'il avait récupérées : ses sources
-sont ré-interrogées. Après une commande de module qui change ces données (accorder une
-permission, promouvoir un membre), on enchaîne donc :
+`set_arg` re-renders the current menu **without** the data it had fetched: its sources
+are queried again. After a module command that changes this data (granting a
+permission, promoting a member), chain:
 
 ```yaml
 click:
@@ -226,43 +236,43 @@ click:
     - set_arg: { arg: refresh, value: "1" }
 ```
 
-`open_menu` vers le même menu ré-interroge aussi les sources, mais empile l'historique : le
-bouton retour reviendrait sur le même écran.
+`open_menu` to the same menu also queries the sources again, but pushes onto the history: the
+back button would return to the same screen.
 
-## Limitations connues (cross-field non-exprimables en JSON Schema)
+## Known limitations (cross-field, not expressible in JSON Schema)
 
-À valider au load par `validateMenuLayout` (cf. `types.ts`) :
+To be validated at load by `validateMenuLayout` (see `types.ts`):
 
-- IDs uniques cross-layer pour les Elements
-- IDs uniques pour les Layers
-- Positions dans `[0, size)` pour chaque Element
-- Overlap intra-layer = warning (pas une erreur)
-- `pagination_*.element_id` doit pointer vers un Element existant — vérifié au publish par l'éditeur
-- range `"10-43"` cohérent avec un `component_ref` paginable — vérifié via la registry des plugins tiers
+- Unique IDs cross-layer for Elements
+- Unique IDs for Layers
+- Positions in `[0, size)` for each Element
+- Intra-layer overlap = warning (not an error)
+- `pagination_*.element_id` must point to an existing Element — checked at publish by the editor
+- range `"10-43"` consistent with a paginable `component_ref` — checked via the third-party plugin registry
 
-## Comment l'utiliser
+## How to use it
 
-### Côté éditeur (TypeScript)
+### Editor side (TypeScript)
 ```ts
 import type { Menu, Element, Layer, Appearance, Action } from "./schema/menu/v1/types";
 import { validateMenuLayout } from "./schema/menu/v1/types";
 import schema from "./schema/menu/v1/schema.json";
 ```
 
-### Côté plugin (Java)
-Codegen depuis `schema.json` avec `jsonschema2pojo`. Au load d'un menu, valider contre le schéma puis appliquer `validateMenuLayout` (port Java).
+### Plugin side (Java)
+Codegen from `schema.json` with `jsonschema2pojo`. When loading a menu, validate against the schema then apply `validateMenuLayout` (Java port).
 
-### Validation locale
+### Local validation
 ```bash
 npm install ajv ajv-formats
 node validate.mjs
 ```
 
-## Prochaines étapes côté schéma
+## Next steps on the schema side
 
-1. **CI hook** : ajv sur les examples à chaque PR.
-2. **Schéma `template/v1`** : sortir le shape Template de `types.ts` vers son propre JSON Schema.
-3. **Schéma `pack/v1`** : déjà fait, voir `docs/schema/pack/v1/`.
-4. **Schéma `command/v1`** : déjà fait, voir `docs/schema/command/v1/`.
-5. **Schéma `translations/v1`** : déjà fait, voir `docs/schema/translations/v1/`.
-6. **Codegen Java** depuis `schema.json` pour le plugin.
+1. **CI hook**: ajv on the examples on each PR.
+2. **`template/v1` schema**: move the Template shape out of `types.ts` into its own JSON Schema.
+3. **`pack/v1` schema**: already done, see `docs/schema/pack/v1/`.
+4. **`command/v1` schema**: already done, see `docs/schema/command/v1/`.
+5. **`translations/v1` schema**: already done, see `docs/schema/translations/v1/`.
+6. **Java codegen** from `schema.json` for the plugin.

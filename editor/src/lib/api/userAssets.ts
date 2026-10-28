@@ -1,83 +1,29 @@
 import type { Asset, AssetType, AssetUsage } from "@/domain/asset";
+import { listLocalAssets, performLocalAssetMutation } from "@/features/assets/localAssets";
 import {
   type AssetMutation,
   mutateDraftAssets,
   trackDraftAssetPreparation,
 } from "@/features/project/persistedDrafts";
-import { projectFetch } from "@/lib/projectFetch";
+import { ApiError, apiFetch, apiRequest, apiUrl } from "@/lib/api/client";
 import { watchProjectPrincipal } from "@/lib/projectPrincipal";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { DraftApiError, type PersistedDraft } from "./projectDrafts";
+import type { PersistedDraft } from "./projectDrafts";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
-const base = (projectId: string) =>
-  `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}/assets`;
 type AssetResponse = { draft: PersistedDraft; asset?: Asset; warnings?: string[] };
 type RequestAsset = NonNullable<AssetMutation["asset"]>;
 export async function listAssets(
   projectId: string,
   filters: { type?: AssetType; search?: string } = {},
 ): Promise<Asset[]> {
-  const params = new URLSearchParams(filters);
   const remote = useProjectDraftStore.getState().get(projectId)?.remote;
   const draftId = remote && remote.revision > 0 ? remote.id : undefined;
-  if (draftId) params.set("draftId", draftId);
-  const response = await projectFetch(projectId, `${base(projectId)}?${params}`, {
-    credentials: "include",
-  });
-  if (!response.ok) throw new Error("Failed to load assets");
-  const body = (await response.json()) as { assets: Asset[] };
-  return body.assets.map((asset) => ({ ...asset, ...(draftId ? { draftId } : {}) }));
+  // The editor reads the draft's tree or the disk's.
+  const assets = await listLocalAssets(projectId, filters, draftId);
+  return assets.map((asset) => ({ ...asset, ...(draftId ? { draftId } : {}) }));
 }
 async function perform(projectId: string, operation: AssetMutation): Promise<AssetResponse> {
-  const input = operation.asset!;
-  const params = new URLSearchParams({
-    draftId: operation.id,
-    draftRevision: String(operation.revision),
-  });
-  let body: BodyInit;
-  const headers: Record<string, string> = { "Idempotency-Key": operation.operationId };
-  if (input.file) {
-    const form = new FormData();
-    for (const [key, value] of Object.entries(input.fields)) form.set(key, value);
-    form.set("draftSnapshot", JSON.stringify(operation.snapshot));
-    form.set("draftName", operation.name);
-    form.set(
-      "file",
-      new Blob([Uint8Array.from(atob(input.file.base64), (char) => char.charCodeAt(0))], {
-        type: input.file.type,
-      }),
-      input.file.name,
-    );
-    body = form;
-  } else {
-    headers["Content-Type"] = "application/json";
-    body = JSON.stringify({
-      ...Object.fromEntries(
-        Object.entries(input.fields).map(([key, value]) => [
-          key,
-          key === "usages"
-            ? JSON.parse(value)
-            : ["height", "ascent"].includes(key)
-              ? Number(value)
-              : value,
-        ]),
-      ),
-      draftSnapshot: operation.snapshot,
-      draftName: operation.name,
-    });
-  }
-  const response = await projectFetch(projectId, `${base(projectId)}${input.suffix}?${params}`, {
-    method: input.method,
-    credentials: "include",
-    headers,
-    body,
-    signal: AbortSignal.timeout(25_000),
-  });
-  const result = await response.json();
-  if (!response.ok)
-    throw new DraftApiError(result.error ?? "asset_update_failed", response.status, result.draft);
-  if (!result.draft) throw new Error("draft_acknowledgement_missing");
+  const result = await performLocalAssetMutation(projectId, operation);
   return {
     ...result,
     ...(result.asset ? { asset: { ...result.asset, draftId: operation.id } } : {}),
@@ -171,15 +117,19 @@ export interface NexoGlyph {
   texture: string;
   available: boolean;
 }
+const nexoGlyphPath = (projectId: string, id?: string) =>
+  `/api/v1/user/projects/${encodeURIComponent(projectId)}/nexo-glyphs${id === undefined ? "" : `/${encodeURIComponent(id)}`}`;
 export const nexoGlyphUrl = (projectId: string, id?: string) =>
-  `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}/nexo-glyphs${id === undefined ? "" : `/${encodeURIComponent(id)}`}`;
+  apiUrl(nexoGlyphPath(projectId, id));
 export async function listNexoGlyphs(projectId: string): Promise<NexoGlyph[]> {
-  const response = await projectFetch(projectId, nexoGlyphUrl(projectId));
-  if (!response.ok) throw new Error("nexo_glyphs_unavailable");
-  return ((await response.json()) as { glyphs: NexoGlyph[] }).glyphs;
+  try {
+    return (await apiFetch<{ glyphs: NexoGlyph[] }>(nexoGlyphPath(projectId))).glyphs;
+  } catch (error) {
+    throw new ApiError("nexo_glyphs_unavailable", ApiError.from(error).status);
+  }
 }
 export async function fetchNexoGlyph(projectId: string, id: string): Promise<Blob> {
-  const response = await projectFetch(projectId, nexoGlyphUrl(projectId, id));
-  if (!response.ok) throw new Error(`nexo_glyph_unavailable: ${id}`);
+  const response = await apiRequest(nexoGlyphPath(projectId, id));
+  if (!response.ok) throw new ApiError(`nexo_glyph_unavailable: ${id}`, response.status);
   return response.blob();
 }

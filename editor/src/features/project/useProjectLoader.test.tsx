@@ -1,11 +1,17 @@
+import { registerDocumentKind, resetDocumentKinds } from "@/domain/documentKinds";
+import { documentsOf } from "@/domain/documents";
+import type { Document } from "@/domain/types";
 import * as dataSourcesApi from "@/lib/api/dataSources";
+import * as declaredActionsApi from "@/lib/api/declaredActions";
 import * as draftsApi from "@/lib/api/projectDrafts";
 import * as projectFilesApi from "@/lib/api/projectFiles";
 import * as userProjectsApi from "@/lib/api/userProjects";
+import { registerDocumentCodec, resetDocumentCodecs } from "@/schema/documentCodecs";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useProjectLoader } from "./useProjectLoader";
@@ -15,9 +21,59 @@ describe("useProjectLoader", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(draftsApi, "listDrafts").mockResolvedValue([]);
+    // Like the models, the server's declared actions are fetched at build: never the network here.
+    vi.spyOn(declaredActionsApi, "fetchServerDeclaredActions").mockResolvedValue([]);
     useAuthStore.setState({ currentUser: null } as never);
     useProjectCacheStore.setState({ entries: {} } as never);
     useProjectDraftStore.setState({ drafts: {}, pendingRenames: {}, ownerId: null, backups: {} });
+  });
+
+  it("reads a module kind's files when the kind is registered while the project is built", async () => {
+    useAuthStore.setState({ currentUser: { id: "u1" } } as never);
+    vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
+      project: { id: "p1", name: "Quests", externalId: "quests" },
+      networkId: "net_1",
+      serverKeyId: "sk_1",
+    } as never);
+    vi.spyOn(dataSourcesApi, "fetchServerDeclaredModels").mockResolvedValue([]);
+    vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({
+      ok: true,
+      files: {
+        "manifest.yaml": "schema: manifest/v1\n",
+        "quest_groups/daily.yaml": "schema: quest_group/v1\nname: Daily\n",
+      },
+      failed: [],
+      hash: "h1",
+    });
+    // The module's view arrives after the files are read, before the project is installed:
+    // the modules' transition to ready came and went while this Project was not in the store.
+    vi.mocked(declaredActionsApi.fetchServerDeclaredActions).mockImplementation(async () => {
+      registerDocumentKind({
+        kind: "quest_group",
+        dir: "quest_groups",
+        schemaVersion: "quest_group/v1",
+        rank: 9,
+      });
+      registerDocumentCodec({
+        kind: "quest_group",
+        parse: (src) => ({ doc: { id: src.id } as Document, i18nKeys: {}, unsupported: [] }),
+        serialize: (doc) => ({ schema: "quest_group/v1", id: doc.id }),
+      });
+      return [];
+    });
+    try {
+      renderHook(() => useProjectLoader("p1"));
+      await waitFor(() =>
+        expect(useProjectsStore.getState().openProjects.projects.some((p) => p.id === "p1")).toBe(
+          true,
+        ),
+      );
+      const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === "p1");
+      expect(documentsOf(project, "quest_group").map((d) => d.id)).toEqual(["daily"]);
+    } finally {
+      resetDocumentKinds();
+      resetDocumentCodecs();
+    }
   });
 
   it("waits for Minecraft before opening a persisted draft", async () => {
@@ -46,23 +102,34 @@ describe("useProjectLoader", () => {
     expect(result.current.urlId).toBe("shop");
   });
 
-  it("isolates identical folder/server names by Network and never exposes the previous project during navigation", async () => {
+  it("isolates identical folder names by server and never exposes the previous project during navigation", async () => {
     useAuthStore.setState({ currentUser: { id: "u1" } } as never);
     vi.spyOn(dataSourcesApi, "fetchServerDeclaredModels").mockResolvedValue([]);
-    const load = vi.spyOn(userProjectsApi, "loadUserProject").mockImplementation(async (_ref, _server, network) => ({
-      project: { id: `internal-${network}`, name: "Shared", externalId: "shared" }, networkId: network!, serverKeyId: `server-${network}`,
-    }));
-    const read = vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({ ok: true, files: { "manifest.yaml": "schema: manifest/v2\n" }, failed: [], hash: "first-hash" });
-    const { result, rerender } = renderHook(({ network }) => useProjectLoader("shared", "survival", network), { initialProps: { network: "first" } });
+    const load = vi
+      .spyOn(userProjectsApi, "loadUserProject")
+      .mockImplementation(async (_ref, server) => ({
+        project: { id: `internal-${server}`, name: "Shared", externalId: "shared" },
+        networkId: "local",
+        serverKeyId: server!,
+      }));
+    const read = vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({
+      ok: true,
+      files: { "manifest.yaml": "schema: manifest/v2\n" },
+      failed: [],
+      hash: "first-hash",
+    });
+    const { result, rerender } = renderHook(({ server }) => useProjectLoader("shared", server), {
+      initialProps: { server: "first" },
+    });
     await waitFor(() => expect(result.current.project?.id).toBe("internal-first"));
     read.mockReturnValue(new Promise(() => {}));
-    rerender({ network: "second" });
+    rerender({ server: "second" });
     expect(result.current.project).toBeNull();
-    await waitFor(() => expect(load).toHaveBeenCalledWith("shared", "survival", "second"));
-    expect(read).toHaveBeenLastCalledWith("internal-second", undefined, undefined, undefined);
+    await waitFor(() => expect(load).toHaveBeenCalledWith("shared", "second"));
+    expect(read).toHaveBeenLastCalledWith("internal-second", undefined);
   });
 
-  it("charge le contenu depuis le DISQUE du serveur, pas depuis le backend", async () => {
+  it("loads the content from the server's DISK, not from the backend", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
@@ -73,22 +140,23 @@ describe("useProjectLoader", () => {
       ok: true,
       files: { "manifest.yaml": "id: boutique_shop\n" },
       failed: [],
+      hash: null,
     });
 
     const { result } = renderHook(() => useProjectLoader("p1"));
 
     await waitFor(() => expect(result.current.project).not.toBeNull());
     expect(result.current.error).toBeNull();
-    // Lu sous l'id disque, auprès du serveur propriétaire. Sans version connue,
-    // aucune empreinte à annoncer : le serveur envoie l'arbre.
-    expect(readSpy).toHaveBeenCalledWith("p1", undefined, undefined, undefined);
-    // Ce qui a été lu devient la base du compare-and-swap.
+    // Read under the disk id, from the owning server. With no known version,
+    // there is no fingerprint to announce: the server sends the tree.
+    expect(readSpy).toHaveBeenCalledWith("p1", undefined);
+    // What was read becomes the compare-and-swap base.
     expect(useProjectBaselineStore.getState().get("p1")).toEqual({
       "manifest.yaml": "id: boutique_shop\n",
     });
   });
 
-  it("serveur éteint avec une copie du backend : ouvert, daté, hors ligne", async () => {
+  it("server down with a backend copy: open, dated, offline", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
@@ -113,7 +181,7 @@ describe("useProjectLoader", () => {
     unmount();
   });
 
-  it("jamais publié : ouvert depuis le brouillon, serveur non connecté annoncé", async () => {
+  it("never published: opened from the draft, server not connected announced", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "prepare", hash: "h", externalId: "prepare" },
@@ -138,7 +206,11 @@ describe("useProjectLoader", () => {
         status: "active",
         source: "editor",
         updatedAt: "now",
-        snapshot: { baseline: {}, tree: { "manifest.yaml": "id: prepare\nname: prepare\n" }, at: 1 },
+        snapshot: {
+          baseline: {},
+          tree: { "manifest.yaml": "id: prepare\nname: prepare\n" },
+          at: 1,
+        },
       },
     ]);
 
@@ -151,7 +223,7 @@ describe("useProjectLoader", () => {
     unmount();
   });
 
-  it("serveur hors ligne : pas de repli, le Project n'est pas ouvrable", async () => {
+  it("server offline: no fallback, the Project cannot be opened", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h" },
@@ -170,14 +242,14 @@ describe("useProjectLoader", () => {
   });
 
   /**
-   * Le disque du serveur est loin : plusieurs secondes d'attente à chaque
-   * ouverture, pour un contenu presque toujours identique à la visite
-   * précédente. On affiche donc ce qu'on avait, tout de suite, et on revalide
-   * derrière — sans jamais faire passer le cache pour la vérité (`stale`).
+   * The server's disk is far away: several seconds of waiting on every open,
+   * for content almost always identical to the previous visit. So what we had
+   * is shown right away and revalidated behind — without ever passing the cache
+   * off as the truth (`stale`).
    */
   it("keeps the cached project closed until the server responds", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
-    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
       identity: {
         project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
         networkId: "net_1",
@@ -193,8 +265,8 @@ describe("useProjectLoader", () => {
       networkId: "net_1",
       serverKeyId: "sk_1",
     } as never);
-    // La lecture disque ne répond pas tout de suite : c'est exactement la
-    // fenêtre pendant laquelle l'écran restait vide.
+    // The disk read does not answer right away: exactly the window during which
+    // the screen stayed empty.
     let release: (v: unknown) => void = () => {};
     vi.spyOn(projectFilesApi, "readProjectFiles").mockReturnValue(
       new Promise((r) => {
@@ -215,7 +287,7 @@ describe("useProjectLoader", () => {
     await waitFor(() => expect(result.current.project).not.toBeNull());
   });
 
-  it("ce que le serveur a rendu devient la version connue", async () => {
+  it("what the server returned becomes the known version", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
@@ -226,24 +298,27 @@ describe("useProjectLoader", () => {
       ok: true,
       files: { "manifest.yaml": "id: boutique_shop\n" },
       failed: [],
+      hash: null,
     });
 
     const { result } = renderHook(() => useProjectLoader("p1"));
     await waitFor(() => expect(result.current.project).not.toBeNull());
 
-    expect(useProjectCacheStore.getState().get(projectCacheKey("p1", undefined, undefined, "u1"))?.tree).toEqual({
+    expect(
+      useProjectCacheStore.getState().get(projectCacheKey("p1", undefined, "u1"))?.tree,
+    ).toEqual({
       "manifest.yaml": "id: boutique_shop\n",
     });
   });
 
   /**
-   * Le gain de la revalidation par empreinte : quand rien n'a bougé, le serveur
-   * ne renvoie RIEN, et la version connue reste à l'écran — mais elle cesse
-   * d'être annoncée comme datée, parce qu'elle vient d'être confirmée.
+   * The payoff of fingerprint revalidation: when nothing moved, the server
+   * sends NOTHING back, and the known version stays on screen — but it stops
+   * being announced as dated, because it was just confirmed.
    */
-  it("annonce l'empreinte détenue et garde sa copie quand le serveur dit « inchangé »", async () => {
+  it("announces the held fingerprint and keeps its copy when the server says 'unchanged'", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
-    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
       identity: {
         project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
         networkId: "net_1",
@@ -267,11 +342,11 @@ describe("useProjectLoader", () => {
     const { result } = renderHook(() => useProjectLoader("p1"));
 
     await waitFor(() => expect(result.current.project).not.toBeNull());
-    expect(readSpy).toHaveBeenCalledWith("p1", undefined, undefined, "empreinte-connue");
-    // Revalidé : la copie affichée n'est plus « datée », elle est confirmée.
+    expect(readSpy).toHaveBeenCalledWith("p1", "empreinte-connue");
+    // Revalidated: the displayed copy is no longer "dated", it is confirmed.
     await waitFor(() => expect(result.current.stale).toBe(false));
-    // Ce qui est à l'écran est bien ce que le serveur porte : c'est la base du
-    // compare-and-swap, sinon un enregistrement partirait sur du sable.
+    // What is on screen is indeed what the server holds: it is the
+    // compare-and-swap base, otherwise a save would build on sand.
     expect(useProjectBaselineStore.getState().get("p1")).toEqual({
       "manifest.yaml": "id: boutique_shop",
     });
@@ -286,7 +361,7 @@ describe("useProjectLoader", () => {
       networkId: "net_1",
       serverKeyId: "sk_1",
     };
-    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
       identity,
       diskId: "shop",
       tree: { "manifest.yaml": "id: shop\n" },
@@ -342,6 +417,7 @@ describe("useProjectLoader", () => {
         ok: true,
         files: { "manifest.yaml": "id: shop\nname: Server edit\n" },
         failed: [],
+        hash: null,
       });
     const { result } = renderHook(() => useProjectLoader("p1"));
     await act(async () => {});

@@ -1,7 +1,8 @@
-import { mockAccount } from "@/mock/fixtures";
-import { useAccountStore } from "@/state/accountStore";
+import { menusOf } from "@/domain/documents";
+import { mockOpenProjects } from "@/mock/fixtures";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isDirty } from "./draft";
@@ -11,7 +12,7 @@ import { useDraftSync } from "./useDraftSync";
 beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
-  useAccountStore.setState({ account: mockAccount() });
+  useProjectsStore.setState({ openProjects: mockOpenProjects() });
   useProjectBaselineStore.setState({ baselines: {} });
   useProjectDraftStore.setState({ drafts: {}, pendingRenames: {} });
 });
@@ -22,20 +23,20 @@ afterEach(() => {
 });
 
 function setup() {
-  const account = structuredClone(useAccountStore.getState().account);
-  const project = account.projects[0]!;
+  const openProjects = structuredClone(useProjectsStore.getState().openProjects);
+  const project = openProjects.projects[0]!;
   const initialTree = projectTree(project);
   useProjectBaselineStore.getState().set(project.id, initialTree);
-  return { account, project, initialTree };
+  return { openProjects, project, initialTree };
 }
 
 describe("browser draft retention", () => {
-  it("marks the first file-shape change after saving as dirty, and clears it on revert", () => {
+  it("marks the first change after saving as dirty, and clears it on revert", () => {
     const { project, initialTree } = setup();
     // Saving clears the browser draft but retains the exact saved baseline.
     renderHook(() => useDraftSync());
     act(() => {
-      useAccountStore.getState().setProjectI18nMode({ projectId: project.id, mode: "inline" });
+      useProjectsStore.getState().setProjectDefaultLang({ projectId: project.id, lang: "de" });
       vi.advanceTimersByTime(250);
     });
     const draft = useProjectDraftStore.getState().get(project.id)!;
@@ -43,7 +44,9 @@ describe("browser draft retention", () => {
     expect(isDirty(draft.initialTree, draft.tree)).toBe(true);
     expect(draft.initialTree).toEqual(initialTree);
     act(() => {
-      useAccountStore.getState().setProjectI18nMode({ projectId: project.id, mode: "extract" });
+      useProjectsStore
+        .getState()
+        .setProjectDefaultLang({ projectId: project.id, lang: project.defaultLang });
       vi.advanceTimersByTime(250);
     });
     const reverted = useProjectDraftStore.getState().get(project.id)!;
@@ -51,10 +54,10 @@ describe("browser draft retention", () => {
   });
 
   it("keeps a restored draft dirty after serialization and another refresh", () => {
-    const { account, project, initialTree } = setup();
+    const { openProjects, project, initialTree } = setup();
     project.name = "Edited project";
-    project.menus[0]!.rows = 5;
-    project.canvasLayout = { [project.menus[0]!.id]: { x: 321, y: 456 } };
+    menusOf(project)[0]!.rows = 5;
+    project.canvasLayout = { [menusOf(project)[0]!.id]: { x: 321, y: 456 } };
     const tree = projectTree(project);
     // A browser reload hydrates JSON: equal file trees are different objects.
     useProjectDraftStore.getState().save(
@@ -70,7 +73,7 @@ describe("browser draft retention", () => {
     );
     const hook = renderHook(() => useDraftSync());
     act(() => {
-      useAccountStore.getState().setAccount(account);
+      useProjectsStore.getState().setOpenProjects(openProjects);
       vi.advanceTimersByTime(250);
     });
     const draft = useProjectDraftStore.getState().get(project.id)!;
@@ -82,14 +85,14 @@ describe("browser draft retention", () => {
   });
 
   it("does not mark load-time file normalization as an edit", () => {
-    const { account, project, initialTree } = setup();
+    const { openProjects, project, initialTree } = setup();
     useProjectBaselineStore.getState().set(project.id, {
       ...initialTree,
       "manifest.yaml": `# Written by hand\n${initialTree["manifest.yaml"]}`,
     });
     renderHook(() => useDraftSync());
     act(() => {
-      useAccountStore.getState().setAccount(account);
+      useProjectsStore.getState().setOpenProjects(openProjects);
       vi.advanceTimersByTime(250);
     });
     const draft = useProjectDraftStore.getState().get(project.id)!;
@@ -98,7 +101,7 @@ describe("browser draft retention", () => {
   });
 
   it("flushes pending edits when the page is hidden before the debounce", () => {
-    const { account, project, initialTree } = setup();
+    const { openProjects, project, initialTree } = setup();
     useProjectDraftStore.getState().save(project.id, {
       baseline: initialTree,
       initialTree,
@@ -107,17 +110,17 @@ describe("browser draft retention", () => {
     });
     renderHook(() => useDraftSync());
     project.name = "Last edit before refresh";
-    project.menus[0]!.rows = 5;
-    project.canvasLayout = { [project.menus[0]!.id]: { x: 321, y: 456 } };
+    menusOf(project)[0]!.rows = 5;
+    project.canvasLayout = { [menusOf(project)[0]!.id]: { x: 321, y: 456 } };
     act(() => {
-      useAccountStore.getState().setAccount(account);
+      useProjectsStore.getState().setOpenProjects(openProjects);
       window.dispatchEvent(new Event("pagehide"));
     });
     expect(useProjectDraftStore.getState().get(project.id)!.tree).toEqual(projectTree(project));
   });
 
   it("resets the dirty reference when the server baseline actually changes", () => {
-    const { account, project, initialTree } = setup();
+    const { openProjects, project, initialTree } = setup();
     useProjectDraftStore.getState().save(project.id, {
       baseline: initialTree,
       initialTree,
@@ -125,11 +128,11 @@ describe("browser draft retention", () => {
       at: 123,
     });
     renderHook(() => useDraftSync());
-    project.menus[0]!.rows = 5;
+    menusOf(project)[0]!.rows = 5;
     const savedTree = projectTree(project);
     act(() => {
       useProjectBaselineStore.getState().set(project.id, savedTree);
-      useAccountStore.getState().setAccount(account);
+      useProjectsStore.getState().setOpenProjects(openProjects);
       vi.advanceTimersByTime(250);
     });
     const draft = useProjectDraftStore.getState().get(project.id)!;

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://docs.artisanmc.net/schema/command/v1.json",
   "title": "Artisan Command",
-  "description": "Format intermédiaire d'une commande Artisan. Une commande est une entité de premier ordre (au même niveau que les Menus dans le workspace) qui exécute une séquence d'actions et peut accepter des arguments typés. Les arguments résolus sont propagés comme placeholders aux menus ouverts depuis la commande.",
+  "description": "An Artisan command. A first-class Document, like a Menu: it runs a chain of actions and can take typed arguments. The resolved arguments reach the menus it opens as placeholders.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,22 +18,27 @@
       "required": [
         "steps"
       ]
+    },
+    {
+      "required": [
+        "subcommands"
+      ]
     }
   ],
   "properties": {
     "schema": {
       "const": "command/v1",
-      "description": "Version du schéma. Verrouillée pour permettre les migrations applicables au load."
+      "description": "Schema version. Fixed, so that migrations can apply on load."
     },
     "id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]{0,63}$",
-      "description": "LEGACY, ignoré. L'identité d'un Document est le nom de son fichier (le reader force la valeur et signale une divergence). Toléré en lecture pour les projects antérieurs ; plus jamais écrit."
+      "description": "LEGACY, ignored. A Document's identity is its file name (the reader overrides this value and reports a mismatch). Still read in older Projects; never written."
     },
     "name": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_-]{0,31}$",
-      "description": "Nom de la commande tel que tapé en jeu, sans le slash. Optionnel : défaute sur `id` quand absent (l'export ne l'écrit que s'il diffère). Lowercase + chiffres + _ -. Doit être unique sur le serveur."
+      "description": "The command name as typed in game, without the slash. Optional: defaults to the file name (written only when it differs). Lowercase letters, digits, _ and -. Unique on the server."
     },
     "aliases": {
       "type": "array",
@@ -42,59 +47,63 @@
         "pattern": "^[a-z][a-z0-9_-]{0,31}$"
       },
       "uniqueItems": true,
-      "description": "Alternatives au nom principal. Toutes pointent vers la même commande."
+      "description": "Other names for the same command."
     },
     "permission": {
       "type": "string",
-      "description": "Permission requise pour exécuter la commande. Si absente, accessible à tous (sous réserve des requirements)."
+      "description": "Permission required to run the command. Absent: anyone can run it (subject to requirements)."
     },
     "description": {
-      "type": "string",
-      "maxLength": 256,
-      "description": "Description courte affichée dans la liste des commandes du serveur. Visible par les joueurs."
+      "$ref": "#/$defs/LocalizedText",
+      "description": "Short description shown in the server's command list, visible to players. One string (every language) or a `{language: text}` map."
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "false: the command is not registered (nothing is deleted) and its name stays free."
     },
     "notes": {
       "type": "string",
       "maxLength": 2048,
-      "description": "Notes internes de l'admin (jamais affichées aux joueurs). Survivent au round-trip JSON ↔ YAML."
+      "description": "The admin's internal notes, never shown to players. Unlike YAML comments, they survive the editor."
     },
     "arguments": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/Argument"
       },
-      "description": "Arguments positionnels, ordonnés. Les arguments required doivent précéder les optionnels."
+      "description": "Positional arguments, in order. Required arguments come before optional ones."
     },
     "requirements": {
       "type": "array",
       "items": {
         "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Condition"
       },
-      "description": "Conditions ANDées évaluées avant exécution. Si une échoue, le fallback (s'il existe) est exécuté à la place des actions."
+      "description": "Conditions checked before running, all required. If one fails, `fallback` (if any) runs instead of the actions."
     },
     "actions": {
       "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/ClickHandler",
-      "description": "Chaîne d'actions exécutée quand la commande est appelée. Wire canonique : steps structurés (ou un step / une liste). Une string = ancien Action DSL (legacy). Les arguments résolus sont disponibles via %args_<name>% et {arg}."
+      "description": "The action chain run when the command is called: a list of steps (or a single step). A plain string is the legacy Action DSL. Resolved arguments are available as %args_<name>% and {arg}."
     },
     "steps": {
       "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/ClickHandler",
-      "description": "Forme legacy de `actions` — toujours acceptée en lecture ; l'export émet `actions`."
+      "description": "Legacy form of `actions`: still read, never written."
     },
     "fallback": {
       "type": "array",
       "items": {
         "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Step"
       },
-      "description": "Actions à exécuter si les requirements échouent. Typiquement un send_message expliquant pourquoi."
+      "description": "Actions run when the requirements fail, typically a send_message saying why."
     },
     "cooldown": {
       "$ref": "#/$defs/Cooldown",
-      "description": "Cooldown entre exécutions. Scope player par défaut."
+      "description": "Cooldown between runs. Per player by default."
     },
     "metadata": {
       "type": "object",
       "additionalProperties": true,
-      "description": "Métadonnées calculées par l'éditeur. Non éditables manuellement.",
+      "description": "Metadata computed by the editor. Not edited by hand.",
       "properties": {
         "uses_plugins": {
           "type": "array",
@@ -114,6 +123,13 @@
           "type": "string"
         }
       }
+    },
+    "subcommands": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Subcommand"
+      },
+      "description": "Subcommands, typed after the name and before the arguments (`/ah sell 100`). Any depth."
     }
   },
   "$defs": {
@@ -124,16 +140,16 @@
         "id",
         "duration_seconds"
       ],
-      "description": "Cooldown entre exécutions. Scope player (par défaut) ou server.",
+      "description": "Cooldown between runs, per player (default) or server-wide.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Identifiant du cooldown, partagé entre exécutions du même scope."
+          "description": "Cooldown id, shared by the runs of the same scope."
         },
         "duration_seconds": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "description": "Durée du cooldown en secondes."
+          "description": "Cooldown length in seconds."
         },
         "scope": {
           "type": "string",
@@ -142,11 +158,11 @@
             "server"
           ],
           "default": "player",
-          "description": "player = par joueur ; server = global au serveur."
+          "description": "player: per player; server: server-wide."
         },
         "message": {
           "type": "string",
-          "description": "Message affiché quand le cooldown est actif. Référence i18n {i18n:key} ou littéral MiniMessage."
+          "description": "Message shown while the cooldown runs: an {i18n:key} reference or MiniMessage text."
         }
       }
     },
@@ -157,12 +173,12 @@
         "name",
         "type"
       ],
-      "description": "Un argument positionnel typé. Sa valeur résolue est exposée comme placeholder %args_<name>% (et sous-champs dérivés pour les types complexes).",
+      "description": "A typed positional argument. Its resolved value is the placeholder %args_<name>% (with sub-fields for complex types).",
       "properties": {
         "name": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]{0,31}$",
-          "description": "Nom de l'argument, exposé comme placeholder %args_<name>%."
+          "description": "Argument name, exposed as the placeholder %args_<name>%."
         },
         "type": {
           "type": "string",
@@ -176,15 +192,15 @@
             "world",
             "enum"
           ],
-          "description": "Type de l'argument. Détermine le parser et la tab-completion. player = online ou offline (résolu via UUID). online_player = connecté requis. enum = valeurs fixées par l'admin (cf. champ values)."
+          "description": "Argument type; sets parsing and tab completion. player: online or offline (resolved by UUID). online_player: must be online. enum: values fixed by the admin (see `values`)."
         },
         "required": {
           "type": "boolean",
           "default": true,
-          "description": "Si false, l'argument peut être omis. Les optionnels doivent suivre les required dans la liste."
+          "description": "false: the argument may be left out. Optional arguments come after required ones."
         },
         "default": {
-          "description": "Valeur par defaut si l'argument est omis. Pour un argument `player`, la valeur reservee `\"{sender}\"` lie celui qui tape la commande (case a cocher dans l'editeur) : `/cmd [joueur]` = \"le mien par defaut, celui d'un autre si tu le nommes\". Un sender non-joueur (console) n'a personne sur qui retomber, l'argument reste alors absent."
+          "description": "Value used when the argument is left out. For a `player` argument, the reserved value `\"{sender}\"` means whoever typed the command: `/cmd [player]` targets yourself unless you name someone. From the console there is no sender player, so the argument stays absent."
         },
         "values": {
           "type": "array",
@@ -192,12 +208,12 @@
             "type": "string"
           },
           "minItems": 1,
-          "description": "Valeurs autorisées pour les arguments de type enum. Sert aussi à la tab-completion. Requis si type === \"enum\"."
+          "description": "Allowed values of an enum argument, also used for tab completion. Required when type is \"enum\"."
         },
         "description": {
           "type": "string",
           "maxLength": 256,
-          "description": "Description affichée à l'aide et au survol dans l'éditeur."
+          "description": "Description shown in the help and on hover in the editor."
         }
       },
       "allOf": [
@@ -219,6 +235,99 @@
           }
         }
       ]
+    },
+    "LocalizedText": {
+      "description": "One text for every language, or a language → text map (fallback: the default language, then the first one present).",
+      "oneOf": [
+        {
+          "type": "string",
+          "maxLength": 256
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "minProperties": 1
+        }
+      ]
+    },
+    "Subcommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "description": "A `subcommands` node, reached by its name or an alias after its parent's. Without `actions`, it shows the usage of the subcommands the player may run.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+          "description": "The word typed after the parent's."
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+          },
+          "uniqueItems": true,
+          "description": "Other names for the same command."
+        },
+        "permission": {
+          "type": "string",
+          "description": "Checked on top of the parents' permissions: a subcommand never widens access."
+        },
+        "description": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "false: the subcommand does not exist; its name falls through to the parent's arguments."
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 2048,
+          "description": "The admin's internal notes, never shown to players. Unlike YAML comments, they survive the editor."
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Argument"
+          },
+          "description": "Positional arguments, in order. Required arguments come before optional ones."
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Condition"
+          },
+          "description": "Conditions checked before running, all required. If one fails, `fallback` (if any) runs instead of the actions."
+        },
+        "actions": {
+          "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/ClickHandler",
+          "description": "The action chain run when the command is called: a list of steps (or a single step). A plain string is the legacy Action DSL. Resolved arguments are available as %args_<name>% and {arg}."
+        },
+        "fallback": {
+          "type": "array",
+          "items": {
+            "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Step"
+          },
+          "description": "Actions run when the requirements fail, typically a send_message saying why."
+        },
+        "cooldown": {
+          "$ref": "#/$defs/Cooldown",
+          "description": "This node's own cooldown. Without `id`, the id is the command path (`ah sell`)."
+        },
+        "subcommands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Subcommand"
+          }
+        }
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import * as sdk from "@artisan/editor-sdk";
+import { describe, expect, it } from "vitest";
 
 describe("@artisan/editor-sdk public surface", () => {
   it("exposes the module-system contract", () => {
@@ -8,10 +8,15 @@ describe("@artisan/editor-sdk public surface", () => {
     expect(typeof sdk.getModule).toBe("function");
     expect(typeof sdk.onModuleEvent).toBe("function");
     expect(typeof sdk.emitModuleEvent).toBe("function");
+    expect(typeof sdk.selectDocumentItem).toBe("function");
   });
 
   it("exposes shared base primitives", () => {
     expect(sdk.Button).toBeDefined();
+    expect(typeof sdk.ActionChainEditor).toBe("function");
+    expect(typeof sdk.MaterialInput).toBe("function");
+    expect(typeof sdk.ItemInput).toBe("function");
+    expect(typeof sdk.MiniMessageInput).toBe("function");
     expect(typeof sdk.cn).toBe("function");
   });
 

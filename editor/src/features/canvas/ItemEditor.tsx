@@ -1,4 +1,4 @@
-import { RevealField } from "@/components/RevealField";
+import { MmEditor, SimulationPanel, useSimulation } from "@/components/minimessage";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,14 +14,16 @@ import { resolveDisplayRef } from "@/domain/capturedItems";
 import type { AdvancedFields } from "@/domain/itemAdvanced";
 import { formatEnchant } from "@/domain/itemAdvanced";
 import type { Project } from "@/domain/types";
-import { AdvancedItemSection } from "@/features/flow/AdvancedItemSection";
-import { HeadField } from "@/features/flow/ItemHeadField";
+import { AdvancedItemSection } from "@/features/canvas/item/AdvancedItemSection";
+import { HeadField } from "@/features/canvas/item/ItemHeadField";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { ITEM_NAME, LORE } from "@/lib/mm/profiles";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { ImageIcon, Pencil } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ItemContextSidebar } from "./ItemContextSidebar";
+import { humanizeMaterial } from "./ItemTooltip";
+import { ItemPreviewColumn } from "./item/ItemPreviewColumn";
 import type { ResolvedItem } from "./resolveItem";
 import { useTextureUrl } from "./textureStore";
 import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
@@ -38,8 +40,12 @@ export interface ItemEditorProps {
   loreLabel?: string;
   inherited: ResolvedItem;
   preview: ResolvedItem;
+  /** The data `preview` was resolved with: the example player starts from it. */
+  previewScope?: Record<string, unknown>;
+  /** Resolves the item again for the example player as the user set it. */
+  previewFor?: (scope: Record<string, unknown>) => ResolvedItem;
   entries?: PlaceholderEntry[];
-  /** `"replace"` = le lore de l'item de base est écarté ; absent = il est conservé. */
+  /** `"replace"` = the base item's lore is dropped; absent = it is kept. */
   loreMode?: "replace";
   onLoreMode?: (value: "replace" | undefined) => void;
   onText: (field: "title" | "lore", value: string | undefined) => void;
@@ -47,6 +53,9 @@ export interface ItemEditorProps {
   onAdvanced: (patch: AdvancedFields) => void;
   onFocus?: () => void;
 }
+
+const NO_ENTRIES: PlaceholderEntry[] = [];
+const ITEM_FIELDS = ["title", "lore", "count", "material"] as const;
 
 /** Same item form in a source cell and a menu state; owners supply persistence. */
 export function ItemEditor({
@@ -59,8 +68,10 @@ export function ItemEditor({
   titleLabel,
   loreLabel,
   inherited,
-  preview,
-  entries = [],
+  preview: resolvedPreview,
+  previewScope,
+  previewFor,
+  entries = NO_ENTRIES,
   loreMode,
   onLoreMode,
   onText,
@@ -71,29 +82,41 @@ export function ItemEditor({
 }: ItemEditorProps) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
-  const display = project
-    ? resolveDisplayRef(project, preview.material ?? "")
-    : { material: preview.material, head: preview.head };
-  const texture = useTextureUrl(display.material ?? "");
-  const image = useHeadPreviewUrl(preview.head ?? display.head) ?? texture;
   const hasInherited = (field: "title" | "lore" | "count") =>
     field === "lore"
       ? inherited.lore.some((line) => line !== "")
       : field === "title"
         ? Boolean(inherited.title)
         : inherited.count !== undefined;
-  const suggestions: PlaceholderEntry[] = [
-    ...entries,
-    ...["title", "lore", "count", "material"].map((field) => ({
-      path: `base.${field}`,
-      type: field === "count" ? ("integer" as const) : ("string" as const),
-      origin: "context" as const,
-      sample:
-        field === "lore"
-          ? inherited.lore.join("\n")
-          : String(inherited[field as keyof ResolvedItem] ?? ""),
-    })),
-  ];
+  // Kept stable while the base item reads the same: the editors' example player hangs on it.
+  const baseSamples = ITEM_FIELDS.map((field) =>
+    field === "lore"
+      ? inherited.lore.join("\n")
+      : String(inherited[field as keyof ResolvedItem] ?? ""),
+  );
+  const baseKey = JSON.stringify(baseSamples);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: baseKey stands for baseSamples
+  const suggestions = useMemo<PlaceholderEntry[]>(
+    () => [
+      ...entries,
+      ...ITEM_FIELDS.map((field, i) => ({
+        path: `base.${field}`,
+        type: field === "count" ? ("integer" as const) : ("string" as const),
+        origin: "context" as const,
+        sample: baseSamples[i] ?? "",
+      })),
+    ],
+    [entries, baseKey],
+  );
+  // One example player for the name, the lore and the preview: what the panel sets,
+  // all three follow.
+  const simulation = useSimulation(suggestions, previewScope);
+  const preview = previewFor ? previewFor(simulation.data) : resolvedPreview;
+  const display = project
+    ? resolveDisplayRef(project, preview.material ?? "")
+    : { material: preview.material, head: preview.head };
+  const texture = useTextureUrl(display.material ?? "");
+  const image = useHeadPreviewUrl(preview.head ?? display.head) ?? texture;
   const reset = (field: "title" | "lore" | "count", customized: boolean) =>
     customized ? (
       <button
@@ -106,43 +129,29 @@ export function ItemEditor({
         ↺
       </button>
     ) : hasInherited(field) ? (
-      <span className="text-[10px] text-[var(--text-faint)]">{t("itemBinding.inherited")}</span>
+      <span className="text-[11px] text-[var(--text-faint)]">{t("itemBinding.inherited")}</span>
     ) : null;
   function textField(field: "title" | "lore", own: string | undefined, label: string) {
-    // Le lore de base s'applique déjà sans rien écrire : pré-remplir le champ
-    // avec `{base.lore}` faisait croire qu'il fallait le demander.
+    // The base lore already applies without writing anything: prefilling the
+    // field with `{base.lore}` suggested it had to be asked for.
     const raw = own ?? (field === "title" && hasInherited(field) ? "{base.title}" : "");
-    const shown = field === "title" ? (preview.title ?? "") : preview.lore.join("\n");
     return (
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center justify-between gap-2">
           <span className="field-label">{label}</span>
           {reset(field, own !== undefined)}
         </div>
-        <RevealField
+        <MmEditor
           value={raw}
-          entries={suggestions}
-          multiline={field === "lore"}
-          rows={4}
           onChange={(value) => onText(field, value)}
-          onActivate={onFocus}
+          onFocus={onFocus}
+          profile={field === "title" ? ITEM_NAME : LORE}
+          wrapWidth={field === "lore" ? project?.loreMaxWidth : undefined}
+          entries={suggestions}
+          simulation={simulation}
+          aria-label={label}
+          minHeight={field === "title" ? "36px" : "96px"}
           placeholder={field === "title" ? t("flow.titlePlaceholder") : t("flow.lorePlaceholder")}
-          className={field === "title" ? "h-8 px-2 text-xs" : "min-h-16 px-2 py-1 text-xs"}
-          facade={
-            shown ? (
-              <MiniMessageInline source={shown} className="whitespace-pre-wrap font-mono text-xs" />
-            ) : (
-              <span className="text-[var(--text-faint)]">
-                {field === "title" ? t("flow.titlePlaceholder") : t("flow.lorePlaceholder")}
-              </span>
-            )
-          }
-          preview={
-            <MiniMessageInline
-              source={shown}
-              className="mt-1 block whitespace-pre-wrap text-xs text-[var(--text-mut)]"
-            />
-          }
         />
         {field === "lore" && hasInherited("lore") && onLoreMode && (
           <label className="mt-1 flex items-center gap-2 text-xs text-[var(--text-mut)]">
@@ -207,7 +216,7 @@ export function ItemEditor({
                 className="block truncate text-sm font-medium"
               />
               {preview.title && (
-                <span className="block truncate font-mono text-[10px] text-[var(--text-faint)]">
+                <span className="block truncate font-mono text-[11px] text-[var(--text-faint)]">
                   {display.material}
                 </span>
               )}
@@ -233,13 +242,13 @@ export function ItemEditor({
         </DialogTrigger>
         <DialogContent
           aria-describedby={undefined}
-          className="flex h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-4xl flex-col overflow-hidden"
+          className="flex h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-6xl flex-col overflow-hidden"
         >
           <DialogHeader className="shrink-0 pr-6">
             <DialogTitle>{t("itemBinding.editItem")}</DialogTitle>
           </DialogHeader>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:grid md:grid-cols-[minmax(0,1fr)_17rem] md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
-            <div className="flex min-h-0 min-w-0 shrink-0 flex-col gap-4 md:overflow-y-auto md:overscroll-contain">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:grid md:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)] md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
+            <div className="flex min-h-0 min-w-0 shrink-0 flex-col gap-4 md:overflow-y-auto md:overscroll-contain md:pr-3 md:[scrollbar-gutter:stable]">
               {source}
               {preview.error && (
                 <p role="alert" className="text-xs text-[var(--danger)]">
@@ -285,7 +294,19 @@ export function ItemEditor({
                 <HeadField head={appearance.head ?? ""} onChange={onHead} />
               )}
             </div>
-            <ItemContextSidebar entries={suggestions} />
+            <div className="flex min-h-0 min-w-0 flex-col gap-4 border-[var(--border)] md:overflow-hidden md:border-l md:pl-4">
+              <ItemPreviewColumn
+                preview={preview}
+                image={image}
+                materialName={display.material ? humanizeMaterial(display.material) : undefined}
+                loreMaxWidth={project?.loreMaxWidth}
+              />
+              <SimulationPanel
+                sources={[title ?? "", lore ?? ""]}
+                simulation={simulation}
+                className="border-[var(--border)] border-t pt-4"
+              />
+            </div>
           </div>
           <DialogFooter className="shrink-0">
             <DialogClose asChild>

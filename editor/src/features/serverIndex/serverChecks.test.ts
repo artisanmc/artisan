@@ -24,8 +24,8 @@ function menu(id: string, opens: Opens[] = []) {
                     kind: "action",
                     action:
                       o.kind === "dialog"
-                        ? { type: "open_dialog", dialogId: o.to }
-                        : { type: "open_menu", menuId: o.to },
+                        ? { name: "open_dialog", value: o.to }
+                        : { name: "open_menu", value: o.to },
                   },
                 ],
               },
@@ -48,15 +48,17 @@ function project(id: string, docs: Docs = {}): Project {
   return {
     id,
     name: id.toUpperCase(),
-    menus: docs.menus ?? [],
-    commands: (docs.commands ?? []).map((c) => ({
-      id: c.id,
-      name: c.name ?? c.id,
-      aliases: c.aliases,
-      arguments: [],
-      steps: c.opens ? [{ kind: "action", action: { type: "open_menu", menuId: c.opens } }] : [],
-    })),
-    dialogs: (docs.dialogs ?? []).map((d) => ({ id: d, buttons: [] })),
+    documents: {
+      menu: docs.menus ?? [],
+      command: (docs.commands ?? []).map((c) => ({
+        id: c.id,
+        name: c.name ?? c.id,
+        aliases: c.aliases,
+        arguments: [],
+        steps: c.opens ? [{ kind: "action", action: { name: "open_menu", value: c.opens } }] : [],
+      })),
+      dialog: (docs.dialogs ?? []).map((d) => ({ id: d, buttons: [] })),
+    },
   } as unknown as Project;
 }
 

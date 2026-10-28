@@ -5,9 +5,7 @@ import { useTourPresentation } from "./tourPresentation";
 
 interface EditorTourProps {
   state: { open: boolean; step: number; busy: boolean };
-  demo: boolean;
   storage?: string;
-  canUseAssistant?: boolean;
   actions: {
     next: () => unknown;
     back: () => unknown;
@@ -40,13 +38,7 @@ function visibleTarget(names: string[]) {
   return null;
 }
 
-export function EditorTour({
-  state,
-  demo,
-  storage,
-  canUseAssistant = true,
-  actions,
-}: EditorTourProps) {
+export function EditorTour({ state, storage, actions }: EditorTourProps) {
   const { t } = useTranslation();
   const [blocked, setBlocked] = useState(hasPriorityDialog);
   const [target, setTarget] = useState<HTMLElement | null>(null);
@@ -72,14 +64,14 @@ export function EditorTour({
     previousStep.current = state.step;
     const selectors = [
       [],
-      demo ? ["demo-intro"] : ["navigation", "navigation-trigger"],
+      ["navigation", "navigation-trigger"],
       ["canvas"],
       ["library", "library-trigger"],
-      // Les Documents du project ouvert, dans la barre de gauche ; repliée,
-      // on montre le bouton qui l'ouvre.
+      // The open project's Documents, in the left bar; when collapsed, show the
+      // button that opens it.
       ["elements", "navigation-trigger"],
       ["tabs"],
-      demo ? ["demo-export"] : storage === "local" ? ["project-menu"] : ["save", "project-menu"],
+      storage === "local" ? ["project-menu"] : ["save", "project-menu"],
     ];
     const measure = () => setTarget(visibleTarget(selectors[state.step] ?? []));
     const settled = window.setTimeout(measure, 260);
@@ -97,23 +89,16 @@ export function EditorTour({
       clearTimeout(unavailable);
       window.removeEventListener("resize", measure);
     };
-  }, [visible, state.step, demo, storage]);
+  }, [visible, state.step, storage]);
 
   const contents = [
     ["welcomeTitle", "welcomeDescription"],
-    demo ? ["demoTitle", "demoDescription"] : ["navigationTitle", "navigationDescription"],
+    ["navigationTitle", "navigationDescription"],
     ["canvasTitle", "canvasDescription"],
     ["libraryTitle", "libraryDescription"],
     ["elementsTitle", "elementsDescription"],
-    ["tabsTitle", canUseAssistant && !demo ? "tabsDescription" : "tabsDemoDescription"],
-    [
-      "saveTitle",
-      demo
-        ? "saveDemoDescription"
-        : storage === "local"
-            ? "saveLocalDescription"
-            : "saveServerDescription",
-    ],
+    ["tabsTitle", "tabsDescription"],
+    ["saveTitle", storage === "local" ? "saveLocalDescription" : "saveServerDescription"],
   ] as const;
   const [title, description] = contents[state.step] ?? contents[0];
   return (

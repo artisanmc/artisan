@@ -9,8 +9,10 @@ import { useStageContextMenu } from "./useStageContextMenu";
 
 it("keeps a menu + command selection when its context menu opens over a slot", () => {
   const project = {
-    menus: [{ id: "a", rows: 3, layers: [] }],
-    commands: [{ id: "cmd" }],
+    documents: {
+      menu: [{ id: "a", rows: 3, layers: [] }],
+      command: [{ id: "cmd" }],
+    },
   } as unknown as Project;
   useSelectionStore.getState().set(["a", "cmd"]);
   const { result } = renderHook(() =>
@@ -33,10 +35,12 @@ it("keeps a menu + command selection when its context menu opens over a slot", (
 
 it("keeps a multiple-menu selection when its context menu opens over a slot", () => {
   const project = {
-    menus: [
-      { id: "a", rows: 3, layers: [] },
-      { id: "b", rows: 3, layers: [] },
-    ],
+    documents: {
+      menu: [
+        { id: "a", rows: 3, layers: [] },
+        { id: "b", rows: 3, layers: [] },
+      ],
+    },
   } as unknown as Project;
   useSelectionStore.getState().set(["a", "b"]);
   const wrapper = document.createElement("div");
@@ -60,20 +64,22 @@ it("keeps a multiple-menu selection when its context menu opens over a slot", ()
 
 it("keeps a multiple-item selection when its context menu opens over one of the items", () => {
   const project = {
-    menus: [
-      {
-        id: "a",
-        rows: 3,
-        layers: [
-          {
-            elements: [
-              { id: "x", positions: "0", display: { material: "STONE" } },
-              { id: "y", positions: "1", display: { material: "DIRT" } },
-            ],
-          },
-        ],
-      },
-    ],
+    documents: {
+      menu: [
+        {
+          id: "a",
+          rows: 3,
+          layers: [
+            {
+              elements: [
+                { id: "x", positions: "0", display: { material: "STONE" } },
+                { id: "y", positions: "1", display: { material: "DIRT" } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
   } as unknown as Project;
   useSelectionStore.getState().set(["x", "y"]);
   const { result } = renderHook(() =>

@@ -14,9 +14,11 @@ function emptyProject(): Project {
     id: "p1" as ProjectId,
     diskId: "boutique_shop",
     name: "Boutique",
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     i18nKeys: {},
     translations: {},
     dataSources: [],
@@ -41,7 +43,7 @@ describe("saveProjectToDisk", () => {
         "AccessDeniedException: menus/shop.yaml",
       ),
     );
-    expect(await saveProjectToDisk(emptyProject(), "n1", "s1")).toMatchObject({
+    expect(await saveProjectToDisk(emptyProject(), "s1")).toMatchObject({
       ok: false,
       code: "write_error",
       status: 422,
@@ -64,21 +66,21 @@ describe("saveProjectToDisk", () => {
     const publish = vi
       .spyOn(persistedDrafts, "publishPersistedDraft")
       .mockResolvedValue({ wrote: 1, tree: projectTree(emptyProject()) });
-    const result = await saveProjectToDisk(emptyProject(), "n1", "s1");
+    const result = await saveProjectToDisk(emptyProject(), "s1");
     expect(result).toEqual({ ok: true, wrote: 1 });
     expect(publish).toHaveBeenCalledWith("p1");
     expect(writeProjectFiles).not.toHaveBeenCalled();
     expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
   });
 
-  it("n'écrit rien quand l'arbre est identique à la base", async () => {
+  it("writes nothing when the tree is identical to the base", async () => {
     const project = emptyProject();
-    // Première passe : on capture ce que le project produit, et on en fait la base.
+    // First pass: capture what the project produces and make it the base.
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: true });
-    await saveProjectToDisk(project, "n1", "s1");
+    await saveProjectToDisk(project, "s1");
     vi.mocked(writeProjectFiles).mockClear();
 
-    const second = await saveProjectToDisk(project, "n1", "s1");
+    const second = await saveProjectToDisk(project, "s1");
 
     expect(second).toEqual({ ok: true, wrote: 0 });
     expect(writeProjectFiles).not.toHaveBeenCalled();
@@ -100,7 +102,7 @@ describe("saveProjectToDisk", () => {
       });
       return { wrote: 1, tree: published, renames: [{ from: "menus/a.yaml", to: "menus/b.yaml" }] };
     });
-    expect(await saveProjectToDisk(emptyProject(), "n1", "s1")).toEqual({ ok: true, wrote: 1 });
+    expect(await saveProjectToDisk(emptyProject(), "s1")).toEqual({ ok: true, wrote: 1 });
     expect(useProjectDraftStore.getState().get("p1")?.baseline).toEqual(published);
     expect(useProjectDraftStore.getState().pendingRenames.p1).toEqual([
       { from: "menus/b.yaml", to: "menus/c.yaml" },
@@ -120,25 +122,25 @@ describe("saveProjectToDisk", () => {
         .save("p1", { baseline: tree, tree, at: 1, binaryTree: after });
       return { wrote: 1, tree, binaryTree: before };
     });
-    expect(await saveProjectToDisk(emptyProject(), "n1", "s1")).toEqual({ ok: true, wrote: 1 });
+    expect(await saveProjectToDisk(emptyProject(), "s1")).toEqual({ ok: true, wrote: 1 });
     expect(useProjectDraftStore.getState().get("p1")?.binaryTree).toEqual(after);
     expect(useProjectDraftStore.getState().get("p1")?.binaryBaseline).toEqual(before);
   });
 
-  it("un enregistrement réussi devient la nouvelle base", async () => {
+  it("a successful save becomes the new base", async () => {
     const project = emptyProject();
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: true });
 
-    await saveProjectToDisk(project, "n1", "s1");
+    await saveProjectToDisk(project, "s1");
 
     const baseline = useProjectBaselineStore.getState().get("p1");
     expect(baseline).toBeDefined();
     expect(Object.keys(baseline!).length).toBeGreaterThan(0);
-    // Les chemins sont relatifs au project, jamais canoniques.
+    // Paths are project-relative, never canonical.
     expect(Object.keys(baseline!).every((p) => !p.startsWith("plugins/"))).toBe(true);
   });
 
-  it("un conflit n'avance pas la base — rien n'a été écrit sur disque", async () => {
+  it("a conflict does not advance the base — nothing was written to disk", async () => {
     const project = emptyProject();
     vi.mocked(writeProjectFiles).mockResolvedValue({
       ok: false,
@@ -147,7 +149,7 @@ describe("saveProjectToDisk", () => {
       diskFiles: ["manifest.yaml"],
     });
 
-    const res = await saveProjectToDisk(project, "n1", "s1");
+    const res = await saveProjectToDisk(project, "s1");
 
     expect(res).toEqual({
       ok: false,
@@ -158,10 +160,10 @@ describe("saveProjectToDisk", () => {
     expect(useProjectBaselineStore.getState().get("p1")).toBeUndefined();
   });
 
-  it("remonte une panne de serveur telle quelle", async () => {
+  it("surfaces a server failure as is", async () => {
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: false, error: "server_offline" });
 
-    const res = await saveProjectToDisk(emptyProject(), "n1", "s1");
+    const res = await saveProjectToDisk(emptyProject(), "s1");
 
     expect(res).toEqual({ ok: false, error: "server_offline" });
     expect(useProjectBaselineStore.getState().get("p1")).toBeUndefined();
@@ -170,8 +172,8 @@ describe("saveProjectToDisk", () => {
   it("binds publication to immutable project identity", async () => {
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: true });
 
-    await saveProjectToDisk(emptyProject(), "n1", "s1");
+    await saveProjectToDisk(emptyProject(), "s1");
 
-    expect(writeProjectFiles).toHaveBeenCalledWith("p1", undefined, undefined, expect.anything());
+    expect(writeProjectFiles).toHaveBeenCalledWith("p1", expect.anything());
   });
 });

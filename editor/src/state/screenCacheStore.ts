@@ -2,31 +2,31 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /**
- * **La dernière version connue** d'un écran de Config de module (Catalogue,
- * Réglages…), pour l'afficher sans attendre le serveur.
+ * **The last known version** of a module Config screen (Catalogue,
+ * Settings…), to show it without waiting for the server.
  *
- * Même raison que pour les Projects : le contenu vit sur le disque du serveur,
- * chaque ouverture demandait trois allers-retours (modèles déclarés, table,
- * modèle voisin) et l'écran restait vide pendant ce temps — pour un contenu
- * presque toujours identique à la visite précédente.
+ * Same reason as for Projects: the content lives on the server's disk, each
+ * open needed three round trips (declared models, table, sibling model) and
+ * the screen stayed empty meanwhile — for content almost always identical to
+ * the previous visit.
  *
- * Et la même règle, qui n'est pas négociable ici non plus : **ce qui vient du
- * cache est annoncé, et ne s'ÉDITE PAS.** Un écran de Config édite les fichiers
- * du serveur en direct (ADR `module-config-screens`), et l'enregistrement
- * compare ce qu'il croit trouver sur disque. Écrire depuis une copie datée
- * ferait partir un compare-and-swap sur une base fausse : au mieux un conflit,
- * au pire un écrasement. On montre, on attend la revalidation, puis on ouvre.
+ * And the same rule, non-negotiable here too: **what comes from the cache is
+ * announced, and is NOT EDITABLE.** A Config screen edits the server's files
+ * live (ADR `module-config-screens`), and saving compares what it expects on
+ * disk. Writing from a dated copy would send a compare-and-swap on a wrong
+ * base: at best a conflict, at worst an overwrite. Show, wait for
+ * revalidation, then open.
  */
 export interface CachedScreen {
-  /** Les fichiers de la table, tels que le serveur les avait rendus. */
+  /** The table's files, as the server returned them. */
   files: { path: string; content: string }[];
-  /** Les modèles déclarés du serveur au même instant — sans eux, le formulaire s'ouvrirait sans types. */
+  /** The server's declared models at the same moment — without them, the form would open untyped. */
   models: unknown[];
   fetchedAt: string;
 }
 
-export function screenCacheKey(networkId: string, serverId: string, screenId: string): string {
-  return `${networkId}/${serverId}/${screenId}`;
+export function screenCacheKey(serverId: string, screenId: string): string {
+  return `${serverId}/${screenId}`;
 }
 
 interface ScreenCacheState {

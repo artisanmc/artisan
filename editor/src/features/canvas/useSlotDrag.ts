@@ -1,8 +1,9 @@
+import { menusOf } from "@/domain/documents";
 import type { ElementId, InventoryType, Layer, MenuId, ProjectId } from "@/domain/types";
 import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
-import { useAccountStore } from "@/state/accountStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -193,13 +194,13 @@ export function useSlotDrag(args: UseSlotDragArgs) {
 
       const worldX = position.x + localX + TEX_SLOT_STRIDE / 2;
       const worldY = position.y + localY + TEX_SLOT_STRIDE / 2;
-      const account = useAccountStore.getState().account;
-      const project = account.projects.find((p) => p.id === projectId);
+      const openProjects = useProjectsStore.getState().openProjects;
+      const project = openProjects.projects.find((p) => p.id === projectId);
       if (!project) return;
       const hit = hitTestSlot(project, layout, worldX, worldY);
       const altKey = (e.evt as MouseEvent).altKey;
 
-      const menu = project.menus.find((m) => m.id === menuId);
+      const menu = menusOf(project).find((m) => m.id === menuId);
       const source = menu?.layers
         .flatMap((layer) => layer.elements)
         .find((el) => el.id === sourceElementId);
@@ -219,7 +220,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
         );
         if (!placement) return;
         if (!hit || hit.menuId !== menuId) {
-          useAccountStore.getState().removeElementPlacement({
+          useProjectsStore.getState().removeElementPlacement({
             projectId,
             menuId,
             elementId: sourceElementId,
@@ -227,7 +228,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
           });
         } else if (hit.position !== srcPosition) {
           // A source row has one placement: Alt also moves it, preserving its cache.
-          useAccountStore.getState().setElementPlacement({
+          useProjectsStore.getState().setElementPlacement({
             projectId,
             menuId,
             elementId: sourceElementId,
@@ -248,7 +249,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
         const dRow = to.row - from.row;
         if (dCol === 0 && dRow === 0) return;
         try {
-          useAccountStore.getState().moveSelectionByDelta({
+          useProjectsStore.getState().moveSelectionByDelta({
             projectId,
             menuId,
             elementIds: captured.elementIds,
@@ -263,7 +264,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
 
       try {
         if (!hit || hit.menuId !== menuId) {
-          useAccountStore.getState().clearSlot({
+          useProjectsStore.getState().clearSlot({
             projectId,
             menuId,
             position: srcPosition,
@@ -274,14 +275,14 @@ export function useSlotDrag(args: UseSlotDragArgs) {
         if (hit.position === srcPosition) return;
 
         if (altKey) {
-          useAccountStore.getState().addElementPosition({
+          useProjectsStore.getState().addElementPosition({
             projectId,
             menuId,
             elementId: sourceElementId,
             position: hit.position,
           });
         } else {
-          useAccountStore.getState().moveElementPosition({
+          useProjectsStore.getState().moveElementPosition({
             projectId,
             menuId,
             elementId: sourceElementId,

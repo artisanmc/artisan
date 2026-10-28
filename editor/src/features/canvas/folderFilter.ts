@@ -1,0 +1,51 @@
+import { allDocuments, docKey } from "@/domain/documents";
+import { isWithin, listFolders } from "@/domain/folders";
+import type { Project } from "@/domain/types";
+import type { ProjectBoard } from "./autoLayout";
+
+/**
+ * The board narrowed to one themed folder (`boutique`, `boutique/armes`): only
+ * the Documents filed in it or under it keep their place, everything else
+ * leaves `layout` and so the stage. Positions are the full board's: clearing
+ * the filter moves nothing. A top-level folder keeps its frame; a sub-folder
+ * has none of its own, and its parent's frame would wrap Documents now hidden.
+ */
+export function boardForFolder(
+  project: Project,
+  board: ProjectBoard,
+  folder: string,
+): ProjectBoard {
+  const shown = new Set<string>(
+    allDocuments(project)
+      .filter(({ doc }) => doc.folder && isWithin(doc.folder, folder))
+      .map(({ kind, doc }) => docKey(kind, doc.id)),
+  );
+  return {
+    ...board,
+    layout: Object.fromEntries(Object.entries(board.layout).filter(([id]) => shown.has(id))),
+    groups: board.groups.filter((g) => g.kind === "group" && g.id === folder),
+  };
+}
+
+/**
+ * The top-level folder whose frame holds the world point `at` (a double-click on its
+ * background), or none.
+ */
+export function folderAt(
+  groups: ProjectBoard["groups"],
+  at: { x: number; y: number },
+): string | undefined {
+  return groups.find(
+    (g) =>
+      g.kind === "group" &&
+      at.x >= g.x &&
+      at.x <= g.x + g.width &&
+      at.y >= g.y &&
+      at.y <= g.y + g.height,
+  )?.id;
+}
+
+/** The filter to apply: `folder` while it still exists in the project, else none. */
+export function activeBoardFolder(project: Project | undefined, folder: string | undefined) {
+  return project && folder && listFolders(project).includes(folder) ? folder : undefined;
+}

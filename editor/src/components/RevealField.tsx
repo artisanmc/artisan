@@ -1,6 +1,6 @@
-import { type ReactNode, useState } from "react";
 import { cn } from "@/lib/cx";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
+import { type ReactNode, useState } from "react";
 import { ServerPlaceholderInput as PlaceholderInput } from "./ServerPlaceholderInput";
 
 export interface RevealFieldProps {
@@ -20,6 +20,8 @@ export interface RevealFieldProps {
   onDeactivate?: () => void;
   /** Merged after the design-system base class on the editor + facade. */
   className?: string;
+  /** Names the field on the facade and on the editor. */
+  "aria-label"?: string;
 }
 
 /**
@@ -40,6 +42,7 @@ export function RevealField({
   onActivate,
   onDeactivate,
   className,
+  "aria-label": ariaLabel,
 }: RevealFieldProps) {
   const [editing, setEditing] = useState(false);
 
@@ -58,19 +61,20 @@ export function RevealField({
         )}
         onFocus={activate}
         onClick={activate}
+        aria-label={ariaLabel}
       >
         {value.trim() ? (
           <span
             className={cn(
-              multiline ? "block w-full whitespace-pre-wrap break-words" : "min-w-0 flex-1 truncate",
+              multiline
+                ? "block w-full whitespace-pre-wrap break-words"
+                : "min-w-0 flex-1 truncate",
             )}
           >
             {facade}
           </span>
         ) : (
-          <span
-            className={cn("text-[var(--text-faint)]", !multiline && "min-w-0 flex-1 truncate")}
-          >
+          <span className={cn("text-[var(--text-faint)]", !multiline && "min-w-0 flex-1 truncate")}>
             {placeholder}
           </span>
         )}
@@ -88,6 +92,7 @@ export function RevealField({
         rows={rows}
         placeholder={placeholder}
         autoFocus
+        aria-label={ariaLabel}
         onBlur={() => {
           setEditing(false);
           onDeactivate?.();

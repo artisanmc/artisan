@@ -1,5 +1,6 @@
+import { commandsOf, dialogsOf, menusOf, parseDocKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
-import { deriveServerGraph, documentKey } from "@/features/canvas/serverGraph";
+import { deriveServerGraph } from "@/features/canvas/serverGraph";
 import { namespaceOf } from "./serverIndex";
 
 export interface IssueOwner {
@@ -9,11 +10,11 @@ export interface IssueOwner {
 }
 
 export type ServerIssue =
-  /** Deux commandes revendiquent le même nom ou alias : le jeu n'en garde qu'une. */
+  /** Two commands claim the same name or alias: the game keeps only one. */
   | { kind: "command_conflict"; name: string; owners: IssueOwner[] }
-  /** Un menu ou un dialog porte le même id dans deux projects : le jeu n'en garde qu'un. */
+  /** A menu or dialog has the same id in two projects: the game keeps only one. */
   | { kind: "duplicate_id"; docKind: "menu" | "dialog"; id: string; owners: IssueOwner[] }
-  /** Un lien du project édité ne mène nulle part de sûr. */
+  /** A link in the edited project leads nowhere safe. */
   | {
       kind: "broken_link";
       reason: "missing" | "ambiguous";
@@ -23,13 +24,13 @@ export type ServerIssue =
 
 export interface ServerChecks {
   /**
-   * `pending` / `unavailable` : les contrôles n'ont **pas** été faits — l'absence
-   * de problème ne doit alors jamais se lire comme un feu vert. `none` : aucun
-   * index à attendre (hors serveur).
+   * `pending` / `unavailable`: the checks were **not** run — an absence of
+   * problems must then never read as a green light. `none`: no index to wait
+   * for (outside a server).
    */
   status: "ready" | "pending" | "unavailable" | "none";
   issues: ServerIssue[];
-  /** Projects que l'index n'a pas pu lire : les contrôles sont alors incomplets. */
+  /** Projects the index could not read: the checks are then incomplete. */
   unreadable: string[];
 }
 
@@ -62,14 +63,14 @@ const byOwner = (a: IssueOwner, b: IssueOwner) =>
   byText(a.namespace, b.namespace) || byText(a.docId, b.docId);
 
 /**
- * Ce qu'un déploiement du project `edited` risquerait de casser **sur le
- * serveur**, vu par aucun contrôle d'un seul project : le plugin range les menus,
- * les dialogs et les commandes dans des tables uniques, sans notion de project.
+ * What a deployment of project `edited` could break **on the server**, seen
+ * by no single-project check: the plugin stores menus, dialogs and commands in
+ * global tables, with no notion of project.
  *
- * `edited` est son état de travail ; `others` l'état publié des autres projects.
- * Ne sont rapportés que les problèmes qui impliquent `edited` — un conflit entre
- * deux autres projects existe déjà, et ce déploiement n'en est pas la cause.
- * Ce sont des avertissements : rien ici n'empêche de déployer.
+ * `edited` is its working state; `others` the published state of the other
+ * projects. Only problems involving `edited` are reported — a conflict between
+ * two other projects already exists, and this deployment does not cause it.
+ * These are warnings: nothing here prevents deploying.
  */
 export function checkServerIssues(edited: Project, others: Project[]): ServerIssue[] {
   const editedNamespace = namespaceOf(edited);
@@ -88,13 +89,13 @@ const owner = (project: Project, docId: string): IssueOwner => ({
   docId,
 });
 
-/** Le nom sous lequel le jeu enregistre une commande : `name`, sinon son id. */
+/** The name under which the game registers a command: `name`, else its id. */
 const triggerName = (c: { id: string; name: string }) => (c.name || c.id).toLowerCase();
 
 function commandConflicts(all: Project[], editedNamespace: string): ServerIssue[] {
   const byTrigger = new Map<string, Map<string, IssueOwner>>();
   for (const project of all) {
-    for (const command of project.commands ?? []) {
+    for (const command of commandsOf(project)) {
       const who = owner(project, command.id);
       const key = `${who.namespace}/${who.docId}`;
       const triggers = [
@@ -126,7 +127,7 @@ function duplicateIds(all: Project[], editedNamespace: string): ServerIssue[] {
   for (const docKind of ["menu", "dialog"] as const) {
     const byId = new Map<string, IssueOwner[]>();
     for (const project of all) {
-      const docs = docKind === "menu" ? (project.menus ?? []) : (project.dialogs ?? []);
+      const docs = docKind === "menu" ? menusOf(project) : dialogsOf(project);
       for (const doc of docs)
         byId.set(doc.id, [...(byId.get(doc.id) ?? []), owner(project, doc.id)]);
     }
@@ -143,22 +144,22 @@ function duplicateIds(all: Project[], editedNamespace: string): ServerIssue[] {
 }
 
 function brokenLinks(edited: Project, all: Project[]): ServerIssue[] {
-  const prefix = documentKey(edited.id, "");
-  const kindOf = (docId: string): "menu" | "command" | "dialog" =>
-    (edited.menus ?? []).some((m) => m.id === docId)
-      ? "menu"
-      : (edited.commands ?? []).some((c) => c.id === docId)
-        ? "command"
-        : "dialog";
+  const prefix = `${edited.id}/`;
   return deriveServerGraph(all)
     .unresolved.filter((u) => u.source.startsWith(prefix))
     .map((u) => {
-      const docId = u.source.slice(prefix.length);
+      const from = parseDocKey(u.source.slice(prefix.length))!;
       return {
         kind: "broken_link" as const,
         reason: u.reason,
         targetId: u.targetId,
-        from: { docId, docKind: kindOf(docId) },
+        from: {
+          docId: from.id,
+          docKind: (from.kind === "menu" || from.kind === "command" ? from.kind : "dialog") as
+            | "menu"
+            | "command"
+            | "dialog",
+        },
       };
     })
     .sort((a, b) => byText(a.from.docId, b.from.docId) || byText(a.targetId, b.targetId));

@@ -1,0 +1,38 @@
+import { MiniMessageField } from "@/components/MiniMessageField";
+import { SortableList } from "@/components/ui/sortable-list";
+import type { ProjectId } from "@/domain/types";
+import { MaterialField } from "@/features/canvas/MaterialField";
+import { ItemSpecField } from "@/features/canvas/item/ItemSpecField";
+import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
+import { ConditionsField } from "@/features/inspector/properties/ConditionsField";
+import { DocumentRefField } from "@/features/inspector/properties/DocumentRefField";
+import type { HostComponents } from "@artisan/editor-sdk";
+
+/**
+ * The editor widgets a module view embeds through the SDK (`ActionChainEditor`,
+ * `MaterialInput`, `ItemInput`, `MiniMessageInput`, `SortableList`, `ConditionsEditor`,
+ * `DocumentRefInput`): the same components as the core views, on a controlled value.
+ */
+export const hostComponents: HostComponents = {
+  ActionChainEditor: ({ projectId, value, onChange }) => (
+    <ActionFieldEditor
+      projectId={projectId as ProjectId}
+      value={value}
+      onChange={(next) => onChange(Array.isArray(next) ? next : [])}
+    />
+  ),
+  MaterialInput: (props) => <MaterialField {...props} />,
+  MiniMessageInput: (props) => <MiniMessageField {...props} />,
+  SortableList: (props) => <SortableList {...props} />,
+  ConditionsEditor: ({ value, onChange, label, emptyHint }) => (
+    <ConditionsField value={value} onChange={onChange} label={label} emptyHint={emptyHint} />
+  ),
+  DocumentRefInput: (props) => <DocumentRefField {...props} />,
+  ItemInput: ({ match, onMatchChange, ...props }) => (
+    <ItemSpecField
+      {...props}
+      match={match}
+      onMatchChange={onMatchChange && ((next) => onMatchChange(next as typeof match))}
+    />
+  ),
+};

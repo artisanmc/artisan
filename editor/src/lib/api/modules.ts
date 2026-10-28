@@ -1,25 +1,28 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+import { apiFetch } from "./client";
+import type { TemplateInfo } from "./templates";
 
 export interface ActiveModule {
   id: string;
   version: string | null;
+  /** The editor view the module's jar carries (ADR `runtime-editor-modules`), when it has one. */
+  /** `local`: read from a file on the server's disk (`dev.editor-bundles`), not from the jar. */
+  editor_bundle?: { sdk: string; hash: string; size?: number; local?: boolean };
+  /** The example content the module offers to copy into a Project (protocol 1.3). */
+  templates?: TemplateInfo[];
 }
 
 /**
- * Active modules for the current network/server (presence activation).
- * Source: server_modules, populated at each plugin `hello`. Cookie auth,
- * `serverId` is the exact server_key id (not a slug). Returns [] on any
- * non-OK response (treat "no presence info" as "no modules").
+ * Active modules of a server (presence activation), populated at each plugin
+ * `hello`. `serverId` is the exact server id (not a slug). [] on any failure
+ * (treat "no presence info" as "no modules").
  */
-export async function fetchActiveModulesUser(
-  networkId: string,
-  serverId: string,
-): Promise<ActiveModule[]> {
-  const res = await fetch(
-    `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/modules`,
-    { credentials: "include" },
-  );
-  if (!res.ok) return [];
-  const data = (await res.json()) as { modules?: ActiveModule[] };
-  return data.modules ?? [];
+export async function fetchActiveModulesUser(serverId: string): Promise<ActiveModule[]> {
+  try {
+    const data = await apiFetch<{ modules?: ActiveModule[] }>(
+      `/api/v1/servers/${serverId}/modules`,
+    );
+    return data.modules ?? [];
+  } catch {
+    return [];
+  }
 }

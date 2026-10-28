@@ -1,8 +1,13 @@
+import { actionArg, actionDocumentRefs } from "@/domain/actionArgs";
+import { menusOf } from "@/domain/documents";
 import { addressedAppearances } from "@/domain/element";
 import { walkActions } from "@/domain/stepPath";
 import type { Menu, Project } from "@/domain/types";
 import { lookupPath } from "@/lib/placeholders";
 import { type SourceSnapshots, buildPreviewScope, renderPreview } from "./menuPreviewScope";
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
 
 /** One way of arriving at a parameterized menu: a caller's open_menu action,
  *  interpolated against one of the caller's iteration rows. */
@@ -51,7 +56,7 @@ export function findPreviewCallContexts(
 ): PreviewCallContext[] {
   const out: PreviewCallContext[] = [];
   const seen = new Set<string>();
-  for (const caller of project.menus) {
+  for (const caller of menusOf(project)) {
     if (caller.id === target.id) continue;
     const scope = buildPreviewScope(caller, project, snapshots);
     for (const layer of caller.layers) {
@@ -64,8 +69,10 @@ export function findPreviewCallContexts(
           for (const handler of Object.values(app.click ?? {})) {
             if (!handler) continue;
             for (const action of walkActions(handler.steps)) {
-              if (action.type !== "open_menu" || action.menuId !== target.id) continue;
-              const ctxMap = action.context ?? {};
+              // An action opening the target (any `document_ref` to it) with a `context` map.
+              if (![...actionDocumentRefs(action)].some((r) => r.id === target.id)) continue;
+              const ctx = actionArg(action, "context");
+              const ctxMap: Record<string, unknown> = isRecord(ctx) ? ctx : {};
               if (Object.keys(ctxMap).length === 0) continue;
               const rowList = Array.isArray(rows) && alias ? rows : [undefined];
               for (const row of rowList) {

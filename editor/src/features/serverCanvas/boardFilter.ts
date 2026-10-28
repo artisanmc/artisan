@@ -1,3 +1,4 @@
+import { isDocumentKind } from "@/domain/documentKinds";
 import type {
   BoardEdge,
   BoardNode,
@@ -11,12 +12,11 @@ export interface BoardFilter {
   q?: string;
 }
 
-const KINDS: DocumentKind[] = ["menu", "command", "dialog"];
-
 export function parseBoardFilter(search: Record<string, unknown>): BoardFilter {
   const out: BoardFilter = {};
   if (typeof search.project === "string" && search.project) out.project = search.project;
-  if (typeof search.kind === "string" && (KINDS as string[]).includes(search.kind)) {
+  // Read at call time: a module registered after load adds its kinds.
+  if (typeof search.kind === "string" && isDocumentKind(search.kind)) {
     out.kind = search.kind as DocumentKind;
   }
   if (typeof search.q === "string" && search.q) out.q = search.q;

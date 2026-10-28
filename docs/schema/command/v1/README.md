@@ -1,36 +1,37 @@
 # Artisan — Command schema v1
 
-Format intermédiaire d'une commande Artisan. Une commande est une **entité de premier ordre** dans le workspace, au même niveau qu'un Menu : elle a son id, ses notes, sa permission, et vit dans le même pack `.itfz`.
+Intermediate format of an Artisan command. A command is a **first-class entity** in the workspace, at the same level as a Menu: it has its id, its notes, its permission, and lives in the same `.itfz` pack.
 
-## Fichiers
+## Files
 
-| Fichier | Rôle |
+| File | Role |
 |---|---|
-| `schema.json` | JSON Schema (Draft 2020-12), source de vérité validable par machine |
-| `types.ts` | Types TypeScript pour l'éditeur et le futur MCP server |
-| `examples/simple-heal.json` | Commande sans menu, sans argument — actions directes. |
-| `examples/profile-with-target.json` | Commande à 1 argument optionnel qui ouvre un menu avec contexte. |
-| `examples/pay-player.json` | Commande à 2 arguments required avec requirements + fallback + cooldown. |
+| `schema.json` | JSON Schema (Draft 2020-12), machine-validatable source of truth |
+| `types.ts` | TypeScript types for the editor and the future MCP server |
+| `examples/simple-heal.json` | Command without menu, without argument — direct actions. |
+| `examples/profile-with-target.json` | Command with 1 optional argument that opens a menu with context. |
+| `examples/pay-player.json` | Command with 2 required arguments with requirements + fallback + cooldown. |
+| `examples/auction-house-subcommands.json` | Command with subcommands (alias, permission, arguments and cooldown per node, node without actions, disabled node), multilingual description. |
 
-## Pourquoi des commandes côté Artisan
+## Why commands on the Artisan side
 
-Tous les plugins de menus existants (DeluxeMenus, zMenu) bindent `/menu open <name>` ou des commandes triviales. Artisan va plus loin : la commande est un objet de design à part entière, avec ses arguments typés, ses requirements, son cooldown, et son contexte propagé au menu. Cela couvre 80 % des `/profile`, `/shop`, `/heal`, `/pay`, `/warps` qu'un admin tape autrement à la main dans `commands.yml` ou via un plugin séparé.
+All existing menu plugins (DeluxeMenus, zMenu) bind `/menu open <name>` or trivial commands. Artisan goes further: the command is a design object in its own right, with its typed arguments, its requirements, its cooldown, and its context propagated to the menu. This covers 80% of the `/profile`, `/shop`, `/heal`, `/pay`, `/warps` that an admin otherwise types by hand in `commands.yml` or via a separate plugin.
 
-## Modèle conceptuel
+## Conceptual model
 
 ```
 Command
  ├── meta (schema, id, name, aliases, permission, description, notes)
- ├── arguments : Argument[]      ← positionnels, ordonnés (required d'abord)
- ├── requirements : Condition[]  ← ANDées, évaluées avant actions
- ├── actions : Action[]          ← réutilisées depuis menu/v1
- ├── fallback : Action[]         ← si requirements échouent
- └── cooldown ?                   ← scope player ou server
+ ├── arguments : Argument[]      ← positional, ordered (required first)
+ ├── requirements : Condition[]  ← ANDed, evaluated before actions
+ ├── actions : Action[]          ← reused from menu/v1
+ ├── fallback : Action[]         ← if requirements fail
+ └── cooldown ?                   ← player or server scope
 ```
 
-## Réutilisation depuis menu/v1
+## Reuse from menu/v1
 
-Les `Action`, `Condition` et `Cooldown` sont **les mêmes objets** que dans `menu/v1`, référencés par `$ref` absolu :
+`Action`, `Condition` and `Cooldown` are **the same objects** as in `menu/v1`, referenced by absolute `$ref`:
 
 ```json
 "actions": {
@@ -38,113 +39,142 @@ Les `Action`, `Condition` et `Cooldown` sont **les mêmes objets** que dans `men
 }
 ```
 
-Conséquences pratiques :
+Practical consequences:
 
-- Un admin qui sait écrire un click handler de bouton sait écrire une commande.
-- Quand on ajoute une nouvelle action au catalogue (ex: `set_block`), elle est dispo des deux côtés gratuitement.
-- Côté ajv : il faut charger les deux schémas avant de compiler (cf. snippet plus bas).
+- An admin who knows how to write a button click handler knows how to write a command.
+- When a new action is added to the catalog (e.g. `set_block`), it is available on both sides for free.
+- On the ajv side: both schemas must be loaded before compiling (see snippet below).
 
-## Arguments et types
+## Arguments and types
 
-8 types d'arguments en V1 :
+8 argument types in V1:
 
 | Type | Parser | Tab-completion |
 |---|---|---|
-| `player` | nom → résolu en UUID, online ou offline | online + connus du serveur |
-| `online_player` | nom → joueur connecté requis | online uniquement |
-| `string` | brut | aucune |
-| `integer` | nombre entier | aucune |
-| `number` | nombre flottant | aucune |
+| `player` | name → resolved to UUID, online or offline | online + known to the server |
+| `online_player` | name → connected player required | online only |
+| `string` | raw | none |
+| `integer` | integer number | none |
+| `number` | floating-point number | none |
 | `boolean` | `true` / `false` / `1` / `0` | `true`, `false` |
-| `world` | nom du monde chargé | mondes chargés |
-| `enum` | valeur dans `values[]` | valeurs de `values[]` |
+| `world` | name of the loaded world | loaded worlds |
+| `enum` | value in `values[]` | values of `values[]` |
 
-Règle : les arguments `required` doivent précéder les optionnels dans la liste. Les optionnels peuvent avoir un `default` qui supporte les placeholders (ex: `"%player_name%"` pour cibler l'auteur de la commande quand l'argument est omis).
+Rule: `required` arguments must precede optional ones in the list. Optional ones can have a `default` that supports placeholders (e.g. `"%player_name%"` to target the command's author when the argument is omitted).
 
-## Contexte et placeholders
+## Context and placeholders
 
-Quand la commande s'exécute, les arguments sont parsés selon leur type. Échec de parse → erreur typée envoyée au joueur (`§cJoueur introuvable: Bob`), commande non exécutée.
+When the command runs, the arguments are parsed according to their type. Parse failure → typed error sent to the player (`§cJoueur introuvable: Bob`), command not executed.
 
-Les valeurs résolues sont exposées comme **placeholders** sous deux formes :
+The resolved values are exposed as **placeholders** in two forms:
 
-- `%args_<name>%` → valeur primaire (string représentation : nom du joueur, monde, valeur enum, nombre)
-- `%args_<name>_<champ>%` → champs dérivés sur les types complexes
+- `%args_<name>%` → primary value (string representation: player name, world, enum value, number)
+- `%args_<name>_<field>%` → derived fields on complex types
 
-Champs dérivés actuels (V1) :
+Current derived fields (V1):
 
-| Type | Champs dérivés |
+| Type | Derived fields |
 |---|---|
 | `player` / `online_player` | `_uuid`, `_displayname` |
 
-Ces placeholders sont enregistrés **dynamiquement** dans le moteur de placeholders (PlaceholderAPI) au moment où le menu s'ouvre depuis la commande, et nettoyés à la fermeture. Ils coexistent avec les placeholders standards (`%player_name%`, `%world%`, etc.).
+These placeholders are registered **dynamically** in the placeholder engine (PlaceholderAPI) when the menu opens from the command, and cleaned up on close. They coexist with the standard placeholders (`%player_name%`, `%world%`, etc.).
 
-Exemple concret avec `profile-with-target.json` :
+Concrete example with `profile-with-target.json`:
 
 ```
 /profile Notch
    ↓
 args.target = Player(uuid=069a79f4-..., name=Notch)
    ↓
-open_menu profile_menu (avec contexte {target: ...})
+open_menu profile_menu (with context {target: ...})
    ↓
 Menu profile_menu : %args_target% → "Notch"
                     %args_target_uuid% → "069a79f4-..."
                     %args_target_displayname% → "§eNotch"
 ```
 
-## Propagation du contexte
+## Subcommands
 
-Une `open_menu` action propage le contexte d'arguments au menu cible **par défaut**. Si ce menu chaîne une autre `open_menu`, le contexte est propagé à nouveau. Pour le couper :
+`subcommands` is a recursive list of nodes, each with the fields of a command:
+`name` (required), `aliases`, `permission`, `description`, `enabled`, `arguments`,
+`requirements`, `actions`, `fallback`, `cooldown`, `subcommands`.
+
+```
+/ah sell 100        → sell node, arguments [100]
+/ah vendre 100      → same node, via alias
+/ah admin           → node without actions: usage "/ah admin (reload)"
+/ah 42              → no node is named "42": arguments of the root
+```
+
+- The first words choose the node, by name or alias, as deep as they match;
+  the rest is passed to that node's arguments.
+- The permission of each node on the path is checked: a subcommand never widens
+  the access given by its parent.
+- A node without `actions` but with children shows the usage of its allowed children.
+- `enabled: false` removes the node (and its children); its name falls back to the parent's arguments.
+  On the root, the command is not registered.
+- A `cooldown` without `id` takes the command's path (`ah`, `ah sell`): two commands no longer
+  share a cooldown by accident.
+- Completion offers the allowed subcommands then the node's arguments.
+
+`description` (root and nodes) is a string for all languages or a `{language: text}` table.
+
+An older Artisan jar ignores `subcommands` and `enabled`: the root stays usable, the
+subcommands disappear.
+
+## Context propagation
+
+An `open_menu` action propagates the argument context to the target menu **by default**. If that menu chains another `open_menu`, the context is propagated again. To cut it:
 
 ```json
 { "type": "open_menu", "menu_id": "main_menu", "clear_context": true }
 ```
 
-Cas typique du `clear_context: true` : un bouton "Retour à l'accueil" depuis le menu profile, qui ne doit pas hériter du target.
+Typical case for `clear_context: true`: a "Back to home" button from the profile menu, which must not inherit the target.
 
-## Format des champs texte
+## Text field format
 
-Comme pour les menus, tous les champs texte d'une commande (`description`, `cooldown.message`, `send_message.text`, `broadcast.text`, etc.) suivent la convention unifiée :
+As for menus, all text fields of a command (`description`, `cooldown.message`, `send_message.text`, `broadcast.text`, etc.) follow the unified convention:
 
-- **MiniMessage** pour le formatage (`<color>`, `<bold>`, `<gradient>`, …).
-- **Référence i18n inline** : `{i18n:command.profile.description}` résolu depuis le fichier translations du workspace (cf. `translations/v1`).
-- **Placeholders PAPI** : `%player_name%` standard, plus les `%args_<name>%` injectés par les arguments de la commande elle-même.
-- **Codes legacy `§a`** acceptés en input, convertis en MiniMessage au save.
+- **MiniMessage** for formatting (`<color>`, `<bold>`, `<gradient>`, …).
+- **Inline i18n reference**: `{i18n:command.profile.description}` resolved from the workspace's translations file (see `translations/v1`).
+- **PAPI placeholders**: standard `%player_name%`, plus the `%args_<name>%` injected by the command's own arguments.
+- **Legacy `§a` codes** accepted as input, converted to MiniMessage on save.
 
-Ordre de résolution côté plugin : (1) `{i18n:...}` → valeur stockée pour la langue active du joueur exécutant, (2) `%placeholder%` (PAPI standard + `%args_*%`), (3) parse MiniMessage final.
+Resolution order on the plugin side: (1) `{i18n:...}` → value stored for the executing player's active language, (2) `%placeholder%` (standard PAPI + `%args_*%`), (3) final MiniMessage parse.
 
-Une `description` peut donc être totalement i18n (`{i18n:command.profile.description}`) et chaque traduction peut elle-même contenir des placeholders et tags MiniMessage. Très flexible pour des commandes multilingues sans gymnastique.
+A `description` can therefore be fully i18n (`{i18n:command.profile.description}`) and each translation can itself contain placeholders and MiniMessage tags. Very flexible for multilingual commands without gymnastics.
 
-## Conflits avec commandes existantes
+## Conflicts with existing commands
 
-Au démarrage du plugin, Artisan détecte les conflits avec les commandes déjà enregistrées (commandes vanilla, autres plugins). Politique en V1 :
+At plugin startup, Artisan detects conflicts with already-registered commands (vanilla commands, other plugins). V1 policy:
 
-- **Commande vanilla** (`heal`, `tp`, etc. natives) : Artisan refuse d'enregistrer, log un warning, demande à l'admin de renommer ou de définir un alias en config serveur.
-- **Commande d'un autre plugin** : pareil, refus + warning. Pas d'override silencieux.
-- **Conflit interne entre deux commandes Artisan** (même name dans deux packs activés) : le pack chargé en dernier perd, log un warning visible.
+- **Vanilla command** (`heal`, `tp`, etc. native): Artisan refuses to register, logs a warning, asks the admin to rename or define an alias in the server config.
+- **Command from another plugin**: same, refusal + warning. No silent override.
+- **Internal conflict between two Artisan commands** (same name in two enabled packs): the pack loaded last loses, a visible warning is logged.
 
 ## Pricing
 
-Les commandes **n'ont pas de quota** — illimitées tant que le serveur est dans la limite payée (free tier 1 serveur, paid tiers selon le plan). Une commande coûte ~rien en stockage (1 KB JSON) et ~rien en runtime (pas de rendu, pas de WS). Les quotas sont sur les serveurs et les seats d'équipe (cf. `main-spec.md` section 3).
+Commands **have no quota** — unlimited as long as the server is within the paid limit (free tier 1 server, paid tiers per plan). A command costs ~nothing in storage (1 KB JSON) and ~nothing at runtime (no rendering, no WS). Quotas are on servers and team seats (see `main-spec.md` section 3).
 
-## Limitations connues (cross-field non-exprimables en JSON Schema)
+## Known limitations (cross-field, not expressible in JSON Schema)
 
-À valider au load par `validateCommand` (cf. `types.ts`) :
+To be validated at load by `validateCommand` (see `types.ts`):
 
-- Noms d'arguments uniques au sein d'une commande
-- Required précèdent les optionnels
-- Argument `enum` a un `values` non vide (couvert partiellement par `if/then` dans schema.json mais double-check)
-- Aliases ne contiennent pas le name principal
-- `default` ignoré sur arguments required (warning, pas erreur)
+- Argument names unique within a command
+- Required precede optional ones
+- `enum` argument has a non-empty `values` (partially covered by `if/then` in schema.json but double-check)
+- Aliases do not contain the main name
+- `default` ignored on required arguments (warning, not error)
 
-À valider au moment du publish/registry :
+To be validated at publish/registry time:
 
-- Pas de conflit de `name`/`alias` avec les commandes registered du serveur cible
-- Si une action référence un `menu_id`, ce menu existe dans le pack ou le workspace
+- No `name`/`alias` conflict with the target server's registered commands
+- If an action references a `menu_id`, that menu exists in the pack or the workspace
 
-## Comment l'utiliser
+## How to use it
 
-### Côté éditeur (TypeScript)
+### Editor side (TypeScript)
 
 ```ts
 import type { Command, Argument } from "./schema/command/v1/types";
@@ -153,7 +183,7 @@ import schema from "./schema/command/v1/schema.json";
 import menuSchema from "./schema/menu/v1/schema.json";
 ```
 
-### Validation locale
+### Local validation
 
 ```bash
 npm install ajv ajv-formats
@@ -166,18 +196,18 @@ import addFormats from "ajv-formats";
 
 const ajv = new Ajv({ strict: false, allErrors: true });
 addFormats.default(ajv);
-ajv.addSchema(menuSchema);  // requis pour résoudre les $ref vers menu/v1
+ajv.addSchema(menuSchema);  // required to resolve the $refs to menu/v1
 const validate = ajv.compile(commandSchema);
 validate(myCommand);
 ```
 
-### Côté plugin (Java)
+### Plugin side (Java)
 
-Codegen depuis `schema.json` avec `jsonschema2pojo` (en plus du codegen `menu/v1`). Au load d'une commande, valider contre le schéma puis enregistrer dynamiquement la commande Bukkit/Brigadier avec les arguments typés convertis en arguments Brigadier.
+Codegen from `schema.json` with `jsonschema2pojo` (in addition to the `menu/v1` codegen). When loading a command, validate against the schema then dynamically register the Bukkit/Brigadier command with the typed arguments converted to Brigadier arguments.
 
-## Prochaines étapes côté schéma
+## Next steps on the schema side
 
-1. **CI hook** : ajv sur les examples à chaque PR (déjà en place pour menu/v1, à étendre).
-2. **Argument types V2** : `item_material`, `enchantment`, `entity_type`, `region` (depuis WorldGuard).
-3. **Custom suggestions** pour l'argument `enum` étendu (placeholders dynamiques de type registry).
-4. **Codegen Java + Brigadier** depuis `schema.json` pour le plugin.
+1. **CI hook**: ajv on the examples on each PR (already in place for menu/v1, to be extended).
+2. **Argument types V2**: `item_material`, `enchantment`, `entity_type`, `region` (from WorldGuard).
+3. **Custom suggestions** for the extended `enum` argument (dynamic placeholders of the registry type).
+4. **Java + Brigadier codegen** from `schema.json` for the plugin.

@@ -87,6 +87,10 @@ function printAction(a: DslAction): string {
       return `cycle ${a.arg} in ${a.list}`;
     case "set_arg_cycle_prev":
       return `cycle prev ${a.arg} in ${a.list}`;
+    case "module":
+      // The DSL (read-only since ADR structured-action-wire) has no syntax for a
+      // module's action: printed as its wire, for reading only.
+      return a.value == null ? a.name : `${a.name} ${JSON.stringify(a.value)}`;
     default: {
       const _exhaustive: never = a;
       return _exhaustive;
@@ -108,7 +112,7 @@ function menuTail(clear: boolean | undefined, context: Record<string, string> | 
   return s;
 }
 
-// ── conditions ───────────────────────────────────────────────────────────────
+// Conditions
 
 function printFlat(conditions: Condition[], joins: ("and" | "or")[] | undefined): string {
   let out = printAtom(conditions[0]!);

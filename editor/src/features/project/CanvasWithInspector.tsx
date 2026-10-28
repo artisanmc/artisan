@@ -1,7 +1,7 @@
 import { SplitPane } from "@/components/SplitPane";
 import type { ProjectId } from "@/domain/types";
-import { EditorPane } from "@/features/canvas/EditorPane";
-import { FloatingEditorPane } from "@/features/canvas/FloatingEditorPane";
+import { EditorPane } from "@/features/inspector/EditorPane";
+import { FloatingEditorPane } from "@/features/inspector/FloatingEditorPane";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useUiStore } from "@/state/uiStore";
 import { type ReactNode, useContext } from "react";
@@ -11,9 +11,9 @@ import { useInspector } from "./useInspector";
 
 interface CanvasWithInspectorProps {
   projectId: ProjectId;
-  /** La scène — planche ou vue focus. */
+  /** The stage — board or focus view. */
   canvas: ReactNode;
-  /** Hauteur du panneau en mobile (chaque appelant persiste la sienne). */
+  /** Panel height on mobile (each caller persists its own). */
   mobileSize: number;
   onMobileSizeChange: (size: number) => void;
   minSecondary?: number;
@@ -21,13 +21,12 @@ interface CanvasWithInspectorProps {
 }
 
 /**
- * Scène + inspecteur. Monté par la planche ET par la vue focus : la règle
- * « le panneau n'existe que s'il y a quelque chose à inspecter » ne s'écrit
- * qu'ici, sinon les deux surfaces divergeraient (cf. `SoloMenuStage`).
+ * Stage + inspector. Mounted by the board AND by the focus view: the rule
+ * "the panel only exists if there is something to inspect" is written only
+ * here, otherwise the two surfaces would diverge (cf. `SoloMenuStage`).
  *
- * En desktop le panneau FLOTTE au-dessus de la scène : le masquer découvre du
- * canvas sans aucun reflow. En mobile il occupe une vraie hauteur, donc la
- * scène la récupère.
+ * On desktop the panel FLOATS over the stage: hiding it uncovers canvas with
+ * no reflow. On mobile it takes real height, so the stage gets it back.
  */
 export function CanvasWithInspector({
   projectId,

@@ -1,51 +1,35 @@
-import type { Account } from "@/domain/types";
+import type { OpenProjects } from "@/domain/types";
 import type { AuthUserDto } from "@/lib/api/auth";
-import {
-  AuthUnreachableError,
-  login as apiLogin,
-  logout as apiLogout,
-  signup as apiSignup,
-  getMe,
-} from "@/lib/api/auth";
-import { clearImportRecovery } from "@/lib/importRecovery";
-import { clearCopyRecovery } from "@/lib/copyRecovery";
+import { logout as apiLogout, getMe } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
 import { create } from "zustand";
 import { useProjectCacheStore } from "./projectCacheStore";
 import { useProjectDraftStore } from "./projectDraftStore";
 import { useProjectRuntimeStore } from "./projectRuntimeStore";
 
-/** Ce qu'on sait de la session — « unknown » tant que le backend n'a pas
- *  répondu. La démo possède un principal invité distinct de cette session de compte. */
+/** What we know about the session — "unknown" until the server has answered. */
 export type SessionStatus = "unknown" | "signed-out" | "signed-in";
 
 interface AuthState {
   currentUser: AuthUserDto | null;
   isLoading: boolean;
   sessionStatus: SessionStatus;
-  /** Le dernier `/me` n'a pas abouti — l'app réessaye en arrière-plan. */
-  backendUnreachable: boolean;
   error: string | null;
-  hydrate: (apiUrl: string) => Promise<void>;
-  login: (
-    apiUrl: string,
-    payload: { email: string; password: string },
-  ) => Promise<{ ok: true } | { ok: false; error: string; status: number }>;
-  signup: (
-    apiUrl: string,
-    payload: { email: string; password: string; name: string },
-  ) => Promise<{ ok: true } | { ok: false; error: string; status: number }>;
-  logout: (apiUrl: string) => Promise<void>;
+  hydrate: () => Promise<void>;
+  logout: () => Promise<void>;
+  /** The hub closed this session (revoked from the Sessions screen or `/artisan editor`): back to sign-in. */
+  sessionClosed: () => void;
 }
 
-/** Attentes entre deux `/me` tant que le backend est injoignable, puis palier. */
+/** Delays between two `/me` calls while the hub is unreachable, then plateau. */
 const AUTH_RETRY_DELAYS = [1_000, 3_000, 6_000, 10_000];
 
 /**
- * Attend que l'onglet redevienne visible.
+ * Waits for the tab to become visible again.
  *
- * Un onglet caché n'a personne devant lui : continuer à interroger un backend
- * qui redémarre, depuis chaque onglet ouvert, n'avance rien. Le retour de
- * l'onglet est de toute façon le moment où la réponse commence à compter.
+ * A hidden tab has nobody in front of it: polling a restarting hub from every
+ * open tab achieves nothing. The tab coming back is anyway when the answer
+ * starts to matter.
  */
 function whenVisible(): Promise<void> {
   if (typeof document === "undefined" || document.visibilityState !== "hidden") {
@@ -61,21 +45,9 @@ function whenVisible(): Promise<void> {
   });
 }
 
-/** Deux `hydrate()` concurrents (remontage, reconnexion manuelle) : seule la
- *  plus récente a le droit de conclure, sinon deux boucles de réessai se
- *  marchent dessus. */
+/** Two concurrent `hydrate()` calls (remount, manual reconnect): only the
+ *  most recent may conclude, otherwise two retry loops step on each other. */
 let hydrateGeneration = 0;
-
-export function clearDeletedAccountSession(): void {
-  ++hydrateGeneration;
-  useAuthStore.setState({
-    currentUser: null,
-    sessionStatus: "signed-out",
-    isLoading: false,
-    backendUnreachable: false,
-    error: null,
-  });
-}
 
 export const useAuthStore = create<AuthState>((set) => ({
   currentUser: null,
@@ -85,31 +57,22 @@ export const useAuthStore = create<AuthState>((set) => ({
   // logged-in users to /login.
   isLoading: true,
   sessionStatus: "unknown",
-  backendUnreachable: false,
   error: null,
-  async hydrate(apiUrl) {
+  async hydrate() {
     const generation = ++hydrateGeneration;
     set({ isLoading: true });
-    /*
-     * Cette session décrit le compte ; le projet de démo utilise son propre principal.
-     * Un backend injoignable (502, cold start, coupure
-     * réseau) n'autorise donc aucune de ces deux réponses — et surtout pas
-     * « déconnecté », qui envoyait sur un /login incapable de fonctionner
-     * puisque c'est le même backend qui l'anime. La session reste « unknown »
-     * et on réessaye jusqu'à savoir : l'app affiche le vrai problème (backend
-     * injoignable) au lieu d'en inventer un autre.
-     */
+    // An unreachable server (restart, network cut) does not mean "signed out":
+    // the session stays "unknown" and we retry until we know.
     let user: AuthUserDto | null = null;
     for (let attempt = 0; ; attempt++) {
       if (generation !== hydrateGeneration) return;
       try {
-        user = await getMe({ apiUrl });
+        user = await getMe();
         break;
       } catch (e) {
-        if (!(e instanceof AuthUnreachableError)) throw e;
-        // Un utilisateur déjà connu le reste : lui, l'app peut le servir.
+        if (!(e instanceof ApiError)) throw e;
+        // An already known user stays known: the app can serve them.
         set((s) => ({
-          backendUnreachable: true,
           error: "auth_unreachable",
           isLoading: s.currentUser === null ? s.isLoading : false,
         }));
@@ -122,13 +85,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({
       currentUser: user,
       sessionStatus: user ? "signed-in" : "signed-out",
-      backendUnreachable: false,
       isLoading: false,
       error: null,
     });
     if (user?.editorLanguage) {
-      const { default: i18n } = await import("@/i18n");
+      const { default: i18n, isSupportedLang } = await import("@/i18n");
       await i18n.changeLanguage(user.editorLanguage);
+      // Modules label their kinds and collections in `editorLang`: it follows the profile
+      // too, set directly so the profile is not written back.
+      if (isSupportedLang(user.editorLanguage)) {
+        const { useUiStore } = await import("./uiStore");
+        useUiStore.setState({ editorLang: user.editorLanguage });
+      }
     }
     // Apply server-side theme preference only if the user hasn't made a
     // local choice yet. localStorage wins (checked by detectInitialTheme).
@@ -149,45 +117,29 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     }
   },
-  async login(apiUrl, payload) {
-    set({ isLoading: true, error: null });
-    const result = await apiLogin({ apiUrl }, payload);
-    if (result.ok) {
-      set({ currentUser: result.data.user, sessionStatus: "signed-in", isLoading: false });
-      return { ok: true };
-    }
-    set({ error: result.error, isLoading: false });
-    return { ok: false, error: result.error, status: result.status };
-  },
-  async signup(apiUrl, payload) {
-    set({ isLoading: true, error: null });
-    const result = await apiSignup({ apiUrl }, payload);
-    if (result.ok) {
-      set({ currentUser: result.data.user, sessionStatus: "signed-in", isLoading: false });
-      return { ok: true };
-    }
-    set({ error: result.error, isLoading: false });
-    return { ok: false, error: result.error, status: result.status };
-  },
-  async logout(apiUrl) {
-    await apiLogout({ apiUrl });
+  async logout() {
+    await apiLogout();
     set({
       currentUser: null,
       sessionStatus: "signed-out",
-      backendUnreachable: false,
       error: null,
     });
   },
+  sessionClosed() {
+    set({ currentUser: null, sessionStatus: "signed-out", error: null });
+    // A full load: every store of the closed session goes with it.
+    window.location.assign("/login?expired=1");
+  },
 }));
 
-// Account-scoped local state must not leak across identities. Without this,
-// switching accounts in the same tab keeps the previous account's projects in
+// Per-player local state must not leak across identities. Without this,
+// switching players in the same tab keeps the previous player's projects in
 // the sidebar, and clicking one navigates into a network the new user can't
-// access (403 → bounced to /networks). We clear:
-//   - accountStore (in-memory projects of the previous account)
+// access (403 → bounced to /servers). We clear:
+//   - projectsStore (in-memory projects of the previous player)
 //   - uiStore last-active pointers (persisted; used by restore flows)
 // Deliberately NOT cleared on first sign-in (null → user): a page load may
-// have already populated accountStore (e.g. from a prior fetch in flight),
+// have already populated projectsStore (e.g. from a prior fetch in flight),
 // and that state must survive.
 let lastSeenUserId: string | null | undefined;
 useAuthStore.subscribe(async (state) => {
@@ -201,16 +153,14 @@ useAuthStore.subscribe(async (state) => {
   lastSeenUserId = id;
   if (previous === null) return; // first sign-in — keep prior state
   useProjectDraftStore.getState().setOwner(id);
-  clearImportRecovery();
-  clearCopyRecovery();
   useProjectRuntimeStore.getState().set(null);
   useProjectCacheStore.setState({ entries: {} });
   // Dynamic imports to avoid store import cycles (same pattern as hydrate()).
-  const [{ useAccountStore }, { useUiStore }] = await Promise.all([
-    import("./accountStore"),
+  const [{ useProjectsStore }, { useUiStore }] = await Promise.all([
+    import("./projectsStore"),
     import("./uiStore"),
   ]);
-  const emptyAccount: Account = { id: "" as Account["id"], projects: [], projectOrder: [] };
-  useAccountStore.getState().setAccount(emptyAccount);
+  const emptyProjects: OpenProjects = { projects: [], projectOrder: [] };
+  useProjectsStore.getState().setOpenProjects(emptyProjects);
   useUiStore.getState().setLastActiveProjectId(null);
 });

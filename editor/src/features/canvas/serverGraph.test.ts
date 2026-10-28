@@ -25,8 +25,8 @@ function menu(id: string, links: Link[] = [], rows = 3) {
                     kind: "action",
                     action:
                       link.kind === "dialog"
-                        ? { type: "open_dialog", dialogId: link.to }
-                        : { type: "open_menu", menuId: link.to },
+                        ? { name: "open_dialog", value: link.to }
+                        : { name: "open_menu", value: link.to },
                   },
                 ],
               },
@@ -50,14 +50,16 @@ function project(
   return {
     id,
     name: id,
-    menus: docs.menus ?? [],
-    commands: (docs.commands ?? []).map((c) => ({
-      id: c.id,
-      name: c.id,
-      arguments: [],
-      steps: [{ kind: "action", action: { type: "open_menu", menuId: c.opens } }],
-    })),
-    dialogs: (docs.dialogs ?? []).map((d) => ({ id: d, buttons: [] })),
+    documents: {
+      menu: docs.menus ?? [],
+      command: (docs.commands ?? []).map((c) => ({
+        id: c.id,
+        name: c.id,
+        arguments: [],
+        steps: [{ kind: "action", action: { name: "open_menu", value: c.opens } }],
+      })),
+      dialog: (docs.dialogs ?? []).map((d) => ({ id: d, buttons: [] })),
+    },
   } as unknown as Project;
 }
 
@@ -68,8 +70,8 @@ describe("deriveServerGraph", () => {
       project("boutique", { menus: [menu("catalogue")] }),
     ]);
     expect(graph.nodes.map((n) => n.key)).toEqual([
-      documentKey("boutique", "catalogue"),
-      documentKey("core", "accueil"),
+      documentKey("boutique", "menu/catalogue"),
+      documentKey("core", "menu/accueil"),
     ]);
   });
 
@@ -79,7 +81,7 @@ describe("deriveServerGraph", () => {
       project("boutique", { menus: [menu("catalogue")] }),
     ]);
     expect(graph.edges.map((e) => [e.source, e.target])).toEqual([
-      [documentKey("core", "accueil"), documentKey("boutique", "catalogue")],
+      [documentKey("core", "menu/accueil"), documentKey("boutique", "menu/catalogue")],
     ]);
   });
 
@@ -92,8 +94,8 @@ describe("deriveServerGraph", () => {
       }),
     ]);
     expect(graph.edges.map((e) => [e.source, e.target])).toEqual([
-      [documentKey("core", "accueil"), documentKey("core", "regles")],
-      [documentKey("core", "cmd_menu"), documentKey("core", "accueil")],
+      [documentKey("core", "command/cmd_menu"), documentKey("core", "menu/accueil")],
+      [documentKey("core", "menu/accueil"), documentKey("core", "dialog/regles")],
     ]);
   });
 
@@ -104,7 +106,7 @@ describe("deriveServerGraph", () => {
     expect(graph.nodes).toHaveLength(1);
     expect(graph.edges).toEqual([]);
     expect(graph.unresolved).toEqual([
-      { source: documentKey("core", "accueil"), targetId: "fantome", reason: "missing" },
+      { source: documentKey("core", "menu/accueil"), targetId: "fantome", reason: "missing" },
     ]);
   });
 
@@ -115,7 +117,7 @@ describe("deriveServerGraph", () => {
     ]);
     expect(graph.unresolved).toEqual([]);
     expect(graph.edges.map((e) => [e.source, e.target])).toEqual([
-      [documentKey("core", "accueil"), documentKey("core", "doublon")],
+      [documentKey("core", "menu/accueil"), documentKey("core", "menu/doublon")],
     ]);
   });
 
@@ -127,7 +129,7 @@ describe("deriveServerGraph", () => {
     ]);
     expect(graph.edges).toEqual([]);
     expect(graph.unresolved).toEqual([
-      { source: documentKey("core", "accueil"), targetId: "doublon", reason: "ambiguous" },
+      { source: documentKey("core", "menu/accueil"), targetId: "doublon", reason: "ambiguous" },
     ]);
   });
 
@@ -137,7 +139,7 @@ describe("deriveServerGraph", () => {
       project("boutique", { menus: [menu("main")] }),
     ]);
     expect(graph.edges.map((e) => [e.source, e.target])).toEqual([
-      [documentKey("core", "accueil"), documentKey("boutique", "main")],
+      [documentKey("core", "menu/accueil"), documentKey("boutique", "menu/main")],
     ]);
   });
 
@@ -150,7 +152,7 @@ describe("deriveServerGraph", () => {
       project("core", { menus: [menu("accueil", [{ to: "boutique:main" }])] }),
       shop,
     ]);
-    expect(graph.edges.map((e) => e.target)).toEqual([documentKey("internal-7", "main")]);
+    expect(graph.edges.map((e) => e.target)).toEqual([documentKey("internal-7", "menu/main")]);
   });
 
   it("reports a qualified link to an unknown project or document as missing", () => {

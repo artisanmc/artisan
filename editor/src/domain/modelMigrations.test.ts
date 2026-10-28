@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyModelMigrations, type ModelMigration } from "./modelMigrations";
+import { type ModelMigration, applyModelMigrations } from "./modelMigrations";
 
 /**
  * Declarative model migrations (ADR composable-data-models §5): a closed
@@ -34,10 +34,18 @@ describe("applyModelMigrations", () => {
     const res = applyModelMigrations(rows, 1, migrations);
     expect(res).toEqual({ applied: true, toVersion: 3 });
     expect(rows[0]).toEqual({
-      id: "a", name: "Sword", price: 0, rarity: "epic", act: { type: "message", text: "hi" },
+      id: "a",
+      name: "Sword",
+      price: 0,
+      rarity: "epic",
+      act: { type: "message", text: "hi" },
     });
     expect(rows[1]).toEqual({
-      id: "b", name: "Bow", price: 0, rarity: "common", act: { type: "command", run: "say" },
+      id: "b",
+      name: "Bow",
+      price: 0,
+      rarity: "common",
+      act: { type: "command", run: "say" },
     });
   });
 
@@ -101,7 +109,7 @@ describe("applyModelMigrations", () => {
   });
 });
 
-// ─── injection at load (declared models + pending migrations) ────────────────
+// Injection at load (declared models + pending migrations)
 import { injectDeclaredModels } from "./dataModels";
 import type { Project } from "./types";
 
@@ -113,8 +121,15 @@ describe("injectDeclaredModels", () => {
       source: "user_created",
       createdAt: "",
       updatedAt: "",
-      menus: [], commands: [], assets: [], dialogs: [],
-      i18nKeys: {}, defaultLang: "en", canvasLayout: {},
+      documents: {
+        menu: [],
+        commands: [],
+        assets: [],
+        dialogs: [],
+      },
+      i18nKeys: {},
+      defaultLang: "en",
+      canvasLayout: {},
       dataModels: [
         { id: "mdl_local", name: "local", keyField: "id", fields: [] },
         // Stale copy of a declared model from a previous load — must be replaced.
@@ -122,7 +137,10 @@ describe("injectDeclaredModels", () => {
       ],
       dataSources: [
         {
-          id: "cats", name: "cats", shape: "table", modelId: "boutique:category",
+          id: "cats",
+          name: "cats",
+          shape: "table",
+          modelId: "boutique:category",
           ...(modelVersion !== undefined ? { modelVersion } : {}),
           rows: [{ id: "c1", label: "Armes" }],
         },
@@ -131,7 +149,11 @@ describe("injectDeclaredModels", () => {
   }
 
   const doc = {
-    schema: "model/v1", id: "boutique:category", name: "Category", key_field: "id", version: 2,
+    schema: "model/v1",
+    id: "boutique:category",
+    name: "Category",
+    key_field: "id",
+    version: 2,
     migrations: [{ from: 1, to: 2, steps: [{ op: "rename_field", from: "label", to: "name" }] }],
     fields: [
       { name: "id", type: { kind: "string" } },
@@ -149,7 +171,10 @@ describe("injectDeclaredModels", () => {
     expect(injected.name).toBe("Category");
     expect(injected.provenance).toBe("module");
     expect(injected.version).toBe(2);
-    const cats = project.dataSources[0] as { rows: Record<string, unknown>[]; modelVersion?: number };
+    const cats = project.dataSources[0] as {
+      rows: Record<string, unknown>[];
+      modelVersion?: number;
+    };
     expect(cats.rows[0]).toEqual({ id: "c1", name: "Armes" });
     expect(cats.modelVersion).toBe(2);
   });

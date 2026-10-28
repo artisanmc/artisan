@@ -20,6 +20,10 @@ describe("fitViewport", () => {
     expect(fitViewport({ w: 4000, h: 3000 }, BOX).scale).toBe(1);
   });
 
+  it("grows up to maxScale when asked, for a node drawn in vector text", () => {
+    expect(fitViewport({ w: 4000, h: 3000 }, BOX, 2).scale).toBe(2);
+  });
+
   it("scales down when the menu doesn't fit, keeping it fully visible", () => {
     const v = fitViewport({ w: 300, h: 300 }, BOX);
     expect(v.scale).toBeLessThan(1);

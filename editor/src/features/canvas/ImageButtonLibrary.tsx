@@ -7,14 +7,13 @@ import type { ProjectId } from "@/domain/types";
 import { AssetPreview } from "@/features/assets/AssetPreview";
 import { AssetUploadDialog } from "@/features/assets/AssetUploadDialog";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useDraggable } from "@dnd-kit/core";
 import { Upload } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { draggableProps } from "./dragPayload";
 import { imageDragSize } from "./imageButtonDrag";
-
-export const IMAGE_BUTTON_DRAG_PREFIX = "image-button:";
 
 export function ImageButtonDragPreview({ asset, scale }: { asset: Asset; scale: number }) {
   return (
@@ -30,10 +29,9 @@ export function ImageButtonDragPreview({ asset, scale }: { asset: Asset; scale: 
 
 function ImageTile({ asset }: { asset: Asset }) {
   const { t } = useTranslation();
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `${IMAGE_BUTTON_DRAG_PREFIX}${asset.projectId}:${asset.id}`,
-    data: { imageButton: asset },
-  });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable(
+    draggableProps({ kind: "imageButton", asset }),
+  );
   const size = imageButtonSize(asset.width, asset.height);
   return (
     <Button
@@ -47,7 +45,7 @@ function ImageTile({ asset }: { asset: Asset }) {
     >
       <AssetPreview asset={asset} lazy className="h-12 w-full object-contain pointer-events-none" />
       <span className="w-full truncate text-xs">{asset.name}</span>
-      <span className="text-[10px] text-[var(--text-mut)]">{t("imageButton.slots", size)}</span>
+      <span className="text-[11px] text-[var(--text-mut)]">{t("imageButton.slots", size)}</span>
     </Button>
   );
 }
@@ -55,8 +53,8 @@ function ImageTile({ asset }: { asset: Asset }) {
 export function ImageButtonLibrary({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
   const assets = useAssetStore((s) => s.assets);
-  const project = useAccountStore((s) =>
-    s.account.projects.find((entry) => entry.id === projectId),
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((entry) => entry.id === projectId),
   );
   const loading = useAssetStore((s) => s.loading);
   const error = useAssetStore((s) => s.error);

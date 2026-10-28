@@ -1,3 +1,4 @@
+import { menusOf } from "@/domain/documents";
 import type { ElementId, Project, ProjectId } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { selectionContext } from "./selectionContext";
@@ -11,24 +12,30 @@ function project(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      {
-        id: "m1",
-        projectId: PID,
-        title: [],
-        rows: 3,
-        layers: [{ id: "L0", elements: [{ id: "grid", positions: "0", display: {}, states: [] }] }],
-      } as any,
-      {
-        id: "m2",
-        projectId: PID,
-        title: [],
-        rows: 3,
-        layers: [{ id: "L0", elements: [{ id: "grid", positions: "1", display: {}, states: [] }] }],
-      } as any,
-    ],
-    commands: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
-    dialogs: [{ id: "d1", projectId: PID } as any],
+    documents: {
+      menu: [
+        {
+          id: "m1",
+          projectId: PID,
+          title: [],
+          rows: 3,
+          layers: [
+            { id: "L0", elements: [{ id: "grid", positions: "0", display: {}, states: [] }] },
+          ],
+        } as any,
+        {
+          id: "m2",
+          projectId: PID,
+          title: [],
+          rows: 3,
+          layers: [
+            { id: "L0", elements: [{ id: "grid", positions: "1", display: {}, states: [] }] },
+          ],
+        } as any,
+      ],
+      command: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
+      dialog: [{ id: "d1", projectId: PID } as any],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
@@ -44,7 +51,7 @@ const ctx = (ids: string[], menuId: string | null = null) =>
 describe("selectionContext", () => {
   it.each(["c1", "d1", "m1"])("keeps a scoped element distinct from entity %s", (id) => {
     const p = project();
-    p.menus[1]!.layers[0]!.elements[0]!.id = id as ElementId;
+    menusOf(p)[1]!.layers[0]!.elements[0]!.id = id as ElementId;
     expect(selectionContext(p, new Set([id]), "m2")).toEqual({
       kind: "element",
       menuId: "m2",
@@ -54,36 +61,54 @@ describe("selectionContext", () => {
   it("does not resolve a stale scoped element as a command", () => {
     expect(ctx(["c1"], "m2")).toEqual({ kind: "unknown" });
   });
-  it("sélection vide → none", () => {
+  it("empty selection → none", () => {
     expect(ctx([])).toEqual({ kind: "none" });
   });
   it("plusieurs ids → multi", () => {
-    expect(ctx(["m1", "c1"])).toEqual({ kind: "multi" });
+    expect(ctx(["menu/m1", "command/c1"])).toEqual({ kind: "multi" });
   });
-  it("un menu → menu", () => {
-    expect(ctx(["m1"])).toEqual({ kind: "menu", menuId: "m1" });
+  it("a menu → menu", () => {
+    expect(ctx(["menu/m1"])).toEqual({ kind: "menu", menuId: "m1" });
   });
-  it("une commande → command", () => {
-    expect(ctx(["c1"])).toEqual({ kind: "command", id: "c1" });
+  it("a command → command", () => {
+    expect(ctx(["command/c1"])).toEqual({ kind: "command", id: "c1" });
   });
-  it("un dialogue → dialog", () => {
-    expect(ctx(["d1"])).toEqual({ kind: "dialog", id: "d1" });
+  it("a menu and a command sharing an id stay two Documents", () => {
+    const p = project();
+    p.documents.command!.push({ ...p.documents.command![0]!, id: "m1" } as never);
+    expect(selectionContext(p, new Set(["command/m1"]), null)).toEqual({
+      kind: "command",
+      id: "m1",
+    });
+    expect(selectionContext(p, new Set(["menu/m1"]), null)).toEqual({ kind: "menu", menuId: "m1" });
+  });
+  it("a dialog → dialog", () => {
+    expect(ctx(["dialog/d1"])).toEqual({ kind: "dialog", id: "d1" });
   });
 
   /**
-   * Le cas qui justifie `selectionMenuId` : `grid` existe dans m1 ET m2.
-   * Sans le scope, on éditerait le premier menu trouvé.
+   * The case that justifies `selectionMenuId`: `grid` exists in m1 AND m2.
+   * Without the scope, the first menu found would be edited.
    */
-  it("un id d'élément partagé se résout dans le menu de la sélection", () => {
+  it("a shared element id resolves within the selection's menu", () => {
     expect(ctx(["grid"], "m2")).toEqual({ kind: "element", menuId: "m2", elementId: "grid" });
   });
-  it("sans scope, un id d'élément partagé retombe sur le premier menu", () => {
+  it("without scope, a shared element id falls back to the first menu", () => {
     expect(ctx(["grid"])).toEqual({ kind: "element", menuId: "m1", elementId: "grid" });
   });
-  it("un id inconnu → unknown", () => {
+  it("an unknown id → unknown", () => {
     expect(ctx(["zzz"])).toEqual({ kind: "unknown" });
   });
-  it("pas de project → none", () => {
+  it("no project → none", () => {
     expect(selectionContext(undefined, new Set(["m1"]), null)).toEqual({ kind: "none" });
+  });
+});
+
+describe("selectionContext, folder", () => {
+  it("names the selected folder", () => {
+    expect(selectionContext(project(), new Set(), null, "boutique")).toEqual({
+      kind: "folder",
+      path: "boutique",
+    });
   });
 });

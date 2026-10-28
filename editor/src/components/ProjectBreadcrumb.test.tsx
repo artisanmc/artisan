@@ -1,5 +1,4 @@
-import * as networksApi from "@/lib/api/networks";
-import { useNetworksStore } from "@/state/networksStore";
+import * as serversApi from "@/lib/api/servers";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 
@@ -22,35 +21,27 @@ import { ProjectBreadcrumb } from "./ProjectBreadcrumb";
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  useNetworksStore.setState({
-    networks: [{ id: "net_1", slug: "primalcraft", name: "Primalcraft", tier: "free" }],
-  } as never);
-  vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-    network: { id: "net_1", name: "Primalcraft", tier: "free" },
-    projects: [],
-    serverKeys: [
-      { id: "sk_1", slug: "survie", label: "Survie", online: true },
-      { id: "sk_2", slug: "lobby", label: "Lobby" },
-    ],
-  } as never);
+  vi.spyOn(serversApi, "listServers").mockResolvedValue([
+    { id: "sk_1", label: "Survie", online: true, minecraftVersion: "1.21.4", lastSeenAt: null },
+    { id: "sk_2", label: "Lobby", online: false, minecraftVersion: null, lastSeenAt: null },
+  ]);
 });
 
-it("switches server from a menu (network in its tooltip), and ends on the project", async () => {
-  render(<ProjectBreadcrumb networkRef="primalcraft" serverRef="survie" projectName="main" />);
-  expect(screen.queryByText("Primalcraft")).toBeNull();
+it("switches server from a menu (its label in the tooltip), and ends on the project", async () => {
+  render(<ProjectBreadcrumb serverRef="sk_1" projectName="main" />);
   const server = await screen.findByRole("button", { name: /Survie/ });
-  expect(server).toHaveAttribute("title", "Primalcraft › Survie");
+  expect(server).toHaveAttribute("title", "Survie");
   fireEvent.keyDown(server, { key: "Enter" });
   fireEvent.click(screen.getByRole("menuitem", { name: "Lobby" }));
   expect(navigate).toHaveBeenCalledWith({
-    to: "/networks/$networkId/servers/$serverId",
-    params: { networkId: "primalcraft", serverId: "lobby" },
+    to: "/servers/$serverId",
+    params: { serverId: "sk_2" },
   });
   expect(screen.getByText("main")).toHaveAttribute("aria-current", "page");
 });
 
-it("shows only the project outside a network (demo)", () => {
-  render(<ProjectBreadcrumb networkRef={null} serverRef={null} projectName="Welcome" />);
+it("shows only the project outside a server (demo)", () => {
+  render(<ProjectBreadcrumb serverRef={null} projectName="Welcome" />);
   expect(screen.queryByRole("link")).toBeNull();
   expect(screen.getByText("Welcome")).toHaveAttribute("aria-current", "page");
 });

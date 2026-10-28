@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { makeStepConverter, type ConverterCtx } from "./actionV1ToDomain";
 import type { I18nKey, LText } from "@/domain/types";
+import { describe, expect, it } from "vitest";
+import { type ConverterCtx, makeStepConverter } from "./actionV1ToDomain";
 
-function ctx(): ConverterCtx & { unsupported: string[]; keys: Record<string, Record<string, string>> } {
+function ctx(): ConverterCtx & {
+  unsupported: string[];
+  keys: Record<string, Record<string, string>>;
+} {
   const unsupported: string[] = [];
   const keys: Record<string, Record<string, string>> = {};
   let n = 0;
@@ -10,9 +13,9 @@ function ctx(): ConverterCtx & { unsupported: string[]; keys: Record<string, Rec
     unsupported,
     keys,
     pushUnsupported: (s: string) => unsupported.push(s),
-    text: (raw?: string): LText => {
+    text: (raw: string | Record<string, string> | undefined): LText => {
       const key = `k_${n++}`;
-      keys[key] = { en: raw ?? "" };
+      keys[key] = typeof raw === "object" ? raw : { en: raw ?? "" };
       return { key: key as I18nKey };
     },
     ref: (key: string): LText => ({ key: key as I18nKey }),
@@ -24,7 +27,7 @@ describe("makeStepConverter — DSL steps (Phase 2)", () => {
     const c = ctx();
     const { steps } = makeStepConverter(c);
     expect(steps("open_menu shop")).toEqual([
-      { kind: "action", action: { type: "open_menu", menuId: "shop" } },
+      { kind: "action", action: { name: "open_menu", value: "shop" } },
     ]);
   });
 
@@ -37,7 +40,7 @@ describe("makeStepConverter — DSL steps (Phase 2)", () => {
         cases: [
           {
             conditions: [{ type: "has_permission", perm: "a.b" }],
-            steps: [{ kind: "action", action: { type: "close_menu" } }],
+            steps: [{ kind: "action", action: { name: "close_menu", value: null } }],
           },
         ],
       },
@@ -47,11 +50,11 @@ describe("makeStepConverter — DSL steps (Phase 2)", () => {
   it("mints an i18n key for a literal send_message, resolves @key via ref", () => {
     const c = ctx();
     const { steps } = makeStepConverter(c);
-    const litStep = steps('send_message "hi"')[0] as unknown as { action: { text: LText } };
-    expect(c.keys[litStep.action.text.key]).toEqual({ en: "hi" });
+    const litStep = steps('send_message "hi"')[0] as unknown as { action: { value: LText } };
+    expect(c.keys[litStep.action.value.key]).toEqual({ en: "hi" });
 
-    const refStep = steps("send_message @greeting")[0] as unknown as { action: { text: LText } };
-    expect(refStep.action.text.key).toBe("greeting");
+    const refStep = steps("send_message @greeting")[0] as unknown as { action: { value: LText } };
+    expect(refStep.action.value.key).toBe("greeting");
   });
 
   it("blank / non-string input yields no steps", () => {
@@ -71,7 +74,10 @@ describe("makeStepConverter — DSL steps (Phase 2)", () => {
   it("still maps appearance-level conditions and if-arrays (unchanged)", () => {
     const c = ctx();
     const { condition, ifArray } = makeStepConverter(c);
-    expect(condition({ type: "has_money", amount: 100 })).toEqual({ type: "has_money", amount: 100 });
+    expect(condition({ type: "has_money", amount: 100 })).toEqual({
+      type: "has_money",
+      amount: 100,
+    });
     expect(ifArray([{ type: "has_permission", perm: "vip" }])).toEqual({
       conds: [{ type: "has_permission", perm: "vip" }],
       joins: [],

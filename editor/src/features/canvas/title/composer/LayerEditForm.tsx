@@ -3,8 +3,8 @@ import { useMemo, useState } from "react";
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
 import { RevealField } from "@/components/RevealField";
+import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
@@ -17,10 +17,11 @@ import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { duplicateAsset } from "@/lib/api/userAssets";
 import { cn } from "@/lib/cx";
 import { useTextEdit } from "@/lib/useText";
-import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 
+import { menusOf } from "@/domain/documents";
 import { TextSizeSelector } from "./TextSizeSelector";
 import { asTextFrame, patchTextFrame, textAnchorOffset } from "./textFrame";
 
@@ -37,9 +38,10 @@ interface LayerEditFormProps {
  * distinct shape and we want the dispatch to stay trivially readable.
  */
 export function LayerEditForm({ projectId }: LayerEditFormProps) {
+  const { t } = useTranslation();
   const selectedKey = useUiStore((s) => s.selectedLayerKey);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const menu = project?.menus.find((m) => m.id === selectedKey?.menuId);
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const menu = menusOf(project).find((m) => m.id === selectedKey?.menuId);
   const layer =
     selectedKey && menu && selectedKey.index >= 0 && selectedKey.index < menu.title.length
       ? menu.title[selectedKey.index]
@@ -47,8 +49,8 @@ export function LayerEditForm({ projectId }: LayerEditFormProps) {
 
   if (!selectedKey || !menu || !layer) {
     return (
-      <div className="rounded border border-dashed border-zinc-800 bg-zinc-900/40 px-3 py-4 text-center text-[11px] text-zinc-500">
-        Sélectionne un élément pour modifier ses détails
+      <div className="rounded border border-dashed border-[var(--border-soft)] bg-[var(--surface-inset)]/40 px-3 py-4 text-center text-[11px] text-[var(--text-faint)]">
+        {t("layerEditForm.emptySelection")}
       </div>
     );
   }
@@ -96,7 +98,7 @@ export function LayerEditForm({ projectId }: LayerEditFormProps) {
   return null;
 }
 
-// ─── Image (background | glyph) ────────────────────────────────────────────
+// Image (background | glyph)
 
 /**
  * generic_54.png asymmetry (Mojang bug): chest slot border is at y=17 but the item
@@ -123,7 +125,7 @@ interface ImageLayerFormProps {
 function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps) {
   const asset = useAssetStore((s) => s.assets.find((a) => a.id === layer.assetId));
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
-  const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
+  const updateLayer = useProjectsStore((s) => s.updateMenuTitleLayer);
   const user = useAuthStore((s) => s.currentUser);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
@@ -141,11 +143,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
 
   const onDuplicate = async () => {
     if (!user) return;
-    if (
-      !window.confirm(
-        "Dupliquer cette image pour ce menu uniquement ? Les autres menus garderont l'originale.",
-      )
-    ) {
+    if (!window.confirm(t("layerEditForm.duplicateConfirm"))) {
       return;
     }
     setDuplicating(true);
@@ -169,39 +167,39 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
     updateLayer({ projectId, menuId, index, patch: patch as Partial<MenuTitleLayer> });
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
+    <div className="flex flex-col gap-3 text-xs text-[var(--text)]">
       <div className="flex items-center gap-2">
         {asset ? (
           <img
             src={assetPreviewUrl(asset)}
             alt={asset.name}
-            className="h-10 w-10 rounded border border-zinc-700 bg-zinc-900 object-contain"
+            className="h-10 w-10 rounded border border-[var(--border)] bg-[var(--surface-inset)] object-contain"
             style={{ imageRendering: "pixelated" }}
           />
         ) : (
-          <div className="h-10 w-10 rounded border border-zinc-700 bg-zinc-900" />
+          <div className="h-10 w-10 rounded border border-[var(--border)] bg-[var(--surface-inset)]" />
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs text-zinc-200">{asset?.name ?? "<image manquante>"}</div>
-          <div className="text-[10px] text-zinc-500">
+          <div className="truncate text-xs text-[var(--text)]">
+            {asset?.name ?? t("layerEditForm.imageMissing")}
+          </div>
+          <div className="text-[11px] text-[var(--text-faint)]">
             {/* `width` is intentionally local-only — MC fonts derive glyph
-                width from PNG transparency, so the backend doesn't persist a
-                width field. ResizeHandles mutates `asset.width` optimistically
-                in `assetStore` (via `useTitleLayerDrag.onResize`) for live
-                preview; only `height` round-trips through PATCH. The number
-                below therefore reflects the latest optimistic value, not a
-                server-confirmed one. */}
-            {asset ? `${asset.type} · ${asset.width} × ${asset.height} px` : "image non chargée"}
+                width from PNG transparency, so no width field is persisted;
+                only `height` is saved. */}
+            {asset
+              ? `${asset.type} · ${asset.width} × ${asset.height} px`
+              : t("layerEditForm.imageNotLoaded")}
           </div>
         </div>
       </div>
 
       <div className="flex gap-2">
         <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
-          Choisir une image…
+          {t("layerEditForm.chooseImage")}
         </Button>
         <Button size="sm" variant="outline" onClick={onDuplicate} disabled={duplicating}>
-          {duplicating ? "Duplication…" : "Dupliquer l'image"}
+          {duplicating ? t("layerEditForm.duplicating") : t("layerEditForm.duplicateImage")}
         </Button>
       </div>
 
@@ -224,7 +222,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
               </div>
             ))}
           </div>
-          <div className="text-[10px] text-[var(--text-faint)] leading-snug">
+          <div className="text-[11px] text-[var(--text-faint)] leading-snug">
             {t("layerEditForm.image.positionHint", {
               floor: asset ? GLYPH_Y_BASE - asset.height : "…",
             })}
@@ -237,7 +235,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
           >
             {t("layerEditForm.image.calibrate", { y: Y_FOR_CHEST_BACKGROUND })}
           </Button>
-          <div className="text-[10px] text-[var(--text-faint)] leading-snug">
+          <div className="text-[11px] text-[var(--text-faint)] leading-snug">
             {t("layerEditForm.image.calibrateHint")}
           </div>
         </div>
@@ -252,13 +250,13 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
         // shouldn't either.
         onClose={() => setPickerOpen(false)}
         onPick={onPick}
-        title="Choisir une image"
+        title={t("layerEditForm.pickerTitle")}
       />
     </div>
   );
 }
 
-// ─── Text ──────────────────────────────────────────────────────────────────
+// Text
 
 interface PlainLayerFormProps {
   projectId: ProjectId;
@@ -270,20 +268,19 @@ interface PlainLayerFormProps {
 function PlainLayerForm({ projectId, menuId, layer }: PlainLayerFormProps) {
   const { t } = useTranslation();
   const textEdit = useTextEdit(projectId, layer.value);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
   const placeholderLocation = useMemo(() => ({ kind: "menu" as const, menuId }), [menuId]);
   const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
-      <div className="rounded border border-zinc-700 bg-zinc-900/60 px-2.5 py-2 text-[10px] text-zinc-400 leading-snug">
-        Titre vanilla — aucun resource project requis. Le texte s'affiche avec la police MC par
-        défaut. MiniMessage supporté (<code className="text-zinc-300">{"<gold>"}</code>,{" "}
-        <code className="text-zinc-300">{"<bold>"}</code>, etc.).
+    <div className="flex flex-col gap-3 text-xs text-[var(--text)]">
+      <div className="rounded border border-[var(--border)] bg-[var(--surface-inset)]/60 px-2.5 py-2 text-[11px] text-[var(--text-mut)] leading-snug">
+        {t("layerEditForm.plainHintFont")} (<code className="text-[var(--text)]">{"<gold>"}</code>,{" "}
+        <code className="text-[var(--text)]">{"<bold>"}</code>, etc.).
       </div>
       <div>
-        <div className="mb-1 block text-[10px] uppercase text-zinc-500">
-          Titre (MiniMessage) — {textEdit.lang}
+        <div className="field-label !mb-1">
+          {t("layerEditForm.plainLabel", { lang: textEdit.lang })}
         </div>
         <RevealField
           value={textEdit.value}
@@ -300,8 +297,8 @@ function PlainLayerForm({ projectId, menuId, layer }: PlainLayerFormProps) {
           className="text-xs"
           facade={<MiniMessageInline source={textEdit.value} className="font-mono text-xs" />}
           preview={
-            <div className="mt-1 rounded border border-zinc-800 bg-zinc-900/40 p-2">
-              <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
+            <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)]/40 p-2">
+              <div className="field-label !mb-1">{t("layerEditForm.preview")}</div>
               <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
             </div>
           }
@@ -311,7 +308,7 @@ function PlainLayerForm({ projectId, menuId, layer }: PlainLayerFormProps) {
   );
 }
 
-// ─── External glyph ────────────────────────────────────────────────────────
+// External glyph
 
 interface ExternalGlyphFormProps {
   projectId: ProjectId;
@@ -321,16 +318,14 @@ interface ExternalGlyphFormProps {
 }
 
 function ExternalGlyphForm({ projectId, menuId, index, layer }: ExternalGlyphFormProps) {
-  const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
+  const { t } = useTranslation();
+  const updateLayer = useProjectsStore((s) => s.updateMenuTitleLayer);
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
+    <div className="flex flex-col gap-3 text-xs text-[var(--text)]">
       <div>
-        <label
-          htmlFor="layer-edit-external-provider"
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
-        >
-          Provider
+        <label htmlFor="layer-edit-external-provider" className="field-label !mb-1">
+          {t("layerEditForm.provider")}
         </label>
         <select
           id="layer-edit-external-provider"
@@ -344,7 +339,7 @@ function ExternalGlyphForm({ projectId, menuId, index, layer }: ExternalGlyphFor
               patch: { provider } as Partial<MenuTitleLayer>,
             });
           }}
-          className="h-8 w-full rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-200"
+          className="h-8 w-full rounded border border-[var(--border)] bg-[var(--surface-inset)] px-2 text-xs text-[var(--text)]"
         >
           <option value="nexo">nexo</option>
           <option value="oraxen">oraxen</option>
@@ -353,11 +348,8 @@ function ExternalGlyphForm({ projectId, menuId, index, layer }: ExternalGlyphFor
       </div>
 
       <div>
-        <label
-          htmlFor="layer-edit-external-name"
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
-        >
-          Glyph name
+        <label htmlFor="layer-edit-external-name" className="field-label !mb-1">
+          {t("layerEditForm.glyphName")}
         </label>
         <Input
           id="layer-edit-external-name"
@@ -377,7 +369,7 @@ function ExternalGlyphForm({ projectId, menuId, index, layer }: ExternalGlyphFor
   );
 }
 
-// ─── Textarea ──────────────────────────────────────────────────────────────
+// Textarea
 
 interface TextLayerFormProps {
   projectId: ProjectId;
@@ -390,8 +382,8 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
   const layer = asTextFrame(originalLayer);
   const { t } = useTranslation();
   const textEdit = useTextEdit(projectId, layer.value);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
-  const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
+  const updateLayer = useProjectsStore((s) => s.updateMenuTitleLayer);
   const allAssets = useAssetStore((s) => s.assets);
   const fontAssets = allAssets.filter((a) => a.type === "font");
   const placeholderLocation = useMemo(() => ({ kind: "menu" as const, menuId }), [menuId]);
@@ -413,11 +405,8 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
   return (
     <div className="flex flex-col gap-3 text-xs text-[var(--text)]">
       <div>
-        <label
-          htmlFor={`textarea-layer-content-${index}`}
-          className="mb-1 block text-[10px] uppercase text-[var(--text-faint)]"
-        >
-          Texte (MiniMessage, multi-ligne) — {textEdit.lang}
+        <label htmlFor={`textarea-layer-content-${index}`} className="field-label !mb-1">
+          {t("layerEditForm.textLabel", { lang: textEdit.lang })}
         </label>
         <PlaceholderInput
           multiline
@@ -439,7 +428,7 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
       </div>
 
       <div className="rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2">
-        <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">Aperçu</div>
+        <div className="field-label !mb-1">{t("layerEditForm.preview")}</div>
         {lines.map((line, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: order is stable within preview
           <MiniMessageInline key={i} source={line} className="font-mono text-xs" />
@@ -450,7 +439,7 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
         <div className="flex flex-col gap-1.5 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
             <label htmlFor="text-line-height" className="field-label">
-              Interligne (px)
+              {t("layerEditForm.lineHeight")}
             </label>
             <Button
               type="button"
@@ -493,7 +482,7 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
           />
         </div>
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-[var(--text-faint)]">Alignement</div>
+          <div className="field-label !mb-0">{t("layerEditForm.alignment")}</div>
           <div className="flex rounded border border-[var(--border-soft)] bg-[var(--surface)] p-0.5">
             <button
               type="button"
@@ -505,8 +494,8 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
                   ? "bg-[var(--surface-raised)] text-[var(--text)]"
                   : "text-[var(--text-mut)]",
               )}
-              title="Aligner à gauche"
-              aria-label="Aligner à gauche"
+              title={t("layerEditForm.alignLeft")}
+              aria-label={t("layerEditForm.alignLeft")}
             >
               <AlignLeft className="mx-auto h-3.5 w-3.5" />
             </button>
@@ -520,8 +509,8 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
                   ? "bg-[var(--surface-raised)] text-[var(--text)]"
                   : "text-[var(--text-mut)]",
               )}
-              title="Centrer"
-              aria-label="Centrer"
+              title={t("layerEditForm.alignCenter")}
+              aria-label={t("layerEditForm.alignCenter")}
             >
               <AlignCenter className="mx-auto h-3.5 w-3.5" />
             </button>
@@ -535,8 +524,8 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
                   ? "bg-[var(--surface-raised)] text-[var(--text)]"
                   : "text-[var(--text-mut)]",
               )}
-              title="Aligner à droite"
-              aria-label="Aligner à droite"
+              title={t("layerEditForm.alignRight")}
+              aria-label={t("layerEditForm.alignRight")}
             >
               <AlignRight className="mx-auto h-3.5 w-3.5" />
             </button>
@@ -546,7 +535,7 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="layer-edit-font" className="field-label">
-          Police personnalisée
+          {t("layerEditForm.customFont")}
         </label>
         <select
           id="layer-edit-font"
@@ -563,7 +552,7 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
           }}
           className="h-8 w-full rounded border border-[var(--border-soft)] bg-[var(--surface)] px-2 text-xs text-[var(--text)]"
         >
-          <option value="">Aucune (vanilla)</option>
+          <option value="">{t("layerEditForm.fontNone")}</option>
           {fontAssets.map((f) => (
             <option key={f.id} value={f.id}>
               {f.name}
@@ -571,9 +560,7 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
           ))}
         </select>
         {fontAssets.length === 0 && (
-          <div className="text-[10px] text-[var(--text-faint)]">
-            Importe une police via la Bibliothèque pour utiliser une police personnalisée.
-          </div>
+          <div className="text-[11px] text-[var(--text-faint)]">{t("layerEditForm.fontHint")}</div>
         )}
       </div>
 
@@ -593,7 +580,7 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
       )}
 
       <div className="flex flex-col gap-1.5">
-        <div className="text-[10px] uppercase text-[var(--text-faint)]">Largeur (px)</div>
+        <div className="field-label !mb-0">{t("layerEditForm.width")}</div>
         <Input
           type="number"
           data-testid="textarea-width"
@@ -615,7 +602,7 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
 
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-[var(--text-faint)]">X</div>
+          <div className="field-label !mb-0">X</div>
           <Input
             type="number"
             data-testid="textarea-x"
@@ -630,7 +617,7 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
           />
         </div>
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-[var(--text-faint)]">Y (ligne 0)</div>
+          <div className="field-label !mb-0">{t("layerEditForm.yLine0")}</div>
           <Input
             type="number"
             data-testid="textarea-y"
@@ -656,7 +643,7 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
           data-testid="textarea-y-overflow-warning"
           className="rounded border border-amber-700 bg-amber-950/40 px-2.5 py-2 text-[11px] text-amber-200"
         >
-          ⚠ Certaines lignes dépassent la zone rendable (Y &gt; 140) et seront tronquées.
+          {t("layerEditForm.overflow")}
         </div>
       ) : null}
     </div>

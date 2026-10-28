@@ -1,36 +1,48 @@
+import { listDocumentKinds } from "@/domain/documentKinds";
+import { type DocKey, commandsOf, dialogsOf, documentsOf, menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import type { ProjectId } from "@/domain/types";
+import { BoardGroupFrames } from "@/features/canvas/BoardGroupFrames";
 import { CommandGroup } from "@/features/canvas/CommandGroup";
 import { DialogGroup } from "@/features/canvas/DialogGroup";
+import { DocumentGroup } from "@/features/canvas/DocumentGroup";
 import { MenuGroup } from "@/features/canvas/MenuGroup";
-import { GUTTER_LABEL_HEIGHT } from "@/features/canvas/arrangeBoard";
-import { BoardGroupFrames } from "@/features/canvas/BoardGroupFrames";
-import { groupEdges, serverBoard, type BoardGroup } from "@/features/canvas/groupedBoard";
 import type { Edge } from "@/features/canvas/deriveEdges";
 import { type Box, routeEdges } from "@/features/canvas/edgeRouting";
 import { fitViewport } from "@/features/canvas/focusViewport";
-import {
-  type BoardNode,
-  type DocumentKind,
-  deriveServerGraph,
-} from "@/features/canvas/serverGraph";
+import { type BoardGroup, groupEdges, serverBoard } from "@/features/canvas/groupedBoard";
+import { type BoardNode, boardGraph, deriveServerGraph } from "@/features/canvas/serverGraph";
 import { usePanZoom } from "@/features/canvas/usePanZoom";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
-import { type ProjectSummary, getNetwork } from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
+import { type ProjectSummary, listServers } from "@/lib/api/servers";
+import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useCssVar } from "@/lib/themeColors";
 import { useUiStore } from "@/state/uiStore";
+import { documentKindContribution } from "@artisan/editor-sdk";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
 import type Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Arrow, Stage as KonvaStage, Layer, Rect, Text } from "react-konva";
+import { Arrow, Stage as KonvaStage, Layer, Rect } from "react-konva";
 import { type BoardFilter, filterBoard, parseBoardFilter } from "./boardFilter";
 
-const ROUTE = "/networks/$networkId/servers/$serverId/canvas" as const;
-const KINDS: DocumentKind[] = ["menu", "command", "dialog"];
+const ROUTE = "/servers/$serverId/canvas" as const;
+
+/** A kind's chip label: the host's for the core kinds, the contribution's for a module's. */
+function kindLabel(kind: string, t: TFunction): string {
+  const own = `serverCanvas.kinds.${kind}`;
+  const label = contributionLabel(
+    documentKindContribution(kind),
+    kind,
+    t,
+    useUiStore.getState().editorLang,
+  );
+  return t(own, { defaultValue: label });
+}
 
 export const validateServerCanvasSearch = (search: Record<string, unknown>): BoardFilter =>
   parseBoardFilter(search);
@@ -40,19 +52,17 @@ interface ProbeResult {
   failed: boolean;
 }
 
-/** Charge un project exactement comme sa propre vue (disque + brouillon), pour que la planche montre la même chose. */
+/** Loads a project exactly like its own view (disk + draft), so the board shows the same thing. */
 function ProjectProbe({
   loadRef,
   serverId,
-  networkId,
   onResult,
 }: {
   loadRef: string;
   serverId: string;
-  networkId: string;
   onResult: (loadRef: string, result: ProbeResult) => void;
 }) {
-  const { project, error, offline } = useProjectLoader(loadRef, serverId, networkId);
+  const { project, error, offline } = useProjectLoader(loadRef, serverId);
   const failed = error != null || offline;
   useEffect(() => onResult(loadRef, { project, failed }), [loadRef, project, failed, onResult]);
   return null;
@@ -60,7 +70,7 @@ function ProjectProbe({
 
 export function ServerCanvasPage() {
   const { t } = useTranslation();
-  const { networkId, serverId } = useParams({ from: ROUTE });
+  const { serverId } = useParams({ from: ROUTE });
   const filter = useSearch({ from: ROUTE }) as BoardFilter;
   const navigate = useNavigate();
 
@@ -71,17 +81,17 @@ export function ServerCanvasPage() {
   useEffect(() => {
     let cancelled = false;
     setListing("loading");
-    getNetwork(networkId)
-      .then(async (network) => {
-        const key = network.serverKeys.find((k) => k.slug === serverId || k.id === serverId);
+    listServers()
+      .then(async (servers) => {
+        const key = servers.find((k) => k.id === serverId);
         if (!key) throw new Error("unknown_server");
-        const res = await listServerProjects(networkId, key.id);
+        const res = await listServerProjects(key.id);
         if (cancelled) return;
         if (!res.ok) {
           setListing("unavailable");
           return;
         }
-        setSummaries(diskProjectsToSummaries(networkId, key.id, res.projectIds, res.projects));
+        setSummaries(diskProjectsToSummaries(key.id, res.projectIds, res.projects));
         setListing("ready");
       })
       .catch(() => {
@@ -90,7 +100,7 @@ export function ServerCanvasPage() {
     return () => {
       cancelled = true;
     };
-  }, [networkId, serverId]);
+  }, [serverId]);
 
   const onResult = useCallback((loadRef: string, result: ProbeResult) => {
     setResults((prev) => {
@@ -111,7 +121,7 @@ export function ServerCanvasPage() {
     [refs, results],
   );
 
-  const graph = useMemo(() => deriveServerGraph(projects), [projects]);
+  const graph = useMemo(() => boardGraph(deriveServerGraph(projects)), [projects]);
   const visible = useMemo(() => filterBoard(graph, filter), [graph, filter]);
   const arrangement = useMemo(
     () => (settled ? serverBoard(projects, visible) : null),
@@ -119,7 +129,7 @@ export function ServerCanvasPage() {
   );
 
   const setFilter = (next: BoardFilter) =>
-    navigate({ to: ROUTE, params: { networkId, serverId }, search: next, replace: true });
+    navigate({ to: ROUTE, params: { serverId }, search: next, replace: true });
 
   const status =
     listing === "loading"
@@ -137,16 +147,11 @@ export function ServerCanvasPage() {
           key={projectUrlId(s)}
           loadRef={projectUrlId(s)}
           serverId={serverId}
-          networkId={networkId}
           onResult={onResult}
         />
       ))}
       <header className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-3">
-        <Link
-          to="/networks/$networkId/servers/$serverId"
-          params={{ networkId, serverId }}
-          className="btn-ghost btn-sm"
-        >
+        <Link to="/servers/$serverId" params={{ serverId }} className="btn btn-ghost btn-sm">
           ← {t("serverCanvas.back")}
         </Link>
         <h1 className="text-[15px] font-semibold text-[var(--text)]">{t("serverCanvas.title")}</h1>
@@ -177,14 +182,14 @@ export function ServerCanvasPage() {
           >
             {t("serverCanvas.allKinds")}
           </button>
-          {KINDS.map((kind) => (
+          {listDocumentKinds().map(({ kind }) => (
             <button
               key={kind}
               type="button"
               className={`chip${filter.kind === kind ? " is-active" : ""}`}
               onClick={() => setFilter({ ...filter, kind })}
             >
-              {t(`serverCanvas.kinds.${kind}`)}
+              {kindLabel(kind, t)}
             </button>
           ))}
           <input
@@ -217,28 +222,27 @@ export function ServerCanvasPage() {
             </p>
           ) : (
             <Board
-              storageKey={`server-board:${networkId}/${serverId}`}
+              storageKey={`server-board:${serverId}`}
               projects={projects}
               nodes={visible.nodes}
               edges={visible.edges.map((e) => ({
                 ...e.edge,
                 id: e.id,
-                source: e.source,
-                target: e.target,
+                // Server keys: `<project>/<kind>/<id>`.
+                source: e.source as DocKey,
+                target: e.target as DocKey,
               }))}
               positions={arrangement.positions}
               groups={arrangement.groups}
               representatives={arrangement.representatives}
-              gutter={arrangement.gutter}
-              gutterLabel={t("serverCanvas.gutter")}
               onOpen={(node) => {
                 const project = projects.find((p) => p.id === node.projectId);
                 if (!project) return;
-                // Ouvre la planche du project, centrée sur le Document (goToDocument).
+                // Opens the project's board, centered on the Document (goToDocument).
                 void navigate({
-                  to: "/networks/$networkId/servers/$serverId/projects/$projectId",
-                  params: { networkId, serverId, projectId: projectUrlId(project) },
-                  search: { doc: node.docId },
+                  to: "/servers/$serverId/projects/$projectId",
+                  params: { serverId, projectId: projectUrlId(project) },
+                  search: { doc: node.docKey },
                 });
               }}
             />
@@ -256,8 +260,6 @@ function Board({
   positions,
   groups,
   representatives,
-  gutter,
-  gutterLabel,
   onOpen,
 }: {
   storageKey: string;
@@ -267,8 +269,6 @@ function Board({
   positions: Record<string, { x: number; y: number }>;
   groups: BoardGroup[];
   representatives: Record<string, string>;
-  gutter: { x: number; y: number } | null;
-  gutterLabel: string;
   onOpen: (node: BoardNode) => void;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -280,7 +280,6 @@ function Board({
   const [hovered, setHovered] = useState<string | null>(null);
   const edgeColor = useCssVar("--border-strong");
   const brand = useCssVar("--brand");
-  const muted = useCssVar("--text-mut");
 
   useEffect(() => {
     if (!wrapperRef.current) return;
@@ -325,7 +324,10 @@ function Board({
     }
     return out;
   }, [nodes, positions]);
-  const routed = useMemo(() => routeEdges({ edges: groupEdges(edges, representatives), boxes }), [edges, boxes, representatives]);
+  const routed = useMemo(
+    () => routeEdges({ edges: groupEdges(edges, representatives), boxes }),
+    [edges, boxes, representatives],
+  );
 
   const byProject = useMemo(() => new Map(projects.map((p) => [p.id as string, p])), [projects]);
   const layouts = useMemo(() => {
@@ -334,7 +336,7 @@ function Board({
       const p = positions[n.key];
       if (!p) continue;
       const layout = out.get(n.projectId) ?? {};
-      layout[n.docId] = p;
+      layout[n.docKey] = p;
       out.set(n.projectId, layout);
     }
     return out;
@@ -363,7 +365,9 @@ function Board({
           setViewport({ x: stage.x(), y: stage.y(), scale: stage.scaleX() });
         }}
       >
-        <Layer><BoardGroupFrames groups={groups} /></Layer>
+        <Layer>
+          <BoardGroupFrames groups={groups} />
+        </Layer>
         <Layer listening={false}>
           {routed.map((r) => (
             <Arrow
@@ -385,26 +389,16 @@ function Board({
               pointerWidth={8}
             />
           ))}
-          {gutter && (
-            <Text
-              x={gutter.x}
-              y={gutter.y}
-              text={gutterLabel}
-              fontSize={14}
-              fill={muted}
-              height={GUTTER_LABEL_HEIGHT}
-            />
-          )}
         </Layer>
-        {/* Rendu identique aux vues project, mais sans aucun geste : un calque
-            qui n'écoute rien ne peut ni déplacer un menu ni en modifier un slot. */}
+        {/* Same rendering as the project views, but with no gesture: a layer
+            that listens to nothing can neither move a menu nor edit a slot. */}
         <Layer listening={false} imageSmoothingEnabled={false}>
           {nodes.map((n) => {
             const project = byProject.get(n.projectId);
             const position = positions[n.key];
             if (!project || !position) return null;
             if (n.kind === "menu") {
-              const menu = project.menus.find((m) => m.id === n.docId);
+              const menu = menusOf(project).find((m) => m.id === n.docId);
               return menu ? (
                 <MenuGroup
                   key={n.key}
@@ -416,7 +410,7 @@ function Board({
               ) : null;
             }
             if (n.kind === "command") {
-              const command = project.commands.find((c) => c.id === n.docId);
+              const command = commandsOf(project).find((c) => c.id === n.docId);
               return command ? (
                 <CommandGroup
                   key={n.key}
@@ -426,9 +420,26 @@ function Board({
                 />
               ) : null;
             }
-            const dialog = (project.dialogs ?? []).find((d) => d.id === n.docId);
-            return dialog ? (
-              <DialogGroup key={n.key} projectId={project.id} dialog={dialog} position={position} />
+            if (n.kind === "dialog") {
+              const dialog = dialogsOf(project).find((d) => d.id === n.docId);
+              return dialog ? (
+                <DialogGroup
+                  key={n.key}
+                  projectId={project.id}
+                  dialog={dialog}
+                  position={position}
+                />
+              ) : null;
+            }
+            const doc = documentsOf(project, n.kind).find((d) => d.id === n.docId);
+            return doc ? (
+              <DocumentGroup
+                key={n.key}
+                project={project}
+                kind={n.kind}
+                doc={doc}
+                position={position}
+              />
             ) : null;
           })}
         </Layer>
