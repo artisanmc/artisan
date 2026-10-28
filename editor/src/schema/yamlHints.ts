@@ -1,7 +1,7 @@
 // Comments a data file carries from its model's presentation hints (ADR
 // `yaml-assisted-editing` ⑥): regenerated at every write, ignored at import.
 import type { DataSource, ModelField, ModelFieldType } from "@/domain/types";
-import { Document as YamlDocument, isMap, isScalar } from "yaml";
+import { Document as YamlDocument, isMap, isScalar, isSeq } from "yaml";
 
 /** Generated header block from the model's presentation hints (⑦): recomputed
  *  at every export, stripped back out at import (marker line `# ──`). */
@@ -48,8 +48,33 @@ export function stringifyWithHints(
   yamlOpts: { lineWidth: number },
 ): string {
   const doc = new YamlDocument(value);
+  plainIndexKeys(doc.contents);
   annotate(doc.contents, fields);
   return doc.toString(yamlOpts);
+}
+
+/**
+ * A mapping keyed by numbers (guild levels `0:`, `1:`…) is written with plain
+ * keys, as the add-ons' own defaults are. In memory those keys are strings,
+ * which the writer would otherwise quote (`"0":`) on every save. Only when
+ * every key of the mapping is a number: a mixed mapping keeps its keys as they are.
+ */
+function plainIndexKeys(node: unknown): void {
+  if (isSeq(node)) {
+    for (const item of node.items) plainIndexKeys(item);
+    return;
+  }
+  if (!isMap(node)) return;
+  const indexKeys =
+    node.items.length > 0 &&
+    node.items.every(
+      (p) =>
+        isScalar(p.key) && typeof p.key.value === "string" && /^(0|[1-9]\d{0,8})$/.test(p.key.value),
+    );
+  for (const pair of node.items) {
+    if (indexKeys && isScalar(pair.key)) pair.key.value = Number(pair.key.value);
+    plainIndexKeys(pair.value);
+  }
 }
 
 function annotate(node: unknown, fields: ModelField[]): void {
