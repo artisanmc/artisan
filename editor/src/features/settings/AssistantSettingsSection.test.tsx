@@ -10,7 +10,7 @@ const api = vi.hoisted(() => ({
   deleteAiSettings: vi.fn(),
 }));
 vi.mock("@/lib/api/ai", () => api);
-vi.mock("@/features/project/assistant/useAssistant", () => ({ resetAiStatus: vi.fn() }));
+vi.mock("@/state/aiStatus", () => ({ resetAiStatus: vi.fn() }));
 
 const settings = (over: Record<string, unknown> = {}) => ({
   source: "none",

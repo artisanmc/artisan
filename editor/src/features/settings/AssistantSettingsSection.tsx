@@ -1,7 +1,6 @@
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Segmented } from "@/components/ui/segmented";
-import { resetAiStatus } from "@/features/project/assistant/useAssistant";
 import {
   type AiSettings,
   type AiSettingsInput,
@@ -10,6 +9,7 @@ import {
   saveAiSettings,
 } from "@/lib/api/ai";
 import { ApiError } from "@/lib/api/client";
+import { resetAiStatus } from "@/state/aiStatus";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
