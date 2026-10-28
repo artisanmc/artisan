@@ -68,12 +68,6 @@ export default {
   },
   projectIdentity: projectIdentityEn,
   itemContext: {
-    title: "Available context",
-    intro: "Copy a complete placeholder to use in a field. Displayed values are examples.",
-    search: "Search placeholders",
-    empty: "No matching placeholders.",
-    copyError: "Could not copy. Select the placeholder to copy it manually.",
-    help: "Open cheat sheet",
     context: "Context",
     iteration: "Current element",
     pagination: "Pagination",

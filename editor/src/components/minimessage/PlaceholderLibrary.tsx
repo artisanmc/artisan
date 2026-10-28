@@ -186,15 +186,12 @@ function Recipes({
   return (
     <ul className="flex flex-col p-2">
       {RECIPES.map((recipe) => {
-        const usable = recipeVariables(recipe, entries).length > 0;
         return (
           <li key={recipe.id}>
             <button
               type="button"
-              disabled={!usable}
               onClick={() => setPicked(recipe)}
-              title={usable ? undefined : t("mmEditor.library.noVariable")}
-              className="flex w-full items-center gap-3 rounded-[var(--r-sm)] px-2.5 py-2 text-left hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+              className="flex w-full items-center gap-3 rounded-[var(--r-sm)] px-2.5 py-2 text-left hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] focus-visible:outline-none"
             >
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="font-medium text-[12.5px]">
@@ -233,8 +230,12 @@ export function RecipeForm({
   submitLabel?: string;
 }) {
   const { t } = useTranslation();
+  const takesDate = recipe.id === "timeAgo" || recipe.id === "timeLeft";
+  const [mode, setMode] = useState<VariableMode>(() =>
+    initialMode(initial?.path, variables, takesDate),
+  );
   const [input, setInput] = useState<RecipeInput>({
-    path: variables[0]?.path ?? "",
+    path: variables[0]?.path ?? (takesDate ? String(startOfToday()) : ""),
     op: ">=",
     value: 1,
     separator: ", ",
@@ -268,20 +269,58 @@ export function RecipeForm({
         <ArrowLeft className="size-3.5" />
         {t(`mmEditor.library.recipe.${recipe.id}.name`)}
       </button>
-      <label className="flex flex-col gap-1">
-        <span className="field-label">{t("mmEditor.library.variable")}</span>
-        <select
-          className="input h-auto py-1.5 text-xs"
-          value={input.path}
-          onChange={(e) => set({ path: e.target.value })}
-        >
-          {variables.map((v) => (
-            <option key={v.path} value={v.path}>
-              {humanizePath(v.path)} — {`{${v.path}}`}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="flex flex-col gap-1.5">
+        <label className="flex flex-col gap-1">
+          <span className="field-label">{t("mmEditor.library.variable")}</span>
+          <select
+            className="input h-auto py-1.5 text-xs"
+            value={mode === "list" ? input.path : mode}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "custom") {
+                setMode("custom");
+                set({ path: "" });
+              } else if (v === "date") {
+                setMode("date");
+                set({ path: String(startOfToday()) });
+              } else {
+                setMode("list");
+                set({ path: v });
+              }
+            }}
+          >
+            {variables.map((v) => (
+              <option key={v.path} value={v.path}>
+                {humanizePath(v.path)} — {`{${v.path}}`}
+              </option>
+            ))}
+            {takesDate && <option value="date">{t("mmEditor.library.fixedDate")}</option>}
+            <option value="custom">{t("mmEditor.library.customVariable")}</option>
+          </select>
+        </label>
+        {mode === "custom" && (
+          <Input
+            aria-label={t("mmEditor.library.customVariable")}
+            className="h-8 font-mono text-xs"
+            value={input.path}
+            placeholder={t("mmEditor.library.customVariablePlaceholder")}
+            // Identifiers are lowercase in the expression language.
+            onChange={(e) => set({ path: e.target.value.replace(/[{}\s]/g, "").toLowerCase() })}
+          />
+        )}
+        {mode === "date" && (
+          <Input
+            type="datetime-local"
+            aria-label={t("mmEditor.library.date")}
+            className="h-8 text-xs"
+            value={toLocalInput(Number(input.path))}
+            onChange={(e) => {
+              const at = new Date(e.target.value).getTime();
+              if (Number.isFinite(at)) set({ path: String(at) });
+            }}
+          />
+        )}
+      </div>
       {has("negate") && (
         // biome-ignore lint/a11y/noLabelWithoutControl: the switch is a button inside
         <label className="flex items-center gap-2 text-[12.5px]">
@@ -358,7 +397,7 @@ export function RecipeForm({
       <button
         type="button"
         className="btn btn-primary btn-sm self-end"
-        disabled={!input.path}
+        disabled={!PATH.test(input.path)}
         onClick={() => onInsert(source)}
       >
         {submitLabel ?? t("mmEditor.library.insert")}
@@ -374,3 +413,33 @@ const OP_KEYS: Record<CompareOp, string> = {
   "<=": "lte",
   "==": "eq",
 };
+
+/** Where the recipe reads from: a listed variable, one typed by hand, or a fixed date. */
+type VariableMode = "list" | "custom" | "date";
+
+/** A variable path (`guild.created_at`) or, for a fixed date, its epoch millis. */
+const PATH = /^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)*$|^\d+$/;
+
+function initialMode(
+  path: string | undefined,
+  variables: PlaceholderEntry[],
+  takesDate: boolean,
+): VariableMode {
+  if (path === undefined) return variables.length > 0 ? "list" : takesDate ? "date" : "custom";
+  if (takesDate && /^\d+$/.test(path)) return "date";
+  return variables.some((v) => v.path === path) ? "list" : "custom";
+}
+
+function startOfToday(): number {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** Epoch millis as a `datetime-local` value, in the browser's time zone. */
+function toLocalInput(at: number): string {
+  if (!Number.isFinite(at)) return "";
+  const d = new Date(at);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}

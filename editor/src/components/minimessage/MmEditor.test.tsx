@@ -117,6 +117,36 @@ describe("MmEditor", () => {
     );
   });
 
+  it("builds a recipe from a variable typed by hand or a fixed date, with none listed", async () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.rank", type: "string", sample: "Officier", origin: "iteration" },
+    ];
+    render(<Controlled initial="" profile={LORE} entries={entries} />);
+    const openRecipe = async (name: RegExp) => {
+      fireEvent.click(screen.getByRole("button", { name: /Bibliothèque/ }));
+      fireEvent.mouseDown(await screen.findByRole("tab", { name: "Expressions" }));
+      fireEvent.click(await screen.findByRole("button", { name: name }));
+    };
+
+    await openRecipe(/Temps écoulé depuis/);
+    const date = screen.getByLabelText("Date") as HTMLInputElement;
+    fireEvent.change(date, { target: { value: "2026-01-01T00:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Insérer" }));
+    const at = new Date("2026-01-01T00:00").getTime();
+    expect(screen.getByTestId("value").textContent).toBe(`{${at}.ago()}`);
+    // The rich view reads the fixed date as a date, not as its millis.
+    await waitFor(() =>
+      expect(document.querySelector(`[title="${at}"]`)?.textContent).toMatch(/2026/),
+    );
+
+    await openRecipe(/Nombre d'éléments/);
+    const custom = screen.getByLabelText("Une autre variable…");
+    expect(screen.getByRole("button", { name: "Insérer" })).toHaveProperty("disabled", true);
+    fireEvent.change(custom, { target: { value: "{guild.members}" } });
+    fireEvent.click(screen.getByRole("button", { name: "Insérer" }));
+    expect(screen.getByTestId("value").textContent).toBe(`{${at}.ago()}{guild.members.length()}`);
+  });
+
   it("splits a glued computed text into one rule per line, and edits a rule in its form", async () => {
     const entries: PlaceholderEntry[] = [
       { path: "m.online", type: "boolean", sample: "true", origin: "iteration" },

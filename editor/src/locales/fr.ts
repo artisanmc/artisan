@@ -71,13 +71,6 @@ const fr: typeof en = {
   },
   projectIdentity: projectIdentityFr,
   itemContext: {
-    title: "Contexte disponible",
-    intro:
-      "Copie un placeholder complet pour l’utiliser dans un champ. Les valeurs affichées sont des exemples.",
-    search: "Rechercher un placeholder",
-    empty: "Aucun placeholder correspondant.",
-    copyError: "Copie impossible. Sélectionne le placeholder pour le copier manuellement.",
-    help: "Ouvrir l’aide-mémoire",
     context: "Contexte",
     iteration: "Élément courant",
     pagination: "Pagination",

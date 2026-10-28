@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Added**: the Library's expressions no longer need a listed variable: "Another variable…" takes a path typed by hand (`guild.created_at`), and "Time since/left" also take a fixed date. Every recipe stays usable.
+- **Removed**: the "Available context" panel of the item window; the Library lists the same placeholders.
+- **Fixed**: the item window's scrollbar no longer covers the fields.
 - **Fixed**: **Preview as** a player now really previews as them: the server hands that online `Player` to the source's fetcher, on their thread, instead of `player = null` with the name buried in `params.player`. A name that is not online previews with no player, as before.
 - **Added**: a button beside every player field lists who is online (fetched again on each opening), so an admin signed in from the console can pick a player to preview as.
 - **Fixed**: the menu's Data panel no longer overflows when narrow: sort and limit wrap, "Delete the set" stays on one line.
