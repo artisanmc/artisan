@@ -776,7 +776,7 @@ const fr: typeof en = {
     badge: {
       identical: "Fourni par {{module}}",
       modified: "Modifié depuis {{module}}",
-      update: "{{module}} propose une nouvelle version",
+      update: "{{module}} propose une nouvelle version : ⋯ › Prendre la version de {{module}}",
     },
     errors: {
       not_found: "Son module ne propose plus ce modèle.",
@@ -831,6 +831,7 @@ const fr: typeof en = {
     systemReset: "Réinitialiser",
     systemResetHint: "Remet la version du module dans ton brouillon.",
     systemResetDone: "Version du module remise dans le brouillon. Déploie pour la publier.",
+    takeModuleVersion: "Prendre la version de {{module}}",
     systemResetConfirm:
       "Remettre la version du module dans ton brouillon ? Tes modifications de ce fichier seront remplacées ; Déployer la publie.",
     noEditor: "Pas encore d'éditeur pour ce {{kind}}",
@@ -1545,6 +1546,8 @@ const fr: typeof en = {
     nothing: "Rien à déployer",
     offline:
       "Le serveur est hors ligne : la publication attend son retour. Ton brouillon reste modifiable.",
+    checking:
+      "Affichage de ta dernière visite, vérification auprès du serveur… Le déploiement attend sa réponse.",
     cannotDeployTitle: "Serveur inconnu — impossible de déployer",
     deployed: "Déployé sur le serveur",
     packFailed: "Le resource pack n’a pas pu être reconstruit ; les joueurs gardent le précédent.",

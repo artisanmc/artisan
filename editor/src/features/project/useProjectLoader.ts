@@ -4,14 +4,18 @@ import type { Project, ProjectId } from "@/domain/types";
 import { hasDraftChanges } from "@/features/project/draft";
 import { coreActionOf } from "@/lib/actions/coreActions";
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
-import { fetchServerDeclaredActions } from "@/lib/api/declaredActions";
-import type { FailedDocument } from "@/lib/api/projectFiles";
-import { loadUserProject } from "@/lib/api/userProjects";
+import { type DeclaredAction, fetchServerDeclaredActions } from "@/lib/api/declaredActions";
+import type { FailedDocument, ProjectReadResult } from "@/lib/api/projectFiles";
+import { type UserProjectLoadResult, loadUserProject } from "@/lib/api/userProjects";
 import { projectClient } from "@/lib/projectClient";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { adoptLateDocuments, projectFromFiles } from "@/schema/projectFromFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
-import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
+import {
+  type CachedProject,
+  projectCacheKey,
+  useProjectCacheStore,
+} from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { projectRuntime, useProjectRuntimeStore } from "@/state/projectRuntimeStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -65,23 +69,38 @@ function treeToShow(
   return resumable ? { tree: draft.tree, fromDraft: true } : { tree: fallback, fromDraft: false };
 }
 
-/** The last declared models reported by the server — stored with the known
- *  version so the next visit has nothing to wait for. */
-let lastDeclaredModels: unknown[] | undefined;
+/**
+ * What the server's modules declare (models, actions): server-wide, not in the files.
+ * Stored with the known version so the next visit has nothing to wait for.
+ */
+interface Declarations {
+  models?: unknown[];
+  actions?: DeclaredAction[];
+}
 
-/** Parse the current working tree after resolving contextual models. */
-async function buildProject(
-  res: Awaited<ReturnType<typeof loadUserProject>>,
+/** Fetched beside the files, never after them: each wait in a row is a full round trip. */
+async function fetchDeclarations(res: UserProjectLoadResult): Promise<Declarations> {
+  const serverId = res.project.serverKeyId ?? res.serverKeyId;
+  if (!serverId || !projectRuntime(res).capabilities.liveData) return {};
+  const [models, actions] = await Promise.all([
+    fetchServerDeclaredModels(serverId).catch(() => []),
+    fetchServerDeclaredActions(serverId).catch(() => []),
+  ]);
+  return { models, actions };
+}
+
+const sameDeclarations = (a: Declarations, b: Declarations): boolean =>
+  JSON.stringify(a.models ?? null) === JSON.stringify(b.models ?? null) &&
+  JSON.stringify(a.actions ?? null) === JSON.stringify(b.actions ?? null);
+
+/** Parse the current working tree after resolving contextual models. No network. */
+function buildProject(
+  res: UserProjectLoadResult,
   diskId: string,
   tree: Record<string, string>,
-  declaredModels?: unknown[],
-): Promise<Project> {
-  const serverId = res.project.serverKeyId ?? res.serverKeyId;
-  let models = declaredModels;
-  if (!models && serverId && projectRuntime(res).capabilities.liveData) {
-    models = await fetchServerDeclaredModels(serverId).catch(() => []);
-    lastDeclaredModels = models;
-  }
+  declarations: Declarations,
+): Project {
+  const models = declarations.models;
   flushDraftEdits();
   const currentTree = treeToShow(res.project.id, tree).tree;
   const canonical: Record<string, string> = {};
@@ -95,9 +114,10 @@ async function buildProject(
   });
   if (models) injectDeclaredModels(loaded, models as never);
   // A module action's texts are sites once its declaration is known: the server's
-  // declared actions (fetched here like the models) or Artisan's own table.
+  // declared actions (fetched like the models) or Artisan's own table.
+  const serverId = res.project.serverKeyId ?? res.serverKeyId;
   if (serverId && projectRuntime(res).capabilities.liveData) {
-    const declared = await fetchServerDeclaredActions(serverId).catch(() => []);
+    const declared = declarations.actions ?? [];
     adoptProjectActionTexts(
       loaded,
       (name) => coreActionOf(name) ?? declared.find((a) => a.name === name),
@@ -141,13 +161,22 @@ interface LoadContext {
   /** `[ownerId, serverRef, projectId]`: the location the load is for. */
   scope: string;
   cacheKey: string;
-  cached: ReturnType<ReturnType<typeof useProjectCacheStore.getState>["get"]>;
+  cached: CachedProject | undefined;
+  /** The last known version put on screen before any round trip, if any. */
+  shown: ShownVersion | null;
   /** This scope is already shown (a Refresh or a retry, not a first open). */
   isOpen: () => boolean;
   /** The Project is installed: from now on, `isOpen()`. */
   markOpen: () => void;
   isCancelled: () => boolean;
   dispatch: (event: ProjectLoadEvent) => void;
+}
+
+interface ShownVersion {
+  projectId: string;
+  /** The draft it was built from: the same one at revalidation = nothing to rebuild. */
+  draft: unknown;
+  fromDraft: boolean;
 }
 
 /** How a read ended: `retry` = the server is unreachable, ask again later. */
@@ -192,15 +221,63 @@ function settleOffline(
   else outcome.validated = true;
 }
 
+/**
+ * The fingerprint of the server tree each Project in the projects store was built
+ * from: the in-memory Project stands for a known version only if they match.
+ */
+const builtFrom = new Map<string, string | null | undefined>();
+
 /** Shows the built Project, keeping the projects store's copy in step. */
-function install(ctx: LoadContext, built: Project, fromDraft: boolean, failed?: FailedDocument[]) {
+function install(
+  ctx: LoadContext,
+  built: Project,
+  hash: string | null | undefined,
+  fromDraft: boolean,
+  failed?: FailedDocument[],
+) {
   mirrorIntoStore(built);
+  builtFrom.set(built.id, hash);
   ctx.markOpen();
   ctx.dispatch({ type: "opened", project: built, fromDraft, failed });
 }
 
+/** The reads of one open, started together: one round trip instead of one per read. */
+interface Reads {
+  identity: UserProjectLoadResult;
+  disk: Promise<ProjectReadResult>;
+  drafts: Promise<void>;
+  declarations: Promise<Declarations>;
+}
+
+function startReads(ctx: LoadContext, identity: UserProjectLoadResult): Reads {
+  const drafts = loadPersistedDrafts(identity.project.id, ctx.ownerId);
+  // A guess the hub contradicts is dropped unawaited: its failure must not surface.
+  drafts.catch(() => {});
+  return {
+    identity,
+    disk: projectClient(identity.project.id).read(ctx.cached?.hash),
+    drafts,
+    declarations: fetchDeclarations(identity),
+  };
+}
+
+/** The guess made from the known version holds: same Project, same server, same rights. */
+function sameTarget(a: UserProjectLoadResult, b: UserProjectLoadResult): boolean {
+  const ra = projectRuntime(a);
+  const rb = projectRuntime(b);
+  return (
+    ra.projectId === rb.projectId &&
+    ra.serverId === rb.serverId &&
+    ra.capabilities.liveData === rb.capabilities.liveData
+  );
+}
+
 async function readAndOpen(ctx: LoadContext, outcome: ReadOutcome): Promise<void> {
   const { cached, cacheKey } = ctx;
+  // With a known version, its identity is a good guess: the files, the drafts and the
+  // declarations are asked for at the same time as the identity, not after it.
+  const known = cached ? identityOf(cached) : null;
+  const early = known ? startReads(ctx, known) : null;
   const res = await loadUserProject(ctx.projectId, ctx.serverRef);
   if (ctx.isCancelled()) return;
   // The content comes from the server's DISK, never from the hub (ADR
@@ -212,9 +289,10 @@ async function readAndOpen(ctx: LoadContext, outcome: ReadOutcome): Promise<void
   const runtime = projectRuntime(res);
   useProjectRuntimeStore.getState().set(runtime);
   useServersStore.getState().setActiveServerId(runtime.serverId);
+  const reads = early && sameTarget(early.identity, res) ? early : startReads(ctx, res);
   // Announce the fingerprint we hold: if the server has the same one, it
   // sends nothing and our copy has just been revalidated.
-  const disk = await projectClient(res.project.id).read(cached?.hash);
+  const disk = await reads.disk;
   if (ctx.isCancelled()) return;
   if (!disk.ok) {
     const unreachable = UNREACHABLE.includes(disk.error);
@@ -226,7 +304,9 @@ async function readAndOpen(ctx: LoadContext, outcome: ReadOutcome): Promise<void
     ctx.dispatch({ type: "readFailed", error: disk.error, offline: unreachable });
     return;
   }
-  await loadPersistedDrafts(res.project.id, ctx.ownerId);
+  await reads.drafts;
+  if (ctx.isCancelled()) return;
+  const declarations = await reads.declarations;
   if (ctx.isCancelled()) return;
   const diskFiles = disk.unchanged ? cached?.tree : disk.files;
   if (diskFiles) followDiskInDraft(res.project.id, diskFiles);
@@ -246,12 +326,30 @@ async function readAndOpen(ctx: LoadContext, outcome: ReadOutcome): Promise<void
       useProjectCacheStore.getState().put(cacheKey, {
         ...cached,
         hash: disk.hash ?? cached.hash,
+        declaredModels: declarations.models,
+        declaredActions: declarations.actions,
         fetchedAt: new Date().toISOString(),
       });
-      const shown = treeToShow(res.project.id, cached.tree);
-      const built = await buildProject(res, diskId, shown.tree);
-      if (ctx.isCancelled()) return;
-      install(ctx, built, shown.fromDraft, cached.failed ?? []);
+      const live = liveProject(res.project.id);
+      if (
+        ctx.shown?.projectId === res.project.id &&
+        ctx.shown.draft === draft &&
+        live &&
+        sameDeclarations(declarations, cachedDeclarations(cached))
+      ) {
+        // The version on screen was built from these very files, draft and
+        // declarations: rebuilding it would only cost a parse and a redraw.
+        ctx.dispatch({
+          type: "opened",
+          project: live,
+          fromDraft: ctx.shown.fromDraft,
+          failed: cached.failed ?? [],
+        });
+      } else {
+        const shown = treeToShow(res.project.id, cached.tree);
+        const built = buildProject(res, diskId, shown.tree, declarations);
+        install(ctx, built, disk.hash ?? cached.hash, shown.fromDraft, cached.failed ?? []);
+      }
       settleOffline(ctx, outcome, disk.offlineSince, disk.unpublished);
       return;
     }
@@ -273,7 +371,8 @@ async function readAndOpen(ctx: LoadContext, outcome: ReadOutcome): Promise<void
       binaries: full.binaries,
       failed: full.failed,
       hash: full.hash ?? null,
-      declaredModels: lastDeclaredModels,
+      declaredModels: declarations.models,
+      declaredActions: declarations.actions,
       fetchedAt: new Date().toISOString(),
     });
     const shown = treeToShow(res.project.id, full.files);
@@ -281,9 +380,8 @@ async function readAndOpen(ctx: LoadContext, outcome: ReadOutcome): Promise<void
     useProjectBaselineStore
       .getState()
       .set(res.project.id, shown.fromDraft && recovered ? recovered.baseline : full.files);
-    const built = await buildProject(res, diskId, shown.tree);
-    if (ctx.isCancelled()) return;
-    install(ctx, built, shown.fromDraft, full.failed);
+    const built = buildProject(res, diskId, shown.tree, declarations);
+    install(ctx, built, full.hash, shown.fromDraft, full.failed);
     settleOffline(ctx, outcome, full.offlineSince, full.unpublished);
     return;
   }
@@ -304,13 +402,73 @@ async function readAndOpen(ctx: LoadContext, outcome: ReadOutcome): Promise<void
     binaries: disk.binaries,
     failed: disk.failed,
     hash: disk.hash ?? null,
-    declaredModels: lastDeclaredModels,
+    declaredModels: declarations.models,
+    declaredActions: declarations.actions,
     fetchedAt: new Date().toISOString(),
   });
-  const built = await buildProject(res, diskId, resumable?.tree ?? disk.files);
-  if (ctx.isCancelled()) return;
-  install(ctx, built, resumable !== null);
+  const built = buildProject(res, diskId, resumable?.tree ?? disk.files, declarations);
+  install(ctx, built, disk.hash, resumable !== null);
   settleOffline(ctx, outcome, disk.offlineSince, disk.unpublished);
+}
+
+/** The hub's answer stored with a known version; `null` for an entry too old to carry one. */
+function identityOf(cached: CachedProject): UserProjectLoadResult | null {
+  const identity = cached.identity as UserProjectLoadResult | null | undefined;
+  return identity?.project?.id ? identity : null;
+}
+
+function cachedDeclarations(cached: CachedProject): Declarations {
+  return { models: cached.declaredModels, actions: cached.declaredActions };
+}
+
+function liveProject(projectId: string): Project | undefined {
+  return useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
+}
+
+/**
+ * Puts the last known version on screen before any round trip: the Project as this
+ * session left it, else rebuilt from the cache. Dated (`stale`) until the server's
+ * answer: Deploy waits for it, the server's disk stays the truth.
+ */
+function showKnownVersion(ctx: LoadContext): ShownVersion | null {
+  const { cached } = ctx;
+  const identity = cached ? identityOf(cached) : null;
+  if (!cached || !identity) return null;
+  const projectId = identity.project.id;
+  const runtime = projectRuntime(identity);
+  useProjectRuntimeStore.getState().set(runtime);
+  useServersStore.getState().setActiveServerId(runtime.serverId);
+  ctx.dispatch({ type: "located", scope: ctx.scope, id: cached.diskId });
+  const baselines = useProjectBaselineStore.getState();
+  // First visit of this session: the cache's tree stands in as the base until the
+  // server's answer replaces it, so an edit made meanwhile reaches the draft (the
+  // draft follows the disk if it moved). Deploy is held while `stale`.
+  if (!baselines.get(projectId)) {
+    baselines.set(projectId, cached.tree);
+    setBinaryBaseline(projectId, cached.binaries ?? []);
+  }
+  // The Project as this session left it (edits included), unless the known version
+  // moved since it was built (the server index brought a newer one).
+  const live = liveProject(projectId);
+  let project = live && builtFrom.get(projectId) === cached.hash ? live : undefined;
+  const shown = treeToShow(projectId, cached.tree);
+  if (!project) {
+    project = buildProject(identity, cached.diskId, shown.tree, cachedDeclarations(cached));
+    mirrorIntoStore(project);
+    builtFrom.set(projectId, cached.hash);
+  }
+  ctx.markOpen();
+  ctx.dispatch({
+    type: "shownKnown",
+    project,
+    fromDraft: shown.fromDraft,
+    failed: cached.failed ?? [],
+  });
+  return {
+    projectId,
+    draft: useProjectDraftStore.getState().get(projectId),
+    fromDraft: shown.fromDraft,
+  };
 }
 
 function setBinaryBaseline(
@@ -375,6 +533,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
       scope,
       cacheKey,
       cached: useProjectCacheStore.getState().get(cacheKey),
+      shown: null,
       isOpen: () => opened.current === scope,
       markOpen: () => {
         opened.current = scope;
@@ -383,6 +542,16 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
       dispatch,
     };
 
+    // A Refresh of the open scope keeps what is on screen; any other open shows the
+    // last known version at once, then revalidates it.
+    if (opened.current !== scope) {
+      try {
+        ctx.shown = showKnownVersion(ctx);
+      } catch {
+        // An unreadable cache entry is only a missed shortcut: the read below opens it.
+        ctx.shown = null;
+      }
+    }
     const refresh = async () => {
       flushDraftEdits();
       const { retry, validated } = await readFromHub(ctx);

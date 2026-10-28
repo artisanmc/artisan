@@ -18,6 +18,7 @@ import { ProjectHistory } from "@/features/project/ProjectHistory";
 import { ProjectLibraryWorkspace } from "@/features/project/ProjectLibrary";
 import { ProjectTopBarControls } from "@/features/project/ProjectTopBarControls";
 import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanels";
+import { useKnownVersionsFromIndex } from "@/features/project/seedProjectCache";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
 import { SearchPalette } from "@/features/search/SearchPalette";
@@ -92,6 +93,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     fromDraft,
     offlineSince,
     unpublished,
+    stale,
   } = useProjectLoader(loadRef, serverId);
   const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -126,7 +128,8 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const childMatches = useChildMatches();
 
   useGlobalSearchShortcut();
-  useServerIndexLoader(serverId, !!project && !loadError);
+  const indexRereads = useKnownVersionsFromIndex(serverId);
+  useServerIndexLoader(serverId, !!project && !loadError, indexRereads);
   useWorkspaceTabShortcuts(!!runtime?.serverId);
 
   const [patternsOpen, setPatternsOpen] = useState(false);
@@ -214,7 +217,11 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       // content collapses to its own height and the surface shows through below.
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {isDesktop ? (
-          <ProjectWorkspacePanels projectId={pId} active={canvasActive}>
+          <ProjectWorkspacePanels
+            projectId={pId}
+            active={canvasActive}
+            tabOpen={presentedTab !== "overview"}
+          >
             <div
               data-tour={canvasActive ? "canvas" : undefined}
               className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden"
@@ -283,6 +290,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           offline={offline}
           offlineSince={offlineSince}
           unpublished={unpublished}
+          checking={stale && !offline}
         />
 
         {/* The secondary views (translations / data sources / history)

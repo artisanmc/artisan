@@ -40,6 +40,11 @@ export type ProjectLoadEvent =
   | { type: "documentsFailed"; failed: FailedDocument[] }
   | { type: "opened"; project: Project; fromDraft: boolean; failed?: FailedDocument[] }
   /**
+   * The last known version is on screen, before any round trip: dated (`stale`) until
+   * the server's answer settles it.
+   */
+  | { type: "shownKnown"; project: Project; fromDraft: boolean; failed: FailedDocument[] }
+  /**
    * After an open: `since` = the server is off and the copy comes from the hub
    * (dated, rechecked); otherwise the display is the server's state.
    */
@@ -94,6 +99,14 @@ export function projectLoadReducer(
         project: event.project,
         fromDraft: event.fromDraft,
         failed: event.failed ?? state.failed,
+      };
+    case "shownKnown":
+      return {
+        ...state,
+        project: event.project,
+        fromDraft: event.fromDraft,
+        failed: event.failed,
+        stale: true,
       };
     case "settled":
       return event.since

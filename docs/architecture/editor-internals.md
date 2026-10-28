@@ -350,8 +350,8 @@ not the immutable internal anchor.
 rebuilding of the offline display. A successful read (including `unchanged`)
 clears `offline` and `stale`; late responses and timers are ignored when
 leaving the Project. A modified draft keeps its compare-and-swap base.
-Since 2026-09-13, a first open waits for a successful server read,
-even with a cache or local draft. A disconnection preserves the already open buffer;
+From 2026-09-13 to 2026-10-28, a first open waited for a successful server read,
+even with a cache or local draft (see below). A disconnection preserves the already open buffer;
 backend transport failures and `fetch_timeout` are also retried.
 Since 2026-10-02, no more banner: the topbar's server badge carries the offline
 state and its tooltip (`downHint` of `LinkedServersDropdown`) gives the exact
@@ -363,6 +363,33 @@ named events `started` / `located` / `opened` / `settled` / `connectionLost` /
 `readFailed` / `loadFailed` / `validated`, tested without React); the read itself
 (`readFromHub` → `readAndOpen`, `resumeDraft`, `settleOffline`) lives outside the hook.
 `projectLoadStatus` says what the workspace shows (`loading | ready | error`).
+
+### Opening from the known version (2026-10-28)
+
+The 2026-09-13 rule (a first open waits for the server) is lifted: it dated from a
+cache keyed without the player, shared by guest demos. The key now carries the
+signed-in player and a sign-out empties it, so the known version shows nothing this
+browser does not already hold. Measured: a switch cost five round trips in a row
+(identity, files, drafts, models, actions), about 420 ms each through the tunnel.
+
+- **Immediate display** (`showKnownVersion`, event `shownKnown`): with a cache entry,
+  the Project shows on the first render, `stale`. It is the in-memory Project when
+  it was built from the same fingerprint (`builtFrom`, edits included), else it is
+  rebuilt from the cache (models and actions included, no network). A first visit of
+  the session takes the cache's tree as its base until the server answers, so an
+  edit made meanwhile reaches the draft. Deploy waits while `stale` (`checking` on
+  `SaveControls`, tooltip `deploy.checking`); a refusal (`readFailed`) closes the
+  version shown.
+- **One round trip**: the files (`if_hash`), the drafts and the server's
+  declarations are asked for together with the identity, on the cached identity's
+  guess (`startReads`); a guess the hub contradicts is dropped and re-asked. An
+  `unchanged` answer whose draft and declarations did not move rebuilds nothing.
+- **Never-opened Projects**: the server index (`loadServerProjects`, already run in
+  the background) keeps each raw read; `useKnownVersionsFromIndex` turns them into
+  cache entries (`seedProjectCache`, one hub identity request per new Project, the
+  open Project left to its loader). A reload announced by the plugin re-reads the
+  index. The persisted cache drops its oldest entries when `localStorage` is full
+  instead of failing the open.
 
 ### Advanced item settings (since 2026-07-29)
 
@@ -530,6 +557,10 @@ a `disabled` button does not receive hover and would not show its bubble. Deploy
 its label, preceded by a filled play icon. Draft autosave stays active. Deploy opens
 `DeployReviewDialog`: server base against the live Project's `projectTree`,
 renames and binaries included. Only confirmation calls `saveProjectToDisk`.
+`projectTree` gives a YAML file whose value the editor left as the base holds it
+(`keepEquivalentText`, `lib/yamlEquivalence.ts`: style, quotes, key order, comments and CRLF
+do not count) the base's bytes: a hand-written or module-shipped file is neither listed nor
+rewritten until it is really edited.
 Mutations carry an `operationId` and a snapshot frozen in the local rescue copy
 isolated per owner: after a lost ACK, replay this operation before sending
 the next keystrokes. A definitive 4xx rejection releases this operation; an uncertain
@@ -674,7 +705,11 @@ identical, modified, removed, new version), computed from `.artisan/origins.yaml
 
 In the tree, a Document copied from a template carries a discreet mark (`DocumentRow`): a puzzle icon
 when identical, an asterisk otherwise — brand colour (modified) or amber (the module ships a new
-version). No text chip: the tooltip (and accessible name) says which, and names the module.
+version). No text chip: the tooltip (above the row, clear of its `···`) says which, and names the module.
+A copy whose published text has the shipped value (`sameAsShipped`: `sameYamlValue`, else the editor's
+round trip; formatting and CRLF from a jar built on Windows do not count) is identical, system or
+not. A copy that differs gets **Take {module}'s version** in its `···` menu, beside Delete: the
+shipped file goes into the draft (`resetIntoDraft`), like Reset of a system element.
 
 
 **System elements** (`system: true` template, API 2.12.0): absent from `ModuleTemplatesDialog`.
@@ -905,7 +940,7 @@ carries an AI badge in the Drafts list (`PersistedDraftControls`).
 - **`SourceShapingEditor` (`properties/SourceShapingEditor.tsx`)** — visual editor mounted under each `SourceRefInputRow`: equality filter (`filter: Record<field, value>`, literal value or `{arg}`), single-key sort (`sort.by`/`direction`), `limit`. No runtime change — edits the same opaque `ContextInput.sourceRef` fields (YAML round-trip unchanged). Autocompletion via `<datalist>`: fields from `serverSource.schema` (fallback to free input if `[]`), `{arg}` values from the menu's `primitive`-type `contextInputs`.
 - **`MenuDataSection` (`properties/MenuDataSection.tsx`)** — "Menu data" section under `ContextInputsEditor`: one card per consumed `sourceRef` (ref, module badge, summary of active filters). Live preview via `previewDataSource` (`POST …/data-sources/preview`) with the menu's filters + a form of trial values for each detected `{arg}` token (`extractArgTokens`). `pack:*` refs (project data): no server preview; the data are edited from their row in the sidebar.
 - **Top bar** (`ProjectTopBarControls.tsx`): compact rounded surface (`--r-lg`), groups spaced without separators. Project/server identity, capsule navigation (`--r-md`, soft active background), contextual tools then compact search, Save (draft) then Deploy, `⋯` menu and Elements at the far right. Buttons and undo/redo on Canvas; language on Canvas and Translations. Tab labels fold into icons before xl; groups can wrap below md. Numeric shortcuts in tooltips, routing and badges unchanged. Refresh stays in `⋯` via `RefreshProjectButton.renderTrigger`, with confirmation mounted outside the menu. Discarding changes stays in the Deploy chevron.
-- **Right columns (`ProjectWorkspacePanels`)**: canvas, full-height `EditorPane`, then the 240 px `ProjectPanel` tree at the far right. Properties appear only with a selection/project settings on the canvas or a menu; individual commands/dialogs keep their central editor. A horizontal `SplitPane` sets the properties width (`editorPaneWidth`, persisted and capped according to available space). No vertical split of the properties. The Elements button is at the right of the topbar; closing the tree keeps the properties and vice versa. In the tree, `ArrowLeftToLine` adds to the canvas and `ArrowRightToLine` removes. `DockedInspectorContext` prevents a second floating inspector. The canvas keeps the same mounting when panels change. Mobile: stage/properties stay in a vertical split.
+- **Right columns (`ProjectWorkspacePanels`)**: canvas, full-height `EditorPane`, then the 240 px `ProjectPanel` tree at the far right. Properties appear only with a selection on the canvas or a menu; individual commands/dialogs keep their central editor. The project settings are the exception: asked for from the left bar, they open the column beside a Document's editor or a collection too (`tabOpen` false); a tab keeps no inspector, so the gear and the kebab (`useOpenProjectSettings`) leave the tab first. A horizontal `SplitPane` sets the properties width (`editorPaneWidth`, persisted and capped according to available space). No vertical split of the properties. The Elements button is at the right of the topbar; closing the tree keeps the properties and vice versa. In the tree, `ArrowLeftToLine` adds to the canvas and `ArrowRightToLine` removes. `DockedInspectorContext` prevents a second floating inspector. The canvas keeps the same mounting when panels change. Mobile: stage/properties stay in a vertical split.
 - **`/settings`** — sections sidebar (V1 = Appearance, hosts `EditorLangSwitcher`) + main content.
 
 ## Live data source rendering + placement mode (since 2026-07-15)

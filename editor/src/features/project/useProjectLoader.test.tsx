@@ -247,7 +247,7 @@ describe("useProjectLoader", () => {
    * is shown right away and revalidated behind — without ever passing the cache
    * off as the truth (`stale`).
    */
-  it("keeps the cached project closed until the server responds", async () => {
+  it("shows the known version at once, dated until the server responds", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
       identity: {
@@ -276,15 +276,81 @@ describe("useProjectLoader", () => {
 
     const { result } = renderHook(() => useProjectLoader("p1"));
 
-    await act(async () => {});
-    expect(result.current.project).toBeNull();
+    // No round trip awaited: the first render already has it.
+    expect(result.current.project?.id).toBe("p1");
+    expect(result.current.stale).toBe(true);
 
     release({
       ok: true,
       files: { "manifest.yaml": "id: boutique_shop\nname: frais\n" },
       failed: [],
     });
-    await waitFor(() => expect(result.current.project).not.toBeNull());
+    await waitFor(() => expect(result.current.stale).toBe(false));
+    expect(result.current.project).not.toBeNull();
+  });
+
+  it("another player's known version is never shown", async () => {
+    useAuthStore.setState({ currentUser: { id: "u2", name: "y", email: "y@a.b" } } as never);
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
+      identity: { project: { id: "p1", name: "p", externalId: "shop" }, serverKeyId: "sk_1" },
+      diskId: "shop",
+      tree: { "manifest.yaml": "id: shop\n" },
+      fetchedAt: new Date().toISOString(),
+    } as never);
+    vi.spyOn(userProjectsApi, "loadUserProject").mockReturnValue(new Promise(() => {}) as never);
+
+    const { result } = renderHook(() => useProjectLoader("p1"));
+
+    expect(result.current.project).toBeNull();
+  });
+
+  it("a refusal from the hub closes the known version", async () => {
+    useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
+    const identity = { project: { id: "p1", name: "p", externalId: "shop" }, serverKeyId: "sk_1" };
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
+      identity,
+      diskId: "shop",
+      tree: { "manifest.yaml": "id: shop\n" },
+      hash: "h1",
+      fetchedAt: new Date().toISOString(),
+    } as never);
+    vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue(identity as never);
+    vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({
+      ok: false,
+      error: "forbidden",
+    });
+
+    const { result } = renderHook(() => useProjectLoader("p1"));
+    expect(result.current.project).not.toBeNull();
+
+    await waitFor(() => expect(result.current.error).toBe("forbidden"));
+    expect(result.current.project).toBeNull();
+  });
+
+  it("asks for the files, drafts and declarations together with the identity", async () => {
+    useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
+    const identity = { project: { id: "p1", name: "p", externalId: "shop" }, serverKeyId: "sk_1" };
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
+      identity,
+      diskId: "shop",
+      tree: { "manifest.yaml": "id: shop\n" },
+      hash: "h1",
+      fetchedAt: new Date().toISOString(),
+    } as never);
+    // The hub's identity never answers: whatever is asked meanwhile was asked in parallel.
+    vi.spyOn(userProjectsApi, "loadUserProject").mockReturnValue(new Promise(() => {}) as never);
+    const read = vi
+      .spyOn(projectFilesApi, "readProjectFiles")
+      .mockReturnValue(new Promise(() => {}) as never);
+    const models = vi
+      .spyOn(dataSourcesApi, "fetchServerDeclaredModels")
+      .mockReturnValue(new Promise(() => {}) as never);
+
+    renderHook(() => useProjectLoader("p1"));
+    await act(async () => {});
+
+    expect(read).toHaveBeenCalledWith("p1", "h1");
+    expect(models).toHaveBeenCalledWith("sk_1");
   });
 
   it("what the server returned becomes the known version", async () => {
@@ -377,14 +443,15 @@ describe("useProjectLoader", () => {
       .mockResolvedValue({ ok: true, unchanged: true, hash: "same" });
     const { result, unmount } = renderHook(() => useProjectLoader("p1"));
     await act(async () => {});
+    // The known version stays on screen, dated: the server is unreachable.
     expect(result.current.offline).toBe(true);
-    expect(result.current.project).toBeNull();
+    expect(result.current.stale).toBe(true);
+    expect(result.current.project).not.toBeNull();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15_000);
     });
     expect(read).toHaveBeenCalledTimes(2);
     expect(result.current.offline).toBe(true);
-    expect(result.current.project).toBeNull();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15_000);
     });
