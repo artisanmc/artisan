@@ -1,4 +1,5 @@
 import type { ProjectId } from "@/domain/types";
+import { useUiStore } from "@/state/uiStore";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { CanvasWithInspector } from "./CanvasWithInspector";
@@ -19,6 +20,7 @@ vi.mock("@/features/inspector/FloatingEditorPane", () => ({
 }));
 beforeEach(() => {
   inspecting = false;
+  useUiStore.getState().setProjectSettingsOpen(false);
 });
 const projectId = "p1" as ProjectId;
 function workspace(active = true) {
@@ -68,4 +70,11 @@ it("hides properties on secondary views", () => {
   render(workspace(false));
   expect(screen.queryByText("Selection properties")).toBeNull();
   expect(screen.queryByText("Floating properties")).toBeNull();
+});
+
+it("shows the project settings away from the board too", () => {
+  inspecting = true;
+  useUiStore.getState().setProjectSettingsOpen(true);
+  render(workspace(false));
+  expect(screen.getByText("Selection properties")).toBeInTheDocument();
 });

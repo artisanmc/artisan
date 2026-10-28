@@ -22,7 +22,12 @@ export function ProjectWorkspacePanels({
   const width = useUiStore((s) => s.editorPaneWidth);
   const setWidth = useUiStore((s) => s.setEditorPaneWidth);
   const { open } = useInspector(projectId);
-  const propertiesOpen = active && open;
+  // A selection belongs to the board: away from it (a Document's own editor, a
+  // collection, a tab) its properties stay hidden. The project settings belong
+  // to no view and are asked for explicitly (the gear sits in the left bar,
+  // always on screen), so they open the column wherever the user stands.
+  const projectSettingsOpen = useUiStore((s) => s.projectSettingsOpen);
+  const propertiesOpen = open && (active || projectSettingsOpen);
   const [availableWidth, setAvailableWidth] = useState(1200);
   const frame = useRef<HTMLDivElement>(null);
   useEffect(() => {
