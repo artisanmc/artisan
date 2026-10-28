@@ -989,6 +989,17 @@ const fr: typeof en = {
     viewTable: "Tableau",
     viewYaml: "YAML",
     previewOffline: "Serveur hors ligne — le schéma reste visible, la preview live non.",
+    previewServerState:
+      "Lignes renvoyées par le serveur : la version qu'il fait tourner, sans tes brouillons.",
+    originDraft: "Brouillon",
+    originDraftHint:
+      "Lignes calculées depuis le brouillon : tes modifications non publiées sont visibles.",
+    originDeployed: "Version déployée",
+    originDeployedHint:
+      "Ces lignes viennent des fichiers du projet, mais le module ne sait pas les calculer depuis le brouillon : tu vois la version publiée, sans tes modifications en cours.",
+    originLive: "État en jeu",
+    originLiveHint:
+      "Données qui n'existent que sur le serveur (joueurs, ventes…) : c'est l'état actuel en jeu.",
     errServerOffline: "Serveur hors ligne.",
     errTimeout: "Pas de réponse du plugin — plugin à mettre à jour ou serveur injoignable.",
     errUnknownSource: "Le serveur ne connaît pas cette source.",

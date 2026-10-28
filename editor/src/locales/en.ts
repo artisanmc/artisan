@@ -972,6 +972,15 @@ export default {
     viewTable: "Table",
     viewYaml: "YAML",
     previewOffline: "Server offline — schema stays available, live preview doesn't.",
+    previewServerState: "Rows returned by the server: the version it runs, without your drafts.",
+    originDraft: "Draft",
+    originDraftHint: "Rows computed from the draft: your unpublished changes show.",
+    originDeployed: "Deployed version",
+    originDeployedHint:
+      "These rows come from the project's files, but the module cannot compute them from the draft: you see the published version, without your pending changes.",
+    originLive: "In-game state",
+    originLiveHint:
+      "Data that only exists on the server (players, sales…): the current in-game state.",
     errServerOffline: "Server offline.",
     errTimeout: "No reply from the plugin — update the plugin or check the server connection.",
     errUnknownSource: "The server doesn't know this source.",

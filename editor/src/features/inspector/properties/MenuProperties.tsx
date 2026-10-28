@@ -35,6 +35,7 @@ import { MenuAppearanceControls } from "./MenuAppearanceControls";
 import { MenuSetBlock, ObjectParamLists } from "./MenuDataSection";
 import { PreviewContextSection } from "./PreviewContextSection";
 import { PropertyField } from "./PropertyField";
+import { SourceOriginBadge } from "./SourceOriginBadge";
 import { SourceShapingEditor } from "./SourceShapingEditor";
 import { summarizeFieldType } from "./fieldTypeSummary";
 
@@ -257,6 +258,7 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
   const addInput = useProjectsStore((s) => s.addMenuContextInput);
   const setInput = useProjectsStore((s) => s.setMenuContextInput);
   const removeInput = useProjectsStore((s) => s.removeMenuContextInput);
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const inputs = menu.contextInputs ?? [];
   const { t } = useTranslation();
 
@@ -326,6 +328,11 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
                     onChange={(patch) => update(i, patch)}
                     onRemove={() => removeInput({ projectId, menuId: menu.id, index: i })}
                   />
+                  {input.ref && project ? (
+                    <div className="flex justify-end">
+                      <SourceOriginBadge project={project} sourceRef={String(input.ref)} />
+                    </div>
+                  ) : null}
                   {input.ref ? (
                     <MenuSetBlock projectId={projectId} menu={menu} input={input} />
                   ) : null}
