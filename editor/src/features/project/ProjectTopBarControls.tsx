@@ -22,7 +22,7 @@ import {
 import type { Project, ProjectId } from "@/domain/types";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { AssistantButton } from "@/features/project/assistant/AssistantButton";
-import { openProjectSettings } from "@/features/project/projectSettings";
+import { useOpenProjectSettings } from "@/features/project/projectSettings";
 import { SaveControls } from "@/features/project/publish/SaveControls";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
 import { cn } from "@/lib/cx";
@@ -97,6 +97,7 @@ export function ProjectTopBarControls({
   const { t } = useTranslation();
   const navigationPinned = useSidebarStore((s) => s.pinned);
   const { tab } = useSearch({ strict: false }) as { tab?: string };
+  const openProjectSettings = useOpenProjectSettings();
   const { serverId: serverRef } = useParams({ strict: false }) as { serverId?: string };
 
   // Offline is not a banner: the server badge already shows it in red, and the

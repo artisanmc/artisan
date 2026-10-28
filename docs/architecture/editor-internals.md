@@ -542,6 +542,10 @@ a `disabled` button does not receive hover and would not show its bubble. Deploy
 its label, preceded by a filled play icon. Draft autosave stays active. Deploy opens
 `DeployReviewDialog`: server base against the live Project's `projectTree`,
 renames and binaries included. Only confirmation calls `saveProjectToDisk`.
+`projectTree` gives a YAML file whose value the editor left as the base holds it
+(`keepEquivalentText`, `lib/yamlEquivalence.ts`: style, quotes, key order, comments and CRLF
+do not count) the base's bytes: a hand-written or module-shipped file is neither listed nor
+rewritten until it is really edited.
 Mutations carry an `operationId` and a snapshot frozen in the local rescue copy
 isolated per owner: after a lost ACK, replay this operation before sending
 the next keystrokes. A definitive 4xx rejection releases this operation; an uncertain
@@ -686,7 +690,11 @@ identical, modified, removed, new version), computed from `.artisan/origins.yaml
 
 In the tree, a Document copied from a template carries a discreet mark (`DocumentRow`): a puzzle icon
 when identical, an asterisk otherwise — brand colour (modified) or amber (the module ships a new
-version). No text chip: the tooltip (and accessible name) says which, and names the module.
+version). No text chip: the tooltip (above the row, clear of its `···`) says which, and names the module.
+A copy whose published text has the shipped value (`sameAsShipped`: `sameYamlValue`, else the editor's
+round trip; formatting and CRLF from a jar built on Windows do not count) is identical, system or
+not. A copy that differs gets **Take {module}'s version** in its `···` menu, beside Delete: the
+shipped file goes into the draft (`resetIntoDraft`), like Reset of a system element.
 
 
 **System elements** (`system: true` template, API 2.12.0): absent from `ModuleTemplatesDialog`.
@@ -917,7 +925,7 @@ carries an AI badge in the Drafts list (`PersistedDraftControls`).
 - **`SourceShapingEditor` (`properties/SourceShapingEditor.tsx`)** — visual editor mounted under each `SourceRefInputRow`: equality filter (`filter: Record<field, value>`, literal value or `{arg}`), single-key sort (`sort.by`/`direction`), `limit`. No runtime change — edits the same opaque `ContextInput.sourceRef` fields (YAML round-trip unchanged). Autocompletion via `<datalist>`: fields from `serverSource.schema` (fallback to free input if `[]`), `{arg}` values from the menu's `primitive`-type `contextInputs`.
 - **`MenuDataSection` (`properties/MenuDataSection.tsx`)** — "Menu data" section under `ContextInputsEditor`: one card per consumed `sourceRef` (ref, module badge, summary of active filters). Live preview via `previewDataSource` (`POST …/data-sources/preview`) with the menu's filters + a form of trial values for each detected `{arg}` token (`extractArgTokens`). `pack:*` refs (project data): no server preview; the data are edited from their row in the sidebar.
 - **Top bar** (`ProjectTopBarControls.tsx`): compact rounded surface (`--r-lg`), groups spaced without separators. Project/server identity, capsule navigation (`--r-md`, soft active background), contextual tools then compact search, Save (draft) then Deploy, `⋯` menu and Elements at the far right. Buttons and undo/redo on Canvas; language on Canvas and Translations. Tab labels fold into icons before xl; groups can wrap below md. Numeric shortcuts in tooltips, routing and badges unchanged. Refresh stays in `⋯` via `RefreshProjectButton.renderTrigger`, with confirmation mounted outside the menu. Discarding changes stays in the Deploy chevron.
-- **Right columns (`ProjectWorkspacePanels`)**: canvas, full-height `EditorPane`, then the 240 px `ProjectPanel` tree at the far right. Properties appear only with a selection/project settings on the canvas or a menu; individual commands/dialogs keep their central editor. A horizontal `SplitPane` sets the properties width (`editorPaneWidth`, persisted and capped according to available space). No vertical split of the properties. The Elements button is at the right of the topbar; closing the tree keeps the properties and vice versa. In the tree, `ArrowLeftToLine` adds to the canvas and `ArrowRightToLine` removes. `DockedInspectorContext` prevents a second floating inspector. The canvas keeps the same mounting when panels change. Mobile: stage/properties stay in a vertical split.
+- **Right columns (`ProjectWorkspacePanels`)**: canvas, full-height `EditorPane`, then the 240 px `ProjectPanel` tree at the far right. Properties appear only with a selection on the canvas or a menu; individual commands/dialogs keep their central editor. The project settings are the exception: asked for from the left bar, they open the column beside a Document's editor or a collection too (`tabOpen` false); a tab keeps no inspector, so the gear and the kebab (`useOpenProjectSettings`) leave the tab first. A horizontal `SplitPane` sets the properties width (`editorPaneWidth`, persisted and capped according to available space). No vertical split of the properties. The Elements button is at the right of the topbar; closing the tree keeps the properties and vice versa. In the tree, `ArrowLeftToLine` adds to the canvas and `ArrowRightToLine` removes. `DockedInspectorContext` prevents a second floating inspector. The canvas keeps the same mounting when panels change. Mobile: stage/properties stay in a vertical split.
 - **`/settings`** — sections sidebar (V1 = Appearance, hosts `EditorLangSwitcher`) + main content.
 
 ## Live data source rendering + placement mode (since 2026-07-15)

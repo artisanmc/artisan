@@ -763,7 +763,7 @@ export default {
     badge: {
       identical: "From {{module}}",
       modified: "Modified from {{module}}",
-      update: "{{module}} ships a new version",
+      update: "{{module}} ships a new version: ⋯ › Take {{module}}'s version",
     },
     errors: {
       not_found: "This template is no longer offered by its module.",
@@ -817,6 +817,7 @@ export default {
     systemReset: "Reset",
     systemResetHint: "Puts the module's version back into your draft.",
     systemResetDone: "Module version back in the draft. Deploy to publish it.",
+    takeModuleVersion: "Take {{module}}'s version",
     systemResetConfirm:
       "Put the module's version back into your draft? Your changes to this file are replaced; Deploy publishes it.",
     noEditor: "No editor for this {{kind}} yet",

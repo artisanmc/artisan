@@ -217,7 +217,11 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       // content collapses to its own height and the surface shows through below.
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {isDesktop ? (
-          <ProjectWorkspacePanels projectId={pId} active={canvasActive}>
+          <ProjectWorkspacePanels
+            projectId={pId}
+            active={canvasActive}
+            tabOpen={presentedTab !== "overview"}
+          >
             <div
               data-tour={canvasActive ? "canvas" : undefined}
               className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden"

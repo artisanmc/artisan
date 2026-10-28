@@ -20,6 +20,8 @@ vi.mock("@/lib/api/templates", () => api);
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
   useParams: () => ({}),
+  // useOpenProjectSettings: outside a route, the gear opens the settings in place.
+  useRouter: () => null,
 }));
 
 const PID = "srv.shop" as ProjectId;
@@ -27,6 +29,10 @@ const PID = "srv.shop" as ProjectId;
 it("marks a Document copied from a template, and a newer version its module ships", async () => {
   const content = "schema: menu/v1\nsize: 27\n";
   const copied = await hashContent(content);
+  api.fetchTemplateFiles.mockResolvedValue({
+    ok: true,
+    files: { "menus/daily.yaml": "schema: menu/v1\nsize: 54\n" },
+  });
   api.fetchProjectOrigins.mockResolvedValue({
     ok: true,
     origins: {
@@ -80,11 +86,11 @@ it("marks a Document copied from a template, and a newer version its module ship
 
   render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
   expect(
-    await screen.findByRole("img", { name: "quests propose une nouvelle version" }),
+    await screen.findByRole("img", { name: /^quests propose une nouvelle version/ }),
   ).toBeInTheDocument();
   // A discreet asterisk, not a text chip.
   expect(
-    screen.getByRole("img", { name: "quests propose une nouvelle version" }),
+    screen.getByRole("img", { name: /^quests propose une nouvelle version/ }),
   ).toHaveTextContent("*");
   expect(screen.queryByText("nouvelle version")).toBeNull();
 });
@@ -102,7 +108,7 @@ function shopProject(): Project {
   } as unknown as Project;
 }
 
-async function openSystemMenu(shipped: string, published: string) {
+async function openSystemMenu(shipped: string, published: string, system = true) {
   const hash = await hashContent(shipped);
   api.fetchProjectOrigins.mockResolvedValue({
     ok: true,
@@ -138,7 +144,7 @@ async function openSystemMenu(shipped: string, published: string) {
             id: "menus",
             title: "menus",
             version: 1,
-            system: true,
+            system,
             files: [{ path: "menus/shop_main.yaml", hash, size: 1 }],
           },
         ],
@@ -200,4 +206,40 @@ it("a system menu deployed from the editor, the same once formatted, is still th
   await waitFor(() =>
     expect(screen.queryByRole("img", { name: "Différent de la version de boutique" })).toBeNull(),
   );
+});
+
+it("a copy the module ships again in CRLF, the same value, is not a new version", async () => {
+  // Copied from a jar built on Windows, the module now ships the same file in LF.
+  await openSystemMenu(SHIPPED, SHIPPED.replaceAll("\n", "\r\n"), false);
+
+  render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+  await waitFor(() => expect(api.fetchTemplateFiles).toHaveBeenCalled());
+  await waitFor(() =>
+    expect(screen.queryByRole("img", { name: /propose une nouvelle version/ })).toBeNull(),
+  );
+  expect(screen.queryByRole("img", { name: /Modifié depuis/ })).toBeNull();
+});
+
+it("an edited copy takes its module's version from the row's menu, still deletable", async () => {
+  await openSystemMenu(SHIPPED, "schema: menu/v1\nid: shop_main\ntitle: Mine\nsize: 27\n", false);
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+
+  render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+  expect(await screen.findByRole("img", { name: "Modifié depuis boutique" })).toBeInTheDocument();
+  fireEvent.pointerDown(screen.getByRole("button", { name: "Options" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  const take = await screen.findByRole("menuitem", { name: "Prendre la version de boutique" });
+  expect(screen.getByRole("menuitem", { name: /^Supprimer/ })).toBeInTheDocument();
+  fireEvent.click(take);
+
+  await waitFor(() => {
+    const menu = useProjectsStore
+      .getState()
+      .openProjects.projects.find((p) => p.id === PID)
+      ?.documents.menu?.find((m) => m.id === "shop_main");
+    expect((menu as { rows?: number } | undefined)?.rows).toBe(6);
+  });
+  expect(api.copyTemplate).not.toHaveBeenCalled();
 });
