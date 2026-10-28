@@ -5,6 +5,7 @@ import { type DocumentProblem, checkDocuments, deploymentDelta } from "@/lib/api
 import { type PersistedDraft, listDrafts, publishDraft } from "@/lib/api/projectDrafts";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { listServers } from "@/lib/api/servers";
+import { keepEquivalentText } from "@/lib/yamlEquivalence";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 
@@ -29,9 +30,18 @@ export interface OtherDraft {
   unsynced: boolean;
 }
 
+/**
+ * The snapshot's tree with each file the editor only reformatted given back as its baseline
+ * holds it (`keepEquivalentText`): a draft autosaved before the editor kept those bytes holds
+ * every file it read in its own format, which is no change.
+ */
+function treeOf(snapshot: ProjectDraft): Record<string, string> {
+  return keepEquivalentText(snapshot.tree, snapshot.baseline);
+}
+
 /** Whether a stored snapshot differs from the disk it was based on. */
 export function snapshotHasChanges(snapshot: ProjectDraft): boolean {
-  if (isDirty(snapshot.baseline, snapshot.tree)) return true;
+  if (isDirty(snapshot.baseline, treeOf(snapshot))) return true;
   const before = snapshot.binaryBaseline ?? {};
   const after = snapshot.binaryTree ?? {};
   return (
@@ -42,7 +52,7 @@ export function snapshotHasChanges(snapshot: ProjectDraft): boolean {
 
 const changesOf = (snapshot: ProjectDraft): ChangeSet => ({
   before: snapshot.baseline,
-  after: snapshot.tree,
+  after: treeOf(snapshot),
   renames: snapshot.renames,
   binaryBefore: snapshot.binaryBaseline,
   binaryAfter: snapshot.binaryTree,

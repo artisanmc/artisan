@@ -30,7 +30,8 @@ export function sameYamlValue(a: string, b: string): boolean {
  * `tree` with each YAML file whose value is the one `disk` holds written back as `disk`
  * has it, byte for byte. The editor writes every Document in its canonical form; a file it
  * read and did not change must not come back reformatted: a deploy would otherwise list,
- * and rewrite, every hand-written or module-shipped file as modified.
+ * and rewrite, every hand-written or module-shipped file as modified. An edited file keeps
+ * the disk's CRLF line endings, so its diff shows the edit and not every line.
  */
 export function keepEquivalentText(
   tree: Record<string, string>,
@@ -41,11 +42,18 @@ export function keepEquivalentText(
   for (const [path, content] of Object.entries(tree)) {
     const onDisk = disk[path];
     if (onDisk === undefined || onDisk === content || !isYamlPath(path)) continue;
-    if (!sameYamlValue(onDisk, content)) continue;
+    const kept = sameYamlValue(onDisk, content) ? onDisk : withLineEndingsOf(onDisk, content);
+    if (kept === content) continue;
     out ??= { ...tree };
-    out[path] = onDisk;
+    out[path] = kept;
   }
   return out ?? tree;
+}
+
+/** [content] in CRLF when [disk] is: the editor writes LF. */
+function withLineEndingsOf(disk: string, content: string): string {
+  if (!disk.includes("\r\n") || content.includes("\r")) return content;
+  return content.replace(/\n/g, "\r\n");
 }
 
 /** JSON with every map's keys sorted: two values that differ only by key order give one string. */

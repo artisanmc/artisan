@@ -90,6 +90,38 @@ describe("other Projects' drafts", () => {
     ).toBe(true);
   });
 
+  it("does not count a file the editor only reformatted, in a draft saved before it kept them", () => {
+    const shipped = 'title: { en: "Buy", fr: "Acheter" }\r\ncan_close: true\r\n';
+    const reformatted = "title:\n  en: Buy\n  fr: Acheter\ncan_close: true\n";
+    const stale = snapshot({ "dialogs/buy.yml": shipped }, { "dialogs/buy.yml": reformatted });
+    expect(snapshotHasChanges(stale)).toBe(false);
+    const edited = snapshot(
+      { "dialogs/buy.yml": shipped, "menus/shop.yml": "a: 1" },
+      { "dialogs/buy.yml": reformatted, "menus/shop.yml": "a: 2" },
+    );
+    expect(snapshotHasChanges(edited)).toBe(true);
+  });
+
+  it("shows a reformatted file of another draft as the server holds it", async () => {
+    const shipped = 'title: { en: "Buy" }\r\n';
+    api.listDrafts.mockImplementation(async (projectId: string) =>
+      projectId === "s1.shop"
+        ? [
+            draft(
+              "old",
+              "s1.shop",
+              snapshot(
+                { "dialogs/buy.yml": shipped, "a.yml": "1" },
+                { "dialogs/buy.yml": "title:\n  en: Buy\n", "a.yml": "2" },
+              ),
+            ),
+          ]
+        : [],
+    );
+    const [found] = await loadOtherDrafts(undefined);
+    expect(found?.changes.after).toEqual({ "dialogs/buy.yml": shipped, "a.yml": "2" });
+  });
+
   it("lists the drafts with changes on online servers, less the open working copy", async () => {
     const found = await loadOtherDrafts("working");
     expect(api.listServerProjects).toHaveBeenCalledTimes(1);
