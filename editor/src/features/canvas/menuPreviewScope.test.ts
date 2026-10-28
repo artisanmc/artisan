@@ -118,6 +118,31 @@ describe("resolveSourceRef — module-local rows (authoring-time)", () => {
     expect(resolveSourceRefWithOrigin("boutique:items", project, {}).origin).toBe("none");
   });
 
+  it("hands the input's fetcher params to the module", () => {
+    registerModule({
+      id: "quests",
+      displayName: "Quests",
+      schemaVersion: "quests/v1",
+      sidebar: { icon: () => null, label: "Quests", to: "/m/quests" },
+      routes: [],
+      localPreviewRows: (_project, ref, ctx) =>
+        ref === "quests:list"
+          ? [
+              { id: "a", group: "daily" },
+              { id: "b", group: "weekly" },
+            ].filter((r) => !ctx?.params?.group || r.group === ctx.params.group)
+          : null,
+    });
+    const menu = {
+      id: "m",
+      layers: [],
+      contextInputs: [
+        { kind: "sourceRef", name: "quests", ref: "quests:list", params: { group: "daily" } },
+      ],
+    } as unknown as Menu;
+    expect(buildPreviewScope(menu, stubProject()).quests).toEqual([{ id: "a", group: "daily" }]);
+  });
+
   it("hands the server snapshot to the module so a mixed source joins the draft to it", () => {
     registerModule({
       id: "quests",

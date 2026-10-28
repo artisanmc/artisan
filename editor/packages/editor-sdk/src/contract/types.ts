@@ -232,6 +232,8 @@ export interface ConfigScreenProps {
 export interface LocalPreviewContext {
   /** The server's last rows for the ref; absent while unknown (server offline, not fetched yet). */
   serverRows?: Record<string, unknown>[];
+  /** The fetcher params the menu declares on the source input; absent when none. */
+  params?: Record<string, string>;
 }
 
 export interface ModuleRouteDecl {
@@ -275,6 +277,8 @@ export interface FrontendModule {
    * starts from these rows and replaces their definition fields with the draft's,
    * matched by the declared key field; a row the draft adds gets the default state,
    * a row the draft removes disappears. A `content` source ignores them.
+   * `ctx.params` are the fetcher params the menu declares on the source input
+   * (`group: daily`): apply them as the plugin's fetcher does.
    */
   localPreviewRows?: (
     project: unknown,
