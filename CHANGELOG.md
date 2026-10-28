@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Added**: a data source says where its rows come from (API 2.19.0): `Origin.RUNTIME` (server state, the default), `CONTENT` (derived from the Project's files) or `MIXED` (definitions from the files joined to per-player state, needs a `keyField`), through a new `DataSourceDeclaration` constructor. The `data_sources` wire gains `origin`. Each source input of a menu now shows where its preview rows come from: **Draft** (computed from the project being edited), **In-game state** (a runtime source), or **Deployed version**, a warning for a content source whose module cannot compute it from the draft, so pending edits are not visible. A plugin without `origin` behaves as before.
+- **Added**: editor SDK 1.12. `FrontendModule.localPreviewRows(project, ref, ctx)` receives `ctx.serverRows`, the server's last rows for the source: a mixed source keeps the player's state from them and the definitions from the draft. A 1.11 bundle still loads.
 - **Added**: the Library's expressions no longer need a listed variable: "Another variable…" takes a path typed by hand (`guild.created_at`), and "Time since/left" also take a fixed date. Every recipe stays usable.
 - **Removed**: the "Available context" panel of the item window; the Library lists the same placeholders.
 - **Fixed**: the item window's scrollbar no longer covers the fields.

@@ -151,3 +151,15 @@ These map 1:1 to the runtime behavior: the preview shows exactly what players wi
 ## Menu data
 
 Below the context inputs, the **Menu data** section lists every source the menu consumes with its active filters. **Preview** applies those filters live. When a filter uses `{arg}`, type a test value first — it substitutes the arg the way a real menu call would.
+
+## Draft or in-game rows
+
+Each source input of a menu shows where its rows come from:
+
+- **Draft**: the rows are computed from your project as you edit it, before any deploy. A product added to the shop catalogue shows at once.
+- **In-game state**: data that only exists on the server (players, sales, guild members). You see what is in game right now.
+- **Deployed version** (warning): the rows come from your project's files, but the module cannot compute them in the editor, so you see the version the server runs. Your pending changes appear after **Deploy**.
+
+Some sources mix both, such as a player's active quests: the quest's title and objectives come from your draft, the player's progress from the server.
+
+The **Preview** of a source on the server's page always shows the server's rows.

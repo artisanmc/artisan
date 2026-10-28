@@ -25,6 +25,7 @@ describe("serverDataSourcesStore", () => {
         schemaHint: null,
         stability: null,
         keyField: null,
+        origin: null,
       },
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -78,6 +79,7 @@ describe("serverDataSourcesStore", () => {
         schemaHint: null,
         stability: null,
         keyField: null,
+        origin: null,
       },
     ]);
 
@@ -91,6 +93,7 @@ describe("serverDataSourcesStore", () => {
         schemaHint: null,
         stability: null,
         keyField: null,
+        origin: null,
       },
     ]);
   });
@@ -125,6 +128,7 @@ describe("serverDataSourcesStore", () => {
         schemaHint: null,
         stability: null,
         keyField: null,
+        origin: null,
       },
     ]);
   });
