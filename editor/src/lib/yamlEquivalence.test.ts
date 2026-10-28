@@ -51,11 +51,14 @@ describe("keepEquivalentText", () => {
     });
   });
 
-  it("writes an edited file in CRLF when the disk's is", () => {
+  it("writes an edited file as the disk's text with the edit, in its CRLF", () => {
     const disk = { "conversation_themes/taverne.yml": SHIPPED };
-    const edited = CANONICAL.replace("Tavern", "Inn");
+    const edited = CANONICAL.replace("en: Tavern", "en: Inn");
     expect(keepEquivalentText({ "conversation_themes/taverne.yml": edited }, disk)).toEqual({
-      "conversation_themes/taverne.yml": edited.replace(/\n/g, "\r\n"),
+      "conversation_themes/taverne.yml": SHIPPED.replace('"Tavern"', '"Inn"'),
+    });
+    expect(keepEquivalentText({ "a.yml": "a: [2\n" }, { "a.yml": "a: [\r\n" })).toEqual({
+      "a.yml": "a: [2\r\n",
     });
     expect(keepEquivalentText({ "a.yml": "a: 2\n" }, { "a.yml": "a: 1\n" })).toEqual({
       "a.yml": "a: 2\n",
