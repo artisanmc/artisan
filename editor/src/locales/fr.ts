@@ -1558,6 +1558,23 @@ const fr: typeof en = {
     server: "Serveur",
     draft: "Brouillon",
     confirm: "Déployer sur le serveur",
+    others: {
+      title: "Autres brouillons",
+      loading: "Recherche de tes brouillons dans les autres projets…",
+      none: "Aucun autre brouillon avec des changements.",
+      failedToLoad: "Impossible de lister les brouillons des autres projets ({{code}}).",
+      current: "Ce projet",
+      currentNone: "aucun changement",
+      unsynced: "ouvre le projet pour enregistrer d’abord ses dernières modifications",
+      confirm: "Déployer {{count}} projets",
+      elsewhereTitle: "Déployer les changements en attente dans d’autres projets",
+      deployed_one: "Déployé : {{names}}",
+      deployed_other: "{{count}} projets déployés : {{names}}",
+      failed:
+        "{{name}} n’a pas été déployé : {{reason}}. Déployés : {{deployed}}. Pas tentés : {{skipped}}.",
+      notTried_one: "L’autre brouillon choisi n’a pas été déployé.",
+      notTried_other: "Les {{count}} autres brouillons choisis n’ont pas été déployés.",
+    },
     documents: {
       title: "Vérification du serveur",
       pending: "Le serveur vérifie les fichiers modifiés…",

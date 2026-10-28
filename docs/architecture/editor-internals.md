@@ -153,6 +153,21 @@ as a green light). `DeployReviewDialog` lists each problem on its file in the `C
 (`problems` prop: a count on the header, the lines above the diff, the file opened) and
 disables Deploy while there are any. A reply is kept only for the review it was asked for.
 
+**Several Projects in one Deploy.** The review also lists the player's other drafts with
+changes (`otherDrafts.ts`: `listServers` → `listServerProjects` of each online server →
+`listDrafts` of each Project, at most 6 at a time; the open Project's working copy is left
+out, its other drafts are not). Each is a row with a checkbox, unpicked by default; one draft
+per Project can be picked (picking a draft of the open Project unpicks its working copy). A
+picked draft shows its `ChangeList` and is checked by the server like the working copy; a
+draft this browser edited further than the hub's copy is `unsynced` and cannot be picked.
+`useOtherDrafts` holds the list, the picks and the checks. Confirm deploys the open Project
+first (its conflicts open the resolution as before), then each picked draft from the hub's
+copy (`publishDraft`), one after the other, stopping at the first failure; a toast says what
+went out, what failed and what was not tried. Each Project is written on its own: one that
+went out stays out. Deploy is enabled when this browser holds changes in another Project
+(`pendingElsewhere`). The assistant's "Review and deploy" fires `OPEN_DEPLOY_REVIEW` with
+`preselect`: the drafts its conversation started, picked when the review opens.
+
 ## Workspace page (`features/project/ProjectCanvasPage.tsx`)
 
 The page keeps only loading (`useProjectLoader`) and layout (topbar, canvas,
