@@ -186,29 +186,81 @@ export function ServerConfigSection({
   const grouped = new Set(groups.flatMap(([, ks]) => ks));
   groups.push(["other", keys.filter((k) => !grouped.has(k))]);
 
+  const shown = groups.filter(([, ks]) => ks.length > 0);
+  const pending = Object.keys(changes).length;
+
   return (
-    <div className="flex flex-col gap-6">
-      {groups
-        .filter(([, ks]) => ks.length > 0)
-        .map(([group, ks]) => (
-          <div key={group} className="card flex flex-col gap-3 p-4">
-            <h3 className="text-[14px] font-semibold text-[var(--text)]">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:items-start">
+      <nav
+        className="flex gap-1 overflow-x-auto lg:sticky lg:top-0 lg:flex-col"
+        aria-label={t("serverConfig.title")}
+      >
+        {shown.map(([group]) => (
+          <button
+            key={group}
+            type="button"
+            className="btn btn-ghost btn-sm shrink-0 justify-start"
+            onClick={() =>
+              document
+                .getElementById(groupAnchor(group))
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+          >
+            {t(`serverConfig.groups.${group}`)}
+          </button>
+        ))}
+      </nav>
+      <div className="flex min-w-0 flex-col gap-4">
+        {shown.map(([group, ks]) => (
+          <section
+            key={group}
+            id={groupAnchor(group)}
+            className="card flex scroll-mt-4 flex-col gap-3 p-5"
+          >
+            <h3 className="text-[15px] font-semibold text-[var(--text)]">
               {t(`serverConfig.groups.${group}`)}
             </h3>
+            {group === "textures" && (
+              <p className="-mt-1 text-[12px] text-[var(--text-mut)]">
+                {t("serverConfig.groupHints.textures")}
+              </p>
+            )}
             {ks.map(field)}
-          </div>
+          </section>
         ))}
-      <div className="flex items-center justify-end gap-3">
-        {error && <p className="text-[12px] text-[var(--danger)]">{error}</p>}
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          disabled={saving || Object.keys(changes).length === 0}
-          onClick={save}
-        >
-          {t("serverConfig.save")}
-        </button>
+        {(pending > 0 || error) && (
+          <div className="sticky bottom-4 flex flex-wrap items-center gap-3 rounded-[var(--r-md)] border border-[var(--brand-line)] bg-[var(--surface-raised)] px-4 py-3 shadow-lg">
+            <span className="flex-1 text-[13px] text-[var(--text)]">
+              {error ? (
+                <span className="text-[var(--danger)]">{error}</span>
+              ) : (
+                t("serverConfig.pending", { count: pending })
+              )}
+            </span>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={saving || pending === 0}
+              onClick={() => {
+                setChanges({});
+                setError(null);
+              }}
+            >
+              {t("serverConfig.discard")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={saving || pending === 0}
+              onClick={save}
+            >
+              {t("serverConfig.save")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+const groupAnchor = (group: string) => `server-config-${group}`;

@@ -1,15 +1,31 @@
 package net.artisanmc.plugin.scheduling
 
+import org.bukkit.entity.Entity
 import org.bukkit.plugin.Plugin
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+
+/**
+ * Scheduling bound to an entity the caller already holds. Never by UUID: `Server.getEntity`
+ * scans the worlds, which only a tick thread may do (Leaf and Folia throw "Asynchronous
+ * Chunk getEntities call!" from an async task). The entity object needs no lookup.
+ */
+interface EntityScheduling {
+    /**
+     * On the thread that owns [entity], after [delayTicks] (0 = as soon as possible);
+     * [onGone] instead if it is removed first. Callable from any thread.
+     */
+    fun entity(entity: Entity, delayTicks: Long, onGone: () -> Unit = {}, task: () -> Unit)
+
+    fun ownsEntity(entity: Entity): Boolean
+}
 
 /** Folia, Leaf and Paper all expose the regionised schedulers; MockBukkit does not. */
 fun schedulerFor(plugin: Plugin): Scheduler =
     if (runCatching { plugin.server.globalRegionScheduler }.isSuccess) RegionizedScheduler(plugin)
     else BukkitTaskScheduler(plugin)
 
-class RegionizedScheduler(private val plugin: Plugin) : Scheduler {
+class RegionizedScheduler(private val plugin: Plugin) : Scheduler, EntityScheduling {
     private val server get() = plugin.server
 
     override fun global(task: () -> Unit) {
@@ -29,8 +45,9 @@ class RegionizedScheduler(private val plugin: Plugin) : Scheduler {
         server.getPlayer(playerId)?.scheduler?.runDelayed(plugin, { task() }, null, delayTicks.coerceAtLeast(1))
     }
 
-    override fun entity(entityId: UUID, delayTicks: Long, onGone: () -> Unit, task: () -> Unit) {
-        val scheduler = server.getEntity(entityId)?.scheduler ?: return onGone()
+    override fun entity(entity: Entity, delayTicks: Long, onGone: () -> Unit, task: () -> Unit) {
+        // EntityScheduler is thread-safe; it answers null once the entity is retired.
+        val scheduler = entity.scheduler
         val scheduled =
             if (delayTicks <= 0) scheduler.run(plugin, { task() }, Runnable(onGone))
             else scheduler.runDelayed(plugin, { task() }, Runnable(onGone), delayTicks)
@@ -43,10 +60,7 @@ class RegionizedScheduler(private val plugin: Plugin) : Scheduler {
         else server.regionScheduler.runDelayed(plugin, world, chunkX, chunkZ, { task() }, delayTicks)
     }
 
-    override fun ownsEntity(entityId: UUID): Boolean {
-        val entity = server.getEntity(entityId) ?: return false
-        return server.isOwnedByCurrentRegion(entity)
-    }
+    override fun ownsEntity(entity: Entity) = server.isOwnedByCurrentRegion(entity)
 
     override fun async(task: () -> Unit) {
         server.asyncScheduler.runNow(plugin) { task() }
@@ -65,7 +79,7 @@ class RegionizedScheduler(private val plugin: Plugin) : Scheduler {
 }
 
 /** Classic Bukkit scheduler: a single main thread, players included. */
-class BukkitTaskScheduler(private val plugin: Plugin) : Scheduler {
+class BukkitTaskScheduler(private val plugin: Plugin) : Scheduler, EntityScheduling {
     private val bukkit get() = plugin.server.scheduler
 
     override fun global(task: () -> Unit) {
@@ -84,8 +98,8 @@ class BukkitTaskScheduler(private val plugin: Plugin) : Scheduler {
         if (plugin.server.getPlayer(playerId) != null) task()
     }
 
-    override fun entity(entityId: UUID, delayTicks: Long, onGone: () -> Unit, task: () -> Unit) {
-        val run = { if (plugin.server.getEntity(entityId)?.isValid == true) task() else onGone() }
+    override fun entity(entity: Entity, delayTicks: Long, onGone: () -> Unit, task: () -> Unit) {
+        val run = { if (entity.isValid) task() else onGone() }
         if (delayTicks <= 0) global(run) else globalLater(delayTicks, run)
     }
 
@@ -97,6 +111,7 @@ class BukkitTaskScheduler(private val plugin: Plugin) : Scheduler {
         bukkit.runTaskLaterAsynchronously(plugin, Runnable(task), delayTicks)
     }
 
+    override fun ownsEntity(entity: Entity) = plugin.server.isPrimaryThread
     override fun ownsPlayer(playerId: UUID) = plugin.server.isPrimaryThread
     override fun ownsGlobal() = plugin.server.isPrimaryThread
 }

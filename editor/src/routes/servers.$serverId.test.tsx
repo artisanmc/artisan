@@ -249,6 +249,37 @@ describe("ServerDetailPage", () => {
     expect(listServerProjects).not.toHaveBeenCalled();
   });
 
+  it("shows the server's tabs, the overview active when no child route matches", async () => {
+    render(<ServerDetailPage />);
+    const nav = await screen.findByRole("navigation", { name: "serverDetail.tabs.label" });
+    const tabs = within(nav).getAllByRole("link");
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      "serverDetail.tabs.overview",
+      "serverDetail.tabs.board",
+      "serverDetail.tabs.play",
+      "serverDetail.tabs.data",
+      "serverDetail.tabs.settings",
+    ]);
+    expect(tabs[0]).toHaveAttribute("aria-current", "page");
+    expect(await screen.findByText("serverDetail.stateOnline")).toBeInTheDocument();
+  });
+
+  it("keeps the frame around a tab's route, without reading the disk itself", async () => {
+    routerState.childMatches = [{ id: "child", routeId: "/servers/$serverId/settings" }];
+    render(<ServerDetailPage />);
+    expect(await screen.findByText("child-route")).toBeInTheDocument();
+    const settings = screen.getByRole("link", { name: "serverDetail.tabs.settings" });
+    expect(settings).toHaveAttribute("aria-current", "page");
+    expect(listServerProjects).not.toHaveBeenCalled();
+  });
+
+  it("gives a project the whole screen, without the frame", async () => {
+    routerState.childMatches = [{ id: "child", routeId: "/servers/$serverId/projects/$projectId" }];
+    render(<ServerDetailPage />);
+    expect(await screen.findByText("child-route")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation")).toBeNull();
+  });
+
   /** Server unknown to the hub: the URL is stale, go back to the server list
    *  rather than spinning forever on "reading". */
   it("redirects to the server list when the server does not exist", async () => {

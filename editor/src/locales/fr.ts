@@ -857,8 +857,6 @@ const fr: typeof en = {
     close: "Fermer le panneau",
   },
   play: {
-    title: "Jeu",
-    back: "Retour au serveur",
     hint: "Tous les projets du serveur à la fois, sans le jeu",
     listing: "Lecture des projets du serveur…",
     loading: "Chargement des projets… ({{done}}/{{total}})",
@@ -1134,10 +1132,9 @@ const fr: typeof en = {
     newMenu: "Nouveau menu",
     newCommand: "Nouvelle commande",
     newDialog: "Nouveau dialogue",
-    newDialogHere: "Nouveau dialogue ici",
-    newMenuHere: "Nouveau menu ici",
+    new: "Nouveau",
+    kind: { menu: "Menu", command: "Commande", dialog: "Dialogue" },
     pasteHere: "Coller ici",
-    newCommandHere: "Nouvelle commande ici",
     newDocumentDialogTitle: "Nouveau · {{kind}}",
     kindNotSynced:
       "Le serveur actif ne lit pas les documents {{kind}} : ce fichier sera enregistré, mais rien là-bas ne le chargera tant que le module n'y est pas installé.",
@@ -1247,6 +1244,14 @@ const fr: typeof en = {
         xxl: "Géant (32)",
       },
     },
+  },
+  edition: {
+    pro: "Pro",
+    advancedExpression:
+      "Expression avancée : sa vue lisible et son aperçu viennent avec Artisan Pro. Elle fonctionne en jeu de la même façon.",
+    proOnly: "Fonction Artisan Pro : disponible avec le jar Pro.",
+    composedReadOnly:
+      "Ce titre a été composé avec Artisan Pro. Il reste tel quel et fonctionne toujours en jeu ; modifier ses calques demande Artisan Pro.",
   },
   layersPanel: {
     vanilla: "Vanilla",
@@ -1772,6 +1777,13 @@ const fr: typeof en = {
     vanillaTexture: "Texture vanilla",
     connectionHint:
       "Les identifiants de la base de données vivent dans environment.yml, qui ne se modifie qu'à la main.",
+    discard: "Annuler",
+    pending_one: "{{count}} réglage modifié",
+    pending_other: "{{count}} réglages modifiés",
+    groupHints: {
+      textures:
+        "Redessinent les coffres, entonnoirs et distributeurs du serveur quand un menu désactive sa texture vanilla.",
+    },
     groups: {
       general: "Général",
       textures: "Textures des conteneurs",
@@ -1819,8 +1831,19 @@ const fr: typeof en = {
       "Le plugin Artisan de ce serveur n'est pas compatible avec celui du hub. Mets-le à jour pour éditer ce serveur.",
     documentCount_one: "{{count}} élément",
     documentCount_other: "{{count}} éléments",
-    openBoard: "Planche générale",
-    openPlay: "Jeu",
+    tabs: {
+      label: "Sections du serveur",
+      overview: "Vue d'ensemble",
+      board: "Planche",
+      play: "Jeu",
+      data: "Données",
+      settings: "Réglages",
+    },
+    stateOnline: "En ligne",
+    stateOffline: "Hors ligne",
+    stateUpdateRequired: "Plugin à mettre à jour",
+    minecraftVersion: "Minecraft {{version}}",
+    pluginVersion: "Artisan {{version}}",
   },
   search: {
     placeholder: "Rechercher menus, commandes, items, texte…",

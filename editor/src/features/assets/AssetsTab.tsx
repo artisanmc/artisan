@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProBadge } from "@/components/ui/pro-badge";
 import { assetUsages } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { cx } from "@/lib/cx";
+import { useIsPro } from "@/lib/edition";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useState } from "react";
@@ -22,6 +24,9 @@ export function AssetsTab({
 }: { projectId: ProjectId; compact?: boolean }) {
   const { t } = useTranslation();
   const isDesktop = useIsDesktop();
+  // Images and fonts go into the resource pack: importing them is Pro. Existing ones stay listed.
+  const pro = useIsPro();
+  const proTitle = pro ? undefined : t("edition.proOnly");
   const narrow = compact || !isDesktop;
   // Assets are loaded by `useAssetInit` in ProjectLibraryWorkspace — title-layer
   // rendering needs them before the user ever opens this tab, so we
@@ -57,13 +62,26 @@ export function AssetsTab({
       {(!narrow || !selectedId) && (
         <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setUploadOpen(true)}>{t("resources.upload")}</Button>
-            <Button variant="outline" onClick={() => setImportFontOpen(true)}>
+            <Button disabled={!pro} title={proTitle} onClick={() => setUploadOpen(true)}>
+              {t("resources.upload")}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!pro}
+              title={proTitle}
+              onClick={() => setImportFontOpen(true)}
+            >
               {t("resources.importFont")}
             </Button>
-            <Button variant="outline" onClick={() => setImportNexoOpen(true)}>
+            <Button
+              variant="outline"
+              disabled={!pro}
+              title={proTitle}
+              onClick={() => setImportNexoOpen(true)}
+            >
               {t("resources.importNexo")}
             </Button>
+            {!pro && <ProBadge className="self-center" />}
             <Input
               aria-label={t("resources.search")}
               placeholder={t("resources.search")}

@@ -749,7 +749,7 @@ The version is **this document**: the highest `Since` version above (last table 
 
 Releasing a new member = marking it with the next version here, in the same PR. The `API version` check (`.github/workflows/api-version-check.yml`) fails a PR that changes `net/artisanmc/modules/api/**` without raising the highest `Since` above the latest release; label `api:no-release` exempts a change with no published effect (KDoc, formatting). A patch release (1.6.1) is the same mechanism: mark the fixed member with the patch version (`Since` 1.6.1).
 
-The publication carries a sources jar (Javadoc) and a POM with no dependency: the surface is Java (2.0.0; the 1.x POM declared `kotlin-stdlib`). License: GPL-3.0, like the repo. External module plugins declare it as `compileOnly` (the jar is provided by the running Artisan plugin at runtime):
+The publication carries a sources jar (Javadoc) and a POM with no dependency: the surface is Java (2.0.0; the 1.x POM declared `kotlin-stdlib`). License: MIT (`plugin/api/LICENSE`); the rest of the repo is proprietary (`LICENSE`). External module plugins declare it as `compileOnly` (the jar is provided by the running Artisan plugin at runtime):
 
 ```kotlin
 // build.gradle.kts

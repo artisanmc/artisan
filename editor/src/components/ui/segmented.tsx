@@ -11,7 +11,7 @@ export function Segmented<T extends string | number>({
   label,
   className,
 }: {
-  options: readonly { value: T; label: React.ReactNode }[];
+  options: readonly { value: T; label: React.ReactNode; disabled?: boolean; title?: string }[];
   value: T;
   onChange: (value: T) => void;
   /** The group's accessible name. */
@@ -35,9 +35,11 @@ export function Segmented<T extends string | number>({
             key={String(opt.value)}
             type="button"
             aria-pressed={on}
+            disabled={opt.disabled}
+            title={opt.title}
             onClick={() => onChange(opt.value)}
             className={cx(
-              "min-w-8 rounded-[calc(var(--r-sm)-2px)] px-2.5 py-1 text-[12.5px] font-medium transition-colors",
+              "min-w-8 rounded-[calc(var(--r-sm)-2px)] px-2.5 py-1 text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
               on
                 ? "bg-[var(--brand-soft)] text-[var(--brand)] shadow-[inset_0_0_0_1px_var(--brand-line)]"
                 : "text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",

@@ -843,8 +843,6 @@ export default {
     close: "Close panel",
   },
   play: {
-    title: "Play",
-    back: "Back to server",
     hint: "Every project of the server at once, without the game",
     listing: "Reading the server's projects…",
     loading: "Loading projects… ({{done}}/{{total}})",
@@ -1114,10 +1112,9 @@ export default {
     newMenu: "New menu",
     newCommand: "New command",
     newDialog: "New dialog",
-    newDialogHere: "New dialog here",
-    newMenuHere: "New menu here",
+    new: "New",
+    kind: { menu: "Menu", command: "Command", dialog: "Dialog" },
     pasteHere: "Paste here",
-    newCommandHere: "New command here",
     newDocumentDialogTitle: "New {{kind}}",
     kindNotSynced:
       "The active server does not read {{kind}} documents: this file will be saved, but nothing there will load it until the module is installed.",
@@ -1226,6 +1223,14 @@ export default {
         xxl: "Giant (32)",
       },
     },
+  },
+  edition: {
+    pro: "Pro",
+    advancedExpression:
+      "Advanced expression: its readable view and preview come with Artisan Pro. It runs in game all the same.",
+    proOnly: "Artisan Pro feature: available with the Pro jar.",
+    composedReadOnly:
+      "This title was composed with Artisan Pro. It stays as it is and keeps working in game; editing its layers requires Artisan Pro.",
   },
   layersPanel: {
     vanilla: "Vanilla",
@@ -1743,6 +1748,13 @@ export default {
     listHint: "Comma-separated values.",
     vanillaTexture: "Vanilla texture",
     connectionHint: "The database credentials live in environment.yml, edited by hand only.",
+    discard: "Discard",
+    pending_one: "{{count}} setting changed",
+    pending_other: "{{count}} settings changed",
+    groupHints: {
+      textures:
+        "Redraw the server's chests, hoppers and dispensers when a menu turns off its vanilla texture.",
+    },
     groups: {
       general: "General",
       textures: "Container textures",
@@ -1789,8 +1801,19 @@ export default {
       "This server’s Artisan plugin is not compatible with the hub’s. Update it to edit this server.",
     documentCount_one: "{{count}} element",
     documentCount_other: "{{count}} elements",
-    openBoard: "Server board",
-    openPlay: "Play",
+    tabs: {
+      label: "Server sections",
+      overview: "Overview",
+      board: "Board",
+      play: "Play",
+      data: "Data",
+      settings: "Settings",
+    },
+    stateOnline: "Online",
+    stateOffline: "Offline",
+    stateUpdateRequired: "Plugin to update",
+    minecraftVersion: "Minecraft {{version}}",
+    pluginVersion: "Artisan {{version}}",
   },
   search: {
     placeholder: "Search menus, commands, items, text…",

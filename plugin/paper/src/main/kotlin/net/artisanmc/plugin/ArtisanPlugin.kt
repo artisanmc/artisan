@@ -216,7 +216,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 t,
             )
         }
-        logger.info("Artisan ${description.version} enabled")
+        logger.info("Artisan ${description.version} (${net.artisanmc.plugin.hub.Edition.bundled(javaClass.classLoader).wire}) enabled")
     }
 
     /** The editor side: the hub (or the link to it), the dev bundles, the permission reports. */

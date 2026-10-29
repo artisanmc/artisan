@@ -1,5 +1,5 @@
 import { useServerProjects } from "@/features/project/useServerProjects";
-import { Link, useParams, useSearch } from "@tanstack/react-router";
+import { useParams, useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { PlayView } from "./PlayView";
 
@@ -36,16 +36,13 @@ export function PlayPage() {
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--bg)]" data-testid="play-page">
       {probes}
-      <header className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-3">
-        <Link to="/servers/$serverId" params={{ serverId }} className="btn btn-ghost btn-sm">
-          ← {t("play.back")}
-        </Link>
-        <h1 className="text-[15px] font-semibold text-[var(--text)]">{t("play.title")}</h1>
+      {/* The server page's frame above carries the title and the way back. */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
         <span className="text-[12px] text-[var(--text-mut)]">{status ?? t("play.hint")}</span>
         {failedCount > 0 && (
           <span className="badge badge-brick">{t("play.failed", { count: failedCount })}</span>
         )}
-      </header>
+      </div>
       {listing === "ready" && (
         <div className="flex min-h-0 flex-1 overflow-auto p-4">
           <PlayView serverId={serverId} projects={projects} focus={focus} />

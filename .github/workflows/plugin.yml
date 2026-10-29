@@ -45,3 +45,9 @@ jobs:
           cache: gradle
       - uses: gradle/actions/setup-gradle@v5
       - run: bash ./gradlew test shadowJar publishCoreApiPublicationToMavenLocal --no-daemon
+      # The free jar builds too and says so (docs/architecture/editions.md).
+      - run: bash ./gradlew :artisan-paper:shadowJar -Pedition=free --no-daemon
+      - run: |
+          for f in paper/build/libs/artisan-plugin-*-free.jar; do
+            [ "$(unzip -p "$f" artisan-edition.properties | tr -d '\r')" = "edition=free" ] || { echo "$f is not the free edition" >&2; exit 1; }
+          done

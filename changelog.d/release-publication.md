@@ -1,0 +1,1 @@
+- **Added**: a `v*` tag publishes the release: the free jar to Modrinth and Hangar, the Pro jar to Voxel, after the `release` environment's approval (`release-jars.yml`, setup in `deploy/README.md`). SpigotMC and BuiltByBit stay manual: they have no upload API.

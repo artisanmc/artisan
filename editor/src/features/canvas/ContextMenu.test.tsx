@@ -56,6 +56,59 @@ describe("ContextMenu — canvas background", () => {
   it("keeps them in focus view, without the 'create here' entries", () => {
     render(<ContextMenu {...baseProps} state={emptyTargetState} />);
     expect(screen.getByText(/Paramètres du projet|Project settings/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Nouveau menu ici|New menu here/i)).toBeNull();
+    expect(screen.queryByText(/^(Nouveau|New)$/)).toBeNull();
+  });
+
+  /** "New" lists the creatable kinds and creates the picked one at the clicked point. */
+  it("creates the picked kind at the clicked point", async () => {
+    const user = userEvent.setup();
+    const onCreateAt = vi.fn();
+    render(
+      <ContextMenu
+        {...baseProps}
+        state={{ ...emptyTargetState, target: { kind: "empty", world: { x: 120, y: 80 } } }}
+        createKinds={[
+          { kind: "menu", label: "Menu" },
+          { kind: "trigger", label: "Triggers" },
+        ]}
+        onCreateAt={onCreateAt}
+      />,
+    );
+    screen.getByText(/^(Nouveau|New)$/).focus();
+    await user.keyboard("{ArrowRight}");
+    await user.click(await screen.findByText("Triggers"));
+    expect(onCreateAt).toHaveBeenCalledWith("trigger", { x: 120, y: 80 });
+  });
+});
+
+describe("ContextMenu — background click with a selection", () => {
+  it("offers New next to the selection's actions", () => {
+    render(
+      <ContextMenu
+        {...baseProps}
+        state={{
+          open: true,
+          x: 10,
+          y: 10,
+          target: { kind: "entity", selectedIds: ["a"], world: { x: 0, y: 0 } },
+        }}
+        createKinds={[{ kind: "menu", label: "Menu" }]}
+        onCreateAt={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/^(Nouveau|New)$/)).toBeInTheDocument();
+    expect(screen.getByText("Copy")).toBeInTheDocument();
+  });
+
+  it("leaves New out on a right-click on a Document", () => {
+    render(
+      <ContextMenu
+        {...baseProps}
+        state={{ open: true, x: 10, y: 10, target: { kind: "entity", selectedIds: ["a"] } }}
+        createKinds={[{ kind: "menu", label: "Menu" }]}
+        onCreateAt={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText(/^(Nouveau|New)$/)).toBeNull();
   });
 });

@@ -81,7 +81,7 @@ releases every position and link anchor you set by hand and arranges the whole c
 The canvas remembers your position and zoom separately for each project in this
 browser, including after leaving the editor or refreshing the page.
 
-**Server board**, on a server's page, shows the documents of all its projects on a
+The **Board** tab of a server's page shows the documents of all its projects on a
 single read-only canvas, with the links between projects. Filter it by project, type
 or id, and click a document to open it.
 
@@ -120,6 +120,8 @@ the slot is taken, they land in the next free slots.
 **Ctrl+click** (**⌘-click**) or **Shift+click** items of a menu to select several of them;
 right-click one of them to copy, duplicate or delete the whole selection. The menu itself
 stays untouched.
+Right-click an empty spot of the board and open **New** to create a menu, a command, a dialog
+or any element a module adds to the project, right where you clicked.
 Open the project's **Resources** tab to import and manage images and fonts.
 Select a resource to edit its details; **Back to resources** returns to the grid.
 Classify images as **Button images** and/or **Menu images**; one image may have both

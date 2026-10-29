@@ -5,7 +5,7 @@ import { useSelectionStore } from "@/state/selectionStore";
 import type { ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import type { CreatableKind } from "./BoardChrome";
+import { type CreatableKind, useBoardCreatableKinds } from "./BoardChrome";
 import { ContextMenu } from "./ContextMenu";
 import { canvasClipboardActions } from "./useCanvasKeyboard";
 
@@ -30,16 +30,11 @@ export function StageContextMenu({
   onGroup?: (ids: string[]) => void;
   onCreateAt?: (kind: CreatableKind, world: Point) => void;
 }) {
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const createKinds = useBoardCreatableKinds(project);
   const { t } = useTranslation();
   const entityIds = state.target.kind === "entity" ? state.target.selectedIds : [];
   const onError = (m: string) => toast.error(m);
-  const createAt = (kind: CreatableKind) =>
-    onCreateAt
-      ? (world: Point) => {
-          onClose();
-          onCreateAt(kind, world);
-        }
-      : undefined;
   return (
     <ContextMenu
       projectId={projectId}
@@ -99,9 +94,15 @@ export function StageContextMenu({
         }
         onClose();
       }}
-      onCreateMenuAt={createAt("menu")}
-      onCreateCommandAt={createAt("command")}
-      onCreateDialogAt={createAt("dialog")}
+      createKinds={createKinds}
+      onCreateAt={
+        onCreateAt
+          ? (kind, world) => {
+              onClose();
+              onCreateAt(kind, world);
+            }
+          : undefined
+      }
     />
   );
 }

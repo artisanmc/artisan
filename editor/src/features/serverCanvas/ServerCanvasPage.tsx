@@ -19,7 +19,7 @@ import { projectUrlId } from "@/lib/projectUrlId";
 import { useCssVar } from "@/lib/themeColors";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
-import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
 import type Konva from "konva";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -75,11 +75,8 @@ export function ServerCanvasPage() {
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--bg)]">
       {probes}
-      <header className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-3">
-        <Link to="/servers/$serverId" params={{ serverId }} className="btn btn-ghost btn-sm">
-          ← {t("serverCanvas.back")}
-        </Link>
-        <h1 className="text-[15px] font-semibold text-[var(--text)]">{t("serverCanvas.title")}</h1>
+      {/* The server page's frame above carries the title and the way back. */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
         <span className="text-[12px] text-[var(--text-mut)]">{t("serverCanvas.readOnly")}</span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <button
@@ -124,7 +121,7 @@ export function ServerCanvasPage() {
             onChange={(e) => setFilter({ ...filter, q: e.target.value || undefined })}
           />
         </div>
-      </header>
+      </div>
       <div className="flex items-center gap-3 px-4 py-1.5 text-[12px] text-[var(--text-mut)]">
         {status ??
           t("serverCanvas.stats", { documents: visible.nodes.length, links: visible.edges.length })}
