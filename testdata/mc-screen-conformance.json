@@ -1,0 +1,58 @@
+{
+  "_comment": "The game's screen geometry (1.21 client): GUI scale from the window size (Window.calculateScale), GUI size (window / scale, rounded up), and HUD anchors in GUI pixels. Read by the editor SDK (mcScreen.test.ts); any other implementation of the screen reads it too.",
+  "scales": [
+    { "window": [854, 480], "choice": "auto", "scale": 2, "gui": [427, 240] },
+    { "window": [1280, 720], "choice": "auto", "scale": 3, "gui": [427, 240] },
+    { "window": [1920, 1080], "choice": "auto", "scale": 4, "gui": [480, 270] },
+    { "window": [1920, 1080], "choice": 2, "scale": 2, "gui": [960, 540] },
+    { "window": [1920, 1080], "choice": 6, "scale": 4, "gui": [480, 270] },
+    { "window": [2560, 1440], "choice": "auto", "scale": 6, "gui": [427, 240] },
+    { "window": [3840, 2160], "choice": "auto", "scale": 9, "gui": [427, 240] },
+    { "window": [800, 600], "choice": "auto", "scale": 2, "gui": [400, 300] },
+    { "window": [320, 240], "choice": "auto", "scale": 1, "gui": [320, 240] },
+    { "window": [100, 100], "choice": 3, "scale": 1, "gui": [100, 100] }
+  ],
+  "layouts": [
+    {
+      "window": [1920, 1080],
+      "scale": 4,
+      "centerX": 240,
+      "hotbar": { "x": 149, "y": 248, "width": 182, "height": 22 },
+      "xpBar": { "x": 149, "y": 241, "width": 182, "height": 5 },
+      "statusTop": 231,
+      "actionBarTop": 198,
+      "titleTop": 95,
+      "subtitleTop": 145,
+      "chatBottom": 230,
+      "chatInput": { "x": 2, "y": 256, "width": 476, "height": 12 },
+      "selection": { "slot": 3, "rect": { "x": 208, "y": 247, "width": 24, "height": 23 } },
+      "bossBars": [
+        { "index": 0, "bar": { "x": 149, "y": 12, "width": 182, "height": 5 }, "nameTop": 3 },
+        { "index": 4, "bar": { "x": 149, "y": 88, "width": 182, "height": 5 }, "nameTop": 79 },
+        { "index": 5, "bar": null }
+      ],
+      "screens": [
+        { "size": [176, 166], "rect": { "x": 152, "y": 52, "width": 176, "height": 166 } }
+      ]
+    },
+    {
+      "window": [854, 480],
+      "scale": 2,
+      "centerX": 213,
+      "hotbar": { "x": 122, "y": 218, "width": 182, "height": 22 },
+      "xpBar": { "x": 122, "y": 211, "width": 182, "height": 5 },
+      "statusTop": 201,
+      "actionBarTop": 168,
+      "titleTop": 80,
+      "subtitleTop": 130,
+      "chatBottom": 200,
+      "chatInput": { "x": 2, "y": 226, "width": 423, "height": 12 },
+      "selection": { "slot": 0, "rect": { "x": 121, "y": 217, "width": 24, "height": 23 } },
+      "bossBars": [
+        { "index": 3, "bar": { "x": 122, "y": 69, "width": 182, "height": 5 }, "nameTop": 60 },
+        { "index": 4, "bar": null }
+      ],
+      "screens": [{ "size": [176, 222], "rect": { "x": 125, "y": 9, "width": 176, "height": 222 } }]
+    }
+  ]
+}

@@ -31,8 +31,9 @@ import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useUiStore } from "@/state/uiStore";
-import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
+  Gamepad2,
   History as HistoryIcon,
   Images,
   Languages as LanguagesIcon,
@@ -148,6 +149,19 @@ export function ProjectTopBarControls({
           )}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
+          {serverRef && (
+            <Link
+              to="/servers/$serverId/play"
+              params={{ serverId: serverRef }}
+              search={{ project: currentProject.diskId ?? currentProject.id }}
+              className="btn btn-ghost btn-icon btn-sm"
+              aria-label={t("play.open")}
+              title={t("play.openHint")}
+              data-testid="project-play"
+            >
+              <Gamepad2 className="size-4" />
+            </Link>
+          )}
           <AssistantButton />
           <SearchButton />
           <div data-tour="save" className="flex items-center gap-1">

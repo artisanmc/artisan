@@ -256,6 +256,7 @@ describe("ServerDetailPage", () => {
     expect(tabs.map((tab) => tab.textContent)).toEqual([
       "serverDetail.tabs.overview",
       "serverDetail.tabs.board",
+      "serverDetail.tabs.play",
       "serverDetail.tabs.data",
       "serverDetail.tabs.settings",
     ]);

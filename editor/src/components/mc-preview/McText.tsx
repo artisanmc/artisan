@@ -22,6 +22,10 @@ import {
 const ATLAS_VERSION = "1.21.4";
 const atlasUrl = (name: string) => `${API_URL}/api/v1/textures/${ATLAS_VERSION}/font/${name}`;
 
+/** A vanilla GUI texture the hub serves (`sprites/hud/hotbar`, `container/generic_54`). */
+export const guiTextureUrl = (path: string) =>
+  `${API_URL}/api/v1/textures/${ATLAS_VERSION}/gui/${path}`;
+
 /** The vanilla font atlases, or null while loading or when the hub cannot serve them. */
 export function useMcAtlases(): McAtlases | null {
   const [ascii] = useImage(atlasUrl("ascii"), "anonymous");

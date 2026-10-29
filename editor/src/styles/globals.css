@@ -297,6 +297,19 @@
   --mc-slot-bg: #8b8b8b;
   --mc-slot-dark: #373737;
   --mc-slot-light: #ffffff;
+  /* McScreen: the dim behind an open screen, and flat stand-ins for the HUD sprites. */
+  --mc-screen-dim-top: rgba(16, 16, 16, 0.75);
+  --mc-screen-dim-bottom: rgba(16, 16, 16, 0.82);
+  --mc-heart: #db1e1e;
+  --mc-food: #b8742f;
+  --mc-xp: #80ff20;
+  --mc-bossbar-pink: #ec00b8;
+  --mc-bossbar-blue: #00b7ec;
+  --mc-bossbar-red: #ec3500;
+  --mc-bossbar-green: #1dec00;
+  --mc-bossbar-yellow: #e9ec00;
+  --mc-bossbar-purple: #7b00ec;
+  --mc-bossbar-white: #ececec;
 }
 
 /* ----------------------------------------------------------------

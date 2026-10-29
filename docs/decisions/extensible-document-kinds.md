@@ -365,3 +365,15 @@ Two modules writing the action bar would otherwise erase each other every second
 module per slot, the highest priority hiding the others (a quest goal and a conversation can share
 the bar side by side). Corners of the screen stay out of reach: the server does not know its width,
 and anchoring there takes core shaders in the pack.
+
+## Amendment 2026-10-29: the game's screen (SDK 1.14)
+
+The SDK exposes `McScreen` and `McText`, host components, and the screen's geometry as pure
+functions (`guiScale`, `mcScreenLayout`, `bossBarAt`…). A module previews what it draws in game
+(a conversation's HUD, its pages in the chat) on the same screen as the editor's own previews, at
+the window size and GUI scale the user picks, instead of each module drawing its own approximation.
+The geometry is pure so that a module places its layers with it (the conversations HUD rises from
+`actionBarTop`), and it is locked by `testdata/mc-screen-conformance.json`. It is the first step of
+the editor's Play mode, a navigable preview built from the Documents without a game client.
+*Rejected:* a screen per module (they would drift apart), and putting the geometry behind the host
+(a module's tests could not run it).

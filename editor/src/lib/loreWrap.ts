@@ -11,6 +11,17 @@ export function wrapLore(line: string, maxWidth: number): string[] {
   return wrap(line, maxWidth).lines;
 }
 
+/** A MiniMessage line's width in MC pixels, as `wrapLore` measures it (tags take none). */
+export function mcLineWidth(line: string): number {
+  const stack: string[] = [];
+  let w = 0;
+  for (const tk of line.match(/<[^<>]*>|\s+|[^\s<]+|</g) ?? []) {
+    if (isTag(tk)) applyTag(stack, tk);
+    else w += width(tk, isBold(stack));
+  }
+  return w;
+}
+
 /**
  * Where `wrapLore` starts a new line, as offsets into `line`: the start of the word
  * that goes down (the spaces before it are dropped). Empty when the line fits.
