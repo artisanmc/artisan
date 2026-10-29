@@ -136,7 +136,12 @@ export function useStageContextMenu({
         open: true,
         x: clientX,
         y: clientY,
-        target: { kind: "entity", selectedIds: effectiveSelection },
+        // On the background, the selection stays the target and "New" creates here.
+        target: {
+          kind: "entity",
+          selectedIds: effectiveSelection,
+          ...(konvaTarget && !id ? { world } : {}),
+        },
       });
     },
     [project, layout, viewport, wrapperRef, stageRef],

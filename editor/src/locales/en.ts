@@ -1018,10 +1018,9 @@ export default {
     newMenu: "New menu",
     newCommand: "New command",
     newDialog: "New dialog",
-    newDialogHere: "New dialog here",
-    newMenuHere: "New menu here",
+    new: "New",
+    kind: { menu: "Menu", command: "Command", dialog: "Dialog" },
     pasteHere: "Paste here",
-    newCommandHere: "New command here",
     newDocumentDialogTitle: "New {{kind}}",
     kindNotSynced:
       "The active server does not read {{kind}} documents: this file will be saved, but nothing there will load it until the module is installed.",

@@ -443,6 +443,14 @@ menuId)`: selection of items of **a single** menu, never the menu itself (starts
 or a menu of a node selection. `deleteSelection` (`useCanvasKeyboard.ts`, context menu + Del)
 deletes items and nodes, sparing the menu that contains the selected items.
 
+**New** (since 2026-10-29): a right-click on the board background carries the clicked point in
+world coordinates — the `empty` target, or the `entity` target's `world` when a selection stays
+targeted (background hit, no Group ancestor). `ContextMenu` then shows a **New** submenu listing
+`useBoardCreatableKinds(project)` (`BoardChrome.tsx`): the core kinds, then every module kind
+with `kindCreatableIn`, collection kinds left out (no board node). The pick goes through
+`useBoardCreation().createAt(kind, world)`: the core kinds open their own dialog, any other kind
+`NewDocumentDialog`, all with the board `position`. Absent in focus view (no board).
+
 ### Pasting items into a slot (since 2026-10-04)
 
 `pasteFromClipboard(projectId, onError, anchor?)` (`useCanvasKeyboard.ts`) accepts a `PasteAnchor`

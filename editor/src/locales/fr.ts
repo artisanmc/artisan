@@ -1037,10 +1037,9 @@ const fr: typeof en = {
     newMenu: "Nouveau menu",
     newCommand: "Nouvelle commande",
     newDialog: "Nouveau dialogue",
-    newDialogHere: "Nouveau dialogue ici",
-    newMenuHere: "Nouveau menu ici",
+    new: "Nouveau",
+    kind: { menu: "Menu", command: "Commande", dialog: "Dialogue" },
     pasteHere: "Coller ici",
-    newCommandHere: "Nouvelle commande ici",
     newDocumentDialogTitle: "Nouveau · {{kind}}",
     kindNotSynced:
       "Le serveur actif ne lit pas les documents {{kind}} : ce fichier sera enregistré, mais rien là-bas ne le chargera tant que le module n'y est pas installé.",
