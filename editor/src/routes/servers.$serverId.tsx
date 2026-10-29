@@ -111,11 +111,11 @@ export default function ServerDetailPage() {
   return (
     <ServerFrameContext.Provider value={frame}>
       <div className="flex h-full min-h-0 flex-col">
-        {/* One row, as tall as the sidebar's logo row; clear of the navigation toggle while the
+        {/* One row, as tall as the sidebar's logo row, on the sidebar's surface; clear of the navigation toggle while the
             sidebar is not pinned, as the project top bar. */}
         <header
           className={cx(
-            "flex shrink-0 flex-wrap items-stretch gap-x-6 border-b border-[var(--border)] bg-[var(--surface)] pr-6 pl-16 lg:h-16 lg:flex-nowrap lg:pl-24",
+            "flex shrink-0 flex-wrap items-stretch gap-x-6 bg-[var(--surface)] pr-6 pl-16 lg:h-16 lg:flex-nowrap lg:pl-24",
             navigationPinned && "lg:pl-6",
           )}
         >
@@ -128,7 +128,11 @@ export default function ServerDetailPage() {
           <ServerTabs serverId={serverId} active={tab ?? "/servers/$serverId"} />
           {summary && <ServerVersions summary={summary} />}
         </header>
-        <div className="min-h-0 flex-1">{child ? <Outlet /> : <ServerOverview />}</div>
+        {/* The concave top-left corner and hairline of the project page: the sidebar and this
+            header read as one L-shaped frame around the tab's content. */}
+        <div className="min-h-0 flex-1 overflow-hidden max-lg:border-t max-lg:border-[var(--border)] lg:rounded-tl-[var(--r-lg)] lg:border-t lg:border-l lg:border-[var(--border-soft)]">
+          {child ? <Outlet /> : <ServerOverview />}
+        </div>
       </div>
     </ServerFrameContext.Provider>
   );
