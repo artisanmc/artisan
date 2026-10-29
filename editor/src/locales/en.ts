@@ -98,6 +98,9 @@ export default {
     resize: "Resize navigation (double-click: default width)",
   },
   projectSource: {
+    all: "All other projects",
+    from: "In project {{project}}",
+    searchItems: "Search items…",
     label: "Project:",
     here: "This project",
     others: "Other projects on the server",

@@ -4,12 +4,12 @@ import { ProBadge } from "@/components/ui/pro-badge";
 import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
 import type { Project, ProjectId } from "@/domain/types";
-import { ProjectSource } from "@/features/project/ProjectSource";
+import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
 import { cx } from "@/lib/cx";
 import { useIsPro } from "@/lib/edition";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useProjectsStore } from "@/state/projectsStore";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { AssetGrid } from "./AssetGrid";
@@ -46,7 +46,7 @@ export function AssetsTab({
   projectId,
   compact = false,
 }: { projectId: ProjectId; compact?: boolean }) {
-  const [sourceId, setSourceId] = useState<ProjectId | null>(null);
+  const [sourceId, setSourceId] = useState<ProjectSourceId>(null);
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ProjectSource
@@ -55,13 +55,13 @@ export function AssetsTab({
         onSourceChange={setSourceId}
         menuClassName="shrink-0 px-3 pt-3"
       >
-        {(source) => (
+        {(sources) => (
           <div className="min-h-0 flex-1">
-            {source ? (
+            {sources ? (
               <OtherProjectAssets
-                key={source.id}
+                key={sources.map((p) => p.id).join(",")}
                 projectId={projectId}
-                source={source}
+                sources={sources}
                 compact={compact}
                 onCopied={(asset) => {
                   setSourceId(null);
@@ -105,25 +105,31 @@ function CategoryChips({
   );
 }
 
+/** An asset's identity across several projects: the same name can live in each. */
+const assetKey = (asset: Asset) => `${asset.projectId}:${asset.id}`;
+
 /**
- * Another project's images and fonts, read only. "Copy into this project"
- * copies the selected one (free name, snapshot) and goes back to this project with it selected.
+ * Other projects' images and fonts, read only, searched together. "Copy into
+ * this project" copies the selected one (free name, snapshot) and goes back to
+ * this project with it selected.
  */
 function OtherProjectAssets({
   projectId,
-  source,
+  sources,
   compact,
   onCopied,
 }: {
   projectId: ProjectId;
-  source: Project;
+  sources: Project[];
   compact: boolean;
   onCopied: (asset: Asset) => void;
 }) {
   const { t } = useTranslation();
   const isDesktop = useIsDesktop();
   const narrow = compact || !isDesktop;
-  const { assets, loading, error } = useOtherProjectAssets(source.id);
+  const sourceIds = useMemo(() => sources.map((p) => p.id), [sources]);
+  const owners = new Map(sources.map((p) => [p.id as string, p]));
+  const { assets, loading, error } = useOtherProjectAssets(sourceIds);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<Category>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -131,9 +137,10 @@ function OtherProjectAssets({
   // A copy is an import into the resource pack: Pro, like an upload.
   const pro = useIsPro();
   const filtered = assets.filter((asset) =>
-    matchesFilter(asset, source.id, source, search, category),
+    matchesFilter(asset, asset.projectId, owners.get(asset.projectId), search, category),
   );
-  const selected = assets.find((asset) => asset.id === selectedId) ?? null;
+  const selected = assets.find((asset) => assetKey(asset) === selectedId) ?? null;
+  const ownerName = (asset: Asset) => owners.get(asset.projectId)?.name ?? asset.projectId;
   const copy = async () => {
     if (!selected || busy) return;
     setBusy(true);
@@ -169,7 +176,15 @@ function OtherProjectAssets({
               )}
             </p>
           ) : (
-            <AssetGrid assets={filtered} selectedId={selectedId} onSelect={setSelectedId} />
+            <AssetGrid
+              assets={filtered}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              keyOf={assetKey}
+              titleOf={(asset) =>
+                sources.length > 1 ? `${asset.name} · ${ownerName(asset)}` : asset.name
+              }
+            />
           )}
         </div>
       )}
@@ -195,6 +210,9 @@ function OtherProjectAssets({
                 {selected.type === "font"
                   ? t("resources.font")
                   : `${selected.width} × ${selected.height} px`}
+              </div>
+              <div className="truncate text-xs text-[var(--text-mut)]">
+                {t("projectSource.from", { project: ownerName(selected) })}
               </div>
             </div>
             <div className="flex items-center gap-2">

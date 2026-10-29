@@ -101,6 +101,9 @@ const fr: typeof en = {
     resize: "Redimensionner la navigation (double-clic : largeur par défaut)",
   },
   projectSource: {
+    all: "Tous les autres projets",
+    from: "Dans le projet {{project}}",
+    searchItems: "Rechercher un item…",
     label: "Projet :",
     here: "Ce projet",
     others: "Autres projets du serveur",

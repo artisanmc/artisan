@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import type { Asset, AssetType, AssetUsage } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
-import { ProjectSource } from "@/features/project/ProjectSource";
+import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
 import { patchAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
 import { useIsPro } from "@/lib/edition";
@@ -58,8 +58,9 @@ export function AssetPicker({
   const pro = useIsPro();
   const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [sourceId, setSourceId] = useState<ProjectId | null>(null);
-  const other = useOtherProjectAssets(sourceId);
+  const [sourceId, setSourceId] = useState<ProjectSourceId>(null);
+  const [sourceIds, setSourceIds] = useState<ProjectId[]>([]);
+  const other = useOtherProjectAssets(sourceIds);
   const [error, setError] = useState<string | null>(null);
   const loading = useAssetStore((s) => s.loading);
   const loadError = useAssetStore((s) => s.error);
@@ -122,7 +123,11 @@ export function AssetPicker({
         : [typeFilter];
 
   const matches = (sourceId ? other.assets : all)
-    .filter((a) => (sourceId ? a.projectId === sourceId : !projectId || a.projectId === projectId))
+    .filter((a) =>
+      sourceId
+        ? sourceIds.includes(a.projectId as ProjectId)
+        : !projectId || a.projectId === projectId,
+    )
     .filter((a) => allowedTypes.includes(a.type))
     .filter((a) => !usage || showAll || assetUsages(a, project).includes(usage))
     .filter((a) => a.name.toLowerCase().includes(search.toLowerCase()));
@@ -146,7 +151,7 @@ export function AssetPicker({
         </DialogHeader>
         {projectId && pro && (
           <ProjectSource projectId={projectId} sourceId={sourceId} onSourceChange={setSourceId}>
-            {() => null}
+            {(sources) => <SourceIds sources={sources} onChange={setSourceIds} />}
           </ProjectSource>
         )}
         <Input
@@ -177,7 +182,7 @@ export function AssetPicker({
         <div className="grid min-h-0 grid-cols-6 gap-1.5 overflow-y-auto pb-2">
           {matches.map((asset) => (
             <button
-              key={asset.id}
+              key={`${asset.projectId}:${asset.id}`}
               type="button"
               title={asset.name}
               disabled={busy}
@@ -213,4 +218,17 @@ export function AssetPicker({
       )}
     </Dialog>
   );
+}
+
+/** Lifts the projects `ProjectSource` resolved to the picker, which lists their images itself. */
+function SourceIds({
+  sources,
+  onChange,
+}: {
+  sources: { id: ProjectId }[] | null;
+  onChange: (ids: ProjectId[]) => void;
+}) {
+  const key = (sources ?? []).map((p) => p.id).join("\n");
+  useEffect(() => onChange(key ? (key.split("\n") as ProjectId[]) : []), [key, onChange]);
+  return null;
 }

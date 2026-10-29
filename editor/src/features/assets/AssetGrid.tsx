@@ -11,9 +11,19 @@ interface AssetGridProps {
   assets: Asset[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** A tile's identity, `asset.id` by default; assets of several projects need their project too. */
+  keyOf?: (asset: Asset) => string;
+  /** A tile's tooltip, the asset's name by default. */
+  titleOf?: (asset: Asset) => string;
 }
 
-export function AssetGrid({ assets, selectedId, onSelect }: AssetGridProps) {
+export function AssetGrid({
+  assets,
+  selectedId,
+  onSelect,
+  keyOf = (asset) => asset.id,
+  titleOf = (asset) => asset.name,
+}: AssetGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(280);
 
@@ -60,14 +70,14 @@ export function AssetGrid({ assets, selectedId, onSelect }: AssetGridProps) {
           >
             {(rows[vr.index] ?? []).map((asset) => (
               <button
-                key={asset.id}
+                key={keyOf(asset)}
                 type="button"
-                onClick={() => onSelect(asset.id)}
-                title={asset.name}
+                onClick={() => onSelect(keyOf(asset))}
+                title={titleOf(asset)}
                 style={{ width: TILE_SIZE, height: TILE_SIZE }}
                 className={cx(
                   "shrink-0 rounded-[8px] border bg-[var(--surface-raised)] hover:border-[var(--border-strong)]",
-                  selectedId === asset.id
+                  selectedId === keyOf(asset)
                     ? "border-[var(--brand)] ring-1 ring-[var(--brand)]"
                     : "border-[var(--border)]",
                 )}
