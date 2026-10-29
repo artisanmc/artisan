@@ -94,3 +94,24 @@ describe("decodeDragEnd", () => {
     expect(decodeDragEnd(end({ active: { data: { current: {} } } }))).toBeNull();
   });
 });
+
+describe("an item of another project", () => {
+  const captured = {
+    id: "ci_1",
+    name: "Épée",
+    stackYaml: "type: DIAMOND_SWORD\n",
+    display: { material: "DIAMOND_SWORD" },
+  } as never;
+  const foreign = carrier(draggableProps({ kind: "material", material: "item:ci_1", captured }));
+
+  it("shows its own material while dragged and carries the item to the drop", () => {
+    expect(dragStartMaterial(foreign)).toBe("DIAMOND_SWORD");
+    expect(decodeDragEnd(end({ active: foreign }))).toEqual({
+      kind: "stageMaterial",
+      material: "item:ci_1",
+      captured,
+      x: 15,
+      y: 27,
+    });
+  });
+});

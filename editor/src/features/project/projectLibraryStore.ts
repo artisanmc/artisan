@@ -14,6 +14,9 @@ interface ProjectLibraryState {
   open: (projectId: ProjectId, category?: LibraryCategory) => void;
   close: () => void;
   setCategory: (category: LibraryCategory) => void;
+  /** Another project of the server whose images and items are shown, `null` for this one. */
+  sourceId: ProjectId | null;
+  setSourceId: (sourceId: ProjectId | null) => void;
 }
 
 export const useProjectLibraryStore = create<ProjectLibraryState>()(
@@ -26,9 +29,15 @@ export const useProjectLibraryStore = create<ProjectLibraryState>()(
       projectId: null,
       category: "items",
       open: (projectId, category) =>
-        set((state) => ({ projectId, category: category ?? state.category })),
+        set((state) => ({
+          projectId,
+          category: category ?? state.category,
+          sourceId: state.projectId === projectId ? state.sourceId : null,
+        })),
       close: () => set({ projectId: null }),
       setCategory: (category) => set({ category }),
+      sourceId: null,
+      setSourceId: (sourceId) => set({ sourceId }),
     }),
     {
       name: "artisan-library-size",

@@ -1,5 +1,5 @@
 import type { Asset } from "@/domain/asset";
-import type { ElementId, MenuId } from "@/domain/types";
+import type { CapturedItem, ElementId, MenuId } from "@/domain/types";
 
 /**
  * What a drag carries inside the project workspace's DndContext. The payload rides in
@@ -8,7 +8,12 @@ import type { ElementId, MenuId } from "@/domain/types";
  */
 export type DragPayload =
   /** A Library item or a captured item (`item:<id>`): dropped on a slot or a state card. */
-  | { kind: "material"; material: string }
+  | {
+      kind: "material";
+      material: string;
+      /** A captured item of another project: copied into this one when the drop uses it. */
+      captured?: CapturedItem;
+    }
   /** An image asset, dropped on the menu grid as an image button. */
   | { kind: "imageButton"; asset: Asset }
   /** A static-source row, pinned onto a slot of its element's own menu. */
