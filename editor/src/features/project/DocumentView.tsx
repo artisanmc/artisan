@@ -172,7 +172,10 @@ export function DocumentView({
         // spans the width when its kind asks for it, with room at the top so the bubble
         // never covers its first line.
         <div className="h-full overflow-auto">
-          <div className={wide ? "w-full pt-16" : "mx-auto w-full max-w-5xl pt-16"} data-testid="document-body">
+          <div
+            className={wide ? "w-full pt-16" : "mx-auto w-full max-w-5xl pt-16"}
+            data-testid="document-body"
+          >
             <SelectionInspector projectId={pId} />
           </div>
         </div>
