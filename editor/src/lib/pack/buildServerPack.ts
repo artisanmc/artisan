@@ -1,13 +1,19 @@
 import dispenserTextureUrl from "@/assets/minecraft/dispenser.png";
+import accentedUpUrl from "@/assets/minecraft/font/accented_up.png";
+import asciiUpUrl from "@/assets/minecraft/font/ascii_up.png";
+import nonlatinUpUrl from "@/assets/minecraft/font/nonlatin_european_up.png";
 import chestTextureUrl from "@/assets/minecraft/generic_54.png";
 import hopperTextureUrl from "@/assets/minecraft/hopper.png";
 import { ApiError, apiFetch, apiRequest } from "@/lib/api/client";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { getServerConfig } from "@/lib/api/serverConfig";
 import { projectClient } from "@/lib/projectClient";
+import { type PackImage, listDocumentKindContributions } from "@artisan/editor-sdk";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
+import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
 import { type GlyphPlacement, glyphPlacementsFromMenus } from "./menuGlyphPlacements";
+import { overlayImagesFromFiles } from "./overlayImages";
 import { type AssetRow, type BuildResult, buildResourcePackZip } from "./resourcePackBuilder";
 import { type GlyphContribution, mergeCodepoints } from "./rpCodepointMerger";
 import {
@@ -21,6 +27,12 @@ const VANILLA_TEXTURES: Record<GuiContainer, string> = {
   chest: chestTextureUrl,
   hopper: hopperTextureUrl,
   dispenser: dispenserTextureUrl,
+};
+
+const TEXT_UP_URLS: Record<TextUpTexture, string> = {
+  ascii: asciiUpUrl,
+  accented: accentedUpUrl,
+  nonlatin_european: nonlatinUpUrl,
 };
 
 /**
@@ -52,6 +64,10 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
   const imageButtons: ImageButtonPlacement[] = [];
   const transparent = new Set<GuiContainer>();
   const imagesByRef: { ref: string; bytes: Uint8Array }[] = [];
+  const overlayImages: PackImage[] = [];
+  // The kinds of the modules this editor has loaded: a module's images reach the pack once
+  // its bundle is in.
+  const kinds = listDocumentKindContributions();
 
   for (const projectId of projectIds) {
     const client = projectClient(projectId);
@@ -62,6 +78,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
     const files = Object.entries(tree.files).map(([path, content]) => ({ path, content }));
     glyphPlacements.push(...glyphPlacementsFromMenus(files));
     imageButtons.push(...imageButtonsFromMenus(files));
+    overlayImages.push(...overlayImagesFromFiles(files, kinds));
     for (const c of transparentContainersFromMenus(files)) transparent.add(c);
     const fromDisk: DiskAsset[] = diskAssetsFromTree(projectId, files, tree.binaries ?? []);
 
@@ -100,6 +117,11 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
       (await fetchBytes(VANILLA_TEXTURES[container]));
   }
 
+  const textUp = {} as Record<TextUpTexture, Uint8Array>;
+  for (const [name, url] of Object.entries(TEXT_UP_URLS) as [TextUpTexture, string][]) {
+    textUp[name] = await fetchBytes(url);
+  }
+
   // The plugin serving this editor redraws transparent containers (`vanilla_gui_v1`).
   return buildResourcePackZip(
     allAssets,
@@ -109,6 +131,8 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
     glyphPlacements,
     imageButtons,
     { sources, transparent },
+    textUp,
+    overlayImages,
   );
 }
 

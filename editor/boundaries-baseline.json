@@ -1,7 +1,6 @@
 [
   "feature-imports-feature: assets -> project",
   "feature-imports-feature: canvas -> assets",
-  "feature-imports-feature: canvas -> help",
   "feature-imports-feature: canvas -> project",
   "feature-imports-feature: canvas -> screens",
   "feature-imports-feature: data -> canvas",

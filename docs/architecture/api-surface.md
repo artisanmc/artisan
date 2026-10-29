@@ -68,6 +68,24 @@ What `@Stable` promises on an interface depends on who implements it:
 
 Promotion rule, for the next ones: two add-ons or more call the surface, no change breaking a caller since it appeared, and no `@Stable` signature exposes a `@Beta` or `@Internal` type. `ApiStabilityConsistencyTest` checks the last point: a `@Stable` member whose parameter or return type is `@Beta` fails the build (it found `DataSourceField(String, ModelFieldType)`, `@Stable` over a `@Beta` `ModelFieldType`), unless the member itself is marked `@Beta`. The same test requires a stability annotation on every public top-level type.
 
+## 2.19.0 — where a data source's rows come from
+
+| Member | Type | Since |
+|---|---|---|
+| `Origin` (`RUNTIME`, `CONTENT`, `MIXED`) `@Stable` | enum | 2.19.0 |
+| `DataSourceDeclaration(ref, fetcher, schema, stability, keyField, origin)`, `getOrigin()` | `Origin` | 2.19.0 |
+
+The older constructors declare `RUNTIME`, the behaviour before 2.19.0. A `MIXED` source without a non-blank `keyField` throws, like a `STATIC` one. The `data_sources` wire gains `origin` (`runtime`, `content`, `mixed`); an editor reads its absence as `runtime`. What the editor does with each value: `modules.md`, "Origin".
+
+## 2.20.0 — HUD layers in the screen's slots
+
+| Member | Type | Since |
+|---|---|---|
+| `api.text.OverlayApi` `@Beta` (`width`, `raise`, `move`, `image`, `hasPack`, `show`, `hide`, `Slot`, `MIN_RISE`, `MAX_RISE`, `NONE`) | interface | 2.20.0 |
+| `getOverlay()` `@Beta` | `OverlayApi` | 2.20.0 |
+
+Artisan owns the slots of the screen (`Slot.ACTION_BAR` for now, the boss bar and the sidebar to come on the same contract): a module puts a named layer there with `show(player, slot, layer, priority, miniMessage)` and takes it away with `hide`. The slot's line is its layers one after the other, by ascending priority, resent every 20 ticks while one is there; two modules never overwrite each other. A layer is drawn from the centre of the slot and leaves the pen there (x is measured from the centre of the screen). Its MiniMessage pieces come from the same interface, with the pack's fonts: `raise(text, rise)` puts text in `artisan:text_up<rise>` (up to 128 px) or `artisan:text_y<6-rise>_h8` (down to -166 px), both always in the pack, `move(px)` shifts the pen with the `space` provider of `artisan:default`, `image(asset, rise)` draws an image of a Project's `assets/` without shadow and brings the pen back (null when the pack lacks that (asset, rise): the module's editor kind declares it, `pack.images`, editor SDK 1.13), `width(text)` is the vanilla advance (1.21.4 tables, bold + 1). `hasPack(player)` is true once the player's client loaded Artisan's pack (or the host plugin's that merges it). Detail: `modules.md`, "HUD in the action bar".
+
 ## Stable APIs
 
 ### `net.artisanmc.modules.api.ArtisanModule`
@@ -168,11 +186,12 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `Playe
 | `schema` | `List<DataSourceField>` | `@Stable` | 1.3.0 |
 | `stability` | `Stability` | `@Stable` | 1.4.0 |
 | `keyField` | `String?` | `@Stable` | 1.4.0 |
+| `origin` | `Origin` | `@Stable` | 2.19.0 |
 | `schemaHint` | `String?` | removed in 2.0.0 | 1.0.0 → 2.0.0 |
 
 Constructing a `Stability.STATIC` declaration without a non-blank `keyField` throws (`require`) — a static source must declare its Row key.
 
-Constructors (2.0.0): `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)`, `(ref, fetcher, schema, stability, keyField)`; `DataSourceField(name, type)`, `(name, type, description)` with a `ModelFieldType` (or, `@Sunset`, a `FieldKind`); `PlayerRequiredException()`, `(message)`. Before 2.0.0 the same overloads came from `@JvmOverloads` on Kotlin constructors with default arguments (since 1.8.0).
+Constructors (2.0.0): `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)`, `(ref, fetcher, schema, stability, keyField)`, and since 2.19.0 `(ref, fetcher, schema, stability, keyField, origin)`; `DataSourceField(name, type)`, `(name, type, description)` with a `ModelFieldType` (or, `@Sunset`, a `FieldKind`); `PlayerRequiredException()`, `(message)`. Before 2.0.0 the same overloads came from `@JvmOverloads` on Kotlin constructors with default arguments (since 1.8.0).
 
 ### No Kotlin type crosses the boundary (1.5.0, api in Java since 2.0.0)
 
@@ -532,6 +551,12 @@ api.getModels().declare(new ModelDeclaration("boutique:item", "id", List.of(
 Declared (not inferred) axis of a data source. `STATIC` = a stable, enumerable key-set (`fetcher(null)` returns the authoritative rows, each identified by `keyField`) — placeable in a menu's placement mode. `DYNAMIC` (default) = runtime/player-dependent, unbounded — pagination only.
 
 Values: `STATIC`, `DYNAMIC`.
+
+### `net.artisanmc.modules.api.datasource.Origin`
+
+Declared axis of a data source (2.19.0): where its rows come from, so the editor knows whether a preview should show the draft or the server. `RUNTIME` (default) = server state only; `CONTENT` = derived from the Project's files; `MIXED` = definitions from the files joined to per-player state, requires `keyField`. See `modules.md`, "Origin".
+
+Values: `RUNTIME`, `CONTENT`, `MIXED`.
 
 ### `net.artisanmc.modules.api.datasource.FieldKind` (`@Sunset`, removed in 3.0.0)
 

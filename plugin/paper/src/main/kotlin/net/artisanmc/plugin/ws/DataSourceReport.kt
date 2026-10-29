@@ -25,6 +25,7 @@ object DataSourceReport {
                 },
                 "stability" to r.declaration.stability.name.lowercase(),
                 "key_field" to r.declaration.keyField,
+                "origin" to r.declaration.origin.name.lowercase(),
             )
         }
 }

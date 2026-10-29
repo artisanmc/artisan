@@ -44,7 +44,7 @@ interface UiState {
   setLastActiveProjectId: (id: ProjectId | null) => void;
   /**
    * Last workspace tab the user viewed (overview / translations /
-   * data-sources / history). Persisted so a page reload — which bounces
+   * resources / history). Persisted so a page reload — which bounces
    * through /session — can return to the same tab, not just the same project.
    */
   lastActiveTab: string | null;

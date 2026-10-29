@@ -15,7 +15,14 @@ export interface ServerDataSource {
   stability?: "static" | "dynamic" | null;
   /** Row key field name for a static source (null/absent unless static). */
   keyField?: string | null;
+  /**
+   * Where the rows come from (API 2.19.0): server state, Project content, or
+   * content joined to per-player state. null/absent = an older plugin, read as runtime.
+   */
+  origin?: DataSourceOrigin | null;
 }
+
+export type DataSourceOrigin = "runtime" | "content" | "mixed";
 
 /**
  * Data sources reported by the connected server. `serverId` is the exact
@@ -32,6 +39,7 @@ export async function fetchServerDataSourcesUser(serverId: string): Promise<Serv
         schema_hint?: string | null;
         stability?: "static" | "dynamic" | null;
         key_field?: string | null;
+        origin?: string | null;
       }[];
     }>(`/api/v1/servers/${serverId}/data-sources`);
     return (data.data_sources ?? []).map((d) => ({
@@ -45,10 +53,16 @@ export async function fetchServerDataSourcesUser(serverId: string): Promise<Serv
       schemaHint: d.schema_hint ?? null,
       stability: d.stability ?? null,
       keyField: d.key_field ?? null,
+      origin: parseOrigin(d.origin),
     }));
   } catch {
     return [];
   }
+}
+
+/** A value this editor does not know (a newer plugin) is treated like an absent one. */
+function parseOrigin(raw: string | null | undefined): DataSourceOrigin | null {
+  return raw === "runtime" || raw === "content" || raw === "mixed" ? raw : null;
 }
 
 export type PreviewErrorCode =

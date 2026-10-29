@@ -133,6 +133,9 @@ export function ServerSourceDetail({ serverId, source }: ServerSourceDetailProps
               : t("dataSources.preview")}
           </button>
         </div>
+        <p className="text-[11px] text-[var(--text-faint)]">
+          {t("dataSources.previewServerState")}
+        </p>
         {online === false ? (
           <p data-testid="preview-offline-hint" className="text-[11px] text-[var(--text-mut)]">
             {t("dataSources.previewOffline")}

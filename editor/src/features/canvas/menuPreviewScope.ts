@@ -20,12 +20,23 @@ export type SourceSnapshots = Record<string, unknown[]>;
  * files across ALL projects of the server at runtime — cf. BoutiqueModule
  * .reloadRepo), so after the current project we probe the store's other
  * projects. Null when no module owns the ref or no project holds local data.
+ *
+ * `serverRows` (the cached server snapshot of the ref) is passed on to the module
+ * (SDK 1.12): a `mixed` source joins the player's state it holds to the draft's
+ * definitions. `params` are the fetcher params the menu declares on its input
+ * (`group: daily`), which the module applies like its fetcher does.
  */
 export function moduleLocalRows(
   project: Project,
   ref: SourceRef | string,
+  serverRows?: unknown[],
+  params?: Record<string, string>,
 ): Record<string, unknown>[] | null {
   const r = String(ref);
+  const ctx = {
+    ...(Array.isArray(serverRows) ? { serverRows: serverRows as Record<string, unknown>[] } : {}),
+    ...(params && Object.keys(params).length > 0 ? { params } : {}),
+  };
   for (const mod of listModules()) {
     const fn = mod.localPreviewRows;
     if (!fn) continue;
@@ -37,12 +48,12 @@ export function moduleLocalRows(
         useUiStore.getState().activeLang || p.defaultLang,
       ),
     });
-    const own = fn(forPreview(project), r);
+    const own = fn(forPreview(project), r, ctx);
     if (own) return own;
     // Lazy import avoided: projectsStore never imports this module (no cycle).
     for (const sibling of useProjectsStore.getState().openProjects.projects) {
       if (sibling.id === project.id) continue;
-      const rows = fn(forPreview(sibling), r);
+      const rows = fn(forPreview(sibling), r, ctx);
       if (rows) return resolveRowTexts(rows, sibling);
     }
   }
@@ -63,24 +74,45 @@ export function resolveSourceRef(
   ref: SourceRef,
   project: Project,
   snapshots?: SourceSnapshots,
+  params?: Record<string, string>,
 ): unknown {
+  return resolveSourceRefWithOrigin(ref, project, snapshots, params).value;
+}
+
+/**
+ * Where the preview rows of a source come from: `draft` = computed from the
+ * project as edited (a Project source, a module's `localPreviewRows`, a
+ * module-owned project's files); `deployed` = the server's last snapshot, so
+ * the version the server runs; `none` = nothing to show yet.
+ */
+export type SourceRowsOrigin = "draft" | "deployed" | "none";
+
+/** {@link resolveSourceRef}, telling where the value came from. */
+export function resolveSourceRefWithOrigin(
+  ref: SourceRef | string,
+  project: Project,
+  snapshots?: SourceSnapshots,
+  params?: Record<string, string>,
+): { value: unknown; origin: SourceRowsOrigin } {
   const r = String(ref);
-  if (r === "" || !r.includes(":")) return undefined;
+  const none = { value: undefined, origin: "none" as const };
+  if (r === "" || !r.includes(":")) return none;
   if (r.startsWith("pack:")) {
     const id = r.slice("pack:".length);
     const ds = project.dataSources.find(
       (d) => d.id === (id as Project["dataSources"][number]["id"]),
     );
-    if (!ds) return undefined;
-    return ds.shape === "table" ? ds.rows : ds.value;
+    if (!ds) return none;
+    return { value: ds.shape === "table" ? ds.rows : ds.value, origin: "draft" };
   }
   // Module rows are derived from the project's own files too, so they carry
   // domain LText nodes just like a Project source — resolve both the same way.
-  const local = moduleLocalRows(project, r);
-  if (local) return resolveRowTexts(local, project);
+  const local = moduleLocalRows(project, r, snapshots?.[r], params);
+  if (local) return { value: resolveRowTexts(local, project), origin: "draft" };
   const owned = ownedSourceRows(project, r);
-  if (owned) return owned;
-  return snapshots?.[r];
+  if (owned) return { value: owned, origin: "draft" };
+  const snapshot = snapshots?.[r];
+  return snapshot === undefined ? none : { value: snapshot, origin: "deployed" };
 }
 
 /**
@@ -234,7 +266,7 @@ export function buildPreviewScope(
   }
   for (const input of menu.contextInputs ?? []) {
     if (input.kind === "primitive") continue;
-    const rows = resolveSourceRef(input.ref, project, snapshots);
+    const rows = resolveSourceRef(input.ref, project, snapshots, input.params);
     scope[input.name] = Array.isArray(rows)
       ? applyShaping(rows, input, { ...scope, ...(previewArgs ?? {}) })
       : rows;

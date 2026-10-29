@@ -17,6 +17,7 @@ import net.artisanmc.plugin.project.ContentHash
 import net.artisanmc.plugin.model.YamlFiles
 import net.artisanmc.plugin.project.ProjectMetadataPaths
 import net.artisanmc.plugin.project.ProjectFilesReader
+import net.artisanmc.plugin.project.YamlEquivalence
 import java.io.File
 import java.util.Base64
 import java.util.logging.Level
@@ -236,7 +237,7 @@ class ProjectWrites(
         fun texts(key: String) = snapshot.path(key).fields().asSequence().filter { it.value.isTextual }.associate { it.key to it.value.asText() }
         val baseline = texts("baseline")
         val tree = texts("tree")
-        return refused(projectId, root, tree.filter { (path, text) -> baseline[path] != text }, baseline.keys - tree.keys)
+        return refused(projectId, root, tree.filter { (path, text) -> baseline[path]?.let { YamlEquivalence.sameValue(path, it, text) } != true }, baseline.keys - tree.keys)
             ?.let { mapper.valueToTree<JsonNode>(it) }
     }
 

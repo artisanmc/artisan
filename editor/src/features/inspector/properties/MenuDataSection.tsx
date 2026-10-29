@@ -320,13 +320,13 @@ function MenuSetBlockCore({
   if (el.iterates) {
     return (
       <div className="flex items-center gap-1.5" data-testid={`menu-set-${listName}`}>
-        <span className="text-[11px] text-[var(--text-mut)]">
+        <span className="min-w-0 text-[11px] text-[var(--text-mut)]">
           {t("menuProperties.setPaginated", { positions: el.positions || "—" })}
         </span>
         <button
           type="button"
           onClick={deleteSet}
-          className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+          className="ml-auto shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--danger)]"
         >
           ✕ {t("menuProperties.setDelete")}
         </button>
@@ -382,7 +382,7 @@ function PlacementRowsPanel({
         <button
           type="button"
           onClick={onDelete}
-          className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+          className="ml-auto shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--danger)]"
         >
           ✕ {t("menuProperties.setDelete")}
         </button>

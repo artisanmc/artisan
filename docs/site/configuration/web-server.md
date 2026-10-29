@@ -16,7 +16,7 @@ editor — a single server, or the hub of a network — it listens on `web.port`
 | `/api/v1/…` | The editor's API (session cookie required) | The editor |
 | `/ws/editor` | Live updates (WebSocket) | The editor |
 | `/ws/plugin` | Leaf servers of a network (WebSocket, shared secret) | Other Minecraft servers — hub only |
-| `/resource-pack/<sha1>.zip` | The resource pack built by the editor | The servers, to hand it to their pack plugin |
+| `/resource-pack/<sha1>.zip` | The resource pack built by the editor | Players' clients when Artisan sends the pack; the servers, to hand it to their pack plugin |
 
 Settings live under `web` in [environment.yml](../environment/#web)
 and apply after a restart.
@@ -148,8 +148,9 @@ What to know:
   including the session cookie. `tunnel: ""` turns it off: browsers then reach
   `web.port` directly, or `web.url`.
 - The editor itself still comes from your plugin: the tunnel server only passes bytes.
-- Players never download the resource pack from the editor's web server: a
-  [pack plugin](../resource-packs/) (Nexo, Oraxen, ItemsAdder) sends it.
+- Players do not download the resource pack through the tunnel: when Artisan sends it
+  itself, they fetch it from `web.url`, else from `http://<server-ip>:<web.port>`. Set
+  `web.url`, or delegate the pack to a [pack plugin](../resource-packs/).
 - `web.url`, when set, replaces the tunnel: no tunnel is opened.
 - Only the hub of a network opens a tunnel. A leaf with no port to its hub sets
   `web.hub` to the hub's tunnel address, `https://<id>.artisanmc.app`: it reaches
@@ -182,17 +183,20 @@ default), or `web.url` behind a reverse proxy. A reverse proxy must pass `/mcp`,
 
 ## The editor's assistant (preview)
 
-With an [`ai` section](../environment/#ai) in the hub's `environment.yml`, the editor's top bar
-shows an Assistant button (✦) on a Project. Players with `artisan.editor.edit` describe what they
+Once the assistant has a model and a key, the editor's top bar shows an Assistant button (✦) on a
+Project. Set them in **Settings → Assistant** (needs `artisan.editor.config`): they are saved in the
+suite database, used by the whole network and applied without a restart. The key is never shown
+again, only its last four characters. An [`ai` section](../environment/#ai) in the hub's
+`environment.yml` does the same and wins over the editor. Players with `artisan.editor.edit` describe what they
 want (a menu, a command, a change to a dialog), and the assistant does it in a draft:
 
-- It runs on **your** model account: `ai.api-key` pays for every message of every player who
+- It runs on **your** model account: the key pays for every message of every player who
   uses it. The key stays on the hub; the browser never sees it.
 - It uses the same tools as [AI clients](#ai-clients-mcp-preview): it reads the Projects, starts
   a draft and writes files into it, each file checked by the Project's server first. It cannot
   deploy: the panel offers to open the draft in Drafts, where the player reviews it and deploys.
-- A message runs at most `ai.max-steps` model calls; the assistant then stops and says so.
-- Conversations live in the hub's memory: a restart ends them (the drafts stay).
+- A message runs at most "Steps per message" model calls (`ai.max-steps`); the assistant then stops and says so.
+- Conversations live in the hub's memory: a restart, or a change of its settings, ends them (the drafts stay).
 
 ```yaml
 ai:
@@ -234,6 +238,7 @@ editor.example.com {
 
 ## Resource packs
 
-Players never download from the editor's web server: the servers fetch the pack
-there and hand it to Nexo, Oraxen or ItemsAdder, which send it. See
+When Artisan sends its pack itself (the default), players' clients download it from
+`/resource-pack/<sha1>.zip`, at `web.url`: that address must be reachable from their
+machine. Delegated to Nexo, Oraxen or ItemsAdder, only the servers fetch it there. See
 [Resource packs](../resource-packs/).

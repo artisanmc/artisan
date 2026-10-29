@@ -36,13 +36,14 @@ connect to the hub. The name is a label: the server is identified by the id in
 | Key | Default | Meaning |
 |---|---|---|
 | `web.enabled` | `true` | Start the editor's web server. `false`: no editor on this server, and `/artisan editor` says the editor is not running. Keep it `true` on leaves too, so `/artisan editor` works there. |
-| `web.port` | `8765` | TCP port of the editor, its API, its WebSockets (`/ws/editor`, `/ws/plugin`) and the resource pack downloads (`/resource-pack/`). |
+| `web.port` | `8765` | TCP port of the editor, its API, its WebSockets (`/ws/editor`, `/ws/plugin`) and the resource pack downloads (`/resource-pack/`, by players when Artisan sends the pack itself). |
 | `web.bind` | `""` | Interface to listen on. Empty: every interface. `"127.0.0.1"` when a reverse proxy on the same machine is the only client. A private address (`"10.0.0.5"`) to stay on an internal network. |
 | `web.url` | `""` | Public address of the editor, without trailing slash, e.g. `"https://editor.example.com"`. Used in `/artisan editor` links. Empty: `http://<address the player joined with>:<port>`. |
 | `web.hub` | `""` | Empty: this server serves its own editor; servers on the same MySQL/MariaDB database find each other and join each other's links (see [Networks](../web-server/#networks-and-wsplugin)). Set: this server is a leaf and connects to the hub at this address, as the leaf sees it: `"10.0.0.5:8765"` (the hub's `web.port`; a bare host takes `8765`), `"hub:8765"` (Docker service), or `"https://editor.example.com"` (TLS reverse proxy, no port added). The plugin adds the `/ws/plugin` path; an explicit `ws://…` or `wss://…` URL is kept as is. See [Network mode](../../network/concepts/). |
 | `web.secret` | `""` | Secret shared by the hub and its leaves. Empty: the Velocity forwarding secret, else a secret the hub generates. See [the shared secret](../../network/setup/#4-the-shared-secret). |
 | `web.tunnel` | `"connect.artisanmc.app"` | Preview. The Artisan tunnel server the hub connects out to when `web.url` is empty: it gives the editor an `https://<id>.artisanmc.app` address, used by `/artisan editor` links. No port to open. `""`: no tunnel. Ignored on a leaf. See [Through a tunnel server](../web-server/#through-a-tunnel-server-preview-the-default). |
 | `web.tunnel-access` | `""` | The access code a private tunnel server asks for. |
+| `web.pack-cdn` | `"cdn.artisanmc.net"` | Where the hub uploads the resource pack the editor builds; players download it from there when Artisan sends the pack itself. Public, deleted 30 days after its last use. `""`, or the host unreachable: players download it from `web.url` or `web.port`. Ignored on a leaf. See [Resource packs](../resource-packs/#direct-sending). |
 | `web.mcp` | `false` | Preview. Serves an MCP endpoint at `<editor address>/mcp`, so a player can connect an AI client (Claude, ChatGPT, an IDE) to Artisan: the client reads the Projects and writes drafts, which the player reviews and deploys in the editor. The client cannot deploy. See [AI clients](../web-server/#ai-clients-mcp-preview). |
 
 On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no port.
@@ -50,8 +51,9 @@ On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no por
 ## `ai`
 
 Preview. The editor's assistant, on your own model account. Read by the hub only, never sent to
-the editor. Without this section (or with an empty `provider` or `api-key`), the editor shows no
-assistant. See [The editor's assistant](../web-server/#the-editors-assistant-preview).
+the editor. You can leave it out and set the assistant from the editor instead (**Settings →
+Assistant**), once for the whole network. When this section names a `provider`, it wins: the
+editor shows its values read-only. See [The editor's assistant](../web-server/#the-editors-assistant-preview).
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -60,7 +62,7 @@ assistant. See [The editor's assistant](../web-server/#the-editors-assistant-pre
 | `ai.model` | `"claude-opus-5-5"` | The model the assistant runs on. |
 | `ai.effort` | `"medium"` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the model thinks, and how many tokens it spends. |
 | `ai.max-steps` | `25` | Model calls one message may make (1 to 100). The assistant stops there and says so; the next message lets it go on. |
-| `ai.base-url` | `""` | Another address for the provider's API (a proxy). Empty: its own. |
+| `ai.base-url` | `""` | Another address for the API: a proxy, or another vendor's compatible API (DeepSeek: `https://api.deepseek.com/anthropic`). Empty: Anthropic's. |
 
 ## `database`
 
@@ -108,7 +110,7 @@ database:
 A variable that is not set becomes an empty string. For `database.*` keys the
 console warns: `[database] environment variable NAME is not set (environment.yml)`.
 
-Substitution applies to `name`, `web.bind`, `web.url`, `web.hub`, `web.secret`, `web.tunnel`, `web.tunnel-access`
+Substitution applies to `name`, `web.bind`, `web.url`, `web.hub`, `web.secret`, `web.tunnel`, `web.tunnel-access`, `web.pack-cdn`
 and every `database.*` key. It does not apply to `web.enabled` and `web.port`:
 write those literally.
 

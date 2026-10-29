@@ -4,6 +4,7 @@ import net.artisanmc.modules.api.datasource.DataSourceDeclaration
 import net.artisanmc.modules.api.datasource.DataSourceField
 import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.modules.api.datasource.FieldKind
+import net.artisanmc.modules.api.datasource.Origin
 import net.artisanmc.modules.api.datasource.RegisteredDataSource
 import net.artisanmc.modules.api.datasource.Stability
 import net.artisanmc.modules.api.model.ModelFieldType
@@ -70,6 +71,33 @@ class DataSourceReportTest {
         assertEquals("id", byRef["boutique:items"]!!["key_field"])
         assertEquals("dynamic", byRef["auction:listings"]!!["stability"])
         assertNull(byRef["auction:listings"]!!["key_field"])
+    }
+
+    @Test
+    fun `build emits origin, runtime by default`() {
+        val registry = DataSourceRegistry()
+        registry.register(DataSourceDeclaration(
+            "boutique:items",
+            { _, _ -> emptyList() },
+            emptyList(),
+            Stability.STATIC,
+            "id",
+            Origin.CONTENT,
+        ))
+        registry.register(DataSourceDeclaration(
+            "quests:active",
+            { _, _ -> emptyList() },
+            emptyList(),
+            Stability.DYNAMIC,
+            "id",
+            Origin.MIXED,
+        ))
+        registry.register(DataSourceDeclaration("auction:listings", { _, _ -> emptyList() }))
+
+        val byRef = DataSourceReport.build(registry).associateBy { it["ref"] }
+        assertEquals("content", byRef["boutique:items"]!!["origin"])
+        assertEquals("mixed", byRef["quests:active"]!!["origin"])
+        assertEquals("runtime", byRef["auction:listings"]!!["origin"])
     }
 
     @Test

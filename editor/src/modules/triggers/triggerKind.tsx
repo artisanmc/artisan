@@ -29,6 +29,7 @@ export const triggerKind: DocumentKindContribution = {
   label: "projectPanel.triggers",
   icon: Zap,
   component: TriggerView,
+  ownHeader: true,
   create: ({ id, projectId }) =>
     ({
       id,

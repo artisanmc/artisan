@@ -81,12 +81,13 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
       const id = ctx.kind === "menu" ? ctx.menuId : ctx.id;
       const doc = documentsOf(project, kind).find((d) => d.id === id);
       if (!doc) return <EmptyHint label={t("projectPanel.noEditor", { kind })} />;
-      const View = documentKindContribution(kind)?.component;
+      const contribution = documentKindContribution(kind);
+      const View = contribution?.component;
       if (View) {
         return (
           <div className="h-full min-h-0 overflow-y-auto">
-            {/* Command and dialog editors draw their own header (with their chips). */}
-            {kind !== "command" && kind !== "dialog" ? (
+            {/* A kind whose view draws its own header (its chips, its sentence) says so. */}
+            {!contribution.ownHeader ? (
               <DocumentHeader project={project} kind={kind} doc={doc} />
             ) : null}
             <View

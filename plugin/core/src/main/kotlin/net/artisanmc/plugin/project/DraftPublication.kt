@@ -13,7 +13,8 @@ import java.util.Base64
  * Publishes a Draft the hub keeps in the suite database (ADR `server-identity-and-versions`): the
  * message carries the draft and the bytes of its new binaries. Every changed file is checked against
  * the disk (compare-and-swap), then all are written at once with the operation's receipt, so a
- * publication replayed after a lost answer returns its first result.
+ * publication replayed after a lost answer returns its first result. A YAML file whose value is
+ * its baseline's is not written ([YamlEquivalence]).
  */
 class DraftPublication(private val root: File) {
     private val mapper = ObjectMapper()
@@ -66,6 +67,9 @@ class DraftPublication(private val root: File) {
         val expected = linkedMapOf<String, String?>()
         (baseline.fieldNames().asSequence() + tree.fieldNames().asSequence()).toSet().forEach { path ->
             val before = baseline[path]?.asText(); val after = tree[path]?.asText()
+            // A file the editor only reformatted keeps its bytes: a draft autosaved before the
+            // editor kept them (`keepEquivalentText`) holds every file it read in its own format.
+            if (before != null && after != null && YamlEquivalence.sameValue(path, before, after)) return@forEach
             if (before != after) { changes[path] = after?.toByteArray(Charsets.UTF_8); expected[path] = before?.let { ContentHash.hashContent(it) } }
         }
         val binaryBase = snapshot["binaryBaseline"]; val binaryTree = snapshot["binaryTree"]

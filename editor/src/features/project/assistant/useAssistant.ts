@@ -1,8 +1,6 @@
 import {
   type AiEvent,
-  type AiStatus,
   createAiConversation,
-  getAiStatus,
   readAiConversation,
   sendAiMessage,
 } from "@/lib/api/ai";
@@ -12,26 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 /** How often the panel asks for new events while the assistant answers. */
 export const POLL_MS = 800;
 
-let status: Promise<AiStatus> | undefined;
-
-/** Whether the hub has an assistant this player may use; asked once per page. */
-export function useAiStatus(): AiStatus | undefined {
-  const [value, setValue] = useState<AiStatus>();
-  useEffect(() => {
-    status ??= getAiStatus().catch(() => ({ enabled: false, model: null, canUse: false }));
-    let live = true;
-    void status.then((s) => live && setValue(s));
-    return () => {
-      live = false;
-    };
-  }, []);
-  return value;
-}
-
-/** Forgets the cached status (tests, sign-in change). */
-export function resetAiStatus() {
-  status = undefined;
-}
+export { resetAiStatus, useAiStatus } from "@/state/aiStatus";
 
 /**
  * One conversation with the assistant for [project]: started at the first message, polled while

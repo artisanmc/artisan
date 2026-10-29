@@ -12,6 +12,8 @@ import java.io.File
 private const val PEER_ROUND_TICKS = 20L * 30
 /** How long the tunnel waits for the suite database before using this server's own address. */
 private const val DATABASE_WAIT_SECONDS = 60
+/** How often the hub tells the pack host its packs are still in use: it deletes them after 30 days. */
+private const val PACK_REFRESH_TICKS = 20L * 3600 * 24
 
 internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: SuiteDatabase) {
     private val logger get() = plugin.logger
@@ -53,10 +55,11 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
         override fun announcement() = plugin.announcement()
         override fun serverConfig() = serverConfigAccess.report()
         override fun customItems() = provider.customItems()
-        override fun applyResourcePack(hash: String, path: String) {
+        override fun applyResourcePack(hash: String, path: String) = applyResourcePack(hash, path, null)
+        override fun applyResourcePack(hash: String, path: String, url: String?) {
             val port = editor?.port ?: return
             val local = editorBind.takeUnless { it.isBlank() || it == "0.0.0.0" } ?: "127.0.0.1"
-            provider.applyLocalResourcePack("${packBase()}$path", "http://$local:$port$path", hash)
+            provider.applyLocalResourcePack(url ?: "${packBase()}$path", "http://$local:$port$path", hash)
         }
     }
 
@@ -64,7 +67,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
     private fun editorBase(host: String? = null): String =
         editorUrl.ifEmpty { directBase(host) }
 
-    /** The pack's public address: `web.url`, else the direct one (players get the pack from a pack plugin). */
+    /** The pack's public address, downloaded by players in direct sending: `web.url`, else the direct one. */
     private fun packBase(): String = configuredUrl.ifEmpty { directBase(null) }
 
     private fun directBase(host: String?) = "http://${host ?: server.ip.ifBlank { "localhost" }}:${editor?.port ?: 8765}"
@@ -124,6 +127,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
         try {
             val vanilla = net.artisanmc.plugin.hub.VanillaAssets(File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger)
             val packs = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/resource-pack"))
+            val packCdn = web.packCdn.takeIf { it.isNotBlank() }?.let { net.artisanmc.plugin.hub.PackCdn(it, ::tunnelSecret, logger) }
             val servers = net.artisanmc.plugin.hub.Servers(localServer, suite::knownServers) { id, name ->
                 net.artisanmc.plugin.hub.RemoteServer(id, name, publicUrl = { packBase() })
             }
@@ -138,7 +142,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             } else null
             val router = net.artisanmc.plugin.hub.EditorApi.router(
                 servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts, { tunnel },
-                mcp = mcp, ai = web.ai, version = description.version, online = editorChannel::online,
+                mcp = mcp, ai = web.ai, aiSettings = suite.aiSettingsStore(), version = description.version, online = editorChannel::online, packCdn = packCdn,
                 edition = net.artisanmc.plugin.hub.Edition.bundled(plugin.javaClass.classLoader),
             )
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
@@ -152,6 +156,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
                 editor = server
                 if (web.tunnel.isNotBlank() && web.url.isBlank()) startTunnel(web)
                 if (database.dialect != net.artisanmc.modules.api.database.DatabaseDialect.H2) startPeerDiscovery(web)
+                packCdn?.let { startPackRefresh(it, packs) }
             }
         } catch (e: LinkageError) {
             logger.warning("[Artisan] Editor disabled: web server libraries are missing (${e.message})")
@@ -176,12 +181,32 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
     }
 
     private fun openTunnel(web: net.artisanmc.plugin.hub.WebConfig, shared: String?) {
-        val secret = shared?.let(net.artisanmc.plugin.hub.TunnelClient::networkSecret)
-            ?: net.artisanmc.plugin.hub.TunnelClient.secret(File(dataFolder, "tunnel-secret"))
+        val secret = tunnelSecret(shared)
         val member = if (shared != null) serverId.toString() else ""
         tunnel = net.artisanmc.plugin.hub.TunnelClient(web.tunnel, secret, web.tunnelAccess, { editor?.port }, logger, member) { url ->
             tunnelUrl = url
         }.also { it.start() }
+    }
+
+    /**
+     * The tunnel's secret: the network's when servers share a database ([shared]), else this server's
+     * own. The pack host counts quotas with it too, read once the database is open.
+     */
+    private fun tunnelSecret(
+        shared: String? = suite.peerSecret().takeIf { database.dialect != net.artisanmc.modules.api.database.DatabaseDialect.H2 },
+    ): String = shared?.let(net.artisanmc.plugin.hub.TunnelClient::networkSecret)
+        ?: net.artisanmc.plugin.hub.TunnelClient.secret(File(dataFolder, "tunnel-secret"))
+
+    /** At startup then daily, the hub's packs stay on the pack host, which deletes what is unused for 30 days. */
+    private fun startPackRefresh(cdn: net.artisanmc.plugin.hub.PackCdn, packs: net.artisanmc.plugin.hub.PackStore) {
+        val started = editor
+        fun round() {
+            // A reload starts another round on its own web server: this one stops.
+            if (!plugin.isEnabled || editor !== started) return
+            cdn.refresh(packs)
+            scheduler.asyncLater(PACK_REFRESH_TICKS) { round() }
+        }
+        scheduler.asyncLater(20L * 60) { round() }
     }
 
     /** The other servers that serve their own editor, as links this server joins (ADR `peer-servers`). */

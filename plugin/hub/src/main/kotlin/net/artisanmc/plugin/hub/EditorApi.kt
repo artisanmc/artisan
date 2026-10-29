@@ -10,15 +10,19 @@ object EditorApi {
         tunnel: () -> TunnelNames? = { null },
         /** The MCP endpoint's grants when `web.mcp` is on (ADR `mcp-server`); null: no `/mcp`, no OAuth. */
         mcp: McpGrants? = null,
-        /** The `ai` section of environment.yml (ADR `editor-assistant`); disabled: no assistant. */
+        /** The `ai` section of environment.yml (ADR `editor-assistant`); it wins over [aiSettings]. */
         ai: AiConfig = AiConfig(),
-        /** The model the assistant talks to; null: the one [ai] names. */
+        /** The assistant's settings saved from the editor; null: environment.yml alone. */
+        aiSettings: AiSettingsStore? = null,
+        /** The model the assistant talks to; null: the one its settings name. */
         aiProvider: AiProvider? = null,
         version: String = "",
         /** The public ids of the sessions with an editor tab open here ([EditorChannel.online]). */
         online: () -> Set<String> = { emptySet() },
         /** Free or Pro jar: the editor hides Pro editing, the hub refuses a new pack in free. */
         edition: Edition = Edition.PRO,
+        /** Artisan's pack host (`web.pack-cdn`); null: players download packs from this server. */
+        packCdn: PackCdn? = null,
     ): Router {
         val router = Router()
         val relay = Relay(logger)
@@ -27,28 +31,21 @@ object EditorApi {
         ServerRoutes(servers, relay).register(router)
         ProjectRoutes(servers, relay, history, loaded, drafts, logger).register(router)
         ItemRoutes(servers, relay, vanilla).register(router)
-        packs?.let { PackRoutes(servers, it, edition).register(router) }
+        packs?.let { PackRoutes(servers, it, packCdn, edition).register(router) }
         AddressRoutes(tunnel, sessions).register(router)
         val tools = McpTools(McpProjects(servers, loaded, drafts))
         if (mcp != null) {
             OAuthRoutes(mcp).register(router)
             McpRoutes(tools, mcp, version, logger).register(router)
         }
-        AiRoutes(assistant(ai, aiProvider, tools, logger)).register(router)
+        AiRoutes(aiSetup(ai, aiSettings, aiProvider, tools, logger)).register(router)
         return router
     }
 
-    private fun assistant(ai: AiConfig, given: AiProvider?, tools: McpTools, logger: Logger?): AiAssistant? {
-        if (given != null) return AiAssistant(given, tools, ai.maxSteps, logger)
-        if (!ai.enabled) return null
-        val provider = when (ai.provider) {
-            "anthropic" -> AnthropicProvider(ai)
-            else -> {
-                logger?.warning("[Artisan] ai.provider '${ai.provider}' is not one of ${AiConfig.PROVIDERS}: no assistant")
-                return null
-            }
+    private fun aiSetup(ai: AiConfig, settings: AiSettingsStore?, given: AiProvider?, tools: McpTools, logger: Logger?): AiSetup =
+        when {
+            given == null -> AiSetup(ai, settings, tools, logger)
+            settings == null -> AiSetup(AiConfig(provider = "given", apiKey = "given", model = given.model, maxSteps = ai.maxSteps), null, tools, logger) { given }
+            else -> AiSetup(ai, settings, tools, logger) { given }
         }
-        logger?.info("[Artisan] Editor assistant enabled: ${ai.provider}, ${ai.model}")
-        return AiAssistant(provider, tools, ai.maxSteps, logger)
-    }
 }

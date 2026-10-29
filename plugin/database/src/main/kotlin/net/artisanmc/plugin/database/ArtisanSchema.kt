@@ -172,6 +172,8 @@ object ArtisanSchema {
         Migration(32, "ALTER TABLE ${t.editorSessions} ADD COLUMN created_at TIMESTAMP NULL") { hasColumn(it, t.editorSessions, "created_at") },
         // `link` for a stored sign-in link (`Sessions`, ADR `peer-servers`): a listing shows the sessions alone.
         Migration(33, "ALTER TABLE ${t.editorSessions} ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'session'") { hasColumn(it, t.editorSessions, "kind") },
+        // Hub settings saved from the editor, shared by the servers of the database (`ai`: ADR `editor-assistant`).
+        Migration(34, "CREATE TABLE IF NOT EXISTS ${t.settings} (name VARCHAR(64) NOT NULL PRIMARY KEY, val LONGTEXT NOT NULL, updated_at TIMESTAMP NOT NULL)"),
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

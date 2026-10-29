@@ -13,6 +13,8 @@ import { type SourceFile, applySourceYaml, sourceYamlFiles } from "./sourceYaml"
 interface DataSourceEditorProps {
   projectId: ProjectId;
   source: DataSource;
+  /** Called once the source is deleted, so its page can leave. */
+  onRemoved?: () => void;
 }
 
 /**
@@ -20,7 +22,7 @@ interface DataSourceEditorProps {
  * the rows table (table) or the value form (config), then the Sets section.
  * ADR `project-sources-and-data-models`.
  */
-export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
+export function DataSourceEditor({ projectId, source, onRemoved }: DataSourceEditorProps) {
   const { t } = useTranslation();
   const renameDataSource = useProjectsStore((s) => s.renameProjectDataSource);
   const removeDataSource = useProjectsStore((s) => s.removeProjectDataSource);
@@ -133,6 +135,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
           onClick={() => {
             if (!window.confirm(t("dataSources.confirmRemove", { name: source.name }))) return;
             removeDataSource({ projectId, id: source.id });
+            onRemoved?.();
           }}
           className="shrink-0 whitespace-nowrap rounded px-2 py-1 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
         >

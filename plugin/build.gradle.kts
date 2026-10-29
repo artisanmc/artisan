@@ -54,8 +54,10 @@ subprojects {
         systemProperty("junit.jupiter.execution.timeout.default", "2m")
         systemProperty("junit.jupiter.execution.timeout.threaddump.enabled", "true")
         // No tunnel by default (WebConfig.TUNNEL_PROPERTY): every plugin a test loads would otherwise open
-        // one to the production tunnel server, with a fresh address each time.
+        // one to the production tunnel server, with a fresh address each time. Same for the pack host
+        // (PackCdn.HOST_PROPERTY): no test uploads a pack to production.
         systemProperty("artisan.web.tunnel", "")
+        systemProperty("artisan.web.pack-cdn", "")
         testLogging { exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
     }
 }

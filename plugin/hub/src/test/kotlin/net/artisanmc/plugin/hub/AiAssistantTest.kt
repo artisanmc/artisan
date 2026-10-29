@@ -17,6 +17,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** The editor's assistant end to end (ADR `editor-assistant`), on a scripted model. */
@@ -57,10 +58,15 @@ class AiAssistantTest {
     private lateinit var cookie: String
     private val base get() = "http://127.0.0.1:${hub!!.port}"
 
-    private fun start(model: AiProvider?, permissions: Set<String> = EditorPermissions.ALL.toSet()) {
+    private fun start(
+        model: AiProvider?,
+        permissions: Set<String> = EditorPermissions.ALL.toSet(),
+        settings: AiSettingsStore? = null,
+        ai: AiConfig = AiConfig(),
+    ) {
         hub = HubServer(
             WebConfig(port = 0, bind = "127.0.0.1"),
-            EditorApi.router(Servers(McpFixtures.server(sent)), sessions, null, drafts = drafts, aiProvider = model),
+            EditorApi.router(Servers(McpFixtures.server(sent)), sessions, null, drafts = drafts, ai = ai, aiSettings = settings, aiProvider = model),
             sessions, EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
         ).also { it.start() }
         cookie = signIn(player, "Iban", permissions)
@@ -218,5 +224,80 @@ class AiAssistantTest {
         val events = finished(id)
         assertEquals(listOf("user", "error", "done"), events.map { it["type"].asText() })
         assertEquals("ai_key_refused", events[1]["code"].asText())
+    }
+
+    private fun settings(vararg fields: Pair<String, Any?>) = mapOf(
+        "provider" to "anthropic", "model" to "deepseek-chat", "effort" to "medium", "maxSteps" to 25,
+        "baseUrl" to "https://api.deepseek.com/anthropic",
+    ) + fields
+
+    @Test
+    fun `settings saved from the editor turn the assistant on at once, and the key never comes back`() {
+        val store = MemoryAiSettingsStore()
+        start(ScriptedModel(AiReply(listOf("Bonjour"), emptyList(), AiReply.END)), settings = store)
+        assertFalse(editor("GET", AiRoutes.STATUS).body!!["enabled"].asBoolean())
+        val empty = editor("GET", AiRoutes.CONFIG_PATH).body!!
+        assertEquals("none", empty["source"].asText())
+        assertTrue(empty["editable"].asBoolean())
+
+        assertEquals("ai_key_missing", editor("PUT", AiRoutes.CONFIG_PATH, settings()).body!!["error"].asText())
+        assertEquals(422, editor("PUT", AiRoutes.CONFIG_PATH, settings("baseUrl" to "file:///etc/passwd", "apiKey" to "sk-x")).status)
+        val saved = editor("PUT", AiRoutes.CONFIG_PATH, settings("apiKey" to "sk-secret-123456789"))
+        assertEquals(200, saved.status, saved.body.toString())
+        assertEquals("database", saved.body!!["source"].asText())
+        assertEquals("…6789", saved.body["keyHint"].asText())
+        assertFalse("sk-secret" in saved.body.toString(), "the key is never sent back")
+        assertEquals("sk-secret-123456789", store.read()!!.apiKey)
+        assertTrue(editor("GET", AiRoutes.STATUS).body!!["enabled"].asBoolean(), "no restart needed")
+
+        // Left out, the key stays; sent elsewhere, it must be typed again.
+        assertEquals(200, editor("PUT", AiRoutes.CONFIG_PATH, settings("model" to "deepseek-reasoner")).status)
+        assertEquals("sk-secret-123456789", store.read()!!.apiKey)
+        assertEquals("deepseek-reasoner", store.read()!!.model)
+        val moved = editor("PUT", AiRoutes.CONFIG_PATH, settings("baseUrl" to "https://evil.example"))
+        assertEquals("ai_key_required", moved.body!!["error"].asText())
+        assertEquals("https://api.deepseek.com/anthropic", store.read()!!.baseUrl)
+
+        val id = conversation()
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "Salut"))
+        assertEquals("Bonjour", finished(id).first { it["type"].asText() == "text" }["text"].asText())
+
+        assertEquals(200, editor("DELETE", AiRoutes.CONFIG_PATH).status)
+        assertNull(store.read())
+        assertFalse(editor("GET", AiRoutes.STATUS).body!!["enabled"].asBoolean())
+    }
+
+    @Test
+    fun `environment yml wins and the editor shows it read-only`() {
+        start(
+            ScriptedModel(),
+            settings = MemoryAiSettingsStore(AiConfig("anthropic", "sk-database-key", "from-database")),
+            ai = AiConfig("anthropic", "sk-file-key-abcdef", "from-file"),
+        )
+        val config = editor("GET", AiRoutes.CONFIG_PATH).body!!
+        assertEquals("file", config["source"].asText())
+        assertFalse(config["editable"].asBoolean())
+        assertEquals("from-file", config["model"].asText())
+        assertEquals(409, editor("PUT", AiRoutes.CONFIG_PATH, settings("apiKey" to "sk-other")).status)
+        assertEquals(409, editor("DELETE", AiRoutes.CONFIG_PATH).status)
+    }
+
+    @Test
+    fun `the settings need config, and wait for the database`() {
+        var open = false
+        val store = object : AiSettingsStore {
+            val saved = AiConfig("anthropic", "sk-database-key", "saved")
+            override fun read(): AiConfig? = if (open) saved else throw IllegalStateException("not open")
+            override fun write(config: AiConfig?) = throw IllegalStateException("not open")
+        }
+        start(ScriptedModel(), settings = store)
+        val editOnly = signIn(UUID.randomUUID(), "Steve", setOf(EditorPermissions.VIEW, EditorPermissions.EDIT))
+        assertEquals(403, editor("GET", AiRoutes.CONFIG_PATH, as_ = editOnly).status)
+        assertEquals(403, editor("PUT", AiRoutes.CONFIG_PATH, settings("apiKey" to "sk-x"), as_ = editOnly).status)
+
+        assertFalse(editor("GET", AiRoutes.STATUS).body!!["enabled"].asBoolean())
+        assertEquals("database_unavailable", editor("PUT", AiRoutes.CONFIG_PATH, settings("apiKey" to "sk-x")).body!!["error"].asText())
+        open = true
+        assertTrue(editor("GET", AiRoutes.STATUS).body!!["enabled"].asBoolean(), "read once the database answers")
     }
 }
