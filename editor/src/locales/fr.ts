@@ -1461,8 +1461,6 @@ const fr: typeof en = {
     installedModules: "Modules installés",
     configuration: "Configuration",
     newModule: "+ Nouveau module",
-    serverLabel: "Serveur",
-    selectServer: "Sélectionner un serveur",
   },
   adminDesign: {
     specimens: {

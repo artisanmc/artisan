@@ -1438,8 +1438,6 @@ export default {
     installedModules: "Installed modules",
     configuration: "Configuration",
     newModule: "+ New module",
-    serverLabel: "Server",
-    selectServer: "Select a server",
   },
   adminDesign: {
     specimens: {

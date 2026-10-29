@@ -64,8 +64,9 @@ import {
   type Terminal,
 } from "lucide-react";
 import { NewProjectDialog } from "./NewProjectDialog";
-import { type ServerEntry, ServerSelector } from "./ServerSelector";
+import { SidebarSearch } from "./SidebarSearch";
 import { UserMenu } from "./UserMenu";
+import type { ServerEntry } from "./serverEntry";
 import { useServersStatus } from "./useServersStatus";
 
 export function ProjectSidebar() {
@@ -266,7 +267,7 @@ export function ProjectSidebar() {
         <ArtisanWordmark />
       </Link>
 
-      <ServerSelector servers={allServerEntries} />
+      {urlParams.serverId && <SidebarSearch />}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
         {openProjectId && !openIsListed && (
