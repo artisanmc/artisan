@@ -866,7 +866,6 @@ export default {
     close: "Close panel",
   },
   play: {
-    hint: "Every project of the server at once, without the game",
     listing: "Reading the server's projects…",
     loading: "Loading projects… ({{done}}/{{total}})",
     unavailable: "Server unreachable — cannot list its projects.",
@@ -927,12 +926,15 @@ export default {
       give_level: "give {{amount}} levels",
       teleport: "teleport to {{world}} {{x}} {{y}} {{z}}",
     },
+    sidebar: "Sidebar",
     launcher: {
       title: "Launch",
       empty: "No command, menu or trigger in this project yet.",
       runCommand: "Run /{{name}}",
       openMenu: "Open the menu {{id}}",
       fireTrigger: "Fire the trigger {{id}}",
+      search: "Search commands, menus, triggers…",
+      noMatch: "Nothing matches this search.",
     },
     player: {
       title: "Test player",

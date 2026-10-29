@@ -4,6 +4,8 @@ import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { type ProjectSummary, listServers } from "@/lib/api/servers";
 import { projectUrlId } from "@/lib/projectUrlId";
+import { useAuthStore } from "@/state/authStore";
+import { useUiStore } from "@/state/uiStore";
 import { type ReactNode, createElement, useCallback, useEffect, useMemo, useState } from "react";
 import { useProjectLoader } from "./useProjectLoader";
 
@@ -28,6 +30,17 @@ function ProjectProbe({
   return null;
 }
 
+/**
+ * What a server's views last saw, kept for the session: coming back to the Play or Board
+ * tab shows it at once, and the listing and the loaders revalidate it behind.
+ */
+interface Seen {
+  summaries: ProjectSummary[];
+  results: Record<string, ProbeResult>;
+}
+/** By user and server: another account never sees what this one saw. */
+const seenByServer = new Map<string, Seen>();
+
 export interface ServerProjects {
   /** The loaded projects, in the server's order. */
   projects: Project[];
@@ -47,13 +60,20 @@ export interface ServerProjects {
  * first Project once all are loaded (the library is the server's, whichever Project asks).
  */
 export function useServerProjects(serverId: string): ServerProjects {
-  const [summaries, setSummaries] = useState<ProjectSummary[] | null>(null);
-  const [listing, setListing] = useState<ServerProjects["listing"]>("loading");
-  const [results, setResults] = useState<Record<string, ProbeResult>>({});
+  const userId = useAuthStore((s) => s.currentUser?.id ?? "");
+  const memoryKey = `${userId}|${serverId}`;
+  const seen = seenByServer.get(memoryKey);
+  const [summaries, setSummaries] = useState<ProjectSummary[] | null>(seen?.summaries ?? null);
+  const [listing, setListing] = useState<ServerProjects["listing"]>(seen ? "ready" : "loading");
+  const [results, setResults] = useState<Record<string, ProbeResult>>(seen?.results ?? {});
 
   useEffect(() => {
     let cancelled = false;
-    setListing("loading");
+    // Already seen: what is on screen stays while the listing is read again.
+    const known = seenByServer.get(memoryKey);
+    setSummaries(known?.summaries ?? null);
+    setResults(known?.results ?? {});
+    setListing(known ? "ready" : "loading");
     listServers()
       .then(async (servers) => {
         const key = servers.find((k) => k.id === serverId);
@@ -61,28 +81,44 @@ export function useServerProjects(serverId: string): ServerProjects {
         const res = await listServerProjects(key.id);
         if (cancelled) return;
         if (!res.ok) {
-          setListing("unavailable");
+          if (!seenByServer.has(memoryKey)) setListing("unavailable");
           return;
         }
-        setSummaries(diskProjectsToSummaries(key.id, res.projectIds, res.projects));
+        const next = diskProjectsToSummaries(key.id, res.projectIds, res.projects);
+        seenByServer.set(memoryKey, {
+          summaries: next,
+          results: seenByServer.get(memoryKey)?.results ?? {},
+        });
+        setSummaries((prev) =>
+          prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next,
+        );
         setListing("ready");
       })
       .catch(() => {
-        if (!cancelled) setListing("unavailable");
+        if (!cancelled && !seenByServer.has(memoryKey)) setListing("unavailable");
       });
     return () => {
       cancelled = true;
     };
-  }, [serverId]);
+  }, [serverId, memoryKey]);
 
-  const onResult = useCallback((loadRef: string, result: ProbeResult) => {
-    setResults((prev) => {
-      const current = prev[loadRef];
-      if (current && current.project === result.project && current.failed === result.failed)
-        return prev;
-      return { ...prev, [loadRef]: result };
-    });
-  }, []);
+  const onResult = useCallback(
+    (loadRef: string, result: ProbeResult) => {
+      // A loader starting again reports no project before its known version: keep the
+      // one already shown rather than flashing the view empty.
+      if (!result.project && !result.failed) return;
+      setResults((prev) => {
+        const current = prev[loadRef];
+        if (current && current.project === result.project && current.failed === result.failed)
+          return prev;
+        const next = { ...prev, [loadRef]: result };
+        const known = seenByServer.get(memoryKey);
+        if (known) seenByServer.set(memoryKey, { ...known, results: next });
+        return next;
+      });
+    },
+    [memoryKey],
+  );
 
   const refs = useMemo(() => (summaries ?? []).map((s) => projectUrlId(s)), [summaries]);
   const done = refs.filter((ref) => results[ref]?.project || results[ref]?.failed).length;
@@ -92,7 +128,11 @@ export function useServerProjects(serverId: string): ServerProjects {
     [refs, results],
   );
   const settled = listing === "ready" && done === refs.length;
-  useTextureInit(settled ? projects[0]?.id : undefined);
+  // The item library is the server's: the Project the editor last opened, when it is one
+  // of these, keeps the icons already drawn instead of fetching and drawing them again.
+  const lastActive = useUiStore((s) => s.lastActiveProjectId);
+  const libraryProject = projects.find((p) => p.id === lastActive) ?? projects[0];
+  useTextureInit(settled ? libraryProject?.id : undefined);
   const probes = refs.map((ref) =>
     createElement(ProjectProbe, { key: ref, loadRef: ref, serverId, onResult }),
   );

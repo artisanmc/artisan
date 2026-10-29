@@ -85,4 +85,16 @@ describe("useTextureInit", () => {
     renderHook(() => useTextureInit());
     expect(fetchUserItems).not.toHaveBeenCalled();
   });
+
+  // Leaving a view and coming back (project page ⇄ Play tab) must not wipe the icons
+  // already drawn and fetch them again.
+  it("keeps the library when the same user and Project come back", async () => {
+    const first = renderHook(() => useTextureInit("keep_me" as never));
+    await waitFor(() => expect(useTextureStore.getState().libraryBundleReady).toBe(true));
+    first.unmount();
+    fetchUserItems.mockClear();
+    renderHook(() => useTextureInit("keep_me" as never));
+    expect(fetchUserItems).not.toHaveBeenCalled();
+    expect(useTextureStore.getState().libraryItems).toEqual(ITEMS);
+  });
 });
