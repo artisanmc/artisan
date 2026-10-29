@@ -1189,7 +1189,10 @@ in the launcher). Projects load through `useServerProjects`, as for the general 
   placements, the canvas' Konva pieces at the GUI scale, centred as the game; a click runs exactly
   that click type's chain (no fallback, as the plugin).
 - **View** (`PlayView.tsx`, `PlayPanels.tsx`): `McScreen` + controls, T or / open the chat, Esc/E close
-  the menu; launcher grouped per project, test player, journal.
+  the menu. The sidebar has three tabs (Launch, Test player, Journal), and a new journal entry brings
+  the Journal tab forward. The launcher has a search (commands, menus, Triggers, or a project's name)
+  and one collapsible group per project: past three projects only the focused one starts open, and
+  every group opens while searching.
 
 ## Public landing
 

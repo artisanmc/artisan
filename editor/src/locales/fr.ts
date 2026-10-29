@@ -878,7 +878,6 @@ const fr: typeof en = {
     close: "Fermer le panneau",
   },
   play: {
-    hint: "Tous les projets du serveur à la fois, sans le jeu",
     listing: "Lecture des projets du serveur…",
     loading: "Chargement des projets… ({{done}}/{{total}})",
     unavailable: "Serveur injoignable — impossible de lister ses projets.",
@@ -940,12 +939,15 @@ const fr: typeof en = {
       give_level: "donner {{amount}} niveaux",
       teleport: "téléportation vers {{world}} {{x}} {{y}} {{z}}",
     },
+    sidebar: "Barre latérale",
     launcher: {
       title: "Lancer",
       empty: "Aucune commande, aucun menu ni déclencheur dans ce projet pour l'instant.",
       runCommand: "Lancer /{{name}}",
       openMenu: "Ouvrir le menu {{id}}",
       fireTrigger: "Déclencher {{id}}",
+      search: "Chercher une commande, un menu, un déclencheur…",
+      noMatch: "Rien ne correspond à cette recherche.",
     },
     player: {
       title: "Joueur de test",

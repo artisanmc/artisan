@@ -1,33 +1,31 @@
+import { Collapsible } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { TagInput } from "@/components/ui/tag-input";
 import { commandsOf, documentsOf, menusOf } from "@/domain/documents";
 import type { Command, Condition, Project } from "@/domain/types";
 import { cn } from "@/lib/cx";
 import type { Trigger } from "@/modules/triggers/trigger";
-import { LayoutGrid, Play, SquareTerminal, Trash2, Zap } from "lucide-react";
+import { LayoutGrid, Play, Search, SquareTerminal, Trash2, Zap } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { conditionKey } from "./engine/conditions";
 import type { PlayLogEntry, PlaySession } from "./engine/session";
 import type { TestPlayer } from "./engine/testPlayer";
 
+/** One tab of the sidebar: its tab carries the title, an action (clear) sits above. */
 function Panel({
-  title,
   action,
   children,
   testId,
 }: {
-  title: string;
   action?: ReactNode;
   children: ReactNode;
   testId?: string;
 }) {
   return (
-    <section className="card flex flex-col gap-3 p-4" data-testid={testId}>
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="eyebrow">{title}</h3>
-        {action}
-      </div>
+    <section className="flex flex-col gap-3" data-testid={testId}>
+      {action && <div className="flex justify-end">{action}</div>}
       {children}
     </section>
   );
@@ -38,10 +36,14 @@ const needsMore = (c: Command) =>
   c.arguments.some((a) => a.required && a.default === undefined) ||
   (c.steps.length === 0 && (c.subcommands?.length ?? 0) > 0);
 
+/** Past this many Projects, only the focused one starts open. */
+const OPEN_ALL_UP_TO = 3;
+
 /**
  * What can be started from outside the game, per Project: its commands (one that needs an
  * argument goes to the chat, typed up to its name), its menus, and its Triggers, fired as
- * if their event happened. The focused Project comes first.
+ * if their event happened. The focused Project comes first; the search keeps what matches
+ * (by name, or every element of a Project whose name matches) and opens every group.
  */
 export function PlayLauncher({
   projects,
@@ -55,6 +57,8 @@ export function PlayLauncher({
   onTypeCommand: (line: string) => void;
 }) {
   const { t } = useTranslation();
+  const [query, setQuery] = useState("");
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
   const ordered = [...projects].sort(
     (a, b) => Number(isFocus(b, focus)) - Number(isFocus(a, focus)),
   );
@@ -80,7 +84,8 @@ export function PlayLauncher({
     </li>
   );
   const iconClass = "size-4 shrink-0 text-[var(--text-faint)]";
-  const groups = ordered
+  const q = query.trim().toLowerCase();
+  const all = ordered
     .map((project) => ({
       project,
       commands: commandsOf(project).filter((c) => c.enabled !== false),
@@ -88,51 +93,99 @@ export function PlayLauncher({
       triggers: documentsOf(project, "trigger") as unknown as Trigger[],
     }))
     .filter((g) => g.commands.length + g.menus.length + g.triggers.length > 0);
+  const groups = !q
+    ? all
+    : all
+        .map((g) => {
+          if ((g.project.name || g.project.id).toLowerCase().includes(q)) return g;
+          const hit = (...texts: (string | undefined)[]) =>
+            texts.some((text) => text?.toLowerCase().includes(q));
+          return {
+            ...g,
+            commands: g.commands.filter((c) => hit(c.name, `/${c.name}`)),
+            menus: g.menus.filter((m) => hit(m.id, m.folder)),
+            triggers: g.triggers.filter((tr) => hit(tr.id, tr.on)),
+          };
+        })
+        .filter((g) => g.commands.length + g.menus.length + g.triggers.length > 0);
+  const isOpen = (project: Project) =>
+    q !== "" || (opened[project.id] ?? (all.length <= OPEN_ALL_UP_TO || isFocus(project, focus)));
+  const list = ({ project, commands, menus, triggers }: (typeof all)[number]) => (
+    <ul className="flex flex-col gap-1">
+      {commands.map((c) =>
+        row(
+          `c/${c.id}`,
+          <SquareTerminal className={iconClass} />,
+          `/${c.name}`,
+          () => (needsMore(c) ? onTypeCommand(`/${c.name} `) : session.runCommand(`/${c.name}`)),
+          t("play.launcher.runCommand", { name: c.name }),
+        ),
+      )}
+      {menus.map((m) =>
+        row(
+          `m/${m.id}`,
+          <LayoutGrid className={iconClass} />,
+          m.id,
+          () => session.openMenuById(project.id, m.id),
+          t("play.launcher.openMenu", { id: m.id }),
+        ),
+      )}
+      {triggers.map((tr) =>
+        row(
+          `t/${tr.id}`,
+          <Zap className={iconClass} />,
+          <>
+            {tr.id}
+            <span className="text-[var(--text-faint)]"> · {tr.on || "?"}</span>
+          </>,
+          () => session.runTrigger(tr),
+          t("play.launcher.fireTrigger", { id: tr.id }),
+        ),
+      )}
+    </ul>
+  );
   return (
-    <Panel title={t("play.launcher.title")} testId="play-launcher">
-      {groups.length === 0 ? (
+    <Panel testId="play-launcher">
+      {all.length === 0 ? (
         <p className="text-[12.5px] text-[var(--text-mut)]">{t("play.launcher.empty")}</p>
       ) : (
-        groups.map(({ project, commands, menus, triggers }) => (
-          <div key={project.id} className="flex flex-col gap-1" data-project={project.id}>
-            {groups.length > 1 && (
-              <span className="field-label truncate">{project.name || project.id}</span>
-            )}
-            <ul className="flex flex-col gap-1">
-              {commands.map((c) =>
-                row(
-                  `c/${c.id}`,
-                  <SquareTerminal className={iconClass} />,
-                  `/${c.name}`,
-                  () =>
-                    needsMore(c) ? onTypeCommand(`/${c.name} `) : session.runCommand(`/${c.name}`),
-                  t("play.launcher.runCommand", { name: c.name }),
-                ),
-              )}
-              {menus.map((m) =>
-                row(
-                  `m/${m.id}`,
-                  <LayoutGrid className={iconClass} />,
-                  m.id,
-                  () => session.openMenuById(project.id, m.id),
-                  t("play.launcher.openMenu", { id: m.id }),
-                ),
-              )}
-              {triggers.map((tr) =>
-                row(
-                  `t/${tr.id}`,
-                  <Zap className={iconClass} />,
-                  <>
-                    {tr.id}
-                    <span className="text-[var(--text-faint)]"> · {tr.on || "?"}</span>
-                  </>,
-                  () => session.runTrigger(tr),
-                  t("play.launcher.fireTrigger", { id: tr.id }),
-                ),
-              )}
-            </ul>
+        <>
+          <div className="relative">
+            <Search className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2.5 size-3.5 text-[var(--text-faint)]" />
+            <Input
+              type="search"
+              aria-label={t("play.launcher.search")}
+              placeholder={t("play.launcher.search")}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="h-8 pl-8 text-xs"
+            />
           </div>
-        ))
+          {groups.length === 0 ? (
+            <p className="text-[12.5px] text-[var(--text-mut)]">{t("play.launcher.noMatch")}</p>
+          ) : all.length === 1 ? (
+            list(groups[0]!)
+          ) : (
+            <div className="flex flex-col">
+              {groups.map((g) => (
+                <Collapsible
+                  key={g.project.id}
+                  data-project={g.project.id}
+                  title={g.project.name || g.project.id}
+                  meta={
+                    <span className="mono text-[11px] text-[var(--text-faint)]">
+                      {g.commands.length + g.menus.length + g.triggers.length}
+                    </span>
+                  }
+                  open={isOpen(g.project)}
+                  onOpenChange={(open) => setOpened((prev) => ({ ...prev, [g.project.id]: open }))}
+                >
+                  {list(g)}
+                </Collapsible>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </Panel>
   );
@@ -196,7 +249,7 @@ export function TestPlayerPanel({
   );
   const forcedEntries = Object.entries(forced);
   return (
-    <Panel title={t("play.player.title")} testId="play-player">
+    <Panel testId="play-player">
       <div className="grid grid-cols-2 gap-2">
         <label className="field-label flex flex-col gap-1">
           {t("play.player.name")}
@@ -285,7 +338,6 @@ export function PlayLog({ entries, onClear }: { entries: PlayLogEntry[]; onClear
   const { t } = useTranslation();
   return (
     <Panel
-      title={t("play.log.title")}
       testId="play-log"
       action={
         entries.length > 0 ? (

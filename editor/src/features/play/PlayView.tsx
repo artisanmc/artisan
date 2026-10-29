@@ -1,4 +1,5 @@
 import { McScreen, McScreenControls, type McScreenSettings } from "@/components/mc-preview";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Project } from "@/domain/types";
 import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
@@ -10,6 +11,8 @@ import { PlayMenu } from "./PlayMenu";
 import { PlayLauncher, PlayLog, TestPlayerPanel } from "./PlayPanels";
 import { PlaySession } from "./engine/session";
 import { type TestPlayer, loadTestPlayer, saveTestPlayer } from "./engine/testPlayer";
+
+type SideTab = "launch" | "player" | "log";
 
 /**
  * The Play view (spec "Mode Jeu"): the game's screen built from every Project of a server,
@@ -79,6 +82,15 @@ export function PlayView({
     setChatInput(null);
     screenRef.current?.focus();
   };
+
+  // A new journal entry brings its tab forward, wherever the action came from.
+  const [tab, setTab] = useState<SideTab>("launch");
+  const lastId = state.log.at(-1)?.id ?? -1;
+  const seenRef = useRef(lastId);
+  useEffect(() => {
+    if (lastId > seenRef.current) setTab("log");
+    seenRef.current = lastId;
+  }, [lastId]);
 
   const openMenu = state.menu ? session.menuOf(state.menu) : undefined;
   const menuProject = state.menu ? session.projectById(state.menu.projectId) : undefined;
@@ -195,16 +207,34 @@ export function PlayView({
         </div>
         <p className="text-[12px] text-[var(--text-faint)]">{t("play.keysHint")}</p>
       </section>
-      <aside className="flex min-h-0 w-[360px] shrink-0 flex-col gap-3 overflow-y-auto max-lg:w-full">
-        <PlayLauncher
-          projects={projects}
-          focus={focus}
-          session={session}
-          onTypeCommand={(line) => openChat(line)}
-        />
-        <TestPlayerPanel player={player} onChange={updatePlayer} forced={state.forced} />
-        <PlayLog entries={state.log} onClear={() => session.clearLog()} />
-      </aside>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as SideTab)}
+        className="card flex min-h-0 w-[360px] shrink-0 flex-col max-lg:w-full"
+        asChild
+      >
+        <aside>
+          <TabsList className="border-b border-[var(--border)] p-2" aria-label={t("play.sidebar")}>
+            <TabsTrigger value="launch">{t("play.launcher.title")}</TabsTrigger>
+            <TabsTrigger value="player">{t("play.player.title")}</TabsTrigger>
+            <TabsTrigger value="log">{t("play.log.title")}</TabsTrigger>
+          </TabsList>
+          <TabsContent value="launch" className="min-h-0 flex-1 overflow-y-auto p-4">
+            <PlayLauncher
+              projects={projects}
+              focus={focus}
+              session={session}
+              onTypeCommand={(line) => openChat(line)}
+            />
+          </TabsContent>
+          <TabsContent value="player" className="min-h-0 flex-1 overflow-y-auto p-4">
+            <TestPlayerPanel player={player} onChange={updatePlayer} forced={state.forced} />
+          </TabsContent>
+          <TabsContent value="log" className="min-h-0 flex-1 overflow-y-auto p-4">
+            <PlayLog entries={state.log} onClear={() => session.clearLog()} />
+          </TabsContent>
+        </aside>
+      </Tabs>
     </div>
   );
 }
