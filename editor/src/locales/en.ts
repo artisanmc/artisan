@@ -1002,9 +1002,6 @@ export default {
     sidebarGroup: "Data",
     newTable: "New data table",
     newConfig: "New data sheet",
-    serverSectionTitle: "Data sources",
-    serverSectionHint:
-      "Declared by the server's modules, read-only: a menu reads them to show rows. They reflect the in-game state, that is the last deployed version, never a draft.",
     seeServerSources: "See the server's sources →",
     sourceName: "Data source name",
     nameRequired: "The data source name is required.",

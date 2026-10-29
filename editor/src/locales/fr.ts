@@ -1020,9 +1020,6 @@ const fr: typeof en = {
     sidebarGroup: "Données",
     newTable: "Nouvelle table de données",
     newConfig: "Nouvelle fiche de données",
-    serverSectionTitle: "Sources de données",
-    serverSectionHint:
-      "Déclarées par les modules du serveur, en lecture seule : un menu les lit pour afficher des lignes. Elles reflètent l'état en jeu, c'est-à-dire la dernière version déployée, jamais un brouillon.",
     seeServerSources: "Voir les sources du serveur →",
     sourceName: "Nom de la source",
     nameRequired: "Le nom de la source est obligatoire.",
