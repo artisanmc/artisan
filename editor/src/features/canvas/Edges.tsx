@@ -16,7 +16,7 @@ import { groupEdges } from "./groupedBoard";
 import { nodeBox } from "./menuLayout";
 import { findPreviewCallContexts } from "./previewCallContexts";
 import { nextCallContext } from "./previewCallNavigation";
-import { subCommandAnchors } from "./subCommandAnchors";
+import { subCommandAnchors, triggerStepAnchors } from "./subCommandAnchors";
 
 /** Keeps only the edges whose two ends are on the board. */
 export function visibleEdges(
@@ -127,8 +127,12 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
   );
 
   const overrides = useMemo(() => {
-    // A sub-command's link leaves from its row, unless the user pinned that end.
-    const rowAnchors = subCommandAnchors(project, edges, boxes);
+    // A sub-command's link, or a trigger step's, leaves from its row, unless the user
+    // pinned that end.
+    const rowAnchors = {
+      ...subCommandAnchors(project, edges, boxes),
+      ...triggerStepAnchors(project, edges, boxes),
+    };
     const pinned = project.canvasEdges ?? {};
     const base: typeof pinned = { ...pinned };
     for (const [id, { from }] of Object.entries(rowAnchors)) {
