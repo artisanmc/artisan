@@ -95,6 +95,9 @@ class AiAssistant(
         return Sent.Accepted
     }
 
+    /** Replaced by another (its settings changed): a turn under way finishes, no new one starts. */
+    fun close() = executor.shutdown()
+
     private fun run(conversation: Conversation, principal: McpPrincipal, text: String) {
         try {
             var input: List<AiInput> = listOf(AiInput.Text(text))

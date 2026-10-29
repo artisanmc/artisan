@@ -918,7 +918,7 @@ then the list is re-read from that disk.
 
 See `docs/archive/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 
-`/settings` has four sections: **Appearance**, **AI apps** (`features/mcp/McpAppsSection.tsx`,
+`/settings` has five sections: **Appearance**, **AI apps** (`features/mcp/McpAppsSection.tsx`,
 `#ai`: the `/mcp` address to copy, the authorized MCP clients and their revocation; "disabled" when the
 hub answers 404, without `web.mcp`) and, for `artisan.editor.config`, **Editor
 address** (`features/settings/EditorAddressSection.tsx`, `/api/v1/editor-address`): name of the
@@ -927,7 +927,11 @@ new address. `#address` opens this section. Also for `artisan.editor.config`, **
 (`features/settings/EditorSessionsSection.tsx`, `/api/v1/editor-sessions`, `#sessions`): the open
 editor sessions of the network, with "You", "Editor open", last activity (to the hour), origin
 server and rights; **Close** revokes one, one's own after a confirmation, then
-`authStore.sessionClosed()` sends the tab to `/login?expired=1`. As long as the address has no name,
+`authStore.sessionClosed()` sends the tab to `/login?expired=1`. Also for `artisan.editor.config`,
+**Assistant** (`features/settings/AssistantSettingsSection.tsx`, `/api/v1/ai/config`, `#assistant`):
+the assistant's API, address, model, key (write-only: a saved one shows as its last four characters
+and stays when the field is left empty), effort and steps; saving applies at once and resets
+`useAiStatus`'s cache. Read-only when environment.yml's `ai` section sets them. As long as the address has no name,
 `EditorAddressBanner` offers it at the top of a server's page; "Later" hides it for
 this browser (`localStorage`).
 

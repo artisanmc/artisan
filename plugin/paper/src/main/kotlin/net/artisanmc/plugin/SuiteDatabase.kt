@@ -6,6 +6,10 @@ import java.util.UUID
 /** Presence refresh and editor permission reports: every minute. */
 internal const val HEARTBEAT_TICKS = 20L * 60
 private const val PURGE_TICKS = 20L * 60 * 60 * 24
+
+/** The `artisan_settings` row of the assistant's settings (ADR `editor-assistant`). */
+private const val AI_SETTING = "ai"
+
 /** A peer that missed this many presence beats is left alone until it is seen again. */
 private val PEER_WINDOW = java.time.Duration.ofMinutes(3)
 
@@ -223,6 +227,39 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) = store().setPermissions(playerId, origin, permissions)
         override fun deletePlayer(playerId: UUID, origin: String?) = store().deletePlayer(playerId, origin)
         override fun purge(now: java.time.Instant) = store().purge(now)
+    }
+
+    /**
+     * The assistant's settings saved from the editor (ADR `editor-assistant`): `artisan_settings`,
+     * read by every hub of the database. Unreadable until the database is open.
+     */
+    fun aiSettingsStore(): net.artisanmc.plugin.hub.AiSettingsStore = object : net.artisanmc.plugin.hub.AiSettingsStore {
+        private val mapper = com.fasterxml.jackson.databind.ObjectMapper()
+        private fun rows() = net.artisanmc.plugin.database.SettingRows(artisanData ?: throw IllegalStateException("suite database not open"), database.tables)
+
+        override fun read(): net.artisanmc.plugin.hub.AiConfig? {
+            val node = rows().get(AI_SETTING)?.let(mapper::readTree) ?: return null
+            fun text(field: String, default: String = "") = node.path(field).asText(default)
+            return net.artisanmc.plugin.hub.AiConfig(
+                provider = text("provider"),
+                apiKey = text("apiKey"),
+                model = text("model", net.artisanmc.plugin.hub.AiConfig.DEFAULT_MODEL),
+                effort = text("effort", "medium"),
+                maxSteps = node.path("maxSteps").asInt(25).coerceIn(1, 100),
+                baseUrl = text("baseUrl"),
+            )
+        }
+
+        override fun write(config: net.artisanmc.plugin.hub.AiConfig?) {
+            if (config == null) return rows().delete(AI_SETTING).let {}
+            val json = mapper.writeValueAsString(
+                mapOf(
+                    "provider" to config.provider, "apiKey" to config.apiKey, "model" to config.model,
+                    "effort" to config.effort, "maxSteps" to config.maxSteps, "baseUrl" to config.baseUrl,
+                ),
+            )
+            rows().put(AI_SETTING, json, java.time.Instant.now())
+        }
     }
 
     /** The Versions still queued are written, within 5 s. */
