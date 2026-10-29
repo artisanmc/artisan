@@ -1,7 +1,11 @@
+import { assetPreviewUrl } from "@/domain/asset";
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
 import { type DocKey, allDocuments, docKey } from "@/domain/documents";
 import type { I18nKey, Project, ProjectId } from "@/domain/types";
+import { useAssetStore } from "@/features/assets/assetStore";
 import { getText, newI18nKey } from "@/lib/i18n";
+import { mcLineWidth, wrapLore } from "@/lib/loreWrap";
+import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
 import { fieldTextOf } from "@/schema/fieldText";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -58,6 +62,15 @@ export const editorHost: Omit<EditorHost, "components"> = {
       ? useSelectionStore.getState().set([item], null, moduleDocumentKey(documentId))
       : useSelectionStore.getState().set([moduleDocumentKey(documentId)]),
   notify: (message, tone) => (tone === "error" ? toast.error(message) : toast(message)),
+  useAssetImage: (projectId, name) => {
+    const asset = useAssetStore((s) =>
+      s.assets.find((a) => a.projectId === projectId && (a.name === name || a.id === name)),
+    );
+    const url = useAuthenticatedImageUrl(asset ? assetPreviewUrl(asset) : "");
+    return asset && url ? { url, width: asset.width, height: asset.height } : undefined;
+  },
+  mcTextWidth: (source) => mcLineWidth(source),
+  mcWrap: (source, width) => wrapLore(source, width),
 };
 
 /** `components`: the editor widgets module views embed (`distribution/hostComponents.tsx`). */

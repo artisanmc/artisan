@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import vector from "../../../testdata/lore-wrap-conformance.json";
-import { loreWrapPoints, wrapLore } from "./loreWrap";
+import { loreWrapPoints, mcLineWidth, wrapLore } from "./loreWrap";
 
 /** Editor half of `testdata/lore-wrap-conformance.json` — the plugin asserts the same vector. */
 describe("wrapLore conformance", () => {
@@ -23,4 +23,13 @@ describe("loreWrapPoints", () => {
       });
     });
   }
+});
+
+describe("mcLineWidth", () => {
+  it("counts the font's advances, tags none, +1 per bold char", () => {
+    expect(mcLineWidth("ab")).toBe(12);
+    expect(mcLineWidth("<red>ab</red>")).toBe(12);
+    expect(mcLineWidth("<bold>ab</bold>c")).toBe(20);
+    expect(mcLineWidth("i l")).toBe(2 + 4 + 3);
+  });
 });

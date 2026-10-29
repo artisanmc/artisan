@@ -40,6 +40,18 @@ export interface EditorHost {
   selectDocumentItem(input: { documentId: string; item?: string | null }): void;
   /** Briefly tells the user something (a refused value, a done operation). */
   notify(message: string, tone?: "info" | "error"): void;
+  /**
+   * A Project's image asset by its name (`assets/textures/<name>.png`), drawable in an `<img>`
+   * (SDK 1.14). A hook: undefined until the asset is listed and its bytes are loaded.
+   */
+  useAssetImage(projectId: string, name: string): AssetImage | undefined;
+  /** The width of a MiniMessage line in MC pixels, vanilla font (+1 per bold char) (SDK 1.14). */
+  mcTextWidth(source: string): number;
+  /**
+   * A MiniMessage line wrapped to `width` MC pixels on spaces, as lore and the chat wrap: a
+   * word never splits, a continued line reopens the tags still open (SDK 1.14).
+   */
+  mcWrap(source: string, width: number): string[];
   /** The editor's own widgets a module view embeds (SDK 1.1). */
   components: HostComponents;
 }
@@ -187,6 +199,11 @@ export interface McScreenGeometry {
   layout: McScreenLayout;
   /** Window pixels per GUI pixel: a GUI rectangle `r` is at `r.x * scale` in the layer. */
   scale: number;
+  /**
+   * GUI pixels an `McText` goes up for its letters' top to land on its y, as the game draws a
+   * string (the text leaves room above for taller accented glyphs).
+   */
+  textLift: number;
 }
 
 export interface McScreenProps {
@@ -221,6 +238,26 @@ export interface McScreenProps {
   className?: string;
 }
 
+/** An image asset ready to draw: a URL for `<img src>`, and its size in pixels. */
+export interface AssetImage {
+  url: string;
+  width: number;
+  height: number;
+}
+
+/** What `McScreen` is previewed at: the window, the GUI scale option, the zoom. */
+export interface McScreenSettings {
+  width: number;
+  height: number;
+  guiScale: GuiScaleChoice;
+  zoom: "fit" | 1;
+}
+
+export interface McScreenControlsProps {
+  value: McScreenSettings;
+  onChange: (next: McScreenSettings) => void;
+}
+
 /** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`, `ItemInput`, `MiniMessageInput`, `SortableList`, `ConditionsEditor`, `DocumentRefInput`). */
 export interface HostComponents {
   ActionChainEditor: ComponentType<ActionChainEditorProps>;
@@ -239,6 +276,8 @@ export interface HostComponents {
   McText: ComponentType<McTextProps>;
   /** SDK 1.14. */
   McScreen: ComponentType<McScreenProps>;
+  /** SDK 1.14. */
+  McScreenControls: ComponentType<McScreenControlsProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -275,6 +314,10 @@ export const projectLangs = (project: unknown): string[] => current().langs(proj
 export const selectDocumentItem: EditorHost["selectDocumentItem"] = (input) =>
   current().selectDocumentItem(input);
 export const notify: EditorHost["notify"] = (message, tone) => current().notify(message, tone);
+export const useAssetImage = (projectId: string, name: string): AssetImage | undefined =>
+  current().useAssetImage(projectId, name);
+export const mcTextWidth = (source: string): number => current().mcTextWidth(source);
+export const mcWrap = (source: string, width: number): string[] => current().mcWrap(source, width);
 
 /**
  * The editor's Action chain editor (the one of commands and dialogs) on a controlled value:
@@ -358,5 +401,14 @@ export function McText(props: McTextProps): ReactElement {
  */
 export function McScreen(props: McScreenProps): ReactElement {
   const Impl = current().components.McScreen;
+  return createElement(Impl, props);
+}
+
+/**
+ * The window preset, the GUI scale as the game offers it (Auto, then 1 to the window's
+ * largest) and the zoom, for an `McScreen` (SDK 1.14).
+ */
+export function McScreenControls(props: McScreenControlsProps): ReactElement {
+  const Impl = current().components.McScreenControls;
   return createElement(Impl, props);
 }

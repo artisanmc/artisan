@@ -1,20 +1,14 @@
 import { Segmented } from "@/components/ui/segmented";
 import {
-  type GuiScaleChoice,
   MC_SCREEN_PRESETS,
+  type McScreenSettings,
   guiScale,
   maxGuiScale,
   mcScreenLayout,
 } from "@artisan/editor-sdk";
 import { useTranslation } from "react-i18next";
 
-/** What `McScreen` is previewed at: the window, the GUI scale option, the zoom. */
-export interface McScreenSettings {
-  width: number;
-  height: number;
-  guiScale: GuiScaleChoice;
-  zoom: "fit" | 1;
-}
+export type { McScreenSettings };
 
 /**
  * The window size (the presets), the GUI scale as the game offers it (Auto, then 1 to the

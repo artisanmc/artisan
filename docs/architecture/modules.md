@@ -167,7 +167,12 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > the largest scale keeping the GUI ≥ 320×240), `mcScreenLayout(w, h, scale)` (GUI size, hotbar,
 > `actionBarTop` = H − 72 the conversations HUD rises from, title, chat, chat input),
 > `hotbarSelection`, `bossBarAt`, `centeredScreen`, `MC_SCREEN_PRESETS`; locked by
-> `testdata/mc-screen-conformance.json`. A layer places a GUI rectangle `r` at `r.x * geometry.scale`.
+> `testdata/mc-screen-conformance.json`. A layer places a GUI rectangle `r` at `r.x * geometry.scale`, and an `McText` at `(y - geometry.textLift) * scale` for its letters' top to land on `y`.
+> `McScreenControls` (window preset, GUI scale, zoom; `McScreenSettings`) gives a module the editor's
+> own controls. To draw a HUD like the plugin: `mcTextWidth(mm)` and `mcWrap(mm, width)` measure and
+> wrap MiniMessage with the vanilla font advances (`lib/loreWrap.ts`), and `useAssetImage(projectId,
+> name)` (a hook) gives a Project's image asset as `{url, width, height}` for an `<img>`, undefined
+> until it is loaded. The conversations add-on uses all of it for its live HUD preview.
 
 > **HUD layers (since 2026-10-28, SDK 1.13, API 2.20.0)** — a kind declares the images
 > its files draw at a height: `pack: { images: (src) => [{ asset, rise }] }`, `src` the parsed YAML of

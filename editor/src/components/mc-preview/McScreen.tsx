@@ -59,7 +59,7 @@ export function McScreen({
 }: McScreenProps) {
   const scale = guiScale(width, height, choice);
   const layout = mcScreenLayout(width, height, scale);
-  const geometry: McScreenGeometry = { layout, scale };
+  const geometry: McScreenGeometry = { layout, scale, textLift: TEXT_LIFT };
   const fitRef = useRef<HTMLDivElement>(null);
   const fitWidth = useWidth(fitRef);
   const factor = zoom === "fit" ? (fitWidth ?? width) / width : zoom;

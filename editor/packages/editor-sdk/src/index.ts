@@ -62,6 +62,9 @@ export {
   type McBossBarColor,
   type McScreenGeometry,
   type McScreenProps,
+  type McScreenSettings,
+  type McScreenControlsProps,
+  type AssetImage,
   type HostComponents,
   ActionChainEditor,
   MaterialInput,
@@ -72,6 +75,7 @@ export {
   DocumentRefInput,
   McText,
   McScreen,
+  McScreenControls,
   installEditorHost,
   useProject,
   useContentLang,
@@ -83,6 +87,9 @@ export {
   projectLangs,
   selectDocumentItem,
   notify,
+  useAssetImage,
+  mcTextWidth,
+  mcWrap,
 } from "./host/host";
 export {
   type GuiScaleChoice,
