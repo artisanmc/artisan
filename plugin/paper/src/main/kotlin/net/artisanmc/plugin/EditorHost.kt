@@ -143,6 +143,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val router = net.artisanmc.plugin.hub.EditorApi.router(
                 servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts, { tunnel },
                 mcp = mcp, ai = web.ai, aiSettings = suite.aiSettingsStore(), version = description.version, online = editorChannel::online, packCdn = packCdn,
+                edition = net.artisanmc.plugin.hub.Edition.bundled(plugin.javaClass.classLoader),
             )
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
                 if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) null

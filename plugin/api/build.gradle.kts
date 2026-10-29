@@ -84,8 +84,8 @@ publishing {
                 url.set("https://artisanmc.net")
                 licenses {
                     license {
-                        name.set("GNU General Public License v3.0")
-                        url.set("https://www.gnu.org/licenses/gpl-3.0.html")
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
                     }
                 }
                 developers {
