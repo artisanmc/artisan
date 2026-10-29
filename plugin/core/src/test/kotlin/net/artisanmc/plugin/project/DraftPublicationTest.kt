@@ -38,6 +38,16 @@ class DraftPublicationTest {
     }
 
     @Test
+    fun `a file the editor only reformatted keeps its bytes, even changed on disk since`() {
+        val shipped = "title: { en: \"Buy\", fr: \"Acheter\" }\r\nclose: true\r\n"
+        File(root, "a.yml").writeText(shipped)
+        val result = DraftPublication(root).publish(message("op-1", shipped, "title:\n  fr: Acheter\n  en: Buy\nclose: true\n"))
+        assertEquals(true, result["ok"].asBoolean())
+        assertEquals(1, result["wrote"].asInt())
+        assertEquals(shipped, File(root, "a.yml").readText())
+    }
+
+    @Test
     fun `a publication replayed after a lost answer returns its first result`() {
         DraftPublication(root).publish(message("op-1"))
         assertEquals(true, DraftPublication(root).publish(message("op-1"))["ok"].asBoolean())

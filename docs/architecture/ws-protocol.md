@@ -129,6 +129,9 @@ blobs: {hash: base64}, author_id, author_name}` (the binaries the draft changes)
 in one commit with its receipt (`.artisan/transactions/`), answers `{ok, wrote}`, `conflict` or `invalid_documents` (the draft's tree goes through `DocumentCheck` before the CAS, like `project_write`), **then**
 reloads. The hub only marks the draft published after this response; a lost response is
 replayed under the same `operation_id`, which the server recognizes.
+A YAML file whose value is its baseline's (`YamlEquivalence`: style, quotes, key order, comments,
+CRLF) is neither checked nor written: a draft autosaved by an editor that reformatted every file it
+read leaves the disk's bytes alone.
 
 ### Commercial quota
 

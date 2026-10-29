@@ -51,6 +51,20 @@ describe("keepEquivalentText", () => {
     });
   });
 
+  it("writes an edited file as the disk's text with the edit, in its CRLF", () => {
+    const disk = { "conversation_themes/taverne.yml": SHIPPED };
+    const edited = CANONICAL.replace("en: Tavern", "en: Inn");
+    expect(keepEquivalentText({ "conversation_themes/taverne.yml": edited }, disk)).toEqual({
+      "conversation_themes/taverne.yml": SHIPPED.replace('"Tavern"', '"Inn"'),
+    });
+    expect(keepEquivalentText({ "a.yml": "a: [2\n" }, { "a.yml": "a: [\r\n" })).toEqual({
+      "a.yml": "a: [2\r\n",
+    });
+    expect(keepEquivalentText({ "a.yml": "a: 2\n" }, { "a.yml": "a: 1\n" })).toEqual({
+      "a.yml": "a: 2\n",
+    });
+  });
+
   it("leaves the tree alone without a disk, and keeps other files as written", () => {
     const tree = { "a.yml": "a: 1\n" };
     expect(keepEquivalentText(tree, undefined)).toBe(tree);
