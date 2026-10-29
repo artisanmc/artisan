@@ -49,6 +49,17 @@ describe("ServerConfigSection", () => {
     expect(await screen.findByText(/connecté/)).toBeInTheDocument();
   });
 
+  it("counts the pending changes, and discards them", async () => {
+    renderSection();
+    const language = await screen.findByLabelText("Langue");
+    expect(screen.queryByRole("button", { name: "Enregistrer" })).toBeNull();
+    fireEvent.change(language, { target: { value: "fr" } });
+    expect(screen.getByText("1 réglage modifié")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(language).toHaveValue("en");
+    expect(screen.queryByRole("button", { name: "Enregistrer" })).toBeNull();
+  });
+
   it("saves only the changed keys", async () => {
     api.patchServerConfig.mockResolvedValue({ ...config, language: "fr" });
     renderSection();

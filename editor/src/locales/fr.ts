@@ -1680,6 +1680,13 @@ const fr: typeof en = {
     vanillaTexture: "Texture vanilla",
     connectionHint:
       "Les identifiants de la base de données vivent dans environment.yml, qui ne se modifie qu'à la main.",
+    discard: "Annuler",
+    pending_one: "{{count}} réglage modifié",
+    pending_other: "{{count}} réglages modifiés",
+    groupHints: {
+      textures:
+        "Redessinent les coffres, entonnoirs et distributeurs du serveur quand un menu désactive sa texture vanilla.",
+    },
     groups: {
       general: "Général",
       textures: "Textures des conteneurs",
@@ -1727,7 +1734,18 @@ const fr: typeof en = {
       "Le plugin Artisan de ce serveur n'est pas compatible avec celui du hub. Mets-le à jour pour éditer ce serveur.",
     documentCount_one: "{{count}} élément",
     documentCount_other: "{{count}} éléments",
-    openBoard: "Planche générale",
+    tabs: {
+      label: "Sections du serveur",
+      overview: "Vue d'ensemble",
+      board: "Planche",
+      data: "Données",
+      settings: "Réglages",
+    },
+    stateOnline: "En ligne",
+    stateOffline: "Hors ligne",
+    stateUpdateRequired: "Plugin à mettre à jour",
+    minecraftVersion: "Minecraft {{version}}",
+    pluginVersion: "Artisan {{version}}",
   },
   search: {
     placeholder: "Rechercher menus, commandes, items, texte…",
