@@ -19,7 +19,9 @@ Resource changes stay in your private draft until **Deploy**, like other edits.
 
 **Using another project's images and items.** **Captured items**, **Images**, **Resources**
 and the image picker start with a **Project** menu: choose another project of the same
-server to see what it has published, read only. Whatever you use from it is first copied
+server to see what it has published, read only, or **All other projects** to search them all
+at once when you don't know where a resource lives (each image names its project; captured
+items are grouped by project). Whatever you use from it is first copied
 into the project you are editing, so each project keeps everything it needs:
 
 - Drag an image onto a menu, pick it, or select it in **Resources** and choose **Copy

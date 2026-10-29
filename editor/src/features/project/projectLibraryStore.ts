@@ -1,6 +1,7 @@
 import type { ProjectId } from "@/domain/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { ProjectSourceId } from "./ProjectSource";
 
 export type LibraryCategory = "items" | "captured" | "image-buttons";
 
@@ -14,9 +15,9 @@ interface ProjectLibraryState {
   open: (projectId: ProjectId, category?: LibraryCategory) => void;
   close: () => void;
   setCategory: (category: LibraryCategory) => void;
-  /** Another project of the server whose images and items are shown, `null` for this one. */
-  sourceId: ProjectId | null;
-  setSourceId: (sourceId: ProjectId | null) => void;
+  /** The other project(s) of the server whose images and items are shown, `null` for this one. */
+  sourceId: ProjectSourceId;
+  setSourceId: (sourceId: ProjectSourceId) => void;
 }
 
 export const useProjectLibraryStore = create<ProjectLibraryState>()(

@@ -119,8 +119,10 @@ the draft snapshot and blobs), switched at the `lib/api/userAssets.ts` boundary.
 
 **Using another project's resources.** `features/project/ProjectSource.tsx` lists the server's
 other projects from the server index the project view already loads (`useOtherServerProjects`,
-published state, the edited project excluded), so nothing is loaded twice. A library shows the
-chosen project read only: assets through `useOtherProjectAssets` (`listLocalAssets` on the
+published state, the edited project excluded), so nothing is loaded twice. Its choice is
+`ProjectSourceId`: `null` (this project), one project id, or `ALL_PROJECTS` (every other project,
+offered from two on); children get the resolved `Project[]`. A library shows them read only,
+several projects merged (assets keyed `projectId:id`, captured items grouped by project): assets through `useOtherProjectAssets` (`listLocalAssets` on the
 published disk, kept out of `assetStore`), captured items straight from the indexed `Project`.
 Using one copies it first, a snapshot with no link back:
 - an asset: `copyAsset` (`lib/api/userAssets.ts`) reuses an identical one (type + hash, glyph

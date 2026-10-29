@@ -117,4 +117,67 @@ describe("using another project's resources", () => {
     // The source keeps its item, untouched.
     expect(useServerIndexStore.getState().projects[0]?.capturedItems).toEqual([sword]);
   });
+
+  it("searches every other project at once, naming each one", async () => {
+    const open = mockOpenProjects();
+    const shop = open.projects.find((p) => p.id === "p_shop_system")!;
+    const quests = open.projects.find((p) => p.id === "p_daily_quests")!;
+    useProjectsStore.setState({ openProjects: open });
+    const bow = { ...sword, id: "ci_bow", name: "Arc des quêtes" } as CapturedItem;
+    useServerIndexStore.setState({
+      scope: "s",
+      status: "ready",
+      projects: [
+        { ...shop, capturedItems: [sword] } as Project,
+        { ...quests, capturedItems: [bow] } as Project,
+      ],
+      failed: [],
+    });
+    // The same name lives in both projects: two tiles, told apart by their project.
+    const questCoin = { ...coin, projectId: "p_daily_quests", contentHash: "h-other" };
+    const listed = vi
+      .spyOn(local, "listLocalAssets")
+      .mockImplementation(async (id) => (id === "p_shop_system" ? [coin] : [questCoin]));
+    render(<AssetsTab projectId={EDITED} />);
+
+    await userEvent.click(screen.getByTestId("project-source"));
+    await userEvent.click(
+      screen.getByRole("menuitemradio", { name: /tous les autres|all other/i }),
+    );
+
+    expect(listed.mock.calls.map(([id]) => id).sort()).toEqual(["p_daily_quests", "p_shop_system"]);
+    expect(await screen.findByTitle(`coin · ${shop.name}`)).toBeInTheDocument();
+    await userEvent.click(screen.getByTitle(`coin · ${quests.name}`));
+    expect(screen.getByTestId("other-asset-detail")).toHaveTextContent(quests.name);
+  });
+
+  it("lists every other project's captured items, grouped and searchable", async () => {
+    const open = mockOpenProjects();
+    const shop = open.projects.find((p) => p.id === "p_shop_system")!;
+    const quests = open.projects.find((p) => p.id === "p_daily_quests")!;
+    useProjectsStore.setState({ openProjects: open });
+    const bow = { ...sword, id: "ci_bow", name: "Arc des quêtes", stackYaml: "type: BOW\n" };
+    useServerIndexStore.setState({
+      scope: "s",
+      status: "ready",
+      projects: [
+        { ...shop, capturedItems: [sword] } as Project,
+        { ...quests, capturedItems: [bow as CapturedItem] } as Project,
+      ],
+      failed: [],
+    });
+    render(<CapturedItemsSection projectId={EDITED} />);
+
+    await userEvent.click(screen.getByTestId("project-source"));
+    await userEvent.click(
+      screen.getByRole("menuitemradio", { name: /tous les autres|all other/i }),
+    );
+    expect(screen.getByText(shop.name)).toBeInTheDocument();
+    expect(screen.getByText(quests.name)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByRole("textbox"), "arc des");
+    expect(screen.queryByTitle("Épée du marchand")).toBeNull();
+    await userEvent.click(screen.getByTitle("Arc des quêtes"));
+    expect(edited().capturedItems?.map((c) => c.id)).toEqual(["ci_bow"]);
+  });
 });

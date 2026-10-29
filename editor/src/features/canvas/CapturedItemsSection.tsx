@@ -1,8 +1,9 @@
 import { PlayerNameInput } from "@/components/PlayerNameInput";
+import { Input } from "@/components/ui/input";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import { newCapturedItemId } from "@/domain/ids";
 import type { CapturedItem, Project, ProjectId } from "@/domain/types";
-import { ProjectSource } from "@/features/project/ProjectSource";
+import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { isScreenScratchId } from "@/features/screens/screenScratch";
 import { type InventorySlotPayload, fetchPlayerInventory } from "@/lib/api/playerInventory";
@@ -40,7 +41,7 @@ export function CapturedItemsSection({
   // The library shares its source between its tabs; a picker keeps its own.
   const librarySource = useProjectLibraryStore((s) => s.sourceId);
   const setLibrarySource = useProjectLibraryStore((s) => s.setSourceId);
-  const [pickerSource, setPickerSource] = useState<ProjectId | null>(null);
+  const [pickerSource, setPickerSource] = useState<ProjectSourceId>(null);
   return (
     <div className="flex flex-col gap-2">
       <ProjectSource
@@ -48,9 +49,9 @@ export function CapturedItemsSection({
         sourceId={onPick ? pickerSource : librarySource}
         onSourceChange={onPick ? setPickerSource : setLibrarySource}
       >
-        {(source) =>
-          source ? (
-            <OtherProjectItems projectId={projectId} source={source} onPick={onPick} />
+        {(sources) =>
+          sources ? (
+            <OtherProjectItems projectId={projectId} sources={sources} onPick={onPick} />
           ) : (
             <OwnCapturedItems projectId={projectId} onPick={onPick} />
           )
@@ -61,42 +62,70 @@ export function CapturedItemsSection({
 }
 
 /**
- * Another project's captured items, read only: a tile used here (dropped,
- * armed or picked) is copied into `projectId` first, then its copy is used.
+ * Other projects' captured items, read only, grouped by project when there are
+ * several: a tile used here (dropped, armed or picked) is copied into
+ * `projectId` first, then its copy is used.
  */
 function OtherProjectItems({
   projectId,
-  source,
+  sources,
   onPick,
 }: {
   projectId: ProjectId;
-  source: Project;
+  sources: Project[];
   onPick?: (ref: string) => void;
 }) {
   const { t } = useTranslation();
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
-  const captured = source.capturedItems ?? [];
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const groups = sources
+    .map((source) => ({
+      source,
+      items: (source.capturedItems ?? []).filter(
+        (ci) => !needle || ci.name.toLowerCase().includes(needle),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+  const total = sources.reduce((n, p) => n + (p.capturedItems?.length ?? 0), 0);
   return (
     <div className="flex flex-col gap-2" data-testid="other-project-items">
       <div className="eyebrow">{t("capturedItems.sectionTitle")}</div>
-      {captured.length > 0 ? (
+      {total > 0 ? (
         <>
           <p className="text-[11px] text-[var(--text-faint)]">{t("projectSource.itemHint")}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {captured.map((ci) => (
-              <CapturedTile
-                key={ci.id}
-                project={source}
-                item={ci}
-                foreign
-                onPick={() => {
-                  const local = adoptCapturedItem(projectId, ci);
-                  if (onPick) onPick(local);
-                  else setArmedMaterial(local);
-                }}
-              />
-            ))}
-          </div>
+          <Input
+            aria-label={t("projectSource.searchItems")}
+            placeholder={t("projectSource.searchItems")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 text-xs"
+          />
+          {groups.map(({ source, items }) => (
+            <div key={source.id} className="flex flex-col gap-1">
+              {sources.length > 1 && (
+                <div className="text-[11px] text-[var(--text-mut)]">{source.name}</div>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                {items.map((ci) => (
+                  <CapturedTile
+                    key={ci.id}
+                    project={source}
+                    item={ci}
+                    foreign
+                    onPick={() => {
+                      const local = adoptCapturedItem(projectId, ci);
+                      if (onPick) onPick(local);
+                      else setArmedMaterial(local);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          {groups.length === 0 && (
+            <p className="text-[11px] text-[var(--text-faint)]">{t("resources.noResults")}</p>
+          )}
         </>
       ) : (
         <p className="text-[11px] text-[var(--text-faint)]">{t("projectSource.noItems")}</p>

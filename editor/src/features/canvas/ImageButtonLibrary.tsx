@@ -14,7 +14,7 @@ import { useIsPro } from "@/lib/edition";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useDraggable } from "@dnd-kit/core";
 import { Upload } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { draggableProps } from "./dragPayload";
 import { imageDragSize } from "./imageButtonDrag";
@@ -31,7 +31,7 @@ export function ImageButtonDragPreview({ asset, scale }: { asset: Asset; scale: 
   );
 }
 
-function ImageTile({ asset }: { asset: Asset }) {
+function ImageTile({ asset, from }: { asset: Asset; from?: string }) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable(
     draggableProps({ kind: "imageButton", asset }),
@@ -45,10 +45,11 @@ function ImageTile({ asset }: { asset: Asset }) {
       variant="outline"
       className="h-auto min-w-0 touch-none flex-col gap-1 p-2 cursor-grab active:cursor-grabbing"
       style={{ opacity: isDragging ? 0.4 : 1, height: "auto", minHeight: 108 }}
-      title={`${asset.name} · ${asset.width} × ${asset.height} px`}
+      title={`${asset.name} · ${asset.width} × ${asset.height} px${from ? ` · ${from}` : ""}`}
     >
       <AssetPreview asset={asset} lazy className="h-12 w-full object-contain pointer-events-none" />
       <span className="w-full truncate text-xs">{asset.name}</span>
+      {from && <span className="w-full truncate text-[11px] text-[var(--text-faint)]">{from}</span>}
       <span className="text-[11px] text-[var(--text-mut)]">{t("imageButton.slots", size)}</span>
     </Button>
   );
@@ -62,29 +63,40 @@ export function ImageButtonLibrary({ projectId }: { projectId: ProjectId }) {
   if (!pro)
     return (
       <div className="flex h-full min-h-0 flex-col gap-2 p-2">
-        <ImageGrid projectId={projectId} source={null} />
+        <ImageGrid projectId={projectId} sources={null} />
       </div>
     );
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 p-2">
       <ProjectSource projectId={projectId} sourceId={sourceId} onSourceChange={setSourceId}>
-        {(source) => <ImageGrid key={source?.id ?? ""} projectId={projectId} source={source} />}
+        {(sources) => (
+          <ImageGrid
+            key={sources?.map((p) => p.id).join(",") ?? ""}
+            projectId={projectId}
+            sources={sources}
+          />
+        )}
       </ProjectSource>
     </div>
   );
 }
 
-/** The button images of `projectId`, or of `source` (another project: read only, copied on drop). */
-function ImageGrid({ projectId, source }: { projectId: ProjectId; source: Project | null }) {
+/**
+ * The button images of `projectId`, or of `sources` (other projects: read only,
+ * copied on drop; each tile names its project when there are several).
+ */
+function ImageGrid({ projectId, sources }: { projectId: ProjectId; sources: Project[] | null }) {
   const { t } = useTranslation();
   const own = useAssetStore((s) => s.assets);
   const ownLoading = useAssetStore((s) => s.loading);
   const ownError = useAssetStore((s) => s.error);
-  const other = useOtherProjectAssets(source?.id ?? null);
+  const sourceIds = useMemo(() => (sources ?? []).map((p) => p.id), [sources]);
+  const other = useOtherProjectAssets(sourceIds);
   const current = useProjectsStore((s) =>
     s.openProjects.projects.find((entry) => entry.id === projectId),
   );
-  const project = source ?? current;
+  const owners = new Map((sources ?? (current ? [current] : [])).map((p) => [p.id as string, p]));
+  const source = sources !== null;
   const assets = source ? other.assets : own;
   const loading = source ? other.loading : ownLoading;
   const error = source ? other.error : ownError;
@@ -92,9 +104,9 @@ function ImageGrid({ projectId, source }: { projectId: ProjectId; source: Projec
   const [uploadOpen, setUploadOpen] = useState(false);
   const images = assets.filter(
     (asset) =>
-      asset.projectId === (source?.id ?? projectId) &&
+      (source ? owners.has(asset.projectId) : asset.projectId === projectId) &&
       asset.type !== "font" &&
-      assetUsages(asset, project).includes("button") &&
+      assetUsages(asset, owners.get(asset.projectId)).includes("button") &&
       asset.width > 0 &&
       asset.height > 0 &&
       asset.name.toLowerCase().includes(search.toLowerCase()),
@@ -118,7 +130,11 @@ function ImageGrid({ projectId, source }: { projectId: ProjectId; source: Projec
       </p>
       <div className="grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto">
         {images.map((asset) => (
-          <ImageTile key={asset.id} asset={asset} />
+          <ImageTile
+            key={`${asset.projectId}:${asset.id}`}
+            asset={asset}
+            from={(sources?.length ?? 0) > 1 ? owners.get(asset.projectId)?.name : undefined}
+          />
         ))}
         {(loading || error || !images.length) && (
           <p
