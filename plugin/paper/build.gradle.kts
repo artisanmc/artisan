@@ -1,5 +1,9 @@
+import io.papermc.hangarpublishplugin.model.Platforms
+
 plugins {
     id("io.github.goooler.shadow")
+    id("com.modrinth.minotaur")
+    id("io.papermc.hangar-publish-plugin")
 }
 
 dependencies {
@@ -107,4 +111,45 @@ val deploy by tasks.registering(Exec::class) {
         jar.copyTo(dest, overwrite = true)
     }
     commandLine("docker", "compose", "restart", "minecraft")
+}
+
+// Publication of the free jar on a `v*` tag (.github/workflows/release-jars.yml): the workflow
+// passes the jar it built and checked as `-PreleaseJar`, so what goes out is exactly that file;
+// nothing is rebuilt here. The Pro jar never goes to Modrinth or Hangar (docs/architecture/editions.md).
+// Tokens, project ids and notes come from the environment (deploy/README.md, "Releasing the
+// plugin"). A version with a suffix (`2.0.0-beta.1`) goes out as a beta on Modrinth and on
+// Hangar's Snapshot channel. Paper 1.21 and newer; 26.2 is the dev server (docker-compose.yml).
+val minecraftVersions = providers.gradleProperty("minecraftVersions")
+    .getOrElse("1.21,1.21.1,1.21.2,1.21.3,1.21.4,1.21.5,1.21.6,1.21.7,1.21.8,1.21.9,1.21.10,1.21.11,26.1,26.2")
+    .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+val releaseJar = providers.gradleProperty("releaseJar").map { rootDir.resolve(it) }
+val prerelease = project.version.toString().contains("-")
+val releaseNotes = providers.environmentVariable("RELEASE_NOTES").orElse("")
+
+modrinth {
+    token.set(providers.environmentVariable("MODRINTH_TOKEN"))
+    projectId.set(providers.environmentVariable("MODRINTH_PROJECT_ID"))
+    versionNumber.set(project.version.toString())
+    versionName.set("Artisan ${project.version}")
+    versionType.set(if (prerelease) "beta" else "release")
+    uploadFile.set(releaseJar)
+    gameVersions.set(minecraftVersions)
+    loaders.set(listOf("paper", "folia", "purpur"))
+    changelog.set(releaseNotes)
+}
+
+hangarPublish {
+    publications.register("plugin") {
+        version.set(project.version.toString())
+        channel.set(if (prerelease) "Snapshot" else "Release")
+        id.set(providers.environmentVariable("HANGAR_PROJECT"))
+        apiKey.set(providers.environmentVariable("HANGAR_API_TOKEN"))
+        changelog.set(releaseNotes)
+        platforms {
+            register(Platforms.PAPER) {
+                jar.set(layout.file(releaseJar))
+                platformVersions.set(listOf("${minecraftVersions.first()}-${minecraftVersions.last()}"))
+            }
+        }
+    }
 }

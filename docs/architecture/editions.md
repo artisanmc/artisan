@@ -20,6 +20,8 @@ Same plugin name and data folder: switching edition is replacing the jar.
 **Early access** (Pro): each push to `v2` or `main` touching the plugin or the editor builds
 `<last v tag>-dev.<run>` and replaces the assets of the GitHub pre-release `dev`
 (`release-jars.yml`). Those jars go to Pro buyers only; the free edition gets tagged releases.
+A tag also publishes: the free jar to Modrinth and Hangar, the Pro jar to Voxel; SpigotMC and
+BuiltByBit by hand (`deploy/README.md`, "Releasing the plugin").
 
 Pro list (Iban, 2026-10-27): title composer, resource pack, image import, early access, priority
 support, advanced expressions (editing only). Bedrock menus are not sold until finished.
@@ -32,7 +34,7 @@ Only **editing**. Rendering is never gated.
 |---|---|
 | Title composer (layers, positions, offsets) | Vanilla title only. A composed title is shown on the canvas and in the panel, read-only (`LayersPanel`, `TitleRender`). |
 | Image, font and Nexo import | Buttons disabled with a Pro badge (`AssetsTab`); the picker offers no upload (`AssetPicker`). Existing assets stay pickable. |
-| Advanced expressions (method, `+`/`-`, ternary; `lib/expr/advanced.ts`) | Help only (Iban, 2026-10-27): no readable view (`ExpressionCard` shows a Pro notice and "Show code") and no evaluated preview (`ExpressionPreview`). Typing, saving and publishing them stay free; `{x.y}`, PAPI and comparisons keep all the help. |
+| Advanced expressions (method, `+`/`-`, ternary; `lib/expr/advanced.ts`) | Help only (Iban, 2026-10-27): no readable view (`ExpressionRules` shows the raw `{…}` with a Pro badge, edited in the Code view) and no evaluated preview (`ExpressionPreview`). Typing, saving and publishing them stay free; `{x.y}`, PAPI and comparisons keep all the help. |
 | Resource pack build and upload | The editor does not rebuild after a publish (`resourcePackSync`); the hub answers `PUT …/resource-pack` with 403 `pro_required` (`PackRoutes`). |
 
 The editor learns the edition from `GET /api/v1/auth/me` (`user.edition`, `lib/edition.ts`);
