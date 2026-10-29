@@ -13,6 +13,8 @@ export type {
   LocalPreviewContext,
   DocumentKindContribution,
   DocumentCollection,
+  DocumentPackContribution,
+  PackImage,
   DocumentEditorProps,
   DocumentPreviewProps,
   DocumentLabelContext,

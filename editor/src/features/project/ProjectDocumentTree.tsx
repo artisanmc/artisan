@@ -15,7 +15,7 @@ import { DEFAULT_GROUP_COLOR, folderGroups } from "@/domain/canvasGroups";
 import { MAX_FOLDER_DEPTH } from "@/domain/documentLayout";
 import { docKey, documentCount, findDocumentByKey } from "@/domain/documents";
 import { childFolders, folderName, listFolders } from "@/domain/folders";
-import { ownDataSources } from "@/domain/projectData";
+import { listedDataSources } from "@/domain/projectData";
 import type { Project, ProjectId } from "@/domain/types";
 import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
@@ -35,6 +35,7 @@ import { collectionDestination, dataSourceDestination } from "@/lib/projectNavig
 import { shippedKey, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
+import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
 import {
   type DocumentKindContribution,
@@ -236,12 +237,13 @@ export function ProjectDocumentTree({
 }) {
   const { t } = useTranslation();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const screens = useServerScreensStore((s) => s.screens);
   if (!project) return null;
 
   const empty =
     documentCount(project) === 0 &&
     listFolders(project).length === 0 &&
-    ownDataSources(project).length === 0;
+    listedDataSources(project, screens).length === 0;
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: a named group of navigation lists, not a form — <fieldset> would be wrong.

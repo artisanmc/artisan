@@ -224,7 +224,7 @@ title:
 
 The `textarea` kind (SP5) is a multi-line block: the i18n string is split on `\n` at runtime, then each line is word-wrapped to fit in `width` (px). Each sub-line is rendered at `(x, y + i * line_height)` with the shared `alignment`. The optional `font_asset_id` applies to all lines. Words wider than `width` overflow (soft constraint).
 
-The plugin embeds `assets/artisan/asset-index.json` (schema **v2**) in the RP zip to map `asset_id → name + type + codepoint? + ascent + height + width + namespace?` and to declare the `offsets` table (hex codepoint → pixel advance).
+The plugin embeds `assets/artisan/asset-index.json` (schema **v2**) in the RP zip to map `asset_id → name + type + codepoint? + ascent + height + width + namespace? + slices?` and to declare the `offsets` table (hex codepoint → pixel advance).
 
 ## Title Composer — pixel offsets (spaces font)
 
@@ -247,6 +247,8 @@ Import MCFonts via "Import font" in the AssetsTab: drop a `.zip` (`font.json` + 
 Background = "big glyph": its height comes from the asset's ascent (`y = 13 - ascent`).
 
 **Glyph layers = Y per layer.** `layer.y` is the top of the image in chest pixels. The plugin (`TitleCompiler`) renders a glyph whose `y == 13 - ascent` with `artisan:default`, otherwise via `<font:artisan:glyph_y{Y}>`. The pack builder (`lib/pack/buildServerPack.ts` → `glyphPlacementsFromMenus`) reads the `menus/*.yaml` of each Project and emits `assets/artisan/font/glyph_y{Y}.json` only for the (glyph, Y) pairs in use: each provider reloads its texture on the client, so no full matrix like `text_y`. Floor shared by the 3 layers: `y >= 13 - height` (MC rejects `ascent > height`). `LayerEditForm` exposes X/Y and "Align as chest background" (x=0, y=17); the `AssetPicker` receives `projectId` and offers upload (`AssetUploadDialog.onUploaded` → direct pick).
+
+**HUD fonts.** Two families let a module draw in a slot of the screen (`api.getOverlay()`, `modules.md`); text drops below the line through the `text_y{Y}_h8` fonts of the menus (`Y = 6 - R`). `artisan:text_up{R}` (R = 0..128, always in the pack, `buildTextUpFontJson`): vanilla text R px higher. Minecraft rejects `ascent > height`, so a glyph cannot rise above its own cell: the providers point at `artisan:font/{ascii,accented,nonlatin_european}_up.png`, the vanilla textures with 128 transparent rows under each cell (`tools/minecraft-assets/gen-padded-fonts.ts`, committed in `editor/src/assets/minecraft/font/`), `height = vanilla + 128`, `ascent = vanilla + R`. `artisan:overlay/<sha256(asset)>_<R>` (`lib/pack/overlayImages.ts`): one font per (asset, rise) a kind's `pack.images` asks for (R = -166..128), `ascent = 7 + R`, the image padded under it to that height, cut into glyphs `\ue000…` of 256 columns (a larger glyph is dropped by the client's 256 px atlas); its index entry lists each slice's content width (`slices`), from which the plugin joins them.
 
 ## Title Composer UX v3
 

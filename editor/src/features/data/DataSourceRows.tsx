@@ -5,11 +5,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { IconTile } from "@/components/ui/icon-tile";
-import { ownDataSources } from "@/domain/projectData";
+import { listedDataSources } from "@/domain/projectData";
 import type { DataSource, Project } from "@/domain/types";
 import { dataSourceDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Braces, Table2 } from "lucide-react";
@@ -22,11 +23,13 @@ const DATA_LOOK = {
 
 /**
  * A Project's own data in its tree, after its Documents: one row per table or config
- * sheet, opening its page (`…/data/$dataSourceId`). Sources a module's model types are
- * left out: their module's screen edits them. `editable` adds the `···` menu.
+ * sheet, opening its page (`…/data/$dataSourceId`). Sources a module's model types, or a
+ * module's declared screen edits, are left out: that screen has its own row. `editable`
+ * adds the `···` menu.
  */
 export function DataSourceRows({ project, editable }: { project: Project; editable: boolean }) {
-  const sources = ownDataSources(project);
+  const screens = useServerScreensStore((s) => s.screens);
+  const sources = listedDataSources(project, screens);
   // Nothing to list: no row, and no router read (a tree also renders outside one).
   if (sources.length === 0) return null;
   return <DataSourceList project={project} sources={sources} editable={editable} />;

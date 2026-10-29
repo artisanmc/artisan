@@ -50,11 +50,26 @@ open class ArtisanPlugin : JavaPlugin() {
         private set
     /** Survives `/artisan reload`: the pack manager is swapped, the players' loaded packs are not. */
     internal val packLoads = net.artisanmc.plugin.resourcepack.PackLoadTracker()
+    /** The HUD layers modules show (`api.getOverlay().show`), drawn on the player's thread. */
+    internal val overlaySlots by lazy {
+        net.artisanmc.plugin.resourcepack.OverlaySlots(scheduler) { id, slot, line ->
+            val player = server.getPlayer(id) ?: return@OverlaySlots
+            when (slot) {
+                net.artisanmc.modules.api.text.OverlayApi.Slot.ACTION_BAR -> player.sendActionBar(
+                    if (line.isEmpty()) net.kyori.adventure.text.Component.empty()
+                    else net.artisanmc.plugin.text.LenientText.parse(line),
+                )
+            }
+        }
+    }
     private val openedContainers = net.artisanmc.plugin.render.title.OpenedContainers()
     private var menuPackets: MenuPacketInterceptor? = null
     /** Exposed for /artisan dump-title diagnostics. */
     lateinit var assetCatalog: net.artisanmc.plugin.resourcepack.AssetCatalog
         internal set
+    /** The catalog once the runtime has made it, null before. */
+    internal val assetCatalogOrNull: net.artisanmc.plugin.resourcepack.AssetCatalog?
+        get() = if (::assetCatalog.isInitialized) assetCatalog else null
     lateinit var langManager: LangManager
     /** `api.translations`: survives `/artisan reload`, which [Translations.configure]s it again. */
     val translations by lazy { net.artisanmc.plugin.lang.Translations(logger = logger) }
@@ -144,6 +159,7 @@ open class ArtisanPlugin : JavaPlugin() {
             server.onlinePlayers.forEach(interceptor::inject)
         }
         server.pluginManager.registerEvents(packLoads, this)
+        server.pluginManager.registerEvents(overlaySlots, this)
         server.pluginManager.registerEvents(openedContainers, this)
         saveDefaultConfig()
         api = buildApi(this)

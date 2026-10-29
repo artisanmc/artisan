@@ -16,6 +16,11 @@ export function rebuildServerPackInBackground(
     .then(({ requestResourcePackRebuild }) => requestResourcePackRebuild(serverId))
     .catch((error: unknown) => {
       console.warn("[resource-pack]", error);
-      toast.error(t("deploy.packFailed"), { id: "resource-pack-rebuild" });
+      // The reason is shown too: the admin can hand it on without opening the console.
+      const reason = error instanceof Error ? error.message : String(error);
+      toast.error(t("deploy.packFailed"), {
+        id: "resource-pack-rebuild",
+        description: t("deploy.packFailedReason", { reason }),
+      });
     });
 }
