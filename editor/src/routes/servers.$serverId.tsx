@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { BreadcrumbSwitcher } from "@/components/ui/breadcrumb";
 import { IconTile } from "@/components/ui/icon-tile";
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import { type ProjectRenamed, onProjectRenamed } from "@/features/project/onProjectRenamed";
@@ -8,6 +9,9 @@ import {
 } from "@/features/project/onProjectsReloaded";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
 import { buildModuleList, diskProjectsToSummaries } from "@/features/projects/projectGroups";
+import { SearchPalette } from "@/features/search/SearchPalette";
+import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
+import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { ServerTabs, serverTabOf } from "@/features/serverPage/ServerTabs";
 import { ServerFrameContext, useServerFrame } from "@/features/serverPage/serverFrame";
 import { EditorAddressBanner } from "@/features/settings/EditorAddressBanner";
@@ -22,6 +26,7 @@ import { useModulesStore } from "@/state/modulesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useSidebarStore } from "@/state/sidebarStore";
+import { useUiStore } from "@/state/uiStore";
 import {
   Link,
   Outlet,
@@ -56,7 +61,8 @@ export default function ServerDetailPage() {
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.currentUser);
   const authLoading = useAuthStore((s) => s.isLoading);
-  const [summary, setSummary] = useState<ServerSummary | null>(null);
+  const [servers, setServers] = useState<ServerSummary[]>([]);
+  const summary = servers.find((k) => k.id === serverId) ?? null;
   const [accessDenied, setAccessDenied] = useState(false);
   const childMatches = useChildMatches();
   const navigationPinned = useSidebarStore((s) => s.pinned);
@@ -81,7 +87,7 @@ export default function ServerDetailPage() {
           navigate({ to: "/servers", replace: true });
           return;
         }
-        setSummary(sk);
+        setServers(servers);
       })
       .catch((e: Error & { status?: number }) => {
         if (e?.status === 403) {
@@ -105,8 +111,18 @@ export default function ServerDetailPage() {
     );
   const child = childMatches[0];
   const tab = serverTabOf(child?.routeId);
-  // A project or a screen of the server: full screen, without the frame.
-  if (child && !tab) return <Outlet />;
+  // A project mounts its own search (it searches the open project in detail).
+  const search = !child?.routeId?.startsWith("/servers/$serverId/projects") && (
+    <ServerSearch serverId={serverId} />
+  );
+  // A screen of the server: full screen, without the frame.
+  if (child && !tab)
+    return (
+      <>
+        <Outlet />
+        {search}
+      </>
+    );
 
   return (
     <ServerFrameContext.Provider value={frame}>
@@ -120,8 +136,26 @@ export default function ServerDetailPage() {
           )}
         >
           <div className="flex min-h-14 min-w-0 items-center gap-2.5">
-            <h1 className="truncate text-[17px] font-semibold tracking-tight text-[var(--text)]">
-              {summary ? displayServerLabel(summary) : serverId}
+            {/* The name is the server switcher, as in a project's breadcrumb. */}
+            <h1 className="min-w-0">
+              <BreadcrumbSwitcher
+                current={serverId}
+                title={summary ? displayServerLabel(summary) : serverId}
+                searchPlaceholder={t("breadcrumb.searchServers")}
+                className="text-[17px] font-semibold tracking-tight text-[var(--text)]"
+                items={servers.map((k) => ({
+                  id: k.id,
+                  label: displayServerLabel(k),
+                  leading: (
+                    <span
+                      aria-hidden
+                      className="size-1.5 shrink-0 rounded-full"
+                      style={{ background: k.online ? "var(--success)" : "var(--text-faint)" }}
+                    />
+                  ),
+                }))}
+                onSelect={(id) => navigate({ to: "/servers/$serverId", params: { serverId: id } })}
+              />
             </h1>
             {summary && <ServerStateBadge summary={summary} />}
           </div>
@@ -134,8 +168,22 @@ export default function ServerDetailPage() {
           {child ? <Outlet /> : <ServerOverview />}
         </div>
       </div>
+      {search}
     </ServerFrameContext.Provider>
   );
+}
+
+/** The search palette outside a project: the server's projects, Cmd/Ctrl+K or the sidebar. */
+function ServerSearch({ serverId }: { serverId: string }) {
+  useGlobalSearchShortcut();
+  // The index reads every project of the server: only once the palette is first opened.
+  const open = useUiStore((s) => s.searchOpen);
+  const [wanted, setWanted] = useState(false);
+  useEffect(() => {
+    if (open) setWanted(true);
+  }, [open]);
+  useServerIndexLoader(serverId, wanted);
+  return <SearchPalette />;
 }
 
 /** Online, offline, or waiting for a plugin update. */

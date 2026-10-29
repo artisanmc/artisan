@@ -39,7 +39,6 @@ import {
   Languages as LanguagesIcon,
   LayoutDashboard,
   Redo2,
-  Search,
   Undo2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -163,7 +162,6 @@ export function ProjectTopBarControls({
             </Link>
           )}
           <AssistantButton />
-          <SearchButton />
           <div data-tour="save" className="flex items-center gap-1">
             <SaveControls
               key={projectId}
@@ -401,28 +399,6 @@ function UndoRedoButtons() {
         <Redo2 className="h-4 w-4" />
       </TopBarIconButton>
     </div>
-  );
-}
-
-const SHORTCUT_MOD =
-  typeof navigator !== "undefined" && /mac/i.test(navigator.platform || "") ? "⌘" : "Ctrl+";
-
-/**
- * Top-bar search button. Renders as a GitBook-style input pill that opens
- * the search palette on click (Cmd/Ctrl+K).
- */
-function SearchButton() {
-  const { t } = useTranslation();
-  return (
-    <button
-      type="button"
-      onClick={() => useUiStore.getState().setSearchOpen(true)}
-      aria-label={t("search.open")}
-      title={`${t("search.open")} (${SHORTCUT_MOD}K)`}
-      className="btn btn-ghost btn-icon size-8 shrink-0"
-    >
-      <Search className="size-4 shrink-0" />
-    </button>
   );
 }
 

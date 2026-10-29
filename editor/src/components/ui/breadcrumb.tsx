@@ -78,12 +78,15 @@ export function BreadcrumbSwitcher({
   onSelect,
   searchPlaceholder,
   title,
+  className,
 }: {
   current: string;
   items: BreadcrumbSwitcherItem[];
   onSelect: (id: string) => void;
   searchPlaceholder: string;
   title?: string;
+  /** Trigger styles over the breadcrumb link's (a page title that switches). */
+  className?: string;
 }) {
   const [query, setQuery] = useState("");
   const active = items.find((i) => i.id === current);
@@ -93,7 +96,7 @@ export function BreadcrumbSwitcher({
     <DropdownMenu onOpenChange={(open) => !open && setQuery("")}>
       <DropdownMenuTrigger
         title={title}
-        className={cn(breadcrumbLinkClass, "flex items-center gap-1.5")}
+        className={cn(breadcrumbLinkClass, "flex items-center gap-1.5", className)}
       >
         <span className="truncate">{active?.label ?? current}</span>
         <ChevronDown aria-hidden className="size-3.5 shrink-0" />

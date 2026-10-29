@@ -13,7 +13,6 @@ function ServerDataTab() {
   const { t } = useTranslation();
   return (
     <div className="mx-auto flex h-full max-w-6xl flex-col gap-3 px-6 py-6">
-      <p className="text-[12px] text-[var(--text-mut)]">{t("dataSources.serverSectionHint")}</p>
       {summary?.updateRequired ? (
         <p className="text-[13px] text-[var(--text-mut)]">{t("serverDetail.updateRequired")}</p>
       ) : (

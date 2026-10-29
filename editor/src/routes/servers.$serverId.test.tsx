@@ -264,6 +264,12 @@ describe("ServerDetailPage", () => {
     expect(await screen.findByText("serverDetail.stateOnline")).toBeInTheDocument();
   });
 
+  it("makes the server's name its switcher, as in a project's breadcrumb", async () => {
+    render(<ServerDetailPage />);
+    const heading = await screen.findByRole("heading", { level: 1 });
+    await waitFor(() => expect(within(heading).getByRole("button")).toHaveTextContent("Survival"));
+  });
+
   it("keeps the frame around a tab's route, without reading the disk itself", async () => {
     routerState.childMatches = [{ id: "child", routeId: "/servers/$serverId/settings" }];
     render(<ServerDetailPage />);
