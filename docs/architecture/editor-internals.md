@@ -666,7 +666,7 @@ The MCP transport remains future; it will reuse the same operations and checks.
 - `releaseBoardPositions({projectId})` action: rearranges only the outer level, each group being a block sized by its content and linked by its incoming/outgoing links. `rearrangeProjectLayout` captures the visible positions before computing to keep the internal relative positions exactly, even if not manually pinned. Without groups, keeps the historical reset behavior. **Rearrange** button of `CanvasToolbar`; undoable with Ctrl+Z (zundo).
 - `rearrangeCanvasGroup({projectId, groupId})` action, reachable via **Folders → name → Rearrange contents**: releases only the members' positions, keeps the frame origin and all outside positions, adapts the frame size. Both actions save their result in the existing `canvasLayout` / `folders.<folder>.position` metadata, without changing the Documents; no migration. `deleteFromProject({projectId, nodeIds})` removes the Document from the project and its pinned position.
 - Full recomputation on each graph change, with no local insertion or cache: the stability of the arrangement between two edits remains an open question of the spec.
-- **General board** (read-only): route `…/servers/$serverId/canvas` (`features/serverCanvas/ServerCanvasPage.tsx`), "Server board" link on the server page. Loads each project of the server via `useProjectLoader` (draft included), graph `deriveServerGraph(projects)` with lexical resolution of references (`domain/docRef.ts` → `resolveDocRef`, mirror of `DocumentTable` on the plugin side, locked by `testdata/doc-ref-conformance.json`): bare id looked up first in the source Document's project, then on the server if unique; `project:id` targets that project; a bare id absent from the project and carried by several others = ambiguous link, not drawn, project / type / id filters in the URL. Rendered by the same `MenuGroup` / `CommandGroup` / `DialogGroup`, in a `listening={false}` layer: no editing gesture possible; a layer of clickable zones opens the Document in its project.
+- **General board** (read-only): route `…/servers/$serverId/canvas` (`features/serverCanvas/ServerCanvasPage.tsx`), "Server board" link on the server page. Loads each project of the server via `useServerProjects` (`features/project/useServerProjects.tsx`: one `useProjectLoader` per project, draft included; shared with the Play mode), graph `deriveServerGraph(projects)` with lexical resolution of references (`domain/docRef.ts` → `resolveDocRef`, mirror of `DocumentTable` on the plugin side, locked by `testdata/doc-ref-conformance.json`): bare id looked up first in the source Document's project, then on the server if unique; `project:id` targets that project; a bare id absent from the project and carried by several others = ambiguous link, not drawn, project / type / id filters in the URL. Rendered by the same `MenuGroup` / `CommandGroup` / `DialogGroup`, in a `listening={false}` layer: no editing gesture possible; a layer of clickable zones opens the Document in its project.
 
 ### `Project.moduleData` — opaque per-module state
 
@@ -1141,6 +1141,31 @@ A single source of truth, the MiniMessage string; two CodeMirror views on it.
 - **Empty lore lines (2026-10-27).** As `MenuRenderer` does, `renderLore` (`lib/mm/loreLines.ts`) renders a lore line by line as written (a newline inside a `{…}` does not split) and drops a line whose `{…}`/`%…%` give no visible text; a line left empty as written stays. `resolveItem` and `MmTextField` (lore profile) go through it, so a rule sits on its own line instead of a single `{…}` glued with `"\n"`.
 - **Splitting and editing a rule (2026-10-27).** A logic block offers "One rule per line" when `splitIntoLines` (`lib/expr/splitLines.ts`) finds a `{…}` glued with `"\n"` (a lore only): each `c ? "\nX" : ""` becomes `{c ? "X" : ""}` on its own line (left out in game when it gives nothing), a conditional bare break becomes a plain empty line, texts split on their breaks; the source is printed back by `printExpression` (`lib/expr/print.ts`). A block built by a recipe (`matchRecipe`) offers "Edit": the recipe's form (`RecipeForm`, exported by `PlaceholderLibrary`) opens in the block, prefilled, and Apply replaces the `{…}`. The Library is an icon (`Variable`, `{x}`) among the formatting tools. Radix packages share one `react-dismissable-layer` (dialog, popover, dropdown, tooltip bumped together): with two copies, a popover opened from a dialog counted as outside it and closed the dialog (`popover-in-dialog.test.tsx`).
 - **Line limit.** `lineCount` counts the breaks seen by the player (`\n`, `<newline>`, `<br>`); the rich view refuses a modification that exceeds `lineCap(profile)` (Enter, paste, typed tag), the code view only flags it.
+
+## Play mode (`features/play/`, since 2026-10-29)
+
+The game's screen built from **every project of a server**, with no client and no server running
+(spec `spec-mode-jeu-editeur.md`). Route `…/servers/$serverId/play` (`PlayPage`), "Play" link on the
+server page, and the project top bar's "Test in game" button (`?project=<diskId>`: that project first
+in the launcher). Projects load through `useServerProjects`, as for the general board.
+
+- **Engine** (`engine/`, no React): `PlaySession` holds the display state (chat, title, action bar,
+  open menu + history, journal, forced conditions) behind `getState`/`subscribe`. Every project is
+  live at once: commands match across all of them (`matchCommand`, name or alias, sub-commands,
+  greedy last string), `open_menu` resolves a bare id in the chain's project and `<diskId>:<id>` in
+  another (`projectByNamespace`); each chain carries its project (`RunSource.project`) for texts and
+  references. Visual actions run (messages, titles with their ticks, menus, pages, `set_arg*`); world
+  actions (give, money, xp, teleport, a command no project declares…) are journaled "→ …"; an action
+  nobody declared visual is journaled with its value, never run. Depth capped at 16.
+- **Test player** (`testPlayer.ts`): name, op, permissions (`*`, `prefix.*`), money, xp, level,
+  world, placeholders; saved per server in `localStorage`. Conditions (`conditions.ts`) computed
+  from it when possible, else forced (default true) and listed in the panel to flip. Joins left to
+  right, no precedence, as the plugin.
+- **Menus** (`menuSlots.ts`, `PlayMenu.tsx`): each slot's first matching state, iterations and
+  placements, the canvas' Konva pieces at the GUI scale, centred as the game; a click runs exactly
+  that click type's chain (no fallback, as the plugin).
+- **View** (`PlayView.tsx`, `PlayPanels.tsx`): `McScreen` + controls, T or / open the chat, Esc/E close
+  the menu; launcher grouped per project, test player, journal.
 
 ## Public landing
 

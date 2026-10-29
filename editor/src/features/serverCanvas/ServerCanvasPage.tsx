@@ -13,10 +13,7 @@ import { fitViewport } from "@/features/canvas/focusViewport";
 import { type BoardGroup, groupEdges, serverBoard } from "@/features/canvas/groupedBoard";
 import { type BoardNode, boardGraph, deriveServerGraph } from "@/features/canvas/serverGraph";
 import { usePanZoom } from "@/features/canvas/usePanZoom";
-import { useProjectLoader } from "@/features/project/useProjectLoader";
-import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
-import { listServerProjects } from "@/lib/api/projectFiles";
-import { type ProjectSummary, listServers } from "@/lib/api/servers";
+import { useServerProjects } from "@/features/project/useServerProjects";
 import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useCssVar } from "@/lib/themeColors";
@@ -25,7 +22,7 @@ import { documentKindContribution } from "@artisan/editor-sdk";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
 import type Konva from "konva";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Arrow, Stage as KonvaStage, Layer, Rect } from "react-konva";
 import { type BoardFilter, filterBoard, parseBoardFilter } from "./boardFilter";
@@ -47,79 +44,14 @@ function kindLabel(kind: string, t: TFunction): string {
 export const validateServerCanvasSearch = (search: Record<string, unknown>): BoardFilter =>
   parseBoardFilter(search);
 
-interface ProbeResult {
-  project: Project | null;
-  failed: boolean;
-}
-
-/** Loads a project exactly like its own view (disk + draft), so the board shows the same thing. */
-function ProjectProbe({
-  loadRef,
-  serverId,
-  onResult,
-}: {
-  loadRef: string;
-  serverId: string;
-  onResult: (loadRef: string, result: ProbeResult) => void;
-}) {
-  const { project, error, offline } = useProjectLoader(loadRef, serverId);
-  const failed = error != null || offline;
-  useEffect(() => onResult(loadRef, { project, failed }), [loadRef, project, failed, onResult]);
-  return null;
-}
-
 export function ServerCanvasPage() {
   const { t } = useTranslation();
   const { serverId } = useParams({ from: ROUTE });
   const filter = useSearch({ from: ROUTE }) as BoardFilter;
   const navigate = useNavigate();
 
-  const [summaries, setSummaries] = useState<ProjectSummary[] | null>(null);
-  const [listing, setListing] = useState<"loading" | "ready" | "unavailable">("loading");
-  const [results, setResults] = useState<Record<string, ProbeResult>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-    setListing("loading");
-    listServers()
-      .then(async (servers) => {
-        const key = servers.find((k) => k.id === serverId);
-        if (!key) throw new Error("unknown_server");
-        const res = await listServerProjects(key.id);
-        if (cancelled) return;
-        if (!res.ok) {
-          setListing("unavailable");
-          return;
-        }
-        setSummaries(diskProjectsToSummaries(key.id, res.projectIds, res.projects));
-        setListing("ready");
-      })
-      .catch(() => {
-        if (!cancelled) setListing("unavailable");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [serverId]);
-
-  const onResult = useCallback((loadRef: string, result: ProbeResult) => {
-    setResults((prev) => {
-      const current = prev[loadRef];
-      if (current && current.project === result.project && current.failed === result.failed)
-        return prev;
-      return { ...prev, [loadRef]: result };
-    });
-  }, []);
-
-  const refs = useMemo(() => (summaries ?? []).map((s) => projectUrlId(s)), [summaries]);
-  const done = refs.filter((ref) => results[ref]?.project || results[ref]?.failed).length;
-  const failedCount = refs.filter((ref) => results[ref]?.failed && !results[ref]?.project).length;
-  const settled = listing === "ready" && done === refs.length;
-
-  const projects = useMemo(
-    () => refs.map((ref) => results[ref]?.project).filter((p): p is Project => p != null),
-    [refs, results],
-  );
+  const { projects, probes, listing, settled, done, total, failedCount } =
+    useServerProjects(serverId);
 
   const graph = useMemo(() => boardGraph(deriveServerGraph(projects)), [projects]);
   const visible = useMemo(() => filterBoard(graph, filter), [graph, filter]);
@@ -137,19 +69,12 @@ export function ServerCanvasPage() {
       : listing === "unavailable"
         ? t("serverCanvas.unavailable")
         : !settled
-          ? t("serverCanvas.loading", { done, total: refs.length })
+          ? t("serverCanvas.loading", { done, total })
           : null;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--bg)]">
-      {summaries?.map((s) => (
-        <ProjectProbe
-          key={projectUrlId(s)}
-          loadRef={projectUrlId(s)}
-          serverId={serverId}
-          onResult={onResult}
-        />
-      ))}
+      {probes}
       <header className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-3">
         <Link to="/servers/$serverId" params={{ serverId }} className="btn btn-ghost btn-sm">
           ← {t("serverCanvas.back")}

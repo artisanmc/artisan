@@ -305,6 +305,13 @@ function ServerOverview({
             >
               {t("serverDetail.openBoard")}
             </Link>
+            <Link
+              to="/servers/$serverId/play"
+              params={{ serverId }}
+              className="btn btn-ghost btn-sm"
+            >
+              {t("serverDetail.openPlay")}
+            </Link>
           </div>
           {status === "loading" ? (
             <p className="text-[13px] text-[var(--text-mut)]">
