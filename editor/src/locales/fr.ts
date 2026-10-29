@@ -1583,6 +1583,7 @@ const fr: typeof en = {
     kindDeploy: "Déploiement",
     kindServer: "Modif. serveur",
     deployedBy: "Déployé depuis l'éditeur par {{name}}",
+    deployedByVia: "Déployé par {{name}} via {{via}}",
     byServer: "Fichiers modifiés sur le serveur, puis rechargés",
     changed_one: "{{count}} fichier modifié",
     changed_other: "{{count}} fichiers modifiés",

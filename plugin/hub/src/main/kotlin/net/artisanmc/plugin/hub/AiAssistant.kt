@@ -38,7 +38,7 @@ class AiAssistant(
         @Volatile var inputTokens = 0L
         @Volatile var outputTokens = 0L
         private val events = mutableListOf<Event>()
-        internal val model = provider.conversation(system(project), tools.tools)
+        internal val model = provider.conversation(system(project), tools.draftOnly)
 
         @Synchronized fun add(type: String, vararg data: Pair<String, Any?>) {
             events += Event(events.size, type, data.toMap().filterValues { it != null })

@@ -6,7 +6,8 @@ export interface ProjectVersionSummary {
   hash: string;
   createdAt: string;
   /** `null` = the server itself (hand edit then reload). */
-  author: { id: string; name: string } | null;
+  /** [via]: the AI app the player deployed through, if any (ADR `mcp-server`). */
+  author: { id: string; name: string; via?: string | null } | null;
   /** Files that differ from the previous Version. */
   changed: string[];
   /** The Version a restore published again. */

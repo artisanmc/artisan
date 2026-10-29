@@ -22,11 +22,12 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The MCP endpoint end to end (ADR `mcp-server`): OAuth, the seven tools, and what they never do. */
+/** The MCP endpoint end to end (ADR `mcp-server`): OAuth, the tools, and deploying only when the player allowed it. */
 class McpTest {
     private val mapper = ObjectMapper()
     private val sent: MutableList<Map<String, Any?>> = Collections.synchronizedList(mutableListOf())
-    private val server = McpFixtures.server(sent)
+    private val history = McpFixtures.History()
+    private val server = McpFixtures.server(sent, history)
 
     private val drafts = McpFixtures.Drafts()
     private val sessions = Sessions()
@@ -34,7 +35,7 @@ class McpTest {
     private val player = UUID.randomUUID()
     private val hub = HubServer(
         WebConfig(port = 0, bind = "127.0.0.1"),
-        EditorApi.router(Servers(server), sessions, null, drafts = drafts, mcp = grants, version = "2.0.0"),
+        EditorApi.router(Servers(server), sessions, null, history = history, drafts = drafts, mcp = grants, version = "2.0.0"),
         sessions, EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
     )
     private val client = HttpClient.newHttpClient()
@@ -94,14 +95,14 @@ class McpTest {
     }
 
     /** Register, authorize, consent, code: what a client and the player do, in that order. */
-    private fun code(clientId: String = registerClient(), challenge: String = McpGrants.challenge(verifier)): String {
+    private fun code(clientId: String = registerClient(), challenge: String = McpGrants.challenge(verifier), publish: Boolean = false): String {
         val authorize = http("GET", "${OAuthRoutes.AUTHORIZE}?response_type=code&client_id=$clientId&redirect_uri=${URLEncoder.encode(redirect, Charsets.UTF_8)}&state=xyz&code_challenge=$challenge&code_challenge_method=S256")
         assertEquals(302, authorize.status)
         val consent = authorize.headers.firstValue("Location").get()
         assertTrue(consent.startsWith(OAuthRoutes.CONSENT_PAGE + "?"), consent)
         val query = consent.substringAfter('?').split('&').associate { it.substringBefore('=') to URLDecoder.decode(it.substringAfter('='), Charsets.UTF_8) }
         assertEquals("Claude", editor("GET", "${OAuthRoutes.CONSENT}?client_id=$clientId&redirect_uri=${URLEncoder.encode(redirect, Charsets.UTF_8)}").body!!["client"]["name"].asText())
-        val approved = editor("POST", OAuthRoutes.CONSENT, query + ("approve" to true))
+        val approved = editor("POST", OAuthRoutes.CONSENT, query + ("approve" to true) + ("publish" to publish))
         assertEquals(200, approved.status)
         val back = approved.body!!["redirect"].asText()
         assertTrue(back.startsWith("$redirect?code="), back)
@@ -109,8 +110,8 @@ class McpTest {
         return back.substringAfter("code=").substringBefore('&')
     }
 
-    private fun tokens(clientId: String = registerClient()): Pair<String, String> {
-        val code = code(clientId)
+    private fun tokens(clientId: String = registerClient(), publish: Boolean = false): Pair<String, String> {
+        val code = code(clientId, publish = publish)
         val answer = form(OAuthRoutes.TOKEN, "grant_type" to "authorization_code", "code" to code, "client_id" to clientId, "redirect_uri" to redirect, "code_verifier" to verifier)
         assertEquals(200, answer.status, answer.body.toString())
         assertEquals("Bearer", answer.body!!["token_type"].asText())
@@ -132,15 +133,15 @@ class McpTest {
     }
 
     @Test
-    fun `a client the player approved lists seven tools, none of which deploys`() {
+    fun `a client the player approved lists the draft tools, none of which deploys`() {
         val (access, _) = tokens()
         val init = rpc(access, "initialize", mapOf("protocolVersion" to "2025-06-18", "capabilities" to emptyMap<String, Any>(), "clientInfo" to mapOf("name" to "t", "version" to "1")))
         assertEquals("2025-06-18", init.body!!["result"]["protocolVersion"].asText())
         val notification = http("POST", McpRoutes.PATH, """{"jsonrpc":"2.0","method":"notifications/initialized"}""", mapOf("Authorization" to "Bearer $access"))
         assertEquals(202, notification.status)
         val names = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
-        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document"), names)
-        assertTrue(names.none { "publish" in it || "deploy" in it })
+        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "list_versions"), names)
+        assertTrue(names.none { "publish" in it || "deploy" in it || "rollback" in it })
         // The kind guide is prose for the model to read, the schema outlined rather than dumped.
         val guide = tool(access, "get_kind_guide", "kind" to "menu", "project" to "u-local.shop")
         val text = guide["content"][0]["text"].asText()
@@ -202,20 +203,20 @@ class McpTest {
     }
 
     @Test
-    fun `the draft actions of the MCP endpoint leave the disk alone, by construction`() {
-        assertEquals(setOf("list", "read", "create", "update"), McpProjects.DRAFT_ACTIONS)
-        val principal = McpPrincipal(player, "Iban", EditorPermissions.ALL.toSet())
+    fun `the MCP endpoint writes to a server's disk only through a publication, for a principal that may deploy`() {
+        assertEquals(setOf("list", "read", "create", "update", "write_blob", "publish"), McpProjects.DRAFT_ACTIONS)
         val projects = McpProjects(Servers(server), null, drafts)
-        for (action in listOf("publish", "discard", "write_blob")) {
-            assertFailsWith<IllegalArgumentException> { projects.draft(principal, ProjectRef(server, "shop"), action) }
-        }
-        // No MCP or assistant source names a message that writes to a server's disk.
+        val shop = ProjectRef(server, "shop")
+        assertFailsWith<IllegalArgumentException> { projects.draft(McpPrincipal(player, "Iban", EditorPermissions.ALL.toSet()), shop, "discard") }
+        val draftOnly = McpPrincipal(player, "Iban", EditorPermissions.ALL.toSet() - EditorPermissions.PUBLISH)
+        assertEquals("forbidden", assertFailsWith<McpRefusal> { projects.draft(draftOnly, shop, "publish") }.code)
+        // No MCP or assistant source names a message that writes to a server's disk: a publication is built by the drafts.
         val dir = listOf("src/main/kotlin/net/artisanmc/plugin/hub", "hub/src/main/kotlin/net/artisanmc/plugin/hub").map(::File).first { it.isDirectory }
         val sources = dir.listFiles { f -> f.name.startsWith("Mcp") || f.name.startsWith("Ai") || f.name.startsWith("Anthropic") }!!
         assertTrue(sources.size >= 8)
         for (file in sources) {
             val text = file.readText()
-            for (forbidden in listOf("project_write", "project_draft_publish", "\"publish\"", "template_copy", "project_delete", "project_rename")) {
+            for (forbidden in listOf("project_write", "project_draft_publish", "template_copy", "project_delete", "project_rename")) {
                 assertFalse(forbidden in text, "${file.name} names $forbidden")
             }
         }
@@ -240,7 +241,7 @@ class McpTest {
         assertTrue(answer.headers.firstValue("WWW-Authenticate").get().contains("insufficient_scope"))
         sessions.refresh("u-local", mapOf(player to setOf(EditorPermissions.VIEW, EditorPermissions.EDIT, EditorPermissions.PUBLISH)))
         assertEquals(200, rpc(access, "ping").status)
-        assertFalse(grants.grants(player).single().can(EditorPermissions.PUBLISH), "an MCP client never holds publish")
+        assertFalse(grants.grants(player).single().can(EditorPermissions.PUBLISH), "an MCP client is draft only by default")
         sessions.refresh("u-local", mapOf(player to emptySet()))
         assertEquals(401, rpc(access, "ping").status)
         assertTrue(grants.grants(player).isEmpty())
@@ -262,6 +263,77 @@ class McpTest {
         assertEquals(401, rpc(access, "ping").status)
         assertEquals(200, rpc(rotated.body!!["access_token"].asText(), "ping").status)
         assertEquals("invalid_grant", form(OAuthRoutes.TOKEN, "grant_type" to "refresh_token", "refresh_token" to refresh, "client_id" to clientId).body!!["error"].asText())
+    }
+
+    @Test
+    fun `an app the player allowed shows the diff, deploys the reviewed revision as theirs via the app, and rolls back`() {
+        val (access, _) = tokens(publish = true)
+        val names = rpc(access, "tools/list").body!!["result"]["tools"]
+        val publish = names.first { it["name"].asText() == "draft_publish" }
+        assertTrue(publish["annotations"]["destructiveHint"].asBoolean())
+        assertTrue(names.any { it["name"].asText() == "version_rollback" })
+        assertTrue(tool(access, "artisan_overview")["structuredContent"]["can_deploy"].asBoolean())
+
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: vip")["structuredContent"]["draft_id"].asText()
+        tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/shop.yml", "content" to "schema: menu/v1\ntitle: Shop\n")
+        // A stale revision deploys nothing.
+        val stale = tool(access, "draft_publish", "project" to "u-local.shop", "draft_id" to draftId, "expected_revision" to 1)
+        assertEquals("draft_conflict", stale["structuredContent"]["error"].asText())
+        val preview = tool(access, "draft_publish", "project" to "u-local.shop", "draft_id" to draftId, "expected_revision" to 2, "dry_run" to true)["structuredContent"]
+        assertFalse(preview["deployed"].asBoolean())
+        assertEquals("@@ -1,1 +1,2 @@\n schema: menu/v1\n+title: Shop\n", preview["changes"][0]["diff"].asText())
+        assertTrue(sent.none { it["type"] == "project_draft_publish" }, "a dry run deploys nothing")
+
+        val deployed = tool(access, "draft_publish", "project" to "u-local.shop", "draft_id" to draftId, "expected_revision" to 2)
+        assertFalse(deployed.has("isError"), deployed.toString())
+        val result = deployed["structuredContent"]
+        assertEquals("2", result["version"].asText())
+        assertEquals("1", result["previous_version"].asText())
+        assertEquals("Iban via Claude", result["published_by"].asText())
+        assertEquals("modified", result["changes"][0]["change"].asText())
+        val publication = sent.single { it["type"] == "project_draft_publish" }
+        assertEquals("Claude", publication["author_via"])
+        assertEquals("Iban", publication["author_name"])
+        assertEquals("published", mapper.readTree(drafts.rows.getValue(draftId))["status"].asText())
+        val versions = tool(access, "list_versions", "project" to "u-local.shop")["structuredContent"]["versions"]
+        assertEquals("Iban via Claude", versions[0]["published_by"].asText())
+
+        // Rolling back needs the newest Version the player saw: another deploy since refuses it.
+        val raced = tool(access, "version_rollback", "project" to "u-local.shop", "version" to "1", "expected_version" to "1")
+        assertEquals("version_conflict", raced["structuredContent"]["error"].asText())
+        val rolled = tool(access, "version_rollback", "project" to "u-local.shop", "version" to "1", "expected_version" to "2")["structuredContent"]
+        assertEquals("3", rolled["version"].asText())
+        assertEquals("1", rolled["restored_from"].asText())
+        assertEquals("@@ -1,2 +1,1 @@\n schema: menu/v1\n-title: Shop\n", rolled["changes"].first { it["path"].asText() == "menus/shop.yml" }["diff"].asText())
+        assertEquals("schema: menu/v1\n", history.versions.last().files["menus/shop.yml"])
+        assertEquals("1", history.versions.last().restoredFrom)
+    }
+
+    @Test
+    fun `an app is draft only unless the player allows it, and allowing takes the player's own publish`() {
+        val (access, _) = tokens()
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI")["structuredContent"]["draft_id"].asText()
+        // Not offered, and refused when called anyway.
+        val refused = tool(access, "draft_publish", "project" to "u-local.shop", "draft_id" to draftId, "expected_revision" to 1)
+        assertEquals("forbidden", refused["structuredContent"]["error"].asText())
+        assertFalse(tool(access, "artisan_overview")["structuredContent"]["can_deploy"].asBoolean())
+
+        val listed = editor("GET", OAuthRoutes.GRANTS).body!!
+        assertTrue(listed["canPublish"].asBoolean())
+        assertFalse(listed["grants"][0]["publish"].asBoolean())
+        val grant = listed["grants"][0]["id"].asText()
+        assertEquals(200, editor("PATCH", "${OAuthRoutes.GRANTS}/$grant", mapOf("publish" to true)).status)
+        assertTrue(rpc(access, "tools/list").body!!["result"]["tools"].any { it["name"].asText() == "draft_publish" })
+        assertEquals(404, editor("PATCH", "${OAuthRoutes.GRANTS}/nope", mapOf("publish" to true)).status)
+
+        // A player who cannot deploy cannot let an app deploy, and an app allowed before loses it with them.
+        sessions.refresh("u-local", mapOf(player to setOf(EditorPermissions.VIEW, EditorPermissions.EDIT)))
+        assertFalse(rpc(access, "tools/list").body!!["result"]["tools"].any { it["name"].asText() == "draft_publish" })
+        // The editor session follows the same report: the player's own consent page no longer offers deploying.
+        assertEquals(403, editor("PATCH", "${OAuthRoutes.GRANTS}/$grant", mapOf("publish" to true)).status)
+        tokens(publish = true)
+        assertEquals(2, grants.grants(player).size)
+        assertTrue(grants.grants(player).none { it.can(EditorPermissions.PUBLISH) })
     }
 
     @Test

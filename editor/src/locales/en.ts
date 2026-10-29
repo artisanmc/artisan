@@ -1559,6 +1559,7 @@ export default {
     kindDeploy: "Deployment",
     kindServer: "Server edit",
     deployedBy: "Deployed from the editor by {{name}}",
+    deployedByVia: "Deployed by {{name}} via {{via}}",
     byServer: "Files edited on the server, then reloaded",
     changed_one: "{{count}} file changed",
     changed_other: "{{count}} files changed",

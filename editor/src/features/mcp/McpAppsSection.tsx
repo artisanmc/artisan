@@ -1,24 +1,33 @@
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { ApiError } from "@/lib/api/client";
-import { type McpGrant, listMcpGrants, revokeMcpGrant } from "@/lib/api/mcp";
+import { type McpGrants, listMcpGrants, revokeMcpGrant, setMcpGrantPublish } from "@/lib/api/mcp";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
  * The AI clients the player connected through the MCP endpoint (ADR
- * `mcp-server`), each one revocable: its next call is refused.
+ * `mcp-server`), each one revocable: its next call is refused. A client
+ * prepares drafts; it deploys only once the player switches that on, which
+ * takes the player's own right to deploy.
  */
 export function McpAppsSection() {
   const { t, i18n } = useTranslation();
-  const [grants, setGrants] = useState<McpGrant[] | "disabled" | undefined>(undefined);
+  const [state, setState] = useState<McpGrants | "disabled" | undefined>(undefined);
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
   const address = `${window.location.origin}/mcp`;
 
   useEffect(() => {
     listMcpGrants()
-      .then(setGrants)
-      .catch((e) => setGrants(e instanceof ApiError && e.code === "not_found" ? "disabled" : []));
+      .then(setState)
+      .catch((e) =>
+        setState(
+          e instanceof ApiError && e.code === "not_found"
+            ? "disabled"
+            : { grants: [], canPublish: false },
+        ),
+      );
   }, []);
 
   const date = (iso: string) =>
@@ -32,18 +41,38 @@ export function McpAppsSection() {
     setFailed(false);
     try {
       await revokeMcpGrant(id);
-      setGrants((current) =>
-        Array.isArray(current) ? current.filter((g) => g.id !== id) : current,
+      setState((current) =>
+        typeof current === "object"
+          ? { ...current, grants: current.grants.filter((g) => g.id !== id) }
+          : current,
       );
     } catch {
       setFailed(true);
     }
   };
 
-  if (grants === undefined)
+  const allowPublish = async (id: string, publish: boolean) => {
+    setFailed(false);
+    try {
+      await setMcpGrantPublish(id, publish);
+      setState((current) =>
+        typeof current === "object"
+          ? {
+              ...current,
+              grants: current.grants.map((g) => (g.id === id ? { ...g, publish } : g)),
+            }
+          : current,
+      );
+    } catch {
+      setFailed(true);
+    }
+  };
+
+  if (state === undefined)
     return <p className="text-[13px] text-[var(--text-mut)]">{t("mcp.apps.loading")}</p>;
-  if (grants === "disabled")
+  if (state === "disabled")
     return <p className="text-[13px] text-[var(--text-mut)]">{t("mcp.apps.disabled")}</p>;
+  const { grants, canPublish } = state;
 
   return (
     <section className="flex flex-col gap-6">
@@ -81,14 +110,26 @@ export function McpAppsSection() {
                   })}
                 </span>
               </div>
-              <Button variant="destructive" size="sm" onClick={() => void revoke(grant.id)}>
-                {t("mcp.apps.revoke")}
-              </Button>
+              <div className="flex shrink-0 items-center gap-4">
+                <div className="flex items-center gap-2 text-[12px] text-[var(--text-mut)]">
+                  <Switch
+                    id={`publish-${grant.id}`}
+                    checked={grant.publish}
+                    disabled={!canPublish && !grant.publish}
+                    title={canPublish ? undefined : t("mcp.apps.publishNeedsRight")}
+                    onCheckedChange={(publish) => void allowPublish(grant.id, publish)}
+                  />
+                  <label htmlFor={`publish-${grant.id}`}>{t("mcp.apps.publish")}</label>
+                </div>
+                <Button variant="destructive" size="sm" onClick={() => void revoke(grant.id)}>
+                  {t("mcp.apps.revoke")}
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
       )}
-      {failed && <p className="text-[13px] text-[var(--danger)]">{t("mcp.apps.revokeFailed")}</p>}
+      {failed && <p className="text-[13px] text-[var(--danger)]">{t("mcp.apps.failed")}</p>}
     </section>
   );
 }

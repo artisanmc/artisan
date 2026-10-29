@@ -166,13 +166,19 @@ With `web.mcp: true` in `environment.yml`, the editor's address also answers the
 
 - **Sign-in**: the client opens the editor's consent page. The player signs in as usual
   (`/artisan editor`), sees which client asks, and allows or denies it. The client then acts
-  as that player, with their editor permissions less `artisan.editor.publish` and
-  `artisan.editor.config`. It needs `artisan.editor.edit`.
+  as that player, with their editor permissions less `artisan.editor.config`, and less
+  `artisan.editor.publish` unless the player lets it deploy (below). It needs `artisan.editor.edit`.
 - **What it can do**: list the servers, Projects and Documents; read files; read the JSON
   schema of a Document kind; start a draft and write files into it. Each file is checked by the
   Project's server (path, YAML, schema, the modules' actions, engine) before it enters the draft.
-- **What it cannot do**: deploy. The draft shows up in the player's Drafts in the editor; the
-  player reviews the changes and clicks Deploy.
+- **Deploying is off by default.** The draft shows up in the player's Drafts in the editor; the
+  player reviews the changes and clicks Deploy. A player who holds `artisan.editor.publish` can
+  let a client deploy: the box "Also let it deploy" on the consent page, or the "Can deploy"
+  switch in Settings → AI apps. The client then shows the changes and deploys only after the
+  player says yes, with the same checks as the editor's Deploy: a draft changed since, or server
+  files changed since it started, are not deployed, and a file the server would not load refuses
+  the whole deploy. Each deploy is a Version marked "<player> via <client>" in the history; the
+  client can roll a Project back to an earlier Version, as Restore does in the editor.
 - **Revoking**: Settings → AI apps lists the connected clients; Disconnect cuts one off at its
   next call. Losing `artisan.editor.edit` in game cuts every client of that player; losing
   `artisan.editor.view` removes them.
@@ -193,8 +199,9 @@ want (a menu, a command, a change to a dialog), and the assistant does it in a d
 - It runs on **your** model account: the key pays for every message of every player who
   uses it. The key stays on the hub; the browser never sees it.
 - It uses the same tools as [AI clients](#ai-clients-mcp-preview): it reads the Projects, starts
-  a draft and writes files into it, each file checked by the Project's server first. It cannot
-  deploy: the panel offers to open the draft in Drafts, where the player reviews it and deploys.
+  a draft and writes files into it, each file checked by the Project's server first. It never
+  deploys, even for a player who let an AI client deploy: the panel offers to open the draft in
+  Drafts, where the player reviews it and deploys.
 - A message runs at most "Steps per message" model calls (`ai.max-steps`); the assistant then stops and says so.
 - Conversations live in the hub's memory: a restart, or a change of its settings, ends them (the drafts stay).
 

@@ -55,7 +55,7 @@ class McpRoutes(
     private fun principal(call: Call): McpPrincipal? {
         val bearer = call.header("Authorization")?.takeIf { it.startsWith("Bearer ", ignoreCase = true) }?.substring(7)?.trim()
         val principal = when {
-            bearer != null -> grants.authenticate(bearer)?.let { McpPrincipal(it.playerId, it.playerName, it.permissions, it.id, it.clientName) }
+            bearer != null -> grants.authenticate(bearer)?.let { McpPrincipal(it.playerId, it.playerName, it.effectivePermissions, it.id, it.clientName) }
             else -> call.session?.let { McpPrincipal(it.playerId, it.playerName, it.permissions - EditorPermissions.PUBLISH - EditorPermissions.CONFIG) }
         }
         if (principal == null) {
@@ -83,7 +83,7 @@ class McpRoutes(
         return when (method) {
             "initialize" -> result(id, initialize(params))
             "ping" -> result(id, emptyMap<String, Any>())
-            "tools/list" -> result(id, mapOf("tools" to tools.tools.map(::describe)))
+            "tools/list" -> result(id, mapOf("tools" to tools.available(principal).map(::describe)))
             "tools/call" -> call(principal, id, params)
             else -> error(id, METHOD_NOT_FOUND, "Method not found: $method")
         }
@@ -104,7 +104,7 @@ class McpRoutes(
         "title" to tool.title,
         "description" to tool.description,
         "inputSchema" to tool.input,
-        "annotations" to mapOf("readOnlyHint" to tool.readOnly, "destructiveHint" to false, "openWorldHint" to false),
+        "annotations" to mapOf("readOnlyHint" to tool.readOnly, "destructiveHint" to tool.destructive, "openWorldHint" to false),
     )
 
     private fun call(principal: McpPrincipal, id: JsonNode, params: JsonNode): Map<String, Any?> {
@@ -144,7 +144,8 @@ class McpRoutes(
 
         const val INSTRUCTIONS = "Artisan builds Minecraft menus, commands, dialogs and triggers from YAML Documents. " +
             "Call artisan_overview first. You write into a private draft (start_draft, write_document); each file is checked by " +
-            "the server before it enters the draft. The player reviews the draft in the Artisan editor and deploys it there: " +
-            "you cannot deploy, and nothing reaches players before they do."
+            "the server before it enters the draft. Nothing reaches players before the draft is deployed: by the player in the " +
+            "Artisan editor, or by you with draft_publish when the player allowed this app to deploy (artisan_overview's " +
+            "can_deploy), and only after they said yes to the changes you showed them."
     }
 }

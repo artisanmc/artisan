@@ -18,7 +18,8 @@ class SnapshotEntry private constructor(val hash: String, val size: Long, val te
     }
 }
 
-data class VersionAuthor(val id: String, val name: String)
+/** [via]: the AI app the player published through, if any (ADR `mcp-server`). */
+data class VersionAuthor(val id: String, val name: String, val via: String? = null)
 data class VersionSummary(
     val id: Int, val hash: String, val createdAt: Instant, val author: VersionAuthor?, val changed: List<String>, val restoredFrom: Int? = null,
 )
@@ -84,12 +85,13 @@ class VersionStore(
                 }
             }
             c.prepareStatement(
-                "INSERT INTO ${t.versions} (server_id, project_key, folder, hash, manifest, author_id, author_name, created_at, restored_from) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO ${t.versions} (server_id, project_key, folder, hash, manifest, author_id, author_name, created_at, restored_from, author_via) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             ).use {
                 it.setInt(1, server.value); it.setString(2, projectKey); it.setString(3, folder); it.setString(4, hash)
                 it.setString(5, manifest); it.setString(6, author?.id); it.setString(7, author?.name)
                 it.setTimestamp(8, Timestamp.from(at))
                 if (restoredFrom == null) it.setNull(9, java.sql.Types.INTEGER) else it.setInt(9, restoredFrom)
+                it.setString(10, author?.via?.take(80))
                 it.executeUpdate()
             }
             Recorded(true, skipped)
@@ -164,11 +166,11 @@ class VersionStore(
         )
     }
 
-    private val columns = "id, hash, manifest, created_at, author_id, author_name, restored_from, project_key, folder, server_id"
+    private val columns = "id, hash, manifest, created_at, author_id, author_name, restored_from, project_key, folder, server_id, author_via"
 
     private fun read(rs: java.sql.ResultSet) = Row(
         rs.getInt(1), rs.getString(2), parse(rs.getString(3)), rs.getTimestamp(4).toInstant(),
-        rs.getString(5)?.let { VersionAuthor(it, rs.getString(6).orEmpty()) },
+        rs.getString(5)?.let { VersionAuthor(it, rs.getString(6).orEmpty(), rs.getString(11)) },
         rs.getInt(7).takeUnless { rs.wasNull() }, rs.getString(8), rs.getString(9), ServerRow(rs.getInt(10)),
     )
 

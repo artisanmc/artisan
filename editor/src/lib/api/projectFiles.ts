@@ -195,7 +195,7 @@ export interface FileVersion {
   at: number;
   content: string;
   /** Present when the history comes from Versions; `null` = the server. */
-  author?: { id: string; name: string } | null;
+  author?: { id: string; name: string; via?: string | null } | null;
 }
 
 export type ProjectHistoryResult =
