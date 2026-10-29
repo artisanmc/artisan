@@ -99,3 +99,26 @@ it("keeps a multiple-item selection when its context menu opens over one of the 
   );
   expect(result.current.ctxMenu.target).toEqual({ kind: "entity", selectedIds: ["x", "y"] });
 });
+
+it("keeps the selection on a background right-click, with the point to create at", () => {
+  const project = {
+    documents: { menu: [{ id: "a", rows: 3, layers: [] }] },
+  } as unknown as Project;
+  useSelectionStore.getState().set(["a"]);
+  const stage = {} as Konva.Stage;
+  const { result } = renderHook(() =>
+    useStageContextMenu({
+      project,
+      layout: { a: { x: 0, y: 0 } },
+      viewport: { x: 0, y: 0, scale: 1 },
+      wrapperRef: { current: document.createElement("div") },
+      stageRef: { current: stage },
+    }),
+  );
+  act(() => result.current.openContextMenuAt(5000, 4000, stage));
+  expect(result.current.ctxMenu.target).toEqual({
+    kind: "entity",
+    selectedIds: ["a"],
+    world: { x: 5000, y: 4000 },
+  });
+});
