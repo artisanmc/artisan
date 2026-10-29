@@ -1,4 +1,5 @@
 import type { Project } from "@/domain/types";
+import { useTextureInit } from "@/features/canvas/useTextureInit";
 import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { type ProjectSummary, listServers } from "@/lib/api/servers";
@@ -40,7 +41,11 @@ export interface ServerProjects {
   failedCount: number;
 }
 
-/** Every project of a server, each loaded as its own view loads it (server board, Play mode). */
+/**
+ * Every project of a server, each loaded as its own view loads it (server board, Play mode), and
+ * the item icons their menus draw: vanilla's and the server's custom items, read through its
+ * first Project once all are loaded (the library is the server's, whichever Project asks).
+ */
 export function useServerProjects(serverId: string): ServerProjects {
   const [summaries, setSummaries] = useState<ProjectSummary[] | null>(null);
   const [listing, setListing] = useState<ServerProjects["listing"]>("loading");
@@ -86,6 +91,8 @@ export function useServerProjects(serverId: string): ServerProjects {
     () => refs.map((ref) => results[ref]?.project).filter((p): p is Project => p != null),
     [refs, results],
   );
+  const settled = listing === "ready" && done === refs.length;
+  useTextureInit(settled ? projects[0]?.id : undefined);
   const probes = refs.map((ref) =>
     createElement(ProjectProbe, { key: ref, loadRef: ref, serverId, onResult }),
   );
@@ -94,7 +101,7 @@ export function useServerProjects(serverId: string): ServerProjects {
     projects,
     probes,
     listing,
-    settled: listing === "ready" && done === refs.length,
+    settled,
     done,
     total: refs.length,
     failedCount,
