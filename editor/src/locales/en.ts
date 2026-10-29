@@ -1526,6 +1526,7 @@ export default {
     cannotDeployTitle: "Unknown server — cannot deploy",
     deployed: "Deployed to the server",
     packFailed: "The resource pack could not be rebuilt; players keep the previous one.",
+    packFailedReason: "Reason: {{reason}}",
     failed: "Deploy failed",
     reviewTitle: "Deploy to the server?",
     reviewBody:
