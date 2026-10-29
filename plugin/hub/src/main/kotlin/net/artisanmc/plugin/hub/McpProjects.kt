@@ -24,14 +24,16 @@ class McpRefusal(val code: String, override val message: String) : RuntimeExcept
 
 /**
  * What the MCP tools reach (ADR `mcp-server`): the Projects as the editor reads them, the
- * player's drafts, and `documents_check` on the Project's server. Blocking, on [McpRoutes]'
- * own threads. Of the draft actions, only those that leave the server's disk untouched exist
- * here: [DRAFT_ACTIONS]. Deploying stays a person's click in the editor.
+ * player's drafts, their Versions, and `documents_check` on the Project's server. Blocking, on
+ * [McpRoutes]' own threads. The draft actions are [DRAFT_ACTIONS]: the only write to a server's
+ * disk is `publish`, the editor's own (compare-and-swap, the server's checks), for a principal
+ * that holds [EditorPermissions.PUBLISH]: a player who allowed the app to deploy.
  */
 class McpProjects(
     private val servers: Servers,
     private val loaded: LoadedProjects? = null,
     draftStorage: DraftStorage? = null,
+    private val history: ProjectHistory? = null,
     private val timeoutSeconds: Long = 20,
 ) {
     private val drafts = draftStorage?.let(::ProjectDrafts)
@@ -71,6 +73,8 @@ class McpProjects(
     /** A draft operation of [principal] on [project]; refused as a draft reply (`ok: false`), not thrown. */
     fun draft(principal: McpPrincipal, project: ProjectRef, action: String, vararg fields: Pair<String, Any?>): Map<String, Any?> {
         require(action in DRAFT_ACTIONS) { "draft action '$action' is not one the MCP endpoint makes" }
+        val publishing = action == "publish"
+        if (publishing && !principal.can(EditorPermissions.PUBLISH)) throw McpRefusal("forbidden", NOT_ALLOWED)
         val drafts = drafts ?: throw McpRefusal("database_unavailable", "Drafts need the suite database, which this server does not have open.")
         val message = mapOf(
             "type" to "project_draft_request",
@@ -79,14 +83,33 @@ class McpProjects(
             "action" to action,
             "author_id" to principal.playerId.toString(),
             "author_name" to principal.playerName,
+            // The Version a publication makes reads "<player> via <app>".
+            "author_via" to principal.clientName,
         ) + fields
         val reply = CompletableFuture<Map<String, Any?>>()
-        // No publication goes through here: a publisher that would be asked is a bug, and says so.
-        val publisher = ProjectDrafts.Publisher { _, answer -> answer(mapOf("ok" to false, "error" to "forbidden")) }
+        val publisher = if (publishing) relay(project.server) else ProjectDrafts.Publisher { _, answer -> answer(mapOf("ok" to false, "error" to "forbidden")) }
         drafts.handle(project.server.id, project.folder, Call.mapper.valueToTree<ObjectNode>(message), publisher) { reply.complete(it) }
         // The drafts answer with JSON nodes inside (a draft as stored): plain maps and lists for the tools.
         @Suppress("UNCHECKED_CAST")
-        return Call.mapper.convertValue(reply.get(timeoutSeconds, TimeUnit.SECONDS), Map::class.java) as Map<String, Any?>
+        return Call.mapper.convertValue(reply.get(if (publishing) PUBLISH_TIMEOUT else timeoutSeconds, TimeUnit.SECONDS), Map::class.java) as Map<String, Any?>
+    }
+
+    /** The Project's Versions, newest first (`{id, createdAt, author, changed}`); null without the suite database. */
+    fun versions(project: ProjectRef): List<Map<String, Any?>>? = history?.versions(project.server.id, project.folder)
+
+    /** Version [id]'s files: `{id, files: [{path, content}], binaries: [{path, hash, size}]}`. */
+    fun version(project: ProjectRef, id: String): Map<String, Any?>? = history?.version(project.server.id, project.folder, id)
+
+    fun versionBinary(project: ProjectRef, id: String, path: String): ByteArray? = history?.versionBinary(project.server.id, project.folder, id, path)
+
+    /** Sends a publication the drafts built to the Project's server, as the editor's route does; its answer, or why there is none. */
+    private fun relay(server: EditorServer) = ProjectDrafts.Publisher { publication, answer ->
+        if (server.updateRequired) return@Publisher answer(mapOf("ok" to false, "error" to "plugin_update_required"))
+        // The answer arrives on the server socket's reader thread: the commit that follows (a database write) leaves it.
+        server.link.request(publication).orTimeout(PUBLISH_TIMEOUT - 5, TimeUnit.SECONDS).whenCompleteAsync { result, error ->
+            val cause = (error as? CompletionException)?.cause ?: error
+            answer(result ?: mapOf("ok" to false, "error" to if (cause is ServerOfflineException) "server_offline" else "fetch_timeout"))
+        }
     }
 
     private fun request(server: EditorServer, message: Map<String, Any?>): Map<String, Any?> {
@@ -110,7 +133,16 @@ class McpProjects(
     }
 
     companion object {
-        /** The draft actions an MCP tool may send. No `publish`, `discard` or `write_blob`: an architecture test holds it. */
-        val DRAFT_ACTIONS = setOf("list", "read", "create", "update")
+        /**
+         * The draft actions an MCP tool may send. `publish` only for a principal that may deploy; no
+         * `discard`: a draft the player did not want stays theirs to discard. An architecture test holds it.
+         */
+        val DRAFT_ACTIONS = setOf("list", "read", "create", "update", "write_blob", "publish")
+
+        /** A publication waits on the server's checks and its write: longer than a read. */
+        private const val PUBLISH_TIMEOUT = 60L
+
+        const val NOT_ALLOWED = "This app may not deploy for the player: drafts only. The player can allow it in the editor, " +
+            "Settings → AI apps (it takes their own artisan.editor.publish), or deploy the draft themselves."
     }
 }

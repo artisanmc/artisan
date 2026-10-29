@@ -225,6 +225,7 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         override fun delete(id: String) = store().delete(id)
         override fun touch(id: String, at: java.time.Instant) = store().touch(id, at)
         override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) = store().setPermissions(playerId, origin, permissions)
+        override fun setPublish(playerId: UUID, id: String, allow: Boolean) = store().setPublish(playerId, id, allow)
         override fun deletePlayer(playerId: UUID, origin: String?) = store().deletePlayer(playerId, origin)
         override fun purge(now: java.time.Instant) = store().purge(now)
     }

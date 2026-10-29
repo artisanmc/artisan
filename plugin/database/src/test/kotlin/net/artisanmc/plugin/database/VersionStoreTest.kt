@@ -59,6 +59,12 @@ class VersionStoreTest {
     }
 
     @Test
+    fun `a version published through an AI app names it`() {
+        record("h1", text("a.yml" to "one"), t0, iban.copy(via = "Claude"))
+        assertEquals(VersionAuthor(iban.id, "Iban", "Claude"), store.versions(server, "shop")!!.single().author)
+    }
+
+    @Test
     fun `contents are stored once, binaries read from disk only when new`() {
         val png = png("logo.png")
         record("h1", text("a.yml" to "same") + ("logo.png" to png), t0)

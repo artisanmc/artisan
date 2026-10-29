@@ -17,11 +17,18 @@ import {
 } from "@/lib/api/projectVersions";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectsStore } from "@/state/projectsStore";
+import type { TFunction } from "i18next";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { mutateDraftAssets } from "./persistedDrafts";
 import { adoptDiskIntoProject, projectTree } from "./saveProjectToDisk";
+
+/** Who deployed a Version: from the editor, or through an AI app the player allowed. */
+const deployedBy = (t: TFunction, author: { name: string; via?: string | null }) =>
+  author.via
+    ? t("versions.deployedByVia", { name: author.name, via: author.via })
+    : t("versions.deployedBy", { name: author.name });
 
 /** Opens the top bar's deploy review: a restore is published through the usual review. */
 export const OPEN_DEPLOY_REVIEW = "artisan:open-deploy-review";
@@ -142,10 +149,8 @@ export function ProjectHistory({ projectId, active }: { projectId: string; activ
                 </span>
               ) : null}
               <span className="truncate text-xs text-[var(--text-mut)]">
-                {version.author
-                  ? t("versions.deployedBy", { name: version.author.name })
-                  : t("versions.byServer")}{" "}
-                · {t("versions.changed", { count: version.changed.length })}
+                {version.author ? deployedBy(t, version.author) : t("versions.byServer")} ·{" "}
+                {t("versions.changed", { count: version.changed.length })}
               </span>
               {version.changed.length > 0 ? (
                 <span className="truncate font-mono text-[11px] text-[var(--text-faint)]">
@@ -233,9 +238,7 @@ export function VersionDiffDialog({
               : null}
           </DialogTitle>
           <DialogDescription>
-            {version?.author
-              ? t("versions.deployedBy", { name: version.author.name })
-              : t("versions.byServer")}
+            {version?.author ? deployedBy(t, version.author) : t("versions.byServer")}
           </DialogDescription>
         </DialogHeader>
         {failed ? (

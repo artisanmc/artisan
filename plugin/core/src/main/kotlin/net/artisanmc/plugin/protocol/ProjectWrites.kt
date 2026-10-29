@@ -263,7 +263,8 @@ class ProjectWrites(
 
     private fun noteAuthor(projectId: String, message: JsonNode, restoredFrom: String? = null) {
         val id = message.path("author_id").asText("").ifEmpty { return }
-        workspace.authoredBy(projectId, PublicationAuthor(id, message.path("author_name").asText(""), restoredFrom))
+        val via = message.path("author_via").asText("").trim().take(80).ifEmpty { null }
+        workspace.authoredBy(projectId, PublicationAuthor(id, message.path("author_name").asText(""), restoredFrom, via))
     }
 
     private companion object {

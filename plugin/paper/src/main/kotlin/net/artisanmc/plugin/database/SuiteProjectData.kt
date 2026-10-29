@@ -130,7 +130,7 @@ class SuiteProjectData(
 
     /** History routes of the editor, read from `artisan_versions`. */
     val history: ProjectHistory = object : ProjectHistory {
-        private fun author(a: VersionAuthor?) = a?.let { mapOf("id" to it.id, "name" to it.name) }
+        private fun author(a: VersionAuthor?) = a?.let { mapOf("id" to it.id, "name" to it.name, "via" to it.via) }
 
         override fun versions(server: String, folder: String): List<Map<String, Any?>>? {
             val row = row(server) ?: return null

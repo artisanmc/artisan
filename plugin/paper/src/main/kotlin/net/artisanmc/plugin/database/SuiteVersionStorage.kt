@@ -18,7 +18,7 @@ class SuiteVersionStorage(private val data: SuiteProjectData, private val row: S
     ): List<String> {
         val entries = files.mapValues { SnapshotEntry.text(it.value) } +
             binaries.mapValues { SnapshotEntry.binary(it.value.hash, it.value.size) }
-        val by = author?.let { VersionAuthor(it.id, it.name) }
+        val by = author?.let { VersionAuthor(it.id, it.name, it.via) }
         return data.versions.record(row, projectKey, folder, entries, at, by, author?.restoredFrom?.toIntOrNull(), readBinary).skipped
     }
 

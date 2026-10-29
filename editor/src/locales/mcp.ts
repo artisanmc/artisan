@@ -8,6 +8,9 @@ export const mcpEn = {
     canDraft: "create drafts and write documents in them, each file checked by the server first",
     cannot:
       "It will not be able to deploy: you review each draft in the editor and deploy it yourself.",
+    publish: "Also let it deploy drafts to the server",
+    publishHint:
+      "It shows you the changes and deploys only after you say yes. Each deploy is a Version marked “via {{client}}”, which you can roll back.",
     redirect: "You will then return to {{host}}.",
     approve: "Allow",
     deny: "Deny",
@@ -20,14 +23,16 @@ export const mcpEn = {
   },
   apps: {
     title: "AI apps",
-    help: "AI clients you allowed to prepare drafts for you. They never deploy.",
+    help: "AI clients you allowed to prepare drafts for you. They deploy only if you switch it on.",
     howTo: "Add this address as a custom connector (MCP) in Claude, ChatGPT or another client:",
     copy: "Copy",
     copied: "Copied",
     empty: "No AI client connected yet.",
     since: "Connected {{date}} · last used {{used}}",
     revoke: "Disconnect",
-    revokeFailed: "Could not disconnect this client. Try again.",
+    failed: "The change could not be saved. Try again.",
+    publish: "Can deploy",
+    publishNeedsRight: "Letting a client deploy requires the artisan.editor.publish permission.",
     disabled:
       "The MCP endpoint is off on this server. An admin turns it on with web.mcp: true in environment.yml.",
     loading: "Loading…",
@@ -45,6 +50,9 @@ export const mcpFr: typeof mcpEn = {
       "créer des brouillons et y écrire des documents, chaque fichier vérifié d'abord par le serveur",
     cannot:
       "Il ne pourra pas déployer : vous relisez chaque brouillon dans l'éditeur et le déployez vous-même.",
+    publish: "L'autoriser aussi à déployer des brouillons sur le serveur",
+    publishHint:
+      "Il vous montre les changements et ne déploie qu'après votre accord. Chaque déploiement est une Version marquée « via {{client}} », que vous pouvez annuler.",
     redirect: "Vous reviendrez ensuite sur {{host}}.",
     approve: "Autoriser",
     deny: "Refuser",
@@ -57,7 +65,7 @@ export const mcpFr: typeof mcpEn = {
   },
   apps: {
     title: "Applications IA",
-    help: "Les clients IA que vous avez autorisés à préparer des brouillons pour vous. Ils ne déploient jamais.",
+    help: "Les clients IA que vous avez autorisés à préparer des brouillons pour vous. Ils ne déploient que si vous l'activez.",
     howTo:
       "Ajoutez cette adresse comme connecteur personnalisé (MCP) dans Claude, ChatGPT ou un autre client :",
     copy: "Copier",
@@ -65,7 +73,10 @@ export const mcpFr: typeof mcpEn = {
     empty: "Aucun client IA connecté pour l'instant.",
     since: "Connecté {{date}} · dernière utilisation {{used}}",
     revoke: "Déconnecter",
-    revokeFailed: "Impossible de déconnecter ce client. Réessayez.",
+    failed: "La modification n'a pas pu être enregistrée. Réessayez.",
+    publish: "Peut déployer",
+    publishNeedsRight:
+      "Autoriser un client à déployer demande la permission artisan.editor.publish.",
     disabled:
       "Le point d'entrée MCP est désactivé sur ce serveur. Un admin l'active avec web.mcp: true dans environment.yml.",
     loading: "Chargement…",
