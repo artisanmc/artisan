@@ -9,8 +9,9 @@ import { ActionScopeProvider } from "@/features/inspector/properties/ActionEdito
 import { ConditionListEditor } from "@/features/inspector/properties/ConditionListEditor";
 import { ChainEventProvider } from "@/lib/actions/eventActions";
 import type { GameEvent } from "@/lib/api/gameEvents";
+import { cx } from "@/lib/cx";
 import { useProjectsStore } from "@/state/projectsStore";
-import { ChevronDown, TriangleAlert } from "lucide-react";
+import { ChevronDown, TriangleAlert, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -19,8 +20,9 @@ import { eventContextEntries, findGameEvent, useGameEvents } from "./gameEvents"
 import { TRIGGER_KIND, TRIGGER_SLOT, type Trigger } from "./trigger";
 
 /**
- * A Trigger's page: the header says it as a sentence ("Quand un joueur meurt") beside its id
- * (the panel draws no other: `ownHeader`), the left column holds when it runs (its event, the
+ * A Trigger's page: the header names it by its id, as a command's by `/name`, its event as a
+ * sentence in full underneath ("Quand un joueur meurt") with its conditions and delay as chips
+ * (the panel draws no other header: `ownHeader`), the left column holds when it runs (its event, the
  * "Seulement si" conditions, the delay, the switch), the right one what it does, with the
  * event's values at hand.
  */
@@ -56,17 +58,21 @@ export function TriggerEditor({ projectId, trigger }: { projectId: ProjectId; tr
       <EditorHeader
         kind={TRIGGER_KIND.kind}
         eyebrow={t("triggers.kindLabel")}
-        title={eventTitle}
+        title={<span className="font-mono text-[20px]">{trigger.id}</span>}
         meta={
           trigger.enabled ? null : (
             <span className="badge badge-brick">{t("triggers.disabledBadge")}</span>
           )
         }
-      >
-        <span className="min-w-0 max-w-full truncate font-mono text-[12.5px] text-[var(--text-faint)]">
-          {trigger.id}
-        </span>
-      </EditorHeader>
+        details={
+          <TriggerHeaderDetails
+            sentence={eventTitle}
+            picked={trigger.on !== ""}
+            conditions={trigger.conditions.length}
+            cooldownSeconds={trigger.cooldownSeconds}
+          />
+        }
+      />
       <div className="@container flex-1 overflow-auto px-4 py-4">
         <div className="grid grid-cols-1 gap-4 @3xl:grid-cols-[minmax(280px,360px)_1fr] @3xl:items-start">
           <div className="flex min-w-0 flex-col gap-4">
@@ -172,6 +178,57 @@ export function TriggerEditor({ projectId, trigger }: { projectId: ProjectId; tr
         value={trigger.on}
         onPick={(on) => update({ on })}
       />
+    </div>
+  );
+}
+
+/**
+ * Under the trigger's id: its event as a sentence, in full ("Quand un joueur meurt"), then
+ * what filters it (conditions, delay) as chips.
+ */
+function TriggerHeaderDetails({
+  sentence,
+  picked,
+  conditions,
+  cooldownSeconds,
+}: {
+  sentence: string;
+  picked: boolean;
+  conditions: number;
+  cooldownSeconds?: number;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-2">
+      <p
+        className={cx(
+          "flex items-start gap-1.5 text-[13.5px] leading-snug",
+          picked ? "text-[var(--text)]" : "text-[var(--text-faint)]",
+        )}
+      >
+        <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 fill-current text-[var(--kind-trigger)]" />
+        <span className="min-w-0">{sentence}</span>
+      </p>
+      {conditions > 0 || cooldownSeconds ? (
+        <div className="flex flex-wrap gap-1.5">
+          {conditions > 0 ? (
+            <span className="chip cursor-default text-[12px]">
+              {t("triggers.onlyIf")}
+              <b className="font-mono font-medium text-[var(--text)]">
+                {t("triggers.header.conditions", { count: conditions })}
+              </b>
+            </span>
+          ) : null}
+          {cooldownSeconds ? (
+            <span className="chip cursor-default text-[12px]">
+              {t("triggers.header.delay")}
+              <b className="font-mono font-medium text-[var(--text)]">
+                {t("triggers.header.seconds", { count: cooldownSeconds })}
+              </b>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

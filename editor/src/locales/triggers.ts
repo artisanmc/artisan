@@ -30,6 +30,19 @@ export const triggersFr = {
     "Le serveur actif ne déclare pas « {{name}} » : ce trigger ne se déclenchera pas tant que son module n'y est pas installé.",
   summary_one: "{{event}} · {{count}} étape",
   summary_other: "{{event}} · {{count}} étapes",
+  board: {
+    when: "QUAND",
+    conditions_one: "+{{count}} cond.",
+    conditions_other: "+{{count}} cond.",
+    more_one: "+{{count}} étape",
+    more_other: "+{{count}} étapes",
+  },
+  header: {
+    conditions_one: "{{count}} condition",
+    conditions_other: "{{count}} conditions",
+    delay: "Délai",
+    seconds: "{{count}} s",
+  },
   meta: {
     rare: "Rare",
     normal: "Fréquent",
@@ -164,6 +177,19 @@ export const triggersEn: typeof triggersFr = {
     "The active server does not declare “{{name}}”: this trigger will not run until its module is installed there.",
   summary_one: "{{event}} · {{count}} step",
   summary_other: "{{event}} · {{count}} steps",
+  board: {
+    when: "WHEN",
+    conditions_one: "+{{count}} cond.",
+    conditions_other: "+{{count}} cond.",
+    more_one: "+{{count}} step",
+    more_other: "+{{count}} steps",
+  },
+  header: {
+    conditions_one: "{{count}} condition",
+    conditions_other: "{{count}} conditions",
+    delay: "Delay",
+    seconds: "{{count}} s",
+  },
   meta: {
     rare: "Rare",
     normal: "Frequent",

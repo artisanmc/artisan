@@ -1,5 +1,6 @@
 import { liveDocumentIds } from "@/domain/canvasGroups";
 import type { MenuId, ProjectId } from "@/domain/types";
+import { TRIGGER_KIND, type Trigger } from "@/modules/triggers/trigger";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -37,6 +38,7 @@ import { MarqueeRect } from "./MarqueeRect";
 import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
 import { StageContextMenu } from "./StageContextMenu";
+import { TriggerGroup } from "./TriggerGroup";
 import { dispatchOpenElement } from "./canvasEvents";
 import { activeBoardFolder } from "./folderFilter";
 import { hitTestSlot, screenToWorld } from "./hitTest";
@@ -361,16 +363,26 @@ function StageCanvas({ projectId, focus }: StageProps) {
             ))}
           {allDocuments(project)
             .filter(({ kind, doc }) => !CORE_KINDS.has(kind) && layout[docKey(kind, doc.id)])
-            .map(({ kind, doc }) => (
-              <DocumentGroup
-                key={docKey(kind, doc.id)}
-                project={project}
-                kind={kind}
-                doc={doc}
-                position={layout[docKey(kind, doc.id)]!}
-                solo={focusMode}
-              />
-            ))}
+            .map(({ kind, doc }) =>
+              kind === TRIGGER_KIND.kind ? (
+                <TriggerGroup
+                  key={docKey(kind, doc.id)}
+                  project={project}
+                  trigger={doc as unknown as Trigger}
+                  position={layout[docKey(kind, doc.id)]!}
+                  solo={focusMode}
+                />
+              ) : (
+                <DocumentGroup
+                  key={docKey(kind, doc.id)}
+                  project={project}
+                  kind={kind}
+                  doc={doc}
+                  position={layout[docKey(kind, doc.id)]!}
+                  solo={focusMode}
+                />
+              ),
+            )}
           <GhostChips
             project={project}
             layout={layout}

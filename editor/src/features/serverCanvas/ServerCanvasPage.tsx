@@ -7,6 +7,7 @@ import { CommandGroup } from "@/features/canvas/CommandGroup";
 import { DialogGroup } from "@/features/canvas/DialogGroup";
 import { DocumentGroup } from "@/features/canvas/DocumentGroup";
 import { MenuGroup } from "@/features/canvas/MenuGroup";
+import { TriggerGroup } from "@/features/canvas/TriggerGroup";
 import type { Edge } from "@/features/canvas/deriveEdges";
 import { type Box, routeEdges } from "@/features/canvas/edgeRouting";
 import { fitViewport } from "@/features/canvas/focusViewport";
@@ -17,6 +18,7 @@ import { useServerProjects } from "@/features/project/useServerProjects";
 import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useCssVar } from "@/lib/themeColors";
+import { TRIGGER_KIND, type Trigger } from "@/modules/triggers/trigger";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
@@ -354,6 +356,16 @@ function Board({
               ) : null;
             }
             const doc = documentsOf(project, n.kind).find((d) => d.id === n.docId);
+            if (doc && n.kind === TRIGGER_KIND.kind) {
+              return (
+                <TriggerGroup
+                  key={n.key}
+                  project={project}
+                  trigger={doc as unknown as Trigger}
+                  position={position}
+                />
+              );
+            }
             return doc ? (
               <DocumentGroup
                 key={n.key}
