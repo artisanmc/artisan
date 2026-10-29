@@ -26,7 +26,12 @@ export function serverTabOf(childRouteId: string | undefined): ServerTab | undef
 export function ServerTabs({ serverId, active }: { serverId: string; active: ServerTab }) {
   const { t } = useTranslation();
   return (
-    <nav className="tabstrip -mb-px overflow-x-auto" aria-label={t("serverDetail.tabs.label")}>
+    // The tabs fill the header's height, their underline on its bottom edge; nothing overflows
+    // downward, so the strip only ever scrolls sideways (a narrow window).
+    <nav
+      className="tabstrip min-w-0 basis-full items-stretch overflow-x-auto overflow-y-hidden lg:basis-auto [&_.tab]:h-auto [&_.tab]:min-h-10 [&_.tab]:after:bottom-0"
+      aria-label={t("serverDetail.tabs.label")}
+    >
       {SERVER_TABS.map((tab) => (
         <Link
           key={tab.to}
