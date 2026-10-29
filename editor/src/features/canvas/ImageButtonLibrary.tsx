@@ -3,10 +3,14 @@ import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
 import { imageButtonSize } from "@/domain/imageButton";
-import type { ProjectId } from "@/domain/types";
+import type { Project, ProjectId } from "@/domain/types";
 import { AssetPreview } from "@/features/assets/AssetPreview";
 import { AssetUploadDialog } from "@/features/assets/AssetUploadDialog";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { useOtherProjectAssets } from "@/features/assets/useOtherProjectAssets";
+import { ProjectSource } from "@/features/project/ProjectSource";
+import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
+import { useIsPro } from "@/lib/edition";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useDraggable } from "@dnd-kit/core";
 import { Upload } from "lucide-react";
@@ -51,18 +55,44 @@ function ImageTile({ asset }: { asset: Asset }) {
 }
 
 export function ImageButtonLibrary({ projectId }: { projectId: ProjectId }) {
+  const sourceId = useProjectLibraryStore((s) => s.sourceId);
+  const setSourceId = useProjectLibraryStore((s) => s.setSourceId);
+  // Copying another project's image imports it into the pack: Pro, like an upload.
+  const pro = useIsPro();
+  if (!pro)
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-2 p-2">
+        <ImageGrid projectId={projectId} source={null} />
+      </div>
+    );
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2 p-2">
+      <ProjectSource projectId={projectId} sourceId={sourceId} onSourceChange={setSourceId}>
+        {(source) => <ImageGrid key={source?.id ?? ""} projectId={projectId} source={source} />}
+      </ProjectSource>
+    </div>
+  );
+}
+
+/** The button images of `projectId`, or of `source` (another project: read only, copied on drop). */
+function ImageGrid({ projectId, source }: { projectId: ProjectId; source: Project | null }) {
   const { t } = useTranslation();
-  const assets = useAssetStore((s) => s.assets);
-  const project = useProjectsStore((s) =>
+  const own = useAssetStore((s) => s.assets);
+  const ownLoading = useAssetStore((s) => s.loading);
+  const ownError = useAssetStore((s) => s.error);
+  const other = useOtherProjectAssets(source?.id ?? null);
+  const current = useProjectsStore((s) =>
     s.openProjects.projects.find((entry) => entry.id === projectId),
   );
-  const loading = useAssetStore((s) => s.loading);
-  const error = useAssetStore((s) => s.error);
+  const project = source ?? current;
+  const assets = source ? other.assets : own;
+  const loading = source ? other.loading : ownLoading;
+  const error = source ? other.error : ownError;
   const [search, setSearch] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   const images = assets.filter(
     (asset) =>
-      asset.projectId === projectId &&
+      asset.projectId === (source?.id ?? projectId) &&
       asset.type !== "font" &&
       assetUsages(asset, project).includes("button") &&
       asset.width > 0 &&
@@ -70,18 +100,22 @@ export function ImageButtonLibrary({ projectId }: { projectId: ProjectId }) {
       asset.name.toLowerCase().includes(search.toLowerCase()),
   );
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 p-2">
-      <Button size="sm" variant="outline" onClick={() => setUploadOpen(true)}>
-        <Upload className="size-3.5" />
-        {t("assetPicker.upload")}
-      </Button>
+    <>
+      {!source && (
+        <Button size="sm" variant="outline" onClick={() => setUploadOpen(true)}>
+          <Upload className="size-3.5" />
+          {t("assetPicker.upload")}
+        </Button>
+      )}
       <Input
         aria-label={t("imageButton.search")}
         placeholder={t("imageButton.search")}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      <p className="text-xs text-[var(--text-mut)]">{t("imageButton.dragHint")}</p>
+      <p className="text-xs text-[var(--text-mut)]">
+        {t(source ? "projectSource.dragHint" : "imageButton.dragHint")}
+      </p>
       <div className="grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto">
         {images.map((asset) => (
           <ImageTile key={asset.id} asset={asset} />
@@ -103,13 +137,15 @@ export function ImageButtonLibrary({ projectId }: { projectId: ProjectId }) {
           </p>
         )}
       </div>
-      <AssetUploadDialog
-        usage="button"
-        projectId={projectId}
-        open={uploadOpen}
-        onClose={() => setUploadOpen(false)}
-        onUploaded={() => setSearch("")}
-      />
-    </div>
+      {!source && (
+        <AssetUploadDialog
+          usage="button"
+          projectId={projectId}
+          open={uploadOpen}
+          onClose={() => setUploadOpen(false)}
+          onUploaded={() => setSearch("")}
+        />
+      )}
+    </>
   );
 }

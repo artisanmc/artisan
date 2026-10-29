@@ -1,5 +1,6 @@
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
-import { dropImageButton } from "@/features/canvas/imageButtonDrop";
+import { adoptCapturedItem } from "@/features/canvas/adoptCapturedItem";
+import { dropCopiedImageButton, dropImageButton } from "@/features/canvas/imageButtonDrop";
 import { pinPlacementRow } from "@/features/canvas/placementDrop";
 import { tryStageDrop, tryStageSlotHit } from "@/features/canvas/stageDropTarget";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -19,6 +20,10 @@ import { type WorkspaceDrop, decodeDragEnd, dragStartMaterial } from "./workspac
 export function applyWorkspaceDrop(projectId: ProjectId, drop: WorkspaceDrop): void {
   switch (drop.kind) {
     case "imageButton":
+      if (drop.asset.projectId !== projectId) {
+        void dropCopiedImageButton(projectId, drop.asset, drop.x, drop.y);
+        return;
+      }
       try {
         dropImageButton(projectId, drop.asset, drop.x, drop.y);
       } catch (error) {
@@ -47,11 +52,17 @@ export function applyWorkspaceDrop(projectId: ProjectId, drop: WorkspaceDrop): v
         elementId: drop.elementId,
         appearanceIndex: drop.stateIndex,
         field: "material",
-        value: drop.material,
+        value: drop.captured ? adoptCapturedItem(projectId, drop.captured) : drop.material,
       });
       return;
     case "stageMaterial":
-      tryStageDrop(drop.x, drop.y, drop.material);
+      // Another project's item is copied in only when it lands on a slot.
+      if (drop.captured && !tryStageSlotHit(drop.x, drop.y)) return;
+      tryStageDrop(
+        drop.x,
+        drop.y,
+        drop.captured ? adoptCapturedItem(projectId, drop.captured) : drop.material,
+      );
       return;
   }
 }

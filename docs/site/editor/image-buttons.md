@@ -15,6 +15,9 @@ The preview is centered on the pointer whether you grab the thumbnail, name or s
 Images imported here are classified as buttons. Manage their classification in
 the project's **Resources** tab: a background or decoration is offered here only
 when it is also classified for buttons. Several uses share the same image file.
+To use an image of another project of the server, choose that project in the
+**Project** menu above the thumbnails: the image is copied into your project when you drop it
+(see [Projects](../projects/)).
 Adjust **Width** and **Height** in slots:
 2 × 1 makes a horizontal button, 1 × 2 a vertical button, 2 × 2 covers four slots,
 and 3 × 2 or 2 × 3 covers six. Drag the image to move the entire button.

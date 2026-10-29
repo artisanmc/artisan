@@ -1,5 +1,10 @@
 import type { Asset, AssetType, AssetUsage } from "@/domain/asset";
-import { listLocalAssets, performLocalAssetMutation } from "@/features/assets/localAssets";
+import {
+  listLocalAssets,
+  performLocalAssetMutation,
+  readAssetFiles,
+  toBase64,
+} from "@/features/assets/localAssets";
 import {
   type AssetMutation,
   mutateDraftAssets,
@@ -82,6 +87,52 @@ export async function uploadFontAsset(
   const result = await uploadFile(projectId, input.file, { type: "font", name: input.name });
   return { asset: result.asset!, warnings: result.warnings };
 }
+/** What a copy did: the same asset was already here, or it landed under its name or a free one. */
+export type AssetCopyOutcome = "reused" | "copied" | "renamed";
+
+/** Same pixels, same type, and for a glyph the same metrics: using one or the other is the same. */
+function sameAsset(a: Asset, b: Asset): boolean {
+  if (a.type !== b.type) return false;
+  if (a.type === "font")
+    return JSON.stringify(a.fontMeta?.glyphMap) === JSON.stringify(b.fontMeta?.glyphMap);
+  if (a.contentHash !== b.contentHash) return false;
+  return a.type !== "glyph" || (a.ascent === b.ascent && a.height === b.height);
+}
+
+/**
+ * Copies an asset of another Project of the server into `projectId`'s draft. An
+ * identical asset already there is reused; a name already taken gets `_2`, `_3`…
+ * The copy is a snapshot: it keeps no link to its source.
+ */
+export async function copyAsset(
+  projectId: string,
+  source: Asset,
+): Promise<{ asset: Asset; outcome: AssetCopyOutcome }> {
+  if (source.projectId === projectId) return { asset: source, outcome: "reused" };
+  const same = (await listAssets(projectId)).find((asset) => sameAsset(asset, source));
+  if (same) return { asset: same, outcome: "reused" };
+  const principal = watchProjectPrincipal(projectId);
+  const result = await trackDraftAssetPreparation(projectId, async () => {
+    principal.assertCurrent();
+    const files = await readAssetFiles(source.projectId, source, source.draftId);
+    principal.assertCurrent();
+    return mutate(projectId, {
+      suffix: "/copy",
+      method: "POST",
+      fields: {
+        type: files.type,
+        name: files.name,
+        ...(files.descriptor === null ? {} : { descriptor: files.descriptor }),
+        files: JSON.stringify(
+          files.binaries.map((b) => ({ path: b.path, base64: toBase64(b.bytes) })),
+        ),
+      },
+    });
+  }).finally(() => principal.dispose());
+  const asset = result.asset!;
+  return { asset, outcome: asset.name === source.name ? "copied" : "renamed" };
+}
+
 export async function patchAsset(
   projectId: string,
   id: string,

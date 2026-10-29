@@ -117,6 +117,21 @@ published file (`/api/v1/projects/:id/binary?path=`). Asset CRUD runs in the bro
 (`features/assets/localAssets.ts`, a port of the former backend `assetHandlers.ts` on top of
 the draft snapshot and blobs), switched at the `lib/api/userAssets.ts` boundary.
 
+**Using another project's resources.** `features/project/ProjectSource.tsx` lists the server's
+other projects from the server index the project view already loads (`useOtherServerProjects`,
+published state, the edited project excluded), so nothing is loaded twice. A library shows the
+chosen project read only: assets through `useOtherProjectAssets` (`listLocalAssets` on the
+published disk, kept out of `assetStore`), captured items straight from the indexed `Project`.
+Using one copies it first, a snapshot with no link back:
+- an asset: `copyAsset` (`lib/api/userAssets.ts`) reuses an identical one (type + hash, glyph
+  metrics, font glyph map), otherwise reads its files (`readAssetFiles`) and runs the `/copy`
+  draft mutation (`localAssets.ts` `copyIn`): free name `name_2`… among every asset id
+  (`freeAssetName`), a glyph gets this project's next codepoint, a font its own namespace.
+  `copyAssetInto` toasts the outcome; `dropCopiedImageButton` reads the slot at release, then
+  places the copy. Pro-gated like an upload.
+- a captured item: the drag payload carries it (`captured`), and `adoptCapturedItem` adds it
+  with its id at the drop, click or pick, or reuses one with the same id or stack.
+
 The pack builder (`lib/pack/imageButtons.ts`) collects all display/state variants from menu files and
 resizes PNGs with nearest-neighbour sampling into 18-pixel slot cells. Contain
 centres with transparent padding; stretch fills the rectangle; native keeps source pixels.

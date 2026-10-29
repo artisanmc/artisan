@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProBadge } from "@/components/ui/pro-badge";
+import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
-import type { ProjectId } from "@/domain/types";
+import type { Project, ProjectId } from "@/domain/types";
+import { ProjectSource } from "@/features/project/ProjectSource";
 import { cx } from "@/lib/cx";
 import { useIsPro } from "@/lib/edition";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -13,15 +15,210 @@ import { AssetDetailPanel } from "./AssetDetailPanel";
 import { AssetGrid } from "./AssetGrid";
 import { AssetImportFontDialog } from "./AssetImportFontDialog";
 import { AssetImportNexoDialog } from "./AssetImportNexoDialog";
+import { AssetPreview } from "./AssetPreview";
 import { AssetUploadDialog } from "./AssetUploadDialog";
 import { useAssetStore } from "./assetStore";
+import { copyAssetInto } from "./copyAssetInto";
+import { useOtherProjectAssets } from "./useOtherProjectAssets";
 
 const CATEGORIES = ["all", "button", "menu", "font", "unclassified"] as const;
+
+type Category = (typeof CATEGORIES)[number];
+
+function matchesFilter(
+  asset: Asset,
+  ownerId: string,
+  project: Project | undefined,
+  search: string,
+  category: Category,
+): boolean {
+  if (asset.projectId !== ownerId || !asset.name.toLowerCase().includes(search.toLowerCase()))
+    return false;
+  const usages = assetUsages(asset, project);
+  if (category === "font") return asset.type === "font";
+  if (category === "button") return usages.includes("button");
+  if (category === "menu") return usages.includes("menu");
+  if (category === "unclassified") return asset.type !== "font" && usages.length === 0;
+  return true;
+}
 
 export function AssetsTab({
   projectId,
   compact = false,
 }: { projectId: ProjectId; compact?: boolean }) {
+  const [sourceId, setSourceId] = useState<ProjectId | null>(null);
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <ProjectSource
+        projectId={projectId}
+        sourceId={sourceId}
+        onSourceChange={setSourceId}
+        menuClassName="shrink-0 px-3 pt-3"
+      >
+        {(source) => (
+          <div className="min-h-0 flex-1">
+            {source ? (
+              <OtherProjectAssets
+                key={source.id}
+                projectId={projectId}
+                source={source}
+                compact={compact}
+                onCopied={(asset) => {
+                  setSourceId(null);
+                  useAssetStore.getState().setSelectedId(asset.id);
+                }}
+              />
+            ) : (
+              <OwnAssets projectId={projectId} compact={compact} />
+            )}
+          </div>
+        )}
+      </ProjectSource>
+    </div>
+  );
+}
+
+function CategoryChips({
+  category,
+  onChange,
+}: { category: Category; onChange: (category: Category) => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-wrap gap-1">
+      {CATEGORIES.map((entry) => (
+        <button
+          key={entry}
+          type="button"
+          onClick={() => onChange(entry)}
+          aria-pressed={category === entry}
+          className={cx(
+            "rounded-full border px-2 py-0.5 text-[11px] capitalize",
+            category === entry
+              ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)]"
+              : "border-[var(--border)] text-[var(--text-mut)] hover:border-[var(--border-strong)]",
+          )}
+        >
+          {t(`resources.${entry}`)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Another project's images and fonts, read only. "Copy into this project"
+ * copies the selected one (free name, snapshot) and goes back to this project with it selected.
+ */
+function OtherProjectAssets({
+  projectId,
+  source,
+  compact,
+  onCopied,
+}: {
+  projectId: ProjectId;
+  source: Project;
+  compact: boolean;
+  onCopied: (asset: Asset) => void;
+}) {
+  const { t } = useTranslation();
+  const isDesktop = useIsDesktop();
+  const narrow = compact || !isDesktop;
+  const { assets, loading, error } = useOtherProjectAssets(source.id);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<Category>("all");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // A copy is an import into the resource pack: Pro, like an upload.
+  const pro = useIsPro();
+  const filtered = assets.filter((asset) =>
+    matchesFilter(asset, source.id, source, search, category),
+  );
+  const selected = assets.find((asset) => asset.id === selectedId) ?? null;
+  const copy = async () => {
+    if (!selected || busy) return;
+    setBusy(true);
+    const copied = await copyAssetInto(projectId, selected);
+    setBusy(false);
+    if (copied) onCopied(copied);
+  };
+  return (
+    <div className="flex h-full min-h-0">
+      {(!narrow || !selected) && (
+        <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
+          <p className="text-xs text-[var(--text-mut)]">{t("projectSource.resourcesHint")}</p>
+          <Input
+            aria-label={t("resources.search")}
+            placeholder={t("resources.search")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <CategoryChips category={category} onChange={setCategory} />
+          {loading || error || !filtered.length ? (
+            <p
+              role={error ? "alert" : "status"}
+              className="py-8 text-center text-sm text-[var(--text-mut)]"
+            >
+              {t(
+                loading
+                  ? "resources.loading"
+                  : error
+                    ? "resources.loadError"
+                    : search || category !== "all"
+                      ? "resources.noResults"
+                      : "projectSource.noAssets",
+              )}
+            </p>
+          ) : (
+            <AssetGrid assets={filtered} selectedId={selectedId} onSelect={setSelectedId} />
+          )}
+        </div>
+      )}
+      {selected && (
+        <div
+          className={narrow ? "min-h-0 w-full overflow-y-auto" : "w-72 shrink-0 overflow-y-auto"}
+        >
+          {narrow && (
+            <Button variant="ghost" size="sm" className="m-2" onClick={() => setSelectedId(null)}>
+              {t("resources.back")}
+            </Button>
+          )}
+          <div className="flex flex-col gap-3 p-3" data-testid="other-asset-detail">
+            {selected.type !== "font" && (
+              <AssetPreview
+                asset={selected}
+                className="max-h-40 w-full rounded-[var(--r-md)] bg-[var(--surface-inset)] object-contain"
+              />
+            )}
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium">{selected.name}</div>
+              <div className="text-xs text-[var(--text-mut)]">
+                {selected.type === "font"
+                  ? t("resources.font")
+                  : `${selected.width} × ${selected.height} px`}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                className="flex-1"
+                onClick={() => void copy()}
+                disabled={busy || !pro}
+                title={pro ? undefined : t("edition.proOnly")}
+              >
+                {t(busy ? "projectSource.copying" : "projectSource.copy")}
+              </Button>
+              {!pro && <ProBadge />}
+            </div>
+            <p className="text-[11px] text-[var(--text-faint)]">
+              {t("projectSource.snapshotHint")}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: boolean }) {
   const { t } = useTranslation();
   const isDesktop = useIsDesktop();
   // Images and fonts go into the resource pack: importing them is Pro. Existing ones stay listed.
@@ -41,21 +238,14 @@ export function AssetsTab({
   const setSelectedId = useAssetStore((s) => s.setSelectedId);
 
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("all");
+  const [category, setCategory] = useState<Category>("all");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [importFontOpen, setImportFontOpen] = useState(false);
   const [importNexoOpen, setImportNexoOpen] = useState(false);
 
-  const filtered = assets.filter((asset) => {
-    if (asset.projectId !== projectId || !asset.name.toLowerCase().includes(search.toLowerCase()))
-      return false;
-    const usages = assetUsages(asset, project);
-    if (category === "font") return asset.type === "font";
-    if (category === "button") return usages.includes("button");
-    if (category === "menu") return usages.includes("menu");
-    if (category === "unclassified") return asset.type !== "font" && usages.length === 0;
-    return true;
-  });
+  const filtered = assets.filter((asset) =>
+    matchesFilter(asset, projectId, project, search, category),
+  );
 
   return (
     <div className="flex h-full min-h-0">
@@ -90,24 +280,7 @@ export function AssetsTab({
               className={narrow ? "w-full" : "flex-1"}
             />
           </div>
-          <div className="flex flex-wrap gap-1">
-            {CATEGORIES.map((entry) => (
-              <button
-                key={entry}
-                type="button"
-                onClick={() => setCategory(entry)}
-                aria-pressed={category === entry}
-                className={cx(
-                  "rounded-full border px-2 py-0.5 text-[11px] capitalize",
-                  category === entry
-                    ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)]"
-                    : "border-[var(--border)] text-[var(--text-mut)] hover:border-[var(--border-strong)]",
-                )}
-              >
-                {t(`resources.${entry}`)}
-              </button>
-            ))}
-          </div>
+          <CategoryChips category={category} onChange={setCategory} />
           {loading || error || !filtered.length ? (
             <p
               role={error ? "alert" : "status"}
