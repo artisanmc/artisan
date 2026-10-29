@@ -5,7 +5,7 @@ sidebar:
   order: 9
 ---
 
-Modules installed on your server (the Boutique Add-on, third-party plugins…) can expose **data sources** — live lists of rows such as shop items or quests. The server's page lists them under **Data sources**, grouped by the module that declares them. From a menu, the source picker's **See the server's sources** entry takes you there.
+Modules installed on your server (the Boutique Add-on, third-party plugins…) can expose **data sources** — live lists of rows such as shop items or quests. The **Data** tab of the server's page lists them, grouped by the module that declares them. From a menu, the source picker's **See the server's sources** entry takes you there.
 
 The preview on this page reflects the **in-game state**: the rows the module serves right now, that is your last **deployed** version. A draft you have not deployed yet (a product added to the shop catalogue, say) shows up here only after **Deploy**. The canvas may differ: a module can compute its rows from your draft for the menu preview (the shop catalogue does).
 

@@ -1,6 +1,4 @@
 export const serverCanvasFr = {
-  title: "Planche générale",
-  back: "Retour au serveur",
   listing: "Lecture des projets du serveur…",
   loading: "Chargement des projets… ({{done}}/{{total}})",
   unavailable: "Serveur injoignable — impossible de lister ses projets.",
@@ -20,8 +18,6 @@ export const serverCanvasFr = {
 };
 
 export const serverCanvasEn: typeof serverCanvasFr = {
-  title: "Server board",
-  back: "Back to server",
   listing: "Reading the server's projects…",
   loading: "Loading projects… ({{done}}/{{total}})",
   unavailable: "Server unreachable — cannot list its projects.",

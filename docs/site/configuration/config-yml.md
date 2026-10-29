@@ -11,7 +11,7 @@ the server is (that is [environment.yml](../environment/)).
 Edit it in either place:
 
 - **By hand**, then run `/artisan reload`.
-- **From the editor**: the server page, **Configuration** section (requires
+- **From the editor**: the server page, **Settings** tab (requires
   `artisan.editor.config`). The plugin checks each value, rewrites the file with its
   comments kept, and reloads by itself. From the editor, paths must stay under the
   server root (no absolute path, no `..`), and texture references must look like

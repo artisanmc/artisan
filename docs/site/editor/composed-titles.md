@@ -29,7 +29,7 @@ redraws every dispenser too.
 Players who declined the pack see your menu over the plain vanilla texture.
 If your server's resource pack restyles these containers, import its
 `generic_54.png`, `hopper.png` or `dispenser.png` in a project's **Resources**, publish
-it, then pick it under **Container textures** in the **Configuration** section of the
+it, then pick it under **Container textures** in the **Settings** tab of the
 server page: the windows drawn back use it instead of the vanilla texture (256×256,
 or a multiple for an HD pack). The choice is saved in the server's `config.yml`
 (`resource-pack.container-textures`). A texture pack a player picks on their own side is not kept while this is

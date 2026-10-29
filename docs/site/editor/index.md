@@ -81,7 +81,7 @@ releases every position and link anchor you set by hand and arranges the whole c
 The canvas remembers your position and zoom separately for each project in this
 browser, including after leaving the editor or refreshing the page.
 
-**Server board**, on a server's page, shows the documents of all its projects on a
+The **Board** tab of a server's page shows the documents of all its projects on a
 single read-only canvas, with the links between projects. Filter it by project, type
 or id, and click a document to open it.
 

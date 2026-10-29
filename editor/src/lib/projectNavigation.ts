@@ -100,10 +100,7 @@ export function dataSourceDestination(
   };
 }
 
-/** The anchor of the data sources section on the server page. */
-export const SERVER_SOURCES_ANCHOR = "data-sources";
-
-/** The server page, scrolled to the data sources its modules declare. */
+/** The server page's Data tab: the data sources its modules declare. */
 export function serverSourcesDestination(serverId: string) {
-  return { to: "/servers/$serverId" as const, params: { serverId }, hash: SERVER_SOURCES_ANCHOR };
+  return { to: "/servers/$serverId/data" as const, params: { serverId } };
 }

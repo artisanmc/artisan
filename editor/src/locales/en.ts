@@ -1652,6 +1652,13 @@ export default {
     listHint: "Comma-separated values.",
     vanillaTexture: "Vanilla texture",
     connectionHint: "The database credentials live in environment.yml, edited by hand only.",
+    discard: "Discard",
+    pending_one: "{{count}} setting changed",
+    pending_other: "{{count}} settings changed",
+    groupHints: {
+      textures:
+        "Redraw the server's chests, hoppers and dispensers when a menu turns off its vanilla texture.",
+    },
     groups: {
       general: "General",
       textures: "Container textures",
@@ -1698,7 +1705,18 @@ export default {
       "This server’s Artisan plugin is not compatible with the hub’s. Update it to edit this server.",
     documentCount_one: "{{count}} element",
     documentCount_other: "{{count}} elements",
-    openBoard: "Server board",
+    tabs: {
+      label: "Server sections",
+      overview: "Overview",
+      board: "Board",
+      data: "Data",
+      settings: "Settings",
+    },
+    stateOnline: "Online",
+    stateOffline: "Offline",
+    stateUpdateRequired: "Plugin to update",
+    minecraftVersion: "Minecraft {{version}}",
+    pluginVersion: "Artisan {{version}}",
   },
   search: {
     placeholder: "Search menus, commands, items, text…",
