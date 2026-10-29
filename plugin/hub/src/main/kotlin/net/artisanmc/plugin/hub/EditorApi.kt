@@ -43,7 +43,7 @@ object EditorApi {
     private fun aiSetup(ai: AiConfig, settings: AiSettingsStore?, given: AiProvider?, tools: McpTools, logger: Logger?): AiSetup =
         when {
             given == null -> AiSetup(ai, settings, tools, logger)
-            settings == null -> AiSetup(AiConfig(provider = "given", apiKey = "given", model = given.model, maxSteps = ai.maxSteps), null, tools, logger) { given }
-            else -> AiSetup(ai, settings, tools, logger) { given }
+            settings == null -> AiSetup(AiConfig(provider = "given", apiKey = "given", model = given.model, maxSteps = ai.maxSteps), null, tools, logger, providerFor = { given })
+            else -> AiSetup(ai, settings, tools, logger, providerFor = { given })
         }
 }

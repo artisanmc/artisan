@@ -35,7 +35,9 @@ than the hub. One single Artisan user at this date: the admin's key first.
    `model` (default `claude-opus-5-5`), `effort`, `max-steps` (model calls per message, 25),
    `base-url`. Set from the editor (Settings → Assistant, `artisan.editor.config`), stored in
    `artisan_settings` and applied at once (`AiSetup` rebuilds the assistant; its conversations
-   end): one setting for the whole network instead of one file per server (2026-10-28). The key
+   end). The servers of a database share one tunnel address and each serves the editor (ADR
+   `peer-servers`): each reads the settings again every 30 s, so a save on one reaches the
+   others within that, and unchanged settings keep the assistant: one setting for the whole network instead of one file per server (2026-10-28). The key
    is write-only: the editor sees its last four characters, and changing the provider or the
    address asks for it again, so it cannot be sent elsewhere without being known. The `ai`
    section of `environment.yml` (`${ANTHROPIC_API_KEY}` advised) still works and wins: the editor
