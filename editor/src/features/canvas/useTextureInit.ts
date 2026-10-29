@@ -1,9 +1,15 @@
 import { fetchUserCustomItems, fetchUserItems } from "@/lib/api/userProjects";
 import { renderToCanvas } from "@/lib/mcModelRenderer";
-import { useProjectPrincipalId, watchProjectPrincipal } from "@/lib/projectPrincipal";
+import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect } from "react";
 import { useTextureStore } from "./textureStore";
+
+/**
+ * The user and Project the store was last filled for. Coming back to a view with the same
+ * ones keeps the library and the icons already drawn: nothing is fetched or drawn again.
+ */
+let filledFor: string | null = null;
 
 /**
  * Initialises the texture store as soon as a principal AND a projectId are
@@ -28,6 +34,17 @@ export function useTextureInit(projectId?: string) {
   const setLibraryError = useTextureStore((s) => s.setLibraryError);
 
   useEffect(() => {
+    const key = `${currentUser}|${lastActiveProjectId}`;
+    const held = useTextureStore.getState();
+    if (
+      currentUser &&
+      lastActiveProjectId &&
+      filledFor === key &&
+      held.libraryBundleReady &&
+      held.libraryItems.length > 0 &&
+      !held.libraryError
+    )
+      return;
     useTextureStore.setState({
       version: "",
       byMaterial: {},
@@ -37,18 +54,12 @@ export function useTextureInit(projectId?: string) {
       libraryBundleReady: false,
       libraryError: false,
     });
+    filledFor = null;
     if (!currentUser || !lastActiveProjectId) return;
-    let cancelled = false;
-    const principal = watchProjectPrincipal(lastActiveProjectId);
-    const isCurrent = () => {
-      if (cancelled) return false;
-      try {
-        principal.assertCurrent();
-        return true;
-      } catch {
-        return false;
-      }
-    };
+    filledFor = key;
+    // Not tied to this mount: icons drawing when the view is left still land in the store
+    // for the next visit. Another user or Project (a new key, the user included) drops them.
+    const isCurrent = () => filledFor === key;
 
     Promise.all([fetchUserItems(lastActiveProjectId), fetchUserCustomItems(lastActiveProjectId)])
       .then(async ([vanilla, custom]) => {
@@ -71,13 +82,10 @@ export function useTextureInit(projectId?: string) {
       })
       .catch((err) => {
         if (!isCurrent()) return;
+        filledFor = null;
         console.warn("[library] items fetch failed", lastActiveProjectId, err);
         setLibraryError(true);
       });
-    return () => {
-      cancelled = true;
-      principal.dispose();
-    };
   }, [
     currentUser,
     lastActiveProjectId,

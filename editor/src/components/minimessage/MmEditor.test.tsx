@@ -1,6 +1,6 @@
 import { CHAT, LORE } from "@/lib/mm/profiles";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
@@ -51,7 +51,7 @@ describe("MmEditor", () => {
     expect(screen.queryByRole("button", { name: /Action au clic/ })).toBeNull();
   });
 
-  it("shows an expression as what it gives, and reads it as rules on click", () => {
+  it("reads a computed text as rules in place, its texts edited there", async () => {
     const entries: PlaceholderEntry[] = [
       { path: "m.online", type: "boolean", sample: "true", origin: "context" },
     ];
@@ -62,17 +62,13 @@ describe("MmEditor", () => {
         entries={entries}
       />,
     );
-    const pill = document.querySelector(".cm-mm-expr") as HTMLElement;
-    expect(pill.textContent).toBe("ƒEn ligne");
-    fireEvent.mouseDown(pill);
-    expect(screen.getByText("Si")).toBeTruthy();
-    expect(screen.getByText("Sinon")).toBeTruthy();
+    const box = document.querySelector(".cm-mm-expr") as HTMLElement;
+    await waitFor(() => expect(within(box).getByText("Si")).toBeTruthy());
+    expect(within(box).getByText("Sinon")).toBeTruthy();
+    expect(within(box).getByText("Online")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("switch"));
-    expect((document.querySelector(".cm-mm-expr") as HTMLElement).textContent).toBe("ƒHors ligne");
-
-    fireEvent.click(screen.getAllByTitle("Modifier ce texte")[1]!);
-    fireEvent.change(screen.getByLabelText("Modifier ce texte"), {
+    fireEvent.click(within(box).getAllByTitle("Modifier ce texte")[1]!);
+    fireEvent.change(within(box).getByLabelText("Modifier ce texte"), {
       target: { value: '<red>Absent "loin"' },
     });
     expect(screen.getByTestId("value").textContent).toBe(
@@ -80,7 +76,7 @@ describe("MmEditor", () => {
     );
   });
 
-  it("shows a placeholder as its example value, and a line break in words", () => {
+  it("names a placeholder rather than computing it, and says a line break in words", async () => {
     const entries: PlaceholderEntry[] = [
       { path: "m.rank", type: "string", sample: "Officier", origin: "context" },
       { path: "m.kick", type: "boolean", sample: "true", origin: "context" },
@@ -92,11 +88,88 @@ describe("MmEditor", () => {
         entries={entries}
       />,
     );
-    expect((document.querySelector(".cm-mm-val") as HTMLElement).textContent).toBe("Officier");
-    expect((document.querySelector(".cm-mm-expr") as HTMLElement).textContent).toBe("ƒ\nExclure");
-    fireEvent.mouseDown(document.querySelector(".cm-mm-expr")!);
-    expect(screen.getByText("nouvelle ligne :")).toBeTruthy();
-    expect(screen.queryByText("Sinon")).toBeNull();
+    const pill = document.querySelector(".cm-mm-val") as HTMLElement;
+    await waitFor(() => expect(pill.textContent).toBe("Rank"));
+    const box = document.querySelector(".cm-mm-expr") as HTMLElement;
+    await waitFor(() => expect(within(box).getByText("nouvelle ligne :")).toBeTruthy());
+    expect(within(box).queryByText("Sinon")).toBeNull();
+  });
+
+  it("inserts a variable or a built expression from the library", async () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.rank", type: "string", sample: "Officier", origin: "iteration" },
+      { path: "m.online", type: "boolean", sample: "true", origin: "iteration" },
+    ];
+    render(<Controlled initial="Grade : " profile={LORE} entries={entries} />);
+    fireEvent.click(screen.getByRole("button", { name: /Bibliothèque/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Rank/ }));
+    expect(screen.getByTestId("value").textContent).toBe("Grade : {m.rank}");
+
+    fireEvent.click(screen.getByRole("button", { name: /Bibliothèque/ }));
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Expressions" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Un texte pour oui/ }));
+    fireEvent.change(screen.getByLabelText("Texte si oui"), { target: { value: "En ligne" } });
+    fireEvent.change(screen.getByLabelText("Texte si non"), { target: { value: "Absent" } });
+    expect(screen.getByText("En ligne", { selector: "span" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Insérer" }));
+    expect(screen.getByTestId("value").textContent).toBe(
+      'Grade : {m.rank}{m.online ? "En ligne" : "Absent"}',
+    );
+  });
+
+  it("builds a recipe from a variable typed by hand or a fixed date, with none listed", async () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.rank", type: "string", sample: "Officier", origin: "iteration" },
+    ];
+    render(<Controlled initial="" profile={LORE} entries={entries} />);
+    const openRecipe = async (name: RegExp) => {
+      fireEvent.click(screen.getByRole("button", { name: /Bibliothèque/ }));
+      fireEvent.mouseDown(await screen.findByRole("tab", { name: "Expressions" }));
+      fireEvent.click(await screen.findByRole("button", { name: name }));
+    };
+
+    await openRecipe(/Temps écoulé depuis/);
+    const date = screen.getByLabelText("Date") as HTMLInputElement;
+    fireEvent.change(date, { target: { value: "2026-01-01T00:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Insérer" }));
+    const at = new Date("2026-01-01T00:00").getTime();
+    expect(screen.getByTestId("value").textContent).toBe(`{${at}.ago()}`);
+    // The rich view reads the fixed date as a date, not as its millis.
+    await waitFor(() =>
+      expect(document.querySelector(`[title="${at}"]`)?.textContent).toMatch(/2026/),
+    );
+
+    await openRecipe(/Nombre d'éléments/);
+    const custom = screen.getByLabelText("Une autre variable…");
+    expect(screen.getByRole("button", { name: "Insérer" })).toHaveProperty("disabled", true);
+    fireEvent.change(custom, { target: { value: "{guild.members}" } });
+    fireEvent.click(screen.getByRole("button", { name: "Insérer" }));
+    expect(screen.getByTestId("value").textContent).toBe(`{${at}.ago()}{guild.members.length()}`);
+  });
+
+  it("splits a glued computed text into one rule per line, and edits a rule in its form", async () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.online", type: "boolean", sample: "true", origin: "iteration" },
+      { path: "m.kick", type: "boolean", sample: "true", origin: "iteration" },
+    ];
+    render(
+      <Controlled
+        initial={'{(m.online ? "En ligne" : "Absent") + (m.kick ? "\\n<red>Exclure" : "")}'}
+        profile={LORE}
+        entries={entries}
+      />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /Une règle par ligne/ }));
+    expect(screen.getByTestId("value").textContent).toBe(
+      '{m.online ? "En ligne" : "Absent"}\n{m.kick ? "<red>Exclure" : ""}',
+    );
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Modifier/ }).length).toBe(2));
+    fireEvent.click(screen.getAllByRole("button", { name: /^Modifier$/ })[1]!);
+    fireEvent.change(screen.getByLabelText("Texte affiché"), { target: { value: "<red>Bannir" } });
+    fireEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+    expect(screen.getByTestId("value").textContent).toBe(
+      '{m.online ? "En ligne" : "Absent"}\n{m.kick ? "<red>Bannir" : ""}',
+    );
   });
 
   it("converts legacy codes on request", () => {
@@ -122,6 +195,26 @@ describe("MmTextField", () => {
     const tooltip = screen.getByTestId("mc-tooltip").textContent ?? "";
     expect(tooltip).toContain("Officier");
     expect(tooltip).not.toContain("{m.rank}");
+  });
+
+  it("lets the example player be set beside the preview, which follows", () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.online", type: "boolean", sample: "true", origin: "context" },
+    ];
+    render(
+      <MmTextField
+        value={'{m.online ? "En ligne" : "Hors ligne"}'}
+        onChange={() => {}}
+        profile={LORE}
+        entries={entries}
+      />,
+    );
+    const tooltip = () => screen.getByTestId("mc-tooltip").textContent ?? "";
+    expect(tooltip()).toContain("En ligne");
+    fireEvent.click(screen.getByRole("switch", { name: "Online" }));
+    expect(tooltip()).toContain("Hors ligne");
+    fireEvent.click(screen.getByRole("button", { name: "Revenir aux exemples" }));
+    expect(tooltip()).toContain("En ligne");
   });
 
   it("leaves the preview to the screen with layout none", () => {

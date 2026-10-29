@@ -1,6 +1,7 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
-import { listServerProjects, readProjectFiles } from "@/lib/api/projectFiles";
+import { type FailedDocument, listServerProjects, readProjectFiles } from "@/lib/api/projectFiles";
+import type { ProjectSummary } from "@/lib/api/servers";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 
 export interface ServerProjectsResult {
@@ -9,11 +10,26 @@ export interface ServerProjectsResult {
   projects: Project[];
   /** Projects listed but unreadable or unparsable (their folder). */
   failed: string[];
+  /**
+   * What the server returned for each readable project, as is: enough to open it
+   * without waiting (`seedProjectCache`).
+   */
+  reads?: IndexedRead[];
+}
+
+/** One project's published tree, as the server returned it. */
+export interface IndexedRead {
+  summary: ProjectSummary;
+  files: Record<string, string>;
+  binaries: { path: string; hash: string; size: number }[];
+  failed: FailedDocument[];
+  hash: string;
 }
 
 interface Cached {
   hash: string;
   project: Project;
+  read: IndexedRead;
 }
 
 const cache = new Map<string, Cached>();
@@ -49,7 +65,7 @@ export async function loadServerProjects(args: {
         const read = await readProjectFiles({ serverId, diskId }, known?.hash);
         if (!read.ok) return { diskId, project: null };
         if (read.unchanged) {
-          if (known) return { diskId, project: known.project };
+          if (known) return { diskId, project: known.project, read: known.read };
           return { diskId, project: null };
         }
         const canonical: Record<string, string> = {};
@@ -61,8 +77,17 @@ export async function loadServerProjects(args: {
           diskId,
           serverKeyId: summary.serverKeyId ?? undefined,
         });
-        if (read.hash) cache.set(key, { hash: read.hash, project });
-        return { diskId, project };
+        const raw: IndexedRead | undefined = read.hash
+          ? {
+              summary,
+              files: read.files,
+              binaries: read.binaries ?? [],
+              failed: read.failed ?? [],
+              hash: read.hash,
+            }
+          : undefined;
+        if (raw) cache.set(key, { hash: raw.hash, project, read: raw });
+        return { diskId, project, read: raw };
       } catch {
         return { diskId, project: null };
       }
@@ -73,5 +98,6 @@ export async function loadServerProjects(args: {
     status: "ready",
     projects: outcomes.flatMap((o) => (o.project ? [o.project] : [])),
     failed: outcomes.filter((o) => o.project === null).map((o) => o.diskId),
+    reads: outcomes.flatMap((o) => ("read" in o && o.read ? [o.read] : [])),
   };
 }

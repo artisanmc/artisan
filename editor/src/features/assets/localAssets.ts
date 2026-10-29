@@ -24,11 +24,12 @@ import {
 } from "@/lib/pack/assetDiskWrite";
 import { type AssetUsage, parseAssetUsages } from "@/lib/pack/assetUsages";
 import { type DiskAsset, diskAssetsFromTree } from "@/lib/pack/diskAssets";
-import { fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
+import { FONT_DESCRIPTOR, fontDir, fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
 import { type ParsedMcFont, parseMcFontsZip } from "@/lib/pack/mcFontsParser";
 import { readPngContentWidth, readPngDimensions } from "@/lib/pack/pngDimensions";
 import type { AssetRow } from "@/lib/pack/resourcePackBuilder";
 import { sha256Hex } from "@/lib/sha256";
+import { parse, stringify } from "yaml";
 
 /**
  * A Project's assets: the editor validates and stores them itself, on the
@@ -81,7 +82,7 @@ export function assetJsonFields(fields: Record<string, string>): Record<string, 
   );
 }
 
-function toBase64(bytes: Uint8Array): string {
+export function toBase64(bytes: Uint8Array): string {
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000)
     binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -136,6 +137,89 @@ export async function listLocalAssets(
     .map(serialize);
 }
 
+/** A published binary of a Project, `null` when the disk does not have it. */
+async function readPublishedBinary(projectId: string, path: string): Promise<Uint8Array | null> {
+  const response = await apiRequest(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/binary?path=${encodeURIComponent(path)}`,
+  ).catch(() => fail(503, "storage_unavailable"));
+  if (response.status === 404 || response.status === 422) return null;
+  if (!response.ok) fail(503, "storage_unavailable");
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+/**
+ * The files of one asset, read where `listLocalAssets` read it: the Project's
+ * draft when there is one, otherwise its published disk. A font brings its
+ * descriptor and every glyph PNG; an image brings its PNG and its descriptor.
+ * `path` is relative to the asset's folder, so the copy can land under another name.
+ */
+export interface AssetFiles {
+  type: AssetType;
+  name: string;
+  descriptor: string | null;
+  binaries: { path: string; bytes: Uint8Array }[];
+}
+
+export async function readAssetFiles(
+  projectId: string,
+  asset: Pick<Asset, "id" | "type">,
+  draftId?: string,
+): Promise<AssetFiles> {
+  let files: Tree;
+  let binaries: Binaries;
+  let baseline: Record<string, { hash: string }> = {};
+  if (draftId) {
+    const { snapshot } = await readDraft(projectId, draftId);
+    files = Object.entries(snapshot.tree).map(([path, content]) => ({ path, content }));
+    binaries = Object.entries(snapshot.binaryTree ?? {}).map(([path, meta]) => ({ path, ...meta }));
+    baseline = snapshot.binaryBaseline ?? {};
+  } else {
+    const read = await readProjectFiles(projectId);
+    if (!read.ok || read.unchanged) fail(503, "storage_unavailable");
+    files = Object.entries(read.files).map(([path, content]) => ({ path, content }));
+    binaries = read.binaries ?? [];
+  }
+  const found =
+    diskAssetsFromTree(projectId, files, binaries).find(
+      (a) => a.row.id === asset.id && a.row.type === asset.type,
+    ) ?? fail(404, "not_found");
+  const bytesOf = async (path: string, hash: string): Promise<Uint8Array> => {
+    let content: Uint8Array | null = null;
+    if (draftId && baseline[path]?.hash !== hash)
+      content = await readDraftBlob(projectId, draftId, hash).catch(() => null);
+    content ??= await readPublishedBinary(projectId, path);
+    if (!content || sha256Hex(content) !== hash) fail(503, "storage_unavailable");
+    return content;
+  };
+  if (found.row.type === "font") {
+    const dir = found.path.slice(0, found.path.lastIndexOf("/"));
+    const meta = found.row.fontMeta as { glyphMap?: { texture: string }[] } | null;
+    const out: AssetFiles["binaries"] = [];
+    for (const texture of new Set((meta?.glyphMap ?? []).map((g) => g.texture))) {
+      const bin = binaries.find((b) => b.path === `${dir}/${texture}`);
+      if (bin) out.push({ path: texture, bytes: await bytesOf(bin.path, bin.hash) });
+    }
+    const descriptor = files.find((f) => f.path === found.path)?.content ?? null;
+    return { type: "font", name: found.row.name, descriptor, binaries: out };
+  }
+  const descriptor = descriptorOf(files, found.path)?.content ?? null;
+  return {
+    type: found.row.type as AssetType,
+    name: found.row.name,
+    descriptor,
+    binaries: [{ path: "", bytes: await bytesOf(found.path, found.hash) }],
+  };
+}
+
+/** `name`, or `name_2`, `name_3`… the first that no asset of the Project holds. */
+export function freeAssetName(name: string, taken: Iterable<string>): string {
+  const ids = new Set(taken);
+  if (!ids.has(assetFileName(name))) return name;
+  let n = 2;
+  while (ids.has(assetFileName(`${name}_${n}`))) n++;
+  return `${name}_${n}`;
+}
+
 /** Browser-side `DraftAssetStorage`: reads the frozen snapshot, writes blobs then a revision. */
 class DraftOverlay {
   updatedDraft?: PersistedDraft;
@@ -179,13 +263,8 @@ class DraftOverlay {
     return content;
   }
 
-  private async published(path: string): Promise<Uint8Array | null> {
-    const response = await apiRequest(
-      `/api/v1/projects/${encodeURIComponent(this.projectId)}/binary?path=${encodeURIComponent(path)}`,
-    ).catch(() => fail(503, "storage_unavailable"));
-    if (response.status === 404 || response.status === 422) return null;
-    if (!response.ok) fail(503, "storage_unavailable");
-    return new Uint8Array(await response.arrayBuffer());
+  private published(path: string): Promise<Uint8Array | null> {
+    return readPublishedBinary(this.projectId, path);
   }
 
   /** All or nothing: base hashes checked, blobs written, then a single revision. */
@@ -558,6 +637,86 @@ async function remove(overlay: DraftOverlay, id: string): Promise<Body> {
 }
 
 /**
+ * An asset of another Project, copied in (fields from `copyAsset`): same files,
+ * a free name, and for a glyph a codepoint of this Project. The copy keeps no
+ * link to its source: changing the original later changes nothing here.
+ */
+async function copyIn(overlay: DraftOverlay, projectId: string, fields: Record<string, string>) {
+  const type = fields.type ?? "";
+  const sourceName = fields.name ?? "";
+  if (!["texture", "glyph", "font"].includes(type)) fail(400, "Invalid type");
+  if (!NAME_RE.test(sourceName)) fail(400, "Invalid name");
+  const files = JSON.parse(fields.files ?? "[]") as { path: string; base64: string }[];
+  if (type !== "font" && files.length !== 1) fail(400, "Missing file");
+  // A glyph path stays inside the font folder.
+  if (
+    type === "font" &&
+    files.some(
+      (f) => f.path.startsWith("/") || f.path.split("/").some((seg) => seg === ".." || !seg),
+    )
+  )
+    fail(400, "Invalid path");
+  const disk = overlay.read();
+  const name = freeAssetName(
+    sourceName,
+    disk.assets.map((a) => a.row.id),
+  );
+  const parsed = (() => {
+    try {
+      const value = fields.descriptor ? parse(fields.descriptor) : {};
+      return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  })();
+  const now = new Date().toISOString();
+  if (type === "font") {
+    const dir = fontDir(name);
+    const descriptor = stringify({ ...parsed, namespace: `artisan:${assetFileName(name)}` });
+    await overlay.commit({
+      files: [{ path: `${dir}/${FONT_DESCRIPTOR}`, content: descriptor, base_hash: null }],
+      binaries: files.map((f) => ({
+        path: `${dir}/${f.path}`,
+        content: fromBase64(f.base64),
+        baseHash: null,
+      })),
+    });
+    return {
+      asset: {
+        id: assetFileName(name),
+        projectId,
+        type: "font" as const,
+        name,
+        width: 0,
+        height: 0,
+        ascent: null,
+        codepoint: null,
+        fontMeta: fontFromDisk(descriptor),
+        contentHash: textHash(descriptor),
+        createdAt: now,
+        updatedAt: now,
+      },
+    };
+  }
+  const bytes = fromBase64(files[0]!.base64);
+  const path = assetDiskPath(type, name);
+  const codepoint = type === "glyph" ? nextFreeCodepoint(disk.assets) : null;
+  const descriptor = type === "glyph" ? { ...parsed, codepoint } : parsed;
+  await overlay.commit({
+    files: Object.keys(descriptor).length
+      ? [{ path: descriptorPath(path), content: stringify(descriptor), base_hash: null }]
+      : [],
+    binaries: [{ path, content: bytes, baseHash: null }],
+  });
+  const row = diskAssetsFromTree(
+    projectId,
+    [{ path: descriptorPath(path), content: stringify(descriptor) }],
+    [{ path, hash: sha256Hex(bytes), size: bytes.length }],
+  )[0]!.row;
+  return { asset: serialize(row) };
+}
+
+/**
  * Applies an asset mutation to the private draft. Failures are
  * `DraftApiError`s carrying the matching code and status.
  */
@@ -599,6 +758,11 @@ export async function performLocalAssetMutation(
     await restoreBinaries(overlay, projectId, input.fields);
     if (!overlay.updatedDraft) throw new Error("draft_acknowledgement_missing");
     return { draft: { ...overlay.updatedDraft, projectId } };
+  }
+  if (input.suffix === "/copy" && input.method === "POST") {
+    const body = await copyIn(overlay, projectId, input.fields);
+    if (!overlay.updatedDraft) throw new Error("draft_acknowledgement_missing");
+    return { ...body, draft: { ...overlay.updatedDraft, projectId } };
   }
   const [, rawId, action] = input.suffix.split("/");
   const id = rawId === undefined ? undefined : decodeURIComponent(rawId);

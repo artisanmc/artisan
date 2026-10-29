@@ -8,7 +8,12 @@ import { sha256Hex } from "@/lib/sha256";
 import { strToU8, zipSync } from "fflate";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
-import { listLocalAssets, performLocalAssetMutation } from "./localAssets";
+import {
+  freeAssetName,
+  listLocalAssets,
+  performLocalAssetMutation,
+  readAssetFiles,
+} from "./localAssets";
 
 /** `w`×`h` PNG whose first `opaque` columns only are opaque. */
 function png(w: number, h: number, opaque = w): Uint8Array {
@@ -344,5 +349,111 @@ describe("listLocalAssets", () => {
       "star",
     ]);
     expect((await listLocalAssets("p", {})).map((a) => a.id)).toEqual(["bg"]);
+  });
+});
+
+const copyOp = (state: Parameters<typeof op>[0], fields: Record<string, string>) =>
+  op(state, { suffix: "/copy", method: "POST", fields });
+
+describe("copying an asset from another project", () => {
+  it("picks name, name_2, name_3… among every asset id", () => {
+    expect(freeAssetName("star", ["bg"])).toBe("star");
+    expect(freeAssetName("star", ["star", "star_2"])).toBe("star_3");
+  });
+
+  it("reads an image and its descriptor from the published disk", async () => {
+    const bytes = png(8, 8);
+    const snapshot = empty();
+    snapshot.baseline["assets/glyphs/star.yml"] = "ascent: 6\ncodepoint: 57344\n";
+    snapshot.binaryBaseline = {
+      "assets/glyphs/star.png": { hash: sha256Hex(bytes), size: bytes.length },
+    };
+    fakeHub(snapshot, { "assets/glyphs/star.png": bytes });
+
+    const files = await readAssetFiles("p", { id: "star", type: "glyph" });
+    expect(files.type).toBe("glyph");
+    expect(files.descriptor).toBe("ascent: 6\ncodepoint: 57344\n");
+    expect(Buffer.from(files.binaries[0]!.bytes).equals(Buffer.from(bytes))).toBe(true);
+  });
+
+  it("lands a glyph under a free name, on a codepoint of this project, keeping its metrics", async () => {
+    const mine = png(8, 8);
+    const theirs = png(4, 4);
+    const snapshot = empty();
+    snapshot.tree["assets/glyphs/star.yml"] = "codepoint: 57344\n";
+    snapshot.binaryTree = {
+      "assets/glyphs/star.png": { hash: sha256Hex(mine), size: mine.length },
+    };
+    const hub = fakeHub(snapshot);
+
+    const result = await performLocalAssetMutation(
+      "p",
+      copyOp(hub, {
+        type: "glyph",
+        name: "star",
+        descriptor: "ascent: 6\ncodepoint: 57344\nusages:\n  - button\n",
+        files: JSON.stringify([{ path: "", base64: b64(theirs) }]),
+      }),
+    );
+
+    const written = result.draft.snapshot;
+    expect(parse(written.tree["assets/glyphs/star_2.yml"]!)).toEqual({
+      ascent: 6,
+      codepoint: 57345,
+      usages: ["button"],
+    });
+    expect(written.binaryTree!["assets/glyphs/star_2.png"]?.hash).toBe(sha256Hex(theirs));
+    expect(written.binaryTree!["assets/glyphs/star.png"]?.hash).toBe(sha256Hex(mine));
+    expect(result.asset).toMatchObject({
+      id: "star_2",
+      name: "star_2",
+      projectId: "p",
+      codepoint: 57345,
+      ascent: 6,
+      usages: ["button"],
+    });
+  });
+
+  it("copies a font folder, renaming its namespace with it", async () => {
+    const glyph = png(8, 8);
+    const snapshot = empty();
+    snapshot.tree["assets/fonts/pixel/font.yml"] = "namespace: artisan:pixel\nglyphs: []\n";
+    const hub = fakeHub(snapshot);
+
+    const result = await performLocalAssetMutation(
+      "p",
+      copyOp(hub, {
+        type: "font",
+        name: "pixel",
+        descriptor:
+          "namespace: artisan:pixel\nglyphs:\n  - char: a\n    texture: a.png\n    ascent: 7\n    height: 8\n    width: 8\n",
+        files: JSON.stringify([{ path: "a.png", base64: b64(glyph) }]),
+      }),
+    );
+
+    const written = result.draft.snapshot;
+    expect(parse(written.tree["assets/fonts/pixel_2/font.yml"]!).namespace).toBe("artisan:pixel_2");
+    expect(written.binaryTree!["assets/fonts/pixel_2/a.png"]?.hash).toBe(sha256Hex(glyph));
+    expect(written.tree["assets/fonts/pixel/font.yml"]).toBe(
+      "namespace: artisan:pixel\nglyphs: []\n",
+    );
+    expect(result.asset).toMatchObject({ id: "pixel_2", type: "font" });
+    expect(result.asset?.fontMeta?.glyphMap.map((g) => g.char)).toEqual(["a"]);
+  });
+
+  it("refuses a font glyph outside its folder", async () => {
+    const hub = fakeHub(empty());
+    const error = await rejection(
+      performLocalAssetMutation(
+        "p",
+        copyOp(hub, {
+          type: "font",
+          name: "pixel",
+          descriptor: "glyphs: []\n",
+          files: JSON.stringify([{ path: "../x.png", base64: b64(png(2, 2)) }]),
+        }),
+      ),
+    );
+    expect([error.status, error.code]).toEqual([400, "Invalid path"]);
   });
 });

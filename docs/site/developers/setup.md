@@ -13,7 +13,7 @@ net.artisanmc:artisan-core-api:<version>
 
 It contains only the `net.artisanmc.modules.api` packages, with a sources jar
 (Javadoc included). Nothing under `net.artisanmc.plugin.*` ships in it — that is
-Artisan's internals, not API. License: GPL-3.0, like Artisan.
+Artisan's internals, not API. License: MIT (Artisan itself is proprietary).
 
 The classes are provided at runtime by the installed Artisan plugin: declare the
 dependency as `compileOnly` (Gradle) or `provided` (Maven), and **never shade it**.

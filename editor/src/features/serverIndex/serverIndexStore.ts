@@ -8,6 +8,8 @@ interface ServerIndexState {
   status: "idle" | "loading" | ServerProjectsResult["status"];
   projects: Project[];
   failed: string[];
+  /** The raw reads behind `projects`, for the open-cache (`seedProjectCache`). */
+  reads: NonNullable<ServerProjectsResult["reads"]>;
   begin: (scope: string) => void;
   finish: (scope: string, result: ServerProjectsResult) => void;
   reset: () => void;
@@ -24,16 +26,22 @@ export const useServerIndexStore = create<ServerIndexState>((set, get) => ({
   status: "idle",
   projects: [],
   failed: [],
+  reads: [],
   // Another server must never show the previous one's projects.
   begin: (scope) =>
     set(
       get().scope === scope
         ? { status: "loading" }
-        : { scope, status: "loading", projects: [], failed: [] },
+        : { scope, status: "loading", projects: [], failed: [], reads: [] },
     ),
   finish: (scope, result) => {
     if (get().scope !== scope) return;
-    set({ status: result.status, projects: result.projects, failed: result.failed });
+    set({
+      status: result.status,
+      projects: result.projects,
+      failed: result.failed,
+      reads: result.reads ?? [],
+    });
   },
-  reset: () => set({ scope: null, status: "idle", projects: [], failed: [] }),
+  reset: () => set({ scope: null, status: "idle", projects: [], failed: [], reads: [] }),
 }));

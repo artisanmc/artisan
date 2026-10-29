@@ -343,3 +343,37 @@ condition list, in the file format `api.getConditions()` reads, and points at an
 the picker of `document_ref` arguments. Reason: without them, each module redrew a text or YAML
 field for these two needs (MSQuests, ArtisanConversations). A condition the editor does not decode is
 kept as written, never lost on edit.
+
+## Amendment 2026-10-28: images in the resource pack (SDK 1.13)
+
+A kind declares the images its files draw at a height (`pack.images`), and the pack builder gives each
+(asset, rise) a font the plugin hands out through `api.getOverlay()` (API 2.20.0). Reason: a HUD in the
+action bar (ArtisanConversations) needs its box and cursor above the hotbar, and only the pack can
+raise an image there; the builder already reads the menus' files for their glyph placements, and the
+kind is the only one that knows where its files keep their images. The kind reads the parsed file, not
+the Document: the pack is built from the server's files, without the editor's codec.
+
+### Addendum 2026-10-28: Artisan owns the slots, rises are signed
+
+Two changes before 2.20.0 shipped, so that custom HUDs designed in Artisan (a scoreboard at the top
+of the screen, a textured boss bar) use the same pieces. A rise is signed: a HUD under the boss bar
+draws downwards, with the menus' `text_y` fonts for text and a negative ascent for images
+(-166..128). And no module sends the action bar itself: it shows a named layer in a slot
+(`OverlayApi.show`/`hide`, `Slot.ACTION_BAR` first), drawn from the centre of the screen with the
+pen brought back there, and Artisan draws the slot's layers together by priority and resends them.
+Two modules writing the action bar would otherwise erase each other every second. *Rejected:* one
+module per slot, the highest priority hiding the others (a quest goal and a conversation can share
+the bar side by side). Corners of the screen stay out of reach: the server does not know its width,
+and anchoring there takes core shaders in the pack.
+
+## Amendment 2026-10-29: the game's screen (SDK 1.14)
+
+The SDK exposes `McScreen` and `McText`, host components, and the screen's geometry as pure
+functions (`guiScale`, `mcScreenLayout`, `bossBarAt`…). A module previews what it draws in game
+(a conversation's HUD, its pages in the chat) on the same screen as the editor's own previews, at
+the window size and GUI scale the user picks, instead of each module drawing its own approximation.
+The geometry is pure so that a module places its layers with it (the conversations HUD rises from
+`actionBarTop`), and it is locked by `testdata/mc-screen-conformance.json`. It is the first step of
+the editor's Play mode, a navigable preview built from the Documents without a game client.
+*Rejected:* a screen per module (they would drift apart), and putting the geometry behind the host
+(a module's tests could not run it).

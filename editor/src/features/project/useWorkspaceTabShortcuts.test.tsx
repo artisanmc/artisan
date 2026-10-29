@@ -39,13 +39,13 @@ describe("useWorkspaceTabShortcuts", () => {
     expect(resolvedSearch({ keep: 1 })).toEqual({ keep: 1, tab: undefined });
   });
 
-  it("Digit3 opens Data (data-sources), Numpad3 too", () => {
+  it("Digit3 opens Resources, Numpad3 too", () => {
     render(<Harness />);
     pressOnWindow("Digit3");
-    expect(resolvedSearch()).toEqual({ tab: "data-sources" });
+    expect(resolvedSearch()).toEqual({ tab: "resources" });
     navigate.mockClear();
     pressOnWindow("Numpad3");
-    expect(resolvedSearch()).toEqual({ tab: "data-sources" });
+    expect(resolvedSearch()).toEqual({ tab: "resources" });
   });
 
   it("fires on the physical key regardless of the produced character (AZERTY-safe)", () => {
@@ -55,14 +55,14 @@ describe("useWorkspaceTabShortcuts", () => {
     expect(resolvedSearch()).toEqual({ tab: "translations" });
   });
 
-  it("Digit5 opens History, unless the Project has none", () => {
+  it("Digit4 opens History, unless the Project has none", () => {
     const { unmount } = render(<Harness />);
-    pressOnWindow("Digit5");
+    pressOnWindow("Digit4");
     expect(resolvedSearch()).toEqual({ tab: "history" });
     unmount();
     navigate.mockClear();
     render(<Harness hasHistory={false} />);
-    pressOnWindow("Digit5");
+    pressOnWindow("Digit4");
     expect(navigate).not.toHaveBeenCalled();
   });
 

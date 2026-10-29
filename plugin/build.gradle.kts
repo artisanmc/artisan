@@ -3,10 +3,20 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     kotlin("jvm") version "2.0.21" apply false
     id("io.github.goooler.shadow") version "8.1.8" apply false
+    id("com.modrinth.minotaur") version "2.10.0" apply false
+    id("io.papermc.hangar-publish-plugin") version "0.1.4" apply false
 }
 
 // The deploy CI passes `-PartisanVersion=1.0.<run>`.
 val artisanVersion = providers.gradleProperty("artisanVersion").getOrElse("1.0.0-SNAPSHOT")
+
+// `-Pedition=free` builds the free jar, `-Pedition=pro` (the default) the Pro one: one code base,
+// the hub reads the edition from the jar (`artisan-edition.properties`, see `Edition`). Pro by
+// default so a local build or `deploy` behaves as before.
+val artisanEdition = providers.gradleProperty("edition").getOrElse("pro").also {
+    require(it == "free" || it == "pro") { "-Pedition must be free or pro, not '$it'" }
+}
+extra["artisanEdition"] = artisanEdition
 
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
@@ -47,8 +57,10 @@ subprojects {
         systemProperty("junit.jupiter.execution.timeout.default", "2m")
         systemProperty("junit.jupiter.execution.timeout.threaddump.enabled", "true")
         // No tunnel by default (WebConfig.TUNNEL_PROPERTY): every plugin a test loads would otherwise open
-        // one to the production tunnel server, with a fresh address each time.
+        // one to the production tunnel server, with a fresh address each time. Same for the pack host
+        // (PackCdn.HOST_PROPERTY): no test uploads a pack to production.
         systemProperty("artisan.web.tunnel", "")
+        systemProperty("artisan.web.pack-cdn", "")
         testLogging { exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
     }
 }

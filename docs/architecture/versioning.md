@@ -465,8 +465,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 8.2 Rules
 
-- **Every PR that changes the public API adds an entry** in `[Unreleased]`.
-- At release time, `[Unreleased]` becomes `[X.Y.Z] - YYYY-MM-DD`.
+- **Every PR that changes the public API adds an entry** — as a new file in `changelog.d/`, never
+  by editing `CHANGELOG.md` (every PR prepending to `[Unreleased]` made every PR conflict).
+  Format and naming: `changelog.d/README.md`. CI (`changelog.yml`) refuses lines added to `[Unreleased]`.
+- At release time, `node tools/changelog/changelog.mjs release X.Y.Z` folds the fragments into
+  `[Unreleased]`, which becomes `[X.Y.Z] - YYYY-MM-DD`, and deletes them.
 - Categories: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - **Breaking changes** flagged in bold in the relevant category.
 - GitHub link to the commit/PR for each entry (optional but useful).

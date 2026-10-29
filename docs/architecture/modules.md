@@ -151,6 +151,45 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > for those of the server's other projects, like an action's `document_ref` argument. `value` is `""`
 > with nothing picked.
 
+> **Server rows for mixed sources (since 2026-10-28, SDK 1.12)** — `localPreviewRows(project, ref, ctx)`
+> receives `ctx.serverRows`, the server's last rows for the ref when the host has them (absent while
+> offline or not fetched yet). A source declared `Origin.MIXED` joins them to the draft by its
+> `keyField`; a `CONTENT` source ignores them. `ctx.params` carries the fetcher params the menu
+> declares on the source input (`group: daily`), which the hook applies like the fetcher does. A 1.11 bundle keeps working (it ignores the argument).
+
+> **The game's screen (since 2026-10-29, SDK 1.14)** — `McScreen` (host component) draws the game's
+> screen at a window size (`width`, `height`, window pixels) and GUI scale (`guiScale`: `"auto"` or
+> 1, 2…, capped by the window as in game): world, hotbar, hearts/food/experience (`survival`),
+> boss bars, title, action bar, chat (`chat`, wrapped at 320 px; `chatInput` opens it), then the
+> module's layers (`children(geometry)`) and an open screen (`screen(geometry)`, on the dimmed
+> background). Display only: the caller owns what is shown. `McText` draws MiniMessage with the
+> vanilla font. The geometry is pure and exported: `guiScale(w, h, choice)` (`Window.calculateScale`:
+> the largest scale keeping the GUI ≥ 320×240), `mcScreenLayout(w, h, scale)` (GUI size, hotbar,
+> `actionBarTop` = H − 72 the conversations HUD rises from, title, chat, chat input),
+> `hotbarSelection`, `bossBarAt`, `centeredScreen`, `MC_SCREEN_PRESETS`; locked by
+> `testdata/mc-screen-conformance.json`. A layer places a GUI rectangle `r` at `r.x * geometry.scale`, and an `McText` at `(y - geometry.textLift) * scale` for its letters' top to land on `y`.
+> `McScreenControls` (window preset, GUI scale, zoom; `McScreenSettings`) gives a module the editor's
+> own controls. To draw a HUD like the plugin: `mcTextWidth(mm)` and `mcWrap(mm, width)` measure and
+> wrap MiniMessage with the vanilla font advances (`lib/loreWrap.ts`), and `useAssetImage(projectId,
+> name)` (a hook) gives a Project's image asset as `{url, width, height}` for an `<img>`, undefined
+> until it is loaded. The conversations add-on uses all of it for its live HUD preview.
+
+> **HUD layers (since 2026-10-28, SDK 1.13, API 2.20.0)** — a kind declares the images
+> its files draw at a height: `pack: { images: (src) => [{ asset, rise }] }`, `src` the parsed YAML of
+> each `<dir>/*.yaml` (`id` included), in every project. When the pack is built (`buildServerPack`,
+> `lib/pack/overlayImages.ts`), each (asset, rise) becomes a font `artisan:overlay/<sha256(asset)>_<rise>`:
+> the image at scale 1, `ascent = 7 + rise` (its top `rise` px above the slot's text, below when negative, -166..128), padded with
+> transparent rows when shorter, cut into slices of 256 columns when wider (the client drops a larger
+> glyph without a word); one taller than 256 px is left out. The plugin side is `api.getOverlay()`:
+> `raise(text, rise)` (`artisan:text_up<rise>` up to 128, `artisan:text_y<6-rise>_h8` down to -166, always in
+> the pack), `move(px)`, `image(asset, rise)` (the slices joined, pen back at the start, null when the pack
+> lacks it), `width(text)`, `hasPack(player)`. A module never sends the action bar itself: it shows a layer,
+> `show(player, Slot.ACTION_BAR, "<module>:<layer>", priority, miniMessage)`, drawn from the centre of the
+> screen with the pen brought back there, and `hide`s it; Artisan (`OverlaySlots`) draws every layer of the
+> slot by priority and resends it. A module renders through it only for a player whose `hasPack` is true and
+> keeps a chat fallback.
+> The images reach the pack once the module's editor bundle is loaded in the editor that builds it.
+
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the
@@ -159,7 +198,8 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 
 > **Document kinds (since 2026-10-15, lot 5)** — a module contributes its Document kinds through
 > `documents: DocumentKindContribution[]`: `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
-> `icon?`, `component` (Properties panel view), `title?`, `listByTitle?`, `create`, `parse`,
+> `icon?`, `component` (Properties panel view), `ownHeader?` (SDK 1.13: the view draws the
+> Document's header, the host leaves out its own), `title?`, `listByTitle?`, `create`, `parse`,
 > `serialize`, `ltextSites?`, `chainSlots?`, `board?` (`size`, `summary`, `render` react-konva,
 > non-interactive preview, `items`: selectable rows, SDK 1.2, with `marker` and `hover` in 1.5;
 > `accent`, SDK 1.5). The host installs it at registration (`registerEditorModule`,
@@ -393,6 +433,21 @@ class ShopModule : ArtisanModule {
 The `schema` is a `List<DataSourceField>` where each field is typed by a `ModelFieldType` (`new DataSourceField("price", ModelFieldType.number())`): the same vocabulary as Data models (`api.getModels().declare(new ModelDeclaration(...))`) and action arguments. `FieldKind` is still accepted, `@Sunset` until 3.0.0.
 
 At runtime, when the menus module renders an Element with `data_source.ref = "shop:items"`, the `DataSourceRegistry` routes the request to the shop module, which returns the data. Zero direct coupling.
+
+**Origin (API 2.19.0, SDK 1.12)** — a source says where its rows come from with the sixth constructor argument, `Origin`:
+
+| Origin | Rows | What the editor previews |
+|---|---|---|
+| `RUNTIME` (default) | Server state only (sales, guild members, a balance). | The server's rows, badge "In-game state". |
+| `CONTENT` | Derived from the Project's files (a shop's catalogue, quest definitions). | The rows the module's editor view computes from the draft (`FrontendModule.localPreviewRows`), badge "Draft". Without that hook: the server's rows, badge "Deployed version" (pending edits invisible). |
+| `MIXED` | Definitions from the files joined to per-player state (a player's active quests, a rewards calendar with claims). Requires a `keyField`. | `localPreviewRows(project, ref, { serverRows })`: the module starts from the server's rows (fetched with the preview player) and replaces their definition fields with the draft's, matched by `keyField`; a row the draft adds gets the default state, a row it removes disappears. |
+
+```java
+api.getDataSources().register(new DataSourceDeclaration(
+    "boutique:items", fetcher, schema, Stability.STATIC, "id", Origin.CONTENT));
+```
+
+`localPreviewRows` duplicates the fetcher in TypeScript. Keep them in step with shared vectors: `testdata/sources/<ref>/*.json` in the module's repository (the Project files in, the server rows for a mixed source, the expected rows out), read by both the fetcher's test and the hook's test. Design: `design-sources-brouillon.md` (project files, 2026-10-28).
 
 ### 4.2 Commands
 

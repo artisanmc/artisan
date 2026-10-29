@@ -1,6 +1,15 @@
 import { SplitPane } from "@/components/SplitPane";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
-import { McActionBar, McChat, McMotd, McTitle, McTooltip } from "@/components/mc-preview";
+import {
+  McActionBar,
+  McChat,
+  McMotd,
+  McScreen,
+  McScreenControls,
+  type McScreenSettings,
+  McTitle,
+  McTooltip,
+} from "@/components/mc-preview";
 import { MmTextField } from "@/components/minimessage";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -43,8 +52,11 @@ import { GuidedTour } from "@/components/ui/guided-tour";
 import { HBar } from "@/components/ui/h-bar";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
+import { Markdown } from "@/components/ui/markdown";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ProBadge } from "@/components/ui/pro-badge";
 import { ResetButton } from "@/components/ui/reset-button";
+import { ResizeHandle } from "@/components/ui/resize-handle";
 import { Segmented } from "@/components/ui/segmented";
 import {
   Sheet,
@@ -167,7 +179,11 @@ const SAMPLE_LORE =
 // A guild member's card: the case of the "computed text" pill.
 const SAMPLE_MEMBER_LORE = [
   "<gray>Grade : <red>{m.rank}",
-  '{(m.online ? "<green>En ligne" : "<gray>Hors ligne") + (m.can_promote || m.can_demote || m.can_kick ? "\\n" : "") + (m.can_promote ? "\\n<yellow>Clic gauche : promouvoir" : "") + (m.can_demote ? "\\n<yellow>Clic droit : rétrograder" : "") + (m.can_kick ? "\\n<red>Shift + clic droit : exclure" : "")}',
+  '{m.online ? "<green>En ligne" : "<gray>Hors ligne"}',
+  "",
+  '{m.can_promote ? "<yellow>Clic gauche : promouvoir" : ""}',
+  '{m.can_demote ? "<yellow>Clic droit : rétrograder" : ""}',
+  '{m.can_kick ? "<red>Shift + clic droit : exclure" : ""}',
   "<gray>Membre depuis {m.joined.ago()}",
 ].join("\n");
 
@@ -179,6 +195,40 @@ const SAMPLE_MEMBER: PlaceholderEntry[] = [
   { path: "m.can_kick", type: "boolean", sample: "true", origin: "iteration" },
   { path: "m.joined.ago()", type: "string", sample: "40 j", origin: "iteration" },
 ];
+
+function McScreenSpecimen() {
+  const { t } = useTranslation();
+  const [settings, setSettings] = useState<McScreenSettings>({
+    width: 1920,
+    height: 1080,
+    guiScale: "auto",
+    zoom: "fit",
+  });
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="mono text-[11px] text-[var(--text-faint)]">
+        {"<McScreen> <McScreenControls>"}
+      </span>
+      <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.mcScreenHint")}</p>
+      <McScreenControls value={settings} onChange={setSettings} />
+      <div className="max-h-[520px] overflow-auto">
+        <McScreen
+          {...settings}
+          hotbar={{ selected: 2 }}
+          survival={{ health: 17, food: 20, xp: 0.4, level: 12 }}
+          bossBars={[{ name: "<light_purple>Dragon", progress: 0.6 }]}
+          title={{ title: "<gold><bold>Victory", subtitle: "<gray>Round 3" }}
+          actionBar="<green>+25 coins"
+          chat={[
+            "<yellow>Steve joined the game",
+            "<gray>[<gold>Guide</gold>]</gray> Welcome to the server! Type <aqua>/menu</aqua> to start.",
+          ]}
+          chatInput="/menu"
+        />
+      </div>
+    </div>
+  );
+}
 
 function MiniMessageSpecimens() {
   const { t } = useTranslation();
@@ -226,6 +276,7 @@ function MiniMessageSpecimens() {
           <McTitle title="<gold><bold>Victory" subtitle="<gray>Round 3" />
         </div>
       </div>
+      <McScreenSpecimen />
       <div className="flex flex-col gap-2">
         <span className="mono text-[11px] text-[var(--text-faint)]">{"<Popover>"}</span>
         <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.popoverHint")}</p>
@@ -355,6 +406,18 @@ export function DesignSystemPage() {
           renames={[{ from: "menus/old.yaml", to: "menus/new.yaml" }]}
           problems={{ "menus/shop.yaml": ["schema: price is not allowed"] }}
         />
+      </Section>
+      <Section id="markdown" title="Markdown">
+        <div className="card max-w-xl p-4">
+          <Markdown>
+            {
+              "The **auctions** project has 4 menus:\n\n| id | file |\n|---|---|\n| `ah_main` | `menus/ah_main.yml` |\n| `ah_lot` | `menus/ah_lot.yml` |\n\n- one command, `ah`\n- 7 dialogs\n\n```yaml\ntitle: Auction house\nsize: 54\n```"
+            }
+          </Markdown>
+        </div>
+      </Section>
+      <Section id="resize-handle" title="ResizeHandle">
+        <ResizeHandleSpecimen />
       </Section>
       {/* Rules */}
       <Section id="guidelines" title={t("adminDesign.guidelines.heading")}>
@@ -563,6 +626,12 @@ export function DesignSystemPage() {
             </div>
           </div>
           <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<ProBadge>"}</span>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <ProBadge />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">
               {"<IconTile> · actionAppearance()"}
             </span>
@@ -582,17 +651,21 @@ export function DesignSystemPage() {
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Segmented>"}</span>
-            <Segmented
-              label="Segmented"
-              options={[
-                { value: "chest", label: "Chest" },
-                { value: "hopper", label: "Hopper" },
-                { value: "dropper", label: "Dropper" },
-              ]}
-              value={segValue}
-              onChange={setSegValue}
-            />
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<FormField group label hint><Segmented>"}
+            </span>
+            <FormField group label="Inventory" hint="Hint">
+              <Segmented
+                label="Segmented"
+                options={[
+                  { value: "chest", label: "Chest" },
+                  { value: "hopper", label: "Hopper" },
+                  { value: "dropper", label: "Dropper" },
+                ]}
+                value={segValue}
+                onChange={setSegValue}
+              />
+            </FormField>
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">
@@ -1109,5 +1182,27 @@ function SearchableMenuSpecimen() {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function ResizeHandleSpecimen() {
+  const [width, setWidth] = useState(320);
+  const clamp = (w: number) => Math.round(Math.min(560, Math.max(200, w)));
+  return (
+    <div
+      className="card relative h-28 p-4 pr-5 text-[13px] text-[var(--text-mut)]"
+      style={{ width }}
+    >
+      <ResizeHandle
+        edge="right"
+        value={width}
+        min={200}
+        max={560}
+        onResize={(w) => setWidth(clamp(w))}
+        onReset={() => setWidth(320)}
+        label="Resize"
+      />
+      {width}px
+    </div>
   );
 }

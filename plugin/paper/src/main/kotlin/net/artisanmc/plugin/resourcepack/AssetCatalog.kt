@@ -18,6 +18,7 @@ import java.util.zip.ZipInputStream
  *                  (legacy packs); TitleCompiler then falls back to a default.
  * @param namespace Font namespace (e.g. `artisan:my_font`) for font-type assets;
  *                  null for non-font types (glyph, texture, etc.).
+ * @param slices    An `overlay` image cut into glyphs of 256 columns: each one's content width.
  */
 data class AssetEntry(
     val name: String,
@@ -27,6 +28,7 @@ data class AssetEntry(
     val height: Int,
     val width: Int = 0,
     val namespace: String? = null,
+    val slices: List<Int> = emptyList(),
 ) {
     /** Codepoint as a [Char] for direct use in MiniMessage / Component text. */
     val codepointChar: Char? get() = codepoint?.let { it.toChar() }
@@ -164,6 +166,7 @@ class AssetCatalog(
                 height = node["height"]?.asInt() ?: 0,
                 width = node["width"]?.asInt() ?: 0,
                 namespace = node["namespace"]?.asText(),
+                slices = node["slices"]?.takeIf { it.isArray }?.filter { it.isInt }?.map { it.asInt() }.orEmpty(),
             )
         }
 

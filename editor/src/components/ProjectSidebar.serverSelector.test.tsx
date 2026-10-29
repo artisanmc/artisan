@@ -2,6 +2,7 @@ import { listServerProjects } from "@/lib/api/projectFiles";
 import * as serversApi from "@/lib/api/servers";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServersStore } from "@/state/serversStore";
+import { useUiStore } from "@/state/uiStore";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -63,12 +64,11 @@ describe("ProjectSidebar served by the plugin", () => {
     ]);
   });
 
-  it("lists the hub's servers with their connected state", async () => {
+  it("offers the search field in place of a server selector, opening the palette", async () => {
+    useUiStore.setState({ searchOpen: false } as any);
     render(<ProjectSidebar />);
-    await screen.findByTestId("server-state-online");
-    await userEvent.click(screen.getByText("Hub", { selector: "span.truncate" }));
-    expect(screen.getByText("lobby")).toBeInTheDocument();
-    expect(screen.getByTestId("server-state-offline")).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: /Rechercher|Search/ }));
+    expect(useUiStore.getState().searchOpen).toBe(true);
   });
 
   it("explains an update-required server instead of calling it unreachable", async () => {

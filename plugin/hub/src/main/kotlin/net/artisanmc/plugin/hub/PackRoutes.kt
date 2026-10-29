@@ -4,27 +4,55 @@ import net.artisanmc.plugin.hub.EditorPermissions.PUBLISH
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
 
 /**
- * The packs the editor builds arrive here. The server serves them to players
- * itself (`/resource-pack/<sha1>.zip`, `/bedrock-pack/<sha1>.mcpack`, public)
- * and hands them to the plugin: the Java pack to `ResourcePackManager`
- * (delegation to the pack host), the Bedrock pack to `BedrockPackManager`
- * (Geyser hands it to Bedrock players).
+ * The packs the editor builds arrive here. The hub serves them itself (`/resource-pack/<sha1>.zip`,
+ * `/bedrock-pack/<sha1>.mcpack`, public). The Java pack, with [cdn], is also uploaded to Artisan's
+ * pack host, where players then download it; either way it goes to `ResourcePackManager`:
+ * delegation to the pack plugin or direct push. The Bedrock pack goes to `BedrockPackManager`
+ * (Geyser hands it to Bedrock players), never to the host: Geyser downloads it, not the players.
+ *
+ * Building a Java pack is an Artisan Pro feature: the free [edition] refuses a new one (403
+ * `pro_required`) but keeps serving the packs it already has, so content made with Pro still
+ * renders after a switch to the free jar. The Bedrock pack is accepted in every edition.
  */
-class PackRoutes(private val servers: Servers, private val store: PackStore, private val bedrock: PackStore? = null) {
+class PackRoutes(
+    private val servers: Servers,
+    private val store: PackStore,
+    private val cdn: PackCdn? = null,
+    private val edition: Edition = Edition.PRO,
+    private val bedrock: PackStore? = null,
+) {
     fun register(router: Router) {
-        register(router, store, "resource-pack") { server, hash, path -> server.applyResourcePack(hash, path) }
-        bedrock?.let { register(router, it, "bedrock-pack") { server, hash, path -> server.applyBedrockPack(hash, path) } }
+        router.on("PUT", "$SERVER/resource-pack", PUBLISH) { call ->
+            if (!edition.pro) return@on call.error(403, PRO_REQUIRED)
+            val server = servers.of(call) ?: return@on call.error(404, "not_found")
+            val zip = receive(call) ?: return@on
+            val hash = store.put(zip)
+            // The host down or refusing: players download from the hub, as without one.
+            val url = cdn?.publish(hash) { zip }
+            server.applyResourcePack(hash, store.pathOf(hash), url)
+            call.json(if (url == null) mapOf("hash" to hash) else mapOf("hash" to hash, "url" to url))
+        }
+        serve(router, store)
+        bedrock?.let { packs ->
+            router.on("PUT", "$SERVER/bedrock-pack", PUBLISH) { call ->
+                val server = servers.of(call) ?: return@on call.error(404, "not_found")
+                val zip = receive(call) ?: return@on
+                val hash = packs.put(zip)
+                server.applyBedrockPack(hash, packs.pathOf(hash))
+                call.json(mapOf("hash" to hash))
+            }
+            serve(router, packs)
+        }
     }
 
-    private fun register(router: Router, store: PackStore, route: String, apply: (EditorServer, String, String) -> Unit) {
-        router.on("PUT", "$SERVER/$route", PUBLISH) { call ->
-            val server = servers.of(call) ?: return@on call.error(404, "not_found")
-            val zip = call.bytes(MAX_BYTES) ?: return@on call.error(413, "too_large")
-            if (zip.size < 4 || zip[0] != 'P'.code.toByte() || zip[1] != 'K'.code.toByte()) return@on call.error(422, "invalid_zip")
-            val hash = store.put(zip)
-            apply(server, hash, store.pathOf(hash))
-            call.json(mapOf("hash" to hash))
-        }
+    /** The request's zip, or null once the refusal is sent. */
+    private fun receive(call: Call): ByteArray? {
+        val zip = call.bytes(MAX_BYTES) ?: return null.also { call.error(413, "too_large") }
+        if (zip.size < 4 || zip[0] != 'P'.code.toByte() || zip[1] != 'K'.code.toByte()) return null.also { call.error(422, "invalid_zip") }
+        return zip
+    }
+
+    private fun serve(router: Router, store: PackStore) {
         router.on("GET", "${store.path}/:file", null) { call ->
             val zip = store.get(call.params.getValue("file")) ?: return@on call.error(404, "not_found")
             call.send(200, "application/zip", zip, "public, max-age=31536000, immutable")
@@ -33,5 +61,6 @@ class PackRoutes(private val servers: Servers, private val store: PackStore, pri
 
     companion object {
         private const val MAX_BYTES = 100 * 1024 * 1024
+        const val PRO_REQUIRED = "pro_required"
     }
 }

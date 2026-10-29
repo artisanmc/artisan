@@ -5,6 +5,7 @@ import * as serversApi from "@/lib/api/servers";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
+import { useSidebarOrderStore } from "@/state/sidebarOrderStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSidebar } from "./ProjectSidebar";
@@ -60,6 +61,7 @@ describe("ProjectSidebar", () => {
     useServerScreensStore.setState({ screens: [] } as never);
     useServersStore.setState({ activeServerId: null } as any);
     useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } } as any);
+    useSidebarOrderStore.setState({ orders: {} });
     vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
   });
 
@@ -399,5 +401,95 @@ describe("ProjectSidebar", () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     await waitFor(() => expect(useServersStore.getState().activeServerId).toBe("sk_1"));
+  });
+  describe("reordering folders by dragging their row", () => {
+    const pluginFolders = {
+      ok: true,
+      projectIds: ["boutique_shop", "quests_main", "pack_a", "pack_b"],
+      projects: [
+        {
+          id: "boutique_shop",
+          name: "boutique_shop",
+          externalId: "boutique_shop",
+          hash: "",
+          serverKeyId: "sk_1",
+          ownerModule: "boutique",
+        },
+        {
+          id: "quests_main",
+          name: "quests_main",
+          externalId: "quests_main",
+          hash: "",
+          serverKeyId: "sk_1",
+          ownerModule: "quests",
+        },
+      ],
+    } as never;
+
+    const names = (section: string) => {
+      const list = screen.getByText(section).nextElementSibling as HTMLElement;
+      return within(list)
+        .getAllByRole("link")
+        .map((a) => a.querySelector("span")?.textContent);
+    };
+
+    it("shows both lists in the order stored for this server", async () => {
+      vi.mocked(listServerProjects).mockResolvedValue(pluginFolders);
+      useSidebarOrderStore.setState({
+        orders: {
+          sk_1: { installed: ["quests", "boutique"], mine: ["pack_b", "pack_a"] },
+          sk_2: { mine: ["pack_a", "pack_b"] },
+        },
+      });
+      render(<ProjectSidebar />);
+      await screen.findByRole("link", { name: "quests" });
+      expect(names("Modules installés")).toEqual(["quests", "boutique"]);
+      expect(names("Mes modules")).toEqual(["pack_b", "pack_a"]);
+    });
+
+    it("has no drag handle: the row itself is dragged", async () => {
+      render(<ProjectSidebar />);
+      await screen.findByRole("link", { name: /pack_a/ });
+      expect(screen.queryByRole("button", { name: /reorder/i })).toBeNull();
+    });
+
+    it("moves a folder dropped on another, remembers it, and does not open it", async () => {
+      // jsdom lays nothing out: each row is 32 px high, stacked in its list.
+      const rect = vi
+        .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: HTMLElement) {
+          const li = this.closest("li");
+          const index = li ? [...li.parentElement!.children].indexOf(li) : 0;
+          const top = index * 32;
+          return {
+            x: 0,
+            y: top,
+            top,
+            left: 0,
+            width: 200,
+            height: 32,
+            right: 200,
+            bottom: top + 32,
+            toJSON() {},
+          } as DOMRect;
+        });
+      render(<ProjectSidebar />);
+      const link = await screen.findByRole("link", { name: /pack_a/ });
+      const row = link.parentElement as HTMLElement;
+      fireEvent.mouseDown(row, { button: 0, clientX: 10, clientY: 10 });
+      // Under the threshold, nothing moves: the press is still a click.
+      fireEvent.mouseMove(document, { clientX: 10, clientY: 12 });
+      fireEvent.mouseMove(document, { clientX: 10, clientY: 30 });
+      fireEvent.mouseMove(document, { clientX: 10, clientY: 50 });
+      fireEvent.mouseUp(document, { clientX: 10, clientY: 50 });
+      // The release's click lands on the dragged link: it must not navigate.
+      expect(fireEvent.click(link)).toBe(false);
+      await waitFor(() => expect(names("Mes modules")).toEqual(["pack_b", "pack_a"]));
+      expect(useSidebarOrderStore.getState().orders.sk_1?.mine).toEqual(["pack_b", "pack_a"]);
+      // The next click opens the folder again.
+      await new Promise((r) => setTimeout(r, 0));
+      expect(fireEvent.click(link)).toBe(true);
+      rect.mockRestore();
+    });
   });
 });

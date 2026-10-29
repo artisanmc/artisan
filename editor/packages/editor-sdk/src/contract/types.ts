@@ -36,6 +36,11 @@ export interface DocumentKindContribution {
    * Meant for kinds that are data, with no links to or from other Documents.
    */
   collection?: DocumentCollection;
+  /**
+   * What the kind's files add to the server's resource pack (SDK 1.13), read from each
+   * `<dir>/*.yaml` of every project when the pack is built.
+   */
+  pack?: DocumentPackContribution;
   /** The kind's plural name in the registry and the "New …" menu: an i18n key of the host, or a literal. */
   label: string;
   /** The same name per interface language (`{ en, fr }`): a module carries its own; wins over `label`. */
@@ -48,6 +53,12 @@ export interface DocumentKindContribution {
    * (`editor-internals.md`), not part of this contract.
    */
   component: ComponentType<DocumentEditorProps>;
+  /**
+   * `component` draws the Document's header itself (SDK 1.13): the host then leaves out its
+   * own (the kind's tile, its name, the Document's `title`), so the panel shows one header.
+   * Absent = the host draws it above `component`.
+   */
+  ownHeader?: boolean;
   /** A human label for one Document (search, chips, breadcrumb); the id when absent. */
   title?: (doc: unknown, ctx: DocumentLabelContext) => string;
   /** Registry rows show `title` instead of the id (a command's `/name` is its identity). */
@@ -103,6 +114,28 @@ export interface DocumentCollection {
    * the top of the collection's page: the settings that apply to the whole collection.
    */
   screen?: string;
+}
+
+/** What a kind's files add to the resource pack (`DocumentKindContribution.pack`). */
+export interface DocumentPackContribution {
+  /**
+   * The images a file draws at a height, from the file as parsed YAML (`id` included). The
+   * pack gets one glyph per asked (asset, rise), which the plugin hands out through
+   * `api.getOverlay().image(asset, rise)`: a HUD drawn in the action bar, above the hotbar.
+   * A file that throws, an unknown asset or a rise out of -166..128 adds nothing.
+   */
+  images?: (src: Record<string, unknown>) => Iterable<PackImage>;
+}
+
+/**
+ * An image of a Project's `assets/` (its file name, like a menu's `image.asset`) drawn
+ * with its top `rise` px above the top of a slot's text line (`OverlayApi`), below it when
+ * negative: -166..128. Its height is at most 256 px; a wider one is cut into slices of 256 px,
+ * joined again by the plugin.
+ */
+export interface PackImage {
+  asset: string;
+  rise: number;
 }
 
 /** One row of a Document's board node (`board.items`). */
@@ -228,6 +261,14 @@ export interface ConfigScreenProps {
   readOnly: boolean;
 }
 
+/** What the host passes to `FrontendModule.localPreviewRows` beside the project (SDK 1.12). */
+export interface LocalPreviewContext {
+  /** The server's last rows for the ref; absent while unknown (server offline, not fetched yet). */
+  serverRows?: Record<string, unknown>[];
+  /** The fetcher params the menu declares on the source input; absent when none. */
+  params?: Record<string, string>;
+}
+
 export interface ModuleRouteDecl {
   path: string;
   component: ComponentType;
@@ -262,8 +303,21 @@ export interface FrontendModule {
    * (the host then falls back to the live server snapshot). Must mirror the
    * plugin fetcher's row shape. The host resolves localized values in the
    * project's dataSources before calling this hook, using the preview language.
+   *
+   * SDK 1.12: `ctx.serverRows` carries the server's last rows for the ref when the
+   * host has them (fetched with the preview player). A source the plugin declares
+   * `mixed` (definitions in the project's files, per-player state on the server)
+   * starts from these rows and replaces their definition fields with the draft's,
+   * matched by the declared key field; a row the draft adds gets the default state,
+   * a row the draft removes disappears. A `content` source ignores them.
+   * `ctx.params` are the fetcher params the menu declares on the source input
+   * (`group: daily`): apply them as the plugin's fetcher does.
    */
-  localPreviewRows?: (project: unknown, ref: string) => Record<string, unknown>[] | null;
+  localPreviewRows?: (
+    project: unknown,
+    ref: string,
+    ctx?: LocalPreviewContext,
+  ) => Record<string, unknown>[] | null;
   /** Source ref → declared row model, available independently of server presence. */
   dataSourceModels?: Record<string, string>;
   /** Idempotent, in-memory upgrade after declared models are attached. */

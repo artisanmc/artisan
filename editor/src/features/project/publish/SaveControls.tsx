@@ -40,10 +40,16 @@ import { usePublishFlow } from "./usePublishFlow";
 export function SaveControls({
   projectId,
   offline = false,
+  checking = false,
 }: {
   projectId: ProjectId;
   /** The server is offline: the draft stays editable, publishing waits for its return. */
   offline?: boolean;
+  /**
+   * The last known version is on screen and the server's answer is awaited: its
+   * compare-and-swap base is not known yet, so Deploy waits (well under a second).
+   */
+  checking?: boolean;
 }) {
   const { t } = useTranslation();
   const flow = usePublishFlow(projectId, offline);
@@ -86,13 +92,13 @@ export function SaveControls({
             </button>
           </Tooltip>
         )}
-        {offline ? (
+        {offline || checking ? (
           // A disabled button gets no hover: `aria-disabled` keeps the explanation reachable.
-          <Tooltip content={t("deploy.offline")}>
+          <Tooltip content={t(offline ? "deploy.offline" : "deploy.checking")}>
             <button
               type="button"
               aria-disabled
-              onClick={flow.openReview}
+              onClick={offline ? () => flow.openReview() : undefined}
               className="btn btn-sm btn-primary cursor-default opacity-50"
             >
               <Play className="size-4" fill="currentColor" aria-hidden />
@@ -102,14 +108,16 @@ export function SaveControls({
         ) : (
           <button
             type="button"
-            onClick={flow.openReview}
-            disabled={state.saving || !canSave || !dirty}
+            onClick={() => flow.openReview()}
+            disabled={state.saving || !canSave || !(dirty || flow.pendingElsewhere)}
             title={
               !canSave
                 ? t("deploy.cannotDeployTitle")
                 : dirty
                   ? t("deploy.deployTitle")
-                  : t("deploy.nothing")
+                  : flow.pendingElsewhere
+                    ? t("deploy.others.elsewhereTitle")
+                    : t("deploy.nothing")
             }
             className="btn btn-sm btn-primary"
           >
@@ -170,6 +178,9 @@ export function SaveControls({
         changes={state.review?.changes ?? null}
         checks={state.review?.checks}
         documents={state.review?.documents}
+        current={flow.current}
+        others={flow.others}
+        onToggleOther={flow.toggleOther}
         onCancel={flow.closeReview}
         onConfirm={flow.confirmReview}
       />

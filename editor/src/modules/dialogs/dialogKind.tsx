@@ -19,6 +19,7 @@ export const dialogKind: DocumentKindContribution = {
   label: "projectPanel.dialogs",
   icon: MessageSquare,
   component: DialogView,
+  ownHeader: true,
   title: (doc, { project, lang }) => getText(project as Project, (doc as Dialog).title, lang),
   create: ({ id, projectId }) =>
     ({

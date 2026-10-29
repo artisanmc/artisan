@@ -5,3 +5,4 @@ export { type MmOp, MmToolbar } from "./MmToolbar";
 export { type MmViewMode, mmExtensions } from "./mmCodeMirror";
 export { usePaletteLibrary } from "./usePaletteLibrary";
 export { type Simulation, useSimulation } from "./useSimulation";
+export { SimulationPanel, type SimulationPanelProps } from "./SimulationPanel";

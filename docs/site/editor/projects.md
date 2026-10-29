@@ -17,6 +17,27 @@ no known use appear under **Unclassified**. Changing classification does not rem
 images already placed in menus.
 Resource changes stay in your private draft until **Deploy**, like other edits.
 
+**Using another project's images and items.** **Captured items**, **Images**, **Resources**
+and the image picker start with a **Project** menu: choose another project of the same
+server to see what it has published, read only, or **All other projects** to search them all
+at once when you don't know where a resource lives (each image names its project; captured
+items are grouped by project). Whatever you use from it is first copied
+into the project you are editing, so each project keeps everything it needs:
+
+- Drag an image onto a menu, pick it, or select it in **Resources** and choose **Copy
+  into this project**. Dropping it outside the grid copies nothing.
+- Drag, click or pick a captured item: it is copied with its id, then used.
+- An identical image or item already in the project is reused, never duplicated.
+- An image whose name is taken by a different image becomes `name_2`, `name_3`…, and a
+  message says so. A copied glyph gets a free character of this project; a copied font
+  keeps its glyphs.
+- The copy is a snapshot. If the original changes later, the copy stays as it was: copy
+  it again to update it. A captured item already copied is reused as it is, so remove it
+  first to take the new version.
+
+Copying an image or font is an import into the resource pack, so it needs Pro, like an
+upload. Captured items can be copied in both editions.
+
 Each project has its own frame on the server-wide canvas. Inside a project, each top-level folder
 that holds documents has a frame. Select documents, then choose **File in a folder** to put them in a
 new or existing folder, with a color; the background uses that color at 15% opacity.

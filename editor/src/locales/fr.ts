@@ -71,13 +71,6 @@ const fr: typeof en = {
   },
   projectIdentity: projectIdentityFr,
   itemContext: {
-    title: "Contexte disponible",
-    intro:
-      "Copie un placeholder complet pour l’utiliser dans un champ. Les valeurs affichées sont des exemples.",
-    search: "Rechercher un placeholder",
-    empty: "Aucun placeholder correspondant.",
-    copyError: "Copie impossible. Sélectionne le placeholder pour le copier manuellement.",
-    help: "Ouvrir l’aide-mémoire",
     context: "Contexte",
     iteration: "Élément courant",
     pagination: "Pagination",
@@ -106,6 +99,30 @@ const fr: typeof en = {
     close: "Fermer la navigation",
     dismiss: "Refermer la navigation",
     resize: "Redimensionner la navigation (double-clic : largeur par défaut)",
+  },
+  projectSource: {
+    all: "Tous les autres projets",
+    from: "Dans le projet {{project}}",
+    searchItems: "Rechercher un item…",
+    label: "Projet :",
+    here: "Ce projet",
+    others: "Autres projets du serveur",
+    loading: "Chargement des projets du serveur…",
+    unavailable: "Impossible de lire les projets du serveur.",
+    none: "Aucun autre projet sur ce serveur.",
+    gone: "Ce projet n’est plus sur le serveur.",
+    dragHint: "Glisse une image sur un menu : elle est d’abord copiée dans ce projet.",
+    itemHint: "Glisse ou choisis un item : il est d’abord copié dans ce projet.",
+    resourcesHint:
+      "Ressources d’un autre projet, en lecture seule. Copie celles dont tu as besoin.",
+    noItems: "Ce projet n’a aucun item capturé.",
+    noAssets: "Ce projet n’a aucune ressource.",
+    copy: "Copier dans ce projet",
+    copying: "Copie…",
+    snapshotHint: "La copie ne suit pas l’original : s’il change ensuite, recopie-le.",
+    copied: "« {{name}} » copiée dans ce projet.",
+    copiedAs: "« {{name}} » copiée sous le nom « {{copy}} » : le nom était déjà pris.",
+    copyFailed: "Impossible de copier « {{name}} » : {{error}}",
   },
   projectLibrary: {
     title: "Boutons",
@@ -783,7 +800,7 @@ const fr: typeof en = {
     badge: {
       identical: "Fourni par {{module}}",
       modified: "Modifié depuis {{module}}",
-      update: "{{module}} propose une nouvelle version",
+      update: "{{module}} propose une nouvelle version : ⋯ › Prendre la version de {{module}}",
     },
     errors: {
       not_found: "Son module ne propose plus ce modèle.",
@@ -838,6 +855,7 @@ const fr: typeof en = {
     systemReset: "Réinitialiser",
     systemResetHint: "Remet la version du module dans ton brouillon.",
     systemResetDone: "Version du module remise dans le brouillon. Déploie pour la publier.",
+    takeModuleVersion: "Prendre la version de {{module}}",
     systemResetConfirm:
       "Remettre la version du module dans ton brouillon ? Tes modifications de ce fichier seront remplacées ; Déployer la publie.",
     noEditor: "Pas encore d'éditeur pour ce {{kind}}",
@@ -862,6 +880,103 @@ const fr: typeof en = {
   editorPane: {
     close: "Fermer le panneau",
   },
+  play: {
+    listing: "Lecture des projets du serveur…",
+    loading: "Chargement des projets… ({{done}}/{{total}})",
+    unavailable: "Serveur injoignable — impossible de lister ses projets.",
+    failed_one: "{{count}} projet illisible",
+    failed_other: "{{count}} projets illisibles",
+    open: "Tester en jeu",
+    openHint: "Ouvre le mode Jeu du serveur, ce projet en premier",
+    screen: "Écran du jeu",
+    chatInput: "Chat",
+    keysHint:
+      "Cliquez sur l'écran, puis T ou / pour ouvrir le chat, Entrée pour envoyer, Échap ou E pour fermer un menu. Rien ne s'exécute sur un serveur : les actions visuelles s'affichent à l'écran, les autres vont au journal.",
+    skip: "Passer les attentes",
+    skipHint: "Termine tout de suite ce qui attend à l'écran (un titre)",
+    reset: "Réinitialiser",
+    source: {
+      chat: "chat",
+      trigger: "déclencheur {{id}}",
+      slot: "menu {{menu}} › case {{slot}} ({{click}}, {{element}})",
+      launcher: "lanceur",
+    },
+    click: {
+      left: "clic gauche",
+      right: "clic droit",
+      shift_left: "Maj + clic gauche",
+      shift_right: "Maj + clic droit",
+      middle: "clic molette",
+    },
+    chat: {
+      missingArgument: "Argument manquant : {{arg}}",
+      noPermission: "Vous n'avez pas la permission de faire ça.",
+    },
+    log: {
+      title: "Journal",
+      clear: "Vider le journal",
+      empty:
+        "Lancez une commande, ouvrez un menu ou déclenchez un trigger : chaque action s'affiche ici.",
+      commandNotSimulated: "{{command}} : pas une commande des projets du serveur, non simulée",
+      missingArgument: "argument {{arg}} manquant",
+      noPermission: "refusé : permission {{permission}} manquante",
+      triggerDisabled: "déclencheur désactivé, non exécuté",
+      triggerFired: "événement {{event}}",
+      conditionsNotMet: "conditions non remplies, chaîne non exécutée",
+      tooDeep: "chaîne trop imbriquée, arrêtée",
+      message: "message : {{text}}",
+      showTitle: "titre : {{text}}",
+      closeMenu: "menu fermé",
+      previousMenu: "menu précédent",
+      openMenu: "menu {{menu}} ouvert",
+      menuNotFound: "menu {{menu}} introuvable",
+      nextPage: "page suivante",
+      previousPage: "page précédente",
+      setArg: "{{arg}} = {{value}}",
+      runCommand: "commande /{{command}} (en tant que {{as}})",
+      give_item: "give {{material}} ×{{count}}",
+      take_item: "retirer {{material}} ×{{count}}",
+      give_money: "donner {{amount}} {{currency}}",
+      take_money: "retirer {{amount}} {{currency}}",
+      give_xp: "donner {{amount}} xp",
+      give_level: "donner {{amount}} niveaux",
+      teleport: "téléportation vers {{world}} {{x}} {{y}} {{z}}",
+    },
+    sidebar: "Barre latérale",
+    launcher: {
+      title: "Lancer",
+      empty: "Aucune commande, aucun menu ni déclencheur dans ce projet pour l'instant.",
+      runCommand: "Lancer /{{name}}",
+      openMenu: "Ouvrir le menu {{id}}",
+      fireTrigger: "Déclencher {{id}}",
+      search: "Chercher une commande, un menu, un déclencheur…",
+      noMatch: "Rien ne correspond à cette recherche.",
+    },
+    player: {
+      title: "Joueur de test",
+      name: "Pseudo",
+      world: "Monde",
+      money: "Argent",
+      level: "Niveau",
+      xp: "Points d'expérience",
+      op: "Opérateur (toutes les permissions)",
+      permissions: "Permissions",
+      removePermission: "Retirer {{permission}}",
+      placeholders: "Placeholders (nom=valeur, un par ligne)",
+      forced: "Conditions réglées à la main",
+      forcedHint:
+        "L'aperçu ne sait pas les évaluer (un item tenu, une région, l'heure, le hasard…) : choisissez leur valeur.",
+    },
+  },
+  mcScreen: {
+    window: "Fenêtre",
+    guiScale: "GUI scale",
+    auto: "Auto",
+    zoom: "Zoom",
+    fit: "Ajusté",
+    actual: "100 %",
+    guiSize: "GUI {{width}}×{{height}} px, échelle {{scale}}",
+  },
   sortableList: {
     handle: "Glisser pour réordonner",
   },
@@ -875,6 +990,12 @@ const fr: typeof en = {
     failed: "Export échoué",
     needsAccount:
       "Connectez-vous pour exporter — l'archive est l'arbre tel qu'il est stocké sur le serveur.",
+  },
+  playerPicker: {
+    open: "Joueurs en ligne",
+    loading: "Chargement…",
+    noneOnline: "Aucun joueur en ligne",
+    clear: "Aucun joueur",
   },
   capturedItems: {
     sectionTitle: "Items capturés",
@@ -894,9 +1015,12 @@ const fr: typeof en = {
     err_network_error: "Erreur réseau.",
   },
   dataSources: {
-    projectNotFound: "Project introuvable.",
-    selectHint: "Choisis une source dans la sidebar, ou crée-en une.",
-    sectionProject: "Données du projet",
+    selectHint: "Choisis une source pour voir son schéma et un aperçu en direct.",
+    notFound: "Cette donnée n'existe pas (ou plus) dans ce module.",
+    sidebarGroup: "Données",
+    newTable: "Nouvelle table de données",
+    newConfig: "Nouvelle fiche de données",
+    seeServerSources: "Voir les sources du serveur →",
     sourceName: "Nom de la source",
     nameRequired: "Le nom de la source est obligatoire.",
     nameDuplicate: "Une source porte déjà ce nom.",
@@ -913,8 +1037,6 @@ const fr: typeof en = {
     applyYaml: "Appliquer",
     shapeTable: "Table",
     shapeConfig: "Config",
-    addTable: "+ Table",
-    addConfig: "+ Config",
     modelName: "Modèle",
     keyField: "Clé",
     keyFieldHint:
@@ -932,6 +1054,8 @@ const fr: typeof en = {
       "Cette shape est déclarée par l'add-on installé et évolue avec lui - les valeurs restent éditables, pas la shape.",
     mapKeyPlaceholder: "clé",
     addMapEntry: "Ajouter une entrée",
+    addMapRow: "Ajouter {{key}}",
+    mapKeyColumn: "Clé",
     removeMapEntry: "Supprimer l'entrée {{key}}",
     enumValues: "Valeurs admises",
     enumValuesPlaceholder: "valeur1, valeur2, ...",
@@ -983,6 +1107,17 @@ const fr: typeof en = {
     viewTable: "Tableau",
     viewYaml: "YAML",
     previewOffline: "Serveur hors ligne — le schéma reste visible, la preview live non.",
+    previewServerState:
+      "Lignes renvoyées par le serveur : la version qu'il fait tourner, sans tes brouillons.",
+    originDraft: "Brouillon",
+    originDraftHint:
+      "Lignes calculées depuis le brouillon : tes modifications non publiées sont visibles.",
+    originDeployed: "Version déployée",
+    originDeployedHint:
+      "Ces lignes viennent des fichiers du projet, mais le module ne sait pas les calculer depuis le brouillon : tu vois la version publiée, sans tes modifications en cours.",
+    originLive: "État en jeu",
+    originLiveHint:
+      "Données qui n'existent que sur le serveur (joueurs, ventes…) : c'est l'état actuel en jeu.",
     errServerOffline: "Serveur hors ligne.",
     errTimeout: "Pas de réponse du plugin — plugin à mettre à jour ou serveur injoignable.",
     errUnknownSource: "Le serveur ne connaît pas cette source.",
@@ -1020,10 +1155,9 @@ const fr: typeof en = {
     newMenu: "Nouveau menu",
     newCommand: "Nouvelle commande",
     newDialog: "Nouveau dialogue",
-    newDialogHere: "Nouveau dialogue ici",
-    newMenuHere: "Nouveau menu ici",
+    new: "Nouveau",
+    kind: { menu: "Menu", command: "Commande", dialog: "Dialogue" },
     pasteHere: "Coller ici",
-    newCommandHere: "Nouvelle commande ici",
     newDocumentDialogTitle: "Nouveau · {{kind}}",
     kindNotSynced:
       "Le serveur actif ne lit pas les documents {{kind}} : ce fichier sera enregistré, mais rien là-bas ne le chargera tant que le module n'y est pas installé.",
@@ -1133,6 +1267,14 @@ const fr: typeof en = {
         xxl: "Géant (32)",
       },
     },
+  },
+  edition: {
+    pro: "Pro",
+    advancedExpression:
+      "Expression avancée : sa vue lisible et son aperçu viennent avec Artisan Pro. Elle fonctionne en jeu de la même façon.",
+    proOnly: "Fonction Artisan Pro : disponible avec le jar Pro.",
+    composedReadOnly:
+      "Ce titre a été composé avec Artisan Pro. Il reste tel quel et fonctionne toujours en jeu ; modifier ses calques demande Artisan Pro.",
   },
   layersPanel: {
     vanilla: "Vanilla",
@@ -1290,7 +1432,6 @@ const fr: typeof en = {
       translations: "Traductions",
       missingTranslations: "{{count}} traduction manquante",
       missingTranslations_other: "{{count}} traductions manquantes",
-      dataSources: "Données",
       history: "Historique",
     },
   },
@@ -1320,8 +1461,6 @@ const fr: typeof en = {
     installedModules: "Modules installés",
     configuration: "Configuration",
     newModule: "+ Nouveau module",
-    serverLabel: "Serveur",
-    selectServer: "Sélectionner un serveur",
   },
   adminDesign: {
     specimens: {
@@ -1382,6 +1521,8 @@ const fr: typeof en = {
       "Saisie MiniMessage riche : balises masquées, barre filtrée par le profil (ici un lore : pas de clic), bascule Riche / Code. MmTextField ajoute l'aperçu que demande le profil.",
     mmExprHint:
       "Les placeholders montrent leur valeur d'exemple ; un texte calculé devient une pastille ƒ, lue en règles au clic, avec des interrupteurs pour le joueur d'exemple. L'aperçu suit les interrupteurs.",
+    mcScreenHint:
+      "L'écran du jeu à une taille de fenêtre et une GUI scale : HUD, bossbars, titre, barre d'action, chat, couches d'un module et écran ouvert, placés comme le client 1.21 les place. Dans le SDK (1.14).",
     mcPreviewHint:
       "Aperçus en jeu présentationnels, dessinés avec la police vanilla. Ils ne prennent que du MiniMessage résolu.",
     popoverHint:
@@ -1530,9 +1671,12 @@ const fr: typeof en = {
     nothing: "Rien à déployer",
     offline:
       "Le serveur est hors ligne : la publication attend son retour. Ton brouillon reste modifiable.",
+    checking:
+      "Affichage de ta dernière visite, vérification auprès du serveur… Le déploiement attend sa réponse.",
     cannotDeployTitle: "Serveur inconnu — impossible de déployer",
     deployed: "Déployé sur le serveur",
     packFailed: "Le resource pack n’a pas pu être reconstruit ; les joueurs gardent le précédent.",
+    packFailedReason: "Raison : {{reason}}",
     failed: "Échec du déploiement",
     reviewTitle: "Déployer sur le serveur ?",
     reviewBody:
@@ -1540,6 +1684,23 @@ const fr: typeof en = {
     server: "Serveur",
     draft: "Brouillon",
     confirm: "Déployer sur le serveur",
+    others: {
+      title: "Autres brouillons",
+      loading: "Recherche de tes brouillons dans les autres projets…",
+      none: "Aucun autre brouillon avec des changements.",
+      failedToLoad: "Impossible de lister les brouillons des autres projets ({{code}}).",
+      current: "Ce projet",
+      currentNone: "aucun changement",
+      unsynced: "ouvre le projet pour enregistrer d’abord ses dernières modifications",
+      confirm: "Déployer {{count}} projets",
+      elsewhereTitle: "Déployer les changements en attente dans d’autres projets",
+      deployed_one: "Déployé : {{names}}",
+      deployed_other: "{{count}} projets déployés : {{names}}",
+      failed:
+        "{{name}} n’a pas été déployé : {{reason}}. Déployés : {{deployed}}. Pas tentés : {{skipped}}.",
+      notTried_one: "L’autre brouillon choisi n’a pas été déployé.",
+      notTried_other: "Les {{count}} autres brouillons choisis n’ont pas été déployés.",
+    },
     documents: {
       title: "Vérification du serveur",
       pending: "Le serveur vérifie les fichiers modifiés…",
@@ -1637,6 +1798,13 @@ const fr: typeof en = {
     vanillaTexture: "Texture vanilla",
     connectionHint:
       "Les identifiants de la base de données vivent dans environment.yml, qui ne se modifie qu'à la main.",
+    discard: "Annuler",
+    pending_one: "{{count}} réglage modifié",
+    pending_other: "{{count}} réglages modifiés",
+    groupHints: {
+      textures:
+        "Redessinent les coffres, entonnoirs et distributeurs du serveur quand un menu désactive sa texture vanilla.",
+    },
     groups: {
       general: "Général",
       textures: "Textures des conteneurs",
@@ -1648,6 +1816,11 @@ const fr: typeof en = {
       language: "Langue",
       per_player_language: "Langue de chaque joueur",
       "resource-pack": {
+        enabled: "Envoyer le pack aux joueurs (sans délégation)",
+        prompt: "Message de demande (vide : langue du joueur)",
+        required: "Déconnecter les joueurs qui refusent le pack",
+        "send-on-join": "Envoyer à la connexion",
+        "send-delay-ticks": "Délai d'envoi (ticks)",
         "delegate-to-dir": "Dossier du pack de Nexo, Oraxen ou ItemsAdder (chemin)",
         "delegate-reload-command": "Commande de rechargement après délégation",
         "container-textures": {
@@ -1679,7 +1852,19 @@ const fr: typeof en = {
       "Le plugin Artisan de ce serveur n'est pas compatible avec celui du hub. Mets-le à jour pour éditer ce serveur.",
     documentCount_one: "{{count}} élément",
     documentCount_other: "{{count}} éléments",
-    openBoard: "Planche générale",
+    tabs: {
+      label: "Sections du serveur",
+      overview: "Vue d'ensemble",
+      board: "Planche",
+      play: "Jeu",
+      data: "Données",
+      settings: "Réglages",
+    },
+    stateOnline: "En ligne",
+    stateOffline: "Hors ligne",
+    stateUpdateRequired: "Plugin à mettre à jour",
+    minecraftVersion: "Minecraft {{version}}",
+    pluginVersion: "Artisan {{version}}",
   },
   search: {
     placeholder: "Rechercher menus, commandes, items, texte…",

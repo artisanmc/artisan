@@ -15,11 +15,13 @@ import { DEFAULT_GROUP_COLOR, folderGroups } from "@/domain/canvasGroups";
 import { MAX_FOLDER_DEPTH } from "@/domain/documentLayout";
 import { docKey, documentCount, findDocumentByKey } from "@/domain/documents";
 import { childFolders, folderName, listFolders } from "@/domain/folders";
+import { listedDataSources } from "@/domain/projectData";
 import type { Project, ProjectId } from "@/domain/types";
 import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
+import { DataSourceRows } from "@/features/data/DataSourceRows";
 import { ModuleTemplatesDialog } from "@/features/templates/ModuleTemplatesDialog";
 import { sameAsShipped } from "@/features/templates/sameAsShipped";
 import {
@@ -29,10 +31,11 @@ import {
 import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { contributionLabel, kindCreatableIn } from "@/lib/moduleDocumentKinds";
-import { collectionDestination } from "@/lib/projectNavigation";
+import { collectionDestination, dataSourceDestination } from "@/lib/projectNavigation";
 import { shippedKey, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
+import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
 import {
   type DocumentKindContribution,
@@ -63,7 +66,7 @@ import {
   useGlidingRows,
   withDropPreview,
 } from "./documentDrag";
-import { openProjectSettings } from "./projectSettings";
+import { useOpenProjectSettings } from "./projectSettings";
 import { adoptDiskIntoProject } from "./saveProjectToDisk";
 import {
   type DocumentType,
@@ -113,8 +116,16 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const [newKind, setNewKind] = useState<string | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const openProjectSettings = useOpenProjectSettings();
   const templates = useProjectTemplates(projectId);
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const navigate = useNavigate();
+  const { serverId } = useParams({ strict: false }) as { serverId?: string };
+  // A Project's own data: created empty, then named and shaped on its page.
+  const newData = (shape: "table" | "config") => {
+    const id = useProjectsStore.getState().addProjectDataSource({ projectId, shape });
+    if (id && serverId) void navigate(dataSourceDestination(project ?? projectId, serverId, id));
+  };
   // A kind may be reserved to its module's own folder (`projects`, SDK 1.8).
   const moduleKinds = listDocumentKindContributions().filter(
     (c) => !isCoreDocumentType(c.kind) && kindCreatableIn(c, project),
@@ -157,6 +168,12 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
               {t("projectProperties.newDocument", { kind: typeLabel(c.kind, t) })}
             </DropdownMenuItem>
           ))}
+          <DropdownMenuItem data-testid="project-create-table" onSelect={() => newData("table")}>
+            {t("dataSources.newTable")}
+          </DropdownMenuItem>
+          <DropdownMenuItem data-testid="project-create-config" onSelect={() => newData("config")}>
+            {t("dataSources.newConfig")}
+          </DropdownMenuItem>
           {templates.status !== "none" && (
             <DropdownMenuItem onSelect={() => setTemplatesOpen(true)}>
               {t("moduleTemplates.fromModule")}
@@ -220,9 +237,13 @@ export function ProjectDocumentTree({
 }) {
   const { t } = useTranslation();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const screens = useServerScreensStore((s) => s.screens);
   if (!project) return null;
 
-  const empty = documentCount(project) === 0 && listFolders(project).length === 0;
+  const empty =
+    documentCount(project) === 0 &&
+    listFolders(project).length === 0 &&
+    listedDataSources(project, screens).length === 0;
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: a named group of navigation lists, not a form — <fieldset> would be wrong.
@@ -354,6 +375,7 @@ export function DocumentGroups({
           </div>
         );
       })}
+      <DataSourceRows project={project} editable={editable} />
     </div>
   );
 }
@@ -653,7 +675,7 @@ type DocumentOrigin = Omit<TemplateOrigin, "label"> & {
   module: string;
   /** One of the module's system elements: never deleted or moved, reset instead. */
   system: boolean;
-  /** Puts the module's version back into the draft; absent when it already is. */
+  /** Puts the module's version back into the draft; absent when it already is. A system file and a copy alike. */
   reset?: () => void;
 };
 
@@ -668,12 +690,11 @@ function templateOrigin(
   const system = entry.template.template.system === true;
   const moduleId = entry.template.moduleId;
   const templateId = entry.template.template.id;
-  // Deployed from the editor, a system file is rewritten in canonical form: unchanged in
-  // substance, it is still the module's version.
+  // Deployed from the editor, a copy is rewritten in canonical form, and a jar built on
+  // Windows ships it in CRLF: unchanged in substance, it is still the module's version.
   const shipped = templates.shipped(moduleId, templateId)?.[path];
   const published = templates.published[path];
   const formattedOnly =
-    system &&
     (entry.file.status === "modified" || entry.file.updateAvailable) &&
     shipped !== undefined &&
     published !== undefined &&
@@ -686,8 +707,9 @@ function templateOrigin(
         ? "modified"
         : "identical";
   const { serverId } = templates;
+  // A system file is reset; a copy takes the module's version, the one it announces.
   const reset =
-    system && tone !== "identical" && serverId
+    tone !== "identical" && serverId
       ? () => {
           if (!window.confirm(t("projectPanel.systemResetConfirm"))) return;
           void resetIntoDraft(project.id, serverId, moduleId, templateId, path, t);
@@ -697,7 +719,7 @@ function templateOrigin(
 }
 
 /**
- * Puts a system file back as its module ships it, in the draft: the canvas shows it at
+ * Puts a template file back as its module ships it, in the draft: the canvas shows it at
  * once, Deploy publishes it, Discard cancels it, like any edit.
  */
 async function resetIntoDraft(
@@ -811,7 +833,8 @@ function DocumentRow({
           />
         )}
         {origin && ORIGIN_MARK[origin.tone] ? (
-          <Tooltip content={originLabel} side="right">
+          // Above: on the right it covered the row's ⋯, which shows on hover there.
+          <Tooltip content={originLabel} side="top">
             <span
               role="img"
               aria-label={originLabel}
@@ -846,6 +869,7 @@ function DocumentRow({
           system={origin?.system === true}
           fixed={fixed}
           onReset={origin?.reset}
+          module={origin?.module}
         />
       )}
     </div>
@@ -860,6 +884,7 @@ function RowActions({
   system,
   fixed,
   onReset,
+  module,
 }: {
   projectId: ProjectId;
   project: Project;
@@ -870,6 +895,8 @@ function RowActions({
   /** A collection's Document: never filed in a folder. */
   fixed: boolean;
   onReset?: () => void;
+  /** The module a template copy comes from. */
+  module?: string;
 }) {
   const { t } = useTranslation();
   const targets =
@@ -909,15 +936,22 @@ function RowActions({
             {t("projectPanel.systemReset")}
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem
-            onClick={() =>
-              useProjectsStore
-                .getState()
-                .deleteFromProject({ projectId, nodeIds: [docKey(item.type, item.id)] })
-            }
-          >
-            {t("projectPanel.delete")}
-          </DropdownMenuItem>
+          <>
+            {onReset && module && (
+              <DropdownMenuItem title={t("projectPanel.systemResetHint")} onClick={onReset}>
+                {t("projectPanel.takeModuleVersion", { module })}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={() =>
+                useProjectsStore
+                  .getState()
+                  .deleteFromProject({ projectId, nodeIds: [docKey(item.type, item.id)] })
+              }
+            >
+              {t("projectPanel.delete")}
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

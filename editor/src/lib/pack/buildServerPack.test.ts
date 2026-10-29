@@ -55,6 +55,8 @@ function mockHub(
       return new Response(Buffer.from(url.slice(url.indexOf(",") + 1), "base64"));
     const png = url.match(/(generic_54|hopper|dispenser)[^/]*\.png/);
     if (png) return new Response(vanilla(png[1]!));
+    const up = url.match(/(ascii|accented|nonlatin_european)_up[^/]*\.png/);
+    if (up) return new Response(vanilla(`font/${up[1]}_up`));
     const { pathname, searchParams } = new URL(url);
     if (pathname === `/api/v1/servers/${server}/projects`)
       // Unordered on purpose: the oldest (by id) must win the codepoint.
@@ -122,6 +124,11 @@ describe("buildServerPack", () => {
           dispenser: vanilla("dispenser"),
         },
         transparent: new Set(),
+      },
+      {
+        ascii: vanilla("font/ascii_up"),
+        accented: vanilla("font/accented_up"),
+        nonlatin_european: vanilla("font/nonlatin_european_up"),
       },
     );
     expect(built.hash).toBe(expected.hash);

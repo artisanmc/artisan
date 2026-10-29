@@ -1,8 +1,23 @@
 // @vitest-environment node
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { strFromU8, unzipSync } from "fflate";
 import { describe, expect, test } from "vitest";
+import { TEXT_UP_MAX, TEXT_UP_PAD, TEXT_UP_TEXTURES, type TextUpTexture } from "./fontJsonBuilder";
+import { readPngDimensions } from "./pngDimensions";
 import { type AssetRow, buildResourcePackZip } from "./resourcePackBuilder";
+import { VANILLA_ACCENTED, VANILLA_ASCII, VANILLA_NONLATIN_EUROPEAN } from "./vanillaFontChars";
+
+const textUp = () =>
+  Object.fromEntries(
+    TEXT_UP_TEXTURES.map((name) => [
+      name,
+      new Uint8Array(
+        readFileSync(resolve(__dirname, `../../assets/minecraft/font/${name}_up.png`)),
+      ),
+    ]),
+  ) as Record<TextUpTexture, Uint8Array>;
 
 const PNG_1x1 = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -333,6 +348,57 @@ describe("buildResourcePackZip", () => {
     expect(entries["assets/artisan/font/text_y0_h8.json"]).toBeUndefined();
     expect(entries["assets/artisan/font/text_y-32_h8.json"]).toBeUndefined();
     expect(entries["assets/artisan/font/text_y173_h8.json"]).toBeUndefined();
+  });
+
+  test("rising text fonts: text_up0..text_up128, each ascent within its padded cell", () => {
+    const { zipBytes } = buildResourcePackZip(
+      [],
+      new Map(),
+      new Map(),
+      undefined,
+      [],
+      [],
+      undefined,
+      textUp(),
+    );
+    const entries = unzipSync(zipBytes);
+    for (const name of TEXT_UP_TEXTURES) {
+      expect(entries[`assets/artisan/textures/font/${name}_up.png`]).toBeDefined();
+    }
+    expect(entries[`assets/artisan/font/text_up${TEXT_UP_MAX + 1}.json`]).toBeUndefined();
+    for (let rise = 0; rise <= TEXT_UP_MAX; rise++) {
+      const json = JSON.parse(strFromU8(entries[`assets/artisan/font/text_up${rise}.json`]!));
+      expect(json.providers[0]).toEqual({ type: "space", advances: { " ": 4 } });
+      for (const p of json.providers.slice(1)) expect(p.ascent).toBeLessThanOrEqual(p.height);
+    }
+    const top = JSON.parse(strFromU8(entries["assets/artisan/font/text_up0.json"]!));
+    // Rise 0: the vanilla ascents, in a cell TEXT_UP_PAD px taller.
+    expect(
+      top.providers
+        .slice(1)
+        .map((p: { file: string; ascent: number; height: number }) => [p.file, p.ascent, p.height]),
+    ).toEqual([
+      ["artisan:font/ascii_up.png", 7, 8 + TEXT_UP_PAD],
+      ["artisan:font/accented_up.png", 10, 12 + TEXT_UP_PAD],
+      ["artisan:font/nonlatin_european_up.png", 7, 8 + TEXT_UP_PAD],
+    ]);
+  });
+
+  test("the padded textures match TEXT_UP_PAD (tools/minecraft-assets/gen-padded-fonts.ts)", () => {
+    const vanilla = {
+      ascii: VANILLA_ASCII,
+      accented: VANILLA_ACCENTED,
+      nonlatin_european: VANILLA_NONLATIN_EUROPEAN,
+    };
+    for (const [name, png] of Object.entries(textUp()) as [TextUpTexture, Uint8Array][]) {
+      const v = vanilla[name];
+      expect(readPngDimensions(png).height).toBe(v.chars.length * (v.height + TEXT_UP_PAD));
+    }
+  });
+
+  test("without the padded textures, no rising font", () => {
+    const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
+    expect(unzipSync(zipBytes)["assets/artisan/font/text_up0.json"]).toBeUndefined();
   });
 
   test("text_y6_h8.json has space + ascii + accented + nonlatin providers in vanilla order", () => {

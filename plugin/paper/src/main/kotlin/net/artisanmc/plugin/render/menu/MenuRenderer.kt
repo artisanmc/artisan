@@ -13,6 +13,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.resourcepack.AssetEntry
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
@@ -445,8 +446,13 @@ object MenuRenderer {
             // or when `{base.lore}` places it itself (otherwise it would show twice).
             val replacement = tokened.any { it.contains(BASE_LORE) } || app.loreMode == "replace"
             val base = if (replacement) emptyList() else ItemTexts.lore(meta) ?: emptyList()
-            val lines = tokened.flatMap { raw -> localCtx.render(raw, papi) { key -> localCtx.langMap[key] }.split("\n") }
-                .flatMap { LoreWrap.wrap(LenientText.legacyToMini(it), localCtx.loreMaxWidth) }
+            // A line whose `{…}` give nothing goes, so a rule can sit on its own line
+            // ("Shift + right click: kick" only for who may); a line left empty in the
+            // YAML stays.
+            val lines = tokened.flatMap(::sourceLines).flatMap { raw ->
+                val rendered = localCtx.render(raw, papi) { key -> localCtx.langMap[key] }
+                if (isDynamic(raw) && isBlankText(rendered)) emptyList() else rendered.split("\n")
+            }.flatMap { LoreWrap.wrap(LenientText.legacyToMini(it), localCtx.loreMaxWidth) }
             ItemTexts.setLore(meta, if (lines == listOf("")) base else base + lines.map(LenientText::loreLine))
         }
         ItemDetails.applyToMeta(app, meta)
@@ -454,6 +460,30 @@ object MenuRenderer {
         // Raw NBT goes last: it may hand back a different stack.
         return ItemDetails.applyNbt(app, item)
     }
+
+    /** A lore entry's lines as written: a newline inside a `{…}` does not split it. */
+    internal fun sourceLines(raw: String): List<String> {
+        val out = mutableListOf<String>()
+        var depth = 0
+        var start = 0
+        raw.forEachIndexed { i, c ->
+            when {
+                c == '{' -> depth++
+                c == '}' && depth > 0 -> depth--
+                c == '\n' && depth == 0 -> { out += raw.substring(start, i); start = i + 1 }
+            }
+        }
+        out += raw.substring(start)
+        return out
+    }
+
+    private fun isDynamic(raw: String) = raw.contains('{') || raw.contains('%')
+
+    /** Nothing a player would see: tags and spaces only. */
+    private fun isBlankText(rendered: String): Boolean =
+        PlainTextComponentSerializer.plainText()
+            .serialize(MiniMessage.miniMessage().deserialize(LenientText.legacyToMini(rendered)))
+            .isBlank()
 
     private fun addressOf(base: String, leaf: String): String? =
         if (base.isEmpty()) null else "$base.$leaf"

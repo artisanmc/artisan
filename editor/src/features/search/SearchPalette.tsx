@@ -53,14 +53,21 @@ function groupLabel(group: SearchGroup, t: TFunction): string {
   );
 }
 
-export function SearchPalette({ projectId }: { projectId: ProjectId }) {
+/**
+ * The search palette (Cmd/Ctrl+K, or the sidebar's search field). In a project it
+ * searches that project in detail plus the server's other projects; on a server
+ * page ([projectId] absent) the server's projects only.
+ */
+export function SearchPalette({ projectId }: { projectId?: ProjectId }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { serverId?: string };
   const open = useUiStore((s) => s.searchOpen);
   const setOpen = useUiStore((s) => s.setSearchOpen);
   const activeLang = useUiStore((s) => s.activeLang);
-  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) =>
+    projectId ? s.openProjects.projects.find((p) => p.id === projectId) : undefined,
+  );
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -68,7 +75,7 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
 
   const scope = params.serverId ? serverIndexScope(params.serverId) : null;
   const serverProjects = useServerIndexStore((s) => (s.scope === scope ? s.projects : NO_PROJECTS));
-  const editedNamespace = project ? namespaceOf(project) : projectId;
+  const editedNamespace = project ? namespaceOf(project) : (projectId ?? null);
   const index = useMemo(
     () => (project ? buildSearchIndex(project, activeLang) : []),
     [project, activeLang],
@@ -111,7 +118,7 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
     // Document from this project centers the current board.
     goToDocument(navigate, {
       serverId: params.serverId,
-      project: project ?? { id: projectId },
+      project: project ?? { id: projectId ?? "" },
       ref: entry.target.projectUrlId
         ? `${entry.target.projectUrlId}:${entry.target.openId}`
         : entry.target.openId,

@@ -16,6 +16,7 @@ import {
   directSourceRefs,
   renderPreview,
   resolveSourceRef,
+  resolveSourceRefWithOrigin,
 } from "./menuPreviewScope";
 
 const stubProject = (overrides: Partial<Project> = {}): Project =>
@@ -101,6 +102,75 @@ describe("resolveSourceRef — module-local rows (authoring-time)", () => {
     const snapshots = { "boutique:items": [{ id: "sword", name: "Stale server row" }] };
     expect(resolveSourceRef("boutique:items" as SourceRef, project, snapshots)).toEqual([
       { id: "sword", name: "Local edit" },
+    ]);
+  });
+
+  it("tells whether the rows come from the draft or the deployed version", () => {
+    const project = stubProject();
+    const snapshots = { "boutique:items": [{ id: "sword", name: "Server row" }] };
+    registerLocalRowsModule([{ id: "sword", name: "Local edit" }]);
+    expect(resolveSourceRefWithOrigin("boutique:items", project, snapshots).origin).toBe("draft");
+    clearRegistry();
+    registerLocalRowsModule(null);
+    expect(resolveSourceRefWithOrigin("boutique:items", project, snapshots).origin).toBe(
+      "deployed",
+    );
+    expect(resolveSourceRefWithOrigin("boutique:items", project, {}).origin).toBe("none");
+  });
+
+  it("hands the input's fetcher params to the module", () => {
+    registerModule({
+      id: "quests",
+      displayName: "Quests",
+      schemaVersion: "quests/v1",
+      sidebar: { icon: () => null, label: "Quests", to: "/m/quests" },
+      routes: [],
+      localPreviewRows: (_project, ref, ctx) =>
+        ref === "quests:list"
+          ? [
+              { id: "a", group: "daily" },
+              { id: "b", group: "weekly" },
+            ].filter((r) => !ctx?.params?.group || r.group === ctx.params.group)
+          : null,
+    });
+    const menu = {
+      id: "m",
+      layers: [],
+      contextInputs: [
+        { kind: "sourceRef", name: "quests", ref: "quests:list", params: { group: "daily" } },
+      ],
+    } as unknown as Menu;
+    expect(buildPreviewScope(menu, stubProject()).quests).toEqual([{ id: "a", group: "daily" }]);
+  });
+
+  it("hands the server snapshot to the module so a mixed source joins the draft to it", () => {
+    registerModule({
+      id: "quests",
+      displayName: "Quests",
+      schemaVersion: "quests/v1",
+      sidebar: { icon: () => null, label: "Quests", to: "/m/quests" },
+      routes: [],
+      // A mixed source: definitions from the draft, progress from the server.
+      localPreviewRows: (_project, ref, ctx) => {
+        if (ref !== "quests:active") return null;
+        const progress = new Map((ctx?.serverRows ?? []).map((r) => [r.id, r.progress]));
+        return [
+          { id: "mine", title: "Mine (draft)", progress: progress.get("mine") ?? 0 },
+          { id: "new", title: "New quest", progress: progress.get("new") ?? 0 },
+        ];
+      },
+    });
+    const snapshots = {
+      "quests:active": [
+        { id: "mine", title: "Mine (deployed)", progress: 12 },
+        { id: "gone", title: "Deleted in the draft", progress: 3 },
+      ],
+    };
+    const { value, origin } = resolveSourceRefWithOrigin("quests:active", stubProject(), snapshots);
+    expect(origin).toBe("draft");
+    expect(value).toEqual([
+      { id: "mine", title: "Mine (draft)", progress: 12 },
+      { id: "new", title: "New quest", progress: 0 },
     ]);
   });
 

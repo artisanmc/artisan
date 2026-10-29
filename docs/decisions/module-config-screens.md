@@ -158,6 +158,12 @@ write path. A configuration root (`role: config`), which is not a listed
 Project, keeps the standalone page and its live write (§3, amendment
 2026-10-19).
 
+Added on 2026-10-28: a source such a screen edits leaves the folder's tree
+(`listedDataSources`), as a source a module's model types already did. The
+screen's row under the module is its one entry; a second row opened the
+generated form beside the module's view. An old `…/data/<id>` link shows the
+screen's form.
+
 ## Accepted debt / open questions
 
 - **Source schema ↔ model dedup**: `DataSourceDeclaration.schema` (hand-written

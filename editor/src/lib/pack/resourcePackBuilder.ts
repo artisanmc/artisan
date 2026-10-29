@@ -1,10 +1,15 @@
+import type { PackImage } from "@artisan/editor-sdk";
 import { strToU8, zipSync } from "fflate";
 import { sha1Hex } from "../sha1";
 import { buildAssetIndex } from "./assetIndexBuilder";
 import {
   type AssetRow,
+  TEXT_UP_MAX,
+  TEXT_UP_TEXTURES,
+  type TextUpTexture,
   buildDefaultFontJson,
   buildGlyphYFontJson,
+  buildTextUpFontJson,
   buildTextYFontJson,
   defaultGlyphY,
   glyphYFloor,
@@ -12,6 +17,7 @@ import {
 } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, buildImageButtons } from "./imageButtons";
 import type { GlyphPlacement } from "./menuGlyphPlacements";
+import { buildOverlayImages } from "./overlayImages";
 import { type GuiContainer, buildVanillaGuiFiles } from "./vanillaGui";
 
 export type { AssetRow };
@@ -68,6 +74,10 @@ export function buildResourcePackZip(
     sources: Record<GuiContainer, Uint8Array>;
     transparent: ReadonlySet<GuiContainer>;
   },
+  /** The padded vanilla font textures (`assets/minecraft/font/*_up.png`), for `artisan:text_up{R}`. */
+  textUp?: Record<TextUpTexture, Uint8Array>,
+  /** Module images at a height (`pack.images`, SDK 1.13), as `artisan:overlay/…` fonts. */
+  overlayImages: PackImage[] = [],
 ): BuildResult {
   const remapped = assets.map((a) => {
     if (a.type !== "glyph" || a.codepoint === null) return a;
@@ -87,6 +97,7 @@ export function buildResourcePackZip(
   if (vanillaGui)
     Object.assign(files, buildVanillaGuiFiles(vanillaGui.sources, vanillaGui.transparent));
   buildImageButtons(files, assetIndex, glyphPngs, imageButtons);
+  buildOverlayImages(files, assetIndex, glyphPngs, overlayImages);
   files["assets/artisan/asset-index.json"] = strToU8(JSON.stringify(assetIndex, null, 2));
 
   // Y-specific text fonts: text_y{Y}.json for Y = -32..172.
@@ -114,6 +125,20 @@ export function buildResourcePackZip(
     for (let y = yMin; y <= 172; y++) {
       files[`assets/artisan/font/text_y${y}_h${h}.json`] = strToU8(
         JSON.stringify(buildTextYFontJson(y, h), null, 2),
+      );
+    }
+  }
+
+  // Rising text fonts: text_up{R}.json for R = 0..TEXT_UP_MAX, text drawn R px above where the
+  // default font puts it (a HUD in the action bar, above the hotbar). Always included, like the
+  // text_y fonts, so a module never needs a rebuild to use another height.
+  if (textUp) {
+    for (const name of TEXT_UP_TEXTURES) {
+      files[`assets/artisan/textures/font/${name}_up.png`] = textUp[name];
+    }
+    for (let rise = 0; rise <= TEXT_UP_MAX; rise++) {
+      files[`assets/artisan/font/text_up${rise}.json`] = strToU8(
+        JSON.stringify(buildTextUpFontJson(rise), null, 2),
       );
     }
   }

@@ -3,6 +3,7 @@ import type { Project } from "@/domain/types";
 import { DraftApiError } from "@/lib/api/projectDrafts";
 import type { ProjectFileConflict, ProjectFilesError } from "@/lib/api/projectFiles";
 import { projectClient } from "@/lib/projectClient";
+import { keepEquivalentText } from "@/lib/yamlEquivalence";
 import { keepYamlExtensions, yamlPathOnDisk } from "@/lib/yamlFiles";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { projectToFiles } from "@/schema/projectToFiles";
@@ -13,14 +14,16 @@ import { publishPersistedDraft, usePersistedDraftStore } from "./persistedDrafts
 
 /**
  * The rel-keyed tree a save of [project] would produce, without writing. A YAML file keeps
- * the extension it has on disk (`keepYamlExtensions`).
+ * the extension it has on disk (`keepYamlExtensions`), and its text when the editor did not
+ * change its value (`keepEquivalentText`): only real edits are deployed.
  */
 export function projectTree(project: Project): Record<string, string> {
   const cloned = structuredClone(project);
   rekeyProject(cloned);
-  return keepYamlExtensions(
-    toRelative(projectToFiles(cloned), project.diskId ?? project.id),
-    useProjectBaselineStore.getState().get(project.id),
+  const disk = useProjectBaselineStore.getState().get(project.id);
+  return keepEquivalentText(
+    keepYamlExtensions(toRelative(projectToFiles(cloned), project.diskId ?? project.id), disk),
+    disk,
   );
 }
 

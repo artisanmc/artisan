@@ -116,7 +116,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
       </p>
       {hasServerSource ? (
         // biome-ignore lint/a11y/noLabelWithoutControl: the label wraps the <input> rendered by PlayerNameInput (which takes no id); Biome cannot see through the component
-        <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-mut)]">
+        <label className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-[var(--text-mut)]">
           <span className="whitespace-nowrap">{t("menuProperties.previewAsPlayer")}</span>
           {/* Committed on blur / Enter, not on every keystroke: each change refetches
               every source of the menu from the live server, and "Iban_" typed letter

@@ -1,7 +1,10 @@
 import { PlayerNameInput } from "@/components/PlayerNameInput";
+import { Input } from "@/components/ui/input";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import { newCapturedItemId } from "@/domain/ids";
-import type { CapturedItem, ProjectId } from "@/domain/types";
+import type { CapturedItem, Project, ProjectId } from "@/domain/types";
+import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
+import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { isScreenScratchId } from "@/features/screens/screenScratch";
 import { type InventorySlotPayload, fetchPlayerInventory } from "@/lib/api/playerInventory";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
@@ -12,6 +15,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { adoptCapturedItem } from "./adoptCapturedItem";
 import { draggableProps } from "./dragPayload";
 import { headPreviewUrl } from "./headTexture";
 import { useTextureUrl } from "./textureStore";
@@ -32,6 +36,109 @@ export function CapturedItemsSection({
   projectId: ProjectId;
   /** Picker mode: clicking a captured tile (or capturing from the mirror)
    *  calls back with the `item:<id>` ref instead of arming for the canvas. */
+  onPick?: (ref: string) => void;
+}) {
+  // The library shares its source between its tabs; a picker keeps its own.
+  const librarySource = useProjectLibraryStore((s) => s.sourceId);
+  const setLibrarySource = useProjectLibraryStore((s) => s.setSourceId);
+  const [pickerSource, setPickerSource] = useState<ProjectSourceId>(null);
+  return (
+    <div className="flex flex-col gap-2">
+      <ProjectSource
+        projectId={projectId}
+        sourceId={onPick ? pickerSource : librarySource}
+        onSourceChange={onPick ? setPickerSource : setLibrarySource}
+      >
+        {(sources) =>
+          sources ? (
+            <OtherProjectItems projectId={projectId} sources={sources} onPick={onPick} />
+          ) : (
+            <OwnCapturedItems projectId={projectId} onPick={onPick} />
+          )
+        }
+      </ProjectSource>
+    </div>
+  );
+}
+
+/**
+ * Other projects' captured items, read only, grouped by project when there are
+ * several: a tile used here (dropped, armed or picked) is copied into
+ * `projectId` first, then its copy is used.
+ */
+function OtherProjectItems({
+  projectId,
+  sources,
+  onPick,
+}: {
+  projectId: ProjectId;
+  sources: Project[];
+  onPick?: (ref: string) => void;
+}) {
+  const { t } = useTranslation();
+  const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const groups = sources
+    .map((source) => ({
+      source,
+      items: (source.capturedItems ?? []).filter(
+        (ci) => !needle || ci.name.toLowerCase().includes(needle),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+  const total = sources.reduce((n, p) => n + (p.capturedItems?.length ?? 0), 0);
+  return (
+    <div className="flex flex-col gap-2" data-testid="other-project-items">
+      <div className="eyebrow">{t("capturedItems.sectionTitle")}</div>
+      {total > 0 ? (
+        <>
+          <p className="text-[11px] text-[var(--text-faint)]">{t("projectSource.itemHint")}</p>
+          <Input
+            aria-label={t("projectSource.searchItems")}
+            placeholder={t("projectSource.searchItems")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 text-xs"
+          />
+          {groups.map(({ source, items }) => (
+            <div key={source.id} className="flex flex-col gap-1">
+              {sources.length > 1 && (
+                <div className="text-[11px] text-[var(--text-mut)]">{source.name}</div>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                {items.map((ci) => (
+                  <CapturedTile
+                    key={ci.id}
+                    project={source}
+                    item={ci}
+                    foreign
+                    onPick={() => {
+                      const local = adoptCapturedItem(projectId, ci);
+                      if (onPick) onPick(local);
+                      else setArmedMaterial(local);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          {groups.length === 0 && (
+            <p className="text-[11px] text-[var(--text-faint)]">{t("resources.noResults")}</p>
+          )}
+        </>
+      ) : (
+        <p className="text-[11px] text-[var(--text-faint)]">{t("projectSource.noItems")}</p>
+      )}
+    </div>
+  );
+}
+
+function OwnCapturedItems({
+  projectId,
+  onPick,
+}: {
+  projectId: ProjectId;
   onPick?: (ref: string) => void;
 }) {
   const { t } = useTranslation();
@@ -89,7 +196,7 @@ export function CapturedItemsSection({
           {captured.map((ci) => (
             <CapturedTile
               key={ci.id}
-              projectId={projectId}
+              project={project}
               item={ci}
               onPick={onPick}
               onRemove={
@@ -151,36 +258,40 @@ export function CapturedItemsSection({
 /** A captured item tile — draggable/armable exactly like a Library material
  *  (or a plain pick button in picker mode). */
 function CapturedTile({
-  projectId,
+  project,
   item,
   onPick,
   onRemove,
+  foreign = false,
 }: {
-  projectId: ProjectId;
+  project: Project;
   item: CapturedItem;
   onPick?: (ref: string) => void;
   onRemove?: () => void;
+  /** An item of another project: dragging it carries the item, copied in on drop. */
+  foreign?: boolean;
 }) {
-  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
   const armed = useUiStore((s) => s.armedMaterial === `item:${item.id}`);
   const ref = `item:${item.id}`;
-  const display = project ? resolveDisplayRef(project, ref) : { material: ref };
+  const display = resolveDisplayRef(project, ref);
   const materialUrl = useTextureUrl(display.material);
   const textureUrl = useHeadPreviewUrl(display.head) ?? materialUrl;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable(
-    draggableProps({ kind: "material", material: ref }),
+    draggableProps({ kind: "material", material: ref, ...(foreign ? { captured: item } : {}) }),
   );
+  // A foreign tile both drags (copy on drop) and clicks (copy, then arm or pick).
+  const drags = !onPick || foreign;
 
   return (
     <div className="relative">
       <button
-        ref={onPick ? undefined : setNodeRef}
+        ref={drags ? setNodeRef : undefined}
         type="button"
         title={item.name}
         onClick={() => (onPick ? onPick(ref) : setArmedMaterial(armed ? null : ref))}
-        {...(onPick ? {} : listeners)}
-        {...(onPick ? {} : attributes)}
+        {...(drags ? listeners : {})}
+        {...(drags ? attributes : {})}
         className={
           armed
             ? "relative flex h-12 w-12 shrink-0 touch-none cursor-grab select-none items-center justify-center rounded-[8px] border border-[var(--brand)] bg-[var(--brand-soft)] ring-1 ring-[var(--brand)] active:cursor-grabbing"

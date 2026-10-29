@@ -9,11 +9,12 @@ import { documentsOf } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
 import { collectionLabel, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
+import { contributionLabel, kindCreatableIn } from "@/lib/moduleDocumentKinds";
 import { collectionDestination } from "@/lib/projectNavigation";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
-import { documentKindContribution } from "@artisan/editor-sdk";
+import { documentKindContribution, listDocumentKindContributions } from "@artisan/editor-sdk";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
@@ -24,15 +25,46 @@ import { BoardGroupFrames, type GroupDrag } from "./BoardGroupFrames";
 import { CanvasMinimap } from "./CanvasMinimap";
 import { NewCommandDialog } from "./NewCommandDialog";
 import { NewDialogDialog } from "./NewDialogDialog";
+import { NewDocumentDialog } from "./NewDocumentDialog";
 import { NewMenuDialog } from "./NewMenuDialog";
 import type { ProjectBoard } from "./autoLayout";
 import { nodeBox } from "./menuLayout";
 import type { ViewportState } from "./usePanZoom";
 
 type Point = { x: number; y: number };
-export type CreatableKind = "menu" | "command" | "dialog";
+/** A Document kind the board can create "here": a core kind or a module's. */
+export type CreatableKind = string;
 
-/** The board position a new Document of each core kind is about to take. */
+const CORE_CREATABLE = ["menu", "command", "dialog"] as const;
+const CORE_LABEL_KEY: Record<(typeof CORE_CREATABLE)[number], string> = {
+  menu: "canvas.kind.menu",
+  command: "canvas.kind.command",
+  dialog: "canvas.kind.dialog",
+};
+
+/**
+ * The kinds a Document can be created of on this project's board, labelled: the core
+ * ones, then every module kind offered in this project (`kindCreatableIn`). A collection
+ * kind is left out: its Documents get no board node, so "here" means nothing for them.
+ */
+export function useBoardCreatableKinds(
+  project: Project | undefined,
+): { kind: CreatableKind; label: string }[] {
+  const { t } = useTranslation();
+  const uiLang = useUiStore((s) => s.editorLang);
+  const core = CORE_CREATABLE.map((kind) => ({ kind, label: t(CORE_LABEL_KEY[kind]) }));
+  const modules = listDocumentKindContributions()
+    .filter(
+      (c) =>
+        !(CORE_CREATABLE as readonly string[]).includes(c.kind) &&
+        c.collection == null &&
+        kindCreatableIn(c, project),
+    )
+    .map((c) => ({ kind: c.kind, label: contributionLabel(c, c.kind, t, uiLang) }));
+  return [...core, ...modules];
+}
+
+/** The board position a new Document of a kind is about to take. */
 export function useBoardCreation() {
   const [pending, setPending] = useState<{ kind: CreatableKind; at: Point } | null>(null);
   return {
@@ -58,11 +90,14 @@ export function BoardCreationDialogs({
       if (!o && pending?.kind === kind) close();
     },
   });
+  const moduleKind =
+    pending && !(CORE_CREATABLE as readonly string[]).includes(pending.kind) ? pending.kind : null;
   return (
     <>
       <NewMenuDialog {...props("menu")} />
       <NewCommandDialog {...props("command")} />
       <NewDialogDialog {...props("dialog")} />
+      {moduleKind !== null && <NewDocumentDialog kind={moduleKind} {...props(moduleKind)} />}
     </>
   );
 }

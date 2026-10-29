@@ -14,7 +14,8 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 export type ContextMenuTarget =
-  | { kind: "entity"; selectedIds: string[] }
+  /** `world` is set when the click fell on the background (the selection stays the target). */
+  | { kind: "entity"; selectedIds: string[]; world?: { x: number; y: number } }
   | { kind: "slot"; menuId: string; position: number; filled: boolean }
   /** Right-click on empty canvas. World coords for "create here" actions. */
   | { kind: "empty"; world: { x: number; y: number } };
@@ -40,10 +41,10 @@ interface ContextMenuProps {
   /** Canvas background: show the project settings in the panel. */
   onOpenProjectSettings: () => void;
   onGroup?: () => void;
+  /** The kinds the "New" submenu offers, in order. */
+  createKinds?: { kind: string; label: string }[];
   /** Absent in focus view: creating "here" requires a board position. */
-  onCreateMenuAt?: (world: { x: number; y: number }) => void;
-  onCreateCommandAt?: (world: { x: number; y: number }) => void;
-  onCreateDialogAt?: (world: { x: number; y: number }) => void;
+  onCreateAt?: (kind: string, world: { x: number; y: number }) => void;
 }
 
 export function ContextMenu({
@@ -58,9 +59,8 @@ export function ContextMenu({
   onMoveTo,
   onOpenProjectSettings,
   onGroup,
-  onCreateMenuAt,
-  onCreateCommandAt,
-  onCreateDialogAt,
+  createKinds = [],
+  onCreateAt,
 }: ContextMenuProps) {
   const { t } = useTranslation();
   // Stable selector to avoid the new-array-per-render pitfall — we filter in a memo.
@@ -69,6 +69,27 @@ export function ContextMenu({
     () => projects.filter((p) => p.id !== projectId),
     [projects, projectId],
   );
+  // The background point a Document would be created at: an empty-canvas click, or a
+  // background click while something stays selected.
+  const world =
+    state.target.kind === "empty"
+      ? state.target.world
+      : state.target.kind === "entity"
+        ? state.target.world
+        : undefined;
+  const newSubmenu =
+    onCreateAt && world && createKinds.length > 0 ? (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>{t("canvas.new")}</DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          {createKinds.map((c) => (
+            <DropdownMenuItem key={c.kind} onSelect={() => onCreateAt(c.kind, world)}>
+              {c.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    ) : null;
 
   return (
     <DropdownMenu open={state.open} onOpenChange={(o) => !o && onClose()}>
@@ -95,34 +116,12 @@ export function ContextMenu({
           </DropdownMenuItem>
         ) : state.target.kind === "empty" ? (
           <>
-            {onCreateMenuAt && (
-              <DropdownMenuItem
-                onSelect={() => {
-                  if (state.target.kind === "empty") onCreateMenuAt(state.target.world);
-                }}
-              >
-                {t("canvas.newMenuHere")}
-              </DropdownMenuItem>
+            {newSubmenu && (
+              <>
+                {newSubmenu}
+                <DropdownMenuSeparator />
+              </>
             )}
-            {onCreateCommandAt && (
-              <DropdownMenuItem
-                onSelect={() => {
-                  if (state.target.kind === "empty") onCreateCommandAt(state.target.world);
-                }}
-              >
-                {t("canvas.newCommandHere")}
-              </DropdownMenuItem>
-            )}
-            {onCreateDialogAt && (
-              <DropdownMenuItem
-                onSelect={() => {
-                  if (state.target.kind === "empty") onCreateDialogAt(state.target.world);
-                }}
-              >
-                {t("canvas.newDialogHere")}
-              </DropdownMenuItem>
-            )}
-            {(onCreateMenuAt || onCreateCommandAt || onCreateDialogAt) && <DropdownMenuSeparator />}
             <DropdownMenuItem onSelect={onOpenProjectSettings}>
               {t("projectProperties.title")}
             </DropdownMenuItem>
@@ -133,6 +132,12 @@ export function ContextMenu({
           </>
         ) : (
           <>
+            {newSubmenu && (
+              <>
+                {newSubmenu}
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem onSelect={onCopy} disabled={state.target.selectedIds.length === 0}>
               Copy
               <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌘C</span>

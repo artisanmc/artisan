@@ -22,7 +22,7 @@ import {
 import type { Project, ProjectId } from "@/domain/types";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { AssistantButton } from "@/features/project/assistant/AssistantButton";
-import { openProjectSettings } from "@/features/project/projectSettings";
+import { useOpenProjectSettings } from "@/features/project/projectSettings";
 import { SaveControls } from "@/features/project/publish/SaveControls";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
 import { cn } from "@/lib/cx";
@@ -31,15 +31,14 @@ import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useUiStore } from "@/state/uiStore";
-import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
-  Database as DatabaseIcon,
+  Gamepad2,
   History as HistoryIcon,
   Images,
   Languages as LanguagesIcon,
   LayoutDashboard,
   Redo2,
-  Search,
   Undo2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -65,6 +64,8 @@ export interface ProjectTopBarControlsProps {
   offline?: boolean;
   offlineSince?: string | null;
   unpublished?: boolean;
+  /** The last known version is on screen, the server's answer is awaited: Deploy waits. */
+  checking?: boolean;
 }
 
 /**
@@ -84,6 +85,7 @@ export function ProjectTopBarControls({
   offline = false,
   offlineSince,
   unpublished,
+  checking = false,
 }: ProjectTopBarControlsProps) {
   // The `project` prop comes from `useProjectLoader`, frozen at load time: anything
   // that reflects an edit (Translations badge, languages) reads the live store.
@@ -95,6 +97,7 @@ export function ProjectTopBarControls({
   const { t } = useTranslation();
   const navigationPinned = useSidebarStore((s) => s.pinned);
   const { tab } = useSearch({ strict: false }) as { tab?: string };
+  const openProjectSettings = useOpenProjectSettings();
   const { serverId: serverRef } = useParams({ strict: false }) as { serverId?: string };
 
   // Offline is not a banner: the server badge already shows it in red, and the
@@ -145,10 +148,27 @@ export function ProjectTopBarControls({
           )}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
-          <AssistantButton projectId={projectId} />
-          <SearchButton />
+          {serverRef && (
+            <Link
+              to="/servers/$serverId/play"
+              params={{ serverId: serverRef }}
+              search={{ project: currentProject.diskId ?? currentProject.id }}
+              className="btn btn-ghost btn-icon btn-sm"
+              aria-label={t("play.open")}
+              title={t("play.openHint")}
+              data-testid="project-play"
+            >
+              <Gamepad2 className="size-4" />
+            </Link>
+          )}
+          <AssistantButton />
           <div data-tour="save" className="flex items-center gap-1">
-            <SaveControls key={projectId} projectId={projectId} offline={offline} />
+            <SaveControls
+              key={projectId}
+              projectId={projectId}
+              offline={offline}
+              checking={checking}
+            />
           </div>
           <RefreshProjectButton
             projectId={projectId}
@@ -193,7 +213,6 @@ export function ProjectTopBarControls({
 const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof LanguagesIcon }> = {
   overview: { labelKey: "project.tabs.canvas", Icon: LayoutDashboard },
   translations: { labelKey: "project.tabs.translations", Icon: LanguagesIcon },
-  "data-sources": { labelKey: "project.tabs.dataSources", Icon: DatabaseIcon },
   resources: { labelKey: "project.tabs.resources", Icon: Images },
   history: { labelKey: "project.tabs.history", Icon: HistoryIcon },
 };
@@ -380,28 +399,6 @@ function UndoRedoButtons() {
         <Redo2 className="h-4 w-4" />
       </TopBarIconButton>
     </div>
-  );
-}
-
-const SHORTCUT_MOD =
-  typeof navigator !== "undefined" && /mac/i.test(navigator.platform || "") ? "⌘" : "Ctrl+";
-
-/**
- * Top-bar search button. Renders as a GitBook-style input pill that opens
- * the search palette on click (Cmd/Ctrl+K).
- */
-function SearchButton() {
-  const { t } = useTranslation();
-  return (
-    <button
-      type="button"
-      onClick={() => useUiStore.getState().setSearchOpen(true)}
-      aria-label={t("search.open")}
-      title={`${t("search.open")} (${SHORTCUT_MOD}K)`}
-      className="btn btn-ghost btn-icon size-8 shrink-0"
-    >
-      <Search className="size-4 shrink-0" />
-    </button>
   );
 }
 

@@ -30,6 +30,10 @@ class PackStore(private val dir: File, val path: String = PATH, private val exte
 
     fun get(file: String): ByteArray? = file.takeIf { name.matches(it) }?.let { File(dir, it) }?.takeIf { it.isFile }?.readBytes()
 
+    /** The SHA-1 of the packs served, newest first. */
+    fun hashes(): List<String> =
+        dir.listFiles { f -> f.name.matches(name) }.orEmpty().sortedByDescending { it.lastModified() }.map { it.name.removeSuffix(".$extension") }
+
     companion object {
         private const val KEEP = 3
         const val PATH = "/resource-pack"

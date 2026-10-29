@@ -117,6 +117,10 @@
   --kind-module: #38bdf8;
   --kind-module-soft: rgba(56, 189, 248, 0.13);
   --kind-module-line: rgba(56, 189, 248, 0.38);
+  /* A Project's own data (tables, config sheets): a quiet slate, rows of reference. */
+  --kind-data: #94a3b8;
+  --kind-data-soft: rgba(148, 163, 184, 0.14);
+  --kind-data-line: rgba(148, 163, 184, 0.38);
 
   /* Action families — icon tiles and rails of the step chain (lib/actions/actionFamily.ts).
      Colour stays on small marks (icons, rails, keywords), never on large fills. */
@@ -211,6 +215,9 @@
   --kind-module: #0369a1;
   --kind-module-soft: rgba(2, 132, 199, 0.1);
   --kind-module-line: rgba(3, 105, 161, 0.32);
+  --kind-data: #475569;
+  --kind-data-soft: rgba(71, 85, 105, 0.1);
+  --kind-data-line: rgba(71, 85, 105, 0.32);
 
   --fam-logic: #7c3aed;
   --fam-logic-soft: rgba(124, 58, 237, 0.09);
@@ -290,6 +297,19 @@
   --mc-slot-bg: #8b8b8b;
   --mc-slot-dark: #373737;
   --mc-slot-light: #ffffff;
+  /* McScreen: the dim behind an open screen, and flat stand-ins for the HUD sprites. */
+  --mc-screen-dim-top: rgba(16, 16, 16, 0.75);
+  --mc-screen-dim-bottom: rgba(16, 16, 16, 0.82);
+  --mc-heart: #db1e1e;
+  --mc-food: #b8742f;
+  --mc-xp: #80ff20;
+  --mc-bossbar-pink: #ec00b8;
+  --mc-bossbar-blue: #00b7ec;
+  --mc-bossbar-red: #ec3500;
+  --mc-bossbar-green: #1dec00;
+  --mc-bossbar-yellow: #e9ec00;
+  --mc-bossbar-purple: #7b00ec;
+  --mc-bossbar-white: #ececec;
 }
 
 /* ----------------------------------------------------------------

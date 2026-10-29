@@ -19,9 +19,10 @@ import { eventContextEntries, findGameEvent, useGameEvents } from "./gameEvents"
 import { TRIGGER_KIND, TRIGGER_SLOT, type Trigger } from "./trigger";
 
 /**
- * A Trigger's page: the header says it as a sentence ("Quand un joueur meurt"), the left
- * column holds when it runs (its event, the "Seulement si" conditions, the delay, the
- * switch), the right one what it does, with the event's values at hand.
+ * A Trigger's page: the header says it as a sentence ("Quand un joueur meurt") beside its id
+ * (the panel draws no other: `ownHeader`), the left column holds when it runs (its event, the
+ * "Seulement si" conditions, the delay, the switch), the right one what it does, with the
+ * event's values at hand.
  */
 export function TriggerEditor({ projectId, trigger }: { projectId: ProjectId; trigger: Trigger }) {
   const { t } = useTranslation();
@@ -61,7 +62,11 @@ export function TriggerEditor({ projectId, trigger }: { projectId: ProjectId; tr
             <span className="badge badge-brick">{t("triggers.disabledBadge")}</span>
           )
         }
-      />
+      >
+        <span className="min-w-0 max-w-full truncate font-mono text-[12.5px] text-[var(--text-faint)]">
+          {trigger.id}
+        </span>
+      </EditorHeader>
       <div className="@container flex-1 overflow-auto px-4 py-4">
         <div className="grid grid-cols-1 gap-4 @3xl:grid-cols-[minmax(280px,360px)_1fr] @3xl:items-start">
           <div className="flex min-w-0 flex-col gap-4">

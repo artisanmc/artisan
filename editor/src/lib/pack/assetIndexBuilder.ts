@@ -10,6 +10,11 @@ export interface AssetIndexEntry {
   width?: number;
   codepoint?: number;
   namespace?: string;
+  /**
+   * An `overlay` image cut into glyphs of 256 columns (`\ue000`, `\ue001`…): each slice's
+   * content width (rightmost opaque column + 1), from which the plugin joins them.
+   */
+  slices?: number[];
 }
 
 export interface AssetIndex {

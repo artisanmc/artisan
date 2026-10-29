@@ -31,6 +31,8 @@ Cloudflare runs the nameservers of `artisanmc.net`. The named Tunnel publishes:
 
 The `artisan-tunnel` Worker (route `*.artisanmc.app/*`, fail open) serves the tunnel ahead of this server, which stays as the fallback; `artisan-tunnel-test` takes `*-test.artisanmc.app` ([`tunnel-worker/`](tunnel-worker/README.md)).
 
+The `artisan-pack-cdn` Worker serves `cdn.artisanmc.net`, where hubs upload their resource packs and players download them, from the R2 bucket `artisan-packs` ([`pack-cdn-worker/`](pack-cdn-worker/README.md), since 2026-10-27).
+
 No A/AAAA record to the origin; the VPS firewall exposes no inbound web port.
 
 The showcase's Coolify resource (historically "editor", hence `COOLIFY_EDITOR_UUID`) builds
@@ -46,8 +48,8 @@ Gradle tests and `shadowJar`.
 
 The repository is private: every runner minute counts against the organization's quota (2,000 min/month
 included). So each workflow only starts when its inputs change (`paths`, to be kept up to date when
-a module reads a new directory, see `deploy/ci-workflow.test.mjs`), and only `main` gets a run
-after merge (`deploy.yml` waits for it): a PR to `v2` is already tested on its merge ref.
+a module reads a new directory, see `deploy/ci-workflow.test.mjs`), and a PR is tested on its merge ref;
+`main` also gets a run after merge, which `deploy.yml` waits for.
 
 `.github/workflows/deploy.yml` fires when CI succeeds on `main`: it refuses a SHA that is no longer
 the head of `main`, then `deploy/coolify-deploy.mjs` pins `git_commit_sha` on the resource,
@@ -84,6 +86,42 @@ Locally: `npm ci --prefix docs-site`, then `npm run dev:site --prefix editor`.
   must bump the highest `Since` version in `docs/architecture/api-surface.md`.
 - `.github/workflows/publish-api.yml` publishes `artisan-core-api` to `repo.artisanmc.net`; Reposilite
   deployment and tokens: [`reposilite/README.md`](reposilite/README.md).
+
+## Releasing the plugin
+
+`.github/workflows/release-jars.yml` builds both jars of a revision (`docs/architecture/editions.md`).
+On a tag `v<version>` (`v2.0.0`, `v2.1.0-beta.1`):
+
+1. job `jars`: tests, `Artisan-<v>.jar` (free) and `Artisan-Pro-<v>.jar` (Pro), each checked for its
+   edition marker and the embedded editor, then a **draft** GitHub Release carrying both;
+2. job `publish` (environment `release`): the free jar to Modrinth (`:artisan-paper:modrinth`) and
+   Hangar (`:artisan-paper:publishPluginPublicationToHangar`), the Pro jar to Voxel
+   (`api.voxel.shop/v1/postUpdate`). Both Gradle tasks upload the exact jar of job `jars`
+   (`-PreleaseJar`), nothing is rebuilt. A version with a suffix goes out as a beta (Modrinth, Voxel)
+   and on Hangar's `Snapshot` channel. A platform whose token is not set is skipped.
+
+Notes are the annotated tag's message, refused when empty:
+`git tag -a v2.0.0 -m "…" && git push origin v2.0.0`. Write them for server owners; the
+`CHANGELOG.md` section is for developers.
+
+By hand after `publish`: SpigotMC (free jar) and BuiltByBit (Pro jar) have no upload API; take the
+jars from the draft Release, then publish the Release. The Pro jar never goes to a public listing.
+
+GitHub `release` environment (restrict it to tags `v*`; a required reviewer lets you check the
+draft Release before anything goes out):
+
+| Type | Name | Value |
+|---|---|---|
+| Secret | `MODRINTH_TOKEN` | Modrinth personal token, scope "Create versions" |
+| Variable | `MODRINTH_PROJECT_ID` | Modrinth project id or slug |
+| Secret | `HANGAR_API_TOKEN` | Hangar API key, permission "create_version" |
+| Variable | `HANGAR_PROJECT` | Hangar project slug |
+| Secret | `VOXEL_API_KEY` | Voxel API key with "Post Updates" (it reaches the whole account) |
+| Variable | `VOXEL_PRO_RESOURCE_ID` | number at the end of the Artisan Pro resource's URL |
+| Variable | `MINECRAFT_VERSIONS` | optional: supported versions, comma separated, instead of the default list in `plugin/paper/build.gradle.kts` |
+
+Each project is created by hand the first time (name, description, icon, license, first file where
+the platform requires one); the workflow only adds versions.
 
 ## Cloud retirement — checklist when merging into `main`
 

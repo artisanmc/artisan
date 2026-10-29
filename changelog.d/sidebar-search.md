@@ -1,0 +1,1 @@
+- **Changed**: The editor's sidebar has a search field under the logo in place of the server selector, and the project top bar loses its search button. The search (Cmd/Ctrl+K) also works on the server page, across the server's projects. On the server page, the server's name is the server switcher, as in a project's breadcrumb.

@@ -5,7 +5,7 @@
  * Payloads ride in dnd-kit's `data` (`features/canvas/dragPayload.ts`); ids are never parsed.
  */
 import type { Asset } from "@/domain/asset";
-import type { ElementId, MenuId } from "@/domain/types";
+import type { CapturedItem, ElementId, MenuId } from "@/domain/types";
 import { type DragPayload, readDrag, readDrop } from "@/features/canvas/dragPayload";
 
 type DataCarrier = Parameters<typeof readDrag>[0];
@@ -24,12 +24,13 @@ export type WorkspaceDrop =
   | {
       kind: "stateMaterial";
       material: string;
+      captured?: CapturedItem;
       menuId: MenuId;
       elementId: ElementId;
       stateIndex: number;
     }
   /** A library material released over the board. */
-  | { kind: "stageMaterial"; material: string; x: number; y: number };
+  | { kind: "stageMaterial"; material: string; captured?: CapturedItem; x: number; y: number };
 
 export interface DragEndFields {
   active: DataCarrier;
@@ -44,7 +45,7 @@ export interface DragEndFields {
  */
 export function dragStartMaterial(active: DataCarrier): string | undefined {
   const drag = readDrag(active);
-  if (drag?.kind === "material") return drag.material;
+  if (drag?.kind === "material") return drag.captured?.display.material ?? drag.material;
   if (drag?.kind === "placementRow") return drag.material || "CHEST";
   return undefined;
 }
@@ -81,6 +82,7 @@ export function decodeDragEnd(e: DragEndFields): WorkspaceDrop | null {
         return {
           kind: "stateMaterial",
           material: drag.material,
+          ...(drag.captured ? { captured: drag.captured } : {}),
           menuId: target.menuId,
           elementId: target.elementId,
           stateIndex: target.stateIndex,
@@ -89,6 +91,7 @@ export function decodeDragEnd(e: DragEndFields): WorkspaceDrop | null {
       return {
         kind: "stageMaterial",
         material: drag.material,
+        ...(drag.captured ? { captured: drag.captured } : {}),
         ...releasePoint(e.activatorEvent as PointerEvent, e.delta),
       };
     }

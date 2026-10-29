@@ -11,7 +11,7 @@ the server is (that is [environment.yml](../environment/)).
 Edit it in either place:
 
 - **By hand**, then run `/artisan reload`.
-- **From the editor**: the server page, **Configuration** section (requires
+- **From the editor**: the server page, **Settings** tab (requires
   `artisan.editor.config`). The plugin checks each value, rewrites the file with its
   comments kept, and reloads by itself. From the editor, paths must stay under the
   server root (no absolute path, no `..`), and texture references must look like
@@ -23,7 +23,12 @@ Edit it in either place:
 |---|---|---|
 | `language` | `"en"` | Language of the plugin's own messages: `en` or `fr`. |
 | `per_player_language` | `false` | `true`: send plugin messages in each player's client language when a matching lang file exists, else in `language`. |
-| `resource-pack.delegate-to-dir` | `""` | Where Artisan writes its pack for Nexo, Oraxen or ItemsAdder to merge and send to players. Empty: Artisan's textures and glyphs reach no player, and the console says so on every pack update. A `.zip` path writes one zip; any other path is a directory (Artisan writes `<path>/assets/artisan/`, wiped on each update). Absolute, or relative to the server root. |
+| `resource-pack.enabled` | `true` | Without a delegate folder, Artisan sends its pack to players itself. `false` and no delegate folder: the pack reaches no player. Ignored when `delegate-to-dir` is set. |
+| `resource-pack.prompt` | `""` | Prompt of the pack (MiniMessage). Empty: `resource_pack.prompt` of the player's language. |
+| `resource-pack.required` | `false` | `true`: a player who declines Artisan's pack is disconnected. Direct sending only. |
+| `resource-pack.send-on-join` | `true` | Send the pack to each joining player. |
+| `resource-pack.send-delay-ticks` | `20` | Ticks between joining and receiving the pack. |
+| `resource-pack.delegate-to-dir` | `""` | Where Artisan writes its pack for Nexo, Oraxen or ItemsAdder to merge and send to players; setting it turns direct sending off. Empty: Artisan sends its pack itself (`enabled`). A `.zip` path writes one zip; any other path is a directory (Artisan writes `<path>/assets/artisan/`, wiped on each update). Absolute, or relative to the server root. |
 | `resource-pack.delegate-reload-command` | `""` | Console command run after each pack update, e.g. `n reload` (Nexo), `oraxen reload pack` (Oraxen). |
 | `resource-pack.container-textures.chest` | `""` | Texture drawn back on other chest windows when a menu turns the vanilla chest texture off. `project:image` names a project image in the vanilla layout (256×256 or an HD multiple). Empty: vanilla texture. |
 | `resource-pack.container-textures.hopper` | `""` | Same, for hoppers. |
@@ -44,6 +49,11 @@ language: "en"
 per_player_language: false
 
 resource-pack:
+  enabled: true
+  prompt: ""
+  required: false
+  send-on-join: true
+  send-delay-ticks: 20
   delegate-to-dir: ""
   delegate-reload-command: ""
   container-textures:

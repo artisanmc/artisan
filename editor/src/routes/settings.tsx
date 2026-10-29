@@ -1,22 +1,24 @@
 import { McpAppsSection } from "@/features/mcp/McpAppsSection";
 import { AppearanceSection } from "@/features/settings/AppearanceSection";
+import { AssistantSettingsSection } from "@/features/settings/AssistantSettingsSection";
 import { EditorAddressSection } from "@/features/settings/EditorAddressSection";
 import { EditorSessionsSection } from "@/features/settings/EditorSessionsSection";
 import { useAuthStore } from "@/state/authStore";
 import { createFileRoute } from "@tanstack/react-router";
-import { Bot, Globe, Palette, Users } from "lucide-react";
+import { Bot, Globe, Palette, Sparkles, Users } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/settings")({ component: SettingsRoute });
 
-type Section = "appearance" | "address" | "sessions" | "ai";
+type Section = "appearance" | "address" | "sessions" | "ai" | "assistant";
 
 const TITLES: Record<Section, [title: string, help: string]> = {
   appearance: ["settings.appearance.title", "settingsPage.appearanceHelp"],
   ai: ["mcp.apps.title", "mcp.apps.help"],
   address: ["editorAddress.title", "editorAddress.help"],
   sessions: ["editorSessions.title", "editorSessions.help"],
+  assistant: ["ai.settings.title", "ai.settings.help"],
 };
 
 export function SettingsRoute() {
@@ -33,10 +35,14 @@ export function SettingsRoute() {
         ? "sessions"
         : hash === "#ai"
           ? "ai"
-          : "appearance";
+          : hash === "#assistant"
+            ? "assistant"
+            : "appearance";
   });
   const current: Section =
-    (section === "address" || section === "sessions") && !canConfigure ? "appearance" : section;
+    (section === "address" || section === "sessions" || section === "assistant") && !canConfigure
+      ? "appearance"
+      : section;
   const sections: { id: Section; icon: typeof Palette; label: string }[] = [
     { id: "appearance", icon: Palette, label: t("settings.appearance.title") },
     { id: "ai", icon: Bot, label: t("mcp.apps.title") },
@@ -44,6 +50,7 @@ export function SettingsRoute() {
       ? [
           { id: "address" as const, icon: Globe, label: t("editorAddress.title") },
           { id: "sessions" as const, icon: Users, label: t("editorSessions.title") },
+          { id: "assistant" as const, icon: Sparkles, label: t("ai.settings.title") },
         ]
       : []),
   ];
@@ -87,6 +94,8 @@ export function SettingsRoute() {
               <EditorAddressSection />
             ) : current === "sessions" ? (
               <EditorSessionsSection />
+            ) : current === "assistant" ? (
+              <AssistantSettingsSection />
             ) : current === "ai" ? (
               <McpAppsSection />
             ) : (

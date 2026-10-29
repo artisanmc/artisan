@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.config
 
 import net.artisanmc.plugin.hub.AiConfig
+import net.artisanmc.plugin.hub.PackCdn
 import net.artisanmc.plugin.hub.WebConfig
 import org.bukkit.configuration.file.FileConfiguration
 
@@ -44,6 +45,14 @@ fun serverName(name: String, folder: String): String? {
 data class ResourcePackConfig(
     val delegateToDir: String?,
     val delegateReloadCommand: String?,
+    /** Without a delegate folder, Artisan sends its pack to players itself. */
+    val enabled: Boolean = true,
+    /** MiniMessage prompt; null: `resource_pack.prompt` of the player's language. */
+    val prompt: String? = null,
+    /** A player who declines the pack is disconnected. */
+    val required: Boolean = false,
+    val sendOnJoin: Boolean = true,
+    val sendDelayTicks: Long = 20L,
 )
 
 data class PluginConfig(
@@ -62,6 +71,11 @@ data class PluginConfig(
                 resourcePack      = ResourcePackConfig(
                     delegateToDir  = cfg.getString("resource-pack.delegate-to-dir")?.takeIf { it.isNotBlank() },
                     delegateReloadCommand = cfg.getString("resource-pack.delegate-reload-command")?.takeIf { it.isNotBlank() },
+                    enabled        = cfg.getBoolean("resource-pack.enabled", true),
+                    prompt         = cfg.getString("resource-pack.prompt")?.takeIf { it.isNotBlank() },
+                    required       = cfg.getBoolean("resource-pack.required", false),
+                    sendOnJoin     = cfg.getBoolean("resource-pack.send-on-join", true),
+                    sendDelayTicks = cfg.getLong("resource-pack.send-delay-ticks", 20L),
                 ),
                 web = WebConfig(
                     enabled = environment.getBoolean("web.enabled", true),
@@ -74,6 +88,7 @@ data class PluginConfig(
                     sessionDays = environment.getInt("web.session-days", 7).coerceAtLeast(1),
                     tunnel = EnvironmentFile.string(environment, "web.tunnel", System.getProperty(WebConfig.TUNNEL_PROPERTY, WebConfig.DEFAULT_TUNNEL)).trim(),
                     tunnelAccess = EnvironmentFile.string(environment, "web.tunnel-access", ""),
+                    packCdn = EnvironmentFile.string(environment, "web.pack-cdn", System.getProperty(PackCdn.HOST_PROPERTY, PackCdn.DEFAULT_HOST)).trim(),
                     mcp = environment.getBoolean("web.mcp", false),
                     ai = AiConfig(
                         provider = EnvironmentFile.string(environment, "ai.provider", "").trim().lowercase(),

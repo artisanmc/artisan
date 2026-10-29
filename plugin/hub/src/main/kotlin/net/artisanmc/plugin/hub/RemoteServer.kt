@@ -57,8 +57,10 @@ class RemoteServer(
     override fun serverConfig() = serverConfig
     override fun customItems() = customItems
 
-    override fun applyResourcePack(hash: String, path: String) {
-        val update = mapOf("url" to publicUrl() + path, "hash" to hash)
+    override fun applyResourcePack(hash: String, path: String) = applyResourcePack(hash, path, null)
+
+    override fun applyResourcePack(hash: String, path: String, url: String?) {
+        val update = mapOf("url" to (url ?: (publicUrl() + path)), "hash" to hash)
         pack = update
         send(mapOf("type" to "resource_pack_updated") + update)
     }

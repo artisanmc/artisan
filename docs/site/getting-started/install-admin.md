@@ -35,7 +35,7 @@ On first start Artisan creates its folder:
 | `plugins/Artisan/database/` | The embedded H2 database (`suite.mv.db`), created when a plugin first asks for the database. |
 | `plugins/Artisan/cache/` | Downloaded Minecraft assets, resource packs (Java and Bedrock), asset index. |
 | `plugins/Artisan/network-secret` | Only on a network hub with no other secret source. See [the shared secret](../../network/setup/#4-the-shared-secret). |
-| `plugins/Artisan/tunnel-secret` | On the hub, unless `web.url` is set or `web.tunnel` is empty: it decides the editor's address on the tunnel server. Keep it to keep the address; delete it to get a new one. |
+| `plugins/Artisan/tunnel-secret` | On the hub, unless `web.url` is set or `web.tunnel` is empty: it decides the editor's address on the tunnel server. Keep it to keep the address; delete it to get a new one. Also sent to the pack host (`web.pack-cdn`), which counts this hub's daily quota with it. |
 
 The console should show:
 

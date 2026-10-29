@@ -217,6 +217,8 @@ internal class RuntimeAssembly(
             assetCatalog = assetCatalog,
             delegator = packDelegator(cfg),
             cacheFile = java.io.File(dataFolder, "cache/resource-pack.json"),
+            packLoads = plugin.packLoads,
+            defaultPrompt = { player -> plugin.langManager.get("resource_pack.prompt", player) },
         )
         // The last applied pack survives a restart, even with the hub unreachable.
         packs.loadFromDisk()
@@ -309,8 +311,8 @@ internal class RuntimeAssembly(
 
     /**
      * Pack delegation to Nexo, Oraxen or ItemsAdder. A `.zip` path targets a file, whose
-     * parent folder must be writable; any other path targets a folder. Otherwise null: the
-     * pack reaches no player, and each update says so in the console.
+     * parent folder must be writable; any other path targets a folder. Otherwise null:
+     * Artisan sends its pack to players itself (`resource-pack.enabled`).
      */
     private fun packDelegator(cfg: PluginConfig): net.artisanmc.plugin.resourcepack.ResourcePackDelegator? {
         val target = File(cfg.resourcePack.delegateToDir ?: return null)
@@ -319,7 +321,8 @@ internal class RuntimeAssembly(
         if (!checkDir.isDirectory || !checkDir.canWrite()) {
             logger.warning(
                 "[delegate] delegate-to-dir ${target.absolutePath} parent " +
-                    "(${checkDir.absolutePath}) is not a writable directory — Artisan's pack will not reach players",
+                    "(${checkDir.absolutePath}) is not a writable directory — " +
+                    if (cfg.resourcePack.enabled) "sending the pack to players directly" else "Artisan's pack will not reach players",
             )
             return null
         }
@@ -331,8 +334,9 @@ internal class RuntimeAssembly(
      * Registers [manager] as the resource-pack event listener, replacing the previous one.
      *
      * Bukkit keeps a listener until the plugin is disabled, and `/artisan reload` re-creates the
-     * manager from the freshly read config. Without this swap the stale instance keeps logging
-     * every pack status a second time.
+     * manager from the freshly read config. Without this swap the stale instance keeps handling
+     * joins with the pre-reload settings (a second send, a `resource-pack.enabled: false` that
+     * never takes effect).
      */
     private fun registerResourcePackManager(manager: net.artisanmc.plugin.resourcepack.ResourcePackManager) {
         resourcePackManager?.let { org.bukkit.event.HandlerList.unregisterAll(it) }

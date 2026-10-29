@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Part, quoteText, readExpression, switchablePaths } from "./readable";
+import { type Part, quoteText, readExpression, variablesOf } from "./readable";
 
 const partsOf = (src: string): Part[] => {
   const r = readExpression(src);
@@ -95,10 +95,17 @@ describe("readExpression", () => {
   });
 });
 
-describe("switchablePaths", () => {
-  it("lists the yes/no variables of the conditions", () => {
-    const parts = partsOf('(a ? "x" : "") + (!b && c > 1 ? "y" : "") + (d || e.f ? "z" : "")');
-    expect(switchablePaths(parts)).toEqual(["a", "b", "d", "e.f"]);
+describe("variablesOf", () => {
+  it("lists what the `{…}` of a text read, each once, method targets aside", () => {
+    expect(
+      variablesOf(
+        '<red>{m.rank} {m.online && !m.muted ? "x" : m.rank} {m.joined.ago()} {ranks[m.tier]}',
+      ),
+    ).toEqual(["m.rank", "m.online", "m.muted", "ranks", "m.tier"]);
+  });
+
+  it("skips an expression that does not parse", () => {
+    expect(variablesOf("{a ? } {b}")).toEqual(["b"]);
   });
 });
 
