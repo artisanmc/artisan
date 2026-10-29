@@ -52,6 +52,17 @@ than the hub. One single Artisan user at this date: the admin's key first.
    gets 404.
 7. **Who may use it: `artisan.editor.edit`**, like `/mcp`. `GET /api/v1/ai` tells the editor whether there
    is an assistant and whether the player can use it; otherwise the button does not show.
+8. **A server-level view, the whole server as its scope** (2026-10-29). Besides the panel docked
+   on a Project, the server page has an **Assistant** tab: the conversation in the middle, the
+   player's conversations on the left, and one card per file the assistant wrote on the right,
+   naming its Project (a menu shows as the game would, through the Play engine over the draft's
+   version of its Project; any file as YAML against the disk). A conversation carries the
+   `server` it was started on (`POST {server}`): the system prompt tells the model the server's
+   Projects are its scope, one draft per Project. "Review and deploy" opens Deploy's review with
+   every draft of the conversation picked (multi-Project deploy). The panel's "Expand" opens the
+   same conversation in the tab: the editor keeps the conversations it read in one store, so both
+   views show the same events, polled once. The tab is in the free jar, like the panel: it is
+   how players discover the assistant (and, later, the cloud offer).
 
 ## Consequences
 
@@ -70,4 +81,5 @@ than the hub. One single Artisan user at this date: the admin's key first.
 - An `artisan.editor.ai` permission and a per-player quota, if others than the admin use it.
 - Conversations in the database (surviving a restart, resuming on another device).
 - Streamed text and the model's progress notes between two tools
-  (`display: "updates"`).
+  (`display: "updates"`); with them, the file being written known early and animated in the
+  Assistant tab.

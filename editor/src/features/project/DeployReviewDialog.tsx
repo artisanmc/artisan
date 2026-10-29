@@ -24,9 +24,11 @@ export function DeployReviewDialog({
   current,
   others,
   onToggleOther,
+  othersOnly = false,
   onConfirm,
   onCancel,
 }: {
+  /** The open Project's changes; null: closed (unless [othersOnly]). */
   changes: ChangeSet | null;
   /** What this deployment could break in the server's other projects. */
   checks?: ServerChecks;
@@ -37,6 +39,11 @@ export function DeployReviewDialog({
   /** The player's drafts of other Projects, each deployed with this one when picked. */
   others?: OtherDrafts | null;
   onToggleOther?: (draftId: string) => void;
+  /**
+   * No open Project (the server's Assistant tab): the review shows drafts only, open while
+   * [others] is set.
+   */
+  othersOnly?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -44,7 +51,7 @@ export function DeployReviewDialog({
   const problems = useMemo(() => byPath(documents), [documents]);
   const othersReady = others?.status === "ready" ? others : null;
   const listed = (othersReady?.drafts.length ?? 0) > 0;
-  const currentGoes = current ? current.picked : true;
+  const currentGoes = othersOnly ? false : current ? current.picked : true;
   const pickedOthers = othersReady
     ? othersReady.drafts.filter((d) => othersReady.selected.includes(d.draftId))
     : [];
@@ -56,14 +63,17 @@ export function DeployReviewDialog({
     });
   const count = (currentGoes ? 1 : 0) + pickedOthers.length;
   return (
-    <Dialog open={changes !== null} onOpenChange={(open) => !open && onCancel()}>
+    <Dialog
+      open={othersOnly ? others != null : changes !== null}
+      onOpenChange={(open) => !open && onCancel()}
+    >
       <DialogContent className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-6xl flex-col">
         <DialogHeader className="pr-6">
           <DialogTitle>{t("deploy.reviewTitle")}</DialogTitle>
           <DialogDescription>{t("deploy.reviewBody")}</DialogDescription>
         </DialogHeader>
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-          {listed && current && (
+          {!othersOnly && listed && current && (
             <PickRow
               checked={current.picked}
               disabled={!current.dirty}
@@ -72,7 +82,7 @@ export function DeployReviewDialog({
               detail={current.dirty ? undefined : t("deploy.others.currentNone")}
             />
           )}
-          {(!current || current.dirty) && (
+          {!othersOnly && (!current || current.dirty) && (
             <>
               {documents && <DocumentChecksSection documents={documents} changes={changes} />}
               {checks && <ServerChecksSection checks={checks} />}

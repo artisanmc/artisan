@@ -1827,6 +1827,7 @@ export default {
       overview: "Overview",
       board: "Board",
       play: "Play",
+      assistant: "Assistant",
       data: "Data",
       settings: "Settings",
     },

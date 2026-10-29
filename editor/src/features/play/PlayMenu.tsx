@@ -75,7 +75,12 @@ export function PlayMenu({
         <Layer>
           <MenuBackground menu={menu} />
           <Group listening={false}>
-            <TitleRender projectId={project.id} menuId={menu.id} scale={TEX_SCALE} />
+            <TitleRender
+              projectId={project.id}
+              menuId={menu.id}
+              scale={TEX_SCALE}
+              project={project}
+            />
           </Group>
           {Array.from({ length: total }, (_, i) => {
             const slot = slots.get(i);

@@ -16,7 +16,7 @@ import { useServerPapiPlaceholdersStore } from "@/state/serverPapiPlaceholdersSt
 import { useServerPlayerCommandsStore } from "@/state/serverPlayerCommandsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
-import { Outlet, createRootRoute, useParams } from "@tanstack/react-router";
+import { Outlet, createRootRoute, useParams, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 export const Route = createRootRoute({
@@ -125,8 +125,15 @@ export function RootLayout() {
   );
 }
 
-/** The assistant docked beside every page, told which Project is open (none on the server list). */
+/**
+ * The assistant docked beside every page, told which server and Project are open (none on the
+ * server list). The server's Assistant tab shows the same conversation: no dock beside it.
+ */
 function RootAssistantDock() {
-  const params = useParams({ strict: false }) as { projectId?: string };
-  return <AssistantDock projectId={params.projectId ?? null} />;
+  const params = useParams({ strict: false }) as { projectId?: string; serverId?: string };
+  const onTab = useRouterState({
+    select: (s) => s.matches.some((m) => m.routeId === "/servers/$serverId/assistant"),
+  });
+  if (onTab) return null;
+  return <AssistantDock projectId={params.projectId ?? null} serverId={params.serverId ?? null} />;
 }

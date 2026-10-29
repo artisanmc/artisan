@@ -1858,6 +1858,7 @@ const fr: typeof en = {
       overview: "Vue d'ensemble",
       board: "Planche",
       play: "Jeu",
+      assistant: "Assistant",
       data: "Données",
       settings: "Réglages",
     },

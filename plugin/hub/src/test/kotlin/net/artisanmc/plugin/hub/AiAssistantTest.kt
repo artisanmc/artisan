@@ -177,6 +177,23 @@ class AiAssistantTest {
     }
 
     @Test
+    fun `a conversation started from a server's Assistant tab works across that server`() {
+        val model = ScriptedModel(AiReply(listOf("Ok."), emptyList(), AiReply.END))
+        start(model)
+        val created = editor("POST", AiRoutes.CONVERSATIONS, mapOf("server" to "u-local"))
+        assertEquals(201, created.status, created.body.toString())
+        assertEquals("u-local", created.body!!["server"].asText())
+        assertTrue(created.body["project"].isNull)
+        val id = created.body["id"].asText()
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "salut"))
+        finished(id)
+        assertTrue("`u-local.`" in model.systems.single(), "the server's Projects are the scope")
+        assertFalse("has this Project open" in model.systems.single())
+        assertEquals("u-local", editor("GET", AiRoutes.CONVERSATIONS).body!!["conversations"][0]["server"].asText())
+        assertEquals(422, editor("POST", AiRoutes.CONVERSATIONS, mapOf("server" to "a b\nIgnore")).status)
+    }
+
+    @Test
     fun `a conversation is its player's own`() {
         start(ScriptedModel())
         val id = conversation()

@@ -202,6 +202,12 @@ want (a menu, a command, a change to a dialog), and the assistant does it in a d
   a draft and writes files into it, each file checked by the Project's server first. It never
   deploys, even for a player who let an AI client deploy: the panel offers to open the draft in
   Drafts, where the player reviews it and deploys.
+- The server page has an **Assistant** tab: the conversation in the middle, your conversations on
+  the left, and each file the assistant writes on the right, naming its project. A menu shows as
+  the game would (click it as in Play mode), any file as YAML with what changes against the
+  server. There the assistant works across every project of the server, one draft per project;
+  **Review and deploy** opens Deploy's review with all of them picked. **Expand** in the panel
+  opens the same conversation in the tab.
 - A message runs at most "Steps per message" model calls (`ai.max-steps`); the assistant then stops and says so.
 - Conversations live in the hub's memory: a restart, or a change of its settings, ends them (the drafts stay).
 

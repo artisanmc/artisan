@@ -41,7 +41,8 @@ import { useEffect, useReducer, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { formatSaveError, initialPublishState, publishReducer } from "./publishFlow";
-import { deployOtherDrafts, selectedDrafts, useOtherDrafts } from "./useOtherDrafts";
+import { deployDraftsAndReport } from "./deployDrafts";
+import { selectedDrafts, useOtherDrafts } from "./useOtherDrafts";
 
 /**
  * Realigns the displayed Project with the draft after a conflict resolution:
@@ -254,29 +255,7 @@ export function usePublishFlow(
     if (queue.length === 0) return;
     dispatch({ type: "saveStarted" });
     try {
-      const report = await deployOtherDrafts(queue);
-      for (const serverId of new Set(report.deployed.map((d) => d.serverId)))
-        rebuildServerPackInBackground(t, serverId);
-      const names = (list: typeof queue) => list.map((d) => d.projectName).join(", ");
-      if (!report.failed)
-        toast.success(
-          t("deploy.others.deployed", {
-            count: report.deployed.length,
-            names: names(report.deployed),
-          }),
-        );
-      else
-        toast.error(
-          t("deploy.others.failed", {
-            name: report.failed.draft.projectName,
-            reason: t(`save.errors.${report.failed.code}`, {
-              defaultValue: report.failed.code,
-            }),
-            deployed: report.deployed.length ? names(report.deployed) : "—",
-            skipped: report.skipped.length ? names(report.skipped) : "—",
-          }),
-          { duration: 15_000 },
-        );
+      await deployDraftsAndReport(t, queue);
     } finally {
       dispatch({ type: "saveSettled" });
     }
