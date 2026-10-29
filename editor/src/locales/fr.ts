@@ -856,6 +856,15 @@ const fr: typeof en = {
   editorPane: {
     close: "Fermer le panneau",
   },
+  mcScreen: {
+    window: "Fenêtre",
+    guiScale: "GUI scale",
+    auto: "Auto",
+    zoom: "Zoom",
+    fit: "Ajusté",
+    actual: "100 %",
+    guiSize: "GUI {{width}}×{{height}} px, échelle {{scale}}",
+  },
   sortableList: {
     handle: "Glisser pour réordonner",
   },
@@ -1398,6 +1407,8 @@ const fr: typeof en = {
       "Saisie MiniMessage riche : balises masquées, barre filtrée par le profil (ici un lore : pas de clic), bascule Riche / Code. MmTextField ajoute l'aperçu que demande le profil.",
     mmExprHint:
       "Les placeholders montrent leur valeur d'exemple ; un texte calculé devient une pastille ƒ, lue en règles au clic, avec des interrupteurs pour le joueur d'exemple. L'aperçu suit les interrupteurs.",
+    mcScreenHint:
+      "L'écran du jeu à une taille de fenêtre et une GUI scale : HUD, bossbars, titre, barre d'action, chat, couches d'un module et écran ouvert, placés comme le client 1.21 les place. Dans le SDK (1.14).",
     mcPreviewHint:
       "Aperçus en jeu présentationnels, dessinés avec la police vanilla. Ils ne prennent que du MiniMessage résolu.",
     popoverHint:

@@ -8,6 +8,8 @@ import {
   type EditorHost,
   ItemInput,
   MaterialInput,
+  McScreen,
+  McText,
   MiniMessageInput,
   SortableList,
   installEditorHost,
@@ -22,6 +24,9 @@ describe("host components", () => {
         MiniMessageInput: ({ value }) => createElement("s", null, `mm:${value}`),
         ConditionsEditor: ({ value }) => createElement("em", null, `if:${value.length}`),
         DocumentRefInput: ({ kind, value }) => createElement("a", null, `ref:${kind}:${value}`),
+        McText: ({ source }) => createElement("q", null, `mc:${source}`),
+        McScreen: ({ width, height, screen }) =>
+          createElement("dl", null, `screen:${width}x${height}`, screen?.({} as never)),
         SortableList: ({ ids, children }) =>
           createElement(
             "ol",
@@ -72,12 +77,14 @@ describe("host components", () => {
           value: "forge",
           onChange: () => {},
         }),
+        createElement(McText, { key: "x", source: "<gold>Hi" }),
+        createElement(McScreen, { key: "w", width: 854, height: 480, screen: () => "layer" }),
       ]),
     );
     expect(html).toBe(
       "<div><i>chain:1</i><b>material:STONE</b><u>item:FISHING_ROD:material,enchants</u><s>mm:&lt;red&gt;Hi</s>" +
         "<ol><li><span><hr/>row0</span></li><li><span><hr/>row1</span></li></ol>" +
-        "<em>if:2</em><a>ref:quest_group:forge</a></div>",
+        "<em>if:2</em><a>ref:quest_group:forge</a><q>mc:&lt;gold&gt;Hi</q><dl>screen:854x480layer</dl></div>",
     );
   });
 });

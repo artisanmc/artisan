@@ -842,6 +842,15 @@ export default {
   editorPane: {
     close: "Close panel",
   },
+  mcScreen: {
+    window: "Window",
+    guiScale: "GUI scale",
+    auto: "Auto",
+    zoom: "Zoom",
+    fit: "Fit",
+    actual: "100%",
+    guiSize: "GUI {{width}}×{{height}} px, scale {{scale}}",
+  },
   sortableList: {
     handle: "Drag to reorder",
   },
@@ -1377,6 +1386,8 @@ export default {
       "Rich MiniMessage input: tags hidden, toolbar filtered by the profile (here a lore: no click), Rich / Code switch. MmTextField adds the preview its profile calls for.",
     mmExprHint:
       "Placeholders show their example value; a computed text shows a ƒ pill, read as rules on click, with switches for the example player. The preview follows the switches.",
+    mcScreenHint:
+      "The game's screen at a window size and GUI scale: HUD, boss bars, title, action bar, chat, a module's layers and an open screen, placed as the 1.21 client places them. In the SDK (1.14).",
     mcPreviewHint:
       "Presentational in-game previews, drawn with the vanilla font. They take resolved MiniMessage only.",
     popoverHint:

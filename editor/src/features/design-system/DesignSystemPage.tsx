@@ -1,6 +1,15 @@
 import { SplitPane } from "@/components/SplitPane";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
-import { McActionBar, McChat, McMotd, McTitle, McTooltip } from "@/components/mc-preview";
+import {
+  McActionBar,
+  McChat,
+  McMotd,
+  McScreen,
+  McScreenControls,
+  type McScreenSettings,
+  McTitle,
+  McTooltip,
+} from "@/components/mc-preview";
 import { MmTextField } from "@/components/minimessage";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -186,6 +195,40 @@ const SAMPLE_MEMBER: PlaceholderEntry[] = [
   { path: "m.joined.ago()", type: "string", sample: "40 j", origin: "iteration" },
 ];
 
+function McScreenSpecimen() {
+  const { t } = useTranslation();
+  const [settings, setSettings] = useState<McScreenSettings>({
+    width: 1920,
+    height: 1080,
+    guiScale: "auto",
+    zoom: "fit",
+  });
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="mono text-[11px] text-[var(--text-faint)]">
+        {"<McScreen> <McScreenControls>"}
+      </span>
+      <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.mcScreenHint")}</p>
+      <McScreenControls value={settings} onChange={setSettings} />
+      <div className="max-h-[520px] overflow-auto">
+        <McScreen
+          {...settings}
+          hotbar={{ selected: 2 }}
+          survival={{ health: 17, food: 20, xp: 0.4, level: 12 }}
+          bossBars={[{ name: "<light_purple>Dragon", progress: 0.6 }]}
+          title={{ title: "<gold><bold>Victory", subtitle: "<gray>Round 3" }}
+          actionBar="<green>+25 coins"
+          chat={[
+            "<yellow>Steve joined the game",
+            "<gray>[<gold>Guide</gold>]</gray> Welcome to the server! Type <aqua>/menu</aqua> to start.",
+          ]}
+          chatInput="/menu"
+        />
+      </div>
+    </div>
+  );
+}
+
 function MiniMessageSpecimens() {
   const { t } = useTranslation();
   const [lore, setLore] = useState(SAMPLE_LORE);
@@ -232,6 +275,7 @@ function MiniMessageSpecimens() {
           <McTitle title="<gold><bold>Victory" subtitle="<gray>Round 3" />
         </div>
       </div>
+      <McScreenSpecimen />
       <div className="flex flex-col gap-2">
         <span className="mono text-[11px] text-[var(--text-faint)]">{"<Popover>"}</span>
         <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.popoverHint")}</p>

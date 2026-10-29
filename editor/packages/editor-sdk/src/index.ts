@@ -56,6 +56,12 @@ export {
   type ConditionsWire,
   type ConditionsEditorProps,
   type DocumentRefInputProps,
+  type McTextStyle,
+  type McTextProps,
+  type McBossBar,
+  type McBossBarColor,
+  type McScreenGeometry,
+  type McScreenProps,
   type HostComponents,
   ActionChainEditor,
   MaterialInput,
@@ -64,6 +70,8 @@ export {
   SortableList,
   ConditionsEditor,
   DocumentRefInput,
+  McText,
+  McScreen,
   installEditorHost,
   useProject,
   useContentLang,
@@ -76,6 +84,21 @@ export {
   selectDocumentItem,
   notify,
 } from "./host/host";
+export {
+  type GuiScaleChoice,
+  type GuiRect,
+  type McScreenLayout,
+  MC_SCREEN_PRESETS,
+  MIN_GUI_WIDTH,
+  MIN_GUI_HEIGHT,
+  CHAT_LINE_HEIGHT,
+  guiScale,
+  maxGuiScale,
+  mcScreenLayout,
+  hotbarSelection,
+  bossBarAt,
+  centeredScreen,
+} from "./contract/mcScreen";
 export { createModuleI18n } from "./host/i18n";
 export { injectModuleStyles } from "./host/styles";
 export { cn } from "./lib/cx";

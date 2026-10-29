@@ -157,6 +157,18 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `keyField`; a `CONTENT` source ignores them. `ctx.params` carries the fetcher params the menu
 > declares on the source input (`group: daily`), which the hook applies like the fetcher does. A 1.11 bundle keeps working (it ignores the argument).
 
+> **The game's screen (since 2026-10-29, SDK 1.14)** — `McScreen` (host component) draws the game's
+> screen at a window size (`width`, `height`, window pixels) and GUI scale (`guiScale`: `"auto"` or
+> 1, 2…, capped by the window as in game): world, hotbar, hearts/food/experience (`survival`),
+> boss bars, title, action bar, chat (`chat`, wrapped at 320 px; `chatInput` opens it), then the
+> module's layers (`children(geometry)`) and an open screen (`screen(geometry)`, on the dimmed
+> background). Display only: the caller owns what is shown. `McText` draws MiniMessage with the
+> vanilla font. The geometry is pure and exported: `guiScale(w, h, choice)` (`Window.calculateScale`:
+> the largest scale keeping the GUI ≥ 320×240), `mcScreenLayout(w, h, scale)` (GUI size, hotbar,
+> `actionBarTop` = H − 72 the conversations HUD rises from, title, chat, chat input),
+> `hotbarSelection`, `bossBarAt`, `centeredScreen`, `MC_SCREEN_PRESETS`; locked by
+> `testdata/mc-screen-conformance.json`. A layer places a GUI rectangle `r` at `r.x * geometry.scale`.
+
 > **HUD layers (since 2026-10-28, SDK 1.13, API 2.20.0)** — a kind declares the images
 > its files draw at a height: `pack: { images: (src) => [{ asset, rise }] }`, `src` the parsed YAML of
 > each `<dir>/*.yaml` (`id` included), in every project. When the pack is built (`buildServerPack`,
