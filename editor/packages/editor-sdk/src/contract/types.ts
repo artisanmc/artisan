@@ -59,6 +59,12 @@ export interface DocumentKindContribution {
    * Absent = the host draws it above `component`.
    */
   ownHeader?: boolean;
+  /**
+   * On the Document's own page, `component` gets the whole width under the floating header
+   * (SDK 1.15), for a view laid out in columns (a list beside a detail, a preview). Absent =
+   * a centred column, as a command's.
+   */
+  wide?: boolean;
   /** A human label for one Document (search, chips, breadcrumb); the id when absent. */
   title?: (doc: unknown, ctx: DocumentLabelContext) => string;
   /** Registry rows show `title` instead of the id (a command's `/name` is its identity). */

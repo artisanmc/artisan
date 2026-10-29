@@ -377,3 +377,13 @@ The geometry is pure so that a module places its layers with it (the conversatio
 the editor's Play mode, a navigable preview built from the Documents without a game client.
 *Rejected:* a screen per module (they would drift apart), and putting the geometry behind the host
 (a module's tests could not run it).
+
+## Amendment 2026-10-29: a wide Document page (SDK 1.15)
+
+A kind sets `wide` when its view is laid out in columns: on the Document's own page, `DocumentView`
+then gives it the whole width instead of the centred column a command's pseudocode reads best in.
+The conversations of ArtisanConversations show a page beside the game's screen and the ways into
+it; in a 1024 px column on a wide monitor both were cramped while the sides stayed empty.
+*Rejected:* every module view at full width (a command's or a trigger's sentence reads worse
+across 2000 px), and the module's CSS escaping the host's column (it would rest on the host's
+class names).

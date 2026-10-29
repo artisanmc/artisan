@@ -51,6 +51,8 @@ export function DocumentView({
   // A module kind whose node lists its parts opens on its node, like a menu: clicking a
   // part edits it in the panel beside.
   const onStage = project ? opensOnStage(project, key) : false;
+  // A kind whose view is laid out in columns takes the whole width (SDK 1.15 `wide`).
+  const wide = found ? documentKindContribution(found.kind)?.wide === true : false;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the default selection is applied once per opened document; re-running on `menu.layers` edits would reset the user's selection on every change
   useEffect(() => {
@@ -166,10 +168,11 @@ export function DocumentView({
           minSecondary={280}
         />
       ) : (
-        // Other kinds have no stage: their view (a command's pseudocode) stays centred,
-        // with room at the top so the bubble never covers its first line.
+        // Other kinds have no stage: their view (a command's pseudocode) stays centred, or
+        // spans the width when its kind asks for it, with room at the top so the bubble
+        // never covers its first line.
         <div className="h-full overflow-auto">
-          <div className="mx-auto w-full max-w-5xl pt-16">
+          <div className={wide ? "w-full pt-16" : "mx-auto w-full max-w-5xl pt-16"} data-testid="document-body">
             <SelectionInspector projectId={pId} />
           </div>
         </div>

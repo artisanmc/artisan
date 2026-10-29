@@ -151,6 +151,19 @@ describe("DocumentView", () => {
   it("renders the centered flow editor for a command", () => {
     render(<DocumentView projectId={PID} documentId={"c1" as any} />);
     expect(screen.getByTestId("flow-canvas")).toBeInTheDocument();
+    expect(screen.getByTestId("document-body")).toHaveClass("max-w-5xl");
+  });
+  it("gives a wide module kind's view the whole width", () => {
+    registerModule({
+      id: "quests-test",
+      documents: [{ kind: "quest_group", wide: true } as any],
+    } as any);
+    try {
+      render(<DocumentView projectId={PID} documentId={"daily" as any} />);
+      expect(screen.getByTestId("document-body")).not.toHaveClass("max-w-5xl");
+    } finally {
+      clearRegistry();
+    }
   });
   it("selects the default menu when there is no relevant selection", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
