@@ -320,7 +320,28 @@ describe("PlaySession", () => {
   it("notes an action nobody declared visual, with its value", () => {
     const s = session();
     s.runSteps([act("quests:start", "forge")], { label: "x", scope: {}, project: project() });
-    expect(s.getState().log).toMatchObject([{ kind: "logged", text: "quests:start forge" }]);
+    expect(s.getState().log).toMatchObject([
+      { kind: "logged", text: "quests:start · forge", detail: expect.stringContaining("quests") },
+    ]);
+  });
+
+  it("names a module action's arguments from its declaration", () => {
+    const p = project();
+    const s = new PlaySession({
+      projects: () => [p, other],
+      lang: () => "en",
+      player: () => DEFAULT_TEST_PLAYER,
+      t: (key, values) => (values ? `${key} ${JSON.stringify(values)}` : key),
+      menuScope: () => ({}),
+      declaredActions: () => [
+        { name: "attribution:choose", args: [], primary: "source", moduleId: "attribution" },
+      ],
+    });
+    s.runSteps([act("attribution:choose", "youtube")], { label: "x", scope: {}, project: p });
+    expect(s.getState().log.at(-1)).toMatchObject({
+      text: "attribution:choose · source = youtube",
+      detail: 'play.log.moduleAction {"module":"attribution"}',
+    });
   });
 
   it("runs every Project of the server: commands, and menus by their qualified name", () => {
