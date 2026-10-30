@@ -1360,14 +1360,6 @@ const fr: typeof en = {
       },
     },
   },
-  edition: {
-    pro: "Pro",
-    advancedExpression:
-      "Expression avancée : sa vue lisible et son aperçu viennent avec Artisan Pro. Elle fonctionne en jeu de la même façon.",
-    proOnly: "Fonction Artisan Pro : disponible avec le jar Pro.",
-    composedReadOnly:
-      "Ce titre a été composé avec Artisan Pro. Il reste tel quel et fonctionne toujours en jeu ; modifier ses calques demande Artisan Pro.",
-  },
   layersPanel: {
     vanilla: "Vanilla",
     composed: "Composé (Resource Project)",

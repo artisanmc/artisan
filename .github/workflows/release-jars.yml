@@ -1,17 +1,16 @@
 name: Release jars
 
-# The two plugin jars from one revision (docs/architecture/editions.md): `Artisan-<v>.jar`
-# (free: Modrinth, Hangar, Spigot, free listings) and `Artisan-Pro-<v>.jar` (paid listings on
-# BuiltByBit, Polymart, Voxel). Both embed the editor. A tag `v<version>` makes a draft GitHub
-# Release carrying them; a manual run only keeps them as workflow artifacts.
+# The plugin jar, `Artisan-<v>.jar`, editor embedded: one jar, free and complete, the same on every
+# platform. A tag `v<version>` makes a draft GitHub Release carrying it; a manual run only keeps it
+# as a workflow artifact.
 #
-# Publication (tag only, job `publish`, GitHub environment `release`): the free jar goes to
-# Modrinth and Hangar, the Pro jar to Voxel (ex-Polymart). Notes: the tag's annotation. A platform
-# whose token is not set is skipped. SpigotMC and BuiltByBit have no upload API: upload by hand
-# from the draft Release. Setup: deploy/README.md, "Releasing the plugin".
+# Publication (tag only, job `publish`, GitHub environment `release`): Modrinth, Hangar and Voxel.
+# Notes: the tag's annotation. A platform whose token is not set is skipped. SpigotMC and
+# BuiltByBit have no upload API: upload by hand from the draft Release. Setup: deploy/README.md,
+# "Releasing the plugin".
 #
-# Early access (a Pro perk): each push to `v2` or `main` builds `<last tag>-dev.<run>` and
-# replaces the assets of the `dev` pre-release, to hand to Pro buyers. Free users get tags only.
+# Development builds: each push to `v2` or `main` builds `<last tag>-dev.<run>` and replaces the
+# asset of the `dev` pre-release, never marked latest.
 on:
   push:
     tags: ["v*"]
@@ -74,29 +73,20 @@ jobs:
       - name: Test
         working-directory: plugin
         run: bash ./gradlew test --no-daemon
-      # Two builds of the same revision: only `artisan-edition.properties` and the jar name differ.
-      - name: Build both jars
+      - name: Build the jar
         working-directory: plugin
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           mkdir -p ../dist
-          for EDITION in free pro; do
-            bash ./gradlew :artisan-paper:shadowJar -PwithEditor -Pedition="$EDITION" -PartisanVersion="$VERSION" --no-daemon
-          done
-          cp "paper/build/libs/artisan-plugin-$VERSION-free.jar" "../dist/Artisan-$VERSION.jar"
-          cp "paper/build/libs/artisan-plugin-$VERSION-all.jar" "../dist/Artisan-Pro-$VERSION.jar"
-      - name: Check each jar says its edition
+          bash ./gradlew :artisan-paper:shadowJar -PwithEditor -PartisanVersion="$VERSION" --no-daemon
+          cp "paper/build/libs/artisan-plugin-$VERSION-all.jar" "../dist/Artisan-$VERSION.jar"
+      - name: Check the jar embeds the editor
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          check() {
-            got="$(unzip -p "$1" artisan-edition.properties | tr -d '\r')"
-            [ "$got" = "edition=$2" ] || { echo "$1: '$got', expected edition=$2" >&2; exit 1; }
-            unzip -l "$1" editor/index.html > /dev/null || { echo "$1 does not embed the editor" >&2; exit 1; }
-          }
-          check "dist/Artisan-$VERSION.jar" free
-          check "dist/Artisan-Pro-$VERSION.jar" pro
+          unzip -l "dist/Artisan-$VERSION.jar" editor/index.html > /dev/null \
+            || { echo "Artisan-$VERSION.jar does not embed the editor" >&2; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: artisan-jars-${{ steps.version.outputs.version }}
@@ -110,9 +100,9 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" dist/*.jar --draft --verify-tag \
             --title "Artisan $VERSION" \
-            --notes "Artisan-$VERSION.jar: free edition. Artisan-Pro-$VERSION.jar: Pro edition (paid listings only, never public)."
+            --notes "Artisan-$VERSION.jar: the plugin, editor included."
       # One rolling pre-release, never marked latest: only its assets change.
-      - name: Early access build
+      - name: Development build
         if: github.ref_type == 'branch' && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -120,11 +110,11 @@ jobs:
         run: |
           if ! gh release view dev > /dev/null 2>&1; then
             gh release create dev --prerelease --latest=false --target "$GITHUB_SHA" \
-              --title "Artisan early access" --notes "Development builds for Artisan Pro early access. Not for production."
+              --title "Artisan development build" --notes "Development builds of Artisan. Not for production."
           fi
           for old in $(gh release view dev --json assets --jq '.assets[].name'); do gh release delete-asset dev "$old" --yes; done
           gh release upload dev dist/*.jar
-          gh release edit dev --title "Artisan early access ($VERSION)" --notes "Built from $GITHUB_SHA on $GITHUB_REF_NAME. Development build for Artisan Pro early access, not for production."
+          gh release edit dev --title "Artisan development build ($VERSION)" --notes "Built from $GITHUB_SHA on $GITHUB_REF_NAME. Development build, not for production."
 
   publish:
     needs: jars
@@ -142,7 +132,7 @@ jobs:
       HANGAR_API_TOKEN: ${{ secrets.HANGAR_API_TOKEN }}
       HANGAR_PROJECT: ${{ vars.HANGAR_PROJECT }}
       VOXEL_API_KEY: ${{ secrets.VOXEL_API_KEY }}
-      VOXEL_RESOURCE_ID: ${{ vars.VOXEL_PRO_RESOURCE_ID }}
+      VOXEL_RESOURCE_ID: ${{ vars.VOXEL_RESOURCE_ID }}
       MINECRAFT_VERSIONS: ${{ vars.MINECRAFT_VERSIONS }}
     steps:
       - uses: actions/checkout@v5
@@ -165,7 +155,7 @@ jobs:
           notes="$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME")"
           [ -n "$notes" ] || { echo "Tag $GITHUB_REF_NAME has no message: use git tag -a" >&2; exit 1; }
           { echo "RELEASE_NOTES<<__NOTES__"; echo "$notes"; echo "__NOTES__"; } >> "$GITHUB_ENV"
-      - name: Publish the free jar to Modrinth
+      - name: Publish to Modrinth
         if: env.MODRINTH_TOKEN != ''
         working-directory: plugin
         env:
@@ -174,7 +164,7 @@ jobs:
           args=(-PartisanVersion="$VERSION" -PreleaseJar="../dist/Artisan-$VERSION.jar")
           [ -n "$MINECRAFT_VERSIONS" ] && args+=(-PminecraftVersions="$MINECRAFT_VERSIONS")
           bash ./gradlew :artisan-paper:modrinth "${args[@]}" --no-daemon
-      - name: Publish the free jar to Hangar
+      - name: Publish to Hangar
         if: env.HANGAR_API_TOKEN != ''
         working-directory: plugin
         env:
@@ -184,7 +174,7 @@ jobs:
           [ -n "$MINECRAFT_VERSIONS" ] && args+=(-PminecraftVersions="$MINECRAFT_VERSIONS")
           bash ./gradlew :artisan-paper:publishPluginPublicationToHangar "${args[@]}" --no-daemon
       # https://voxel.shop/wiki/api (postUpdate). The key needs the "Post Updates" permission.
-      - name: Publish the Pro jar to Voxel
+      - name: Publish to Voxel
         if: env.VOXEL_API_KEY != '' && env.VOXEL_RESOURCE_ID != ''
         env:
           VERSION: ${{ needs.jars.outputs.version }}
@@ -193,7 +183,7 @@ jobs:
           case "$VERSION" in *-*) beta=1 ;; esac
           answer="$(curl -sS --fail-with-body https://api.voxel.shop/v1/postUpdate \
             -F "api_key=$VOXEL_API_KEY" -F "resource_id=$VOXEL_RESOURCE_ID" \
-            -F "version=$VERSION" -F "title=Artisan Pro $VERSION" -F "message=$RELEASE_NOTES" \
-            -F "beta=$beta" -F "file=@dist/Artisan-Pro-$VERSION.jar")"
+            -F "version=$VERSION" -F "title=Artisan $VERSION" -F "message=$RELEASE_NOTES" \
+            -F "beta=$beta" -F "file=@dist/Artisan-$VERSION.jar")"
           echo "$answer"
           echo "$answer" | jq -e '.response.success == true or .success == true' > /dev/null

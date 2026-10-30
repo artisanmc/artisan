@@ -6,10 +6,6 @@ import { parse } from "@/lib/expr/parser";
 import { Scope } from "@/lib/expr/scope";
 import { useTranslation } from "react-i18next";
 
-import { ProBadge } from "@/components/ui/pro-badge";
-import { useIsPro } from "@/lib/edition";
-import { isAdvancedExpression } from "@/lib/expr/advanced";
-
 export type PreviewState =
   | { kind: "ok"; display: string }
   | { kind: "parseError"; message: string };
@@ -44,18 +40,8 @@ interface ExpressionPreviewProps {
 
 export function ExpressionPreview({ expr }: ExpressionPreviewProps) {
   const { t } = useTranslation();
-  const pro = useIsPro();
   const state = computeExpressionPreview(expr);
   if (state === null) return null;
-  // Free jar: no evaluated value for an advanced expression (Pro help); it still runs in game.
-  if (state.kind === "ok" && !pro && isAdvancedExpression(expr)) {
-    return (
-      <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-mut)]">
-        <ProBadge />
-        {t("edition.advancedExpression")}
-      </div>
-    );
-  }
   if (state.kind === "parseError") {
     const { key, params } = formatParseError(state.message);
     return <div className="text-[11px] text-rose-300">{t(key, params)}</div>;

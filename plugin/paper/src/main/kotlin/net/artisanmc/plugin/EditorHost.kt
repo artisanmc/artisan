@@ -30,7 +30,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
     private val serverUuid get() = plugin.serverUuid
 
     val editorChannel by lazy { net.artisanmc.plugin.hub.EditorChannel(logger) }
-    /** The hub's own pack build (shadow mode); null on a leaf, in the free jar or without the editor. */
+    /** The hub's own pack build (shadow mode); null on a leaf or without the editor. */
     @Volatile private var packBuilder: net.artisanmc.plugin.hub.PackBuilder? = null
     private var packBuilderListens = false
 
@@ -152,10 +152,9 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
                 editorSessions.onPermissions(grants::permissionsChanged)
                 logger.info("[Artisan] MCP endpoint enabled at /mcp")
             } else null
-            val edition = net.artisanmc.plugin.hub.Edition.bundled(plugin.javaClass.classLoader)
-            // The hub builds each server's packs after its reload: the Bedrock one is applied (every
-            // edition), the Java one only compared with the editor's (shadow mode, Pro).
-            val packBuilder = net.artisanmc.plugin.hub.PackBuilder(servers, data.loaded, logger, java = edition.pro, bedrock = bedrockPacks)
+            // The hub builds each server's packs after its reload: the Bedrock one is applied, the Java
+            // one only compared with the editor's (shadow mode).
+            val packBuilder = net.artisanmc.plugin.hub.PackBuilder(servers, data.loaded, logger, bedrock = bedrockPacks)
             this.packBuilder = packBuilder
             if (!packBuilderListens) {
                 packBuilderListens = true
@@ -164,7 +163,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val router = net.artisanmc.plugin.hub.EditorApi.router(
                 servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts, bedrockPacks, { tunnel },
                 mcp = mcp, ai = web.ai, aiSettings = suite.aiSettingsStore(), aiConversations = suite.aiConversationStore(), version = description.version, online = editorChannel::online, packCdn = packCdn,
-                edition = edition, packBuilder = packBuilder,
+                packBuilder = packBuilder,
             )
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
                 if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) null

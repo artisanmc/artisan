@@ -66,9 +66,6 @@ tasks.processResources {
 
 tasks.shadowJar {
     archiveBaseName.set("artisan-plugin")
-    // The free jar sits next to the Pro one: `artisan-plugin-<v>-free.jar`. The Pro jar keeps the
-    // historical `-all` name the deploy task and docker setup use.
-    if (rootProject.extra["artisanEdition"] == "free") archiveClassifier.set("free")
     // NO `relocate("kotlin", …)`: it breaks the runtime. kotlin-reflect (pulled in by
     // jackson-module-kotlin, which reads our data classes) resolves built-ins BY STRING
     // NAME from .kotlin_builtins files the relocator does not rewrite: it looks for
@@ -114,9 +111,9 @@ val deploy by tasks.registering(Exec::class) {
     commandLine("docker", "compose", "restart", "minecraft")
 }
 
-// Publication of the free jar on a `v*` tag (.github/workflows/release-jars.yml): the workflow
-// passes the jar it built and checked as `-PreleaseJar`, so what goes out is exactly that file;
-// nothing is rebuilt here. The Pro jar never goes to Modrinth or Hangar (docs/architecture/editions.md).
+// Publication of the jar on a `v*` tag (.github/workflows/release-jars.yml): the workflow passes
+// the jar it built and checked as `-PreleaseJar`, so what goes out is exactly that file; nothing is
+// rebuilt here.
 // Tokens, project ids and notes come from the environment (deploy/README.md, "Releasing the
 // plugin"). A version with a suffix (`2.0.0-beta.1`) goes out as a beta on Modrinth and on
 // Hangar's Snapshot channel. Paper 1.21 and newer; 26.2 is the dev server (docker-compose.yml).
