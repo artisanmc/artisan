@@ -39,13 +39,13 @@ class AiRoutes(private val setup: AiSetup) {
             val project = body?.path("project")?.asText("")?.takeIf { it.isNotBlank() }?.take(200)
             val server = body?.path("server")?.asText("")?.takeIf { it.isNotBlank() }
             if (server != null && !SERVER_ID.matches(server)) return@on call.error(422, "invalid_input", "server")
-            call.json(summary(assistant.start(call.session!!, project, server)), 201)
+            call.json(summary(assistant.start(call.session!!, project, server).summary()), 201)
         }
         router.on("GET", "$CONVERSATIONS/:conversation", EDIT) { call ->
             val assistant = setup.assistant() ?: return@on call.error(404, "not_found")
             val conversation = assistant.get(call.session!!, call.params.getValue("conversation")) ?: return@on call.error(404, "not_found")
             val after = call.query("after")?.toIntOrNull() ?: 0
-            call.json(summary(conversation) + ("events" to conversation.after(after).map { mapOf("seq" to it.seq, "type" to it.type) + it.data }))
+            call.json(summary(conversation.summary()) + ("events" to conversation.after(after).map { mapOf("seq" to it.seq, "type" to it.type) + it.data }))
         }
         router.on("POST", "$CONVERSATIONS/:conversation/messages", EDIT) { call ->
             val assistant = setup.assistant() ?: return@on call.error(404, "not_found")
@@ -126,8 +126,8 @@ class AiRoutes(private val setup: AiSetup) {
         return uri.scheme in setOf("https", "http") && !uri.host.isNullOrBlank() && uri.userInfo == null && uri.query == null && uri.fragment == null
     }
 
-    private fun summary(c: AiAssistant.Conversation) = mapOf(
-        "id" to c.id, "project" to c.project, "server" to c.server, "title" to c.title(), "running" to c.running,
+    private fun summary(c: AiAssistant.Summary) = mapOf(
+        "id" to c.id, "project" to c.project, "server" to c.server, "title" to c.title, "running" to c.running,
         "createdAt" to c.createdAt.toString(), "lastActive" to c.lastActive.toString(),
         "inputTokens" to c.inputTokens, "outputTokens" to c.outputTokens,
     )

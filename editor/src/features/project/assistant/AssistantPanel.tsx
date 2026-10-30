@@ -265,7 +265,12 @@ export function EventLine({ event }: { event: AiEvent }) {
 
 function ToolLine({ event }: { event: Extract<AiEvent, { type: "tool" }> }) {
   const { t } = useTranslation();
-  const label = t(`ai.tools.${event.name}`, { path: event.path ?? "", defaultValue: event.name });
+  const label = t(`ai.tools.${event.name}`, {
+    path: event.path ?? "",
+    // A module's folder: the Project id after its server's.
+    module: event.project?.slice(event.project.indexOf(".") + 1) ?? "",
+    defaultValue: event.name,
+  });
   return (
     <div className="flex flex-col gap-1.5">
       <div

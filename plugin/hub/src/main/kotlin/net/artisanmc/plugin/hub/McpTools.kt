@@ -24,8 +24,8 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
     val tools: List<Tool> = listOf(
         Tool(
             "artisan_overview", "Artisan overview",
-            "Start here. Lists the Minecraft servers of this Artisan network, their Projects, and the Document kinds each server " +
-                "understands (menus, commands, dialogs, triggers, module kinds). Explains the workflow: start_draft, then write_document; " +
+            "Start here. Lists the Minecraft servers of this Artisan network, their Projects (the player calls them modules), and the " +
+                "Document kinds each server understands (menus, commands, dialogs, triggers, add-on kinds). Explains the workflow: start_draft, then write_document; " +
                 "the player reviews the draft and deploys it, in the Artisan editor or, when they allowed this app to, through draft_publish.",
             schema(), readOnly = true, ::overview,
         ),
@@ -60,6 +60,18 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
                 "sources, translations, commands and permissions, images and titles, add-on development.",
             schema("page" to string("Optional: a page path from the list, e.g. `editor/expressions`."), required = emptyList()),
             readOnly = true, ::readDocs,
+        ),
+        Tool(
+            "create_module", "Create a module",
+            "Creates a new, empty module on a server: a folder of Documents, which the player sees as a module in the editor (these " +
+                "tools call it a Project). Only when the player asks for a new module; to add to an existing one, write into it. Nothing " +
+                "reaches players until a draft of it is deployed: next, start_draft on its id, `<server id>.<name>`.",
+            schema(
+                "server" to string("A server id from artisan_overview."),
+                "name" to string("The module's folder name: letters, digits, `_` and `-`, starting with a letter or a digit, e.g. `shop`."),
+                required = listOf("server", "name"),
+            ),
+            readOnly = false, ::createModule, requires = EditorPermissions.PUBLISH,
         ),
         Tool(
             "start_draft", "Start a draft",
@@ -119,17 +131,22 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
     fun find(name: String): Tool? = tools.firstOrNull { it.name == name }
 
     /** The tools [principal] may call: those needing a permission it lacks are not offered. */
-    fun available(principal: McpPrincipal): List<Tool> = tools.filter { it.requires == null || principal.can(it.requires) }
+    fun available(principal: McpPrincipal): List<Tool> =
+        tools.filter { (it.requires == null || principal.can(it.requires)) && (!it.destructive || principal.canDeploy) }
 
-    /** The tools of a principal that never deploys: the editor's assistant. */
-    val draftOnly: List<Tool> get() = tools.filter { it.requires != EditorPermissions.PUBLISH }
+    /**
+     * The tools of a principal that never deploys: the editor's assistant. It may create an empty module
+     * (`create_module`, the player's own publish permission): nothing in it runs before a deployed draft.
+     */
+    val draftOnly: List<Tool> get() = tools.filter { !it.destructive }
 
     /** A tool call's answer as a model reads it: the MCP endpoint and the editor's assistant both hand it on. */
     class Outcome(val body: Any?, val error: Boolean)
 
     fun invoke(principal: McpPrincipal, tool: Tool, args: JsonNode): Outcome = try {
+        if (tool.destructive && !principal.canDeploy) throw McpRefusal("forbidden", McpProjects.NOT_ALLOWED)
         if (tool.requires != null && !principal.can(tool.requires))
-            throw McpRefusal("forbidden", if (tool.requires == EditorPermissions.PUBLISH) McpProjects.NOT_ALLOWED else "The player lacks ${tool.requires}.")
+            throw McpRefusal("forbidden", if (tool.requires == EditorPermissions.PUBLISH) "The player lacks artisan.editor.publish." else "The player lacks ${tool.requires}.")
         when (val out = tool.run(principal, args)) {
             is Refused -> Outcome(out.body, error = true)
             else -> Outcome(out, error = false)
@@ -151,21 +168,27 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
                 put("projects", folders?.map { ProjectRef.id(server.id, it) } ?: emptyList<String>())
                 listed.exceptionOrNull()?.let { put("projects_unavailable", it.message) }
                 put("document_kinds", announcement?.documentKinds?.map { mapOf("kind" to it["kind"], "dir" to it["dir"], "schema" to (it["schema_versions"] as? List<*>)?.firstOrNull()) } ?: emptyList<Any>())
-                put("modules", announcement?.modules?.mapNotNull { it["id"] } ?: emptyList<Any>())
+                // The plugins that extend Artisan on this server (Java add-ons, `addons` so the player's modules, the Projects, keep the word).
+                put("addons", announcement?.modules?.mapNotNull { it["id"] } ?: emptyList<Any>())
             }
         }
         return mapOf(
             "player" to principal.playerName,
             "can_write_drafts" to principal.can(EditorPermissions.EDIT),
-            "can_deploy" to principal.can(EditorPermissions.PUBLISH),
+            "can_deploy" to principal.canDeploy,
+            "can_create_modules" to principal.can(EditorPermissions.PUBLISH),
             "servers" to servers,
             "workflow" to listOfNotNull(
-                "1. Pick a Project. Read what exists with list_documents and read_document.",
+                "1. Pick a Project (the player calls it a module). Read what exists with list_documents and read_document. " +
+                    "When the player asks for a new module, create_module makes it" +
+                    (if (principal.can(EditorPermissions.PUBLISH)) "." else ": this player may not create modules, they do it in the editor (New module)."),
                 "2. Before writing a kind you have not written yet, call get_kind_guide for it.",
                 "3. start_draft once per piece of work, then write_document for each file; fix what the checks report.",
-                if (principal.can(EditorPermissions.PUBLISH))
+                if (principal.canDeploy)
                     "4. Show the player the changes (draft_publish with dry_run: true), and deploy with draft_publish only once they say yes. " +
                         "Or tell them the draft's name: they can review and deploy it in the editor (Drafts)."
+                else if (!principal.deploys)
+                    "4. Tell the player the draft's name: they review and deploy it themselves, in the editor (Drafts, or Review and deploy)."
                 else
                     "4. Tell the player the draft's name: they open it in the editor (Drafts), review, and click Deploy. This app may not " +
                         "deploy: the player can allow it in Settings → AI apps.",
@@ -230,6 +253,20 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
         val path = args.path("page").asText("").ifBlank { return UserDocs.index() }
         val page = UserDocs.page(path) ?: throw McpRefusal("not_found", "No docs page '$path'. read_docs without page lists them.")
         return "# ${page.title}\n\n${page.body.trim()}\n"
+    }
+
+    private fun createModule(principal: McpPrincipal, args: JsonNode): Any {
+        val serverId = text(args, "server")
+        val server = projects.servers().firstOrNull { it.id == serverId }
+            ?: throw McpRefusal("unknown_server", "No server '$serverId'. Server ids are in artisan_overview.")
+        val name = text(args, "name").trim()
+        if (!MODULE_NAME.matches(name))
+            throw McpRefusal("invalid_name", "A module's folder name is letters, digits, `_` and `-`, starting with a letter or a digit (at most 128).")
+        val created = projects.create(principal, server, name)
+        return mapOf(
+            "project" to created.id, "created" to true,
+            "next" to "start_draft on ${created.id}, then write_document for each file; the player deploys the draft.",
+        )
     }
 
     private fun startDraft(principal: McpPrincipal, args: JsonNode): Any {
@@ -527,6 +564,8 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
         private const val VERSION_WAIT_MS = 5_000L
 
         private val PROJECT = string("A Project id, `<server id>.<folder>`, from artisan_overview.")
+        /** A Project folder name, as the server's `ProjectFolders` and the editor accept it. */
+        private val MODULE_NAME = Regex("[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
         private val PROJECT_OPTIONAL = string("Optional: a Project id, for an example from it.")
         private val DRAFT_OPTIONAL = string("Optional: a draft id from start_draft, to read the draft instead of what is deployed.")
         private val PATH = string("A path in the Project, e.g. `menus/shop.yml` or `lang/en.yml`.")

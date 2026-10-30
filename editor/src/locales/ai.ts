@@ -3,7 +3,7 @@ export const aiEn = {
   open: "Assistant",
   title: "Assistant",
   intro:
-    "Describe what you want: a menu, a command, a change to a dialog. The assistant reads this project and writes a draft, each file checked by the server. You review it in Drafts and deploy it yourself.",
+    "Describe what you want: a menu, a command, a change to a dialog. The assistant reads this module and writes a draft, each file checked by the server. You review it in Drafts and deploy it yourself.",
   billing: "Runs on the model {{model}}, with the server's API key: each message is billed to it.",
   placeholder: "Ask the assistant…",
   send: "Send",
@@ -21,14 +21,14 @@ export const aiEn = {
   expandHint: "Open this conversation in the server's Assistant tab",
   page: {
     intro:
-      "Describe what you want: a menu, a command, a change across several projects. The assistant reads this server's projects and writes drafts, each file checked by the server. Each file it writes shows on the right; you review and deploy them yourself.",
+      "Describe what you want: a menu, a command, a change across several modules, a new module. The assistant reads this server's modules and writes drafts, each file checked by the server. Each file it writes shows on the right; you review and deploy them yourself.",
     conversations: "Conversations",
     newConversation: "New conversation",
     none: "No conversation yet.",
     untitled: "New conversation",
     answering: "Answering…",
     otherServer: "Another server",
-    memoryNote: "The server keeps conversations in memory: a restart ends them, their drafts stay.",
+    keptNote: "Conversations are kept 30 days after their last message, through restarts.",
     loadFailed: "The conversations could not be read.",
     files: "Files",
     noFiles: "The files the assistant writes show here, one card per file.",
@@ -47,7 +47,8 @@ export const aiEn = {
     draft: "Draft “{{name}}”",
   },
   tools: {
-    artisan_overview: "Looked at the servers and projects",
+    artisan_overview: "Looked at the servers and modules",
+    create_module: "Created the module {{module}}",
     list_documents: "Listed the documents",
     read_document: "Read {{path}}",
     get_kind_guide: "Read a document kind's guide",
@@ -59,6 +60,8 @@ export const aiEn = {
     ai_step_limit: "The assistant stopped after {{steps}} steps. Send a message to let it go on.",
     ai_output_limit: "The answer was cut: it was too long. Ask for less at a time.",
     ai_refused: "The model declined this request.",
+    ai_interrupted:
+      "The server restarted during this answer. Send a message to let the assistant go on.",
   },
   errors: {
     ai_key_refused:
@@ -67,8 +70,7 @@ export const aiEn = {
     ai_unreachable: "The server could not reach the model provider.",
     ai_provider_error: "The model provider returned an error. Try again.",
     ai_busy: "The assistant is still answering.",
-    not_found:
-      "This conversation ended (the server restarted). Your next message starts a new one.",
+    not_found: "This conversation is no longer on the server. Your next message starts a new one.",
     forbidden: "Talking to the assistant requires the artisan.editor.edit permission.",
     network_error: "The editor cannot reach the server.",
     unknown: "Something went wrong. Try again.",
@@ -122,7 +124,7 @@ export const aiFr: typeof aiEn = {
   open: "Assistant",
   title: "Assistant",
   intro:
-    "Décris ce que tu veux : un menu, une commande, une modification de dialogue. L’assistant lit ce projet et écrit un brouillon, chaque fichier vérifié par le serveur. Tu le relis dans Brouillons et tu le déploies toi-même.",
+    "Décris ce que tu veux : un menu, une commande, une modification de dialogue. L’assistant lit ce module et écrit un brouillon, chaque fichier vérifié par le serveur. Tu le relis dans Brouillons et tu le déploies toi-même.",
   billing:
     "Tourne sur le modèle {{model}}, avec la clé d’API du serveur : chaque message lui est facturé.",
   placeholder: "Demande à l’assistant…",
@@ -141,15 +143,15 @@ export const aiFr: typeof aiEn = {
   expandHint: "Ouvrir cette conversation dans l’onglet Assistant du serveur",
   page: {
     intro:
-      "Décris ce que tu veux : un menu, une commande, un changement sur plusieurs projets. L’assistant lit les projets de ce serveur et écrit des brouillons, chaque fichier vérifié par le serveur. Chaque fichier écrit s’affiche à droite ; tu les relis et tu les déploies toi-même.",
+      "Décris ce que tu veux : un menu, une commande, un changement sur plusieurs modules, un nouveau module. L’assistant lit les modules de ce serveur et écrit des brouillons, chaque fichier vérifié par le serveur. Chaque fichier écrit s’affiche à droite ; tu les relis et tu les déploies toi-même.",
     conversations: "Conversations",
     newConversation: "Nouvelle conversation",
     none: "Aucune conversation pour l’instant.",
     untitled: "Nouvelle conversation",
     answering: "Répond…",
     otherServer: "Un autre serveur",
-    memoryNote:
-      "Le serveur garde les conversations en mémoire : un redémarrage les termine, leurs brouillons restent.",
+    keptNote:
+      "Les conversations restent 30 jours après leur dernier message, redémarrages compris.",
     loadFailed: "Les conversations n’ont pas pu être lues.",
     files: "Fichiers",
     noFiles: "Les fichiers que l’assistant écrit s’affichent ici, une carte par fichier.",
@@ -168,7 +170,8 @@ export const aiFr: typeof aiEn = {
     draft: "Brouillon « {{name}} »",
   },
   tools: {
-    artisan_overview: "A regardé les serveurs et les projets",
+    artisan_overview: "A regardé les serveurs et les modules",
+    create_module: "A créé le module {{module}}",
     list_documents: "A listé les documents",
     read_document: "A lu {{path}}",
     get_kind_guide: "A lu le guide d’un type de document",
@@ -181,6 +184,8 @@ export const aiFr: typeof aiEn = {
       "L’assistant s’est arrêté après {{steps}} étapes. Envoie un message pour qu’il continue.",
     ai_output_limit: "La réponse a été coupée : elle était trop longue. Demande moins à la fois.",
     ai_refused: "Le modèle a décliné cette demande.",
+    ai_interrupted:
+      "Le serveur a redémarré pendant cette réponse. Envoie un message pour que l’assistant reprenne.",
   },
   errors: {
     ai_key_refused:
@@ -190,7 +195,7 @@ export const aiFr: typeof aiEn = {
     ai_provider_error: "Le fournisseur du modèle a renvoyé une erreur. Réessaie.",
     ai_busy: "L’assistant répond encore.",
     not_found:
-      "Cette conversation est terminée (le serveur a redémarré). Ton prochain message en commence une nouvelle.",
+      "Cette conversation n’est plus sur le serveur. Ton prochain message en commence une nouvelle.",
     forbidden: "Parler à l’assistant demande la permission artisan.editor.edit.",
     network_error: "L’éditeur n’arrive pas à joindre le serveur.",
     unknown: "Quelque chose s’est mal passé. Réessaie.",

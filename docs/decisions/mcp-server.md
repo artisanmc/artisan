@@ -107,6 +107,15 @@ deployed.
    - **The editor's assistant stays draft only** (ADR `editor-assistant`): the player is in the
      editor, next to Deploy and its review; deploying from the conversation would skip that review
      to save one click. It is offered no deploying tool.
+   - **Creating a module** (2026-10-30). `create_module(server, name)` makes an empty Project
+     folder (`project_create`, as the editor's "New module"), for a principal with
+     `artisan.editor.publish`, like the editor's route. Not destructive: the folder holds nothing,
+     and nothing in it runs before a draft of it is deployed. Offered to a client the player let
+     deploy, and to the editor's assistant when the player holds `artisan.editor.publish`: the
+     assistant's principal keeps that permission with `deploys = false` (`McpPrincipal.canDeploy`),
+     so the deploying tools stay refused, and it resolves only the non-destructive tools
+     (`McpTools.draftOnly`). The tools, `artisan_overview` and the instructions tell the model the
+     player calls a Project a module (the overview's add-on list is `addons`).
    - **Alternatives set aside:** a single "write and deploy" tool (no point where the player sees
      the whole change); a confirmation step in Artisan (a second screen for a yes the client already
      asked, and a link to follow from a chat); a scope in the OAuth sense (clients ask for scopes at

@@ -89,7 +89,8 @@ describe("assistant", () => {
           problems: 2,
         },
         { seq: 4, type: "text", text: "Le brouillon est prêt." },
-        { seq: 5, type: "done", inputTokens: 10, outputTokens: 5 },
+        { seq: 5, type: "tool", name: "create_module", project: "u-local.ia", ok: true },
+        { seq: 6, type: "done", inputTokens: 10, outputTokens: 5 },
       ]),
     );
     render(<Assistant />);
@@ -112,6 +113,7 @@ describe("assistant", () => {
     expect(screen.getByText("A lu menus/shop.yml")).toBeTruthy();
     expect(screen.getByText("A écrit menus/vip.yml")).toBeTruthy();
     expect(screen.getByText("· 2 problèmes")).toBeTruthy();
+    expect(screen.getByText("A créé le module ia")).toBeTruthy();
 
     const opened = vi.fn();
     window.addEventListener(OPEN_DRAFTS, opened);

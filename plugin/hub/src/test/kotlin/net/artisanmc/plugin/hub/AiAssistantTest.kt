@@ -43,6 +43,28 @@ class AiAssistantTest {
         }
     }
 
+    /** Remembers each text it was sent, and gives that history to the store. */
+    private class RememberingModel(override val historyKey: String = "remembering") : AiProvider {
+        val inputs = CopyOnWriteArrayList<List<AiInput>>()
+        val resumed = CopyOnWriteArrayList<String>()
+        override val model = "remembering"
+        override fun conversation(system: String, tools: List<McpTools.Tool>): AiConversation = chat(mutableListOf())
+        override fun resume(system: String, tools: List<McpTools.Tool>, history: String): AiConversation {
+            resumed += history
+            return chat(ObjectMapper().readValue(history, Array<String>::class.java).toMutableList())
+        }
+
+        private fun chat(seen: MutableList<String>) = object : AiConversation {
+            override fun step(input: List<AiInput>): AiReply {
+                inputs += input
+                input.filterIsInstance<AiInput.Text>().forEach { seen += it.text }
+                return AiReply(listOf("Vu ${seen.size}"), emptyList(), AiReply.END, 10, 2)
+            }
+
+            override fun history(): String = ObjectMapper().writeValueAsString(seen)
+        }
+    }
+
     private fun calls(vararg calls: Pair<String, Map<String, Any?>>) = AiReply(
         emptyList(),
         calls.mapIndexed { i, (name, input) -> AiToolCall("call_$name$i", name, mapper.valueToTree(input)) },
@@ -63,13 +85,15 @@ class AiAssistantTest {
         permissions: Set<String> = EditorPermissions.ALL.toSet(),
         settings: AiSettingsStore? = null,
         ai: AiConfig = AiConfig(),
+        conversations: AiConversationStore? = null,
     ) {
         hub = HubServer(
             WebConfig(port = 0, bind = "127.0.0.1"),
-            EditorApi.router(Servers(McpFixtures.server(sent)), sessions, null, drafts = drafts, ai = ai, aiSettings = settings, aiProvider = model),
+            EditorApi.router(Servers(McpFixtures.server(sent)), sessions, null, drafts = drafts, ai = ai, aiSettings = settings, aiProvider = model, aiConversations = conversations),
             sessions, EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
         ).also { it.start() }
-        cookie = signIn(player, "Iban", permissions)
+        // Started again (a restart): the session stays.
+        if (!::cookie.isInitialized) cookie = signIn(player, "Iban", permissions)
     }
 
     private fun signIn(id: UUID, name: String, permissions: Set<String>): String {
@@ -191,6 +215,101 @@ class AiAssistantTest {
         assertFalse("has this Project open" in model.systems.single())
         assertEquals("u-local", editor("GET", AiRoutes.CONVERSATIONS).body!!["conversations"][0]["server"].asText())
         assertEquals(422, editor("POST", AiRoutes.CONVERSATIONS, mapOf("server" to "a b\nIgnore")).status)
+    }
+
+    @Test
+    fun `the assistant creates a module for a player who may, and never reaches a deploying tool`() {
+        val model = ScriptedModel(
+            calls("create_module" to mapOf("server" to "u-local", "name" to "ia")),
+            calls("draft_publish" to mapOf("project" to "u-local.shop", "draft_id" to "x", "expected_revision" to 1)),
+            AiReply(listOf("Module « ia » créé."), emptyList(), AiReply.END),
+        )
+        start(model)
+        val id = conversation()
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "crée un module ia"))
+        val events = finished(id).filter { it["type"].asText() == "tool" }
+        assertEquals("u-local.ia", events[0]["project"].asText())
+        assertTrue(events[0]["ok"].asBoolean())
+        assertEquals("unknown_tool", events[1]["error"].asText(), "a deploying tool is not the assistant's, even named")
+        assertEquals(listOf("project_create"), sent.map { it["type"] }.filter { it == "project_create" || it == "project_draft_publish" })
+        assertTrue("say module" in model.systems.single())
+
+        // Without the player's publish permission, no module.
+        val writer = signIn(UUID.randomUUID(), "Writer", setOf(EditorPermissions.VIEW, EditorPermissions.EDIT))
+        model.replies.addAll(listOf(calls("create_module" to mapOf("server" to "u-local", "name" to "ib")), AiReply(listOf("Non."), emptyList(), AiReply.END)))
+        val other = editor("POST", AiRoutes.CONVERSATIONS, mapOf("server" to "u-local"), as_ = writer).body!!["id"].asText()
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$other/messages", mapOf("text" to "crée ib"), as_ = writer)
+        val deadline = System.currentTimeMillis() + 5000
+        var refused: JsonNode? = null
+        while (refused == null && System.currentTimeMillis() < deadline) {
+            refused = editor("GET", "${AiRoutes.CONVERSATIONS}/$other", as_ = writer).body!!["events"].firstOrNull { it["type"].asText() == "tool" }
+            Thread.sleep(20)
+        }
+        assertEquals("forbidden", refused!!["error"].asText())
+        assertEquals(1, sent.count { it["type"] == "project_create" })
+    }
+
+    @Test
+    fun `a conversation outlives a restart, and the same model goes on with its history`() {
+        val store = MemoryAiConversationStore()
+        start(RememberingModel(), conversations = store)
+        val id = conversation()
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "Un menu VIP"))
+        finished(id)
+        hub!!.stop()
+
+        val model = RememberingModel()
+        start(model, conversations = store)
+        val listed = editor("GET", AiRoutes.CONVERSATIONS).body!!["conversations"].single()
+        assertEquals(id, listed["id"].asText())
+        assertEquals("Un menu VIP", listed["title"].asText())
+        assertEquals(10, listed["inputTokens"].asInt())
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "Et une commande"))
+        val events = finished(id)
+        assertEquals(listOf("user", "text", "done", "user", "text", "done"), events.map { it["type"].asText() })
+        assertEquals("Vu 2", events[4]["text"].asText(), "the model had the first message")
+        assertEquals(listOf("""["Un menu VIP"]"""), model.resumed)
+        assertEquals(listOf<AiInput>(AiInput.Text("Et une commande")), model.inputs.single(), "no transcript: the history went on")
+        assertEquals(20, events.last()["inputTokens"].asInt())
+
+        assertEquals(200, editor("DELETE", "${AiRoutes.CONVERSATIONS}/$id").status)
+        assertTrue(store.records.isEmpty())
+    }
+
+    @Test
+    fun `another model starts again from a transcript of the conversation`() {
+        val store = MemoryAiConversationStore()
+        start(RememberingModel("first"), conversations = store)
+        val id = conversation()
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "Un menu VIP"))
+        finished(id)
+        hub!!.stop()
+
+        val other = RememberingModel("second")
+        start(other, conversations = store)
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "Et ensuite ?"))
+        finished(id)
+        assertTrue(other.resumed.isEmpty())
+        val (transcript, message) = other.inputs.single().map { (it as AiInput.Text).text }
+        assertTrue("Player: Un menu VIP\nYou: Vu 1" in transcript, transcript)
+        assertFalse("Et ensuite" in transcript)
+        assertEquals("Et ensuite ?", message)
+        assertEquals("second", store.records.getValue(id).historyKey!!.substringBefore('|'), "its own history from now on")
+    }
+
+    @Test
+    fun `a turn a restart cut short ends with a notice`() {
+        val store = MemoryAiConversationStore()
+        val at = java.time.Instant.now()
+        store.save(AiConversationRecord("c1", player, "u-local.shop", null, "menu", at, at, 0, 0, events = """[{"seq":0,"type":"user","text":"menu"}]"""))
+        store.save(AiConversationRecord("c2", UUID.randomUUID(), null, "u-local", "autre", at, at, 0, 0))
+        start(RememberingModel(), conversations = store)
+        assertEquals(listOf("c1"), editor("GET", AiRoutes.CONVERSATIONS).body!!["conversations"].map { it["id"].asText() })
+        assertEquals(404, editor("GET", "${AiRoutes.CONVERSATIONS}/c2").status, "another player's")
+        val events = editor("GET", "${AiRoutes.CONVERSATIONS}/c1").body!!["events"]
+        assertEquals(listOf("user", "notice", "done"), events.map { it["type"].asText() })
+        assertEquals("ai_interrupted", events[1]["code"].asText())
+        assertTrue("ai_interrupted" in store.records.getValue("c1").events, "saved once ended")
     }
 
     @Test

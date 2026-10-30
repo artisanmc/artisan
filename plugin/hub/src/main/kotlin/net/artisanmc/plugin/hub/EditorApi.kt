@@ -16,6 +16,8 @@ object EditorApi {
         aiSettings: AiSettingsStore? = null,
         /** The model the assistant talks to; null: the one its settings name. */
         aiProvider: AiProvider? = null,
+        /** Where the assistant's conversations are kept; null: in memory, a restart ends them. */
+        aiConversations: AiConversationStore? = null,
         version: String = "",
         /** The public ids of the sessions with an editor tab open here ([EditorChannel.online]). */
         online: () -> Set<String> = { emptySet() },
@@ -38,14 +40,14 @@ object EditorApi {
             OAuthRoutes(mcp).register(router)
             McpRoutes(tools, mcp, version, logger).register(router)
         }
-        AiRoutes(aiSetup(ai, aiSettings, aiProvider, tools, logger)).register(router)
+        AiRoutes(aiSetup(ai, aiSettings, aiProvider, tools, logger, aiConversations)).register(router)
         return router
     }
 
-    private fun aiSetup(ai: AiConfig, settings: AiSettingsStore?, given: AiProvider?, tools: McpTools, logger: Logger?): AiSetup =
+    private fun aiSetup(ai: AiConfig, settings: AiSettingsStore?, given: AiProvider?, tools: McpTools, logger: Logger?, conversations: AiConversationStore?): AiSetup =
         when {
-            given == null -> AiSetup(ai, settings, tools, logger)
-            settings == null -> AiSetup(AiConfig(provider = "given", apiKey = "given", model = given.model, maxSteps = ai.maxSteps), null, tools, logger, providerFor = { given })
-            else -> AiSetup(ai, settings, tools, logger, providerFor = { given })
+            given == null -> AiSetup(ai, settings, tools, logger, conversations = conversations)
+            settings == null -> AiSetup(AiConfig(provider = "given", apiKey = "given", model = given.model, maxSteps = ai.maxSteps), null, tools, logger, providerFor = { given }, conversations = conversations)
+            else -> AiSetup(ai, settings, tools, logger, providerFor = { given }, conversations = conversations)
         }
 }
