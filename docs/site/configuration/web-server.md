@@ -178,7 +178,8 @@ With `web.mcp: true` in `environment.yml`, the editor's address also answers the
   player says yes, with the same checks as the editor's Deploy: a draft changed since, or server
   files changed since it started, are not deployed, and a file the server would not load refuses
   the whole deploy. Each deploy is a Version marked "<player> via <client>" in the history; the
-  client can roll a Project back to an earlier Version, as Restore does in the editor.
+  client can roll a Project back to an earlier Version, as Restore does in the editor. A client allowed to deploy can also create a new, empty module when
+  you ask for one; what goes in it still waits for a deployed draft.
 - **Revoking**: Settings → AI apps lists the connected clients; Disconnect cuts one off at its
   next call. Losing `artisan.editor.edit` in game cuts every client of that player; losing
   `artisan.editor.view` removes them.
@@ -198,8 +199,9 @@ want (a menu, a command, a change to a dialog), and the assistant does it in a d
 
 - It runs on **your** model account: the key pays for every message of every player who
   uses it. The key stays on the hub; the browser never sees it.
-- It uses the same tools as [AI clients](#ai-clients-mcp-preview): it reads the Projects, starts
-  a draft and writes files into it, each file checked by the Project's server first. It never
+- It uses the same tools as [AI clients](#ai-clients-mcp-preview): it reads the modules, starts
+  a draft and writes files into it, each file checked by the module's server first. Asked for a
+  new module, it creates it (empty) if you hold `artisan.editor.publish`. It never
   deploys, even for a player who let an AI client deploy: the panel offers to open the draft in
   Drafts, where the player reviews it and deploys.
 - The server page has an **Assistant** tab: the conversation in the middle, your conversations on

@@ -94,7 +94,8 @@ class AiAssistant(
             conversation.add(USER, "text" to text)
         }
         // Read when the player writes, like a session: losing `edit` stops the next message.
-        val principal = McpPrincipal(session.playerId, session.playerName, session.permissions - EditorPermissions.PUBLISH - EditorPermissions.CONFIG, clientName = CLIENT)
+        // Publish stays for create_module (an empty folder); the tools that deploy are not the assistant's ([call]).
+        val principal = McpPrincipal(session.playerId, session.playerName, session.permissions - EditorPermissions.CONFIG, clientName = CLIENT, deploys = false)
         executor.execute { run(conversation, principal, text) }
         return Sent.Accepted
     }
@@ -133,7 +134,8 @@ class AiAssistant(
 
     /** Runs one tool call, records it for the editor, and returns its result for the model. */
     private fun call(conversation: Conversation, principal: McpPrincipal, call: AiToolCall): AiInput.ToolResult {
-        val tool = tools.find(call.name)
+        // Only the draft-only tools: a deploying tool named by the model is unknown here.
+        val tool = tools.draftOnly.firstOrNull { it.name == call.name }
         val outcome = if (tool == null) McpTools.Outcome(mapOf("error" to "unknown_tool", "message" to "No tool '${call.name}'."), error = true)
         else {
             if (!tool.readOnly) logger?.info("[Artisan] Assistant for ${principal.playerName}: ${call.name} ${call.input.path("path").asText("")}".trimEnd())
@@ -143,7 +145,7 @@ class AiAssistant(
         conversation.add(
             TOOL,
             "name" to call.name,
-            "project" to call.input.text("project"),
+            "project" to (call.input.text("project") ?: body?.get("project")?.takeIf { !outcome.error }),
             "path" to call.input.text("path"),
             "ok" to !outcome.error,
             "error" to body?.get("error")?.takeIf { outcome.error },
@@ -174,8 +176,8 @@ class AiAssistant(
         append("Answer in the player's language. Keep answers short: what you did, what to check, and the draft's name. ")
         append("When you have written a draft, tell the player to open Drafts (next to Deploy), review the changes, and deploy. ")
         append("Ask before large changes the player did not describe.")
-        if (server != null) append("\n\nThe player is working on the server `$server`: its Projects are the ids that start with `$server.`. Work in them unless asked otherwise; one piece of work may span several of its Projects, one draft each.")
-        if (project != null) append("\n\nThe player has this Project open: $project. Work in it unless asked otherwise.")
+        if (server != null) append("\n\nThe player is working on the server `$server`: its Projects (modules) are the ids that start with `$server.`. Work in them unless asked otherwise; one piece of work may span several of its modules, one draft each. A new module: create_module on `$server`, only when the player asks for one.")
+        if (project != null) append("\n\nThe player has this Project (module) open: $project. Work in it unless asked otherwise.")
     }
 
     companion object {

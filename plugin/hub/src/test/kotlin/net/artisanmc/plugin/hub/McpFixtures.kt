@@ -16,6 +16,7 @@ object McpFixtures {
             sent += message
             val reply = when (message["type"]) {
                 "project_list" -> mapOf("ok" to true, "project_ids" to listOf("shop"))
+                "project_create" -> if (message["project_id"] == "shop") mapOf("ok" to false, "error" to "project_exists") else mapOf("ok" to true)
                 "project_read" -> mapOf(
                     "ok" to true, "hash" to "h1",
                     "files" to (history?.versions?.last()?.files ?: mapOf("menus/shop.yml" to "schema: menu/v1\n", "lang/en.yml" to "a: b\n"))

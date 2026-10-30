@@ -194,6 +194,38 @@ class AiAssistantTest {
     }
 
     @Test
+    fun `the assistant creates a module for a player who may, and never reaches a deploying tool`() {
+        val model = ScriptedModel(
+            calls("create_module" to mapOf("server" to "u-local", "name" to "ia")),
+            calls("draft_publish" to mapOf("project" to "u-local.shop", "draft_id" to "x", "expected_revision" to 1)),
+            AiReply(listOf("Module « ia » créé."), emptyList(), AiReply.END),
+        )
+        start(model)
+        val id = conversation()
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "crée un module ia"))
+        val events = finished(id).filter { it["type"].asText() == "tool" }
+        assertEquals("u-local.ia", events[0]["project"].asText())
+        assertTrue(events[0]["ok"].asBoolean())
+        assertEquals("unknown_tool", events[1]["error"].asText(), "a deploying tool is not the assistant's, even named")
+        assertEquals(listOf("project_create"), sent.map { it["type"] }.filter { it == "project_create" || it == "project_draft_publish" })
+        assertTrue("say module" in model.systems.single())
+
+        // Without the player's publish permission, no module.
+        val writer = signIn(UUID.randomUUID(), "Writer", setOf(EditorPermissions.VIEW, EditorPermissions.EDIT))
+        model.replies.addAll(listOf(calls("create_module" to mapOf("server" to "u-local", "name" to "ib")), AiReply(listOf("Non."), emptyList(), AiReply.END)))
+        val other = editor("POST", AiRoutes.CONVERSATIONS, mapOf("server" to "u-local"), as_ = writer).body!!["id"].asText()
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$other/messages", mapOf("text" to "crée ib"), as_ = writer)
+        val deadline = System.currentTimeMillis() + 5000
+        var refused: JsonNode? = null
+        while (refused == null && System.currentTimeMillis() < deadline) {
+            refused = editor("GET", "${AiRoutes.CONVERSATIONS}/$other", as_ = writer).body!!["events"].firstOrNull { it["type"].asText() == "tool" }
+            Thread.sleep(20)
+        }
+        assertEquals("forbidden", refused!!["error"].asText())
+        assertEquals(1, sent.count { it["type"] == "project_create" })
+    }
+
+    @Test
     fun `a conversation is its player's own`() {
         start(ScriptedModel())
         val id = conversation()

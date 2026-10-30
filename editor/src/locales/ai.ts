@@ -3,7 +3,7 @@ export const aiEn = {
   open: "Assistant",
   title: "Assistant",
   intro:
-    "Describe what you want: a menu, a command, a change to a dialog. The assistant reads this project and writes a draft, each file checked by the server. You review it in Drafts and deploy it yourself.",
+    "Describe what you want: a menu, a command, a change to a dialog. The assistant reads this module and writes a draft, each file checked by the server. You review it in Drafts and deploy it yourself.",
   billing: "Runs on the model {{model}}, with the server's API key: each message is billed to it.",
   placeholder: "Ask the assistant…",
   send: "Send",
@@ -21,7 +21,7 @@ export const aiEn = {
   expandHint: "Open this conversation in the server's Assistant tab",
   page: {
     intro:
-      "Describe what you want: a menu, a command, a change across several projects. The assistant reads this server's projects and writes drafts, each file checked by the server. Each file it writes shows on the right; you review and deploy them yourself.",
+      "Describe what you want: a menu, a command, a change across several modules, a new module. The assistant reads this server's modules and writes drafts, each file checked by the server. Each file it writes shows on the right; you review and deploy them yourself.",
     conversations: "Conversations",
     newConversation: "New conversation",
     none: "No conversation yet.",
@@ -47,7 +47,8 @@ export const aiEn = {
     draft: "Draft “{{name}}”",
   },
   tools: {
-    artisan_overview: "Looked at the servers and projects",
+    artisan_overview: "Looked at the servers and modules",
+    create_module: "Created the module {{module}}",
     list_documents: "Listed the documents",
     read_document: "Read {{path}}",
     get_kind_guide: "Read a document kind's guide",
@@ -122,7 +123,7 @@ export const aiFr: typeof aiEn = {
   open: "Assistant",
   title: "Assistant",
   intro:
-    "Décris ce que tu veux : un menu, une commande, une modification de dialogue. L’assistant lit ce projet et écrit un brouillon, chaque fichier vérifié par le serveur. Tu le relis dans Brouillons et tu le déploies toi-même.",
+    "Décris ce que tu veux : un menu, une commande, une modification de dialogue. L’assistant lit ce module et écrit un brouillon, chaque fichier vérifié par le serveur. Tu le relis dans Brouillons et tu le déploies toi-même.",
   billing:
     "Tourne sur le modèle {{model}}, avec la clé d’API du serveur : chaque message lui est facturé.",
   placeholder: "Demande à l’assistant…",
@@ -141,7 +142,7 @@ export const aiFr: typeof aiEn = {
   expandHint: "Ouvrir cette conversation dans l’onglet Assistant du serveur",
   page: {
     intro:
-      "Décris ce que tu veux : un menu, une commande, un changement sur plusieurs projets. L’assistant lit les projets de ce serveur et écrit des brouillons, chaque fichier vérifié par le serveur. Chaque fichier écrit s’affiche à droite ; tu les relis et tu les déploies toi-même.",
+      "Décris ce que tu veux : un menu, une commande, un changement sur plusieurs modules, un nouveau module. L’assistant lit les modules de ce serveur et écrit des brouillons, chaque fichier vérifié par le serveur. Chaque fichier écrit s’affiche à droite ; tu les relis et tu les déploies toi-même.",
     conversations: "Conversations",
     newConversation: "Nouvelle conversation",
     none: "Aucune conversation pour l’instant.",
@@ -168,7 +169,8 @@ export const aiFr: typeof aiEn = {
     draft: "Brouillon « {{name}} »",
   },
   tools: {
-    artisan_overview: "A regardé les serveurs et les projets",
+    artisan_overview: "A regardé les serveurs et les modules",
+    create_module: "A créé le module {{module}}",
     list_documents: "A listé les documents",
     read_document: "A lu {{path}}",
     get_kind_guide: "A lu le guide d’un type de document",

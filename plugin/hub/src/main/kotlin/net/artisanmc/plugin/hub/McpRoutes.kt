@@ -143,7 +143,8 @@ class McpRoutes(
         const val INTERNAL_ERROR = -32603
 
         const val INSTRUCTIONS = "Artisan builds Minecraft menus, commands, dialogs and triggers from YAML Documents. " +
-            "Call artisan_overview first. You write into a private draft (start_draft, write_document); each file is checked by " +
+            "Documents live in Projects, one folder each on a server; the editor and the player call a Project a module: say module " +
+            "to them. Call artisan_overview first. You write into a private draft (start_draft, write_document); each file is checked by " +
             "the server before it enters the draft. Nothing reaches players before the draft is deployed: by the player in the " +
             "Artisan editor, or by you with draft_publish when the player allowed this app to deploy (artisan_overview's " +
             "can_deploy), and only after they said yes to the changes you showed them."

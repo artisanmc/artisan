@@ -59,7 +59,11 @@ export interface ServerProjects {
  * the item icons their menus draw: vanilla's and the server's custom items, read through its
  * first Project once all are loaded (the library is the server's, whichever Project asks).
  */
-export function useServerProjects(serverId: string): ServerProjects {
+export function useServerProjects(
+  serverId: string,
+  /** Changed: the listing is read again (a module was created meanwhile). */
+  reload = 0,
+): ServerProjects {
   const userId = useAuthStore((s) => s.currentUser?.id ?? "");
   const memoryKey = `${userId}|${serverId}`;
   const seen = seenByServer.get(memoryKey);
@@ -67,6 +71,7 @@ export function useServerProjects(serverId: string): ServerProjects {
   const [listing, setListing] = useState<ServerProjects["listing"]>(seen ? "ready" : "loading");
   const [results, setResults] = useState<Record<string, ProbeResult>>(seen?.results ?? {});
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `reload` only asks for another read
   useEffect(() => {
     let cancelled = false;
     // Already seen: what is on screen stays while the listing is read again.
@@ -100,7 +105,7 @@ export function useServerProjects(serverId: string): ServerProjects {
     return () => {
       cancelled = true;
     };
-  }, [serverId, memoryKey]);
+  }, [serverId, memoryKey, reload]);
 
   const onResult = useCallback(
     (loadRef: string, result: ProbeResult) => {

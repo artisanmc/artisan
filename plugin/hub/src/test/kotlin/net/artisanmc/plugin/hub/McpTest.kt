@@ -310,6 +310,24 @@ class McpTest {
     }
 
     @Test
+    fun `an app the player allowed creates an empty module, and only one with a valid new name`() {
+        val (draftOnly, _) = tokens()
+        assertFalse(rpc(draftOnly, "tools/list").body!!["result"]["tools"].any { it["name"].asText() == "create_module" })
+        assertFalse(tool(draftOnly, "artisan_overview")["structuredContent"]["can_create_modules"].asBoolean())
+
+        val (access, _) = tokens(publish = true)
+        val create = rpc(access, "tools/list").body!!["result"]["tools"].first { it["name"].asText() == "create_module" }
+        assertFalse(create["annotations"]["destructiveHint"].asBoolean())
+        val created = tool(access, "create_module", "server" to "u-local", "name" to "ia")["structuredContent"]
+        assertEquals("u-local.ia", created["project"].asText())
+        assertEquals("ia", sent.single { it["type"] == "project_create" }["project_id"])
+        assertEquals("project_exists", tool(access, "create_module", "server" to "u-local", "name" to "shop")["structuredContent"]["error"].asText())
+        assertEquals("invalid_name", tool(access, "create_module", "server" to "u-local", "name" to "../x")["structuredContent"]["error"].asText())
+        assertEquals("unknown_server", tool(access, "create_module", "server" to "nope", "name" to "x")["structuredContent"]["error"].asText())
+        assertEquals(2, sent.count { it["type"] == "project_create" })
+    }
+
+    @Test
     fun `an app is draft only unless the player allows it, and allowing takes the player's own publish`() {
         val (access, _) = tokens()
         val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI")["structuredContent"]["draft_id"].asText()

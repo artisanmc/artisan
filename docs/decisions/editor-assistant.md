@@ -25,6 +25,9 @@ than the hub. One single Artisan user at this date: the admin's key first.
    draft it creates is offered in the panel: "Open in Drafts". Since 2026-10-29 an MCP client
    the player allowed may deploy (ADR `mcp-server`, decision 9); the assistant keeps the
    draft-only tools (`McpTools.draftOnly`): the player is next to Deploy and its review.
+   Since 2026-10-30 it may also create an empty module (`create_module`) for a player who holds
+   `artisan.editor.publish`: its principal keeps that permission but never deploys
+   (`deploys = false`, ADR `mcp-server`, decision 9).
 3. **A provider behind an interface.** `AiProvider` / `AiConversation`: each provider
    keeps the history in its own types. First provider: Anthropic, through the official Java
    SDK (`com.anthropic:anthropic-java`, bundled without relocation: it loads classes by name; okhttp and Jackson shared, those relocated).

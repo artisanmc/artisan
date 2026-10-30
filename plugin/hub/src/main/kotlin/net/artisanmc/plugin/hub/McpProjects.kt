@@ -15,8 +15,16 @@ data class McpPrincipal(
     val permissions: Set<String>,
     val grantId: String? = null,
     val clientName: String? = null,
+    /**
+     * False for the editor's assistant: it keeps the player's publish permission for `create_module`
+     * (an empty folder) but never deploys, whatever the permissions say.
+     */
+    val deploys: Boolean = true,
 ) {
     fun can(permission: String) = permission in permissions
+
+    /** May deploy a draft or roll back a Version for the player. */
+    val canDeploy: Boolean get() = deploys && can(EditorPermissions.PUBLISH)
 }
 
 /** A refusal an MCP tool reports to the model as is: [code] from [ErrorStatus]'s list, [message] for it to act on. */
@@ -74,7 +82,7 @@ class McpProjects(
     fun draft(principal: McpPrincipal, project: ProjectRef, action: String, vararg fields: Pair<String, Any?>): Map<String, Any?> {
         require(action in DRAFT_ACTIONS) { "draft action '$action' is not one the MCP endpoint makes" }
         val publishing = action == "publish"
-        if (publishing && !principal.can(EditorPermissions.PUBLISH)) throw McpRefusal("forbidden", NOT_ALLOWED)
+        if (publishing && !principal.canDeploy) throw McpRefusal("forbidden", NOT_ALLOWED)
         val drafts = drafts ?: throw McpRefusal("database_unavailable", "Drafts need the suite database, which this server does not have open.")
         val message = mapOf(
             "type" to "project_draft_request",
@@ -92,6 +100,20 @@ class McpProjects(
         // The drafts answer with JSON nodes inside (a draft as stored): plain maps and lists for the tools.
         @Suppress("UNCHECKED_CAST")
         return Call.mapper.convertValue(reply.get(if (publishing) PUBLISH_TIMEOUT else timeoutSeconds, TimeUnit.SECONDS), Map::class.java) as Map<String, Any?>
+    }
+
+    /**
+     * A new, empty Project folder on [server] (`project_create`, as the editor's "New module"), for a
+     * principal that holds [EditorPermissions.PUBLISH], like the editor's route. It holds nothing:
+     * what goes in it reaches players only through a deployed draft.
+     */
+    fun create(principal: McpPrincipal, server: EditorServer, folder: String): ProjectRef {
+        if (!principal.can(EditorPermissions.PUBLISH)) throw McpRefusal("forbidden", "Creating a module takes the player's artisan.editor.publish.")
+        if (!server.online) throw McpRefusal("server_offline", "The server '${server.label}' is offline: a module cannot be created on it.")
+        if (ProtocolVersion.minor(server.protocolVersion) < ProtocolVersion.PROJECT_FOLDERS)
+            throw McpRefusal("plugin_update_required", "The server '${server.label}' runs an older Artisan that cannot create modules.")
+        refuseUnlessOk(request(server, mapOf("type" to "project_create", "project_id" to folder)))
+        return ProjectRef(server, folder)
     }
 
     /** The Project's Versions, newest first (`{id, createdAt, author, changed}`); null without the suite database. */

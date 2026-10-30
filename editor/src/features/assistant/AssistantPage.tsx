@@ -32,7 +32,11 @@ export function AssistantPage() {
   const { serverId } = useParams({ from: ROUTE });
   const status = useAiStatus();
   const { id, events, running, failure, send, reset } = useAssistant({ server: serverId });
-  const { projects, probes } = useServerProjects(serverId);
+  // A module the assistant created joins the listing: its cards name it and show its menus.
+  const created = events.filter(
+    (e) => e.type === "tool" && e.name === "create_module" && e.ok,
+  ).length;
+  const { projects, probes } = useServerProjects(serverId, created);
   const others = useOtherDrafts();
   const list = useConversationList(serverId, id, running);
 
