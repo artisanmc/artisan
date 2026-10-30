@@ -28,7 +28,7 @@ export const aiEn = {
     untitled: "New conversation",
     answering: "Answering…",
     otherServer: "Another server",
-    memoryNote: "The server keeps conversations in memory: a restart ends them, their drafts stay.",
+    keptNote: "Conversations are kept 30 days after their last message, through restarts.",
     loadFailed: "The conversations could not be read.",
     files: "Files",
     noFiles: "The files the assistant writes show here, one card per file.",
@@ -60,6 +60,8 @@ export const aiEn = {
     ai_step_limit: "The assistant stopped after {{steps}} steps. Send a message to let it go on.",
     ai_output_limit: "The answer was cut: it was too long. Ask for less at a time.",
     ai_refused: "The model declined this request.",
+    ai_interrupted:
+      "The server restarted during this answer. Send a message to let the assistant go on.",
   },
   errors: {
     ai_key_refused:
@@ -68,8 +70,7 @@ export const aiEn = {
     ai_unreachable: "The server could not reach the model provider.",
     ai_provider_error: "The model provider returned an error. Try again.",
     ai_busy: "The assistant is still answering.",
-    not_found:
-      "This conversation ended (the server restarted). Your next message starts a new one.",
+    not_found: "This conversation is no longer on the server. Your next message starts a new one.",
     forbidden: "Talking to the assistant requires the artisan.editor.edit permission.",
     network_error: "The editor cannot reach the server.",
     unknown: "Something went wrong. Try again.",
@@ -149,8 +150,8 @@ export const aiFr: typeof aiEn = {
     untitled: "Nouvelle conversation",
     answering: "Répond…",
     otherServer: "Un autre serveur",
-    memoryNote:
-      "Le serveur garde les conversations en mémoire : un redémarrage les termine, leurs brouillons restent.",
+    keptNote:
+      "Les conversations restent 30 jours après leur dernier message, redémarrages compris.",
     loadFailed: "Les conversations n’ont pas pu être lues.",
     files: "Fichiers",
     noFiles: "Les fichiers que l’assistant écrit s’affichent ici, une carte par fichier.",
@@ -183,6 +184,8 @@ export const aiFr: typeof aiEn = {
       "L’assistant s’est arrêté après {{steps}} étapes. Envoie un message pour qu’il continue.",
     ai_output_limit: "La réponse a été coupée : elle était trop longue. Demande moins à la fois.",
     ai_refused: "Le modèle a décliné cette demande.",
+    ai_interrupted:
+      "Le serveur a redémarré pendant cette réponse. Envoie un message pour que l’assistant reprenne.",
   },
   errors: {
     ai_key_refused:
@@ -192,7 +195,7 @@ export const aiFr: typeof aiEn = {
     ai_provider_error: "Le fournisseur du modèle a renvoyé une erreur. Réessaie.",
     ai_busy: "L’assistant répond encore.",
     not_found:
-      "Cette conversation est terminée (le serveur a redémarré). Ton prochain message en commence une nouvelle.",
+      "Cette conversation n’est plus sur le serveur. Ton prochain message en commence une nouvelle.",
     forbidden: "Parler à l’assistant demande la permission artisan.editor.edit.",
     network_error: "L’éditeur n’arrive pas à joindre le serveur.",
     unknown: "Quelque chose s’est mal passé. Réessaie.",

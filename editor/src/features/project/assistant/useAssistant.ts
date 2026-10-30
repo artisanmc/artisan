@@ -19,7 +19,7 @@ export interface ConversationView {
   events: AiEvent[];
   running: boolean;
   failure: string | null;
-  /** The hub no longer has it (it restarted): the next message starts another. */
+  /** The hub no longer has it (deleted, or kept past its time): the next message starts another. */
   gone: boolean;
 }
 

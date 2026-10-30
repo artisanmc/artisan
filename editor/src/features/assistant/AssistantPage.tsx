@@ -113,7 +113,7 @@ export function AssistantPage() {
             ))
           )}
         </ul>
-        <p className="text-[11.5px] text-[var(--text-faint)]">{t("ai.page.memoryNote")}</p>
+        <p className="text-[11.5px] text-[var(--text-faint)]">{t("ai.page.keptNote")}</p>
       </nav>
 
       <section

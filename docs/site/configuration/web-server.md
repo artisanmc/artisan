@@ -211,7 +211,9 @@ want (a menu, a command, a change to a dialog), and the assistant does it in a d
   **Review and deploy** opens Deploy's review with all of them picked. **Expand** in the panel
   opens the same conversation in the tab.
 - A message runs at most "Steps per message" model calls (`ai.max-steps`); the assistant then stops and says so.
-- Conversations live in the hub's memory: a restart, or a change of its settings, ends them (the drafts stay).
+- Conversations are saved in the suite database: after a restart or a change of the settings, the
+  assistant takes them back where they stopped (with another model, from a summary of what was said).
+  Each player keeps their last 10, for 30 days after their last message.
 
 ```yaml
 ai:

@@ -263,6 +263,31 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         }
     }
 
+    /**
+     * The assistant's conversations (ADR `editor-assistant`): `artisan_ai_conversations`, so a
+     * restart or another server of the database takes them back. Unreadable until the database is open.
+     */
+    fun aiConversationStore(): net.artisanmc.plugin.hub.AiConversationStore = object : net.artisanmc.plugin.hub.AiConversationStore {
+        private fun rows() = net.artisanmc.plugin.database.AiConversationRows(artisanData ?: throw IllegalStateException("suite database not open"), database.tables)
+
+        override fun save(record: net.artisanmc.plugin.hub.AiConversationRecord) = rows().save(
+            net.artisanmc.plugin.database.AiConversationRows.Row(
+                record.id, record.owner, record.project, record.server, record.title, record.createdAt, record.lastActive,
+                record.inputTokens, record.outputTokens, record.events, record.history, record.historyKey,
+            ),
+        )
+
+        override fun load(id: String) = rows().load(id)?.let(::record)
+        override fun list(owner: UUID) = rows().list(owner).map(::record)
+        override fun delete(id: String) = rows().delete(id).let {}
+        override fun deleteIdle(before: java.time.Instant) = rows().deleteIdle(before).let {}
+
+        private fun record(row: net.artisanmc.plugin.database.AiConversationRows.Row) = net.artisanmc.plugin.hub.AiConversationRecord(
+            row.id, row.ownerId, row.project, row.serverId, row.title, row.createdAt, row.lastActive,
+            row.inputTokens, row.outputTokens, row.events.ifEmpty { "[]" }, row.history, row.historyKey,
+        )
+    }
+
     /** The Versions still queued are written, within 5 s. */
     fun stopWriter() {
         versionWriter.shutdown()

@@ -30,7 +30,7 @@ class MemoryAiSettingsStore(@Volatile private var config: AiConfig? = null) : Ai
  * The assistant the hub runs and the settings it runs on. environment.yml's `ai` section wins when
  * it names a provider: the editor shows it, read-only. Otherwise the settings saved from the
  * editor ([store]), read once the database answers, and applied at once when they change: the
- * assistant is rebuilt, its conversations end (the drafts they wrote stay).
+ * assistant is rebuilt; it takes the conversations back from [conversations] (without it, they end).
  *
  * The servers of one database share a tunnel address and each serves the editor (ADR
  * `peer-servers`): a save on one reaches the others within [refresh], when they read the
@@ -45,6 +45,8 @@ class AiSetup(
     private val providerFor: (AiConfig) -> AiProvider? = ::defaultProvider,
     private val refresh: Duration = Duration.ofSeconds(30),
     private val clock: Clock = Clock.systemUTC(),
+    /** Where conversations outlive the assistant; null: in its memory alone. */
+    private val conversations: AiConversationStore? = null,
 ) {
     enum class Source(val id: String) { FILE("file"), DATABASE("database"), NONE("none") }
 
@@ -111,7 +113,7 @@ class AiSetup(
             return null
         }
         logger?.info("[Artisan] Editor assistant enabled: ${describe(config)}")
-        return AiAssistant(provider, tools, config.maxSteps, logger)
+        return AiAssistant(provider, tools, config.maxSteps, logger, store = conversations)
     }
 
     companion object {
