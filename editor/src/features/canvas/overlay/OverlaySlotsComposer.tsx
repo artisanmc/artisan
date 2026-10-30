@@ -219,7 +219,6 @@ export function OverlaySlotsComposer({
               )}
             </McScreen>
           </div>
-          <p className="text-[12px] text-[var(--text-mut)]">{t("overlaySlots.hint")}</p>
         </section>
 
         <aside className="flex min-w-0 flex-col gap-2.5">
@@ -291,11 +290,6 @@ export function OverlaySlotsComposer({
                       <RotateCcw className="size-3.5" />
                       {t("overlaySlots.reset")}
                     </Button>
-                    {own.y !== 0 && (
-                      <p className="rounded-[var(--r-sm)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[12px]">
-                        {t("overlaySlots.packHint")}
-                      </p>
-                    )}
                   </>
                 )}
               </div>

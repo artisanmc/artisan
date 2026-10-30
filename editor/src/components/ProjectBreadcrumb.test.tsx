@@ -45,3 +45,21 @@ it("shows only the project outside a server (demo)", () => {
   expect(screen.queryByRole("link")).toBeNull();
   expect(screen.getByText("Welcome")).toHaveAttribute("aria-current", "page");
 });
+
+it("with a Document open, leads back to the project and its collection, and ends on the Document", () => {
+  const toProject = vi.fn();
+  const open = vi.fn();
+  render(
+    <ProjectBreadcrumb
+      serverRef={null}
+      projectName="conversations"
+      trail={{ toProject, collection: { label: "Modes d'affichage", open }, label: "<gold>HUD" }}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "conversations" }));
+  expect(toProject).toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Modes d'affichage" }));
+  expect(open).toHaveBeenCalled();
+  const current = document.querySelector('[aria-current="page"]');
+  expect(current?.textContent).toBe("HUD");
+});

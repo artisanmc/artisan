@@ -768,7 +768,7 @@ the menu or dialog (`useSystemDocuments`); `deleteSelection` keeps them and says
 - No more add / remove from canvas button (removed 2026-09-25): every Document is on the board.
 - **Click** on the label → opens the individual view. **`···` context menu**: edit / delete from the project.
 - 3rd zone of the desktop overview layout (panel · board · `EditorPane`).
-- Shared label helper `documentLabel(project, id, lang)` (`useProjectDocuments.ts`) — also used by the `DocumentView` header.
+- Shared label helper `documentLabel(project, id, lang)` (`useProjectDocuments.ts`) — also used by the `DocumentView` breadcrumb level.
 
 ### The panel = selection inspector
 
@@ -792,11 +792,11 @@ Since 2026-09-05. The editing panel was **always** displayed and ate canvas spac
 - **Dispatch by type**: menu, and module Document whose kind declares `board.items`, → `<Stage projectId focus={documentId}>` (the **board's stage**, see "Focus mode" below) as `primary` of a `SplitPane` + `EditorPane` as `secondary`: the node alone, where a click on a row edits the part in the panel (`DocumentGroup` in `solo`: neither moved nor reopened; framed by `fitViewport` up to ×2, `FOCUS_NODE_MAX_SCALE`, the node being vector text); command / dialog / other kind → centered `SelectionInspector` (`max-w-3xl`).
 - Selection set via `useSelectionStore.set([documentId])` on mount → `SelectionInspector` (keyed on the selection) and `MenuGroup` edit through the **same** path as the board. Not found → `EmptyState`.
 - **INVARIANT**: `DocumentView` reimplements no editor — it mounts the same renderers as the board (`MenuGroup` in solo, `SelectionInspector`). No second editor (≠ focus mode 2026-06-02, forked then reverted).
-- **Escape = back to board**: `DocumentView` sets a window `keydown` listener that calls `back()` on `Escape`, **unless** focus is in an `INPUT`/`TEXTAREA`/`contentEditable`, a modal/menu/list is open (`[role=dialog|menu|listbox]`), or the event is already `defaultPrevented`. The "Back to canvas" button shows a keyboard badge `<kbd>Esc</kbd>`.
+- **Escape = back to board**: `DocumentView` sets a window `keydown` listener that calls `back()` on `Escape`, **unless** focus is in an `INPUT`/`TEXTAREA`/`contentEditable`, a modal/menu/list is open (`[role=dialog|menu|listbox]`), or the event is already `defaultPrevented`. `back()` leads to a collection's page for a collection's Document, to the board otherwise.
 - **Pan/zoom memory**: the `Stage` restores its `viewport` from `uiStore.canvasViewports[projectId]` on mount and rewrites it on every change. The framing is **persisted in the browser per project**, including after closing or reloading. The inner component is remounted on project or mode change to restore the right framing. In **focus mode**, `uiStore.documentViewport` keeps a framing shared by all Documents.
 - **Minimap**: `CanvasMinimap` shows the rectangles from `nodeBox(project, id, layout)` in an SVG overlaid on the board, without a second Konva Stage. The view rectangle follows pan/zoom; click outside the rectangle = recenter, drag = move without changing zoom. The bounds include the documents and the current view; their projection stays fixed during the drag. Keyboard arrows move the view when the minimap has focus. The button next to Buttons in `ProjectLibraryWorkspace` opens the minimap then disappears while it is shown; the minimap (148 px wide, 96 px below the `sm` breakpoint, 11:7 ratio) is anchored 8 px from the bottom-right corner and its cross closes it, making the button reappear; `uiStore.minimapVisible` persists this preference (visible by default). The minimap is reserved to the board.
 
-- **Navigation bubble**: the "Back to canvas" button keeps its width and its label on a single line (`shrink-0`, `whitespace-nowrap`); the Document title is truncated when the sidebars reduce the available space.
+- **Breadcrumb, no bar of its own**: `DocumentView` draws nothing over the stage. It hands its levels to the topbar through `state/documentTrailStore.ts` (set while mounted, `null` after): `ProjectBreadcrumb` then shows server › project (a link back to the board) › the collection (a collection's Document: a link back to its page) › the Document's label (`documentLabel`, MiniMessage), and `ProjectTopBarControls` puts the **YAML** switch right after it (`aria-pressed`, the file's path as its title).
 
 ### Focus mode (`<Stage focus={documentId}>`)
 

@@ -28,6 +28,7 @@ import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/w
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
 import { isTypingTarget } from "@/lib/keyboard";
+import { useDocumentTrailStore } from "@/state/documentTrailStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSidebarStore } from "@/state/sidebarStore";
@@ -101,6 +102,7 @@ export function ProjectTopBarControls({
   const { tab } = useSearch({ strict: false }) as { tab?: string };
   const openProjectSettings = useOpenProjectSettings();
   const { serverId: serverRef } = useParams({ strict: false }) as { serverId?: string };
+  const trail = useDocumentTrailStore((s) => s.trail);
 
   // Offline is not a banner: the server badge already shows it in red, and the
   // tooltip gives the exact reason (copy date, draft, never-published).
@@ -123,10 +125,16 @@ export function ProjectTopBarControls({
         data-testid="project-header"
         className="flex min-h-12 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-[var(--r-lg)] bg-[var(--surface)] px-2 py-1 lg:flex-nowrap lg:gap-x-3"
       >
-        <div className="flex min-h-9 min-w-0 basis-full items-center gap-2 pl-11 lg:basis-auto lg:max-w-md lg:pl-0">
+        <div
+          className={cn(
+            "flex min-h-9 min-w-0 basis-full items-center gap-2 pl-11 lg:basis-auto lg:pl-0",
+            trail ? "lg:max-w-2xl" : "lg:max-w-md",
+          )}
+        >
           <ProjectBreadcrumb
             serverRef={serverRef}
             projectName={displayName}
+            trail={trail}
             serverStatus={
               <LinkedServersDropdown
                 currentServerKeyId={project.serverKeyId ?? undefined}
@@ -135,6 +143,18 @@ export function ProjectTopBarControls({
               />
             }
           />
+          {trail?.yaml && (
+            <button
+              type="button"
+              onClick={trail.yaml.toggle}
+              aria-pressed={trail.yaml.on}
+              title={trail.yaml.path}
+              data-testid="document-yaml-toggle"
+              className={cn("btn btn-sm shrink-0", trail.yaml.on ? "btn-outline" : "btn-ghost")}
+            >
+              {t("yamlView.tab")}
+            </button>
+          )}
         </div>
         <div
           data-testid="project-view-navigation"

@@ -874,7 +874,6 @@ const fr: typeof en = {
   },
   documentView: {
     back: "Retour au canvas",
-    backTo: "Retour : {{name}}",
     notFound: "Cet élément n'existe plus",
   },
   editorPane: {
@@ -1000,7 +999,6 @@ const fr: typeof en = {
     cancel: "Annuler",
     stage: "Aperçu du HUD : les flèches déplacent le calque choisi (Maj : 10 px)",
     outOfReach: "Au-dessus de cette ligne, le pack de ressources ne peut pas dessiner",
-    hint: "Glissez un calque pour le déplacer, ses poignées pour redimensionner un texte ou une liste. Les flèches décalent le calque choisi, de 10 px avec Maj.",
     pickLayer: "Choisissez un calque sur l'écran ou dans la liste pour le régler.",
     remove: "Supprimer le calque",
     unreadableHint:
@@ -1020,30 +1018,22 @@ const fr: typeof en = {
       center: "Centre",
       right: "Droite",
     },
-    textHint: "Le texte est coupé à cette largeur ; au-delà de la dernière ligne, il est tronqué.",
     cursor: "Curseur",
     cursorX: "Curseur X",
     cursorY: "Curseur Y",
-    listHint: "Le curseur est dessiné à côté de la ligne choisie, à ce décalage.",
     image: "Image",
-    imageHint: "Dessinée à sa taille, un pixel d'image par pixel de GUI.",
     imageMissing: "Cette image n'est pas dans le projet : le HUD ne dessine rien à sa place.",
-    slotHint:
-      "Le module y met une image (le portrait d'un orateur, par exemple). L'ancre dit quel bord se pose sur Y.",
     slotDefault: "Image par défaut",
-    slotDefaultHint: "Dessinée quand le module n'en donne pas.",
     anchor: "Ancre",
     anchors: {
       bottom: "Bas",
       top: "Haut",
     },
-    packHint: "Une image apparaît en jeu une fois le pack de ressources reconstruit et renvoyé.",
     slot: "Emplacement",
     fixed: "image fixe",
   },
   overlaySlots: {
     stage: "Aperçu : les flèches décalent l'image choisie (Maj : 10 px)",
-    hint: "Les calques du mode sont fixes ici : seules les images fournies se choisissent et se déplacent.",
     none: "Ce mode n'a pas d'emplacement d'image à remplir.",
     image: "Image",
     offsetX: "Décalage X",
@@ -1051,8 +1041,6 @@ const fr: typeof en = {
     reset: "Revenir à la position du mode",
     usesDefault: "Sans image, le mode dessine {{name}}.",
     empty: "Sans image, rien n'est dessiné ici.",
-    packHint:
-      "Un décalage vertical change la hauteur de l'image : il apparaît en jeu après le déploiement.",
   },
   sortableList: {
     handle: "Glisser pour réordonner",

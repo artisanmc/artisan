@@ -413,7 +413,6 @@ export function OverlayComposer({
               )}
             </McScreen>
           </div>
-          <p className="text-[12px] text-[var(--text-mut)]">{t("overlayComposer.hint")}</p>
         </section>
 
         <aside className="card flex min-w-0 flex-col gap-3.5 p-4">
@@ -894,9 +893,6 @@ function LayerPanel({
           }))}
         />
       )}
-      {layer.kind === "text" && (
-        <p className="text-[12px] text-[var(--text-mut)]">{t("overlayComposer.textHint")}</p>
-      )}
       {layer.kind === "list" && (
         <div className="flex flex-col gap-2">
           {layer.cursor ? (
@@ -933,7 +929,6 @@ function LayerPanel({
               onChange={(image) => image && set({ cursor: { image, x: -10, y: 1 } })}
             />
           )}
-          <p className="text-[12px] text-[var(--text-mut)]">{t("overlayComposer.listHint")}</p>
         </div>
       )}
       {layer.kind === "image" && (
@@ -944,16 +939,15 @@ function LayerPanel({
             value={layer.name}
             onChange={(name) => name && set({ name })}
           />
-          <p className="text-[12px] text-[var(--text-mut)]">
-            {sizeOf(layer.name)
-              ? t("overlayComposer.imageHint")
-              : t("overlayComposer.imageMissing")}
-          </p>
+          {!sizeOf(layer.name) && (
+            <p className="text-[12px] text-[var(--text-mut)]">
+              {t("overlayComposer.imageMissing")}
+            </p>
+          )}
         </>
       )}
       {layer.kind === "image_slot" && (
         <>
-          <p className="text-[12.5px] text-[var(--text-mut)]">{t("overlayComposer.slotHint")}</p>
           <AssetInput
             projectId={projectId}
             label={t("overlayComposer.slotDefault")}
@@ -961,9 +955,6 @@ function LayerPanel({
             clearable
             onChange={(name) => set({ fallback: name || null })}
           />
-          <p className="text-[12px] text-[var(--text-mut)]">
-            {t("overlayComposer.slotDefaultHint")}
-          </p>
           <div className="flex flex-col gap-1">
             <span className="field-label">{t("overlayComposer.anchor")}</span>
             <Segmented
@@ -977,13 +968,6 @@ function LayerPanel({
             />
           </div>
         </>
-      )}
-      {(layer.kind === "image" ||
-        layer.kind === "image_slot" ||
-        (layer.kind === "list" && layer.cursor)) && (
-        <p className="rounded-[var(--r-sm)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[12px]">
-          {t("overlayComposer.packHint")}
-        </p>
       )}
       <div className="mt-auto flex flex-col gap-1 border-t border-[var(--border-soft)] pt-3">
         <span className="field-label">{t("overlayComposer.slot")}</span>
