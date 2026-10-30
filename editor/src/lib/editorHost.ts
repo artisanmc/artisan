@@ -3,6 +3,7 @@ import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
 import { type DocKey, allDocuments, docKey } from "@/domain/documents";
 import type { I18nKey, Project, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { useAssetSize } from "@/features/assets/measuredSize";
 import { getText, newI18nKey } from "@/lib/i18n";
 import { mcLineWidth, wrapLore } from "@/lib/loreWrap";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
@@ -67,7 +68,11 @@ export const editorHost: Omit<EditorHost, "components"> = {
       s.assets.find((a) => a.projectId === projectId && (a.name === name || a.id === name)),
     );
     const url = useAuthenticatedImageUrl(asset ? assetPreviewUrl(asset) : "");
-    return asset && url ? { url, width: asset.width, height: asset.height } : undefined;
+    // A module's image has no descriptor: 0 × 0 until its size is read from the image.
+    const size = useAssetSize(asset, url);
+    return asset && url
+      ? { url, width: size?.width ?? asset.width, height: size?.height ?? asset.height }
+      : undefined;
   },
   mcTextWidth: (source) => mcLineWidth(source),
   mcWrap: (source, width) => wrapLore(source, width),

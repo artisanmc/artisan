@@ -5,6 +5,7 @@ import { SortableList } from "@/components/ui/sortable-list";
 import { assetPreviewUrl } from "@/domain/asset";
 import { AssetInput } from "@/features/assets/AssetInput";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { assetSize, useAssetSize, useMeasuredAssetSizes } from "@/features/assets/measuredSize";
 import { cx } from "@/lib/cx";
 import { mcLineWidth, wrapLore } from "@/lib/loreWrap";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
@@ -142,10 +143,13 @@ export function OverlayComposer({
   const [drag, setDrag] = useState<Drag | null>(null);
   const [picking, setPicking] = useState(false);
   const assets = useAssetStore((s) => s.assets);
-  const sizeOf = (name: string) => {
-    const asset = assets.find((a) => a.projectId === projectId && a.name === name);
-    return asset ? { width: asset.width, height: asset.height } : undefined;
-  };
+  const measured = useMeasuredAssetSizes();
+  // Undefined while the project lacks the image or its size is not known yet.
+  const sizeOf = (name: string) =>
+    assetSize(
+      assets.find((a) => a.projectId === projectId && a.name === name),
+      measured,
+    );
 
   /** The layer of each entry as shown: the dragged one where the pointer has it. */
   const shown = read.entries.map((e) => (drag && drag.index === e.index ? drag.current : e.layer));
@@ -250,178 +254,182 @@ export function OverlayComposer({
 
   const ids = read.entries.map((e) => String(e.index));
   return (
-    <div className="flex flex-wrap items-start gap-4" data-testid="overlay-composer">
-      <aside className="card flex min-w-[220px] max-w-[300px] flex-[1_1_232px] flex-col gap-2.5 p-3.5">
-        <div className="flex items-center justify-between">
-          <span className="eyebrow">{t("overlayComposer.layers")}</span>
-          <span className="text-[11.5px] text-[var(--text-faint)]">
-            {t("overlayComposer.order")}
-          </span>
-        </div>
-        {read.problems.some((p) => p.path === "layout") && (
-          <p role="alert" className="text-[12px] text-[var(--danger)]">
-            {t("overlayComposer.notAList")}
-          </p>
-        )}
-        <SortableList
-          ids={ids}
-          onMove={move}
-          className="flex flex-col gap-1"
-          handleLabel={t("overlayComposer.reorder")}
-        >
-          {(index, handle) => {
-            const entry = read.entries[index]!;
-            const layer = shown[index];
-            const on = selected === index;
-            const off = hidden.has(index);
-            return (
-              <div
-                className={cx(
-                  "flex items-center gap-1 rounded-[var(--r-sm)] border pl-1",
-                  on ? "border-[var(--brand-line)] bg-[var(--brand-soft)]" : "border-transparent",
-                )}
-              >
-                {handle}
-                <button
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => setSelected(index)}
-                  className="flex min-h-10 min-w-0 flex-1 items-center gap-2 text-left"
-                >
-                  <KindIcon kind={layer?.kind} />
-                  <span className="flex min-w-0 flex-col">
-                    <span
-                      className={cx(
-                        "truncate text-[13px] font-medium",
-                        off && "text-[var(--text-faint)]",
-                      )}
-                    >
-                      {layer ? layerTitle(layer, slotLabel, t) : t("overlayComposer.unreadable")}
-                    </span>
-                    <span
-                      className={cx(
-                        "truncate text-[11.5px]",
-                        entry.problems.length ? "text-[var(--danger)]" : "text-[var(--text-mut)]",
-                      )}
-                    >
-                      {entry.problems.length
-                        ? t("overlayComposer.problem", {
-                            code: entry.problems[0]!.code,
-                            path: entry.problems[0]!.path,
-                          })
-                        : layer && t(`overlayComposer.kind.${layer.kind}`)}
-                    </span>
-                  </span>
-                </button>
-                {layer && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t(off ? "overlayComposer.show" : "overlayComposer.hide", {
-                      name: layerTitle(layer, slotLabel, t),
-                    })}
-                    onClick={() => {
-                      const next = new Set(hidden);
-                      if (off) next.delete(index);
-                      else next.add(index);
-                      setHidden(next);
-                    }}
-                  >
-                    {off ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </Button>
-                )}
-              </div>
-            );
-          }}
-        </SortableList>
-        {items.length === 0 && (
-          <p className="text-[12.5px] text-[var(--text-mut)]">{t("overlayComposer.empty")}</p>
-        )}
-        <div className="flex flex-wrap gap-1.5">
-          <Button size="sm" variant="outline" onClick={() => setPicking(true)}>
-            <Plus className="size-3.5" />
-            {t("overlayComposer.addImage")}
-          </Button>
-          {missingSlots.map((slot) => (
-            <Button
-              key={slot.name}
-              size="sm"
-              variant="outline"
-              onClick={() => add(newSlotEntry(slot))}
-            >
-              <Plus className="size-3.5" />
-              {slot.label}
-            </Button>
-          ))}
-        </div>
-        {picking && (
-          <AddImage
-            projectId={projectId}
-            onPick={(name) => {
-              setPicking(false);
-              if (!name) return;
-              const width = sizeOf(name)?.width ?? 0;
-              add({ image: name, x: 0 - Math.floor(width / 2), y: -40 });
-            }}
-          />
-        )}
-      </aside>
-
-      <section className="flex min-w-0 flex-[999_1_560px] flex-col gap-2.5">
-        <div className="card flex flex-wrap items-end gap-3 p-2.5">
-          <McScreenControls value={settings} onChange={setSettings} />
-          {toolbar}
-        </div>
-        <div
-          // biome-ignore lint/a11y/noNoninteractiveTabindex: the stage takes the arrow keys that nudge the selected layer
-          tabIndex={0}
-          onKeyDown={nudge}
-          className="rounded-[var(--r-md)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-line)]"
-          aria-label={t("overlayComposer.stage")}
-        >
-          <McScreen
-            width={settings.width}
-            height={settings.height}
-            guiScale={settings.guiScale}
-            zoom={settings.zoom}
+    // Three columns when there is room (layers, screen, panel), the panel under the screen
+    // below 64rem, everything stacked below 44rem: sized on the composer's own width.
+    <div className="@container" data-testid="overlay-composer">
+      <div className="grid grid-cols-1 items-start gap-4 @[44rem]:grid-cols-[220px_minmax(0,1fr)] @[64rem]:grid-cols-[220px_minmax(0,1fr)_280px]">
+        <aside className="card flex min-w-0 flex-col gap-2.5 p-3.5 @[44rem]:row-span-2 @[64rem]:row-span-1">
+          <div className="flex items-center justify-between">
+            <span className="eyebrow">{t("overlayComposer.layers")}</span>
+            <span className="text-[11.5px] text-[var(--text-faint)]">
+              {t("overlayComposer.order")}
+            </span>
+          </div>
+          {read.problems.some((p) => p.path === "layout") && (
+            <p role="alert" className="text-[12px] text-[var(--danger)]">
+              {t("overlayComposer.notAList")}
+            </p>
+          )}
+          <SortableList
+            ids={ids}
+            onMove={move}
+            className="flex flex-col gap-1"
+            handleLabel={t("overlayComposer.reorder")}
           >
-            {(geometry) => (
-              <Stage
-                projectId={projectId}
-                geometry={geometry}
-                layers={shown}
-                hidden={hidden}
-                content={content}
-                selected={selected}
-                sizeOf={sizeOf}
-                label={(layer) => layerTitle(layer, slotLabel, t)}
-                outOfReach={t("overlayComposer.outOfReach")}
-                onSelect={setSelected}
-                onDragStart={(event, index, mode) => startDrag(event, index, mode, geometry)}
-                onDragMove={onDragMove}
-                onDragEnd={onDragEnd}
-              />
-            )}
-          </McScreen>
-        </div>
-        <p className="text-[12px] text-[var(--text-mut)]">{t("overlayComposer.hint")}</p>
-      </section>
+            {(index, handle) => {
+              const entry = read.entries[index]!;
+              const layer = shown[index];
+              const on = selected === index;
+              const off = hidden.has(index);
+              return (
+                <div
+                  className={cx(
+                    "flex items-center gap-1 rounded-[var(--r-sm)] border pl-1",
+                    on ? "border-[var(--brand-line)] bg-[var(--brand-soft)]" : "border-transparent",
+                  )}
+                >
+                  {handle}
+                  <button
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setSelected(index)}
+                    className="flex min-h-10 min-w-0 flex-1 items-center gap-2 text-left"
+                  >
+                    <KindIcon kind={layer?.kind} />
+                    <span className="flex min-w-0 flex-col">
+                      <span
+                        className={cx(
+                          "truncate text-[13px] font-medium",
+                          off && "text-[var(--text-faint)]",
+                        )}
+                      >
+                        {layer ? layerTitle(layer, slotLabel, t) : t("overlayComposer.unreadable")}
+                      </span>
+                      <span
+                        className={cx(
+                          "truncate text-[11.5px]",
+                          entry.problems.length ? "text-[var(--danger)]" : "text-[var(--text-mut)]",
+                        )}
+                      >
+                        {entry.problems.length
+                          ? t("overlayComposer.problem", {
+                              code: entry.problems[0]!.code,
+                              path: entry.problems[0]!.path,
+                            })
+                          : layer && t(`overlayComposer.kind.${layer.kind}`)}
+                      </span>
+                    </span>
+                  </button>
+                  {layer && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t(off ? "overlayComposer.show" : "overlayComposer.hide", {
+                        name: layerTitle(layer, slotLabel, t),
+                      })}
+                      onClick={() => {
+                        const next = new Set(hidden);
+                        if (off) next.delete(index);
+                        else next.add(index);
+                        setHidden(next);
+                      }}
+                    >
+                      {off ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </Button>
+                  )}
+                </div>
+              );
+            }}
+          </SortableList>
+          {items.length === 0 && (
+            <p className="text-[12.5px] text-[var(--text-mut)]">{t("overlayComposer.empty")}</p>
+          )}
+          <div className="flex flex-wrap gap-1.5">
+            <Button size="sm" variant="outline" onClick={() => setPicking(true)}>
+              <Plus className="size-3.5" />
+              {t("overlayComposer.addImage")}
+            </Button>
+            {missingSlots.map((slot) => (
+              <Button
+                key={slot.name}
+                size="sm"
+                variant="outline"
+                onClick={() => add(newSlotEntry(slot))}
+              >
+                <Plus className="size-3.5" />
+                {slot.label}
+              </Button>
+            ))}
+          </div>
+          {picking && (
+            <AddImage
+              projectId={projectId}
+              onPick={(name) => {
+                setPicking(false);
+                if (!name) return;
+                const width = sizeOf(name)?.width ?? 0;
+                add({ image: name, x: 0 - Math.floor(width / 2), y: -40 });
+              }}
+            />
+          )}
+        </aside>
 
-      <aside className="card flex min-w-[260px] max-w-[340px] flex-[1_1_300px] flex-col gap-3.5 p-4">
-        {current ? (
-          <LayerPanel
-            projectId={projectId}
-            entry={current}
-            layer={shown[current.index] ?? null}
-            slotLabel={slotLabel}
-            sizeOf={sizeOf}
-            onChange={(layer) => commit(current.index, layer)}
-            onRemove={() => remove(current.index)}
-          />
-        ) : (
-          <p className="text-[12.5px] text-[var(--text-mut)]">{t("overlayComposer.pickLayer")}</p>
-        )}
-      </aside>
+        <section className="flex min-w-0 flex-col gap-2.5">
+          <div className="card flex flex-wrap items-end gap-3 p-2.5">
+            <McScreenControls value={settings} onChange={setSettings} />
+            {toolbar}
+          </div>
+          <div
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: the stage takes the arrow keys that nudge the selected layer
+            tabIndex={0}
+            onKeyDown={nudge}
+            className="rounded-[var(--r-md)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-line)]"
+            aria-label={t("overlayComposer.stage")}
+          >
+            <McScreen
+              width={settings.width}
+              height={settings.height}
+              guiScale={settings.guiScale}
+              zoom={settings.zoom}
+            >
+              {(geometry) => (
+                <Stage
+                  projectId={projectId}
+                  geometry={geometry}
+                  layers={shown}
+                  hidden={hidden}
+                  content={content}
+                  selected={selected}
+                  sizeOf={sizeOf}
+                  label={(layer) => layerTitle(layer, slotLabel, t)}
+                  outOfReach={t("overlayComposer.outOfReach")}
+                  onSelect={setSelected}
+                  onDragStart={(event, index, mode) => startDrag(event, index, mode, geometry)}
+                  onDragMove={onDragMove}
+                  onDragEnd={onDragEnd}
+                />
+              )}
+            </McScreen>
+          </div>
+          <p className="text-[12px] text-[var(--text-mut)]">{t("overlayComposer.hint")}</p>
+        </section>
+
+        <aside className="card flex min-w-0 flex-col gap-3.5 p-4">
+          {current ? (
+            <LayerPanel
+              projectId={projectId}
+              entry={current}
+              layer={shown[current.index] ?? null}
+              slotLabel={slotLabel}
+              sizeOf={sizeOf}
+              onChange={(layer) => commit(current.index, layer)}
+              onRemove={() => remove(current.index)}
+            />
+          ) : (
+            <p className="text-[12.5px] text-[var(--text-mut)]">{t("overlayComposer.pickLayer")}</p>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }
@@ -745,7 +753,9 @@ function StageImage({
     s.assets.find((a) => a.projectId === projectId && a.name === name),
   );
   const url = useAuthenticatedImageUrl(asset ? assetPreviewUrl(asset) : "");
-  if (!asset || !url) return null;
+  // A module's image has no descriptor: its size is read from the image once loaded.
+  const size = useAssetSize(asset, url);
+  if (!asset || !url || !size) return null;
   return (
     <img
       src={url}
@@ -755,8 +765,8 @@ function StageImage({
         position: "absolute",
         left,
         top,
-        width: asset.width * scale,
-        height: asset.height * scale,
+        width: size.width * scale,
+        height: size.height * scale,
         imageRendering: "pixelated",
         pointerEvents: "none",
       }}

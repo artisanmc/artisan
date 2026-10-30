@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
+import { assetPreviewUrl } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { AssetPreview } from "@/features/assets/AssetPreview";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { useAssetSize } from "@/features/assets/measuredSize";
+import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
 import type { AssetInputProps } from "@artisan/editor-sdk";
 import { ImageOff } from "lucide-react";
 import { useState } from "react";
@@ -15,6 +18,8 @@ export function AssetInput({ projectId, value, onChange, label, clearable }: Ass
   const asset = useAssetStore((s) =>
     value ? s.assets.find((a) => a.projectId === projectId && a.name === value) : undefined,
   );
+  const url = useAuthenticatedImageUrl(asset ? assetPreviewUrl(asset) : "");
+  const size = useAssetSize(asset, url);
   return (
     <div className="flex flex-col gap-1">
       {label && <span className="field-label">{label}</span>}
@@ -35,7 +40,9 @@ export function AssetInput({ projectId, value, onChange, label, clearable }: Ass
           </div>
           <div className="text-[12px] text-[var(--text-mut)]">
             {asset
-              ? t("assetInput.size", { width: asset.width, height: asset.height })
+              ? size
+                ? t("assetInput.size", { width: size.width, height: size.height })
+                : ""
               : value
                 ? t("assetInput.missing")
                 : t("assetInput.pick")}
