@@ -229,7 +229,8 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > drawn but fixed, each `image_slot` gets an image by its thumbnail and an offset from its place by
 > dragging it, back to the slot's place in one click. `value`/`onChange` is the module's map, by slot,
 > `{image, x?, y?}`: an offset, not a position, so a slot moved in the layout keeps every adjustment.
-> A 1.15 bundle still loads.
+> `useOpenDocument()` returns a function that opens a Document's page (`{projectId, kind, id}`). A
+> 1.15 bundle still loads.
 
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key

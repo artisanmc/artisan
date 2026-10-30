@@ -96,6 +96,7 @@ export {
   fieldText,
   projectLangs,
   selectDocumentItem,
+  useOpenDocument,
   notify,
   useAssetImage,
   mcTextWidth,

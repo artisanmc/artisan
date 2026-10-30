@@ -9,6 +9,7 @@ describe("@artisan/editor-sdk public surface", () => {
     expect(typeof sdk.onModuleEvent).toBe("function");
     expect(typeof sdk.emitModuleEvent).toBe("function");
     expect(typeof sdk.selectDocumentItem).toBe("function");
+    expect(typeof sdk.useOpenDocument).toBe("function");
   });
 
   it("exposes shared base primitives", () => {

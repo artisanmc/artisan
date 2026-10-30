@@ -5,4 +5,4 @@
   in TypeScript. A kind's `pack.images` can read the project's other files (one, or a folder's) and
   ask for an image by its bottom edge. `OverlaySlotsComposer` opens only a layout's image slots: each
   gets an image and an offset from its place, dragged on the screen (a speaker's portrait in a mode).
-  A 1.15 bundle still loads.
+  `useOpenDocument` opens another Document's page from a module's view. A 1.15 bundle still loads.

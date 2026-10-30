@@ -6,12 +6,14 @@ import { useAssetStore } from "@/features/assets/assetStore";
 import { useAssetSize } from "@/features/assets/measuredSize";
 import { getText, newI18nKey } from "@/lib/i18n";
 import { mcLineWidth, wrapLore } from "@/lib/loreWrap";
+import { projectDestination } from "@/lib/projectNavigation";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
 import { fieldTextOf } from "@/schema/fieldText";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { type EditorHost, type HostComponents, installEditorHost } from "@artisan/editor-sdk";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 /** The project's languages: its default, then every other one a text holds. */
@@ -62,6 +64,16 @@ export const editorHost: Omit<EditorHost, "components"> = {
     item
       ? useSelectionStore.getState().set([item], null, moduleDocumentKey(documentId))
       : useSelectionStore.getState().set([moduleDocumentKey(documentId)]),
+  useOpenDocument: () => {
+    const navigate = useNavigate();
+    const { serverId } = useParams({ strict: false }) as { serverId?: string };
+    return ({ projectId, kind, id }) => {
+      const project = useProjectsStore
+        .getState()
+        .openProjects.projects.find((p) => p.id === projectId);
+      navigate(projectDestination(project ?? projectId, serverId, id, kind));
+    };
+  },
   notify: (message, tone) => (tone === "error" ? toast.error(message) : toast(message)),
   useAssetImage: (projectId, name) => {
     const asset = useAssetStore((s) =>

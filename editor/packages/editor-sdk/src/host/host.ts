@@ -39,6 +39,11 @@ export interface EditorHost {
    * lights it up and the Properties panel shows the kind's view with that `item` (SDK 1.2).
    */
   selectDocumentItem(input: { documentId: string; item?: string | null }): void;
+  /**
+   * A hook (SDK 1.16): a function that opens a Document's own page, as a click in the project's
+   * tree does (a speaker's page listing the conversations it speaks in).
+   */
+  useOpenDocument(): (input: { projectId: string; kind: string; id: string }) => void;
   /** Briefly tells the user something (a refused value, a done operation). */
   notify(message: string, tone?: "info" | "error"): void;
   /**
@@ -386,6 +391,7 @@ export const projectLangs = (project: unknown): string[] => current().langs(proj
 export const selectDocumentItem: EditorHost["selectDocumentItem"] = (input) =>
   current().selectDocumentItem(input);
 export const notify: EditorHost["notify"] = (message, tone) => current().notify(message, tone);
+export const useOpenDocument: EditorHost["useOpenDocument"] = () => current().useOpenDocument();
 export const useAssetImage = (projectId: string, name: string): AssetImage | undefined =>
   current().useAssetImage(projectId, name);
 export const mcTextWidth = (source: string): number => current().mcTextWidth(source);
