@@ -16,7 +16,9 @@ data class McpClient(val id: String, val name: String, val redirectUris: List<St
 /**
  * A player's yes to one client (ADR `mcp-server`): what the client acts as, and its credentials,
  * kept as hashes. A code until [McpGrants.exchange] trades it, then an access token and a refresh
- * token, both rotated on each refresh. [permissions] follow the player's, like an editor session's.
+ * token, both rotated on each refresh. [permissions] follow the player's, like an editor session's,
+ * less configuring the hub. Publishing is the player's only while [allowPublish]: tokens are
+ * "draft only" until the player allows the app to deploy, at consent or in Settings → AI apps.
  */
 data class McpGrant(
     val id: String,
@@ -37,8 +39,13 @@ data class McpGrant(
     val accessExpiresAt: Instant? = null,
     val refreshHash: String? = null,
     val refreshExpiresAt: Instant? = null,
+    val allowPublish: Boolean = false,
 ) {
-    fun can(permission: String) = permission in permissions
+    /** What the app acts with: the player's permissions, publishing only when the player allowed it. */
+    val effectivePermissions: Set<String>
+        get() = if (allowPublish) permissions else permissions - EditorPermissions.PUBLISH
+
+    fun can(permission: String) = permission in effectivePermissions
 }
 
 /** Where clients and grants live: the suite database, else memory. Hashes only, a leaked row opens nothing. */
@@ -56,6 +63,8 @@ interface McpGrantStore {
     fun delete(id: String)
     fun touch(id: String, at: Instant)
     fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>)
+    /** Allows or forbids grant [id] of [playerId] to deploy; false when no such grant. */
+    fun setPublish(playerId: UUID, id: String, allow: Boolean): Boolean
     fun deletePlayer(playerId: UUID, origin: String?): Int
     /** Removes grants nothing can use any more: code and refresh token both expired. */
     fun purge(now: Instant)
@@ -97,6 +106,8 @@ class MemoryMcpGrantStore : McpGrantStore {
     override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) {
         grants.replaceAll { _, g -> if (g.playerId == playerId && g.origin == origin) g.copy(permissions = permissions) else g }
     }
+    override fun setPublish(playerId: UUID, id: String, allow: Boolean): Boolean =
+        grants.computeIfPresent(id) { _, g -> if (g.playerId == playerId) g.copy(allowPublish = allow) else g }?.let { it.playerId == playerId } ?: false
     override fun deletePlayer(playerId: UUID, origin: String?): Int {
         val mine = grants.values.filter { it.playerId == playerId && (origin == null || it.origin == origin) }
         mine.forEach { grants.remove(it.id) }
@@ -113,7 +124,7 @@ class MemoryMcpGrantStore : McpGrantStore {
  * OAuth 2.1 for the MCP endpoint (ADR `mcp-server`): client registration, the player's consent,
  * authorization codes with PKCE (S256 only), access and refresh tokens. The player approves in
  * the editor, signed in as usual: a client never sees a cookie, and gets at most what the player
- * can do, less publishing, which no MCP tool does.
+ * can do, less configuring the hub, and less publishing unless the player allowed it.
  */
 class McpGrants(
     private val store: McpGrantStore = MemoryMcpGrantStore(),
@@ -147,8 +158,11 @@ class McpGrants(
 
     fun client(id: String?): McpClient? = id?.takeIf { it.isNotEmpty() }?.let(store::client)
 
-    /** [session]'s consent to [client]: the code to send back to [redirectUri]. Null: the session cannot edit. */
-    fun approve(session: EditorSession, client: McpClient, redirectUri: String, codeChallenge: String): String? {
+    /**
+     * [session]'s consent to [client]: the code to send back to [redirectUri]. Null: the session cannot edit.
+     * [publish] lets the app deploy, kept only when the player can publish themselves.
+     */
+    fun approve(session: EditorSession, client: McpClient, redirectUri: String, codeChallenge: String, publish: Boolean = false): String? {
         if (!session.can(EditorPermissions.EDIT) || redirectUri !in client.redirectUris || !CHALLENGE.matches(codeChallenge)) return null
         val now = clock.instant()
         store.purge(now)
@@ -157,9 +171,10 @@ class McpGrants(
             McpGrant(
                 id = UUID.randomUUID().toString(), clientId = client.id, clientName = client.name,
                 playerId = session.playerId, playerName = session.playerName, origin = session.origin,
-                permissions = session.permissions - EditorPermissions.PUBLISH - EditorPermissions.CONFIG,
+                permissions = session.permissions - EditorPermissions.CONFIG,
                 createdAt = now, lastUsedAt = now,
                 codeHash = hash(code), codeChallenge = codeChallenge, redirectUri = redirectUri, codeExpiresAt = now.plus(codeTtl),
+                allowPublish = publish && session.can(EditorPermissions.PUBLISH),
             ),
         )
         return code
@@ -218,10 +233,16 @@ class McpGrants(
         return true
     }
 
+    /** Lets grant [grantId] of [playerId] deploy, or not; false when it is not theirs. */
+    fun allowPublish(playerId: UUID, grantId: String, allow: Boolean): Boolean {
+        if (grants(playerId).none { it.id == grantId }) return false
+        return store.setPublish(playerId, grantId, allow)
+    }
+
     /** [Sessions.refresh]'s report for one player: like its sessions, a player without view loses its grants. */
     fun permissionsChanged(origin: String, playerId: UUID, permissions: Set<String>) {
         if (EditorPermissions.VIEW in permissions) {
-            store.setPermissions(playerId, origin, permissions - EditorPermissions.PUBLISH - EditorPermissions.CONFIG)
+            store.setPermissions(playerId, origin, permissions - EditorPermissions.CONFIG)
         } else {
             store.deletePlayer(playerId, origin)
         }

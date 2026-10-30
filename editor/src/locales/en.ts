@@ -8,7 +8,6 @@ import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
 import { projectIdentityEn } from "./projectIdentity";
 import { selfHostedEn } from "./selfHosted";
-import { serverCanvasEn } from "./serverCanvas";
 import { triggersEn } from "./triggers";
 export default {
   onboarding: onboardingEn,
@@ -86,7 +85,6 @@ export default {
   selfHosted: selfHostedEn,
   mmEditor: mmEditorEn,
   textTool: textToolEn,
-  serverCanvas: serverCanvasEn,
   changes: changesEn,
   actionCatalog: actionCatalogEn,
   triggers: triggersEn,
@@ -925,6 +923,8 @@ export default {
       give_xp: "give {{amount}} xp",
       give_level: "give {{amount}} levels",
       teleport: "teleport to {{world}} {{x}} {{y}} {{z}}",
+      moduleAction: "a {{module}} module action: it runs on the server, not here",
+      notRun: "not run",
     },
     sidebar: "Sidebar",
     launcher: {
@@ -1556,6 +1556,7 @@ export default {
     kindDeploy: "Deployment",
     kindServer: "Server edit",
     deployedBy: "Deployed from the editor by {{name}}",
+    deployedByVia: "Deployed by {{name}} via {{via}}",
     byServer: "Files edited on the server, then reloaded",
     changed_one: "{{count}} file changed",
     changed_other: "{{count}} files changed",
@@ -1824,9 +1825,9 @@ export default {
     tabs: {
       label: "Server sections",
       overview: "Overview",
-      board: "Board",
       play: "Play",
-      data: "Data",
+      assistant: "Assistant",
+      data: "Data sources",
       settings: "Settings",
     },
     stateOnline: "Online",

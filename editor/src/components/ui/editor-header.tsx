@@ -5,7 +5,8 @@ import type { ReactNode } from "react";
 /**
  * The top of a Document's editor (or any page about one object): the kind's tile and
  * colour, a short eyebrow naming the kind, the title large, then `meta` on the right
- * (chips, actions). `children` runs under the title (a command's arguments…).
+ * (chips, actions). `children` runs beside the title (a command's arguments…), `details` on
+ * its own line under the whole row, full width (a trigger's event sentence and its chips).
  */
 export function EditorHeader({
   kind,
@@ -13,6 +14,7 @@ export function EditorHeader({
   eyebrow,
   title,
   meta,
+  details,
   children,
 }: {
   /** A Document kind (`command`, `menu`, `dialog`, a module kind); or pass `appearance`. */
@@ -21,6 +23,7 @@ export function EditorHeader({
   eyebrow: ReactNode;
   title: ReactNode;
   meta?: ReactNode;
+  details?: ReactNode;
   children?: ReactNode;
 }) {
   const look = appearance ?? kindAppearance(kind ?? "");
@@ -47,6 +50,7 @@ export function EditorHeader({
       {meta ? (
         <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">{meta}</div>
       ) : null}
+      {details ? <div className="min-w-0 basis-full">{details}</div> : null}
     </header>
   );
 }

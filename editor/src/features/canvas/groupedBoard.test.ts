@@ -2,8 +2,7 @@ import type { Project } from "@/domain/types";
 import { expect, it } from "vitest";
 import { projectBoard, rearrangeProjectLayout } from "./autoLayout";
 import { deriveEdges } from "./deriveEdges";
-import { groupEdges, serverBoard } from "./groupedBoard";
-import { deriveServerGraph } from "./serverGraph";
+import { groupEdges } from "./groupedBoard";
 
 function project(id = "p"): Project {
   return {
@@ -87,9 +86,6 @@ it("ignores legacy folding and preserves menu links and folder colors", () => {
   expect(projectBoard(p).layout).toEqual(expanded.layout);
   const legacy = { ...p, canvasProjectCollapsed: true };
   expect(projectBoard(legacy).layout).toEqual(expanded.layout);
-  expect(serverBoard([legacy], deriveServerGraph([legacy])).positions).toEqual(
-    serverBoard([p], deriveServerGraph([p])).positions,
-  );
 });
 
 it("uses external links to rearrange whole groups while keeping automatic interiors unchanged", () => {
@@ -106,28 +102,4 @@ it("uses external links to rearrange whole groups while keeping automatic interi
     );
   }
   expect(deriveEdges(next)).toEqual(deriveEdges(p));
-});
-
-it("keeps entire projects together on the server board, including cross-project links", () => {
-  const a = project("a");
-  const b = project("b");
-  const graph = deriveServerGraph([a, b]);
-  graph.edges.push({
-    id: "cross",
-    source: "a/menu/a_quest",
-    target: "b/menu/b_main",
-    edge: { id: "cross", source: "menu/a_quest", target: "menu/b_main", triggers: [] },
-  });
-  const board = serverBoard([a, b], graph);
-  const roots = board.groups.filter((g) => g.kind === "project");
-  expect(roots).toHaveLength(2);
-  const [left, right] = roots;
-  expect(left!.x + left!.width <= right!.x || left!.y + left!.height <= right!.y).toBe(true);
-  for (const n of graph.nodes) {
-    const frame = roots.find((g) => g.projectId === n.projectId)!;
-    const pos = board.positions[n.key]!;
-    expect(pos.x).toBeGreaterThanOrEqual(frame.x);
-    expect(pos.x + n.width).toBeLessThanOrEqual(frame.x + frame.width);
-    expect(pos.y + n.height).toBeLessThanOrEqual(frame.y + frame.height);
-  }
 });

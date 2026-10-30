@@ -7,20 +7,26 @@ import net.artisanmc.plugin.project.ProjectPathPolicy
 import java.util.UUID
 
 /**
- * The seven tools of the MCP endpoint (ADR `mcp-server`). Four read, three prepare a draft;
- * none deploys. A model works in a draft of the player's, which the player opens in the editor,
- * reviews, then deploys with the editor's own button: the only write to the server's disk.
+ * The tools of the MCP endpoint (ADR `mcp-server`). Six read, two prepare a draft of the
+ * player's, which the player opens in the editor, reviews and deploys. Two deploy, for an app
+ * the player allowed to ([EditorPermissions.PUBLISH], off by default): `draft_publish` and
+ * `version_rollback`, through the editor's own publication (compare-and-swap, the server's
+ * checks), the Version attributed "<player> via <app>". A principal is offered only the tools
+ * it may use ([available]).
  */
 class McpTools(private val projects: McpProjects, private val editorUrl: () -> String = { "" }) {
-    /** A tool as `tools/list` describes it, and what it does. */
-    class Tool(val name: String, val title: String, val description: String, val input: Map<String, Any?>, val readOnly: Boolean, val run: (McpPrincipal, JsonNode) -> Any?)
+    /** A tool as `tools/list` describes it, and what it does. [requires]: the permission without which it is not offered. */
+    class Tool(
+        val name: String, val title: String, val description: String, val input: Map<String, Any?>, val readOnly: Boolean,
+        val run: (McpPrincipal, JsonNode) -> Any?, val requires: String? = null, val destructive: Boolean = false,
+    )
 
     val tools: List<Tool> = listOf(
         Tool(
             "artisan_overview", "Artisan overview",
-            "Start here. Lists the Minecraft servers of this Artisan network, their Projects, and the Document kinds each server " +
-                "understands (menus, commands, dialogs, triggers, module kinds). Explains the workflow: start_draft, then write_document; " +
-                "the player reviews the draft in the Artisan editor and deploys it there. Nothing you write reaches the server before that.",
+            "Start here. Lists the Minecraft servers of this Artisan network, their Projects (the player calls them modules), and the " +
+                "Document kinds each server understands (menus, commands, dialogs, triggers, add-on kinds). Explains the workflow: start_draft, then write_document; " +
+                "the player reviews the draft and deploys it, in the Artisan editor or, when they allowed this app to, through draft_publish.",
             schema(), readOnly = true, ::overview,
         ),
         Tool(
@@ -56,9 +62,22 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
             readOnly = true, ::readDocs,
         ),
         Tool(
+            "create_module", "Create a module",
+            "Creates a new, empty module on a server: a folder of Documents, which the player sees as a module in the editor (these " +
+                "tools call it a Project). Only when the player asks for a new module; to add to an existing one, write into it. Nothing " +
+                "reaches players until a draft of it is deployed: next, start_draft on its id, `<server id>.<name>`.",
+            schema(
+                "server" to string("A server id from artisan_overview."),
+                "name" to string("The module's folder name: letters, digits, `_` and `-`, starting with a letter or a digit, e.g. `shop`."),
+                required = listOf("server", "name"),
+            ),
+            readOnly = false, ::createModule, requires = EditorPermissions.PUBLISH,
+        ),
+        Tool(
             "start_draft", "Start a draft",
             "Creates a private draft of a Project for the signed-in player, from what the server runs now. Every write_document goes " +
-                "into a draft. The player sees it in the editor's Drafts list, reviews the changes, and deploys them; you cannot deploy.",
+                "into a draft. The player sees it in the editor's Drafts list, reviews the changes, and deploys them; nothing reaches " +
+                "the server before.",
             schema("project" to PROJECT, "name" to string("A short name the player recognises in their Drafts list, e.g. \"AI: shop menu\"."), required = listOf("project", "name")),
             readOnly = false, ::startDraft,
         ),
@@ -74,14 +93,60 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
             ),
             readOnly = false, ::writeDocument,
         ),
+        Tool(
+            "list_versions", "List versions",
+            "The Versions of a Project, newest first: each deploy the server loaded, who published it (\"<player> via <app>\" for an AI " +
+                "app), when, and the files it changed. version_rollback takes one of these numbers.",
+            schema("project" to PROJECT, "limit" to mapOf("type" to "integer", "minimum" to 1, "maximum" to 50, "description" to "At most this many (default 10).")),
+            readOnly = true, ::listVersions,
+        ),
+        Tool(
+            "draft_publish", "Deploy a draft",
+            "Deploys a draft to the Project's server, as the editor's Deploy button does: the server checks every file again and refuses " +
+                "the deploy when its files changed since the draft started. Players see the change at once. Before calling it, show the " +
+                "player the changes (dry_run: true returns the diff and the check without deploying) and get their explicit yes. The " +
+                "answer carries the diff and the new Version's number; version_rollback with the previous Version undoes it.",
+            schema(
+                "project" to PROJECT, "draft_id" to string("The draft from start_draft."),
+                "expected_revision" to mapOf("type" to "integer", "minimum" to 1, "description" to "The draft revision the player reviewed (from write_document or dry_run): a draft changed since is not deployed."),
+                "dry_run" to mapOf("type" to "boolean", "description" to "Return the diff and the server's check, deploy nothing."),
+                required = listOf("project", "draft_id", "expected_revision"),
+            ),
+            readOnly = false, ::draftPublish, requires = EditorPermissions.PUBLISH, destructive = true,
+        ),
+        Tool(
+            "version_rollback", "Roll back to a version",
+            "Deploys an earlier Version of a Project again, files and images, as the editor's Restore and deploy does. The new Version " +
+                "says it was restored from that one. Get the player's explicit yes first. expected_version is the newest Version you " +
+                "showed them (list_versions): when another deploy came since, nothing is rolled back.",
+            schema(
+                "project" to PROJECT, "version" to string("The Version to bring back, from list_versions."),
+                "expected_version" to string("The newest Version now, from list_versions."),
+                required = listOf("project", "version", "expected_version"),
+            ),
+            readOnly = false, ::versionRollback, requires = EditorPermissions.PUBLISH, destructive = true,
+        ),
     )
 
     fun find(name: String): Tool? = tools.firstOrNull { it.name == name }
+
+    /** The tools [principal] may call: those needing a permission it lacks are not offered. */
+    fun available(principal: McpPrincipal): List<Tool> =
+        tools.filter { (it.requires == null || principal.can(it.requires)) && (!it.destructive || principal.canDeploy) }
+
+    /**
+     * The tools of a principal that never deploys: the editor's assistant. It may create an empty module
+     * (`create_module`, the player's own publish permission): nothing in it runs before a deployed draft.
+     */
+    val draftOnly: List<Tool> get() = tools.filter { !it.destructive }
 
     /** A tool call's answer as a model reads it: the MCP endpoint and the editor's assistant both hand it on. */
     class Outcome(val body: Any?, val error: Boolean)
 
     fun invoke(principal: McpPrincipal, tool: Tool, args: JsonNode): Outcome = try {
+        if (tool.destructive && !principal.canDeploy) throw McpRefusal("forbidden", McpProjects.NOT_ALLOWED)
+        if (tool.requires != null && !principal.can(tool.requires))
+            throw McpRefusal("forbidden", if (tool.requires == EditorPermissions.PUBLISH) "The player lacks artisan.editor.publish." else "The player lacks ${tool.requires}.")
         when (val out = tool.run(principal, args)) {
             is Refused -> Outcome(out.body, error = true)
             else -> Outcome(out, error = false)
@@ -103,18 +168,30 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
                 put("projects", folders?.map { ProjectRef.id(server.id, it) } ?: emptyList<String>())
                 listed.exceptionOrNull()?.let { put("projects_unavailable", it.message) }
                 put("document_kinds", announcement?.documentKinds?.map { mapOf("kind" to it["kind"], "dir" to it["dir"], "schema" to (it["schema_versions"] as? List<*>)?.firstOrNull()) } ?: emptyList<Any>())
-                put("modules", announcement?.modules?.mapNotNull { it["id"] } ?: emptyList<Any>())
+                // The plugins that extend Artisan on this server (Java add-ons, `addons` so the player's modules, the Projects, keep the word).
+                put("addons", announcement?.modules?.mapNotNull { it["id"] } ?: emptyList<Any>())
             }
         }
         return mapOf(
             "player" to principal.playerName,
             "can_write_drafts" to principal.can(EditorPermissions.EDIT),
+            "can_deploy" to principal.canDeploy,
+            "can_create_modules" to principal.can(EditorPermissions.PUBLISH),
             "servers" to servers,
-            "workflow" to listOf(
-                "1. Pick a Project. Read what exists with list_documents and read_document.",
+            "workflow" to listOfNotNull(
+                "1. Pick a Project (the player calls it a module). Read what exists with list_documents and read_document. " +
+                    "When the player asks for a new module, create_module makes it" +
+                    (if (principal.can(EditorPermissions.PUBLISH)) "." else ": this player may not create modules, they do it in the editor (New module)."),
                 "2. Before writing a kind you have not written yet, call get_kind_guide for it.",
                 "3. start_draft once per piece of work, then write_document for each file; fix what the checks report.",
-                "4. Tell the player the draft's name: they open it in the editor (Drafts), review, and click Deploy. You never deploy.",
+                if (principal.canDeploy)
+                    "4. Show the player the changes (draft_publish with dry_run: true), and deploy with draft_publish only once they say yes. " +
+                        "Or tell them the draft's name: they can review and deploy it in the editor (Drafts)."
+                else if (!principal.deploys)
+                    "4. Tell the player the draft's name: they review and deploy it themselves, in the editor (Drafts, or Review and deploy)."
+                else
+                    "4. Tell the player the draft's name: they open it in the editor (Drafts), review, and click Deploy. This app may not " +
+                        "deploy: the player can allow it in Settings → AI apps.",
                 "Visible text goes in the Document as written; references to other Documents use their id, e.g. `open_menu shop`.",
             ),
             "editor_url" to editorUrl().ifEmpty { null },
@@ -178,15 +255,27 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
         return "# ${page.title}\n\n${page.body.trim()}\n"
     }
 
+    private fun createModule(principal: McpPrincipal, args: JsonNode): Any {
+        val serverId = text(args, "server")
+        val server = projects.servers().firstOrNull { it.id == serverId }
+            ?: throw McpRefusal("unknown_server", "No server '$serverId'. Server ids are in artisan_overview.")
+        val name = text(args, "name").trim()
+        if (!MODULE_NAME.matches(name))
+            throw McpRefusal("invalid_name", "A module's folder name is letters, digits, `_` and `-`, starting with a letter or a digit (at most 128).")
+        val created = projects.create(principal, server, name)
+        return mapOf(
+            "project" to created.id, "created" to true,
+            "next" to "start_draft on ${created.id}, then write_document for each file; the player deploys the draft.",
+        )
+    }
+
     private fun startDraft(principal: McpPrincipal, args: JsonNode): Any {
         requireEdit(principal)
         val project = projects.project(text(args, "project"))
         val name = text(args, "name").trim().take(120)
         val read = projects.read(project)
         val tree = files(read)
-        val binaries = (read["binaries"] as? List<*>).orEmpty().filterIsInstance<Map<*, *>>()
-            .filter { contentPath(it["path"].toString()) }
-            .associate { it["path"].toString() to mapOf("hash" to it["hash"], "size" to it["size"]) }
+        val binaries = binaries(read["binaries"])
         val snapshot = mapOf(
             "baseline" to tree, "tree" to tree, "initialTree" to tree,
             "binaryBaseline" to binaries, "binaryTree" to binaries,
@@ -246,6 +335,167 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
             "other_problems" to others.ifEmpty { null },
         )
     }
+
+    private fun listVersions(principal: McpPrincipal, args: JsonNode): Any {
+        val project = projects.project(text(args, "project"))
+        val limit = args.path("limit").asInt(10).coerceIn(1, 50)
+        val versions = versions(project)
+        return mapOf(
+            "project" to project.id,
+            "versions" to versions.take(limit).map { v ->
+                val changed = (v["changed"] as? List<*>).orEmpty()
+                mapOf(
+                    "version" to v["id"], "created_at" to v["createdAt"], "published_by" to byline(v["author"]),
+                    "restored_from" to v["restoredFrom"], "changed" to changed.take(20), "changed_count" to changed.size,
+                )
+            },
+            "total" to versions.size,
+        )
+    }
+
+    private fun draftPublish(principal: McpPrincipal, args: JsonNode): Any {
+        val project = projects.project(text(args, "project"))
+        val draftId = text(args, "draft_id")
+        val expected = args.path("expected_revision").takeIf { it.isIntegralNumber }?.asLong()
+            ?: throw McpRefusal("invalid_input", "expected_revision is required: the draft revision the player reviewed.")
+        val draft = draftSnapshot(principal, project, draftId)
+        if (draft.revision != expected) {
+            throw McpRefusal("draft_conflict", "The draft is at revision ${draft.revision}, not $expected: it changed since. Show the player the changes again (dry_run).")
+        }
+        val changes = changes(draft.json)
+        if (changes.isEmpty()) throw McpRefusal("nothing_to_deploy", "Draft $draftId changes nothing on the server.")
+        if (args.path("dry_run").asBoolean(false)) {
+            val problems = projects.check(project, draft.tree.filter { (p, text) -> draft.baseline[p] != text }, draft.baseline.keys - draft.tree.keys)
+            return mapOf(
+                "deployed" to false, "dry_run" to true, "project" to project.id, "draft_id" to draftId, "revision" to draft.revision,
+                "changes" to changes, "problems" to problems.ifEmpty { null },
+                "next" to if (problems.isEmpty()) "Show the player these changes; with their yes, call draft_publish without dry_run."
+                else "The server would refuse this deploy: fix the problems with write_document first.",
+            )
+        }
+        return deploy(principal, project, draftId, draft.revision, changes)
+    }
+
+    private fun versionRollback(principal: McpPrincipal, args: JsonNode): Any {
+        val project = projects.project(text(args, "project"))
+        val target = text(args, "version")
+        val expected = text(args, "expected_version")
+        val latest = versions(project).firstOrNull()?.get("id")?.toString()
+        if (latest != expected) throw McpRefusal("version_conflict", "The newest Version is $latest, not $expected: another deploy came since. List the versions again.")
+        if (target == latest) throw McpRefusal("nothing_to_deploy", "Version $target is the one the server runs.")
+        val version = projects.version(project, target) ?: throw McpRefusal("not_found", "No Version $target of ${project.id}: list_versions lists them.")
+        val read = projects.read(project)
+        val current = files(read)
+        val currentBinaries = binaries(read["binaries"])
+        val files = (version["files"] as? List<*>).orEmpty().filterIsInstance<Map<*, *>>()
+            .mapNotNull { f -> (f["path"] as? String)?.takeIf(::contentPath)?.let { it to (f["content"] as? String).orEmpty() } }.toMap()
+        val binaries = binaries(version["binaries"])
+        val snapshot = mapOf(
+            "baseline" to current, "tree" to files, "initialTree" to current,
+            "binaryBaseline" to currentBinaries, "binaryTree" to binaries,
+            "at" to System.currentTimeMillis(), "restoredFrom" to target,
+        )
+        val draftId = UUID.randomUUID().toString()
+        refuseDraft(projects.draft(
+            principal, project, "create",
+            "draft_id" to draftId, "operation_id" to UUID.randomUUID().toString(), "name" to "Rollback to Version $target",
+            "snapshot" to snapshot, "source" to SOURCE,
+        ))
+        // Images and fonts the server no longer has: their bytes from the Version, into the draft.
+        val known = currentBinaries.values.mapNotNull { it["hash"] }.toSet()
+        binaries.filter { (_, ref) -> ref["hash"] !in known }.forEach { (path, ref) ->
+            val bytes = projects.versionBinary(project, target, path)
+                ?: throw McpRefusal("missing_blob", "Version $target's file $path is no longer stored: it cannot be rolled back.")
+            refuseDraft(projects.draft(
+                principal, project, "write_blob",
+                "draft_id" to draftId, "expected_revision" to 1, "operation_id" to UUID.randomUUID().toString(),
+                "hash" to ref["hash"], "content_base64" to java.util.Base64.getEncoder().encodeToString(bytes),
+            ))
+        }
+        val changes = changes(Call.mapper.valueToTree(snapshot))
+        return when (val out = deploy(principal, project, draftId, 1, changes)) {
+            is Map<*, *> -> out + ("restored_from" to target)
+            else -> out
+        }
+    }
+
+    /** Publishes [draftId] at [revision]: the server's checks, its compare-and-swap, then the Version it recorded. */
+    private fun deploy(principal: McpPrincipal, project: ProjectRef, draftId: String, revision: Long, changes: List<Map<String, Any?>>): Any {
+        val before = runCatching { versions(project).firstOrNull()?.get("id")?.toString() }.getOrNull()
+        val reply = projects.draft(
+            principal, project, "publish",
+            "draft_id" to draftId, "expected_revision" to revision, "operation_id" to UUID.randomUUID().toString(),
+        )
+        if (reply["ok"] != true) {
+            when (reply["error"]) {
+                "invalid_documents" -> return Refused(mapOf(
+                    "deployed" to false, "error" to "invalid_documents", "draft_id" to draftId, "problems" to reply["problems"],
+                    "hint" to "The server refused the deploy: nothing changed. Fix these files with write_document, then deploy again.",
+                ))
+                "conflict" -> throw McpRefusal(
+                    "conflict",
+                    "The server's files changed since the draft started (another deploy): nothing was deployed. " +
+                        "Conflicting files: ${(reply["conflicts"] as? List<*>).orEmpty().mapNotNull { (it as? Map<*, *>)?.get("path") }.joinToString()}. Start a new draft.",
+                )
+            }
+            refuseDraft(reply)
+        }
+        val version = recorded(project, before)
+        return mapOf(
+            "deployed" to true, "project" to project.id, "draft_id" to draftId, "wrote" to reply["wrote"],
+            "version" to version, "previous_version" to before,
+            "published_by" to principal.clientName?.let { "${principal.playerName} via $it" },
+            "changes" to changes,
+            "undo" to before?.let { "version_rollback with version $it and expected_version ${version ?: "(the new one, from list_versions)"}" },
+            "note" to if (version == null) "The server is still loading the deploy: its Version will show in list_versions shortly." else null,
+        )
+    }
+
+    /** The Version the server records once it loaded a deploy: a moment after it answers. Null when none came in time. */
+    private fun recorded(project: ProjectRef, before: String?): String? {
+        val until = System.nanoTime() + VERSION_WAIT_MS * 1_000_000
+        while (true) {
+            val latest = runCatching { projects.versions(project)?.firstOrNull()?.get("id")?.toString() }.getOrNull()
+            if (latest != null && latest != before) return latest
+            if (System.nanoTime() > until || projects.versions(project) == null) return null
+            Thread.sleep(200)
+        }
+    }
+
+    /** What a draft changes against what the server runs: each text file's diff, each binary's path. */
+    private fun changes(snapshot: JsonNode): List<Map<String, Any?>> {
+        fun texts(key: String) = snapshot.path(key).fields().asSequence().filter { it.value.isTextual }.associate { it.key to it.value.asText() }
+        fun hashes(key: String) = snapshot.path(key).fields().asSequence().associate { it.key to it.value.path("hash").asText() }
+        val before = texts("baseline")
+        val after = texts("tree")
+        var budget = MAX_DIFF
+        val text = (before.keys + after.keys).sorted().filter { before[it] != after[it] }.map { path ->
+            val change = when { before[path] == null -> "added"; after[path] == null -> "deleted"; else -> "modified" }
+            val diff = if (budget > 0) TextDiff.unified(before[path], after[path]).take(budget) else null
+            budget -= diff?.length ?: 0
+            mapOf("path" to path, "change" to change, "diff" to (diff ?: "(diff left out: the answer is long enough)"))
+        }
+        val binaryBefore = hashes("binaryBaseline")
+        val binaryAfter = hashes("binaryTree")
+        val binary = (binaryBefore.keys + binaryAfter.keys).sorted().filter { binaryBefore[it] != binaryAfter[it] }.map { path ->
+            mapOf("path" to path, "change" to when { binaryBefore[path] == null -> "added"; binaryAfter[path] == null -> "deleted"; else -> "modified" }, "binary" to true)
+        }
+        return text + binary
+    }
+
+    private fun versions(project: ProjectRef): List<Map<String, Any?>> =
+        projects.versions(project) ?: throw McpRefusal("database_unavailable", "Versions need the suite database, which this server does not have open.")
+
+    private fun byline(author: Any?): String? {
+        val a = author as? Map<*, *> ?: return null
+        val name = a["name"]?.toString().orEmpty().ifEmpty { a["id"]?.toString() }
+        return a["via"]?.toString()?.takeIf { it.isNotBlank() }?.let { "$name via $it" } ?: name
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun binaries(list: Any?): Map<String, Map<String, Any?>> = (list as? List<*>).orEmpty().filterIsInstance<Map<*, *>>()
+        .filter { contentPath(it["path"].toString()) }
+        .associate { it["path"].toString() to mapOf("hash" to it["hash"], "size" to it["size"]) }
 
     /** A tool's answer that is a refusal for the model to act on: `isError`, with what to fix. */
     class Refused(val body: Any)
@@ -308,8 +558,14 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
         private const val SOURCE = "ai"
         private const val MAX_FILE = 512 * 1024
         private const val MAX_EXAMPLE = 8000
+        /** Characters of diff a deploy's answer carries, all files together. */
+        private const val MAX_DIFF = 30_000
+        /** How long a deploy's answer waits for the server to record its Version. */
+        private const val VERSION_WAIT_MS = 5_000L
 
         private val PROJECT = string("A Project id, `<server id>.<folder>`, from artisan_overview.")
+        /** A Project folder name, as the server's `ProjectFolders` and the editor accept it. */
+        private val MODULE_NAME = Regex("[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
         private val PROJECT_OPTIONAL = string("Optional: a Project id, for an example from it.")
         private val DRAFT_OPTIONAL = string("Optional: a draft id from start_draft, to read the draft instead of what is deployed.")
         private val PATH = string("A path in the Project, e.g. `menus/shop.yml` or `lang/en.yml`.")

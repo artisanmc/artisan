@@ -75,6 +75,8 @@ sealed interface DraftRequest {
     data class Publish(
         override val ownerId: String, override val draftId: String, override val operationId: String, override val expectedRevision: Long?,
         val authorId: String, val authorName: String,
+        /** The AI app publishing for the player, if any: its Version reads "<player> via <app>". */
+        val authorVia: String? = null,
     ) : Revised
 
     companion object {
@@ -91,7 +93,7 @@ sealed interface DraftRequest {
                 "update" -> Update(ownerId, draft, operation, revision, node.path("name").asText(), node["snapshot"])
                 "discard" -> Discard(ownerId, draft, operation, revision)
                 "write_blob" -> WriteBlob(ownerId, draft, operation, revision, node.path("hash").asText(), node.path("content_base64").asText())
-                "publish" -> Publish(ownerId, draft, operation, revision, node.path("author_id").asText(""), node.path("author_name").asText(""))
+                "publish" -> Publish(ownerId, draft, operation, revision, node.path("author_id").asText(""), node.path("author_name").asText(""), node.path("author_via").asText("").ifEmpty { null })
                 else -> null
             }
         }

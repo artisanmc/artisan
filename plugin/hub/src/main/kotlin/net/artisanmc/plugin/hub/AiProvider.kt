@@ -29,13 +29,26 @@ data class AiConfig(
 /** A model service. Each provider keeps a conversation's history in its own wire types. */
 interface AiProvider {
     val model: String
+
+    /** What a stored history is valid for: another provider, address or model cannot take it back. */
+    val historyKey: String get() = model
+
     fun conversation(system: String, tools: List<McpTools.Tool>): AiConversation
+
+    /**
+     * The conversation [history] (from [AiConversation.history]) left, to go on with. Null: this
+     * provider cannot read it, and the conversation starts again from a transcript.
+     */
+    fun resume(system: String, tools: List<McpTools.Tool>, history: String): AiConversation? = null
 }
 
 /** One conversation with a model: the history stays inside, [step] adds to it. */
 interface AiConversation {
     /** Sends [input] after the history and returns the model's answer, which joins the history too. */
     fun step(input: List<AiInput>): AiReply
+
+    /** The history as the provider keeps it, to store; null: it keeps none worth storing. */
+    fun history(): String? = null
 }
 
 sealed interface AiInput {

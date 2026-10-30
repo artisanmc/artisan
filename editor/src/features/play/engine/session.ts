@@ -3,6 +3,7 @@ import { normalizeActionArgs } from "@/domain/actionArgs";
 import { commandsOf, documentsOf, menusOf } from "@/domain/documents";
 import type { Action, Condition, Element, LText, Menu, Project, Step } from "@/domain/types";
 import { coreActionOf } from "@/lib/actions/coreActions";
+import type { DeclaredAction } from "@/lib/api/declaredActions";
 import { AstCache } from "@/lib/expr/cache";
 import { evaluate } from "@/lib/expr/evaluator";
 import { parse } from "@/lib/expr/parser";
@@ -26,6 +27,8 @@ export interface PlayLogEntry {
    */
   kind: "visual" | "logged" | "sound" | "info" | "warn";
   text: string;
+  /** What the line cannot say alone (a module action runs on the server, not here). */
+  detail?: string;
   source: string;
 }
 
@@ -72,6 +75,8 @@ export interface PlaySessionOptions {
   t: PlayTranslate;
   /** Live rows of server sources by ref, for menus that read them. */
   snapshots?: () => Record<string, unknown[]>;
+  /** The actions the server's modules declare: names their arguments in the journal. */
+  declaredActions?: () => readonly DeclaredAction[];
   /** A menu's scope as the canvas builds it (inputs, sources, `player`), args given. */
   menuScope: (
     menu: Menu,
@@ -122,8 +127,14 @@ export class PlaySession {
     for (const l of this.listeners) l();
   }
 
-  private log(kind: PlayLogEntry["kind"], text: string, source: string): void {
-    const entry = { id: this.nextId++, kind, text, source };
+  private log(kind: PlayLogEntry["kind"], text: string, source: string, detail?: string): void {
+    const entry: PlayLogEntry = {
+      id: this.nextId++,
+      kind,
+      text,
+      source,
+      ...(detail ? { detail } : {}),
+    };
     this.set({ log: [...this.state.log, entry].slice(-LOG_LIMIT) });
   }
 
@@ -391,12 +402,20 @@ export class PlaySession {
           from.label,
         );
         return;
-      default:
+      default: {
+        // A module's action runs in its plugin: the journal names it and its arguments,
+        // and says it is not played here.
+        const declared = this.opts.declaredActions?.().find((a) => a.name === action.name);
+        const colon = action.name.indexOf(":");
+        const module = declared?.moduleId ?? (colon > 0 ? action.name.slice(0, colon) : null);
+        const args = this.describeArgs(action.value, declared, from.scope, project);
         this.log(
           "logged",
-          `${action.name} ${this.describeValue(action.value, from.scope, project)}`.trim(),
+          args ? `${action.name} · ${args}` : action.name,
           from.label,
+          module ? t("play.log.moduleAction", { module }) : undefined,
         );
+      }
     }
   }
 
@@ -567,6 +586,24 @@ export class PlaySession {
     if (value == null) return "";
     const raw = isLTextNode(value) ? getText(project, value, this.opts.lang()) : String(value);
     return this.render(raw, scope, project);
+  }
+
+  /** An action's value with its argument names: `source = youtube`, `a = 1, b = 2`. */
+  private describeArgs(
+    value: unknown,
+    declared: DeclaredAction | undefined,
+    scope: Record<string, unknown>,
+    project: Project,
+  ): string {
+    if (value == null) return "";
+    if (typeof value === "object" && !Array.isArray(value) && !isLTextNode(value)) {
+      return Object.entries(value as Record<string, unknown>)
+        .map(([k, v]) => `${k} = ${this.describeValue(v, scope, project)}`)
+        .join(", ");
+    }
+    const shown = this.describeValue(value, scope, project);
+    const name = declared?.primary ?? (declared?.args.length === 1 ? declared.args[0]?.name : null);
+    return name ? `${name} = ${shown}` : shown;
   }
 
   private describeValue(value: unknown, scope: Record<string, unknown>, project: Project): string {

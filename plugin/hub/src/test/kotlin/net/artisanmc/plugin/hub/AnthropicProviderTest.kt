@@ -43,6 +43,32 @@ class AnthropicProviderTest {
     private val tools = McpTools(McpProjects(Servers(McpFixtures.server(mutableListOf())))).tools
 
     @Test
+    fun `a stored history goes on where it stopped, the calls left without result answered as interrupted`() {
+        answers += 200 to message("""[{"type":"thinking","thinking":"","signature":"sig"},{"type":"tool_use","id":"toolu_1","name":"read_document","input":{"project":"u-local.shop","path":"menus/shop.yml"}}]""", "tool_use")
+        answers += 200 to message("""[{"type":"text","text":"Je reprends."}]""", "end_turn")
+        val first = provider().conversation("system prompt", tools)
+        first.step(listOf(AiInput.Text("lis le menu")))
+        // The hub stops while the tool runs: what was stored is the question and the answer.
+        val stored = first.history()!!
+
+        val resumed = provider().resume("system prompt", tools, stored)!!
+        assertEquals(mapper.readTree(stored), mapper.readTree(resumed.history()))
+        assertEquals(listOf("Je reprends."), resumed.step(listOf(AiInput.Text("tu en étais où ?"))).texts)
+        val history = requests[1]["messages"]
+        assertEquals(listOf("user", "assistant", "user"), history.map { it["role"].asText() })
+        assertEquals("sig", history[1]["content"][0]["signature"].asText(), "the thinking block goes back as it came")
+        val (interrupted, text) = history[2]["content"].toList()
+        assertEquals("toolu_1", interrupted["tool_use_id"].asText())
+        assertTrue(interrupted["is_error"].asBoolean())
+        assertEquals("tu en étais où ?", text["text"].asText())
+
+        // A question stored without its answer is sent again with the next one, not twice.
+        val unanswered = mapper.readTree(stored).also { (it as com.fasterxml.jackson.databind.node.ArrayNode).add(mapper.readTree("""{"role":"user","content":"perdu"}""")) }
+        assertEquals(mapper.readTree(stored), mapper.readTree(provider().resume("system prompt", tools, unanswered.toString())!!.history()))
+        assertEquals(null, provider().resume("system prompt", tools, "not json"))
+    }
+
+    @Test
     fun `a tool call goes out with the tools, and its result comes back after the answer, unchanged`() {
         answers += 200 to message("""[{"type":"thinking","thinking":"","signature":"sig"},{"type":"tool_use","id":"toolu_1","name":"read_document","input":{"project":"u-local.shop","path":"menus/shop.yml"}}]""", "tool_use")
         answers += 200 to message("""[{"type":"text","text":"Voilà."}]""", "end_turn")

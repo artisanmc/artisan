@@ -10,6 +10,7 @@ const api = vi.hoisted(() => ({
   answerConsent: vi.fn(),
   listMcpGrants: vi.fn(),
   revokeMcpGrant: vi.fn(),
+  setMcpGrantPublish: vi.fn(),
 }));
 vi.mock("@/lib/api/mcp", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/mcp")>()),
@@ -53,6 +54,7 @@ describe("consent page", () => {
       client: { name: "Claude", redirectHost: "claude.ai" },
       player: "Iban",
       canEdit: true,
+      canPublish: false,
     });
     api.answerConsent.mockResolvedValue("https://claude.ai/cb?code=abc&state=s1");
     const assign = vi.fn();
@@ -69,6 +71,32 @@ describe("consent page", () => {
     expect(api.answerConsent).toHaveBeenCalledWith(
       expect.objectContaining({ client_id: "mcp_1" }),
       true,
+      false,
+    );
+    // A player who cannot deploy is not offered to let the client deploy.
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("lets a client deploy only when the player ticks it", async () => {
+    signIn(["artisan.editor.view", "artisan.editor.edit", "artisan.editor.publish"]);
+    api.getConsent.mockResolvedValue({
+      client: { name: "Claude", redirectHost: "claude.ai" },
+      player: "Iban",
+      canEdit: true,
+      canPublish: true,
+    });
+    api.answerConsent.mockResolvedValue("https://claude.ai/cb?code=abc");
+    Object.defineProperty(window, "location", {
+      value: { ...window.location, assign: vi.fn() },
+      writable: true,
+    });
+    render(<ConsentPage query={query} />);
+    const box = await screen.findByRole("checkbox");
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole("button", { name: /Allow|Autoriser/ }));
+    await waitFor(() =>
+      expect(api.answerConsent).toHaveBeenCalledWith(expect.anything(), true, true),
     );
   });
 
@@ -78,6 +106,7 @@ describe("consent page", () => {
       client: { name: "Claude", redirectHost: "claude.ai" },
       player: "Iban",
       canEdit: false,
+      canPublish: false,
     });
     render(<ConsentPage query={query} />);
     expect(await screen.findByRole("button", { name: /Allow|Autoriser/ })).toBeDisabled();
@@ -88,20 +117,46 @@ describe("AI apps settings", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("lists the connected clients and disconnects one", async () => {
-    api.listMcpGrants.mockResolvedValue([
-      {
-        id: "g1",
-        client: "Claude",
-        createdAt: "2026-10-25T10:00:00Z",
-        lastUsedAt: "2026-10-25T11:00:00Z",
-      },
-    ]);
+    api.listMcpGrants.mockResolvedValue({
+      grants: [
+        {
+          id: "g1",
+          client: "Claude",
+          createdAt: "2026-10-25T10:00:00Z",
+          lastUsedAt: "2026-10-25T11:00:00Z",
+          publish: false,
+        },
+      ],
+      canPublish: true,
+    });
     api.revokeMcpGrant.mockResolvedValue(undefined);
     render(<McpAppsSection />);
     expect(await screen.findByText("Claude")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Disconnect|Déconnecter/ }));
     await waitFor(() => expect(screen.queryByText("Claude")).not.toBeInTheDocument());
     expect(api.revokeMcpGrant).toHaveBeenCalledWith("g1");
+  });
+
+  it("switches a client's right to deploy", async () => {
+    api.listMcpGrants.mockResolvedValue({
+      grants: [
+        {
+          id: "g1",
+          client: "Claude",
+          createdAt: "2026-10-25T10:00:00Z",
+          lastUsedAt: "2026-10-25T11:00:00Z",
+          publish: false,
+        },
+      ],
+      canPublish: true,
+    });
+    api.setMcpGrantPublish.mockResolvedValue(undefined);
+    render(<McpAppsSection />);
+    const toggle = await screen.findByRole("switch");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
+    expect(api.setMcpGrantPublish).toHaveBeenCalledWith("g1", true);
   });
 
   it("says when the server has the MCP endpoint off", async () => {

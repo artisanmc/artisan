@@ -679,6 +679,13 @@ export function DesignSystemPage() {
                     eyebrow={kind.charAt(0).toUpperCase() + kind.slice(1)}
                     title={kind === "command" ? "/shop" : "Shop"}
                     meta={<span className="chip cursor-default text-[12px]">meta</span>}
+                    details={
+                      kind === "trigger" ? (
+                        <span className="text-[13px] text-[var(--text-mut)]">
+                          details: a full-width line under the row
+                        </span>
+                      ) : undefined
+                    }
                   />
                 </div>
               ))}

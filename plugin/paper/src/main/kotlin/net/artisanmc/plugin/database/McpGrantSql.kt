@@ -26,16 +26,17 @@ internal class McpGrantSql(private val rows: McpGrantRows) : McpGrantStore {
     override fun delete(id: String) = rows.delete(id).let { }
     override fun touch(id: String, at: Instant) = rows.touch(id, at).let { }
     override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) = rows.setPermissions(playerId, origin, permissions).let { }
+    override fun setPublish(playerId: UUID, id: String, allow: Boolean) = rows.setPublish(playerId, id, allow)
     override fun deletePlayer(playerId: UUID, origin: String?) = rows.deletePlayer(playerId, origin)
     override fun purge(now: Instant) = rows.purge(now).let { }
 
     private fun row(g: McpGrant) = McpGrantRow(
         g.id, g.clientId, g.clientName, g.playerId, g.playerName, g.origin, g.permissions, g.createdAt, g.lastUsedAt,
-        g.codeHash, g.codeChallenge, g.redirectUri, g.codeExpiresAt, g.accessHash, g.accessExpiresAt, g.refreshHash, g.refreshExpiresAt,
+        g.codeHash, g.codeChallenge, g.redirectUri, g.codeExpiresAt, g.accessHash, g.accessExpiresAt, g.refreshHash, g.refreshExpiresAt, g.allowPublish,
     )
 
     private fun grant(r: McpGrantRow) = McpGrant(
         r.id, r.clientId, r.clientName, r.playerId, r.playerName, r.origin, r.permissions, r.createdAt, r.lastUsedAt,
-        r.codeHash, r.codeChallenge, r.redirectUri, r.codeExpiresAt, r.accessHash, r.accessExpiresAt, r.refreshHash, r.refreshExpiresAt,
+        r.codeHash, r.codeChallenge, r.redirectUri, r.codeExpiresAt, r.accessHash, r.accessExpiresAt, r.refreshHash, r.refreshExpiresAt, r.allowPublish,
     )
 }

@@ -1,5 +1,7 @@
 [
   "feature-imports-feature: assets -> project",
+  "feature-imports-feature: assistant -> play",
+  "feature-imports-feature: assistant -> project",
   "feature-imports-feature: canvas -> assets",
   "feature-imports-feature: canvas -> project",
   "feature-imports-feature: canvas -> screens",
@@ -35,8 +37,6 @@
   "feature-imports-feature: search -> project",
   "feature-imports-feature: search -> serverIndex",
   "feature-imports-feature: selfHosted -> auth",
-  "feature-imports-feature: serverCanvas -> canvas",
-  "feature-imports-feature: serverCanvas -> project",
   "feature-imports-feature: serverConfig -> project",
   "feature-imports-feature: serverIndex -> canvas",
   "feature-imports-feature: serverIndex -> projects",

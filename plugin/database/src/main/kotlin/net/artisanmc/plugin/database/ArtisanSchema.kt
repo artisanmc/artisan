@@ -174,6 +174,29 @@ object ArtisanSchema {
         Migration(33, "ALTER TABLE ${t.editorSessions} ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'session'") { hasColumn(it, t.editorSessions, "kind") },
         // Hub settings saved from the editor, shared by the servers of the database (`ai`: ADR `editor-assistant`).
         Migration(34, "CREATE TABLE IF NOT EXISTS ${t.settings} (name VARCHAR(64) NOT NULL PRIMARY KEY, val LONGTEXT NOT NULL, updated_at TIMESTAMP NOT NULL)"),
+        // An AI app may deploy only when the player allowed it, at consent or in Settings → AI apps (ADR `mcp-server`).
+        Migration(35, "ALTER TABLE ${t.mcpGrants} ADD COLUMN allow_publish BOOLEAN NOT NULL DEFAULT FALSE") { hasColumn(it, t.mcpGrants, "allow_publish") },
+        // The AI app a Version was published through: "<player> via <app>".
+        Migration(36, "ALTER TABLE ${t.versions} ADD COLUMN author_via VARCHAR(80) NULL") { hasColumn(it, t.versions, "author_via") },
+        // The editor assistant's conversations, kept across restarts (ADR `editor-assistant`).
+        Migration(
+            37,
+            """CREATE TABLE IF NOT EXISTS ${t.aiConversations} (
+                id VARCHAR(36) NOT NULL PRIMARY KEY,
+                owner_id CHAR(36) NOT NULL,
+                project VARCHAR(200) NULL,
+                server_id VARCHAR(64) NULL,
+                title VARCHAR(80) NULL,
+                created_at TIMESTAMP NOT NULL,
+                last_active TIMESTAMP NOT NULL,
+                input_tokens BIGINT NOT NULL,
+                output_tokens BIGINT NOT NULL,
+                events LONGTEXT NOT NULL,
+                history LONGTEXT NULL,
+                history_key VARCHAR(255) NULL
+            )""",
+        ),
+        Migration(38, "CREATE INDEX ${t.aiConversationsOwnerIndex} ON ${t.aiConversations} (owner_id)") { hasIndex(it, t.aiConversations, t.aiConversationsOwnerIndex) },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

@@ -204,7 +204,7 @@ class ProjectDrafts(private val storage: DraftStorage) {
         val message = mapOf(
             "type" to "project_draft_publish", "project_id" to applying.target.folder, "operation_id" to applying.operationId,
             "draft" to current.json, "blobs" to blobs, "author_id" to request.authorId, "author_name" to request.authorName,
-        )
+        ) + (request.authorVia?.let { mapOf("author_via" to it) } ?: emptyMap())
         publisher.publish(message) { reply ->
             if (reply["ok"] != true) return@publish applying.respond(reply - setOf("type", "request_id"))
             applying.commit(next.withStatus(DraftStatus.PUBLISHED), ok("draft" to next.json, "wrote" to reply["wrote"]))

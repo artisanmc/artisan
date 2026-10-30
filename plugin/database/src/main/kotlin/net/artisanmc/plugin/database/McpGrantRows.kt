@@ -29,6 +29,8 @@ data class McpGrantRow(
     val accessExpiresAt: Instant?,
     val refreshHash: String?,
     val refreshExpiresAt: Instant?,
+    /** The player allowed this app to deploy their drafts (ADR `mcp-server`). */
+    val allowPublish: Boolean = false,
 )
 
 /** `artisan_mcp_clients` and `artisan_mcp_grants`: the MCP endpoint's OAuth, shared by the servers of a database. */
@@ -72,8 +74,8 @@ class McpGrantRows(private val dataSource: DataSource, private val t: ArtisanTab
         c.prepareStatement(
             "UPDATE ${t.mcpGrants} SET $sets WHERE id = ? AND COALESCE(code_hash, '') = ? AND COALESCE(refresh_hash, '') = ?",
         ).use {
-            bind(it, new, from = 1, skipId = true)
-            it.setString(17, old.id); it.setString(18, old.codeHash.orEmpty()); it.setString(19, old.refreshHash.orEmpty())
+            var i = bind(it, new, from = 1, skipId = true)
+            it.setString(i++, old.id); it.setString(i++, old.codeHash.orEmpty()); it.setString(i, old.refreshHash.orEmpty())
             it.executeUpdate() == 1
         }
     }
@@ -99,6 +101,13 @@ class McpGrantRows(private val dataSource: DataSource, private val t: ArtisanTab
     fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) = dataSource.connection.use { c ->
         c.prepareStatement("UPDATE ${t.mcpGrants} SET permissions = ? WHERE player_id = ? AND origin = ?").use {
             it.setString(1, permissions.sorted().joinToString(",")); it.setString(2, playerId.toString()); it.setString(3, origin); it.executeUpdate()
+        }
+    }
+
+    /** Whether grant [id] of [playerId] may deploy; false when no such grant. */
+    fun setPublish(playerId: UUID, id: String, allow: Boolean): Boolean = dataSource.connection.use { c ->
+        c.prepareStatement("UPDATE ${t.mcpGrants} SET allow_publish = ? WHERE id = ? AND player_id = ?").use {
+            it.setBoolean(1, allow); it.setString(2, id); it.setString(3, playerId.toString()); it.executeUpdate() == 1
         }
     }
 
@@ -131,6 +140,7 @@ class McpGrantRows(private val dataSource: DataSource, private val t: ArtisanTab
         codeHash = rs.getString(10), codeChallenge = rs.getString(11), redirectUri = rs.getString(12), codeExpiresAt = rs.getTimestamp(13)?.toInstant(),
         accessHash = rs.getString(14), accessExpiresAt = rs.getTimestamp(15)?.toInstant(),
         refreshHash = rs.getString(16), refreshExpiresAt = rs.getTimestamp(17)?.toInstant(),
+        allowPublish = rs.getBoolean(18),
     )
 
     /** Binds [row]'s columns in [COLUMNS] order from parameter [from]; [skipId] leaves `id` out. Returns the next index. */
@@ -143,11 +153,12 @@ class McpGrantRows(private val dataSource: DataSource, private val t: ArtisanTab
         text(row.permissions.sorted().joinToString(",")); time(row.createdAt); time(row.lastUsedAt)
         text(row.codeHash); text(row.codeChallenge); text(row.redirectUri); time(row.codeExpiresAt)
         text(row.accessHash); time(row.accessExpiresAt); text(row.refreshHash); time(row.refreshExpiresAt)
+        s.setBoolean(i++, row.allowPublish)
         return i
     }
 
     private companion object {
         const val COLUMNS = "id, client_id, client_name, player_id, player_name, origin, permissions, created_at, last_used_at, " +
-            "code_hash, code_challenge, redirect_uri, code_expires_at, access_hash, access_expires_at, refresh_hash, refresh_expires_at"
+            "code_hash, code_challenge, redirect_uri, code_expires_at, access_hash, access_expires_at, refresh_hash, refresh_expires_at, allow_publish"
     }
 }
