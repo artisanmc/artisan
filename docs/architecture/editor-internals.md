@@ -848,7 +848,7 @@ See `docs/archive/specs/2026-06-14-canvas-modes-and-alignment-design.md`.
 **`select` mode** (default): the stage is `non draggable` — dragging on empty space activates the marquee.
 
 - **`CanvasToolbar.tsx`** (`features/canvas/`): DOM overlay `absolute bottom-4 left-1/2 -translate-x-1/2 z-20`, two buttons (lucide `MousePointer2` / `Hand` icons), active button highlighted via `--brand-soft`. i18n labels + tooltips (`canvas.modeSelect` / `canvas.modeHand`) with hotkey hint.
-- **Keyboard shortcuts** (`features/canvas/useCanvasKeyboard.ts`): **V** → select, **H** → hand (ignored if an input is focused). **Space held** (in `Stage.tsx`, reset on `window blur`) → temporary hand mode (`spaceHeld`); released → back to the current mode.
+- **Keyboard shortcuts** (`features/canvas/useCanvasKeyboard.ts`): **V** → select, **H** → hand (ignored if an input is focused). Undo and redo (**Ctrl/⌘+Z**, **Ctrl/⌘+Shift+Z** or **Ctrl/⌘+Y**) are not the board's: `useUndoShortcuts` (`features/project/ProjectTopBarControls.tsx`) binds them with the top bar's undo buttons, so they work on every Document's page too (a module's HUD composer, its forms), never inside a text field. **Space held** (in `Stage.tsx`, reset on `window blur`) → temporary hand mode (`spaceHeld`); released → back to the current mode.
 
 ### Marquee (rectangle selection, select mode only)
 
