@@ -69,6 +69,20 @@ describe("OverlayComposer", () => {
     expect(onChange.mock.calls[0]![0][1]).toEqual({ text: "name", x: -110, y: -81, width: 240 });
   });
 
+  it("stacks the screen's zones as the layers draw, the selected one on top to drag it", () => {
+    setup();
+    // The box is drawn first, under the texts: its zone must not cover theirs.
+    const zones = screen
+      .getAllByRole("button")
+      .filter((b) => b.classList.contains("cursor-move"))
+      .map((b) => b.getAttribute("aria-label"));
+    expect(zones).toEqual(["box", "Nom", "Réponses"]);
+    // Picked from the list, the box still drags, over the layers drawn above it.
+    fireEvent.click(screen.getByRole("button", { name: /^box\s*Image$/ }));
+    expect(screen.getByRole("button", { name: "box" }).style.zIndex).toBe("1");
+    expect(screen.getByRole("button", { name: "Nom" }).style.zIndex).toBe("");
+  });
+
   it("nudges the selected layer with the arrow keys, by 10 with Shift", () => {
     const onChange = setup();
     fireEvent.click(screen.getByRole("button", { name: /^box\s*Image$/ }));

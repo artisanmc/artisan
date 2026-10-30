@@ -608,7 +608,9 @@ function Stage({
           />
         );
       })}
-      {[...drawable].reverse().map(({ layer, index }) => {
+      {/* Hit zones in drawing order, the last drawn on top; the selected one above them all, so it
+          can be dragged where another covers it. */}
+      {drawable.map(({ layer, index }) => {
         const b = box(layer);
         const w = Math.max(b.width, 24);
         const h = Math.max(
@@ -634,6 +636,7 @@ function Stage({
               height: px(h),
               padding: 0,
               border: 0,
+              zIndex: index === selected ? 1 : undefined,
             }}
             onPointerDown={(event) => onDragStart(event, index, "move")}
             {...handlers}
@@ -730,6 +733,8 @@ function Handle({
         width,
         height,
         cursor,
+        // Over the selected layer's own zone.
+        zIndex: 2,
         borderRadius: 3,
         background: "var(--surface)",
         border: "2px solid var(--brand)",
