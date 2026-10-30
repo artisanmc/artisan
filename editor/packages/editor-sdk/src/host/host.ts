@@ -1,5 +1,6 @@
 import { type ComponentType, type ReactElement, type ReactNode, createElement } from "react";
 import type { GuiScaleChoice, McScreenLayout } from "../contract/mcScreen";
+import type { OverlayLayerKind } from "../contract/overlayLayout";
 
 /**
  * What a module's view needs from the editor that hosts it: the open Project, its texts,
@@ -258,6 +259,52 @@ export interface McScreenControlsProps {
   onChange: (next: McScreenSettings) => void;
 }
 
+/** A named layer a module fills when it draws (SDK 1.16): a `text`, a `list` or an `image_slot`. */
+export interface OverlaySlotDeclaration {
+  name: string;
+  kind: Exclude<OverlayLayerKind, "image">;
+  /** Its name in the layer list, in the interface's language. */
+  label: string;
+}
+
+/** What the composer shows in the named layers (SDK 1.16). */
+export interface OverlayPreviewContent {
+  /**
+   * A `text` layer's rows: a string is cut to the layer's width as the module cuts it
+   * (`mcWrap`, one paragraph a `\n`), an array is drawn as given. MiniMessage.
+   */
+  text?: Record<string, string | readonly string[]>;
+  /** A `list` layer's rows, the selected one beside its cursor, from `top`. */
+  lists?: Record<string, { rows: readonly string[]; selected: number; top?: number }>;
+  /** An `image_slot` layer's asset (a speaker's portrait). */
+  images?: Record<string, string>;
+}
+
+export interface OverlayComposerProps {
+  projectId: string;
+  /** The layout as the file holds it: a YAML list of layers (`OverlayLayout`, API 2.21.0). */
+  value: unknown;
+  /** The new list, written back with the entries the composer could not read kept as they were. */
+  onChange: (next: unknown[]) => void;
+  /** The named layers the module fills; one the layout lacks can be added from the layer list. */
+  slots: readonly OverlaySlotDeclaration[];
+  /** What the named layers show in the preview: a real page, a speaker's portrait. */
+  preview?: OverlayPreviewContent;
+  /** The module's own controls in the composer's toolbar (which page, which speaker). */
+  toolbar?: ReactNode;
+}
+
+export interface AssetInputProps {
+  projectId: string;
+  /** The asset's name (`assets/textures/<name>.png`), "" for none. */
+  value: string;
+  onChange: (name: string) => void;
+  /** The field's label. */
+  label?: string;
+  /** Offers taking the image away (`onChange("")`). */
+  clearable?: boolean;
+}
+
 /** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`, `ItemInput`, `MiniMessageInput`, `SortableList`, `ConditionsEditor`, `DocumentRefInput`). */
 export interface HostComponents {
   ActionChainEditor: ComponentType<ActionChainEditorProps>;
@@ -278,6 +325,10 @@ export interface HostComponents {
   McScreen: ComponentType<McScreenProps>;
   /** SDK 1.14. */
   McScreenControls: ComponentType<McScreenControlsProps>;
+  /** SDK 1.16. */
+  OverlayComposer: ComponentType<OverlayComposerProps>;
+  /** SDK 1.16. */
+  AssetInput: ComponentType<AssetInputProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -410,5 +461,25 @@ export function McScreen(props: McScreenProps): ReactElement {
  */
 export function McScreenControls(props: McScreenControlsProps): ReactElement {
   const Impl = current().components.McScreenControls;
+  return createElement(Impl, props);
+}
+
+/**
+ * A HUD laid out with the mouse on the game's screen (SDK 1.16): the layout's layers listed in
+ * drawing order, each moved by dragging it (arrows: 1 px, Shift: 10 px), a text's or a list's
+ * width and lines resized by its handles, the zone the pack cannot reach hatched, the selected
+ * layer's numbers and images beside. Edits the layout's YAML list (`OverlayLayout`).
+ */
+export function OverlayComposer(props: OverlayComposerProps): ReactElement {
+  const Impl = current().components.OverlayComposer;
+  return createElement(Impl, props);
+}
+
+/**
+ * An image of the Project picked by its thumbnail (SDK 1.16): the editor's image picker, with
+ * the images of the Project, of its sources, and an import.
+ */
+export function AssetInput(props: AssetInputProps): ReactElement {
+  const Impl = current().components.AssetInput;
   return createElement(Impl, props);
 }

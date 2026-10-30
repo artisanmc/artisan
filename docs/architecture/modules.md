@@ -203,6 +203,23 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `image_slot`'s are the module's (`OverlayLayout.slotRise(slot, height)`). The editor reads the same
 > format with the same geometry (`testdata/overlay-layout-conformance.json`).
 
+> **Composing a HUD with the mouse (since 2026-10-30, SDK 1.16)** — `OverlayComposer` (host component)
+> edits a layout on the game's screen: `value` is the YAML list, `onChange(next)` gets the whole list
+> back. A layer is dragged to move it, a text's or a list's handles resize its width and lines, the
+> arrow keys nudge the selected one (Shift: 10 px); the layers are listed beside in drawing order
+> (reordered by their handle, hidden for a moment by their eye), the selected one's numbers, images and
+> options on the other side. `slots` declares the named layers the module fills
+> (`{name, kind: "text" | "list" | "image_slot", label}`): each one not placed yet has its "add" button,
+> and `preview` fills them for the screen (`text`, `lists`, `images`). An entry it cannot read is listed
+> with its problems and written back untouched, and an entry's keys it does not own are kept. The TS
+> reading and geometry are exported for a module's own previews: `readOverlayLayout`,
+> `writeOverlayLayer`, `overlayPlan`, `overlayPackImages`, `overlaySlotRise`, `overlayLayerBox`,
+> locked by the same vector as the plugin. `AssetInput` picks a Project's image by its name (thumbnail,
+> size, the editor's image picker). For an `image_slot` drawn by its bottom, `pack.images(src, ctx)` can
+> return `{asset, bottom}` instead of `{asset, rise}`: the builder reads the image's height and draws it
+> at `rise = height - bottom`. `ctx.file(path)` gives the parsed YAML of another file of the project
+> (`data/speakers.yml`), undefined when it is missing or unreadable. A 1.15 bundle still loads.
+
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the

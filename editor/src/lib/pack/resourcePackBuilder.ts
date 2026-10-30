@@ -1,4 +1,3 @@
-import type { PackImage } from "@artisan/editor-sdk";
 import { strToU8, zipSync } from "fflate";
 import { sha1Hex } from "../sha1";
 import { buildAssetIndex } from "./assetIndexBuilder";
@@ -17,7 +16,7 @@ import {
 } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, buildImageButtons } from "./imageButtons";
 import type { GlyphPlacement } from "./menuGlyphPlacements";
-import { buildOverlayImages } from "./overlayImages";
+import { type OverlayImageRequest, buildOverlayImages } from "./overlayImages";
 import { type GuiContainer, buildVanillaGuiFiles } from "./vanillaGui";
 
 export type { AssetRow };
@@ -77,7 +76,7 @@ export function buildResourcePackZip(
   /** The padded vanilla font textures (`assets/minecraft/font/*_up.png`), for `artisan:text_up{R}`. */
   textUp?: Record<TextUpTexture, Uint8Array>,
   /** Module images at a height (`pack.images`, SDK 1.13), as `artisan:overlay/…` fonts. */
-  overlayImages: PackImage[] = [],
+  overlayImages: OverlayImageRequest[] = [],
 ): BuildResult {
   const remapped = assets.map((a) => {
     if (a.type !== "glyph" || a.codepoint === null) return a;

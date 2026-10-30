@@ -130,7 +130,30 @@ export interface DocumentPackContribution {
    * `api.getOverlay().image(asset, rise)`: a HUD drawn in the action bar, above the hotbar.
    * A file that throws, an unknown asset or a rise out of -166..128 adds nothing.
    */
-  images?: (src: Record<string, unknown>) => Iterable<PackImage>;
+  images?: (
+    src: Record<string, unknown>,
+    context: PackImagesContext,
+  ) => Iterable<PackImage | PackImageByBottom>;
+}
+
+/** What `pack.images` can read besides its file (SDK 1.16). */
+export interface PackImagesContext {
+  /**
+   * Another file of the same project, by its path from the project's root (`data/speakers.yml`),
+   * as parsed YAML; undefined when it is absent or does not parse. A mode asks for the portraits
+   * its speakers declare.
+   */
+  file(path: string): unknown;
+}
+
+/**
+ * An image placed by its bottom (SDK 1.16): `bottom` is the y of its bottom edge, downwards from
+ * the top of the slot's text (an `image_slot` anchored `bottom`). The pack builder knows the
+ * image's height and asks for it at `rise = height - bottom`.
+ */
+export interface PackImageByBottom {
+  asset: string;
+  bottom: number;
 }
 
 /**

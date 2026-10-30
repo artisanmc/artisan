@@ -1,4 +1,4 @@
-import type { DocumentKindContribution, PackImage } from "@artisan/editor-sdk";
+import type { DocumentKindContribution, PackImage, PackImageByBottom } from "@artisan/editor-sdk";
 import { strToU8 } from "fflate";
 import { parse } from "yaml";
 import { sha256Hex } from "../sha256";
@@ -31,16 +31,19 @@ export function overlayImageKey(image: PackImage): string {
   return `overlay/${sha256Hex(new TextEncoder().encode(image.asset))}_${image.rise}`;
 }
 
-function valid(image: unknown): image is PackImage {
+/** What a kind asks for: an image at a rise, or by its bottom (resolved once its height is known). */
+export type OverlayImageRequest = PackImage | PackImageByBottom;
+
+function inRange(rise: number): boolean {
+  return Number.isInteger(rise) && rise >= OVERLAY_MIN_RISE && rise <= TEXT_UP_MAX;
+}
+
+function valid(image: unknown): image is OverlayImageRequest {
   if (!image || typeof image !== "object") return false;
-  const { asset, rise } = image as Partial<PackImage>;
-  return (
-    typeof asset === "string" &&
-    asset.length > 0 &&
-    Number.isInteger(rise) &&
-    (rise as number) >= OVERLAY_MIN_RISE &&
-    (rise as number) <= TEXT_UP_MAX
-  );
+  const { asset } = image as { asset?: unknown };
+  if (typeof asset !== "string" || asset.length === 0) return false;
+  if ("bottom" in image) return Number.isInteger((image as PackImageByBottom).bottom);
+  return inRange((image as PackImage).rise);
 }
 
 /**
@@ -51,8 +54,26 @@ function valid(image: unknown): image is PackImage {
 export function overlayImagesFromFiles(
   files: { path: string; content: string }[],
   kinds: readonly DocumentKindContribution[],
-): PackImage[] {
-  const out: PackImage[] = [];
+): OverlayImageRequest[] {
+  const out: OverlayImageRequest[] = [];
+  const parsed = new Map<string, unknown>();
+  const byPath = new Map(files.map((f) => [f.path, f.content]));
+  // Another file of the project, read once whatever the number of files asking.
+  const context = {
+    file(path: string): unknown {
+      if (!parsed.has(path)) {
+        const content = byPath.get(path);
+        let value: unknown;
+        try {
+          value = content === undefined ? undefined : parse(content);
+        } catch {
+          value = undefined;
+        }
+        parsed.set(path, value);
+      }
+      return parsed.get(path);
+    },
+  };
   for (const kind of kinds) {
     const images = kind.pack?.images;
     if (!images) continue;
@@ -62,8 +83,16 @@ export function overlayImagesFromFiles(
       try {
         const src = parse(file.content);
         if (!src || typeof src !== "object" || Array.isArray(src)) continue;
-        for (const image of images({ ...(src as Record<string, unknown>), id: match[2] })) {
-          if (valid(image)) out.push({ asset: image.asset, rise: image.rise });
+        for (const image of images(
+          { ...(src as Record<string, unknown>), id: match[2] },
+          context,
+        )) {
+          if (!valid(image)) continue;
+          out.push(
+            "bottom" in image
+              ? { asset: image.asset, bottom: image.bottom }
+              : { asset: image.asset, rise: image.rise },
+          );
         }
       } catch {
         // Unreadable file or a module's bug: no image from this file.
@@ -85,14 +114,23 @@ export function buildOverlayImages(
   files: Record<string, Uint8Array>,
   index: AssetIndex,
   pngs: Map<string, Uint8Array>,
-  images: PackImage[],
+  requests: OverlayImageRequest[],
 ): void {
-  for (const image of images) {
+  const decoded = new Map<string, ReturnType<typeof decodePng>>();
+  for (const request of requests) {
+    const source = pngs.get(request.asset);
+    if (!source) continue;
+    let input = decoded.get(request.asset);
+    if (!input) {
+      input = decodePng(source);
+      decoded.set(request.asset, input);
+    }
+    // By its bottom: its top is its height above it.
+    const rise = "bottom" in request ? input.height - request.bottom : request.rise;
+    if (!inRange(rise)) continue;
+    const image: PackImage = { asset: request.asset, rise };
     const key = overlayImageKey(image);
     if (index.assets[key]) continue;
-    const source = pngs.get(image.asset);
-    if (!source) continue;
-    const input = decodePng(source);
     const ascent = OVERLAY_TEXT_ASCENT + image.rise;
     const height = Math.max(input.height, ascent);
     if (height > OVERLAY_SLICE || input.width === 0) continue;

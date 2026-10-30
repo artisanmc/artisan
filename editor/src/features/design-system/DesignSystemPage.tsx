@@ -550,6 +550,12 @@ export function DesignSystemPage() {
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="chip">.chip</span>
             <span className="chip is-active">.chip.is-active</span>
+            <span className="checker flex h-7 w-16 items-center justify-center rounded-[var(--r-sm)] text-[11px]">
+              .checker
+            </span>
+            <span className="hatch flex h-7 w-16 items-center justify-center rounded-[var(--r-sm)] text-[11px]">
+              .hatch
+            </span>
             {BADGE_CLASSES.map((cls) => (
               <span key={cls} className={`badge ${cls}`}>
                 {cls}

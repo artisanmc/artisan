@@ -402,3 +402,16 @@ fills them, the wrapping and typing of its text. The geometry has conformance ve
 does. *Rejected:* the layout as a Document kind of Artisan (a HUD belongs to the module's own
 Document, a conversation mode); text wrapped by `compose` (a module types its text letter by letter
 and cuts it into screens, which needs the rows itself).
+
+## Amendment 2026-10-30: composing a HUD with the mouse (SDK 1.16)
+
+The SDK exposes `OverlayComposer`, a host component that edits an `OverlayLayout` on the game's
+screen (drag, resize handles, arrow keys, a list of layers, the selected one's panel), and
+`AssetInput`, the editor's image picker on a name. The layout's reading and geometry are ported to
+TypeScript and locked by the plugin's vector, so the screen shows a layer where `compose` draws it.
+Reason: a mode's HUD was a form of numbers, and a user lays out a HUD by eye, as in the menus'
+title composer; the next HUDs (a scoreboard, a boss bar) reuse the same component. `pack.images`
+gains a context (`file(path)`, another file of the project) and a request by bottom
+(`{asset, bottom}`): a portrait placed on its bottom edge needs the image's height, which only the
+builder reads. *Rejected:* the composer in the module's bundle (every HUD module would redraw it),
+and the image's height kept in the module's files (it would go stale when the image changes).
