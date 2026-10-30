@@ -93,7 +93,7 @@ test("an image wider than 256 px is cut into slices of 256 columns", () => {
   ).toBe(true);
   expect(decodePng(entries[`assets/artisan/textures/${key}_0.png`]!).width).toBe(256);
   expect(decodePng(entries[`assets/artisan/textures/${key}_1.png`]!).width).toBe(44);
-  expect(index.assets[key]).toMatchObject({ width: 300, height: 100, slices: [256, 40] });
+  expect(index.assets[key]).toMatchObject({ width: 300, height: 100, slices: [256, 40], imageHeight: 100 });
 });
 
 test("an image taller than 256 px, or unknown, adds nothing", () => {

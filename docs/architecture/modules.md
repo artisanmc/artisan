@@ -190,6 +190,19 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > keeps a chat fallback.
 > The images reach the pack once the module's editor bundle is loaded in the editor that builds it.
 
+> **HUD layouts (since 2026-10-30, API 2.21.0)** — rather than placing each piece with `move` and
+> `raise`, a module can keep its HUD as an `OverlayLayout`, a YAML list of layers drawn in order:
+> `image` (a fixed asset), `image_slot` (an asset the module names when it draws, `anchor: top|bottom`),
+> `text` (`width`, `lines`, `row`, `align`) and `list` (rows with one selected, `cursor: {image, x, y}`).
+> Positions are GUI px from the slot's origin, x from the centre, y downwards from the top of the slot's
+> text (-128..166). `OverlayLayout.read(yaml)` keeps the right layers and reports the others
+> (`Problem(path, code, detail)`); each frame, `api.getOverlay().compose(layout, content)` fills the named
+> layers from an `OverlayContent` and returns the MiniMessage to `show`, plus the images the pack lacks.
+> Rows come already cut to the layer's width (`width(text)`). The fixed images a layout needs in the pack
+> are `layout.getPackImages()` (each `image` at `rise = -y`, a cursor at every row of its list); an
+> `image_slot`'s are the module's (`OverlayLayout.slotRise(slot, height)`). The editor reads the same
+> format with the same geometry (`testdata/overlay-layout-conformance.json`).
+
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the

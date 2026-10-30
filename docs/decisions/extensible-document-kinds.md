@@ -387,3 +387,18 @@ it; in a 1024 px column on a wide monitor both were cramped while the sides stay
 *Rejected:* every module view at full width (a command's or a trigger's sentence reads worse
 across 2000 px), and the module's CSS escaping the host's column (it would rest on the host's
 class names).
+
+## Amendment 2026-10-30: HUD layouts (API 2.21.0)
+
+A HUD is a layout of layers kept in the module's files (`OverlayLayout`: `image`, `image_slot`,
+`text`, `list`), and Artisan composes the frame (`OverlayApi.compose`), instead of each module
+placing its pieces with `move` and `raise` in code. Reason: ArtisanConversations hard-coded its box,
+text and choices (`HudLayout`), so a mode could not move them, and the editor needs one format to
+let a user lay a HUD out with the mouse; the same layers serve the next HUDs (a scoreboard, a boss
+bar) without a format per module. Positions count y downwards from the slot's text, as on the
+editor's screen; a rise is `-y`. The module keeps what is its own: which named layers exist, what
+fills them, the wrapping and typing of its text. The geometry has conformance vectors
+(`testdata/overlay-layout-conformance.json`) so that the editor draws a layout where the server
+does. *Rejected:* the layout as a Document kind of Artisan (a HUD belongs to the module's own
+Document, a conversation mode); text wrapped by `compose` (a module types its text letter by letter
+and cuts it into screens, which needs the rows itself).

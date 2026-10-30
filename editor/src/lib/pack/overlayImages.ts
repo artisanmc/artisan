@@ -122,6 +122,7 @@ export function buildOverlayImages(
       width: input.width,
       namespace: `artisan:${key}`,
       slices,
+      imageHeight: input.height,
     };
   }
 }

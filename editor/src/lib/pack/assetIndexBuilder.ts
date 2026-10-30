@@ -15,6 +15,8 @@ export interface AssetIndexEntry {
    * content width (rightmost opaque column + 1), from which the plugin joins them.
    */
   slices?: number[];
+  /** An `overlay` image's own height, before the padding under its ascent: what places it by its bottom. */
+  imageHeight?: number;
 }
 
 export interface AssetIndex {

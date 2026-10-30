@@ -4,6 +4,11 @@ import net.artisanmc.modules.api.annotations.Beta;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * A HUD drawn with the fonts of Artisan's resource pack ({@code api.getOverlay()}), in a
  * {@link Slot} of the player's screen that Artisan owns. A module puts a named layer there
@@ -109,4 +114,54 @@ public interface OverlayApi {
 
     /** Takes the layer away; the slot is cleared once it holds none. Unknown layer: nothing happens. */
     void hide(Player player, Slot slot, String layer);
+
+    /**
+     * A frame drawn by {@link #compose}: its MiniMessage, pen back at the centre, ready for
+     * {@link #show}, and the images the pack lacks (left out of the frame).
+     *
+     * @since 2.21.0
+     */
+    record Composed(String miniMessage, List<String> missingImages) {
+        public Composed {
+            missingImages = List.copyOf(missingImages);
+        }
+    }
+
+    /**
+     * {@code layout} filled with {@code content}, as one layer's MiniMessage: each image at its
+     * rise ({@link #image}), each row raised to its place ({@link #raise}), the pen brought back
+     * to the centre after each. An image the pack lacks is left out and named in
+     * {@link Composed#missingImages()}: a module that cannot do without it falls back to the chat.
+     *
+     * @since 2.21.0
+     */
+    default Composed compose(OverlayLayout layout, OverlayContent content) {
+        OverlayPlan.Plan plan = OverlayPlan.plan(layout, content, this::width, this::imageHeight);
+        Set<String> missing = new LinkedHashSet<>(plan.missing());
+        StringBuilder out = new StringBuilder();
+        for (OverlayPlan.Draw draw : plan.draws()) {
+            if (draw.image()) {
+                String image = image(draw.content(), draw.rise());
+                if (image == null) {
+                    missing.add(draw.content());
+                    continue;
+                }
+                out.append(move(draw.x())).append(image).append(move(-draw.x()));
+            } else {
+                out.append(move(draw.x())).append(raise(draw.content(), draw.rise()))
+                        .append(move(-(draw.x() + width(draw.content()))));
+            }
+        }
+        return new Composed(out.toString(), new ArrayList<>(missing));
+    }
+
+    /**
+     * The height in px of the image {@code asset} as the pack draws it, or -1 when the pack holds
+     * it at no rise. Places an {@code image_slot} anchored by its bottom.
+     *
+     * @since 2.21.0
+     */
+    default int imageHeight(String asset) {
+        return -1;
+    }
 }
