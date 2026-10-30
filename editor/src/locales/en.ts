@@ -1246,14 +1246,6 @@ export default {
       },
     },
   },
-  edition: {
-    pro: "Pro",
-    advancedExpression:
-      "Advanced expression: its readable view and preview come with Artisan Pro. It runs in game all the same.",
-    proOnly: "Artisan Pro feature: available with the Pro jar.",
-    composedReadOnly:
-      "This title was composed with Artisan Pro. It stays as it is and keeps working in game; editing its layers requires Artisan Pro.",
-  },
   layersPanel: {
     vanilla: "Vanilla",
     composed: "Composed (Resource Project)",

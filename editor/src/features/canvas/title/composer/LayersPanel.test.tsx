@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nKey, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { setStageGeometryProvider } from "@/features/canvas/stageGeometry";
-import { useAuthStore } from "@/state/authStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 
@@ -376,36 +375,5 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     // Default text placement is (8, 5), not the cursor-derived coords.
     expect((layer as any).x).toBe(8);
     expect((layer as any).y).toBe(5);
-  });
-});
-
-describe("free edition", () => {
-  beforeEach(() => {
-    useAuthStore.setState({
-      currentUser: { id: "u", name: "Iban", edition: "free" },
-    } as any);
-  });
-  afterEach(() => {
-    useAuthStore.setState({ currentUser: null } as any);
-  });
-
-  it("keeps a composed title visible but offers no editing", () => {
-    seedProject([{ kind: "text", value: { key: K("k_title") }, x: 8, y: 5 }], {
-      k_title: { en: "Shop" },
-    });
-    render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
-    expect(screen.getByTestId("layers-panel-read-only")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /\+ Image/ })).toBeNull();
-    // The title is untouched: nothing was rewritten on display.
-    const menu = menusOf(useProjectsStore.getState().openProjects.projects[0]).find(
-      (m) => m.id === MENU_ID,
-    );
-    expect(menu?.title).toEqual([{ kind: "text", value: { key: K("k_title") }, x: 8, y: 5 }]);
-  });
-
-  it("cannot switch a vanilla title to the composer", () => {
-    seedProject([{ kind: "plain", value: { key: K("k_title") } }], { k_title: { en: "Shop" } });
-    render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
-    expect(screen.getByRole("button", { name: /composé/i })).toBeDisabled();
   });
 });

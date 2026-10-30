@@ -130,7 +130,7 @@ Using one copies it first, a snapshot with no link back:
   draft mutation (`localAssets.ts` `copyIn`): free name `name_2`… among every asset id
   (`freeAssetName`), a glyph gets this project's next codepoint, a font its own namespace.
   `copyAssetInto` toasts the outcome; `dropCopiedImageButton` reads the slot at release, then
-  places the copy. Pro-gated like an upload.
+  places the copy.
 - a captured item: the drag payload carries it (`captured`), and `adoptCapturedItem` adds it
   with its id at the drop, click or pick, or reuses one with the same id or stack.
 
