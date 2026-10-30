@@ -81,10 +81,6 @@ releases every position and link anchor you set by hand and arranges the whole c
 The canvas remembers your position and zoom separately for each project in this
 browser, including after leaving the editor or refreshing the page.
 
-The **Board** tab of a server's page shows the documents of all its projects on a
-single read-only canvas, with the links between projects. Filter it by project, type
-or id, and click a document to open it.
-
 Use **Minimap** beside **Buttons** to open the overview, placed 8 px from the lower-right
 corner. The button hides while the minimap is open; close it with **×** to reveal the button again.
 This preference is remembered. The overview shows the documents on your

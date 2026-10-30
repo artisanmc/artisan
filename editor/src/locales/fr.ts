@@ -9,7 +9,6 @@ import { mmEditorFr, textToolFr } from "./mmEditor";
 import { onboardingFr } from "./onboarding";
 import { projectIdentityFr } from "./projectIdentity";
 import { selfHostedFr } from "./selfHosted";
-import { serverCanvasFr } from "./serverCanvas";
 import { triggersFr } from "./triggers";
 
 const fr: typeof en = {
@@ -89,7 +88,6 @@ const fr: typeof en = {
   selfHosted: selfHostedFr,
   mmEditor: mmEditorFr,
   textTool: textToolFr,
-  serverCanvas: serverCanvasFr,
   changes: changesFr,
   actionCatalog: actionCatalogFr,
   triggers: triggersFr,
@@ -1858,10 +1856,9 @@ const fr: typeof en = {
     tabs: {
       label: "Sections du serveur",
       overview: "Vue d'ensemble",
-      board: "Planche",
       play: "Jeu",
       assistant: "Assistant",
-      data: "Données",
+      data: "Sources de données",
       settings: "Réglages",
     },
     stateOnline: "En ligne",

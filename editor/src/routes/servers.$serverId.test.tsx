@@ -255,7 +255,6 @@ describe("ServerDetailPage", () => {
     const tabs = within(nav).getAllByRole("link");
     expect(tabs.map((tab) => tab.textContent)).toEqual([
       "serverDetail.tabs.overview",
-      "serverDetail.tabs.board",
       "serverDetail.tabs.play",
       "serverDetail.tabs.assistant",
       "serverDetail.tabs.data",
