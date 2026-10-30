@@ -10,11 +10,8 @@ sell, or create derivative works of this software, in source or binary form,
 except under a separate written agreement with the copyright holder.
 
 Compiled builds ("jars") are licensed to end users under the terms published
-with each release:
-  - the free edition may be installed and used free of charge, but not
-    redistributed except through the official channels;
-  - the Pro edition is licensed per community to the buyer and may not be
-    shared, resold, uploaded or redistributed in any form.
+with each release: they may be installed and used free of charge, but not
+redistributed except through the official channels.
 
 Exceptions:
   - plugin/api/ (the net.artisanmc.modules.api packages, published as

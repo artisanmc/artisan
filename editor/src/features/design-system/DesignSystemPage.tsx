@@ -54,7 +54,6 @@ import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
 import { Markdown } from "@/components/ui/markdown";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ProBadge } from "@/components/ui/pro-badge";
 import { ResetButton } from "@/components/ui/reset-button";
 import { ResizeHandle } from "@/components/ui/resize-handle";
 import { Segmented } from "@/components/ui/segmented";
@@ -623,12 +622,6 @@ export function DesignSystemPage() {
                   {variant}
                 </Badge>
               ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <span className="mono text-[11px] text-[var(--text-faint)]">{"<ProBadge>"}</span>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <ProBadge />
             </div>
           </div>
           <div className="flex flex-col gap-2">

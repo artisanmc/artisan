@@ -2,10 +2,8 @@ import { Segmented } from "@/components/ui/segmented";
 import { type DragEvent, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ProBadge } from "@/components/ui/pro-badge";
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { cn } from "@/lib/cx";
-import { useIsPro } from "@/lib/edition";
 import { newI18nKey } from "@/lib/i18n";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -68,9 +66,6 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
   const setMenuField = useProjectsStore((s) => s.setMenuField);
   const reorderMenuTitleLayers = useProjectsStore((s) => s.reorderMenuTitleLayers);
   const applyLayerMoved = useUiStore((s) => s.applyLayerMoved);
-  // The composer is Pro. In the free jar a composed title (made with Pro, or shipped in files)
-  // stays shown, read-only; the vanilla title stays fully editable.
-  const pro = useIsPro();
 
   const isVanillaMode =
     menu !== undefined && menu.title.length === 1 && menu.title[0]?.kind === "plain";
@@ -98,7 +93,7 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
   };
 
   const switchToComposed = () => {
-    if (!menu || !isVanillaMode || !pro) return;
+    if (!menu || !isVanillaMode) return;
     // Migrate the plain layer's i18n key to a composed text layer so translations are preserved.
     const plainLayer = menu.title.find((l) => l.kind === "plain");
     const migratedLayers: MenuTitleLayer[] = plainLayer
@@ -223,19 +218,7 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
         className="flex w-full [&>button]:flex-1"
         options={[
           { value: "vanilla", label: t("layersPanel.vanilla") },
-          {
-            value: "composed",
-            label: pro ? (
-              t("layersPanel.composed")
-            ) : (
-              <span className="inline-flex items-center gap-1">
-                {t("layersPanel.composed")}
-                <ProBadge />
-              </span>
-            ),
-            disabled: !pro && isVanillaMode,
-            title: pro ? undefined : t("edition.proOnly"),
-          },
+          { value: "composed", label: t("layersPanel.composed") },
         ]}
         value={isVanillaMode ? "vanilla" : "composed"}
         onChange={(mode) => (mode === "vanilla" ? switchToVanilla() : switchToComposed())}
@@ -244,26 +227,6 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
       {isVanillaMode ? (
         // Vanilla mode: show the plain layer form directly.
         <PlainTitleForm projectId={projectId} menuId={menuId} />
-      ) : !pro ? (
-        <div className="flex flex-col gap-2" data-testid="layers-panel-read-only">
-          <p className="rounded-[var(--r-xs)] border border-[var(--border)] bg-[var(--surface-inset)] px-2.5 py-2 text-[11px] leading-snug text-[var(--text-mut)]">
-            {t("edition.composedReadOnly")}
-          </p>
-          {/* Shown as it is, nothing in it reacts: no selection, no reorder, no delete. */}
-          <div className="flex flex-col gap-0.5 opacity-80" inert>
-            <VanillaTextureLayer projectId={projectId} menu={menu} />
-            {menu.title.map((layer, index) => (
-              <LayerListItem
-                // biome-ignore lint/suspicious/noArrayIndexKey: layers have no stable id
-                key={index}
-                projectId={projectId}
-                menuId={menuId}
-                index={index}
-                layer={layer}
-              />
-            ))}
-          </div>
-        </div>
       ) : (
         <>
           <AddLayerControls onPlace={onPlace} imageControl={imageControl} />
