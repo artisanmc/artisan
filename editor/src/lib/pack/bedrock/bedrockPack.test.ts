@@ -109,6 +109,18 @@ describe("bedrockMenusFromProject", () => {
     expect(menus[0]?.key).toBe(bedrockMenuKey("lobby", "shop"));
   });
 
+  test("takes the id from the file name, as the plugin does, themed folders included", () => {
+    const saved = [
+      // The editor saves a menu without `id:`; a stale one in the file is ignored.
+      { path: "menus/test.yml", content: "schema: menu/v1\nsize: 54\n" },
+      { path: "boutique/menus/swords.yaml", content: "id: other\nsize: 27\n" },
+    ];
+    expect(bedrockMenusFromProject("lobby", saved).map((m) => [m.id, m.key])).toEqual([
+      ["test", bedrockMenuKey("lobby", "test")],
+      ["swords", bedrockMenuKey("lobby", "swords")],
+    ]);
+  });
+
   test("reads image layers in order, text layers as fields, image buttons with states", () => {
     const shop = menus[0] as BedrockMenu;
     expect(shop.images).toEqual([

@@ -1,9 +1,12 @@
+import { classifyDocumentLayout } from "@/domain/documentLayout";
 import { parse } from "yaml";
 import {
   type ImageButtonImage,
   imageButtonArea,
 } from "../../../../../docs/schema/menu/v1/imageButtonGeometry";
 import { BUTTON_MAX, STATE_MAX, TEXTAREA_FIELD, TEXT_FIELD, bedrockMenuKey } from "./bedrockTitle";
+
+const MENU_DIRS: ReadonlySet<string> = new Set(["menus"]);
 
 /** One appearance of an image button that draws an image (default or state). */
 export interface BedrockButtonImage extends ImageButtonImage {
@@ -133,8 +136,17 @@ export function bedrockMenusFromProject(
   files: { path: string; content: string }[],
 ): BedrockMenu[] {
   const out: BedrockMenu[] = [];
+  // The id is the file name, wherever the menu sits (themed folders included), as the
+  // plugin reads it: a `id:` field in the file is ignored there, and the editor drops it.
+  const ids = new Map(
+    classifyDocumentLayout(
+      files.map((f) => f.path),
+      MENU_DIRS,
+    ).documents.map((d) => [d.path, d.id]),
+  );
   for (const file of files) {
-    if (!/^menus\/.*\.ya?ml$/.test(file.path)) continue;
+    const id = ids.get(file.path);
+    if (id === undefined) continue;
     // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
     let doc: any;
     try {
@@ -142,7 +154,7 @@ export function bedrockMenusFromProject(
     } catch {
       continue;
     }
-    if (!doc || typeof doc !== "object" || typeof doc.id !== "string") continue;
+    if (!doc || typeof doc !== "object") continue;
     if (doc.inventory_type !== undefined && doc.inventory_type !== "chest") continue;
     if (doc.player_inventory === "hidden") continue;
     const size = Number(doc.size);
@@ -192,8 +204,8 @@ export function bedrockMenusFromProject(
 
     out.push({
       projectId,
-      id: doc.id,
-      key: bedrockMenuKey(projectId, doc.id),
+      id,
+      key: bedrockMenuKey(projectId, id),
       rows,
       transparent: doc.vanilla_texture === false,
       images,
