@@ -10,6 +10,8 @@ export interface AiStatus {
 export interface AiConversationSummary {
   id: string;
   project: string | null;
+  /** The server whose Assistant tab started it: the model works across its Projects. */
+  server?: string | null;
   title: string | null;
   running: boolean;
   createdAt: string;
@@ -55,8 +57,27 @@ export function getAiStatus(): Promise<AiStatus> {
   return apiFetch(STATUS);
 }
 
-export function createAiConversation(project: string | null): Promise<AiConversationSummary> {
-  return apiFetch(CONVERSATIONS, { method: "POST", json: { project } });
+/** Where a conversation works: the server it was started on, the Project open beside it. */
+export interface AiScope {
+  project?: string | null;
+  server?: string | null;
+}
+
+export function createAiConversation(scope: AiScope): Promise<AiConversationSummary> {
+  return apiFetch(CONVERSATIONS, {
+    method: "POST",
+    json: { project: scope.project ?? null, server: scope.server ?? null },
+  });
+}
+
+/** The player's conversations, the latest first. The hub keeps them in memory: a restart ends them. */
+export async function listAiConversations(): Promise<AiConversationSummary[]> {
+  return (await apiFetch<{ conversations: AiConversationSummary[] }>(CONVERSATIONS)).conversations;
+}
+
+/** Refused (`not_found`) while the assistant still answers in it. */
+export async function deleteAiConversation(id: string): Promise<void> {
+  await apiFetch(`${CONVERSATIONS}/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 /** The events after the `after` first ones: a poll only carries what is new. */

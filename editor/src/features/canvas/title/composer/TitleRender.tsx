@@ -1,7 +1,7 @@
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
 import { menusOf } from "@/domain/documents";
-import type { MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
+import type { MenuId, MenuTitleLayer, Project, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { useIsPro } from "@/lib/edition";
@@ -137,6 +137,11 @@ interface TitleRenderProps {
   menuId: MenuId;
   /** Pixel scale (e.g. 2 for the title canvas, smaller for thumbnails). */
   scale: number;
+  /**
+   * The Project to read the menu from, instead of the open one of that id: a version that is
+   * not open (a draft shown in Play).
+   */
+  project?: Project;
 }
 
 /**
@@ -156,8 +161,9 @@ interface TitleRenderProps {
  *  - text → McFontText (bitmap font)
  *  - external_glyph → dashed amber placeholder
  */
-export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
-  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+export function TitleRender({ projectId, menuId, scale, project: given }: TitleRenderProps) {
+  const open = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const project = given ?? open;
   const menu = menusOf(project).find((m) => m.id === menuId);
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);

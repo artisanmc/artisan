@@ -5,7 +5,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantButton } from "./AssistantButton";
 import { AssistantDock, OPEN_DRAFTS } from "./AssistantPanel";
-import { resetAiStatus } from "./useAssistant";
+import { resetAiStatus, resetConversations, useConversationsStore } from "./useAssistant";
 
 const api = vi.hoisted(() => ({
   getAiStatus: vi.fn(),
@@ -16,6 +16,12 @@ const api = vi.hoisted(() => ({
 vi.mock("@/lib/api/ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/ai")>()),
   ...api,
+}));
+
+const navigate = vi.hoisted(() => vi.fn());
+vi.mock("@tanstack/react-router", async () => ({
+  ...(await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router")),
+  useNavigate: () => navigate,
 }));
 
 const conversation = (events: unknown[], running = false) => ({
@@ -42,6 +48,7 @@ describe("assistant", () => {
     useAssistantPanelStore.setState({ open: false, width: ASSISTANT_WIDTH.default });
     vi.clearAllMocks();
     resetAiStatus();
+    resetConversations();
     api.getAiStatus.mockResolvedValue({ enabled: true, model: "claude-opus-5-5", canUse: true });
     api.createAiConversation.mockResolvedValue(conversation([]));
     api.sendAiMessage.mockResolvedValue(undefined);
@@ -87,7 +94,9 @@ describe("assistant", () => {
     );
     render(<Assistant />);
     fireEvent.click(await screen.findByTestId("open-assistant"));
-    expect(screen.getByText(/Tourne sur le compte claude-opus-5-5/)).toBeTruthy();
+    expect(
+      screen.getByText(/Tourne sur le modèle claude-opus-5-5, avec la clé d’API du serveur/),
+    ).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Demande à l’assistant…"), {
       target: { value: "Un menu VIP" },
@@ -95,7 +104,10 @@ describe("assistant", () => {
     fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
 
     expect(await screen.findByText("Le brouillon est prêt.")).toBeTruthy();
-    expect(api.createAiConversation).toHaveBeenCalledWith("u-local.shop");
+    expect(api.createAiConversation).toHaveBeenCalledWith({
+      project: "u-local.shop",
+      server: null,
+    });
     expect(api.sendAiMessage).toHaveBeenCalledWith("c1", "Un menu VIP");
     expect(screen.getByText("A lu menus/shop.yml")).toBeTruthy();
     expect(screen.getByText("A écrit menus/vip.yml")).toBeTruthy();
@@ -142,6 +154,39 @@ describe("assistant", () => {
     expect(screen.getByText("ah_main").tagName).toBe("CODE");
     expect(screen.queryByText(/\*\*/)).toBeNull();
     expect(document.querySelector("img")).toBeNull();
+  });
+
+  it("expands the same conversation into the server's Assistant tab", async () => {
+    api.readAiConversation.mockResolvedValueOnce(
+      conversation([
+        { seq: 0, type: "user", text: "bonjour" },
+        { seq: 1, type: "text", text: "Salut." },
+      ]),
+    );
+    render(
+      <>
+        <AssistantButton />
+        <AssistantDock projectId="u-local.shop" serverId="u-local" />
+      </>,
+    );
+    fireEvent.click(await screen.findByTestId("open-assistant"));
+    fireEvent.change(screen.getByLabelText("Demande à l’assistant…"), {
+      target: { value: "bonjour" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+    expect(await screen.findByText("Salut.")).toBeTruthy();
+    expect(api.createAiConversation).toHaveBeenCalledWith({
+      project: "u-local.shop",
+      server: "u-local",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Agrandir" }));
+    expect(navigate).toHaveBeenCalledWith({
+      to: "/servers/$serverId/assistant",
+      params: { serverId: "u-local" },
+    });
+    expect(useAssistantPanelStore.getState().open).toBe(false);
+    expect(useConversationsStore.getState().currentId).toBe("c1");
   });
 
   it("widens and narrows from its left edge, within bounds, and remembers the width", async () => {

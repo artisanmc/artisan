@@ -1,5 +1,7 @@
 [
   "feature-imports-feature: assets -> project",
+  "feature-imports-feature: assistant -> play",
+  "feature-imports-feature: assistant -> project",
   "feature-imports-feature: canvas -> assets",
   "feature-imports-feature: canvas -> project",
   "feature-imports-feature: canvas -> screens",

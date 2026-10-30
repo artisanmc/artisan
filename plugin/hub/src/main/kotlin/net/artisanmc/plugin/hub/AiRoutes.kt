@@ -35,8 +35,11 @@ class AiRoutes(private val setup: AiSetup) {
         }
         router.on("POST", CONVERSATIONS, EDIT) { call ->
             val assistant = setup.assistant() ?: return@on call.error(404, "ai_disabled")
-            val project = call.body()?.path("project")?.asText("")?.takeIf { it.isNotBlank() }?.take(200)
-            call.json(summary(assistant.start(call.session!!, project)), 201)
+            val body = call.body()
+            val project = body?.path("project")?.asText("")?.takeIf { it.isNotBlank() }?.take(200)
+            val server = body?.path("server")?.asText("")?.takeIf { it.isNotBlank() }
+            if (server != null && !SERVER_ID.matches(server)) return@on call.error(422, "invalid_input", "server")
+            call.json(summary(assistant.start(call.session!!, project, server)), 201)
         }
         router.on("GET", "$CONVERSATIONS/:conversation", EDIT) { call ->
             val assistant = setup.assistant() ?: return@on call.error(404, "not_found")
@@ -124,7 +127,7 @@ class AiRoutes(private val setup: AiSetup) {
     }
 
     private fun summary(c: AiAssistant.Conversation) = mapOf(
-        "id" to c.id, "project" to c.project, "title" to c.title(), "running" to c.running,
+        "id" to c.id, "project" to c.project, "server" to c.server, "title" to c.title(), "running" to c.running,
         "createdAt" to c.createdAt.toString(), "lastActive" to c.lastActive.toString(),
         "inputTokens" to c.inputTokens, "outputTokens" to c.outputTokens,
     )
@@ -134,6 +137,8 @@ class AiRoutes(private val setup: AiSetup) {
         const val CONFIG_PATH = "/api/v1/ai/config"
         const val CONVERSATIONS = "/api/v1/ai/conversations"
         const val MAX_MESSAGE = 8000
+        /** A server id goes into the model's instructions: only the characters ids are made of. */
+        private val SERVER_ID = Regex("[A-Za-z0-9_-]{1,64}")
         val EFFORTS = listOf("low", "medium", "high", "xhigh", "max")
     }
 }

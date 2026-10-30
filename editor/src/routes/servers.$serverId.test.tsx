@@ -257,6 +257,7 @@ describe("ServerDetailPage", () => {
       "serverDetail.tabs.overview",
       "serverDetail.tabs.board",
       "serverDetail.tabs.play",
+      "serverDetail.tabs.assistant",
       "serverDetail.tabs.data",
       "serverDetail.tabs.settings",
     ]);

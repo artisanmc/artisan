@@ -31,14 +31,18 @@ class AiAssistant(
     /** What the editor shows, in order: [seq] from 0, so it asks only for what it has not seen. */
     data class Event(val seq: Int, val type: String, val data: Map<String, Any?>)
 
-    inner class Conversation(val id: String, val owner: UUID, val project: String?) {
+    /**
+     * [server]: the server whose Assistant tab started it, the scope the model works in; [project]:
+     * the Project open beside the docked panel, if any.
+     */
+    inner class Conversation(val id: String, val owner: UUID, val project: String?, val server: String? = null) {
         val createdAt: Instant = clock.instant()
         @Volatile var lastActive: Instant = createdAt
         @Volatile var running = false
         @Volatile var inputTokens = 0L
         @Volatile var outputTokens = 0L
         private val events = mutableListOf<Event>()
-        internal val model = provider.conversation(system(project), tools.draftOnly)
+        internal val model = provider.conversation(system(project, server), tools.draftOnly)
 
         @Synchronized fun add(type: String, vararg data: Pair<String, Any?>) {
             events += Event(events.size, type, data.toMap().filterValues { it != null })
@@ -60,11 +64,11 @@ class AiAssistant(
 
     val model: String get() = provider.model
 
-    fun start(session: EditorSession, project: String?): Conversation {
+    fun start(session: EditorSession, project: String?, server: String? = null): Conversation {
         expire()
         val own = conversations.values.filter { it.owner == session.playerId }.sortedBy { it.lastActive }
         own.dropLast(MAX_PER_PLAYER - 1).forEach { conversations.remove(it.id) }
-        return Conversation(UUID.randomUUID().toString(), session.playerId, project).also { conversations[it.id] = it }
+        return Conversation(UUID.randomUUID().toString(), session.playerId, project, server).also { conversations[it.id] = it }
     }
 
     fun get(session: EditorSession, id: String): Conversation? {
@@ -164,12 +168,13 @@ class AiAssistant(
         conversations.values.removeIf { !it.running && it.lastActive.isBefore(limit) }
     }
 
-    private fun system(project: String?): String = buildString {
+    private fun system(project: String?, server: String?): String = buildString {
         append(McpRoutes.INSTRUCTIONS)
         append("\n\nYou are the assistant inside the Artisan editor, talking with the player who has it open. ")
         append("Answer in the player's language. Keep answers short: what you did, what to check, and the draft's name. ")
         append("When you have written a draft, tell the player to open Drafts (next to Deploy), review the changes, and deploy. ")
         append("Ask before large changes the player did not describe.")
+        if (server != null) append("\n\nThe player is working on the server `$server`: its Projects are the ids that start with `$server.`. Work in them unless asked otherwise; one piece of work may span several of its Projects, one draft each.")
         if (project != null) append("\n\nThe player has this Project open: $project. Work in it unless asked otherwise.")
     }
 
