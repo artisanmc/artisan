@@ -238,7 +238,7 @@ describe("a module's Document kind on the host", () => {
     expect(entry).toMatchObject({ group: "quest", label: "Slay the dragon" });
   });
 
-  it("gets its edges from its chain slots, on the project board and the server board", () => {
+  it("gets its edges from its chain slots, on the project board and the server graph", () => {
     const edges = deriveEdges(project());
     const toMenu = edges.find((e) => e.source === "quest/quest_a" && e.target === "menu/m1");
     expect(toMenu?.triggers).toEqual([{ kind: "chain", documentId: "quest_a", slot: "complete" }]);

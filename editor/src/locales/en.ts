@@ -8,7 +8,6 @@ import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
 import { projectIdentityEn } from "./projectIdentity";
 import { selfHostedEn } from "./selfHosted";
-import { serverCanvasEn } from "./serverCanvas";
 import { triggersEn } from "./triggers";
 export default {
   onboarding: onboardingEn,
@@ -86,7 +85,6 @@ export default {
   selfHosted: selfHostedEn,
   mmEditor: mmEditorEn,
   textTool: textToolEn,
-  serverCanvas: serverCanvasEn,
   changes: changesEn,
   actionCatalog: actionCatalogEn,
   triggers: triggersEn,
@@ -1825,10 +1823,9 @@ export default {
     tabs: {
       label: "Server sections",
       overview: "Overview",
-      board: "Board",
       play: "Play",
       assistant: "Assistant",
-      data: "Data",
+      data: "Data sources",
       settings: "Settings",
     },
     stateOnline: "Online",

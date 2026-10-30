@@ -37,8 +37,6 @@
   "feature-imports-feature: search -> project",
   "feature-imports-feature: search -> serverIndex",
   "feature-imports-feature: selfHosted -> auth",
-  "feature-imports-feature: serverCanvas -> canvas",
-  "feature-imports-feature: serverCanvas -> project",
   "feature-imports-feature: serverConfig -> project",
   "feature-imports-feature: serverIndex -> canvas",
   "feature-imports-feature: serverIndex -> projects",

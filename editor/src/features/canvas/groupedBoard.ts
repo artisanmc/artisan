@@ -193,41 +193,6 @@ export function arrangeProjectGroups(
   return result;
 }
 
-/** Project boxes are the only nodes seen by the outer server layout. */
-export function serverBoard(
-  projects: Project[],
-  graph: Pick<ServerGraph, "nodes" | "edges">,
-): GroupedArrangement {
-  const boards = projects
-    .map((project) => ({ project, board: arrangeProjectGroups(project, graph) }))
-    .filter(({ board }) => board.groups.length > 0);
-  const projectOf = new Map(graph.nodes.map((n) => [n.key, projectGroupKey(n.projectId)]));
-  const nodes = boards.map(({ board }) => ({ ...board.groups[0]!, kind: "menu" as const }));
-  const edges = graph.edges
-    .map((e) => ({ source: projectOf.get(e.source)!, target: projectOf.get(e.target)! }))
-    .filter((e) => e.source && e.target && e.source !== e.target);
-  const outer = arrangeBoard({ nodes, edges });
-  const result: GroupedArrangement = {
-    positions: {},
-    allPositions: {},
-    groups: [],
-    representatives: {},
-    gutter: null,
-  };
-  for (const { board } of boards) {
-    const frame = board.groups[0]!;
-    const position = outer.positions[frame.key]!;
-    const dx = position.x - frame.x;
-    const dy = position.y - frame.y;
-    const shift = (p: Point) => ({ x: p.x + dx, y: p.y + dy });
-    for (const [key, p] of Object.entries(board.positions)) result.positions[key] = shift(p);
-    for (const [key, p] of Object.entries(board.allPositions)) result.allPositions[key] = shift(p);
-    result.groups.push(...board.groups.map((g) => ({ ...g, ...shift(g) })));
-    Object.assign(result.representatives, board.representatives);
-  }
-  return result;
-}
-
 /** Hidden endpoints converge on their folded frame; internal links disappear. */
 export function groupEdges(edges: Edge[], representatives: Record<string, string>): Edge[] {
   const result = new Map<string, Edge>();

@@ -31,8 +31,8 @@ function ProjectProbe({
 }
 
 /**
- * What a server's views last saw, kept for the session: coming back to the Play or Board
- * tab shows it at once, and the listing and the loaders revalidate it behind.
+ * What a server's views last saw, kept for the session: coming back to the Play tab
+ * shows it at once, and the listing and the loaders revalidate it behind.
  */
 interface Seen {
   summaries: ProjectSummary[];
@@ -55,7 +55,7 @@ export interface ServerProjects {
 }
 
 /**
- * Every project of a server, each loaded as its own view loads it (server board, Play mode), and
+ * Every project of a server, each loaded as its own view loads it (Play mode), and
  * the item icons their menus draw: vanilla's and the server's custom items, read through its
  * first Project once all are loaded (the library is the server's, whichever Project asks).
  */
