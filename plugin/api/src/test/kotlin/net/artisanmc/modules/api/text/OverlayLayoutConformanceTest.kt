@@ -35,8 +35,14 @@ class OverlayLayoutConformanceTest {
             assertEquals(problems, read.problems().map { it.path() to it.code() })
             assertEquals(c["layers"], read.layout().layers.size)
             @Suppress("UNCHECKED_CAST")
-            val images = (c["pack_images"] as List<Map<String, Any>>).map { it["asset"] to it["rise"] }
-            assertEquals(images, read.layout().packImages.map { it.asset() to it.rise() })
+            val images = c["pack_images"] as List<Map<String, Any>>
+            assertEquals(images, read.layout().packImages.map { p ->
+                buildMap {
+                    put("asset", p.asset())
+                    p.rise()?.let { put("rise", it) }
+                    p.bottom()?.let { put("bottom", it) }
+                }
+            })
         }
     }
 
@@ -53,7 +59,13 @@ class OverlayLayoutConformanceTest {
                     val l = value as Map<String, Any>
                     rows(slot, l["rows"] as List<String>, l["selected"] as Int, l["top"] as Int)
                 }
-                src["images"]!!.forEach { (slot, asset) -> image(slot, asset as String) }
+                src["images"]!!.forEach { (slot, value) ->
+                    if (value is String) image(slot, value)
+                    else {
+                        val m = value as Map<String, Any>
+                        image(slot, m["image"] as String, (m["x"] as Int?) ?: 0, (m["y"] as Int?) ?: 0)
+                    }
+                }
             }.build()
             val perChar = vector["width_per_char"] as Int
             val heights = c["heights"] as Map<String, Int>

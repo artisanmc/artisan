@@ -20,6 +20,7 @@ import {
   type OverlaySlotDeclaration,
   overlayLayerBox,
   overlayPlan,
+  overlaySlotFill,
   readOverlayLayout,
   writeOverlayLayer,
 } from "@artisan/editor-sdk";
@@ -46,6 +47,7 @@ const LAYER_KEYS = [
   "row",
   "align",
   "anchor",
+  "default",
   "cursor",
 ];
 const MAX_X = 1024;
@@ -62,7 +64,7 @@ export function writeEntry(entry: unknown, layer: OverlayLayer): Record<string, 
   return { ...kept, ...writeOverlayLayer(layer) };
 }
 
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
+export const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 /** The y a layer may take: every top it draws (rows, cursor) within the pack's reach. */
 export function clampY(layer: OverlayLayer, y: number): number {
@@ -84,7 +86,7 @@ function maxLines(layer: Extract<OverlayLayer, { kind: "text" | "list" }>): numb
 }
 
 /** What fills the layers in the preview: a string cut at the layer's width, as the module cuts it. */
-function previewContent(
+export function previewContent(
   layers: readonly OverlayLayer[],
   preview: OverlayPreviewContent | undefined,
 ): OverlayContent {
@@ -104,7 +106,7 @@ function previewContent(
   return { text, lists, images: preview?.images ?? {} };
 }
 
-type Drag = {
+export type Drag = {
   index: number;
   mode: "move" | "width" | "lines";
   startX: number;
@@ -479,8 +481,11 @@ function AddImage({ projectId, onPick }: { projectId: string; onPick: (name: str
   );
 }
 
-/** The layers on the game's screen, from the slot's origin (centre, top of the action bar's text). */
-function Stage({
+/**
+ * The layers on the game's screen, from the slot's origin (centre, top of the action bar's text).
+ * Only the `editable` ones (all by default) can be picked and dragged.
+ */
+export function Stage({
   projectId,
   geometry,
   layers,
@@ -494,6 +499,7 @@ function Stage({
   onDragStart,
   onDragMove,
   onDragEnd,
+  editable = () => true,
 }: {
   projectId: string;
   geometry: McScreenGeometry;
@@ -508,6 +514,7 @@ function Stage({
   onDragStart: (event: ReactPointerEvent, index: number, mode: Drag["mode"]) => void;
   onDragMove: (event: ReactPointerEvent) => void;
   onDragEnd: () => void;
+  editable?: (index: number) => boolean;
 }) {
   const { layout, scale, textLift } = geometry;
   const ox = layout.centerX;
@@ -526,7 +533,7 @@ function Stage({
     overlayLayerBox(
       layer,
       sizeOf,
-      layer.kind === "image_slot" ? content.images?.[layer.name] : undefined,
+      layer.kind === "image_slot" ? overlaySlotFill(layer, content) : undefined,
     );
   const px = (n: number) => n * scale;
   const reachTop = oy + OVERLAY_MIN_Y;
@@ -611,6 +618,7 @@ function Stage({
       {/* Hit zones in drawing order, the last drawn on top; the selected one above them all, so it
           can be dragged where another covers it. */}
       {drawable.map(({ layer, index }) => {
+        if (!editable(index)) return null;
         const b = box(layer);
         const w = Math.max(b.width, 24);
         const h = Math.max(
@@ -946,6 +954,16 @@ function LayerPanel({
       {layer.kind === "image_slot" && (
         <>
           <p className="text-[12.5px] text-[var(--text-mut)]">{t("overlayComposer.slotHint")}</p>
+          <AssetInput
+            projectId={projectId}
+            label={t("overlayComposer.slotDefault")}
+            value={layer.fallback ?? ""}
+            clearable
+            onChange={(name) => set({ fallback: name || null })}
+          />
+          <p className="text-[12px] text-[var(--text-mut)]">
+            {t("overlayComposer.slotDefaultHint")}
+          </p>
           <div className="flex flex-col gap-1">
             <span className="field-label">{t("overlayComposer.anchor")}</span>
             <Segmented
@@ -978,7 +996,7 @@ function LayerPanel({
   );
 }
 
-function NumberField({
+export function NumberField({
   label,
   value,
   min,

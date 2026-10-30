@@ -27,6 +27,7 @@ import java.util.Set;
  *   x: -190
  *   y: 8
  *   anchor: bottom                  # y is the image's bottom (top by default)
+ *   default: portrait_inconnu       # drawn when the module gives none (none by default)
  * - text: lines                     # rows of text the module gives
  *   x: -120
  *   y: -72
@@ -76,8 +77,15 @@ public final class OverlayLayout {
     /** Where an image's y is measured. */
     public enum Anchor { TOP, BOTTOM }
 
-    /** An image the module names when it draws ({@link OverlayContent.Builder#image}): a speaker's portrait. */
-    public record ImageSlot(String slot, int x, int y, Anchor anchor) implements Layer {}
+    /**
+     * An image the module names when it draws ({@link OverlayContent.Builder#image}): a speaker's
+     * portrait. {@code fallback} (YAML {@code default}) is drawn when the module names none.
+     */
+    public record ImageSlot(String slot, int x, int y, Anchor anchor, @Nullable String fallback) implements Layer {
+        public ImageSlot(String slot, int x, int y, Anchor anchor) {
+            this(slot, x, y, anchor, null);
+        }
+    }
 
     /** How a row sits in its layer's width. */
     public enum Align { LEFT, CENTER, RIGHT }
@@ -103,8 +111,20 @@ public final class OverlayLayout {
     /** A layout read from YAML: the layers that are right, and the problems of the others. */
     public record Read(OverlayLayout layout, List<Problem> problems) {}
 
-    /** An image the pack must hold at a rise for this layout to draw it ({@code pack.images}). */
-    public record PackImage(String asset, int rise) {}
+    /**
+     * An image the pack must hold for this layout to draw it ({@code pack.images}): at a
+     * {@code rise}, or by its {@code bottom} (an {@code image_slot} anchored {@code bottom}, whose
+     * rise the pack builder takes from the image's height). Exactly one of the two is set.
+     */
+    public record PackImage(String asset, @Nullable Integer rise, @Nullable Integer bottom) {
+        public static PackImage at(String asset, int rise) {
+            return new PackImage(asset, rise, null);
+        }
+
+        public static PackImage byBottom(String asset, int bottom) {
+            return new PackImage(asset, null, bottom);
+        }
+    }
 
     private final List<Layer> layers;
 
@@ -117,26 +137,42 @@ public final class OverlayLayout {
     }
 
     /**
-     * The fixed images this layout draws, at their rise: each {@link Image}, and each cursor at
-     * every row of its list. The images of an {@link ImageSlot} are the module's: {@link #slotRise}.
+     * The images this layout draws by itself, in layer order: each {@link Image}, each cursor at
+     * every row of its list, each {@link ImageSlot}'s default. The other images of a slot are the
+     * module's: {@link #slotPackImage}.
      */
     public List<PackImage> getPackImages() {
         List<PackImage> out = new ArrayList<>();
         for (Layer layer : layers) {
             if (layer instanceof Image image) {
-                out.add(new PackImage(image.asset(), -image.y()));
+                out.add(PackImage.at(image.asset(), -image.y()));
+            } else if (layer instanceof ImageSlot slot && slot.fallback() != null) {
+                out.add(slotPackImage(slot, slot.fallback(), 0));
             } else if (layer instanceof Rows rows && rows.cursor() != null) {
                 for (int i = 0; i < rows.lines(); i++) {
-                    out.add(new PackImage(rows.cursor().asset(), -(rows.y() + i * rows.row() + rows.cursor().y())));
+                    out.add(PackImage.at(rows.cursor().asset(), -(rows.y() + i * rows.row() + rows.cursor().y())));
                 }
             }
         }
         return out;
     }
 
+    /** What the pack must hold for {@code asset} drawn in {@code slot}, moved {@code dy} px down. */
+    public static PackImage slotPackImage(ImageSlot slot, String asset, int dy) {
+        return slot.anchor() == Anchor.BOTTOM
+                ? PackImage.byBottom(asset, slot.y() + dy)
+                : PackImage.at(asset, -(slot.y() + dy));
+    }
+
     /** The rise of an image {@code height} px tall put in {@code slot}. */
     public static int slotRise(ImageSlot slot, int height) {
-        return slot.anchor() == Anchor.BOTTOM ? height - slot.y() : -slot.y();
+        return slotRise(slot, height, 0);
+    }
+
+    /** The rise of an image {@code height} px tall put in {@code slot}, moved {@code dy} px down. */
+    public static int slotRise(ImageSlot slot, int height, int dy) {
+        int y = slot.y() + dy;
+        return slot.anchor() == Anchor.BOTTOM ? height - y : -y;
     }
 
     /**
@@ -217,7 +253,8 @@ public final class OverlayLayout {
             int y = number(map, "y", 0, MIN_Y, MAX_Y);
             Layer layer = switch (kind) {
                 case "image" -> new Image(name, x, y);
-                case "image_slot" -> new ImageSlot(name, x, y, choice(map, "anchor", Anchor.TOP, Anchor.values()));
+                case "image_slot" -> new ImageSlot(name, x, y, choice(map, "anchor", Anchor.TOP, Anchor.values()),
+                        map.get("default") == null ? null : name(map, "default", path + ".default"));
                 case "text" -> {
                     int width = required(map, "width", 1, MAX_WIDTH);
                     int row = number(map, "row", DEFAULT_ROW, 1, MAX_ROW);

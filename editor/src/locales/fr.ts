@@ -1030,6 +1030,8 @@ const fr: typeof en = {
     imageMissing: "Cette image n'est pas dans le projet : le HUD ne dessine rien à sa place.",
     slotHint:
       "Le module y met une image (le portrait d'un orateur, par exemple). L'ancre dit quel bord se pose sur Y.",
+    slotDefault: "Image par défaut",
+    slotDefaultHint: "Dessinée quand le module n'en donne pas.",
     anchor: "Ancre",
     anchors: {
       bottom: "Bas",
@@ -1038,6 +1040,19 @@ const fr: typeof en = {
     packHint: "Une image apparaît en jeu une fois le pack de ressources reconstruit et renvoyé.",
     slot: "Emplacement",
     fixed: "image fixe",
+  },
+  overlaySlots: {
+    stage: "Aperçu : les flèches décalent l'image choisie (Maj : 10 px)",
+    hint: "Les calques du mode sont fixes ici : seules les images fournies se choisissent et se déplacent.",
+    none: "Ce mode n'a pas d'emplacement d'image à remplir.",
+    image: "Image",
+    offsetX: "Décalage X",
+    offsetY: "Décalage Y",
+    reset: "Revenir à la position du mode",
+    usesDefault: "Sans image, le mode dessine {{name}}.",
+    empty: "Sans image, rien n'est dessiné ici.",
+    packHint:
+      "Un décalage vertical change la hauteur de l'image : il apparaît en jeu après le déploiement.",
   },
   sortableList: {
     handle: "Glisser pour réordonner",

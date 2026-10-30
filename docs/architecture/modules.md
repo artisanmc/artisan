@@ -192,15 +192,19 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 
 > **HUD layouts (since 2026-10-30, API 2.21.0)** — rather than placing each piece with `move` and
 > `raise`, a module can keep its HUD as an `OverlayLayout`, a YAML list of layers drawn in order:
-> `image` (a fixed asset), `image_slot` (an asset the module names when it draws, `anchor: top|bottom`),
+> `image` (a fixed asset), `image_slot` (an asset the module names when it draws, `anchor: top|bottom`,
+> `default: <asset>` drawn when it names none),
 > `text` (`width`, `lines`, `row`, `align`) and `list` (rows with one selected, `cursor: {image, x, y}`).
 > Positions are GUI px from the slot's origin, x from the centre, y downwards from the top of the slot's
 > text (-128..166). `OverlayLayout.read(yaml)` keeps the right layers and reports the others
 > (`Problem(path, code, detail)`); each frame, `api.getOverlay().compose(layout, content)` fills the named
 > layers from an `OverlayContent` and returns the MiniMessage to `show`, plus the images the pack lacks.
 > Rows come already cut to the layer's width (`width(text)`). The fixed images a layout needs in the pack
-> are `layout.getPackImages()` (each `image` at `rise = -y`, a cursor at every row of its list); an
-> `image_slot`'s are the module's (`OverlayLayout.slotRise(slot, height)`). The editor reads the same
+> are `layout.getPackImages()` (each `image` at `rise = -y`, a cursor at every row of its list, a slot's
+> `default`, by its bottom when anchored there: `PackImage.rise()` or `bottom()`); the other images of an
+> `image_slot` are the module's (`OverlayLayout.slotPackImage(slot, asset, dy)`). The module may move a
+> slot's image from its place, `OverlayContent.Builder.image(slot, asset, x, y)` (a speaker's own
+> adjustment of its portrait); a moved y is another height in the pack. The editor reads the same
 > format with the same geometry (`testdata/overlay-layout-conformance.json`).
 
 > **Composing a HUD with the mouse (since 2026-10-30, SDK 1.16)** — `OverlayComposer` (host component)
@@ -213,12 +217,19 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > and `preview` fills them for the screen (`text`, `lists`, `images`). An entry it cannot read is listed
 > with its problems and written back untouched, and an entry's keys it does not own are kept. The TS
 > reading and geometry are exported for a module's own previews: `readOverlayLayout`,
-> `writeOverlayLayer`, `overlayPlan`, `overlayPackImages`, `overlaySlotRise`, `overlayLayerBox`,
+> `writeOverlayLayer`, `overlayPlan`, `overlayPackImages`, `overlaySlotRise`, `overlaySlotPackImage`,
+> `overlaySlotFill`, `overlayLayerBox`,
 > locked by the same vector as the plugin. `AssetInput` picks a Project's image by its name (thumbnail,
 > size, the editor's image picker). For an `image_slot` drawn by its bottom, `pack.images(src, ctx)` can
 > return `{asset, bottom}` instead of `{asset, rise}`: the builder reads the image's height and draws it
 > at `rise = height - bottom`. `ctx.file(path)` gives the parsed YAML of another file of the project
-> (`data/speakers.yml`), undefined when it is missing or unreadable. A 1.15 bundle still loads.
+> (`data/speakers.yml`), undefined when it is missing or unreadable; `ctx.files(dir)` the YAML files
+> directly in a folder, `{id, value}` each (a mode asks for the portraits of every speaker file).
+> `OverlaySlotsComposer` (host component) opens only a layout's image slots: the layout (`layout`) is
+> drawn but fixed, each `image_slot` gets an image by its thumbnail and an offset from its place by
+> dragging it, back to the slot's place in one click. `value`/`onChange` is the module's map, by slot,
+> `{image, x?, y?}`: an offset, not a position, so a slot moved in the layout keeps every adjustment.
+> A 1.15 bundle still loads.
 
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key

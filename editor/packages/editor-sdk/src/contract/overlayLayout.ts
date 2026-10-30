@@ -8,7 +8,7 @@
  * of the slot's text line, downwards (`rise = -y`). Every top stays within
  * `OVERLAY_MIN_Y`..`OVERLAY_MAX_Y`.
  */
-import type { PackImage } from "./types";
+import type { PackImage, PackImageByBottom } from "./types";
 
 // Rises are `0 - y`, never `-y`: a y of 0 gives the rise 0, not -0.
 
@@ -37,7 +37,15 @@ export interface OverlayCursor {
 /** One layer, as read: every field set, defaults filled in. */
 export type OverlayLayer =
   | { kind: "image"; name: string; x: number; y: number }
-  | { kind: "image_slot"; name: string; x: number; y: number; anchor: OverlayAnchor }
+  | {
+      kind: "image_slot";
+      name: string;
+      x: number;
+      y: number;
+      anchor: OverlayAnchor;
+      /** YAML `default`: the image drawn when the module gives none, or null. */
+      fallback: string | null;
+    }
   | {
       kind: "text";
       name: string;
@@ -170,7 +178,12 @@ function readLayer(src: unknown, path: string, problems: OverlayProblem[]): Over
   if (kind === "image") {
     layer = { kind, name: layerName, x, y };
   } else if (kind === "image_slot") {
-    layer = { kind, name: layerName, x, y, anchor: choice("anchor", "top", ["top", "bottom"]) };
+    const anchor = choice("anchor", "top", ["top", "bottom"]);
+    const fallback =
+      src.default === undefined || src.default === null
+        ? null
+        : name(src, "default", `${path}.default`);
+    layer = { kind, name: layerName, x, y, anchor, fallback };
   } else {
     const width = required("width", 1, MAX_WIDTH);
     const row = number(src, "row", OVERLAY_DEFAULT_ROW, 1, MAX_ROW);
@@ -235,6 +248,7 @@ export function readOverlayLayout(yaml: unknown): OverlayRead {
 export function writeOverlayLayer(layer: OverlayLayer): Record<string, unknown> {
   const out: Record<string, unknown> = { [layer.kind]: layer.name, x: layer.x, y: layer.y };
   if (layer.kind === "image_slot" && layer.anchor !== "top") out.anchor = layer.anchor;
+  if (layer.kind === "image_slot" && layer.fallback) out.default = layer.fallback;
   if (layer.kind === "text" || layer.kind === "list") {
     out.width = layer.width;
     if (layer.lines !== 1) out.lines = layer.lines;
@@ -248,11 +262,19 @@ export function writeOverlayLayer(layer: OverlayLayer): Record<string, unknown> 
   return out;
 }
 
-/** The fixed images of a layout at their rise: each `image`, each cursor at every row of its list. */
-export function overlayPackImages(layers: readonly OverlayLayer[]): PackImage[] {
-  const out: PackImage[] = [];
+/**
+ * The images a layout draws by itself, in layer order: each `image` at its rise, each cursor at
+ * every row of its list, each `image_slot`'s default (by its bottom when anchored there). The
+ * other images of a slot are the module's: `overlaySlotPackImage`.
+ */
+export function overlayPackImages(
+  layers: readonly OverlayLayer[],
+): (PackImage | PackImageByBottom)[] {
+  const out: (PackImage | PackImageByBottom)[] = [];
   for (const layer of layers) {
     if (layer.kind === "image") out.push({ asset: layer.name, rise: 0 - layer.y });
+    else if (layer.kind === "image_slot" && layer.fallback)
+      out.push(overlaySlotPackImage(layer, layer.fallback));
     else if (layer.kind === "list" && layer.cursor) {
       for (let i = 0; i < layer.lines; i++)
         out.push({
@@ -264,12 +286,47 @@ export function overlayPackImages(layers: readonly OverlayLayer[]): PackImage[] 
   return out;
 }
 
-/** The rise of an image `height` px tall put in an `image_slot`. */
+/** What the pack must hold for `asset` drawn in `slot`, moved `dy` px down (a speaker's own adjustment). */
+export function overlaySlotPackImage(
+  slot: { y: number; anchor: OverlayAnchor },
+  asset: string,
+  dy = 0,
+): PackImage | PackImageByBottom {
+  return slot.anchor === "bottom"
+    ? { asset, bottom: slot.y + dy }
+    : { asset, rise: 0 - (slot.y + dy) };
+}
+
+/** The rise of an image `height` px tall put in an `image_slot`, moved `dy` px down. */
 export function overlaySlotRise(
   slot: { y: number; anchor: OverlayAnchor },
   height: number,
+  dy = 0,
 ): number {
-  return slot.anchor === "bottom" ? height - slot.y : 0 - slot.y;
+  const y = slot.y + dy;
+  return slot.anchor === "bottom" ? height - y : 0 - y;
+}
+
+/** An `image_slot`'s image, moved `x` px right and `y` px down from the slot's place. */
+export interface OverlaySlotImage {
+  image: string;
+  x?: number;
+  y?: number;
+}
+
+/**
+ * What an `image_slot` draws: the image the module gives (an asset, or one moved by an offset),
+ * else the slot's default, else nothing.
+ */
+export function overlaySlotFill(
+  layer: Extract<OverlayLayer, { kind: "image_slot" }>,
+  content: OverlayContent,
+): { asset: string; x: number; y: number } | null {
+  const given = content.images?.[layer.name];
+  if (typeof given === "string" && given) return { asset: given, x: 0, y: 0 };
+  if (given && typeof given === "object" && given.image)
+    return { asset: given.image, x: given.x ?? 0, y: given.y ?? 0 };
+  return layer.fallback ? { asset: layer.fallback, x: 0, y: 0 } : null;
 }
 
 /** What fills the named layers for one frame (the plugin's `OverlayContent`). */
@@ -278,8 +335,8 @@ export interface OverlayContent {
   text?: Record<string, readonly string[]>;
   /** Rows of a `list`: `selected` a row or -1, `top` the first shown. */
   lists?: Record<string, { rows: readonly string[]; selected: number; top: number }>;
-  /** The asset of an `image_slot`. */
-  images?: Record<string, string>;
+  /** The image of an `image_slot`: an asset, or one moved by an offset; none draws its default. */
+  images?: Record<string, string | OverlaySlotImage>;
 }
 
 /** An image (`content` its asset) or a row of text (`content` its MiniMessage), its left at x, its top at rise. */
@@ -309,16 +366,16 @@ export function overlayPlan(
     if (layer.kind === "image") {
       draws.push({ image: true, content: layer.name, x: layer.x, rise: 0 - layer.y, layer: index });
     } else if (layer.kind === "image_slot") {
-      const asset = content.images?.[layer.name];
-      if (!asset) return;
-      const height = layer.anchor === "bottom" ? heightOf(asset) : 0;
-      if (height < 0) missing.push(asset);
+      const fill = overlaySlotFill(layer, content);
+      if (!fill) return;
+      const height = layer.anchor === "bottom" ? heightOf(fill.asset) : 0;
+      if (height < 0) missing.push(fill.asset);
       else
         draws.push({
           image: true,
-          content: asset,
-          x: layer.x,
-          rise: overlaySlotRise(layer, height),
+          content: fill.asset,
+          x: layer.x + fill.x,
+          rise: overlaySlotRise(layer, height, fill.y),
           layer: index,
         });
     } else if (layer.kind === "text") {
@@ -363,20 +420,22 @@ export function overlayPlan(
 
 /**
  * The box a layer covers on screen, in GUI px from the slot's origin (y downwards): an image
- * at its size (`sizeOf`, 0×0 when unknown), a text or list at its width and lines.
+ * at its size (`sizeOf`, 0×0 when unknown), a text or list at its width and lines. An
+ * `image_slot` is measured on what it draws (`slot`: an asset, or `overlaySlotFill`'s answer,
+ * moved by its offset).
  */
 export function overlayLayerBox(
   layer: OverlayLayer,
   sizeOf: (asset: string) => { width: number; height: number } | undefined,
-  slotAsset?: string,
+  slot?: string | { asset: string; x: number; y: number } | null,
 ): { x: number; y: number; width: number; height: number } {
   if (layer.kind === "text" || layer.kind === "list")
     return { x: layer.x, y: layer.y, width: layer.width, height: layer.lines * layer.row };
-  const size = sizeOf(layer.kind === "image" ? layer.name : (slotAsset ?? "")) ?? {
-    width: 0,
-    height: 0,
-  };
-  const top =
-    layer.kind === "image_slot" && layer.anchor === "bottom" ? layer.y - size.height : layer.y;
-  return { x: layer.x, y: top, width: size.width, height: size.height };
+  const fill = typeof slot === "string" ? { asset: slot, x: 0, y: 0 } : (slot ?? null);
+  const asset = layer.kind === "image" ? layer.name : (fill?.asset ?? "");
+  const size = sizeOf(asset) ?? { width: 0, height: 0 };
+  const dx = layer.kind === "image_slot" ? (fill?.x ?? 0) : 0;
+  const y = layer.y + (layer.kind === "image_slot" ? (fill?.y ?? 0) : 0);
+  const top = layer.kind === "image_slot" && layer.anchor === "bottom" ? y - size.height : y;
+  return { x: layer.x + dx, y: top, width: size.width, height: size.height };
 }

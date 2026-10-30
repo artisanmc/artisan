@@ -6,6 +6,7 @@ import { AssetInput } from "@/features/assets/AssetInput";
 import { MaterialField } from "@/features/canvas/MaterialField";
 import { ItemSpecField } from "@/features/canvas/item/ItemSpecField";
 import { OverlayComposer } from "@/features/canvas/overlay/OverlayComposer";
+import { OverlaySlotsComposer } from "@/features/canvas/overlay/OverlaySlotsComposer";
 import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
 import { ConditionsField } from "@/features/inspector/properties/ConditionsField";
 import { DocumentRefField } from "@/features/inspector/properties/DocumentRefField";
@@ -14,7 +15,7 @@ import type { HostComponents } from "@artisan/editor-sdk";
 /**
  * The editor widgets a module view embeds through the SDK (`ActionChainEditor`,
  * `MaterialInput`, `ItemInput`, `MiniMessageInput`, `SortableList`, `ConditionsEditor`,
- * `DocumentRefInput`, `McText`, `McScreen`, `McScreenControls`, `OverlayComposer`, `AssetInput`): the same
+ * `DocumentRefInput`, `McText`, `McScreen`, `McScreenControls`, `OverlayComposer`, `OverlaySlotsComposer`, `AssetInput`): the same
  * components as the core views, on a controlled value.
  */
 export const hostComponents: HostComponents = {
@@ -36,6 +37,7 @@ export const hostComponents: HostComponents = {
   McScreen: (props) => <McScreen {...props} />,
   McScreenControls: (props) => <McScreenControls {...props} />,
   OverlayComposer: (props) => <OverlayComposer {...props} />,
+  OverlaySlotsComposer: (props) => <OverlaySlotsComposer {...props} />,
   AssetInput: (props) => <AssetInput {...props} />,
   ItemInput: ({ match, onMatchChange, ...props }) => (
     <ItemSpecField

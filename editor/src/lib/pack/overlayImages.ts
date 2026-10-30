@@ -73,6 +73,14 @@ export function overlayImagesFromFiles(
       }
       return parsed.get(path);
     },
+    files(dir: string): { id: string; value: unknown }[] {
+      const out: { id: string; value: unknown }[] = [];
+      for (const { path } of files) {
+        const match = /^(.+)\/([^/]+)\.ya?ml$/.exec(path);
+        if (match && match[1] === dir) out.push({ id: match[2]!, value: context.file(path) });
+      }
+      return out;
+    },
   };
   for (const kind of kinds) {
     const images = kind.pack?.images;

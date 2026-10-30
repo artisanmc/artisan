@@ -140,6 +140,34 @@ test("a kind reads another file of the project, and may place an image by its bo
   expect(images).toEqual([{ asset: "marthe", bottom: 8 }]);
 });
 
+test("a kind lists the files of a folder, each by its id", () => {
+  const mode = {
+    kind: "mode",
+    dir: "modes",
+    pack: {
+      images: (
+        src: Record<string, unknown>,
+        context: { files(dir: string): { id: string; value: unknown }[] },
+      ) =>
+        context.files("speakers").flatMap(({ value }) => {
+          const portrait = (value as { portrait?: string } | undefined)?.portrait;
+          return portrait ? [{ asset: portrait, bottom: src.bottom as number }] : [];
+        }),
+    },
+  } as unknown as DocumentKindContribution;
+  const images = overlayImagesFromFiles(
+    [
+      { path: "modes/tavern.yml", content: "bottom: 8" },
+      { path: "speakers/marthe.yml", content: "portrait: marthe" },
+      { path: "speakers/garde.yml", content: "name: Garde" },
+      { path: "speakers/old/bruno.yml", content: "portrait: bruno" },
+      { path: "data/speakers.yml", content: "portrait: nobody" },
+    ],
+    [mode],
+  );
+  expect(images).toEqual([{ asset: "marthe", bottom: 8 }]);
+});
+
 test("an image placed by its bottom rises by its height, once per resolved rise", () => {
   const built = buildResourcePackZip(
     [],

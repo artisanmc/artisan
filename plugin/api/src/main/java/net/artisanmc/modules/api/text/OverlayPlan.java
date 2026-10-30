@@ -27,11 +27,13 @@ final class OverlayPlan {
             switch (layer) {
                 case OverlayLayout.Image image -> draws.add(new Draw(true, image.asset(), image.x(), -image.y()));
                 case OverlayLayout.ImageSlot slot -> {
-                    String asset = content.image(slot.slot());
-                    if (asset == null) break;
+                    OverlayContent.SlotImage fill = content.image(slot.slot());
+                    if (fill == null && slot.fallback() != null) fill = new OverlayContent.SlotImage(slot.fallback(), 0, 0);
+                    if (fill == null) break;
+                    String asset = fill.asset();
                     int height = slot.anchor() == OverlayLayout.Anchor.BOTTOM ? heightOf.applyAsInt(asset) : 0;
                     if (height < 0) missing.add(asset);
-                    else draws.add(new Draw(true, asset, slot.x(), OverlayLayout.slotRise(slot, height)));
+                    else draws.add(new Draw(true, asset, slot.x() + fill.x(), OverlayLayout.slotRise(slot, height, fill.y())));
                 }
                 case OverlayLayout.Text text -> {
                     List<String> rows = content.text(text.slot());

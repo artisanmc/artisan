@@ -144,6 +144,12 @@ export interface PackImagesContext {
    * its speakers declare.
    */
   file(path: string): unknown;
+  /**
+   * The YAML files directly in a folder of the same project (`speakers`), each by its id (its
+   * name without `.yml`) as parsed YAML. A mode asks for the images of every speaker that fills
+   * one of its slots.
+   */
+  files(dir: string): { id: string; value: unknown }[];
 }
 
 /**

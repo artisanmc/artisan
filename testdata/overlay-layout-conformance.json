@@ -1,5 +1,5 @@
 {
-  "_comment": "Overlay layouts (OverlayLayout, API 2.21.0): reading the YAML list (problems by path and code, how many layers are kept, the pack images at their rise) and placing a frame (draws in order: image or text, left x from the screen's centre, rise of the top). Widths are width_per_char px a character of the row's string; image heights come from heights (an asset absent there is not in the pack). Read by OverlayLayoutConformanceTest (plugin api); the editor's port reads it too.",
+  "_comment": "Overlay layouts (OverlayLayout, API 2.21.0): reading the YAML list (problems by path and code, how many layers are kept, the pack images at their rise, or by their bottom for a slot's default anchored bottom) and placing a frame (draws in order: image or text, left x from the screen's centre, rise of the top). Widths are width_per_char px a character of the row's string; image heights come from heights (an asset absent there is not in the pack). Read by OverlayLayoutConformanceTest (plugin api); the editor's port reads it too.",
   "width_per_char": 6,
   "read": [
     {
@@ -121,6 +121,27 @@
       "problems": [{ "path": "layout[0].cursor.image", "code": "missing_name" }],
       "layers": 0,
       "pack_images": []
+    },
+    {
+      "name": "an image slot's default goes into the pack, by its bottom or its top",
+      "layout": [
+        { "image_slot": "portrait", "x": -190, "y": 8, "anchor": "bottom", "default": "inconnu" },
+        { "image_slot": "badge", "x": 0, "y": -40, "default": "star" },
+        { "image_slot": "none", "x": 0, "y": 0 }
+      ],
+      "problems": [],
+      "layers": 3,
+      "pack_images": [
+        { "asset": "inconnu", "bottom": 8 },
+        { "asset": "star", "rise": 40 }
+      ]
+    },
+    {
+      "name": "an empty default",
+      "layout": [{ "image_slot": "p", "default": "" }],
+      "problems": [{ "path": "layout[0].default", "code": "missing_name" }],
+      "layers": 0,
+      "pack_images": []
     }
   ],
   "plan": [
@@ -205,6 +226,20 @@
         { "image": false, "content": "c", "x": 0, "rise": 0 },
         { "image": false, "content": "d", "x": 0, "rise": -12 },
         { "image": true, "content": "k", "x": -8, "rise": -12 }
+      ],
+      "missing": []
+    },
+    {
+      "name": "a slot draws its default when given nothing; a given image moves by its offset",
+      "layout": [
+        { "image_slot": "portrait", "x": -190, "y": 8, "anchor": "bottom", "default": "inconnu" },
+        { "image_slot": "badge", "x": 0, "y": -40, "default": "star" }
+      ],
+      "content": { "text": {}, "lists": {}, "images": { "badge": { "image": "medal", "x": 3, "y": -6 } } },
+      "heights": { "inconnu": 72, "medal": 9 },
+      "draws": [
+        { "image": true, "content": "inconnu", "x": -190, "rise": 64 },
+        { "image": true, "content": "medal", "x": 3, "rise": 46 }
       ],
       "missing": []
     }

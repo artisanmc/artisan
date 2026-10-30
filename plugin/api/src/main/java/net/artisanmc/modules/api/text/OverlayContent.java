@@ -9,7 +9,8 @@ import java.util.Map;
 
 /**
  * What fills the named layers of an {@link OverlayLayout} for one frame: the rows of a
- * {@code text}, the rows and selection of a {@code list}, the image of an {@code image_slot}. Rows
+ * {@code text}, the rows and selection of a {@code list}, the image of an {@code image_slot} (moved
+ * from the slot's place when the module asks, a speaker's own adjustment). Rows
  * are MiniMessage, already cut to the layer's width by the module ({@link OverlayApi#width}). A
  * layer left unfilled draws nothing.
  *
@@ -25,12 +26,15 @@ public final class OverlayContent {
         }
     }
 
+    /** The image of an {@code image_slot}, moved {@code x} px right and {@code y} px down from the slot's place. */
+    public record SlotImage(String asset, int x, int y) {}
+
     /** Nothing in any layer. */
     public static final OverlayContent EMPTY = builder().build();
 
     private final Map<String, List<String>> texts;
     private final Map<String, Rows> lists;
-    private final Map<String, String> images;
+    private final Map<String, SlotImage> images;
 
     private OverlayContent(Builder builder) {
         texts = Map.copyOf(builder.texts);
@@ -52,15 +56,15 @@ public final class OverlayContent {
         return lists.get(slot);
     }
 
-    /** The asset given to the {@code image_slot} layer {@code slot}, or null. */
-    public @Nullable String image(String slot) {
+    /** The image given to the {@code image_slot} layer {@code slot}, or null. */
+    public @Nullable SlotImage image(String slot) {
         return images.get(slot);
     }
 
     public static final class Builder {
         private final Map<String, List<String>> texts = new HashMap<>();
         private final Map<String, Rows> lists = new HashMap<>();
-        private final Map<String, String> images = new HashMap<>();
+        private final Map<String, SlotImage> images = new HashMap<>();
 
         private Builder() {}
 
@@ -76,10 +80,19 @@ public final class OverlayContent {
             return this;
         }
 
-        /** The asset drawn in the {@code image_slot} layer {@code slot}; null leaves it empty. */
+        /** The asset drawn in the {@code image_slot} layer {@code slot}; null leaves it to the slot's default. */
         public Builder image(String slot, @Nullable String asset) {
+            return image(slot, asset, 0, 0);
+        }
+
+        /**
+         * The asset drawn in the {@code image_slot} layer {@code slot}, {@code x} px right and
+         * {@code y} px down from the slot's place; null leaves it to the slot's default. A moved
+         * y is another height: the pack holds it ({@link OverlayLayout#slotPackImage}).
+         */
+        public Builder image(String slot, @Nullable String asset, int x, int y) {
             if (asset == null || asset.isBlank()) images.remove(slot);
-            else images.put(slot, asset);
+            else images.put(slot, new SlotImage(asset, x, y));
             return this;
         }
 

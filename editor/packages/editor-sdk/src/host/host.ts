@@ -276,8 +276,8 @@ export interface OverlayPreviewContent {
   text?: Record<string, string | readonly string[]>;
   /** A `list` layer's rows, the selected one beside its cursor, from `top`. */
   lists?: Record<string, { rows: readonly string[]; selected: number; top?: number }>;
-  /** An `image_slot` layer's asset (a speaker's portrait). */
-  images?: Record<string, string>;
+  /** An `image_slot` layer's asset (a speaker's portrait), or one moved: `{image, x, y}`. */
+  images?: Record<string, string | { image: string; x?: number; y?: number }>;
 }
 
 export interface OverlayComposerProps {
@@ -291,6 +291,25 @@ export interface OverlayComposerProps {
   /** What the named layers show in the preview: a real page, a speaker's portrait. */
   preview?: OverlayPreviewContent;
   /** The module's own controls in the composer's toolbar (which page, which speaker). */
+  toolbar?: ReactNode;
+}
+
+export interface OverlaySlotsComposerProps {
+  projectId: string;
+  /** The mode's layout, as its file holds it: drawn, fixed. */
+  layout: unknown;
+  /**
+   * What fills its `image_slot` layers, as the module's file holds it: by slot, an asset or
+   * `{image, x, y}` (the image moved x px right, y px down from the slot's place).
+   */
+  value: unknown;
+  /** The new map, every slot written as `{image, x?, y?}`, a slot left without an image dropped. */
+  onChange: (next: Record<string, unknown>) => void;
+  /** The slots' names in the interface's language (the `image_slot` ones are open). */
+  slots: readonly OverlaySlotDeclaration[];
+  /** What the mode's other named layers show: a sample page, the speaker's name. */
+  preview?: OverlayPreviewContent;
+  /** The module's own controls in the toolbar (which mode to preview in). */
   toolbar?: ReactNode;
 }
 
@@ -329,6 +348,8 @@ export interface HostComponents {
   OverlayComposer: ComponentType<OverlayComposerProps>;
   /** SDK 1.16. */
   AssetInput: ComponentType<AssetInputProps>;
+  /** SDK 1.16. */
+  OverlaySlotsComposer: ComponentType<OverlaySlotsComposerProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -472,6 +493,16 @@ export function McScreenControls(props: McScreenControlsProps): ReactElement {
  */
 export function OverlayComposer(props: OverlayComposerProps): ReactElement {
   const Impl = current().components.OverlayComposer;
+  return createElement(Impl, props);
+}
+
+/**
+ * A layout's image slots filled on the game's screen (SDK 1.16): the layout drawn but fixed, each
+ * `image_slot` given an image by its thumbnail and moved from its place by dragging it (arrows: 1
+ * px, Shift: 10 px), back to the slot's place in one click. A speaker's portrait in a mode.
+ */
+export function OverlaySlotsComposer(props: OverlaySlotsComposerProps): ReactElement {
+  const Impl = current().components.OverlaySlotsComposer;
   return createElement(Impl, props);
 }
 

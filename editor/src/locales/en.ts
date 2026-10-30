@@ -1013,6 +1013,8 @@ export default {
     imageMissing: "This image is not in the project: the HUD draws nothing in its place.",
     slotHint:
       "The module puts an image here (a speaker's portrait, for instance). Its anchor sets which edge sits on Y.",
+    slotDefault: "Default image",
+    slotDefaultHint: "Drawn when the module gives none.",
     anchor: "Anchor",
     anchors: {
       bottom: "Bottom",
@@ -1021,6 +1023,18 @@ export default {
     packHint: "An image appears in game once the resource pack is rebuilt and sent again.",
     slot: "Slot",
     fixed: "fixed image",
+  },
+  overlaySlots: {
+    stage: "Preview: the arrow keys move the chosen image (Shift: 10 px)",
+    hint: "The mode's layers are fixed here: only the images given can be picked and moved.",
+    none: "This mode has no image slot to fill.",
+    image: "Image",
+    offsetX: "Offset X",
+    offsetY: "Offset Y",
+    reset: "Back to the mode's position",
+    usesDefault: "Without an image, the mode draws {{name}}.",
+    empty: "Without an image, nothing is drawn here.",
+    packHint: "A vertical offset changes the image's height: it shows in game after deploying.",
   },
   sortableList: {
     handle: "Drag to reorder",

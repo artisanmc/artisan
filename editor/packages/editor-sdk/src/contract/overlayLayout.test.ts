@@ -46,7 +46,7 @@ describe("writeOverlayLayer", () => {
   it("writes back what it read, defaults left out", () => {
     const src = [
       { image: "box", x: -130, y: -92 },
-      { image_slot: "portrait", x: -190, y: 8, anchor: "bottom" },
+      { image_slot: "portrait", x: -190, y: 8, anchor: "bottom", default: "inconnu" },
       { text: "name", x: -120, y: -86, width: 240 },
       { text: "title", x: 0, y: 0, width: 80, lines: 2, row: 12, align: "center" },
       {
