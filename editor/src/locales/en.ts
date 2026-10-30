@@ -925,6 +925,8 @@ export default {
       give_xp: "give {{amount}} xp",
       give_level: "give {{amount}} levels",
       teleport: "teleport to {{world}} {{x}} {{y}} {{z}}",
+      moduleAction: "a {{module}} module action: it runs on the server, not here",
+      notRun: "not run",
     },
     sidebar: "Sidebar",
     launcher: {

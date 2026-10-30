@@ -1207,7 +1207,10 @@ in the launcher). Projects load through `useServerProjects`, as for the general 
   another (`projectByNamespace`); each chain carries its project (`RunSource.project`) for texts and
   references. Visual actions run (messages, titles with their ticks, menus, pages, `set_arg*`); world
   actions (give, money, xp, teleport, a command no project declares…) are journaled "→ …"; an action
-  nobody declared visual is journaled with its value, never run. Depth capped at 16.
+  nobody declared visual is journaled with its value, never run; a module's action is named with its
+  arguments (from the server's declarations, `serverActionsStore`) and flagged as running on the server.
+  The journal groups the entries by source (a click, a command, a Trigger) and badges what is only noted.
+  Depth capped at 16.
 - **Test player** (`testPlayer.ts`): name, op, permissions (`*`, `prefix.*`), money, xp, level,
   world, placeholders; saved per server in `localStorage`. Conditions (`conditions.ts`) computed
   from it when possible, else forced (default true) and listed in the panel to flip. Joins left to

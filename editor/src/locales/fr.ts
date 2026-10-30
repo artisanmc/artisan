@@ -941,6 +941,8 @@ const fr: typeof en = {
       give_xp: "donner {{amount}} xp",
       give_level: "donner {{amount}} niveaux",
       teleport: "téléportation vers {{world}} {{x}} {{y}} {{z}}",
+      moduleAction: "action du module {{module}} : elle s'exécute sur le serveur, pas ici",
+      notRun: "non exécutée",
     },
     sidebar: "Barre latérale",
     launcher: {
