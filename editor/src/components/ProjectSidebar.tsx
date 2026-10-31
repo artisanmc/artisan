@@ -1,4 +1,4 @@
-import { ArtisanWordmark, useModuleBrand } from "@/components/ArtisanWordmark";
+import { ArtisanWordmark, ModuleRowIcon, useModuleBrand } from "@/components/ArtisanWordmark";
 import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
 import { listedDataSources } from "@/domain/projectData";
@@ -567,6 +567,8 @@ interface ProjectItemProps {
   name: string;
   count: number | null;
   serverId: string | null;
+  /** A plugin module's own icon, in place of the folder. */
+  icon?: string;
 }
 
 function SortableProjectItem(props: ProjectItemProps) {
@@ -585,6 +587,7 @@ function ProjectItem({
   name,
   count,
   serverId,
+  icon,
   sortable,
   children,
   defaultExpanded = false,
@@ -638,7 +641,9 @@ function ProjectItem({
               : "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
           }
         >
-          {isActiveProject ? (
+          {icon ? (
+            <ModuleRowIcon src={icon} />
+          ) : isActiveProject ? (
             <FolderOpen className="size-[15px] shrink-0" />
           ) : (
             <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
@@ -703,6 +708,7 @@ function PluginModuleItem({
     (e) => e.kind === "screen" && e.screen.id === params.screenId,
   );
   const [expanded, setExpanded] = useState(showsChild);
+  const icon = useModuleBrand(module.id)?.icon;
   const entries = module.entries.length > 0 && (
     <ModuleEntries entries={module.entries} serverId={serverId} projects={module.projects} />
   );
@@ -716,6 +722,7 @@ function PluginModuleItem({
         count={countFor(only)}
         serverId={serverIdOf(only)}
         defaultExpanded={showsChild}
+        icon={icon}
         sortable={sortable}
       >
         {entries}
@@ -733,13 +740,16 @@ function PluginModuleItem({
           expanded={expanded}
           onToggle={() => setExpanded((v) => !v)}
         />
-        {/* TODO: render the module's icon once modules ship real icons */}
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-left text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
         >
-          <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+          {icon ? (
+            <ModuleRowIcon src={icon} />
+          ) : (
+            <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+          )}
           <span className="min-w-0 truncate">{module.label}</span>
         </button>
       </div>

@@ -82,3 +82,17 @@ export function ModuleIcon({ src }: { src: string }) {
     />
   );
 }
+
+/** A module's icon at its own 16 px grid, ×1: its row in the sidebar, in place of the folder. */
+export function ModuleRowIcon({ src }: { src: string }) {
+  return (
+    <img
+      src={src}
+      alt=""
+      aria-hidden="true"
+      width={16}
+      height={16}
+      className="-my-px shrink-0 [image-rendering:pixelated]"
+    />
+  );
+}
