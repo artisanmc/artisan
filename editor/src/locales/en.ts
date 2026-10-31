@@ -852,7 +852,7 @@ export default {
     edit: "Edit",
     delete: "Delete from project",
     empty: "No elements yet",
-    emptyBoard: "Nothing on the board: this module’s content is in its collection.",
+    emptyBoard: "Nothing on the board: this module’s content is on its home.",
     options: "Options",
   },
   documentView: {
@@ -1404,6 +1404,7 @@ export default {
     offlineRetry: "Retry",
     serverOfflineExport: "Server offline — cannot export the files",
     tabs: {
+      home: "Home",
       resources: "Resources",
       canvas: "Canvas",
       translations: "Translations",
@@ -1850,6 +1851,21 @@ export default {
     ctxItemLore: "lore · {{owner}}",
     ctxDialogBody: "dialog · {{owner}}",
     ctxDialogButton: "button · {{owner}}",
+  },
+  moduleHome: {
+    pluginModule: "Module of the {{name}} plugin",
+    contentModule: "Content module",
+    content: "Content",
+    boardEmpty: "Nothing on the canvas yet.",
+    folders_one: "{{count}} folder",
+    folders_other: "{{count}} folders",
+    openBoard: "Open the canvas",
+    openList: "See the list",
+    settings: "Settings",
+    dataSources: "Data sources",
+    exposes: "What the module exposes",
+    action: "action",
+    actionHint: "An action that menus, commands and dialogs can run.",
   },
   collections: {
     create: "New",
