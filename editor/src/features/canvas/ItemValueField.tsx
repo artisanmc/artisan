@@ -4,11 +4,12 @@ import type { Appearance, LText, ProjectId } from "@/domain/types";
 import { ItemBindingEditor } from "@/features/canvas/item/ItemBindingEditor";
 import { isScreenScratchId } from "@/features/screens/screenScratch";
 import { getText } from "@/lib/i18n";
+import { listLanguages } from "@/lib/i18nUsages";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useTranslation } from "react-i18next";
-import { ItemEditor } from "./ItemEditor";
+import { ItemEditor, type ItemTranslations } from "./ItemEditor";
 import { resolveItem } from "./resolveItem";
 
 export function ItemValueField({
@@ -48,6 +49,39 @@ export function ItemValueField({
         : v && typeof v === "object" && "key" in v
           ? getText(project, v as LText, lang)
           : "";
+  // A literal (string, lines) is the default language's text; a node carries every language.
+  const nodeOf = (field: "title" | "lore"): LText | undefined => {
+    const v = item[field];
+    return v && typeof v === "object" && !Array.isArray(v) && "key" in v ? (v as LText) : undefined;
+  };
+  const valuesOf = (field: "title" | "lore"): Record<string, string | undefined> => {
+    const lt = nodeOf(field);
+    if (lt) return project.i18nKeys[lt.key] ?? {};
+    return item[field] === undefined ? {} : { [project.defaultLang]: text(item[field]) };
+  };
+  const ownText = (field: "title" | "lore") =>
+    item[field] === undefined ? undefined : (valuesOf(field)[lang] ?? "");
+  const writeText = (field: "title" | "lore", textLang: string, value: string) => {
+    const existing = nodeOf(field);
+    const lt = existing ?? ({ key: `items.${crypto.randomUUID()}.${field}` } as LText);
+    if (!existing) {
+      patch({ [field]: lt });
+      // The literal was the default language's text: it stays, under the new node.
+      if (item[field] !== undefined && textLang !== project.defaultLang)
+        setI18nValue({ projectId, lt, lang: project.defaultLang, value: text(item[field]) });
+    }
+    setI18nValue({ projectId, lt, lang: textLang, value });
+  };
+  const translations: ItemTranslations | undefined = isScreenScratchId(projectId)
+    ? undefined
+    : {
+        langs: listLanguages(project),
+        activeLang: lang,
+        defaultLang: project.defaultLang,
+        title: valuesOf("title"),
+        lore: valuesOf("lore"),
+        onText: writeText,
+      };
   const normalized = () => {
     const next: Record<string, unknown> = { ...item, extends: source };
     Reflect.deleteProperty(next, "material");
@@ -78,10 +112,13 @@ export function ItemValueField({
         head: typeof item.head === "string" ? item.head : undefined,
       }}
       onHead={(head) => patch({ head })}
-      titleLabel={t("flow.titleLabel", { lang })}
-      loreLabel={t("flow.loreLabel", { lang })}
-      title={item.title === undefined ? undefined : text(item.title)}
-      lore={item.lore === undefined ? undefined : text(item.lore)}
+      titleLabel={translations ? t("flow.titleName") : t("flow.titleLabel", { lang })}
+      loreLabel={translations ? t("flow.loreName") : t("flow.loreLabel", { lang })}
+      title={
+        translations ? ownText("title") : item.title === undefined ? undefined : text(item.title)
+      }
+      lore={translations ? ownText("lore") : item.lore === undefined ? undefined : text(item.lore)}
+      translations={translations}
       loreMode={item.lore_mode === "replace" ? "replace" : undefined}
       onLoreMode={(mode) => patch({ lore_mode: mode })}
       inherited={inherited}
@@ -110,13 +147,7 @@ export function ItemValueField({
           patch({ [field]: undefined, ...(field === "lore" ? { lore_mode: undefined } : {}) });
           return;
         }
-        const existing = item[field];
-        const lt =
-          existing && typeof existing === "object" && !Array.isArray(existing) && "key" in existing
-            ? (existing as LText)
-            : ({ key: `items.${crypto.randomUUID()}.${field}` } as LText);
-        patch({ [field]: lt });
-        setI18nValue({ projectId, lt, lang, value });
+        writeText(field, lang, value);
       }}
       onAdvanced={(fields) => {
         const next = normalized();

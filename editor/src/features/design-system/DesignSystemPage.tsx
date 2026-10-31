@@ -296,7 +296,7 @@ function MiniMessageSpecimens() {
   );
 }
 
-function LocalizedFieldSpecimen() {
+function LocalizedFieldSpecimen({ inline }: { inline?: boolean }) {
   const [values, setValues] = useState<Record<string, string | undefined>>({
     en: "Back",
     fr: "Retour",
@@ -304,17 +304,19 @@ function LocalizedFieldSpecimen() {
   return (
     <LocalizedField
       className="max-w-xs"
+      inline={inline}
       label="Title"
       langs={["en", "fr", "de"]}
       activeLang="en"
       defaultLang="en"
       values={values}
-      renderEditor={({ lang, value, fallback, label }) => (
+      onChange={(lang, value) => setValues((v) => ({ ...v, [lang]: value }))}
+      renderEditor={({ value, fallback, label, onChange }) => (
         <Input
           aria-label={label}
           value={value}
           placeholder={fallback}
-          onChange={(e) => setValues((v) => ({ ...v, [lang]: e.target.value }))}
+          onChange={(e) => onChange(e.target.value)}
         />
       )}
     />
@@ -652,6 +654,7 @@ export function DesignSystemPage() {
               {"<LocalizedField langs activeLang defaultLang values renderEditor>"}
             </span>
             <LocalizedFieldSpecimen />
+            <LocalizedFieldSpecimen inline />
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Badge variant>"}</span>

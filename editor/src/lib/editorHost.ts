@@ -58,6 +58,13 @@ export const editorHost: Omit<EditorHost, "components"> = {
   newTextKey: () => newI18nKey(),
   text: (project, key, lang) => getText(project as Project, { key: key as I18nKey }, lang),
   fieldText: (project, key) => fieldTextOf(project as Project)(key as I18nKey),
+  textValues: (project, key) => {
+    const entry = (project as Project).i18nKeys[key as I18nKey] ?? {};
+    return Object.fromEntries(Object.entries(entry).filter(([, v]) => v !== undefined)) as Record<
+      string,
+      string
+    >;
+  },
   langs: (project) => projectLanguages(project as Project),
   // A part is selected like a menu's element: its id, scoped by its Document's key.
   selectDocumentItem: ({ documentId, item }) =>

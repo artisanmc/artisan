@@ -180,11 +180,12 @@ export function ItemEditor({
             activeLang={translations.activeLang}
             defaultLang={translations.defaultLang}
             values={translations[field]}
+            onChange={(lang, next) => translations.onText(field, lang, next)}
             actions={reset(field, own !== undefined)}
-            renderEditor={({ lang, value, fallback, label: ariaLabel }) =>
+            renderEditor={({ lang, value, fallback, label: ariaLabel, onChange }) =>
               editor(
                 lang === translations.activeLang && own === undefined ? raw : value,
-                (next) => translations.onText(field, lang, next),
+                onChange,
                 ariaLabel,
                 fallback,
               )

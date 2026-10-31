@@ -1,9 +1,9 @@
+import { LocalizedTextField } from "@/components/LocalizedTextField";
 import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { menusOf } from "@/domain/documents";
 import type { MenuId, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
-import { useTextEdit } from "@/lib/useText";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,18 +21,10 @@ export function PlainTitleForm({ projectId, menuId }: PlainTitleFormProps) {
   const { t } = useTranslation();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const menu = menusOf(project).find((m) => m.id === menuId);
-  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
   const placeholderLocation = useMemo(() => ({ kind: "menu" as const, menuId }), [menuId]);
   const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
   const plainLayer = menu?.title.find((l) => l.kind === "plain");
-  const textEdit = useTextEdit(
-    projectId,
-    plainLayer?.kind === "plain"
-      ? plainLayer.value
-      : { key: "" as import("@/domain/types").I18nKey },
-  );
-
   if (!plainLayer || plainLayer.kind !== "plain") return null;
 
   return (
@@ -42,32 +34,33 @@ export function PlainTitleForm({ projectId, menuId }: PlainTitleFormProps) {
         <code className="text-[var(--text)]">{"<bold>"}</code>, etc.).
       </div>
 
-      <div>
-        <div className="field-label !mb-1">
-          {t("layerEditForm.plainLabel", { lang: textEdit.lang })}
-        </div>
-        <RevealField
-          value={textEdit.value}
-          onChange={(v) =>
-            setI18nValue({
-              projectId,
-              lt: plainLayer.value,
-              lang: textEdit.lang,
-              value: v,
-            })
-          }
-          entries={placeholderEntries}
-          placeholder={t("layerEditForm.plainPlaceholder")}
-          className="text-xs"
-          facade={<MiniMessageInline source={textEdit.value} className="font-mono text-xs" />}
-          preview={
-            <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)]/40 p-2">
-              <div className="field-label !mb-1">{t("layerEditForm.preview")}</div>
-              <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
-            </div>
-          }
-        />
-      </div>
+      <LocalizedTextField
+        projectId={projectId}
+        lt={plainLayer.value}
+        label={t("layerEditForm.plainName")}
+        renderEditor={({ value, fallback, label, onChange }) => (
+          <RevealField
+            value={value}
+            onChange={onChange}
+            aria-label={label}
+            entries={placeholderEntries}
+            placeholder={fallback ?? t("layerEditForm.plainPlaceholder")}
+            className="text-xs"
+            facade={
+              <MiniMessageInline
+                source={value || fallback || ""}
+                className={value ? "font-mono text-xs" : "font-mono text-xs opacity-50"}
+              />
+            }
+            preview={
+              <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)]/40 p-2">
+                <div className="field-label !mb-1">{t("layerEditForm.preview")}</div>
+                <MiniMessageInline source={value || fallback || ""} className="font-mono text-xs" />
+              </div>
+            }
+          />
+        )}
+      />
     </div>
   );
 }

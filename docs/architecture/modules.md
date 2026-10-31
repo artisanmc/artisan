@@ -232,6 +232,15 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `useOpenDocument()` returns a function that opens a Document's page (`{projectId, kind, id}`). A
 > 1.15 bundle still loads.
 
+> **Translatable fields (since 2026-10-31, SDK 1.17)** — `LocalizedField` (host component) is the
+> editor's translatable text: `values` = `textValues(project, key)` (each language's own text, no
+> fallback), `langs` = `projectLangs(project)`, `activeLang` = `useContentLang()`, `onChange(lang,
+> value)` writes through `updateDocument` with `texts`, `renderEditor` draws one language's control
+> (`{lang, value, fallback, label, onChange}`). Folded it edits the active language with the default
+> language's text as a placeholder; its translations toggle unfolds every language, counts the
+> missing ones and offers to take the reference text as is. A module's text field uses it so that its
+> translations behave like Artisan's. A 1.16 bundle still loads.
+
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the
