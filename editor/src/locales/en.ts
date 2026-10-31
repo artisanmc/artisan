@@ -408,6 +408,7 @@ export default {
       "This action is not declared by the connected server: its arguments are edited as raw JSON.",
     moduleAddText: "Add a text",
     moduleValueInvalid: "Invalid JSON: the value was not changed.",
+    textName: "text (MiniMessage)",
     textLang: "text (MiniMessage) [{{lang}}]",
     textLangFallback: "text (MiniMessage) [{{lang}} — fallback]",
     textPlaceholder: "<gold>Welcome!</gold>",
@@ -729,6 +730,7 @@ export default {
     subcommandNameInvalid:
       "A sub-command needs a name of its own: lowercase letters, digits, _ or -, starting with a letter.",
     subPermissionPlaceholder: "(only its parent's)",
+    descriptionName: "description",
     descriptionLangLabel: "description ({{lang}})",
   },
   library: {
@@ -967,6 +969,8 @@ export default {
     toggleMissing_one: "Translations: {{count}} missing ({{langs}})",
     toggleMissing_other: "Translations: {{count}} missing ({{langs}})",
     reference: "ref.",
+    useReference: "Use the {{lang}} text as is",
+    useReferenceIn: "Use the {{reference}} text in {{lang}}",
   },
   assetInput: {
     none: "No image",
@@ -1243,6 +1247,8 @@ export default {
     kindLabel: "Dialog",
     buttonCount_one: "{{count}} button",
     buttonCount_other: "{{count}} buttons",
+    titleName: "title",
+    bodyTextName: "text",
     titleLabel: "title ({{lang}})",
     canCloseWithEscape: "can close with Escape",
     bodyLabel: "body",
@@ -1267,6 +1273,7 @@ export default {
     plainHint: "Vanilla title — no resource project required. MiniMessage supported",
     plainHintFont:
       "Vanilla title — no resource project required. The text renders in the default MC font. MiniMessage supported",
+    plainName: "Title (MiniMessage)",
     plainLabel: "Title (MiniMessage) — {{lang}}",
     preview: "Preview",
     imageMissing: "<missing image>",
@@ -1278,6 +1285,7 @@ export default {
     duplicateConfirm: "Duplicate this image for this menu only? Other menus keep the original.",
     provider: "Provider",
     glyphName: "Glyph name",
+    textName: "Text (MiniMessage, multi-line)",
     textLabel: "Text (MiniMessage, multi-line) — {{lang}}",
     lineHeight: "Line spacing (px)",
     alignment: "Alignment",

@@ -115,9 +115,28 @@ export function validActiveLang(project: Project, activeLang: string): string {
 }
 
 /**
+ * A text with no word of its own: only placeholders and expressions (`{r.name}`,
+ * `{i18n:key}`), MiniMessage tags, legacy codes, digits and symbols. It reads the same
+ * in every language, so it has nothing to translate. Words inside an expression
+ * (`{x ? "Yes" : "No"}`) are not looked at.
+ */
+export function isLanguageNeutral(text: string): boolean {
+  let rest = text;
+  let previous: string;
+  do {
+    previous = rest;
+    rest = rest.replace(/\{[^{}]*\}/g, "");
+  } while (rest !== previous);
+  rest = rest.replace(/<[^<>]*>/g, "").replace(/[§&][0-9a-fk-or]/gi, "");
+  return !/\p{L}/u.test(rest);
+}
+
+/**
  * A translation is missing only when the source has content and a secondary
  * language has no content. An explicitly empty source is a valid intentional
- * blank (for example an item title or lore that should not render).
+ * blank (for example an item title or lore that should not render), and a
+ * language-neutral source ({@link isLanguageNeutral}) needs no translation: the
+ * fallback shows the same text.
  */
 export function isTranslationMissing(
   defaultLang: string,
@@ -125,7 +144,12 @@ export function isTranslationMissing(
   source: string | undefined,
   target: string | undefined,
 ): boolean {
-  return lang !== defaultLang && Boolean(source?.trim()) && !target?.trim();
+  return (
+    lang !== defaultLang &&
+    Boolean(source?.trim()) &&
+    !target?.trim() &&
+    !isLanguageNeutral(source ?? "")
+  );
 }
 
 /**

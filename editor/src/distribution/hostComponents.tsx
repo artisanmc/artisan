@@ -1,5 +1,6 @@
 import { MiniMessageField } from "@/components/MiniMessageField";
 import { McScreen, McScreenControls, McText } from "@/components/mc-preview";
+import { LocalizedField } from "@/components/ui/localized-field";
 import { SortableList } from "@/components/ui/sortable-list";
 import type { ProjectId } from "@/domain/types";
 import { AssetInput } from "@/features/assets/AssetInput";
@@ -15,7 +16,7 @@ import type { HostComponents } from "@artisan/editor-sdk";
 /**
  * The editor widgets a module view embeds through the SDK (`ActionChainEditor`,
  * `MaterialInput`, `ItemInput`, `MiniMessageInput`, `SortableList`, `ConditionsEditor`,
- * `DocumentRefInput`, `McText`, `McScreen`, `McScreenControls`, `OverlayComposer`, `OverlaySlotsComposer`, `AssetInput`): the same
+ * `DocumentRefInput`, `McText`, `McScreen`, `McScreenControls`, `OverlayComposer`, `OverlaySlotsComposer`, `AssetInput`, `LocalizedField`): the same
  * components as the core views, on a controlled value.
  */
 export const hostComponents: HostComponents = {
@@ -39,6 +40,7 @@ export const hostComponents: HostComponents = {
   OverlayComposer: (props) => <OverlayComposer {...props} />,
   OverlaySlotsComposer: (props) => <OverlaySlotsComposer {...props} />,
   AssetInput: (props) => <AssetInput {...props} />,
+  LocalizedField: (props) => <LocalizedField {...props} />,
   ItemInput: ({ match, onMatchChange, ...props }) => (
     <ItemSpecField
       {...props}

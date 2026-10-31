@@ -1,5 +1,6 @@
 import { cn } from "@/lib/cx";
-import { Languages } from "lucide-react";
+import { isTranslationMissing } from "@/lib/i18nUsages";
+import { CopyPlus, Languages } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Tooltip } from "./tooltip";
@@ -12,6 +13,8 @@ export interface LocalizedEditorProps {
   fallback: string | undefined;
   /** Accessible name of the editor ("Title · fr"). */
   label: string;
+  /** Writes this language's text. */
+  onChange: (value: string) => void;
 }
 
 export interface LocalizedFieldProps {
@@ -23,21 +26,29 @@ export interface LocalizedFieldProps {
   defaultLang: string;
   /** Each language's own text; absent or blank = not translated. */
   values: Record<string, string | undefined>;
+  /** Writes one language's text: the editors and "Use the reference" go through it. */
+  onChange: (lang: string, value: string) => void;
   /** The control for one language: one when folded, one per language when unfolded. */
   renderEditor: (props: LocalizedEditorProps) => ReactNode;
   /** Beside the label, e.g. a reset button. */
   actions?: ReactNode;
+  /**
+   * No label row (a table cell, a row of controls): the toggle sits right of the folded
+   * editor, `label` only names the editors.
+   */
+  inline?: boolean;
   className?: string;
 }
 
-/** Languages missing a text the default language has: what the badge counts. */
+/** Languages missing a text the default language has (`isTranslationMissing`): what the badge counts. */
 export function missingLangs(
   langs: string[],
   defaultLang: string,
   values: Record<string, string | undefined>,
 ): string[] {
-  if (!values[defaultLang]?.trim()) return [];
-  return langs.filter((lang) => lang !== defaultLang && !values[lang]?.trim());
+  return langs.filter((lang) =>
+    isTranslationMissing(defaultLang, lang, values[defaultLang], values[lang]),
+  );
 }
 
 /**
@@ -45,7 +56,9 @@ export function missingLangs(
  * active language, the default language's text showing as a placeholder when this one
  * has none. The translations toggle unfolds every language in place, each written
  * directly, without touching the active language (and so the preview). The badge
- * counts the missing translations. Unfolding is view state only, lost on unmount.
+ * counts the missing translations; an empty language offers "Use the reference",
+ * which writes the default language's text there (same text on purpose, no longer
+ * missing). Unfolding is view state only, lost on unmount.
  */
 function LocalizedField({
   label,
@@ -53,8 +66,10 @@ function LocalizedField({
   activeLang,
   defaultLang,
   values,
+  onChange,
   renderEditor,
   actions,
+  inline,
   className,
 }: LocalizedFieldProps) {
   const { t } = useTranslation();
@@ -70,11 +85,95 @@ function LocalizedField({
       fallback:
         lang !== defaultLang && !values[lang] ? values[defaultLang] || undefined : undefined,
       label: multi ? `${label} · ${lang}` : label,
+      onChange: (value) => onChange(lang, value),
     });
+  const reference = values[defaultLang];
   const order = [activeLang, ...all.filter((lang) => lang !== activeLang)];
   const toggleLabel = missing.length
     ? t("localizedField.toggleMissing", { count: missing.length, langs: missing.join(", ") })
     : t("localizedField.toggle");
+
+  const toggle = multi && (
+    <Tooltip content={toggleLabel}>
+      <button
+        type="button"
+        aria-label={toggleLabel}
+        aria-pressed={open}
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "relative flex size-7 shrink-0 items-center justify-center rounded-[8px] transition-colors hover:bg-[var(--surface-hover)]",
+          open ? "bg-[var(--brand-soft)] text-[var(--brand)]" : "text-[var(--text-mut)]",
+        )}
+      >
+        <Languages className="size-3.5" aria-hidden />
+        {missing.length > 0 && (
+          <span
+            data-testid="localized-field-missing"
+            className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-[var(--r-pill)] bg-[var(--warning)] px-1 text-[9px] font-bold leading-none text-[var(--surface)]"
+          >
+            {missing.length}
+          </span>
+        )}
+      </button>
+    </Tooltip>
+  );
+  const rows = (
+    <div className="flex flex-col gap-2">
+      {order.map((lang) => (
+        <div key={lang} className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-2">
+          <span className="mono flex flex-col pt-2 text-[11px] uppercase leading-tight">
+            <span
+              className={cn(
+                "font-semibold",
+                lang === activeLang ? "text-[var(--brand)]" : "text-[var(--text)]",
+                missing.includes(lang) && "text-[var(--warning)]",
+              )}
+            >
+              {lang}
+            </span>
+            {lang === defaultLang && (
+              <span className="text-[9px] normal-case text-[var(--text-faint)]">
+                {t("localizedField.reference")}
+              </span>
+            )}
+            {lang !== defaultLang && !values[lang]?.trim() && reference?.trim() && (
+              <Tooltip content={t("localizedField.useReference", { lang: defaultLang })}>
+                <button
+                  type="button"
+                  aria-label={t("localizedField.useReferenceIn", {
+                    lang,
+                    reference: defaultLang,
+                  })}
+                  onClick={() => onChange(lang, reference)}
+                  className="mt-1 flex size-6 items-center justify-center rounded-[6px] text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                >
+                  <CopyPlus className="size-3.5" aria-hidden />
+                </button>
+              </Tooltip>
+            )}
+          </span>
+          {editor(lang)}
+        </div>
+      ))}
+    </div>
+  );
+
+  if (inline)
+    return (
+      <div className={cn("flex min-w-0 flex-col gap-2", className)} data-testid="localized-field">
+        {open && multi ? (
+          <div className="flex items-start gap-1">
+            <div className="min-w-0 flex-1">{rows}</div>
+            {toggle}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <div className="min-w-0 flex-1">{editor(activeLang)}</div>
+            {toggle}
+          </div>
+        )}
+      </div>
+    );
 
   return (
     <div className={cn("flex min-w-0 flex-col gap-1", className)} data-testid="localized-field">
@@ -87,58 +186,9 @@ function LocalizedField({
         </span>
         <span className="flex-1" />
         {actions}
-        {multi && (
-          <Tooltip content={toggleLabel}>
-            <button
-              type="button"
-              aria-label={toggleLabel}
-              aria-pressed={open}
-              onClick={() => setOpen((v) => !v)}
-              className={cn(
-                "relative flex size-7 shrink-0 items-center justify-center rounded-[8px] transition-colors hover:bg-[var(--surface-hover)]",
-                open ? "bg-[var(--brand-soft)] text-[var(--brand)]" : "text-[var(--text-mut)]",
-              )}
-            >
-              <Languages className="size-3.5" aria-hidden />
-              {missing.length > 0 && (
-                <span
-                  data-testid="localized-field-missing"
-                  className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-[var(--r-pill)] bg-[var(--warning)] px-1 text-[9px] font-bold leading-none text-[var(--surface)]"
-                >
-                  {missing.length}
-                </span>
-              )}
-            </button>
-          </Tooltip>
-        )}
+        {toggle}
       </div>
-      {multi && open ? (
-        <div className="flex flex-col gap-2">
-          {order.map((lang) => (
-            <div key={lang} className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-2">
-              <span className="mono flex flex-col pt-2 text-[11px] uppercase leading-tight">
-                <span
-                  className={cn(
-                    "font-semibold",
-                    lang === activeLang ? "text-[var(--brand)]" : "text-[var(--text)]",
-                    missing.includes(lang) && "text-[var(--warning)]",
-                  )}
-                >
-                  {lang}
-                </span>
-                {lang === defaultLang && (
-                  <span className="text-[9px] normal-case text-[var(--text-faint)]">
-                    {t("localizedField.reference")}
-                  </span>
-                )}
-              </span>
-              {editor(lang)}
-            </div>
-          ))}
-        </div>
-      ) : (
-        editor(activeLang)
-      )}
+      {multi && open ? rows : editor(activeLang)}
     </div>
   );
 }

@@ -415,3 +415,12 @@ gains a context (`file(path)`, another file of the project) and a request by bot
 (`{asset, bottom}`): a portrait placed on its bottom edge needs the image's height, which only the
 builder reads. *Rejected:* the composer in the module's bundle (every HUD module would redraw it),
 and the image's height kept in the module's files (it would go stale when the image changes).
+
+## Amendment 2026-10-31: translatable fields (SDK 1.17)
+
+The SDK exposes `LocalizedField`, the host's translatable text (folded on the active language,
+unfolded on every language with the missing ones counted), and `textValues(project, key)`, a text's
+own value per language. Reason: every text of the core editor goes through this field, and a module
+drawing its own `label · lang` field would edit translations another way (Conversations, Store).
+*Rejected:* a field bound to a text key inside the SDK (`{project, key}` props): the module owns
+how a text is written (`updateDocument` with its Document), so the component stays controlled.

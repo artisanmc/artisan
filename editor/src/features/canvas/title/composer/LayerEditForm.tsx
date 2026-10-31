@@ -1,3 +1,4 @@
+import { LocalizedTextField } from "@/components/LocalizedTextField";
 import { useMemo, useState } from "react";
 
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
@@ -267,8 +268,6 @@ interface PlainLayerFormProps {
 
 function PlainLayerForm({ projectId, menuId, layer }: PlainLayerFormProps) {
   const { t } = useTranslation();
-  const textEdit = useTextEdit(projectId, layer.value);
-  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
   const placeholderLocation = useMemo(() => ({ kind: "menu" as const, menuId }), [menuId]);
   const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
@@ -278,32 +277,33 @@ function PlainLayerForm({ projectId, menuId, layer }: PlainLayerFormProps) {
         {t("layerEditForm.plainHintFont")} (<code className="text-[var(--text)]">{"<gold>"}</code>,{" "}
         <code className="text-[var(--text)]">{"<bold>"}</code>, etc.).
       </div>
-      <div>
-        <div className="field-label !mb-1">
-          {t("layerEditForm.plainLabel", { lang: textEdit.lang })}
-        </div>
-        <RevealField
-          value={textEdit.value}
-          onChange={(v) =>
-            setI18nValue({
-              projectId,
-              lt: layer.value,
-              lang: textEdit.lang,
-              value: v,
-            })
-          }
-          entries={placeholderEntries}
-          placeholder={t("layerEditForm.plainPlaceholder")}
-          className="text-xs"
-          facade={<MiniMessageInline source={textEdit.value} className="font-mono text-xs" />}
-          preview={
-            <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)]/40 p-2">
-              <div className="field-label !mb-1">{t("layerEditForm.preview")}</div>
-              <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
-            </div>
-          }
-        />
-      </div>
+      <LocalizedTextField
+        projectId={projectId}
+        lt={layer.value}
+        label={t("layerEditForm.plainName")}
+        renderEditor={({ value, fallback, label, onChange }) => (
+          <RevealField
+            value={value}
+            onChange={onChange}
+            aria-label={label}
+            entries={placeholderEntries}
+            placeholder={fallback ?? t("layerEditForm.plainPlaceholder")}
+            className="text-xs"
+            facade={
+              <MiniMessageInline
+                source={value || fallback || ""}
+                className={value ? "font-mono text-xs" : "font-mono text-xs opacity-50"}
+              />
+            }
+            preview={
+              <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)]/40 p-2">
+                <div className="field-label !mb-1">{t("layerEditForm.preview")}</div>
+                <MiniMessageInline source={value || fallback || ""} className="font-mono text-xs" />
+              </div>
+            }
+          />
+        )}
+      />
     </div>
   );
 }
@@ -404,28 +404,27 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
 
   return (
     <div className="flex flex-col gap-3 text-xs text-[var(--text)]">
-      <div>
-        <label htmlFor={`textarea-layer-content-${index}`} className="field-label !mb-1">
-          {t("layerEditForm.textLabel", { lang: textEdit.lang })}
-        </label>
-        <PlaceholderInput
-          multiline
-          rows={3}
-          value={textEdit.value}
-          onChange={(v) => {
-            if (originalLayer.kind === "text")
-              updateLayer({ projectId, menuId, index, patch: layer });
-            setI18nValue({
-              projectId,
-              lt: layer.value,
-              lang: textEdit.lang,
-              value: v,
-            });
-          }}
-          entries={placeholderEntries}
-          placeholder={t("layerEditForm.textareaPlaceholder")}
-        />
-      </div>
+      <LocalizedTextField
+        projectId={projectId}
+        lt={layer.value}
+        label={t("layerEditForm.textName")}
+        onChange={(lang, value) => {
+          if (originalLayer.kind === "text")
+            updateLayer({ projectId, menuId, index, patch: layer });
+          setI18nValue({ projectId, lt: layer.value, lang, value });
+        }}
+        renderEditor={({ value, fallback, label, onChange }) => (
+          <PlaceholderInput
+            multiline
+            rows={3}
+            value={value}
+            aria-label={label}
+            onChange={onChange}
+            entries={placeholderEntries}
+            placeholder={fallback ?? t("layerEditForm.textareaPlaceholder")}
+          />
+        )}
+      />
 
       <div className="rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2">
         <div className="field-label !mb-1">{t("layerEditForm.preview")}</div>

@@ -6,6 +6,8 @@ import {
   countMissingPerLang,
   findKeyUsages,
   findUnusedI18nKeys,
+  isLanguageNeutral,
+  isTranslationMissing,
   validActiveLang,
 } from "./i18nUsages";
 
@@ -388,5 +390,19 @@ describe("validActiveLang", () => {
   it("falls back to the default when the language left the project", () => {
     const p = project({ defaultLang: "fr", i18nKeys: { [k("a")]: { fr: "A" } } });
     expect(validActiveLang(p, "en")).toBe("fr");
+  });
+});
+
+describe("isLanguageNeutral", () => {
+  it.each(["{r.name}", "{i18n:common.close}", "<gold>{count}</gold> / {max}", "§7» 12", ""])(
+    "%s has nothing to translate",
+    (text) => expect(isLanguageNeutral(text)).toBe(true),
+  );
+  it.each(["Members: {count}", "<red>Back", "Zurück"])("%s has words", (text) =>
+    expect(isLanguageNeutral(text)).toBe(false),
+  );
+  it("does not count a neutral source as a missing translation", () => {
+    expect(isTranslationMissing("en", "fr", "{r.name}", undefined)).toBe(false);
+    expect(isTranslationMissing("en", "fr", "Name: {r.name}", undefined)).toBe(true);
   });
 });

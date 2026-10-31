@@ -418,6 +418,7 @@ const fr: typeof en = {
       "Cette action n'est pas déclarée par le serveur connecté : ses arguments s'éditent en JSON brut.",
     moduleAddText: "Ajouter un texte",
     moduleValueInvalid: "JSON invalide : la valeur n'a pas été modifiée.",
+    textName: "texte (MiniMessage)",
     textLang: "texte (MiniMessage) [{{lang}}]",
     textLangFallback: "texte (MiniMessage) [{{lang}} — fallback]",
     textPlaceholder: "<gold>Bienvenue !</gold>",
@@ -742,6 +743,7 @@ const fr: typeof en = {
     subcommandNameInvalid:
       "Une sous-commande a besoin d'un nom à elle : minuscules, chiffres, _ ou -, en commençant par une lettre.",
     subPermissionPlaceholder: "(seulement celle du parent)",
+    descriptionName: "description",
     descriptionLangLabel: "description ({{lang}})",
   },
   library: {
@@ -983,6 +985,8 @@ const fr: typeof en = {
     toggleMissing_one: "Traductions : {{count}} manquante ({{langs}})",
     toggleMissing_other: "Traductions : {{count}} manquantes ({{langs}})",
     reference: "réf.",
+    useReference: "Reprendre le texte {{lang}} tel quel",
+    useReferenceIn: "Reprendre le texte {{reference}} en {{lang}}",
   },
   assetInput: {
     none: "Aucune image",
@@ -1265,6 +1269,8 @@ const fr: typeof en = {
     kindLabel: "Dialogue",
     buttonCount_one: "{{count}} bouton",
     buttonCount_other: "{{count}} boutons",
+    titleName: "titre",
+    bodyTextName: "texte",
     titleLabel: "titre ({{lang}})",
     canCloseWithEscape: "fermer avec Échap",
     bodyLabel: "corps",
@@ -1289,6 +1295,7 @@ const fr: typeof en = {
     plainHint: "Titre vanilla — aucun resource project requis. MiniMessage supporté",
     plainHintFont:
       "Titre vanilla — aucun resource project requis. Le texte s'affiche avec la police MC par défaut. MiniMessage supporté",
+    plainName: "Titre (MiniMessage)",
     plainLabel: "Titre (MiniMessage) — {{lang}}",
     preview: "Aperçu",
     imageMissing: "<image manquante>",
@@ -1301,6 +1308,7 @@ const fr: typeof en = {
       "Dupliquer cette image pour ce menu uniquement ? Les autres menus garderont l'originale.",
     provider: "Provider",
     glyphName: "Glyph name",
+    textName: "Texte (MiniMessage, multi-ligne)",
     textLabel: "Texte (MiniMessage, multi-ligne) — {{lang}}",
     lineHeight: "Interligne (px)",
     alignment: "Alignement",

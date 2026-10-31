@@ -1,6 +1,7 @@
 import { RevealField } from "@/components/RevealField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LocalizedField } from "@/components/ui/localized-field";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { assetPreviewUrl } from "@/domain/asset";
 import { CAPTURED_ITEM_REF_PREFIX, resolveDisplayRef } from "@/domain/capturedItems";
@@ -554,29 +555,59 @@ function StateCard({
               useProjectsStore.getState().setElementPositions({ projectId, ...target, positions })
             }
           >
-            {/* biome-ignore lint/a11y/noLabelWithoutControl: RevealField renders a labelable <button> facade (then an input) inside this label; Biome cannot see through the component */}
-            <label className="field-label">
-              {t("flow.titleLabel", { lang: activeLang })}
-              <RevealField
-                value={title}
-                onChange={updateTitle}
-                entries={placeholderEntries}
-                className="input w-full"
-                facade={<MiniMessageInline source={title || t("flow.titlePlaceholder")} />}
+            {translations && (
+              <LocalizedField
+                label={t("flow.titleName")}
+                langs={translations.langs}
+                activeLang={translations.activeLang}
+                defaultLang={translations.defaultLang}
+                values={translations.title}
+                onChange={(lang, value) => translations.onText("title", lang, value)}
+                renderEditor={({ value, fallback, label, onChange }) => (
+                  <RevealField
+                    value={value}
+                    onChange={onChange}
+                    aria-label={label}
+                    entries={placeholderEntries}
+                    placeholder={fallback}
+                    className="input w-full"
+                    facade={
+                      <MiniMessageInline
+                        source={value || fallback || t("flow.titlePlaceholder")}
+                        className={value ? undefined : "opacity-50"}
+                      />
+                    }
+                  />
+                )}
               />
-            </label>
-            {/* biome-ignore lint/a11y/noLabelWithoutControl: RevealField renders a labelable <button> facade (then an input) inside this label; Biome cannot see through the component */}
-            <label className="field-label">
-              {t("flow.loreLabel", { lang: activeLang })}
-              <RevealField
-                value={loreText}
-                onChange={updateLore}
-                entries={placeholderEntries}
-                multiline
-                className="input w-full"
-                facade={<MiniMessageInline source={loreText || t("flow.lorePlaceholder")} />}
+            )}
+            {translations && (
+              <LocalizedField
+                label={t("flow.loreName")}
+                langs={translations.langs}
+                activeLang={translations.activeLang}
+                defaultLang={translations.defaultLang}
+                values={translations.lore}
+                onChange={(lang, value) => translations.onText("lore", lang, value)}
+                renderEditor={({ value, fallback, label, onChange }) => (
+                  <RevealField
+                    value={value}
+                    onChange={onChange}
+                    aria-label={label}
+                    entries={placeholderEntries}
+                    multiline
+                    placeholder={fallback}
+                    className="input w-full"
+                    facade={
+                      <MiniMessageInline
+                        source={value || fallback || t("flow.lorePlaceholder")}
+                        className={value ? undefined : "opacity-50"}
+                      />
+                    }
+                  />
+                )}
               />
-            </label>
+            )}
           </ImageButtonEditor>
           {project && !appearance.image && (
             <ItemEditor
