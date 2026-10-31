@@ -14,7 +14,12 @@ import java.util.UUID
  * checks), the Version attributed "<player> via <app>". A principal is offered only the tools
  * it may use ([available]).
  */
-class McpTools(private val projects: McpProjects, private val editorUrl: () -> String = { "" }) {
+class McpTools(
+    private val projects: McpProjects,
+    private val editorUrl: () -> String = { "" },
+    /** The hub's own pack build (Pro jar only): the resource pack tools; null, they are not offered. */
+    private val packs: PackBuilder? = null,
+) {
     /** A tool as `tools/list` describes it, and what it does. [requires]: the permission without which it is not offered. */
     class Tool(
         val name: String, val title: String, val description: String, val input: Map<String, Any?>, val readOnly: Boolean,
@@ -125,6 +130,31 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
                 required = listOf("project", "version", "expected_version"),
             ),
             readOnly = false, ::versionRollback, requires = EditorPermissions.PUBLISH, destructive = true,
+        ),
+    ) + packTools()
+
+    /** The resource pack tools, when this hub builds packs ([packs]). */
+    private fun packTools(): List<Tool> = if (packs == null) emptyList() else listOf(
+        Tool(
+            "resource_pack_status", "Resource pack status",
+            "What the hub last built for a server's Java resource pack: its SHA-1, the SHA-1 of the pack the editor last uploaded, " +
+                "whether the two match, when, and the build error if it failed. Shadow mode for now: players still get the editor's " +
+                "pack; the hub's build is compared with it.",
+            schema("server" to string("A server id from artisan_overview."), required = listOf("server")),
+            readOnly = true, ::packStatus,
+        ),
+        Tool(
+            "resource_pack_rebuild", "Rebuild the resource pack",
+            "Rebuilds a server's Java resource pack in the hub from the modules that server loaded (online or not), waits for the " +
+                "build (wait_seconds, default 30) and returns resource_pack_status. Shadow mode for now: it builds and compares, " +
+                "nothing reaches players; once the hub applies its packs, a rebuild sends the new pack to every player, so ask the " +
+                "player first. A build still running at the deadline goes on: call resource_pack_status later.",
+            schema(
+                "server" to string("A server id from artisan_overview."),
+                "wait_seconds" to mapOf("type" to "integer", "minimum" to 0, "maximum" to 120, "description" to "How long to wait for the build (default 30)."),
+                required = listOf("server"),
+            ),
+            readOnly = false, ::packRebuild, requires = EditorPermissions.PUBLISH, destructive = true,
         ),
     )
 
@@ -254,6 +284,49 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
         val page = UserDocs.page(path) ?: throw McpRefusal("not_found", "No docs page '$path'. read_docs without page lists them.")
         return "# ${page.title}\n\n${page.body.trim()}\n"
     }
+
+    private fun packServer(args: JsonNode): String {
+        val serverId = text(args, "server")
+        projects.servers().firstOrNull { it.id == serverId }
+            ?: throw McpRefusal("unknown_server", "No server '$serverId'. Server ids are in artisan_overview.")
+        return serverId
+    }
+
+    private fun packStatus(principal: McpPrincipal, args: JsonNode): Any {
+        val server = packServer(args)
+        return packAnswer(server, packs!!.status(server), done = true)
+    }
+
+    private fun packRebuild(principal: McpPrincipal, args: JsonNode): Any {
+        val server = packServer(args)
+        val wait = args.path("wait_seconds").asInt(30).coerceIn(0, 120)
+        val build = packs!!.request(server)
+        val status = try {
+            build.get(wait.toLong(), java.util.concurrent.TimeUnit.SECONDS)
+        } catch (_: java.util.concurrent.TimeoutException) {
+            return packAnswer(server, packs.status(server), done = false)
+        }
+        return packAnswer(server, status, done = true)
+    }
+
+    private fun packAnswer(server: String, status: PackBuilder.Status?, done: Boolean): Map<String, Any?> = mapOf(
+        "server" to server,
+        "mode" to "shadow",
+        "done" to done,
+        "built" to (status?.builtAt != null),
+        "hub_sha1" to status?.hubHash,
+        "editor_sha1" to status?.editorHash,
+        "matches" to status?.matches,
+        "built_at" to status?.builtAt?.let { java.time.Instant.ofEpochMilli(it).toString() },
+        "error" to status?.error,
+        "note" to when {
+            !done -> "The build is still running: call resource_pack_status in a moment."
+            status == null -> "No pack state for this server: it has not loaded its modules into the suite database yet."
+            status.error != null -> "The hub's build failed; players keep the editor's pack."
+            status.matches == false -> "The hub's pack differs from the editor's: a module may declare pack images in its editor only."
+            else -> "Players get the editor's pack; the hub's build is compared with it (shadow mode)."
+        },
+    )
 
     private fun createModule(principal: McpPrincipal, args: JsonNode): Any {
         val serverId = text(args, "server")

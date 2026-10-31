@@ -128,4 +128,29 @@ class PackBuilderTest {
         assertTrue(builder.status("u-local")?.error.orEmpty().startsWith("binary_missing:"))
         assertEquals(1, warnings.size)
     }
+
+    @Test
+    fun `an AI app allowed to deploy rebuilds the pack and reads its status`() {
+        val builder = PackBuilder(servers, loaded, logger, direct)
+        val tools = McpTools(McpProjects(servers), packs = builder)
+        val mapper = ObjectMapper()
+        fun call(principal: McpPrincipal, name: String, vararg args: Pair<String, Any?>): McpTools.Outcome =
+            tools.invoke(principal, tools.find(name)!!, mapper.valueToTree(args.toMap()))
+        val deployer = McpPrincipal(java.util.UUID.randomUUID(), "Iban", EditorPermissions.ALL.toSet())
+        val draftsOnly = McpPrincipal(java.util.UUID.randomUUID(), "Iban", EditorPermissions.ALL.toSet(), deploys = false)
+
+        assertEquals(listOf("resource_pack_status"), tools.available(draftsOnly).map { it.name }.filter { it.startsWith("resource_pack") })
+        val before = call(draftsOnly, "resource_pack_status", "server" to "u-local").body as Map<*, *>
+        assertEquals(false, before["built"])
+
+        val rebuilt = call(deployer, "resource_pack_rebuild", "server" to "u-local").body as Map<*, *>
+        assertEquals(true, rebuilt["done"])
+        assertEquals(case["sha1"].asText(), rebuilt["hub_sha1"])
+        assertEquals("shadow", rebuilt["mode"])
+        assertTrue(call(draftsOnly, "resource_pack_rebuild", "server" to "u-local").error, "deploying is the player's call")
+        assertEquals("unknown_server", (call(deployer, "resource_pack_status", "server" to "nope").body as Map<*, *>)["error"])
+
+        // The free jar has no hub build: no pack tools.
+        assertTrue(McpTools(McpProjects(servers)).tools.none { it.name.startsWith("resource_pack") })
+    }
 }
