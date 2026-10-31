@@ -7,6 +7,8 @@ val jetty = "12.1.12"
 dependencies {
     implementation(project(":artisan-core"))
     implementation(project(":artisan-tunnel"))
+    // The resource pack builder (PackBuilder), byte for byte the editor's.
+    implementation(project(":artisan-pack"))
     // Tunnel to an editor tunnel server (ADR `editor-tunnel`); bundled and relocated by `paper`, like its WsClient.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
@@ -87,4 +89,9 @@ if (providers.gradleProperty("withEditor").isPresent) {
             }
         }
     }
+}
+
+// PackBuilderTest reads the pack vectors from the repository: a change to them reruns the tests.
+tasks.test {
+    inputs.file(rootDir.resolve("../testdata/resource-pack-conformance.json"))
 }

@@ -170,7 +170,7 @@ export function buildResourcePackZip(
 
   const fontAssets = assets
     .filter((a) => a.type === "font" && a.fontMeta !== null)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   for (const fa of fontAssets) {
     const meta = fa.fontMeta as FontMeta | null;
     if (!meta) continue;

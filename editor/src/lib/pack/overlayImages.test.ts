@@ -192,3 +192,24 @@ test("an image placed by its bottom rises by its height, once per resolved rise"
     imageHeight: 72,
   });
 });
+
+test("files ask in path order, whatever the kinds' order: the server's order (PackImageRequests.kt)", () => {
+  const boxes = {
+    kind: "box",
+    dir: "boxes",
+    pack: { images: (src: Record<string, unknown>) => [{ asset: `box_${src.id}`, bottom: -3 }] },
+  } as unknown as DocumentKindContribution;
+  const images = overlayImagesFromFiles(
+    [
+      { path: "themes/b.yml", content: "hud: { box: b, rise: 4 }" },
+      { path: "boxes/z.yml", content: "schema: box/v1" },
+      { path: "themes/a.yaml", content: "hud: { box: a, rise: 2 }" },
+    ],
+    [theme, boxes],
+  );
+  expect(images).toEqual([
+    { asset: "box_z", bottom: -3 },
+    { asset: "a", rise: 2 },
+    { asset: "b", rise: 4 },
+  ]);
+});

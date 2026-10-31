@@ -47,17 +47,26 @@ function valid(image: unknown): image is OverlayImageRequest {
 }
 
 /**
- * The images a project's files ask for, through the kinds that declare `pack.images`. A
- * file that does not parse, or whose kind throws, adds nothing: a module's bug must not
- * cost the server its pack.
+ * The images a project's files ask for, through the kinds that declare `pack.images`: the files
+ * in path order (code units), each through the kind of its folder. The server computes the same
+ * list at load (`PackImageRequests.kt`, a kind's `PackImagesProvider`) for the hub's build. A
+ * file that does not parse, or whose kind throws, adds nothing: a module's bug must not cost the
+ * server its pack.
  */
 export function overlayImagesFromFiles(
   files: { path: string; content: string }[],
   kinds: readonly DocumentKindContribution[],
 ): OverlayImageRequest[] {
   const out: OverlayImageRequest[] = [];
+  const byDir = new Map<string, NonNullable<DocumentKindContribution["pack"]>["images"]>();
+  for (const kind of kinds) {
+    const images = kind.pack?.images;
+    if (images && !byDir.has(kind.dir)) byDir.set(kind.dir, images);
+  }
+  if (byDir.size === 0) return out;
+  const sorted = [...files].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   const parsed = new Map<string, unknown>();
-  const byPath = new Map(files.map((f) => [f.path, f.content]));
+  const byPath = new Map(sorted.map((f) => [f.path, f.content]));
   // Another file of the project, read once whatever the number of files asking.
   const context = {
     file(path: string): unknown {
@@ -75,36 +84,30 @@ export function overlayImagesFromFiles(
     },
     files(dir: string): { id: string; value: unknown }[] {
       const out: { id: string; value: unknown }[] = [];
-      for (const { path } of files) {
+      for (const { path } of sorted) {
         const match = /^(.+)\/([^/]+)\.ya?ml$/.exec(path);
         if (match && match[1] === dir) out.push({ id: match[2]!, value: context.file(path) });
       }
       return out;
     },
   };
-  for (const kind of kinds) {
-    const images = kind.pack?.images;
-    if (!images) continue;
-    for (const file of files) {
-      const match = /^([^/]+)\/([^/]+)\.ya?ml$/.exec(file.path);
-      if (!match || match[1] !== kind.dir) continue;
-      try {
-        const src = parse(file.content);
-        if (!src || typeof src !== "object" || Array.isArray(src)) continue;
-        for (const image of images(
-          { ...(src as Record<string, unknown>), id: match[2] },
-          context,
-        )) {
-          if (!valid(image)) continue;
-          out.push(
-            "bottom" in image
-              ? { asset: image.asset, bottom: image.bottom }
-              : { asset: image.asset, rise: image.rise },
-          );
-        }
-      } catch {
-        // Unreadable file or a module's bug: no image from this file.
+  for (const file of sorted) {
+    const match = /^([^/]+)\/([^/]+)\.ya?ml$/.exec(file.path);
+    const images = match ? byDir.get(match[1]!) : undefined;
+    if (!match || !images) continue;
+    try {
+      const src = context.file(file.path);
+      if (!src || typeof src !== "object" || Array.isArray(src)) continue;
+      for (const image of images({ ...(src as Record<string, unknown>), id: match[2] }, context)) {
+        if (!valid(image)) continue;
+        out.push(
+          "bottom" in image
+            ? { asset: image.asset, bottom: image.bottom }
+            : { asset: image.asset, rise: image.rise },
+        );
       }
+    } catch {
+      // A module's bug: no image from this file.
     }
   }
   return out;

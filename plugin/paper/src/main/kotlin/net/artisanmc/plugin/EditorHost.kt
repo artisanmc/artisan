@@ -30,6 +30,10 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
     private val serverUuid get() = plugin.serverUuid
 
     val editorChannel by lazy { net.artisanmc.plugin.hub.EditorChannel(logger) }
+    /** The hub's own pack build (shadow mode); null on a leaf, in the free jar or without the editor. */
+    @Volatile private var packBuilder: net.artisanmc.plugin.hub.PackBuilder? = null
+    private var packBuilderListens = false
+
     /** Null if `web.enabled` is false or the port could not be opened. */
     @Volatile var editor: net.artisanmc.plugin.hub.HubServer? = null
         private set
@@ -107,6 +111,8 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
     fun serverLabels(): Map<String, String> = hubServers?.all()?.associate { it.id to it.label }.orEmpty()
 
     fun stop() {
+        packBuilder?.close()
+        packBuilder = null
         tunnel?.stop()
         tunnel = null
         tunnelUrl = null
@@ -140,10 +146,19 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
                 editorSessions.onPermissions(grants::permissionsChanged)
                 logger.info("[Artisan] MCP endpoint enabled at /mcp")
             } else null
+            val edition = net.artisanmc.plugin.hub.Edition.bundled(plugin.javaClass.classLoader)
+            // Shadow mode: the hub builds each server's pack after its reload and compares it with
+            // the editor's, without applying it. Building a pack is Pro.
+            val packBuilder = if (edition.pro) net.artisanmc.plugin.hub.PackBuilder(servers, data.loaded, logger) else null
+            this.packBuilder = packBuilder
+            if (!packBuilderListens) {
+                packBuilderListens = true
+                editorChannel.onReload { server -> this.packBuilder?.request(server) }
+            }
             val router = net.artisanmc.plugin.hub.EditorApi.router(
                 servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts, { tunnel },
                 mcp = mcp, ai = web.ai, aiSettings = suite.aiSettingsStore(), aiConversations = suite.aiConversationStore(), version = description.version, online = editorChannel::online, packCdn = packCdn,
-                edition = net.artisanmc.plugin.hub.Edition.bundled(plugin.javaClass.classLoader),
+                edition = edition, packBuilder = packBuilder,
             )
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
                 if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) null

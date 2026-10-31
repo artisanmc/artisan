@@ -17,6 +17,8 @@ class PackRoutes(
     private val store: PackStore,
     private val cdn: PackCdn? = null,
     private val edition: Edition = Edition.PRO,
+    /** Told of each pack the editor uploads ([PackBuilder.editorUploaded], shadow mode). */
+    private val uploaded: (server: String, hash: String) -> Unit = { _, _ -> },
 ) {
     fun register(router: Router) {
         router.on("PUT", "$SERVER/resource-pack", PUBLISH) { call ->
@@ -25,6 +27,7 @@ class PackRoutes(
             val zip = call.bytes(MAX_BYTES) ?: return@on call.error(413, "too_large")
             if (zip.size < 4 || zip[0] != 'P'.code.toByte() || zip[1] != 'K'.code.toByte()) return@on call.error(422, "invalid_zip")
             val hash = store.put(zip)
+            uploaded(server.id, hash)
             // The host down or refusing: players download from the hub, as without one.
             val url = cdn?.publish(hash) { zip }
             server.applyResourcePack(hash, "${PackStore.PATH}/$hash.zip", url)

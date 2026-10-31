@@ -58,4 +58,13 @@ class LoadedStateTest {
         assertEquals(mapOf("x" to LoadedProject("h")), state.projects)
         assertNull(state.list.root("x")!!.projectKey)
     }
+
+    @Test
+    fun `pack images round-trip, and a malformed one is dropped`() {
+        val state = read("""{"project_ids":["x"],"projects":{"x":{"hash":"h","pack_images":[
+            {"asset":"box","rise":81},{"asset":"arrow","bottom":-3},{"asset":"both","rise":1,"bottom":2},{"rise":4}]}}}""")
+        val images = listOf(PackImageRequest("box", rise = 81), PackImageRequest("arrow", bottom = -3))
+        assertEquals(images, state.projects["x"]!!.packImages)
+        assertEquals(state, read(mapper.writeValueAsString(state.toMap())))
+    }
 }

@@ -174,7 +174,13 @@ mappings:
   - touches: "editor/src/lib/pack/**"
     updates:
       - "testdata/resource-pack-conformance.json"
-    reason: "The editor owns the pack builder and its byte-for-byte vector since the backend was removed: an intended zip change updates entries/sha1 in the same commit"
+    reason: "The editor owns the pack builder and its byte-for-byte vector since the backend was removed: an intended zip change reruns `npm run pack -- vectors --write` in the same commit, and the Kotlin port (plugin/pack) follows in that commit"
+
+  - touches: "plugin/pack/**"
+    updates:
+      - "editor/src/lib/pack/**"
+      - "docs/architecture/testing.md"
+    reason: "The Kotlin pack builder is a port of the editor's: a behaviour change goes into both, the shared vector proves they still agree"
 
   # --- Module API surface (2 layers: plugin + editor) ---
 

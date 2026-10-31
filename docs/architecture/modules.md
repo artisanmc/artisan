@@ -225,12 +225,25 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > at `rise = height - bottom`. `ctx.file(path)` gives the parsed YAML of another file of the project
 > (`data/speakers.yml`), undefined when it is missing or unreadable; `ctx.files(dir)` the YAML files
 > directly in a folder, `{id, value}` each (a mode asks for the portraits of every speaker file).
+> The editor calls `pack.images` on the files in path order, each through the kind of its folder.
 > `OverlaySlotsComposer` (host component) opens only a layout's image slots: the layout (`layout`) is
 > drawn but fixed, each `image_slot` gets an image by its thumbnail and an offset from its place by
 > dragging it, back to the slot's place in one click. `value`/`onChange` is the module's map, by slot,
 > `{image, x?, y?}`: an offset, not a position, so a slot moved in the layout keeps every adjustment.
 > `useOpenDocument()` returns a function that opens a Document's page (`{projectId, kind, id}`). A
 > 1.15 bundle still loads.
+
+> **Pack images on the server (since 2026-10-31, API 2.22.0, `@Beta`)** — the hub builds the pack
+> without the editor (`PackBuilder`), so it cannot run a kind's `pack.images`. Its Java twin goes on the
+> kind declaration: `new DocumentKindDeclaration(...).withPackImages((doc, ctx) -> ...)`, a
+> `PackImagesProvider` that receives the file's YAML as `ProjectContentApi.documents` reads it, with
+> `id` set, and the same context (`ctx.file(path)`, `ctx.files(dir)` → `DirFile(id, value)`, in path
+> order). It returns `OverlayLayout.PackImage`s (`getPackImages()`, `slotPackImage(...)`). The server
+> calls it at each load, off the main thread, file by file in path order (`PackImageRequests`), and
+> records the answers in its loaded state (`pack_images`); a throw costs that file its images and logs
+> a warning. It must give what the editor kind gives for the same file, in the same order, or the two
+> packs differ: lock both with a shared vector. A kind without the twin has no images in the hub's
+> pack.
 
 > **Translatable fields (since 2026-10-31, SDK 1.17)** — `LocalizedField` (host component) is the
 > editor's translatable text: `values` = `textValues(project, key)` (each language's own text, no

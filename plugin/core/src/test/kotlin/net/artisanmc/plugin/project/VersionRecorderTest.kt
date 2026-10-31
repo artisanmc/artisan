@@ -198,4 +198,18 @@ class VersionRecorderTest {
         assertEquals(now, storage.versions.single().at)
         assertEquals(now, storage.states.single().second)
     }
+
+    @Test fun `the loaded state carries what a registered kind's files ask the pack for`() {
+        val kind = net.artisanmc.modules.api.document.DocumentKindDeclaration("hud_mode", "hud_modes", "hud_mode/v1")
+            .withPackImages { doc, _ -> listOf(net.artisanmc.modules.api.text.OverlayLayout.PackImage.at("box_${doc["id"]}", 12)) }
+        val registry = net.artisanmc.plugin.model.DocumentKinds.coreRegistry().apply { register(kind) }
+        net.artisanmc.plugin.model.DocumentKinds.bind(registry)
+        try {
+            val snapshot = ProjectSnapshot(mapOf("a" to mapOf("hud_modes/talk.yml" to "schema: hud_mode/v1\n")), emptyMap(), emptyMap())
+            val state = recorder(roots("a"), null).loadedState(snapshot)
+            assertEquals(listOf(PackImageRequest("box_talk", rise = 12)), state.projects["a"]!!.packImages)
+        } finally {
+            net.artisanmc.plugin.model.DocumentKinds.reset()
+        }
+    }
 }
