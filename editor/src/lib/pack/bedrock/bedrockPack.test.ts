@@ -10,6 +10,7 @@ import { buildBedrockPack } from "./bedrockPack";
 import {
   BEDROCK_MARKER,
   BEDROCK_PAD,
+  BEDROCK_PAD2,
   TEXTAREA_FIELD,
   TEXT_FIELD,
   bedrockButtonPair,
@@ -17,7 +18,7 @@ import {
   bedrockFieldOffset,
   bedrockMenuKey,
 } from "./bedrockTitle";
-import { labelColor } from "./bedrockUi";
+import { LEAD_CANDIDATES, labelColor } from "./bedrockUi";
 
 const chest = new Uint8Array(
   readFileSync(new URL("../../../assets/minecraft/generic_54.png", import.meta.url)),
@@ -104,8 +105,11 @@ describe("bedrockTitle", () => {
     const bytes = (s: string) => new TextEncoder().encode(s).length;
     const ascii = bedrockField("Bien le bonjour bedrock!", 64);
     expect(bytes(ascii)).toBe(64);
-    expect(ascii).toBe(`Bien le bonjour bedrock!${BEDROCK_PAD.repeat(13)} `);
-    expect(bedrockField("é", 7)).toBe(`é${BEDROCK_PAD}  `);
+    // 40 free bytes: 12 PAD + 2 PAD2, no space left to shift a centred line.
+    expect(ascii).toBe(
+      `Bien le bonjour bedrock!${BEDROCK_PAD.repeat(12)}${BEDROCK_PAD2.repeat(2)}`,
+    );
+    expect(bedrockField("é", 7)).toBe(`é${BEDROCK_PAD}${BEDROCK_PAD2}`);
     expect(bedrockField("aaé", 3)).toBe("aa ");
     expect(bytes(bedrockField("€€€€€", 10))).toBe(10);
   });
@@ -276,8 +280,8 @@ describe("buildBedrockPack", () => {
       "artisan_chest_grid@chest.large_chest_grid",
       `artisan_${k}_b0_0`,
       `artisan_${k}_b0_2`,
-      `artisan_${k}_t0`,
-      `artisan_${k}_t1`,
+      ...LEAD_CANDIDATES.map((lead) => `artisan_${k}_t0_${lead}`),
+      ...LEAD_CANDIDATES.map((lead) => `artisan_${k}_t1_${lead}`),
     ]);
     const bg = inserted[`artisan_${k}_bg`] as Record<string, unknown>;
     expect(bg.offset).toEqual([0, 4]);
@@ -290,20 +294,33 @@ describe("buildBedrockPack", () => {
     expect(b0.size).toEqual([54, 18]);
     expect(String(b0.visible)).toContain(`'${bedrockButtonPair(0, 0)}'`);
     expect(out[`${b0.texture}.png`]).toBeDefined();
-    const t0 = inserted[`artisan_${k}_t0`] as Record<string, unknown>;
+    const strip = `- '${BEDROCK_PAD}') - '${BEDROCK_PAD2}')`;
+    const t0 = inserted[`artisan_${k}_t0_0`] as Record<string, unknown>;
     expect(t0.text).toBe(
-      `(('%.${TEXT_FIELD}s' * ($artisan_title - ('%.15s' * $artisan_title))) - '${BEDROCK_PAD}')`,
+      `((('%.${TEXT_FIELD}s' * ($artisan_title - ('%.15s' * $artisan_title))) ${strip}`,
     );
-    expect(t0.offset).toEqual([20, 34]);
+    // The label for 0 lead bytes shows only when the marker and key open the title.
+    expect(t0.visible).toBe(
+      `((not (($artisan_title - '${BEDROCK_MARKER}${shop.key}') = $artisan_title)) and (('%.9s' * $artisan_title) = '${BEDROCK_MARKER}${shop.key}'))`,
+    );
+    expect(t0.offset).toEqual([20, 33]);
     expect(t0.font_scale_factor).toBe(2);
     expect(t0.color).toEqual([1, 0.667, 0]);
-    const t1 = inserted[`artisan_${k}_t1`] as Record<string, unknown>;
+    // 12 lead bytes (Geyser's §r and what the proxy chain adds): every cut moves by 12.
+    const t0at12 = inserted[`artisan_${k}_t0_12`] as Record<string, unknown>;
+    expect(t0at12.text).toBe(
+      `((('%.${TEXT_FIELD}s' * ($artisan_title - ('%.27s' * $artisan_title))) ${strip}`,
+    );
+    expect(String(t0at12.visible)).toContain(
+      `((('%.21s' * $artisan_title) - ('%.12s' * $artisan_title)) = '${BEDROCK_MARKER}${shop.key}')`,
+    );
+    const t1 = inserted[`artisan_${k}_t1_0`] as Record<string, unknown>;
     expect(t1.text).toBe(
-      `(('%.${TEXTAREA_FIELD}s' * ($artisan_title - ('%.${15 + TEXT_FIELD}s' * $artisan_title))) - '${BEDROCK_PAD}')`,
+      `((('%.${TEXTAREA_FIELD}s' * ($artisan_title - ('%.${15 + TEXT_FIELD}s' * $artisan_title))) ${strip}`,
     );
     expect(t1.size).toEqual([80, "default"]);
     // A centred textarea's x is the middle of its lines, as on Java.
-    expect(t1.offset).toEqual([10 - 40, 64]);
+    expect(t1.offset).toEqual([10 - 40, 63]);
     expect(t1.text_alignment).toBe("center");
     expect(out["textures/items/artisan_hit_area.png"]).toBeDefined();
     expect(out["font/glyph_F8.png"]).toBeDefined();

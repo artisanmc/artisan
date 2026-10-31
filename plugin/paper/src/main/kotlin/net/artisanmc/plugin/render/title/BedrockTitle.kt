@@ -36,6 +36,8 @@ object BedrockTitle {
     const val TEXTAREA_FIELD = 192
     /** Fills a field after its text; the pack's JSON UI removes it. */
     const val PAD = '\uF8FE'
+    /** Fills the 2 or 4 bytes a 3-byte [PAD] cannot; the pack removes it too. */
+    const val PAD2 = '\u00A0'
     private const val CONTROL_BYTES = 3
 
     /** The 2-character key of a menu, from the folder name of its project. */
@@ -98,7 +100,8 @@ object BedrockTitle {
 
     /**
      * A field is exactly [bytes] UTF-8 bytes: the text cut at a character boundary,
-     * then [PAD] characters, then 0 to 2 spaces for the bytes a 3-byte [PAD] cannot fill.
+     * then [PAD] characters and one or two [PAD2] for the bytes a 3-byte [PAD] cannot fill
+     * (a single free byte stays a space). The pack strips both.
      */
     internal fun field(text: String, bytes: Int): String {
         val out = StringBuilder()
@@ -113,8 +116,12 @@ object BedrockTitle {
             i += Character.charCount(cp)
         }
         val free = bytes - used
-        repeat(free / CONTROL_BYTES) { out.append(PAD) }
-        repeat(free % CONTROL_BYTES) { out.append(' ') }
+        when {
+            free % CONTROL_BYTES == 0 -> repeat(free / CONTROL_BYTES) { out.append(PAD) }
+            free % CONTROL_BYTES == 2 -> { repeat((free - 2) / CONTROL_BYTES) { out.append(PAD) }; out.append(PAD2) }
+            free == 1 -> out.append(' ')
+            else -> { repeat((free - 4) / CONTROL_BYTES) { out.append(PAD) }; out.append(PAD2).append(PAD2) }
+        }
         return out.toString()
     }
 }
