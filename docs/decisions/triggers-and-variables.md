@@ -287,6 +287,7 @@ api.getVariables().declare(new ModuleVariableDeclaration(
     "status",                                  // name, [a-z][a-z0-9_]*, the module id is the namespace
     VariableType.STRING,                       // string | number | boolean | location (§5)
     VariableScope.PLAYER,                      // player | server
+    List.of("none", "in_progress", "completed", "expired", "failed"), // optional: closed values, offered by the editor
     ModelField.of("quest", ModelFieldType.rowRef("quests:quests")),       // optional key
     (player, key) -> statusOf(player, key)));  // null = absent
 ```
@@ -303,6 +304,23 @@ api.getVariables().declare(new ModuleVariableDeclaration(
 - **Presence** reports `declared_variables` (name, type, scope, key field), like
   `declared_game_events`. The editor offers module variables in conditions and expressions from
   it, without the module being compiled into the editor.
+- **Editor: nobody types the path.** Raw `{var.…}` stays readable and writable, but every way in
+  is a picker, reusing what exists:
+  - **Templates**: the `{` autocomplete (`PlaceholderInput`, placeholder catalog) lists the
+    Variables in scope: the project's `variable/v1` Documents and the server's
+    `declared_variables`, with their type. Picking a keyed one then lists its keys (from the
+    `rowRef` source) and inserts `{var.quests.status["daily/miner"]}`.
+  - **Conditions**: `ConditionListEditor` gains a **Variable** condition, a Typewriter-style
+    criterion: variable → key → operator (from its type: `==`, `!=`, `>=`… for a number,
+    `is set` for any) → value (enum values when the module declares them). It writes an
+    `expression` condition, or `has_var` for `is set`; the readable view reads it back as the same
+    sentence.
+  - **Writes**: `set_var`, `add_var` and `clear_var` take a `document_ref(variable)`, so the
+    existing Document picker; module variables are not offered there (read-only). `add_var` only
+    offers `number` variables.
+  - **Expression recipes** ("show a text if…") list Variables among the values they accept.
+  - A rename repoints the usages; a reference to a missing variable or key is flagged where it is
+    written, like any dead reference.
 - **Change notice** (optional for a module): `api.getVariables().changed(player, name, key)`
   fires the core Game event `variable_changed` (`var`, `key`). A consumer that must react
   (a Trigger, a quest objective "condition holds") listens to it instead of polling. A module
