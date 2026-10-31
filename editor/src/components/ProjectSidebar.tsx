@@ -11,6 +11,7 @@ import {
 import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
+import { moduleBrand } from "@/lib/moduleBrand";
 import { projectDestination, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
 import {
@@ -256,6 +257,13 @@ export function ProjectSidebar() {
       visibleRows.find((p) => p.id === openProjectId || projectUrlId(p) === openProjectId)?.name)
     : undefined;
   useDocumentTitle(activeServerLabel, openProjectName);
+  // Inside a module of the suite that has its own logo, the wordmark takes its colours.
+  const openModuleId = openProjectId
+    ? pluginModules.find((m) =>
+        m.projects.some((p) => p.id === openProjectId || projectUrlId(p) === openProjectId),
+      )?.id
+    : undefined;
+  const brand = moduleBrand(openModuleId);
 
   return (
     <nav className="flex h-full flex-col gap-3.5 px-3 py-2">
@@ -264,7 +272,7 @@ export function ProjectSidebar() {
         onClick={() => useSidebarStore.getState().close()}
         className="flex h-12 shrink-0 items-center gap-1 rounded-[10px] px-1.5 transition-colors hover:bg-[var(--surface-hover)]"
       >
-        <ArtisanWordmark />
+        <ArtisanWordmark brand={brand} />
       </Link>
 
       {urlParams.serverId && <SidebarSearch />}
