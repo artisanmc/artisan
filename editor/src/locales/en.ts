@@ -579,6 +579,7 @@ export default {
     stateCondition: "if {{summary}}",
     moreLinesOne: "+ {{count}} more line",
     moreLinesOther: "+ {{count}} more lines",
+    titleName: "title",
     titleLabel: "title ({{lang}})",
     titleLabelFallback: "title ({{lang}} — fallback)",
     titlePlaceholder: "(none)",
@@ -595,6 +596,7 @@ export default {
       "Preview uses HeadDatabase on the connected server. Unavailable heads keep the generic icon.",
     headViewer: "Current player",
     headViewerHint: "Inserts {player.name} — the head of the player opening the menu.",
+    loreName: "lore",
     loreLabel: "lore ({{lang}})",
     loreLabelFallback: "lore ({{lang}} — fallback)",
     lorePlaceholder: "One line per lore entry.",
@@ -960,6 +962,12 @@ export default {
     fit: "Fit",
     actual: "100%",
     guiSize: "GUI {{width}}×{{height}} px, scale {{scale}}",
+  },
+  localizedField: {
+    toggle: "Translations",
+    toggleMissing_one: "Translations: {{count}} missing ({{langs}})",
+    toggleMissing_other: "Translations: {{count}} missing ({{langs}})",
+    reference: "ref.",
   },
   sortableList: {
     handle: "Drag to reorder",
