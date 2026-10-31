@@ -107,6 +107,9 @@ open class ArtisanPlugin : JavaPlugin() {
     /** Development: modules' editor views read from files (`dev.editor-bundles` in environment.yml). */
     internal val localEditorBundles by lazy { LocalEditorBundles(api.editorBundles, logger) }
 
+    /** The modules' icons and logos: registered, or read from their jars' `artisan-brand/`. */
+    internal val moduleBrands by lazy { ModuleBrands(api.moduleBrands, { api.modules.active() }, logger) }
+
     /** Null if `web.enabled` is false or the port could not be opened. */
     val editor: net.artisanmc.plugin.hub.HubServer? get() = editorHost.editor
     /** The editor's public address from `web.url`; empty when not set. */
@@ -311,6 +314,7 @@ open class ArtisanPlugin : JavaPlugin() {
         modules = api.modules.active().map {
             net.artisanmc.plugin.protocol.ServerAnnouncement.module(
                 it.id, description.version, localEditorBundles.wire(it.id), moduleTemplates.of(it.id).map { t -> t.toWire() },
+                moduleBrands.find(it.id)?.toWire(),
             )
         },
         dataSources = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources),

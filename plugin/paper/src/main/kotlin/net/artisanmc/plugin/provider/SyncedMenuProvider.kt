@@ -56,6 +56,8 @@ class SyncedMenuProvider(
     private val dataSources: net.artisanmc.modules.api.datasource.DataSourceRegistry? = null,
     /** A module's editor view by module id, served to the hub on `editor_bundle_fetch`. */
     private val editorBundles: (String) -> net.artisanmc.modules.api.editor.EditorBundleDeclaration? = { null },
+    /** A module's icon and logo by module id, served to the hub on `module_brand_fetch`. */
+    private val moduleBrands: (String) -> net.artisanmc.modules.api.editor.ModuleBrandDeclaration? = { null },
     /** The modules' templates, served on `template_fetch` and copied on `template_copy` or once at seed. */
     private val templates: () -> net.artisanmc.plugin.project.ModuleTemplates? = { null },
     /** The server's language, given to the projects a template seeds. */
@@ -178,7 +180,7 @@ class SyncedMenuProvider(
     private val documentChecks = net.artisanmc.plugin.protocol.DocumentChecks(workspace, replies, documentCheck)
     private val projectWrites = ProjectWrites(workspace, replies, ::send, logger, documentCheck)
     private val templateRequests = net.artisanmc.plugin.protocol.TemplateRequests(workspace, replies, templates)
-    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles)
+    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles, moduleBrands)
     @Volatile private var testSendOverride: ((String) -> Unit)? = null
 
     internal fun setSendForTesting(fn: (String) -> Unit) {
@@ -723,6 +725,7 @@ class SyncedMenuProvider(
             is EditorRequest.HeadTextureFetch -> queries.headTexture(request)
             is EditorRequest.PlayerInventoryFetch -> queries.playerInventory(request)
             is EditorRequest.EditorBundleFetch -> queries.editorBundle(request)
+            is EditorRequest.ModuleBrandFetch -> queries.moduleBrand(request)
             is EditorRequest.TemplateFetch -> templateRequests.fetch(request)
             is EditorRequest.TemplateCopy -> templateRequests.copy(request)
             is EditorRequest.ProjectOriginsFetch -> templateRequests.origins(request)

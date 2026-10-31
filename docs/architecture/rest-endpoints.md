@@ -94,6 +94,14 @@ session cookie is enough everywhere, and no quota applies.
   `text/javascript; charset=utf-8`, `X-Content-Type-Options: nosniff`; `Cache-Control: private,
   max-age=31536000, immutable` if `?v=` equals the hash, `no-cache` otherwise. A module with no bundle on the
   server: 404 `not_found`.
+- **A module's icon or logo** (`GET SERVER/modules/:module/brand/:file.svg`, `artisan.editor.view`): 404
+  `not_found` without relay if the module's entry does not advertise a `brand` naming that file (a leaf with
+  minor < 5 included). Otherwise the hub serves its copy (`brands` cache of `ServerRoutes`, by
+  `<hash>/<file>`: 64 files, 2 MiB), or relays `module_brand_fetch` and keeps every file of the reply once the
+  hash it recomputes equals the reply's and the advertisement's (else 502 `fetch_error`). 200
+  `image/svg+xml; charset=utf-8`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src
+  'none'; style-src 'unsafe-inline'; sandbox` (opened on its own, it runs nothing); same `Cache-Control` rule
+  as a bundle on `?v=`.
 
 ## Removed in phase F (do not reintroduce without an ADR)
 

@@ -1,4 +1,4 @@
-import { ModuleIcon, ModuleLogo } from "@/components/ArtisanWordmark";
+import { ModuleIcon, ModuleLogo, useModuleBrand } from "@/components/ArtisanWordmark";
 import { ownerModuleOf } from "@/components/projectOwnership";
 import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
@@ -11,7 +11,6 @@ import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { listLanguages } from "@/lib/i18nUsages";
-import { moduleBrand } from "@/lib/moduleBrand";
 import { kindCreatableIn } from "@/lib/moduleDocumentKinds";
 import {
   collectionDestination,
@@ -57,7 +56,7 @@ export function ModuleHome({
   const ownerModule = owner ? getModule(owner) : undefined;
   const ownerLabel = owner ? (ownerModule?.displayName ?? owner) : null;
   const OwnSection = ownerModule?.home;
-  const brand = moduleBrand(owner);
+  const brand = useModuleBrand(owner);
   const collections = projectCollections(project);
 
   // The board's Documents: every kind but the collections, which have no node there.
@@ -131,10 +130,14 @@ export function ModuleHome({
       className="absolute inset-0 z-30 overflow-auto bg-[var(--surface)]"
     >
       <div className="mx-auto flex max-w-5xl flex-col gap-7 p-[var(--page-pad)]">
-        <header className="flex flex-wrap items-center gap-3">
+        {/* With a module's own icon and logo, the text column is exactly the icon's height:
+            logo on its top edge, subtitle on its bottom edge. */}
+        <header
+          className={`flex flex-wrap gap-3 ${brand?.icon && brand.logo ? "items-stretch" : "items-center"}`}
+        >
           {/* A module of the suite shows its own icon and logo; any other one, the tile. */}
-          {brand ? (
-            <ModuleIcon brand={brand} />
+          {brand?.icon ? (
+            <ModuleIcon src={brand.icon} />
           ) : (
             <IconTile
               icon={Blocks}
@@ -144,15 +147,23 @@ export function ModuleHome({
               size="lg"
             />
           )}
-          <div className="min-w-0 flex-1">
-            {brand ? (
-              <h1 className="mb-1.5 flex">
-                <ModuleLogo brand={brand} alt={project.name} />
+          <div
+            className={
+              brand?.icon && brand.logo
+                ? "flex min-w-0 flex-1 flex-col justify-between"
+                : "min-w-0 flex-1"
+            }
+          >
+            {brand?.logo ? (
+              <h1 className="flex">
+                <ModuleLogo logo={brand.logo} alt={project.name} />
               </h1>
             ) : (
               <h1 className="truncate text-lg font-semibold">{project.name}</h1>
             )}
-            <div className="flex flex-wrap gap-x-3 text-[12.5px] text-[var(--text-mut)]">
+            <div
+              className={`flex flex-wrap gap-x-3 text-[12.5px] text-[var(--text-mut)] ${brand?.logo ? "mt-1.5 leading-none" : ""}`}
+            >
               <span>
                 {ownerLabel
                   ? t("moduleHome.pluginModule", { name: ownerLabel })

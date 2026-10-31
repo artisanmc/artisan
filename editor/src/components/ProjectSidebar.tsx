@@ -1,4 +1,4 @@
-import { ArtisanWordmark } from "@/components/ArtisanWordmark";
+import { ArtisanWordmark, ModuleRowIcon, useModuleBrand } from "@/components/ArtisanWordmark";
 import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
 import { listedDataSources } from "@/domain/projectData";
@@ -11,7 +11,6 @@ import {
 import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
-import { moduleBrand } from "@/lib/moduleBrand";
 import { projectDestination, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
 import {
@@ -257,13 +256,13 @@ export function ProjectSidebar() {
       visibleRows.find((p) => p.id === openProjectId || projectUrlId(p) === openProjectId)?.name)
     : undefined;
   useDocumentTitle(activeServerLabel, openProjectName);
-  // Inside a module of the suite that has its own logo, the wordmark takes its colours.
+  // Inside a module that ships its own wordmark, the sidebar shows it in its colours.
   const openModuleId = openProjectId
     ? pluginModules.find((m) =>
         m.projects.some((p) => p.id === openProjectId || projectUrlId(p) === openProjectId),
       )?.id
     : undefined;
-  const brand = moduleBrand(openModuleId);
+  const brand = useModuleBrand(openModuleId);
 
   return (
     <nav className="flex h-full flex-col gap-3.5 px-3 py-2">
@@ -568,6 +567,8 @@ interface ProjectItemProps {
   name: string;
   count: number | null;
   serverId: string | null;
+  /** A plugin module's own icon, in place of the folder. */
+  icon?: string;
 }
 
 function SortableProjectItem(props: ProjectItemProps) {
@@ -586,6 +587,7 @@ function ProjectItem({
   name,
   count,
   serverId,
+  icon,
   sortable,
   children,
   defaultExpanded = false,
@@ -639,7 +641,9 @@ function ProjectItem({
               : "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
           }
         >
-          {isActiveProject ? (
+          {icon ? (
+            <ModuleRowIcon src={icon} />
+          ) : isActiveProject ? (
             <FolderOpen className="size-[15px] shrink-0" />
           ) : (
             <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
@@ -704,6 +708,7 @@ function PluginModuleItem({
     (e) => e.kind === "screen" && e.screen.id === params.screenId,
   );
   const [expanded, setExpanded] = useState(showsChild);
+  const icon = useModuleBrand(module.id)?.icon;
   const entries = module.entries.length > 0 && (
     <ModuleEntries entries={module.entries} serverId={serverId} projects={module.projects} />
   );
@@ -717,6 +722,7 @@ function PluginModuleItem({
         count={countFor(only)}
         serverId={serverIdOf(only)}
         defaultExpanded={showsChild}
+        icon={icon}
         sortable={sortable}
       >
         {entries}
@@ -734,13 +740,16 @@ function PluginModuleItem({
           expanded={expanded}
           onToggle={() => setExpanded((v) => !v)}
         />
-        {/* TODO: render the module's icon once modules ship real icons */}
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-left text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
         >
-          <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+          {icon ? (
+            <ModuleRowIcon src={icon} />
+          ) : (
+            <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+          )}
           <span className="min-w-0 truncate">{module.label}</span>
         </button>
       </div>

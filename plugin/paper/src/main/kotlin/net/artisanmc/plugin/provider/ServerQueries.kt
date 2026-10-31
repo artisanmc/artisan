@@ -40,6 +40,7 @@ class ServerQueries(
     private val nexoGlyphs: NexoGlyphReader?,
     private val serverConfig: ServerConfigAccess?,
     private val editorBundles: (String) -> EditorBundleDeclaration? = { null },
+    private val moduleBrands: (String) -> net.artisanmc.modules.api.editor.ModuleBrandDeclaration? = { null },
 ) {
     private val mapper = ObjectMapper()
 
@@ -183,6 +184,20 @@ class ServerQueries(
                 "content" to String(script, Charsets.UTF_8),
             )
         }
+    }
+
+    /**
+     * A module's icon and logo, for the hub to serve (`GET …/modules/:module/brand/:file.svg`): the
+     * SVG files as text by name (at most five of 64 KiB, the declaration checks them), with their hash.
+     */
+    fun moduleBrand(request: net.artisanmc.plugin.protocol.EditorRequest.ModuleBrandFetch) {
+        val reply = replies.to(request, "module_brand_fetch_result")
+        val brand = moduleBrands(request.moduleId) ?: return reply.error("not_found")
+        reply.ok(
+            "module_id" to request.moduleId,
+            "hash" to brand.hash,
+            "files" to brand.texts(),
+        )
     }
 
     /** Nexo glyph import into the assets: disk read, off the world thread. */
