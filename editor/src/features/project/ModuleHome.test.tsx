@@ -158,6 +158,36 @@ describe("ModuleHome", () => {
     expect(exposes).not.toHaveTextContent("open_menu");
   });
 
+  it("shows the module's own section above the blocks, with its project", () => {
+    clearRegistry();
+    registerEditorModule({
+      ...conversations,
+      home: ({ projectId }) => <p>Own section of {projectId}</p>,
+    });
+    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
+    const own = screen.getByTestId("module-home-own");
+    expect(own).toHaveTextContent("Own section of conversations");
+    expect(
+      own.compareDocumentPosition(screen.getByTestId("module-home-board")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("leaves out a section that throws, and keeps the blocks", () => {
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    clearRegistry();
+    registerEditorModule({
+      ...conversations,
+      home: () => {
+        throw new Error("broken");
+      },
+    });
+    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
+    expect(screen.getByTestId("module-home-own")).toBeEmptyDOMElement();
+    expect(screen.getByTestId("module-home-board")).toBeInTheDocument();
+    quiet.mockRestore();
+  });
+
   it("leaves out the settings screen a collection already shows on its page", () => {
     useServerScreensStore.setState({
       screens: [

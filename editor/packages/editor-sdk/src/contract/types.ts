@@ -304,6 +304,12 @@ export interface LocalPreviewContext {
   params?: Record<string, string>;
 }
 
+/** What a module's own section of its Home receives (`FrontendModule.home`, SDK 1.18). */
+export interface ModuleHomeProps {
+  /** The module's project, to read with `useProject` and the host's helpers. */
+  projectId: string;
+}
+
 export interface ModuleRouteDecl {
   path: string;
   component: ComponentType;
@@ -364,4 +370,13 @@ export interface FrontendModule {
    * the screen. A screen whose key is missing here gets the generated form.
    */
   screens?: Record<string, ComponentType<ConfigScreenProps>>;
+  /**
+   * The module's own section of its Home (SDK 1.18), under the header and above the blocks
+   * the host builds from what is declared (canvas, lists, settings, data sources, what the
+   * module exposes). For what only the module knows: the problems across its Documents,
+   * where to start, a summary of its content. It renders its own headings and stays short:
+   * the left bar lists the Documents, the blocks below lead to their pages. A section that
+   * throws is left out, the rest of the Home stays.
+   */
+  home?: ComponentType<ModuleHomeProps>;
 }

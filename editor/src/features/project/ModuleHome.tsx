@@ -22,8 +22,7 @@ import { useUiStore } from "@/state/uiStore";
 import { type DocumentKindContribution, getModule } from "@artisan/editor-sdk";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Blocks, Database, LayoutDashboard, Plus, Settings, Zap } from "lucide-react";
-import type { ReactNode } from "react";
-import { useState } from "react";
+import { Component, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { typeLabel } from "./ProjectDocumentTree";
 import { goToDocument } from "./goToDocument";
@@ -53,7 +52,9 @@ export function ModuleHome({
     { id: projectNamespace(project), ownerModule: project.ownerModule },
     screens,
   );
-  const ownerLabel = owner ? (getModule(owner)?.displayName ?? owner) : null;
+  const ownerModule = owner ? getModule(owner) : undefined;
+  const ownerLabel = owner ? (ownerModule?.displayName ?? owner) : null;
+  const OwnSection = ownerModule?.home;
   const collections = projectCollections(project);
 
   // The board's Documents: every kind but the collections, which have no node there.
@@ -147,6 +148,14 @@ export function ModuleHome({
             </div>
           </div>
         </header>
+
+        {OwnSection && (
+          <div data-testid="module-home-own">
+            <LeaveOutOnError>
+              <OwnSection projectId={project.id} />
+            </LeaveOutOnError>
+          </div>
+        )}
 
         <section className="flex flex-col gap-2.5" aria-labelledby="module-home-content">
           <h2 id="module-home-content" className="field-label">
@@ -370,4 +379,21 @@ function CollectionPlace({
       )}
     </Place>
   );
+}
+
+/**
+ * A module's own section (`FrontendModule.home`) that throws is left out: the blocks the
+ * host builds still lead to every page of the module.
+ */
+class LeaveOutOnError extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.error("A module's home section failed", error);
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
 }

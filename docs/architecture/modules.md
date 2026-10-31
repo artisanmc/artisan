@@ -241,6 +241,15 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > missing ones and offers to take the reference text as is. A module's text field uses it so that its
 > translations behave like Artisan's. A 1.16 bundle still loads.
 
+> **Home section (since 2026-10-31, SDK 1.18)** — `home: ComponentType<ModuleHomeProps>` is the
+> module's own section of its Home (the view a module opens on), shown under the header and above
+> the blocks Artisan builds from what is declared (canvas, lists, settings screens, data sources,
+> commands and actions). `ModuleHomeProps` = `{projectId}`; the section reads the project with
+> `useProject` and opens a Document with `useOpenDocument`. It is for what only the module knows
+> (the problems across its Documents, where to start, a summary), with its own headings, and stays
+> short: the left bar lists the Documents. Shown on the project the module owns; a section that
+> throws is left out and the rest of the Home stays. A 1.17 bundle still loads.
+
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the
