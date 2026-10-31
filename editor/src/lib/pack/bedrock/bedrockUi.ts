@@ -1,5 +1,5 @@
 import type { BedrockMenu, BedrockTextLayer } from "./bedrockMenus";
-import { BEDROCK_MARKER, bedrockButtonPair, bedrockFieldOffset } from "./bedrockTitle";
+import { BEDROCK_MARKER, BEDROCK_PAD, bedrockButtonPair, bedrockFieldOffset } from "./bedrockTitle";
 
 /**
  * `ui/chest_screen.json` of the Bedrock pack: the vanilla chest screen, changed
@@ -49,14 +49,17 @@ function hasKey(menu: BedrockMenu): string {
   return contains(BEDROCK_MARKER + menu.key);
 }
 
-/** Field `index` of the title: `'%.Ns' * s` keeps the first N characters. */
+/**
+ * Field `index` of the title: `'%.Ns' * s` keeps the first N bytes, `s - p`
+ * drops every `p` from `s`, so the padding goes before the label shows it.
+ */
 function field(menu: BedrockMenu, layer: BedrockTextLayer): string {
   const offset = bedrockFieldOffset(
     menu.buttons.length,
     menu.texts.map((t) => t.length),
     layer.index,
   );
-  return `('%.${layer.length}s' * (${T} - ('%.${offset}s' * ${T})))`;
+  return `(('%.${layer.length}s' * (${T} - ('%.${offset}s' * ${T}))) - '${BEDROCK_PAD}')`;
 }
 
 const NAMED_COLORS: Record<string, string> = {
@@ -144,12 +147,23 @@ function buttonElements(
   return out;
 }
 
+/**
+ * Left edge of a label's box. A textarea's `x` is where its lines align, as on
+ * Java (`TitleCompiler`): their centre, or their right end.
+ */
+function labelX(layer: BedrockTextLayer): number {
+  if (layer.width === undefined) return layer.x;
+  if (layer.alignment === "center") return layer.x - Math.round(layer.width / 2);
+  if (layer.alignment === "right") return layer.x - layer.width;
+  return layer.x;
+}
+
 function textElements(menu: BedrockMenu): Record<string, unknown>[] {
   return menu.texts.map((layer) => ({
     [id(menu, `t${layer.index}`)]: {
       type: "label",
       text: field(menu, layer),
-      offset: [layer.x, layer.y + BEDROCK_Y],
+      offset: [labelX(layer), layer.y + BEDROCK_Y],
       anchor_from: "top_left",
       anchor_to: "top_left",
       size: [layer.width ?? "default", "default"],

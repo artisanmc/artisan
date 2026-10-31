@@ -19,6 +19,7 @@ import java.security.MessageDigest
  *
  *   MARKER  key(2)  [button(1) state(1)]*  [text field]*
  *
+ * Text fields are counted in UTF-8 bytes, since the JSON UI's `'%.Ns'` cuts bytes.
  * The pack draws the whole U+F800..U+F8FF page blank, so a Bedrock player
  * without the pack sees nothing readable; a Java player never gets this title.
  */
@@ -30,8 +31,12 @@ object BedrockTitle {
     private const val BUTTON_MAX = 64
     private const val STATE_BASE = 0xF840
     private const val STATE_MAX = 64
-    const val TEXT_FIELD = 48
-    const val TEXTAREA_FIELD = 128
+    /** UTF-8 bytes of a text / plain field and of a textarea field (`'%.Ns'` cuts bytes). */
+    const val TEXT_FIELD = 64
+    const val TEXTAREA_FIELD = 192
+    /** Fills a field after its text; the pack's JSON UI removes it. */
+    const val PAD = '\uF8FE'
+    private const val CONTROL_BYTES = 3
 
     /** The 2-character key of a menu, from the folder name of its project. */
     fun key(projectId: String, menuId: String): String {
@@ -91,10 +96,25 @@ object BedrockTitle {
         runCatching { PlainTextComponentSerializer.plainText().serialize(MiniMessage.miniMessage().deserialize(mini)) }
             .getOrDefault(mini)
 
-    /** A field is exactly [length] characters: cut or padded with spaces. */
-    internal fun field(text: String, length: Int): String {
-        val cps = text.codePoints().toArray()
-        if (cps.size >= length) return String(cps, 0, length)
-        return text + " ".repeat(length - cps.size)
+    /**
+     * A field is exactly [bytes] UTF-8 bytes: the text cut at a character boundary,
+     * then [PAD] characters, then 0 to 2 spaces for the bytes a 3-byte [PAD] cannot fill.
+     */
+    internal fun field(text: String, bytes: Int): String {
+        val out = StringBuilder()
+        var used = 0
+        var i = 0
+        while (i < text.length) {
+            val cp = text.codePointAt(i)
+            val size = String(Character.toChars(cp)).toByteArray(Charsets.UTF_8).size
+            if (used + size > bytes) break
+            out.appendCodePoint(cp)
+            used += size
+            i += Character.charCount(cp)
+        }
+        val free = bytes - used
+        repeat(free / CONTROL_BYTES) { out.append(PAD) }
+        repeat(free % CONTROL_BYTES) { out.append(' ') }
+        return out.toString()
     }
 }

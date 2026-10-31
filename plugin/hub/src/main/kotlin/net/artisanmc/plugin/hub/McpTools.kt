@@ -137,18 +137,19 @@ class McpTools(
     private fun packTools(): List<Tool> = if (packs == null) emptyList() else listOf(
         Tool(
             "resource_pack_status", "Resource pack status",
-            "What the hub last built for a server's Java resource pack: its SHA-1, the SHA-1 of the pack the editor last uploaded, " +
-                "whether the two match, when, and the build error if it failed. Shadow mode for now: players still get the editor's " +
-                "pack; the hub's build is compared with it.",
+            "What the hub last built for a server's resource packs: the Java pack's SHA-1 (Pro), the SHA-1 of the Java pack the " +
+                "editor last uploaded, whether the two match, the Bedrock pack's SHA-1, when, and the build error if it failed. The " +
+                "Bedrock pack is applied: Bedrock players get the hub's. The Java one is in shadow mode: Java players still get the " +
+                "editor's pack; the hub's build is compared with it.",
             schema("server" to string("A server id from artisan_overview."), required = listOf("server")),
             readOnly = true, ::packStatus,
         ),
         Tool(
             "resource_pack_rebuild", "Rebuild the resource pack",
-            "Rebuilds a server's Java resource pack in the hub from the modules that server loaded (online or not), waits for the " +
-                "build (wait_seconds, default 30) and returns resource_pack_status. Shadow mode for now: it builds and compares, " +
-                "nothing reaches players; once the hub applies its packs, a rebuild sends the new pack to every player, so ask the " +
-                "player first. A build still running at the deadline goes on: call resource_pack_status later.",
+            "Rebuilds a server's resource packs in the hub from the modules that server loaded (online or not), waits for the " +
+                "build (wait_seconds, default 30) and returns resource_pack_status. A Bedrock pack that changed is sent to the " +
+                "server's Bedrock players, so ask the player first. The Java pack is in shadow mode: built and compared, it does " +
+                "not reach Java players yet. A build still running at the deadline goes on: call resource_pack_status later.",
             schema(
                 "server" to string("A server id from artisan_overview."),
                 "wait_seconds" to mapOf("type" to "integer", "minimum" to 0, "maximum" to 120, "description" to "How long to wait for the build (default 30)."),
@@ -317,14 +318,16 @@ class McpTools(
         "hub_sha1" to status?.hubHash,
         "editor_sha1" to status?.editorHash,
         "matches" to status?.matches,
+        "bedrock_sha1" to status?.bedrockHash,
         "built_at" to status?.builtAt?.let { java.time.Instant.ofEpochMilli(it).toString() },
         "error" to status?.error,
         "note" to when {
             !done -> "The build is still running: call resource_pack_status in a moment."
             status == null -> "No pack state for this server: it has not loaded its modules into the suite database yet."
-            status.error != null -> "The hub's build failed; players keep the editor's pack."
+            status.error != null -> "The hub's build failed; players keep the pack they had."
             status.matches == false -> "The hub's pack differs from the editor's: a module may declare pack images in its editor only."
-            else -> "Players get the editor's pack; the hub's build is compared with it (shadow mode)."
+            status.hubHash == null -> "Bedrock players get the hub's pack (bedrock_sha1). The Java pack is built by the Pro edition only."
+            else -> "Bedrock players get the hub's pack (bedrock_sha1); Java players get the editor's, compared with the hub's build (shadow mode)."
         },
     )
 

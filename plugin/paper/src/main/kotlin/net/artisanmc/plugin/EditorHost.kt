@@ -153,9 +153,9 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
                 logger.info("[Artisan] MCP endpoint enabled at /mcp")
             } else null
             val edition = net.artisanmc.plugin.hub.Edition.bundled(plugin.javaClass.classLoader)
-            // Shadow mode: the hub builds each server's pack after its reload and compares it with
-            // the editor's, without applying it. Building a pack is Pro.
-            val packBuilder = if (edition.pro) net.artisanmc.plugin.hub.PackBuilder(servers, data.loaded, logger) else null
+            // The hub builds each server's packs after its reload: the Bedrock one is applied (every
+            // edition), the Java one only compared with the editor's (shadow mode, Pro).
+            val packBuilder = net.artisanmc.plugin.hub.PackBuilder(servers, data.loaded, logger, java = edition.pro, bedrock = bedrockPacks)
             this.packBuilder = packBuilder
             if (!packBuilderListens) {
                 packBuilderListens = true

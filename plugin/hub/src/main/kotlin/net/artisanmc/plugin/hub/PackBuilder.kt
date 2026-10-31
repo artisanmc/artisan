@@ -16,7 +16,7 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 /**
- * Builds a server's Java resource pack in the hub, from the Projects that server loaded (read from
+ * Builds a server's Java and Bedrock resource packs in the hub, from the Projects that server loaded (read from
  * the suite database through [LoadedProjects], leaf servers included), with `plugin/pack`: the
  * same bytes as the editor's build.
  *
@@ -25,6 +25,10 @@ import java.util.logging.Logger
  * the editor sent that the hub's build does not reproduce at WARNING. Module images come from
  * what each server computed at load (`pack_images`, a kind's `PackImagesProvider`): a module whose
  * editor kind declares `pack.images` without the Java twin leaves them out of the hub's build.
+ *
+ * The **Bedrock pack** is applied: after each build the hub stores it ([bedrock]) and sends it to the
+ * server when its hash changed, in every edition, so a publication made without an editor tab (MCP,
+ * `/artisan reload`) reaches Bedrock players. The Java pack is built only in Pro ([java]).
  *
  * One build at a time on a thread of its own (never Jetty's), at most one waiting per server:
  * requests arriving while one runs share the next, which reads the latest state.
@@ -36,9 +40,22 @@ class PackBuilder(
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { r ->
         Thread(r, "Artisan-pack-builder").apply { isDaemon = true }
     },
+    /** Compare the Java pack with the editor's (Pro): false leaves [Status.hubHash] null. */
+    private val java: Boolean = true,
+    /** Where the Bedrock packs the hub applies are served from; null builds none. */
+    private val bedrock: PackStore? = null,
 ) : AutoCloseable {
-    /** What the hub and the editor last built for a server, and whether the two agreed. */
-    data class Status(val hubHash: String?, val editorHash: String?, val builtAt: Long?, val error: String?) {
+    /**
+     * What the hub and the editor last built for a server, and whether the two agreed;
+     * [bedrockHash] is the Bedrock pack the hub last applied.
+     */
+    data class Status(
+        val hubHash: String?,
+        val editorHash: String?,
+        val builtAt: Long?,
+        val error: String?,
+        val bedrockHash: String? = null,
+    ) {
         val matches: Boolean? get() = if (hubHash == null || editorHash == null) null else hubHash == editorHash
     }
 
@@ -79,13 +96,36 @@ class PackBuilder(
         val previous = status[server]
         result.onSuccess { pack ->
             if (pack == null) return@onSuccess
-            status[server] = Status(pack.sha1, previous?.editorHash, started, null)
+            val bedrockHash = pack.bedrock?.let { applyBedrock(server, it.zip, previous?.bedrockHash) } ?: previous?.bedrockHash
+            status[server] = Status(pack.sha1.takeIf { java }, previous?.editorHash, started, null, bedrockHash)
             logger?.fine { "[Artisan] Pack of $server built by the hub in ${System.currentTimeMillis() - started} ms: ${pack.sha1}" }
-            if (previous?.editorHash == pack.sha1) logger?.fine { "[Artisan] Pack of $server: the hub's build matches the editor's" }
+            if (java && previous?.editorHash == pack.sha1) logger?.fine { "[Artisan] Pack of $server: the hub's build matches the editor's" }
         }.onFailure { error ->
-            status[server] = Status(previous?.hubHash, previous?.editorHash, started, error.message ?: error.javaClass.simpleName)
+            status[server] = Status(previous?.hubHash, previous?.editorHash, started, error.message ?: error.javaClass.simpleName, previous?.bedrockHash)
             logger?.log(Level.WARNING, "[Artisan] The hub could not build the pack of $server (the editor's stays in use)", error)
         }
+    }
+
+    /**
+     * Stores [zip] and sends it to [server] when it differs from [applied], the Bedrock pack the
+     * server last received (the hub's or the editor's, [bedrockApplied]); its hash.
+     */
+    private fun applyBedrock(server: String, zip: ByteArray, applied: String?): String {
+        val store = bedrock!!
+        val hash = store.put(zip)
+        if (hash != applied) {
+            servers.find(server)?.applyBedrockPack(hash, store.pathOf(hash))
+            logger?.info("[Artisan] Bedrock pack of $server rebuilt by the hub: $hash")
+        }
+        return hash
+    }
+
+    /**
+     * The editor sent [server] the Bedrock pack [hash]: the hub's next build sends its own only
+     * when it differs, so the two never take turns with the same bytes.
+     */
+    fun bedrockApplied(server: String, hash: String) {
+        status.merge(server, Status(null, null, null, null, hash)) { old, _ -> old.copy(bedrockHash = hash) }
     }
 
     /**
@@ -129,9 +169,13 @@ class PackBuilder(
                 overlayImages = (read["pack_images"] as? List<*>).orEmpty().mapNotNull { image ->
                     PackImageRequest.from(image)?.let { OverlayImageRequest(it.asset, it.rise, it.bottom) }
                 },
+                // The plugin keys a Bedrock menu by its Project's folder.
+                folder = folder,
             )
         }
-        return ResourcePackBuilder.build(PackInput(projects, containerTextures(target.serverConfig())))
+        return ResourcePackBuilder.build(
+            PackInput(projects, containerTextures(target.serverConfig()), bedrockServerId = server.takeIf { bedrock != null }),
+        )
     }
 
     /** `resource-pack.container-textures.*` of the server's `config.yml`, as the editor reads them. */

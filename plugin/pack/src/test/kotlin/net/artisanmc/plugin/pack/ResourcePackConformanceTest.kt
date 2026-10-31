@@ -28,12 +28,14 @@ class ResourcePackConformanceTest {
                 overlayImages = p["overlayImages"]?.map {
                     OverlayImageRequest(it["asset"].asText(), it["rise"]?.asInt(), it["bottom"]?.asInt())
                 }.orEmpty(),
+                folder = p["folder"]?.asText() ?: p["id"].asText(),
             )
         }
         return PackInput(
             projects = projects,
             containerTextures = case["containerTextures"].fields().asSequence().associate { (k, v) -> k to v.asText() },
             transparentContainers = case["vanillaGui"].asBoolean(),
+            bedrockServerId = case["bedrock"]?.get("serverId")?.asText(),
         )
     }
 
@@ -64,6 +66,20 @@ class ResourcePackConformanceTest {
             val extra = entries.keys.filter { it !in listed && !textY.matches(it) && !textUp.matches(it) }
             if (drifted.isNotEmpty() || extra.isNotEmpty() || result.sha1 != case["sha1"].asText()) {
                 failures += "$name: sha1 ${result.sha1} (expected ${case["sha1"].asText()}), drifted $drifted, unexpected $extra"
+            }
+            val bedrock = case["bedrock"] ?: continue
+            val built = result.bedrock
+            if (built == null) {
+                failures += "$name: no Bedrock pack"
+                continue
+            }
+            val bedrockEntries = entries(built.zip)
+            val bedrockDrifted = bedrock["entryHashes"].fields().asSequence()
+                .filter { (path, hash) -> bedrockEntries[path]?.let(::sha256Hex) != hash.asText() }
+                .map { it.key }.toList()
+            val bedrockExtra = bedrockEntries.keys - bedrock["entries"].map { it.asText() }.toSet()
+            if (bedrockDrifted.isNotEmpty() || bedrockExtra.isNotEmpty() || built.sha1 != bedrock["sha1"].asText()) {
+                failures += "$name (Bedrock): sha1 ${built.sha1} (expected ${bedrock["sha1"].asText()}), drifted $bedrockDrifted, unexpected $bedrockExtra"
             }
         }
         assertEquals(emptyList(), failures)
