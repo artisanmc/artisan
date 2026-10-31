@@ -65,6 +65,11 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val local = editorBind.takeUnless { it.isBlank() || it == "0.0.0.0" } ?: "127.0.0.1"
             provider.applyLocalResourcePack(url ?: "${packBase()}$path", "http://$local:$port$path", hash)
         }
+        override fun applyBedrockPack(hash: String, path: String) {
+            val port = editor?.port ?: return
+            val local = editorBind.takeUnless { it.isBlank() || it == "0.0.0.0" } ?: "127.0.0.1"
+            provider.applyLocalBedrockPack("http://$local:$port$path", hash)
+        }
     }
 
     /** The editor address for browsers: `web.url`, else the tunnel server's, else [host] or the server IP. */
@@ -134,6 +139,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val vanilla = net.artisanmc.plugin.hub.VanillaAssets(File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger)
             val packs = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/resource-pack"))
             val packCdn = web.packCdn.takeIf { it.isNotBlank() }?.let { net.artisanmc.plugin.hub.PackCdn(it, ::tunnelSecret, logger) }
+            val bedrockPacks = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/bedrock-pack-store"), net.artisanmc.plugin.hub.PackStore.BEDROCK_PATH, "mcpack")
             val servers = net.artisanmc.plugin.hub.Servers(localServer, suite::knownServers) { id, name ->
                 net.artisanmc.plugin.hub.RemoteServer(id, name, publicUrl = { packBase() })
             }
@@ -156,7 +162,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
                 editorChannel.onReload { server -> this.packBuilder?.request(server) }
             }
             val router = net.artisanmc.plugin.hub.EditorApi.router(
-                servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts, { tunnel },
+                servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts, bedrockPacks, { tunnel },
                 mcp = mcp, ai = web.ai, aiSettings = suite.aiSettingsStore(), aiConversations = suite.aiConversationStore(), version = description.version, online = editorChannel::online, packCdn = packCdn,
                 edition = edition, packBuilder = packBuilder,
             )

@@ -33,4 +33,6 @@ interface EditorServer {
     fun applyResourcePack(hash: String, path: String)
     /** Same, players downloading it from [url] (the pack host, [PackCdn]) when set rather than from the hub. */
     fun applyResourcePack(hash: String, path: String, url: String?) = applyResourcePack(hash, path)
+    /** A Bedrock pack served by the hub under [path] becomes the one its Geyser hands to Bedrock players. */
+    fun applyBedrockPack(hash: String, path: String) {}
 }

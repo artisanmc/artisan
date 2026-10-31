@@ -31,7 +31,7 @@ with 1008 ("not open yet: retry"); the leaf comes back through its backoff.
 
 | Field | Read by the hub for |
 |---|---|
-| `protocol_version` | `ProtocolVersion.CURRENT` (`"1.4"`). Major different from the hub's: server listed `updateRequired`, nothing more is sent to it (503 `plugin_update_required`). Minor below 1: no `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). Minor below 2 (`EDITOR_BUNDLES`): no `editor_bundle` advertised, so never an `editor_bundle_fetch`. Minor below 3 (`TEMPLATES`): no `templates` advertised; `template_fetch`, `template_copy` and `project_origins_fetch` answer 501 `plugin_update_required` on the hub side. Minor below 4 (`DOCUMENT_CHECKS`): no `documents_check`, the MCP tool `write_document` refuses (`plugin_update_required`). |
+| `protocol_version` | `ProtocolVersion.CURRENT` (`"1.5"`). Major different from the hub's: server listed `updateRequired`, nothing more is sent to it (503 `plugin_update_required`). Minor below 1: no `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). Minor below 2 (`EDITOR_BUNDLES`): no `editor_bundle` advertised, so never an `editor_bundle_fetch`. Minor below 3 (`TEMPLATES`): no `templates` advertised; `template_fetch`, `template_copy` and `project_origins_fetch` answer 501 `plugin_update_required` on the hub side. Minor below 4 (`DOCUMENT_CHECKS`): no `documents_check`, the MCP tool `write_document` refuses (`plugin_update_required`). Minor below 5 (`BEDROCK_PACK`): no `bedrock_pack_updated`, the leaf gets its Bedrock pack at its next `hello_ack`. |
 | `server_key` | The **network secret** (inherited field name). Compared in constant time; wrong or empty: close 1008. |
 | `server_uuid` | The server's Server id (`plugins/Artisan/server-id`): its identity everywhere — `/api/v1/servers/:server`, `server_key_id`, prefix of its Projects (`<server id>.<folder>`), key of `Servers`. Missing, or equal to the hub's (copied folder): close 1008. |
 | `database_id` | Identifier of the suite database (`artisan_meta`, generated once). The hub refuses a `hello` whose identifier differs from its own, and any `hello` if it is itself on H2: a network shares one MySQL/MariaDB database. |
@@ -51,10 +51,11 @@ with 1008 ("not open yet: retry"); the leaf comes back through its backoff.
 sends it, the hash follows through `custom_items_changed`.
 
 **`hello_ack`** (hub → leaf): `{session_id, server_id, editor_url, network_name,
-resource_pack}`. `server_id` repeats the `hello`'s `server_uuid`, `network_name` the hub
+resource_pack, bedrock_pack}`. `server_id` repeats the `hello`'s `server_uuid`, `network_name` the hub
 server's name. `resource_pack` is the last pack the hub served to this server
 (`{url, hash}`), or `{}`: an object without an address leaves the server with the pack it already has
-(`PackUpdate.Incomplete`), `null` would remove it. The hub applies the `hello` (protocol
+(`PackUpdate.Incomplete`), `null` would remove it. `bedrock_pack` follows the same rule for the
+Bedrock pack (`1.5`); absent from an older hub, it changes nothing. The hub applies the `hello` (protocol
 version, modules, configuration) before sending `hello_ack`: an editor request that follows
 the ack sees the server as it announced itself, never with an empty `hello`. Before `hello_ack`,
 `WsClient.request` answers `null` without sending anything.
@@ -101,6 +102,7 @@ the message is ignored (`EditorRequest.parse` returns `null`).
 | `nexo_glyphs_list` / `nexo_glyph_read` | `nexo_glyphs_list_result` / `nexo_glyph_read_result` | Nexo glyphs read from `plugins/Nexo/glyphs/` (no Nexo API); `{glyphs:[{id, texture, available}]}` then `{content_base64}`. |
 | `custom_items_request` | `custom_items_bundle` | No `request_id`. The server answers `{hash, data}`, `data = base64(gzip(zip))`, catalog in `items.json`. |
 | `resource_pack_updated` | — | `{url, hash}`: the pack the hub just received for this server, served under `/resource-pack/<sha1>.zip` by the hub and, when `web.pack-cdn` took it, by the pack host, whose address `url` then is. The server applies it (`ResourcePackManager`): delegated to its pack plugin (Nexo, Oraxen, ItemsAdder; `resource-pack.delegate-to-dir`), which sends it, or else added by Artisan to each player's pack stack (`resource-pack.enabled`), players downloading it from `url`. A leaf downloads it through the hub address it knows (`web.hub`). |
+| `bedrock_pack_updated` | — | `{url, hash}` (`1.5`): the Bedrock pack the editor built for this server (`editor/src/lib/pack/bedrock/`), served under `/bedrock-pack/<sha1>.mcpack`. The server downloads it into `cache/bedrock-pack/` (`BedrockPackManager`); with Geyser on this server, each Bedrock player receives it when they connect (`GeyserIntegration`). |
 
 ### Server → hub (announcements and requests)
 
@@ -174,7 +176,7 @@ without a handler does not compile.
 | `ServerQueries` | `paper` | `online_players_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `editor_bundle_fetch`, `data_source_fetch`, `server_config_write`, `nexo_glyph*` |
 | `TemplateRequests` | `core` | `template_fetch`, `template_copy`, `project_origins_fetch` (disk: `TemplateCopies`, `ProjectOrigins`) |
 | `DocumentChecks` | `core` | `documents_check` (no writes: `DocumentCheck` on a temporary copy) |
-| `SyncedMenuProvider` | `paper` | `hello_ack`, `resource_pack_updated`, `session_replaced`, `custom_items_request` |
+| `SyncedMenuProvider` | `paper` | `hello_ack`, `resource_pack_updated`, `bedrock_pack_updated`, `session_replaced`, `custom_items_request` |
 
 The `core` handlers see Projects only through `ProjectWorkspace` (snapshot,
 disk executor, `reload(projectIds)` which only re-reads the named Projects: each write

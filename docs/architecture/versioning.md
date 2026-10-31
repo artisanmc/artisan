@@ -275,7 +275,9 @@ The risk remains: hub and leaves are distinct jars, updated at different times.
   `1.3` (`TEMPLATES`) adds `templates` to `installed_modules`, `template_fetch`, `template_copy` and
   `project_origins_fetch`; an older leaf gets 501 on these three routes. `1.4`
   (`DOCUMENT_CHECKS`) adds `documents_check` (ADR `mcp-server`); the MCP tool `write_document`
-  refuses to write into a draft of a Project whose server is older.
+  refuses to write into a draft of a Project whose server is older. `1.5` (`BEDROCK_PACK`) adds
+  `bedrock_pack` to `hello_ack` and `bedrock_pack_updated`, which the hub keeps for the next
+  `hello_ack` of an older leaf.
 - **One release = one number** for all jars; update hub and leaves together.
 
 The server that hosts the hub talks to it in process (`LocalServerLink`): never a version gap.

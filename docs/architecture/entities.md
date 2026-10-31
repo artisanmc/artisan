@@ -27,6 +27,7 @@ The old cloud model (45 tables, 66 Drizzle migrations) is recoverable at commit 
 | **Login link** | Single-use token | Hub memory, 60 s, one per player per minute. |
 | **Editor preferences** | Player UUID | Hub disk: `plugins/Artisan/editor-prefs/<uuid>.json` (`PlayerPrefs`): language, theme, guided tour progress. Atomic write, known keys only. |
 | **Resource pack** | SHA-1 of the zip | Hub disk: `plugins/Artisan/cache/resource-pack/<sha1>.zip` (`PackStore`, last three, one pack per server built by the editor). The hub also builds each server's pack itself after that server's `projects_reloaded` (`PackBuilder`, `plugin/pack`, Pro only), from what the server loaded in the suite database, module images included (`pack_images` of the loaded state); **shadow mode**: it compares with the editor's upload (WARNING when they differ) and applies nothing yet. Copied to Artisan's pack host when `web.pack-cdn` is set (`PackCdn`, ADR `pack-host`): `packs/<sha1>.zip` in R2, kept while the hub touches it (startup, daily). Last applied pack: `cache/resource-pack.json` on each server. |
+| **Bedrock pack** | SHA-1 of the mcpack | Hub disk: `cache/bedrock-pack-store/<sha1>.mcpack` (`PackStore`, last three), never on the pack host (Geyser downloads it, not the players). On each server, the current pack: `cache/bedrock-pack/<sha1>.mcpack` (`BedrockPackManager`), which Geyser hands to each Bedrock player when they connect. |
 
 No user: the identity in the editor is the Minecraft player who requested the link,
 their rights are their `artisan.editor.view|edit|publish|config` permissions at the time of the
@@ -45,6 +46,7 @@ request (`artisan.editor` grants them all). Access is given with a permissions p
 | `editor-prefs/<uuid>.json` | A player's editor preferences (`PATCH /api/v1/auth/me`) | The hub. |
 | `cache/minecraft/<version>/` | Vanilla textures extracted from the Mojang client jar (SHA-1 verified) | The hub, at the first texture requested. |
 | `cache/resource-pack/`, `cache/resource-pack.json`, `cache/asset-index.json` | Served packs (hub), last applied pack, asset index | `PackStore`, `ResourcePackManager`, `AssetCatalog`. |
+| `cache/bedrock-pack-store/`, `cache/bedrock-pack/`, `cache/geyser/` | Served Bedrock packs (hub), the server's current Bedrock pack, a copy of the Geyser mapping for a Geyser on the proxy | `PackStore`, `BedrockPackManager`, `GeyserIntegration`. |
 | `database/suite.mv.db` | Default H2 database | The suite's plugins. |
 
 ## The suite database

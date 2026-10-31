@@ -41,6 +41,8 @@ class RemoteServer(
     @Volatile private var customItems: List<Map<String, String>> = emptyList()
     @Volatile var pack: Map<String, String>? = null
         private set
+    @Volatile var bedrockPack: Map<String, String>? = null
+        private set
     private val pending = ConcurrentHashMap<String, CompletableFuture<Map<String, Any?>>>()
 
     override val link = ServerLink(::request)
@@ -61,6 +63,13 @@ class RemoteServer(
         val update = mapOf("url" to (url ?: (publicUrl() + path)), "hash" to hash)
         pack = update
         send(mapOf("type" to "resource_pack_updated") + update)
+    }
+
+    override fun applyBedrockPack(hash: String, path: String) {
+        val update = mapOf("url" to publicUrl() + path, "hash" to hash)
+        bedrockPack = update
+        // A leaf older than the message ignores it; the hello_ack carries it at its next connection.
+        if (ProtocolVersion.minor(protocolVersion) >= ProtocolVersion.BEDROCK_PACK) send(mapOf("type" to "bedrock_pack_updated") + update)
     }
 
     /** A new connection replaces the old one: a restarting server reattaches by itself. */
