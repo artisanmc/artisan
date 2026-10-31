@@ -1,3 +1,4 @@
+import { LocalizedTextField } from "@/components/LocalizedTextField";
 import { EditorHeader } from "@/components/ui/editor-header";
 import { Input } from "@/components/ui/input";
 import { commandNodeAt } from "@/domain/commandNodes";
@@ -16,7 +17,6 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { cx } from "@/lib/cx";
-import { useTextEdit } from "@/lib/useText";
 import { useCommandNodeStore } from "@/state/commandNodeStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerPlayerCommandsStore } from "@/state/serverPlayerCommandsStore";
@@ -96,7 +96,6 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
   const node = commandNodeAt(command, selected) ?? command;
   const sub = node === command ? undefined : selected;
   const words = [command.name, ...wordsTo(command, sub ?? [])];
-  const description = useTextEdit(projectId, node.description);
   const commandScope = useMemo(
     () => ({ kind: "command" as const, commandId: command.id, sub }),
     [command.id, sub],
@@ -104,7 +103,7 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
       <CommandHeader node={node} words={words} />
-      <div className="@container flex-1 overflow-auto px-4 py-4">
+      <div className="@container page-inset-x flex-1 overflow-auto py-[var(--page-pad)]">
         {/* Wide containers (individual view) split into two columns: settings and
             arguments left, the steps right with the room they need. The narrow right
             pane stays stacked. */}
@@ -154,24 +153,23 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
                       })
                     }
                   />
-                  <PropertyField
-                    label={t("command.descriptionLangLabel", { lang: description.lang })}
-                    value={description.isFallback ? "" : description.value}
-                    placeholder={
-                      description.isFallback
-                        ? description.value
-                        : t("command.descriptionPlaceholder")
+                  <LocalizedTextField
+                    projectId={projectId}
+                    lt={node.description}
+                    label={t("command.descriptionName")}
+                    onChange={(lang, value) =>
+                      setCommandDescription({ projectId, commandId: command.id, sub, lang, value })
                     }
-                    multiline
-                    onChange={(v) =>
-                      setCommandDescription({
-                        projectId,
-                        commandId: command.id,
-                        sub,
-                        lang: description.lang,
-                        value: v,
-                      })
-                    }
+                    renderEditor={({ value, fallback, label, onChange }) => (
+                      <textarea
+                        className="textarea min-h-0 rounded-[var(--r-xs)] px-2.5 py-2 text-[13px]"
+                        rows={3}
+                        aria-label={label}
+                        value={value}
+                        placeholder={fallback ?? t("command.descriptionPlaceholder")}
+                        onChange={(e) => onChange(e.target.value)}
+                      />
+                    )}
                   />
                   <AliasesField
                     label={t("command.aliasesLabel")}

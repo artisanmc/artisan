@@ -1,3 +1,4 @@
+import { LocalizedTextField } from "@/components/LocalizedTextField";
 import { MiniMessageField } from "@/components/MiniMessageField";
 import { RevealField } from "@/components/RevealField";
 import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
@@ -28,7 +29,7 @@ import { isEventAction, setEventArgs, useChainEvent } from "@/lib/actions/eventA
 import type { DeclaredAction } from "@/lib/api/declaredActions";
 import type { DeclaredCommand } from "@/lib/api/playerCommands";
 import type { FieldLocation, PlaceholderEntry } from "@/lib/placeholderCatalog";
-import { useGetText, useTextEdit } from "@/lib/useText";
+import { useGetText } from "@/lib/useText";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerPlayerCommandsStore } from "@/state/serverPlayerCommandsStore";
 import { createContext, useContext, useMemo, useState } from "react";
@@ -722,35 +723,41 @@ function TextArgInput({
   onRemove,
 }: { projectId: ProjectId; lt: LText; onRemove?: () => void }) {
   const { t } = useTranslation();
-  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
-  const edit = useTextEdit(projectId, lt);
   const placeholderEntries = useActionEntries();
   return (
     <div>
-      <p className="mb-1 text-[11.5px] text-[var(--text-faint)]">
-        {edit.isFallback
-          ? t("actionEditor.textLangFallback", { lang: edit.lang })
-          : t("actionEditor.textLang", { lang: edit.lang })}
-      </p>
-      <RevealField
-        multiline
-        rows={2}
-        placeholder={t("actionEditor.textPlaceholder")}
-        value={edit.value}
-        onChange={(value) => setI18nValue({ projectId, lt, lang: edit.lang, value })}
-        entries={placeholderEntries}
-        className="min-h-0 rounded-[var(--r-xs)] text-[13px]"
-        facade={<MiniMessageInline source={edit.value} className="mc-text" />}
-        preview={
-          looksLikeMiniMessage(edit.value) ? (
-            <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-              <span className="mr-2 text-[11px] font-medium text-[var(--text-faint)]">
-                {t("menuProperties.preview")}
-              </span>
-              <MiniMessageInline source={edit.value} className="mc-text text-[13px]" />
-            </div>
-          ) : null
-        }
+      <LocalizedTextField
+        projectId={projectId}
+        lt={lt}
+        label={t("actionEditor.textName")}
+        renderEditor={({ value, fallback, label, onChange }) => (
+          <RevealField
+            multiline
+            rows={2}
+            aria-label={label}
+            placeholder={fallback ?? t("actionEditor.textPlaceholder")}
+            value={value}
+            onChange={onChange}
+            entries={placeholderEntries}
+            className="min-h-0 rounded-[var(--r-xs)] text-[13px]"
+            facade={
+              <MiniMessageInline
+                source={value || fallback || ""}
+                className={value ? "mc-text" : "mc-text opacity-50"}
+              />
+            }
+            preview={
+              looksLikeMiniMessage(value) ? (
+                <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
+                  <span className="mr-2 text-[11px] font-medium text-[var(--text-faint)]">
+                    {t("menuProperties.preview")}
+                  </span>
+                  <MiniMessageInline source={value} className="mc-text text-[13px]" />
+                </div>
+              ) : null
+            }
+          />
+        )}
       />
       {onRemove ? (
         <button

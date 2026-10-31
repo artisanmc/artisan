@@ -1,3 +1,4 @@
+import { documentKindsGeneration } from "@/domain/documentKinds";
 import type { Project, ProjectId } from "@/domain/types";
 import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { type FailedDocument, listServerProjects, readProjectFiles } from "@/lib/api/projectFiles";
@@ -30,6 +31,8 @@ interface Cached {
   hash: string;
   project: Project;
   read: IndexedRead;
+  /** The Document kinds `project` was read with (`documentKindsGeneration`). */
+  kinds: number;
 }
 
 const cache = new Map<string, Cached>();
@@ -64,19 +67,29 @@ export async function loadServerProjects(args: {
       try {
         const read = await readProjectFiles({ serverId, diskId }, known?.hash);
         if (!read.ok) return { diskId, project: null };
+        const kinds = documentKindsGeneration();
+        const parse = (files: Record<string, string>): Project => {
+          const canonical: Record<string, string> = {};
+          for (const [rel, content] of Object.entries(files)) {
+            canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
+          }
+          return projectFromFiles(summary.id as ProjectId, canonical, {
+            name: summary.name,
+            diskId,
+            serverKeyId: summary.serverKeyId ?? undefined,
+          });
+        };
         if (read.unchanged) {
-          if (known) return { diskId, project: known.project, read: known.read };
-          return { diskId, project: null };
+          if (!known) return { diskId, project: null };
+          // A module's kind registered since the last read: its Documents were skipped
+          // then. The files did not move, read them again with every kind.
+          if (known.kinds !== kinds) {
+            known.project = parse(known.read.files);
+            known.kinds = kinds;
+          }
+          return { diskId, project: known.project, read: known.read };
         }
-        const canonical: Record<string, string> = {};
-        for (const [rel, content] of Object.entries(read.files)) {
-          canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
-        }
-        const project = projectFromFiles(summary.id as ProjectId, canonical, {
-          name: summary.name,
-          diskId,
-          serverKeyId: summary.serverKeyId ?? undefined,
-        });
+        const project = parse(read.files);
         const raw: IndexedRead | undefined = read.hash
           ? {
               summary,
@@ -86,7 +99,7 @@ export async function loadServerProjects(args: {
               hash: read.hash,
             }
           : undefined;
-        if (raw) cache.set(key, { hash: raw.hash, project, read: raw });
+        if (raw) cache.set(key, { hash: raw.hash, project, read: raw, kinds });
         return { diskId, project, read: raw };
       } catch {
         return { diskId, project: null };

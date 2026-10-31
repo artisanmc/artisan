@@ -1,6 +1,7 @@
 import { RevealField } from "@/components/RevealField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LocalizedField } from "@/components/ui/localized-field";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { assetPreviewUrl } from "@/domain/asset";
 import { CAPTURED_ITEM_REF_PREFIX, resolveDisplayRef } from "@/domain/capturedItems";
@@ -15,7 +16,7 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { ItemEditor } from "@/features/canvas/ItemEditor";
+import { ItemEditor, type ItemTranslations } from "@/features/canvas/ItemEditor";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { droppableProps } from "@/features/canvas/dragPayload";
 import { ItemBindingEditor } from "@/features/canvas/item/ItemBindingEditor";
@@ -24,6 +25,7 @@ import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { listLanguages } from "@/lib/i18nUsages";
 import { lookupPath } from "@/lib/placeholders";
 import { useGetText } from "@/lib/useText";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
@@ -309,17 +311,28 @@ function StateCard({
   const loreText = appearance.lore ? getText(appearance.lore) : "";
   const lore = loreText ? loreText.split("\n") : [];
 
-  // Fallback detection: the field shows the defaultLang text when the active
-  // lang has no value — but typing writes the ACTIVE lang. Surface it in the
-  // label so "I replaced the text" edits don't silently land in another lang.
-  const inActiveLang = (lt: { key: I18nKey } | undefined) =>
-    lt && project ? project.i18nKeys[lt.key]?.[activeLang] !== undefined : false;
-  const titleIsFallback = Boolean(
-    appearance.title && title !== "" && !inActiveLang(appearance.title),
-  );
-  const loreIsFallback = Boolean(
-    appearance.lore && loreText !== "" && !inActiveLang(appearance.lore),
-  );
+  // The item dialog edits each language's own text: a missing one shows the default
+  // language's as a placeholder, never as a value a keystroke would copy.
+  const ownText = (lt: { key: I18nKey } | null | undefined, lang: string) =>
+    lt && project ? project.i18nKeys[lt.key]?.[lang] : undefined;
+  const langs = project ? listLanguages(project) : [];
+  const translations: ItemTranslations | undefined = project
+    ? {
+        langs,
+        activeLang,
+        defaultLang: project.defaultLang,
+        title: Object.fromEntries(langs.map((lang) => [lang, ownText(appearance.title, lang)])),
+        lore: Object.fromEntries(langs.map((lang) => [lang, ownText(appearance.lore, lang)])),
+        onText: (field, lang, value) =>
+          (field === "title" ? setAppearanceTitle : setAppearanceLore)({
+            projectId,
+            ...target,
+            appearanceIndex: stateIndex,
+            lang,
+            value,
+          }),
+      }
+    : undefined;
 
   // Placeholder entries — computed once, shared by title and lore fields.
   const placeholderLocation = useMemo(
@@ -542,29 +555,59 @@ function StateCard({
               useProjectsStore.getState().setElementPositions({ projectId, ...target, positions })
             }
           >
-            {/* biome-ignore lint/a11y/noLabelWithoutControl: RevealField renders a labelable <button> facade (then an input) inside this label; Biome cannot see through the component */}
-            <label className="field-label">
-              {t("flow.titleLabel", { lang: activeLang })}
-              <RevealField
-                value={title}
-                onChange={updateTitle}
-                entries={placeholderEntries}
-                className="input w-full"
-                facade={<MiniMessageInline source={title || t("flow.titlePlaceholder")} />}
+            {translations && (
+              <LocalizedField
+                label={t("flow.titleName")}
+                langs={translations.langs}
+                activeLang={translations.activeLang}
+                defaultLang={translations.defaultLang}
+                values={translations.title}
+                onChange={(lang, value) => translations.onText("title", lang, value)}
+                renderEditor={({ value, fallback, label, onChange }) => (
+                  <RevealField
+                    value={value}
+                    onChange={onChange}
+                    aria-label={label}
+                    entries={placeholderEntries}
+                    placeholder={fallback}
+                    className="input w-full"
+                    facade={
+                      <MiniMessageInline
+                        source={value || fallback || t("flow.titlePlaceholder")}
+                        className={value ? undefined : "opacity-50"}
+                      />
+                    }
+                  />
+                )}
               />
-            </label>
-            {/* biome-ignore lint/a11y/noLabelWithoutControl: RevealField renders a labelable <button> facade (then an input) inside this label; Biome cannot see through the component */}
-            <label className="field-label">
-              {t("flow.loreLabel", { lang: activeLang })}
-              <RevealField
-                value={loreText}
-                onChange={updateLore}
-                entries={placeholderEntries}
-                multiline
-                className="input w-full"
-                facade={<MiniMessageInline source={loreText || t("flow.lorePlaceholder")} />}
+            )}
+            {translations && (
+              <LocalizedField
+                label={t("flow.loreName")}
+                langs={translations.langs}
+                activeLang={translations.activeLang}
+                defaultLang={translations.defaultLang}
+                values={translations.lore}
+                onChange={(lang, value) => translations.onText("lore", lang, value)}
+                renderEditor={({ value, fallback, label, onChange }) => (
+                  <RevealField
+                    value={value}
+                    onChange={onChange}
+                    aria-label={label}
+                    entries={placeholderEntries}
+                    multiline
+                    placeholder={fallback}
+                    className="input w-full"
+                    facade={
+                      <MiniMessageInline
+                        source={value || fallback || t("flow.lorePlaceholder")}
+                        className={value ? undefined : "opacity-50"}
+                      />
+                    }
+                  />
+                )}
               />
-            </label>
+            )}
           </ImageButtonEditor>
           {project && !appearance.image && (
             <ItemEditor
@@ -622,16 +665,13 @@ function StateCard({
               preview={previewItem(appearance, lorePreviewCtx, project, activeLang)}
               previewScope={lorePreviewCtx}
               previewFor={(ctx) => previewItem(appearance, ctx, project, activeLang)}
-              title={appearance.title ? title : undefined}
-              lore={appearance.lore ? loreText : undefined}
+              title={appearance.title ? (ownText(appearance.title, activeLang) ?? "") : undefined}
+              lore={appearance.lore ? (ownText(appearance.lore, activeLang) ?? "") : undefined}
+              translations={translations}
               loreMode={appearance.loreMode}
               onLoreMode={(mode) => update("loreMode", mode)}
-              titleLabel={t(titleIsFallback ? "flow.titleLabelFallback" : "flow.titleLabel", {
-                lang: activeLang,
-              })}
-              loreLabel={t(loreIsFallback ? "flow.loreLabelFallback" : "flow.loreLabel", {
-                lang: activeLang,
-              })}
+              titleLabel={t("flow.titleName")}
+              loreLabel={t("flow.loreName")}
               entries={placeholderEntries}
               onFocus={() => setSub({ kind: "state", stateIndex })}
               onText={(field, value) => {

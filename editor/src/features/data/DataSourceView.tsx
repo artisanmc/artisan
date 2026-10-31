@@ -69,7 +69,7 @@ export function DataSourceView({
           </kbd>
         </button>
       </div>
-      <main className="card flex min-h-0 flex-1 flex-col overflow-auto p-6 md:p-8">
+      <main className="card flex min-h-0 flex-1 flex-col overflow-auto p-[var(--page-pad)]">
         {project && screen ? (
           <ProjectScreenForm project={project} screen={screen} />
         ) : project && source && editable ? (

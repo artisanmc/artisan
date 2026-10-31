@@ -67,7 +67,7 @@ class AnthropicProvider(private val config: AiConfig) : AiProvider {
                 .model(config.model)
                 .maxTokens(MAX_TOKENS)
                 .system(system)
-                .tools(declared.map { com.anthropic.models.messages.ToolUnion.ofTool(it) })
+                .apply { if (declared.isNotEmpty()) tools(declared.map { com.anthropic.models.messages.ToolUnion.ofTool(it) }) }
                 .messages(history.toList())
                 // Caches tools + system + history up to the last message: each step rereads them.
                 .cacheControl(CacheControlEphemeral.builder().build())

@@ -24,23 +24,32 @@ import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { AssistantButton } from "@/features/project/assistant/AssistantButton";
 import { useOpenProjectSettings } from "@/features/project/projectSettings";
 import { SaveControls } from "@/features/project/publish/SaveControls";
-import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
+import { useChildPageOpen, useGoToWorkspaceTab } from "@/features/project/useGoToWorkspaceTab";
+import {
+  WORKSPACE_VIEW_TABS,
+  type WorkspaceViewTab,
+  effectiveTab,
+} from "@/features/project/workspaceTabs";
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
+import { isTypingTarget } from "@/lib/keyboard";
+import { useDocumentTrailStore } from "@/state/documentTrailStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useUiStore } from "@/state/uiStore";
-import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { Link, useParams, useSearch } from "@tanstack/react-router";
 import {
   Gamepad2,
   History as HistoryIcon,
+  House,
   Images,
   Languages as LanguagesIcon,
   LayoutDashboard,
   Redo2,
   Undo2,
 } from "lucide-react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
@@ -99,6 +108,7 @@ export function ProjectTopBarControls({
   const { tab } = useSearch({ strict: false }) as { tab?: string };
   const openProjectSettings = useOpenProjectSettings();
   const { serverId: serverRef } = useParams({ strict: false }) as { serverId?: string };
+  const trail = useDocumentTrailStore((s) => s.trail);
 
   // Offline is not a banner: the server badge already shows it in red, and the
   // tooltip gives the exact reason (copy date, draft, never-published).
@@ -121,10 +131,16 @@ export function ProjectTopBarControls({
         data-testid="project-header"
         className="flex min-h-12 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-[var(--r-lg)] bg-[var(--surface)] px-2 py-1 lg:flex-nowrap lg:gap-x-3"
       >
-        <div className="flex min-h-9 min-w-0 basis-full items-center gap-2 pl-11 lg:basis-auto lg:max-w-md lg:pl-0">
+        <div
+          className={cn(
+            "flex min-h-9 min-w-0 basis-full items-center gap-2 pl-11 lg:basis-auto lg:pl-0",
+            trail ? "lg:max-w-2xl" : "lg:max-w-md",
+          )}
+        >
           <ProjectBreadcrumb
             serverRef={serverRef}
             projectName={displayName}
+            trail={trail}
             serverStatus={
               <LinkedServersDropdown
                 currentServerKeyId={project.serverKeyId ?? undefined}
@@ -133,6 +149,18 @@ export function ProjectTopBarControls({
               />
             }
           />
+          {trail?.yaml && (
+            <button
+              type="button"
+              onClick={trail.yaml.toggle}
+              aria-pressed={trail.yaml.on}
+              title={trail.yaml.path}
+              data-testid="document-yaml-toggle"
+              className={cn("btn btn-sm shrink-0", trail.yaml.on ? "btn-outline" : "btn-ghost")}
+            >
+              {t("yamlView.tab")}
+            </button>
+          )}
         </div>
         <div
           data-testid="project-view-navigation"
@@ -142,8 +170,8 @@ export function ProjectTopBarControls({
           <WorkspaceViewNav project={currentProject} />
         </div>
         <div data-testid="project-editing-tools" className="flex shrink-0 items-center gap-1">
-          {(!tab || tab === "overview") && <UndoRedoButtons />}
-          {(!tab || tab === "overview" || tab === "translations") && (
+          {(!tab || tab === "board") && <UndoRedoButtons />}
+          {(!tab || tab === "board" || tab === "translations") && (
             <LangSwitcher project={currentProject} />
           )}
         </div>
@@ -204,14 +232,15 @@ export function ProjectTopBarControls({
 /**
  * Segmented view switcher on the LEFT of the topbar. Each entry navigates via
  * `?tab=` (deep links / back-button keep working) and the active one is
- * highlighted — Canvas (`overview`) is first so returning to the board is one
- * click. Selecting a secondary view REPLACES the canvas in the center region
+ * highlighted — Home (the module's entry view) first, then Canvas (`board`).
+ * Selecting a secondary view REPLACES the canvas in the center region
  * (see WorkspaceView). The missing-translations badge rides on the
  * Translations entry. Order (and thus the hotbar digit shortcut) comes from
  * WORKSPACE_VIEW_TABS — see useWorkspaceTabShortcuts.
  */
 const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof LanguagesIcon }> = {
-  overview: { labelKey: "project.tabs.canvas", Icon: LayoutDashboard },
+  home: { labelKey: "project.tabs.home", Icon: House },
+  board: { labelKey: "project.tabs.canvas", Icon: LayoutDashboard },
   translations: { labelKey: "project.tabs.translations", Icon: LanguagesIcon },
   resources: { labelKey: "project.tabs.resources", Icon: Images },
   history: { labelKey: "project.tabs.history", Icon: HistoryIcon },
@@ -220,19 +249,13 @@ const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof Langua
 function WorkspaceViewNav({ project }: { project: Project }) {
   const runtime = useProjectRuntime(project.id);
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const activeLang = useUiStore((s) => s.activeLang);
   const missing = countMissingForLang(project, activeLang);
   const search = useSearch({ strict: false }) as { tab?: WorkspaceViewTab };
   const tourActive = useTourPresentation((s) => s.step !== null);
-  const active: WorkspaceViewTab = tourActive ? "overview" : (search.tab ?? "overview");
-  // `overview` clears the param (canvas is the default view); the rest set it.
-  const go = (tab: WorkspaceViewTab) =>
-    navigate({
-      to: ".",
-      search: (prev) =>
-        ({ ...(prev as object), tab: tab === "overview" ? undefined : tab }) as never,
-    });
+  const childOpen = useChildPageOpen();
+  const active: WorkspaceViewTab = tourActive ? "board" : effectiveTab(search.tab, childOpen);
+  const go = useGoToWorkspaceTab();
   // Versions only exist for a server Project.
   const views = WORKSPACE_VIEW_TABS.filter((tab) => tab !== "history" || !!runtime?.serverId).map(
     (tab) => ({
@@ -377,11 +400,34 @@ function LangSwitcher({ project }: { project: Project }) {
 }
 
 /**
+ * ⌘Z, and ⌘⇧Z or ⌘Y, wherever the undo buttons show: the board and every Document's page,
+ * a module's included (its HUD composer, its forms). In a text field the browser undoes the
+ * typing instead.
+ */
+export function useUndoShortcuts(): void {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || isTypingTarget(e.target)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        useProjectsStore.temporal.getState().undo();
+      } else if ((key === "z" && e.shiftKey) || key === "y") {
+        e.preventDefault();
+        useProjectsStore.temporal.getState().redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+}
+
+/**
  * Top-bar undo/redo. Subscribes to zundo's temporal store so the buttons
- * disable when there's nothing to undo/redo. Keyboard shortcuts (⌘Z /
- * ⌘⇧Z / ⌘Y) are wired separately in `useCanvasKeyboard`.
+ * disable when there's nothing to undo/redo, and owns their shortcuts (`useUndoShortcuts`).
  */
 function UndoRedoButtons() {
+  useUndoShortcuts();
   const canUndo = useStore(useProjectsStore.temporal, (s) => s.pastStates.length > 0);
   const canRedo = useStore(useProjectsStore.temporal, (s) => s.futureStates.length > 0);
   const undo = () => useProjectsStore.temporal.getState().undo();

@@ -119,6 +119,7 @@ class SuiteProjectData(
                 "files" to files.toSortedMap().map { (path, content) -> mapOf("path" to path, "content" to content) },
                 "failed" to project.failed.map { it.toMap() },
                 "binaries" to version.binaries.map { mapOf("path" to it.path, "hash" to it.hash, "size" to it.size) },
+                "pack_images" to project.packImages.map { it.toMap() },
             )
         }
 

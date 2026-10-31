@@ -3,6 +3,8 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import type { I18nKey, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { missingTexts, translateMissing } from "@/lib/aiTranslate";
+import { ApiError } from "@/lib/api/client";
 import { copyText } from "@/lib/clipboard";
 import {
   type TranslationRow,
@@ -12,9 +14,18 @@ import {
   listLanguages,
 } from "@/lib/i18nUsages";
 import { flattenLangTree } from "@/lib/langTree";
+import { useAiStatus } from "@/state/aiStatus";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
-import { AlertCircle, ArrowDown, Check, Copy as CopyIcon, Plus, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowDown,
+  Check,
+  Copy as CopyIcon,
+  Plus,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -88,6 +99,8 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
 
   const [mode, setMode] = useState<Mode>("visual");
   const [filter, setFilter] = useState<Filter>("missing");
+  const ai = useAiStatus();
+  const [translating, setTranslating] = useState(false);
 
   if (!project) return null;
   const isOnDefault = activeLang === project.defaultLang;
@@ -104,6 +117,46 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
   const onRemoveUnused = () => {
     removeUnusedI18nKeys({ projectId });
     toast.success(t("translations.removedUnused", { count: unusedCount }));
+  };
+
+  const missingEverywhere = Object.values(missingByLang).reduce((n, c) => n + c, 0);
+
+  // Every missing translation of the module, every language, on the assistant's model.
+  const onTranslateMissing = async () => {
+    const contexts = new Map(rows.map((r) => [r.key as string, r.context]));
+    const texts = missingTexts(project, undefined, (key) => contexts.get(key));
+    const progress = toast.loading(
+      t("translations.aiTranslating", { done: 0, total: texts.length }),
+    );
+    setTranslating(true);
+    try {
+      const outcome = await translateMissing(
+        texts,
+        project.defaultLang,
+        (key, lang, value) => setI18nValue({ projectId, lt: { key: key as I18nKey }, lang, value }),
+        {
+          module: projectId,
+          onProgress: (done, total) =>
+            toast.loading(t("translations.aiTranslating", { done, total }), { id: progress }),
+        },
+      );
+      if (outcome.failed > 0)
+        toast.warning(
+          t("translations.aiTranslatedPartly", { count: outcome.written, failed: outcome.failed }),
+          { id: progress },
+        );
+      else
+        toast.success(t("translations.aiTranslated", { count: outcome.written }), { id: progress });
+    } catch (e) {
+      toast.error(
+        t(`ai.errors.${e instanceof ApiError ? e.code : "network_error"}`, {
+          defaultValue: t("ai.errors.unknown"),
+        }),
+        { id: progress },
+      );
+    } finally {
+      setTranslating(false);
+    }
   };
 
   const onAddLang = () => {
@@ -180,12 +233,25 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
               <span className="text-[var(--success)]">· {t("translations.statComplete")}</span>
             )}
           </div>
+          <span className="flex-1" />
+          {ai?.canUse && missingEverywhere > 0 ? (
+            <button
+              type="button"
+              onClick={() => void onTranslateMissing()}
+              disabled={translating}
+              title={t("translations.aiTranslateHint")}
+              className="btn btn-ghost btn-sm shrink-0"
+            >
+              <Sparkles className="h-3 w-3" aria-hidden />
+              {t("translations.aiTranslate", { count: missingEverywhere })}
+            </button>
+          ) : null}
           {unusedCount > 0 ? (
             <button
               type="button"
               onClick={onRemoveUnused}
               title={t("translations.removeUnusedHint")}
-              className="ml-auto flex shrink-0 items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+              className="flex shrink-0 items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
             >
               <Trash2 className="h-3 w-3" />
               {t("translations.removeUnused", { count: unusedCount })}

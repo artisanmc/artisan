@@ -93,7 +93,12 @@ test("an image wider than 256 px is cut into slices of 256 columns", () => {
   ).toBe(true);
   expect(decodePng(entries[`assets/artisan/textures/${key}_0.png`]!).width).toBe(256);
   expect(decodePng(entries[`assets/artisan/textures/${key}_1.png`]!).width).toBe(44);
-  expect(index.assets[key]).toMatchObject({ width: 300, height: 100, slices: [256, 40] });
+  expect(index.assets[key]).toMatchObject({
+    width: 300,
+    height: 100,
+    slices: [256, 40],
+    imageHeight: 100,
+  });
 });
 
 test("an image taller than 256 px, or unknown, adds nothing", () => {
@@ -103,4 +108,108 @@ test("an image taller than 256 px, or unknown, adds nothing", () => {
   expect(
     build({}, "missing", 0).index.assets[overlayImageKey({ asset: "missing", rise: 0 })],
   ).toBeUndefined();
+});
+
+test("a kind reads another file of the project, and may place an image by its bottom", () => {
+  const mode = {
+    kind: "mode",
+    dir: "modes",
+    pack: {
+      images: (src: Record<string, unknown>, context: { file(path: string): unknown }) => {
+        const speakers = context.file("data/speakers.yml") as
+          | { speakers?: Record<string, { portrait?: string }> }
+          | undefined;
+        const bottom = src.bottom as number;
+        return Object.values(speakers?.speakers ?? {}).flatMap((s) =>
+          s.portrait ? [{ asset: s.portrait, bottom }] : [],
+        );
+      },
+    },
+  } as unknown as DocumentKindContribution;
+  const images = overlayImagesFromFiles(
+    [
+      { path: "modes/tavern.yaml", content: "bottom: 8" },
+      { path: "modes/castle.yaml", content: "bottom: 2.5" },
+      {
+        path: "data/speakers.yml",
+        content: "speakers: { marthe: { portrait: marthe }, garde: {} }",
+      },
+    ],
+    [mode],
+  );
+  expect(images).toEqual([{ asset: "marthe", bottom: 8 }]);
+});
+
+test("a kind lists the files of a folder, each by its id", () => {
+  const mode = {
+    kind: "mode",
+    dir: "modes",
+    pack: {
+      images: (
+        src: Record<string, unknown>,
+        context: { files(dir: string): { id: string; value: unknown }[] },
+      ) =>
+        context.files("speakers").flatMap(({ value }) => {
+          const portrait = (value as { portrait?: string } | undefined)?.portrait;
+          return portrait ? [{ asset: portrait, bottom: src.bottom as number }] : [];
+        }),
+    },
+  } as unknown as DocumentKindContribution;
+  const images = overlayImagesFromFiles(
+    [
+      { path: "modes/tavern.yml", content: "bottom: 8" },
+      { path: "speakers/marthe.yml", content: "portrait: marthe" },
+      { path: "speakers/garde.yml", content: "name: Garde" },
+      { path: "speakers/old/bruno.yml", content: "portrait: bruno" },
+      { path: "data/speakers.yml", content: "portrait: nobody" },
+    ],
+    [mode],
+  );
+  expect(images).toEqual([{ asset: "marthe", bottom: 8 }]);
+});
+
+test("an image placed by its bottom rises by its height, once per resolved rise", () => {
+  const built = buildResourcePackZip(
+    [],
+    new Map([["marthe", encodePng(opaque(56, 72))]]),
+    new Map(),
+    undefined,
+    [],
+    [],
+    undefined,
+    undefined,
+    [
+      { asset: "marthe", bottom: 8 },
+      { asset: "marthe", rise: 64 },
+      { asset: "marthe", bottom: -100 },
+    ],
+  );
+  const entries = unzipSync(built.zipBytes);
+  const index = JSON.parse(strFromU8(entries["assets/artisan/asset-index.json"]!)) as AssetIndex;
+  // 72 − 8 = 64, the same font as the explicit rise; 72 + 100 = 172 is out of reach.
+  expect(Object.keys(index.assets)).toEqual([overlayImageKey({ asset: "marthe", rise: 64 })]);
+  expect(index.assets[overlayImageKey({ asset: "marthe", rise: 64 })]).toMatchObject({
+    imageHeight: 72,
+  });
+});
+
+test("files ask in path order, whatever the kinds' order: the server's order (PackImageRequests.kt)", () => {
+  const boxes = {
+    kind: "box",
+    dir: "boxes",
+    pack: { images: (src: Record<string, unknown>) => [{ asset: `box_${src.id}`, bottom: -3 }] },
+  } as unknown as DocumentKindContribution;
+  const images = overlayImagesFromFiles(
+    [
+      { path: "themes/b.yml", content: "hud: { box: b, rise: 4 }" },
+      { path: "boxes/z.yml", content: "schema: box/v1" },
+      { path: "themes/a.yaml", content: "hud: { box: a, rise: 2 }" },
+    ],
+    [theme, boxes],
+  );
+  expect(images).toEqual([
+    { asset: "box_z", bottom: -3 },
+    { asset: "a", rise: 2 },
+    { asset: "b", rise: 4 },
+  ]);
 });

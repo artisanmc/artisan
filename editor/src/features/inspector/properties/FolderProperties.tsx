@@ -57,7 +57,7 @@ export function FolderProperties({ project, path }: { project: Project; path: st
           </span>
         }
       />
-      <div className="flex flex-col gap-4 p-3">
+      <div className="flex flex-col gap-4 p-[var(--page-pad)]">
         <div>
           <label className="field-label" htmlFor="folder-name">
             {t("folders.name")}

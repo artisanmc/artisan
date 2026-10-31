@@ -190,6 +190,79 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > keeps a chat fallback.
 > The images reach the pack once the module's editor bundle is loaded in the editor that builds it.
 
+> **HUD layouts (since 2026-10-30, API 2.21.0)** — rather than placing each piece with `move` and
+> `raise`, a module can keep its HUD as an `OverlayLayout`, a YAML list of layers drawn in order:
+> `image` (a fixed asset), `image_slot` (an asset the module names when it draws, `anchor: top|bottom`,
+> `default: <asset>` drawn when it names none),
+> `text` (`width`, `lines`, `row`, `align`) and `list` (rows with one selected, `cursor: {image, x, y}`).
+> Positions are GUI px from the slot's origin, x from the centre, y downwards from the top of the slot's
+> text (-128..166). `OverlayLayout.read(yaml)` keeps the right layers and reports the others
+> (`Problem(path, code, detail)`); each frame, `api.getOverlay().compose(layout, content)` fills the named
+> layers from an `OverlayContent` and returns the MiniMessage to `show`, plus the images the pack lacks.
+> Rows come already cut to the layer's width (`width(text)`). The fixed images a layout needs in the pack
+> are `layout.getPackImages()` (each `image` at `rise = -y`, a cursor at every row of its list, a slot's
+> `default`, by its bottom when anchored there: `PackImage.rise()` or `bottom()`); the other images of an
+> `image_slot` are the module's (`OverlayLayout.slotPackImage(slot, asset, dy)`). The module may move a
+> slot's image from its place, `OverlayContent.Builder.image(slot, asset, x, y)` (a speaker's own
+> adjustment of its portrait); a moved y is another height in the pack. The editor reads the same
+> format with the same geometry (`testdata/overlay-layout-conformance.json`).
+
+> **Composing a HUD with the mouse (since 2026-10-30, SDK 1.16)** — `OverlayComposer` (host component)
+> edits a layout on the game's screen: `value` is the YAML list, `onChange(next)` gets the whole list
+> back. A layer is dragged to move it, a text's or a list's handles resize its width and lines, the
+> arrow keys nudge the selected one (Shift: 10 px); the layers are listed beside in drawing order
+> (reordered by their handle, hidden for a moment by their eye), the selected one's numbers, images and
+> options on the other side. `slots` declares the named layers the module fills
+> (`{name, kind: "text" | "list" | "image_slot", label}`): each one not placed yet has its "add" button,
+> and `preview` fills them for the screen (`text`, `lists`, `images`). An entry it cannot read is listed
+> with its problems and written back untouched, and an entry's keys it does not own are kept. The TS
+> reading and geometry are exported for a module's own previews: `readOverlayLayout`,
+> `writeOverlayLayer`, `overlayPlan`, `overlayPackImages`, `overlaySlotRise`, `overlaySlotPackImage`,
+> `overlaySlotFill`, `overlayLayerBox`,
+> locked by the same vector as the plugin. `AssetInput` picks a Project's image by its name (thumbnail,
+> size, the editor's image picker). For an `image_slot` drawn by its bottom, `pack.images(src, ctx)` can
+> return `{asset, bottom}` instead of `{asset, rise}`: the builder reads the image's height and draws it
+> at `rise = height - bottom`. `ctx.file(path)` gives the parsed YAML of another file of the project
+> (`data/speakers.yml`), undefined when it is missing or unreadable; `ctx.files(dir)` the YAML files
+> directly in a folder, `{id, value}` each (a mode asks for the portraits of every speaker file).
+> The editor calls `pack.images` on the files in path order, each through the kind of its folder.
+> `OverlaySlotsComposer` (host component) opens only a layout's image slots: the layout (`layout`) is
+> drawn but fixed, each `image_slot` gets an image by its thumbnail and an offset from its place by
+> dragging it, back to the slot's place in one click. `value`/`onChange` is the module's map, by slot,
+> `{image, x?, y?}`: an offset, not a position, so a slot moved in the layout keeps every adjustment.
+> `useOpenDocument()` returns a function that opens a Document's page (`{projectId, kind, id}`). A
+> 1.15 bundle still loads.
+
+> **Pack images on the server (since 2026-10-31, API 2.22.0, `@Beta`)** — the hub builds the pack
+> without the editor (`PackBuilder`), so it cannot run a kind's `pack.images`. Its Java twin goes on the
+> kind declaration: `new DocumentKindDeclaration(...).withPackImages((doc, ctx) -> ...)`, a
+> `PackImagesProvider` that receives the file's YAML as `ProjectContentApi.documents` reads it, with
+> `id` set, and the same context (`ctx.file(path)`, `ctx.files(dir)` → `DirFile(id, value)`, in path
+> order). It returns `OverlayLayout.PackImage`s (`getPackImages()`, `slotPackImage(...)`). The server
+> calls it at each load, off the main thread, file by file in path order (`PackImageRequests`), and
+> records the answers in its loaded state (`pack_images`); a throw costs that file its images and logs
+> a warning. It must give what the editor kind gives for the same file, in the same order, or the two
+> packs differ: lock both with a shared vector. A kind without the twin has no images in the hub's
+> pack.
+
+> **Translatable fields (since 2026-10-31, SDK 1.17)** — `LocalizedField` (host component) is the
+> editor's translatable text: `values` = `textValues(project, key)` (each language's own text, no
+> fallback), `langs` = `projectLangs(project)`, `activeLang` = `useContentLang()`, `onChange(lang,
+> value)` writes through `updateDocument` with `texts`, `renderEditor` draws one language's control
+> (`{lang, value, fallback, label, onChange}`). Folded it edits the active language with the default
+> language's text as a placeholder; its translations toggle unfolds every language, counts the
+> missing ones and offers to take the reference text as is. A module's text field uses it so that its
+> translations behave like Artisan's. A 1.16 bundle still loads.
+
+> **Home section (since 2026-10-31, SDK 1.18)** — `home: ComponentType<ModuleHomeProps>` is the
+> module's own section of its Home (the view a module opens on), shown under the header and above
+> the blocks Artisan builds from what is declared (canvas, lists, settings screens, data sources,
+> commands and actions). `ModuleHomeProps` = `{projectId}`; the section reads the project with
+> `useProject` and opens a Document with `useOpenDocument`. It is for what only the module knows
+> (the problems across its Documents, where to start, a summary), with its own headings, and stays
+> short: the left bar lists the Documents. Shown on the project the module owns; a section that
+> throws is left out and the rest of the Home stays. A 1.17 bundle still loads.
+
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the
@@ -199,7 +272,10 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > **Document kinds (since 2026-10-15, lot 5)** — a module contributes its Document kinds through
 > `documents: DocumentKindContribution[]`: `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
 > `icon?`, `component` (Properties panel view), `ownHeader?` (SDK 1.13: the view draws the
-> Document's header, the host leaves out its own), `title?`, `listByTitle?`, `create`, `parse`,
+> Document's header, the host leaves out its own), `wide?` (SDK 1.15: on the Document's own
+> page the view gets the whole width instead of a centred column; the view pads itself with
+> `var(--page-pad, 12px)`, the host's page margin, and an `ownHeader` view indents its header
+> and body with `.page-inset-x`), `title?`, `listByTitle?`, `create`, `parse`,
 > `serialize`, `ltextSites?`, `chainSlots?`, `board?` (`size`, `summary`, `render` react-konva,
 > non-interactive preview, `items`: selectable rows, SDK 1.2, with `marker` and `hover` in 1.5;
 > `accent`, SDK 1.5). The host installs it at registration (`registerEditorModule`,

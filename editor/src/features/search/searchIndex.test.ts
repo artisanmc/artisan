@@ -1,3 +1,4 @@
+import { registerDocumentKindVisitors } from "@/domain/documentKindVisitors";
 import type { Project, ProjectId } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { buildSearchIndex, groupResultsForDisplay, searchQuery } from "./searchIndex";
@@ -101,6 +102,68 @@ describe("buildSearchIndex", () => {
   });
 });
 
+describe("buildSearchIndex — a module's Documents", () => {
+  // A module kind the host only knows through its visitors: no contribution, so the
+  // Document is labelled by its id.
+  registerDocumentKindVisitors("test_conversation", {
+    ltextSites: (doc: any) =>
+      (doc.pages as { text: { key: string } }[]).map((page, i) => ({
+        lText: page.text as any,
+        key: `conv.${doc.id}.pages.${i}` as any,
+        path: `pages.${i}.text`,
+        kind: "test_conversation.text" as any,
+      })),
+  });
+  const withConversation = (): Project => {
+    const p = project();
+    p.documents.test_conversation = [
+      {
+        id: "merchant",
+        projectId: PID,
+        pages: [
+          { text: { key: "k_hello" } },
+          { text: { key: "k_bye" } },
+          { text: { key: "k_none" } },
+        ],
+      } as any,
+    ];
+    (p.i18nKeys as any).k_hello = { en: "Welcome, traveller" };
+    (p.i18nKeys as any).k_bye = { en: "Farewell" };
+    return p;
+  };
+
+  it("indexes the Document under its kind", () => {
+    const doc = buildSearchIndex(withConversation(), "en").find(
+      (e) => e.group === "test_conversation",
+    );
+    expect(doc?.target).toEqual({ openId: "merchant", kind: "test_conversation" });
+  });
+
+  it("indexes the texts its kind declares, pointing at the Document", () => {
+    const idx = buildSearchIndex(withConversation(), "en");
+    const hello = idx.find((e) => e.label === "Welcome, traveller");
+    expect(hello?.group).toBe("content");
+    expect(hello?.context).toEqual({ key: "search.ctxInDocument", owner: "merchant" });
+    expect(hello?.target).toEqual({ openId: "merchant", kind: "test_conversation" });
+    expect(searchQuery(idx, "farewell").map((e) => e.target.openId)).toEqual(["merchant"]);
+    // An untranslated site adds nothing.
+    expect(idx.filter((e) => e.id.startsWith("text:test_conversation:"))).toHaveLength(2);
+  });
+
+  it("a kind whose walk throws costs its texts, never the index", () => {
+    registerDocumentKindVisitors("test_broken", {
+      ltextSites: () => {
+        throw new Error("boom");
+      },
+    });
+    const p = withConversation();
+    p.documents.test_broken = [{ id: "b1", projectId: PID } as any];
+    const idx = buildSearchIndex(p, "en");
+    expect(idx.some((e) => e.group === "test_broken")).toBe(true);
+    expect(idx.some((e) => e.label === "Farewell")).toBe(true);
+  });
+});
+
 describe("searchQuery", () => {
   it("filters by case-insensitive substring", () => {
     const idx = buildSearchIndex(project(), "en");
@@ -116,6 +179,10 @@ describe("searchQuery", () => {
     const idx = buildSearchIndex(project(), "en");
     const r = searchQuery(idx, "shop");
     expect(r[0]?.group).toBe("menu");
+  });
+  it("a Document is found by its id too", () => {
+    const r = searchQuery(buildSearchIndex(project(), "en"), "d_confirm");
+    expect(r[0]?.target.openId).toBe("d_confirm");
   });
   it("empty query returns []", () => {
     expect(searchQuery(buildSearchIndex(project(), "en"), "  ")).toEqual([]);

@@ -64,7 +64,7 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
       return <EmptyHint label={t("projectPanel.multiSelection")} />;
     case "none":
       return (
-        <div className="h-full overflow-y-auto p-3">
+        <div className="h-full overflow-y-auto p-[var(--page-pad)]">
           <ProjectProperties project={project} />
         </div>
       );
@@ -90,12 +90,25 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
             {!contribution.ownHeader ? (
               <DocumentHeader project={project} kind={kind} doc={doc} />
             ) : null}
-            <View
-              projectId={projectId}
-              documentId={id}
-              document={doc}
-              item={ctx.kind === "document" ? ctx.item : undefined}
-            />
+            {/* A view that draws its own header lays out its page itself; any other one
+                pads itself (`--page-pad`) inside the page's column. */}
+            {contribution.ownHeader ? (
+              <View
+                projectId={projectId}
+                documentId={id}
+                document={doc}
+                item={ctx.kind === "document" ? ctx.item : undefined}
+              />
+            ) : (
+              <div className="page-column">
+                <View
+                  projectId={projectId}
+                  documentId={id}
+                  document={doc}
+                  item={ctx.kind === "document" ? ctx.item : undefined}
+                />
+              </div>
+            )}
           </div>
         );
       }
@@ -117,7 +130,7 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
         return (
           <div className="h-full overflow-y-auto">
             <DocumentHeader project={project} kind={kind} doc={doc} />
-            <div className="p-3">
+            <div className="page-column p-[var(--page-pad)]">
               <MenuProperties projectId={projectId} menu={doc as Menu} />
             </div>
           </div>

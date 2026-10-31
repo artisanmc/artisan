@@ -153,3 +153,35 @@ it("edits the name and lore in rich editors next to the item's in-game tooltip",
   const column = within(dialog).getByTestId("item-preview-column");
   expect(within(column).getByTestId("mc-tooltip")).toBeInTheDocument();
 });
+
+it("gives the name and lore the translations toggle when they are translatable", () => {
+  render(
+    <ItemEditor
+      source={null}
+      title=""
+      titleLabel="Titre"
+      loreLabel="Lore"
+      appearance={{}}
+      inherited={{ lore: [] }}
+      preview={{ material: "STONE", lore: [] }}
+      translations={{
+        langs: ["en", "fr"],
+        activeLang: "fr",
+        defaultLang: "en",
+        title: { en: "Back" },
+        lore: {},
+        onText: vi.fn(),
+      }}
+      onText={vi.fn()}
+      onCount={vi.fn()}
+      onAdvanced={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /modifier l.item/i }));
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).getAllByTestId("localized-field")).toHaveLength(2);
+  expect(within(dialog).getAllByTestId("localized-field-missing")).toHaveLength(1);
+  fireEvent.click(within(dialog).getByRole("button", { name: /1 manquante \(fr\)/i }));
+  expect(within(dialog).getAllByLabelText(/titre · fr/i).length).toBeGreaterThan(0);
+  expect(within(dialog).getAllByLabelText(/titre · en/i).length).toBeGreaterThan(0);
+});

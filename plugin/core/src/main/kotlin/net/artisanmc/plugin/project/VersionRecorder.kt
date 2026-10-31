@@ -4,6 +4,7 @@ import net.artisanmc.plugin.project.LoadedState
 import net.artisanmc.plugin.project.PublicationAuthor
 import net.artisanmc.plugin.project.ContentHash
 import net.artisanmc.plugin.project.ProjectFilesReader
+import net.artisanmc.plugin.model.DocumentKinds
 import java.io.File
 import java.time.Instant
 import java.util.concurrent.Executor
@@ -86,6 +87,14 @@ class VersionRecorder(
         }
     }
 
-    /** The Project list and, per Project, the Snapshot hash, failed files and editor metadata: what the hub serves. */
-    fun loadedState(snapshot: ProjectSnapshot): LoadedState = LoadedState.of(snapshot, roots)
+    /**
+     * The Project list and, per Project, the Snapshot hash, failed files, editor metadata and the
+     * images its Documents ask the pack for: what the hub serves and builds the pack from.
+     */
+    fun loadedState(snapshot: ProjectSnapshot): LoadedState {
+        val providers = DocumentKinds.packImages()
+        return LoadedState.of(snapshot, roots) { files ->
+            PackImageRequests.of(files, providers) { logger.warning("[Artisan] $it") }
+        }
+    }
 }

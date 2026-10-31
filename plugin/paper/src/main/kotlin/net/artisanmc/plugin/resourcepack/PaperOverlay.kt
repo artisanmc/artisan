@@ -55,6 +55,8 @@ class PaperOverlay(
         return mm.serialize(out.build())
     }
 
+    override fun imageHeight(asset: String): Int = catalog()?.overlayImageHeight(asset) ?: -1
+
     override fun hasPack(player: Player): Boolean = packs.hasLoaded(player.uniqueId)
 
     override fun show(player: Player, slot: OverlayApi.Slot, layer: String, priority: Int, miniMessage: String) {

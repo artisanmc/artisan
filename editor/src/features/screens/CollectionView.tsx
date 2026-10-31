@@ -97,7 +97,7 @@ export function CollectionView({ projectId, kind }: { projectId: ProjectId; kind
 
   return (
     <div className="absolute inset-0 overflow-auto" data-testid="collection-page">
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 md:p-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-[var(--page-pad)]">
         <header className="flex flex-wrap items-center gap-3">
           <IconTile icon={look.icon} fg={look.fg} soft={look.soft} line={look.line} size="lg" />
           <div className="min-w-0 flex-1">

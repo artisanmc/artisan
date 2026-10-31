@@ -1,3 +1,4 @@
+import { LocalizedTextField } from "@/components/LocalizedTextField";
 import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
 import { EditorHeader } from "@/components/ui/editor-header";
 import { Input } from "@/components/ui/input";
@@ -6,7 +7,6 @@ import type { Dialog, DialogId, DialogInput, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useGetText } from "@/lib/useText";
 import { useProjectsStore } from "@/state/projectsStore";
-import { useUiStore } from "@/state/uiStore";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionChainEditor } from "../chain/StepTree";
@@ -72,11 +72,9 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
   const addDialogInput = useProjectsStore((s) => s.addDialogInput);
   const removeDialogInput = useProjectsStore((s) => s.removeDialogInput);
   const setDialogInput = useProjectsStore((s) => s.setDialogInput);
-  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
   const addDialogButton = useProjectsStore((s) => s.addDialogButton);
   const removeDialogButton = useProjectsStore((s) => s.removeDialogButton);
   const setDialogButtonLabel = useProjectsStore((s) => s.setDialogButtonLabel);
-  const activeLang = useUiStore((s) => s.activeLang);
   const getText = useGetText(projectId);
 
   const titlePlaceholderLocation = useMemo(
@@ -100,19 +98,26 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
         <span className="font-mono text-[12.5px] text-[var(--text-faint)]">{dialog.id}</span>
       </EditorHeader>
 
-      <div className="flex-1 overflow-auto px-4 py-4">
+      <div className="page-inset-x flex-1 overflow-auto py-[var(--page-pad)]">
         <Lane panel label={t("flow.propertiesLabel")}>
           <DialogIdField projectId={projectId} dialogId={dialog.id} />
-          <div>
-            <div className="field-label !mb-1">{t("dialog.titleLabel", { lang: activeLang })}</div>
-            <PlaceholderInput
-              value={getText(dialog.title)}
-              onChange={(v) =>
-                setDialogTitle({ projectId, dialogId: dialog.id, lang: activeLang, value: v })
-              }
-              entries={titlePlaceholderEntries}
-            />
-          </div>
+          <LocalizedTextField
+            projectId={projectId}
+            lt={dialog.title}
+            label={t("dialog.titleName")}
+            onChange={(lang, value) =>
+              setDialogTitle({ projectId, dialogId: dialog.id, lang, value })
+            }
+            renderEditor={({ value, fallback, label, onChange }) => (
+              <PlaceholderInput
+                value={value}
+                placeholder={fallback}
+                aria-label={label}
+                onChange={onChange}
+                entries={titlePlaceholderEntries}
+              />
+            )}
+          />
           <div className="mt-2 flex items-center gap-2">
             <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--text-mut)]">
               <input
@@ -142,23 +147,24 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                 className="flex items-start gap-1.5 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5"
               >
                 {body.type === "text" ? (
-                  <div className="flex-1">
-                    <FieldLabel>text ({activeLang})</FieldLabel>
-                    <Input
-                      value={getText(body.text)}
-                      placeholder={t("dialog.bodyTextPlaceholder")}
-                      onChange={(e) =>
-                        setDialogBodyText({
-                          projectId,
-                          dialogId: dialog.id,
-                          index: i,
-                          lang: activeLang,
-                          value: e.target.value,
-                        })
-                      }
-                      className="h-8 px-2 py-0 text-xs"
-                    />
-                  </div>
+                  <LocalizedTextField
+                    className="flex-1"
+                    projectId={projectId}
+                    lt={body.text}
+                    label={t("dialog.bodyTextName")}
+                    onChange={(lang, value) =>
+                      setDialogBodyText({ projectId, dialogId: dialog.id, index: i, lang, value })
+                    }
+                    renderEditor={({ value, fallback, label, onChange }) => (
+                      <Input
+                        value={value}
+                        aria-label={label}
+                        placeholder={fallback ?? t("dialog.bodyTextPlaceholder")}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="h-8 px-2 py-0 text-xs"
+                      />
+                    )}
+                  />
                 ) : (
                   <div className="flex flex-1 items-center gap-2">
                     <Input
@@ -244,7 +250,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                 key={i}
                 className="flex flex-col gap-1.5 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5"
               >
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-start gap-1.5">
                   <span className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-mut)]">
                     {input.type}
                   </span>
@@ -261,18 +267,21 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                     }
                     className="h-7 w-28 px-2 py-0 font-mono text-xs"
                   />
-                  <Input
-                    value={getText(input.label)}
-                    placeholder={t("dialog.inputLabelPlaceholder")}
-                    onChange={(e) =>
-                      setI18nValue({
-                        projectId,
-                        lt: input.label,
-                        lang: activeLang,
-                        value: e.target.value,
-                      })
-                    }
-                    className="h-7 flex-1 px-2 py-0 text-xs"
+                  <LocalizedTextField
+                    className="flex-1"
+                    projectId={projectId}
+                    lt={input.label}
+                    label={t("dialog.inputLabelPlaceholder")}
+                    inline
+                    renderEditor={({ value, fallback, label, onChange }) => (
+                      <Input
+                        value={value}
+                        aria-label={label}
+                        placeholder={fallback}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="h-7 px-2 py-0 text-xs"
+                      />
+                    )}
                   />
                   <button
                     type="button"
@@ -402,21 +411,32 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                 key={btn.id}
                 className="rounded-[var(--r-sm)] border border-[var(--border-soft)] bg-[var(--surface)] p-2.5"
               >
-                <div className="mb-2 flex items-center gap-1.5">
+                <div className="mb-2 flex items-start gap-1.5">
                   <span className="font-mono text-[11px] text-[var(--text-faint)]">{btn.id}</span>
-                  <Input
-                    value={getText(btn.label)}
-                    placeholder={t("dialog.buttonLabelPlaceholder")}
-                    onChange={(e) =>
+                  <LocalizedTextField
+                    className="flex-1"
+                    projectId={projectId}
+                    lt={btn.label}
+                    label={t("dialog.buttonLabelPlaceholder")}
+                    inline
+                    onChange={(lang, value) =>
                       setDialogButtonLabel({
                         projectId,
                         dialogId: dialog.id,
                         buttonIndex: btnIndex,
-                        lang: activeLang,
-                        value: e.target.value,
+                        lang,
+                        value,
                       })
                     }
-                    className="h-7 flex-1 px-2 py-0 text-xs"
+                    renderEditor={({ value, fallback, label, onChange }) => (
+                      <Input
+                        value={value}
+                        aria-label={label}
+                        placeholder={fallback}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="h-7 px-2 py-0 text-xs"
+                      />
+                    )}
                   />
                   {dialog.buttons.length > 1 ? (
                     <button

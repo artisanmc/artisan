@@ -20,6 +20,8 @@ class PackRoutes(
     private val cdn: PackCdn? = null,
     private val edition: Edition = Edition.PRO,
     private val bedrock: PackStore? = null,
+    /** Told of each pack the editor uploads ([PackBuilder.editorUploaded], shadow mode). */
+    private val uploaded: (server: String, hash: String) -> Unit = { _, _ -> },
 ) {
     fun register(router: Router) {
         router.on("PUT", "$SERVER/resource-pack", PUBLISH) { call ->
@@ -27,6 +29,7 @@ class PackRoutes(
             val server = servers.of(call) ?: return@on call.error(404, "not_found")
             val zip = receive(call) ?: return@on
             val hash = store.put(zip)
+            uploaded(server.id, hash)
             // The host down or refusing: players download from the hub, as without one.
             val url = cdn?.publish(hash) { zip }
             server.applyResourcePack(hash, store.pathOf(hash), url)

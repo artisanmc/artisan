@@ -64,10 +64,22 @@ Deploy in one rounded surface. The selected view uses a soft capsule background;
 shortcuts remain in tooltips. On smaller screens, labels become icons and groups
 can wrap within the same surface.
 
-Undo/redo appears on Canvas, and the content language on Canvas and
+Undo/redo appears on Home and Canvas, and the content language on Home, Canvas and
 Translations. Elements remains at the far right. Search uses a compact magnifying
 glass. **Refresh from server** lives in the project menu and still asks before
 replacing unsaved work. The arrow beside Deploy offers **Discard changes**.
+
+## Module home
+
+Opening a module shows its **Home**, the first view tab. It sums up the module
+without listing every Document again (the left bar does that): one block for the
+canvas with how many menus, commands and dialogs it holds, one per list the module
+adds (Conversations, a shop's Catalog…) with **New**, one for its settings screens
+and one for its data sources. When the canvas holds menus or dialogs, its block
+comes first with a thumbnail of the canvas; a module whose canvas only holds its
+commands, like Conversations, starts with its lists. **What the module exposes** lists its commands and the
+actions its plugin adds to menus, commands and dialogs. **Open the canvas**, the
+Canvas tab or the `2` key go to the canvas; `1` comes back to Home.
 
 ## Canvas navigation
 

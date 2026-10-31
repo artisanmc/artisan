@@ -73,7 +73,7 @@ export function TriggerEditor({ projectId, trigger }: { projectId: ProjectId; tr
           />
         }
       />
-      <div className="@container flex-1 overflow-auto px-4 py-4">
+      <div className="@container page-inset-x flex-1 overflow-auto py-[var(--page-pad)]">
         <div className="grid grid-cols-1 gap-4 @3xl:grid-cols-[minmax(280px,360px)_1fr] @3xl:items-start">
           <div className="flex min-w-0 flex-col gap-4">
             <section className="panel rounded-[var(--r-md)] p-4">

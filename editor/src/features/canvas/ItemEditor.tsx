@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { LocalizedField } from "@/components/ui/localized-field";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import type { AdvancedFields } from "@/domain/itemAdvanced";
 import { formatEnchant } from "@/domain/itemAdvanced";
@@ -28,6 +29,17 @@ import type { ResolvedItem } from "./resolveItem";
 import { useTextureUrl } from "./textureStore";
 import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 
+/** The name and lore per language, when the item's texts are translatable. */
+export interface ItemTranslations {
+  /** The Project's languages, its default first. */
+  langs: string[];
+  activeLang: string;
+  defaultLang: string;
+  title: Record<string, string | undefined>;
+  lore: Record<string, string | undefined>;
+  onText: (field: "title" | "lore", lang: string, value: string) => void;
+}
+
 export interface ItemEditorProps {
   project?: Project;
   details?: ReactNode;
@@ -38,6 +50,8 @@ export interface ItemEditorProps {
   lore?: string;
   titleLabel?: string;
   loreLabel?: string;
+  /** Given: the name and lore get the translations toggle, `title`/`lore` stay the active language's. */
+  translations?: ItemTranslations;
   inherited: ResolvedItem;
   preview: ResolvedItem;
   /** The data `preview` was resolved with: the example player starts from it. */
@@ -67,6 +81,7 @@ export function ItemEditor({
   lore,
   titleLabel,
   loreLabel,
+  translations,
   inherited,
   preview: resolvedPreview,
   previewScope,
@@ -135,24 +150,56 @@ export function ItemEditor({
     // The base lore already applies without writing anything: prefilling the
     // field with `{base.lore}` suggested it had to be asked for.
     const raw = own ?? (field === "title" && hasInherited(field) ? "{base.title}" : "");
+    const editor = (
+      value: string,
+      onChange: (value: string) => void,
+      ariaLabel: string,
+      fallback?: string,
+    ) => (
+      <MmEditor
+        value={value}
+        onChange={onChange}
+        onFocus={onFocus}
+        profile={field === "title" ? ITEM_NAME : LORE}
+        wrapWidth={field === "lore" ? project?.loreMaxWidth : undefined}
+        entries={suggestions}
+        simulation={simulation}
+        aria-label={ariaLabel}
+        minHeight={field === "title" ? "36px" : "96px"}
+        placeholder={
+          fallback ?? (field === "title" ? t("flow.titlePlaceholder") : t("flow.lorePlaceholder"))
+        }
+      />
+    );
     return (
       <div className="min-w-0 flex-1">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <span className="field-label">{label}</span>
-          {reset(field, own !== undefined)}
-        </div>
-        <MmEditor
-          value={raw}
-          onChange={(value) => onText(field, value)}
-          onFocus={onFocus}
-          profile={field === "title" ? ITEM_NAME : LORE}
-          wrapWidth={field === "lore" ? project?.loreMaxWidth : undefined}
-          entries={suggestions}
-          simulation={simulation}
-          aria-label={label}
-          minHeight={field === "title" ? "36px" : "96px"}
-          placeholder={field === "title" ? t("flow.titlePlaceholder") : t("flow.lorePlaceholder")}
-        />
+        {translations ? (
+          <LocalizedField
+            label={label}
+            langs={translations.langs}
+            activeLang={translations.activeLang}
+            defaultLang={translations.defaultLang}
+            values={translations[field]}
+            onChange={(lang, next) => translations.onText(field, lang, next)}
+            actions={reset(field, own !== undefined)}
+            renderEditor={({ lang, value, fallback, label: ariaLabel, onChange }) =>
+              editor(
+                lang === translations.activeLang && own === undefined ? raw : value,
+                onChange,
+                ariaLabel,
+                fallback,
+              )
+            }
+          />
+        ) : (
+          <>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="field-label">{label}</span>
+              {reset(field, own !== undefined)}
+            </div>
+            {editor(raw, (value) => onText(field, value), label)}
+          </>
+        )}
         {field === "lore" && hasInherited("lore") && onLoreMode && (
           <label className="mt-1 flex items-center gap-2 text-xs text-[var(--text-mut)]">
             <input

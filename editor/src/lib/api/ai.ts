@@ -138,3 +138,33 @@ export function saveAiSettings(input: AiSettingsInput): Promise<AiSettings> {
 export function deleteAiSettings(): Promise<AiSettings> {
   return apiFetch(CONFIG, { method: "DELETE" });
 }
+
+/** One text to translate: `context` says where it shows (a menu button, a dialog line). */
+export interface AiTranslateText {
+  id: string;
+  text: string;
+  context?: string;
+}
+
+export interface AiTranslation {
+  /** Per text id, per language: only the checked translations. */
+  translations: Record<string, Record<string, string>>;
+  /** Ids with a language left untranslated (left out, or a placeholder lost). */
+  failed: string[];
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * Translates `texts` from `source` into each of `targets` on the assistant's model, in one
+ * call. Nothing is written: the editor writes what comes back. Limits: 100 texts, 4,000
+ * characters each, 12 targets, 24,000 characters to write (texts × targets).
+ */
+export function translateTexts(input: {
+  source: string;
+  targets: string[];
+  texts: AiTranslateText[];
+  module?: string;
+}): Promise<AiTranslation> {
+  return apiFetch("/api/v1/ai/translate", { method: "POST", json: input });
+}
