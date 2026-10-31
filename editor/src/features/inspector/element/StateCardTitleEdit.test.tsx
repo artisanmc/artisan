@@ -167,8 +167,8 @@ describe("state card title editing reaches the store", () => {
       .getState()
       .openProjects.projects.find((p) => p.id === PACK_ID)!;
     const el = menusOf(project)[0]!.layers[0]!.elements[0]!;
-    // The displayed "§7Retour" was the fr FALLBACK; typing writes en. This is
-    // by design (the label says which language) — fr stays untouched.
+    // "§7Retour" is the fr text shown as the empty en field's placeholder;
+    // typing writes en — fr stays untouched.
     expect(project.i18nKeys[el.display!.title!.key]).toEqual({
       fr: "§7Retour",
       en: "<gray>Retour",
@@ -187,11 +187,41 @@ describe("state card title editing reaches the store", () => {
     expect(project.i18nKeys[el.display!.title!.key]).toEqual({ fr: "<gray>Retour" });
   });
 
-  it("shows the fallback variant of the title label when the active lang has no value", () => {
+  it("shows the default text as a placeholder, never as the active language's value", () => {
     useUiStore.setState({ activeLang: "en" });
     render(<SelectionInspector projectId={PACK_ID} />);
     fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
-    // The label must warn that the shown text is the fr fallback, not en.
-    expect(screen.getByText(/fallback/i)).toBeTruthy();
+    const dialog = screen.getByRole("dialog");
+    // The fr text is the placeholder of an empty en field, and en counts as missing.
+    expect(
+      within(dialog)
+        .getAllByText("§7Retour")
+        .some((node) => node.closest(".cm-placeholder")),
+    ).toBe(true);
+    expect(within(dialog).getAllByTestId("localized-field-missing")[0]).toHaveTextContent("1");
+  });
+
+  it("writes another language from the unfolded field without changing the active one", () => {
+    useUiStore.setState({ activeLang: "fr" });
+    useProjectsStore.setState((s) => {
+      const project = s.openProjects.projects[0]!;
+      project.i18nKeys = { [KEY]: { fr: "§7Retour", en: "" } };
+      return s;
+    });
+    render(<SelectionInspector projectId={PACK_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getAllByRole("button", { name: /traductions/i })[0]!);
+    const en = within(dialog).getByLabelText("titre · en").querySelector(".cm-content")!;
+    EditorView.findFromDOM(en as HTMLElement)!.dispatch({
+      changes: { from: 0, insert: "<gray>Back" },
+    });
+    const project = useProjectsStore.getState().openProjects.projects[0]!;
+    const el = menusOf(project)[0]!.layers[0]!.elements[0]!;
+    expect(project.i18nKeys[el.display!.title!.key]).toEqual({
+      fr: "§7Retour",
+      en: "<gray>Back",
+    });
+    expect(useUiStore.getState().activeLang).toBe("fr");
   });
 });

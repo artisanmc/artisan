@@ -52,6 +52,7 @@ import { GuidedTour } from "@/components/ui/guided-tour";
 import { HBar } from "@/components/ui/h-bar";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
+import { LocalizedField } from "@/components/ui/localized-field";
 import { Markdown } from "@/components/ui/markdown";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ProBadge } from "@/components/ui/pro-badge";
@@ -292,6 +293,31 @@ function MiniMessageSpecimens() {
         </Popover>
       </div>
     </div>
+  );
+}
+
+function LocalizedFieldSpecimen() {
+  const [values, setValues] = useState<Record<string, string | undefined>>({
+    en: "Back",
+    fr: "Retour",
+  });
+  return (
+    <LocalizedField
+      className="max-w-xs"
+      label="Title"
+      langs={["en", "fr", "de"]}
+      activeLang="en"
+      defaultLang="en"
+      values={values}
+      renderEditor={({ lang, value, fallback, label }) => (
+        <Input
+          aria-label={label}
+          value={value}
+          placeholder={fallback}
+          onChange={(e) => setValues((v) => ({ ...v, [lang]: e.target.value }))}
+        />
+      )}
+    />
   );
 }
 
@@ -620,6 +646,12 @@ export function DesignSystemPage() {
               <Input defaultValue="Original" />
               <ResetButton modified={false} onReset={() => {}} label="Reset" />
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<LocalizedField langs activeLang defaultLang values renderEditor>"}
+            </span>
+            <LocalizedFieldSpecimen />
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Badge variant>"}</span>

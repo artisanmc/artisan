@@ -590,6 +590,7 @@ const fr: typeof en = {
     stateCondition: "si {{summary}}",
     moreLinesOne: "+ {{count}} ligne de plus",
     moreLinesOther: "+ {{count}} lignes de plus",
+    titleName: "titre",
     titleLabel: "titre ({{lang}})",
     titleLabelFallback: "titre ({{lang}} — fallback)",
     titlePlaceholder: "(aucun)",
@@ -606,6 +607,7 @@ const fr: typeof en = {
       "L’aperçu utilise HeadDatabase sur le serveur connecté. Une tête introuvable garde l’icône générique.",
     headViewer: "Joueur actuel",
     headViewerHint: "Insère {player.name} — la tête du joueur qui ouvre le menu.",
+    loreName: "lore",
     loreLabel: "lore ({{lang}})",
     loreLabelFallback: "lore ({{lang}} — fallback)",
     lorePlaceholder: "Une ligne par entrée de lore.",
@@ -975,6 +977,12 @@ const fr: typeof en = {
     fit: "Ajusté",
     actual: "100 %",
     guiSize: "GUI {{width}}×{{height}} px, échelle {{scale}}",
+  },
+  localizedField: {
+    toggle: "Traductions",
+    toggleMissing_one: "Traductions : {{count}} manquante ({{langs}})",
+    toggleMissing_other: "Traductions : {{count}} manquantes ({{langs}})",
+    reference: "réf.",
   },
   assetInput: {
     none: "Aucune image",
