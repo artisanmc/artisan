@@ -13,6 +13,8 @@ class PackProject(
     /** A binary's bytes; null skips it, a throw fails the whole build. */
     val binary: (String) -> ByteArray?,
     val overlayImages: List<OverlayImageRequest> = emptyList(),
+    /** The Project's folder, which names it on the plugin side (Bedrock menu keys); defaults to [id]. */
+    val folder: String = id,
 )
 
 class PackInput(
@@ -21,9 +23,12 @@ class PackInput(
     val containerTextures: Map<String, String> = emptyMap(),
     /** Redraw the containers a menu makes transparent (`vanilla_gui_v1`). */
     val transparentContainers: Boolean = true,
+    /** Also build the server's Bedrock pack; the id seeds its uuid. */
+    val bedrockServerId: String? = null,
 )
 
-class PackResult(val zip: ByteArray, val sha1: String)
+/** The Java pack, and the Bedrock one when [PackInput.bedrockServerId] asked for it. */
+class PackResult(val zip: ByteArray, val sha1: String, val bedrock: BedrockPackResult? = null)
 
 /**
  * The server's Java resource pack, port of the editor's `packAssembly.ts` and
@@ -67,6 +72,7 @@ object ResourcePackBuilder {
         val transparent = LinkedHashSet<GuiContainer>()
         val imagesByRef = ArrayList<Pair<String, ByteArray>>()
         val overlayImages = ArrayList<OverlayImageRequest>()
+        val bedrockMenus = ArrayList<BedrockMenu>()
 
         for (project in projects) {
             val files = project.files
@@ -74,6 +80,8 @@ object ResourcePackBuilder {
             imageButtons += MenuReaders.imageButtons(files)
             overlayImages += project.overlayImages
             transparent += MenuReaders.transparentContainers(files)
+            // Keyed by the folder name: the plugin names a menu's Project that way.
+            if (input.bedrockServerId != null) bedrockMenus += BedrockMenus.fromProject(project.folder, files)
             val fromDisk = DiskAssets.fromTree(project.id, files, project.binaries)
             contribs += project.id to fromDisk
                 .filter { it.row.type == "glyph" && it.row.codepoint != null }
@@ -100,7 +108,7 @@ object ResourcePackBuilder {
         val sources = GuiContainer.entries.associateWith { c ->
             VanillaGui.textureSource(imagesByRef, input.containerTextures[c.key]) ?: vanillaResource("${c.textureFile}.png")
         }
-        return zip(
+        val java = zip(
             allAssets,
             glyphPngs,
             fontGlyphPngs,
@@ -111,6 +119,12 @@ object ResourcePackBuilder {
             if (input.transparentContainers) transparent else emptySet(),
             overlayImages,
         )
+        val serverId = input.bedrockServerId ?: return java
+        // Asset names collide across Projects as the Java pack resolves them: the first Project (by id) wins.
+        val pngsByName = LinkedHashMap<String, ByteArray>()
+        for (a in allAssets) glyphPngs[a.id]?.let { pngsByName.putIfAbsent(a.name, it) }
+        val bedrock = BedrockPack.build(serverId, bedrockMenus, pngsByName, allAssets, sources.getValue(GuiContainer.CHEST))
+        return PackResult(java.zip, java.sha1, bedrock)
     }
 
     /** First Project wins a codepoint; a later one taking it again moves to the first free one. */

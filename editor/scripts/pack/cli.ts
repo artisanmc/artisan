@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { TEXT_UP_TEXTURES, type TextUpTexture } from "@/lib/pack/fontJsonBuilder";
 import type { OverlayImageRequest } from "@/lib/pack/overlayImages";
-import { type PackProject, assembleServerPack } from "@/lib/pack/packAssembly";
+import { type PackProject, type ServerPacks, assembleServerPack } from "@/lib/pack/packAssembly";
 import type { BuildResult } from "@/lib/pack/resourcePackBuilder";
 import {
   VANILLA_ACCENTED,
@@ -25,8 +25,10 @@ export const KOTLIN_FONT_CHARS = resolve(
 const USAGE = `Usage: npm run pack -- <command>
 
   build <projects-dir> [-o pack.zip] [--config config.yml] [--overlay-images images.json]
+        [--bedrock <server-id> [--bedrock-out bedrock.mcpack]]
       Builds the server's Java pack from Project folders on disk (one folder per Project,
-      named by its id), as the editor would after a publication. Module images
+      named by its id), as the editor would after a publication; with --bedrock, also its
+      Bedrock pack (the server id seeds the pack's uuid). Module images
       (pack.images) come from the modules' editor bundles, which this command does not
       load: pass what they ask for with --overlay-images ({ "<project>": [{ "asset", "rise" }] }).
 
@@ -36,7 +38,8 @@ const USAGE = `Usage: npm run pack -- <command>
 
   vectors [--write]
       Rebuilds every case of testdata/resource-pack-conformance.json and compares its
-      entries, per-entry SHA-256 and zip SHA-1. --write stores the new values instead.
+      entries, per-entry SHA-256 and zip SHA-1, and those of its Bedrock pack when the case
+      has one. --write stores the new values instead.
 `;
 
 export async function main(args: string[]): Promise<number> {
@@ -152,12 +155,19 @@ async function build(args: string[]): Promise<number> {
     .filter((name) => !name.startsWith(".") && statSync(join(dir, name)).isDirectory())
     .map((id) => projectFromDisk(id, join(dir, id), images[id]));
   if (!imagesPath) console.warn("No --overlay-images: module images (pack.images) are left out.");
-  const { zipBytes, hash } = await assembleServerPack({
+  const serverId = option(args, "--bedrock");
+  const { zipBytes, hash, bedrock } = await assembleServerPack({
     projects,
     containerTextures: containerTextures(option(args, "--config")),
     vanillaTexture,
     textUp: textUp(),
+    ...(serverId ? { bedrock: { serverId } } : {}),
   });
+  if (bedrock) {
+    const bedrockOut = option(args, "--bedrock-out") ?? "bedrock.mcpack";
+    writeFileSync(bedrockOut, bedrock.bytes);
+    console.log(`${bedrockOut}  ${bedrock.bytes.length} bytes  sha1 ${bedrock.hash}`);
+  }
   writeFileSync(out, zipBytes);
   console.log(`${out}  ${projects.length} project(s)  ${zipBytes.length} bytes  sha1 ${hash}`);
   return 0;
@@ -173,7 +183,11 @@ export interface ConformanceCase {
     binaries: Record<string, string>;
     /** What the Project's module kinds ask for (`pack.images`), as the kinds would return it. */
     overlayImages?: OverlayImageRequest[];
+    /** The Project's folder, which keys its Bedrock menus; defaults to `id`. */
+    folder?: string;
   }[];
+  /** The case's Bedrock pack: built for `serverId`, expected as its entries, their SHA-256 and the zip's SHA-1. */
+  bedrock?: { serverId: string; entries?: string[]; entryHashes?: Record<string, string>; sha1?: string };
   containerTextures: Partial<Record<GuiContainer, string>>;
   vanillaGui: boolean;
   entries: string[];
@@ -188,7 +202,7 @@ export const TEXT_Y = /^assets\/artisan\/font\/text_y-?\d+_h\d+\.json$/;
 export const TEXT_UP = /^assets\/artisan\/font\/text_up\d+\.json$/;
 
 /** A case's pack, built from its inputs alone. */
-export function buildCase(c: ConformanceCase): Promise<BuildResult> {
+export function buildCase(c: ConformanceCase): Promise<ServerPacks> {
   const projects: PackProject[] = c.projects.map((p) => {
     const bytesOf = new Map(
       Object.entries(p.binaries).map(([path, b64]) => [
@@ -206,6 +220,7 @@ export function buildCase(c: ConformanceCase): Promise<BuildResult> {
       })),
       binary: async (path) => bytesOf.get(path),
       overlayImages: p.overlayImages,
+      ...(p.folder ? { folder: p.folder } : {}),
     };
   });
   return assembleServerPack({
@@ -214,7 +229,21 @@ export function buildCase(c: ConformanceCase): Promise<BuildResult> {
     vanillaTexture,
     textUp: textUp(),
     transparentContainers: c.vanillaGui,
+    ...(c.bedrock ? { bedrock: { serverId: c.bedrock.serverId } } : {}),
   });
+}
+
+/** What a case's Bedrock pack is expected to be, from the pack itself. */
+export function bedrockExpectedOf(result: ServerPacks, serverId: string) {
+  if (!result.bedrock) return undefined;
+  const entries = unzipSync(result.bedrock.bytes);
+  const names = Object.keys(entries).sort();
+  return {
+    serverId,
+    entries: names,
+    entryHashes: Object.fromEntries(names.map((e) => [e, sha256Hex(entries[e]!)])),
+    sha1: result.bedrock.hash,
+  };
 }
 
 /** What a case's pack is expected to be, computed from the pack itself. */
@@ -235,7 +264,11 @@ async function vectors(write: boolean): Promise<number> {
   const doc = JSON.parse(readFileSync(VECTORS, "utf-8")) as { cases: ConformanceCase[] };
   let drift = 0;
   for (const c of doc.cases) {
-    const expected = expectedOf(await buildCase(c));
+    const result = await buildCase(c);
+    const expected = {
+      ...expectedOf(result),
+      ...(c.bedrock ? { bedrock: bedrockExpectedOf(result, c.bedrock.serverId) } : {}),
+    };
     const changed = (Object.keys(expected) as (keyof typeof expected)[]).filter(
       (k) => JSON.stringify(c[k]) !== JSON.stringify(expected[k]),
     );

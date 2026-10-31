@@ -135,6 +135,22 @@ internal object ImageButtons {
         return "buttons/${hash}_${b.width}_${b.height}_${b.fit}_${Js.numberString(b.y)}$offsets"
     }
 
+    /** The button's image in its area (`renderImageButton`), and the width MC measures for it. */
+    fun render(input: RgbaImage, button: ImageButtonPlacement): Pair<RgbaImage, Int> {
+        val output = RgbaImage(button.width, button.height)
+        val g = ImageButtonGeometry.geometry(button.fit, button.offsetX, button.offsetY, input.width, input.height, button.width, button.height)
+        var contentWidth = 0
+        for (y in maxOf(0, -g.y) until minOf(g.height, button.height - g.y)) {
+            for (x in maxOf(0, -g.x) until minOf(g.width, button.width - g.x)) {
+                val src = (floor(y.toDouble() * input.height / g.height).toInt() * input.width + floor(x.toDouble() * input.width / g.width).toInt()) * 4
+                val dest = ((y + g.y) * button.width + x + g.x) * 4
+                System.arraycopy(input.data, src, output.data, dest, 4)
+                if (input.data[src + 3].toInt() != 0) contentWidth = maxOf(contentWidth, x + g.x + 1)
+            }
+        }
+        return output to contentWidth
+    }
+
     fun build(files: MutableMap<String, ByteArray>, index: AssetIndex, pngs: Map<String, ByteArray>, placements: List<ImageButtonPlacement>) {
         if (placements.isNotEmpty()) {
             files["assets/artisan/items/buttons/hit_area.json"] = Js.stringifyBytes(mapOf("model" to mapOf("type" to "minecraft:empty")))
@@ -143,18 +159,7 @@ internal object ImageButtons {
             val key = key(button)
             if (index.assets.containsKey(key)) continue
             val source = pngs[button.asset] ?: continue
-            val input = Png.decode(source)
-            val output = RgbaImage(button.width, button.height)
-            val g = ImageButtonGeometry.geometry(button.fit, button.offsetX, button.offsetY, input.width, input.height, button.width, button.height)
-            var contentWidth = 0
-            for (y in maxOf(0, -g.y) until minOf(g.height, button.height - g.y)) {
-                for (x in maxOf(0, -g.x) until minOf(g.width, button.width - g.x)) {
-                    val src = (floor(y.toDouble() * input.height / g.height).toInt() * input.width + floor(x.toDouble() * input.width / g.width).toInt()) * 4
-                    val dest = ((y + g.y) * button.width + x + g.x) * 4
-                    System.arraycopy(input.data, src, output.data, dest, 4)
-                    if (input.data[src + 3].toInt() != 0) contentWidth = maxOf(contentWidth, x + g.x + 1)
-                }
-            }
+            val (output, contentWidth) = render(Png.decode(source), button)
             files["assets/artisan/textures/$key.png"] = Png.encode(output)
             val ascent = 13 - button.y
             files["assets/artisan/font/$key.json"] = Js.stringifyBytes(

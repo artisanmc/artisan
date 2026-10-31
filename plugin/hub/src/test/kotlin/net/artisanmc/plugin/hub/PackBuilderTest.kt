@@ -24,7 +24,8 @@ class PackBuilderTest {
      * (`overlayImages`) as the server records them at load (`pack_images`).
      */
     private fun loadedOf(case: com.fasterxml.jackson.databind.JsonNode) = object : LoadedProjects {
-        private val projects = case["projects"].associateBy { it["id"].asText() }
+        // Keyed by folder, as the database lists them: a case's `folder`, else its id.
+        private val projects = case["projects"].associateBy { (it["folder"] ?: it["id"]).asText() }
         override fun list(server: String) = if (server != "u-local") null else mapOf("project_ids" to projects.keys.toList())
         override fun read(server: String, folder: String): Map<String, Any?>? {
             val p = projects[folder] ?: return null
@@ -147,10 +148,62 @@ class PackBuilderTest {
         assertEquals(true, rebuilt["done"])
         assertEquals(case["sha1"].asText(), rebuilt["hub_sha1"])
         assertEquals("shadow", rebuilt["mode"])
+        assertTrue(rebuilt.containsKey("bedrock_sha1"))
         assertTrue(call(draftsOnly, "resource_pack_rebuild", "server" to "u-local").error, "deploying is the player's call")
         assertEquals("unknown_server", (call(deployer, "resource_pack_status", "server" to "nope").body as Map<*, *>)["error"])
 
-        // The free jar has no hub build: no pack tools.
+        // Without a hub build: no pack tools.
         assertTrue(McpTools(McpProjects(servers)).tools.none { it.name.startsWith("resource_pack") })
+    }
+
+    /** The Bedrock vector's Projects on a server whose chest texture is the case's, recording the Bedrock packs it receives. */
+    private val bedrockCase = case("bedrock menus")
+    private val received = mutableListOf<Pair<String, String>>()
+    private val bedrockServers = Servers(object : EditorServer by McpFixtures.server(mutableListOf()) {
+        override fun serverConfig() = bedrockCase["containerTextures"].fields().asSequence()
+            .associate { (c, ref) -> "resource-pack.container-textures.$c" to ref.asText() }
+        override fun applyBedrockPack(hash: String, path: String) { received += hash to path }
+    })
+
+    private fun bedrockBuilder(java: Boolean = true) = PackBuilder(
+        bedrockServers, loadedOf(bedrockCase), logger, direct, java = java,
+        bedrock = PackStore(kotlin.io.path.createTempDirectory("bedrock-packs").toFile(), PackStore.BEDROCK_PATH, "mcpack"),
+    )
+
+    @Test
+    fun `builds the editor's Bedrock bytes and applies them once per change`() {
+        val expected = bedrockCase["bedrock"]["sha1"].asText()
+        val builder = bedrockBuilder()
+        assertEquals(expected, builder.build("u-local")?.bedrock?.sha1)
+
+        assertEquals(expected, builder.request("u-local").get()?.bedrockHash)
+        assertEquals(listOf(expected to "/bedrock-pack/$expected.mcpack"), received)
+        // The same bytes again: nothing sent.
+        builder.request("u-local").get()
+        assertEquals(1, received.size)
+        // The editor sent other bytes in between: the hub's build takes over again.
+        builder.bedrockApplied("u-local", "0".repeat(40))
+        builder.request("u-local").get()
+        assertEquals(listOf(expected, expected), received.map { it.first })
+    }
+
+    @Test
+    fun `the editor's Bedrock upload of the same bytes spares a resend`() {
+        val expected = bedrockCase["bedrock"]["sha1"].asText()
+        val builder = bedrockBuilder()
+        builder.bedrockApplied("u-local", expected)
+        builder.request("u-local").get()
+        assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun `the free edition applies the Bedrock pack and compares no Java pack`() {
+        val builder = bedrockBuilder(java = false)
+        val status = builder.request("u-local").get()
+        assertNull(status?.hubHash)
+        assertEquals(bedrockCase["bedrock"]["sha1"].asText(), status?.bedrockHash)
+        builder.editorUploaded("u-local", "0".repeat(40))
+        assertNull(builder.status("u-local")?.matches)
+        assertTrue(warnings.isEmpty(), warnings.toString())
     }
 }
