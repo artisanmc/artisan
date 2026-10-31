@@ -23,7 +23,7 @@ vi.mock("@tanstack/react-router", async () => {
     ...actual,
     useNavigate: () => () => {},
     useParams: () => ({}),
-    useSearch: () => ({ tab: "overview" }),
+    useSearch: () => ({ tab: "board" }),
   };
 });
 
@@ -178,12 +178,12 @@ describe("ProjectTopBarControls", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      within(screen.getByTestId("project-view-navigation")).getByTestId("open-view-overview"),
+      within(screen.getByTestId("project-view-navigation")).getByTestId("open-view-board"),
     ).toBeInTheDocument();
     expect(
       within(screen.getByTestId("project-editing-tools")).getByTitle(/Undo \(|Annuler \(/i),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("open-view-overview").querySelector("kbd")).toBeNull();
+    expect(screen.getByTestId("open-view-board").querySelector("kbd")).toBeNull();
   });
   it("renders the lang switcher, undo/redo, and save when a project is provided", () => {
     const project = {

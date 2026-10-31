@@ -24,11 +24,11 @@ vi.mock("@tanstack/react-router", async () => {
     Link: ({ children, ...p }: any) => <a {...p}>{children}</a>,
     createFileRoute: (_path: string) => (opts: any) => {
       const route = { ...opts };
-      route.useSearch = () => ({ tab: "overview" });
+      route.useSearch = () => ({ tab: "board" });
       return route;
     },
     useChildMatches: () => [{}],
-    useSearch: () => ({ tab: "overview" }),
+    useSearch: () => ({ tab: "board" }),
   };
 });
 

@@ -26,7 +26,7 @@ vi.mock("@tanstack/react-router", async () => {
     Link: ({ children, ...p }: any) => <a {...p}>{children}</a>,
     createFileRoute: (_path: string) => (opts: any) => {
       const route = { ...opts };
-      route.useSearch = () => ({ tab: "overview" });
+      route.useSearch = () => ({ tab: "board" });
       return route;
     },
     useChildMatches: () => [],
@@ -48,7 +48,7 @@ vi.mock("@/state/projectsStore", () => ({
 }));
 const loaderState = vi.hoisted(() => ({
   loaded: true,
-  tab: "overview",
+  tab: "board",
   diskId: undefined as string | undefined,
   documentId: undefined as string | undefined,
 }));
@@ -108,7 +108,7 @@ import { ServerProjectPage } from "./servers.$serverId.projects.$projectId";
 describe("ServerProjectPage", () => {
   beforeEach(() => {
     loaderState.loaded = true;
-    loaderState.tab = "overview";
+    loaderState.tab = "board";
     loaderState.diskId = undefined;
     loaderState.documentId = undefined;
     navigate.mockClear();
@@ -153,9 +153,27 @@ describe("ServerProjectPage", () => {
   });
 });
 
+it("opens on the module's home, the canvas mounted beneath", () => {
+  loaderState.loaded = true;
+  loaderState.documentId = undefined;
+  loaderState.tab = undefined as never;
+  try {
+    render(<ServerProjectPage />);
+    expect(screen.getByTestId("module-home")).toBeInTheDocument();
+    expect(screen.getByTestId("stage")).toBeInTheDocument();
+  } finally {
+    loaderState.tab = "board";
+  }
+});
+it("shows no home on the board", () => {
+  loaderState.loaded = true;
+  loaderState.documentId = undefined;
+  render(<ServerProjectPage />);
+  expect(screen.queryByTestId("module-home")).toBeNull();
+});
 it("retains Resources in the shared demo, hosted and live route search validator", () => {
   expect(validateProjectSearch({ tab: "resources" })).toEqual({ tab: "resources" });
-  expect(validateProjectSearch({ tab: "unknown" })).toEqual({ tab: "overview" });
+  expect(validateProjectSearch({ tab: "unknown" })).toEqual({});
 });
 it("opens Resources in the center without buttons or inspector and retains the canvas", () => {
   loaderState.loaded = true;

@@ -73,7 +73,11 @@ export function DocumentView({
       navigate(
         backKind && params.serverId
           ? collectionDestination(project ?? projectId, params.serverId, backKind)
-          : projectDestination(project ?? projectId, params.serverId),
+          : // Any other Document lives on the board: back there, not to the module's home.
+            {
+              ...projectDestination(project ?? projectId, params.serverId),
+              search: { tab: "board" },
+            },
       ),
     [navigate, params.serverId, project, projectId, backKind],
   );

@@ -82,7 +82,7 @@ const TYPE_LABEL_KEY: Record<string, string> = {
 };
 
 /** A kind's group label: the core key, else the contribution's (an i18n key or a literal), else the kind. */
-function typeLabel(type: DocumentType, t: TFunction): string {
+export function typeLabel(type: DocumentType, t: TFunction): string {
   const key = TYPE_LABEL_KEY[type];
   if (key) return t(key);
   return contributionLabel(

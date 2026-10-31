@@ -1,13 +1,13 @@
 import { isTypingTarget } from "@/lib/keyboard";
 import { useUiStore } from "@/state/uiStore";
-import { useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useGoToWorkspaceTab } from "./useGoToWorkspaceTab";
 import { WORKSPACE_VIEW_TABS } from "./workspaceTabs";
 
 /**
  * Minecraft-hotbar-style tab switching: the physical top-row digits (and
- * numpad) 1-4 jump between the workspace views in topbar order — 1 = Canvas,
- * 2 = Translations, … Uses `e.code` (physical key), NOT `e.key`, so it fires
+ * numpad) 1-5 jump between the workspace views in topbar order — 1 = Home,
+ * 2 = Canvas, 3 = Translations, … Uses `e.code` (physical key), NOT `e.key`, so it fires
  * without Shift on layouts where the unshifted top-row key isn't a digit
  * (AZERTY), exactly like Minecraft binds its hotbar.
  *
@@ -15,7 +15,10 @@ import { WORKSPACE_VIEW_TABS } from "./workspaceTabs";
  * search palette is open — so it never eats a keystroke the user meant for text.
  */
 export function useWorkspaceTabShortcuts(hasHistory = true): void {
-  const navigate = useNavigate();
+  // Read at the key press: the hook's function changes with the route.
+  const goToTab = useGoToWorkspaceTab();
+  const go = useRef(goToTab);
+  go.current = goToTab;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
@@ -27,13 +30,9 @@ export function useWorkspaceTabShortcuts(hasHistory = true): void {
       if (!tab) return;
       if (tab === "history" && !hasHistory) return;
       e.preventDefault();
-      navigate({
-        to: ".",
-        search: (prev) =>
-          ({ ...(prev as object), tab: tab === "overview" ? undefined : tab }) as never,
-      });
+      go.current(tab);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [navigate, hasHistory]);
+  }, [hasHistory]);
 }

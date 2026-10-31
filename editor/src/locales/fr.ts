@@ -867,7 +867,7 @@ const fr: typeof en = {
     edit: "Éditer",
     delete: "Supprimer du projet",
     empty: "Aucun élément pour l'instant",
-    emptyBoard: "Rien sur la planche : le contenu de ce module est dans sa collection.",
+    emptyBoard: "Rien sur la planche : le contenu de ce module est sur son accueil.",
     options: "Options",
   },
   documentView: {
@@ -1427,6 +1427,7 @@ const fr: typeof en = {
     offlineRetry: "Réessayer",
     serverOfflineExport: "Serveur hors ligne — impossible d'exporter les fichiers",
     tabs: {
+      home: "Accueil",
       resources: "Ressources",
       canvas: "Canvas",
       translations: "Traductions",
@@ -1881,6 +1882,21 @@ const fr: typeof en = {
     ctxItemLore: "lore · {{owner}}",
     ctxDialogBody: "dialog · {{owner}}",
     ctxDialogButton: "bouton · {{owner}}",
+  },
+  moduleHome: {
+    pluginModule: "Module du plugin {{name}}",
+    contentModule: "Module de contenu",
+    content: "Contenu",
+    boardEmpty: "Rien sur le canvas pour l'instant.",
+    folders_one: "{{count}} dossier",
+    folders_other: "{{count}} dossiers",
+    openBoard: "Ouvrir le canvas",
+    openList: "Voir la liste",
+    settings: "Réglages",
+    dataSources: "Sources de données",
+    exposes: "Ce que le module expose",
+    action: "action",
+    actionHint: "Une action que les menus, commandes et dialogues peuvent lancer.",
   },
   collections: {
     create: "Nouveau",

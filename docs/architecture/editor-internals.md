@@ -188,7 +188,16 @@ went out stays out. Deploy is enabled when this browser holds changes in another
 ## Workspace page (`features/project/ProjectCanvasPage.tsx`)
 
 The page keeps only loading (`useProjectLoader`) and layout (topbar, canvas,
-secondary views `?tab=`). The rest is named: `WorkspaceGate` (auth hydration, login
+secondary views `?tab=`). The module's root opens on its **home** (`ModuleHome`, no `?tab=`):
+an opaque page over the board, which stays mounted beneath it; the board is `?tab=board`
+(the old `overview` and a `?doc=` link still open it). Under a child page (a Document, a
+collection, a screen, a data source) no `?tab=` means the board behind that page, as before
+(`effectiveTab` in `workspaceTabs.ts`); the topbar and the digit shortcuts go through
+`useGoToWorkspaceTab`, where Home and Canvas leave a child page for the module's root. The
+home is built from what is already declared — kinds (board counts), collections, the
+module's screens (minus the one a collection shows on its page), its data sources, its
+`command` Documents and the server's actions whose `moduleId` is the module — one block per
+place, never a row per Document (the sidebar lists them). The rest is named: `WorkspaceGate` (auth hydration, login
 redirect, load failure, skeleton — via `projectLoadStatus`), `useProjectDeepLinks` (`?doc=`,
 canonical folder id, rename, opening a Document from the board),
 `useActiveLangFallback`, `useWorkspaceDnd` (sensors + `DndContext` callbacks) on top of the pure
@@ -270,7 +279,7 @@ Background = "big glyph": its height comes from the asset's ascent (`y = 13 - as
 ## Title Composer UX v3
 
 - **In-place editing**: layers are edited **directly on the project canvas** via a 3rd column (`LayersPanel`, ~280 px, always visible). No more dedicated focus mode for the title.
-- **3-column layout**: Project canvas | `MenuProperties` (rows/permission/actions) | `LayersPanel`. Rendered in the project's `overview` tab (server-scoped route below; `project.$projectId.tsx` is now only a legacy redirect).
+- **3-column layout**: Project canvas | `MenuProperties` (rows/permission/actions) | `LayersPanel`. Rendered in the project's `board` tab (server-scoped route below; `project.$projectId.tsx` is now only a legacy redirect).
 - **`LayersPanel`** = Header + `AddLayerControls` (`+ Image` / `+ Text`) + drag-reorderable list of `LayerListItem` + `LayerEditForm`.
 - **Selection**: `uiStore.selectedLayerKey: { menuId, index } | null`; `uiStore.lastSelectedMenuId` sticky (the panel survives clicks on empty space).
 - **UI types**: 2 visible — Image (collapses `background` + `glyph` with a `stretchToChest` flag) and Text. On save, Image splits at runtime into `background`/`glyph`. External glyphs: own branch, no dedicated button in v3.
@@ -293,7 +302,7 @@ The selected Document is edited in the right-hand panel. The old full-screen **f
 
 - **`features/inspector/EditorPane.tsx`** — **Properties** panel, no tabs, which directly renders `<SelectionInspector>`. A **YAML** button in its header replaces `<SelectionInspector>` with `<DocumentYamlView>` (verbatim writing) on the selected Document's file — the parent menu's file for an element; path via `documentRelPath`, shared with the `DocumentView` toggle. With no selection, project settings open, the button opens the module file (`artisan-module.yml`, or the name it has on disk: `moduleFileRelPath`). The Buttons panel is independent (see below). **The item set is created AT MENU LEVEL and exists only through the element that renders it** (ADR `item-templates-and-data-library`, revision 2026-07-31): `MenuDataSection` carries an "Item set" block per list; `createMenuSet` creates a self-sufficient element in `iterates` or `places` mode. In placement, `PlacementRowsPanel` lists the rows of the current preview context as draggable tiles (`placementRow` payload, drop handled by `MenuGroup`/`pinPlacementRow`).
 - **Buttons** — `features/project/ProjectLibrary.tsx`: canvas panel with three tabs **Game items / Captured items / Images**, without graphic resource management. `ProjectLibraryWorkspace` wraps the board or the individual view under the same `DndContext`; what a drag carries (`material`, `imageButton`, `placementRow`) and the state target (`stateMaterial`) go through dnd-kit's `data`, typed by `features/canvas/dragPayload.ts` (`draggableProps` / `droppableProps` at the source, `readDrag` / `readDrop` in `onDragEnd`) — the id is only a unique key, never read back; panel on the left on desktop, under the stage on mobile. It loads items and assets even with no selection, independently of whether the panels are open. The open state is persisted and tied to the last opened project (`projectLibraryStore`), never to the selection. Escape closes Buttons before Document navigation; dialogs and fields keep their own Escape handling. The historical `graphics` category is migrated to `items`; `captured` is now a top-level category.
-- **Resources** — central tab `?tab=resources` of the project to manage images and fonts (`AssetsTab`, detail views with return to the grid). It complements the menu's contextual pickers without duplicating files. Navigation order: Canvas / Translations / Resources / History; numeric shortcuts 1-4 in that order.
+- **Resources** — central tab `?tab=resources` of the project to manage images and fonts (`AssetsTab`, detail views with return to the grid). It complements the menu's contextual pickers without duplicating files. Navigation order: Home / Canvas / Translations / Resources / History; numeric shortcuts 1-5 in that order.
 - **`features/inspector/`** — the Properties panel feature: the frame (`EditorPane`, `FloatingEditorPane`), the `SelectionInspector.tsx` router, the per-type editors (`element/`: `ElementEditor` + state cards `StateCards.tsx`; `command/CommandEditor.tsx`; `dialog/DialogEditor.tsx`, also referenced as `component` by `modules/{commands,dialogs}`), `properties/` (`ProjectProperties`, `MenuProperties`, `ActionEditor`, `ConditionListEditor`…) and `chain/` (Action chain editor). The item sub-editors shared with the board (`AdvancedItemSection`, `ItemBindingEditor`, `ItemHeadField`) live in `features/canvas/item/`.
 - **`features/inspector/SelectionInspector.tsx`** — unified editor of the current selection (`useSelectionStore`). Routes by type:
   - 0 selection → `ProjectProperties`

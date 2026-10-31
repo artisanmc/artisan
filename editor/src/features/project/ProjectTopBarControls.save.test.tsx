@@ -41,7 +41,7 @@ vi.mock("@tanstack/react-router", async () => {
     ...actual,
     useNavigate: () => () => {},
     useParams: () => ({}),
-    useSearch: () => ({ tab: "overview" }),
+    useSearch: () => ({ tab: "board" }),
     Link: ({ children, to, params: _params, ...props }: any) => (
       <a href={to} {...props}>
         {children}

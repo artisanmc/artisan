@@ -26,7 +26,7 @@ describe("goToDocument", () => {
       expect.objectContaining({
         to: BOARD,
         params: expect.objectContaining({ projectId: "core" }),
-        search: {},
+        search: { tab: "board" },
       }),
     );
   });
@@ -65,11 +65,18 @@ describe("validateProjectSearch", () => {
   });
 
   it("keeps the document to centre on, from a deep link", () => {
-    expect(validateProjectSearch({ doc: "main" })).toEqual({ tab: "overview", doc: "main" });
+    expect(validateProjectSearch({ doc: "main" })).toEqual({ tab: "board", doc: "main" });
   });
 
   it("drops a malformed doc", () => {
-    expect(validateProjectSearch({ doc: 3 })).toEqual({ tab: "overview" });
+    expect(validateProjectSearch({ doc: 3 })).toEqual({});
     expect(validateProjectSearch({ tab: "translations" })).toEqual({ tab: "translations" });
+  });
+
+  it("opens the module's home by default, the board on `board` and on the old `overview`", () => {
+    expect(validateProjectSearch({})).toEqual({});
+    expect(validateProjectSearch({ tab: "board" })).toEqual({ tab: "board" });
+    expect(validateProjectSearch({ tab: "overview" })).toEqual({ tab: "board" });
+    expect(validateProjectSearch({ tab: "data-sources" })).toEqual({});
   });
 });
