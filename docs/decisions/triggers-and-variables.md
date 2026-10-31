@@ -3,6 +3,7 @@
 **Status:** accepted (2026-10-24). Batches 3 (registry, Trigger kind, core catalog, effects) and 5
 (editor) delivered first, at Iban's request; batches 1, 2 and 4 (`location` type, Variables,
 `chat_button`) remain to be done. Deviations of the implementation, see "Implementation" at the end.
+§10 (module variables, batch 6) is a **proposed** amendment of 2026-10-31, not yet accepted.
 
 **Naming (Iban, 2026-10-24)**: the kind is called **Trigger** (not "Automation"). The event it
 listens to is therefore called **Game event**, so as not to say "trigger" twice. This is consistent
@@ -256,12 +257,88 @@ following are excluded from this work, and from any work that does not reopen th
 A need beyond this boundary is written as a module (Kotlin or Java) that declares its own actions
 and events (§2). A recurring need that fits within the boundary joins the core catalog.
 
+### 10. Module variables: read-only values declared by a module (amendment, 2026-10-31)
+
+**Context.** Every module keeps a player state that the others would like to read: the status of
+a quest, a guild rank, the number of claims, whether a conversation was finished. Today each
+reading goes through a placeholder (`%quests_status_…%` + `placeholder_equals`): an untyped
+string, invisible to the editor (no picker, no dead-reference detection), and resolved by string
+search. Typewriter's *facts* answer the same need with one shared, numeric state; they also show
+its failure mode: free names, nothing links a write to its reads.
+
+**Decision.** A **Variable** has two provenances, like a **Data source**. The consumer side is
+provenance-blind.
+
+| | Project variable (§5) | Module variable (this section) |
+|---|---|---|
+| Declared by | a `variable/v1` Document | a Module, in code, through `api.getVariables()` |
+| Name | `<id>` (qualified ref `project/id`) | `<module>.<name>` (`quests.status`, `guilds.rank`) |
+| Value | stored in `artisan_vars` | **computed** on demand from the module's own state, never stored by Artisan |
+| Written by | `set_var`, `add_var`, `clear_var` | the module only, through its own actions (`quests:start`…). `set_var` on it is a validation error |
+| Read as | `{var.<id>}`, `has_var` | `{var.<module>.<name>}`, `{var.<module>.<name>["<key>"]}`, `has_var` |
+
+**One source of truth.** A module never copies its state into a Project variable to share it.
+Copies diverge at the first reset, rollback or failed write; a computed read cannot.
+
+**Declaration** (`@Beta`, indicative form, fixed with the batch):
+
+```java
+api.getVariables().declare(new ModuleVariableDeclaration(
+    "status",                                  // name, [a-z][a-z0-9_]*, the module id is the namespace
+    VariableType.STRING,                       // string | number | boolean | location (§5)
+    VariableScope.PLAYER,                      // player | server
+    ModelField.of("quest", ModelFieldType.rowRef("quests:quests")),       // optional key
+    (player, key) -> statusOf(player, key)));  // null = absent
+```
+
+- **Key**: optional, one field, typed by a `ModelField`. When it names a row of a static **Data
+  source**, the new field type `rowRef(source)` (a **Row key** of that source, stored as a string)
+  gives the editor a picker and flags a key that no longer exists; any other type is accepted as
+  is. Read with the expression's existing indexing: `{var.quests.status["daily/miner"]}`.
+- **Resolver**: called on the thread that owns the player, at each read; it reads memory and
+  never blocks, the same contract as `PlaceholderResolver`. A value that does not match the
+  declared type is read as absent and reported once, as in §5.
+- **Ownership**: same semantics as `ActionRegistry` and `GameEventRegistry`: removed with the
+  module, collision = error at registration.
+- **Presence** reports `declared_variables` (name, type, scope, key field), like
+  `declared_game_events`. The editor offers module variables in conditions and expressions from
+  it, without the module being compiled into the editor.
+- **Change notice** (optional for a module): `api.getVariables().changed(player, name, key)`
+  fires the core Game event `variable_changed` (`var`, `key`). A consumer that must react
+  (a Trigger, a quest objective "condition holds") listens to it instead of polling. A module
+  that never calls it stays correct, readers just learn the new value at their next read.
+- **Absent module**: the name is unknown. The editor flags the reference as dead (the module is
+  not in the server's Presence); at runtime the value is absent, `has_var` is false, an
+  expression reading it gets `null`, one warning per name. A module never needs another module
+  installed to read its variables, so no dependency between modules is created.
+- **Network**: computed where the player is. A module installed on one Leaf only is absent on the
+  others; this is the same rule as its actions.
+- **PlaceholderAPI**: module variables go through the `artisan_var` namespace (§5) like project
+  variables, so scoreboards read them too. A module's own placeholder namespace stays for display
+  text; it is no longer the way to share state.
+
+**Rejected.**
+- *Placeholders as the shared state*: untyped, undeclared, no key typing, no dead references.
+- *A per-player single-row Data source*: Data sources feed menus through a `SourceRef`;
+  conditions and expressions do not bind sources, and a row model is heavier than one typed value.
+- *Modules writing Project variables*: two sources of truth (above).
+- *Writable module variables* (`set_var` delegating to the module): a write must go through the
+  module's rules (a quest cannot be marked completed without paying its rewards); that is what its
+  actions are for.
+
+**First declarations expected** (for information): `quests.status[quest]`,
+`quests.completed_count[group]`, `guilds.has_guild`, `guilds.rank`, `lands.claims`,
+`conversations.finished[conversation]`.
+
 ## Consequences
 
 - **CONTEXT.md**: terms **Trigger**, **Game event** and **Variable** added; the **Action chain**
-  entry lists the Trigger among its triggers once the kind is delivered.
+  entry lists the Trigger among its triggers once the kind is delivered. **Variable** gains its
+  two provenances (§10).
 - **API**: `GameEventDeclaration`, `GameEventRegistry`, `ModelFieldType.location()`, all `@Beta`.
-  Minor API version; additive Presence field, protocol unchanged.
+  Minor API version; additive Presence field, protocol unchanged. §10 adds `api.getVariables()`
+  (`ModuleVariableDeclaration`, `changed`) and `ModelFieldType.rowRef`, `@Beta`, and the Presence
+  field `declared_variables`.
 - **Schemas**: `trigger/v1` and `variable/v1` in `docs/schema/`, `$defs.Action` gains `set_var`,
   `add_var`, `clear_var`, `chat_button`, `cancel_event`, `set_event` and the `location` argument
   of `teleport`.
@@ -284,6 +361,9 @@ and events (§2). A recurring need that fits within the boundary joins the core 
 3. Event registry, Trigger kind, core catalog with its admission test, effects (§1 to §3 bis, §8).
 4. `chat_button` (§7).
 5. Editor: forms, event selector, board nodes, offered context fields.
+6. Module variables (§10): registry, `declared_variables` in Presence, reading in templates,
+   expressions and `has_var`, the `variable_changed` event, editor offer and dead references.
+   After batch 2, since both provenances share the reading path.
 
 ## Open questions
 
@@ -294,6 +374,8 @@ and events (§2). A recurring need that fits within the boundary joins the core 
 | Q3 | A `wait` action (bounded delay before the rest of the chain)? | Out of v1: it breaks synchronous execution and raises the question of the player disconnecting during the wait. |
 | Q4 | `NORMAL` events in farms and mining (`player_kill_entity`, `block_break`): high volume. | Keep; the editor advises an `if` or a `cooldown` on these events; measure before adding a global cap. |
 | Q5 | Chat, asynchronous, is one of the most likely requests (filtering, reformatting). | Out of v1. Reopen it with a sub-vocabulary without Bukkit API calls (text, conditions on already-read values, cancellation), run off the main thread. |
+| Q6 | Module variables: one optional key, or several? | One in v1. Two keys (`guild` and `quest`) can be written as one composite key; reopen on a real need. |
+| Q7 | A reading on a thread that does not own the player (a menu rendered async, a hub-side preview)? | Absent, with the same warning as `ConditionsApi.test`: the resolver contract is player-thread only. The editor preview shows the declared type, not a value. |
 
 ## Implementation (batches 3 and 5, 2026-10-24)
 
