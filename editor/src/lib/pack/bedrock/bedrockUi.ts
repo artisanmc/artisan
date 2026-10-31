@@ -1,5 +1,11 @@
 import type { BedrockMenu, BedrockTextLayer } from "./bedrockMenus";
-import { BEDROCK_MARKER, bedrockButtonPair, bedrockFieldOffset } from "./bedrockTitle";
+import {
+  BEDROCK_MARKER,
+  BEDROCK_PAD,
+  BEDROCK_PAD2,
+  bedrockButtonPair,
+  bedrockFieldOffset,
+} from "./bedrockTitle";
 
 /**
  * `ui/chest_screen.json` of the Bedrock pack: the vanilla chest screen, changed
@@ -49,14 +55,39 @@ function hasKey(menu: BedrockMenu): string {
   return contains(BEDROCK_MARKER + menu.key);
 }
 
-/** Field `index` of the title: `'%.Ns' * s` keeps the first N characters. */
-function field(menu: BedrockMenu, layer: BedrockTextLayer): string {
-  const offset = bedrockFieldOffset(
-    menu.buttons.length,
-    menu.texts.map((t) => t.length),
-    layer.index,
-  );
-  return `('%.${layer.length}s' * (${T} - ('%.${offset}s' * ${T})))`;
+/**
+ * Bytes in front of the marker, as the client may receive them: the proxy chain adds
+ * formatting codes before the title (Geyser a `§r`, 3 bytes; 12 measured in game with
+ * Geyser on Velocity and ViaVersion on Paper). A text label exists once per candidate
+ * and shows only where the marker and key really start, so no chain is assumed.
+ */
+/** A Bedrock label draws its text about a pixel lower than Java does (measured in game). */
+const TEXT_DY = -1;
+
+export const LEAD_CANDIDATES = [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30];
+/** Bytes of the marker and the menu key. */
+const KEY_BYTES = 9;
+
+/** JSON UI boolean: the marker and key of `menu` start at byte `lead` of the title. */
+function keyAt(menu: BedrockMenu, lead: number): string {
+  const head = `('%.${lead + KEY_BYTES}s' * ${T})`;
+  const before = lead === 0 ? head : `(${head} - ('%.${lead}s' * ${T}))`;
+  return `(${before} = '${BEDROCK_MARKER}${menu.key}')`;
+}
+
+/**
+ * Field `index` of the title, `lead` bytes in: `'%.Ns' * s` keeps the first N bytes,
+ * `s - p` drops every `p` from `s`, so the padding goes before the label shows it.
+ */
+function field(menu: BedrockMenu, layer: BedrockTextLayer, lead: number): string {
+  const offset =
+    lead +
+    bedrockFieldOffset(
+      menu.buttons.length,
+      menu.texts.map((t) => t.length),
+      layer.index,
+    );
+  return `((('%.${layer.length}s' * (${T} - ('%.${offset}s' * ${T}))) - '${BEDROCK_PAD}') - '${BEDROCK_PAD2}')`;
 }
 
 const NAMED_COLORS: Record<string, string> = {
@@ -144,23 +175,36 @@ function buttonElements(
   return out;
 }
 
+/**
+ * Left edge of a label's box. A textarea's `x` is where its lines align, as on
+ * Java (`TitleCompiler`): their centre, or their right end.
+ */
+function labelX(layer: BedrockTextLayer): number {
+  if (layer.width === undefined) return layer.x;
+  if (layer.alignment === "center") return layer.x - Math.round(layer.width / 2);
+  if (layer.alignment === "right") return layer.x - layer.width;
+  return layer.x;
+}
+
 function textElements(menu: BedrockMenu): Record<string, unknown>[] {
-  return menu.texts.map((layer) => ({
-    [id(menu, `t${layer.index}`)]: {
-      type: "label",
-      text: field(menu, layer),
-      offset: [layer.x, layer.y + BEDROCK_Y],
-      anchor_from: "top_left",
-      anchor_to: "top_left",
-      size: [layer.width ?? "default", "default"],
-      text_alignment: layer.alignment ?? "left",
-      color: labelColor(layer.color),
-      font_scale_factor: layer.scale,
-      shadow: false,
-      layer: LAYER_TEXT,
-      ...when(hasKey(menu)),
-    },
-  }));
+  return menu.texts.flatMap((layer) =>
+    LEAD_CANDIDATES.map((lead) => ({
+      [id(menu, `t${layer.index}_${lead}`)]: {
+        type: "label",
+        text: field(menu, layer, lead),
+        offset: [labelX(layer), layer.y + BEDROCK_Y + TEXT_DY],
+        anchor_from: "top_left",
+        anchor_to: "top_left",
+        size: [layer.width ?? "default", "default"],
+        text_alignment: layer.alignment ?? "left",
+        color: labelColor(layer.color),
+        font_scale_factor: layer.scale,
+        shadow: false,
+        layer: LAYER_TEXT,
+        ...when(`(${hasKey(menu)} and ${keyAt(menu, lead)})`),
+      },
+    })),
+  );
 }
 
 /** The vanilla `chest_panel` of a root panel, restated so it can be hidden. */

@@ -85,6 +85,16 @@ function imageOf(app: any): ImageButtonImage | null {
   };
 }
 
+/**
+ * The color tag a value opens with (`<white>…`, `<#ff8800>…`, `<color:gold>…`): the
+ * plugin sends Bedrock the text without its tags, so the label takes that color.
+ */
+export function leadingColor(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const match = /^\s*<(?:color:|c:)?(#[0-9a-fA-F]{6}|[a-z_]+)>/.exec(value);
+  return match?.[1];
+}
+
 function textLayers(title: unknown): BedrockTextLayer[] {
   const out: BedrockTextLayer[] = [];
   const layers = Array.isArray(title) ? title : title ? [title] : [];
@@ -97,7 +107,7 @@ function textLayers(title: unknown): BedrockTextLayer[] {
     const t = l as Record<string, unknown>;
     const index = out.length;
     const size = typeof t.size === "number" && t.size > 0 ? t.size : 8;
-    const color = typeof t.color === "string" ? t.color : undefined;
+    const color = typeof t.color === "string" ? t.color : leadingColor(t.value);
     if (kind === "plain") {
       out.push({ index, length: TEXT_FIELD, x: PLAIN_X, y: PLAIN_Y, scale: 1, color });
       continue;
