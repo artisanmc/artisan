@@ -12,6 +12,8 @@ import net.artisanmc.plugin.protocol.ProtocolVersion
 /** `/api/v1/servers/:server/…`: what the server declares, its configuration, its live data. */
 class ServerRoutes(private val servers: Servers, private val relay: Relay) {
     private val bundles = BundleCache()
+    /** A module's brand files, keyed `<brand hash>/<file>`: small SVGs, a few per module. */
+    private val brands = BundleCache(maxEntries = 64, maxBytes = 2L * 1024 * 1024)
 
     fun register(router: Router) {
         on(router, "GET", "modules", VIEW) { call, server -> call.json(mapOf("modules" to server.announcement().modules)) }
@@ -104,6 +106,30 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
                 serveBundle(call, hash, content)
             }
         }
+        // A module's icon or logo (`ModuleBrandDeclaration`): announced at Presence, fetched once per hash.
+        on(router, "GET", "modules/:module/brand/:file", VIEW) { call, server ->
+            val module = call.params["module"].orEmpty()
+            val name = call.params["file"].orEmpty().removeSuffix(".svg")
+            val brand = server.announcement().brand(module) ?: return@on call.error(404, "not_found")
+            val announced = brand["hash"] as? String ?: return@on call.error(404, "not_found")
+            if ((brand["files"] as? List<*>)?.contains(name) != true) return@on call.error(404, "not_found")
+            brands.get("$announced/$name")?.let { return@on serveBrandFile(call, announced, it) }
+            relay.send(call, server, mapOf("type" to "module_brand_fetch", "module_id" to module)) { reply ->
+                if (!ok(reply)) return@send readError(call, reply)
+                val files = (reply["files"] as? Map<*, *>)
+                    ?.mapNotNull { (k, v) -> if (k is String && v is String) k to v.toByteArray(Charsets.UTF_8) else null }
+                    ?.toMap()
+                    ?: return@send call.error(502, "fetch_error", "module brand reply without files")
+                // The announcement may be stale (the module reloaded since): serve only what it named.
+                val hash = brandHash(files)
+                if (hash != reply["hash"] || hash != announced) {
+                    return@send call.error(502, "fetch_error", "brand of '$module' does not match its announced hash")
+                }
+                files.forEach { (file, content) -> brands.put("$hash/$file", content) }
+                val content = files[name] ?: return@send call.error(404, "not_found")
+                serveBrandFile(call, hash, content)
+            }
+        }
         // A module's template (ADR `module-templates`): its files, to show the default version read-only.
         on(router, "GET", "modules/:module/templates/:template", VIEW) { call, server ->
             if (!speaksTemplates(call, server)) return@on
@@ -138,6 +164,21 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
         call.send(200, "text/javascript; charset=utf-8", content, cache, mapOf("X-Content-Type-Options" to "nosniff"))
     }
 
+    /**
+     * A module's SVG, shown through `<img>`. Served with a policy that runs nothing should it be
+     * opened on its own (`sandbox`, no source allowed but inline styles); `?v=<hash>` keeps it for good.
+     */
+    private fun serveBrandFile(call: Call, hash: String, content: ByteArray) {
+        val cache = if (call.query("v") == hash) "private, max-age=31536000, immutable" else "no-cache"
+        call.send(
+            200, "image/svg+xml; charset=utf-8", content, cache,
+            mapOf(
+                "X-Content-Type-Options" to "nosniff",
+                "Content-Security-Policy" to "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+            ),
+        )
+    }
+
     /** Config screens name their Project like the editor (`<server id>.shop`) or like the module (`shop`). */
     private fun folder(server: EditorServer, project: String) = project.removePrefix("${server.id}.")
 
@@ -153,6 +194,22 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
     companion object {
         const val SERVER = "/api/v1/servers/:server"
         private val HDB_ID = Regex("[0-9]{1,10}")
+
+        /** The files a brand may carry, in the order `ModuleBrandDeclaration` hashes them. */
+        private val BRAND_FILES = listOf("icon", "logo-dark", "logo-light", "wordmark-dark", "wordmark-light")
+
+        /** `ModuleBrandDeclaration.getHash()`: SHA-256 over each file's name, NUL, bytes, NUL, in [BRAND_FILES] order. */
+        internal fun brandHash(files: Map<String, ByteArray>): String {
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            for (name in BRAND_FILES) {
+                val bytes = files[name] ?: continue
+                digest.update(name.toByteArray(Charsets.UTF_8))
+                digest.update(0)
+                digest.update(bytes)
+                digest.update(0)
+            }
+            return java.util.HexFormat.of().formatHex(digest.digest())
+        }
 
         /** A leaf on an older release would ignore a template message: say so instead of waiting for the timeout. */
         fun speaksTemplates(call: Call, server: EditorServer): Boolean {

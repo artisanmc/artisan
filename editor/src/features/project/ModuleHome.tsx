@@ -1,4 +1,4 @@
-import { ModuleIcon, ModuleLogo } from "@/components/ArtisanWordmark";
+import { ModuleIcon, ModuleLogo, useModuleBrand } from "@/components/ArtisanWordmark";
 import { ownerModuleOf } from "@/components/projectOwnership";
 import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
@@ -11,7 +11,6 @@ import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { listLanguages } from "@/lib/i18nUsages";
-import { moduleBrand } from "@/lib/moduleBrand";
 import { kindCreatableIn } from "@/lib/moduleDocumentKinds";
 import {
   collectionDestination,
@@ -57,7 +56,7 @@ export function ModuleHome({
   const ownerModule = owner ? getModule(owner) : undefined;
   const ownerLabel = owner ? (ownerModule?.displayName ?? owner) : null;
   const OwnSection = ownerModule?.home;
-  const brand = moduleBrand(owner);
+  const brand = useModuleBrand(owner);
   const collections = projectCollections(project);
 
   // The board's Documents: every kind but the collections, which have no node there.
@@ -133,8 +132,8 @@ export function ModuleHome({
       <div className="mx-auto flex max-w-5xl flex-col gap-7 p-[var(--page-pad)]">
         <header className="flex flex-wrap items-center gap-3">
           {/* A module of the suite shows its own icon and logo; any other one, the tile. */}
-          {brand ? (
-            <ModuleIcon brand={brand} />
+          {brand?.icon ? (
+            <ModuleIcon src={brand.icon} />
           ) : (
             <IconTile
               icon={Blocks}
@@ -145,9 +144,9 @@ export function ModuleHome({
             />
           )}
           <div className="min-w-0 flex-1">
-            {brand ? (
+            {brand?.logo ? (
               <h1 className="mb-1.5 flex">
-                <ModuleLogo brand={brand} alt={project.name} />
+                <ModuleLogo logo={brand.logo} alt={project.name} />
               </h1>
             ) : (
               <h1 className="truncate text-lg font-semibold">{project.name}</h1>

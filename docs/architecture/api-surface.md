@@ -157,6 +157,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `editorBundles` (`getEditorBundles()`, `@Stable` since 2.18.0) | `EditorBundleRegistry` | 2.3.0 |
 | `translations` (`getTranslations()`, `@Stable` since 2.18.0) | `TranslationsApi` | 2.5.0 |
 | `templates` (`getTemplates()`, `@Beta`) | `TemplateRegistry` | 2.6.0 |
+| `moduleBrands` (`getModuleBrands()`, `@Beta`) | `ModuleBrandRegistry` | 2.23.0 |
 | `playerCommands` (`getPlayerCommands()`, `@Stable` since 2.18.0) | `PlayerCommandRegistry` | 2.7.0 |
 | `text` (`getText()`, `@Stable` since 2.18.0) | `TextApi` | 2.10.0 |
 | `network` (`getNetwork()`, `@Beta`) | `NetworkApi` | 2.13.0 |
@@ -424,6 +425,25 @@ A module may ship its **editor view** in its own jar (runtime module bundles, le
 ```java
 api.getEditorBundles().register(
     EditorBundleDeclaration.fromResource(getClass().getClassLoader(), "artisan-editor/ui.js", "1.0"));
+```
+
+### `net.artisanmc.modules.api.editor.ModuleBrandRegistry` and the module brand contract (`@Beta`, 2.23.0)
+
+A module may ship its **look in the editor** in its own jar: its icon (16×16 grid) and its logo, pixel art drawn as static SVG, registered from `onEnable` and removed with the module. The brand is reported at Presence on the module's `installed_modules` entry (`brand: {hash, files, logo?: {width, height}}`, protocol 1.5), served by the hub at `GET /api/v1/servers/:server/modules/:module/brand/:file.svg`; the editor heads the module's home with the icon and the full logo, and swaps the sidebar's Artisan wordmark for the module's while one of its folders is open. A module without one keeps Artisan's.
+
+**No code needed**: a module that registers none but whose jar carries `artisan-brand/<name>.svg` files (same names and rules) gets them as its brand (`ModuleBrands` of `paper`, read from the jar of the module's class, never through a class loader). That convention works on any module, compiled against any API version; `register` is for a brand built at runtime or read from elsewhere, and wins over the jar's files. An invalid file leaves the brand out with a warning in the log.
+
+| Member | Type | Since |
+|---|---|---|
+| `ModuleBrandRegistry.register(decl)` (owner = the module whose `onEnable` runs; outside one `IllegalStateException`; a second call replaces the first), `unregister(moduleId)`, `find(moduleId)` (nullable), `registered()` (module id → declaration, registration order) | | 2.23.0 |
+| `ModuleBrandDeclaration(files)` (SVG bytes by name among `FILES` = `icon`, `logo-dark`, `logo-light`, `wordmark-dark`, `wordmark-light`; at least one; each UTF-8, ≤ `MAX_FILE_SIZE` = 64 KiB, an `<svg>` with no `script`, `foreignObject`, `iframe`/`embed`/`object`, `on…=` handler or `javascript:` link; else `IllegalArgumentException`), `fromResources(loader, dir)` (`<dir>/<name>.svg`, missing files left out, none at all `IllegalArgumentException`); `getFileNames()`, `getFile(name)` (copy, nullable), `getHash()` (lowercase hex SHA-256 over each file's name, NUL, bytes, NUL, in `FILES` order), `getLogoSize()` (`[width, height]` of the logo's `viewBox="0 0 w h"`, nullable), `toWire()`, `texts()` | `ModuleBrandDeclaration` | 2.23.0 |
+| `ArtisanAPI.Builder.moduleBrands(registry)` (`@Internal`) | `Builder` | 2.23.0 |
+
+```java
+if (api.isCompatibleWith("2.23.0")) {
+    api.getModuleBrands().register(
+        ModuleBrandDeclaration.fromResources(getClass().getClassLoader(), "artisan-brand"));
+}
 ```
 
 ### `net.artisanmc.modules.api.template.TemplateRegistry` and the template contract (`@Beta`, 2.6.0)

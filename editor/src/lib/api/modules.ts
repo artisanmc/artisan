@@ -9,6 +9,24 @@ export interface ActiveModule {
   editor_bundle?: { sdk: string; hash: string; size?: number; local?: boolean };
   /** The example content the module offers to copy into a Project (protocol 1.3). */
   templates?: TemplateInfo[];
+  /**
+   * The icon and logo the module's jar carries (`ModuleBrandDeclaration`, protocol 1.5): the
+   * files it has, their hash, and the logo's pixel grid. Served at `…/modules/:id/brand/:file.svg`.
+   */
+  brand?: ModuleBrandWire;
+}
+
+export type ModuleBrandFile =
+  | "icon"
+  | "logo-dark"
+  | "logo-light"
+  | "wordmark-dark"
+  | "wordmark-light";
+
+export interface ModuleBrandWire {
+  hash: string;
+  files: ModuleBrandFile[];
+  logo?: { width: number; height: number };
 }
 
 /**

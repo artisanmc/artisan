@@ -15,6 +15,7 @@ import net.artisanmc.modules.api.document.DocumentKindRegistry;
 import net.artisanmc.modules.api.cooldown.CooldownApi;
 import net.artisanmc.modules.api.gameevent.GameEventRegistry;
 import net.artisanmc.modules.api.editor.EditorBundleRegistry;
+import net.artisanmc.modules.api.editor.ModuleBrandRegistry;
 import net.artisanmc.modules.api.event.ModuleEventBus;
 import net.artisanmc.modules.api.item.ItemStackApi;
 import net.artisanmc.modules.api.menu.MenuApi;
@@ -70,6 +71,7 @@ public final class ArtisanAPI {
     private final GameEventRegistry gameEvents;
     private final CooldownApi cooldowns;
     private final EditorBundleRegistry editorBundles;
+    private final ModuleBrandRegistry moduleBrands;
     private final TemplateRegistry templates;
     private final PlayerCommandRegistry playerCommands;
     private final DatabaseApi database;
@@ -101,6 +103,7 @@ public final class ArtisanAPI {
         this.gameEvents = b.gameEvents;
         this.cooldowns = b.cooldowns;
         this.editorBundles = b.editorBundles;
+        this.moduleBrands = b.moduleBrands;
         this.templates = b.templates;
         this.playerCommands = b.playerCommands;
         this.database = b.database;
@@ -247,6 +250,15 @@ public final class ArtisanAPI {
     }
 
     /**
+     * The modules' looks in the editor, shipped in their jars: an icon and a logo per module,
+     * reported at Presence on its {@code installed_modules} entry and served to the editor by the hub.
+     */
+    @Beta
+    public ModuleBrandRegistry getModuleBrands() {
+        return moduleBrands;
+    }
+
+    /**
      * The modules' example content, shipped in their jars: files the editor copies into any
      * project, and that Artisan may copy once into a project of their own on first start. Reported
      * at Presence on the module's {@code installed_modules} entry ({@code templates}).
@@ -361,6 +373,7 @@ public final class ArtisanAPI {
         private GameEventRegistry gameEvents = new GameEventRegistry();
         private CooldownApi cooldowns = CooldownApi.inMemory();
         private EditorBundleRegistry editorBundles = new EditorBundleRegistry();
+        private ModuleBrandRegistry moduleBrands = new ModuleBrandRegistry();
         private TemplateRegistry templates = new TemplateRegistry();
         private PlayerCommandRegistry playerCommands = new PlayerCommandRegistry();
         private DatabaseApi database = DatabaseApi.NONE;
@@ -440,6 +453,11 @@ public final class ArtisanAPI {
 
         public Builder editorBundles(EditorBundleRegistry editorBundles) {
             this.editorBundles = Objects.requireNonNull(editorBundles);
+            return this;
+        }
+
+        public Builder moduleBrands(ModuleBrandRegistry moduleBrands) {
+            this.moduleBrands = Objects.requireNonNull(moduleBrands);
             return this;
         }
 

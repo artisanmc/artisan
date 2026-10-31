@@ -1,4 +1,4 @@
-import { ArtisanWordmark } from "@/components/ArtisanWordmark";
+import { ArtisanWordmark, useModuleBrand } from "@/components/ArtisanWordmark";
 import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
 import { listedDataSources } from "@/domain/projectData";
@@ -11,7 +11,6 @@ import {
 import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
-import { moduleBrand } from "@/lib/moduleBrand";
 import { projectDestination, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
 import {
@@ -257,13 +256,13 @@ export function ProjectSidebar() {
       visibleRows.find((p) => p.id === openProjectId || projectUrlId(p) === openProjectId)?.name)
     : undefined;
   useDocumentTitle(activeServerLabel, openProjectName);
-  // Inside a module of the suite that has its own logo, the wordmark takes its colours.
+  // Inside a module that ships its own wordmark, the sidebar shows it in its colours.
   const openModuleId = openProjectId
     ? pluginModules.find((m) =>
         m.projects.some((p) => p.id === openProjectId || projectUrlId(p) === openProjectId),
       )?.id
     : undefined;
-  const brand = moduleBrand(openModuleId);
+  const brand = useModuleBrand(openModuleId);
 
   return (
     <nav className="flex h-full flex-col gap-3.5 px-3 py-2">

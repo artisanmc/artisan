@@ -3,7 +3,7 @@ package net.artisanmc.plugin.protocol
 /**
  * What a server announces at Presence (`hello`, then `modules_changed`): its modules and what
  * they declare. Built by the server, read by the hub; each list keeps its own wire entries
- * (`{id, version, editor_bundle?}`, data sources, `model/v1` documents, Config screens, `{name, args, primary?,
+ * (`{id, version, editor_bundle?, brand?}`, data sources, `model/v1` documents, Config screens, `{name, args, primary?,
  * module_id?}` actions, `{kind, dir, schema_versions, id_prefix?, module_id?}` Document kinds, `{name, group, frequency,
  * context, cancellable, effects, module_id?}` Game events, and the
  * player commands modules declare, as `PlayerCommandReport` writes them).
@@ -33,6 +33,10 @@ data class ServerAnnouncement(
     /** The `editor_bundle` ([module]) announced for [moduleId], or null: no such module, or no bundle. */
     fun editorBundle(moduleId: String): Map<*, *>? =
         modules.firstOrNull { it["id"] == moduleId }?.get(EDITOR_BUNDLE) as? Map<*, *>
+
+    /** The `brand` ([module]) announced for [moduleId], or null: no such module, or no brand. */
+    fun brand(moduleId: String): Map<*, *>? =
+        modules.firstOrNull { it["id"] == moduleId }?.get(BRAND) as? Map<*, *>
 
     /**
      * This announcement updated by [message] (`hello` or `modules_changed`): a field it carries
@@ -66,6 +70,7 @@ data class ServerAnnouncement(
         const val DECLARED_GAME_EVENTS = "declared_game_events"
         const val PLAYER_COMMANDS = "player_commands"
         const val EDITOR_BUNDLE = "editor_bundle"
+        const val BRAND = "brand"
         const val TEMPLATES = "templates"
 
         val EMPTY = ServerAnnouncement()
@@ -73,18 +78,21 @@ data class ServerAnnouncement(
         /**
          * An `installed_modules` entry: a module reports the core plugin's version, it has none of its own.
          * [editorBundle] is its `EditorBundleDeclaration.toWire()` (`{sdk, hash, size}`), when it ships one;
-         * [templates] its `TemplateDeclaration.toWire()` entries, when it ships some.
+         * [templates] its `TemplateDeclaration.toWire()` entries, when it ships some;
+         * [brand] its `ModuleBrandDeclaration.toWire()` (`{hash, files, logo?}`), when it ships one.
          */
         fun module(
             id: String,
             version: String,
             editorBundle: Map<String, Any?>? = null,
             templates: List<Map<String, Any?>> = emptyList(),
+            brand: Map<String, Any?>? = null,
         ): Map<String, Any?> = buildMap {
             put("id", id)
             put("version", version)
             if (editorBundle != null) put(EDITOR_BUNDLE, editorBundle)
             if (templates.isNotEmpty()) put(TEMPLATES, templates)
+            if (brand != null) put(BRAND, brand)
         }
 
         fun from(message: Map<*, *>): ServerAnnouncement = EMPTY.updatedBy(message)

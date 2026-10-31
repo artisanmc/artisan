@@ -1,25 +1,58 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { brandAsset, moduleBrand } from "@/lib/moduleBrand";
+import type { ActiveModule } from "@/lib/api/modules";
+import { builtInBrand, moduleBrand, themed } from "@/lib/moduleBrand";
 import { describe, expect, it } from "vitest";
 
+const auctions: ActiveModule = {
+  id: "auctions",
+  version: "1.0",
+  brand: {
+    hash: "h1",
+    files: ["icon", "logo-dark", "wordmark-dark"],
+    logo: { width: 85, height: 8 },
+  },
+};
+
 describe("moduleBrand", () => {
-  it("finds a module's logo by its id or its plugin's id", () => {
-    expect(moduleBrand("auctions")?.id).toBe("auctions");
-    expect(moduleBrand("boutique")?.id).toBe("store");
-    expect(moduleBrand("daily")?.id).toBe("daily-rewards");
-    expect(moduleBrand("msquests")?.id).toBe("quests");
+  it("serves what the module's jar announces, from its server, pinned to its hash", () => {
+    const brand = moduleBrand("auctions", "srv", [auctions]);
+    expect(brand?.icon).toBe("/api/v1/servers/srv/modules/auctions/brand/icon.svg?v=h1");
+    expect(brand?.logo).toEqual({
+      dark: "/api/v1/servers/srv/modules/auctions/brand/logo-dark.svg?v=h1",
+      light: undefined,
+      width: 85,
+      height: 8,
+    });
+    // A single logo serves both themes.
+    expect(themed(brand?.logo, "light")).toBe(brand?.logo?.dark);
   });
-  it("leaves a module without one, and no module, on the Artisan logo", () => {
-    expect(moduleBrand("conversations")).toBeUndefined();
-    expect(moduleBrand(undefined)).toBeUndefined();
+  it("a file the module does not ship stays empty, without falling back file by file", () => {
+    const iconOnly: ActiveModule = {
+      id: "warps",
+      version: null,
+      brand: { hash: "h", files: ["icon"] },
+    };
+    const brand = moduleBrand("warps", "srv", [iconOnly]);
+    expect(brand?.icon).toContain("/modules/warps/brand/icon.svg");
+    expect(brand?.logo).toBeUndefined();
+    expect(brand?.wordmark).toBeUndefined();
   });
-  it("points at the theme's file, the icon has one for both", () => {
-    const store = moduleBrand("store")!;
-    expect(brandAsset(store, "wordmark", "light")).toBe("/brand/modules/store/wordmark-light.svg");
-    expect(brandAsset(store, "icon", "dark")).toBe("/brand/modules/store/icon.svg");
+  it("an older jar falls back on the editor's copy of a suite module, by id or plugin id", () => {
+    const old: ActiveModule = { id: "boutique", version: "1.0" };
+    expect(moduleBrand("boutique", "srv", [old])?.icon).toBe("/brand/modules/store/icon.svg");
+    expect(moduleBrand("daily", null, [])?.logo?.width).toBe(112);
+    expect(moduleBrand("msquests", "srv", [])?.wordmark?.light).toBe(
+      "/brand/modules/quests/wordmark-light.svg",
+    );
   });
-  it("ships every file it points at", () => {
+  it("a module without one, and no module, keep Artisan's", () => {
+    expect(
+      moduleBrand("conversations", "srv", [{ id: "conversations", version: null }]),
+    ).toBeUndefined();
+    expect(moduleBrand(undefined, "srv", [auctions])).toBeUndefined();
+  });
+  it("the editor ships every built-in file it points at", () => {
     for (const id of [
       "attribution",
       "auctions",
@@ -31,12 +64,15 @@ describe("moduleBrand", () => {
       "boutique",
       "warps",
     ]) {
-      const brand = moduleBrand(id)!;
-      for (const file of ["wordmark", "logo", "icon"] as const)
-        for (const theme of ["dark", "light"] as const)
-          expect(
-            existsSync(resolve(__dirname, "../../public", `.${brandAsset(brand, file, theme)}`)),
-          ).toBe(true);
+      const brand = builtInBrand(id)!;
+      for (const url of [
+        brand.icon,
+        brand.logo?.dark,
+        brand.logo?.light,
+        brand.wordmark?.dark,
+        brand.wordmark?.light,
+      ])
+        expect(existsSync(resolve(__dirname, "../../public", `.${url}`))).toBe(true);
     }
   });
 });

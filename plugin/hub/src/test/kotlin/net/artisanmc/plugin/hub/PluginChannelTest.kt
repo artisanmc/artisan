@@ -407,6 +407,66 @@ class PluginChannelTest {
     }
 
     @Test
+    fun `a module's icon and logo are fetched once per hash and served as inert SVG`() {
+        val icon = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#e0605a" d="M0 0h1v1h-1z"/></svg>"""
+        val logo = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 85 8"><path fill="#e0605a" d="M0 0h1v1h-1z"/></svg>"""
+        val files = mapOf("icon" to icon.toByteArray(), "logo-dark" to logo.toByteArray())
+        val hash = ServerRoutes.brandHash(files)
+        val leaf = Leaf()
+        leaf.hello(protocol = "1.5", modules = listOf(
+            mapOf("id" to "auctions", "version" to "1.0.0", "brand" to mapOf("hash" to hash, "files" to listOf("icon", "logo-dark"), "logo" to mapOf("width" to 85, "height" to 8))),
+            mapOf("id" to "menus", "version" to "1.0.0"),
+        ))
+        leaf.next()
+
+        assertEquals(404, get("/api/v1/servers/u-survie2/modules/menus/brand/icon.svg").get(5, TimeUnit.SECONDS).first)
+        assertEquals(404, get("/api/v1/servers/u-survie2/modules/auctions/brand/logo-light.svg").get(5, TimeUnit.SECONDS).first)
+        assertNull(leaf.received.poll(200, TimeUnit.MILLISECONDS), "nothing announced under that name: nothing relayed")
+
+        val first = raw("/api/v1/servers/u-survie2/modules/auctions/brand/icon.svg?v=$hash")
+        val request = leaf.next()
+        assertEquals("module_brand_fetch", request["type"].asText())
+        assertEquals("auctions", request["module_id"].asText())
+        leaf.send(mapOf(
+            "type" to "module_brand_fetch_result", "request_id" to request["request_id"].asText(), "ok" to true,
+            "module_id" to "auctions", "hash" to hash, "files" to mapOf("icon" to icon, "logo-dark" to logo),
+        ))
+        val response = first.get(10, TimeUnit.SECONDS)
+        assertEquals(200, response.statusCode())
+        assertEquals("image/svg+xml; charset=utf-8", response.headers().firstValue("Content-Type").get().lowercase())
+        assertEquals("private, max-age=31536000, immutable", response.headers().firstValue("Cache-Control").get())
+        assertTrue(response.headers().firstValue("Content-Security-Policy").get().contains("sandbox"))
+        assertEquals(icon, String(response.body(), Charsets.UTF_8))
+
+        // The other file came with the first reply: the hub's copy, nothing asked of the server.
+        val again = raw("/api/v1/servers/u-survie2/modules/auctions/brand/logo-dark.svg").get(5, TimeUnit.SECONDS)
+        assertEquals(200, again.statusCode())
+        assertEquals("no-cache", again.headers().firstValue("Cache-Control").get())
+        assertEquals(logo, String(again.body(), Charsets.UTF_8))
+        assertNull(leaf.received.poll(200, TimeUnit.MILLISECONDS), "served from the hub's cache")
+    }
+
+    @Test
+    fun `a brand that does not match its announcement is refused`() {
+        val leaf = Leaf()
+        leaf.hello(protocol = "1.5", modules = listOf(
+            mapOf("id" to "auctions", "version" to "1.0.0", "brand" to mapOf("hash" to "0".repeat(64), "files" to listOf("icon"))),
+        ))
+        leaf.next()
+
+        val stale = get("/api/v1/servers/u-survie2/modules/auctions/brand/icon.svg")
+        val request = leaf.next()
+        val icon = "<svg/>"
+        leaf.send(mapOf(
+            "type" to "module_brand_fetch_result", "request_id" to request["request_id"].asText(), "ok" to true,
+            "module_id" to "auctions", "hash" to ServerRoutes.brandHash(mapOf("icon" to icon.toByteArray())), "files" to mapOf("icon" to icon),
+        ))
+        val (status, body) = stale.get(5, TimeUnit.SECONDS)
+        assertEquals(502, status)
+        assertEquals("fetch_error", body!!["error"].asText())
+    }
+
+    @Test
     fun `a module template is read, copied into a project and traced`() {
         val leaf = Leaf()
         leaf.hello(protocol = "1.3")

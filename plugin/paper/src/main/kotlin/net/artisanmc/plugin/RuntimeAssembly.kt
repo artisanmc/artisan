@@ -242,6 +242,7 @@ internal class RuntimeAssembly(
         offsetEncoderProvider = assetCatalog::offsetEncoder,
         dataSources = api.dataSources,
         editorBundles = localEditorBundles::find,
+        moduleBrands = plugin.moduleBrands::find,
         templates = { plugin.moduleTemplates },
         seedLang = { api.translations.defaultLang },
         migrateCommandOverrides = ::migrateCommandOverrides,
