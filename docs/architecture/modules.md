@@ -251,7 +251,9 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `documents: DocumentKindContribution[]`: `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
 > `icon?`, `component` (Properties panel view), `ownHeader?` (SDK 1.13: the view draws the
 > Document's header, the host leaves out its own), `wide?` (SDK 1.15: on the Document's own
-> page the view gets the whole width instead of a centred column), `title?`, `listByTitle?`, `create`, `parse`,
+> page the view gets the whole width instead of a centred column; the view pads itself with
+> `var(--page-pad, 12px)`, the host's page margin, and an `ownHeader` view indents its header
+> and body with `.page-inset-x`), `title?`, `listByTitle?`, `create`, `parse`,
 > `serialize`, `ltextSites?`, `chainSlots?`, `board?` (`size`, `summary`, `render` react-konva,
 > non-interactive preview, `items`: selectable rows, SDK 1.2, with `marker` and `hover` in 1.5;
 > `accent`, SDK 1.5). The host installs it at registration (`registerEditorModule`,

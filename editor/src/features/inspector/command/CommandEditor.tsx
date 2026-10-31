@@ -103,7 +103,7 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
       <CommandHeader node={node} words={words} />
-      <div className="@container flex-1 overflow-auto px-4 py-4">
+      <div className="@container page-inset-x flex-1 overflow-auto py-[var(--page-pad)]">
         {/* Wide containers (individual view) split into two columns: settings and
             arguments left, the steps right with the room they need. The narrow right
             pane stays stacked. */}

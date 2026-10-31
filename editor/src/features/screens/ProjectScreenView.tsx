@@ -46,7 +46,7 @@ export function ProjectScreenView({
   }
   return (
     <div className="absolute inset-0 overflow-auto" data-testid="project-screen">
-      <div className="mx-auto flex max-w-5xl flex-col gap-4 p-6 md:p-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-4 p-[var(--page-pad)]">
         <div className="min-w-0">
           <div className="eyebrow">{project.name}</div>
           <h1 className="truncate text-lg font-semibold">{screen.label}</h1>

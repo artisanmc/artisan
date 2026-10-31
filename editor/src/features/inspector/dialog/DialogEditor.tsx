@@ -98,7 +98,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
         <span className="font-mono text-[12.5px] text-[var(--text-faint)]">{dialog.id}</span>
       </EditorHeader>
 
-      <div className="flex-1 overflow-auto px-4 py-4">
+      <div className="page-inset-x flex-1 overflow-auto py-[var(--page-pad)]">
         <Lane panel label={t("flow.propertiesLabel")}>
           <DialogIdField projectId={projectId} dialogId={dialog.id} />
           <LocalizedTextField

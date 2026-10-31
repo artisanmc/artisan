@@ -85,7 +85,7 @@ import { LORE } from "@/lib/mm/profiles";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useUiStore } from "@/state/uiStore";
 import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
-import { useRef, useState } from "react";
+import { type CSSProperties, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -730,6 +730,26 @@ export function DesignSystemPage() {
                   />
                 </div>
               ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {".page-inset-x · .page-column · --page-pad · --page-max"}
+            </span>
+            {/* A Document's page in miniature: the header spans the panel from its top edge,
+                its content and the body line up on the centred column. */}
+            <div
+              data-testid="page-specimen"
+              className="panel overflow-hidden rounded-[var(--r-md)]"
+              style={{ "--page-max": "28rem" } as CSSProperties}
+            >
+              <EditorHeader kind="command" eyebrow="Command" title="/shop" />
+              <div className="page-column">
+                <div className="flex flex-col gap-2 p-[var(--page-pad)]">
+                  <div className="field-label">Body</div>
+                  <div className="input">aligned with the title</div>
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex flex-col gap-2">

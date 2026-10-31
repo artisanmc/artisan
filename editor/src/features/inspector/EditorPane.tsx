@@ -70,7 +70,7 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
           <X className="size-4" />
         </Button>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="page-pane flex min-h-0 flex-1 flex-col overflow-hidden">
         {yamlMode && project && relPath ? (
           <DocumentYamlView key={relPath} project={project} relPath={relPath} />
         ) : (

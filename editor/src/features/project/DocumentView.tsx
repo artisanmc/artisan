@@ -14,7 +14,7 @@ import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { type CSSProperties, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { opensOnStage } from "./documentStage";
@@ -149,15 +149,15 @@ export function DocumentView({
           minSecondary={280}
         />
       ) : (
-        // Other kinds have no stage: their view (a command's pseudocode) stays centred, or
-        // spans the width when its kind asks for it.
-        <div className="h-full overflow-auto">
-          <div
-            className={wide ? "w-full pt-3" : "mx-auto w-full max-w-5xl pt-3"}
-            data-testid="document-body"
-          >
-            <SelectionInspector projectId={pId} />
-          </div>
+        // Other kinds have no stage: the page's header spans the panel from its top edge, its
+        // content (a command's pseudocode) stays in a centred column, or spans the width when
+        // its kind asks for it (`--page-max`, read by `.page-inset-x` and `.page-column`).
+        <div
+          className="h-full overflow-auto"
+          style={wide ? undefined : ({ "--page-max": "64rem" } as CSSProperties)}
+          data-testid="document-body"
+        >
+          <SelectionInspector projectId={pId} />
         </div>
       )}
     </div>
