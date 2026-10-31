@@ -22,6 +22,8 @@ class PackRoutes(
     private val bedrock: PackStore? = null,
     /** Told of each pack the editor uploads ([PackBuilder.editorUploaded], shadow mode). */
     private val uploaded: (server: String, hash: String) -> Unit = { _, _ -> },
+    /** Told of each Bedrock pack the editor uploads ([PackBuilder.bedrockApplied]). */
+    private val bedrockUploaded: (server: String, hash: String) -> Unit = { _, _ -> },
 ) {
     fun register(router: Router) {
         router.on("PUT", "$SERVER/resource-pack", PUBLISH) { call ->
@@ -42,6 +44,7 @@ class PackRoutes(
                 val zip = receive(call) ?: return@on
                 val hash = packs.put(zip)
                 server.applyBedrockPack(hash, packs.pathOf(hash))
+                bedrockUploaded(server.id, hash)
                 call.json(mapOf("hash" to hash))
             }
             serve(router, packs)

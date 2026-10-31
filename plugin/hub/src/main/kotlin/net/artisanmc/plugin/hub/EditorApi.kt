@@ -25,7 +25,7 @@ object EditorApi {
         edition: Edition = Edition.PRO,
         /** Artisan's pack host (`web.pack-cdn`); null: players download packs from this server. */
         packCdn: PackCdn? = null,
-        /** The hub's own pack build, in shadow mode: compared with the packs the editor uploads. */
+        /** The hub's own pack build: the Java one compared with the editor's (shadow mode), the Bedrock one applied. */
         packBuilder: PackBuilder? = null,
     ): Router {
         val router = Router()
@@ -36,9 +36,11 @@ object EditorApi {
         ProjectRoutes(servers, relay, history, loaded, drafts, logger).register(router)
         ItemRoutes(servers, relay, vanilla).register(router)
         packs?.let { store ->
-            PackRoutes(servers, store, packCdn, edition, bedrockPacks) { server, hash ->
-                packBuilder?.editorUploaded(server, hash)
-            }.register(router)
+            PackRoutes(
+                servers, store, packCdn, edition, bedrockPacks,
+                uploaded = { server, hash -> packBuilder?.editorUploaded(server, hash) },
+                bedrockUploaded = { server, hash -> packBuilder?.bedrockApplied(server, hash) },
+            ).register(router)
         }
         AddressRoutes(tunnel, sessions).register(router)
         val tools = McpTools(McpProjects(servers, loaded, drafts, history), packs = packBuilder)
