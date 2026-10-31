@@ -377,3 +377,41 @@ The geometry is pure so that a module places its layers with it (the conversatio
 the editor's Play mode, a navigable preview built from the Documents without a game client.
 *Rejected:* a screen per module (they would drift apart), and putting the geometry behind the host
 (a module's tests could not run it).
+
+## Amendment 2026-10-29: a wide Document page (SDK 1.15)
+
+A kind sets `wide` when its view is laid out in columns: on the Document's own page, `DocumentView`
+then gives it the whole width instead of the centred column a command's pseudocode reads best in.
+The conversations of ArtisanConversations show a page beside the game's screen and the ways into
+it; in a 1024 px column on a wide monitor both were cramped while the sides stayed empty.
+*Rejected:* every module view at full width (a command's or a trigger's sentence reads worse
+across 2000 px), and the module's CSS escaping the host's column (it would rest on the host's
+class names).
+
+## Amendment 2026-10-30: HUD layouts (API 2.21.0)
+
+A HUD is a layout of layers kept in the module's files (`OverlayLayout`: `image`, `image_slot`,
+`text`, `list`), and Artisan composes the frame (`OverlayApi.compose`), instead of each module
+placing its pieces with `move` and `raise` in code. Reason: ArtisanConversations hard-coded its box,
+text and choices (`HudLayout`), so a mode could not move them, and the editor needs one format to
+let a user lay a HUD out with the mouse; the same layers serve the next HUDs (a scoreboard, a boss
+bar) without a format per module. Positions count y downwards from the slot's text, as on the
+editor's screen; a rise is `-y`. The module keeps what is its own: which named layers exist, what
+fills them, the wrapping and typing of its text. The geometry has conformance vectors
+(`testdata/overlay-layout-conformance.json`) so that the editor draws a layout where the server
+does. *Rejected:* the layout as a Document kind of Artisan (a HUD belongs to the module's own
+Document, a conversation mode); text wrapped by `compose` (a module types its text letter by letter
+and cuts it into screens, which needs the rows itself).
+
+## Amendment 2026-10-30: composing a HUD with the mouse (SDK 1.16)
+
+The SDK exposes `OverlayComposer`, a host component that edits an `OverlayLayout` on the game's
+screen (drag, resize handles, arrow keys, a list of layers, the selected one's panel), and
+`AssetInput`, the editor's image picker on a name. The layout's reading and geometry are ported to
+TypeScript and locked by the plugin's vector, so the screen shows a layer where `compose` draws it.
+Reason: a mode's HUD was a form of numbers, and a user lays out a HUD by eye, as in the menus'
+title composer; the next HUDs (a scoreboard, a boss bar) reuse the same component. `pack.images`
+gains a context (`file(path)`, another file of the project) and a request by bottom
+(`{asset, bottom}`): a portrait placed on its bottom edge needs the image's height, which only the
+builder reads. *Rejected:* the composer in the module's bundle (every HUD module would redraw it),
+and the image's height kept in the module's files (it would go stale when the image changes).

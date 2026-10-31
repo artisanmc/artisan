@@ -344,16 +344,7 @@ export function useCanvasKeyboard({
         return;
       }
 
-      if (cmdOrCtrl && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        useProjectsStore.temporal.getState().undo();
-        return;
-      }
-      if (cmdOrCtrl && ((e.key === "z" && e.shiftKey) || e.key === "y")) {
-        e.preventDefault();
-        useProjectsStore.temporal.getState().redo();
-        return;
-      }
+      // ⌘Z / ⌘⇧Z / ⌘Y: the top bar's undo buttons, on every page of the project (`useUndoShortcuts`).
       if (cmdOrCtrl && e.key === "c") {
         // Let the browser handle it when the user has plain text selected.
         if (document.getSelection()?.toString()) return;

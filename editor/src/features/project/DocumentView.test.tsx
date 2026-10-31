@@ -1,4 +1,5 @@
 import type { Project, ProjectId } from "@/domain/types";
+import { useDocumentTrailStore } from "@/state/documentTrailStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { registerModule } from "@artisan/editor-sdk";
@@ -87,7 +88,7 @@ describe("DocumentView", () => {
       </ResolvedProjectContext.Provider>,
     );
     expect(screen.getByTestId("focus-stage")).toBeInTheDocument();
-    fireEvent.click(screen.getByText(/back to canvas|retour au canvas/i));
+    useDocumentTrailStore.getState().trail?.toProject();
     expect(navigate).toHaveBeenCalledWith(
       expect.objectContaining({ params: { serverId: "s1", projectId: "shared" } }),
     );
@@ -114,18 +115,19 @@ describe("DocumentView", () => {
     expect(screen.getByTestId("focus-stage")).toBeInTheDocument();
     expect(screen.getByTestId("editor-pane")).toBeInTheDocument();
   });
-  it("the back button navigates to the overview", () => {
-    render(<DocumentView projectId={PID} documentId={"m1" as any} />);
-    fireEvent.click(screen.getByText(/back to canvas|retour au canvas/i));
+  it("hands its levels to the topbar's breadcrumb, the project leading back to the overview", () => {
+    const { unmount } = render(<DocumentView projectId={PID} documentId={"m1" as any} />);
+    const trail = useDocumentTrailStore.getState().trail;
+    expect(trail?.label).toBe("m1");
+    expect(trail?.collection).toBeUndefined();
+    trail?.toProject();
     expect(navigate).toHaveBeenCalledWith(
       expect.objectContaining({
         to: "/servers/$serverId/projects/$projectId",
       }),
     );
-  });
-  it("shows the Esc keyboard badge on the back button", () => {
-    render(<DocumentView projectId={PID} documentId={"m1" as any} />);
-    expect(screen.getByText("Esc")).toBeInTheDocument();
+    unmount();
+    expect(useDocumentTrailStore.getState().trail).toBeNull();
   });
   it("Escape goes back to the canvas", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
@@ -151,6 +153,19 @@ describe("DocumentView", () => {
   it("renders the centered flow editor for a command", () => {
     render(<DocumentView projectId={PID} documentId={"c1" as any} />);
     expect(screen.getByTestId("flow-canvas")).toBeInTheDocument();
+    expect(screen.getByTestId("document-body")).toHaveClass("max-w-5xl");
+  });
+  it("gives a wide module kind's view the whole width", () => {
+    registerModule({
+      id: "quests-test",
+      documents: [{ kind: "quest_group", wide: true } as any],
+    } as any);
+    try {
+      render(<DocumentView projectId={PID} documentId={"daily" as any} />);
+      expect(screen.getByTestId("document-body")).not.toHaveClass("max-w-5xl");
+    } finally {
+      clearRegistry();
+    }
   });
   it("selects the default menu when there is no relevant selection", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
@@ -165,8 +180,8 @@ describe("DocumentView", () => {
   });
 });
 
-// The full-width topbar is replaced by a floating bubble in the same place,
-// and the edit panel takes the canvas's floating card.
+// The Document's levels sit in the topbar's breadcrumb, and the edit panel takes the
+// canvas's floating card.
 describe("DocumentView — chrome flottant", () => {
   function setDesktop(matches: boolean) {
     window.matchMedia = ((query: string) => ({
@@ -181,12 +196,9 @@ describe("DocumentView — chrome flottant", () => {
     })) as unknown as typeof window.matchMedia;
   }
 
-  it("the back button lives in a floating bubble, not in a full-width bar", () => {
+  it("draws no bar of its own over the stage", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
-    const bubble = screen.getByTestId("document-view-bubble");
-    expect(bubble.className).toContain("absolute");
-    expect(bubble.className).toContain("backdrop-blur");
-    // No in-flow <header> reserving height.
+    expect(screen.queryByTestId("document-view-bubble")).toBeNull();
     expect(document.querySelector("header")).toBeNull();
   });
 

@@ -32,6 +32,7 @@ the algorithm = updating both sides **and** regenerating the vector.
 | `testdata/action-dsl-conformance.json`, `action-dsl-eval-conformance.json` | `ActionDslConformanceTest`, `LeafEvalConformanceTest` (plugin) + `lib/actionDsl/*.test.ts` (editor) — the legacy DSL, read but no longer written |
 | `testdata/template-conformance.json` | `TemplateConformanceTest` (plugin) + `lib/expr/template/conformance.test.ts` (editor) |
 | `testdata/lang-tree-conformance.json` | `LangFlattener` (plugin) + `langTree.ts` (editor) |
+| `testdata/overlay-layout-conformance.json` | `OverlayLayoutConformanceTest` (plugin api, `OverlayLayout.read` + the placement behind `OverlayApi.compose`); the editor's port of the format reads it too: reading a HUD layout (problems by path and code, layers kept, pack images at their rise) and placing a frame (draws in order, x from the centre, rise of the top; widths `width_per_char` a character, image heights from `heights`) |
 | `testdata/lore-wrap-conformance.json` | `LoreWrapConformanceTest` (plugin) + `loreWrap.test.ts` (editor) |
 | `testdata/document-layout-conformance.json` | `DocumentLayoutConformanceTest` (plugin, `model/DocumentLayout.kt`) + `domain/documentLayout.test.ts` (editor): where a module's Documents live (thematic folders, id = file name, errors `duplicate_id`, `kind_dir_subfolder`, `reserved_folder`, `invalid_folder`, `too_deep`) |
 | `testdata/doc-ref-conformance.json` | `DocRefConformanceTest` (plugin) + `domain/docRef.test.ts` (editor) |

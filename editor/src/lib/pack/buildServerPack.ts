@@ -8,12 +8,12 @@ import { ApiError, apiFetch, apiRequest } from "@/lib/api/client";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { getServerConfig } from "@/lib/api/serverConfig";
 import { projectClient } from "@/lib/projectClient";
-import { type PackImage, listDocumentKindContributions } from "@artisan/editor-sdk";
+import { listDocumentKindContributions } from "@artisan/editor-sdk";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
 import { type GlyphPlacement, glyphPlacementsFromMenus } from "./menuGlyphPlacements";
-import { overlayImagesFromFiles } from "./overlayImages";
+import { type OverlayImageRequest, overlayImagesFromFiles } from "./overlayImages";
 import { type AssetRow, type BuildResult, buildResourcePackZip } from "./resourcePackBuilder";
 import { type GlyphContribution, mergeCodepoints } from "./rpCodepointMerger";
 import {
@@ -64,7 +64,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
   const imageButtons: ImageButtonPlacement[] = [];
   const transparent = new Set<GuiContainer>();
   const imagesByRef: { ref: string; bytes: Uint8Array }[] = [];
-  const overlayImages: PackImage[] = [];
+  const overlayImages: OverlayImageRequest[] = [];
   // The kinds of the modules this editor has loaded: a module's images reach the pack once
   // its bundle is in.
   const kinds = listDocumentKindContributions();

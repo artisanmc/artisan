@@ -59,6 +59,12 @@ export interface DocumentKindContribution {
    * Absent = the host draws it above `component`.
    */
   ownHeader?: boolean;
+  /**
+   * On the Document's own page, `component` gets the whole width under the floating header
+   * (SDK 1.15), for a view laid out in columns (a list beside a detail, a preview). Absent =
+   * a centred column, as a command's.
+   */
+  wide?: boolean;
   /** A human label for one Document (search, chips, breadcrumb); the id when absent. */
   title?: (doc: unknown, ctx: DocumentLabelContext) => string;
   /** Registry rows show `title` instead of the id (a command's `/name` is its identity). */
@@ -124,7 +130,36 @@ export interface DocumentPackContribution {
    * `api.getOverlay().image(asset, rise)`: a HUD drawn in the action bar, above the hotbar.
    * A file that throws, an unknown asset or a rise out of -166..128 adds nothing.
    */
-  images?: (src: Record<string, unknown>) => Iterable<PackImage>;
+  images?: (
+    src: Record<string, unknown>,
+    context: PackImagesContext,
+  ) => Iterable<PackImage | PackImageByBottom>;
+}
+
+/** What `pack.images` can read besides its file (SDK 1.16). */
+export interface PackImagesContext {
+  /**
+   * Another file of the same project, by its path from the project's root (`data/speakers.yml`),
+   * as parsed YAML; undefined when it is absent or does not parse. A mode asks for the portraits
+   * its speakers declare.
+   */
+  file(path: string): unknown;
+  /**
+   * The YAML files directly in a folder of the same project (`speakers`), each by its id (its
+   * name without `.yml`) as parsed YAML. A mode asks for the images of every speaker that fills
+   * one of its slots.
+   */
+  files(dir: string): { id: string; value: unknown }[];
+}
+
+/**
+ * An image placed by its bottom (SDK 1.16): `bottom` is the y of its bottom edge, downwards from
+ * the top of the slot's text (an `image_slot` anchored `bottom`). The pack builder knows the
+ * image's height and asks for it at `rise = height - bottom`.
+ */
+export interface PackImageByBottom {
+  asset: string;
+  bottom: number;
 }
 
 /**
