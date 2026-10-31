@@ -1,10 +1,12 @@
 package net.artisanmc.plugin.hub
 
+import net.artisanmc.plugin.pack.OverlayImageRequest
 import net.artisanmc.plugin.pack.PackFile
 import net.artisanmc.plugin.pack.PackInput
 import net.artisanmc.plugin.pack.PackProject
 import net.artisanmc.plugin.pack.PackResult
 import net.artisanmc.plugin.pack.ResourcePackBuilder
+import net.artisanmc.plugin.project.PackImageRequest
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
@@ -20,9 +22,9 @@ import java.util.logging.Logger
  *
  * **Shadow mode** for now: the hub builds after each `projects_reloaded` and compares its pack
  * with the one the editor uploads, without applying its own. A match is logged at FINE, a pack
- * the editor sent that the hub's build does not reproduce at WARNING. Module images
- * (`pack.images`) are still missing from the hub's build: a server whose modules declare some
- * reports a difference until the modules tell the server about them.
+ * the editor sent that the hub's build does not reproduce at WARNING. Module images come from
+ * what each server computed at load (`pack_images`, a kind's `PackImagesProvider`): a module whose
+ * editor kind declares `pack.images` without the Java twin leaves them out of the hub's build.
  *
  * One build at a time on a thread of its own (never Jetty's), at most one waiting per server:
  * requests arriving while one runs share the next, which reads the latest state.
@@ -99,7 +101,7 @@ class PackBuilder(
                 now.hubHash == hash -> logger?.fine { "[Artisan] Pack of $server: the editor's matches the hub's build" }
                 else -> logger?.warning(
                     "[Artisan] Pack of $server: the editor sent $hash, the hub's build gives ${now.hubHash}. " +
-                        "Expected while modules declare pack images (the hub does not build them yet); otherwise, please report it.",
+                        "Expected when a module declares pack images in its editor only; otherwise, please report it.",
                 )
             }
         }
@@ -124,6 +126,9 @@ class PackBuilder(
                 binaries = binaries,
                 // A binary the database lost fails the build: the editor's pack stays.
                 binary = { path -> loaded.binary(server, folder, path) ?: error("binary_missing:$folder/$path") },
+                overlayImages = (read["pack_images"] as? List<*>).orEmpty().mapNotNull { image ->
+                    PackImageRequest.from(image)?.let { OverlayImageRequest(it.asset, it.rise, it.bottom) }
+                },
             )
         }
         return ResourcePackBuilder.build(PackInput(projects, containerTextures(target.serverConfig())))

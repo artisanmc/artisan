@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
+import net.artisanmc.modules.api.annotations.Beta;
 import net.artisanmc.modules.api.annotations.Stable;
 import net.artisanmc.modules.api.project.ProjectContentApi;
 import org.jetbrains.annotations.Nullable;
@@ -29,6 +30,7 @@ public final class DocumentKindDeclaration {
     private final String dir;
     private final List<String> schemaVersions;
     private final @Nullable String idPrefix;
+    private final @Nullable PackImagesProvider packImages;
 
     /** A kind whose files carry one {@code schema:} label. */
     public DocumentKindDeclaration(String kind, String dir, String schemaVersion) {
@@ -43,6 +45,13 @@ public final class DocumentKindDeclaration {
      * @param idPrefix what the editor prepends to a new Document's id ({@code quest_}), or null.
      */
     public DocumentKindDeclaration(String kind, String dir, List<String> schemaVersions, @Nullable String idPrefix) {
+        this(kind, dir, schemaVersions, idPrefix, null);
+    }
+
+    private DocumentKindDeclaration(
+            String kind, String dir, List<String> schemaVersions, @Nullable String idPrefix,
+            @Nullable PackImagesProvider packImages) {
+        this.packImages = packImages;
         this.kind = Objects.requireNonNull(kind, "kind");
         this.dir = Objects.requireNonNull(dir, "dir");
         this.schemaVersions = List.copyOf(Objects.requireNonNull(schemaVersions, "schemaVersions"));
@@ -79,6 +88,27 @@ public final class DocumentKindDeclaration {
         return idPrefix;
     }
 
+    /**
+     * This kind, whose files ask the resource pack for images ({@link PackImagesProvider}): what lets
+     * the hub build the pack without the editor.
+     *
+     * @since 2.22.0
+     */
+    @Beta
+    public DocumentKindDeclaration withPackImages(PackImagesProvider provider) {
+        return new DocumentKindDeclaration(kind, dir, schemaVersions, idPrefix, Objects.requireNonNull(provider, "provider"));
+    }
+
+    /**
+     * What the kind's files ask the pack for, or null.
+     *
+     * @since 2.22.0
+     */
+    @Beta
+    public @Nullable PackImagesProvider getPackImages() {
+        return packImages;
+    }
+
     /** True if a file carrying {@code schema} is of this kind (an empty label is accepted: legacy file). */
     public boolean acceptsSchema(String schema) {
         return schema.isEmpty() || schemaVersions.contains(schema);
@@ -98,7 +128,8 @@ public final class DocumentKindDeclaration {
     public boolean equals(Object o) {
         return o instanceof DocumentKindDeclaration other
             && kind.equals(other.kind) && dir.equals(other.dir)
-            && schemaVersions.equals(other.schemaVersions) && Objects.equals(idPrefix, other.idPrefix);
+            && schemaVersions.equals(other.schemaVersions) && Objects.equals(idPrefix, other.idPrefix)
+            && Objects.equals(packImages, other.packImages);
     }
 
     @Override

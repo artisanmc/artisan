@@ -26,7 +26,7 @@ The old cloud model (45 tables, 66 Drizzle migrations) is recoverable at commit 
 | **Seen player** | Player UUID | `artisan_players` (`PlayerRows`: name, `first_seen`, `last_seen`, `playtime_ms`, all in epoch ms), shared by the network. Read at connection (`AsyncPlayerPreLoginEvent`, off the game threads), written at join, every 5 min (this server's share of playtime) and at quit (`PlayerSync`, paper). Online players are in memory (`PlayerRecords`, runtime): templates read `{player.first_seen}`, `{player.last_seen}` (end of the previous visit) and `{player.playtime}` without waiting for the database. Without a database: memory only, from the join. |
 | **Login link** | Single-use token | Hub memory, 60 s, one per player per minute. |
 | **Editor preferences** | Player UUID | Hub disk: `plugins/Artisan/editor-prefs/<uuid>.json` (`PlayerPrefs`): language, theme, guided tour progress. Atomic write, known keys only. |
-| **Resource pack** | SHA-1 of the zip | Hub disk: `plugins/Artisan/cache/resource-pack/<sha1>.zip` (`PackStore`, last three, one pack per server built by the editor). The hub also builds each server's pack itself after that server's `projects_reloaded` (`PackBuilder`, `plugin/pack`, Pro only), from what the server loaded in the suite database; **shadow mode**: it compares with the editor's upload (WARNING when they differ) and applies nothing yet. Copied to Artisan's pack host when `web.pack-cdn` is set (`PackCdn`, ADR `pack-host`): `packs/<sha1>.zip` in R2, kept while the hub touches it (startup, daily). Last applied pack: `cache/resource-pack.json` on each server. |
+| **Resource pack** | SHA-1 of the zip | Hub disk: `plugins/Artisan/cache/resource-pack/<sha1>.zip` (`PackStore`, last three, one pack per server built by the editor). The hub also builds each server's pack itself after that server's `projects_reloaded` (`PackBuilder`, `plugin/pack`, Pro only), from what the server loaded in the suite database, module images included (`pack_images` of the loaded state); **shadow mode**: it compares with the editor's upload (WARNING when they differ) and applies nothing yet. Copied to Artisan's pack host when `web.pack-cdn` is set (`PackCdn`, ADR `pack-host`): `packs/<sha1>.zip` in R2, kept while the hub touches it (startup, daily). Last applied pack: `cache/resource-pack.json` on each server. |
 
 No user: the identity in the editor is the Minecraft player who requested the link,
 their rights are their `artisan.editor.view|edit|publish|config` permissions at the time of the
@@ -92,7 +92,8 @@ directly from the plugin on each request.
   `artisan_server_state` (one JSON per server, rewritten at each load **if all the Versions
   of the load were recorded**: otherwise the previous state stays, consistent with the files
   served): the content of `project_list` and, per Project, the Snapshot hash, the failed
-  files and `.artisan/editor.yaml` — a `LoadedState` (`core/protocol`, field `schema`, absent from
+  files, `.artisan/editor.yaml` and the images its Documents ask the pack for (`pack_images`, computed
+  at load by the kinds' `PackImagesProvider`, absent when none) — a `LoadedState` (`core/protocol`, field `schema`, absent from
   older rows which read as `schema: 1`; an unknown field is ignored). The hub reads the list, the Projects and their assets from these two
   tables (`LoadedProjects`, implemented by `SuiteProjectData` in `paper`, which keeps the parsed state
   of each server for 5 s and drops it as soon as that server records or announces a reload);

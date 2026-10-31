@@ -2,6 +2,7 @@ package net.artisanmc.plugin.model
 
 import net.artisanmc.modules.api.document.DocumentKindDeclaration
 import net.artisanmc.modules.api.document.DocumentKindRegistry
+import net.artisanmc.modules.api.document.PackImagesProvider
 
 /**
  * One kind of Document a project folder holds (ADR `extensible-document-kinds`,
@@ -75,6 +76,10 @@ object DocumentKinds {
 
     /** The kind whose folder is [dir] (`menus` → menu), if registered. */
     fun byDir(dir: String): DocumentKind? = registry.byDir(dir)?.let(DocumentKind::of)
+
+    /** The registered kinds whose files ask the pack for images, by folder, in registration order. */
+    fun packImages(): Map<String, PackImagesProvider> =
+        registry.declarations().mapNotNull { d -> d.packImages?.let { d.dir to it } }.toMap()
 
     /** Test-only: back to a private registry holding the core kinds. */
     fun reset() {

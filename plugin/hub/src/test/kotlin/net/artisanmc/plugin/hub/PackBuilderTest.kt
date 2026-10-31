@@ -15,11 +15,15 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PackBuilderTest {
-    private val case = ObjectMapper().readTree(File("../testdata/resource-pack-conformance.json"))["cases"]
-        .first { it["name"].asText().startsWith("glyph title layers across two projects") }
+    private val cases = ObjectMapper().readTree(File("../testdata/resource-pack-conformance.json"))["cases"]
+    private fun case(name: String) = cases.first { it["name"].asText().startsWith(name) }
+    private val case = case("glyph title layers across two projects")
 
-    /** The case's Projects as server `u-local` loaded them, read from the database. */
-    private val loaded = object : LoadedProjects {
+    /**
+     * A case's Projects as server `u-local` loaded them, read from the database; their module images
+     * (`overlayImages`) as the server records them at load (`pack_images`).
+     */
+    private fun loadedOf(case: com.fasterxml.jackson.databind.JsonNode) = object : LoadedProjects {
         private val projects = case["projects"].associateBy { it["id"].asText() }
         override fun list(server: String) = if (server != "u-local") null else mapOf("project_ids" to projects.keys.toList())
         override fun read(server: String, folder: String): Map<String, Any?>? {
@@ -28,11 +32,14 @@ class PackBuilderTest {
                 "hash" to "h",
                 "files" to p["files"].fields().asSequence().map { (path, c) -> mapOf("path" to path, "content" to c.asText()) }.toList(),
                 "binaries" to p["binaries"].fieldNames().asSequence().map { mapOf("path" to it, "hash" to "x", "size" to 1) }.toList(),
+                "pack_images" to (p["overlayImages"]?.let { ObjectMapper().convertValue(it, List::class.java) } ?: emptyList<Any>()),
             )
         }
         override fun binary(server: String, folder: String, path: String): ByteArray? =
             projects[folder]?.get("binaries")?.get(path)?.let { Base64.getDecoder().decode(it.asText()) }
     }
+
+    private val loaded = loadedOf(case)
 
     private val servers = Servers(McpFixtures.server(mutableListOf()))
 
@@ -60,6 +67,12 @@ class PackBuilderTest {
     fun `builds the editor's bytes from what the server loaded`() {
         // The editor anchors assets to `<server>.<folder>`, as the hub does: same order, same pack.
         assertEquals(case["sha1"].asText(), PackBuilder(servers, loaded, logger, direct).build("u-local")?.sha1)
+    }
+
+    @Test
+    fun `builds the module images the server recorded at load`() {
+        val images = case("module images at a height")
+        assertEquals(images["sha1"].asText(), PackBuilder(servers, loadedOf(images), logger, direct).build("u-local")?.sha1)
     }
 
     @Test

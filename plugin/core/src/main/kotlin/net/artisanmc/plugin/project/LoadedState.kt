@@ -83,9 +83,24 @@ data class FailedFile(val path: String, val reason: String) {
     fun toMap(): Map<String, String> = mapOf("path" to path, "reason" to reason)
 }
 
-/** One loaded Project: its Snapshot hash, failed files, and `.artisan*` metadata the editor reads (outside the Versions). */
-data class LoadedProject(val hash: String, val failed: List<FailedFile> = emptyList(), val meta: Map<String, String> = emptyMap()) {
-    fun toMap(): Map<String, Any?> = mapOf("hash" to hash, "failed" to failed.map { it.toMap() }, "meta" to meta)
+/**
+ * One loaded Project: its Snapshot hash, failed files, `.artisan*` metadata the editor reads (outside
+ * the Versions), and the images its Documents ask the pack for ([PackImageRequests]), which the hub
+ * builds the pack with.
+ */
+data class LoadedProject(
+    val hash: String,
+    val failed: List<FailedFile> = emptyList(),
+    val meta: Map<String, String> = emptyMap(),
+    val packImages: List<PackImageRequest> = emptyList(),
+) {
+    /** `pack_images` only when some: a row without it reads as none. */
+    fun toMap(): Map<String, Any?> = buildMap {
+        put("hash", hash)
+        put("failed", failed.map { it.toMap() })
+        put("meta", meta)
+        if (packImages.isNotEmpty()) put("pack_images", packImages.map { it.toMap() })
+    }
 
     companion object {
         fun from(value: Any?): LoadedProject? {
@@ -97,6 +112,7 @@ data class LoadedProject(val hash: String, val failed: List<FailedFile> = emptyL
                 },
                 meta = (map["meta"] as? Map<*, *>).orEmpty().entries
                     .mapNotNull { (k, v) -> if (k is String && v is String) k to v else null }.toMap(),
+                packImages = (map["pack_images"] as? List<*>).orEmpty().mapNotNull(PackImageRequest::from),
             )
         }
     }
@@ -112,13 +128,19 @@ data class LoadedState(val list: ProjectListing, val projects: Map<String, Loade
     companion object {
         const val SCHEMA = 1
 
-        fun of(snapshot: ProjectSnapshot, roots: ProjectRoots): LoadedState {
+        /** [packImages]: what a Project's files ask the pack for, from its files ([PackImageRequests]). */
+        fun of(
+            snapshot: ProjectSnapshot,
+            roots: ProjectRoots,
+            packImages: (files: Map<String, String>) -> List<PackImageRequest> = { emptyList() },
+        ): LoadedState {
             val projects = snapshot.projectIds.associateWith { id ->
                 LoadedProject(
                     hash = snapshot.hash(id),
                     failed = snapshot.skipped[id].orEmpty().toSortedMap().map { (path, reason) -> FailedFile(path, reason) },
                     // `.artisan/editor.yaml`: read by the editor, outside the Versions.
                     meta = snapshot.files[id].orEmpty().filterKeys(ContentHash::isArtisanMeta),
+                    packImages = packImages(snapshot.files[id].orEmpty().filterKeys { !ContentHash.isArtisanMeta(it) }),
                 )
             }
             return LoadedState(ProjectListing.of(snapshot, roots), projects)

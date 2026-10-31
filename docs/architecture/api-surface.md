@@ -97,6 +97,16 @@ Artisan owns the slots of the screen (`Slot.ACTION_BAR` for now, the boss bar an
 
 A HUD is laid out as data instead of code: a module keeps an `OverlayLayout` in its files (a YAML list of layers: `image`, `image_slot`, `text`, `list`, drawn in order) and reads it with `OverlayLayout.read`, which keeps the right layers and reports the others by path and stable code (`not_a_list`, `not_a_layer`, `unknown_layer`, `missing_name`, `missing_field`, `not_a_number`, `out_of_range`, `unknown_value`, `duplicate_slot`). Positions are GUI px from the slot's origin, x from the centre of the screen, **y downwards** from the top of the slot's text (`rise = -y`), every top within `MIN_Y`..`MAX_Y` (-128..166). Each frame, the module fills the named layers (`OverlayContent`: the rows of a `text`, the rows, selection and first visible row of a `list`, the asset of an `image_slot`, moved from its place by an offset if the module asks: `SlotImage`; a slot given none draws its `default`) and `compose` returns the layer's MiniMessage for `show`, built from `move`/`raise`/`image`, with the images the pack lacks (`Composed.missingImages()`, left out of the frame: the module decides whether to fall back to the chat). An `image_slot` anchored by its bottom needs the image's own height: `imageHeight(asset)`, read from the pack index (`imageHeight` of an `overlay` entry), -1 when the pack holds it at no rise. `getPackImages()` lists what the layout's fixed images, cursors and slot defaults need in the pack (`PackImage`: at a `rise`, or by its `bottom` for a slot anchored there), `slotPackImage(slot, asset, dy)` what a module's own image in a slot needs; a module's `pack.images` declares them. The geometry is checked by `testdata/overlay-layout-conformance.json`. Detail: `modules.md`, "HUD layouts".
 
+## 2.22.0 — pack images without the editor
+
+| Member | Type | Since |
+|---|---|---|
+| `api.document.PackImagesProvider` `@Beta` (`images`, `Context`, `DirFile`) | interface | 2.22.0 |
+| `DocumentKindDeclaration.withPackImages(provider)` `@Beta` | `DocumentKindDeclaration` | 2.22.0 |
+| `DocumentKindDeclaration.getPackImages()` `@Beta` | `PackImagesProvider` (nullable) | 2.22.0 |
+
+The Java twin of an editor kind's `pack.images` (SDK 1.13): the server calls it on each file of the kind at load and records the images with its loaded state, so the hub builds the resource pack, module images included, without an editor tab. It must answer like the editor kind, in the same order. Detail: `modules.md`, "Pack images on the server".
+
 ## Stable APIs
 
 ### `net.artisanmc.modules.api.ArtisanModule`

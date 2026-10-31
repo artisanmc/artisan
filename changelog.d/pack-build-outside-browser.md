@@ -10,3 +10,9 @@
 - **Added** (preview): The hub builds each server's Java pack itself after that server reloads its
   Projects, and compares it with the pack the editor uploads (a WARNING when they differ). Shadow mode:
   nothing changes for players, the editor's pack is still the one served.
+- **Added** (API 2.22.0, `@Beta`): `DocumentKindDeclaration.withPackImages(PackImagesProvider)`, the
+  Java twin of an editor kind's `pack.images`. The server computes the images its Documents ask for
+  at each load and records them with its loaded state; the hub's pack build includes them.
+- **Changed**: The editor asks the kinds' `pack.images` file by file in path order, as the server
+  does, instead of kind by kind. A server with module images in several folders may get a new pack
+  hash once.
