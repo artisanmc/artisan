@@ -71,7 +71,7 @@ class PackBuilderTest {
     @Test
     fun `shadow mode compares with the editor's upload without warning when they match`() {
         val builder = PackBuilder(servers, loaded, logger, direct)
-        builder.request("u-local")
+        assertEquals(case["sha1"].asText(), builder.request("u-local").get()?.hubHash)
         builder.editorUploaded("u-local", case["sha1"].asText())
         assertEquals(true, builder.status("u-local")?.matches)
         assertTrue(warnings.isEmpty(), warnings.toString())
@@ -79,6 +79,29 @@ class PackBuilderTest {
         builder.editorUploaded("u-local", "0".repeat(40))
         assertEquals(false, builder.status("u-local")?.matches)
         assertEquals(1, warnings.size)
+    }
+
+    @Test
+    fun `requests made while one waits share its build and its result`() {
+        val queue = java.util.concurrent.LinkedBlockingQueue<Runnable>()
+        val held = object : AbstractExecutorService() {
+            override fun execute(command: Runnable) { queue += command }
+            override fun shutdown() = Unit
+            override fun shutdownNow() = emptyList<Runnable>()
+            override fun isShutdown() = false
+            override fun isTerminated() = false
+            override fun awaitTermination(timeout: Long, unit: TimeUnit) = true
+        }
+        val builder = PackBuilder(servers, loaded, logger, held)
+        val first = builder.request("u-local")
+        val second = builder.request("u-local")
+        assertEquals(1, queue.size)
+        queue.poll().run()
+        assertEquals(case["sha1"].asText(), first.get()?.hubHash)
+        assertTrue(first === second)
+        // Once that build ran, a new request queues a new one.
+        builder.request("u-local")
+        assertEquals(1, queue.size)
     }
 
     @Test

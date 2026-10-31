@@ -5,9 +5,11 @@ import net.artisanmc.plugin.pack.PackInput
 import net.artisanmc.plugin.pack.PackProject
 import net.artisanmc.plugin.pack.PackResult
 import net.artisanmc.plugin.pack.ResourcePackBuilder
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.logging.Level
 import java.util.logging.Logger
 
@@ -39,27 +41,48 @@ class PackBuilder(
     }
 
     private val status = ConcurrentHashMap<String, Status>()
-    private val waiting = ConcurrentHashMap.newKeySet<String>()
+    private val waiting = ConcurrentHashMap<String, CompletableFuture<Status?>>()
 
     fun status(server: String): Status? = status[server]
 
-    /** Rebuilds [server]'s pack in the background; a request already waiting covers this one. */
-    fun request(server: String) {
-        if (!waiting.add(server)) return
-        executor.execute {
-            waiting.remove(server)
-            val started = System.currentTimeMillis()
-            val result = runCatching { build(server) }
-            val previous = status[server]
-            result.onSuccess { pack ->
-                if (pack == null) return@onSuccess
-                status[server] = Status(pack.sha1, previous?.editorHash, started, null)
-                logger?.fine { "[Artisan] Pack of $server built by the hub in ${System.currentTimeMillis() - started} ms: ${pack.sha1}" }
-                if (previous?.editorHash == pack.sha1) logger?.fine { "[Artisan] Pack of $server: the hub's build matches the editor's" }
-            }.onFailure { error ->
-                status[server] = Status(previous?.hubHash, previous?.editorHash, started, error.message ?: error.javaClass.simpleName)
-                logger?.log(Level.WARNING, "[Artisan] The hub could not build the pack of $server (the editor's stays in use)", error)
+    /**
+     * Rebuilds [server]'s pack in the background, from what the database holds for it: the
+     * server need not be online. A request already waiting covers this one. The future completes
+     * with the status once that build is done (null: no state for the server), never exceptionally.
+     */
+    fun request(server: String): CompletableFuture<Status?> {
+        val fresh = CompletableFuture<Status?>()
+        val queued = waiting.putIfAbsent(server, fresh)
+        if (queued != null) return queued
+        try {
+            executor.execute {
+                waiting.remove(server, fresh)
+                try {
+                    record(server)
+                } finally {
+                    fresh.complete(status[server])
+                }
             }
+        } catch (_: RejectedExecutionException) {
+            waiting.remove(server, fresh)
+            fresh.complete(status[server])
+        }
+        return fresh
+    }
+
+    /** Builds [server]'s pack and records the outcome in its [Status]. */
+    private fun record(server: String) {
+        val started = System.currentTimeMillis()
+        val result = runCatching { build(server) }
+        val previous = status[server]
+        result.onSuccess { pack ->
+            if (pack == null) return@onSuccess
+            status[server] = Status(pack.sha1, previous?.editorHash, started, null)
+            logger?.fine { "[Artisan] Pack of $server built by the hub in ${System.currentTimeMillis() - started} ms: ${pack.sha1}" }
+            if (previous?.editorHash == pack.sha1) logger?.fine { "[Artisan] Pack of $server: the hub's build matches the editor's" }
+        }.onFailure { error ->
+            status[server] = Status(previous?.hubHash, previous?.editorHash, started, error.message ?: error.javaClass.simpleName)
+            logger?.log(Level.WARNING, "[Artisan] The hub could not build the pack of $server (the editor's stays in use)", error)
         }
     }
 
