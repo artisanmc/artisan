@@ -84,6 +84,8 @@ class SyncedMenuProvider(
     private val peers: () -> List<HubLink> = { emptyList() },
     /** `api.menus` listeners and the Bukkit menu events. */
     private val menuEvents: net.artisanmc.plugin.listener.MenuEventDispatcher? = null,
+    /** Who plays from Bedrock (Geyser): their menus get the title the Bedrock pack reads. */
+    private val isBedrock: (Player) -> Boolean = { false },
     /** Each loaded Snapshot, with the editor players whose publication it loads, by project id. */
     /** Each loaded Snapshot, with its publications' authors by project id; [done] announces the reload once it is recorded. */
     private val onSnapshot: (ProjectSnapshot, Map<String, net.artisanmc.plugin.project.PublicationAuthor>, done: () -> Unit) -> Unit =
@@ -219,6 +221,12 @@ class SyncedMenuProvider(
     }
 
     private fun rpm(): ResourcePackManager? = resourcePackManager ?: resourcePackManagerRef
+
+    @Volatile private var bedrockPacks: net.artisanmc.plugin.resourcepack.BedrockPackManager? = null
+
+    fun setBedrockPackManager(mgr: net.artisanmc.plugin.resourcepack.BedrockPackManager) {
+        bedrockPacks = mgr
+    }
 
     /**
      * Registers an Add-on root; the snapshot is reloaded through `roots.onRegister`,
@@ -414,7 +422,7 @@ class SyncedMenuProvider(
         )
         val session = MenuRenderer.open(
             player, menu, lang, decorateNavigation(player, opened), evaluator, lookupAsset, offsetEncoderProvider(),
-            dataSources, projectDataResolver, menuWindows,
+            dataSources, projectDataResolver, menuWindows, isBedrock,
         )
         sessions?.set(player, session)
     }
@@ -706,6 +714,7 @@ class SyncedMenuProvider(
         when (val request = EditorRequest.parse(node) ?: return) {
             is EditorRequest.HelloAck -> onHelloAck(request)
             is EditorRequest.ResourcePackUpdated -> applyResourcePack(request.url, request.hash, "resource_pack_updated payload")
+            is EditorRequest.BedrockPackUpdated -> applyBedrockPack(request.url, request.hash, "bedrock_pack_updated payload")
             EditorRequest.SessionReplaced -> logger?.warning(
                 "[Artisan] Another server joined the hub with this server's name (name in environment.yml); this one is disconnected from the editor.",
             )
@@ -748,11 +757,29 @@ class SyncedMenuProvider(
             is EditorRequest.PackUpdate.Apply -> applyResourcePack(pack.url, pack.hash, "resource_pack info from hello_ack")
             EditorRequest.PackUpdate.Incomplete -> Unit
         }
+        when (val pack = ack.bedrockPack) {
+            EditorRequest.PackUpdate.Cleared -> bedrockPacks?.clear()
+            is EditorRequest.PackUpdate.Apply -> applyBedrockPack(pack.url, pack.hash, "bedrock_pack info from hello_ack")
+            EditorRequest.PackUpdate.Incomplete -> Unit
+        }
     }
 
     /** A pack built by the editor and served by the hub: [downloadUrl] is the hub's local address. */
     fun applyLocalResourcePack(playerUrl: String, downloadUrl: String, hash: String) {
         rpm()?.applyPack(playerUrl, downloadUrl, hash)
+    }
+
+    /** The Bedrock pack built by the editor and served by the hub: [downloadUrl] is the hub's local address. */
+    fun applyLocalBedrockPack(downloadUrl: String, hash: String) {
+        bedrockPacks?.apply(downloadUrl, hash)
+    }
+
+    private fun applyBedrockPack(url: String, hash: String, what: String) {
+        try {
+            bedrockPacks?.apply(resolvePluginDownloadUrl(url), hash)
+        } catch (t: Throwable) {
+            logger?.warning("Invalid $what: ${t.message}")
+        }
     }
 
     private fun applyResourcePack(url: String, hash: String, what: String, base: String? = hubBaseUrl) {

@@ -1,3 +1,5 @@
+import { type BedrockMenu, bedrockMenusFromProject } from "./bedrock/bedrockMenus";
+import { buildBedrockPack } from "./bedrock/bedrockPack";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
@@ -22,6 +24,8 @@ export interface PackProject {
   binary(path: string): Promise<Uint8Array | undefined>;
   /** The module images this Project's files ask for (`pack.images`, resolved by the caller). */
   overlayImages?: OverlayImageRequest[];
+  /** The Project's folder on disk, which names it on the plugin side (Bedrock menu keys); defaults to `id`. */
+  folder?: string;
 }
 
 export interface PackInput {
@@ -34,6 +38,13 @@ export interface PackInput {
   textUp: Record<TextUpTexture, Uint8Array>;
   /** Redraw the containers a menu makes transparent (`vanilla_gui_v1`); true for every current plugin. */
   transparentContainers?: boolean;
+  /** Also build the Bedrock pack (`bedrock/bedrockPack.ts`) for this server. */
+  bedrock?: { serverId: string };
+}
+
+export interface ServerPacks extends BuildResult {
+  /** Present when `PackInput.bedrock` was asked for. */
+  bedrock?: { bytes: Uint8Array; hash: string };
 }
 
 /**
@@ -44,7 +55,7 @@ export interface PackInput {
  * Project order: by id, stable from one build to the next; the first one wins codepoint
  * collisions.
  */
-export async function assembleServerPack(input: PackInput): Promise<BuildResult> {
+export async function assembleServerPack(input: PackInput): Promise<ServerPacks> {
   const projects = [...input.projects].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const allAssets: AssetRow[] = [];
   const contribs: GlyphContribution[] = [];
@@ -55,6 +66,7 @@ export async function assembleServerPack(input: PackInput): Promise<BuildResult>
   const transparent = new Set<GuiContainer>();
   const imagesByRef: { ref: string; bytes: Uint8Array }[] = [];
   const overlayImages: OverlayImageRequest[] = [];
+  const bedrockMenus: BedrockMenu[] = [];
 
   for (const project of projects) {
     const { files } = project;
@@ -62,6 +74,9 @@ export async function assembleServerPack(input: PackInput): Promise<BuildResult>
     imageButtons.push(...imageButtonsFromMenus(files));
     overlayImages.push(...(project.overlayImages ?? []));
     for (const c of transparentContainersFromMenus(files)) transparent.add(c);
+    // Keyed by the folder name: the plugin names a menu's Project that way.
+    if (input.bedrock)
+      bedrockMenus.push(...bedrockMenusFromProject(project.folder ?? project.id, files));
     const fromDisk: DiskAsset[] = diskAssetsFromTree(project.id, files, project.binaries);
 
     contribs.push({
@@ -100,7 +115,7 @@ export async function assembleServerPack(input: PackInput): Promise<BuildResult>
       (await input.vanillaTexture(container));
   }
 
-  return buildResourcePackZip(
+  const java = buildResourcePackZip(
     allAssets,
     glyphPngs,
     fontGlyphPngs,
@@ -111,4 +126,20 @@ export async function assembleServerPack(input: PackInput): Promise<BuildResult>
     input.textUp,
     overlayImages,
   );
+  if (!input.bedrock) return java;
+  // Asset names collide across Projects the same way the Java pack resolves
+  // them: the first Project (by id) wins.
+  const pngsByName = new Map<string, Uint8Array>();
+  for (const a of allAssets) {
+    const bytes = glyphPngs.get(a.id);
+    if (bytes && !pngsByName.has(a.name)) pngsByName.set(a.name, bytes);
+  }
+  const bedrock = buildBedrockPack({
+    serverId: input.bedrock.serverId,
+    menus: bedrockMenus,
+    pngs: pngsByName,
+    assets: allAssets,
+    chestTexture: sources.chest,
+  });
+  return { ...java, bedrock: { bytes: bedrock.bytes, hash: bedrock.hash } };
 }

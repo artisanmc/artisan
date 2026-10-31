@@ -891,16 +891,26 @@ Non-examples:
 
 ## Variable
 
-A declared, typed, persistent value (`variables/<id>.yml`): scope `player` or
-`server`, type `string`, `number`, `boolean` or `location`, optional expiry. Written
-by `set_var` / `add_var` / `clear_var`, read as `{var.<id>}` and by `has_var`;
-stored in the suite database, so a Network shares a player's values. Cf. ADR
-`triggers-and-variables`.
+A declared, typed value, scope `player` or `server`, type `string`, `number`,
+`boolean` or `location`. Two provenances, read the same way (`{var.…}`, `has_var`):
+
+- **Project variable** — a Document (`variables/<id>.yml`), optional expiry. Written
+  by `set_var` / `add_var` / `clear_var`, read as `{var.<id>}`; stored in the suite
+  database, so a Network shares a player's values.
+- **Module variable** — declared by a **Module** in code, named `<module>.<name>`
+  with an optional key (`{var.quests.status["daily/miner"]}`). Read-only and
+  computed on demand from the Module's own state, never stored by Artisan; a Module
+  changes it only through its own actions. Absent when the Module is not installed,
+  so reading it creates no dependency between Modules.
+
+Cf. ADR `triggers-and-variables` (§5, §10 proposed).
 
 Non-examples:
 - A context input set by `set_arg` is not a Variable — it lives for one menu
   session and is never stored.
 - A cooldown is not a Variable — it only answers "has this delay passed?".
+- A placeholder is not a Variable — it is display text, untyped and undeclared; a
+  Module shares its state through Module variables, not through its placeholders.
 
 ## Version
 

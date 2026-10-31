@@ -20,11 +20,12 @@ sealed interface EditorRequest {
         val message: JsonNode
     }
 
-    data class HelloAck(val sessionId: String?, val resourcePack: PackUpdate) : EditorRequest
+    data class HelloAck(val sessionId: String?, val resourcePack: PackUpdate, val bedrockPack: PackUpdate = PackUpdate.Incomplete) : EditorRequest
 
     data object SessionReplaced : EditorRequest
     data object CustomItemsRequest : EditorRequest
     data class ResourcePackUpdated(val url: String, val hash: String) : EditorRequest
+    data class BedrockPackUpdated(val url: String, val hash: String) : EditorRequest
 
     data class NexoGlyphsList(override val requestId: String) : WithReply
     data class NexoGlyphRead(override val requestId: String, val glyphId: String?) : WithReply
@@ -127,6 +128,9 @@ sealed interface EditorRequest {
             if (type == "resource_pack_updated") {
                 return ResourcePackUpdated(node.text("url") ?: return null, node.text("hash") ?: return null)
             }
+            if (type == "bedrock_pack_updated") {
+                return BedrockPackUpdated(node.text("url") ?: return null, node.text("hash") ?: return null)
+            }
 
             val requestId = node.text("request_id") ?: return null
             return when (type) {
@@ -195,17 +199,23 @@ sealed interface EditorRequest {
             }
         }
 
-        private fun helloAck(node: JsonNode): HelloAck {
-            val pack = node["resource_pack"]
-            val update = when {
-                pack == null || pack.isNull -> PackUpdate.Cleared
-                else -> {
-                    val url = pack.text("url")
-                    val hash = pack.text("hash")
-                    if (url != null && hash != null) PackUpdate.Apply(url, hash) else PackUpdate.Incomplete
-                }
+        private fun helloAck(node: JsonNode): HelloAck =
+            HelloAck(
+                sessionId = node.text("session_id"),
+                resourcePack = packUpdate(node["resource_pack"], absent = PackUpdate.Cleared),
+                // A hub older than the field says nothing about the Bedrock pack.
+                bedrockPack = packUpdate(node["bedrock_pack"], absent = PackUpdate.Incomplete),
+            )
+
+        /** `null` clears the pack, an address applies it, an empty object leaves it. */
+        private fun packUpdate(pack: JsonNode?, absent: PackUpdate): PackUpdate = when {
+            pack == null -> absent
+            pack.isNull -> PackUpdate.Cleared
+            else -> {
+                val url = pack.text("url")
+                val hash = pack.text("hash")
+                if (url != null && hash != null) PackUpdate.Apply(url, hash) else PackUpdate.Incomplete
             }
-            return HelloAck(sessionId = node.text("session_id"), resourcePack = update)
         }
 
         private fun projectWrite(requestId: String, projectId: String, node: JsonNode) = ProjectWrite(

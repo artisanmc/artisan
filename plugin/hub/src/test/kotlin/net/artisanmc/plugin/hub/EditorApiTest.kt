@@ -38,6 +38,7 @@ class EditorApiTest {
         override fun serverConfig() = mapOf<String, Any?>("language" to "en")
         override fun customItems() = listOf(mapOf("id" to "nexo:coin", "label" to "coin", "category" to "nexo"))
         override fun applyResourcePack(hash: String, path: String) { applied += hash to path }
+        override fun applyBedrockPack(hash: String, path: String) { applied += hash to path }
     }
     private val applied = Collections.synchronizedList(mutableListOf<Pair<String, String>>())
     private var stored = false
@@ -70,7 +71,8 @@ class EditorApiTest {
     private val prefs = PlayerPrefs(prefsDir)
     private val hub = HubServer(
         WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(Servers(server), sessions, null, VanillaAssets(java.nio.file.Files.createTempDirectory("vanilla").toFile(), "1.21.4", null, manifestUrl = VanillaAssetsTest.OFFLINE),
-            PackStore(java.nio.file.Files.createTempDirectory("packs").toFile()), prefs, history, loaded), sessions,
+            PackStore(java.nio.file.Files.createTempDirectory("packs").toFile()), prefs, history, loaded,
+            bedrockPacks = PackStore(java.nio.file.Files.createTempDirectory("bedrock").toFile(), PackStore.BEDROCK_PATH, "mcpack")), sessions,
         EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
     )
     private val client = HttpClient.newHttpClient()
@@ -399,6 +401,22 @@ class EditorApiTest {
         val bad = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/servers/u-local/resource-pack"))
             .PUT(HttpRequest.BodyPublishers.ofString("nope")).header("Cookie", cookie).build()
         assertEquals(422, client.send(bad, HttpResponse.BodyHandlers.ofString()).statusCode())
+    }
+
+    @Test
+    fun `a Bedrock pack built by the editor is served and applied`() {
+        val zip = "PK\u0003\u0004bedrock".toByteArray()
+        val put = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/servers/u-local/bedrock-pack"))
+            .PUT(HttpRequest.BodyPublishers.ofByteArray(zip)).header("Cookie", cookie).build()
+        val response = client.send(put, HttpResponse.BodyHandlers.ofString())
+        assertEquals(200, response.statusCode())
+        val hash = mapper.readTree(response.body())["hash"].asText()
+        assertEquals(listOf(hash to "/bedrock-pack/$hash.mcpack"), applied.toList())
+        val get = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/bedrock-pack/$hash.mcpack")).build()
+        val served = client.send(get, HttpResponse.BodyHandlers.ofByteArray())
+        assertEquals(200, served.statusCode())
+        assertTrue(zip.contentEquals(served.body()))
+        assertEquals(404, client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/resource-pack/$hash.mcpack")).build(), HttpResponse.BodyHandlers.ofString()).statusCode())
     }
 
     @Test

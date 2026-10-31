@@ -413,7 +413,7 @@ class PluginChannelTest {
         val files = mapOf("icon" to icon.toByteArray(), "logo-dark" to logo.toByteArray())
         val hash = ServerRoutes.brandHash(files)
         val leaf = Leaf()
-        leaf.hello(protocol = "1.5", modules = listOf(
+        leaf.hello(protocol = "1.6", modules = listOf(
             mapOf("id" to "auctions", "version" to "1.0.0", "brand" to mapOf("hash" to hash, "files" to listOf("icon", "logo-dark"), "logo" to mapOf("width" to 85, "height" to 8))),
             mapOf("id" to "menus", "version" to "1.0.0"),
         ))
@@ -449,7 +449,7 @@ class PluginChannelTest {
     @Test
     fun `a brand that does not match its announcement is refused`() {
         val leaf = Leaf()
-        leaf.hello(protocol = "1.5", modules = listOf(
+        leaf.hello(protocol = "1.6", modules = listOf(
             mapOf("id" to "auctions", "version" to "1.0.0", "brand" to mapOf("hash" to "0".repeat(64), "files" to listOf("icon"))),
         ))
         leaf.next()

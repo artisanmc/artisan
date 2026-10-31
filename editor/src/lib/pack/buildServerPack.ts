@@ -11,8 +11,7 @@ import { projectClient } from "@/lib/projectClient";
 import { listDocumentKindContributions } from "@artisan/editor-sdk";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { overlayImagesFromFiles } from "./overlayImages";
-import { type PackProject, assembleServerPack } from "./packAssembly";
-import type { BuildResult } from "./resourcePackBuilder";
+import { type PackProject, type ServerPacks, assembleServerPack } from "./packAssembly";
 import type { GuiContainer } from "./vanillaGui";
 
 const VANILLA_TEXTURES: Record<GuiContainer, string> = {
@@ -39,11 +38,12 @@ const TEXT_UP_URLS: Record<TextUpTexture, string> = {
  * In network mode, each server has its own pack, built from its own Projects
  * only; those of a server other than the hub carry the id `<server>.<folder>`.
  */
-export async function buildServerPack(serverId: string): Promise<BuildResult> {
+export async function buildServerPack(serverId: string): Promise<ServerPacks> {
   const list = await listServerProjects(serverId);
   if (!list.ok) throw new Error(`project_list_failed:${list.error}`);
   const idOf = (folder: string) =>
     list.projects?.find((p) => (p.externalId ?? p.id) === folder)?.id ?? folder;
+  const folders = new Map(list.projectIds.map((folder) => [idOf(folder), folder]));
 
   const config = await getServerConfig(serverId);
   // The kinds of the modules this editor has loaded: a module's images reach the pack once
@@ -51,7 +51,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
   const kinds = listDocumentKindContributions();
 
   const projects: PackProject[] = [];
-  const projectIds = list.projectIds.map(idOf).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const projectIds = [...folders.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   for (const projectId of projectIds) {
     const client = projectClient(projectId);
     const tree = await client.read();
@@ -65,6 +65,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
       binaries: tree.binaries ?? [],
       binary: (path) => client.binary(path),
       overlayImages: overlayImagesFromFiles(files, kinds),
+      folder: folders.get(projectId),
     });
   }
 
@@ -79,6 +80,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
     containerTextures: containerTextureRefs(config.config),
     vanillaTexture: (container) => fetchBytes(VANILLA_TEXTURES[container]),
     textUp,
+    bedrock: { serverId },
   });
 }
 
@@ -120,6 +122,32 @@ export async function uploadResourcePack(
   }
 }
 
+/**
+ * The Bedrock pack goes next to the Java one. A hub without the route (an
+ * older plugin) answers 404: the Java pack is still applied, so that is a
+ * warning, not a failure.
+ */
+export async function uploadBedrockPack(serverId: string, pack: Uint8Array): Promise<void> {
+  try {
+    await apiFetch<{ hash: string }>(`/api/v1/servers/${serverId}/bedrock-pack`, {
+      method: "PUT",
+      contentType: "application/zip",
+      body: pack as BodyInit,
+    });
+  } catch (error) {
+    const failure = ApiError.from(error);
+    if (failure.status === 404) {
+      console.warn("[bedrock-pack] the server does not take a Bedrock pack: update its plugin");
+      return;
+    }
+    throw new ApiError(
+      `bedrock_pack_upload_failed:${failure.status}`,
+      failure.status,
+      failure.body,
+    );
+  }
+}
+
 const running = new Map<string, Promise<void>>();
 const queued = new Map<string, Promise<void>>();
 
@@ -145,8 +173,9 @@ export function requestResourcePackRebuild(serverId: string): Promise<void> {
 
 function start(serverId: string): Promise<void> {
   const run = (async () => {
-    const { zipBytes } = await buildServerPack(serverId);
+    const { zipBytes, bedrock } = await buildServerPack(serverId);
     await uploadResourcePack(serverId, zipBytes);
+    if (bedrock) await uploadBedrockPack(serverId, bedrock.bytes);
   })().finally(() => {
     if (running.get(serverId) === run) running.delete(serverId);
   });

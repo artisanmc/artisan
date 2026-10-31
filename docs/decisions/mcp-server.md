@@ -116,6 +116,14 @@ deployed.
      so the deploying tools stay refused, and it resolves only the non-destructive tools
      (`McpTools.draftOnly`). The tools, `artisan_overview` and the instructions tell the model the
      player calls a Project a module (the overview's add-on list is `addons`).
+   - **The resource pack** (2026-10-31), when the hub builds packs (`PackBuilder`, Pro jar):
+     `resource_pack_status(server)` (read only, everyone) returns the hub's SHA-1, the editor's,
+     whether they match, when, and the build error; `resource_pack_rebuild(server, wait_seconds)`
+     asks `PackBuilder.request` and waits up to 120 s (default 30) for the build, a build still
+     running answering `done: false` (read `resource_pack_status` later). Rebuilding is
+     destructive: deploying tools only, though the hub is still in shadow mode (it builds and
+     compares, players get the editor's pack), because once the hub applies its packs a rebuild
+     reaches every player. The free jar offers neither.
    - **Alternatives set aside:** a single "write and deploy" tool (no point where the player sees
      the whole change); a confirmation step in Artisan (a second screen for a yes the client already
      asked, and a link to follow from a chat); a scope in the OAuth sense (clients ask for scopes at

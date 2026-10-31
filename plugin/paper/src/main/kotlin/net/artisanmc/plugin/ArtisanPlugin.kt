@@ -88,6 +88,8 @@ open class ArtisanPlugin : JavaPlugin() {
     val menuEvents by lazy { net.artisanmc.plugin.listener.MenuEventDispatcher(logger) }
     /** `api.placeholders`: survives `/artisan reload`. */
     val placeholders by lazy { PaperPlaceholders(this) }
+    /** Geyser, when installed: the Bedrock pack per session and who plays from Bedrock. */
+    val geyser by lazy { net.artisanmc.plugin.integrations.GeyserIntegration(this) }
     /** Pools lent through `api.database` (ADR `suite-foundation-database`). */
     lateinit var database: net.artisanmc.plugin.database.PooledDatabase
         internal set
@@ -164,6 +166,7 @@ open class ArtisanPlugin : JavaPlugin() {
         server.pluginManager.registerEvents(packLoads, this)
         server.pluginManager.registerEvents(overlaySlots, this)
         server.pluginManager.registerEvents(openedContainers, this)
+        geyser.start()
         saveDefaultConfig()
         api = buildApi(this)
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
