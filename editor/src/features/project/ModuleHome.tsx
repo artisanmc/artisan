@@ -1,3 +1,4 @@
+import { ModuleIcon, ModuleLogo } from "@/components/ArtisanWordmark";
 import { ownerModuleOf } from "@/components/projectOwnership";
 import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
@@ -10,6 +11,7 @@ import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { listLanguages } from "@/lib/i18nUsages";
+import { moduleBrand } from "@/lib/moduleBrand";
 import { kindCreatableIn } from "@/lib/moduleDocumentKinds";
 import {
   collectionDestination,
@@ -55,6 +57,7 @@ export function ModuleHome({
   const ownerModule = owner ? getModule(owner) : undefined;
   const ownerLabel = owner ? (ownerModule?.displayName ?? owner) : null;
   const OwnSection = ownerModule?.home;
+  const brand = moduleBrand(owner);
   const collections = projectCollections(project);
 
   // The board's Documents: every kind but the collections, which have no node there.
@@ -127,17 +130,28 @@ export function ModuleHome({
       data-testid="module-home"
       className="absolute inset-0 z-30 overflow-auto bg-[var(--surface)]"
     >
-      <div className="mx-auto flex max-w-5xl flex-col gap-7 p-6 md:p-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-7 p-[var(--page-pad)]">
         <header className="flex flex-wrap items-center gap-3">
-          <IconTile
-            icon={Blocks}
-            fg="var(--brand)"
-            soft="var(--brand-soft)"
-            line="var(--brand-line)"
-            size="lg"
-          />
+          {/* A module of the suite shows its own icon and logo; any other one, the tile. */}
+          {brand ? (
+            <ModuleIcon brand={brand} />
+          ) : (
+            <IconTile
+              icon={Blocks}
+              fg="var(--brand)"
+              soft="var(--brand-soft)"
+              line="var(--brand-line)"
+              size="lg"
+            />
+          )}
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-semibold">{project.name}</h1>
+            {brand ? (
+              <h1 className="mb-1.5 flex">
+                <ModuleLogo brand={brand} alt={project.name} />
+              </h1>
+            ) : (
+              <h1 className="truncate text-lg font-semibold">{project.name}</h1>
+            )}
             <div className="flex flex-wrap gap-x-3 text-[12.5px] text-[var(--text-mut)]">
               <span>
                 {ownerLabel

@@ -32,6 +32,7 @@ dependencies {
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.nexomc:nexo:0.9.0")
     compileOnly("io.th0rgal:oraxen:1.189.0")
+    compileOnly("org.geysermc.geyser:api:2.12.0-SNAPSHOT")
     // Menu contents sent as packets (MenuPacketInterceptor): Netty is the server's.
     // 4.1.97 is Paper 1.21.1's, the oldest supported; 26.x ships 4.2, same API for this use.
     compileOnly("io.netty:netty-transport:4.1.97.Final")
