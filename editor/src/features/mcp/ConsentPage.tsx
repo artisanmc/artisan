@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError } from "@/lib/api/client";
 import { type ConsentParams, type ConsentRequest, answerConsent, getConsent } from "@/lib/api/mcp";
 import { useAuthStore } from "@/state/authStore";
 import { Bot, Check, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /** How often the page looks for a sign-in made in another tab (the in-game link opens one). */
@@ -31,6 +32,9 @@ export function ConsentPage({ query }: { query: string }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  // Off unless the player ticks it: a client is "draft only" by default.
+  const [publish, setPublish] = useState(false);
+  const publishId = useId();
 
   // Signed out: the in-game link opens another tab; this one waits for the cookie.
   useEffect(() => {
@@ -55,7 +59,7 @@ export function ConsentPage({ query }: { query: string }) {
     setBusy(true);
     setFailed(false);
     try {
-      const redirect = await answerConsent(params, approve);
+      const redirect = await answerConsent(params, approve, approve && publish);
       setLeaving(true);
       window.location.assign(redirect);
     } catch {
@@ -90,12 +94,30 @@ export function ConsentPage({ query }: { query: string }) {
                 {line}
               </li>
             ))}
-            <li className="flex items-start gap-2">
-              <X className="mt-0.5 size-[14px] shrink-0 text-[var(--text-mut)]" />
-              {t("mcp.consent.cannot")}
-            </li>
+            {!publish && (
+              <li className="flex items-start gap-2">
+                <X className="mt-0.5 size-[14px] shrink-0 text-[var(--text-mut)]" />
+                {t("mcp.consent.cannot")}
+              </li>
+            )}
           </ul>
         </div>
+        {request.canPublish && (
+          <div className="flex items-start gap-2.5 text-[13px] text-[var(--text)]">
+            <Checkbox
+              id={publishId}
+              className="mt-0.5"
+              checked={publish}
+              onCheckedChange={setPublish}
+            />
+            <label htmlFor={publishId} className="flex flex-col gap-0.5">
+              {t("mcp.consent.publish")}
+              <span className="text-[12px] text-[var(--text-mut)]">
+                {t("mcp.consent.publishHint", { client: request.client.name })}
+              </span>
+            </label>
+          </div>
+        )}
         <p className="text-[12px] text-[var(--text-mut)]">{t("mcp.consent.redirect", { host })}</p>
         {!request.canEdit && (
           <p className="text-[13px] text-[var(--danger)]">{t("mcp.consent.needEdit")}</p>

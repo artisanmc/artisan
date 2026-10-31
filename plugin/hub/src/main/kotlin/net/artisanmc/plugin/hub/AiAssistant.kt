@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.hub
 
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.JsonNode
 import java.time.Clock
 import java.time.Duration
@@ -17,7 +18,10 @@ import java.util.logging.Logger
  * and config. It writes drafts; the player deploys. The hub runs the loop, so the key never
  * leaves it; the editor posts a message and reads the [Event]s as they come.
  *
- * Conversations live in memory: a restart ends them (the drafts they wrote stay).
+ * Each conversation is saved in [store] after every model call: a restart, a change of the
+ * settings or another server of the network takes it back, the model's own history included when
+ * the same model on the same instructions goes on, a transcript otherwise. Without a store they
+ * live in memory alone.
  */
 class AiAssistant(
     private val provider: AiProvider,
@@ -27,28 +31,98 @@ class AiAssistant(
     private val clock: Clock = Clock.systemUTC(),
     /** The loop blocks on the model and on servers: never on the web server's threads. */
     private val executor: ExecutorService = Executors.newFixedThreadPool(4) { r -> Thread(r, "artisan-ai").apply { isDaemon = true } },
+    private val store: AiConversationStore? = null,
 ) {
     /** What the editor shows, in order: [seq] from 0, so it asks only for what it has not seen. */
     data class Event(val seq: Int, val type: String, val data: Map<String, Any?>)
 
-    inner class Conversation(val id: String, val owner: UUID, val project: String?) {
-        val createdAt: Instant = clock.instant()
-        @Volatile var lastActive: Instant = createdAt
+    /**
+     * [server]: the server whose Assistant tab started it, the scope the model works in; [project]:
+     * the Project open beside the docked panel, if any.
+     */
+    inner class Conversation(
+        val id: String,
+        val owner: UUID,
+        val project: String?,
+        val server: String? = null,
+        /** Taken back from [store]: its events, and the model's history if it still applies. */
+        private val stored: AiConversationRecord? = null,
+    ) {
+        val createdAt: Instant = stored?.createdAt ?: clock.instant()
+        @Volatile var lastActive: Instant = stored?.lastActive ?: createdAt
         @Volatile var running = false
-        @Volatile var inputTokens = 0L
-        @Volatile var outputTokens = 0L
-        private val events = mutableListOf<Event>()
-        internal val model = provider.conversation(system(project), tools.tools)
+        @Volatile var inputTokens = stored?.inputTokens ?: 0L
+        @Volatile var outputTokens = stored?.outputTokens ?: 0L
+        private val events = stored?.let { readEvents(it.events) } ?: mutableListOf()
+        private val system = system(project, server)
+
+        /** A stored history goes on only with the same provider, model, instructions and tools. */
+        private val historyKey = provider.historyKey + "|" + digest(system + Call.mapper.writeValueAsString(tools.draftOnly.map { listOf(it.name, it.description, it.input) }))
+
+        /** What the model is told first when it starts again from the events. */
+        private var preface: String? = null
+        private val chat = lazy {
+            stored?.history?.takeIf { stored?.historyKey == historyKey }?.let { provider.resume(system, tools.draftOnly, it) }
+                ?: provider.conversation(system, tools.draftOnly).also { preface = transcript() }
+        }
+        internal val model: AiConversation get() = chat.value
 
         @Synchronized fun add(type: String, vararg data: Pair<String, Any?>) {
             events += Event(events.size, type, data.toMap().filterValues { it != null })
         }
+
+        /** The transcript to send before the next message, once. */
+        @Synchronized internal fun takePreface(): String? = preface.also { preface = null }
+
+        /** The earlier events, for a model that starts again without its history; null: none. */
+        @Synchronized private fun transcript(): String? {
+            val lines = events.dropLastWhile { it.type == USER }.mapNotNull { e ->
+                when (e.type) {
+                    USER -> "Player: ${e.data["text"]}"
+                    TEXT -> "You: ${e.data["text"]}"
+                    TOOL -> "Tool ${e.data["name"]}" + listOfNotNull(e.data["project"], e.data["path"]).joinToString(" ", " ") +
+                        (if (e.data["ok"] == true) ": done" else ": failed ${e.data["error"] ?: ""}".trimEnd()) +
+                        ((e.data["draft"] as? Map<*, *>)?.let { " (draft ${it["id"]}${it["name"]?.let { n -> " \"$n\"" } ?: ""})" } ?: "")
+                    else -> null
+                }
+            }
+            if (lines.isEmpty()) return null
+            return "This conversation began earlier; the model calls it made are gone. What was said and done, up to this message " +
+                "(drafts it wrote may have been deployed or deleted since, read them again before relying on them):\n\n" +
+                lines.joinToString("\n").takeLast(MAX_TRANSCRIPT)
+        }
+
+        /** What [store] keeps: the model's history once it has one, else the one taken back. */
+        @Synchronized internal fun record(): AiConversationRecord {
+            val history = if (chat.isInitialized()) chat.value.history()?.let { it to historyKey } else stored?.history?.let { it to stored?.historyKey }
+            return AiConversationRecord(
+                id, owner, project, server, title(), createdAt, lastActive, inputTokens, outputTokens,
+                events = Call.mapper.writeValueAsString(events.map { mapOf("seq" to it.seq, "type" to it.type) + it.data }),
+                history = history?.first,
+                historyKey = history?.second,
+            )
+        }
+
+        fun summary() = Summary(id, project, server, title(), running, createdAt, lastActive, inputTokens, outputTokens)
 
         @Synchronized fun after(seq: Int): List<Event> = events.drop(seq.coerceAtLeast(0))
 
         /** The first thing the player asked: the conversation's name in the list. */
         @Synchronized fun title(): String? = events.firstOrNull { it.type == USER }?.data?.get("text")?.toString()?.take(80)
     }
+
+    /** A conversation in the player's list, read from memory or from [store]. */
+    data class Summary(
+        val id: String,
+        val project: String?,
+        val server: String?,
+        val title: String?,
+        val running: Boolean,
+        val createdAt: Instant,
+        val lastActive: Instant,
+        val inputTokens: Long,
+        val outputTokens: Long,
+    )
 
     sealed interface Sent {
         data object Accepted : Sent
@@ -60,25 +134,46 @@ class AiAssistant(
 
     val model: String get() = provider.model
 
-    fun start(session: EditorSession, project: String?): Conversation {
+    fun start(session: EditorSession, project: String?, server: String? = null): Conversation {
         expire()
-        val own = conversations.values.filter { it.owner == session.playerId }.sortedBy { it.lastActive }
-        own.dropLast(MAX_PER_PLAYER - 1).forEach { conversations.remove(it.id) }
-        return Conversation(UUID.randomUUID().toString(), session.playerId, project).also { conversations[it.id] = it }
+        list(session).drop(MAX_PER_PLAYER - 1).filter { !it.running }.forEach { forget(it.id) }
+        return Conversation(UUID.randomUUID().toString(), session.playerId, project, server).also { conversations[it.id] = it }
     }
 
     fun get(session: EditorSession, id: String): Conversation? {
         expire()
-        return conversations[id]?.takeIf { it.owner == session.playerId }
+        conversations[id]?.let { return it.takeIf { c -> c.owner == session.playerId } }
+        val stored = stored { it.load(id) }?.takeIf { it.owner == session.playerId } ?: return null
+        var restored = false
+        val conversation = conversations.computeIfAbsent(id) {
+            restored = true
+            Conversation(stored.id, stored.owner, stored.project, stored.server, stored)
+        }
+        // Saved mid-turn, the hub then stopped: that turn ends here.
+        if (restored && conversation.after(0).lastOrNull()?.type.let { it != null && it != DONE }) {
+            conversation.add(NOTICE, "code" to "ai_interrupted")
+            conversation.add(DONE, "inputTokens" to conversation.inputTokens, "outputTokens" to conversation.outputTokens)
+            save(conversation)
+        }
+        return conversation
     }
 
-    fun list(session: EditorSession): List<Conversation> {
+    /** The player's conversations, the last active first: those in memory and those [store] keeps. */
+    fun list(session: EditorSession): List<Summary> {
         expire()
-        return conversations.values.filter { it.owner == session.playerId }.sortedByDescending { it.lastActive }
+        val live = conversations.values.filter { it.owner == session.playerId }.map { it.summary() }
+        val known = live.map { it.id }.toSet()
+        val kept = stored { it.list(session.playerId) }.orEmpty().filter { it.id !in known }.map {
+            Summary(it.id, it.project, it.server, it.title, false, it.createdAt, it.lastActive, it.inputTokens, it.outputTokens)
+        }
+        return (live + kept).sortedByDescending { it.lastActive }
     }
 
-    fun delete(session: EditorSession, id: String): Boolean =
-        get(session, id)?.takeIf { !it.running }?.let { conversations.remove(it.id) != null } ?: false
+    fun delete(session: EditorSession, id: String): Boolean {
+        val conversation = get(session, id)?.takeIf { !it.running } ?: return false
+        forget(conversation.id)
+        return true
+    }
 
     /** Starts answering [text] on another thread; the answer arrives as events. */
     fun send(session: EditorSession, id: String, text: String): Sent {
@@ -90,7 +185,8 @@ class AiAssistant(
             conversation.add(USER, "text" to text)
         }
         // Read when the player writes, like a session: losing `edit` stops the next message.
-        val principal = McpPrincipal(session.playerId, session.playerName, session.permissions - EditorPermissions.PUBLISH - EditorPermissions.CONFIG, clientName = CLIENT)
+        // Publish stays for create_module (an empty folder); the tools that deploy are not the assistant's ([call]).
+        val principal = McpPrincipal(session.playerId, session.playerName, session.permissions - EditorPermissions.CONFIG, clientName = CLIENT, deploys = false)
         executor.execute { run(conversation, principal, text) }
         return Sent.Accepted
     }
@@ -100,9 +196,11 @@ class AiAssistant(
 
     private fun run(conversation: Conversation, principal: McpPrincipal, text: String) {
         try {
-            var input: List<AiInput> = listOf(AiInput.Text(text))
+            save(conversation)
+            val model = conversation.model
+            var input: List<AiInput> = listOfNotNull(conversation.takePreface()?.let(AiInput::Text), AiInput.Text(text))
             for (step in 1..maxSteps) {
-                val reply = conversation.model.step(input)
+                val reply = model.step(input)
                 conversation.inputTokens += reply.inputTokens
                 conversation.outputTokens += reply.outputTokens
                 reply.texts.forEach { conversation.add(TEXT, "text" to it) }
@@ -111,6 +209,7 @@ class AiAssistant(
                     AiReply.REFUSED -> return conversation.add(NOTICE, "code" to "ai_refused")
                 }
                 if (reply.toolCalls.isEmpty()) return
+                save(conversation)
                 input = reply.toolCalls.map { call(conversation, principal, it) }
             }
             conversation.add(NOTICE, "code" to "ai_step_limit", "steps" to maxSteps)
@@ -124,12 +223,45 @@ class AiAssistant(
             conversation.lastActive = clock.instant()
             conversation.add(DONE, "inputTokens" to conversation.inputTokens, "outputTokens" to conversation.outputTokens)
             conversation.running = false
+            save(conversation)
         }
     }
 
+    /** Writes [conversation] to [store]; a database that fails costs the restart, not the turn. */
+    private fun save(conversation: Conversation) {
+        val store = store ?: return
+        try {
+            store.save(conversation.record())
+        } catch (e: Exception) {
+            logger?.log(Level.WARNING, "[Artisan] Could not save the assistant's conversation ${conversation.id}", e)
+        }
+    }
+
+    private fun forget(id: String) {
+        conversations.remove(id)
+        stored { it.delete(id) }
+    }
+
+    /** [read] on [store], null when there is none or it fails (logged). */
+    private fun <T> stored(read: (AiConversationStore) -> T): T? {
+        val store = store ?: return null
+        return try {
+            read(store)
+        } catch (e: Exception) {
+            logger?.log(Level.WARNING, "[Artisan] The assistant's conversations could not be read from the database", e)
+            null
+        }
+    }
+
+    private fun readEvents(json: String): MutableList<Event> =
+        Call.mapper.readValue(json, object : TypeReference<List<Map<String, Any?>>>() {}).mapIndexed { i, e ->
+            Event(i, e["type"].toString(), e.filterKeys { it != "seq" && it != "type" })
+        }.toMutableList()
+
     /** Runs one tool call, records it for the editor, and returns its result for the model. */
     private fun call(conversation: Conversation, principal: McpPrincipal, call: AiToolCall): AiInput.ToolResult {
-        val tool = tools.find(call.name)
+        // Only the draft-only tools: a deploying tool named by the model is unknown here.
+        val tool = tools.draftOnly.firstOrNull { it.name == call.name }
         val outcome = if (tool == null) McpTools.Outcome(mapOf("error" to "unknown_tool", "message" to "No tool '${call.name}'."), error = true)
         else {
             if (!tool.readOnly) logger?.info("[Artisan] Assistant for ${principal.playerName}: ${call.name} ${call.input.path("path").asText("")}".trimEnd())
@@ -139,7 +271,7 @@ class AiAssistant(
         conversation.add(
             TOOL,
             "name" to call.name,
-            "project" to call.input.text("project"),
+            "project" to (call.input.text("project") ?: body?.get("project")?.takeIf { !outcome.error }),
             "path" to call.input.text("path"),
             "ok" to !outcome.error,
             "error" to body?.get("error")?.takeIf { outcome.error },
@@ -159,18 +291,26 @@ class AiAssistant(
 
     private fun JsonNode.text(field: String): String? = get(field)?.takeIf { it.isTextual }?.asText()
 
+    /** Out of memory after [IDLE] (back from [store] when asked); out of [store] after [KEPT], checked hourly. */
     private fun expire() {
-        val limit = clock.instant().minus(IDLE)
-        conversations.values.removeIf { !it.running && it.lastActive.isBefore(limit) }
+        val now = clock.instant()
+        conversations.values.removeIf { !it.running && it.lastActive.isBefore(now.minus(IDLE)) }
+        if (store != null && Duration.between(prunedAt, now) >= Duration.ofHours(1)) {
+            prunedAt = now
+            stored { it.deleteIdle(now.minus(KEPT)) }
+        }
     }
 
-    private fun system(project: String?): String = buildString {
+    @Volatile private var prunedAt: Instant = Instant.EPOCH
+
+    private fun system(project: String?, server: String?): String = buildString {
         append(McpRoutes.INSTRUCTIONS)
         append("\n\nYou are the assistant inside the Artisan editor, talking with the player who has it open. ")
         append("Answer in the player's language. Keep answers short: what you did, what to check, and the draft's name. ")
         append("When you have written a draft, tell the player to open Drafts (next to Deploy), review the changes, and deploy. ")
         append("Ask before large changes the player did not describe.")
-        if (project != null) append("\n\nThe player has this Project open: $project. Work in it unless asked otherwise.")
+        if (server != null) append("\n\nThe player is working on the server `$server`: its Projects (modules) are the ids that start with `$server.`. Work in them unless asked otherwise; one piece of work may span several of its modules, one draft each. A new module: create_module on `$server`, only when the player asks for one.")
+        if (project != null) append("\n\nThe player has this Project (module) open: $project. Work in it unless asked otherwise.")
     }
 
     companion object {
@@ -183,5 +323,10 @@ class AiAssistant(
         const val CLIENT = "assistant"
         const val MAX_PER_PLAYER = 10
         val IDLE: Duration = Duration.ofHours(6)
+        val KEPT: Duration = Duration.ofDays(30)
+        const val MAX_TRANSCRIPT = 60_000
+
+        private fun digest(text: String): String =
+            java.security.MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).take(8).joinToString("") { "%02x".format(it) }
     }
 }

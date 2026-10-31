@@ -333,7 +333,24 @@ const KIND_CLASS: Record<PlayLogEntry["kind"], string> = {
   warn: "text-[var(--warning)]",
 };
 
-/** The journal: every action in order, newest first, with where it ran from. */
+/**
+ * The journal's entries in runs of the same source (a click, a command, a Trigger): the
+ * newest run first, its actions in the order they ran.
+ */
+function groupBySource(entries: readonly PlayLogEntry[]): PlayLogEntry[][] {
+  const groups: PlayLogEntry[][] = [];
+  for (const e of entries) {
+    const last = groups[groups.length - 1];
+    if (last && last[0]!.source === e.source) last.push(e);
+    else groups.push([e]);
+  }
+  return groups.reverse();
+}
+
+/**
+ * The journal: under each source (a click, a command, a Trigger), the actions it ran, newest
+ * first. An action only noted (world, money, a module's) is badged as not run.
+ */
 export function PlayLog({ entries, onClear }: { entries: PlayLogEntry[]; onClear: () => void }) {
   const { t } = useTranslation();
   return (
@@ -356,13 +373,27 @@ export function PlayLog({ entries, onClear }: { entries: PlayLogEntry[]; onClear
       {entries.length === 0 ? (
         <p className="text-[12.5px] text-[var(--text-mut)]">{t("play.log.empty")}</p>
       ) : (
-        <ol className="flex flex-col gap-1.5">
-          {[...entries].reverse().map((e) => (
-            <li key={e.id} data-kind={e.kind} className="flex flex-col">
-              <span className={cn("text-[12.5px]", KIND_CLASS[e.kind])}>
-                {e.kind === "logged" ? `→ ${e.text}` : e.text}
+        <ol className="flex flex-col gap-3">
+          {groupBySource(entries).map((group) => (
+            <li key={group[0]!.id} className="flex flex-col gap-1" data-testid="play-log-group">
+              <span className="mono break-words text-[11px] text-[var(--text-faint)]">
+                {group[0]!.source}
               </span>
-              <span className="mono truncate text-[11px] text-[var(--text-faint)]">{e.source}</span>
+              <ol className="flex flex-col gap-1 border-l border-[var(--border)] pl-2.5">
+                {group.map((e) => (
+                  <li key={e.id} data-kind={e.kind} className="flex flex-col">
+                    <span className={cn("break-words text-[12.5px]", KIND_CLASS[e.kind])}>
+                      {e.text}
+                      {e.kind === "logged" && (
+                        <span className="badge ml-1.5 align-middle">{t("play.log.notRun")}</span>
+                      )}
+                    </span>
+                    {e.detail && (
+                      <span className="text-[11.5px] text-[var(--text-mut)]">{e.detail}</span>
+                    )}
+                  </li>
+                ))}
+              </ol>
             </li>
           ))}
         </ol>

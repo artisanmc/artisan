@@ -630,6 +630,19 @@ Non-examples:
 - **Presence** (a Module being active on a given Server) is not the Module; it's
   the runtime fact that the Module is installed and connected there.
 
+## Module home
+
+The view a module (a **Project** folder) opens on in the editor: one block per place of
+the module — the board, each collection, its settings screens, its data sources — with
+counts and the way in, and what the module exposes (its **Commands**, the actions its
+plugin declares). It never lists the Documents one per row: the left bar does that. The
+board is a tab of the module beside it, no longer its entry.
+
+Non-examples:
+- The **Board group** frames and the board itself are not the home; the home leads to
+  the board.
+- A collection's page lists that kind's Documents as cards; the home only counts them.
+
 ## Network
 
 The servers one editor reaches: a **Hub** and the **Leaves** that share its

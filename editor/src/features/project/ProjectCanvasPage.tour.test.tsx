@@ -25,7 +25,7 @@ vi.mock("@/lib/api/auth", () => ({
 }));
 const setup = vi.hoisted(() => ({
   ready: true,
-  tab: "overview",
+  tab: "board",
   navigate: vi.fn(),
   project: null as Project | null,
   offline: false,
@@ -63,7 +63,7 @@ beforeEach(() => {
   setup.ready = true;
   setup.offline = false;
   setup.stale = false;
-  setup.tab = "overview";
+  setup.tab = "board";
   setup.project = {
     id: "p1",
     diskId: "demo",
@@ -136,7 +136,7 @@ it("restores a previously open secondary tab without changing the route or selec
   setup.tab = "resources";
   render(<ProjectCanvasPage projectRef="p1" />);
   await screen.findByRole("dialog");
-  expect(screen.getByTestId("open-view-overview")).toHaveAttribute("aria-current", "page");
+  expect(screen.getByTestId("open-view-board")).toHaveAttribute("aria-current", "page");
   await user.click(screen.getByRole("button", { name: /Plus tard|Later/ }));
   await waitFor(() =>
     expect(screen.getByRole("button", { name: /Ressources|Resources/ })).toHaveAttribute(

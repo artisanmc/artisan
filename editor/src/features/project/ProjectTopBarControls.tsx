@@ -24,7 +24,12 @@ import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { AssistantButton } from "@/features/project/assistant/AssistantButton";
 import { useOpenProjectSettings } from "@/features/project/projectSettings";
 import { SaveControls } from "@/features/project/publish/SaveControls";
-import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
+import { useChildPageOpen, useGoToWorkspaceTab } from "@/features/project/useGoToWorkspaceTab";
+import {
+  WORKSPACE_VIEW_TABS,
+  type WorkspaceViewTab,
+  effectiveTab,
+} from "@/features/project/workspaceTabs";
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
 import { isTypingTarget } from "@/lib/keyboard";
@@ -33,10 +38,11 @@ import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useUiStore } from "@/state/uiStore";
-import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { Link, useParams, useSearch } from "@tanstack/react-router";
 import {
   Gamepad2,
   History as HistoryIcon,
+  House,
   Images,
   Languages as LanguagesIcon,
   LayoutDashboard,
@@ -164,8 +170,8 @@ export function ProjectTopBarControls({
           <WorkspaceViewNav project={currentProject} />
         </div>
         <div data-testid="project-editing-tools" className="flex shrink-0 items-center gap-1">
-          {(!tab || tab === "overview") && <UndoRedoButtons />}
-          {(!tab || tab === "overview" || tab === "translations") && (
+          {(!tab || tab === "board") && <UndoRedoButtons />}
+          {(!tab || tab === "board" || tab === "translations") && (
             <LangSwitcher project={currentProject} />
           )}
         </div>
@@ -226,14 +232,15 @@ export function ProjectTopBarControls({
 /**
  * Segmented view switcher on the LEFT of the topbar. Each entry navigates via
  * `?tab=` (deep links / back-button keep working) and the active one is
- * highlighted — Canvas (`overview`) is first so returning to the board is one
- * click. Selecting a secondary view REPLACES the canvas in the center region
+ * highlighted — Home (the module's entry view) first, then Canvas (`board`).
+ * Selecting a secondary view REPLACES the canvas in the center region
  * (see WorkspaceView). The missing-translations badge rides on the
  * Translations entry. Order (and thus the hotbar digit shortcut) comes from
  * WORKSPACE_VIEW_TABS — see useWorkspaceTabShortcuts.
  */
 const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof LanguagesIcon }> = {
-  overview: { labelKey: "project.tabs.canvas", Icon: LayoutDashboard },
+  home: { labelKey: "project.tabs.home", Icon: House },
+  board: { labelKey: "project.tabs.canvas", Icon: LayoutDashboard },
   translations: { labelKey: "project.tabs.translations", Icon: LanguagesIcon },
   resources: { labelKey: "project.tabs.resources", Icon: Images },
   history: { labelKey: "project.tabs.history", Icon: HistoryIcon },
@@ -242,19 +249,13 @@ const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof Langua
 function WorkspaceViewNav({ project }: { project: Project }) {
   const runtime = useProjectRuntime(project.id);
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const activeLang = useUiStore((s) => s.activeLang);
   const missing = countMissingForLang(project, activeLang);
   const search = useSearch({ strict: false }) as { tab?: WorkspaceViewTab };
   const tourActive = useTourPresentation((s) => s.step !== null);
-  const active: WorkspaceViewTab = tourActive ? "overview" : (search.tab ?? "overview");
-  // `overview` clears the param (canvas is the default view); the rest set it.
-  const go = (tab: WorkspaceViewTab) =>
-    navigate({
-      to: ".",
-      search: (prev) =>
-        ({ ...(prev as object), tab: tab === "overview" ? undefined : tab }) as never,
-    });
+  const childOpen = useChildPageOpen();
+  const active: WorkspaceViewTab = tourActive ? "board" : effectiveTab(search.tab, childOpen);
+  const go = useGoToWorkspaceTab();
   // Versions only exist for a server Project.
   const views = WORKSPACE_VIEW_TABS.filter((tab) => tab !== "history" || !!runtime?.serverId).map(
     (tab) => ({

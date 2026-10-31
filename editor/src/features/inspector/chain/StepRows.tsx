@@ -26,8 +26,8 @@ import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import {
   BRANCH_ICON,
   actionAppearance,
+  actionLabel,
   familyColors,
-  isCoreAction,
 } from "@/lib/actions/actionFamily";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
 import { isEventAction, setEventArgs, useChainEvent } from "@/lib/actions/eventActions";
@@ -37,7 +37,6 @@ import { useGetText } from "@/lib/useText";
 import { moduleActionsOf, useServerActionsStore } from "@/state/serverActionsStore";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { TFunction } from "i18next";
 import { type CSSProperties, createContext, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionEditor, defaultEffectValue } from "../properties/ActionEditor";
@@ -560,12 +559,6 @@ function Branch({ children }: { children: React.ReactNode }) {
 }
 
 /** An action as a person names it: its family's icon tile, then its translated name (wire name on hover). */
-/** An action's name as a row shows it: the catalog's for a core action, else its own (without its module). */
-function actionLabel(name: string, t: TFunction): string {
-  const colon = name.indexOf(":");
-  if (isCoreAction(name)) return t(`actionCatalog.names.${name}`);
-  return colon > 0 ? name.slice(colon + 1) : name;
-}
 
 function ActionName({ name, label: forced }: { name: string; label?: string }) {
   const { t } = useTranslation();

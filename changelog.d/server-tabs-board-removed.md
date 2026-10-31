@@ -1,0 +1,2 @@
+- **Removed**: the **Board** tab of the server page, the read-only canvas that drew every project of the server at once. With many Documents it slowed the editor down to the point of making navigation sluggish. Each project keeps its own board.
+- **Changed**: the server page's **Data** tab is now named **Data sources**.

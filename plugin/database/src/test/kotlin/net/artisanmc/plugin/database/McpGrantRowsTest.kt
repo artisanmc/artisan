@@ -61,6 +61,19 @@ class McpGrantRowsTest {
     }
 
     @Test
+    fun `deploying is off until the player allows it, on their own grant only`() {
+        rows.insert(grant())
+        assertFalse(rows.grants(player).single().allowPublish)
+        assertFalse(rows.setPublish(UUID.randomUUID(), grant().id, true))
+        assertTrue(rows.setPublish(player, grant().id, true))
+        val allowed = rows.grants(player).single()
+        assertTrue(allowed.allowPublish)
+        // A token rotation keeps the choice.
+        assertTrue(rows.replace(allowed, allowed.copy(codeHash = null, refreshHash = "r".repeat(64))))
+        assertTrue(rows.grants(player).single().allowPublish)
+    }
+
+    @Test
     fun `permissions follow the issuing server, and a player's grants go with their view`() {
         rows.insert(grant())
         rows.insert(grant("00000000-0000-0000-0000-000000000002").copy(origin = "lobby"))

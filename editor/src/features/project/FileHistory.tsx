@@ -71,7 +71,9 @@ export function FileHistory({
           <li key={v.at} className="flex items-center gap-2">
             <span className="font-mono text-[11px] text-[var(--text-mut)]">
               {new Date(v.at).toLocaleString()}
-              {"author" in v ? ` · ${v.author?.name ?? t("history.byServer")}` : null}
+              {"author" in v
+                ? ` · ${v.author ? (v.author.via ? `${v.author.name} via ${v.author.via}` : v.author.name) : t("history.byServer")}`
+                : null}
             </span>
             <button
               type="button"

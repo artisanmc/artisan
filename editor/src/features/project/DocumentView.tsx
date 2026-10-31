@@ -69,8 +69,13 @@ export function DocumentView({
 
   // A collection's Document goes back to its collection's page, the board does not show it.
   const backKind = found && isCollectionKind(found.kind) ? found.kind : undefined;
+  // Any other Document lives on the board: back there, not to the module's home.
   const toProject = useCallback(
-    () => navigate(projectDestination(project ?? projectId, params.serverId)),
+    () =>
+      navigate({
+        ...projectDestination(project ?? projectId, params.serverId),
+        search: { tab: "board" },
+      }),
     [navigate, params.serverId, project, projectId],
   );
   const toCollection = useCallback(() => {

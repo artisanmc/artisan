@@ -2,6 +2,7 @@ import { McScreen, McScreenControls, type McScreenSettings } from "@/components/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Project } from "@/domain/types";
 import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
+import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { FastForward, RotateCcw } from "lucide-react";
@@ -47,6 +48,7 @@ export function PlayView({
         projects: () => projectsRef.current,
         lang: () => useUiStore.getState().activeLang,
         player: () => playerRef.current,
+        declaredActions: () => useServerActionsStore.getState().actions,
         t: (key, values) => tRef.current(key, values) as string,
         menuScope: (menu, p, args) =>
           buildPreviewScope(menu, p, useServerSnapshotsStore.getState().rowsByRef, args),
@@ -54,6 +56,10 @@ export function PlayView({
     [serverId],
   );
   useEffect(() => () => session.reset(), [session]);
+  // What the modules declare names their actions' arguments in the journal.
+  useEffect(() => {
+    void useServerActionsStore.getState().load({ serverId });
+  }, [serverId]);
   const state = useSyncExternalStore(session.subscribe, session.getState);
 
   const updatePlayer = (next: TestPlayer) => {

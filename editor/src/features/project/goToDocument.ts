@@ -61,5 +61,5 @@ export function goToDocument(
     useSelectionStore.getState().set([key]);
     useUiStore.getState().requestCenter(project.id, key);
   }
-  void navigate({ ...projectDestination(project, serverId), search: {} } as never);
+  void navigate({ ...projectDestination(project, serverId), search: { tab: "board" } } as never);
 }

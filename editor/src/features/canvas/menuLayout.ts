@@ -4,6 +4,7 @@ import hopperTextureUrl from "@/assets/minecraft/hopper.png";
 import { walkCommandNodes } from "@/domain/commandNodes";
 import type { Command, Menu, Project } from "@/domain/types";
 import type { InventoryType } from "@/domain/types";
+import { TRIGGER_KIND, type Trigger } from "@/modules/triggers/trigger";
 import type { Box } from "./edgeRouting";
 import { INVENTORY_TYPES, positionCount, slotMcXY } from "./inventoryTypes";
 
@@ -72,6 +73,36 @@ export function commandBox(command: Command): { width: number; height: number } 
       };
 }
 export const DIALOG_BOX = { width: 140, height: 60 };
+/**
+ * A Trigger read as a rule: its id, a "when" band naming the event, then its first steps
+ * (`shown` at most, then a "+N" line), as a command lists its sub-commands.
+ */
+export const TRIGGER_ROWS = {
+  width: 184,
+  header: 26,
+  when: 22,
+  row: 22,
+  more: 14,
+  pad: 4,
+  shown: 3,
+};
+/** A Trigger node's box: it grows with the steps it shows. */
+export function triggerBox(trigger: Trigger): { width: number; height: number } {
+  const steps = trigger.steps.length;
+  const rows = Math.min(steps, TRIGGER_ROWS.shown);
+  return {
+    width: TRIGGER_ROWS.width,
+    height:
+      TRIGGER_ROWS.header +
+      TRIGGER_ROWS.when +
+      rows * TRIGGER_ROWS.row +
+      (steps > rows ? TRIGGER_ROWS.more : 0) +
+      TRIGGER_ROWS.pad,
+  };
+}
+/** The top of a Trigger node's step row `i`. */
+export const triggerRowY = (i: number) =>
+  TRIGGER_ROWS.header + TRIGGER_ROWS.when + i * TRIGGER_ROWS.row;
 /** The box of a Document whose kind declares no `board.size`. */
 export const DOCUMENT_BOX = { width: 140, height: 48 };
 
@@ -82,12 +113,14 @@ export const DOCUMENT_ITEMS = { header: 46, row: 24, pad: 6 };
 /**
  * A module Document's box: its kind's `board.size`, else DOCUMENT_BOX; with `board.items`,
  * as tall as its rows (`doc` and `project` given; the row count does not depend on `lang`).
+ * A Trigger has its own node (TriggerGroup), sized by `triggerBox`.
  */
 export function documentBoxSize(
   kind: string,
   doc?: unknown,
   project?: Project,
 ): { width: number; height: number } {
+  if (kind === TRIGGER_KIND.kind && doc !== undefined) return triggerBox(doc as Trigger);
   const board = documentKindContribution(kind)?.board;
   const base = board?.size ?? DOCUMENT_BOX;
   if (!board?.items || doc === undefined || !project) return base;
@@ -114,7 +147,7 @@ export const menuBoxSize = (type: InventoryType, rows: number) => {
 /**
  * Canvas bounding box for a node key (`docKey`), or null if it has no layout position.
  * Type-dispatched: menu → menuBoxSize(rows), command → COMMAND_BOX, dialog → DIALOG_BOX,
- * any other kind → its contribution's `board.size` (else DOCUMENT_BOX).
+ * trigger → triggerBox (through documentBoxSize), any other kind → its contribution's `board.size` (else DOCUMENT_BOX).
  * Shared by Edges.tsx (box map) and GhostChips.tsx (chip anchor) to keep sizing in sync.
  */
 export function nodeBox(

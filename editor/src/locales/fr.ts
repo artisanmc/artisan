@@ -9,7 +9,6 @@ import { mmEditorFr, textToolFr } from "./mmEditor";
 import { onboardingFr } from "./onboarding";
 import { projectIdentityFr } from "./projectIdentity";
 import { selfHostedFr } from "./selfHosted";
-import { serverCanvasFr } from "./serverCanvas";
 import { triggersFr } from "./triggers";
 
 const fr: typeof en = {
@@ -89,7 +88,6 @@ const fr: typeof en = {
   selfHosted: selfHostedFr,
   mmEditor: mmEditorFr,
   textTool: textToolFr,
-  serverCanvas: serverCanvasFr,
   changes: changesFr,
   actionCatalog: actionCatalogFr,
   triggers: triggersFr,
@@ -869,7 +867,7 @@ const fr: typeof en = {
     edit: "Éditer",
     delete: "Supprimer du projet",
     empty: "Aucun élément pour l'instant",
-    emptyBoard: "Rien sur la planche : le contenu de ce module est dans sa collection.",
+    emptyBoard: "Rien sur la planche : le contenu de ce module est sur son accueil.",
     options: "Options",
   },
   documentView: {
@@ -940,6 +938,8 @@ const fr: typeof en = {
       give_xp: "donner {{amount}} xp",
       give_level: "donner {{amount}} niveaux",
       teleport: "téléportation vers {{world}} {{x}} {{y}} {{z}}",
+      moduleAction: "action du module {{module}} : elle s'exécute sur le serveur, pas ici",
+      notRun: "non exécutée",
     },
     sidebar: "Barre latérale",
     launcher: {
@@ -1490,6 +1490,7 @@ const fr: typeof en = {
     offlineRetry: "Réessayer",
     serverOfflineExport: "Serveur hors ligne — impossible d'exporter les fichiers",
     tabs: {
+      home: "Accueil",
       resources: "Ressources",
       canvas: "Canvas",
       translations: "Traductions",
@@ -1643,6 +1644,7 @@ const fr: typeof en = {
     kindDeploy: "Déploiement",
     kindServer: "Modif. serveur",
     deployedBy: "Déployé depuis l'éditeur par {{name}}",
+    deployedByVia: "Déployé par {{name}} via {{via}}",
     byServer: "Fichiers modifiés sur le serveur, puis rechargés",
     changed_one: "{{count}} fichier modifié",
     changed_other: "{{count}} fichiers modifiés",
@@ -1918,9 +1920,9 @@ const fr: typeof en = {
     tabs: {
       label: "Sections du serveur",
       overview: "Vue d'ensemble",
-      board: "Planche",
       play: "Jeu",
-      data: "Données",
+      assistant: "Assistant",
+      data: "Sources de données",
       settings: "Réglages",
     },
     stateOnline: "En ligne",
@@ -1943,6 +1945,21 @@ const fr: typeof en = {
     ctxItemLore: "lore · {{owner}}",
     ctxDialogBody: "dialog · {{owner}}",
     ctxDialogButton: "bouton · {{owner}}",
+  },
+  moduleHome: {
+    pluginModule: "Module du plugin {{name}}",
+    contentModule: "Module de contenu",
+    content: "Contenu",
+    boardEmpty: "Rien sur le canvas pour l'instant.",
+    folders_one: "{{count}} dossier",
+    folders_other: "{{count}} dossiers",
+    openBoard: "Ouvrir le canvas",
+    openList: "Voir la liste",
+    settings: "Réglages",
+    dataSources: "Sources de données",
+    exposes: "Ce que le module expose",
+    action: "action",
+    actionHint: "Une action que les menus, commandes et dialogues peuvent lancer.",
   },
   collections: {
     create: "Nouveau",

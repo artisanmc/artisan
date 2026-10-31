@@ -257,18 +257,20 @@ describe("a trigger's page", () => {
     resetDocumentCodecs();
   });
 
-  it("states the event as a sentence and shows its values", () => {
+  it("is titled by its id, states the event as a sentence and shows its values", () => {
     const { doc } = parse(deathExample as Record<string, unknown>);
     useProjectsStore.setState({
       openProjects: { projects: [project([doc])], projectOrder: [PID] },
     });
     render(<TriggerEditor projectId={PID} trigger={doc} />);
-    expect(screen.getByRole("heading", { name: "Quand un joueur meurt" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: doc.id })).toBeTruthy();
+    // In full under the id, and in the Event field.
+    expect(screen.getAllByText("Quand un joueur meurt")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "{event.location.x}" })).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("has one header in the Properties panel: the sentence, its id beside it", () => {
+  it("has one header in the Properties panel: its id, the sentence under it", () => {
     const { doc } = parse(deathExample as Record<string, unknown>);
     useProjectsStore.setState({
       openProjects: { projects: [project([doc])], projectOrder: [PID] },
@@ -276,9 +278,9 @@ describe("a trigger's page", () => {
     useSelectionStore.getState().set([`trigger/${doc.id}`]);
     render(<SelectionInspector projectId={PID} />);
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
-      "Quand un joueur meurt",
+      doc.id,
     ]);
-    expect(screen.getByText(doc.id)).toBeTruthy();
+    expect(screen.getAllByText("Quand un joueur meurt").length).toBeGreaterThan(0);
     useSelectionStore.getState().set([]);
   });
 

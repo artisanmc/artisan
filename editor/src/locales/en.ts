@@ -8,7 +8,6 @@ import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
 import { projectIdentityEn } from "./projectIdentity";
 import { selfHostedEn } from "./selfHosted";
-import { serverCanvasEn } from "./serverCanvas";
 import { triggersEn } from "./triggers";
 export default {
   onboarding: onboardingEn,
@@ -86,7 +85,6 @@ export default {
   selfHosted: selfHostedEn,
   mmEditor: mmEditorEn,
   textTool: textToolEn,
-  serverCanvas: serverCanvasEn,
   changes: changesEn,
   actionCatalog: actionCatalogEn,
   triggers: triggersEn,
@@ -854,7 +852,7 @@ export default {
     edit: "Edit",
     delete: "Delete from project",
     empty: "No elements yet",
-    emptyBoard: "Nothing on the board: this module’s content is in its collection.",
+    emptyBoard: "Nothing on the board: this module’s content is on its home.",
     options: "Options",
   },
   documentView: {
@@ -924,6 +922,8 @@ export default {
       give_xp: "give {{amount}} xp",
       give_level: "give {{amount}} levels",
       teleport: "teleport to {{world}} {{x}} {{y}} {{z}}",
+      moduleAction: "a {{module}} module action: it runs on the server, not here",
+      notRun: "not run",
     },
     sidebar: "Sidebar",
     launcher: {
@@ -1466,6 +1466,7 @@ export default {
     offlineRetry: "Retry",
     serverOfflineExport: "Server offline — cannot export the files",
     tabs: {
+      home: "Home",
       resources: "Resources",
       canvas: "Canvas",
       translations: "Translations",
@@ -1618,6 +1619,7 @@ export default {
     kindDeploy: "Deployment",
     kindServer: "Server edit",
     deployedBy: "Deployed from the editor by {{name}}",
+    deployedByVia: "Deployed by {{name}} via {{via}}",
     byServer: "Files edited on the server, then reloaded",
     changed_one: "{{count}} file changed",
     changed_other: "{{count}} files changed",
@@ -1886,9 +1888,9 @@ export default {
     tabs: {
       label: "Server sections",
       overview: "Overview",
-      board: "Board",
       play: "Play",
-      data: "Data",
+      assistant: "Assistant",
+      data: "Data sources",
       settings: "Settings",
     },
     stateOnline: "Online",
@@ -1911,6 +1913,21 @@ export default {
     ctxItemLore: "lore · {{owner}}",
     ctxDialogBody: "dialog · {{owner}}",
     ctxDialogButton: "button · {{owner}}",
+  },
+  moduleHome: {
+    pluginModule: "Module of the {{name}} plugin",
+    contentModule: "Content module",
+    content: "Content",
+    boardEmpty: "Nothing on the canvas yet.",
+    folders_one: "{{count}} folder",
+    folders_other: "{{count}} folders",
+    openBoard: "Open the canvas",
+    openList: "See the list",
+    settings: "Settings",
+    dataSources: "Data sources",
+    exposes: "What the module exposes",
+    action: "action",
+    actionHint: "An action that menus, commands and dialogs can run.",
   },
   collections: {
     create: "New",

@@ -35,6 +35,7 @@ import { Outlet, useChildMatches, useNavigate, useParams, useSearch } from "@tan
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ModuleHome } from "./ModuleHome";
 import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { WorkspaceDragOverlay } from "./WorkspaceDragOverlay";
 import { WorkspaceGate } from "./WorkspaceGate";
@@ -43,9 +44,11 @@ import { useActiveLangFallback } from "./useActiveLangFallback";
 import { useCollectionsAtRoot } from "./useCollectionsAtRoot";
 import { useProjectDeepLinks } from "./useProjectDeepLinks";
 import { useWorkspaceDnd } from "./useWorkspaceDnd";
+import { effectiveTab } from "./workspaceTabs";
 
 export type ProjectSearch = {
-  tab?: "overview" | "translations" | "resources" | "history";
+  /** Absent: the module's home (the board under a child page). */
+  tab?: "board" | "translations" | "resources" | "history";
   /**
    * Deep link: center the board on this Document on open (`goToDocument`): its key
    * (`menu/main`), or a bare id (the first Document of that id).
@@ -58,11 +61,14 @@ export type ProjectSearch = {
 export const validateProjectSearch = (search: Record<string, unknown>): ProjectSearch => {
   const t = search.tab;
   // `data-sources` (the former Data view, whose content moved to the sidebar) falls back to
-  // the board like any unknown tab.
+  // the home like any unknown tab.
   if (t === "translations" || t === "resources" || t === "history") return { tab: t };
   const doc = typeof search.doc === "string" && search.doc ? { doc: search.doc } : {};
   const kind = typeof search.kind === "string" && search.kind ? { kind: search.kind } : {};
-  return { tab: "overview", ...doc, ...kind };
+  // `overview` was the board's name before the home: old links still open the board, and
+  // so does a `?doc=` link, which centers the board on a Document.
+  const board = t === "board" || t === "overview" || "doc" in doc;
+  return { ...(board ? { tab: "board" as const } : {}), ...doc, ...kind };
 };
 
 /**
@@ -112,18 +118,19 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     return mountEditorTour({ playerId, ready: tourReady });
   }, [playerId, tourReady, pId]);
   const navigate = useNavigate();
-  const { tab = "overview", doc, kind: docKind } = useSearch({ strict: false }) as ProjectSearch;
+  const { tab, doc, kind: docKind } = useSearch({ strict: false }) as ProjectSearch;
   useProjectDeepLinks({ project, urlId, projectId, serverId, documentId, doc });
   useActiveLangFallback(project);
   useCollectionsAtRoot(project);
-  const presentedTab = tourPresenting ? "overview" : tab;
+  const childMatches = useChildMatches();
+  const presentedTab = tourPresenting ? "board" : effectiveTab(tab, childMatches.length > 0);
+  // Esc or × on a secondary view: back to the page's default view (the home at the root).
   const exitToCanvas = () =>
     navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) });
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
-  const childMatches = useChildMatches();
 
   useGlobalSearchShortcut();
   const indexRereads = useKnownVersionsFromIndex(serverId);
@@ -168,6 +175,14 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     // segmented nav shows which is active; Esc / × return to the canvas.
     const secondaryViews = (
       <>
+        {presentedTab === "home" ? (
+          <ModuleHome
+            project={project}
+            onOpenBoard={() =>
+              navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: "board" }) })
+            }
+          />
+        ) : null}
         <WorkspaceView
           active={presentedTab === "resources"}
           onExit={exitToCanvas}
@@ -206,7 +221,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
         : resolveDocKey(project, documentId)
       : undefined;
     const canvasActive =
-      presentedTab === "overview" &&
+      presentedTab === "board" &&
       !pageOpen &&
       (!documentId || (!!focusKey && opensOnStage(project, focusKey)));
 
@@ -218,7 +233,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           <ProjectWorkspacePanels
             projectId={pId}
             active={canvasActive}
-            tabOpen={presentedTab !== "overview"}
+            tabOpen={presentedTab !== "board" && presentedTab !== "home"}
           >
             <div
               data-tour={canvasActive ? "canvas" : undefined}

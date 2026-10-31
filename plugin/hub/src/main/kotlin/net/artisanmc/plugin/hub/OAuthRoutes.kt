@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.hub
 
 import net.artisanmc.plugin.hub.EditorPermissions.EDIT
+import net.artisanmc.plugin.hub.EditorPermissions.PUBLISH
 import net.artisanmc.plugin.hub.EditorPermissions.VIEW
 import java.net.URI
 import java.net.URLEncoder
@@ -59,6 +60,8 @@ class OAuthRoutes(private val grants: McpGrants) {
                 "client" to mapOf("name" to client.name, "redirectHost" to URI(redirect).host),
                 "player" to session.playerName,
                 "canEdit" to session.can(EDIT),
+                // Whether the consent may offer deploying: a token is "draft only" unless the player ticks it.
+                "canPublish" to session.can(PUBLISH),
             ))
         }
         router.on("POST", CONSENT, EDIT) { call ->
@@ -68,14 +71,30 @@ class OAuthRoutes(private val grants: McpGrants) {
             if (client == null || redirect !in client.redirectUris) return@on call.error(422, "invalid_client")
             val state = body.path("state").asText("").ifEmpty { null }
             if (!body.path("approve").asBoolean(false)) return@on call.json(mapOf("redirect" to back(redirect, "error" to "access_denied", "state" to state)))
-            val code = grants.approve(call.session!!, client, redirect, body.path("code_challenge").asText(""))
+            val publish = body.path("publish").asBoolean(false)
+            val code = grants.approve(call.session!!, client, redirect, body.path("code_challenge").asText(""), publish)
                 ?: return@on call.error(422, "invalid_input")
             call.json(mapOf("redirect" to back(redirect, "code" to code, "state" to state, "iss" to base(call))))
         }
         router.on("GET", GRANTS, VIEW) { call ->
-            call.json(mapOf("grants" to grants.grants(call.session!!.playerId).map { g ->
-                mapOf("id" to g.id, "client" to g.clientName, "createdAt" to g.createdAt.toString(), "lastUsedAt" to g.lastUsedAt.toString())
-            }))
+            val session = call.session!!
+            call.json(mapOf(
+                "grants" to grants.grants(session.playerId).map { g ->
+                    mapOf(
+                        "id" to g.id, "client" to g.clientName, "createdAt" to g.createdAt.toString(), "lastUsedAt" to g.lastUsedAt.toString(),
+                        "publish" to g.allowPublish,
+                    )
+                },
+                "canPublish" to session.can(PUBLISH),
+            ))
+        }
+        // Allowing an app to deploy takes the player's own right to: the app never holds more than they do.
+        router.on("PATCH", "$GRANTS/:grant", VIEW) { call ->
+            val body = call.body()?.get("publish")?.takeIf { it.isBoolean } ?: return@on call.error(422, "invalid_input")
+            val session = call.session!!
+            if (body.booleanValue() && !session.can(PUBLISH)) return@on call.error(403, "forbidden")
+            if (grants.allowPublish(session.playerId, call.params.getValue("grant"), body.booleanValue())) call.json(mapOf("ok" to true, "publish" to body.booleanValue()))
+            else call.error(404, "not_found")
         }
         router.on("DELETE", "$GRANTS/:grant", VIEW) { call ->
             if (grants.revoke(call.session!!.playerId, call.params.getValue("grant"))) call.json(mapOf("ok" to true))

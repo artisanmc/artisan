@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Check,
   FileText,
+  Maximize2,
   Play,
   RotateCcw,
   SendHorizontal,
@@ -23,6 +24,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useAiStatus, useAssistant } from "./useAssistant";
 
@@ -36,13 +38,24 @@ export const OPEN_DRAFTS = "artisan:open-drafts";
  * Docked on the right of the app, beside the page: the canvas and the chat stay usable together,
  * and the conversation survives moving between Projects. Closed, it stays mounted (hidden) so the
  * conversation is still there when it opens again. On a narrow screen it covers the page.
+ * "Expand" carries the same conversation to the server's Assistant tab.
  */
-export function AssistantDock({ projectId }: { projectId: string | null }) {
+export function AssistantDock({
+  projectId,
+  serverId = null,
+}: {
+  projectId: string | null;
+  /** The server of the page: the conversation's scope, and where "Expand" goes. */
+  serverId?: string | null;
+}) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const status = useAiStatus();
   const { open, setOpen, width, setWidth } = useAssistantPanelStore();
-  const { events, running, failure, send, reset } = useAssistant(projectId);
-  const [text, setText] = useState("");
+  const { events, running, failure, send, reset } = useAssistant({
+    project: projectId,
+    server: serverId,
+  });
   const end = useRef<HTMLDivElement>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on each new line.
@@ -56,17 +69,6 @@ export function AssistantDock({ projectId }: { projectId: string | null }) {
   const drafts = events.flatMap((event) =>
     event.type === "tool" && event.name === "start_draft" && event.draft ? [event.draft.id] : [],
   );
-
-  const submit = (e?: FormEvent) => {
-    e?.preventDefault();
-    const message = text.trim();
-    if (!message || running) return;
-    setText("");
-    void send(message);
-  };
-  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) submit(e);
-  };
 
   return (
     <aside
@@ -95,6 +97,20 @@ export function AssistantDock({ projectId }: { projectId: string | null }) {
           {t("ai.title")}
         </h2>
         <div className="flex items-center gap-1">
+          {serverId && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setOpen(false);
+                void navigate({ to: "/servers/$serverId/assistant", params: { serverId } });
+              }}
+              title={t("ai.expandHint")}
+            >
+              <Maximize2 className="size-3.5" />
+              {t("ai.expand")}
+            </button>
+          )}
           {events.length > 0 && (
             <button
               type="button"
@@ -162,34 +178,60 @@ export function AssistantDock({ projectId }: { projectId: string | null }) {
         )}
         <div ref={end} />
       </div>
-      <form
-        onSubmit={submit}
-        className="flex shrink-0 items-end gap-2 border-t border-[var(--border-soft)] p-3"
-      >
-        <textarea
-          className="textarea max-h-40 min-h-[44px] flex-1"
-          rows={2}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={onKey}
-          placeholder={t("ai.placeholder")}
-          aria-label={t("ai.placeholder")}
-          maxLength={8000}
-        />
-        <button
-          type="submit"
-          className="btn btn-primary btn-icon size-10 shrink-0"
-          disabled={running || !text.trim()}
-          aria-label={t("ai.send")}
-        >
-          <SendHorizontal className="size-4" />
-        </button>
-      </form>
+      <Composer running={running} onSend={(message) => void send(message)} />
     </aside>
   );
 }
 
-function EventLine({ event }: { event: AiEvent }) {
+/** The message box under a conversation: Enter sends, Shift+Enter goes to the next line. */
+export function Composer({
+  running,
+  onSend,
+}: {
+  running: boolean;
+  onSend: (message: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [text, setText] = useState("");
+  const submit = (e?: FormEvent) => {
+    e?.preventDefault();
+    const message = text.trim();
+    if (!message || running) return;
+    setText("");
+    onSend(message);
+  };
+  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) submit(e);
+  };
+  return (
+    <form
+      onSubmit={submit}
+      className="flex shrink-0 items-end gap-2 border-t border-[var(--border-soft)] p-3"
+    >
+      <textarea
+        className="textarea max-h-40 min-h-[44px] flex-1"
+        rows={2}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={onKey}
+        placeholder={t("ai.placeholder")}
+        aria-label={t("ai.placeholder")}
+        maxLength={8000}
+      />
+      <button
+        type="submit"
+        className="btn btn-primary btn-icon size-10 shrink-0"
+        disabled={running || !text.trim()}
+        aria-label={t("ai.send")}
+      >
+        <SendHorizontal className="size-4" />
+      </button>
+    </form>
+  );
+}
+
+/** One line of a conversation: what the player asked, what the assistant said or did. */
+export function EventLine({ event }: { event: AiEvent }) {
   const { t } = useTranslation();
   switch (event.type) {
     case "user":
@@ -223,7 +265,12 @@ function EventLine({ event }: { event: AiEvent }) {
 
 function ToolLine({ event }: { event: Extract<AiEvent, { type: "tool" }> }) {
   const { t } = useTranslation();
-  const label = t(`ai.tools.${event.name}`, { path: event.path ?? "", defaultValue: event.name });
+  const label = t(`ai.tools.${event.name}`, {
+    path: event.path ?? "",
+    // A module's folder: the Project id after its server's.
+    module: event.project?.slice(event.project.indexOf(".") + 1) ?? "",
+    defaultValue: event.name,
+  });
   return (
     <div className="flex flex-col gap-1.5">
       <div

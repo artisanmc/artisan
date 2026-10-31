@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import {
   Ban,
   ChevronsLeft,
@@ -90,6 +91,13 @@ export function actionAppearance(name: string): { family: ActionFamily; icon: Lu
 /** Whether the action is one of Artisan's own, with a translated name under `actionCatalog.names`. */
 export function isCoreAction(name: string): boolean {
   return name in CORE;
+}
+
+/** An action's name as a row shows it: the catalog's for a core action, else its own (without its module). */
+export function actionLabel(name: string, t: TFunction): string {
+  const colon = name.indexOf(":");
+  if (isCoreAction(name)) return t(`actionCatalog.names.${name}`);
+  return colon > 0 ? name.slice(colon + 1) : name;
 }
 
 /** CSS colour and soft background of a family, as `var(--token)` references. */
