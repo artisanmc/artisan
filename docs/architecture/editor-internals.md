@@ -334,7 +334,7 @@ A domain action is `{ name, value }` (`domain/types.ts`): the wire name and its 
 
 ### Document kinds contributed by a module (`FrontendModule.documents`, batch 5, since 2026-10-15)
 
-A module declares its Document kinds in its `FrontendModule` (`documents: DocumentKindContribution[]`, SDK): `kind`, `dir`, `schemaVersion`, `idPrefix`, `label` (host i18n key or label), `icon`, `component` (the Properties panel view, `{projectId, documentId, document, item?}`), `ownHeader` (SDK 1.13: the view draws the Document's header, so `SelectionInspector` leaves out its `DocumentHeader`; commands, dialogs and triggers set it), `wide` (SDK 1.15: `DocumentView` gives the view the whole width instead of its centred `max-w-5xl` column), `title(doc, {project, lang})`, `listByTitle`, `create({id, projectId})`, `parse`/`serialize` (the file codec), `ltextSites(doc)` (its texts, for Translations, rekey at deploy and GC), `chainSlots(doc)` (its action chains: `{name, steps, prefix, label?}`, for edges and addressing of action texts), and `board` (`size`, `summary`, `render`, `items`). The core kinds (menus, commands, dialogs, triggers) are declared the same way (`src/modules/{menus,commands,dialogs,triggers}/*Kind.tsx`) — dogfooding; the SDK registry refuses a kind contributed by two modules. `board.accent` accepts a hex or a `var(--kind-…)` token, which `DocumentGroup` resolves (`useCssVar`) to follow the theme.
+A module declares its Document kinds in its `FrontendModule` (`documents: DocumentKindContribution[]`, SDK): `kind`, `dir`, `schemaVersion`, `idPrefix`, `label` (host i18n key or label), `icon`, `component` (the Properties panel view, `{projectId, documentId, document, item?}`), `ownHeader` (SDK 1.13: the view draws the Document's header, so `SelectionInspector` leaves out its `DocumentHeader`; commands, dialogs and triggers set it), `wide` (SDK 1.15: `DocumentView` gives the view the whole width instead of its centred `64rem` column, `--page-max`), `title(doc, {project, lang})`, `listByTitle`, `create({id, projectId})`, `parse`/`serialize` (the file codec), `ltextSites(doc)` (its texts, for Translations, rekey at deploy and GC), `chainSlots(doc)` (its action chains: `{name, steps, prefix, label?}`, for edges and addressing of action texts), and `board` (`size`, `summary`, `render`, `items`). The core kinds (menus, commands, dialogs, triggers) are declared the same way (`src/modules/{menus,commands,dialogs,triggers}/*Kind.tsx`) — dogfooding; the SDK registry refuses a kind contributed by two modules. `board.accent` accepts a hex or a `var(--kind-…)` token, which `DocumentGroup` resolves (`useCssVar`) to follow the theme.
 
 - **Host bridge** — `lib/moduleDocumentKinds.ts`: `registerEditorModule(mod)` is a module's only entry point (`main.tsx` for the core, `modulesStore` / `ConfigScreenPage` for Presence-gated modules): it registers the module in the SDK and pushes each contribution into the registries the host already reads — kinds table (`domain/documentKinds.ts`, rank after the core kinds, folder and schema checked if the kind is already known), file codecs (`schema/documentCodecs.ts`), visitors (`domain/documentKindVisitors.ts`). The domain knows nothing about React: the view, label and board overrides stay on the contribution, read by `documentKindContribution(kind)` (SDK) from the surfaces that render.
 - **Properties panel via registry** — `selectionContext` returns `{ kind: "document", documentKind, id }` for a Document of a non-core kind; `SelectionInspector` resolves `documentKindContribution(kind).component` for menu / command / dialog / document and renders it in an `h-full min-h-0 overflow-y-auto` container; with no registered module (a surface rendered alone, a test), the built-in core editors still answer; without a view, `projectPanel.noEditor`. The YAML button follows: `documentRelPath` = `<kind dir>/<id>.yaml`.
@@ -1121,6 +1121,18 @@ of a Project that is not the open one (a draft) draws its own title. Edges `assi
 Project's deploy pieces, neither of which depends on it.
 
 ## Design system (tokens + components)
+
+**Page spacing** (`globals.css`): every page of the content panel uses one inner margin,
+`--page-pad` (16 px, 24 px from `md`). A page that keeps a centred column sets `--page-max`
+(`DocumentView`: `64rem`, unset for a `wide` kind); a band spanning the page indents its content
+to that column with `.page-inset-x` (`EditorHeader`, the scrolling bodies of the command, dialog
+and trigger editors), a view that pads itself sits in `.page-column` (`SelectionInspector` wraps a
+module view without `ownHeader` in it). So a Document's header starts at the panel's top edge
+and spans its width, its title lined up with the body below. The editor pane beside the board
+narrows the margin to 12 px (`.page-pane`). Collection pages, screens and the card pages (data
+source, configuration screen) pad with the same token. A module's stylesheet reads it with its
+old value as fallback (`padding: var(--page-pad, 12px)`), so its bundle looks the same on an
+older editor. Specimen: `/design`.
 
 `components/ui/markdown.tsx` exports `Markdown`: text written by a model or a person rendered with
 the editor's type and tokens (`react-markdown` + `remark-gfm`; tables reuse `Table`/`TH`/`TD`,

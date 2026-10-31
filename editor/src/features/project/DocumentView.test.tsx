@@ -153,7 +153,10 @@ describe("DocumentView", () => {
   it("renders the centered flow editor for a command", () => {
     render(<DocumentView projectId={PID} documentId={"c1" as any} />);
     expect(screen.getByTestId("flow-canvas")).toBeInTheDocument();
-    expect(screen.getByTestId("document-body")).toHaveClass("max-w-5xl");
+    // The page spans the panel (its header from the top edge); its content keeps a column.
+    const body = screen.getByTestId("document-body");
+    expect(body).not.toHaveClass("max-w-5xl");
+    expect(body.style.getPropertyValue("--page-max")).toBe("64rem");
   });
   it("gives a wide module kind's view the whole width", () => {
     registerModule({
@@ -162,7 +165,7 @@ describe("DocumentView", () => {
     } as any);
     try {
       render(<DocumentView projectId={PID} documentId={"daily" as any} />);
-      expect(screen.getByTestId("document-body")).not.toHaveClass("max-w-5xl");
+      expect(screen.getByTestId("document-body").style.getPropertyValue("--page-max")).toBe("");
     } finally {
       clearRegistry();
     }

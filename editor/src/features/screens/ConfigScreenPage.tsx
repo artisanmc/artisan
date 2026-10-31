@@ -258,7 +258,7 @@ export function ConfigScreenPage({
 
   return (
     <main
-      className="card flex min-h-0 flex-1 flex-col overflow-auto p-6 md:p-8"
+      className="card flex min-h-0 flex-1 flex-col overflow-auto p-[var(--page-pad)]"
       data-testid="config-screen"
     >
       <div className="mb-4 flex items-center gap-3">

@@ -59,6 +59,17 @@
   --r-lg: 20px;
   --r-xl: 28px;
   --r-pill: 999px;
+
+  /* Page spacing: the inner margin of every page in the content panel (a Document's
+     header and body, a collection, a screen) and of the views modules draw there. A
+     module's stylesheet reads it with its old value as fallback (`var(--page-pad, 12px)`).
+     The editor pane beside the board narrows it (`.page-pane`). */
+  --page-pad: 16px;
+}
+@media (min-width: 768px) {
+  :root {
+    --page-pad: 24px;
+  }
 }
 
 /* ----------------------------------------------------------------
@@ -600,6 +611,25 @@ body {
      as a stain, the tile and the eyebrow carry the colour alone. */
   :root[data-theme="light"] .editor-header-wash {
     background-image: none !important;
+  }
+
+  /* ----------------------------------------------------------------
+   PAGE LAYOUT — one margin for every page of the content panel.
+   A page sets `--page-max` (its column, `64rem` for a centred Document, unset = the whole
+   width). A band that spans the page (a header, a scrolling body) indents its content to
+   the column with `.page-inset-x`; a view that pads itself sits in `.page-column`.
+---------------------------------------------------------------- */
+  .page-inset-x {
+    padding-inline: max(var(--page-pad), calc((100% - var(--page-max, 100%)) / 2 + var(--page-pad)));
+  }
+  .page-column {
+    width: 100%;
+    max-width: var(--page-max, 100%);
+    margin-inline: auto;
+  }
+  .page-pane {
+    --page-pad: 12px;
+    --page-max: 100%;
   }
 
   .input,
