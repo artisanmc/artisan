@@ -1,7 +1,9 @@
+import { documentLTextSites } from "@/domain/documentKindVisitors";
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
 import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import type { LTextSite } from "@/domain/i18nSites";
 import { getFirstTitleText } from "@/domain/menuTitle";
-import type { Project } from "@/domain/types";
+import type { Document, Project } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { documentTitle } from "@/lib/moduleDocumentKinds";
 import { parsePositions } from "@/lib/positions";
@@ -28,8 +30,9 @@ export interface SearchEntry {
   };
 }
 
-function entry(partial: Omit<SearchEntry, "haystack">): SearchEntry {
-  const haystack = `${partial.label} ${partial.context?.owner ?? ""}`.toLowerCase();
+/** `extra`: what else finds the entry without being shown (a Document's id). */
+function entry(partial: Omit<SearchEntry, "haystack">, extra = ""): SearchEntry {
+  const haystack = `${partial.label} ${partial.context?.owner ?? ""} ${extra}`.toLowerCase();
   return { ...partial, haystack };
 }
 
@@ -41,12 +44,15 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
     const lt = getFirstTitleText(menu);
     const menuLabel = (lt ? getText(project, lt, activeLang) : "") || menu.id;
     out.push(
-      entry({
-        id: `menu:${menu.id}`,
-        group: "menu",
-        label: menuLabel,
-        target: { openId: menu.id, kind: "menu" },
-      }),
+      entry(
+        {
+          id: `menu:${menu.id}`,
+          group: "menu",
+          label: menuLabel,
+          target: { openId: menu.id, kind: "menu" },
+        },
+        menu.id,
+      ),
     );
 
     for (const layer of menu.layers ?? []) {
@@ -96,24 +102,30 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
 
   for (const cmd of commandsOf(project)) {
     out.push(
-      entry({
-        id: `command:${cmd.id}`,
-        group: "command",
-        label: `/${cmd.name}`,
-        target: { openId: cmd.id, kind: "command" },
-      }),
+      entry(
+        {
+          id: `command:${cmd.id}`,
+          group: "command",
+          label: `/${cmd.name}`,
+          target: { openId: cmd.id, kind: "command" },
+        },
+        cmd.id,
+      ),
     );
   }
 
   for (const dialog of dialogsOf(project)) {
     const dlabel = getText(project, dialog.title, activeLang) || dialog.id;
     out.push(
-      entry({
-        id: `dialog:${dialog.id}`,
-        group: "dialog",
-        label: dlabel,
-        target: { openId: dialog.id, kind: "dialog" },
-      }),
+      entry(
+        {
+          id: `dialog:${dialog.id}`,
+          group: "dialog",
+          label: dlabel,
+          target: { openId: dialog.id, kind: "dialog" },
+        },
+        dialog.id,
+      ),
     );
     const body = dialog.body ?? [];
     for (let i = 0; i < body.length; i++) {
@@ -147,21 +159,43 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
     }
   }
 
-  // A module's kind: one entry per Document, labelled by its kind's title.
+  // A module's kind: one entry per Document, labelled by its kind's title and found by its
+  // id too, then one per text the kind declares (`ltextSites`, the same walk as the
+  // Translations panel), so a conversation is found by what its pages say.
   const core = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
   for (const { kind, doc } of allDocuments(project)) {
     if (core.has(kind)) continue;
-    out.push(
-      entry({
-        id: `${kind}:${doc.id}`,
-        group: kind,
-        label: documentTitle(documentKindContribution(kind), doc, project, activeLang),
-        target: { openId: doc.id, kind },
-      }),
-    );
+    const label = documentTitle(documentKindContribution(kind), doc, project, activeLang);
+    const target = { openId: doc.id, kind };
+    out.push(entry({ id: `${kind}:${doc.id}`, group: kind, label, target }, doc.id));
+    const seen = new Set([label]);
+    for (const site of moduleTextSites(kind, doc)) {
+      const text = getText(project, site.lText, activeLang).trim();
+      if (!text || seen.has(text)) continue;
+      seen.add(text);
+      out.push(
+        entry({
+          id: `text:${kind}:${doc.id}:${site.key}`,
+          group: "content",
+          label: text,
+          context: { key: "search.ctxInDocument", owner: label },
+          target,
+        }),
+      );
+    }
   }
 
   return out;
+}
+
+/** A module's text sites; a kind whose walk throws costs its texts, never the search. */
+function moduleTextSites(kind: string, doc: Document): LTextSite[] {
+  try {
+    return [...documentLTextSites(kind, doc)];
+  } catch (e) {
+    console.warn(`[search] texts of ${kind}/${doc.id} not indexed`, e);
+    return [];
+  }
 }
 
 /** Reorders results already ranked by score into CONTIGUOUS groups, in order

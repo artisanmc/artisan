@@ -50,6 +50,23 @@ export const CORE_DOCUMENT_KINDS: readonly DocumentKindDef[] = [
 ];
 
 const kinds = new Map<string, DocumentKindDef>();
+const listeners = new Set<() => void>();
+let generation = 0;
+
+/**
+ * Bumped by every registration: a value read from files with the kinds of an older
+ * generation may lack the Documents of a kind registered since (a module's view that
+ * arrived after the read).
+ */
+export function documentKindsGeneration(): number {
+  return generation;
+}
+
+/** Called after each registration; returns the unsubscribe. */
+export function subscribeDocumentKinds(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
 
 /**
  * Registers a kind. Two kinds may not share a kind id, a folder, or an id
@@ -67,6 +84,8 @@ export function registerDocumentKind(def: DocumentKindDef): void {
       );
   }
   kinds.set(def.kind, def);
+  generation++;
+  for (const listener of listeners) listener();
 }
 
 /** Every registered kind in registration order, the core kinds first — the order of folders and listings. */

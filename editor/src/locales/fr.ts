@@ -1961,6 +1961,7 @@ const fr: typeof en = {
     ctxItemLore: "lore · {{owner}}",
     ctxDialogBody: "dialog · {{owner}}",
     ctxDialogButton: "bouton · {{owner}}",
+    ctxInDocument: "dans {{owner}}",
   },
   moduleHome: {
     pluginModule: "Module du plugin {{name}}",

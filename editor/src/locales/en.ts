@@ -1929,6 +1929,7 @@ export default {
     ctxItemLore: "lore · {{owner}}",
     ctxDialogBody: "dialog · {{owner}}",
     ctxDialogButton: "button · {{owner}}",
+    ctxInDocument: "in {{owner}}",
   },
   moduleHome: {
     pluginModule: "Module of the {{name}} plugin",
