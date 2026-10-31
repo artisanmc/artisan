@@ -1938,6 +1938,7 @@ export default {
     folders_one: "{{count}} folder",
     folders_other: "{{count}} folders",
     openBoard: "Open the canvas",
+    open: "Open",
     openList: "See the list",
     settings: "Settings",
     dataSources: "Data sources",

@@ -1970,6 +1970,7 @@ const fr: typeof en = {
     folders_one: "{{count}} dossier",
     folders_other: "{{count}} dossiers",
     openBoard: "Ouvrir le canvas",
+    open: "Ouvrir",
     openList: "Voir la liste",
     settings: "Réglages",
     dataSources: "Sources de données",

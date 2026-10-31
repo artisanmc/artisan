@@ -197,7 +197,13 @@ collection, a screen, a data source) no `?tab=` means the board behind that page
 home is built from what is already declared — kinds (board counts), collections, the
 module's screens (minus the one a collection shows on its page), its data sources, its
 `command` Documents and the server's actions whose `moduleId` is the module — one block per
-place, never a row per Document (the sidebar lists them). The rest is named: `WorkspaceGate` (auth hydration, login
+place, never a row per Document (the sidebar lists them). The order follows the content: a
+board holding anything but commands comes first, two columns wide, with `BoardThumbnail`
+(`features/canvas/`: an SVG of `projectBoard`'s arrangement, boxes in `kindAppearance` colours,
+links and folder frames; `null` when the arrangement throws); a board of commands alone goes
+after the lists and data sources, compact. A lone settings screen titles its block. The owner
+module's own section (`FrontendModule.home`, SDK 1.18) sits between the header and the blocks,
+behind an error boundary (`LeaveOutOnError`) that drops it alone. The rest is named: `WorkspaceGate` (auth hydration, login
 redirect, load failure, skeleton — via `projectLoadStatus`), `useProjectDeepLinks` (`?doc=`,
 canonical folder id, rename, opening a Document from the board),
 `useActiveLangFallback`, `useWorkspaceDnd` (sensors + `DndContext` callbacks) on top of the pure
