@@ -9,19 +9,11 @@ import { listServerProjects } from "@/lib/api/projectFiles";
 import { getServerConfig } from "@/lib/api/serverConfig";
 import { projectClient } from "@/lib/projectClient";
 import { listDocumentKindContributions } from "@artisan/editor-sdk";
-import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
-import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
-import { type GlyphPlacement, glyphPlacementsFromMenus } from "./menuGlyphPlacements";
-import { type OverlayImageRequest, overlayImagesFromFiles } from "./overlayImages";
-import { type AssetRow, type BuildResult, buildResourcePackZip } from "./resourcePackBuilder";
-import { type GlyphContribution, mergeCodepoints } from "./rpCodepointMerger";
-import {
-  GUI_CONTAINERS,
-  type GuiContainer,
-  containerTextureSource,
-  transparentContainersFromMenus,
-} from "./vanillaGui";
+import { overlayImagesFromFiles } from "./overlayImages";
+import { type PackProject, assembleServerPack } from "./packAssembly";
+import type { BuildResult } from "./resourcePackBuilder";
+import type { GuiContainer } from "./vanillaGui";
 
 const VANILLA_TEXTURES: Record<GuiContainer, string> = {
   chest: chestTextureUrl,
@@ -41,8 +33,8 @@ const TEXT_UP_URLS: Record<TextUpTexture, string> = {
  * the server then keeps its previous pack rather than receiving a truncated
  * one.
  *
- * Project order: by id (folder name) — stable from one build to the next; the
- * first one wins codepoint collisions.
+ * The assembly itself is `assembleServerPack`, shared with the conformance
+ * vectors and the command-line build.
  *
  * In network mode, each server has its own pack, built from its own Projects
  * only; those of a server other than the hub carry the id `<server>.<folder>`.
@@ -52,23 +44,14 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
   if (!list.ok) throw new Error(`project_list_failed:${list.error}`);
   const idOf = (folder: string) =>
     list.projects?.find((p) => (p.externalId ?? p.id) === folder)?.id ?? folder;
-  const projectIds = list.projectIds.map(idOf).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
   const config = await getServerConfig(serverId);
-
-  const allAssets: AssetRow[] = [];
-  const contribs: GlyphContribution[] = [];
-  const glyphPngs = new Map<string, Uint8Array>();
-  const fontGlyphPngs = new Map<string, Map<string, Uint8Array>>();
-  const glyphPlacements: GlyphPlacement[] = [];
-  const imageButtons: ImageButtonPlacement[] = [];
-  const transparent = new Set<GuiContainer>();
-  const imagesByRef: { ref: string; bytes: Uint8Array }[] = [];
-  const overlayImages: OverlayImageRequest[] = [];
   // The kinds of the modules this editor has loaded: a module's images reach the pack once
   // its bundle is in.
   const kinds = listDocumentKindContributions();
 
+  const projects: PackProject[] = [];
+  const projectIds = list.projectIds.map(idOf).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   for (const projectId of projectIds) {
     const client = projectClient(projectId);
     const tree = await client.read();
@@ -76,45 +59,13 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
     if (!tree.ok && tree.error === "unknown_project") continue;
     if (!tree.ok || tree.unchanged) throw new Error(`project_read_failed:${projectId}`);
     const files = Object.entries(tree.files).map(([path, content]) => ({ path, content }));
-    glyphPlacements.push(...glyphPlacementsFromMenus(files));
-    imageButtons.push(...imageButtonsFromMenus(files));
-    overlayImages.push(...overlayImagesFromFiles(files, kinds));
-    for (const c of transparentContainersFromMenus(files)) transparent.add(c);
-    const fromDisk: DiskAsset[] = diskAssetsFromTree(projectId, files, tree.binaries ?? []);
-
-    contribs.push({
-      projectId,
-      glyphs: fromDisk
-        .filter((a) => a.row.type === "glyph" && a.row.codepoint !== null)
-        .map((a) => ({ assetId: a.row.id, codepoint: a.row.codepoint! })),
+    projects.push({
+      id: projectId,
+      files,
+      binaries: tree.binaries ?? [],
+      binary: (path) => client.binary(path),
+      overlayImages: overlayImagesFromFiles(files, kinds),
     });
-    for (const a of fromDisk) {
-      allAssets.push(a.row);
-      if ((a.row.type === "glyph" && a.row.codepoint !== null) || a.row.type === "texture") {
-        const bytes = await client.binary(a.path);
-        glyphPngs.set(a.row.id, bytes);
-        imagesByRef.push({ ref: `${projectId}:${a.row.name}`, bytes });
-        continue;
-      }
-      if (a.row.type !== "font") continue;
-      // A font is unpacked on disk: its glyphs are sibling files of the descriptor.
-      const meta = a.row.fontMeta as { glyphMap?: { texture: string }[] } | null;
-      const dir = a.path.slice(0, a.path.lastIndexOf("/"));
-      const fontMap = new Map<string, Uint8Array>();
-      for (const g of meta?.glyphMap ?? []) {
-        fontMap.set(g.texture, await client.binary(`${dir}/${g.texture}`));
-      }
-      if (fontMap.size > 0) fontGlyphPngs.set(a.row.id, fontMap);
-    }
-  }
-
-  const { finalCodepoints } = mergeCodepoints(contribs);
-  const refs = containerTextureRefs(config.config);
-  const sources = {} as Record<GuiContainer, Uint8Array>;
-  for (const container of GUI_CONTAINERS) {
-    sources[container] =
-      containerTextureSource(imagesByRef, refs[container]) ??
-      (await fetchBytes(VANILLA_TEXTURES[container]));
   }
 
   const textUp = {} as Record<TextUpTexture, Uint8Array>;
@@ -123,17 +74,12 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
   }
 
   // The plugin serving this editor redraws transparent containers (`vanilla_gui_v1`).
-  return buildResourcePackZip(
-    allAssets,
-    glyphPngs,
-    fontGlyphPngs,
-    { finalCodepoints },
-    glyphPlacements,
-    imageButtons,
-    { sources, transparent },
+  return assembleServerPack({
+    projects,
+    containerTextures: containerTextureRefs(config.config),
+    vanillaTexture: (container) => fetchBytes(VANILLA_TEXTURES[container]),
     textUp,
-    overlayImages,
-  );
+  });
 }
 
 /** `resource-pack.container-textures.*` from `config.yml`. */

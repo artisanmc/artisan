@@ -67,6 +67,7 @@ npm run dev             # port 5173, /api and /ws proxied to the hub (ARTISAN_HU
 npm test
 npm run build           # the build served by the hub (called by -PwithEditor)
 npm run build:site      # artisanmc.net showcase + wiki (editor/Dockerfile)
+npm run pack -- build <projects-dir>   # the server's Java pack from Project folders, without a browser (vectors: `pack -- vectors`)
 
 # Local server
 docker compose up       # Paper :25565 + plugin editor :8765 + the shop's MySQL

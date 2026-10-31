@@ -21,7 +21,8 @@
     "test:e2e": "playwright test",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "check:boundaries": "node scripts/check-boundaries.mjs"
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "pack": "node scripts/pack.mjs"
   },
   "dependencies": {
     "@artisan/editor-sdk": "*",
@@ -82,6 +83,7 @@
     "@vitest/ui": "^4.1.5",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "jiti": "^2.6.1",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
