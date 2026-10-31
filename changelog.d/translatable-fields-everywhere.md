@@ -7,5 +7,5 @@
 - **Changed**: A text with no word of its own (only placeholders such as `{r.name}`, tags, digits or
   symbols) is no longer counted as a missing translation, in fields, the Translations panel and the
   top bar.
-- **Added** (editor SDK 1.17): `LocalizedField` and `textValues(project, key)`, so that a module's
+- **Added**: Editor SDK 1.17 exposes `LocalizedField` and `textValues(project, key)`, so that a module's
   translatable fields behave like Artisan's.
