@@ -107,6 +107,42 @@ describe("ModuleHome", () => {
     expect(screen.getByTestId("module-home-settings")).toHaveTextContent("Speakers");
   });
 
+  it("puts a board with only commands after the lists, without its picture", () => {
+    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
+    const blocks = screen.getAllByRole("listitem").map((li) => li.getAttribute("data-testid"));
+    expect(blocks.indexOf("module-home-board")).toBeGreaterThan(
+      blocks.indexOf("module-home-collection-conversation"),
+    );
+    expect(screen.queryByTestId("board-thumbnail")).toBeNull();
+  });
+
+  it("leads with a board of menus, wide, with its picture", () => {
+    useProjectsStore.setState({
+      openProjects: {
+        projects: [
+          projectFromFiles(PID, {
+            [`${base}/manifest.yaml`]: "schema: manifest/v1\ndefault_lang: fr\nlanguages: [fr]\n",
+            [`${base}/menus/main.yml`]: "schema: menu/v1\ntitle: Main\nsize: 27\n",
+            [`${base}/conversations/bruno.yml`]: "schema: conversation/v1\n",
+          }),
+        ],
+        projectOrder: [PID],
+      },
+    } as never);
+    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
+    const blocks = screen.getAllByRole("listitem").map((li) => li.getAttribute("data-testid"));
+    expect(blocks[0]).toBe("module-home-board");
+    expect(screen.getByTestId("module-home-board").className).toContain("md:col-span-2");
+    expect(screen.getByTestId("board-thumbnail")).toBeInTheDocument();
+  });
+
+  it('names a lone settings screen after itself, not "Settings" twice', () => {
+    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
+    const settings = screen.getByTestId("module-home-settings");
+    expect(within(settings).getByRole("heading")).toHaveTextContent("Speakers");
+    expect(within(settings).getByRole("link")).toHaveTextContent(/^Open$|^Ouvrir$/);
+  });
+
   it("opens the board from its block", () => {
     const onOpenBoard = vi.fn();
     render(<ModuleHome project={project()} onOpenBoard={onOpenBoard} />);
