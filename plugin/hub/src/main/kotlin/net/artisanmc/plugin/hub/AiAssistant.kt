@@ -134,6 +134,9 @@ class AiAssistant(
 
     val model: String get() = provider.model
 
+    /** "Translate the missing ones" on the same model and key. */
+    val translator = AiTranslator(provider)
+
     fun start(session: EditorSession, project: String?, server: String? = null): Conversation {
         expire()
         list(session).drop(MAX_PER_PLAYER - 1).filter { !it.running }.forEach { forget(it.id) }

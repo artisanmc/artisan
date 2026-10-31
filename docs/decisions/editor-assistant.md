@@ -78,6 +78,18 @@ than the hub. One single Artisan user at this date: the admin's key first.
    views show the same events, polled once. The tab is in the free jar, like the panel: it is
    how players discover the assistant (and, later, the cloud offer).
 
+9. **Translate the missing ones** (2026-10-31). `POST /api/v1/ai/translate` (`edit`) sends a
+   few texts, their context and their target languages to the assistant's model in one call,
+   without tools, and answers `{translations, failed}`. The hub drops a translation whose `{…}`
+   placeholders differ from the source's: the text stays missing rather than broken. The editor
+   writes what comes back like a typed edit (`setI18nValue`, or the field's `onChange`), so it shows
+   in the Project, undoes and deploys like any change; nothing touches a file. Two entry points:
+   a translatable field unfolded ("Translate the missing languages", `LocalizedField.translate`,
+   modules' fields included through the host mapping), and the Translations page ("Translate the N
+   missing ones": every language of the module, grouped by the languages each text lacks, in calls
+   of at most 100 texts and 24,000 characters to write). The format stays every language in each
+   field (ADR `field-local-translations`).
+
 ## Consequences
 
 - The admin pays for every message of every player who has `edit`. No per-player quota nor

@@ -216,6 +216,15 @@ const fr: typeof en = {
     statMissing: "{{count}} manquantes",
     statComplete: "complet",
     removeUnused: "Supprimer {{count}} inutilisées",
+    aiTranslate_one: "Traduire le manque",
+    aiTranslate_other: "Traduire les {{count}} manques",
+    aiTranslateHint:
+      "Toutes les langues, sur le modèle de l’assistant. Vérifie le résultat : il modifie ton module comme une saisie, rien n’est déployé.",
+    aiTranslating: "Traduction… {{done}} / {{total}}",
+    aiTranslated_one: "{{count}} traduction écrite.",
+    aiTranslated_other: "{{count}} traductions écrites.",
+    aiTranslatedPartly:
+      "{{count}} traductions écrites, {{failed}} textes manquent encore d’une langue.",
     removeUnusedHint:
       "Supprimer les clés des menus, commandes, dialogs et sources de données supprimés. Les clés lues par le code d'un module (lang/ only) restent.",
     removedUnused_one: "{{count}} clé de traduction inutilisée supprimée",
@@ -987,6 +996,10 @@ const fr: typeof en = {
     reference: "réf.",
     useReference: "Reprendre le texte {{lang}} tel quel",
     useReferenceIn: "Reprendre le texte {{reference}} en {{lang}}",
+    translateMissing_one: "Traduire la langue manquante",
+    translateMissing_other: "Traduire les {{count}} langues manquantes",
+    translating: "Traduction…",
+    translateFailed: "Certaines langues n’ont pas pu être traduites. Vérifie-les, ou réessaie.",
   },
   assetInput: {
     none: "Aucune image",

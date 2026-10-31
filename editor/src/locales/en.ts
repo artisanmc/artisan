@@ -211,6 +211,15 @@ export default {
     statMissing: "{{count}} missing",
     statComplete: "complete",
     removeUnused: "Remove {{count}} unused",
+    aiTranslate_one: "Translate the missing one",
+    aiTranslate_other: "Translate the {{count}} missing ones",
+    aiTranslateHint:
+      "Every language, on the assistant's model. Check the result: it changes your Project like typing would, nothing is deployed.",
+    aiTranslating: "Translating… {{done}} / {{total}}",
+    aiTranslated_one: "{{count}} translation written.",
+    aiTranslated_other: "{{count}} translations written.",
+    aiTranslatedPartly:
+      "{{count}} translations written, {{failed}} texts still missing a language.",
     removeUnusedHint:
       "Delete the keys of deleted menus, commands, dialogs and data sources. Keys read by a module's code (lang/ only) stay.",
     removedUnused_one: "Removed {{count}} unused translation key",
@@ -971,6 +980,10 @@ export default {
     reference: "ref.",
     useReference: "Use the {{lang}} text as is",
     useReferenceIn: "Use the {{reference}} text in {{lang}}",
+    translateMissing_one: "Translate the missing language",
+    translateMissing_other: "Translate the {{count}} missing languages",
+    translating: "Translating…",
+    translateFailed: "Some languages could not be translated. Check them, or try again.",
   },
   assetInput: {
     none: "No image",

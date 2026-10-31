@@ -1,6 +1,7 @@
+import type { FieldTranslate } from "@/lib/aiTranslate";
 import { cn } from "@/lib/cx";
 import { isTranslationMissing } from "@/lib/i18nUsages";
-import { CopyPlus, Languages } from "lucide-react";
+import { CopyPlus, Languages, Sparkles } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Tooltip } from "./tooltip";
@@ -37,6 +38,11 @@ export interface LocalizedFieldProps {
    * editor, `label` only names the editors.
    */
   inline?: boolean;
+  /**
+   * Fills the missing languages from the default one (the assistant's model): unfolded, a
+   * "Translate the missing ones" button. Each translation is written through `onChange`.
+   */
+  translate?: FieldTranslate;
   className?: string;
 }
 
@@ -58,7 +64,8 @@ export function missingLangs(
  * directly, without touching the active language (and so the preview). The badge
  * counts the missing translations; an empty language offers "Use the reference",
  * which writes the default language's text there (same text on purpose, no longer
- * missing). Unfolding is view state only, lost on unmount.
+ * missing). With `translate`, unfolded, "Translate the missing ones" fills them on the
+ * assistant's model. Unfolding is view state only, lost on unmount.
  */
 function LocalizedField({
   label,
@@ -70,10 +77,13 @@ function LocalizedField({
   renderEditor,
   actions,
   inline,
+  translate,
   className,
 }: LocalizedFieldProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [translateFailed, setTranslateFailed] = useState(false);
   // An active language with no text anywhere yet is still one of the field's.
   const all = langs.includes(activeLang) ? langs : [...langs, activeLang];
   const multi = all.length > 1;
@@ -89,6 +99,25 @@ function LocalizedField({
     });
   const reference = values[defaultLang];
   const order = [activeLang, ...all.filter((lang) => lang !== activeLang)];
+  const translateMissing = async () => {
+    if (!translate || !reference) return;
+    setTranslating(true);
+    setTranslateFailed(false);
+    try {
+      const got = await translate({
+        label,
+        source: reference,
+        sourceLang: defaultLang,
+        langs: missing,
+      });
+      for (const lang of missing) if (got[lang]) onChange(lang, got[lang]);
+      if (missing.some((lang) => !got[lang])) setTranslateFailed(true);
+    } catch {
+      setTranslateFailed(true);
+    } finally {
+      setTranslating(false);
+    }
+  };
   const toggleLabel = missing.length
     ? t("localizedField.toggleMissing", { count: missing.length, langs: missing.join(", ") })
     : t("localizedField.toggle");
@@ -155,6 +184,28 @@ function LocalizedField({
           {editor(lang)}
         </div>
       ))}
+      {translate && (missing.length > 0 || translateFailed) && (
+        <div className="flex items-center gap-2 pl-12">
+          {missing.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={translating}
+              onClick={() => void translateMissing()}
+            >
+              <Sparkles className="size-3.5" aria-hidden />
+              {translating
+                ? t("localizedField.translating")
+                : t("localizedField.translateMissing", { count: missing.length })}
+            </button>
+          )}
+          {translateFailed && !translating && (
+            <span role="alert" className="text-[11px] text-[var(--warning)]">
+              {t("localizedField.translateFailed")}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 

@@ -1,5 +1,6 @@
 import { type LocalizedEditorProps, LocalizedField } from "@/components/ui/localized-field";
 import type { LText, ProjectId } from "@/domain/types";
+import { useFieldTranslate } from "@/lib/aiTranslate";
 import { listLanguages } from "@/lib/i18nUsages";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -23,7 +24,7 @@ export interface LocalizedTextFieldProps {
  * {@link LocalizedField} on a Project text: its languages, the top bar's language and
  * each language's own value come from the stores. Every translatable text of the
  * editor goes through it, so all of them fold, unfold and count missing translations
- * the same way.
+ * the same way, and offer "Translate the missing ones" when the assistant is on.
  */
 export function LocalizedTextField({
   projectId,
@@ -38,6 +39,7 @@ export function LocalizedTextField({
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   const setI18nValue = useProjectsStore((s) => s.setI18nValue);
+  const translate = useFieldTranslate(projectId);
   if (!project) return null;
   const entry = lt ? (project.i18nKeys[lt.key] ?? {}) : {};
   return (
@@ -52,6 +54,7 @@ export function LocalizedTextField({
       renderEditor={renderEditor}
       actions={actions}
       inline={inline}
+      translate={translate}
     />
   );
 }
