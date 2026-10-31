@@ -18,10 +18,10 @@ import { sha256Hex } from "../../sha256";
  * - Text layers follow, each exactly a fixed number of UTF-8 **bytes**: the
  *   JSON UI's `'%.Ns'` keeps the first N bytes, not characters (checked in
  *   game: a character offset cut the 3-byte key in half and the field never
- *   rendered). A field is its text cut at a character boundary, then [PAD]
- *   characters, which the JSON UI removes before showing it (spaces would
- *   count in a centred line and wrap it), then 0 to 2 spaces for the bytes a
- *   3-byte [PAD] cannot fill.
+ *   rendered). A field is its text cut at a character boundary, then filler
+ *   the JSON UI removes before showing it (spaces would count in a centred
+ *   line and wrap it): 3-byte [PAD] characters, and 2-byte [PAD2] ones for
+ *   the bytes a [PAD] cannot fill.
  */
 export const BEDROCK_MARKER = "";
 const KEY_BASE = 0xf880;
@@ -35,6 +35,8 @@ export const TEXT_FIELD = 64;
 export const TEXTAREA_FIELD = 192;
 /** Fills a field after its text; the pack strips it (`bedrockUi.ts`). */
 export const BEDROCK_PAD = "\uF8FE";
+/** Fills the 2 or 4 bytes a 3-byte [BEDROCK_PAD] cannot; also stripped by the pack. */
+export const BEDROCK_PAD2 = "\u00A0";
 /** UTF-8 bytes of every control character (all in U+F800..U+F8FF). */
 const CONTROL_BYTES = 3;
 
@@ -69,8 +71,18 @@ export function bedrockField(text: string, bytes: number): string {
     out += ch;
     used += size;
   }
-  const free = bytes - used;
-  return (
-    out + BEDROCK_PAD.repeat(Math.floor(free / CONTROL_BYTES)) + " ".repeat(free % CONTROL_BYTES)
-  );
+  return out + bedrockPadding(bytes - used);
+}
+
+/**
+ * `free` bytes of filler the pack strips: [BEDROCK_PAD] (3 bytes), with one or two
+ * [BEDROCK_PAD2] (2 bytes) for the rest, so no space is left to shift a centred line.
+ * Only a single free byte has to stay a space.
+ */
+function bedrockPadding(free: number): string {
+  const rest = free % CONTROL_BYTES;
+  if (rest === 0) return BEDROCK_PAD.repeat(free / CONTROL_BYTES);
+  if (rest === 2) return BEDROCK_PAD.repeat((free - 2) / CONTROL_BYTES) + BEDROCK_PAD2;
+  if (free === 1) return " ";
+  return BEDROCK_PAD.repeat((free - 4) / CONTROL_BYTES) + BEDROCK_PAD2 + BEDROCK_PAD2;
 }

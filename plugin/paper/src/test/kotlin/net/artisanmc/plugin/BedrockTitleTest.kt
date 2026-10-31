@@ -87,12 +87,12 @@ class BedrockTitleTest {
 
     @Test fun `a field is exactly its bytes, cut at a character boundary, padded with PAD then spaces`() {
         val bytes = { s: String -> s.toByteArray(Charsets.UTF_8).size }
-        // 24 ASCII bytes + 40 free = 13 PAD + 1 space.
+        // 24 ASCII bytes + 40 free = 12 PAD + 2 PAD2: no space left to shift a centred line.
         val ascii = BedrockTitle.field("Bien le bonjour bedrock!", 64)
         assertEquals(64, bytes(ascii))
-        assertEquals("Bien le bonjour bedrock!" + "${BedrockTitle.PAD}".repeat(13) + " ", ascii)
-        // é is 2 bytes: 5 = 1 PAD + 2 spaces.
-        assertEquals("é" + "${BedrockTitle.PAD}" + "  ", BedrockTitle.field("é", 7))
+        assertEquals("Bien le bonjour bedrock!" + "${BedrockTitle.PAD}".repeat(12) + "${BedrockTitle.PAD2}".repeat(2), ascii)
+        // é is 2 bytes: 5 free = 1 PAD + 1 PAD2.
+        assertEquals("é" + "${BedrockTitle.PAD}" + "${BedrockTitle.PAD2}", BedrockTitle.field("é", 7))
         // A 2-byte character that does not fit is left out, not cut in half.
         assertEquals("aa" + " ", BedrockTitle.field("aaé", 3))
         assertEquals(10, bytes(BedrockTitle.field("€€€€€", 10)))
