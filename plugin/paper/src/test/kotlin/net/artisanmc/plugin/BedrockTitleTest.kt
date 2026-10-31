@@ -74,15 +74,28 @@ class BedrockTitleTest {
         val expected = StringBuilder()
             .append('').append(BedrockTitle.key("lobby", "shop"))
             .append('').append('')
-            .append("Hello {player.name} Iban".padEnd(BedrockTitle.TEXT_FIELD))
-            .append("a\nb Iban".padEnd(BedrockTitle.TEXTAREA_FIELD))
+            .append(BedrockTitle.field("Hello {player.name} Iban", BedrockTitle.TEXT_FIELD))
+            .append(BedrockTitle.field("a\nb Iban", BedrockTitle.TEXTAREA_FIELD))
             .toString()
         assertEquals(expected, title)
 
         // No matching appearance: state 0; a field longer than its length is cut.
         val none = BedrockTitle.compile(compiled, mapOf("buy" to null)) { "x".repeat(200) }
         assertEquals('', none[4])
-        assertEquals(1 + 2 + 2 + BedrockTitle.TEXT_FIELD + BedrockTitle.TEXTAREA_FIELD, none.length)
+        assertEquals(3 * (1 + 2 + 2) + BedrockTitle.TEXT_FIELD + BedrockTitle.TEXTAREA_FIELD, none.toByteArray(Charsets.UTF_8).size)
+    }
+
+    @Test fun `a field is exactly its bytes, cut at a character boundary, padded with PAD then spaces`() {
+        val bytes = { s: String -> s.toByteArray(Charsets.UTF_8).size }
+        // 24 ASCII bytes + 40 free = 13 PAD + 1 space.
+        val ascii = BedrockTitle.field("Bien le bonjour bedrock!", 64)
+        assertEquals(64, bytes(ascii))
+        assertEquals("Bien le bonjour bedrock!" + "${BedrockTitle.PAD}".repeat(13) + " ", ascii)
+        // é is 2 bytes: 5 = 1 PAD + 2 spaces.
+        assertEquals("é" + "${BedrockTitle.PAD}" + "  ", BedrockTitle.field("é", 7))
+        // A 2-byte character that does not fit is left out, not cut in half.
+        assertEquals("aa" + " ", BedrockTitle.field("aaé", 3))
+        assertEquals(10, bytes(BedrockTitle.field("€€€€€", 10)))
     }
 
     @Test fun `a Bedrock player's menu opens like a Java player's`() {

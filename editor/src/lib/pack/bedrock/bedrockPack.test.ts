@@ -5,13 +5,15 @@ import { strFromU8, unzipSync } from "fflate";
 import { describe, expect, test } from "vitest";
 import type { AssetRow } from "../fontJsonBuilder";
 import { createImage, decodePng, encodePng } from "../png";
-import { type BedrockMenu, bedrockMenusFromProject } from "./bedrockMenus";
+import { type BedrockMenu, bedrockMenusFromProject, leadingColor } from "./bedrockMenus";
 import { buildBedrockPack } from "./bedrockPack";
 import {
   BEDROCK_MARKER,
+  BEDROCK_PAD,
   TEXTAREA_FIELD,
   TEXT_FIELD,
   bedrockButtonPair,
+  bedrockField,
   bedrockFieldOffset,
   bedrockMenuKey,
 } from "./bedrockTitle";
@@ -93,8 +95,19 @@ describe("bedrockTitle", () => {
   test("button pairs come from disjoint ranges and fields follow them", () => {
     expect(bedrockButtonPair(0, 0)).toBe("");
     expect(bedrockButtonPair(5, 2)).toBe("");
-    expect(bedrockFieldOffset(2, [TEXT_FIELD, TEXTAREA_FIELD], 0)).toBe(7);
-    expect(bedrockFieldOffset(2, [TEXT_FIELD, TEXTAREA_FIELD], 1)).toBe(7 + TEXT_FIELD);
+    // Offsets are UTF-8 bytes: every control character takes 3.
+    expect(bedrockFieldOffset(2, [TEXT_FIELD, TEXTAREA_FIELD], 0)).toBe(21);
+    expect(bedrockFieldOffset(2, [TEXT_FIELD, TEXTAREA_FIELD], 1)).toBe(21 + TEXT_FIELD);
+  });
+
+  test("a field is exactly its bytes, cut at a character boundary, padded with PAD then spaces (BedrockTitleTest)", () => {
+    const bytes = (s: string) => new TextEncoder().encode(s).length;
+    const ascii = bedrockField("Bien le bonjour bedrock!", 64);
+    expect(bytes(ascii)).toBe(64);
+    expect(ascii).toBe(`Bien le bonjour bedrock!${BEDROCK_PAD.repeat(13)} `);
+    expect(bedrockField("é", 7)).toBe(`é${BEDROCK_PAD}  `);
+    expect(bedrockField("aaé", 3)).toBe("aa ");
+    expect(bytes(bedrockField("€€€€€", 10))).toBe(10);
   });
 });
 
@@ -107,6 +120,14 @@ describe("bedrockMenusFromProject", () => {
       ["info", 3, false],
     ]);
     expect(menus[0]?.key).toBe(bedrockMenuKey("lobby", "shop"));
+  });
+
+  test("a layer without color takes the color tag its value opens with", () => {
+    expect(leadingColor("<white>Bien le bonjour")).toBe("white");
+    expect(leadingColor("<#ff8800>x")).toBe("#ff8800");
+    expect(leadingColor("<color:gold>x")).toBe("gold");
+    expect(leadingColor("plain <red>x")).toBeUndefined();
+    expect(leadingColor({ en: "<white>x" })).toBeUndefined();
   });
 
   test("takes the id from the file name, as the plugin does, themed folders included", () => {
@@ -270,15 +291,19 @@ describe("buildBedrockPack", () => {
     expect(String(b0.visible)).toContain(`'${bedrockButtonPair(0, 0)}'`);
     expect(out[`${b0.texture}.png`]).toBeDefined();
     const t0 = inserted[`artisan_${k}_t0`] as Record<string, unknown>;
-    expect(t0.text).toBe(`('%.${TEXT_FIELD}s' * ($artisan_title - ('%.5s' * $artisan_title)))`);
+    expect(t0.text).toBe(
+      `(('%.${TEXT_FIELD}s' * ($artisan_title - ('%.15s' * $artisan_title))) - '${BEDROCK_PAD}')`,
+    );
     expect(t0.offset).toEqual([20, 34]);
     expect(t0.font_scale_factor).toBe(2);
     expect(t0.color).toEqual([1, 0.667, 0]);
     const t1 = inserted[`artisan_${k}_t1`] as Record<string, unknown>;
     expect(t1.text).toBe(
-      `('%.${TEXTAREA_FIELD}s' * ($artisan_title - ('%.${5 + TEXT_FIELD}s' * $artisan_title)))`,
+      `(('%.${TEXTAREA_FIELD}s' * ($artisan_title - ('%.${15 + TEXT_FIELD}s' * $artisan_title))) - '${BEDROCK_PAD}')`,
     );
     expect(t1.size).toEqual([80, "default"]);
+    // A centred textarea's x is the middle of its lines, as on Java.
+    expect(t1.offset).toEqual([10 - 40, 64]);
     expect(t1.text_alignment).toBe("center");
     expect(out["textures/items/artisan_hit_area.png"]).toBeDefined();
     expect(out["font/glyph_F8.png"]).toBeDefined();
