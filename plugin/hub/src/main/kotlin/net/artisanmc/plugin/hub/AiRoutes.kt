@@ -41,6 +41,21 @@ class AiRoutes(private val setup: AiSetup) {
             if (server != null && !SERVER_ID.matches(server)) return@on call.error(422, "invalid_input", "server")
             call.json(summary(assistant.start(call.session!!, project, server).summary()), 201)
         }
+        router.on("POST", TRANSLATE, EDIT) { call ->
+            val assistant = setup.assistant() ?: return@on call.error(404, "ai_disabled")
+            val request = translation(call.body()) ?: return@on call.error(422, "invalid_input")
+            try {
+                val result = assistant.translator.translate(request)
+                call.json(
+                    mapOf(
+                        "translations" to result.translations, "failed" to result.failed,
+                        "inputTokens" to result.inputTokens, "outputTokens" to result.outputTokens,
+                    ),
+                )
+            } catch (e: AiFailure) {
+                call.error(502, e.code)
+            }
+        }
         router.on("GET", "$CONVERSATIONS/:conversation", EDIT) { call ->
             val assistant = setup.assistant() ?: return@on call.error(404, "not_found")
             val conversation = assistant.get(call.session!!, call.params.getValue("conversation")) ?: return@on call.error(404, "not_found")
@@ -120,6 +135,23 @@ class AiRoutes(private val setup: AiSetup) {
         return Parsed.Valid(AiConfig(provider, apiKey, model, effort, maxSteps, baseUrl))
     }
 
+    /** A translation request within [AiTranslator]'s limits, or null. */
+    private fun translation(body: com.fasterxml.jackson.databind.JsonNode?): AiTranslator.Request? {
+        body ?: return null
+        val source = body.path("source").asText("").takeIf { AiTranslator.LANG.matches(it) } ?: return null
+        val targets = body.path("targets").map { it.asText("") }.distinct()
+        if (targets.isEmpty() || targets.size > AiTranslator.MAX_TARGETS || targets.any { !AiTranslator.LANG.matches(it) || it == source }) return null
+        val texts = body.path("texts").map { node ->
+            val id = node.path("id").asText("").takeIf { it.isNotEmpty() && it.length <= 200 } ?: return null
+            val text = node.path("text").asText("").takeIf { it.isNotBlank() && it.length <= AiTranslator.MAX_TEXT } ?: return null
+            AiTranslator.Text(id, text, node.path("context").asText("").take(300).ifBlank { null })
+        }
+        if (texts.isEmpty() || texts.size > AiTranslator.MAX_TEXTS || texts.distinctBy { it.id }.size != texts.size) return null
+        if (texts.sumOf { it.text.length } * targets.size > AiTranslator.MAX_OUTPUT_CHARS) return null
+        val module = body.path("module").asText("").take(200).ifBlank { null }
+        return AiTranslator.Request(source, targets, texts, module)
+    }
+
     private fun validUrl(url: String): Boolean {
         if (url.length > 300) return false
         val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return false
@@ -136,6 +168,7 @@ class AiRoutes(private val setup: AiSetup) {
         const val STATUS = "/api/v1/ai"
         const val CONFIG_PATH = "/api/v1/ai/config"
         const val CONVERSATIONS = "/api/v1/ai/conversations"
+        const val TRANSLATE = "/api/v1/ai/translate"
         const val MAX_MESSAGE = 8000
         /** A server id goes into the model's instructions: only the characters ids are made of. */
         private val SERVER_ID = Regex("[A-Za-z0-9_-]{1,64}")

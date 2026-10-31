@@ -1,12 +1,19 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
-import { expect, it } from "vitest";
+import type { FieldTranslate } from "@/lib/aiTranslate";
+import { expect, it, vi } from "vitest";
 import { LocalizedField, missingLangs } from "./localized-field";
 
 function Harness({
   langs = ["en", "fr", "de"],
   activeLang = "en",
   initial = { en: "Back", fr: "" } as Record<string, string | undefined>,
+  translate,
+}: {
+  langs?: string[];
+  activeLang?: string;
+  initial?: Record<string, string | undefined>;
+  translate?: FieldTranslate;
 }) {
   const [values, setValues] = useState(initial);
   return (
@@ -17,6 +24,7 @@ function Harness({
       defaultLang="en"
       values={values}
       onChange={(lang, value) => setValues((v) => ({ ...v, [lang]: value }))}
+      translate={translate}
       renderEditor={({ value, fallback, label, onChange }) => (
         <input
           aria-label={label}
@@ -79,4 +87,27 @@ it("writes the reference text into an empty language on purpose", () => {
   expect(screen.getByLabelText("Title · fr")).toHaveValue("Back");
   expect(screen.queryByTestId("localized-field-missing")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /reprendre/i })).not.toBeInTheDocument();
+});
+
+it("translates the missing languages on the assistant's model, writing each one", async () => {
+  const translate = vi.fn<FieldTranslate>().mockResolvedValue({ fr: "Retour" });
+  render(<Harness translate={translate} />);
+  fireEvent.click(screen.getByRole("button", { name: /2 manquantes/i }));
+  fireEvent.click(screen.getByRole("button", { name: "Traduire les 2 langues manquantes" }));
+  expect(translate).toHaveBeenCalledWith({
+    label: "Title",
+    source: "Back",
+    sourceLang: "en",
+    langs: ["fr", "de"],
+  });
+  expect(await screen.findByDisplayValue("Retour")).toBeTruthy();
+  // German did not come back: still missing, and said so.
+  expect(screen.getByRole("alert")).toHaveTextContent(/n’ont pas pu être traduites/);
+  expect(screen.getByRole("button", { name: "Traduire la langue manquante" })).toBeTruthy();
+});
+
+it("offers no translation without the assistant", () => {
+  render(<Harness />);
+  fireEvent.click(screen.getByRole("button", { name: /2 manquantes/i }));
+  expect(screen.queryByRole("button", { name: /Traduire/ })).toBeNull();
 });

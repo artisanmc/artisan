@@ -1,6 +1,7 @@
 import { MiniMessageField } from "@/components/MiniMessageField";
 import { McScreen, McScreenControls, McText } from "@/components/mc-preview";
 import { LocalizedField } from "@/components/ui/localized-field";
+import { useFieldTranslate } from "@/lib/aiTranslate";
 import { SortableList } from "@/components/ui/sortable-list";
 import type { ProjectId } from "@/domain/types";
 import { AssetInput } from "@/features/assets/AssetInput";
@@ -40,7 +41,11 @@ export const hostComponents: HostComponents = {
   OverlayComposer: (props) => <OverlayComposer {...props} />,
   OverlaySlotsComposer: (props) => <OverlaySlotsComposer {...props} />,
   AssetInput: (props) => <AssetInput {...props} />,
-  LocalizedField: (props) => <LocalizedField {...props} />,
+  LocalizedField: function HostLocalizedField(props) {
+    // A module's own texts get "Translate the missing ones" too, when the assistant is on.
+    const translate = useFieldTranslate();
+    return <LocalizedField translate={translate} {...props} />;
+  },
   ItemInput: ({ match, onMatchChange, ...props }) => (
     <ItemSpecField
       {...props}

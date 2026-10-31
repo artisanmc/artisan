@@ -313,6 +313,35 @@ class AiAssistantTest {
     }
 
     @Test
+    fun `the missing translations come back checked, a broken placeholder left missing`() {
+        val answer = """Voilà :
+            {"t1": {"en": "Welcome {player}", "es": "Bienvenido {jugador}"}, "t2": {"en": "Back", "es": "Volver"}}"""
+        val model = ScriptedModel(AiReply(listOf(answer), emptyList(), AiReply.END, 30, 12))
+        start(model)
+        val body = mapOf(
+            "source" to "fr", "targets" to listOf("en", "es"), "module" to "u-local.shop",
+            "texts" to listOf(mapOf("id" to "t1", "text" to "Bienvenue {player}", "context" to "menus/shop.yml › title"), mapOf("id" to "t2", "text" to "Retour")),
+        )
+        val result = editor("POST", AiRoutes.TRANSLATE, body)
+        assertEquals(200, result.status, result.body.toString())
+        assertEquals("Welcome {player}", result.body!!["translations"]["t1"]["en"].asText())
+        assertFalse(result.body["translations"]["t1"].has("es"), "{jugador} is not {player}")
+        assertEquals("Volver", result.body["translations"]["t2"]["es"].asText())
+        assertEquals(listOf("t1"), result.body["failed"].map { it.asText() })
+        assertEquals(30, result.body["inputTokens"].asInt())
+        val sent = mapper.readTree((model.inputs.single().single() as AiInput.Text).text)
+        assertEquals("menus/shop.yml › title", sent["texts"][0]["context"].asText())
+        assertTrue("placeholder" in model.systems.single())
+
+        assertEquals(422, editor("POST", AiRoutes.TRANSLATE, body + ("targets" to listOf("fr"))).status, "the source is no target")
+        assertEquals(422, editor("POST", AiRoutes.TRANSLATE, body + ("texts" to emptyList<Any>())).status)
+        model.replies += AiReply(listOf("Je ne peux pas."), emptyList(), AiReply.END)
+        assertEquals("ai_bad_answer", editor("POST", AiRoutes.TRANSLATE, body).body!!["error"].asText())
+        val viewer = signIn(UUID.randomUUID(), "Viewer", setOf(EditorPermissions.VIEW))
+        assertEquals(403, editor("POST", AiRoutes.TRANSLATE, body, as_ = viewer).status)
+    }
+
+    @Test
     fun `a conversation is its player's own`() {
         start(ScriptedModel())
         val id = conversation()

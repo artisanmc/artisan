@@ -210,6 +210,11 @@ want (a menu, a command, a change to a dialog), and the assistant does it in a d
   server. There the assistant works across every project of the server, one draft per project;
   **Review and deploy** opens Deploy's review with all of them picked. **Expand** in the panel
   opens the same conversation in the tab.
+- **Translate the missing ones**: unfold a translatable field (its translations button) and click
+  "Translate the missing languages", or open the Translations page and click "Translate the N
+  missing ones" for the whole module. The model fills the empty languages from the default one;
+  the result changes your module like typing would, so you review it and deploy as usual. A
+  translation that loses a placeholder such as `{player}` is not written.
 - A message runs at most "Steps per message" model calls (`ai.max-steps`); the assistant then stops and says so.
 - Conversations are saved in the suite database: after a restart or a change of the settings, the
   assistant takes them back where they stopped (with another model, from a summary of what was said).
