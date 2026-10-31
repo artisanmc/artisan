@@ -1169,8 +1169,6 @@ export default {
   },
   canvas: {
     systemElement: "system · {{module}}",
-    sharedDocumentIds:
-      "Documents of different kinds share an id: {{list}}. The editor keeps them apart; an id of their own stays easier to read.",
     systemDocumentKept:
       "A system menu or dialog cannot be deleted: reset it from the folder's list instead.",
     armedHint: "armed — tap a slot to place it",

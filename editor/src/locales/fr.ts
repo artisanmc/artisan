@@ -1191,8 +1191,6 @@ const fr: typeof en = {
   },
   canvas: {
     systemElement: "système · {{module}}",
-    sharedDocumentIds:
-      "Des Documents de kinds différents portent le même id : {{list}}. L'éditeur les garde séparés ; un id propre à chacun reste plus lisible.",
     systemDocumentKept:
       "Un menu ou dialogue système ne se supprime pas : réinitialise-le depuis la liste du dossier.",
     armedHint: "armé — clique une case pour le placer",

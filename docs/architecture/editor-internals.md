@@ -528,8 +528,8 @@ of its menu; a part (`board.items`) of a module Document is bounded by its
 Document's key. The focus view takes `?kind=` next to the path id (no encoded `/` in the path).
 Reading `editor.yaml` (and an imported project): a bare key goes to **every** Document of that
 id (`parseEditorLayout`), a bare edge end to the first; writing keeps only
-keys. On load, `useSharedIdNotice` flags with a toast the ids that two kinds share
-(`sharedDocumentIds`). A new Document keeps an id that is free in all kinds (`newDocumentId`).
+keys. Two kinds sharing an id (a speaker and its conversation, a menu and its command) is
+normal and says nothing on load. A new Document keeps an id that is free in all kinds (`newDocumentId`).
 
 Persistence: `edges` + `layout` in **`.artisan/editor.yaml`** (hash-excluded
 editor state file — moving a card no longer redeploys the

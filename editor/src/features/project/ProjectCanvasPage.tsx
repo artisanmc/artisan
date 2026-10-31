@@ -42,7 +42,6 @@ import { opensOnStage } from "./documentStage";
 import { useActiveLangFallback } from "./useActiveLangFallback";
 import { useCollectionsAtRoot } from "./useCollectionsAtRoot";
 import { useProjectDeepLinks } from "./useProjectDeepLinks";
-import { useSharedIdNotice } from "./useSharedIdNotice";
 import { useWorkspaceDnd } from "./useWorkspaceDnd";
 
 export type ProjectSearch = {
@@ -116,7 +115,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const { tab = "overview", doc, kind: docKind } = useSearch({ strict: false }) as ProjectSearch;
   useProjectDeepLinks({ project, urlId, projectId, serverId, documentId, doc });
   useActiveLangFallback(project);
-  useSharedIdNotice(project);
   useCollectionsAtRoot(project);
   const presentedTab = tourPresenting ? "overview" : tab;
   const exitToCanvas = () =>
