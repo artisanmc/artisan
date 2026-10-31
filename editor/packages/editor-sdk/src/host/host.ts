@@ -32,6 +32,11 @@ export interface EditorHost {
   text(project: unknown, key: string, lang: string): string;
   /** A text as a Document file carries it: a bare string, or `{lang: text}`. */
   fieldText(project: unknown, key: string): string | Record<string, string>;
+  /**
+   * Each language's own value of a text, no fallback: a language with none is absent
+   * (SDK 1.17). What `LocalizedField` takes as `values`.
+   */
+  textValues(project: unknown, key: string): Record<string, string>;
   /** The Project's languages, its default first. */
   langs(project: unknown): string[];
   /**
@@ -120,6 +125,39 @@ export interface MiniMessageInputProps {
   rows?: number;
   placeholder?: string;
   "aria-label"?: string;
+}
+
+/** One language's editor in a `LocalizedField` (SDK 1.17). */
+export interface LocalizedEditorProps {
+  lang: string;
+  /** This language's own text, "" when it has none. */
+  value: string;
+  /** The default language's text when this one has none: a placeholder, never the value. */
+  fallback: string | undefined;
+  /** Accessible name of the editor ("Title · fr"). */
+  label: string;
+  /** Writes this language's text. */
+  onChange: (value: string) => void;
+}
+
+export interface LocalizedFieldProps {
+  label: string;
+  /** The Project's languages, its default first (`projectLangs`). */
+  langs: string[];
+  /** The language the editor shows (`useContentLang`). */
+  activeLang: string;
+  defaultLang: string;
+  /** Each language's own text (`textValues`). */
+  values: Record<string, string | undefined>;
+  /** Writes one language's text (`updateDocument` with `texts`). */
+  onChange: (lang: string, value: string) => void;
+  /** The control for one language: one folded, one per language unfolded. */
+  renderEditor: (props: LocalizedEditorProps) => ReactNode;
+  /** Beside the label (a reset). */
+  actions?: ReactNode;
+  /** No label row: the translations toggle sits right of the folded editor. */
+  inline?: boolean;
+  className?: string;
 }
 
 export interface SortableListProps {
@@ -355,6 +393,8 @@ export interface HostComponents {
   AssetInput: ComponentType<AssetInputProps>;
   /** SDK 1.16. */
   OverlaySlotsComposer: ComponentType<OverlaySlotsComposerProps>;
+  /** SDK 1.17. */
+  LocalizedField: ComponentType<LocalizedFieldProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -388,6 +428,8 @@ export const textValue = (project: unknown, key: string, lang: string): string =
 export const fieldText = (project: unknown, key: string): string | Record<string, string> =>
   current().fieldText(project, key);
 export const projectLangs = (project: unknown): string[] => current().langs(project);
+export const textValues = (project: unknown, key: string): Record<string, string> =>
+  current().textValues(project, key);
 export const selectDocumentItem: EditorHost["selectDocumentItem"] = (input) =>
   current().selectDocumentItem(input);
 export const notify: EditorHost["notify"] = (message, tone) => current().notify(message, tone);
@@ -429,6 +471,17 @@ export function ItemInput(props: ItemInputProps): ReactElement {
  */
 export function MiniMessageInput(props: MiniMessageInputProps): ReactElement {
   const Impl = current().components.MiniMessageInput;
+  return createElement(Impl, props);
+}
+
+/**
+ * A translatable text the way every one of the editor behaves (SDK 1.17): folded, the
+ * active language's editor, the default language's text as its placeholder when it has
+ * none; the translations toggle (badge = missing languages) unfolds every language in
+ * place, each written directly, an empty one offering to take the reference text as is.
+ */
+export function LocalizedField(props: LocalizedFieldProps): ReactElement {
+  const Impl = current().components.LocalizedField;
   return createElement(Impl, props);
 }
 

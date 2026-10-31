@@ -1,3 +1,4 @@
+import { LocalizedTextField } from "@/components/LocalizedTextField";
 import { RevealField } from "@/components/RevealField";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -20,9 +21,7 @@ import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
 import { ConditionListEditor } from "@/features/inspector/properties/ConditionListEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
-import { getText } from "@/lib/i18n";
 import { useProjectsStore } from "@/state/projectsStore";
-import { useUiStore } from "@/state/uiStore";
 import { Plus, X } from "lucide-react";
 import {
   type CSSProperties,
@@ -298,11 +297,9 @@ export function ValueEditor({
 }) {
   const { t } = useTranslation();
   const setSourceValue = useProjectsStore((s) => s.setSourceValue);
-  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
   const addSourceListItem = useProjectsStore((s) => s.addSourceListItem);
   const removeSourceListItem = useProjectsStore((s) => s.removeSourceListItem);
   const replaceSourceValueTyped = useProjectsStore((s) => s.replaceSourceValueTyped);
-  const activeLang = useUiStore((s) => s.activeLang);
   const settings = useContext(FormLayoutContext) === "settings";
   const models = project.dataModels ?? [];
   const set = (v: unknown) => setSourceValue({ projectId, sourceId, row, path, value: v });
@@ -455,16 +452,22 @@ export function ValueEditor({
       if (!isLTextNode(value) || value.key === "")
         return <span className="text-[11px] text-[var(--text-faint)]">—</span>;
       return (
-        <Input
-          value={getText(project, value, activeLang)}
-          onChange={(e) =>
-            setI18nValue({ projectId, lt: value, lang: activeLang, value: e.target.value })
-          }
-          className={
-            settings ? `${SETTINGS_INPUT} w-full max-w-sm` : "h-7 w-full min-w-24 px-2 text-[12px]"
-          }
-          aria-label={String(path[path.length - 1])}
-          data-lang={activeLang}
+        <LocalizedTextField
+          inline
+          className={settings ? "w-full max-w-sm" : "w-full min-w-24"}
+          projectId={projectId}
+          lt={value}
+          label={String(path[path.length - 1])}
+          renderEditor={({ lang, value: text, fallback, label, onChange }) => (
+            <Input
+              value={text}
+              placeholder={fallback}
+              onChange={(e) => onChange(e.target.value)}
+              className={settings ? `${SETTINGS_INPUT} w-full` : "h-7 w-full px-2 text-[12px]"}
+              aria-label={label}
+              data-lang={lang}
+            />
+          )}
         />
       );
     }

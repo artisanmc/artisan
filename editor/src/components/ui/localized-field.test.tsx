@@ -16,12 +16,13 @@ function Harness({
       activeLang={activeLang}
       defaultLang="en"
       values={values}
-      renderEditor={({ lang, value, fallback, label }) => (
+      onChange={(lang, value) => setValues((v) => ({ ...v, [lang]: value }))}
+      renderEditor={({ value, fallback, label, onChange }) => (
         <input
           aria-label={label}
           value={value}
           placeholder={fallback}
-          onChange={(e) => setValues((v) => ({ ...v, [lang]: e.target.value }))}
+          onChange={(e) => onChange(e.target.value)}
         />
       )}
     />
@@ -63,4 +64,19 @@ it("unfolds every language in place, the badge following the missing ones", () =
   expect(screen.queryByTestId("localized-field-missing")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /^traductions$/i }));
   expect(screen.getAllByRole("textbox")).toHaveLength(1);
+});
+
+it("does not count a language-neutral text as missing", () => {
+  expect(missingLangs(["en", "fr"], "en", { en: "{r.name}" })).toEqual([]);
+  expect(missingLangs(["en", "fr"], "en", { en: "<gold>{count} §7/ {max}" })).toEqual([]);
+  expect(missingLangs(["en", "fr"], "en", { en: "Members: {count}" })).toEqual(["fr"]);
+});
+
+it("writes the reference text into an empty language on purpose", () => {
+  render(<Harness langs={["en", "fr"]} />);
+  fireEvent.click(screen.getByRole("button", { name: /traductions/i }));
+  fireEvent.click(screen.getByRole("button", { name: /reprendre le texte en en fr/i }));
+  expect(screen.getByLabelText("Title · fr")).toHaveValue("Back");
+  expect(screen.queryByTestId("localized-field-missing")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /reprendre/i })).not.toBeInTheDocument();
 });
