@@ -1,0 +1,247 @@
+{
+  "_comment": "Overlay layouts (OverlayLayout, API 2.21.0): reading the YAML list (problems by path and code, how many layers are kept, the pack images at their rise, or by their bottom for a slot's default anchored bottom) and placing a frame (draws in order: image or text, left x from the screen's centre, rise of the top). Widths are width_per_char px a character of the row's string; image heights come from heights (an asset absent there is not in the pack). Read by OverlayLayoutConformanceTest (plugin api); the editor's port reads it too.",
+  "width_per_char": 6,
+  "read": [
+    {
+      "name": "the conversations HUD of a 3-line, 3-choice mode",
+      "layout": [
+        { "image": "box", "x": -130, "y": -92 },
+        { "text": "name", "x": -120, "y": -86, "width": 240 },
+        { "text": "lines", "x": -120, "y": -72, "width": 240, "lines": 3 },
+        { "list": "choices", "x": -110, "y": -31, "width": 230, "lines": 3, "cursor": { "image": "cursor", "x": -10, "y": 1 } }
+      ],
+      "problems": [],
+      "layers": 4,
+      "pack_images": [
+        { "asset": "box", "rise": 92 },
+        { "asset": "cursor", "rise": 30 },
+        { "asset": "cursor", "rise": 19 },
+        { "asset": "cursor", "rise": 8 }
+      ]
+    },
+    {
+      "name": "absent reads as an empty layout",
+      "layout": null,
+      "problems": [],
+      "layers": 0,
+      "pack_images": []
+    },
+    {
+      "name": "not a list",
+      "layout": "box",
+      "problems": [{ "path": "layout", "code": "not_a_list" }],
+      "layers": 0,
+      "pack_images": []
+    },
+    {
+      "name": "a layer that is not a map",
+      "layout": [5],
+      "problems": [{ "path": "layout[0]", "code": "not_a_layer" }],
+      "layers": 0,
+      "pack_images": []
+    },
+    {
+      "name": "no kind, or two",
+      "layout": [{ "x": 1 }, { "image": "a", "text": "b", "width": 10 }],
+      "problems": [
+        { "path": "layout[0]", "code": "unknown_layer" },
+        { "path": "layout[1]", "code": "unknown_layer" }
+      ],
+      "layers": 0,
+      "pack_images": []
+    },
+    {
+      "name": "an empty name; the right layer is kept",
+      "layout": [{ "image": "a" }, { "image": " " }],
+      "problems": [{ "path": "layout[1].image", "code": "missing_name" }],
+      "layers": 1,
+      "pack_images": [{ "asset": "a", "rise": 0 }]
+    },
+    {
+      "name": "a text needs its width",
+      "layout": [{ "text": "lines" }],
+      "problems": [{ "path": "layout[0].width", "code": "missing_field" }],
+      "layers": 0,
+      "pack_images": []
+    },
+    {
+      "name": "a top out of the pack's reach",
+      "layout": [{ "image": "a", "y": -129 }, { "image": "b", "y": 167 }],
+      "problems": [
+        { "path": "layout[0].y", "code": "out_of_range" },
+        { "path": "layout[1].y", "code": "out_of_range" }
+      ],
+      "layers": 0,
+      "pack_images": []
+    },
+    {
+      "name": "the last row out of reach",
+      "layout": [{ "text": "a", "y": 160, "width": 10, "lines": 2 }],
+      "problems": [{ "path": "layout[0].lines", "code": "out_of_range" }],
+      "layers": 0,
+      "pack_images": []
+    },
+    {
+      "name": "numbers must be whole",
+      "layout": [{ "image": "a", "x": "left" }, { "image": "b", "y": 1.5 }],
+      "problems": [
+        { "path": "layout[0].x", "code": "not_a_number" },
+        { "path": "layout[1].y", "code": "not_a_number" }
+      ],
+      "layers": 0,
+      "pack_images": []
+    },
+    {
+      "name": "an unknown align or anchor",
+      "layout": [{ "text": "a", "width": 10, "align": "justify" }, { "image_slot": "p", "anchor": "middle" }],
+      "problems": [
+        { "path": "layout[0].align", "code": "unknown_value" },
+        { "path": "layout[1].anchor", "code": "unknown_value" }
+      ],
+      "layers": 0,
+      "pack_images": []
+    },
+    {
+      "name": "two layers with one name: the second goes",
+      "layout": [{ "text": "a", "width": 10 }, { "list": "a", "width": 10 }],
+      "problems": [{ "path": "layout[1]", "code": "duplicate_slot" }],
+      "layers": 1,
+      "pack_images": []
+    },
+    {
+      "name": "a cursor out of reach",
+      "layout": [{ "list": "c", "y": -128, "width": 10, "cursor": { "image": "k", "y": -1 } }],
+      "problems": [{ "path": "layout[0].cursor.y", "code": "out_of_range" }],
+      "layers": 0,
+      "pack_images": []
+    },
+    {
+      "name": "a cursor without its image",
+      "layout": [{ "list": "c", "width": 10, "cursor": { "x": -10 } }],
+      "problems": [{ "path": "layout[0].cursor.image", "code": "missing_name" }],
+      "layers": 0,
+      "pack_images": []
+    },
+    {
+      "name": "an image slot's default goes into the pack, by its bottom or its top",
+      "layout": [
+        { "image_slot": "portrait", "x": -190, "y": 8, "anchor": "bottom", "default": "inconnu" },
+        { "image_slot": "badge", "x": 0, "y": -40, "default": "star" },
+        { "image_slot": "none", "x": 0, "y": 0 }
+      ],
+      "problems": [],
+      "layers": 3,
+      "pack_images": [
+        { "asset": "inconnu", "bottom": 8 },
+        { "asset": "star", "rise": 40 }
+      ]
+    },
+    {
+      "name": "an empty default",
+      "layout": [{ "image_slot": "p", "default": "" }],
+      "problems": [{ "path": "layout[0].default", "code": "missing_name" }],
+      "layers": 0,
+      "pack_images": []
+    }
+  ],
+  "plan": [
+    {
+      "name": "the conversations HUD: box, name, text, choices with the cursor on the second",
+      "layout": [
+        { "image": "box", "x": -130, "y": -92 },
+        { "text": "name", "x": -120, "y": -86, "width": 240 },
+        { "text": "lines", "x": -120, "y": -72, "width": 240, "lines": 3 },
+        { "list": "choices", "x": -110, "y": -31, "width": 230, "lines": 3, "cursor": { "image": "cursor", "x": -10, "y": 1 } }
+      ],
+      "content": {
+        "text": { "name": ["Marthe"], "lines": ["ab", "", "cd", "never shown"] },
+        "lists": { "choices": { "rows": ["Oui", "Non", "Peut-être", "Jamais"], "selected": 1, "top": 0 } },
+        "images": {}
+      },
+      "heights": {},
+      "draws": [
+        { "image": true, "content": "box", "x": -130, "rise": 92 },
+        { "image": false, "content": "Marthe", "x": -120, "rise": 86 },
+        { "image": false, "content": "ab", "x": -120, "rise": 72 },
+        { "image": false, "content": "cd", "x": -120, "rise": 50 },
+        { "image": false, "content": "Oui", "x": -110, "rise": 31 },
+        { "image": false, "content": "Non", "x": -110, "rise": 20 },
+        { "image": true, "content": "cursor", "x": -120, "rise": 19 },
+        { "image": false, "content": "Peut-être", "x": -110, "rise": 9 }
+      ],
+      "missing": []
+    },
+    {
+      "name": "rows centred and to the right, halves rounded toward zero",
+      "layout": [
+        { "text": "title", "x": -50, "y": -20, "width": 101, "align": "center" },
+        { "text": "score", "x": -50, "y": -9, "width": 100, "align": "right" },
+        { "text": "wide", "x": 0, "y": 2, "width": 5, "align": "center" }
+      ],
+      "content": {
+        "text": { "title": ["abcd"], "score": ["ab"], "wide": ["abc"] },
+        "lists": {},
+        "images": {}
+      },
+      "heights": {},
+      "draws": [
+        { "image": false, "content": "abcd", "x": -12, "rise": 20 },
+        { "image": false, "content": "ab", "x": 38, "rise": 9 },
+        { "image": false, "content": "abc", "x": -6, "rise": -2 }
+      ],
+      "missing": []
+    },
+    {
+      "name": "image slots by their top or their bottom; an unknown height is missing",
+      "layout": [
+        { "image_slot": "portrait", "x": -190, "y": 8, "anchor": "bottom" },
+        { "image_slot": "badge", "x": 0, "y": -40 },
+        { "image_slot": "ghost", "x": 0, "y": 0, "anchor": "bottom" },
+        { "image_slot": "empty", "x": 0, "y": 0 }
+      ],
+      "content": {
+        "text": {},
+        "lists": {},
+        "images": { "portrait": "marthe", "badge": "star", "ghost": "nobody" }
+      },
+      "heights": { "marthe": 72, "star": 9 },
+      "draws": [
+        { "image": true, "content": "marthe", "x": -190, "rise": 64 },
+        { "image": true, "content": "star", "x": 0, "rise": 40 }
+      ],
+      "missing": ["nobody"]
+    },
+    {
+      "name": "a scrolled list: rows from top, the cursor on its row on screen",
+      "layout": [
+        { "list": "choices", "x": 0, "y": 0, "width": 50, "lines": 2, "row": 12, "cursor": { "image": "k", "x": -8, "y": 0 } }
+      ],
+      "content": {
+        "text": {},
+        "lists": { "choices": { "rows": ["a", "b", "c", "d", "e"], "selected": 3, "top": 2 } },
+        "images": {}
+      },
+      "heights": {},
+      "draws": [
+        { "image": false, "content": "c", "x": 0, "rise": 0 },
+        { "image": false, "content": "d", "x": 0, "rise": -12 },
+        { "image": true, "content": "k", "x": -8, "rise": -12 }
+      ],
+      "missing": []
+    },
+    {
+      "name": "a slot draws its default when given nothing; a given image moves by its offset",
+      "layout": [
+        { "image_slot": "portrait", "x": -190, "y": 8, "anchor": "bottom", "default": "inconnu" },
+        { "image_slot": "badge", "x": 0, "y": -40, "default": "star" }
+      ],
+      "content": { "text": {}, "lists": {}, "images": { "badge": { "image": "medal", "x": 3, "y": -6 } } },
+      "heights": { "inconnu": 72, "medal": 9 },
+      "draws": [
+        { "image": true, "content": "inconnu", "x": -190, "rise": 64 },
+        { "image": true, "content": "medal", "x": 3, "rise": 46 }
+      ],
+      "missing": []
+    }
+  ]
+}

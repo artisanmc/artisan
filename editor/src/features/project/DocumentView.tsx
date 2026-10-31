@@ -5,16 +5,15 @@ import { Stage } from "@/features/canvas/Stage";
 import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYamlView";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { collectionLabel, isCollectionKind } from "@/lib/documentCollections";
 import { isTypingTarget } from "@/lib/keyboard";
 import { collectionDestination, projectDestination } from "@/lib/projectNavigation";
+import { useDocumentTrailStore } from "@/state/documentTrailStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ResolvedProjectContext } from "./ResolvedProjectContext";
@@ -51,6 +50,8 @@ export function DocumentView({
   // A module kind whose node lists its parts opens on its node, like a menu: clicking a
   // part edits it in the panel beside.
   const onStage = project ? opensOnStage(project, key) : false;
+  // A kind whose view is laid out in columns takes the whole width (SDK 1.15 `wide`).
+  const wide = found ? documentKindContribution(found.kind)?.wide === true : false;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the default selection is applied once per opened document; re-running on `menu.layers` edits would reset the user's selection on every change
   useEffect(() => {
@@ -68,19 +69,41 @@ export function DocumentView({
 
   // A collection's Document goes back to its collection's page, the board does not show it.
   const backKind = found && isCollectionKind(found.kind) ? found.kind : undefined;
-  const back = useCallback(
+  // Any other Document lives on the board: back there, not to the module's home.
+  const toProject = useCallback(
     () =>
-      navigate(
-        backKind && params.serverId
-          ? collectionDestination(project ?? projectId, params.serverId, backKind)
-          : // Any other Document lives on the board: back there, not to the module's home.
-            {
-              ...projectDestination(project ?? projectId, params.serverId),
-              search: { tab: "board" },
-            },
-      ),
-    [navigate, params.serverId, project, projectId, backKind],
+      navigate({
+        ...projectDestination(project ?? projectId, params.serverId),
+        search: { tab: "board" },
+      }),
+    [navigate, params.serverId, project, projectId],
   );
+  const toCollection = useCallback(() => {
+    if (backKind && params.serverId)
+      navigate(collectionDestination(project ?? projectId, params.serverId, backKind));
+  }, [navigate, params.serverId, project, projectId, backKind]);
+  const back = backKind && params.serverId ? toCollection : toProject;
+
+  // The topbar's breadcrumb carries the Document's levels and its YAML switch.
+  const setTrail = useDocumentTrailStore((s) => s.setTrail);
+  const label = project ? documentLabel(project, key, activeLang) : documentId;
+  const collection =
+    backKind && params.serverId
+      ? collectionLabel(documentKindContribution(backKind), backKind, uiLang)
+      : undefined;
+  const hasDocument = found !== undefined;
+  useEffect(() => {
+    setTrail({
+      toProject,
+      collection: collection ? { label: collection, open: toCollection } : undefined,
+      label,
+      yaml:
+        relPath && hasDocument
+          ? { on: yamlMode, toggle: () => setYamlMode((v) => !v), path: relPath }
+          : undefined,
+    });
+  }, [setTrail, toProject, toCollection, collection, label, relPath, hasDocument, yamlMode]);
+  useEffect(() => () => setTrail(null), [setTrail]);
 
   // Escape goes back to the board. The event is ignored if focus is in an input
   // (SelectionInspector's inline editors already handle Escape to cancel an edit), if
@@ -97,52 +120,9 @@ export function DocumentView({
     return () => window.removeEventListener("keydown", onKey);
   }, [back]);
 
-  // Floating bubble instead of a full-width bar: same place, but the stage
-  // spans the whole region underneath — same language as the canvas toolbar
-  // and the floating editor pane.
-  const header = (
-    <div
-      data-testid="document-view-bubble"
-      className="absolute top-3 left-3 z-20 flex max-w-[min(28rem,calc(100%-1.5rem))] items-center gap-2 rounded-[12px] border border-[var(--border)] bg-[var(--surface-raised)]/95 py-1 pr-3 pl-1 shadow-[var(--shadow-lg)] backdrop-blur"
-    >
-      <button
-        type="button"
-        onClick={back}
-        className="btn btn-ghost btn-sm inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap"
-      >
-        <ArrowLeft className="size-4" />{" "}
-        {backKind
-          ? t("documentView.backTo", {
-              name: collectionLabel(documentKindContribution(backKind), backKind, uiLang),
-            })
-          : t("documentView.back")}
-        <kbd className="ml-1 rounded-[6px] border border-[var(--border)] bg-[var(--surface-raised)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--text-faint)]">
-          Esc
-        </kbd>
-      </button>
-      {/* The label is MiniMessage (menu/dialog title): render the style
-          instead of printing the tags. */}
-      <MiniMessageInline
-        source={project ? documentLabel(project, key, activeLang) : documentId}
-        className="truncate text-[13px] font-medium text-[var(--text)]"
-      />
-      {relPath ? (
-        <button
-          type="button"
-          onClick={() => setYamlMode((v) => !v)}
-          className="btn btn-ghost btn-sm shrink-0"
-          title={relPath}
-        >
-          {yamlMode ? t("yamlView.visual") : t("yamlView.tab")}
-        </button>
-      ) : null}
-    </div>
-  );
-
   if (!project || !found) {
     return (
       <div className="absolute inset-0">
-        {header}
         <div className="flex h-full items-center justify-center">
           <EmptyState title={t("documentView.notFound")} />
         </div>
@@ -152,8 +132,7 @@ export function DocumentView({
 
   if (yamlMode && relPath) {
     return (
-      <div className="absolute inset-0 flex flex-col pt-14">
-        {header}
+      <div className="absolute inset-0 flex flex-col">
         <DocumentYamlView project={project} relPath={relPath} serverId={params.serverId} />
       </div>
     );
@@ -170,15 +149,17 @@ export function DocumentView({
           minSecondary={280}
         />
       ) : (
-        // Other kinds have no stage: their view (a command's pseudocode) stays centred,
-        // with room at the top so the bubble never covers its first line.
+        // Other kinds have no stage: their view (a command's pseudocode) stays centred, or
+        // spans the width when its kind asks for it.
         <div className="h-full overflow-auto">
-          <div className="mx-auto w-full max-w-5xl pt-16">
+          <div
+            className={wide ? "w-full pt-3" : "mx-auto w-full max-w-5xl pt-3"}
+            data-testid="document-body"
+          >
             <SelectionInspector projectId={pId} />
           </div>
         </div>
       )}
-      {header}
     </div>
   );
 }

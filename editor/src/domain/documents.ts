@@ -110,15 +110,6 @@ export function resolveDocKey(project: Documents, keyOrId: string): DocKey | und
   return found ? docKey(found.kind, found.doc.id) : undefined;
 }
 
-/** The ids two kinds or more share, each with its kinds: a folder to tell about. */
-export function sharedDocumentIds(project: Documents): { id: string; kinds: string[] }[] {
-  const kinds = new Map<string, string[]>();
-  for (const { kind, doc } of allDocuments(project)) {
-    kinds.set(doc.id, [...(kinds.get(doc.id) ?? []), kind]);
-  }
-  return [...kinds].filter(([, k]) => k.length > 1).map(([id, k]) => ({ id, kinds: k }));
-}
-
 /** The ids of every document, in `allDocuments` order. */
 export function documentIds(project: Documents): string[] {
   return allDocuments(project).map((d) => d.doc.id);

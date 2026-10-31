@@ -19,6 +19,7 @@ import java.util.zip.ZipInputStream
  * @param namespace Font namespace (e.g. `artisan:my_font`) for font-type assets;
  *                  null for non-font types (glyph, texture, etc.).
  * @param slices    An `overlay` image cut into glyphs of 256 columns: each one's content width.
+ * @param imageHeight An `overlay` image's own height, before the padding under its ascent; 0 when absent.
  */
 data class AssetEntry(
     val name: String,
@@ -29,6 +30,7 @@ data class AssetEntry(
     val width: Int = 0,
     val namespace: String? = null,
     val slices: List<Int> = emptyList(),
+    val imageHeight: Int = 0,
 ) {
     /** Codepoint as a [Char] for direct use in MiniMessage / Component text. */
     val codepointChar: Char? get() = codepoint?.let { it.toChar() }
@@ -69,6 +71,10 @@ class AssetCatalog(
 
     /** Current size of the in-memory catalog (useful for tests / metrics). */
     fun size(): Int = state.get().size
+
+    /** The height of the `overlay` image [asset] at any rise, or -1 when the pack holds none (or an older pack). */
+    fun overlayImageHeight(asset: String): Int =
+        state.get().values.firstOrNull { it.type == "overlay" && it.name == asset && it.imageHeight > 0 }?.imageHeight ?: -1
 
     /**
      * Returns the [OffsetEncoder] built from the pack's `offsets` field.
@@ -167,6 +173,7 @@ class AssetCatalog(
                 width = node["width"]?.asInt() ?: 0,
                 namespace = node["namespace"]?.asText(),
                 slices = node["slices"]?.takeIf { it.isArray }?.filter { it.isInt }?.map { it.asInt() }.orEmpty(),
+                imageHeight = node["imageHeight"]?.asInt() ?: 0,
             )
         }
 

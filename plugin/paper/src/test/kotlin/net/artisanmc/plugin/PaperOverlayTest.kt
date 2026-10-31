@@ -27,7 +27,7 @@ class PaperOverlayTest {
         cache.writeText(
             """{ "version": 2, "offsets": { $offsetsJson }, "assets": {
                 "$key": { "name": "box", "type": "overlay", "codepoint": 57344, "ascent": 99, "height": 100,
-                          "width": 300, "namespace": "artisan:$key", "slices": [256, 40] } } }""",
+                          "width": 300, "namespace": "artisan:$key", "slices": [256, 40], "imageHeight": 96 } } }""",
         )
         val catalog = AssetCatalog(cacheFile = cache).also { it.loadFromDisk() }
         return PaperOverlay({ catalog }, PackLoadTracker())
@@ -92,5 +92,12 @@ class PaperOverlayTest {
         assertNull(overlay(tmp).image("box", 91))
         assertNull(overlay(tmp).image("panel", 92))
         assertNull(PaperOverlay({ null }, PackLoadTracker()).image("box", 92))
+    }
+
+    @Test
+    fun `an image's own height comes from the pack, -1 when the pack lacks it`(@TempDir tmp: Path) {
+        assertEquals(96, overlay(tmp).imageHeight("box"))
+        assertEquals(-1, overlay(tmp).imageHeight("panel"))
+        assertEquals(-1, PaperOverlay({ null }, PackLoadTracker()).imageHeight("box"))
     }
 }
