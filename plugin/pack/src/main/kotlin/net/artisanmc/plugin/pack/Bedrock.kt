@@ -28,6 +28,8 @@ internal object BedrockTitle {
     const val TEXTAREA_FIELD = 192
     const val MARKER = ""
     const val PAD = ""
+    /** Fills the 2 or 4 bytes a 3-byte [PAD] cannot; also stripped by the pack. */
+    const val PAD2 = "\u00A0"
     private const val CONTROL_BYTES = 3
 
     fun menuKey(projectId: String, menuId: String): String {
@@ -288,9 +290,28 @@ internal object BedrockUi {
 
     private fun hasKey(menu: BedrockMenu) = contains(BedrockTitle.MARKER + menu.key)
 
-    private fun field(menu: BedrockMenu, layer: BedrockTextLayer): String {
-        val offset = BedrockTitle.fieldOffset(menu.buttons.size, menu.texts.map { it.length }, layer.index)
-        return "(('%.${layer.length}s' * ($T - ('%.${offset}s' * $T))) - '${BedrockTitle.PAD}')"
+    /**
+     * Bytes in front of the marker as the client may receive them: the proxy chain adds formatting
+     * codes before the title (Geyser a `§r`; 12 bytes measured with Geyser on Velocity and
+     * ViaVersion on Paper). A text label exists once per candidate and shows only where the marker
+     * and key really start.
+     */
+    val LEAD_CANDIDATES = listOf(0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30)
+    /** Bytes of the marker and the menu key. */
+    private const val KEY_BYTES = 9
+    /** A Bedrock label draws its text about a pixel lower than Java does. */
+    private const val TEXT_DY = -1
+
+    /** The marker and key of [menu] start at byte [lead] of the title. */
+    private fun keyAt(menu: BedrockMenu, lead: Int): String {
+        val head = "('%.${lead + KEY_BYTES}s' * $T)"
+        val before = if (lead == 0) head else "($head - ('%.${lead}s' * $T))"
+        return "($before = '${BedrockTitle.MARKER}${menu.key}')"
+    }
+
+    private fun field(menu: BedrockMenu, layer: BedrockTextLayer, lead: Int): String {
+        val offset = lead + BedrockTitle.fieldOffset(menu.buttons.size, menu.texts.map { it.length }, layer.index)
+        return "((('%.${layer.length}s' * ($T - ('%.${offset}s' * $T))) - '${BedrockTitle.PAD}') - '${BedrockTitle.PAD2}')"
     }
 
     fun labelColor(color: String?): List<Double> {
@@ -353,12 +374,16 @@ internal object BedrockUi {
         }
     }
 
-    private fun textElements(menu: BedrockMenu): List<Map<String, Any?>> = menu.texts.map { layer ->
+    private fun textElements(menu: BedrockMenu): List<Map<String, Any?>> = menu.texts.flatMap { layer ->
+        LEAD_CANDIDATES.map { lead -> textElement(menu, layer, lead) }
+    }
+
+    private fun textElement(menu: BedrockMenu, layer: BedrockTextLayer, lead: Int): Map<String, Any?> =
         mapOf(
-            id(menu, "t${layer.index}") to element(
+            id(menu, "t${layer.index}_$lead") to element(
                 "type" to "label",
-                "text" to field(menu, layer),
-                "offset" to listOf(labelX(layer), layer.y + BEDROCK_Y),
+                "text" to field(menu, layer, lead),
+                "offset" to listOf(labelX(layer), layer.y + BEDROCK_Y + TEXT_DY),
                 "anchor_from" to "top_left",
                 "anchor_to" to "top_left",
                 "size" to listOf(layer.width ?: "default", "default"),
@@ -367,9 +392,8 @@ internal object BedrockUi {
                 "font_scale_factor" to layer.scale,
                 "shadow" to false,
                 "layer" to LAYER_TEXT,
-            ).whenVisible(hasKey(menu)),
+            ).whenVisible("(${hasKey(menu)} and ${keyAt(menu, lead)})"),
         )
-    }
 
     private fun chestPanel(panel: String, visible: String): Map<String, Any?> = mapOf(
         "chest_panel" to element("type" to "panel", "layer" to 5).whenVisible(visible).apply {
