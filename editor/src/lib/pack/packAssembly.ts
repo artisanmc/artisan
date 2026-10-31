@@ -75,7 +75,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     overlayImages.push(...(project.overlayImages ?? []));
     for (const c of transparentContainersFromMenus(files)) transparent.add(c);
     // Keyed by the folder name: the plugin names a menu's Project that way.
-    if (input.bedrock) bedrockMenus.push(...bedrockMenusFromProject(project.folder ?? project.id, files));
+    if (input.bedrock)
+      bedrockMenus.push(...bedrockMenusFromProject(project.folder ?? project.id, files));
     const fromDisk: DiskAsset[] = diskAssetsFromTree(project.id, files, project.binaries);
 
     contribs.push({
