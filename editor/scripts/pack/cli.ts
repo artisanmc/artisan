@@ -187,7 +187,12 @@ export interface ConformanceCase {
     folder?: string;
   }[];
   /** The case's Bedrock pack: built for `serverId`, expected as its entries, their SHA-256 and the zip's SHA-1. */
-  bedrock?: { serverId: string; entries?: string[]; entryHashes?: Record<string, string>; sha1?: string };
+  bedrock?: {
+    serverId: string;
+    entries?: string[];
+    entryHashes?: Record<string, string>;
+    sha1?: string;
+  };
   containerTextures: Partial<Record<GuiContainer, string>>;
   vanillaGui: boolean;
   entries: string[];
