@@ -13,7 +13,11 @@ vi.mock("@/schema/projectFromFiles", () => ({
   projectFromFiles: (...args: unknown[]) => projectFromFiles(...args),
 }));
 
+import { registerDocumentKind, resetDocumentKinds } from "@/domain/documentKinds";
+import { afterEach } from "vitest";
 import { clearServerIndexCache, loadServerProjects } from "./serverIndexLoader";
+
+afterEach(() => resetDocumentKinds());
 
 const summary = (id: string, name = id) => ({
   id,
@@ -112,6 +116,37 @@ describe("loadServerProjects", () => {
     expect(readProjectFiles).toHaveBeenLastCalledWith({ serverId: "srv", diskId: "main" }, "h1");
     expect(projectFromFiles).toHaveBeenCalledTimes(1);
     expect(second.projects[0]).toBe(first.projects[0] as Project);
+  });
+
+  it("reads an unchanged tree again once a module's kind is registered after the read", async () => {
+    listServerProjects.mockResolvedValue({
+      ok: true,
+      projectIds: ["main"],
+      projects: [summary("main")],
+    });
+    readProjectFiles.mockResolvedValueOnce({
+      ok: true,
+      files: tree("main"),
+      failed: [],
+      hash: "h1",
+    });
+    const first = await loadServerProjects({ serverId: "srv" });
+
+    // A module's view arrives: its kind did not exist when the tree was parsed.
+    registerDocumentKind({
+      kind: "late_kind",
+      dir: "late_kinds",
+      schemaVersion: "late/v1",
+      rank: 9,
+    });
+    readProjectFiles.mockResolvedValueOnce({ ok: true, unchanged: true, hash: "h1" });
+    const second = await loadServerProjects({ serverId: "srv" });
+
+    // Nothing transferred again, but the files are read with every kind now.
+    expect(readProjectFiles).toHaveBeenLastCalledWith({ serverId: "srv", diskId: "main" }, "h1");
+    expect(projectFromFiles).toHaveBeenCalledTimes(2);
+    expect(projectFromFiles.mock.calls[1]?.[1]).toEqual(projectFromFiles.mock.calls[0]?.[1]);
+    expect(second.projects[0]).not.toBe(first.projects[0] as Project);
   });
 
   it("reports an unreadable project without dropping the others", async () => {
