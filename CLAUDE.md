@@ -56,7 +56,7 @@ Not updating = the next session will not know the code changed.
 ```bash
 # Plugin (Kotlin 2.0 / Paper 1.21+, Folia, Leaf)
 cd plugin
-./gradlew test          # every module (api, core, database, hub, paper)
+./gradlew test          # every module (api, core, database, hub, pack, paper)
 ./gradlew shadowJar     # → paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
 ./gradlew shadowJar -PwithEditor   # same, with the editor and the 3D icons bundled (npm required)
 ./gradlew deploy        # build + restart the container
@@ -98,7 +98,7 @@ docs/            architecture/ · archive/ · decisions/ · specs/ · schema/
 others `leaf`, connected to its `/ws/plugin` with a shared secret. ADR `editor-web-server`.
 
 **Plugin as Gradle modules** — `plugin/api` (add-on surface, **in Java**: API 2.0.0), `plugin/core` (domain, no Bukkit),
-`plugin/database`, `plugin/hub` (web server, no Bukkit), `plugin/runtime` (action engine, conditions, items,
+`plugin/database`, `plugin/hub` (web server, no Bukkit), `plugin/pack` (resource pack builder, pure), `plugin/runtime` (action engine, conditions, items,
 translations), `plugin/paper` (menus, presence, jar). An
 `org.bukkit` import outside `paper`, `runtime` or `api` does not compile. Detail: `plugin/README.md`, ADRs `plugin-gradle-modules`,
 `runtime-library`.

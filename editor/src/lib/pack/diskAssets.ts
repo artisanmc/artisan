@@ -135,5 +135,7 @@ export function diskAssetsFromTree(
       } as AssetRow,
     });
   }
-  return out.sort((a, b) => a.path.localeCompare(b.path));
+  // Code unit order, not localeCompare: the pack's bytes must not depend on the browser's
+  // locale, and the hub's builder sorts the same way.
+  return out.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }

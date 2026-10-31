@@ -1,8 +1,15 @@
 // @vitest-environment node
 
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import vectors from "../../../../testdata/resource-pack-conformance.json";
-import { type ConformanceCase, buildCase, expectedOf } from "../../../scripts/pack/cli";
+import {
+  type ConformanceCase,
+  KOTLIN_FONT_CHARS,
+  buildCase,
+  expectedOf,
+  kotlinFontChars,
+} from "../../../scripts/pack/cli";
 
 /**
  * The pack, byte for byte, from each case's inputs: what the hub's Kotlin builder must also
@@ -20,4 +27,8 @@ describe("resource pack — cross-stack vector", () => {
       expect(actual.sha1).toBe(c.sha1);
     });
   }
+});
+
+test("the Kotlin builder's vanilla font tables match vanillaFontChars.ts (npm run pack -- kotlin-data)", () => {
+  expect(readFileSync(KOTLIN_FONT_CHARS, "utf-8")).toBe(kotlinFontChars());
 });

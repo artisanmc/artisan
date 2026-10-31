@@ -4,6 +4,11 @@ import { TEXT_UP_TEXTURES, type TextUpTexture } from "@/lib/pack/fontJsonBuilder
 import type { OverlayImageRequest } from "@/lib/pack/overlayImages";
 import { type PackProject, assembleServerPack } from "@/lib/pack/packAssembly";
 import type { BuildResult } from "@/lib/pack/resourcePackBuilder";
+import {
+  VANILLA_ACCENTED,
+  VANILLA_ASCII,
+  VANILLA_NONLATIN_EUROPEAN,
+} from "@/lib/pack/vanillaFontChars";
 import type { GuiContainer } from "@/lib/pack/vanillaGui";
 import { sha256Hex } from "@/lib/sha256";
 import { unzipSync } from "fflate";
@@ -11,6 +16,11 @@ import { parse } from "yaml";
 
 const EDITOR = resolve(__dirname, "../..");
 const VECTORS = resolve(EDITOR, "../testdata/resource-pack-conformance.json");
+/** The data the hub's Kotlin builder reads from its jar instead of from these TypeScript sources. */
+export const KOTLIN_FONT_CHARS = resolve(
+  EDITOR,
+  "../plugin/pack/src/main/resources/net/artisanmc/plugin/pack/vanilla-font-chars.json",
+);
 
 const USAGE = `Usage: npm run pack -- <command>
 
@@ -19,6 +29,10 @@ const USAGE = `Usage: npm run pack -- <command>
       named by its id), as the editor would after a publication. Module images
       (pack.images) come from the modules' editor bundles, which this command does not
       load: pass what they ask for with --overlay-images ({ "<project>": [{ "asset", "rise" }] }).
+
+  kotlin-data
+      Exports vanillaFontChars.ts for the hub's Kotlin builder (plugin/pack), after the
+      vanilla font tables were regenerated.
 
   vectors [--write]
       Rebuilds every case of testdata/resource-pack-conformance.json and compares its
@@ -30,6 +44,11 @@ export async function main(args: string[]): Promise<number> {
   try {
     if (command === "build") return await build(rest);
     if (command === "vectors") return await vectors(rest.includes("--write"));
+    if (command === "kotlin-data") {
+      writeFileSync(KOTLIN_FONT_CHARS, kotlinFontChars());
+      console.log(KOTLIN_FONT_CHARS);
+      return 0;
+    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     return 1;
@@ -229,4 +248,22 @@ async function vectors(write: boolean): Promise<number> {
   if (write) writeFileSync(VECTORS, `${JSON.stringify(doc, null, 2)}\n`);
   else if (drift === 0) console.log(`${doc.cases.length} case(s), no drift.`);
   return write || drift === 0 ? 0 : 1;
+}
+
+/** `vanillaFontChars.ts` as the Kotlin builder reads it. */
+export function kotlinFontChars(): string {
+  const font = (f: typeof VANILLA_ASCII) => ({
+    height: f.height,
+    ascent: f.ascent,
+    chars: f.chars,
+  });
+  return `${JSON.stringify(
+    {
+      ascii: font(VANILLA_ASCII),
+      accented: font(VANILLA_ACCENTED),
+      nonlatin_european: font(VANILLA_NONLATIN_EUROPEAN),
+    },
+    null,
+    2,
+  )}\n`;
 }
