@@ -190,6 +190,14 @@ class VariablesExecutionTest {
         }
     }
 
+    @Test fun `player location is a place set_var stores`() {
+        val p = MockBukkit.getMock()!!.addPlayer()
+        val at = p.location
+        run(p, "set_var" to mapOf("var" to "last_death", "value" to "{player.location}"), "teleport" to "{var.last_death}")
+        val expected = LocationValue(at.world.name, at.x, at.y, at.z, at.yaw.toDouble(), at.pitch.toDouble())
+        assertEquals(listOf(mapOf<String, Any>("location" to expected)), teleports)
+    }
+
     @Test fun `player vanished reads the vanish plugins' metadata`() {
         val p = MockBukkit.getMock()!!.addPlayer()
         assertFalse(holds(Condition.Expression("player.vanished"), p))

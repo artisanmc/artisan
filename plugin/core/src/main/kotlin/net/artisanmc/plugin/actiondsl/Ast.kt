@@ -32,6 +32,7 @@ sealed interface DslCondition {
     data class RandomChance(val probability: Double) : DslCondition
     data class CooldownPassed(val cooldownId: String) : DslCondition
     data class PlayerInRegion(val region: String) : DslCondition
+    data class HasVar(val name: String) : DslCondition
     data class TimeIs(val range: TimeRange) : DslCondition
     data class PaginationAtFirst(val elementId: String? = null) : DslCondition
     data class PaginationAtLast(val elementId: String? = null) : DslCondition

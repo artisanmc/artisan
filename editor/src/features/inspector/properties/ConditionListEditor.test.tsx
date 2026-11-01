@@ -50,7 +50,7 @@ describe("ConditionListEditor", () => {
         <ConditionListEditor label="" conditions={[]} onChange={onChange} emptyHint="(always)" />,
       );
       openMenu(screen.getByRole("button", { name: /\(always\)/ }));
-      fireEvent.click(await screen.findByText("module variable"));
+      fireEvent.click(await screen.findByText("variable"));
       expect(onChange).toHaveBeenCalledWith([{ type: "expression", expr: "var.guilds.has_guild" }]);
     });
 

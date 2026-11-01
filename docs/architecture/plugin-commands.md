@@ -12,6 +12,7 @@ the two must change together.
 | `sync reject` | Permission `artisan.admin`. `menuProvider.unload()/load()` — reloads from disk and, on a leaf, reconnects to the hub. |
 | `editor` | Editor login link. See below. |
 | `dump-title <menu_id> [lang]` | Permission `artisan.admin`. **Diagnostic**, not documented user-side. Compiles the menu title and prints each step: the exact MiniMessage emitted, the offset advances, and the MC X cursor at each layer boundary. Use it when the in-game position differs from the editor preview. |
+| `click <token>` | No permission, absent from completion and help. **Internal**: the command a `chat_button` line runs when clicked (`/artisan:artisan click <token>`, `ChatButtons`). A token that is unknown, expired, used up or clicked by another player than the one it was sent to does nothing. Tokens live in memory, a restart forgets them. ADR `triggers-and-variables` §7. |
 
 Removed in phase F: `link <code>` (cloud linking), `member add <email>` (console access),
 and with them `editor.access_mode` / `editor.console_only`.

@@ -147,6 +147,8 @@ function printAtom(c: Condition): string {
       return `cooldown_passed(${arg(c.cooldown_id)})`;
     case "player_in_region":
       return `player_in_region(${arg(c.region)})`;
+    case "has_var":
+      return `has_var(${arg(c.var)})`;
     case "time_is":
       return `time_is(${typeof c.range === "string" ? c.range : `${c.range.from_ticks}-${c.range.to_ticks}`})`;
     case "pagination_at_first":

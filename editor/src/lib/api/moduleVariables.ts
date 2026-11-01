@@ -8,7 +8,7 @@ import { apiFetch } from "./client";
 export interface ModuleVariable {
   /** `<module>.<name>`: what `var.` is followed by. */
   name: string;
-  type: "string" | "number" | "boolean";
+  type: "string" | "number" | "boolean" | "location";
   scope: "player" | "server";
   /** Closed values the module declares (a string only); empty: any. */
   values: string[];
@@ -33,7 +33,8 @@ interface ModuleVariableWire {
 export function moduleVariableFromWire(w: ModuleVariableWire): ModuleVariable | null {
   if (typeof w.name !== "string" || !/^[a-z][a-z0-9_-]*\.[a-z][a-z0-9_]*$/.test(w.name))
     return null;
-  const type = w.type === "number" || w.type === "boolean" ? w.type : "string";
+  const type =
+    w.type === "number" || w.type === "boolean" || w.type === "location" ? w.type : "string";
   return {
     name: w.name,
     type,

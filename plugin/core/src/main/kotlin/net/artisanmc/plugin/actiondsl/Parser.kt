@@ -23,6 +23,7 @@ private val PREDICATES = setOf(
     "random_chance",
     "cooldown_passed",
     "player_in_region",
+    "has_var",
     "pagination_at_first",
     "pagination_at_last",
 )
@@ -282,6 +283,7 @@ private class CondParser(private val toks: List<Token>, private val line: Int) {
             "random_chance" -> DslCondition.RandomChance(num(0))
             "cooldown_passed" -> DslCondition.CooldownPassed(str(0))
             "player_in_region" -> DslCondition.PlayerInRegion(str(0))
+            "has_var" -> DslCondition.HasVar(str(0))
             "time_is" -> {
                 val v = str(0)
                 if (v == "day" || v == "night") {

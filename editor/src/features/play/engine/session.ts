@@ -390,18 +390,45 @@ export class PlaySession {
           from.label,
         );
         return;
-      case "teleport":
+      case "teleport": {
+        const location =
+          typeof args.location === "string" ? str("location") : locationText(args.location);
         this.log(
           "logged",
-          t("play.log.teleport", {
-            world: str("world") || this.opts.player().world,
-            x: str("x"),
-            y: str("y"),
-            z: str("z"),
+          location
+            ? t("play.log.teleportTo", { location })
+            : t("play.log.teleport", {
+                world: str("world") || this.opts.player().world,
+                x: str("x"),
+                y: str("y"),
+                z: str("z"),
+              }),
+          from.label,
+        );
+        return;
+      }
+      case "set_var":
+      case "add_var":
+      case "clear_var":
+        // Variables live on the server (its suite database): the journal says what would change.
+        this.log(
+          "logged",
+          t(`play.log.${action.name}`, {
+            var: String(args.var ?? ""),
+            value: str("value"),
+            amount: String(args.amount ?? 1),
           }),
           from.label,
         );
         return;
+      case "chat_button": {
+        const line = `${text("text")} ${text("label")}`.trim();
+        this.chat(line);
+        this.log("visual", t("play.log.chatButton", { text: plain(line) }), from.label);
+        if (Array.isArray(args.do) && args.do.length > 0)
+          this.log("logged", t("play.log.chatButtonNotPlayed"), from.label);
+        return;
+      }
       default: {
         // A module's action runs in its plugin: the journal names it and its arguments,
         // and says it is not played here.
@@ -669,3 +696,10 @@ const escapeTags = (text: string) => text.replace(/[\\<]/g, "\\$&");
 
 /** MiniMessage without its tags, for a journal line. */
 const plain = (mm: string) => mm.replace(/<[^<>]*>/g, "");
+
+/** A location written as an object (`{world, x, y, z}`) as one line; null when it is none. */
+function locationText(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+  const l = value as Record<string, unknown>;
+  return [l.world, l.x, l.y, l.z].map((p) => String(p ?? "?")).join(" ");
+}

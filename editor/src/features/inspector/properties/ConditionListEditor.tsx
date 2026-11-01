@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import type { Condition } from "@/domain/types";
 import { cx } from "@/lib/cx";
 import { isVariableCondition, serializeVariableCondition } from "@/lib/expr/variableCondition";
+import { moduleVariableChoice } from "@/lib/projectVariables";
 import { useServerVariablesStore } from "@/state/serverVariablesStore";
 import {
   DndContext,
@@ -48,7 +49,10 @@ interface ConditionListEditorProps {
   onJoinChange?: (joinIndex: number, op: "and" | "or") => void;
 }
 
-/** A condition type, or `variable`: an `expression` condition read as a criterion on a module Variable. */
+/**
+ * A condition type, or `variable`: an `expression` (or `has_var`) condition read as a criterion
+ * on a Variable, of the project or of a module.
+ */
 type PickKey = Condition["type"] | "variable";
 
 const TYPES: Array<{ value: PickKey; label: string; chip: string }> = [
@@ -69,20 +73,25 @@ const TYPES: Array<{ value: PickKey; label: string; chip: string }> = [
   { value: "not", label: "NOT (…)", chip: "NOT" },
   { value: "and", label: "AND group", chip: "AND" },
   { value: "or", label: "OR group", chip: "OR" },
-  { value: "variable", label: "module variable", chip: "var" },
+  { value: "variable", label: "variable", chip: "var" },
   { value: "expression", label: "expression (advanced)", chip: "expr" },
 ];
 
 const defaultCondition = (type: PickKey): Condition => {
   switch (type) {
     case "variable": {
-      // The first variable the server declares, else one left to pick.
+      // The first variable the server declares, else one left to pick (the picker lists the
+      // project's own too).
       const first = useServerVariablesStore.getState().variables[0];
       return {
         type: "expression",
-        expr: first ? serializeVariableCondition(criterionFor(first)) : "var.",
+        expr: first
+          ? serializeVariableCondition(criterionFor(moduleVariableChoice(first)))
+          : "var.",
       };
     }
+    case "has_var":
+      return { type: "has_var", var: "" };
     case "has_permission":
       return { type: "has_permission", perm: "" };
     case "has_money":
@@ -124,9 +133,13 @@ const defaultCondition = (type: PickKey): Condition => {
 
 const labelForType = (t: PickKey): string => TYPES.find((x) => x.value === t)?.chip ?? t;
 
-/** The chip's label: `var` for an expression that reads a module Variable. */
+/** The chip's label: `var` for `has_var` and for an expression that reads a Variable. */
 const labelFor = (c: Condition): string =>
-  labelForType(c.type === "expression" && isVariableCondition(c.expr) ? "variable" : c.type);
+  labelForType(
+    c.type === "has_var" || (c.type === "expression" && isVariableCondition(c.expr))
+      ? "variable"
+      : c.type,
+  );
 
 export function ConditionListEditor({
   label,
@@ -552,12 +565,7 @@ function ConditionInline({
       );
     case "expression":
       if (isVariableCondition(condition.expr)) {
-        return (
-          <VariableConditionField
-            expr={condition.expr}
-            onChange={(expr) => onChange({ ...condition, expr })}
-          />
-        );
+        return <VariableConditionField condition={condition} onChange={onChange} />;
       }
       return (
         <ExpressionConditionField
@@ -565,6 +573,8 @@ function ConditionInline({
           onChange={(expr) => onChange({ ...condition, expr })}
         />
       );
+    case "has_var":
+      return <VariableConditionField condition={condition} onChange={onChange} />;
     case "and":
     case "or":
       return <CompositeInner condition={condition} onChange={onChange} />;

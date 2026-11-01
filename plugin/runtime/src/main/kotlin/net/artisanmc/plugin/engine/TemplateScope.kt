@@ -39,7 +39,14 @@ fun argsScope(args: Map<String, Any?>): ExprScope = ExprScope(args.mapValues { a
 
 internal fun adapt(value: Any?): Any? = when (value) {
     is Player -> BukkitValue(
-        mapOf("name" to value.name, "uuid" to value.uniqueId.toString(), "world" to value.world.name, "vanished" to isVanished(value)) +
+        mapOf(
+            "name" to value.name,
+            "uuid" to value.uniqueId.toString(),
+            "world" to value.world.name,
+            "vanished" to isVanished(value),
+            // `{player.location}`, what `set_var` stores in a location Variable (ADR `triggers-and-variables` §4).
+            "location" to value.location.let { LocationValue(it.world.name, it.x, it.y, it.z, it.yaw.toDouble(), it.pitch.toDouble()) },
+        ) +
             PlayerRecords.fields(value.uniqueId),
         value.name,
     )

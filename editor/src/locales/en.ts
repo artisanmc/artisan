@@ -9,6 +9,7 @@ import { onboardingEn } from "./onboarding";
 import { projectIdentityEn } from "./projectIdentity";
 import { selfHostedEn } from "./selfHosted";
 import { triggersEn } from "./triggers";
+import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
@@ -88,6 +89,7 @@ export default {
   changes: changesEn,
   actionCatalog: actionCatalogEn,
   triggers: triggersEn,
+  variables: variablesEn,
   navigation: {
     label: "Main navigation",
     open: "Open navigation",
@@ -417,6 +419,8 @@ export default {
       "This action is not declared by the connected server: its arguments are edited as raw JSON.",
     moduleAddText: "Add a text",
     moduleValueInvalid: "Invalid JSON: the value was not changed.",
+    numberLiteral: "Type a number",
+    numberTemplate: "Use a template ({var.coins}, %placeholder%), resolved when the action runs",
     textName: "text (MiniMessage)",
     textLang: "text (MiniMessage) [{{lang}}]",
     textLangFallback: "text (MiniMessage) [{{lang}} — fallback]",
@@ -470,7 +474,22 @@ export default {
       give_xp: { amount: "amount" },
       give_level: { amount: "amount" },
       play_sound: { sound: "sound", volume: "volume (0–1)", pitch: "pitch (0–2)" },
-      teleport: { world: "world", yaw: "yaw (optional)", pitch: "pitch (optional)" },
+      teleport: {
+        location: "location",
+        world: "world",
+        yaw: "yaw (optional)",
+        pitch: "pitch (optional)",
+      },
+      set_var: { var: "variable", value: "value" },
+      add_var: { var: "variable", amount: "amount" },
+      clear_var: { var: "variable" },
+      chat_button: {
+        text: "text before the button (MiniMessage)",
+        label: "button (MiniMessage)",
+        uses: "clicks allowed",
+        expires_seconds: "expires after (seconds)",
+        do: "on click",
+      },
       pagination_next: { element_id: "target" },
       pagination_prev: { element_id: "target" },
       set_arg: { arg: "context input to set", value: "new value (expression)" },
@@ -511,6 +530,18 @@ export default {
       },
       run_actions: {
         actions: "An expression pointing at an actions field (e.g. item.on_buy). Runs it inline.",
+      },
+      teleport: {
+        location:
+          "world x y z [yaw pitch], or a template naming a location ({var.last_death}). The world/x/y/z fields of older files are still read.",
+      },
+      set_var: {
+        value:
+          "Read as the variable's type: true/false, a number, a location, or a template ({player.location}, {var.coins + 1}).",
+      },
+      add_var: { amount: "A number variable only. A negative amount subtracts." },
+      chat_button: {
+        uses: "Only the player the line was sent to can click. A restart forgets the button.",
       },
     },
   },
@@ -661,12 +692,17 @@ export default {
   conditions: {
     variable: {
       pick: "pick a variable",
-      none: "No module variable on this server",
-      missing: "{{name}}: no installed module declares this variable on this server",
+      none: "No variable in this project or on this server",
+      missing:
+        "{{name}}: neither this project nor an installed module on this server declares this variable",
       key: "key",
       value: "value",
       isTrue: "is true",
       isFalse: "is false",
+      isSet: "is set",
+      project: "this project",
+      placeholderOnly:
+        'A placeholder alone is a text, and any text that is not empty is true ("false" too). Compare it: %…% == "yes".',
     },
     removeCondition: "Remove",
     keptUnknown_one: "{{count}} condition this editor cannot show is kept as written",
@@ -871,6 +907,7 @@ export default {
     commands: "Commands",
     dialogs: "Dialogs",
     triggers: "Triggers",
+    variables: "Variables",
     edit: "Edit",
     delete: "Delete from project",
     empty: "No elements yet",
@@ -944,6 +981,12 @@ export default {
       give_xp: "give {{amount}} xp",
       give_level: "give {{amount}} levels",
       teleport: "teleport to {{world}} {{x}} {{y}} {{z}}",
+      teleportTo: "teleport to {{location}}",
+      set_var: "variable {{var}} = {{value}} (stored on the server, not here)",
+      add_var: "variable {{var}} + {{amount}} (stored on the server, not here)",
+      clear_var: "variable {{var}} cleared (stored on the server, not here)",
+      chatButton: "chat button: {{text}}",
+      chatButtonNotPlayed: "its click actions run on the server only",
       moduleAction: "a {{module}} module action: it runs on the server, not here",
       notRun: "not run",
     },

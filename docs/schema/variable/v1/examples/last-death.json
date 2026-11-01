@@ -1,0 +1,6 @@
+{
+  "schema": "variable/v1",
+  "type": "location",
+  "expires_seconds": 600,
+  "notes": "Where the player last died; set by the death Trigger, read by its chat button."
+}
