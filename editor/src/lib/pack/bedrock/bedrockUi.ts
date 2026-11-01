@@ -1,3 +1,4 @@
+import { sha256Hex } from "../../sha256";
 import type { BedrockMenu, BedrockTextLayer } from "./bedrockMenus";
 import {
   BEDROCK_MARKER,
@@ -124,14 +125,22 @@ function id(menu: BedrockMenu, what: string): string {
   return `artisan_${key}_${what}`;
 }
 
-/** Bedrock texture path (no extension) of a menu's composed background. */
-export function backgroundTexture(menu: BedrockMenu): string {
-  return `textures/artisan/menus/${id(menu, "bg")}`;
+/**
+ * 16 hex chars of the SHA-256 of [value]: texture file names stay short because
+ * Geyser warns about (and some Bedrock platforms fail on) pack paths over 80 chars.
+ */
+function shortName(value: string): string {
+  return sha256Hex(new TextEncoder().encode(value)).slice(0, 16);
 }
 
-/** Bedrock texture path (no extension) of a button image. */
+/** Bedrock texture path (no extension) of a menu's composed background, 38 chars. */
+export function backgroundTexture(menu: BedrockMenu): string {
+  return `textures/artisan/m/${shortName(menu.key)}`;
+}
+
+/** Bedrock texture path (no extension) of a button image ([key]: the Java image button key), 38 chars. */
 export function buttonTexture(key: string): string {
-  return `textures/artisan/${key}`;
+  return `textures/artisan/b/${shortName(key)}`;
 }
 
 function backgroundElement(menu: BedrockMenu, height: number): Record<string, unknown> {
