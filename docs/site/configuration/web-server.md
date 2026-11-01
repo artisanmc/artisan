@@ -180,7 +180,7 @@ With `web.mcp: true` in `environment.yml`, the editor's address also answers the
   the whole deploy. Each deploy is a Version marked "<player> via <client>" in the history; the
   client can roll a Project back to an earlier Version, as Restore does in the editor. A client allowed to deploy can also create a new, empty module when
   you ask for one; what goes in it still waits for a deployed draft.
-- **Resource pack** (Artisan Pro): a client can read the state of a server's resource pack
+- **Resource pack**: a client can read the state of a server's resource pack
   built by the hub and, when allowed to deploy, rebuild it. For now the hub only builds and
   compares its pack with the one the editor sends; players still get the editor's.
 - **Revoking**: Settings → AI apps lists the connected clients; Disconnect cuts one off at its

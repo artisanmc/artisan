@@ -54,6 +54,7 @@ const BUILT_IN: Record<string, { dir: string; width: number; height: number }> =
   attribution: { dir: "attribution", width: 95, height: 8 },
   auctions: { dir: "auctions", width: 85, height: 8 },
   boosts: { dir: "boosts", width: 77, height: 8 },
+  conversations: { dir: "conversations", width: 115, height: 8 },
   "daily-rewards": { dir: "daily-rewards", width: 112, height: 10 },
   guilds: { dir: "guilds", width: 72, height: 8 },
   lands: { dir: "lands", width: 73, height: 8 },
