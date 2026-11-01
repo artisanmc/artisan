@@ -670,6 +670,15 @@ const fr: typeof en = {
     caseConditionEmpty: "(toujours — aucune condition sur ce cas)",
   },
   conditions: {
+    variable: {
+      pick: "choisir une variable",
+      none: "Aucune variable de module sur ce serveur",
+      missing: "{{name}} : aucun module installé sur ce serveur ne déclare cette variable",
+      key: "clé",
+      value: "valeur",
+      isTrue: "est vrai",
+      isFalse: "est faux",
+    },
     removeCondition: "Supprimer",
     keptUnknown_one: "{{count}} condition non affichable ici, conservée telle quelle",
     keptUnknown_other: "{{count}} conditions non affichables ici, conservées telles quelles",
