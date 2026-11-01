@@ -614,7 +614,7 @@ class SyncedMenuProvider(
                         val written = net.artisanmc.plugin.project.SystemFiles.sync(dir, moduleId, template, required = false, seeded = seeded)
                         if (written.isNotEmpty()) {
                             wrote = true
-                            logger?.info("[Artisan] Originals of '$moduleId/${template.id}' written in '${dir.name}': ${written.joinToString()}.")
+                            logger?.info("[Artisan] Originals of '$moduleId/${template.id}' updated in '${dir.name}': ${describeChanges(dir, written)}.")
                         }
                     }.onFailure { logger?.warning("[Artisan] Originals '$moduleId/${template.id}' not written: ${it.message}") }
                 }
@@ -652,8 +652,20 @@ class SyncedMenuProvider(
             if (conflicts.isEmpty()) logger?.info("[Artisan] '${folder.key}/$path' was edited: the new version of '$moduleId' merged into it.")
             else logger?.info("[Artisan] '${folder.key}/$path' was edited: the new version of '$moduleId' merged into it, except ${conflicts.joinToString()}, edited on both sides (the edit stays; Reset in the editor takes the module's version).")
         }
-        if (written.isNotEmpty()) logger?.info("[Artisan] System elements of '$moduleId' written in '${folder.key}': ${written.joinToString()}.")
+        if (written.isNotEmpty()) logger?.info("[Artisan] System elements of '$moduleId' updated in '${folder.key}': ${describeChanges(folder.value, written)}.")
         return written.isNotEmpty()
+    }
+
+    /**
+     * What `SystemFiles.sync` changed, read on the disk after it: the files it wrote, and apart the
+     * owner's copies it removed because the original now serves (an untouched or equal copy).
+     */
+    private fun describeChanges(dir: java.io.File, paths: List<String>): String {
+        val (written, removed) = paths.partition { java.io.File(dir, it).exists() }
+        return buildList {
+            if (written.isNotEmpty()) add("wrote ${written.joinToString()}")
+            if (removed.isNotEmpty()) add("removed (the original serves) ${removed.joinToString()}")
+        }.joinToString("; ")
     }
 
     fun setCustomItemsManager(manager: CustomItemsManager) {
