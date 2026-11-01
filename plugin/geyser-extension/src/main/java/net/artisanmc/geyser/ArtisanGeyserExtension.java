@@ -107,7 +107,7 @@ public class ArtisanGeyserExtension implements Extension {
         try {
             event.register(ResourcePack.create(PackCodec.path(file)));
         } catch (Exception e) {
-            logger().warning("Artisan: Bedrock pack " + file.getFileName() + " refused by Geyser: " + e.getMessage());
+            logger().warning("Artisan: Bedrock pack " + file.getFileName() + " refused by Geyser: " + e);
         }
     }
 
@@ -138,7 +138,7 @@ public class ArtisanGeyserExtension implements Extension {
             if (!Files.isRegularFile(target)) download(URI.create(hub).resolve(url), hash, target);
             switchTo(target);
         } catch (Exception e) {
-            logger().warning("Artisan: cannot follow the server's Bedrock pack: " + e.getMessage());
+            logger().warning("Artisan: cannot follow the server's Bedrock pack: " + e); // the class too: a ConnectException has no message
         }
     }
 
