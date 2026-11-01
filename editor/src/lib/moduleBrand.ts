@@ -8,6 +8,11 @@ import type { ActiveModule, ModuleBrandFile } from "@/lib/api/modules";
  */
 export interface ModuleBrand {
   icon?: string;
+  /**
+   * What stands in for [icon] while it loads from the hub (the first fetch goes through the
+   * module's server): the editor's copy of a suite module's icon, else Artisan's own tile.
+   */
+  iconPlaceholder?: string;
   logo?: { dark?: string; light?: string; width: number; height: number };
   wordmark?: { dark?: string; light?: string };
 }
@@ -54,6 +59,7 @@ const BUILT_IN: Record<string, { dir: string; width: number; height: number }> =
   attribution: { dir: "attribution", width: 95, height: 8 },
   auctions: { dir: "auctions", width: 85, height: 8 },
   boosts: { dir: "boosts", width: 77, height: 8 },
+  conversations: { dir: "conversations", width: 115, height: 8 },
   "daily-rewards": { dir: "daily-rewards", width: 112, height: 10 },
   guilds: { dir: "guilds", width: 72, height: 8 },
   lands: { dir: "lands", width: 73, height: 8 },
@@ -100,8 +106,11 @@ export function moduleBrand(
 ): ModuleBrand | undefined {
   if (!moduleId) return undefined;
   const announced = serverId ? active.find((m) => m.id === moduleId) : undefined;
-  return (
-    (announced && serverId ? announcedBrand(serverId, announced) : undefined) ??
-    builtInBrand(moduleId)
-  );
+  const builtIn = builtInBrand(moduleId);
+  const brand = announced && serverId ? announcedBrand(serverId, announced) : undefined;
+  if (!brand) return builtIn;
+  return brand.icon ? { ...brand, iconPlaceholder: builtIn?.icon ?? ARTISAN_ICON } : brand;
 }
+
+/** Artisan's own crafting-table tile, the placeholder of a module the editor has no copy of. */
+export const ARTISAN_ICON = "/logo.svg";

@@ -1945,8 +1945,6 @@ export default {
     ctxInDocument: "in {{owner}}",
   },
   moduleHome: {
-    pluginModule: "Module of the {{name}} plugin",
-    contentModule: "Content module",
     content: "Content",
     boardEmpty: "Nothing on the canvas yet.",
     folders_one: "{{count}} folder",

@@ -18,6 +18,8 @@ describe("moduleBrand", () => {
   it("serves what the module's jar announces, from its server, pinned to its hash", () => {
     const brand = moduleBrand("auctions", "srv", [auctions]);
     expect(brand?.icon).toBe("/api/v1/servers/srv/modules/auctions/brand/icon.svg?v=h1");
+    // While it loads, the editor's own copy of the icon stands in.
+    expect(brand?.iconPlaceholder).toBe("/brand/modules/auctions/icon.svg");
     expect(brand?.logo).toEqual({
       dark: "/api/v1/servers/srv/modules/auctions/brand/logo-dark.svg?v=h1",
       light: undefined,
@@ -38,6 +40,14 @@ describe("moduleBrand", () => {
     expect(brand?.logo).toBeUndefined();
     expect(brand?.wordmark).toBeUndefined();
   });
+  it("a module the editor has no copy of loads its icon over Artisan's tile", () => {
+    const addon: ActiveModule = {
+      id: "my-addon",
+      version: null,
+      brand: { hash: "h", files: ["icon"] },
+    };
+    expect(moduleBrand("my-addon", "srv", [addon])?.iconPlaceholder).toBe("/logo.svg");
+  });
   it("an older jar falls back on the editor's copy of a suite module, by id or plugin id", () => {
     const old: ActiveModule = { id: "boutique", version: "1.0" };
     expect(moduleBrand("boutique", "srv", [old])?.icon).toBe("/brand/modules/store/icon.svg");
@@ -47,9 +57,7 @@ describe("moduleBrand", () => {
     );
   });
   it("a module without one, and no module, keep Artisan's", () => {
-    expect(
-      moduleBrand("conversations", "srv", [{ id: "conversations", version: null }]),
-    ).toBeUndefined();
+    expect(moduleBrand("my-addon", "srv", [{ id: "my-addon", version: null }])).toBeUndefined();
     expect(moduleBrand(undefined, "srv", [auctions])).toBeUndefined();
   });
   it("the editor ships every built-in file it points at", () => {
@@ -57,6 +65,7 @@ describe("moduleBrand", () => {
       "attribution",
       "auctions",
       "boosts",
+      "conversations",
       "daily",
       "guilds",
       "lands",
