@@ -65,6 +65,8 @@ tasks.processResources {
 }
 
 tasks.shadowJar {
+    // One build gives both jars: the plugin and the Geyser extension of a proxy (geyser-extension/build/libs/).
+    dependsOn(":artisan-geyser:jar")
     archiveBaseName.set("artisan-plugin")
     // The free jar sits next to the Pro one: `artisan-plugin-<v>-free.jar`. The Pro jar keeps the
     // historical `-all` name the deploy task and docker setup use.
