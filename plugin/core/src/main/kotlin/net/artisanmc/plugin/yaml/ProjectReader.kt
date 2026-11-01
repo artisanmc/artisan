@@ -1,5 +1,8 @@
 package net.artisanmc.plugin.yaml
 
+import net.artisanmc.plugin.engine.RuntimeMenu
+import net.artisanmc.plugin.engine.VariantRule
+import net.artisanmc.plugin.engine.VariantRules
 import net.artisanmc.plugin.engine.RuntimeProject
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -152,7 +155,7 @@ class ProjectReader(
      * refuses (duplicate id, subfolder of a kind folder…) is reported through
      * [onSkip] and not read. Alphabetical order, so stable from one load to the next.
      */
-    private fun documentFiles(projectId: String, projectDir: File): List<DocumentLayout.Entry> {
+    private fun documentLayout(projectId: String, projectDir: File): DocumentLayout.Result {
         val paths = projectDir.walkTopDown()
             .maxDepth(SCAN_DEPTH)
             .onEnter { dir ->
@@ -167,7 +170,7 @@ class ProjectReader(
             logger?.warning("[Artisan] skipping ${projectDir.name}/${e.path}: ${e.reason}")
             onSkip(projectId, e.path, e.reason)
         }
-        return layout.documents.sortedBy { it.id }
+        return layout.copy(documents = layout.documents.sortedBy { it.id }, variants = layout.variants.sortedBy { it.path })
     }
 
     fun readAll(): List<RuntimeProject> = read(roots.all())
@@ -201,19 +204,23 @@ class ProjectReader(
         null
     }
 
-    /** One project, in named steps: manifest → lang → legacy templates → Documents → sources. */
+    /** One project, in named steps: manifest → lang → legacy templates → Documents → variants → sources. */
     private fun readProject(projectId: String, projectDir: File): RuntimeProject? {
         val manifest = readManifest(projectId, projectDir) ?: return null
         val langMaps = readLangMaps(projectDir, manifest)
         val templates = readLegacyTemplates(projectDir)
-        val documents = readDocuments(projectDir, ReadContext(projectId, manifest, langMaps, templates))
+        val ctx = ReadContext(projectId, manifest, langMaps, templates)
+        val layout = documentLayout(projectId, projectDir)
+        val documents = readDocuments(projectDir, layout.documents, ctx)
+        val variants = readVariants(projectDir, layout.variants, documents, ctx)
+        val variantRules = readVariantRules(projectId, projectDir, variants.keys)
         val dataDir = File(projectDir, "data")
         val projectModels = readProjectModels(projectDir)
         val dataSources = readSingleFileSources(dataDir, projectModels, langMaps, manifest.defaultLang) +
             readPerRowSources(dataDir, projectModels, langMaps, manifest.defaultLang)
         return RuntimeProject(
             projectId, manifest.defaultLang, manifest.languages,
-            documents, dataSources, langMaps,
+            documents, dataSources, langMaps, variants, variantRules,
         )
     }
 
@@ -272,8 +279,8 @@ class ProjectReader(
      * through [onSkip]) instead of failing the whole reload and the plugin
      * enable.
      */
-    private fun readDocuments(projectDir: File, ctx: ReadContext): Map<String, List<RuntimeDocument>> {
-        val byDir = documentFiles(ctx.projectId, projectDir).groupBy { it.dir }
+    private fun readDocuments(projectDir: File, entries: List<DocumentLayout.Entry>, ctx: ReadContext): Map<String, List<RuntimeDocument>> {
+        val byDir = entries.groupBy { it.dir }
         return DocumentKinds.all().associate { kind ->
             val reader = coreReaders[kind.kind] ?: rawReader(kind)
             kind.kind to byDir[kind.dir].orEmpty().mapNotNull { entry ->
@@ -284,6 +291,64 @@ class ProjectReader(
                 ) { reader(f, entry.id, ctx) }
             }
         }
+    }
+
+    /**
+     * The menus and dialogs of each variant (design `variantes-modules`), read like the module's
+     * own, by variant name then kind. A variant's menu must take the same `inputs` as the module's
+     * menu of the same id (the code and the other menus open it with them): one that differs is
+     * reported (`variant_inputs_mismatch`) and not read. Other kinds are not variable yet
+     * (`variant_kind_unsupported`).
+     */
+    private fun readVariants(
+        projectDir: File,
+        entries: List<DocumentLayout.Entry>,
+        documents: Map<String, List<RuntimeDocument>>,
+        ctx: ReadContext,
+    ): Map<String, Map<String, List<RuntimeDocument>>> {
+        if (entries.isEmpty()) return emptyMap()
+        val kindsByDir = DocumentKinds.all().associateBy { it.dir }
+        val out = linkedMapOf<String, MutableMap<String, MutableList<RuntimeDocument>>>()
+        for (entry in entries) {
+            val kind = kindsByDir[entry.dir] ?: continue
+            out.getOrPut(entry.variant) { linkedMapOf() }
+            if (kind != DocumentKinds.MENU && kind != DocumentKinds.DIALOG) {
+                skip(ctx.projectId, entry.path, "variant_kind_unsupported")
+                continue
+            }
+            val doc = tolerant(
+                "variant ${kind.kind} ${entry.path}",
+                onFail = { e -> onSkip(ctx.projectId, entry.path, e.message ?: e::class.simpleName.orEmpty()) },
+            ) { coreReaders.getValue(kind.kind)(File(projectDir, entry.path), entry.id, ctx) } ?: continue
+            val own = documents[kind.kind].orEmpty().firstOrNull { it.id == entry.id }
+            if (doc is RuntimeMenu && own is RuntimeMenu && inputsOf(doc) != inputsOf(own)) {
+                skip(ctx.projectId, entry.path, "variant_inputs_mismatch")
+                continue
+            }
+            out.getValue(entry.variant).getOrPut(kind.kind) { mutableListOf() } += doc
+        }
+        return out
+    }
+
+    private fun inputsOf(menu: RuntimeMenu) = menu.yaml.contextInputs.map { it.name to it.type }
+
+    /** `variants.yml`: its rules, each naming a variant of [variants]; a rule left out is reported. */
+    private fun readVariantRules(projectId: String, projectDir: File, variants: Set<String>): List<VariantRule> {
+        val file = YamlFiles.find(projectDir, DocumentLayout.VARIANTS_FILE, ::ignored) ?: return emptyList()
+        val root = tolerant("${file.name} of project ${projectDir.name}", loudSchema = false, onFail = { e ->
+            onSkip(projectId, file.name, e.message ?: e::class.simpleName.orEmpty())
+        }) {
+            @Suppress("UNCHECKED_CAST")
+            (mapper.readValue(file, Map::class.java) as? Map<String, Any?>).orEmpty()
+        } ?: return emptyList()
+        val parsed = VariantRules.parse(root, variants)
+        for (p in parsed.problems) skip(projectId, file.name, p)
+        return parsed.rules
+    }
+
+    private fun skip(projectId: String, path: String, reason: String) {
+        logger?.warning("[Artisan] skipping $projectId/$path: $reason")
+        onSkip(projectId, path, reason)
     }
 
     /*

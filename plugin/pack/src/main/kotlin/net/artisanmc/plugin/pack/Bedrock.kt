@@ -102,10 +102,15 @@ internal object DocumentLayout {
     private const val MAX_FOLDER_DEPTH = 3
     private val FOLDER = Regex("^[a-z0-9][a-z0-9_-]*$")
 
-    /** Document path → id, for the kinds of [kindDirs]. */
+    /**
+     * Document path → id, for the kinds of [kindDirs]. With `variants.yml` at the module root,
+     * `variants/` holds the variants (design `variantes-modules`), not a themed folder: left out here.
+     */
     fun ids(paths: List<String>, kindDirs: Set<String>): Map<String, String> {
         val candidates = ArrayList<Triple<String, String, String>>()
+        val variantsOn = paths.any { '/' !in it && YamlPaths.stem(it) == "variants" }
         for (path in paths.sorted()) {
+            if (variantsOn && path.startsWith("variants/")) continue
             val segs = path.split("/")
             if (segs.any { it.isEmpty() || it.startsWith(".") }) continue
             val id = YamlPaths.stem(segs.last()) ?: continue

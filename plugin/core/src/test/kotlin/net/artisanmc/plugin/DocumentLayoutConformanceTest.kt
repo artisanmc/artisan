@@ -33,6 +33,12 @@ class DocumentLayoutConformanceTest {
                 result.documents,
             )
             assertEquals(
+                c["variants"]?.map {
+                    DocumentLayout.Entry(it["path"].asText(), it["dir"].asText(), it["id"].asText(), it["folder"].asText(), it["variant"].asText())
+                }.orEmpty(),
+                result.variants,
+            )
+            assertEquals(
                 c["errors"].map { DocumentLayout.Error(it["path"].asText(), it["reason"].asText()) },
                 result.errors,
             )

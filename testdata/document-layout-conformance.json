@@ -1,5 +1,5 @@
 {
-  "note": "Where a module's Documents live on disk — the cross-language contract behind themed folders (docs/architecture/project-files.md § Thematic folders). Input: every file path relative to the module folder, and the registered kind folders. A Document is `<folders…>/<kind dir>/<id>.yml` (or `.yaml`): zero to three themed folders, then a kind folder holding files only. The id is the file name, unique per kind across the module; the themed path never enters it. Paths are sorted. Owned by: plugin DocumentLayoutConformanceTest + editor domain/documentLayout.test.ts.",
+  "note": "Where a module's Documents live on disk — the cross-language contract behind themed folders (docs/architecture/project-files.md § Thematic folders). Input: every file path relative to the module folder, and the registered kind folders. A Document is `<folders…>/<kind dir>/<id>.yml` (or `.yaml`): zero to three themed folders, then a kind folder holding files only. The id is the file name, unique per kind across the module; the themed path never enters it. Paths are sorted. Owned by: plugin DocumentLayoutConformanceTest + editor domain/documentLayout.test.ts. Variants (design variantes-modules): with `variants.yml` (or `.yaml`) at the module root, `variants/<name>/…` is classified like a module path under the variant `<name>` and reported in `variants` (ids unique per kind inside a variant; absent key = no variant); without that file `variants/` is an ordinary themed folder.",
   "cases": [
     {
       "name": "root kind folders, as before folders existed",
@@ -119,6 +119,75 @@
         { "path": "commands/spawn.yaml", "reason": "duplicate_id" },
         { "path": "commands/spawn.yml", "reason": "duplicate_id" }
       ]
+    },
+    {
+      "name": "variants: without variants.yml, variants/ stays a themed folder",
+      "kindDirs": ["menus", "commands", "dialogs"],
+      "paths": [
+        "menus/ranks.yml",
+        "variants/textured/menus/ranks.yml",
+        "variants/menus/shop.yml"
+      ],
+      "documents": [
+        { "path": "variants/menus/shop.yml", "dir": "menus", "id": "shop", "folder": "variants" }
+      ],
+      "errors": [
+        { "path": "menus/ranks.yml", "reason": "duplicate_id" },
+        { "path": "variants/textured/menus/ranks.yml", "reason": "duplicate_id" }
+      ]
+    },
+    {
+      "name": "variants: with variants.yml, each variant reuses the module's ids",
+      "kindDirs": ["menus", "commands", "dialogs"],
+      "paths": [
+        "variants.yml",
+        "menus/ranks.yml",
+        "menus/main.yml",
+        "dialogs/rules.yml",
+        "variants/textured/variant.yml",
+        "variants/textured/menus/ranks.yml",
+        "variants/textured/rangs/menus/main.yml",
+        "variants/textured/assets/bg.png",
+        "variants/textured/menus/info.yml",
+        "variants/bedrock/menus/ranks.yaml",
+        "variants/bedrock/dialogs/rules.yml"
+      ],
+      "documents": [
+        { "path": "dialogs/rules.yml", "dir": "dialogs", "id": "rules", "folder": "" },
+        { "path": "menus/main.yml", "dir": "menus", "id": "main", "folder": "" },
+        { "path": "menus/ranks.yml", "dir": "menus", "id": "ranks", "folder": "" }
+      ],
+      "errors": [],
+      "variants": [
+        { "path": "variants/bedrock/dialogs/rules.yml", "dir": "dialogs", "id": "rules", "folder": "", "variant": "bedrock" },
+        { "path": "variants/bedrock/menus/ranks.yaml", "dir": "menus", "id": "ranks", "folder": "", "variant": "bedrock" },
+        { "path": "variants/textured/menus/info.yml", "dir": "menus", "id": "info", "folder": "", "variant": "textured" },
+        { "path": "variants/textured/menus/ranks.yml", "dir": "menus", "id": "ranks", "folder": "", "variant": "textured" },
+        { "path": "variants/textured/rangs/menus/main.yml", "dir": "menus", "id": "main", "folder": "rangs", "variant": "textured" }
+      ]
+    },
+    {
+      "name": "variants: ids are unique per kind inside a variant, names are slugs",
+      "kindDirs": ["menus", "commands", "dialogs"],
+      "paths": [
+        "variants.yaml",
+        "menus/ranks.yml",
+        "variants/textured/menus/ranks.yml",
+        "variants/textured/a/menus/ranks.yml",
+        "variants/Bad Name/menus/x.yml",
+        "variants/textured/menus/sub/x.yml",
+        "variants/loose.yml"
+      ],
+      "documents": [
+        { "path": "menus/ranks.yml", "dir": "menus", "id": "ranks", "folder": "" }
+      ],
+      "errors": [
+        { "path": "variants/Bad Name/menus/x.yml", "reason": "invalid_variant" },
+        { "path": "variants/textured/a/menus/ranks.yml", "reason": "duplicate_id" },
+        { "path": "variants/textured/menus/ranks.yml", "reason": "duplicate_id" },
+        { "path": "variants/textured/menus/sub/x.yml", "reason": "kind_dir_subfolder" }
+      ],
+      "variants": []
     }
   ]
 }

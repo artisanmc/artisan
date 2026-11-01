@@ -261,6 +261,9 @@ internal class RuntimeAssembly(
         editorEvents = { editorChannel.relay(it, serverId.toString()) },
         hub = editorHost.hubLink(cfg.web),
         isBedrock = plugin.geyser::isBedrock,
+        hasPack = { p ->
+            if (plugin.geyser.isBedrock(p)) plugin.geyser.currentPack() != null else plugin.packLoads.hasLoaded(p.uniqueId)
+        },
         peers = { editorHost.peerLinks },
         menuEvents = menuEvents,
         onSnapshot = suite::recordVersions,

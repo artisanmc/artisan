@@ -9,6 +9,7 @@ describe("classifyDocumentLayout conformance", () => {
       expect(classifyDocumentLayout(c.paths, new Set(c.kindDirs))).toEqual({
         documents: c.documents,
         errors: c.errors,
+        variants: "variants" in c ? c.variants : [],
       });
     });
   }

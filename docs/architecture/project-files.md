@@ -130,6 +130,47 @@ The rule is a pure function of paths, written twice and locked by
   the still-empty folders (nothing else on disk would remember them):
   `folders: { boutique: { color: "#a855f7", position: { x: 120, y: 240 } }, vide: {} }`.
 
+## Variants (`variants.yml`, `variants/`)
+
+Design `variantes-modules` (project files). A module that has `variants.yml` (or `.yaml`) at its
+root keeps its variants under `variants/<name>/`, each laid out like the module (kind folders,
+thematic folders, resources): `variants/textured/menus/ranks.yml` is the `textured` version of
+`menus/ranks.yml`. Without `variants.yml`, `variants/` is an ordinary thematic folder (nothing
+changes for an existing module).
+
+```yaml
+# variants.yml
+schema: variants/v1
+rules:                       # in order; implicit last: the module's own files
+  - id: dev                  # optional, default: the variant name
+    variant: dev
+    enabled: false           # optional, default true
+    when: { permission: op }
+  - variant: bedrock
+    when: { client: bedrock }          # bedrock | java
+  - variant: textured
+    when: { has_pack: true }           # Java pack, or Bedrock pack for a Bedrock player
+# `when` also takes `condition:`, any engine condition ({type: has_permission, perm: …});
+# all keys are required together.
+```
+
+- `DocumentLayout` puts a variant's Documents in `Result.variants` (with their `variant`), ids
+  unique per kind **inside** a variant; a variant name is a slug (`invalid_variant`). Locked by
+  `testdata/document-layout-conformance.json`.
+- `ProjectReader` reads the variants' **menus and dialogs** into `RuntimeProject.variants`, the
+  rules into `RuntimeProject.variantRules` (`engine/VariantRules.kt`). Reported through `onSkip`, not
+  read: a variant menu whose `inputs` (name, type) differ from the module's menu of the same id
+  (`variant_inputs_mismatch`), a variant file of another kind (`variant_kind_unsupported`), a
+  rule naming a variant absent from `variants/`, with an unknown `when` key or a reused id.
+- `SyncedMenuProvider.openMenu` / `openDialog`: the id resolves as before, then the first
+  enabled rule that holds and whose variant has that file gives the copy shown
+  (`VariantRules.select`, conditions evaluated only for a variant that has the file). At each
+  opening, going back included; never while a menu stays open.
+- Editor: not edited yet; `projectFromFiles` keeps `variants.yml` and the variants' Documents in
+  `Project.unreadFiles`, so a deploy rewrites them as they are.
+- Not yet: a variant-only id (a menu only a variant has), command steps per variant, the
+  variants' images in the packs (the Bedrock pack leaves `variants/` out, as before the feature).
+
 The `data/` files carry the Data models **inlined**; `ltext` values are i18n keys
 resolved at bind, item values are material refs.
 

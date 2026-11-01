@@ -1,7 +1,7 @@
 import { normalizeBaseLore } from "@/domain/baseLore";
 import { parseCapturedStack } from "@/domain/capturedStack";
 import { listDocumentKinds } from "@/domain/documentKinds";
-import { classifyDocumentLayout } from "@/domain/documentLayout";
+import { VARIANTS_FILE, classifyDocumentLayout } from "@/domain/documentLayout";
 import {
   type DocKey,
   allDocuments,
@@ -42,7 +42,7 @@ import type {
 } from "@/domain/types";
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
-import { MODULE_FILE_NAMES, isYamlPath, yamlFilesUnder } from "@/lib/yamlFiles";
+import { MODULE_FILE_NAMES, isYamlPath, yamlFilesUnder, yamlStem } from "@/lib/yamlFiles";
 import { parse as parseYaml } from "yaml";
 import { documentCodec } from "./documentCodecs";
 import { makeAppearanceConverter } from "./menuV1ToDomain";
@@ -581,9 +581,19 @@ export function projectFromFiles(
     unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
     console.warn(`[projectFromFiles] ${projectId}: ${e.path} not read (${e.reason})`);
   }
+  // Variants (design `variantes-modules`): not edited here yet, kept verbatim with
+  // the rules file, so a deploy from the editor leaves them as they are.
+  const variantPaths = [
+    ...layout.variants.map((e) => e.path),
+    ...projectPaths(files, projectId).filter(
+      (p) => !p.includes("/") && yamlStem(p) === VARIANTS_FILE,
+    ),
+  ];
+  for (const path of variantPaths) unreadFiles[path] = getFile(files, projectId, path) ?? "";
   const claimedPaths = new Set([
     ...layout.documents.map((e) => e.path),
     ...layout.errors.map((e) => e.path),
+    ...variantPaths,
   ]);
   const menus = menusOf({ documents });
 

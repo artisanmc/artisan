@@ -517,3 +517,23 @@ it("reads a module of .yml files and its artisan-module.yml", () => {
   expect(p.dataSources.map((s) => String(s.id))).toEqual(["settings"]);
   expect(Object.entries(p.i18nKeys).find(([key]) => key === "k")?.[1].fr).toBe("nouveau");
 });
+
+it("keeps a module's variants and their rules verbatim (design variantes-modules)", () => {
+  const files = {
+    [`${base}/manifest.yaml`]: "schema: manifest/v1\n",
+    [`${base}/variants.yml`]: "schema: variants/v1\nrules: []\n",
+    [`${base}/menus/ranks.yml`]: "schema: menu/v1\ntitle: Ranks\nsize: 27\nelements: []\n",
+    [`${base}/variants/textured/menus/ranks.yml`]: "schema: menu/v1\ntitle: T\nsize: 27\n",
+    [`${base}/variants/textured/menus/info.yml`]: "schema: menu/v1\ntitle: I\nsize: 27\n",
+  };
+  const project = projectFromFiles(PID, files);
+  expect(menusOf(project).map((m) => m.id)).toEqual(["ranks"]);
+  const out = projectToFiles(project);
+  for (const path of [
+    "variants.yml",
+    "variants/textured/menus/ranks.yml",
+    "variants/textured/menus/info.yml",
+  ]) {
+    expect(out[`${base}/${path}`]).toBe(files[`${base}/${path}`]);
+  }
+});
