@@ -1,7 +1,21 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Markdown } from "@/components/ui/markdown";
 import { ResizeHandle } from "@/components/ui/resize-handle";
 import { Spinner } from "@/components/ui/spinner";
 import { OPEN_DEPLOY_REVIEW } from "@/features/project/ProjectHistory";
+import {
+  type AiAttachmentKind,
+  type AttachmentRefusal,
+  type PendingAttachment,
+  attachmentFromFile,
+  fits,
+  formatBytes,
+} from "@/lib/aiAttachments";
 import type { AiEvent } from "@/lib/api/ai";
 import { cn } from "@/lib/cx";
 import { ASSISTANT_WIDTH, useAssistantPanelStore } from "@/state/assistantPanelStore";
@@ -9,11 +23,15 @@ import {
   AlertTriangle,
   Check,
   FileText,
+  Image,
   Maximize2,
+  Paperclip,
   Play,
   RotateCcw,
   SendHorizontal,
+  Server,
   Sparkles,
+  Upload,
   X,
 } from "lucide-react";
 import {
@@ -26,6 +44,7 @@ import {
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { ServerFilePicker } from "./ServerFilePicker";
 import { useAiStatus, useAssistant } from "./useAssistant";
 
 /** Opens the Drafts list next to Deploy, where the player reviews what the assistant wrote. */
@@ -178,56 +197,190 @@ export function AssistantDock({
         )}
         <div ref={end} />
       </div>
-      <Composer running={running} onSend={(message) => void send(message)} />
+      <Composer running={running} onSend={send} serverId={serverId} />
     </aside>
   );
 }
 
-/** The message box under a conversation: Enter sends, Shift+Enter goes to the next line. */
+/**
+ * The message box under a conversation: Enter sends, Shift+Enter goes to the next line. Files
+ * come with the paperclip (the player's computer, or the server's modules when [serverId] is
+ * known), a drop on the box, or a paste.
+ */
 export function Composer({
   running,
   onSend,
+  serverId = null,
 }: {
   running: boolean;
-  onSend: (message: string) => void;
+  /** Resolves false when the message did not go: the text and files come back to the box. */
+  onSend: (message: string, attachments: PendingAttachment[]) => Promise<boolean>;
+  serverId?: string | null;
 }) {
   const { t } = useTranslation();
   const [text, setText] = useState("");
-  const submit = (e?: FormEvent) => {
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  // The picker adds several in a row: each checks against the list as it is now.
+  const current = useRef(attachments);
+  current.current = attachments;
+
+  const add = (attachment: PendingAttachment): AttachmentRefusal | null => {
+    const refused = fits(current.current, attachment);
+    if (refused) return refused;
+    current.current = [...current.current, attachment];
+    setAttachments(current.current);
+    return null;
+  };
+  const addFiles = async (files: Iterable<File>) => {
+    setRefusal(null);
+    for (const file of files) {
+      const attachment = await attachmentFromFile(file);
+      const refused = typeof attachment === "string" ? attachment : add(attachment);
+      if (refused) setRefusal(refused);
+    }
+  };
+
+  const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     const message = text.trim();
-    if (!message || running) return;
+    if ((!message && attachments.length === 0) || running) return;
+    const sent = attachments;
     setText("");
-    onSend(message);
+    setAttachments([]);
+    setRefusal(null);
+    if ((await onSend(message, sent)) === false) {
+      setText((now) => now || message);
+      setAttachments((now) => (now.length ? now : sent));
+    }
   };
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) submit(e);
+    if (e.key === "Enter" && !e.shiftKey) void submit(e);
   };
   return (
     <form
-      onSubmit={submit}
-      className="flex shrink-0 items-end gap-2 border-t border-[var(--border-soft)] p-3"
+      onSubmit={(e) => void submit(e)}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files?.length) return;
+        e.preventDefault();
+        setDragging(false);
+        void addFiles(e.dataTransfer.files);
+      }}
+      className={cn(
+        "flex shrink-0 flex-col gap-2 border-t border-[var(--border-soft)] p-3",
+        dragging && "bg-[var(--brand-soft)]",
+      )}
     >
-      <textarea
-        className="textarea max-h-40 min-h-[44px] flex-1"
-        rows={2}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={onKey}
-        placeholder={t("ai.placeholder")}
-        aria-label={t("ai.placeholder")}
-        maxLength={8000}
-      />
-      <button
-        type="submit"
-        className="btn btn-primary btn-icon size-10 shrink-0"
-        disabled={running || !text.trim()}
-        aria-label={t("ai.send")}
-      >
-        <SendHorizontal className="size-4" />
-      </button>
+      {attachments.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5" aria-label={t("ai.attach.list")}>
+          {attachments.map((a) => (
+            <li key={a.key} className="chip max-w-full gap-1">
+              <AttachmentIcon kind={a.kind} />
+              <span className="truncate">{a.name}</span>
+              <span className="shrink-0 text-[var(--text-faint)]">{formatBytes(a.size)}</span>
+              <button
+                type="button"
+                className="shrink-0 text-[var(--text-faint)] hover:text-[var(--text)]"
+                onClick={() => setAttachments((list) => list.filter((x) => x.key !== a.key))}
+                aria-label={t("ai.attach.remove", { name: a.name })}
+              >
+                <X className="size-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {refusal && (
+        <p role="alert" className="text-[12.5px] text-[var(--danger)]">
+          {t(`ai.errors.${refusal}`)}
+        </p>
+      )}
+      <div className="flex items-end gap-2">
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          hidden
+          data-testid="assistant-file-input"
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            e.target.value = "";
+            void addFiles(files);
+          }}
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon size-10 shrink-0"
+              aria-label={t("ai.attach.button")}
+              title={t("ai.attach.button")}
+            >
+              <Paperclip className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" side="top">
+            <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
+              <Upload className="size-3.5" />
+              {t("ai.attach.upload")}
+            </DropdownMenuItem>
+            {serverId && (
+              <DropdownMenuItem onSelect={() => setPicking(true)}>
+                <Server className="size-3.5" />
+                {t("ai.attach.server")}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <textarea
+          className="textarea max-h-40 min-h-[44px] flex-1"
+          rows={2}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={onKey}
+          onPaste={(e) => {
+            const files = [...e.clipboardData.files];
+            if (files.length === 0) return;
+            e.preventDefault();
+            void addFiles(files);
+          }}
+          placeholder={t("ai.placeholder")}
+          aria-label={t("ai.placeholder")}
+          maxLength={8000}
+        />
+        <button
+          type="submit"
+          className="btn btn-primary btn-icon size-10 shrink-0"
+          disabled={running || (!text.trim() && attachments.length === 0)}
+          aria-label={t("ai.send")}
+        >
+          <SendHorizontal className="size-4" />
+        </button>
+      </div>
+      {serverId && (
+        <ServerFilePicker
+          serverId={serverId}
+          open={picking}
+          onOpenChange={setPicking}
+          onPick={add}
+        />
+      )}
     </form>
   );
+}
+
+function AttachmentIcon({ kind }: { kind: AiAttachmentKind }) {
+  if (kind === "image") return <Image className="size-3 shrink-0" />;
+  return <FileText className="size-3 shrink-0" />;
 }
 
 /** One line of a conversation: what the player asked, what the assistant said or did. */
@@ -236,8 +389,23 @@ export function EventLine({ event }: { event: AiEvent }) {
   switch (event.type) {
     case "user":
       return (
-        <div className="ml-8 self-end whitespace-pre-wrap rounded-[var(--r-lg)] bg-[var(--brand-soft)] px-3 py-2 text-[13.5px] text-[var(--text)]">
-          {event.text}
+        <div className="ml-8 flex flex-col items-end gap-1 self-end">
+          {event.attachments && event.attachments.length > 0 && (
+            <ul className="flex flex-wrap justify-end gap-1.5">
+              {event.attachments.map((a, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: two files may share a name.
+                <li key={i} className="chip max-w-full gap-1" title={a.path ?? a.name}>
+                  <AttachmentIcon kind={a.kind} />
+                  <span className="truncate">{a.name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {event.text && (
+            <div className="whitespace-pre-wrap rounded-[var(--r-lg)] bg-[var(--brand-soft)] px-3 py-2 text-[13.5px] text-[var(--text)]">
+              {event.text}
+            </div>
+          )}
         </div>
       );
     case "text":

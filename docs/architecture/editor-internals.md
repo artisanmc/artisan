@@ -1104,6 +1104,16 @@ talks in it and starts one in `scope` (`{project, server}`) when there is none. 
 navigates to `/servers/$serverId/assistant` and closes the dock; the root does not mount the dock on
 that route.
 
+**Files in a message** (2026-11-01): `Composer` takes up to 5 files per message
+(`lib/aiAttachments.ts`, the hub's limits checked first): the paperclip opens "From my computer" (a
+file input) and, when the view knows its server, "From the server's modules" (`ServerFilePicker`: the
+server's module folders, `listServerProjects`, then a module's text files and images,
+`readProjectFiles` and `SERVER/projects/:project/asset`, read with the player's session). A drop on
+the composer and a paste add files too. An image larger than 1568 px is drawn again at that size in
+its own format before it is sent. The kind comes from the bytes (image, PDF, UTF-8 text). Pending
+files show as chips; a message the hub refuses gives its text and files back. A `user` event shows
+the names of the files sent with it.
+
 **Assistant tab** (`features/assistant/`, route `/servers/$serverId/assistant`, entry in
 `SERVER_TABS`): `AssistantPage` — the player's conversations of this server on the left
 (`GET /api/v1/ai/conversations`), the conversation in the middle (`EventLine` and `Composer` shared

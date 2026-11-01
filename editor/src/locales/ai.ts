@@ -56,6 +56,23 @@ export const aiEn = {
     start_draft: "Started a draft",
     write_document: "Wrote {{path}}",
   },
+  attach: {
+    button: "Attach files",
+    upload: "From my computer",
+    server: "From the server's modules",
+    list: "Files to send",
+    remove: "Remove {{name}}",
+    serverTitle: "Attach a server file",
+    serverHelp: "Pick a module, then its files. Each file you pick is added to your message.",
+    serverFiles: "Files of {{module}}. Each file you pick is added to your message.",
+    modules: "Modules",
+    filter: "Filter files…",
+    noModules: "This server has no module.",
+    noFiles: "No file to attach here.",
+    added: "Added",
+    readFailed: "This file could not be read.",
+    done: "Done",
+  },
   notices: {
     ai_step_limit: "The assistant stopped after {{steps}} steps. Send a message to let it go on.",
     ai_output_limit: "The answer was cut: it was too long. Ask for less at a time.",
@@ -77,6 +94,15 @@ export const aiEn = {
     not_found: "This conversation is no longer on the server. Your next message starts a new one.",
     forbidden: "Talking to the assistant requires the artisan.editor.edit permission.",
     network_error: "The editor cannot reach the server.",
+    ai_attachment_unsupported:
+      "This file cannot be sent: the assistant reads images (PNG, JPEG, GIF, WebP), PDFs and text files.",
+    ai_attachment_too_large:
+      "Too large: up to 3.7 MB per image, 6 MB per PDF, 200,000 characters per text file and 6 MB per message.",
+    ai_attachment_count: "Up to 5 files per message.",
+    ai_conversation_full:
+      "This conversation holds too many files already. Start a new one to send more.",
+    read_error: "This file could not be read.",
+    server_offline: "The server is offline: its files cannot be read.",
     unknown: "Something went wrong. Try again.",
   },
   settings: {
@@ -183,6 +209,24 @@ export const aiFr: typeof aiEn = {
     start_draft: "A créé un brouillon",
     write_document: "A écrit {{path}}",
   },
+  attach: {
+    button: "Joindre des fichiers",
+    upload: "Depuis mon ordinateur",
+    server: "Depuis les modules du serveur",
+    list: "Fichiers à envoyer",
+    remove: "Retirer {{name}}",
+    serverTitle: "Joindre un fichier du serveur",
+    serverHelp:
+      "Choisis un module, puis ses fichiers. Chaque fichier choisi est ajouté à ton message.",
+    serverFiles: "Fichiers de {{module}}. Chaque fichier choisi est ajouté à ton message.",
+    modules: "Modules",
+    filter: "Filtrer les fichiers…",
+    noModules: "Ce serveur n’a aucun module.",
+    noFiles: "Aucun fichier à joindre ici.",
+    added: "Ajouté",
+    readFailed: "Ce fichier n’a pas pu être lu.",
+    done: "Terminé",
+  },
   notices: {
     ai_step_limit:
       "L’assistant s’est arrêté après {{steps}} étapes. Envoie un message pour qu’il continue.",
@@ -206,6 +250,15 @@ export const aiFr: typeof aiEn = {
       "Cette conversation n’est plus sur le serveur. Ton prochain message en commence une nouvelle.",
     forbidden: "Parler à l’assistant demande la permission artisan.editor.edit.",
     network_error: "L’éditeur n’arrive pas à joindre le serveur.",
+    ai_attachment_unsupported:
+      "Ce fichier ne peut pas être envoyé : l’assistant lit les images (PNG, JPEG, GIF, WebP), les PDF et les fichiers texte.",
+    ai_attachment_too_large:
+      "Trop lourd : 3,7 Mo par image, 6 Mo par PDF, 200 000 caractères par fichier texte et 6 Mo par message au plus.",
+    ai_attachment_count: "5 fichiers par message au plus.",
+    ai_conversation_full:
+      "Cette conversation contient déjà trop de fichiers. Commence-en une nouvelle pour en envoyer d’autres.",
+    read_error: "Ce fichier n’a pas pu être lu.",
+    server_offline: "Le serveur est hors ligne : ses fichiers ne peuvent pas être lus.",
     unknown: "Quelque chose s’est mal passé. Réessaie.",
   },
   settings: {

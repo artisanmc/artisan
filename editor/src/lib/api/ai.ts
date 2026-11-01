@@ -27,9 +27,27 @@ export interface AiDraftRef {
   name?: string;
 }
 
+/** A file sent with a message, as the conversation keeps it: its name, never its bytes. */
+export interface AiAttachmentRef {
+  name: string;
+  kind: "image" | "pdf" | "text";
+  size: number;
+  /** Picked on the server: its module and path. */
+  project?: string;
+  path?: string;
+}
+
+/** A file to send: its bytes in base64; the hub tells its kind from them. */
+export interface AiAttachmentInput {
+  name: string;
+  data: string;
+  project?: string;
+  path?: string;
+}
+
 /** One line of the conversation, in order (`seq` from 0). */
 export type AiEvent =
-  | { seq: number; type: "user"; text: string }
+  | { seq: number; type: "user"; text: string; attachments?: AiAttachmentRef[] }
   | { seq: number; type: "text"; text: string }
   | {
       seq: number;
@@ -85,11 +103,19 @@ export function readAiConversation(id: string, after = 0): Promise<AiConversatio
   return apiFetch(`${CONVERSATIONS}/${encodeURIComponent(id)}?after=${after}`);
 }
 
-/** Rejects with `ai_busy` while the assistant still answers the previous message. */
-export async function sendAiMessage(id: string, text: string): Promise<void> {
+/**
+ * Rejects with `ai_busy` while the assistant still answers the previous message, with
+ * `ai_attachment_*` for a file the hub will not take, `ai_conversation_full` once the
+ * conversation holds too many files.
+ */
+export async function sendAiMessage(
+  id: string,
+  text: string,
+  attachments: AiAttachmentInput[] = [],
+): Promise<void> {
   await apiFetch(`${CONVERSATIONS}/${encodeURIComponent(id)}/messages`, {
     method: "POST",
-    json: { text },
+    json: attachments.length ? { text, attachments } : { text },
   });
 }
 
