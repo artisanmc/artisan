@@ -218,6 +218,12 @@ want (a menu, a command, a change to a dialog), and the assistant does it in a d
   missing ones" for the whole module. The model fills the empty languages from the default one;
   the result changes your module like typing would, so you review it and deploy as usual. A
   translation that loses a placeholder such as `{player}` is not written.
+- **Files**: the paperclip under the message box attaches up to 5 files to a message, from your
+  computer or from the server's modules (a module, then its text files and images); you can also
+  drop or paste them. The model sees images (a screenshot, a texture, up to 3.7 MB) and PDFs (up to
+  6 MB) as they are, and reads text files (another plugin's menu to convert, a config, up to
+  200,000 characters) as text. Up to 6 MB per message and 16 MB per conversation: each file is
+  sent again at every step of the conversation, so start a new one for a new batch.
 - A message runs at most "Steps per message" model calls (`ai.max-steps`); the assistant then stops and says so.
 - Conversations are saved in the suite database: after a restart or a change of the settings, the
   assistant takes them back where they stopped (with another model, from a summary of what was said).

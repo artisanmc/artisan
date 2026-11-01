@@ -69,6 +69,24 @@ class AnthropicProviderTest {
     }
 
     @Test
+    fun `an attached image and PDF go out as their own blocks, and come back from a stored history`() {
+        answers += 200 to message("""[{"type":"text","text":"Je vois."}]""", "end_turn")
+        val conversation = provider().conversation("s", tools)
+        conversation.step(listOf(AiInput.Image("shot.png", "image/png", "iVBORw0K"), AiInput.Pdf("doc.pdf", "JVBERi0x"), AiInput.Text("refais ça")))
+        val (image, pdf, text) = requests.single()["messages"][0]["content"].toList()
+        assertEquals("image", image["type"].asText())
+        assertEquals("base64", image["source"]["type"].asText())
+        assertEquals("image/png", image["source"]["media_type"].asText())
+        assertEquals("iVBORw0K", image["source"]["data"].asText())
+        assertEquals("document", pdf["type"].asText())
+        assertEquals("application/pdf", pdf["source"]["media_type"].asText())
+        assertEquals("doc.pdf", pdf["title"].asText())
+        assertEquals("refais ça", text["text"].asText())
+        val stored = conversation.history()!!
+        assertEquals(mapper.readTree(stored), mapper.readTree(provider().resume("s", tools, stored)!!.history()))
+    }
+
+    @Test
     fun `a tool call goes out with the tools, and its result comes back after the answer, unchanged`() {
         answers += 200 to message("""[{"type":"thinking","thinking":"","signature":"sig"},{"type":"tool_use","id":"toolu_1","name":"read_document","input":{"project":"u-local.shop","path":"menus/shop.yml"}}]""", "tool_use")
         answers += 200 to message("""[{"type":"text","text":"Voilà."}]""", "end_turn")
