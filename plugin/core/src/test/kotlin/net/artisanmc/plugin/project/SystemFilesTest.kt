@@ -20,47 +20,63 @@ class SystemFilesTest {
             .file("menus/shop_main.yaml", menu.toByteArray())
             .build()
 
+    /** The owner's file. */
     private fun menu() = File(folder, "menus/shop_main.yml")
+    private fun original() = File(folder, "originals/menus/shop_main.yml")
     private fun origin() = ProjectOrigins.read(folder).getValue("menus/shop_main.yml")
+    private fun origins() = ProjectOrigins.read(folder)
     private fun hash(text: String) = ContentHash.hashBytes(text.toByteArray())
+    private fun index() = net.artisanmc.plugin.model.Originals.parseIndex(File(folder, "originals/originals.yml").readText())
 
     @Test
-    fun `a missing system file is written, again after a delete`() {
-        assertEquals(listOf("menus/shop_main.yml"), SystemFiles.sync(folder, "boutique", system()))
-        assertEquals("title: Shop\n", menu().readText())
-        assertEquals(FileOrigin("boutique", "menus", 1, hash("title: Shop\n")), origin())
+    fun `the shipped file lives in originals, required, and the owner's folder stays empty`() {
+        assertEquals(listOf("originals/menus/shop_main.yml", "originals/originals.yml"), SystemFiles.sync(folder, "boutique", system()))
+        assertEquals("title: Shop\n", original().readText())
+        assertTrue(!menu().exists())
+        assertEquals(FileOrigin("boutique", "menus", 1, hash("title: Shop\n")), origins().getValue("originals/menus/shop_main.yml"))
+        assertEquals(listOf("menus/shop_main.yml"), index().required)
         assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system()), "nothing to do twice")
 
-        menu().delete()
-        assertEquals(listOf("menus/shop_main.yml"), SystemFiles.sync(folder, "boutique", system()))
-        assertTrue(menu().isFile)
+        original().delete()
+        assertEquals(listOf("originals/menus/shop_main.yml"), SystemFiles.sync(folder, "boutique", system()))
     }
 
     @Test
-    fun `an untouched copy follows the new version, an edited one stays the owner's`() {
-        SystemFiles.sync(folder, "boutique", system())
-        assertEquals(listOf("menus/shop_main.yml"), SystemFiles.sync(folder, "boutique", system(2, "title: Shop v2\n")))
-        assertEquals("title: Shop v2\n", menu().readText())
-        assertEquals(2, origin().version)
+    fun `an old full copy goes, an edited one stays the owner's`() {
+        menu().apply { parentFile.mkdirs(); writeText("title: Shop\n") }
+        File(folder, ProjectOrigins.PATH).apply { parentFile.mkdirs() }
+            .writeBytes(ProjectOrigins.serialize(mapOf("menus/shop_main.yml" to FileOrigin("boutique", "menus", 1, hash("title: Shop\n")))))
+        SystemFiles.sync(folder, "boutique", system(2, "title: Shop v2\n"))
+        assertTrue(!menu().exists(), "an untouched copy of v1: the original serves")
+        assertEquals("title: Shop v2\n", original().readText())
+        assertTrue("menus/shop_main.yml" !in origins())
 
-        menu().writeText("title: Mine\n")
-        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(3, "title: Shop v3\n")))
-        assertEquals("title: Mine\n", menu().readText())
-        assertEquals(FileOrigin("boutique", "menus", 2, hash("title: Shop v2\n")), origin(), "the editor offers v3")
+        menu().apply { parentFile.mkdirs(); writeText("title: Mine\n") }
+        SystemFiles.sync(folder, "boutique", system(3, "title: Shop v3\n"))
+        assertEquals("title: Mine\n", menu().readText(), "no origin: edited, kept")
+        assertEquals("title: Shop v3\n", original().readText())
+        assertEquals(hash("title: Shop v3\n"), origin().hash, "counts as edited from v3")
     }
 
     private fun bases() = File(folder, SystemFiles.BASES).list().orEmpty().toSet()
 
+    /** The owner edits the menu as it was shipped in [v]. */
+    private fun edit(v: String, mine: String) {
+        SystemFiles.sync(folder, "boutique", system(1, v))
+        menu().apply { parentFile.mkdirs(); writeText(mine) }
+        SystemFiles.sync(folder, "boutique", system(1, v))
+    }
+
     @Test
     fun `an edited file takes in what the new version changes elsewhere`() {
         val v1 = "title: Shop\nsize: 27\n"
-        SystemFiles.sync(folder, "boutique", system(1, v1))
+        edit(v1, "title: Mine\nsize: 27\n")
+        assertEquals(FileOrigin("boutique", "menus", 1, hash(v1)), origin())
         assertEquals(setOf(hash(v1)), bases(), "the shipped content is kept as the base")
-        menu().writeText("title: Mine\nsize: 27\n")
 
         val v2 = "title: Shop\nsize: 54\nescape_goes_back: true\n"
         val merged = mutableListOf<Pair<String, List<String>>>()
-        assertEquals(listOf("menus/shop_main.yml"), SystemFiles.sync(folder, "boutique", system(2, v2)) { p, c -> merged += p to c })
+        SystemFiles.sync(folder, "boutique", system(2, v2)) { p, c -> merged += p to c }
         assertEquals("title: Mine\nsize: 54\nescape_goes_back: true\n", menu().readText())
         assertEquals(listOf("menus/shop_main.yml" to emptyList<String>()), merged)
         assertEquals(FileOrigin("boutique", "menus", 2, hash(v2)), origin(), "follows v2 from here on")
@@ -69,9 +85,17 @@ class SystemFilesTest {
     }
 
     @Test
+    fun `an edit the new version also makes leaves nothing of the owner's`() {
+        edit("title: Shop\n", "title: Shop v2\n")
+        SystemFiles.sync(folder, "boutique", system(2, "title: Shop v2\n"))
+        assertTrue(!menu().exists())
+        assertTrue("menus/shop_main.yml" !in origins())
+        assertEquals(emptySet(), bases())
+    }
+
+    @Test
     fun `a conflict keeps the owner's value and the origin, so the editor offers the version`() {
-        SystemFiles.sync(folder, "boutique", system(1, "title: Shop\nsize: 27\n"))
-        menu().writeText("title: Mine\nsize: 27\n")
+        edit("title: Shop\nsize: 27\n", "title: Mine\nsize: 27\n")
         val v2 = "title: Shop v2\nsize: 54\n"
         val merged = mutableListOf<List<String>>()
         SystemFiles.sync(folder, "boutique", system(2, v2)) { _, c -> merged += c }
@@ -80,21 +104,43 @@ class SystemFilesTest {
         assertEquals(1, origin().version)
         assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(2, v2)), "merged once: the next start has nothing to do")
 
-        // Reset: the shipped file again, followed from there.
-        menu().writeText(v2)
+        // Back to the original: the owner's file goes.
+        menu().delete()
         SystemFiles.sync(folder, "boutique", system(2, v2))
-        assertEquals(FileOrigin("boutique", "menus", 2, hash(v2)), origin())
-        assertEquals(setOf(hash(v2)), bases())
+        assertTrue("menus/shop_main.yml" !in origins())
+        assertEquals(emptySet(), bases())
     }
 
     @Test
     fun `without a kept base an edited file stays as it is`() {
-        SystemFiles.sync(folder, "boutique", system())
-        menu().writeText("title: Mine\n")
+        edit("title: Shop\n", "title: Mine\n")
         File(folder, SystemFiles.BASES).deleteRecursively()
-        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(2, "title: Shop\nsize: 54\n")))
+        SystemFiles.sync(folder, "boutique", system(2, "title: Shop\nsize: 54\n"))
         assertEquals("title: Mine\n", menu().readText())
         assertEquals(1, origin().version)
+    }
+
+    @Test
+    fun `a file no longer shipped leaves originals`() {
+        SystemFiles.sync(folder, "boutique", system())
+        val other = TemplateDeclaration.builder("menus", 2).system().file("menus/other.yml", "title: O\n".toByteArray()).build()
+        SystemFiles.sync(folder, "boutique", other)
+        assertTrue(!original().exists())
+        assertTrue(File(folder, "originals/menus/other.yml").isFile)
+        assertEquals(listOf("menus/other.yml"), index().required)
+    }
+
+    @Test
+    fun `an example the owner deleted before originals is excluded, not brought back`() {
+        File(folder, "artisan-module.yml").apply { parentFile.mkdirs(); writeText("schema: module/v1\n") }
+        val examples = TemplateDeclaration.builder("examples", 1).file("menus/shop_main.yml", "title: Shop\n".toByteArray()).build()
+        File(folder, ProjectOrigins.PATH).apply { parentFile.mkdirs() }
+            .writeBytes(ProjectOrigins.serialize(mapOf("menus/shop_main.yml" to FileOrigin("boutique", "examples", 1, hash("title: Shop\n")))))
+        SystemFiles.sync(folder, "boutique", examples, required = false, seeded = true)
+        assertTrue(original().isFile)
+        assertEquals(emptyList(), index().required)
+        val manifest = net.artisanmc.plugin.model.ManifestYaml.parse(File(folder, "artisan-module.yml").readText())!!
+        assertEquals(listOf("menus/shop_main.yml"), manifest.originals.exclude)
     }
 
     @Test
@@ -105,44 +151,10 @@ class SystemFilesTest {
     }
 
     @Test
-    fun `a file there before the module made it a system element counts as edited`() {
-        menu().apply { parentFile.mkdirs(); writeText("title: Copied once\n") }
-        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system()))
-        assertEquals("title: Copied once\n", menu().readText())
-        assertEquals(hash("title: Shop\n"), origin().hash)
-
-        File(root, "other/menus/shop_main.yaml").apply { parentFile.mkdirs(); writeText("title: Shop\n") }
-        val other = File(root, "other")
-        assertEquals(emptyList(), SystemFiles.sync(other, "boutique", system()), "the shipped content: recorded only")
-        assertEquals(hash("title: Shop\n"), ProjectOrigins.read(other).getValue("menus/shop_main.yaml").hash)
-    }
-
-    @Test
-    fun `a system file moved to a folder of the module is not written again`() {
-        SystemFiles.sync(folder, "boutique", system())
-        val moved = File(folder, "vitrine/menus/shop_main.yaml")
-        moved.parentFile.mkdirs()
-        menu().renameTo(moved)
-        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system()))
-        assertTrue(!menu().exists())
-    }
-
-    @Test
     fun `a system template seeds no project`() {
         assertFailsWith<IllegalArgumentException> {
             TemplateDeclaration.builder("menus", 1).system().seed("shop").file("menus/a.yaml", byteArrayOf(1)).build()
         }
         assertEquals(true, system().toWire()["system"])
-    }
-
-    @Test
-    fun `a copy an older start wrote under yaml is followed where it is`() {
-        val old = File(folder, "menus/shop_main.yaml").apply { parentFile.mkdirs(); writeText("title: Shop\n") }
-        File(folder, ProjectOrigins.PATH).apply { parentFile.mkdirs() }
-            .writeBytes(ProjectOrigins.serialize(mapOf("menus/shop_main.yaml" to FileOrigin("boutique", "menus", 1, hash("title: Shop\n")))))
-        assertEquals(listOf("menus/shop_main.yaml"), SystemFiles.sync(folder, "boutique", system(2, "title: Shop v2\n")))
-        assertEquals("title: Shop v2\n", old.readText())
-        assertTrue(!menu().exists(), "no .yml twin beside it")
-        assertEquals(2, ProjectOrigins.read(folder).getValue("menus/shop_main.yaml").version)
     }
 }

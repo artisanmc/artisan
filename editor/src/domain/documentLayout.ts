@@ -14,6 +14,13 @@
  * land in `variants`, ids unique per kind inside the variant. Without that file
  * nothing changes, even for a themed folder named `variants`.
  *
+ * **Originals** (design `originaux-modules`): `originals/…` holds what the module
+ * ships, laid out the same way (its variants included), written by the server only.
+ * An original Document is read unless the owner has a Document of the same kind
+ * and id (same variant) anywhere in the module, or `excluded` lists its path
+ * (relative to `originals/`, from the module file). Those read carry `original`
+ * and their `originals/…` path.
+ *
  * Mirror of the plugin's `DocumentLayout.kt`, locked by
  * `testdata/document-layout-conformance.json`.
  */
@@ -40,6 +47,14 @@ export const VARIANTS_FILE = "variants";
 /** The folder of the variants, at the module root. */
 export const VARIANTS_DIR = "variants";
 
+/** The folder of what the module ships, at the module root (design `originaux-modules`). */
+export const ORIGINALS_DIR = "originals";
+
+/** Whether `path` (relative to the module folder) is one of the module's originals: the server's to write. */
+export function isOriginalPath(path: string): boolean {
+  return path.startsWith(`${ORIGINALS_DIR}/`);
+}
+
 const FOLDER_RE = /^[a-z0-9][a-z0-9_-]*$/;
 
 /**
@@ -53,6 +68,8 @@ export interface LayoutEntry {
   id: string;
   folder: string;
   variant?: string;
+  /** Read from `originals/`: no Document of the owner covers it. */
+  original?: boolean;
 }
 
 export type LayoutErrorReason =
@@ -76,10 +93,28 @@ export interface LayoutResult {
   variants: LayoutEntry[];
 }
 
-/** Whether `paths` hold the module-root file that declares variants. */
+/** Whether `paths` hold the module-root file that declares variants, the owner's or the module's. */
 export function hasVariants(paths: Iterable<string>): boolean {
-  for (const p of paths) if (!p.includes("/") && yamlStem(p) === VARIANTS_FILE) return true;
-  return false;
+  return variantsPath(paths) !== undefined;
+}
+
+/** The variants' rules file in effect: the owner's at the module root, else the module's in `originals/`. */
+export function variantsPath(paths: Iterable<string>): string | undefined {
+  const all = [...paths].sort(byteOrder);
+  return (
+    all.find((p) => !p.includes("/") && yamlStem(p) === VARIANTS_FILE) ??
+    all.find(
+      (p) =>
+        isOriginalPath(p) &&
+        p.split("/").length === 2 &&
+        yamlStem(p.slice(ORIGINALS_DIR.length + 1)) === VARIANTS_FILE,
+    )
+  );
+}
+
+/** `menus/ranks.yml` and `menus/ranks.yaml` name the same file. */
+export function sameFile(path: string): string {
+  return yamlStem(path) ?? path;
 }
 
 /** Whether `name` may name a themed folder (slug, not a resource folder, not a kind folder). */
@@ -127,12 +162,48 @@ function classifyOne(
 export function classifyDocumentLayout(
   paths: Iterable<string>,
   kindDirs: ReadonlySet<string>,
+  excluded: Iterable<string> = [],
 ): LayoutResult {
-  const all = [...paths].sort(byteOrder);
+  const all = [...paths];
   const variantsOn = hasVariants(all);
+  const prefix = `${ORIGINALS_DIR}/`;
+  const own = tree(
+    all.filter((p) => !p.startsWith(prefix)),
+    kindDirs,
+    variantsOn,
+  );
+  const shipped = tree(
+    all.filter((p) => p.startsWith(prefix)).map((p) => p.slice(prefix.length)),
+    kindDirs,
+    variantsOn,
+  );
+  const covered = new Set(own.candidates.map(keyOf));
+  const off = new Set([...excluded].map(sameFile));
+  const originals = shipped.kept
+    .filter((e) => !covered.has(keyOf(e)) && !off.has(sameFile(e.path)))
+    .map((e): LayoutEntry => ({ ...e, path: prefix + e.path, original: true }));
+  const kept = [...own.kept, ...originals].sort((a, b) => byteOrder(a.path, b.path));
+  const errors = [
+    ...own.errors,
+    ...shipped.errors.map((e) => ({ ...e, path: prefix + e.path })),
+  ].sort((a, b) => byteOrder(a.path, b.path));
+  return {
+    documents: kept.filter((e) => !e.variant),
+    errors,
+    variants: kept.filter((e) => !!e.variant),
+  };
+}
+
+const keyOf = (e: LayoutEntry) => `${e.variant ?? ""}\u0000${e.dir}\u0000${e.id}`;
+
+function tree(
+  paths: string[],
+  kindDirs: ReadonlySet<string>,
+  variantsOn: boolean,
+): { candidates: LayoutEntry[]; kept: LayoutEntry[]; errors: LayoutError[] } {
   const candidates: LayoutEntry[] = [];
   const errors: LayoutError[] = [];
-  for (const path of all) {
+  for (const path of [...paths].sort(byteOrder)) {
     const r =
       variantsOn && path.startsWith(`${VARIANTS_DIR}/`)
         ? classifyVariant(path, kindDirs)
@@ -141,18 +212,14 @@ export function classifyDocumentLayout(
     if ("reason" in r) errors.push(r);
     else candidates.push(r);
   }
-  const keyOf = (e: LayoutEntry) => `${e.variant ?? ""}\u0000${e.dir}\u0000${e.id}`;
   const count = new Map<string, number>();
   for (const e of candidates) count.set(keyOf(e), (count.get(keyOf(e)) ?? 0) + 1);
-  const documents: LayoutEntry[] = [];
-  const variants: LayoutEntry[] = [];
+  const kept: LayoutEntry[] = [];
   for (const e of candidates) {
     if ((count.get(keyOf(e)) ?? 0) > 1) errors.push({ path: e.path, reason: "duplicate_id" });
-    else if (e.variant) variants.push(e);
-    else documents.push(e);
+    else kept.push(e);
   }
-  errors.sort((a, b) => byteOrder(a.path, b.path));
-  return { documents, errors, variants };
+  return { candidates, kept, errors };
 }
 
 /** `variants/<name>/<rest>`: `rest` classified like a module path, under the variant `name`. */

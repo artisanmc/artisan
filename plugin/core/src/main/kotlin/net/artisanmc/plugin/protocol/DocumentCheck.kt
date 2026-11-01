@@ -79,6 +79,10 @@ class DocumentCheck(
                 problems += Problem(path, "layout", "this path cannot be written in a Project")
                 continue
             }
+            if (net.artisanmc.plugin.model.Originals.isOriginal(path)) {
+                problems += Problem(path, "layout", "originals/ holds what the module ships: the server writes it; write the same path without originals/ instead")
+                continue
+            }
             layout.errors.firstOrNull { it.path == path }?.let { problems += Problem(path, "layout", it.reason) }
             val entry = documents[path] ?: continue
             val text = project[path] ?: continue

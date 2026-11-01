@@ -16,6 +16,12 @@ package net.artisanmc.plugin.model
  * unique per kind inside the variant (the same id as a Document of the module is the point).
  * Without that file nothing changes, even for a themed folder named `variants`.
  *
+ * **Originals** (design `originaux-modules`): `originals/…` holds what the module ships, laid out
+ * the same way (its variants included), written by the server only. An original Document is
+ * read unless the owner has a Document of the same kind and id (same variant), anywhere in the
+ * module, or excludes its path ([classify]'s `excluded`, from `manifest.yaml`). Those read land
+ * in the same lists with [Entry.original] set and their `originals/…` path.
+ *
  * Pure function of the paths, so the plugin and the editor (`domain/documentLayout.ts`)
  * agree byte for byte — locked by `testdata/document-layout-conformance.json`.
  */
@@ -31,30 +37,67 @@ object DocumentLayout {
     /** The folder of the variants, at the module root. */
     const val VARIANTS_DIR = "variants"
 
+    /** The folder of what the module ships, at the module root (design `originaux-modules`). */
+    const val ORIGINALS_DIR = "originals"
+
     private val FOLDER = Regex("^[a-z0-9][a-z0-9_-]*$")
 
     /**
      * A Document found on disk. [folder] is the themed path, `""` at the module root (inside its
      * variant for a variant's Document). [variant] is `""` for the module's own Documents.
      */
-    data class Entry(val path: String, val dir: String, val id: String, val folder: String, val variant: String = "")
+    data class Entry(
+        val path: String,
+        val dir: String,
+        val id: String,
+        val folder: String,
+        val variant: String = "",
+        /** Read from [ORIGINALS_DIR]: no Document of the owner covers it. */
+        val original: Boolean = false,
+    )
 
     /** A file shaped like a Document that is refused, with a stable [reason] code. */
     data class Error(val path: String, val reason: String)
 
     data class Result(val documents: List<Entry>, val errors: List<Error>, val variants: List<Entry> = emptyList())
 
-    /** Whether [paths] hold the module-root file that declares variants. */
-    fun hasVariants(paths: Collection<String>): Boolean =
-        paths.any { !it.contains('/') && YamlFiles.stem(it) == VARIANTS_FILE }
+    /** Whether [paths] hold the module-root file that declares variants, the owner's or the module's. */
+    fun hasVariants(paths: Collection<String>): Boolean = variantsPath(paths) != null
+
+    /** The variants' rules file in effect: the owner's at the module root, else the module's in [ORIGINALS_DIR]. */
+    fun variantsPath(paths: Collection<String>): String? =
+        paths.filter { !it.contains('/') && YamlFiles.stem(it) == VARIANTS_FILE }.minOrNull()
+            ?: paths.filter { it.startsWith("$ORIGINALS_DIR/") && it.count { c -> c == '/' } == 1 && YamlFiles.stem(it.substringAfter('/')) == VARIANTS_FILE }.minOrNull()
+
+    /** `menus/ranks.yml` and `menus/ranks.yaml` name the same file. */
+    fun sameFile(path: String): String = YamlFiles.stem(path) ?: path
 
     /**
      * Classifies [paths] (relative to the module folder, `/`-separated) against the
      * registered [kindDirs]. Paths that are not Documents at all (resources,
-     * metadata, loose files, unregistered kind folders) appear in neither list.
+     * metadata, loose files, unregistered kind folders) appear in neither list. [excluded]: paths
+     * relative to [ORIGINALS_DIR] (`menus/ranks.yml`) whose original the owner does not want.
      */
-    fun classify(paths: Collection<String>, kindDirs: Set<String>): Result {
+    fun classify(paths: Collection<String>, kindDirs: Set<String>, excluded: Collection<String> = emptySet()): Result {
         val variantsOn = hasVariants(paths)
+        val prefix = "$ORIGINALS_DIR/"
+        val own = tree(paths.filter { !it.startsWith(prefix) }, kindDirs, variantsOn)
+        val shipped = tree(paths.filter { it.startsWith(prefix) }.map { it.removePrefix(prefix) }, kindDirs, variantsOn)
+        val covered = own.candidates.mapTo(HashSet(), ::key)
+        val off = excluded.mapTo(HashSet(), ::sameFile)
+        val originals = shipped.kept
+            .filter { key(it) !in covered && sameFile(it.path) !in off }
+            .map { it.copy(path = prefix + it.path, original = true) }
+        val kept = (own.kept + originals).sortedBy { it.path }
+        val errors = (own.errors + shipped.errors.map { it.copy(path = prefix + it.path) }).sortedBy { it.path }
+        return Result(kept.filter { it.variant.isEmpty() }, errors, kept.filter { it.variant.isNotEmpty() })
+    }
+
+    private fun key(e: Entry) = Triple(e.variant, e.dir, e.id)
+
+    private class Tree(val candidates: List<Entry>, val kept: List<Entry>, val errors: List<Error>)
+
+    private fun tree(paths: Collection<String>, kindDirs: Set<String>, variantsOn: Boolean): Tree {
         val candidates = mutableListOf<Entry>()
         val errors = mutableListOf<Error>()
         for (path in paths.sorted()) {
@@ -65,10 +108,9 @@ object DocumentLayout {
                 is Error -> errors += r
             }
         }
-        val duplicated = candidates.groupBy { Triple(it.variant, it.dir, it.id) }.filterValues { it.size > 1 }.values.flatten().toSet()
+        val duplicated = candidates.groupBy(::key).filterValues { it.size > 1 }.values.flatten().toSet()
         errors += duplicated.map { Error(it.path, "duplicate_id") }
-        val kept = candidates - duplicated
-        return Result(kept.filter { it.variant.isEmpty() }, errors.sortedBy { it.path }, kept.filter { it.variant.isNotEmpty() })
+        return Tree(candidates, candidates - duplicated, errors)
     }
 
     /** `variants/<name>/<rest>`: [rest] classified like a module path, under the variant [name]. */

@@ -589,6 +589,7 @@ class SyncedMenuProvider(
         val registry = templates()
         workspace.io.execute {
             val seeds = net.artisanmc.plugin.project.TemplateSeeds(roots, logger, seedLang)
+            val seededBefore = seeds.seeded()
             var wrote = false
             registry?.registered()?.forEach { (moduleId, list) ->
                 list.forEach { template ->
@@ -604,6 +605,18 @@ class SyncedMenuProvider(
                 list.filter { it.isSystem }.forEach { template ->
                     runCatching { if (syncSystemFiles(moduleId, template)) wrote = true }
                         .onFailure { logger?.warning("[Artisan] System elements '$moduleId/${template.id}' not written: ${it.message}") }
+                }
+                // The examples a module seeds into its own folder: originals too, optional.
+                list.filter { !it.isSystem }.forEach { template ->
+                    val dir = seeds.ownFolderSeed(moduleId, template) ?: return@forEach
+                    runCatching {
+                        val seeded = "$moduleId/${template.id}" in seededBefore
+                        val written = net.artisanmc.plugin.project.SystemFiles.sync(dir, moduleId, template, required = false, seeded = seeded)
+                        if (written.isNotEmpty()) {
+                            wrote = true
+                            logger?.info("[Artisan] Originals of '$moduleId/${template.id}' written in '${dir.name}': ${written.joinToString()}.")
+                        }
+                    }.onFailure { logger?.warning("[Artisan] Originals '$moduleId/${template.id}' not written: ${it.message}") }
                 }
             }
             if (wrote) refresh(folders = null, notifyModules = false)

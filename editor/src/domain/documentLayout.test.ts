@@ -6,7 +6,8 @@ import { classifyDocumentLayout, isValidFolderName } from "./documentLayout";
 describe("classifyDocumentLayout conformance", () => {
   for (const c of vector.cases) {
     it(c.name, () => {
-      expect(classifyDocumentLayout(c.paths, new Set(c.kindDirs))).toEqual({
+      const excluded = "excluded" in c ? (c.excluded as string[]) : [];
+      expect(classifyDocumentLayout(c.paths, new Set(c.kindDirs), excluded)).toEqual({
         documents: c.documents,
         errors: c.errors,
         variants: "variants" in c ? c.variants : [],

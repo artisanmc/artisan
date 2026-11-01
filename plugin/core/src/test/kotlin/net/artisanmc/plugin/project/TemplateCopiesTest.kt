@@ -106,12 +106,13 @@ class TemplateCopiesTest {
     }
 
     @Test
-    fun `a seed fills the module's own folder, created empty by moduleFolder`() {
+    fun `a seed into the module's own folder writes its module file, the examples are originals`() {
         val roots = ProjectRoots(coreRoot)
         val dir = roots.moduleFolder("attribution", "attribution", null)
         val seeds = TemplateSeeds(roots, defaultLang = { "fr" })
         assertTrue(seeds.seed("attribution", template(seed = "attribution")))
-        assertTrue(File(dir, "menus/daily.yml").isFile)
+        assertFalse(File(dir, "menus/daily.yml").exists(), "kept by SystemFiles, in originals/")
+        assertEquals(dir, seeds.ownFolderSeed("attribution", template(seed = "attribution")))
         assertEquals("schema: module/v1\ndefault_lang: fr\nlanguages: [fr]\n", File(dir, "artisan-module.yml").readText())
         assertEquals(setOf("attribution/daily"), seeds.seeded())
     }
@@ -126,7 +127,6 @@ class TemplateCopiesTest {
         assertFalse(seeds.seed("attribution", template(seed = "attribution")))
         assertEquals("mine", File(dir, "manifest.yaml").readText())
         assertEquals("edited", File(dir, "menus/daily.yaml").readText())
-        assertFalse(File(dir, "quest_groups/daily.yml").exists(), "a conflict writes nothing")
         assertEquals(setOf("attribution/daily"), seeds.seeded())
     }
 

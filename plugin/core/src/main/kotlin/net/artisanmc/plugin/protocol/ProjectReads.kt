@@ -89,7 +89,7 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
     fun asset(request: AssetRead) {
         val reply = replies.to(request, "asset_read_result")
         val (_, projectId, path) = request
-        if (!EditorPaths.isSafeProjectId(projectId) || !EditorPaths.isWritable(path) || !ProjectFilesReader.isBinary(path)) {
+        if (!EditorPaths.isSafeProjectId(projectId) || !EditorPaths.isReadable(path) || !ProjectFilesReader.isBinary(path)) {
             return reply.error("invalid_path")
         }
         replies.offThread("asset_read", workspace.io) {

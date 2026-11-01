@@ -23,6 +23,8 @@ data class ManifestYaml(
     @JsonProperty("lore_max_width") val loreMaxWidth: Int = 0,
     /** ESC reopens the previous screen of the stack instead of closing everything ([net.artisanmc.plugin.render.MenuListener]). */
     @JsonProperty("escape_goes_back") val escapeGoesBack: Boolean = false,
+    /** What the owner does with the module's originals (design `originaux-modules`). */
+    val originals: OriginalsYaml = OriginalsYaml(),
 ) {
     companion object {
         private val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule()
@@ -31,3 +33,6 @@ data class ManifestYaml(
         fun parse(text: String): ManifestYaml? = runCatching { yaml.readValue<ManifestYaml>(text) }.getOrNull()
     }
 }
+
+/** `originals:` of a module file: the shipped files the owner does not want, by path in `originals/`. */
+data class OriginalsYaml(val exclude: List<String> = emptyList())
