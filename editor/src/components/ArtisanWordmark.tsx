@@ -1,6 +1,7 @@
 import { type ModuleBrand, moduleBrand, themed } from "@/lib/moduleBrand";
 import { useModulesStore } from "@/state/modulesStore";
 import { useThemeStore } from "@/state/themeStore";
+import { useLayoutEffect, useRef, useState } from "react";
 
 function useBrandTheme(): "dark" | "light" {
   return useThemeStore((s) => s.theme) === "light" ? "light" : "dark";
@@ -69,30 +70,64 @@ export function ModuleLogo({
   );
 }
 
+/**
+ * Artisan's own crafting-table icon (the favicon, 16×16 grid): what a module's row shows while its
+ * icon loads from the hub, when it fails to, and for a module that ships none.
+ */
+export const DEFAULT_MODULE_ICON = "/logo.svg";
+
+/**
+ * [src] drawn at [size] px, with Artisan's icon in its place until it has loaded: the hub serves
+ * a module's icon on its own request, and an empty square or a jump would show meanwhile. A
+ * failed load keeps Artisan's icon.
+ */
+function BrandIcon({ src, size, className }: { src: string; size: number; className: string }) {
+  const [loaded, setLoaded] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const ref = useRef<HTMLImageElement>(null);
+  // Already in the cache, the image may be complete before React listens to its load.
+  useLayoutEffect(() => {
+    const img = ref.current;
+    if (img?.complete && img.naturalWidth > 0) setLoaded(src);
+  }, [src]);
+  const ready = loaded === src && failed !== src;
+  const fallback =
+    src === DEFAULT_MODULE_ICON || ready ? null : (
+      <img
+        src={DEFAULT_MODULE_ICON}
+        alt=""
+        aria-hidden="true"
+        width={size}
+        height={size}
+        className={className}
+      />
+    );
+  return (
+    <>
+      {fallback}
+      {failed !== src && (
+        <img
+          ref={ref}
+          src={src}
+          alt=""
+          aria-hidden="true"
+          width={size}
+          height={size}
+          onLoad={() => setLoaded(src)}
+          onError={() => setFailed(src)}
+          className={fallback ? `${className} hidden` : className}
+        />
+      )}
+    </>
+  );
+}
+
 /** A module's crafting-table icon (16×16 grid), ×3: the tile at the head of its home. */
 export function ModuleIcon({ src }: { src: string }) {
-  return (
-    <img
-      src={src}
-      alt=""
-      aria-hidden="true"
-      width={48}
-      height={48}
-      className="shrink-0 [image-rendering:pixelated]"
-    />
-  );
+  return <BrandIcon src={src} size={48} className="shrink-0 [image-rendering:pixelated]" />;
 }
 
 /** A module's icon at its own 16 px grid, ×1: its row in the sidebar, in place of the folder. */
 export function ModuleRowIcon({ src }: { src: string }) {
-  return (
-    <img
-      src={src}
-      alt=""
-      aria-hidden="true"
-      width={16}
-      height={16}
-      className="-my-px shrink-0 [image-rendering:pixelated]"
-    />
-  );
+  return <BrandIcon src={src} size={16} className="-my-px shrink-0 [image-rendering:pixelated]" />;
 }

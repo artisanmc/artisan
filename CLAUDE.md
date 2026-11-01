@@ -38,7 +38,6 @@ Not updating = the next session will not know the code changed.
 | `CONTEXT.md` | Domain glossary — **source of truth for terms**. |
 | `docs/architecture/invariants.md` | The critical invariants in detail (disk, CAS, exclusions, threads). |
 | `docs/architecture/modules.md` | Modular monolith: module abstraction, data sources + commands, how to add one. |
-| `docs/architecture/editions.md` | Jar gratuit / jar Pro (`-Pedition`), ce que le gratuit verrouille, règles. |
 | `docs/architecture/versioning.md` | The disciplines (CHANGELOG, versioned schemas, protocol version, REST `/api/v1/`). |
 | `docs/architecture/api-surface.md` | Stable public API surface (`@Stable`/`@Beta`/`@Internal`/`@Sunset`). |
 | `docs/architecture/ws-protocol.md` | Hub ↔ server messages (`/ws/plugin`) + `/ws/editor`. |

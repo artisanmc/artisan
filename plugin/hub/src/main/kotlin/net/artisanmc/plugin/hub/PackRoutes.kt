@@ -9,16 +9,11 @@ import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
  * pack host, where players then download it; either way it goes to `ResourcePackManager`:
  * delegation to the pack plugin or direct push. The Bedrock pack goes to `BedrockPackManager`
  * (Geyser hands it to Bedrock players), never to the host: Geyser downloads it, not the players.
- *
- * Building a Java pack is an Artisan Pro feature: the free [edition] refuses a new one (403
- * `pro_required`) but keeps serving the packs it already has, so content made with Pro still
- * renders after a switch to the free jar. The Bedrock pack is accepted in every edition.
  */
 class PackRoutes(
     private val servers: Servers,
     private val store: PackStore,
     private val cdn: PackCdn? = null,
-    private val edition: Edition = Edition.PRO,
     private val bedrock: PackStore? = null,
     /** Told of each pack the editor uploads ([PackBuilder.editorUploaded], shadow mode). */
     private val uploaded: (server: String, hash: String) -> Unit = { _, _ -> },
@@ -27,7 +22,6 @@ class PackRoutes(
 ) {
     fun register(router: Router) {
         router.on("PUT", "$SERVER/resource-pack", PUBLISH) { call ->
-            if (!edition.pro) return@on call.error(403, PRO_REQUIRED)
             val server = servers.of(call) ?: return@on call.error(404, "not_found")
             val zip = receive(call) ?: return@on
             val hash = store.put(zip)
@@ -67,6 +61,5 @@ class PackRoutes(
 
     companion object {
         private const val MAX_BYTES = 100 * 1024 * 1024
-        const val PRO_REQUIRED = "pro_required"
     }
 }
