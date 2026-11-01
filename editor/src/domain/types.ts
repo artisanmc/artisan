@@ -224,11 +224,12 @@ export interface VariantRule {
   id?: string;
   variant: string;
   enabled: boolean;
-  client?: "bedrock" | "java";
-  hasPack?: boolean;
-  permission?: string;
-  /** `when.condition`: an engine condition, kept as written (YAML value). */
-  condition?: unknown;
+  /**
+   * `if:`, all required: conditions of the action engine in the keyed wire of an action's `if:`
+   * (`{client_is: bedrock}`, `{has_resource_pack: true}`, `{has_permission: …}`). An old `when:`
+   * reads into this list.
+   */
+  conditions: unknown[];
 }
 
 /** What the canvas shows while "View as" a variant: its versions stand in for the module's. */
@@ -496,6 +497,8 @@ export type Condition =
   | { type: "has_xp"; amount: number }
   | { type: "has_level"; level: number }
   | { type: "world_is"; world: string }
+  | { type: "client_is"; client: "java" | "bedrock" }
+  | { type: "has_resource_pack" }
   | { type: "time_is"; range: "day" | "night" | { from_ticks: number; to_ticks: number } }
   | { type: "random_chance"; probability: number }
   | { type: "cooldown_passed"; cooldown_id: string }

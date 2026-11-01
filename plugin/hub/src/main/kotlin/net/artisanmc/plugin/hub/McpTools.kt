@@ -643,9 +643,9 @@ class McpTools(
         const val VARIANTS_HOWTO =
             "Variants: a module may show other versions of its menus and dialogs to some players (Bedrock, resource pack " +
                 "loaded, a permission, any condition). They are files too. `variants.yml` at the module root lists the display " +
-                "rules in order (`schema: variants/v1`, `rules: [{variant: textured, when: {has_pack: true}}, {variant: bedrock, " +
-                "when: {client: bedrock}}, {variant: dev, enabled: false, when: {permission: op}}]`; `when` takes client " +
-                "(bedrock|java), has_pack, permission and condition, all required together). A variant's version of " +
+                "rules in order (`schema: variants/v1`, `rules: [{variant: textured, if: [{has_resource_pack: true}]}, {variant: bedrock, " +
+                "if: [{client_is: bedrock}]}, {variant: dev, enabled: false, if: [{has_permission: op}]}]`; `if` lists " +
+                "conditions of the action engine, as in an action's `if`, all required; the old `when:` is still read). A variant's version of " +
                 "`menus/ranks.yml` is `variants/<name>/menus/ranks.yml`: same id, same `inputs`, a whole Document. A variant's " +
                 "command file (`variants/<name>/commands/<id>.yml`) holds only `actions`, `requirements`, `fallback`, on the root " +
                 "and on `subcommands` found by `name`. For each player and each file, the first enabled rule that holds and whose " +

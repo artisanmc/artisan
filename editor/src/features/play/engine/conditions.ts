@@ -42,6 +42,10 @@ export function evalCondition(c: Condition, env: ConditionEnv): boolean {
       return env.player.level >= c.level;
     case "world_is":
       return env.player.world === c.world;
+    case "client_is":
+      return (env.player.client ?? "java") === c.client;
+    case "has_resource_pack":
+      return env.player.hasPack ?? false;
     case "placeholder_equals":
       return env.render(c.placeholder) === env.render(c.value);
     case "placeholder_match":

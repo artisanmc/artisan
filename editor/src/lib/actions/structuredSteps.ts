@@ -142,6 +142,10 @@ export function conditionToStructured(c: Condition): Record<string, unknown> {
       return { has_level: c.level };
     case "world_is":
       return { world_is: c.world };
+    case "client_is":
+      return { client_is: c.client };
+    case "has_resource_pack":
+      return { has_resource_pack: true };
     case "random_chance":
       return { random_chance: c.probability };
     case "cooldown_passed":
@@ -207,6 +211,8 @@ const CONDITION_NAMES = new Set<string>([
   "has_xp",
   "has_level",
   "world_is",
+  "client_is",
+  "has_resource_pack",
   "random_chance",
   "cooldown_passed",
   "player_in_region",
@@ -250,6 +256,16 @@ function decodeCondition(raw: unknown): Condition | null {
       return { type: "has_level", level: num(value) };
     case "world_is":
       return { type: "world_is", world: str(value) };
+    case "client_is":
+      return {
+        type: "client_is",
+        client: str(value).toLowerCase() === "java" ? "java" : "bedrock",
+      };
+    // `has_resource_pack: false` reads as its negation, like the plugin.
+    case "has_resource_pack":
+      return value === false
+        ? { type: "not", of: { type: "has_resource_pack" } }
+        : { type: "has_resource_pack" };
     case "random_chance":
       return { type: "random_chance", probability: num(value) };
     case "cooldown_passed":

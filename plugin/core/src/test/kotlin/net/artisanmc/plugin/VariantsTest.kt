@@ -39,7 +39,13 @@ class VariantsTest {
         override val bedrock = bedrock
         override val hasPack = pack
         override fun hasPermission(permission: String) = permission in perms
-        override fun test(condition: Condition) = condition is Condition.HasPermission && condition.perm in perms
+        override fun test(condition: Condition): Boolean = when (condition) {
+            is Condition.HasPermission -> condition.perm in perms
+            is Condition.ClientIs -> (condition.client == "bedrock") == bedrock
+            Condition.HasResourcePack -> pack
+            is Condition.Not -> !test(condition.inner)
+            else -> false
+        }
     }
 
     @Test
@@ -227,5 +233,27 @@ class VariantsTest {
         }
         VariantRules.select(rules, { it == "textured" }, counting)
         assertEquals(0, asked)
+    }
+
+    @Test
+    fun `a rule's if lists the engine's conditions, client and pack among them`() {
+        val parsed = VariantRules.parse(
+            mapOf(
+                "schema" to "variants/v1",
+                "rules" to listOf(
+                    mapOf("variant" to "bedrock", "if" to listOf(mapOf("client_is" to "bedrock"))),
+                    mapOf("variant" to "flat", "if" to listOf(mapOf("has_resource_pack" to false), mapOf("has_permission" to "guilds.vip"))),
+                    mapOf("variant" to "bad", "if" to listOf(mapOf("nope" to 1))),
+                ),
+            ),
+            setOf("bedrock", "flat", "bad"),
+        )
+        assertEquals(listOf("bedrock", "flat"), parsed.rules.map { it.variant })
+        assertEquals(1, parsed.problems.size)
+        assertEquals(listOf(Condition.ClientIs("bedrock")), parsed.rules[0].conditions)
+        val pick = { who: VariantPlayer -> VariantRules.select(parsed.rules, { true }, who) }
+        assertEquals("bedrock", pick(player(bedrock = true)))
+        assertEquals("flat", pick(player(perms = setOf("guilds.vip"))))
+        assertNull(pick(player(pack = true, perms = setOf("guilds.vip"))))
     }
 }

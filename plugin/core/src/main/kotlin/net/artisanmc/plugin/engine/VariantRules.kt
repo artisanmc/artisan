@@ -9,6 +9,8 @@ package net.artisanmc.plugin.engine
  * The conditions of a rule are all required (and): [client] (`bedrock` or `java`), [hasPack]
  * (the player's client loaded the server's pack: Java pack, or Bedrock pack for a Bedrock
  * player), [permission], and [condition], any condition of the engine (`ConditionParser`).
+ * `if:` lists conditions of the action engine (keyed, as in an action's `if:`), all required too:
+ * the editor writes this form, `client_is` and `has_resource_pack` among them.
  * A rule without any is always true.
  */
 data class VariantRule(
@@ -19,6 +21,8 @@ data class VariantRule(
     val hasPack: Boolean? = null,
     val permission: String? = null,
     val condition: Condition? = null,
+    /** `if:`, the editor's form: conditions of the action engine, all required. */
+    val conditions: List<Condition> = emptyList(),
 )
 
 /** What a player is, for the rules: answered by the server, tested by [VariantRules.select]. */
@@ -91,7 +95,14 @@ object VariantRules {
         val condition = w["condition"]?.let {
             ConditionParser.parse(it as? Map<String, Any> ?: throw IllegalArgumentException("condition must be a mapping"))
         }
-        return VariantRule(id, variant, enabled, client, hasPack, w["permission"]?.toString(), condition)
+        val conditions = when (val list = r["if"]) {
+            null -> emptyList()
+            is List<*> -> list.mapIndexed { i, c ->
+                KeyedStepParser.parseConditionStrict(c) ?: throw IllegalArgumentException("if: condition ${i + 1} is not a condition: $c")
+            }
+            else -> listOfNotNull(KeyedStepParser.parseConditionStrict(list) ?: throw IllegalArgumentException("if: not a condition: $list"))
+        }
+        return VariantRule(id, variant, enabled, client, hasPack, w["permission"]?.toString(), condition, conditions)
     }
 
     /** Whether [rule] holds for [player]. */
@@ -100,7 +111,8 @@ object VariantRules {
             (rule.client == null || (rule.client == "bedrock") == player.bedrock) &&
             (rule.hasPack == null || rule.hasPack == player.hasPack) &&
             (rule.permission == null || player.hasPermission(rule.permission)) &&
-            (rule.condition == null || player.test(rule.condition))
+            (rule.condition == null || player.test(rule.condition)) &&
+            rule.conditions.all(player::test)
 
     /**
      * The variant [player] gets for a file: the variant of the first rule that holds and is in

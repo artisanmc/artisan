@@ -145,13 +145,15 @@ rules:                       # in order; implicit last: the module's own files
   - id: dev                  # optional, default: the variant name
     variant: dev
     enabled: false           # optional, default true
-    when: { permission: op }
+    if: [{ has_permission: op }]
   - variant: bedrock
-    when: { client: bedrock }          # bedrock | java
+    if: [{ client_is: bedrock }]       # bedrock | java
   - variant: textured
-    when: { has_pack: true }           # Java pack, or Bedrock pack for a Bedrock player
-# `when` also takes `condition:`, any engine condition ({type: has_permission, perm: …});
-# all keys are required together.
+    if: [{ has_resource_pack: true }]  # Java pack, or Bedrock pack for a Bedrock player
+# `if:` lists any conditions of the action engine (the keyed wire of an action's `if:`), all
+# required; the editor edits them with the action's condition editor. The old form,
+# `when: { client, has_pack, permission, condition }`, is still read (`VariantRule` keeps its
+# fields); the editor reads it into `if:` and writes `if:`.
 ```
 
 - `DocumentLayout` puts a variant's Documents in `Result.variants` (with their `variant`), ids

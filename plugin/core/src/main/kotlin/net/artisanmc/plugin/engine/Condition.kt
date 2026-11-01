@@ -10,6 +10,10 @@ sealed class Condition {
     data class PlaceholderMatch(val placeholder: String, val regex: String) : Condition()
     data class CooldownPassed(val cooldownId: String) : Condition()
     data class WorldIs(val world: String) : Condition()
+    /** The player's client: `java` or `bedrock` (through Geyser). */
+    data class ClientIs(val client: String) : Condition()
+    /** The player's client loaded the server's pack (the Bedrock pack for a Bedrock player). */
+    data object HasResourcePack : Condition()
     data class TimeIs(val range: String) : Condition()
     data class RandomChance(val probability: Double) : Condition()
     data class PlayerInRegion(val region: String) : Condition()

@@ -1,6 +1,6 @@
 import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import { commandId, dialogId, elementId, layerId, menuId, projectId } from "@/domain/ids";
-import type { Dialog, OpenProjects, Project } from "@/domain/types";
+import type { Dialog, Menu, OpenProjects, Project } from "@/domain/types";
 import { mockOpenProjects } from "@/mock/fixtures";
 import { useProjectsStore } from "@/state/projectsStore";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -173,7 +173,9 @@ describe("project mutators in the projects store", () => {
 
 describe("an edit while a variant is shown (design variantes-modules §9)", () => {
   it("makes the module's Document the variant's version, the module's stays as it was", async () => {
-    const { addVariant, showVariant, variantsHaving, versionOf } = await import("@/domain/variants");
+    const { addVariant, showVariant, variantsHaving, versionOf } = await import(
+      "@/domain/variants"
+    );
     const { documentLTextSites } = await import("@/domain/documentKindVisitors");
     const { setLText } = await import("@/lib/i18n");
     const { mutateProject, mutateMenu, project } = setup();
@@ -206,7 +208,7 @@ describe("an edit while a variant is shown (design variantes-modules §9)", () =
     expect(module.rows).toBe(before.rows);
     expect(JSON.stringify(project().i18nKeys[site.lText.key])).toBe(textBefore);
     expect(variantsHaving(project(), "menu", MENU)).toEqual(["test"]);
-    const version = project().variants!.documents.test!.menu![0]!;
+    const version = project().variants!.documents.test!.menu![0]! as Menu;
     expect(version.rows).toBe(1);
     const vSite = [...documentLTextSites("menu", version)][0]!;
     expect(vSite.lText.key).not.toBe(site.lText.key);

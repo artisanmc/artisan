@@ -532,11 +532,9 @@ it("reads a module's variants, keeps a command without its module's verbatim, wr
   const project = projectFromFiles(PID, files);
   expect(menusOf(project).map((m) => m.id)).toEqual(["ranks"]);
   expect(project.variants?.names).toEqual(["textured", "dev"]);
-  expect(
-    project.variants?.rules.map((r) => [r.variant, r.enabled, r.hasPack, r.permission]),
-  ).toEqual([
-    ["textured", true, true, undefined],
-    ["dev", false, undefined, "op"],
+  expect(project.variants?.rules.map((r) => [r.variant, r.enabled, r.conditions])).toEqual([
+    ["textured", true, [{ has_resource_pack: true }]],
+    ["dev", false, [{ has_permission: "op" }]],
   ]);
   const textured = project.variants?.documents.textured?.menu ?? [];
   expect(textured.map((m) => [m.id, m.folder])).toEqual([
