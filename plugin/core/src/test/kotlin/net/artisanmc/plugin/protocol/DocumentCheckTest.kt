@@ -34,6 +34,24 @@ class DocumentCheckTest {
     }
 
     @Test
+    fun `a variant's menu is checked like the module's, its command by the engine`() {
+        val variants = tree + mapOf(
+            "variants.yml" to "schema: variants/v1\nrules:\n  - variant: textured\n",
+            "menus/boutique.yml" to menu,
+            "commands/shop.yml" to "schema: command/v1\nname: shop\nactions: \"open_menu: boutique\"\n",
+        )
+        val bad = check.check("shop", variants, mapOf("variants/textured/menus/boutique.yml" to menu.replace("title: \"Boutique\"", "tittle: x")))
+        assertTrue(bad.any { it.stage == "schema" && "tittle" in it.message }, bad.toString())
+        assertEquals(emptyList(), check.check("shop", variants, mapOf("variants/textured/menus/boutique.yml" to menu)))
+        val command = check.check("shop", variants, mapOf("variants/textured/commands/shop.yml" to "permission: x\n"))
+        assertTrue(command.any { it.stage == "engine" && "variant_command_key" in it.message }, command.toString())
+        assertEquals(
+            emptyList(),
+            check.check("shop", variants, mapOf("variants/textured/commands/shop.yml" to "actions: \"open_menu: boutique\"\n")),
+        )
+    }
+
+    @Test
     fun `broken YAML stops at the yaml stage`() {
         val problems = check.check("shop", tree, mapOf("menus/boutique.yml" to "schema: menu/v1\nsize: [27"))
         assertEquals(listOf("yaml"), problems.map { it.stage })

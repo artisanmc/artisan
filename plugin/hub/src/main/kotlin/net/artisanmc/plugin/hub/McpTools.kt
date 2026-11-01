@@ -224,10 +224,12 @@ class McpTools(
                     "4. Tell the player the draft's name: they open it in the editor (Drafts), review, and click Deploy. This app may not " +
                         "deploy: the player can allow it in Settings → AI apps.",
                 "Visible text goes in the Document as written; references to other Documents use their id, e.g. `open_menu shop`.",
+                VARIANTS_HOWTO,
             ),
             "editor_url" to editorUrl().ifEmpty { null },
         )
     }
+
 
     private fun listDocuments(principal: McpPrincipal, args: JsonNode): Any {
         val project = projects.project(text(args, "project"))
@@ -237,7 +239,11 @@ class McpTools(
         val kinds = kinds(project.server)
         val layout = DocumentLayout.classify(tree.keys, kinds.keys)
         val documents = layout.documents.map { mapOf("path" to it.path, "kind" to kinds[it.dir], "id" to it.id) }
-        val listed = documents.map { it["path"] }.toSet()
+        val variantDocs = layout.variants.map {
+            mapOf("path" to it.path, "kind" to kinds[it.dir], "id" to it.id, "variant" to it.variant)
+        }
+        val rulesFile = tree.keys.firstOrNull { '/' !in it && it.substringBeforeLast('.') == DocumentLayout.VARIANTS_FILE }
+        val listed = (documents + variantDocs).map { it["path"] }.toSet() + listOfNotNull(rulesFile)
         @Suppress("UNCHECKED_CAST")
         val failed = (read["failed"] as? List<Map<String, Any?>>).orEmpty()
         val drafts = runCatching { projects.draft(principal, project, "list") }.getOrNull()
@@ -247,6 +253,13 @@ class McpTools(
             "project" to project.id,
             "draft_id" to draftId,
             "documents" to documents,
+            "variants" to rulesFile?.let { file ->
+                mapOf(
+                    "rules_file" to file,
+                    "names" to variantDocs.map { it["variant"] }.distinct(),
+                    "documents" to variantDocs,
+                )
+            },
             "other_files" to tree.keys.filter { it !in listed }.sorted(),
             "not_loaded" to if (draftId == null) failed else emptyList(),
             "your_drafts" to drafts,
@@ -626,6 +639,18 @@ class McpTools(
     private fun path(args: JsonNode) = text(args, "path").trim().removePrefix("/")
 
     companion object {
+        /** How a module's variants are written, through the same file tools (design `variantes-modules`). */
+        const val VARIANTS_HOWTO =
+            "Variants: a module may show other versions of its menus and dialogs to some players (Bedrock, resource pack " +
+                "loaded, a permission, any condition). They are files too. `variants.yml` at the module root lists the display " +
+                "rules in order (`schema: variants/v1`, `rules: [{variant: textured, when: {has_pack: true}}, {variant: bedrock, " +
+                "when: {client: bedrock}}, {variant: dev, enabled: false, when: {permission: op}}]`; `when` takes client " +
+                "(bedrock|java), has_pack, permission and condition, all required together). A variant's version of " +
+                "`menus/ranks.yml` is `variants/<name>/menus/ranks.yml`: same id, same `inputs`, a whole Document. A variant's " +
+                "command file (`variants/<name>/commands/<id>.yml`) holds only `actions`, `requirements`, `fallback`, on the root " +
+                "and on `subcommands` found by `name`. For each player and each file, the first enabled rule that holds and whose " +
+                "variant has the file wins, else the module's own file. list_documents shows the variants apart."
+
         /** A result as the model reads it: prose as it is, anything else as JSON, indented for an MCP client's reader. */
         fun resultText(body: Any?, indent: Boolean = true): String = body as? String
             ?: (if (indent) Call.mapper.writerWithDefaultPrettyPrinter() else Call.mapper.writer()).writeValueAsString(body)

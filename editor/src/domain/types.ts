@@ -206,11 +206,48 @@ export interface Project {
    */
   keptLangKeys?: string[];
   /**
+   * The module's variants (design `variantes-modules`): `variants.yml` and the menus and
+   * dialogs of `variants/<name>/`. Absent without `variants.yml`. See `domain/variants.ts`.
+   */
+  variants?: ProjectVariants;
+  /**
    * Owning Add-on module id (from `manifest.module`) when this is an Add-on's
    * dedicated project — drives the sidebar "Installed modules" grouping and is
    * round-tripped through the manifest (ADR `addon-owned-project-roots`).
    */
   ownerModule?: string;
+}
+
+/** A rule of `variants.yml`: when it holds and its variant has the file, the player sees that file. */
+export interface VariantRule {
+  /** As written; absent: the variant name serves as id. */
+  id?: string;
+  variant: string;
+  enabled: boolean;
+  client?: "bedrock" | "java";
+  hasPack?: boolean;
+  permission?: string;
+  /** `when.condition`: an engine condition, kept as written (YAML value). */
+  condition?: unknown;
+}
+
+/** What the canvas shows while "View as" a variant: its versions stand in for the module's. */
+export interface VariantView {
+  variant: string;
+  /** Ids, by kind, of the variant's Documents now in `Project.documents`. */
+  shown: Record<string, string[]>;
+  /** The module's Documents they cover, by kind, back in place when the view ends. */
+  hidden: Record<string, Document[]>;
+}
+
+export interface ProjectVariants {
+  /** `variants.yml`, in order. */
+  rules: VariantRule[];
+  /** Every variant, in order: the rules' then the folders'. */
+  names: string[];
+  /** Each variant's menus and dialogs, by kind; the viewed variant's sit in `Project.documents`. */
+  documents: Record<string, Record<string, Document[]>>;
+  view?: VariantView;
 }
 
 /** One editable unit of a Project, whatever its kind. A module's kind adds its own member. */

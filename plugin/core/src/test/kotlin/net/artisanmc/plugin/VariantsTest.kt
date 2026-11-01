@@ -94,6 +94,8 @@ class VariantsTest {
               - variant: textured
                 id: odd
                 when: { weather: rain }
+              - variant: empty
+                enabled: false
         """.trimIndent())
         write(m, "variants/textured/menus/ranks.yml", "schema: menu/v1\nsize: 27\ninputs:\n  - name: rank\n")
         write(m, "variants/textured/menus/main.yml", "schema: menu/v1\nsize: 27\n")
@@ -107,6 +109,7 @@ class VariantsTest {
         assertTrue(skipped.contains("variants/textured/commands/guild.yml: variant_command_unknown"), skipped.toString())
         assertTrue(skipped.any { it.startsWith("variants.yml: rule 2") }, skipped.toString())
         assertTrue(skipped.any { it.startsWith("variants.yml: rule 3 (odd): unknown condition 'weather'") }, skipped.toString())
+        assertTrue(skipped.none { it.startsWith("variants.yml: rule 4") }, skipped.toString())
     }
 
     @Test

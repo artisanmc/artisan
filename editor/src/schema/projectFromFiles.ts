@@ -39,7 +39,9 @@ import type {
   ModelFieldType,
   Project,
   ProjectId,
+  ProjectVariants,
 } from "@/domain/types";
+import { VARIANT_KINDS, rulesFromYaml } from "@/domain/variants";
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
 import { MODULE_FILE_NAMES, isYamlPath, yamlFilesUnder, yamlStem } from "@/lib/yamlFiles";
@@ -581,15 +583,45 @@ export function projectFromFiles(
     unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
     console.warn(`[projectFromFiles] ${projectId}: ${e.path} not read (${e.reason})`);
   }
-  // Variants (design `variantes-modules`): not edited here yet, kept verbatim with
-  // the rules file, so a deploy from the editor leaves them as they are.
+  // Variants (design `variantes-modules`, `domain/variants.ts`): their menus and dialogs
+  // read like the module's, the rules from `variants.yml`. A variant's command (its steps
+  // only) and any other kind are kept verbatim.
+  const variantsFile = projectPaths(files, projectId).find(
+    (p) => !p.includes("/") && yamlStem(p) === VARIANTS_FILE,
+  );
   const variantPaths = [
     ...layout.variants.map((e) => e.path),
-    ...projectPaths(files, projectId).filter(
-      (p) => !p.includes("/") && yamlStem(p) === VARIANTS_FILE,
-    ),
+    ...(variantsFile ? [variantsFile] : []),
   ];
-  for (const path of variantPaths) unreadFiles[path] = getFile(files, projectId, path) ?? "";
+  let variants: ProjectVariants | undefined;
+  if (variantsFile) {
+    const rules = rulesFromYaml(tryParse<Json>(getFile(files, projectId, variantsFile)));
+    const names = [
+      ...new Set([...rules.map((r) => r.variant), ...layout.variants.map((e) => e.variant!)]),
+    ];
+    const byVariant: ProjectVariants["documents"] = {};
+    for (const e of [...layout.variants].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+      const def = listDocumentKinds().find((d) => d.dir === e.dir);
+      const y =
+        def && VARIANT_KINDS.includes(def.kind)
+          ? tryParse<Json>(getFile(files, projectId, e.path))
+          : null;
+      if (!def || !y) {
+        unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
+        continue;
+      }
+      const r = documentCodec(def.kind).parse({ ...y, id: e.id }, convertOpts);
+      Object.assign(i18nKeys, r.i18nKeys);
+      unsupported.push(...r.unsupported);
+      const ofVariant = byVariant[e.variant!] ?? {};
+      byVariant[e.variant!] = ofVariant;
+      ofVariant[def.kind] = [
+        ...(ofVariant[def.kind] ?? []),
+        e.folder ? { ...r.doc, folder: e.folder } : r.doc,
+      ];
+    }
+    variants = { rules, names, documents: byVariant };
+  }
   const claimedPaths = new Set([
     ...layout.documents.map((e) => e.path),
     ...layout.errors.map((e) => e.path),
@@ -985,6 +1017,7 @@ export function projectFromFiles(
     ...(Object.keys(canvasEdges).length > 0 ? { canvasEdges } : {}),
     ...(Object.keys(moduleData).length > 0 ? { moduleData: { ...moduleData } } : {}),
     ...(Object.keys(unreadFiles).length > 0 ? { unreadFiles } : {}),
+    ...(variants ? { variants } : {}),
     ...(typeof manifest.module === "string" && manifest.module
       ? { ownerModule: manifest.module }
       : {}),

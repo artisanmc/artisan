@@ -1,5 +1,5 @@
-import { adoptProjectActionTexts } from "@/domain/i18nSites";
 import { normalizeDataSources } from "@/domain/dataModels";
+import { adoptProjectActionTexts } from "@/domain/i18nSites";
 import type { Project, ProjectId } from "@/domain/types";
 import type { AiEvent } from "@/lib/api/ai";
 import { yamlStem } from "@/lib/yamlFiles";

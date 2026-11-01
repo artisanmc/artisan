@@ -39,7 +39,10 @@ object VariantRules {
     private val CLIENTS = setOf("bedrock", "java")
     private val WHEN_KEYS = setOf("client", "has_pack", "permission", "condition")
 
-    /** Reads [root] (the file's mapping); a rule naming a variant outside [variants] is left out. */
+    /**
+     * Reads [root] (the file's mapping); a rule naming a variant outside [variants] is left out,
+     * reported unless it is off.
+     */
     @Suppress("UNCHECKED_CAST")
     fun parse(root: Map<String, Any?>, variants: Set<String>): Parsed {
         val problems = mutableListOf<String>()
@@ -55,7 +58,8 @@ object VariantRules {
             val id = r["id"]?.toString()?.ifEmpty { null } ?: variant
             when {
                 variant.isEmpty() -> problems += "$where: variant missing"
-                variant !in variants -> problems += "$where ($id): no variant '$variant' in variants/"
+                // A variant just created in the editor has a rule, off, and no file yet: nothing to say.
+                variant !in variants -> if (r["enabled"] != false) problems += "$where ($id): no variant '$variant' in variants/"
                 !seen.add(id) -> problems += "$where: id '$id' already used"
                 else -> return@mapIndexedNotNull runCatching { rule(id, variant, r) }
                     .onFailure { problems += "$where ($id): ${it.message}" }

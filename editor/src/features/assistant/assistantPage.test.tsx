@@ -1,10 +1,10 @@
+import { menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { resetAiStatus, resetConversations } from "@/features/project/assistant/useAssistant";
 import type { AiEvent } from "@/lib/api/ai";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantPage } from "./AssistantPage";
-import { menusOf } from "@/domain/documents";
 import { artifactsOf, conversationDrafts, menuIdOfPath, projectFromDraftTree } from "./artifacts";
 
 const api = vi.hoisted(() => ({

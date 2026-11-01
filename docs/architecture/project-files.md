@@ -166,8 +166,22 @@ rules:                       # in order; implicit last: the module's own files
   enabled rule that holds and whose variant has that file gives the copy shown
   (`VariantRules.select`, conditions evaluated only for a variant that has the file). At each
   opening, going back included; never while a menu stays open.
-- Editor: not edited yet; `projectFromFiles` keeps `variants.yml` and the variants' Documents in
-  `Project.unreadFiles`, so a deploy rewrites them as they are.
+- Editor (`domain/variants.ts`): `projectFromFiles` reads the rules into `Project.variants.rules`
+  and the variants' menus and dialogs into `Project.variants.documents` (variant → kind → docs);
+  a variant's command, or any other kind, stays verbatim in `Project.unreadFiles`. "View as"
+  (`showVariant`) swaps the viewed variant's versions into `Project.documents`, the module's they
+  cover parked in `variants.view.hidden`, so every editor and the canvas work unchanged.
+  `projectToFiles` and `projectTree` restore the module's view first (`withModuleView`), before
+  `rekeyProject`. Texts: a version gets keys of its own on creation (`createVersion` copies the
+  values), and the Documents out of view never hold a canonical key, so an edit minting one
+  cannot overwrite the twin's text. UI: `VariantSwitcher` (canvas toolbar), `VariantRulesDialog`,
+  `VariantTag` (board), `VariantVersionBar` (properties panel).
+- `documents_check` checks a variant's menu or dialog against its schema like the module's; a
+  variant's command goes through the engine load only (`CommandVariant`). A disabled rule naming
+  a variant without files is not reported (a variant just created in the editor).
+- MCP: `list_documents` lists `variants` (rules file, names, documents with their `variant`);
+  `artisan_overview`'s workflow explains the files (`McpTools.VARIANTS_HOWTO`). Writing goes through
+  `write_document` like any file.
 - Packs: the menus the Java and Bedrock packs read are those `DocumentLayout` classifies
   (`menuPaths.ts`, `DocumentLayout.menuPaths` in `plugin/pack`), themed folders and variants
   included, twin ids left out. A variant uses the module's `assets/`. A variant's menu has its own
@@ -183,7 +197,8 @@ rules:                       # in order; implicit last: the module's own files
   `RuntimeProject.variants`. `CommandRegistrar` compiles one tree per variant and `PackCommand`
   runs, for a player, the handler of the node at the same names in the tree their rules pick
   (`CommandVariants`); permissions, usage, completion and the console use the module's tree.
-- Not yet: a variant-only id (a menu only a variant has), editing variants in the editor.
+- Not yet: a variant-only id (a menu only a variant has), editing a variant's command steps in the
+  editor's command view, `based_on`, side-by-side preview, simulation of a player.
 
 The `data/` files carry the Data models **inlined**; `ltext` values are i18n keys
 resolved at bind, item values are material refs.

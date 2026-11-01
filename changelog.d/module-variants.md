@@ -2,7 +2,10 @@
   menus and dialogs under `variants/<name>/` (same ids), and its display rules pick, for each
   player and each file, the first variant whose rule holds and that has the file: `client:
   bedrock`, `has_pack`, `permission`, or any condition. Without `variants.yml`, nothing changes.
-  The editor keeps these files as they are; editing them in the editor comes later. The resource
+  In the editor, **View as** on the canvas toolbar shows a variant: its versions in place, the
+  module's shared documents faded; **Create a version for …** copies a menu or dialog into the
+  variant; **Display rules…** orders and edits the rules. AI apps (MCP) see the variants in
+  `list_documents` and write them like any file. The resource
   packs (Java and Bedrock) carry the variants' menus too, each Bedrock variant styled apart. A
   variant's command file changes only what the command runs (`actions`, `requirements`,
   `fallback`, sub-commands found by `name`); its name, aliases, permission and arguments stay the

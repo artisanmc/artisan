@@ -4,10 +4,11 @@
 // save). Each Document kind is written by its codec (`documentCodecs.ts`), data
 // sources by `dataV1FromDomain.ts`, translations by `langV1FromDomain.ts`.
 import { listDocumentKinds } from "@/domain/documentKinds";
-import { documentPath } from "@/domain/documentLayout";
+import { VARIANTS_DIR, VARIANTS_FILE, documentPath } from "@/domain/documentLayout";
 import { documentKeys, documentsOf } from "@/domain/documents";
 import { persistedFolderMeta } from "@/domain/folders";
 import type { Project } from "@/domain/types";
+import { rulesToYaml, withModuleView } from "@/domain/variants";
 import { listLanguages } from "@/lib/i18nUsages";
 import { nestLangTree } from "@/lib/langTree";
 import { MODULE_FILE, MODULE_SCHEMA, YAML_EXT } from "@/lib/yamlFiles";
@@ -40,7 +41,9 @@ function rawModuleFiles(data: unknown): Record<string, string> | null {
  * Transform a Project into a flat map of filename → YAML string.
  * Keys use the server-side path (e.g. "plugins/Artisan/projects/<id>/menus/shop_main.yaml").
  */
-export function projectToFiles(project: Project): Record<string, string> {
+export function projectToFiles(shown: Project): Record<string, string> {
+  // The files hold the module's own Documents in place, whatever variant the canvas shows.
+  const project = withModuleView(shown);
   const files: Record<string, string> = {};
 
   const yamlOpts = { lineWidth: 0 };
@@ -60,6 +63,24 @@ export function projectToFiles(project: Project): Record<string, string> {
         yamlOpts,
       );
     }
+  }
+
+  // Variants (`domain/variants.ts`): each version at the same place under `variants/<name>/`,
+  // the rules in `variants.yml`.
+  if (project.variants) {
+    for (const def of listDocumentKinds()) {
+      const codec = documentCodec(def.kind);
+      for (const name of project.variants.names) {
+        for (const doc of project.variants.documents[name]?.[def.kind] ?? []) {
+          files[`${base}/${VARIANTS_DIR}/${name}/${documentPath(def.dir, doc.id, doc.folder)}`] =
+            stringify(withoutId(codec.serialize(doc, project)), yamlOpts);
+        }
+      }
+    }
+    files[`${base}/${VARIANTS_FILE}${YAML_EXT}`] = stringify(
+      rulesToYaml(project.variants.rules),
+      yamlOpts,
+    );
   }
 
   // Captured items: the opaque serialized stack is the runtime truth — emit it
