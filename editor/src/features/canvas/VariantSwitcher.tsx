@@ -47,15 +47,17 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
           <button
             type="button"
             title={t("variants.viewAs")}
-            className={`flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] transition-colors ${
+            className={`flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[8px] px-2.5 text-[12px] transition-colors ${
               viewed
                 ? "bg-[var(--brand-soft)] text-[var(--brand)]"
                 : "text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
             }`}
           >
-            <Layers className="size-4" />
-            {t("variants.viewAs")} : {viewed ?? t("variants.module")}
-            <ChevronDown className="size-3.5 opacity-60" />
+            <Layers className="size-4 shrink-0" />
+            <span className="max-w-[16rem] truncate">
+              {t("variants.viewAsValue", { name: viewed ?? t("variants.module") })}
+            </span>
+            <ChevronDown className="size-3.5 shrink-0 opacity-60" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="center" side="top" className="w-64">

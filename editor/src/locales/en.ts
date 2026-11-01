@@ -1209,6 +1209,7 @@ export default {
   },
   variants: {
     viewAs: "View as",
+    viewAsValue: "View as: {{name}}",
     module: "Default",
     moduleHint: "The module's own files, the version every player gets without a rule",
     newVariant: "New variant…",

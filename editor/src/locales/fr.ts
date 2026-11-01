@@ -1232,6 +1232,7 @@ const fr: typeof en = {
   },
   variants: {
     viewAs: "Voir en tant que",
+    viewAsValue: "Voir en tant que : {{name}}",
     module: "Défaut",
     moduleHint: "Les fichiers du module, la version que reçoit tout joueur sans règle",
     newVariant: "Nouvelle variante…",
