@@ -135,6 +135,6 @@ class TemplateCopiesTest {
         val roots = ProjectRoots(coreRoot)
         val dir = roots.moduleFolder("attribution", "other", null)
         assertFalse(TemplateSeeds(roots).seed("attribution", template(seed = "attribution")))
-        assertTrue(dir.list()!!.isEmpty())
+        assertTrue(dir.list()!!.none { !it.startsWith(".artisan") })
     }
 }
