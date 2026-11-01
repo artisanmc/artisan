@@ -1,6 +1,6 @@
-import type { FieldTranslate } from "@/lib/aiTranslate";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
+import type { FieldTranslate } from "@/lib/aiTranslate";
 import { expect, it, vi } from "vitest";
 import { LocalizedField, missingLangs } from "./localized-field";
 

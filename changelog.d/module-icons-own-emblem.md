@@ -3,5 +3,3 @@
   the Conversations brand for older jars.
 - **Changed**: A module's home page heads with its icon and logo only; the "Module of the …
   plugin · en · fr" line under the logo is gone.
-- **Fixed**: A module's icon no longer leaves an empty square while it loads from the hub: the
-  editor's copy (or Artisan's tile) shows until it arrives.

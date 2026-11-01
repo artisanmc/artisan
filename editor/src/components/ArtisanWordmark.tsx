@@ -69,18 +69,8 @@ export function ModuleLogo({
   );
 }
 
-/**
- * [placeholder] painted under the icon: shown while the icon loads (or if it fails), then
- * covered by it, the tile being opaque.
- */
-function placeholderStyle(placeholder: string | undefined) {
-  return placeholder
-    ? { backgroundImage: `url("${placeholder}")`, backgroundSize: "100% 100%" }
-    : undefined;
-}
-
 /** A module's crafting-table icon (16×16 grid), ×3: the tile at the head of its home. */
-export function ModuleIcon({ src, placeholder }: { src: string; placeholder?: string }) {
+export function ModuleIcon({ src }: { src: string }) {
   return (
     <img
       src={src}
@@ -88,14 +78,13 @@ export function ModuleIcon({ src, placeholder }: { src: string; placeholder?: st
       aria-hidden="true"
       width={48}
       height={48}
-      style={placeholderStyle(placeholder)}
       className="shrink-0 [image-rendering:pixelated]"
     />
   );
 }
 
 /** A module's icon at its own 16 px grid, ×1: its row in the sidebar, in place of the folder. */
-export function ModuleRowIcon({ src, placeholder }: { src: string; placeholder?: string }) {
+export function ModuleRowIcon({ src }: { src: string }) {
   return (
     <img
       src={src}
@@ -103,7 +92,6 @@ export function ModuleRowIcon({ src, placeholder }: { src: string; placeholder?:
       aria-hidden="true"
       width={16}
       height={16}
-      style={placeholderStyle(placeholder)}
       className="-my-px shrink-0 [image-rendering:pixelated]"
     />
   );

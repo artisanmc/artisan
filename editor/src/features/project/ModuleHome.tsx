@@ -131,7 +131,7 @@ export function ModuleHome({
         <header className="flex flex-wrap items-center gap-3">
           {/* A module of the suite shows its own icon and logo; any other one, the tile. */}
           {brand?.icon ? (
-            <ModuleIcon src={brand.icon} placeholder={brand.iconPlaceholder} />
+            <ModuleIcon src={brand.icon} />
           ) : (
             <IconTile
               icon={Blocks}

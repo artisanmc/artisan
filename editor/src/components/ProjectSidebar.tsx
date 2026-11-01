@@ -569,8 +569,6 @@ interface ProjectItemProps {
   serverId: string | null;
   /** A plugin module's own icon, in place of the folder. */
   icon?: string;
-  /** What stands in for [icon] while it loads. */
-  iconPlaceholder?: string;
 }
 
 function SortableProjectItem(props: ProjectItemProps) {
@@ -590,7 +588,6 @@ function ProjectItem({
   count,
   serverId,
   icon,
-  iconPlaceholder,
   sortable,
   children,
   defaultExpanded = false,
@@ -645,7 +642,7 @@ function ProjectItem({
           }
         >
           {icon ? (
-            <ModuleRowIcon src={icon} placeholder={iconPlaceholder} />
+            <ModuleRowIcon src={icon} />
           ) : isActiveProject ? (
             <FolderOpen className="size-[15px] shrink-0" />
           ) : (
@@ -711,9 +708,7 @@ function PluginModuleItem({
     (e) => e.kind === "screen" && e.screen.id === params.screenId,
   );
   const [expanded, setExpanded] = useState(showsChild);
-  const brand = useModuleBrand(module.id);
-  const icon = brand?.icon;
-  const iconPlaceholder = brand?.iconPlaceholder;
+  const icon = useModuleBrand(module.id)?.icon;
   const entries = module.entries.length > 0 && (
     <ModuleEntries entries={module.entries} serverId={serverId} projects={module.projects} />
   );
@@ -728,7 +723,6 @@ function PluginModuleItem({
         serverId={serverIdOf(only)}
         defaultExpanded={showsChild}
         icon={icon}
-        iconPlaceholder={iconPlaceholder}
         sortable={sortable}
       >
         {entries}
@@ -752,7 +746,7 @@ function PluginModuleItem({
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-left text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
         >
           {icon ? (
-            <ModuleRowIcon src={icon} placeholder={iconPlaceholder} />
+            <ModuleRowIcon src={icon} />
           ) : (
             <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
           )}
