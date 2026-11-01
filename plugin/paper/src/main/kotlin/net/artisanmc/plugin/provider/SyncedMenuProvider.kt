@@ -769,6 +769,9 @@ class SyncedMenuProvider(
         rpm()?.applyPack(playerUrl, downloadUrl, hash)
     }
 
+    /** The Bedrock pack file in use, `cache/bedrock-pack/<sha1>.mcpack`. */
+    fun currentBedrockPack(): java.io.File? = bedrockPacks?.current
+
     /** The Bedrock pack built by the editor and served by the hub: [downloadUrl] is the hub's local address. */
     fun applyLocalBedrockPack(downloadUrl: String, hash: String) {
         bedrockPacks?.apply(downloadUrl, hash)

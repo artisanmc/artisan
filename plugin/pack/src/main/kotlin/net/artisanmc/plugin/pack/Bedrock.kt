@@ -326,9 +326,12 @@ internal object BedrockUi {
         return "artisan_${key}_$what"
     }
 
-    fun backgroundTexture(menu: BedrockMenu) = "textures/artisan/menus/${id(menu, "bg")}"
+    /** 16 hex chars of a SHA-256: Geyser warns about pack paths over 80 chars (mirror of `bedrockUi.ts`). */
+    private fun shortName(value: String) = sha256Hex(value.toByteArray(Charsets.UTF_8)).substring(0, 16)
 
-    fun buttonTexture(key: String) = "textures/artisan/$key"
+    fun backgroundTexture(menu: BedrockMenu) = "textures/artisan/m/${shortName(menu.key)}"
+
+    fun buttonTexture(key: String) = "textures/artisan/b/${shortName(key)}"
 
     private fun element(vararg pairs: Pair<String, Any?>): MutableMap<String, Any?> = linkedMapOf(*pairs)
 

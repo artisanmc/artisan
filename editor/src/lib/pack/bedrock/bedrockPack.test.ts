@@ -18,7 +18,7 @@ import {
   bedrockFieldOffset,
   bedrockMenuKey,
 } from "./bedrockTitle";
-import { LEAD_CANDIDATES, labelColor } from "./bedrockUi";
+import { LEAD_CANDIDATES, backgroundTexture, labelColor } from "./bedrockUi";
 
 const chest = new Uint8Array(
   readFileSync(new URL("../../../assets/minecraft/generic_54.png", import.meta.url)),
@@ -227,24 +227,22 @@ describe("buildBedrockPack", () => {
     expect(manifest2.header.uuid).toBe(manifest.header.uuid);
     expect(manifest2.header.version).not.toEqual(manifest.header.version);
     expect(Object.keys(unzipSync(a.bytes)).sort()).toEqual(Object.keys(a.files).sort());
+    // Geyser warns about pack paths over 80 chars (some Bedrock platforms fail to load them).
+    expect(Object.keys(a.files).filter((path) => path.length > 80)).toEqual([]);
   });
 
   test("composes each background: vanilla top under a styled menu, nothing under a transparent one", () => {
     const { files: out } = build();
     const shop = menus[0] as BedrockMenu;
     const info = menus[1] as BedrockMenu;
-    const shopBg = decodePng(
-      out[`textures/artisan/menus/artisan_${hex(shop.key)}_bg.png`] as Uint8Array,
-    );
+    const shopBg = decodePng(out[`${backgroundTexture(shop)}.png`] as Uint8Array);
     // The frame (ascent 13 → y 0, 100 tall) then the coin at (100, 40).
     expect([shopBg.width, shopBg.height]).toEqual([176, 100]);
     expect([...shopBg.data.subarray(0, 4)]).toEqual([0, 0, 255, 255]);
     expect([...shopBg.data.subarray((40 * 176 + 100) * 4, (40 * 176 + 100) * 4 + 4)]).toEqual([
       255, 255, 0, 255,
     ]);
-    const infoBg = decodePng(
-      out[`textures/artisan/menus/artisan_${hex(info.key)}_bg.png`] as Uint8Array,
-    );
+    const infoBg = decodePng(out[`${backgroundTexture(info)}.png`] as Uint8Array);
     expect([infoBg.width, infoBg.height]).toEqual([176, 17 + 3 * 18]);
     // The window corner is transparent; the title bar is not.
     expect(infoBg.data[(10 * 176 + 10) * 4 + 3]).toBe(255);

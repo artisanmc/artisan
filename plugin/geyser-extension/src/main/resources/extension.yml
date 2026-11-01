@@ -1,0 +1,6 @@
+id: artisan
+name: Artisan
+main: net.artisanmc.geyser.ArtisanGeyserExtension
+api: 2.12.0
+version: ${version}
+authors: [Artisan]
