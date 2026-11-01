@@ -517,3 +517,45 @@ it("reads a module of .yml files and its artisan-module.yml", () => {
   expect(p.dataSources.map((s) => String(s.id))).toEqual(["settings"]);
   expect(Object.entries(p.i18nKeys).find(([key]) => key === "k")?.[1].fr).toBe("nouveau");
 });
+
+it("reads a module's variants, keeps a command without its module's verbatim, writes a fixed point (design variantes-modules)", () => {
+  const files = {
+    [`${base}/manifest.yaml`]: "schema: manifest/v1\n",
+    [`${base}/variants.yml`]:
+      "schema: variants/v1\nrules:\n  - variant: textured\n    when: { has_pack: true }\n  - variant: dev\n    enabled: false\n    when: { permission: op }\n",
+    [`${base}/menus/ranks.yml`]: "schema: menu/v1\ntitle: Ranks\nsize: 27\nelements: []\n",
+    [`${base}/variants/textured/menus/ranks.yml`]: "schema: menu/v1\ntitle: T\nsize: 27\n",
+    [`${base}/variants/textured/shop/menus/info.yml`]: "schema: menu/v1\ntitle: I\nsize: 27\n",
+    [`${base}/variants/textured/commands/guild.yml`]:
+      "subcommands:\n  - name: info\n    actions: open_menu info\n",
+  };
+  const project = projectFromFiles(PID, files);
+  expect(menusOf(project).map((m) => m.id)).toEqual(["ranks"]);
+  expect(project.variants?.names).toEqual(["textured", "dev"]);
+  expect(project.variants?.rules.map((r) => [r.variant, r.enabled, r.conditions])).toEqual([
+    ["textured", true, [{ has_resource_pack: true }]],
+    ["dev", false, [{ has_permission: "op" }]],
+  ]);
+  const textured = project.variants?.documents.textured?.menu ?? [];
+  expect(textured.map((m) => [m.id, m.folder])).toEqual([
+    ["info", "shop"],
+    ["ranks", undefined],
+  ]);
+  const out = projectToFiles(project);
+  expect(out[`${base}/variants/textured/commands/guild.yml`]).toBe(
+    files[`${base}/variants/textured/commands/guild.yml`],
+  );
+  expect(
+    Object.keys(out)
+      .filter((k) => k.includes("variants"))
+      .sort(),
+  ).toEqual(
+    [
+      "variants.yml",
+      "variants/textured/commands/guild.yml",
+      "variants/textured/menus/ranks.yml",
+      "variants/textured/shop/menus/info.yml",
+    ].map((p) => `${base}/${p}`),
+  );
+  expect(projectToFiles(projectFromFiles(PID, out))).toEqual(out);
+});

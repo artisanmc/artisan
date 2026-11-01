@@ -5,7 +5,23 @@ import org.bukkit.Bukkit
 import org.bukkit.Material
 import net.artisanmc.plugin.integrations.SoftDepRegistry
 
-class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore) {
+/** What the server knows of a player's client, for `client_is` and `has_resource_pack`. */
+interface ClientProbe {
+    fun isBedrock(player: org.bukkit.entity.Player): Boolean
+    fun hasPack(player: org.bukkit.entity.Player): Boolean
+
+    /** A Java client without the pack: what a server without Geyser nor pack sees. */
+    object None : ClientProbe {
+        override fun isBedrock(player: org.bukkit.entity.Player) = false
+        override fun hasPack(player: org.bukkit.entity.Player) = false
+    }
+}
+
+class ConditionEvaluator(
+    val deps: SoftDepRegistry,
+    val cooldowns: CooldownStore,
+    val client: ClientProbe = ClientProbe.None,
+) {
 
     fun evaluateAll(conditions: List<Condition>, ctx: ExecutionContext): Boolean =
         conditions.all { evaluate(it, ctx) }
@@ -22,6 +38,8 @@ class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore
         is Condition.CooldownPassed    -> !cooldowns.isOnCooldown(condition.cooldownId, ctx.player.uniqueId, "player")
         is Condition.HasVar            -> ModuleVariableValues.has(ctx.player, ctx.projectId, condition.name)
         is Condition.WorldIs           -> ctx.player.world.name.equals(condition.world, ignoreCase = true)
+        is Condition.ClientIs          -> (condition.client == "bedrock") == client.isBedrock(ctx.player)
+        Condition.HasResourcePack      -> client.hasPack(ctx.player)
         is Condition.TimeIs            -> evaluateTime(ctx, condition.range)
         is Condition.RandomChance      -> Math.random() < condition.probability
         is Condition.PlayerInRegion    -> deps.worldGuard?.isInRegion(ctx.player, condition.region) ?: false

@@ -1267,6 +1267,56 @@ const fr: typeof en = {
     errPlayerRequired: "Cette source requiert un joueur en ligne — preview indisponible.",
     errFetchError: "Le module a échoué : {{message}}",
   },
+  variants: {
+    viewAs: "Voir en tant que",
+    viewAsValue: "Voir en tant que : {{name}}",
+    module: "Défaut",
+    moduleHint: "Les fichiers du module, la version que reçoit tout joueur sans règle",
+    newVariant: "Nouvelle variante…",
+    newVariantTitle: "Nouvelle variante",
+    newVariantHint:
+      "Un nom de dossier (minuscules, chiffres, - et _). Sa règle d'affichage commence désactivée : active-la dans les règles d'affichage.",
+    nameInvalid:
+      "Minuscules, chiffres, - et _ uniquement, en commençant par une lettre ou un chiffre.",
+    nameTaken: "Cette variante existe déjà.",
+    rules: "Règles d'affichage…",
+    rulesTitle: "Règles d'affichage",
+    rulesHint:
+      "Pour chaque joueur et chaque fichier, la première règle vraie dont la variante a ce fichier l'emporte ; sinon, le fichier du module.",
+    rulesEmpty: "Aucune variante pour l'instant.",
+    rule: "Règle {{n}}",
+    enabled: "Active",
+    variant: "Variante",
+    addRule: "Ajouter une règle",
+    removeRule: "Retirer la règle",
+    moveUp: "Monter",
+    moveDown: "Descendre",
+    removeVariant: "Supprimer la variante {{name}}",
+    removeVariantConfirm:
+      "Supprimer la variante {{name}}, ses {{count}} version(s) et ses règles ? Les fichiers partent à la corbeille du serveur à la prochaine publication.",
+    done: "Terminé",
+    viewing: "Variante affichée : {{name}}",
+    viewingHint:
+      "Les documents qui ont une version pour {{name}} la montrent ; les autres sont ceux du module, partagés par toutes les variantes.",
+    ownVersion: "Version pour {{name}}",
+    inherited: "Du module, partagé",
+    createVersion: "Créer une version pour {{name}}",
+    createVersionHint:
+      "Copie ce document dans la variante : les modifications ne changent alors que ce que voient les joueurs de {{name}}.",
+    dropVersion: "Retirer la version pour {{name}}",
+    dropVersionHint:
+      "La copie de la variante est supprimée ; ses joueurs revoient le document du module.",
+    commandLocked:
+      "Nom, alias, arguments, permission et sous-commandes sont ceux du module, communs à toutes les variantes : cette version ne change que ce qui s'exécute.",
+    editShared: "Les modifications s'appliquent à toutes les variantes.",
+    show: "Afficher",
+    showIf: "Si",
+    showAlways: "Toujours : tous les joueurs, sans condition.",
+    editMakesVersion: "Le modifier crée sa version pour {{name}} : celui du module reste tel quel.",
+    count_one: "{{count}} variante",
+    count_other: "{{count}} variantes",
+    badge: "A des versions dans : {{names}}",
+  },
   canvas: {
     systemElement: "système · {{module}}",
     systemDocumentKept:

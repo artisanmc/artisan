@@ -18,11 +18,14 @@ export function SubcommandTree({
   command,
   selected,
   onSelect,
+  locked = false,
 }: {
   projectId: ProjectId;
   command: Command;
   selected: CommandNodePath;
   onSelect: (path: CommandNodePath) => void;
+  /** A variant's version: the sub-commands are the module's, only selectable. */
+  locked?: boolean;
 }) {
   const { t } = useTranslation();
   const setCommandEnabled = useProjectsStore((s) => s.setCommandEnabled);
@@ -79,7 +82,7 @@ export function SubcommandTree({
                 </span>
               ) : null}
               {/* biome-ignore lint/a11y/useKeyWithClickEvents: only stops the row's click */}
-              <span className="flex" onClick={(e) => e.stopPropagation()}>
+              <span className={cx("flex", locked && "hidden")} onClick={(e) => e.stopPropagation()}>
                 <Switch
                   checked={node.enabled !== false}
                   aria-label={t("command.enabledLabel")}
@@ -89,7 +92,7 @@ export function SubcommandTree({
                   }
                 />
               </span>
-              {path.length > 0 ? (
+              {locked ? null : path.length > 0 ? (
                 <button
                   type="button"
                   title={t("command.removeSubcommand")}
@@ -113,6 +116,7 @@ export function SubcommandTree({
       </ul>
       <button
         type="button"
+        hidden={locked}
         onClick={() => {
           const added = addSubcommand({ projectId, commandId: command.id, sub: selected });
           if (added) onSelect(added);

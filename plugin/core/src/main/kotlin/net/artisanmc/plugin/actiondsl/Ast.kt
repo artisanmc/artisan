@@ -29,6 +29,8 @@ sealed interface DslCondition {
     data class HasXp(val amount: Double) : DslCondition
     data class HasLevel(val level: Double) : DslCondition
     data class WorldIs(val world: String) : DslCondition
+    data class ClientIs(val client: String) : DslCondition
+    data object HasResourcePack : DslCondition
     data class RandomChance(val probability: Double) : DslCondition
     data class CooldownPassed(val cooldownId: String) : DslCondition
     data class PlayerInRegion(val region: String) : DslCondition

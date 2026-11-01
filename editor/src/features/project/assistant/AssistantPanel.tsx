@@ -19,6 +19,7 @@ import {
 import type { AiEvent } from "@/lib/api/ai";
 import { cn } from "@/lib/cx";
 import { ASSISTANT_WIDTH, useAssistantPanelStore } from "@/state/assistantPanelStore";
+import { useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangle,
   Check,
@@ -42,7 +43,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ServerFilePicker } from "./ServerFilePicker";
 import { useAiStatus, useAssistant } from "./useAssistant";

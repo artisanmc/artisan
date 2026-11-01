@@ -1,6 +1,6 @@
 import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import { commandId, dialogId, elementId, layerId, menuId, projectId } from "@/domain/ids";
-import type { Dialog, OpenProjects, Project } from "@/domain/types";
+import type { Dialog, Menu, OpenProjects, Project } from "@/domain/types";
 import { mockOpenProjects } from "@/mock/fixtures";
 import { useProjectsStore } from "@/state/projectsStore";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -168,5 +168,69 @@ describe("project mutators in the projects store", () => {
     useProjectsStore.temporal.getState().undo();
     const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === P)!;
     expect(commandsOf(project)[0]!.name).toBe("heal");
+  });
+});
+
+describe("an edit while a variant is shown (design variantes-modules §9)", () => {
+  it("makes the module's Document the variant's version, the module's stays as it was", async () => {
+    const { addVariant, showVariant, variantsHaving, versionOf } = await import(
+      "@/domain/variants"
+    );
+    const { documentLTextSites } = await import("@/domain/documentKindVisitors");
+    const { setLText } = await import("@/lib/i18n");
+    const { mutateProject, mutateMenu, project } = setup();
+    const before = structuredClone(menusOf(project()).find((m) => m.id === MENU)!);
+    const site = [...documentLTextSites("menu", before)][0]!;
+    const textBefore = JSON.stringify(project().i18nKeys[site.lText.key]);
+    mutateProject(P, (p) => {
+      p.documents.dialog = []; // the fixture's bare dialog has no body
+      addVariant(p, "test");
+      showVariant(p, "test");
+      return false;
+    });
+    expect(versionOf(project(), "menu", MENU)).toBeUndefined();
+
+    // A text edit alone makes the version too.
+    mutateProject(P, (p) => {
+      const menu = menusOf(p).find((m) => m.id === MENU)!;
+      setLText(p, [...documentLTextSites("menu", menu)][0]!.lText, "en", "variant text");
+    });
+    expect(versionOf(project(), "menu", MENU)).toBe("test");
+    mutateMenu(P, MENU, (m) => {
+      m.rows = 1;
+    });
+
+    mutateProject(P, (p) => {
+      showVariant(p, undefined);
+      return false;
+    });
+    const module = menusOf(project()).find((m) => m.id === MENU)!;
+    expect(module.rows).toBe(before.rows);
+    expect(JSON.stringify(project().i18nKeys[site.lText.key])).toBe(textBefore);
+    expect(variantsHaving(project(), "menu", MENU)).toEqual(["test"]);
+    const version = project().variants!.documents.test!.menu![0]! as Menu;
+    expect(version.rows).toBe(1);
+    const vSite = [...documentLTextSites("menu", version)][0]!;
+    expect(vSite.lText.key).not.toBe(site.lText.key);
+    expect(project().i18nKeys[vSite.lText.key]?.en).toBe("variant text");
+  });
+
+  it("a command's registration stays the module's edit", async () => {
+    const { addVariant, showVariant, versionOf } = await import("@/domain/variants");
+    const { mutateProject, mutateCommand, project } = setup();
+    mutateProject(P, (p) => {
+      p.documents.dialog = []; // the fixture's bare dialog has no body
+      addVariant(p, "test");
+      showVariant(p, "test");
+      return false;
+    });
+    mutateCommand(P, CMD, (c) => {
+      c.aliases = ["soin"];
+    });
+    expect(versionOf(project(), "command", CMD)).toBeUndefined();
+    mutateCommand(P, CMD, (c) => {
+      c.steps = [];
+    });
+    expect(versionOf(project(), "command", CMD)).toBe("test");
   });
 });

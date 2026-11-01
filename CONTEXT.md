@@ -913,6 +913,25 @@ Non-examples:
 - A placeholder is not a Variable — it is display text, untyped and undeclared; a
   Module shares its state through Module variables, not through its placeholders.
 
+## Variant
+
+A named set of a **Module**'s menus, dialogs and command steps that replace, for some players, the files of
+the same id (`variants/<name>/menus/ranks.yml` for `menus/ranks.yml`): a textured version,
+one for Bedrock, one for VIPs, one in development. Every variant is loaded; none is
+"active" on the server. The **display rules** of `variants.yml` say which variant a player
+gets: in order, the first rule that holds **and** whose variant has the file wins, else the
+module's own file (the **default variant**). Chosen at each opening, file by file; ids never
+change, so code, commands and links open the same id. A **variant pack** is one or more
+variants distributed apart (later: marketplace). Cf. design `variantes-modules`.
+
+Non-examples:
+- A **Folder** is not a variant: it only arranges files, every player sees its Documents.
+- A theme is not a term of the code: the word is taken by the Folders (*themed folders*), and
+  a variant changes behaviour too (where the actions sit, which clicks).
+- What is registered for the server (a command's name, aliases, permission, arguments;
+  triggers, data sources, actions) has no variants: a variant's command file only changes what
+  the command runs (`actions`, `requirements`, `fallback`).
+
 ## Version
 
 A recorded state of a server **Project**: one per **Snapshot** that differs from

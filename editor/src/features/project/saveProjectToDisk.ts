@@ -1,5 +1,6 @@
 import { rekeyProject } from "@/domain/i18nSites";
 import type { Project } from "@/domain/types";
+import { showVariant, viewedVariant } from "@/domain/variants";
 import { DraftApiError } from "@/lib/api/projectDrafts";
 import type { ProjectFileConflict, ProjectFilesError } from "@/lib/api/projectFiles";
 import { projectClient } from "@/lib/projectClient";
@@ -19,6 +20,8 @@ import { publishPersistedDraft, usePersistedDraftStore } from "./persistedDrafts
  */
 export function projectTree(project: Project): Record<string, string> {
   const cloned = structuredClone(project);
+  // Before the keys are canonicalized: a variant's version must not take its module twin's.
+  showVariant(cloned, undefined);
   rekeyProject(cloned);
   const disk = useProjectBaselineStore.getState().get(project.id);
   return keepEquivalentText(
@@ -47,11 +50,14 @@ export function adoptDiskIntoProject(
   for (const [rel, content] of Object.entries(tree)) {
     canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
   }
-  return projectFromFiles(project.id, canonical, {
+  const adopted = projectFromFiles(project.id, canonical, {
     name: project.name,
     diskId: project.diskId,
     serverKeyId: project.serverKeyId,
   });
+  // The canvas keeps showing the variant it showed.
+  showVariant(adopted, viewedVariant(project));
+  return adopted;
 }
 
 export type SaveToDiskResult =

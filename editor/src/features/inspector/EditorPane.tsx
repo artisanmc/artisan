@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { docKey } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
 import { SelectionInspector } from "@/features/inspector/SelectionInspector";
+import { VariantVersionBar } from "@/features/inspector/VariantVersionBar";
 import {
   DocumentYamlView,
   documentRelPath,
@@ -70,6 +71,9 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
           <X className="size-4" />
         </Button>
       </div>
+      {project && docId && (
+        <VariantVersionBar projectId={projectId} project={project} docKey={docId} />
+      )}
       <div className="page-pane flex min-h-0 flex-1 flex-col overflow-hidden">
         {yamlMode && project && relPath ? (
           <DocumentYamlView key={relPath} project={project} relPath={relPath} />

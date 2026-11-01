@@ -141,6 +141,10 @@ function printAtom(c: Condition): string {
       return `has_level(${c.level})`;
     case "world_is":
       return `world_is(${arg(c.world)})`;
+    case "client_is":
+      return `client_is(${arg(c.client)})`;
+    case "has_resource_pack":
+      return "has_resource_pack";
     case "random_chance":
       return `random_chance(${num(c.probability)})`;
     case "cooldown_passed":

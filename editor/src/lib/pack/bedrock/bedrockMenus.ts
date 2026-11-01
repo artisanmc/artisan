@@ -148,15 +148,16 @@ export function bedrockMenusFromProject(
   const out: BedrockMenu[] = [];
   // The id is the file name, wherever the menu sits (themed folders included), as the
   // plugin reads it: a `id:` field in the file is ignored there, and the editor drops it.
-  const ids = new Map(
-    classifyDocumentLayout(
-      files.map((f) => f.path),
-      MENU_DIRS,
-    ).documents.map((d) => [d.path, d.id]),
+  // A variant's menu gets its own key: the plugin sends it for that variant only.
+  const layout = classifyDocumentLayout(
+    files.map((f) => f.path),
+    MENU_DIRS,
   );
+  const docs = new Map([...layout.documents, ...layout.variants].map((d) => [d.path, d]));
   for (const file of files) {
-    const id = ids.get(file.path);
-    if (id === undefined) continue;
+    const entry = docs.get(file.path);
+    if (entry === undefined) continue;
+    const id = entry.id;
     // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
     let doc: any;
     try {
@@ -215,7 +216,7 @@ export function bedrockMenusFromProject(
     out.push({
       projectId,
       id,
-      key: bedrockMenuKey(projectId, id),
+      key: bedrockMenuKey(projectId, id, entry.variant),
       rows,
       transparent: doc.vanilla_texture === false,
       images,

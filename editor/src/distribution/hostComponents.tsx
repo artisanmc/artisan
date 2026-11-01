@@ -1,7 +1,6 @@
 import { MiniMessageField } from "@/components/MiniMessageField";
 import { McScreen, McScreenControls, McText } from "@/components/mc-preview";
 import { LocalizedField } from "@/components/ui/localized-field";
-import { useFieldTranslate } from "@/lib/aiTranslate";
 import { SortableList } from "@/components/ui/sortable-list";
 import type { ProjectId } from "@/domain/types";
 import { AssetInput } from "@/features/assets/AssetInput";
@@ -12,6 +11,7 @@ import { OverlaySlotsComposer } from "@/features/canvas/overlay/OverlaySlotsComp
 import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
 import { ConditionsField } from "@/features/inspector/properties/ConditionsField";
 import { DocumentRefField } from "@/features/inspector/properties/DocumentRefField";
+import { useFieldTranslate } from "@/lib/aiTranslate";
 import type { HostComponents } from "@artisan/editor-sdk";
 
 /**

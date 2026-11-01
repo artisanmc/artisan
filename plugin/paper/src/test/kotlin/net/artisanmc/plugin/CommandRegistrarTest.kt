@@ -192,4 +192,33 @@ class CommandRegistrarTest {
         assertNotNull(shopCmd, "main command /shop must be registered even when an alias conflicts")
         registrar.unregisterAll()
     }
+
+    @Test fun `a player runs the steps of their variant, names and permissions stay the module's`() {
+        val say = { text: String -> listOf(mapOf("type" to "send_message", "text" to text)) }
+        val base = CommandYaml(
+            id = "guild", name = "guild", actions = say("base"),
+            subcommands = listOf(SubcommandYaml(name = "info", actions = say("base info"))),
+        )
+        val vip = base.copy(subcommands = listOf(SubcommandYaml(name = "info", actions = say("vip info"))))
+        val project = RuntimeProject(
+            projectId = "guilds", defaultLang = "en", languages = emptyList(),
+            documents = mapOf(DocumentKinds.COMMAND.kind to listOf(base)),
+            variants = mapOf("vip" to mapOf(DocumentKinds.COMMAND.kind to listOf(vip))),
+            variantRules = listOf(VariantRule("vip", "vip", permission = "guilds.vip")),
+        )
+        val registrar = CommandRegistrar(plugin.value, lang, Scheduler.Direct)
+        registrar.reload(listOf(project), executor(), evaluator)
+        val cmd = MockBukkit.getMock()!!.getCommandMap().getCommand("guild")!!
+        val server = MockBukkit.getMock()!!
+        val plain = server.addPlayer()
+        val member = server.addPlayer().also { it.addAttachment(plugin.value, "guilds.vip", true) }
+
+        cmd.execute(plain, "guild", arrayOf("info"))
+        assertEquals("base info", plain.nextMessage())
+        cmd.execute(member, "guild", arrayOf("info"))
+        assertEquals("vip info", member.nextMessage())
+        cmd.execute(member, "guild", emptyArray())
+        assertEquals("base", member.nextMessage())
+        registrar.unregisterAll()
+    }
 }

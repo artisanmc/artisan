@@ -21,7 +21,7 @@ plugins/Artisan/modules/
     models/<id>.yml                ← schema model/v1; `<id>` = the source it types (owned model), otherwise the model id, the identity remains the internal `id:`
     assets/{glyphs,textures,fonts}/ ← images and fonts (binaries, written by publication)
     .artisan/editor.yaml           ← editor board state (the only `.artisan*` the editor writes)
-    .artisan/project-id            ← project UUID, written once by the plugin (keeps Versions and drafts across a rename)
+    .artisan/project-id            ← project UUID, written once by the plugin (keeps Versions and drafts across a rename); `addon:<folder>` in a module's own folder, so the key holds before the module registers it at startup
     .artisan/drafts/<id>/          ← drafts from before the suite database, no longer read
     .artisan/transactions/         ← publication journal, receipts in `.receipts/`
     .artisan/history/              ← archives from before 2026-09-26, read only
@@ -129,6 +129,81 @@ The rule is a pure function of paths, written twice and locked by
   `.artisan/editor.yaml` keeps under `folders:` the color and position of these frames, and
   the still-empty folders (nothing else on disk would remember them):
   `folders: { boutique: { color: "#a855f7", position: { x: 120, y: 240 } }, vide: {} }`.
+
+## Variants (`variants.yml`, `variants/`)
+
+Design `variantes-modules` (project files). A module that has `variants.yml` (or `.yaml`) at its
+root keeps its variants under `variants/<name>/`, each laid out like the module (kind folders,
+thematic folders, resources): `variants/textured/menus/ranks.yml` is the `textured` version of
+`menus/ranks.yml`. Without `variants.yml`, `variants/` is an ordinary thematic folder (nothing
+changes for an existing module).
+
+```yaml
+# variants.yml
+schema: variants/v1
+rules:                       # in order; implicit last: the module's own files
+  - id: dev                  # optional, default: the variant name
+    variant: dev
+    enabled: false           # optional, default true
+    if: [{ has_permission: op }]
+  - variant: bedrock
+    if: [{ client_is: bedrock }]       # bedrock | java
+  - variant: textured
+    if: [{ has_resource_pack: true }]  # Java pack, or Bedrock pack for a Bedrock player
+# `if:` lists any conditions of the action engine (the keyed wire of an action's `if:`), all
+# required; the editor edits them with the action's condition editor. The old form,
+# `when: { client, has_pack, permission, condition }`, is still read (`VariantRule` keeps its
+# fields); the editor reads it into `if:` and writes `if:`.
+```
+
+- `DocumentLayout` puts a variant's Documents in `Result.variants` (with their `variant`), ids
+  unique per kind **inside** a variant; a variant name is a slug (`invalid_variant`). Locked by
+  `testdata/document-layout-conformance.json`.
+- `ProjectReader` reads the variants' **menus and dialogs** into `RuntimeProject.variants`, the
+  rules into `RuntimeProject.variantRules` (`engine/VariantRules.kt`). Reported through `onSkip`, not
+  read: a variant menu whose `inputs` (name, type) differ from the module's menu of the same id
+  (`variant_inputs_mismatch`), a variant file of another kind (`variant_kind_unsupported`), a
+  rule naming a variant absent from `variants/`, with an unknown `when` key or a reused id.
+- `SyncedMenuProvider.openMenu` / `openDialog`: the id resolves as before, then the first
+  enabled rule that holds and whose variant has that file gives the copy shown
+  (`VariantRules.select`, conditions evaluated only for a variant that has the file). At each
+  opening, going back included; never while a menu stays open.
+- Editor (`domain/variants.ts`): `projectFromFiles` reads the rules into `Project.variants.rules`
+  and the variants' menus, dialogs and commands into `Project.variants.documents` (variant →
+  kind → docs). A command's version is read on the module's file (`schema/commandVariant.ts`,
+  twin of `CommandVariant`) into a whole `Command`, and written back as the steps that differ
+  from the module's; shown, it takes the module's registration as it is now
+  (`onModuleCommand`), and `CommandEditor` locks those fields. A command without its module's,
+  one the plugin would refuse, or any other kind stays verbatim in `Project.unreadFiles`. "View as"
+  (`showVariant`) swaps the viewed variant's versions into `Project.documents`, the module's they
+  cover parked in `variants.view.hidden`, so every editor and the canvas work unchanged.
+  `projectToFiles` and `projectTree` restore the module's view first (`withModuleView`), before
+  `rekeyProject`. Texts: a version gets keys of its own on creation (`createVersion` copies the
+  values), and the Documents out of view never hold a canonical key, so an edit minting one
+  cannot overwrite the twin's text. While a variant is shown, an edit of a module's Document (itself or one of its texts) makes it the variant's version (`versionEditedDocuments`, run by `mutateProject`), the module's restored; a command's registration edit stays the module's. UI: `VariantSwitcher` (canvas toolbar), `VariantRulesDialog`,
+  `VariantTag` (board), `VariantVersionBar` (properties panel).
+- `documents_check` checks a variant's menu or dialog against its schema like the module's; a
+  variant's command goes through the engine load only (`CommandVariant`). A disabled rule naming
+  a variant without files is not reported (a variant just created in the editor).
+- MCP: `list_documents` lists `variants` (rules file, names, documents with their `variant`);
+  `artisan_overview`'s workflow explains the files (`McpTools.VARIANTS_HOWTO`). Writing goes through
+  `write_document` like any file.
+- Packs: the menus the Java and Bedrock packs read are those `DocumentLayout` classifies
+  (`menuPaths.ts`, `DocumentLayout.menuPaths` in `plugin/pack`), themed folders and variants
+  included, twin ids left out. A variant uses the module's `assets/`. A variant's menu has its own
+  Bedrock key, hashed from `project:menu@variant` (`BedrockTitle.key` in paper, `bedrockMenuKey`),
+  so its background texture is its own; `RuntimeMenu.variant` carries it to the title. Vector:
+  `resource-pack-conformance.json`, case "variants: …".
+- Commands (design §17): `variants/<v>/commands/<id>.yml` holds only what runs, `actions`,
+  `requirements` and `fallback`, on the root and on `subcommands` nodes found by `name`
+  (`command/CommandVariant.kt`). Anything else (`name`, `aliases`, `permission`, `arguments`,
+  `description`, `cooldown`, a node the module's command lacks) is reported
+  (`variant_command_key: <path>.<key>`, `variant_command_node: <path>`) and the file not read; a
+  command the module does not have is `variant_command_unknown`. The merged `CommandYaml` sits in
+  `RuntimeProject.variants`. `CommandRegistrar` compiles one tree per variant and `PackCommand`
+  runs, for a player, the handler of the node at the same names in the tree their rules pick
+  (`CommandVariants`); permissions, usage, completion and the console use the module's tree.
+- Not yet: a variant-only id (a menu only a variant has), `based_on`, side-by-side preview, simulation of a player.
 
 The `data/` files carry the Data models **inlined**; `ltext` values are i18n keys
 resolved at bind, item values are material refs.

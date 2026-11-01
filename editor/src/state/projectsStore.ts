@@ -12,6 +12,7 @@ import { createMenusSlice } from "./projects/menusSlice";
 import { createProjectMutators } from "./projects/mutate";
 import { createProjectsSlice } from "./projects/projectsSlice";
 import type { ProjectsSliceContext, ProjectsState } from "./projects/types";
+import { createVariantsSlice } from "./projects/variantsSlice";
 
 export type { ProjectsState, AppearanceTarget, SourceValueUpdateResult } from "./projects/types";
 
@@ -57,6 +58,7 @@ export const useProjectsStore = create<ProjectsState>()(
         ...createFoldersSlice(context),
         ...createI18nSlice(context),
         ...createDataSlice(context),
+        ...createVariantsSlice(context),
       };
     },
     {

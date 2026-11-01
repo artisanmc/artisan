@@ -86,6 +86,11 @@ class SyncedMenuProvider(
     private val menuEvents: net.artisanmc.plugin.listener.MenuEventDispatcher? = null,
     /** Who plays from Bedrock (Geyser): their menus get the title the Bedrock pack reads. */
     private val isBedrock: (Player) -> Boolean = { false },
+    /**
+     * Whether the player's client loaded the server's pack (Java pack, or Bedrock pack for a
+     * Bedrock player): the `has_pack` of the variants' rules (design `variantes-modules`).
+     */
+    private val hasPack: (Player) -> Boolean = { false },
     /** Each loaded Snapshot, with the editor players whose publication it loads, by project id. */
     /** Each loaded Snapshot, with its publications' authors by project id; [done] announces the reload once it is recorded. */
     private val onSnapshot: (ProjectSnapshot, Map<String, net.artisanmc.plugin.project.PublicationAuthor>, done: () -> Unit) -> Unit =
@@ -400,11 +405,12 @@ class SyncedMenuProvider(
     fun projectDirs(): Map<String, File> = projects.projectIds.associateWith(roots::dirFor)
 
     override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
-        val menu = findMenu(menuId, ctx.projectId) ?: run {
+        val found = findMenu(menuId, ctx.projectId) ?: run {
             Chat.send(player, langManager?.get("cmd.menu_not_found", player, "id" to menuId)
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
+        val menu = inVariant(player, ctx, DocumentKinds.MENU.kind, found)
         // This menu's clicks resolve in ITS project, not in the one we came from.
         val opened = ctx.copy(projectId = menu.projectId.ifEmpty { null } ?: ctx.projectId)
         val ref = net.artisanmc.modules.api.menu.MenuRef(opened.projectId, menu.id)
@@ -432,11 +438,12 @@ class SyncedMenuProvider(
         resolveRef(dialogTable, "Dialog", ref, fromProject)
 
     override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {
-        val dialog = findDialog(dialogId, ctx.projectId) ?: run {
+        val found = findDialog(dialogId, ctx.projectId) ?: run {
             Chat.send(player, langManager?.get("cmd.dialog_not_found", player, "id" to dialogId)
                 ?: net.kyori.adventure.text.Component.text("Dialog '$dialogId' not found."))
             return
         }
+        val dialog = inVariant(player, ctx, DocumentKinds.DIALOG.kind, found)
         val executor = executorProvider?.invoke() ?: run {
             logger?.warning("openDialog called but executorProvider is null")
             return
@@ -460,6 +467,33 @@ class SyncedMenuProvider(
             runCatching { net.artisanmc.plugin.render.dialog.SpigotDialogRenderer.open(player, dialog, lang, decorated, executor) }
                 .onFailure { logger?.warning("[Artisan] dialog '$dialogId' not opened for ${player.name}: ${it.message}") }
         }
+    }
+
+    /**
+     * [found] as [player] sees it (design `variantes-modules`): the copy of the first variant
+     * whose rule holds and that has this file, else [found] itself. Chosen at each opening
+     * (going back included), never while the menu stays open.
+     */
+    private fun <T : RuntimeDocument> inVariant(player: Player, ctx: ExecutionContext, kind: String, found: T): T {
+        val project = runtimes.firstOrNull { it.projectId == projectOf(found) } ?: return found
+        if (project.variantRules.isEmpty()) return found
+        val who = object : net.artisanmc.plugin.engine.VariantPlayer {
+            override val bedrock by lazy { isBedrock(player) }
+            override val hasPack by lazy { this@SyncedMenuProvider.hasPack(player) }
+            override fun hasPermission(permission: String) = player.hasPermission(permission)
+            override fun test(condition: net.artisanmc.plugin.engine.Condition) = evaluator.evaluate(condition, ctx)
+        }
+        val variant = net.artisanmc.plugin.engine.VariantRules.select(
+            project.variantRules, { project.variantDocument(it, kind, found.id) != null }, who,
+        ) ?: return found
+        @Suppress("UNCHECKED_CAST")
+        return project.variantDocument(variant, kind, found.id) as? T ?: found
+    }
+
+    private fun projectOf(doc: RuntimeDocument): String = when (doc) {
+        is RuntimeMenu -> doc.projectId
+        is RuntimeDialog -> doc.projectId
+        else -> ""
     }
 
     /**

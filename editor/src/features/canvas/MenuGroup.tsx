@@ -18,6 +18,7 @@ import { PreviewContextBanner } from "./PreviewContextBanner";
 import { SlotDragGhosts } from "./SlotDragGhosts";
 import { SlotItem } from "./SlotItem";
 import { SystemTag } from "./SystemTag";
+import { INHERITED_OPACITY, VariantTag, useVariantStatus } from "./VariantTag";
 import { dispatchOpenElement } from "./canvasEvents";
 import { positionCount } from "./inventoryTypes";
 import { type SlotEntry, fanoutElements } from "./menuFanout";
@@ -158,6 +159,7 @@ export function MenuGroup({
   });
 
   const total = positionCount(type, menu.rows, menu.playerInventory);
+  const variantStatus = useVariantStatus(projectId, "menu", menu.id);
 
   return (
     <Group
@@ -176,9 +178,18 @@ export function MenuGroup({
       onDblTap={solo ? undefined : () => dispatchOpenElement(key)}
       name={`menu:${menu.id}`}
       id={key}
+      opacity={variantStatus === "inherited" ? INHERITED_OPACITY : 1}
     >
       <MenuBackground menu={menu} />
       {systemModule && !solo && <SystemTag module={systemModule} width={box.width} />}
+      {variantStatus && !solo && (
+        <VariantTag
+          projectId={projectId}
+          status={variantStatus}
+          width={box.width}
+          y={systemModule ? -28 : -14}
+        />
+      )}
       {/* Selection halo */}
       {isSelected ? (
         <Rect

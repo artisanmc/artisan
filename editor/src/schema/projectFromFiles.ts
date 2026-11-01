@@ -1,7 +1,7 @@
 import { normalizeBaseLore } from "@/domain/baseLore";
 import { parseCapturedStack } from "@/domain/capturedStack";
 import { listDocumentKinds } from "@/domain/documentKinds";
-import { classifyDocumentLayout } from "@/domain/documentLayout";
+import { VARIANTS_FILE, classifyDocumentLayout } from "@/domain/documentLayout";
 import {
   type DocKey,
   allDocuments,
@@ -39,11 +39,14 @@ import type {
   ModelFieldType,
   Project,
   ProjectId,
+  ProjectVariants,
 } from "@/domain/types";
+import { VARIANT_KINDS, rulesFromYaml } from "@/domain/variants";
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
-import { MODULE_FILE_NAMES, isYamlPath, yamlFilesUnder } from "@/lib/yamlFiles";
+import { MODULE_FILE_NAMES, isYamlPath, yamlFilesUnder, yamlStem } from "@/lib/yamlFiles";
 import { parse as parseYaml } from "yaml";
+import { mergeCommandVariant } from "./commandVariant";
 import { documentCodec } from "./documentCodecs";
 import { makeAppearanceConverter } from "./menuV1ToDomain";
 
@@ -581,9 +584,55 @@ export function projectFromFiles(
     unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
     console.warn(`[projectFromFiles] ${projectId}: ${e.path} not read (${e.reason})`);
   }
+  // Variants (design `variantes-modules`, `domain/variants.ts`): their menus and dialogs
+  // read like the module's, its commands on the module's (`commandVariant.ts`), the rules from
+  // `variants.yml`. Any other kind, or a command the plugin would refuse, is kept verbatim.
+  const variantsFile = projectPaths(files, projectId).find(
+    (p) => !p.includes("/") && yamlStem(p) === VARIANTS_FILE,
+  );
+  const variantPaths = [
+    ...layout.variants.map((e) => e.path),
+    ...(variantsFile ? [variantsFile] : []),
+  ];
+  let variants: ProjectVariants | undefined;
+  if (variantsFile) {
+    const rules = rulesFromYaml(tryParse<Json>(getFile(files, projectId, variantsFile)));
+    const names = [
+      ...new Set([...rules.map((r) => r.variant), ...layout.variants.map((e) => e.variant!)]),
+    ];
+    const byVariant: ProjectVariants["documents"] = {};
+    for (const e of [...layout.variants].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+      const def = listDocumentKinds().find((d) => d.dir === e.dir);
+      let y =
+        def && VARIANT_KINDS.includes(def.kind)
+          ? tryParse<Json>(getFile(files, projectId, e.path))
+          : null;
+      // A command's version holds only its steps: read on the module's command, whole.
+      if (y && def?.kind === "command") {
+        const own = layout.documents.find((d) => d.dir === e.dir && d.id === e.id);
+        const base = own ? tryParse<Json>(getFile(files, projectId, own.path)) : null;
+        y = base ? (mergeCommandVariant(base, y) as Json | null) : null;
+      }
+      if (!def || !y) {
+        unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
+        continue;
+      }
+      const r = documentCodec(def.kind).parse({ ...y, id: e.id }, convertOpts);
+      Object.assign(i18nKeys, r.i18nKeys);
+      unsupported.push(...r.unsupported);
+      const ofVariant = byVariant[e.variant!] ?? {};
+      byVariant[e.variant!] = ofVariant;
+      ofVariant[def.kind] = [
+        ...(ofVariant[def.kind] ?? []),
+        e.folder ? { ...r.doc, folder: e.folder } : r.doc,
+      ];
+    }
+    variants = { rules, names, documents: byVariant };
+  }
   const claimedPaths = new Set([
     ...layout.documents.map((e) => e.path),
     ...layout.errors.map((e) => e.path),
+    ...variantPaths,
   ]);
   const menus = menusOf({ documents });
 
@@ -975,6 +1024,7 @@ export function projectFromFiles(
     ...(Object.keys(canvasEdges).length > 0 ? { canvasEdges } : {}),
     ...(Object.keys(moduleData).length > 0 ? { moduleData: { ...moduleData } } : {}),
     ...(Object.keys(unreadFiles).length > 0 ? { unreadFiles } : {}),
+    ...(variants ? { variants } : {}),
     ...(typeof manifest.module === "string" && manifest.module
       ? { ownerModule: manifest.module }
       : {}),

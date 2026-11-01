@@ -11,6 +11,7 @@ import type { I18nSlice } from "./i18nSlice";
 import type { MenusSlice } from "./menusSlice";
 import type { ProjectMutators } from "./mutate";
 import type { ProjectsSlice } from "./projectsSlice";
+import type { VariantsSlice } from "./variantsSlice";
 
 export type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -35,7 +36,8 @@ export type ProjectsState = { openProjects: OpenProjects } & ProjectsSlice &
   CanvasSlice &
   FoldersSlice &
   I18nSlice &
-  DataSlice;
+  DataSlice &
+  VariantsSlice;
 
 /**
  * What a slice is built with: the store's `set` and `get`, the undo stack's reset, and

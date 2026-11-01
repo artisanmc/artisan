@@ -8,6 +8,12 @@
  * moving a Document between folders changes no reference, no `lang/` key, no
  * board key. One id per kind across the whole module.
  *
+ * **Variants** (design `variantes-modules`): when the module root holds
+ * `variants.yml` (or `.yaml`), `variants/<name>/…` is no themed folder: each
+ * `<name>` is a variant whose files follow the same layout, and its Documents
+ * land in `variants`, ids unique per kind inside the variant. Without that file
+ * nothing changes, even for a themed folder named `variants`.
+ *
  * Mirror of the plugin's `DocumentLayout.kt`, locked by
  * `testdata/document-layout-conformance.json`.
  */
@@ -28,14 +34,25 @@ export const RESOURCE_DIRS: ReadonlySet<string> = new Set([
 
 export const MAX_FOLDER_DEPTH = 3;
 
+/** The module-root file (`variants.yml` or `.yaml`) that turns `variants/` into the variants' folder. */
+export const VARIANTS_FILE = "variants";
+
+/** The folder of the variants, at the module root. */
+export const VARIANTS_DIR = "variants";
+
 const FOLDER_RE = /^[a-z0-9][a-z0-9_-]*$/;
 
-/** A Document found on disk. `folder` is the themed path, `""` at the module root. */
+/**
+ * A Document found on disk. `folder` is the themed path, `""` at the module root
+ * (inside its variant for a variant's Document). `variant` is set only on a
+ * variant's Document.
+ */
 export interface LayoutEntry {
   path: string;
   dir: string;
   id: string;
   folder: string;
+  variant?: string;
 }
 
 export type LayoutErrorReason =
@@ -43,7 +60,8 @@ export type LayoutErrorReason =
   | "kind_dir_subfolder"
   | "reserved_folder"
   | "invalid_folder"
-  | "too_deep";
+  | "too_deep"
+  | "invalid_variant";
 
 /** A file shaped like a Document that is refused. */
 export interface LayoutError {
@@ -54,6 +72,14 @@ export interface LayoutError {
 export interface LayoutResult {
   documents: LayoutEntry[];
   errors: LayoutError[];
+  /** The variants' Documents, each with its `variant`; empty without `variants.yml`. */
+  variants: LayoutEntry[];
+}
+
+/** Whether `paths` hold the module-root file that declares variants. */
+export function hasVariants(paths: Iterable<string>): boolean {
+  for (const p of paths) if (!p.includes("/") && yamlStem(p) === VARIANTS_FILE) return true;
+  return false;
 }
 
 /** Whether `name` may name a themed folder (slug, not a resource folder, not a kind folder). */
@@ -102,27 +128,46 @@ export function classifyDocumentLayout(
   paths: Iterable<string>,
   kindDirs: ReadonlySet<string>,
 ): LayoutResult {
+  const all = [...paths].sort(byteOrder);
+  const variantsOn = hasVariants(all);
   const candidates: LayoutEntry[] = [];
   const errors: LayoutError[] = [];
-  for (const path of [...paths].sort(byteOrder)) {
-    const r = classifyOne(path, kindDirs);
+  for (const path of all) {
+    const r =
+      variantsOn && path.startsWith(`${VARIANTS_DIR}/`)
+        ? classifyVariant(path, kindDirs)
+        : classifyOne(path, kindDirs);
     if (r === null) continue;
     if ("reason" in r) errors.push(r);
     else candidates.push(r);
   }
+  const keyOf = (e: LayoutEntry) => `${e.variant ?? ""}\u0000${e.dir}\u0000${e.id}`;
   const count = new Map<string, number>();
-  for (const e of candidates) {
-    const key = `${e.dir}\u0000${e.id}`;
-    count.set(key, (count.get(key) ?? 0) + 1);
-  }
+  for (const e of candidates) count.set(keyOf(e), (count.get(keyOf(e)) ?? 0) + 1);
   const documents: LayoutEntry[] = [];
+  const variants: LayoutEntry[] = [];
   for (const e of candidates) {
-    if ((count.get(`${e.dir}\u0000${e.id}`) ?? 0) > 1)
-      errors.push({ path: e.path, reason: "duplicate_id" });
+    if ((count.get(keyOf(e)) ?? 0) > 1) errors.push({ path: e.path, reason: "duplicate_id" });
+    else if (e.variant) variants.push(e);
     else documents.push(e);
   }
   errors.sort((a, b) => byteOrder(a.path, b.path));
-  return { documents, errors };
+  return { documents, errors, variants };
+}
+
+/** `variants/<name>/<rest>`: `rest` classified like a module path, under the variant `name`. */
+function classifyVariant(
+  path: string,
+  kindDirs: ReadonlySet<string>,
+): LayoutEntry | LayoutError | null {
+  const segs = path.split("/");
+  if (segs.length < 3) return null;
+  const name = segs[1]!;
+  const r = classifyOne(segs.slice(2).join("/"), kindDirs);
+  if (r === null) return null;
+  if ("reason" in r) return { path, reason: r.reason };
+  if (!FOLDER_RE.test(name)) return { path, reason: "invalid_variant" };
+  return { ...r, path, variant: name };
 }
 
 /** The file of a Document, relative to the module folder. */
