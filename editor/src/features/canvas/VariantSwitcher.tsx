@@ -19,11 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import type { ProjectId } from "@/domain/types";
 import { VARIANT_NAME, variantNames, viewedVariant } from "@/domain/variants";
+import { VariantRulesDialog } from "@/features/project/VariantRulesDialog";
 import { useProjectsStore } from "@/state/projectsStore";
 import { ChevronDown, Layers, ListOrdered, Plus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { VariantRulesDialog } from "./VariantRulesDialog";
 
 const MODULE = "__module__";
 
