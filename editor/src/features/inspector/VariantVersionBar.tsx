@@ -35,7 +35,13 @@ export function VariantVersionBar({
         <span className={own ? "badge badge-sage" : "badge"}>
           {own ? t("variants.ownVersion", { name: variant }) : t("variants.inherited")}
         </span>
-        {!own && <span className="text-[var(--text-mut)]">{t("variants.editShared")}</span>}
+        {!own && (
+          <span className="text-[var(--text-mut)]">
+            {variable
+              ? t("variants.editMakesVersion", { name: variant })
+              : t("variants.editShared")}
+          </span>
+        )}
       </div>
       {variable && (
         <Button

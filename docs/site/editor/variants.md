@@ -21,12 +21,14 @@ module's own documents) or one of the variants. While a variant is shown:
 - a document that has a version for this variant shows that version, tagged with the variant's
   name;
 - the others are faded and tagged **Module's, shared**: they are what this variant's players see
-  too, and editing them changes them for every variant.
+  too.
 
-Select a document to see the same in the properties panel. **Create a version for …** copies the
-module's document into the variant: from then on, edits change only what that variant's players
-see. **Remove the version for …** deletes the copy; the variant's players see the module's
-document again.
+Edit a faded document and it becomes this variant's version: your edit goes to the variant, the
+module's document stays as it was. Select a document to see the same in the properties panel.
+**Create a version for …** does the same without an edit. **Remove the version for …** deletes
+the copy; the variant's players see the module's document again. A command's name, aliases,
+arguments and permission are shared by every variant: editing them in a variant's view changes
+the module's command.
 
 **New variant…** in the same menu creates one. Its display rule starts **off**.
 

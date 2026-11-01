@@ -1284,6 +1284,7 @@ const fr: typeof en = {
     commandLocked:
       "Nom, alias, arguments, permission et sous-commandes sont ceux du module, communs à toutes les variantes : cette version ne change que ce qui s'exécute.",
     editShared: "Les modifications s'appliquent à toutes les variantes.",
+    editMakesVersion: "Le modifier crée sa version pour {{name}} : celui du module reste tel quel.",
     count_one: "{{count}} variante",
     count_other: "{{count}} variantes",
     badge: "A des versions dans : {{names}}",

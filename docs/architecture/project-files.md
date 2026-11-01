@@ -178,7 +178,7 @@ rules:                       # in order; implicit last: the module's own files
   `projectToFiles` and `projectTree` restore the module's view first (`withModuleView`), before
   `rekeyProject`. Texts: a version gets keys of its own on creation (`createVersion` copies the
   values), and the Documents out of view never hold a canonical key, so an edit minting one
-  cannot overwrite the twin's text. UI: `VariantSwitcher` (canvas toolbar), `VariantRulesDialog`,
+  cannot overwrite the twin's text. While a variant is shown, an edit of a module's Document (itself or one of its texts) makes it the variant's version (`versionEditedDocuments`, run by `mutateProject`), the module's restored; a command's registration edit stays the module's. UI: `VariantSwitcher` (canvas toolbar), `VariantRulesDialog`,
   `VariantTag` (board), `VariantVersionBar` (properties panel).
 - `documents_check` checks a variant's menu or dialog against its schema like the module's; a
   variant's command goes through the engine load only (`CommandVariant`). A disabled rule naming
