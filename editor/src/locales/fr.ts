@@ -1214,6 +1214,22 @@ const fr: typeof en = {
     errPlayerRequired: "Cette source requiert un joueur en ligne — preview indisponible.",
     errFetchError: "Le module a échoué : {{message}}",
   },
+  originals: {
+    original: "Version du module",
+    modified: "Ta version",
+    added: "Ajouté par toi",
+    tagModified: "ta version",
+    tagAdded: "ajouté",
+    required: "Le code du module l'ouvre : il ne peut pas être supprimé.",
+    compare: "Comparer avec l'original",
+    compareTitle: "{{name}} : la version du module et la tienne",
+    shipped: "Tel que le module le livre",
+    yours: "Ta version",
+    revert: "Revenir à l'original",
+    revertHint:
+      "Abandonne tes modifications : la version du module sert de nouveau et suit ses mises à jour.",
+    revertConfirm: "Abandonner tes modifications et revenir à la version du module ?",
+  },
   variants: {
     viewAs: "Voir en tant que",
     module: "Défaut",

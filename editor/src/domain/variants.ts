@@ -76,6 +76,15 @@ function ownKeys(project: Project, kind: string, doc: Document, copy: boolean): 
   }
 }
 
+const plain = <T>(v: T): T => structuredClone(isDraft(v) ? current(v) : v);
+
+/** A copy of [doc] (a draft's or not) whose texts have keys of their own, values copied. */
+export function copyDocument<D extends Document>(project: Project, kind: string, doc: D): D {
+  const out = plain(doc);
+  ownKeys(project, kind, out, true);
+  return out;
+}
+
 /** Shows [variant] on the canvas, or the module's own Documents when undefined. */
 export function showVariant(project: Project, variant: string | undefined): void {
   const v = project.variants;
@@ -134,8 +143,6 @@ export function showVariant(project: Project, variant: string | undefined): void
 
 /** The steps a command's version may change, kept in a node's `wire`. */
 const COMMAND_STEP_WIRE = ["requirements", "fallback"];
-
-const plain = <T>(v: T): T => structuredClone(isDraft(v) ? current(v) : v);
 
 /**
  * A command's version as shown: the module's command (name, aliases, arguments, permission,

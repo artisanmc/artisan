@@ -10,7 +10,13 @@ import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback, useMemo } from "react";
 import { Group, Rect, Text } from "react-konva";
-import { INHERITED_OPACITY, VariantTag, useVariantStatus } from "./VariantTag";
+import {
+  INHERITED_OPACITY,
+  OriginTag,
+  VariantTag,
+  useOriginTag,
+  useVariantStatus,
+} from "./VariantTag";
 import { dispatchOpenElement } from "./canvasEvents";
 import { commitNodeDrag } from "./commitNodeDrag";
 import { COMMAND_BOX, COMMAND_ROWS, commandBox } from "./menuLayout";
@@ -35,6 +41,7 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
   const key = docKey("command", command.id);
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(key));
   const variantStatus = useVariantStatus(projectId, "command", command.id);
+  const originTag = useOriginTag(projectId, "command", command.id);
   const nodeAlign = useNodeAlignment(projectId, key);
   const node = useNodeColors();
   const accent = useCssVar("--kind-command");
@@ -111,6 +118,7 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
       name={`command:${command.id}`}
       id={key}
     >
+      {originTag && <OriginTag status={originTag} width={size.width} y={-14} />}
       {variantStatus && (
         <VariantTag projectId={projectId} status={variantStatus} width={size.width} />
       )}

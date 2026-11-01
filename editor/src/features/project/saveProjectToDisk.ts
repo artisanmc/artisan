@@ -1,3 +1,4 @@
+import { isOriginalPath } from "@/domain/documentLayout";
 import { rekeyProject } from "@/domain/i18nSites";
 import type { Project } from "@/domain/types";
 import { showVariant, viewedVariant } from "@/domain/variants";
@@ -24,10 +25,14 @@ export function projectTree(project: Project): Record<string, string> {
   showVariant(cloned, undefined);
   rekeyProject(cloned);
   const disk = useProjectBaselineStore.getState().get(project.id);
-  return keepEquivalentText(
+  const tree = keepEquivalentText(
     keepYamlExtensions(toRelative(projectToFiles(cloned), project.diskId ?? project.id), disk),
     disk,
   );
+  // The module's originals are the server's: carried as they are on disk, never written.
+  for (const [path, text] of Object.entries(disk ?? {}))
+    if (isOriginalPath(path)) tree[path] = text;
+  return tree;
 }
 
 /**

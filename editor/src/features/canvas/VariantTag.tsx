@@ -1,3 +1,4 @@
+import { originStatus } from "@/domain/originals";
 import type { ProjectId } from "@/domain/types";
 import { VARIANT_KINDS, versionOf, viewedVariant } from "@/domain/variants";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -52,6 +53,48 @@ export function VariantTag({
       fontFamily="ui-monospace, monospace"
       fontSize={10}
       fill={status === "own" ? "#86efac" : "#9ca3af"}
+      listening={false}
+    />
+  );
+}
+
+/**
+ * In a module that ships originals (design `originaux-modules`): whether the Document is the
+ * owner's version over the module's, or the owner's own ("" when it is the module's as is).
+ */
+export function useOriginTag(
+  projectId: ProjectId,
+  kind: string,
+  id: string,
+): "" | "modified" | "added" {
+  return useProjectsStore((s) => {
+    const p = s.openProjects.projects.find((x) => x.id === projectId);
+    const status = p ? originStatus(p, kind, id) : undefined;
+    return status === "modified" || status === "added" ? status : "";
+  });
+}
+
+/** Right of the line above a Document: the owner's version, or the owner's own. */
+export function OriginTag({
+  status,
+  width,
+  y = -14,
+}: {
+  status: "modified" | "added";
+  width: number;
+  y?: number;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Text
+      y={y}
+      width={width}
+      align="right"
+      wrap="none"
+      text={t(status === "modified" ? "originals.tagModified" : "originals.tagAdded")}
+      fontFamily="ui-monospace, monospace"
+      fontSize={10}
+      fill={status === "modified" ? "#fbbf24" : "#86efac"}
       listening={false}
     />
   );

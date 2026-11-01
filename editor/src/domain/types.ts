@@ -210,6 +210,8 @@ export interface Project {
    * dialogs of `variants/<name>/`. Absent without `variants.yml`. See `domain/variants.ts`.
    */
   variants?: ProjectVariants;
+  /** What the module ships (`originals/`), when it ships anything. */
+  originals?: ProjectOriginals;
   /**
    * Owning Add-on module id (from `manifest.module`) when this is an Add-on's
    * dedicated project — drives the sidebar "Installed modules" grouping and is
@@ -248,6 +250,22 @@ export interface ProjectVariants {
   /** Each variant's menus and dialogs, by kind; the viewed variant's sit in `Project.documents`. */
   documents: Record<string, Record<string, Document[]>>;
   view?: VariantView;
+}
+
+/**
+ * What the module ships (design `originaux-modules`): `originals/`, written by the server.
+ * Read-only: the editor compares the Project's Documents to them and writes only those that
+ * differ; a shipped Document left out of the Project is excluded in the module file.
+ */
+export interface ProjectOriginals {
+  /** By variant (`""`: the module's own), then kind: the shipped Documents, as shipped. */
+  documents: Record<string, Record<string, Document[]>>;
+  /** The shipped `variants.yml`, when the module ships one. */
+  rules?: VariantRule[];
+  /** Paths relative to `originals/` the module's code needs (`originals/originals.yml`). */
+  required: string[];
+  /** The module file's `originals.exclude`, as read: kept for what the editor does not model. */
+  excluded: string[];
 }
 
 /** One editable unit of a Project, whatever its kind. A module's kind adds its own member. */

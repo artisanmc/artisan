@@ -1,3 +1,4 @@
+import { revertToOriginal } from "@/domain/originals";
 import type { ProjectId, VariantRule } from "@/domain/types";
 import {
   addVariant,
@@ -21,6 +22,8 @@ export interface VariantsSlice {
   /** The viewed variant drops its version: the module's Document shows again. */
   dropVersion: (projectId: ProjectId, kind: string, id: string) => void;
   setVariantRules: (projectId: ProjectId, rules: VariantRule[]) => void;
+  /** The Document shown becomes what the module ships again (`domain/originals.ts`). */
+  revertToOriginal: (projectId: ProjectId, kind: string, id: string) => void;
 }
 
 export const createVariantsSlice = ({ mutateProject }: ProjectsSliceContext): VariantsSlice => ({
@@ -47,4 +50,8 @@ export const createVariantsSlice = ({ mutateProject }: ProjectsSliceContext): Va
       if (!dropVersion(p, kind, id)) return false;
     }),
   setVariantRules: (projectId, rules) => mutateProject(projectId, (p) => setVariantRules(p, rules)),
+  revertToOriginal: (projectId, kind, id) =>
+    mutateProject(projectId, (p) => {
+      if (!revertToOriginal(p, kind, id)) return false;
+    }),
 });

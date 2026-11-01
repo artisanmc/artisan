@@ -912,6 +912,22 @@ Non-examples:
 - A placeholder is not a Variable — it is display text, untyped and undeclared; a
   Module shares its state through Module variables, not through its placeholders.
 
+## Original
+
+A Document a **Module** ships into its own folder, kept under `originals/` (written by the server
+only, rewritten at each start and module update). The owner's folder holds only their edits and
+additions; for the same kind and id, the owner's file wins. Each Document of the module is
+*original* (only in `originals/`), *modified* (both) or *added* (owner only). An original the owner
+does not want is listed in the module file (`originals.exclude`); a *required* one (the module's
+code opens it) cannot be. Cf. design `originaux-modules`.
+
+Non-examples:
+- A **Variant** is not an original: variants answer "which player sees which version", originals
+  "where does this file come from, did I change it". A module's variants are originals too
+  (`originals/variants/…`).
+- A template copied into another Project (`template_copy`) is not an original: it is the
+  owner's copy and does not follow the module's updates.
+
 ## Variant
 
 A named set of a **Module**'s menus, dialogs and command steps that replace, for some players, the files of

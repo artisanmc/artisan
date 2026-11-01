@@ -50,6 +50,9 @@ export const VARIANTS_DIR = "variants";
 /** The folder of what the module ships, at the module root (design `originaux-modules`). */
 export const ORIGINALS_DIR = "originals";
 
+/** The index of the originals (module, version, required files), written by the server. */
+export const ORIGINALS_INDEX = `${ORIGINALS_DIR}/originals.yml`;
+
 /** Whether `path` (relative to the module folder) is one of the module's originals: the server's to write. */
 export function isOriginalPath(path: string): boolean {
   return path.startsWith(`${ORIGINALS_DIR}/`);
