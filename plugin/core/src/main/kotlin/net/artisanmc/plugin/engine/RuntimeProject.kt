@@ -83,6 +83,8 @@ data class RuntimeMenu(
     val loreMaxWidth: Int = 0,
     /** From the project manifest — see [ManifestYaml.escapeGoesBack]. */
     val escapeGoesBack: Boolean = false,
+    /** The variant this menu comes from (`variants/<name>/`), `""` for the module's own. */
+    val variant: String = "",
 ) : RuntimeDocument {
     override val id: String get() = yaml.id
 

@@ -16,6 +16,9 @@ import net.artisanmc.plugin.platform.Chat
  * may run a node marked `console` whose actions are one `module_command`: the module's code
  * runs with the parsed arguments, without the node's requirements or cooldown, which test a
  * player.
+ *
+ * A player runs the tree of their variant ([variants]): same names, arguments and permissions,
+ * the variant's steps. Permissions, usage and completion read the module's tree.
  */
 class PackCommand(
     private val compiled: CompiledCommand,
@@ -26,6 +29,8 @@ class PackCommand(
     private val console: ModuleCommandRunner? = null,
     /** The module's provider for the argument at a position of the command it declares; null: Artisan's completion. */
     private val suggestions: (String, Int) -> SuggestionProvider? = { _, _ -> null },
+    /** The variants' trees: a player runs the steps of the one their rules pick. */
+    private val variants: CommandVariants? = null,
 ) : Command(
     compiled.name,
     compiled.description?.forLang(lang.defaultLang, lang.defaultLang) ?: "",
@@ -70,7 +75,8 @@ class PackCommand(
             lang = lang.playerLang(sender),
             projectId = projectId,
         )
-        executor.handle(node.handler, ctx)
+        val handler = variants?.treeFor(sender, ctx)?.let { tree -> follow(tree, path)?.handler } ?: node.handler
+        executor.handle(handler, ctx)
         return true
     }
 
@@ -98,6 +104,13 @@ class PackCommand(
             path += path.last().child(args[path.size - 1]) ?: break
         }
         return path
+    }
+
+    /** The node of [tree] at the names of [path] (the module's walk); null when the variant lost it. */
+    private fun follow(tree: CompiledCommand, path: List<CompiledCommand>): CompiledCommand? {
+        var node = tree
+        for (step in path.drop(1)) node = node.children.firstOrNull { it.name == step.name } ?: return null
+        return node
     }
 
     private fun allowed(sender: CommandSender, node: CompiledCommand) =

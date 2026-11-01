@@ -1,5 +1,5 @@
-import { isYamlPath } from "@/lib/yamlFiles";
 import { parse } from "yaml";
+import { menuPaths } from "./menuPaths";
 import { type RgbaImage, bitblt, createImage, decodePng, encodePng } from "./png";
 
 /**
@@ -58,8 +58,9 @@ export function transparentContainersFromMenus(
   files: { path: string; content: string }[],
 ): Set<GuiContainer> {
   const out = new Set<GuiContainer>();
+  const menus = menuPaths(files);
   for (const f of files) {
-    if (!f.path.startsWith("menus/") || !isYamlPath(f.path)) continue;
+    if (!menus.has(f.path)) continue;
     try {
       const doc = parse(f.content) as {
         vanilla_texture?: unknown;

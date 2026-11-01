@@ -168,8 +168,22 @@ rules:                       # in order; implicit last: the module's own files
   opening, going back included; never while a menu stays open.
 - Editor: not edited yet; `projectFromFiles` keeps `variants.yml` and the variants' Documents in
   `Project.unreadFiles`, so a deploy rewrites them as they are.
-- Not yet: a variant-only id (a menu only a variant has), command steps per variant, the
-  variants' images in the packs (the Bedrock pack leaves `variants/` out, as before the feature).
+- Packs: the menus the Java and Bedrock packs read are those `DocumentLayout` classifies
+  (`menuPaths.ts`, `DocumentLayout.menuPaths` in `plugin/pack`), themed folders and variants
+  included, twin ids left out. A variant uses the module's `assets/`. A variant's menu has its own
+  Bedrock key, hashed from `project:menu@variant` (`BedrockTitle.key` in paper, `bedrockMenuKey`),
+  so its background texture is its own; `RuntimeMenu.variant` carries it to the title. Vector:
+  `resource-pack-conformance.json`, case "variants: …".
+- Commands (design §17): `variants/<v>/commands/<id>.yml` holds only what runs, `actions`,
+  `requirements` and `fallback`, on the root and on `subcommands` nodes found by `name`
+  (`command/CommandVariant.kt`). Anything else (`name`, `aliases`, `permission`, `arguments`,
+  `description`, `cooldown`, a node the module's command lacks) is reported
+  (`variant_command_key: <path>.<key>`, `variant_command_node: <path>`) and the file not read; a
+  command the module does not have is `variant_command_unknown`. The merged `CommandYaml` sits in
+  `RuntimeProject.variants`. `CommandRegistrar` compiles one tree per variant and `PackCommand`
+  runs, for a player, the handler of the node at the same names in the tree their rules pick
+  (`CommandVariants`); permissions, usage, completion and the console use the module's tree.
+- Not yet: a variant-only id (a menu only a variant has), editing variants in the editor.
 
 The `data/` files carry the Data models **inlined**; `ltext` values are i18n keys
 resolved at bind, item values are material refs.

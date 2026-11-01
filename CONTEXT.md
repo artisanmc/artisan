@@ -914,7 +914,7 @@ Non-examples:
 
 ## Variant
 
-A named set of a **Module**'s menus and dialogs that replace, for some players, the files of
+A named set of a **Module**'s menus, dialogs and command steps that replace, for some players, the files of
 the same id (`variants/<name>/menus/ranks.yml` for `menus/ranks.yml`): a textured version,
 one for Bedrock, one for VIPs, one in development. Every variant is loaded; none is
 "active" on the server. The **display rules** of `variants.yml` say which variant a player
@@ -927,8 +927,9 @@ Non-examples:
 - A **Folder** is not a variant: it only arranges files, every player sees its Documents.
 - A theme is not a term of the code: the word is taken by the Folders (*themed folders*), and
   a variant changes behaviour too (where the actions sit, which clicks).
-- What is registered for the server (a command's name, aliases, permission; triggers, data
-  sources, actions) has no variants.
+- What is registered for the server (a command's name, aliases, permission, arguments;
+  triggers, data sources, actions) has no variants: a variant's command file only changes what
+  the command runs (`actions`, `requirements`, `fallback`).
 
 ## Version
 

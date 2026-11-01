@@ -21,6 +21,9 @@ class BedrockTitleTest {
         // sha256("lobby:shop") starts with 0x97 0xfa: U+F880 + 0x97 % 0x7F, U+F880 + 0xfa % 0x7F.
         assertEquals("", BedrockTitle.key("lobby", "shop"))
         assertNotEquals(BedrockTitle.key("lobby", "shop"), BedrockTitle.key("lobby", "shop2"))
+        // A variant's menu: sha256("guilds:main@textured") starts with 0x9d 0x8b (same in bedrockPack.test.ts).
+        assertEquals("\uF89E\uF88C", BedrockTitle.key("guilds", "main", "textured"))
+        assertEquals(BedrockTitle.key("guilds", "main"), BedrockTitle.key("guilds", "main", ""))
     }
 
     @Test fun `only chests of 3 or 6 rows with a visible inventory are styled`() {

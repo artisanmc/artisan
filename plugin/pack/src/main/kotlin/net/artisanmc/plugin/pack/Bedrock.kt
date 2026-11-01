@@ -32,8 +32,10 @@ internal object BedrockTitle {
     const val PAD2 = "\u00A0"
     private const val CONTROL_BYTES = 3
 
-    fun menuKey(projectId: String, menuId: String): String {
-        val hex = sha256Hex("$projectId:$menuId".toByteArray(Charsets.UTF_8))
+    /** `variant` empty for the module's own menu; a variant's menu hashes `project:menu@variant`. */
+    fun menuKey(projectId: String, menuId: String, variant: String = ""): String {
+        val seed = if (variant.isEmpty()) "$projectId:$menuId" else "$projectId:$menuId@$variant"
+        val hex = sha256Hex(seed.toByteArray(Charsets.UTF_8))
         val b0 = hex.substring(0, 2).toInt(16)
         val b1 = hex.substring(2, 4).toInt(16)
         return String(Character.toChars(KEY_BASE + b0 % KEY_RANGE)) + String(Character.toChars(KEY_BASE + b1 % KEY_RANGE))
@@ -94,24 +96,32 @@ internal class BedrockMenu(
 
 /**
  * Where a module's Documents live (`documentLayout.ts`, `DocumentLayout.kt` in core): zero to three
- * themed folders, then the kind folder, then `<id>.yml`. Only what the Bedrock menus need: the id of
- * each Document path, duplicates left out.
+ * themed folders, then the kind folder, then `<id>.yml`. With `variants.yml` at the module root,
+ * `variants/<name>/` holds a variant laid out the same way (design `variantes-modules`). Only what
+ * the packs need: the id and variant of each Document path, duplicates left out.
  */
 internal object DocumentLayout {
     private val RESOURCE_DIRS = setOf("lang", "items", "data", "models", "templates", "assets", "overrides", "config")
     private const val MAX_FOLDER_DEPTH = 3
     private val FOLDER = Regex("^[a-z0-9][a-z0-9_-]*$")
 
-    /**
-     * Document path → id, for the kinds of [kindDirs]. With `variants.yml` at the module root,
-     * `variants/` holds the variants (design `variantes-modules`), not a themed folder: left out here.
-     */
-    fun ids(paths: List<String>, kindDirs: Set<String>): Map<String, String> {
-        val candidates = ArrayList<Triple<String, String, String>>()
+    /** A Document's id, and its variant (`""` for the module's own). */
+    data class Doc(val id: String, val variant: String)
+
+    /** Document path → [Doc], for the kinds of [kindDirs]. */
+    fun docs(paths: List<String>, kindDirs: Set<String>): Map<String, Doc> {
+        val candidates = ArrayList<Triple<String, String, Doc>>()
         val variantsOn = paths.any { '/' !in it && YamlPaths.stem(it) == "variants" }
         for (path in paths.sorted()) {
-            if (variantsOn && path.startsWith("variants/")) continue
-            val segs = path.split("/")
+            var rest = path
+            var variant = ""
+            if (variantsOn && path.startsWith("variants/")) {
+                val segs = path.split("/")
+                if (segs.size < 3 || !FOLDER.matches(segs[1])) continue
+                variant = segs[1]
+                rest = segs.drop(2).joinToString("/")
+            }
+            val segs = rest.split("/")
             if (segs.any { it.isEmpty() || it.startsWith(".") }) continue
             val id = YamlPaths.stem(segs.last()) ?: continue
             val dirs = segs.dropLast(1)
@@ -120,11 +130,15 @@ internal object DocumentLayout {
             if (kindAt < 0 || kindAt != dirs.size - 1) continue
             val folders = dirs.subList(0, kindAt)
             if (folders.any { it in RESOURCE_DIRS || !FOLDER.matches(it) } || folders.size > MAX_FOLDER_DEPTH) continue
-            candidates += Triple(path, dirs[kindAt], id)
+            candidates += Triple(path, dirs[kindAt], Doc(id, variant))
         }
-        val count = candidates.groupingBy { it.second + "\u0000" + it.third }.eachCount()
-        return candidates.filter { count.getValue(it.second + "\u0000" + it.third) == 1 }.associate { it.first to it.third }
+        val key = { c: Triple<String, String, Doc> -> c.third.variant + "\u0000" + c.second + "\u0000" + c.third.id }
+        val count = candidates.groupingBy(key).eachCount()
+        return candidates.filter { count.getValue(key(it)) == 1 }.associate { it.first to it.third }
     }
+
+    /** The menu files of a module, its variants' included, as the plugin reads them. */
+    fun menuPaths(paths: List<String>): Set<String> = docs(paths, setOf("menus")).keys
 }
 
 /** The menus of a Project the Bedrock pack styles (`bedrockMenus.ts`): chests of 3 or 6 rows. */
@@ -201,9 +215,10 @@ internal object BedrockMenus {
     fun fromProject(projectId: String, files: List<PackFile>): List<BedrockMenu> {
         val out = ArrayList<BedrockMenu>()
         // The id is the file name, wherever the menu sits (themed folders included), as the plugin reads it.
-        val ids = DocumentLayout.ids(files.map { it.path }, setOf("menus"))
+        // A variant's menu gets its own key: the plugin sends it for that variant only.
+        val docs = DocumentLayout.docs(files.map { it.path }, setOf("menus"))
         for (file in files) {
-            val id = ids[file.path] ?: continue
+            val (id, variant) = docs[file.path] ?: continue
             val doc = runCatching { Yaml.parse(file.content) }.getOrNull() as? Map<*, *> ?: continue
             if (doc.containsKey("inventory_type") && doc["inventory_type"] != "chest") continue
             if (doc["player_inventory"] == "hidden") continue
@@ -254,7 +269,7 @@ internal object BedrockMenus {
             }
 
             out += BedrockMenu(
-                projectId, id, BedrockTitle.menuKey(projectId, id), rows,
+                projectId, id, BedrockTitle.menuKey(projectId, id, variant), rows,
                 doc["vanilla_texture"] == false, images, textLayers(doc["title"]), buttons,
             )
         }

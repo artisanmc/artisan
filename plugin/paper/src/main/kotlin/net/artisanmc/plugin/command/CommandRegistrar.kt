@@ -6,7 +6,9 @@ import net.artisanmc.plugin.engine.ActionExecutor
 import net.artisanmc.plugin.engine.ConditionEvaluator
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.engine.RuntimeProject
+import net.artisanmc.plugin.engine.VariantRule
 import net.artisanmc.plugin.model.CommandYaml
+import net.artisanmc.plugin.model.DocumentKinds
 import net.artisanmc.plugin.platform.ServerPlatform
 import net.artisanmc.plugin.scheduling.Scheduler
 import org.bukkit.Bukkit
@@ -54,6 +56,9 @@ class CommandRegistrar(
     private val folderOwner: (String) -> String? = { null },
     /** Runs a module command's code for the console (`console: true`). */
     private val consoleRunner: ModuleCommandRunner? = null,
+    /** For the variants' rules (`client`, `has_pack`): whether a player plays on Bedrock, has the pack. */
+    private val isBedrock: (org.bukkit.entity.Player) -> Boolean = { false },
+    private val hasPack: (org.bukkit.entity.Player) -> Boolean = { false },
 ) {
     private val logger: Logger get() = plugin.logger
     private val namespace get() = plugin.name.lowercase()
@@ -109,7 +114,14 @@ class CommandRegistrar(
                 // A disabled command claims nothing: its name stays free for the others.
                 if (!cmdYaml.enabled) continue
                 val source = "project ${runtime.projectId}, command ${cmdYaml.id.ifEmpty { cmdYaml.name }}"
-                claim.register(cmdYaml, source, module ?: namespace, runtime.projectId, declared, executor)
+                val variants = runtime.variants.mapNotNull { (variant, kinds) ->
+                    val yaml = kinds[DocumentKinds.COMMAND.kind].orEmpty().firstOrNull { it.id == cmdYaml.id } as? CommandYaml
+                    yaml?.let { variant to it }
+                }.toMap()
+                claim.register(
+                    cmdYaml, source, module ?: namespace, runtime.projectId, declared, executor,
+                    variants, runtime.variantRules, evaluator,
+                )
             }
         }
         // A module without a folder, or whose file is not on disk yet: its commands as generated.
@@ -139,9 +151,26 @@ class CommandRegistrar(
         val found = mutableListOf<CommandConflict>()
         val permissions = mutableMapOf<String, List<String>>()
 
-        fun register(yaml: CommandYaml, source: String, prefix: String, projectId: String?, declared: Set<String>, executor: ActionExecutor) {
+        fun register(
+            yaml: CommandYaml,
+            source: String,
+            prefix: String,
+            projectId: String?,
+            declared: Set<String>,
+            executor: ActionExecutor,
+            variantFiles: Map<String, CommandYaml> = emptyMap(),
+            rules: List<VariantRule> = emptyList(),
+            evaluator: ConditionEvaluator? = null,
+        ) {
             val name = yaml.name.ifEmpty { yaml.id }.lowercase()
             val compiled = CommandCompiler.compile(yaml, logger)?.let { withoutMissing(it, name, source, declared) } ?: return
+            // A variant whose steps do not compile, or call a module command no module declares, is left out.
+            val trees = variantFiles.mapNotNull { (variant, file) ->
+                val vSource = "$source, variant $variant"
+                CommandCompiler.compile(file, logger)?.let { withoutMissing(it, name, vSource, declared) }?.let { variant to it }
+            }.toMap()
+            val variants = if (trees.isEmpty() || rules.isEmpty() || evaluator == null) null
+                else CommandVariants(trees, rules, evaluator, isBedrock, hasPack)
             val prefixed = "$prefix:$name"
             val nameOwner = claimed[name] ?: foreignOwner(commandMap.getCommand(name))
             if (nameOwner != null) {
@@ -162,7 +191,10 @@ class CommandRegistrar(
                 owner == null
             }
 
-            val command = PackCommand(compiled.copy(aliases = aliases), executor, lang, projectId, consoleRunner) { id, index -> suggestions(id, index) }
+            val command = PackCommand(
+                compiled.copy(aliases = aliases), executor, lang, projectId, consoleRunner,
+                { id, index -> suggestions(id, index) }, variants,
+            )
             if (nameOwner == null) {
                 commandMap.register(prefix, command)
                 claimed[name] = source

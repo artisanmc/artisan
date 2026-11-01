@@ -84,6 +84,9 @@ describe("bedrockTitle", () => {
     const key = bedrockMenuKey("lobby", "shop");
     expect(key).toBe(bedrockMenuKey("lobby", "shop"));
     expect(key).not.toBe(bedrockMenuKey("lobby", "shop2"));
+    // A variant's menu: sha256("guilds:main@textured") starts with 0x9d 0x8b (same in BedrockTitleTest.kt).
+    expect(bedrockMenuKey("guilds", "main", "textured")).toBe("\uF89E\uF88C");
+    expect(bedrockMenuKey("guilds", "main", "")).toBe(bedrockMenuKey("guilds", "main"));
     expect([...key]).toHaveLength(2);
     for (const c of key) {
       const cp = c.codePointAt(0) as number;

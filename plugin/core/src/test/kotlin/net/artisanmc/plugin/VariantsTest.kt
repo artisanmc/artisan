@@ -2,6 +2,7 @@ package net.artisanmc.plugin
 
 import net.artisanmc.plugin.engine.Condition
 import net.artisanmc.plugin.engine.RuntimeMenu
+import net.artisanmc.plugin.model.CommandYaml
 import net.artisanmc.plugin.model.DocumentKinds
 import net.artisanmc.plugin.engine.VariantPlayer
 import net.artisanmc.plugin.engine.VariantRule
@@ -76,6 +77,9 @@ class VariantsTest {
         assertEquals(setOf("textured", "bedrock", "dev"), p.variants.keys)
         assertEquals("Ranks T", (p.variantDocument("textured", DocumentKinds.MENU.kind, "ranks") as RuntimeMenu).yaml.title)
         assertEquals("guilds", (p.variantDocument("bedrock", DocumentKinds.MENU.kind, "ranks") as RuntimeMenu).projectId)
+        // Its variant keys its Bedrock title apart from the module's own menu.
+        assertEquals("bedrock", (p.variantDocument("bedrock", DocumentKinds.MENU.kind, "ranks") as RuntimeMenu).variant)
+        assertEquals("", p.menus.first { it.id == "ranks" }.variant)
         assertEquals(listOf("dev", "bedrock", "textured"), p.variantRules.map { it.id })
         assertEquals(false, p.variantRules.first().enabled)
     }
@@ -100,9 +104,62 @@ class VariantsTest {
         assertEquals("main", p.variantDocument("textured", DocumentKinds.MENU.kind, "main")?.id)
         assertEquals(listOf("textured"), p.variantRules.map { it.id })
         assertTrue(skipped.contains("variants/textured/menus/ranks.yml: variant_inputs_mismatch"), skipped.toString())
-        assertTrue(skipped.contains("variants/textured/commands/guild.yml: variant_kind_unsupported"), skipped.toString())
+        assertTrue(skipped.contains("variants/textured/commands/guild.yml: variant_command_unknown"), skipped.toString())
         assertTrue(skipped.any { it.startsWith("variants.yml: rule 2") }, skipped.toString())
         assertTrue(skipped.any { it.startsWith("variants.yml: rule 3 (odd): unknown condition 'weather'") }, skipped.toString())
+    }
+
+    @Test
+    fun `a variant's command holds only its steps, merged onto the module's command`(@TempDir tmp: Path) {
+        val m = module(tmp)
+        write(m, "commands/guild.yml", """
+            schema: command/v1
+            name: guild
+            aliases: [g]
+            permission: guilds.use
+            actions: "send_message: hello"
+            subcommands:
+              - name: info
+                arguments: [{ name: target, type: player }]
+                actions: "send_message: info"
+              - name: top
+                actions: "send_message: top"
+        """.trimIndent())
+        write(m, "variants.yml", "rules:\n  - variant: textured\n  - variant: odd\n")
+        write(m, "variants/textured/commands/guild.yml", """
+            schema: command/v1
+            subcommands:
+              - name: INFO
+                actions: "open_menu: info"
+                requirements: [{ type: has_permission, perm: guilds.info }]
+        """.trimIndent())
+        write(m, "variants/odd/commands/guild.yml", """
+            name: clan
+            subcommands:
+              - name: nowhere
+                actions: "open_menu: info"
+              - name: top
+                cooldown: { duration: 5s }
+        """.trimIndent())
+        val skipped = mutableListOf<String>()
+        val p = read(m, skipped)
+        val textured = p.variantDocument("textured", DocumentKinds.COMMAND.kind, "guild") as CommandYaml
+        assertEquals("guild", textured.name)
+        assertEquals(listOf("g"), textured.aliases)
+        assertEquals("guilds.use", textured.permission)
+        assertEquals("send_message: hello", textured.actions)
+        val info = textured.subcommands.first { it.name == "info" }
+        assertEquals("open_menu: info", info.actions)
+        assertEquals(listOf(mapOf("type" to "has_permission", "perm" to "guilds.info")), info.requirements)
+        assertEquals(1, info.arguments.size)
+        assertEquals("send_message: top", textured.subcommands.first { it.name == "top" }.actions)
+        assertEquals("send_message: hello", p.commands.single().actions)
+
+        assertNull(p.variantDocument("odd", DocumentKinds.COMMAND.kind, "guild"))
+        val odd = skipped.single { it.startsWith("variants/odd/commands/guild.yml: ") }
+        assertTrue("variant_command_key: guild.name" in odd, odd)
+        assertTrue("variant_command_node: guild nowhere" in odd, odd)
+        assertTrue("variant_command_key: guild top.cooldown" in odd, odd)
     }
 
     private val rules = VariantRules.parse(

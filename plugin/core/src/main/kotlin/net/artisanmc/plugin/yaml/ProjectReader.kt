@@ -297,8 +297,8 @@ class ProjectReader(
      * The menus and dialogs of each variant (design `variantes-modules`), read like the module's
      * own, by variant name then kind. A variant's menu must take the same `inputs` as the module's
      * menu of the same id (the code and the other menus open it with them): one that differs is
-     * reported (`variant_inputs_mismatch`) and not read. Other kinds are not variable yet
-     * (`variant_kind_unsupported`).
+     * reported (`variant_inputs_mismatch`) and not read. A variant's command holds only its steps
+     * ([readVariantCommand]). Other kinds are not variable (`variant_kind_unsupported`).
      */
     private fun readVariants(
         projectDir: File,
@@ -312,6 +312,11 @@ class ProjectReader(
         for (entry in entries) {
             val kind = kindsByDir[entry.dir] ?: continue
             out.getOrPut(entry.variant) { linkedMapOf() }
+            if (kind == DocumentKinds.COMMAND) {
+                val merged = readVariantCommand(projectDir, entry, documents, ctx) ?: continue
+                out.getValue(entry.variant).getOrPut(kind.kind) { mutableListOf() } += merged
+                continue
+            }
             if (kind != DocumentKinds.MENU && kind != DocumentKinds.DIALOG) {
                 skip(ctx.projectId, entry.path, "variant_kind_unsupported")
                 continue
@@ -325,9 +330,35 @@ class ProjectReader(
                 skip(ctx.projectId, entry.path, "variant_inputs_mismatch")
                 continue
             }
-            out.getValue(entry.variant).getOrPut(kind.kind) { mutableListOf() } += doc
+            out.getValue(entry.variant).getOrPut(kind.kind) { mutableListOf() } +=
+                if (doc is RuntimeMenu) doc.copy(variant = entry.variant) else doc
         }
         return out
+    }
+
+    /**
+     * A variant's command file merged onto the module's command of the same id
+     * ([net.artisanmc.plugin.command.CommandVariant]): only its steps. A command the module does
+     * not have (`variant_command_unknown`) or a file setting more than steps is reported, not read.
+     */
+    private fun readVariantCommand(
+        projectDir: File,
+        entry: DocumentLayout.Entry,
+        documents: Map<String, List<RuntimeDocument>>,
+        ctx: ReadContext,
+    ): CommandYaml? {
+        val base = documents[DocumentKinds.COMMAND.kind].orEmpty().firstOrNull { it.id == entry.id } as? CommandYaml
+        if (base == null) {
+            skip(ctx.projectId, entry.path, "variant_command_unknown")
+            return null
+        }
+        val raw = tolerant(
+            "variant command ${entry.path}",
+            onFail = { e -> onSkip(ctx.projectId, entry.path, e.message ?: e::class.simpleName.orEmpty()) },
+        ) { mapper.readValue(File(projectDir, entry.path), Map::class.java) as Map<*, *>? ?: emptyMap<String, Any?>() } ?: return null
+        val merged = net.artisanmc.plugin.command.CommandVariant.merge(base, raw)
+        if (merged.command == null) skip(ctx.projectId, entry.path, merged.problems.joinToString("; "))
+        return merged.command
     }
 
     private fun inputsOf(menu: RuntimeMenu) = menu.yaml.contextInputs.map { it.name to it.type }
