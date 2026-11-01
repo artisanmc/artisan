@@ -5,7 +5,7 @@
 // place on a Project (an immer draft in the store), except `withModuleView`.
 import { newI18nKey } from "@/lib/i18n";
 import { moveLTextKey } from "@/lib/i18nKeys";
-import { current, isDraft } from "immer";
+import { current, isDraft, original } from "immer";
 import { documentLTextSites } from "./documentKindVisitors";
 import { gcDocumentLTexts } from "./i18nSites";
 import type {
@@ -191,6 +191,62 @@ export function createVersion(project: Project, kind: string, id: string): boole
   view.hidden[kind] = [...(view.hidden[kind] ?? []), original];
   view.shown[kind] = [...(view.shown[kind] ?? []), id];
   return true;
+}
+
+/**
+ * After an edit while a variant is shown: each of the module's Documents the edit changed
+ * (itself or one of its texts) becomes the viewed variant's version, and the module's stays as
+ * it was. What a variant cannot change stays the module's edit: a command's registration
+ * (name, aliases, arguments...), shared by every variant. Runs on a store draft, inside the
+ * edit's recipe (`mutateProject`).
+ */
+export function versionEditedDocuments(project: Project): void {
+  const view = project.variants?.view;
+  if (!view || !isDraft(project)) return;
+  const base = original(project) as Project;
+  const keysNow = isDraft(project.i18nKeys) ? current(project.i18nKeys) : project.i18nKeys;
+  const changedKeys = new Set<string>();
+  if (keysNow !== base.i18nKeys)
+    for (const k of new Set([...Object.keys(keysNow), ...Object.keys(base.i18nKeys)]))
+      if (keysNow[k as I18nKey] !== base.i18nKeys[k as I18nKey]) changedKeys.add(k);
+  for (const kind of VARIANT_KINDS) {
+    const list = project.documents[kind];
+    const before = base.documents[kind];
+    if (!list || !before) continue;
+    for (let at = 0; at < list.length; at++) {
+      const doc = list[at]!;
+      if (view.shown[kind]?.includes(doc.id)) continue;
+      const was = before.find((d) => d.id === doc.id);
+      if (!was) continue;
+      const now = (isDraft(doc) ? current(doc) : doc) as Document;
+      const edited = now !== was;
+      if (kind === "command") {
+        // Only what runs makes a command's version; anything else is the module's to change.
+        if (!edited) continue;
+        const steps = structuredClone(was) as Command;
+        graftSteps(steps, structuredClone(now) as Command);
+        if (JSON.stringify(steps) !== JSON.stringify(now)) continue;
+      } else if (
+        !edited &&
+        ![...documentLTextSites(kind, now)].some((s) => changedKeys.has(s.lText.key))
+      )
+        continue;
+      // The version takes the edited texts under keys of its own; the module's get theirs back.
+      const version = structuredClone(now);
+      const oldKeys = [...documentLTextSites(kind, version)].map((s) => s.lText.key as string);
+      ownKeys(project, kind, version, true);
+      const newKeys = [...documentLTextSites(kind, version)].map((s) => s.lText.key as string);
+      const restore = new Set(oldKeys.filter((k, i) => k !== newKeys[i]));
+      for (const k of restore) {
+        const value = base.i18nKeys[k as I18nKey];
+        if (value) project.i18nKeys[k as I18nKey] = value;
+        else delete project.i18nKeys[k as I18nKey];
+      }
+      list[at] = kind === "command" ? onModuleCommand(project, was, version) : version;
+      view.hidden[kind] = [...(view.hidden[kind] ?? []), was];
+      view.shown[kind] = [...(view.shown[kind] ?? []), doc.id];
+    }
+  }
 }
 
 /** The viewed variant drops its version of (kind, id): the module's comes back. */

@@ -1244,6 +1244,7 @@ export default {
     commandLocked:
       "Name, aliases, arguments, permission and sub-commands are the module's, shared by every variant: this version only changes what runs.",
     editShared: "Edits change it for every variant.",
+    editMakesVersion: "Editing it gives {{name}} its own version: the module's stays as it is.",
     count_one: "{{count}} variant",
     count_other: "{{count}} variants",
     badge: "Has versions in: {{names}}",

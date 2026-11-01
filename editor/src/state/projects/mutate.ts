@@ -15,6 +15,7 @@ import type {
   Project,
   ProjectId,
 } from "@/domain/types";
+import { versionEditedDocuments } from "@/domain/variants";
 import { produce } from "immer";
 import type { StoreApi } from "zustand";
 import type { AppearanceTarget, ProjectsState } from "./types";
@@ -101,6 +102,8 @@ export function createProjectMutators(set: StoreApi<ProjectsState>["setState"]):
         if (!project) return;
         // The recipe itself returns nothing: a returned value would replace the state.
         if (fn(project, draft) === false || options?.touch === false) return;
+        // While a variant is shown, an edit of the module's Document makes it the variant's.
+        versionEditedDocuments(project);
         project.updatedAt = new Date().toISOString();
       }),
     );
