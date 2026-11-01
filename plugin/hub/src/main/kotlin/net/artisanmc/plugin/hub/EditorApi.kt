@@ -21,8 +21,6 @@ object EditorApi {
         version: String = "",
         /** The public ids of the sessions with an editor tab open here ([EditorChannel.online]). */
         online: () -> Set<String> = { emptySet() },
-        /** Free or Pro jar: the editor hides Pro editing, the hub refuses a new pack in free. */
-        edition: Edition = Edition.PRO,
         /** Artisan's pack host (`web.pack-cdn`); null: players download packs from this server. */
         packCdn: PackCdn? = null,
         /** The hub's own pack build: the Java one compared with the editor's (shadow mode), the Bedrock one applied. */
@@ -30,14 +28,14 @@ object EditorApi {
     ): Router {
         val router = Router()
         val relay = Relay(logger)
-        AccountRoutes(servers, sessions, prefs, edition).register(router)
+        AccountRoutes(servers, sessions, prefs).register(router)
         SessionRoutes(servers, sessions, online).register(router)
         ServerRoutes(servers, relay).register(router)
         ProjectRoutes(servers, relay, history, loaded, drafts, logger).register(router)
         ItemRoutes(servers, relay, vanilla).register(router)
         packs?.let { store ->
             PackRoutes(
-                servers, store, packCdn, edition, bedrockPacks,
+                servers, store, packCdn, bedrockPacks,
                 uploaded = { server, hash -> packBuilder?.editorUploaded(server, hash) },
                 bedrockUploaded = { server, hash -> packBuilder?.bedrockApplied(server, hash) },
             ).register(router)

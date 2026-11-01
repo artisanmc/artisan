@@ -1,0 +1,1 @@
+- **Changed**: license. Artisan is now proprietary (`LICENSE`, all rights reserved; jars licensed under the terms published with each release). The public API (`plugin/api`, `net.artisanmc:artisan-core-api`) moves to MIT, so add-ons may depend on it freely. Previously GPL-3.0 for both.

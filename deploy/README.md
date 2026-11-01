@@ -89,14 +89,13 @@ Locally: `npm ci --prefix docs-site`, then `npm run dev:site --prefix editor`.
 
 ## Releasing the plugin
 
-`.github/workflows/release-jars.yml` builds both jars of a revision (`docs/architecture/editions.md`).
-On a tag `v<version>` (`v2.0.0`, `v2.1.0-beta.1`):
+`.github/workflows/release-jars.yml` builds the plugin jar, `Artisan-<v>.jar`: one jar, free and
+complete, the same on every platform. On a tag `v<version>` (`v2.0.0`, `v2.1.0-beta.1`):
 
-1. job `jars`: tests, `Artisan-<v>.jar` (free) and `Artisan-Pro-<v>.jar` (Pro), each checked for its
-   edition marker and the embedded editor, then a **draft** GitHub Release carrying both;
-2. job `publish` (environment `release`): the free jar to Modrinth (`:artisan-paper:modrinth`) and
-   Hangar (`:artisan-paper:publishPluginPublicationToHangar`), the Pro jar to Voxel
-   (`api.voxel.shop/v1/postUpdate`). Both Gradle tasks upload the exact jar of job `jars`
+1. job `jars`: tests, `Artisan-<v>.jar`, checked for the embedded editor, then a **draft** GitHub
+   Release carrying it;
+2. job `publish` (environment `release`): the jar to Modrinth (`:artisan-paper:modrinth`), Hangar
+   (`:artisan-paper:publishPluginPublicationToHangar`) and Voxel (`api.voxel.shop/v1/postUpdate`). Both Gradle tasks upload the exact jar of job `jars`
    (`-PreleaseJar`), nothing is rebuilt. A version with a suffix goes out as a beta (Modrinth, Voxel)
    and on Hangar's `Snapshot` channel. A platform whose token is not set is skipped.
 
@@ -104,8 +103,8 @@ Notes are the annotated tag's message, refused when empty:
 `git tag -a v2.0.0 -m "…" && git push origin v2.0.0`. Write them for server owners; the
 `CHANGELOG.md` section is for developers.
 
-By hand after `publish`: SpigotMC (free jar) and BuiltByBit (Pro jar) have no upload API; take the
-jars from the draft Release, then publish the Release. The Pro jar never goes to a public listing.
+By hand after `publish`: SpigotMC and BuiltByBit have no upload API; take the jar from the draft
+Release, then publish the Release.
 
 GitHub `release` environment (restrict it to tags `v*`; a required reviewer lets you check the
 draft Release before anything goes out):
@@ -117,7 +116,7 @@ draft Release before anything goes out):
 | Secret | `HANGAR_API_TOKEN` | Hangar API key, permission "create_version" |
 | Variable | `HANGAR_PROJECT` | Hangar project slug |
 | Secret | `VOXEL_API_KEY` | Voxel API key with "Post Updates" (it reaches the whole account) |
-| Variable | `VOXEL_PRO_RESOURCE_ID` | number at the end of the Artisan Pro resource's URL |
+| Variable | `VOXEL_RESOURCE_ID` | number at the end of the Artisan resource's URL |
 | Variable | `MINECRAFT_VERSIONS` | optional: supported versions, comma separated, instead of the default list in `plugin/paper/build.gradle.kts` |
 
 Each project is created by hand the first time (name, description, icon, license, first file where

@@ -10,13 +10,6 @@ plugins {
 // The deploy CI passes `-PartisanVersion=1.0.<run>`.
 val artisanVersion = providers.gradleProperty("artisanVersion").getOrElse("1.0.0-SNAPSHOT")
 
-// `-Pedition=free` builds the free jar, `-Pedition=pro` (the default) the Pro one: one code base,
-// the hub reads the edition from the jar (`artisan-edition.properties`, see `Edition`). Pro by
-// default so a local build or `deploy` behaves as before.
-val artisanEdition = providers.gradleProperty("edition").getOrElse("pro").also {
-    require(it == "free" || it == "pro") { "-Pedition must be free or pro, not '$it'" }
-}
-extra["artisanEdition"] = artisanEdition
 
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
