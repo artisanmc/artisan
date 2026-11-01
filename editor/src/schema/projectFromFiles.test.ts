@@ -518,7 +518,7 @@ it("reads a module of .yml files and its artisan-module.yml", () => {
   expect(Object.entries(p.i18nKeys).find(([key]) => key === "k")?.[1].fr).toBe("nouveau");
 });
 
-it("reads a module's variants, keeps their commands verbatim, writes a fixed point (design variantes-modules)", () => {
+it("reads a module's variants, keeps a command without its module's verbatim, writes a fixed point (design variantes-modules)", () => {
   const files = {
     [`${base}/manifest.yaml`]: "schema: manifest/v1\n",
     [`${base}/variants.yml`]:

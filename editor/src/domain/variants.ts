@@ -8,10 +8,21 @@ import { moveLTextKey } from "@/lib/i18nKeys";
 import { current, isDraft } from "immer";
 import { documentLTextSites } from "./documentKindVisitors";
 import { gcDocumentLTexts } from "./i18nSites";
-import type { Document, I18nKey, Project, ProjectVariants, VariantRule } from "./types";
+import type {
+  Command,
+  CommandNode,
+  Document,
+  I18nKey,
+  Project,
+  ProjectVariants,
+  VariantRule,
+} from "./types";
 
-/** The kinds a variant may hold a version of, in the editor (commands keep their file as is). */
-export const VARIANT_KINDS: readonly string[] = ["menu", "dialog"];
+/**
+ * The kinds a variant may hold a version of. A command's version changes only what runs
+ * (its steps, `requirements`, `fallback`): what is registered stays the module's.
+ */
+export const VARIANT_KINDS: readonly string[] = ["menu", "dialog", "command"];
 
 /** A variant name: a folder name (`DocumentLayout`'s slug). */
 export const VARIANT_NAME = /^[a-z0-9][a-z0-9_-]*$/;
@@ -112,13 +123,46 @@ export function showVariant(project: Project, variant: string | undefined): void
         const original = list[at]!;
         ownKeys(project, kind, original, false);
         hidden[kind].push(original);
-        list[at] = doc;
+        list[at] = kind === "command" ? onModuleCommand(project, original, doc) : doc;
       } else list.push(doc);
       shown[kind].push(doc.id);
     }
   }
   delete v.documents[variant];
   v.view = { variant, shown, hidden };
+}
+
+/** The steps a command's version may change, kept in a node's `wire`. */
+const COMMAND_STEP_WIRE = ["requirements", "fallback"];
+
+const plain = <T>(v: T): T => structuredClone(isDraft(v) ? current(v) : v);
+
+/**
+ * A command's version as shown: the module's command (name, aliases, arguments, permission,
+ * sub-commands, as it is now) running the version's steps, node by node by name.
+ */
+function onModuleCommand(project: Project, module: Document, version: Document): Document {
+  const { folder: _moduleFolder, ...out } = plain(module) as Command;
+  ownKeys(project, "command", out as Command, true);
+  graftSteps(out, plain(version) as Command);
+  const folder = (version as Command).folder;
+  return folder === undefined ? out : { ...out, folder };
+}
+
+function graftSteps(node: CommandNode, version: CommandNode): void {
+  node.steps = version.steps;
+  const wire = Object.fromEntries(
+    Object.entries(node.wire ?? {}).filter(([key]) => !COMMAND_STEP_WIRE.includes(key)),
+  );
+  for (const key of COMMAND_STEP_WIRE)
+    if (version.wire && key in version.wire) wire[key] = version.wire[key];
+  node.wire = Object.keys(wire).length > 0 ? wire : undefined;
+  for (const sub of node.subcommands ?? []) {
+    const twin = version.subcommands?.find(
+      (s) => s.name.trim().toLowerCase() === sub.name.trim().toLowerCase(),
+    );
+    if (twin) graftSteps(sub, twin);
+  }
 }
 
 /** [project] as the files hold it: the module's own Documents in place, a copy when a variant is shown. */

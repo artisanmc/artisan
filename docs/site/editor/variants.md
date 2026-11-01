@@ -53,8 +53,9 @@ A rule with no condition holds for everyone. Turn a rule off to keep a variant w
 - **Menus and dialogs**: a whole version, under the same id. A menu's version must take the same
   inputs as the module's menu: the code and the other menus open it with them.
 - **Commands**: only what a command runs (`actions`, `requirements`, `fallback`), not its name,
-  aliases, permission or arguments, which every variant shares. The editor keeps these files as
-  they are; edit them in the YAML view or on disk.
+  aliases, permission, arguments or sub-commands, which every variant shares. In the editor, a
+  command's version shows the whole command with these fields locked: edit its steps, and only
+  the steps that differ from the module's are written.
 - Everything else (triggers, data, translations, images) is the module's, shared.
 
 ## On disk

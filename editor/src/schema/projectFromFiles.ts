@@ -46,6 +46,7 @@ import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
 import { MODULE_FILE_NAMES, isYamlPath, yamlFilesUnder, yamlStem } from "@/lib/yamlFiles";
 import { parse as parseYaml } from "yaml";
+import { mergeCommandVariant } from "./commandVariant";
 import { documentCodec } from "./documentCodecs";
 import { makeAppearanceConverter } from "./menuV1ToDomain";
 
@@ -584,8 +585,8 @@ export function projectFromFiles(
     console.warn(`[projectFromFiles] ${projectId}: ${e.path} not read (${e.reason})`);
   }
   // Variants (design `variantes-modules`, `domain/variants.ts`): their menus and dialogs
-  // read like the module's, the rules from `variants.yml`. A variant's command (its steps
-  // only) and any other kind are kept verbatim.
+  // read like the module's, its commands on the module's (`commandVariant.ts`), the rules from
+  // `variants.yml`. Any other kind, or a command the plugin would refuse, is kept verbatim.
   const variantsFile = projectPaths(files, projectId).find(
     (p) => !p.includes("/") && yamlStem(p) === VARIANTS_FILE,
   );
@@ -602,10 +603,16 @@ export function projectFromFiles(
     const byVariant: ProjectVariants["documents"] = {};
     for (const e of [...layout.variants].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
       const def = listDocumentKinds().find((d) => d.dir === e.dir);
-      const y =
+      let y =
         def && VARIANT_KINDS.includes(def.kind)
           ? tryParse<Json>(getFile(files, projectId, e.path))
           : null;
+      // A command's version holds only its steps: read on the module's command, whole.
+      if (y && def?.kind === "command") {
+        const own = layout.documents.find((d) => d.dir === e.dir && d.id === e.id);
+        const base = own ? tryParse<Json>(getFile(files, projectId, own.path)) : null;
+        y = base ? (mergeCommandVariant(base, y) as Json | null) : null;
+      }
       if (!def || !y) {
         unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
         continue;

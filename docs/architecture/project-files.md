@@ -167,8 +167,12 @@ rules:                       # in order; implicit last: the module's own files
   (`VariantRules.select`, conditions evaluated only for a variant that has the file). At each
   opening, going back included; never while a menu stays open.
 - Editor (`domain/variants.ts`): `projectFromFiles` reads the rules into `Project.variants.rules`
-  and the variants' menus and dialogs into `Project.variants.documents` (variant → kind → docs);
-  a variant's command, or any other kind, stays verbatim in `Project.unreadFiles`. "View as"
+  and the variants' menus, dialogs and commands into `Project.variants.documents` (variant →
+  kind → docs). A command's version is read on the module's file (`schema/commandVariant.ts`,
+  twin of `CommandVariant`) into a whole `Command`, and written back as the steps that differ
+  from the module's; shown, it takes the module's registration as it is now
+  (`onModuleCommand`), and `CommandEditor` locks those fields. A command without its module's,
+  one the plugin would refuse, or any other kind stays verbatim in `Project.unreadFiles`. "View as"
   (`showVariant`) swaps the viewed variant's versions into `Project.documents`, the module's they
   cover parked in `variants.view.hidden`, so every editor and the canvas work unchanged.
   `projectToFiles` and `projectTree` restore the module's view first (`withModuleView`), before
@@ -197,8 +201,7 @@ rules:                       # in order; implicit last: the module's own files
   `RuntimeProject.variants`. `CommandRegistrar` compiles one tree per variant and `PackCommand`
   runs, for a player, the handler of the node at the same names in the tree their rules pick
   (`CommandVariants`); permissions, usage, completion and the console use the module's tree.
-- Not yet: a variant-only id (a menu only a variant has), editing a variant's command steps in the
-  editor's command view, `based_on`, side-by-side preview, simulation of a player.
+- Not yet: a variant-only id (a menu only a variant has), `based_on`, side-by-side preview, simulation of a player.
 
 The `data/` files carry the Data models **inlined**; `ltext` values are i18n keys
 resolved at bind, item values are material refs.

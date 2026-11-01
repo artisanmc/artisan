@@ -1264,6 +1264,8 @@ const fr: typeof en = {
     dropVersion: "Retirer la version pour {{name}}",
     dropVersionHint:
       "La copie de la variante est supprimée ; ses joueurs revoient le document du module.",
+    commandLocked:
+      "Nom, alias, arguments, permission et sous-commandes sont ceux du module, communs à toutes les variantes : cette version ne change que ce qui s'exécute.",
     editShared: "Les modifications s'appliquent à toutes les variantes.",
     count_one: "{{count}} variante",
     count_other: "{{count}} variantes",

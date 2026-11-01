@@ -1240,6 +1240,8 @@ export default {
       "Copies this document into the variant: edits then change only what players of {{name}} see.",
     dropVersion: "Remove the version for {{name}}",
     dropVersionHint: "The variant's copy is deleted; its players see the module's document again.",
+    commandLocked:
+      "Name, aliases, arguments, permission and sub-commands are the module's, shared by every variant: this version only changes what runs.",
     editShared: "Edits change it for every variant.",
     count_one: "{{count}} variant",
     count_other: "{{count}} variants",

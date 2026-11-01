@@ -14,6 +14,7 @@ import { nestLangTree } from "@/lib/langTree";
 import { MODULE_FILE, MODULE_SCHEMA, YAML_EXT } from "@/lib/yamlFiles";
 import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { stringify } from "yaml";
+import { commandVariantOverlay } from "./commandVariant";
 import { dataSourceI18n, emitDataSources, modelV1FromDomain } from "./dataV1FromDomain";
 import { documentCodec } from "./documentCodecs";
 import { collectReferencedKeys, keptLangEntries, serializeLang } from "./langV1FromDomain";
@@ -72,8 +73,15 @@ export function projectToFiles(shown: Project): Record<string, string> {
       const codec = documentCodec(def.kind);
       for (const name of project.variants.names) {
         for (const doc of project.variants.documents[name]?.[def.kind] ?? []) {
+          let body = withoutId(codec.serialize(doc, project));
+          // A command's version: only the steps that differ from the module's.
+          const own =
+            def.kind === "command"
+              ? documentsOf(project, def.kind).find((d) => d.id === doc.id)
+              : undefined;
+          if (own) body = commandVariantOverlay(withoutId(codec.serialize(own, project)), body);
           files[`${base}/${VARIANTS_DIR}/${name}/${documentPath(def.dir, doc.id, doc.folder)}`] =
-            stringify(withoutId(codec.serialize(doc, project)), yamlOpts);
+            stringify(body, yamlOpts);
         }
       }
     }
