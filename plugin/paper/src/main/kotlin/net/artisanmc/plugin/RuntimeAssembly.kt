@@ -75,6 +75,12 @@ internal class RuntimeAssembly(
         CooldownSync(cooldowns, {
             suite.artisanData?.let { net.artisanmc.plugin.database.CooldownRows(it, plugin.database.dialect, plugin.database.tables) }
         }, suite.sessionWriter(), plugin).start()
+        // Project variables (ADR `triggers-and-variables` §5): values in memory, kept in `artisan_vars` once the database opens.
+        val variables = net.artisanmc.plugin.engine.ProjectVariables(net.artisanmc.plugin.engine.VariableStore())
+        net.artisanmc.plugin.engine.ModuleVariableValues.projects = variables
+        VariableSync(variables.store, {
+            suite.artisanData?.let { net.artisanmc.plugin.database.VariableRows(it, plugin.database.dialect, plugin.database.tables) }
+        }, suite.sessionWriter(), plugin).start()
         // Every player seen on the network, read by `{player.first_seen}`, `{player.last_seen}`, `{player.playtime}`.
         PlayerSync({
             suite.artisanData?.let { net.artisanmc.plugin.database.PlayerRows(it, plugin.database.tables) }
@@ -231,6 +237,7 @@ internal class RuntimeAssembly(
         provider.load()
 
         executor = ActionExecutor(plugin, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry, plugin.langManager)
+        net.artisanmc.plugin.engine.ChatButtons.executor = executor
         commandRegistrar.reload(provider.runtimeProjects(), executor, evaluator)
     }
 

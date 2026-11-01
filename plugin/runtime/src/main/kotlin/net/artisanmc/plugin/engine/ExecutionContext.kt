@@ -38,16 +38,16 @@ data class ExecutionContext(
         get() = args.filter { (name, value) -> name !in sourceArgs || value !== sourceArgs[name] }
 
     /**
-     * Args + implicit built-ins: `player` = current player, `var` = the modules' Variables
+     * Args + implicit built-ins: `player` = current player, `var` = the Variables (the project's and the modules')
      * (neither overrides an arg of the same name bound by the caller). All text resolution goes through here, not
      * through `args` directly.
      */
     val resolvedArgs: Map<String, Any>
         get() {
             val withPlayer = if ("player" in args) args else args + ("player" to player)
-            // `var.<module>.<name>`: the modules' Variables, read lazily (ADR `triggers-and-variables` §10).
+            // `var.<id>` and `var.<module>.<name>`: the Variables, read lazily (ADR `triggers-and-variables` §5, §10).
             if ("var" in withPlayer) return withPlayer
-            val variables = ModuleVariableValues.forPlayer(player) ?: return withPlayer
+            val variables = ModuleVariableValues.forPlayer(player, projectId) ?: return withPlayer
             return withPlayer + ("var" to variables)
         }
 }

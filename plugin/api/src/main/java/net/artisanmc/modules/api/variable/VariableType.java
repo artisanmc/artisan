@@ -14,12 +14,25 @@ public enum VariableType {
     /** A {@link Number}, read as a double. */
     NUMBER("number"),
     /** A {@link Boolean}. */
-    BOOLEAN("boolean");
+    BOOLEAN("boolean"),
+    /**
+     * A place in a world: a {@link java.util.Map} with a {@code world} name and numeric {@code x},
+     * {@code y}, {@code z} (optional {@code yaw}, {@code pitch}). Since 2.25.0.
+     */
+    LOCATION("location");
 
     private final String wire;
 
     VariableType(String wire) {
         this.wire = wire;
+    }
+
+    /** The type spelled {@code wire} ({@code string}, {@code number}...), or null. */
+    public static @org.jetbrains.annotations.Nullable VariableType fromWire(String wire) {
+        for (VariableType t : values()) {
+            if (t.wire.equals(wire)) return t;
+        }
+        return null;
     }
 
     /** The {@code type} of a {@code declared_variables} entry. */
@@ -33,6 +46,9 @@ public enum VariableType {
             case STRING -> value instanceof String;
             case NUMBER -> value instanceof Number;
             case BOOLEAN -> value instanceof Boolean;
+            case LOCATION -> value instanceof java.util.Map<?, ?> m
+                && m.get("world") instanceof String
+                && m.get("x") instanceof Number && m.get("y") instanceof Number && m.get("z") instanceof Number;
         };
     }
 }

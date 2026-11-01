@@ -15,6 +15,7 @@ object ConditionParser {
             "placeholder_equals" -> Condition.PlaceholderEquals(str(raw, "placeholder"), str(raw, "value"))
             "placeholder_match"  -> Condition.PlaceholderMatch(str(raw, "placeholder"), str(raw, "regex"))
             "cooldown_passed"    -> Condition.CooldownPassed(str(raw, "cooldown_id"))
+            "has_var"            -> Condition.HasVar(str(raw, "var"))
             "world_is"           -> Condition.WorldIs(str(raw, "world"))
             "time_is"            -> Condition.TimeIs(parseTimeRange(raw["range"]))
             "random_chance"      -> Condition.RandomChance((raw["probability"] as Number).toDouble())

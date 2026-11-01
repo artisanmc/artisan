@@ -27,12 +27,19 @@ private class BukkitValue(
     override fun toString(): String = display
 }
 
+/**
+ * `player.vanished`: the `vanished` metadata that vanish plugins set by convention (EssentialsX,
+ * SuperVanish, PremiumVanish), true when one of its values is true. False without such a plugin.
+ */
+internal fun isVanished(player: Player): Boolean =
+    runCatching { player.getMetadata("vanished").any { it.asBoolean() } }.getOrDefault(false)
+
 /** A scope over plain args — no ExecutionContext, no PAPI (params/filter interpolation). */
 fun argsScope(args: Map<String, Any?>): ExprScope = ExprScope(args.mapValues { adapt(it.value) })
 
 internal fun adapt(value: Any?): Any? = when (value) {
     is Player -> BukkitValue(
-        mapOf("name" to value.name, "uuid" to value.uniqueId.toString(), "world" to value.world.name) +
+        mapOf("name" to value.name, "uuid" to value.uniqueId.toString(), "world" to value.world.name, "vanished" to isVanished(value)) +
             PlayerRecords.fields(value.uniqueId),
         value.name,
     )

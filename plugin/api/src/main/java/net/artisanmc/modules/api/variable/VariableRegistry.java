@@ -26,6 +26,7 @@ public final class VariableRegistry implements OwnedRegistry {
     private final ConcurrentHashMap<String, RegisteredVariable> variables = new ConcurrentHashMap<>();
     private final Set<String> warned = ConcurrentHashMap.newKeySet();
     private volatile Consumer<String> warn = message -> {};
+    private volatile ChangeListener changes = (player, name, key) -> {};
     private volatile @Nullable String currentOwner;
 
     @Internal
@@ -38,6 +39,33 @@ public final class VariableRegistry implements OwnedRegistry {
     @Internal
     public void bindWarnings(Consumer<String> warn) {
         this.warn = Objects.requireNonNull(warn, "warn");
+    }
+
+    /** Where {@link #changed} goes: Artisan fires the {@code variable_changed} Game event. */
+    @Internal
+    public void bindChanges(ChangeListener changes) {
+        this.changes = Objects.requireNonNull(changes, "changes");
+    }
+
+    /**
+     * Tells Artisan that {@code <module>.<name>} (and {@code key} for a keyed one) may have a new
+     * value for {@code player}: Artisan fires the core Game event {@code variable_changed}, so a
+     * Trigger reacts to it instead of polling (ADR {@code triggers-and-variables} §10). Optional: a
+     * module that never calls it stays correct, readers learn the value at their next read. Call it
+     * on the thread that owns {@code player}. An undeclared name does nothing. Since 2.25.0.
+     */
+    @Beta
+    public void changed(Player player, String qualifiedName, @Nullable String key) {
+        Objects.requireNonNull(player, "player");
+        if (!variables.containsKey(qualifiedName)) return;
+        changes.onChange(player, qualifiedName, key);
+    }
+
+    /** Receives {@link #changed}; Artisan's. */
+    @Internal
+    @FunctionalInterface
+    public interface ChangeListener {
+        void onChange(Player player, String qualifiedName, @Nullable String key);
     }
 
     /**
