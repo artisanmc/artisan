@@ -71,6 +71,7 @@ export const triggersFr = {
     combat: "Combat",
     progression: "Progression",
     commands: "Commandes",
+    variables: "Variables",
     other: "Autres",
   },
   eventSteps: "Cet événement",
@@ -143,6 +144,7 @@ export const triggersFr = {
     player_level_change: { title: "Quand le niveau d'un joueur change", short: "Niveau" },
     player_advancement_done: { title: "Quand un joueur obtient un progrès", short: "Progrès" },
     player_command: { title: "Quand un joueur tape une commande", short: "Commande" },
+    variable_changed: { title: "Quand une variable change pour un joueur", short: "Variable" },
   },
 };
 
@@ -218,6 +220,7 @@ export const triggersEn: typeof triggersFr = {
     combat: "Combat",
     progression: "Progression",
     commands: "Commands",
+    variables: "Variables",
     other: "Other",
   },
   eventSteps: "This event",
@@ -286,5 +289,6 @@ export const triggersEn: typeof triggersFr = {
       short: "Advancement",
     },
     player_command: { title: "When a player types a command", short: "Command" },
+    variable_changed: { title: "When a variable changes for a player", short: "Variable" },
   },
 };

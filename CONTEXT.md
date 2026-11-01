@@ -903,7 +903,8 @@ A declared, typed value, scope `player` or `server`, type `string`, `number`,
   changes it only through its own actions. Absent when the Module is not installed,
   so reading it creates no dependency between Modules.
 
-Cf. ADR `triggers-and-variables` (§5, §10 proposed).
+A Project variable named like a Module hides that Module's variables in its Project.
+PlaceholderAPI reads both as `%artisan_var_<name>%`. Cf. ADR `triggers-and-variables` (§5, §10).
 
 Non-examples:
 - A context input set by `set_arg` is not a Variable — it lives for one menu

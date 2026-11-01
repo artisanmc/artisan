@@ -150,6 +150,8 @@ export function conditionToStructured(c: Condition): Record<string, unknown> {
       return { random_chance: c.probability };
     case "cooldown_passed":
       return { cooldown_passed: c.cooldown_id };
+    case "has_var":
+      return { has_var: c.var };
     case "player_in_region":
       return { player_in_region: c.region };
     case "time_is":
@@ -215,6 +217,7 @@ const CONDITION_NAMES = new Set<string>([
   "has_resource_pack",
   "random_chance",
   "cooldown_passed",
+  "has_var",
   "player_in_region",
   "time_is",
   "placeholder_equals",
@@ -270,6 +273,8 @@ function decodeCondition(raw: unknown): Condition | null {
       return { type: "random_chance", probability: num(value) };
     case "cooldown_passed":
       return { type: "cooldown_passed", cooldown_id: str(value) };
+    case "has_var":
+      return { type: "has_var", var: str(value) };
     case "player_in_region":
       return { type: "player_in_region", region: str(value) };
     case "time_is":

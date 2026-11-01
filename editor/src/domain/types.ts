@@ -502,6 +502,11 @@ export type Condition =
   | { type: "time_is"; range: "day" | "night" | { from_ticks: number; to_ticks: number } }
   | { type: "random_chance"; probability: number }
   | { type: "cooldown_passed"; cooldown_id: string }
+  /**
+   * A Variable holds a value (ADR `triggers-and-variables` §5): a Project variable's id
+   * (`last_death`), or a module Variable (`guilds.rank`, `quests.status["daily/miner"]`).
+   */
+  | { type: "has_var"; var: string }
   | { type: "player_in_region"; region: string }
   | { type: "pagination_at_first"; elementId?: string }
   | { type: "pagination_at_last"; elementId?: string }
@@ -647,6 +652,11 @@ export type ModelFieldType =
   | { kind: "minimessage_multiline" }
   | { kind: "item" }
   | { kind: "actions" }
+  /**
+   * A position: `world x y z [yaw pitch]` or a template naming one (`{var.last_death}`); an action
+   * argument only (ADR `triggers-and-variables` §4), never a Data model field.
+   */
+  | { kind: "location" }
   | { kind: "list"; of: ModelFieldType }
   | { kind: "object"; fields: ModelField[] }
   | { kind: "model"; ref: DataModelId }

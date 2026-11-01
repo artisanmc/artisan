@@ -116,8 +116,7 @@ deployed.
      so the deploying tools stay refused, and it resolves only the non-destructive tools
      (`McpTools.draftOnly`). The tools, `artisan_overview` and the instructions tell the model the
      player calls a Project a module (the overview's add-on list is `addons`).
-   - **The resource pack** (2026-10-31), when the hub builds packs (`PackBuilder`, every jar
-     since the Bedrock pack, the Java one in Pro only): `resource_pack_status(server)` (read only,
+   - **The resource pack** (2026-10-31), when the hub builds packs (`PackBuilder`): `resource_pack_status(server)` (read only,
      everyone) returns the hub's Java SHA-1, the editor's, whether they match, the applied Bedrock
      SHA-1 (`bedrock_sha1`), when, and the build error; `resource_pack_rebuild(server, wait_seconds)`
      asks `PackBuilder.request` and waits up to 120 s (default 30) for the build, a build still

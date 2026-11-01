@@ -99,6 +99,7 @@ private fun printAtom(c: DslCondition): String = when (c) {
     is DslCondition.RandomChance -> "random_chance(${jsNum(c.probability)})"
     is DslCondition.CooldownPassed -> "cooldown_passed(${arg(c.cooldownId)})"
     is DslCondition.PlayerInRegion -> "player_in_region(${arg(c.region)})"
+    is DslCondition.HasVar -> "has_var(${arg(c.name)})"
     is DslCondition.TimeIs -> "time_is(${
         when (val r = c.range) {
             is TimeRange.Named -> r.name

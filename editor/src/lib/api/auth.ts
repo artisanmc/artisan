@@ -21,8 +21,6 @@ export interface AuthUserDto {
   editorTour?: EditorTourProgress | null;
   /** The editor permissions of the session (`artisan.editor.config`…). */
   permissions?: string[];
-  /** The jar the hub runs (`lib/edition.ts`); absent: Pro. */
-  edition?: "free" | "pro";
 }
 
 export async function logout(): Promise<void> {

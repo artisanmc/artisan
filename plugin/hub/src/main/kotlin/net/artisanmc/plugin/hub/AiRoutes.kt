@@ -64,12 +64,19 @@ class AiRoutes(private val setup: AiSetup) {
         }
         router.on("POST", "$CONVERSATIONS/:conversation/messages", EDIT) { call ->
             val assistant = setup.assistant() ?: return@on call.error(404, "not_found")
-            val text = call.body()?.path("text")?.asText("")?.trim().orEmpty()
-            if (text.isEmpty() || text.length > MAX_MESSAGE) return@on call.error(422, "invalid_input")
-            when (assistant.send(call.session!!, call.params.getValue("conversation"), text)) {
+            val bytes = call.bytes(MAX_MESSAGE_BODY) ?: return@on call.error(413, "ai_attachment_too_large")
+            val body = runCatching { Call.mapper.readTree(bytes) }.getOrNull() ?: return@on call.error(422, "invalid_input")
+            val text = body.path("text").asText("").trim()
+            val attachments = when (val parsed = AiAttachment.parse(body.get("attachments"))) {
+                is AiAttachment.Parsed.Invalid -> return@on call.error(parsed.status, parsed.code)
+                is AiAttachment.Parsed.Valid -> parsed.attachments
+            }
+            if ((text.isEmpty() && attachments.isEmpty()) || text.length > MAX_MESSAGE) return@on call.error(422, "invalid_input")
+            when (assistant.send(call.session!!, call.params.getValue("conversation"), text, attachments)) {
                 AiAssistant.Sent.Accepted -> call.json(mapOf("ok" to true), 202)
                 AiAssistant.Sent.Busy -> call.error(409, "ai_busy")
                 AiAssistant.Sent.NotFound -> call.error(404, "not_found")
+                AiAssistant.Sent.TooLarge -> call.error(413, "ai_conversation_full")
             }
         }
         router.on("DELETE", "$CONVERSATIONS/:conversation", EDIT) { call ->
@@ -170,6 +177,8 @@ class AiRoutes(private val setup: AiSetup) {
         const val CONVERSATIONS = "/api/v1/ai/conversations"
         const val TRANSLATE = "/api/v1/ai/translate"
         const val MAX_MESSAGE = 8000
+        /** A message with its files in base64 ([AiAttachment.MAX_MESSAGE]), and room for the JSON around them. */
+        const val MAX_MESSAGE_BODY = 8_500_000
         /** A server id goes into the model's instructions: only the characters ids are made of. */
         private val SERVER_ID = Regex("[A-Za-z0-9_-]{1,64}")
         val EFFORTS = listOf("low", "medium", "high", "xhigh", "max")

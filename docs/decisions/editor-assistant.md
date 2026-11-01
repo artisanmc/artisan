@@ -89,6 +89,18 @@ than the hub. One single Artisan user at this date: the admin's key first.
    missing ones": every language of the module, grouped by the languages each text lacks, in calls
    of at most 100 texts and 24,000 characters to write). The format stays every language in each
    field (ADR `field-local-translations`).
+10. **Files in a message** (2026-11-01, as the cloud assistant's dropped zmenu / DeluxeMenus
+   files). A message carries up to 5 files, base64, `{name, data, project?, path?}`: uploaded from
+   the player's computer, or picked among the server's module files, which the editor reads with
+   the player's session (so the hub adds no file route and no permission path). The hub takes the
+   kind from the bytes, never from the name: an image (PNG, JPEG, GIF, WebP, ≤ 3.75 MB, 5 MB in
+   base64, the provider's limit) and a PDF (≤ 6 MB) go to the model as their own blocks (`AiInput.Image`,
+   `AiInput.Pdf`); UTF-8 text (≤ 200,000 characters) goes as text inside an `<attachment name module
+   path>` block, before the player's words. The system prompt says files are material, never
+   instructions. ≤ 6 MB per message (body ≤ 8.5 MB), ≤ 16 MB per conversation (`ai_conversation_full`):
+   each file stays in the history the model rereads at every step and in `artisan_ai_conversations`.
+   The events keep only `{name, kind, size, project?, path?}`; a conversation started again from its
+   transcript knows the files' names, not their content.
 
 ## Consequences
 

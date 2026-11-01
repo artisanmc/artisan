@@ -1058,7 +1058,14 @@
                       "pattern": "^[a-z][a-z0-9_]{0,63}$"
                     },
                     "close_current": {
-                      "type": "boolean",
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ],
                       "default": true
                     },
                     "context": {
@@ -1068,7 +1075,14 @@
                       }
                     },
                     "clear_context": {
-                      "type": "boolean",
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ],
                       "default": false
                     }
                   }
@@ -1121,9 +1135,16 @@
                   "pattern": "^[A-Z][A-Z0-9_]*$"
                 },
                 "count": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 64
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 64
+                    },
+                    {
+                      "$ref": "#/$defs/Template"
+                    }
+                  ]
                 },
                 "nbt": {
                   "type": "string"
@@ -1167,9 +1188,16 @@
                   "pattern": "^[A-Z][A-Z0-9_]*$"
                 },
                 "count": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 64
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 64
+                    },
+                    {
+                      "$ref": "#/$defs/Template"
+                    }
+                  ]
                 },
                 "nbt": {
                   "type": "string"
@@ -1188,8 +1216,15 @@
             "give_money": {
               "oneOf": [
                 {
-                  "type": "number",
-                  "exclusiveMinimum": 0
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    {
+                      "$ref": "#/$defs/Template"
+                    }
+                  ]
                 },
                 {
                   "type": "object",
@@ -1199,8 +1234,15 @@
                   ],
                   "properties": {
                     "amount": {
-                      "type": "number",
-                      "exclusiveMinimum": 0
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
                     },
                     "currency": {
                       "type": "string"
@@ -1221,8 +1263,15 @@
             "take_money": {
               "oneOf": [
                 {
-                  "type": "number",
-                  "exclusiveMinimum": 0
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    {
+                      "$ref": "#/$defs/Template"
+                    }
+                  ]
                 },
                 {
                   "type": "object",
@@ -1232,8 +1281,15 @@
                   ],
                   "properties": {
                     "amount": {
-                      "type": "number",
-                      "exclusiveMinimum": 0
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
                     },
                     "currency": {
                       "type": "string"
@@ -1252,8 +1308,15 @@
           ],
           "properties": {
             "give_xp": {
-              "type": "integer",
-              "minimum": 1
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "$ref": "#/$defs/Template"
+                }
+              ]
             }
           }
         },
@@ -1265,8 +1328,15 @@
           ],
           "properties": {
             "give_level": {
-              "type": "integer",
-              "minimum": 1
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "$ref": "#/$defs/Template"
+                }
+              ]
             }
           }
         },
@@ -1317,14 +1387,28 @@
                       "type": "string"
                     },
                     "volume": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 1
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
                     },
                     "pitch": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 2
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 2
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
                     }
                   }
                 }
@@ -1340,28 +1424,74 @@
           ],
           "properties": {
             "teleport": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "world": {
-                  "type": "string"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
                 },
-                "x": {
-                  "type": "number"
-                },
-                "y": {
-                  "type": "number"
-                },
-                "z": {
-                  "type": "number"
-                },
-                "yaw": {
-                  "type": "number"
-                },
-                "pitch": {
-                  "type": "number"
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "location": {
+                      "$ref": "#/$defs/Location"
+                    },
+                    "world": {
+                      "type": "string"
+                    },
+                    "x": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
+                    },
+                    "y": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
+                    },
+                    "z": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
+                    },
+                    "yaw": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
+                    },
+                    "pitch": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
+                    }
+                  }
                 }
-              }
+              ]
             }
           }
         },
@@ -1431,16 +1561,37 @@
                       "$ref": "#/$defs/LText"
                     },
                     "fade_in": {
-                      "type": "integer",
-                      "minimum": 0
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
                     },
                     "stay": {
-                      "type": "integer",
-                      "minimum": 0
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
                     },
                     "fade_out": {
-                      "type": "integer",
-                      "minimum": 0
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ]
                     }
                   }
                 }
@@ -1478,7 +1629,14 @@
                       }
                     },
                     "clear_context": {
-                      "type": "boolean",
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ],
                       "default": false
                     }
                   }
@@ -1633,6 +1791,155 @@
                 ]
               }
             ]
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "set_var"
+          ],
+          "properties": {
+            "set_var": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "var",
+                "value"
+              ],
+              "properties": {
+                "var": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "value": {
+                  "description": "Read as the Variable's type; a template is resolved first.",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "$ref": "#/$defs/Location"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "add_var"
+          ],
+          "properties": {
+            "add_var": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "var"
+                  ],
+                  "properties": {
+                    "var": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "amount": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ],
+                      "default": 1.0
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "clear_var"
+          ],
+          "properties": {
+            "clear_var": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "chat_button"
+          ],
+          "properties": {
+            "chat_button": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "label",
+                "do"
+              ],
+              "properties": {
+                "text": {
+                  "$ref": "#/$defs/LText"
+                },
+                "label": {
+                  "$ref": "#/$defs/LText"
+                },
+                "uses": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "$ref": "#/$defs/Template"
+                    }
+                  ],
+                  "default": 1
+                },
+                "expires_seconds": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "$ref": "#/$defs/Template"
+                    }
+                  ],
+                  "default": 300
+                },
+                "do": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  }
+                }
+              }
+            }
           }
         }
       ]
@@ -1871,6 +2178,19 @@
           "properties": {
             "cooldown_passed": {
               "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "has_var"
+          ],
+          "properties": {
+            "has_var": {
+              "type": "string",
+              "minLength": 1
             }
           }
         },
@@ -2438,6 +2758,86 @@
             },
             "expr": {
               "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "Template": {
+      "description": "A template that resolves to the argument's type at run time (ADR triggers-and-variables §6): `{row.price}`, `%vault_eco_balance%`. A value that does not resolve skips the action.",
+      "type": "string",
+      "pattern": "[{%]"
+    },
+    "Location": {
+      "description": "A place in a world (ADR triggers-and-variables §4): a template (`{event.location}`, `{var.last_death}`), the text `world x y z [yaw pitch]`, or the fields.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "world",
+            "x",
+            "y",
+            "z"
+          ],
+          "properties": {
+            "world": {
+              "type": "string",
+              "minLength": 1
+            },
+            "x": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/Template"
+                }
+              ]
+            },
+            "y": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/Template"
+                }
+              ]
+            },
+            "z": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/Template"
+                }
+              ]
+            },
+            "yaw": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/Template"
+                }
+              ]
+            },
+            "pitch": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/Template"
+                }
+              ]
             }
           }
         }

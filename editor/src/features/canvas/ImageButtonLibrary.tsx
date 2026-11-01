@@ -10,7 +10,6 @@ import { useAssetStore } from "@/features/assets/assetStore";
 import { useOtherProjectAssets } from "@/features/assets/useOtherProjectAssets";
 import { ProjectSource } from "@/features/project/ProjectSource";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
-import { useIsPro } from "@/lib/edition";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useDraggable } from "@dnd-kit/core";
 import { Upload } from "lucide-react";
@@ -58,14 +57,6 @@ function ImageTile({ asset, from }: { asset: Asset; from?: string }) {
 export function ImageButtonLibrary({ projectId }: { projectId: ProjectId }) {
   const sourceId = useProjectLibraryStore((s) => s.sourceId);
   const setSourceId = useProjectLibraryStore((s) => s.setSourceId);
-  // Copying another project's image imports it into the pack: Pro, like an upload.
-  const pro = useIsPro();
-  if (!pro)
-    return (
-      <div className="flex h-full min-h-0 flex-col gap-2 p-2">
-        <ImageGrid projectId={projectId} sources={null} />
-      </div>
-    );
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 p-2">
       <ProjectSource projectId={projectId} sourceId={sourceId} onSourceChange={setSourceId}>

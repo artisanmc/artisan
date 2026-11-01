@@ -93,6 +93,7 @@ object KeyedStepParser {
             "has_resource_pack" -> if (value == false) Condition.Not(Condition.HasResourcePack) else Condition.HasResourcePack
             "random_chance" -> Condition.RandomChance((value as? Number)?.toDouble() ?: 0.0)
             "cooldown_passed" -> Condition.CooldownPassed(value?.toString() ?: "")
+            "has_var" -> Condition.HasVar(value?.toString() ?: "")
             "player_in_region" -> Condition.PlayerInRegion(value?.toString() ?: "")
             "time_is" ->
                 if (value is Map<*, *>)
@@ -124,6 +125,7 @@ object KeyedStepParser {
         is Condition.WorldIs -> c.world.isNotBlank()
         is Condition.ClientIs -> c.client in setOf("java", "bedrock")
         is Condition.CooldownPassed -> c.cooldownId.isNotBlank()
+        is Condition.HasVar -> c.name.isNotBlank()
         is Condition.PlayerInRegion -> c.region.isNotBlank()
         is Condition.PlaceholderEquals -> c.placeholder.isNotBlank()
         is Condition.PlaceholderMatch ->

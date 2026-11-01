@@ -34,6 +34,7 @@ const PREDICATES = new Set([
   "random_chance",
   "cooldown_passed",
   "player_in_region",
+  "has_var",
   "pagination_at_first",
   "pagination_at_last",
 ]);
@@ -356,6 +357,8 @@ class CondParser {
         return { type: "cooldown_passed", cooldown_id: str(0) };
       case "player_in_region":
         return { type: "player_in_region", region: str(0) };
+      case "has_var":
+        return { type: "has_var", var: str(0) };
       case "time_is": {
         const v = str(0);
         if (v === "day" || v === "night") return { type: "time_is", range: v };

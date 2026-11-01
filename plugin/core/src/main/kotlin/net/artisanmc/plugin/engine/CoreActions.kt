@@ -96,14 +96,19 @@ object CoreActions {
         field("pitch", ModelFieldType.number()).withDefault(1.0),
     ), primary = "sound")
 
+    /**
+     * `location` (ADR `triggers-and-variables` §4) is what the editor writes, alone as the scalar
+     * form (`teleport: "{var.last_death}"`); `world/x/y/z/yaw/pitch` are still read.
+     */
     val TELEPORT = ActionSchema("teleport", listOf(
+        field("location", ModelFieldType.location()),
         field("world", ModelFieldType.string()),
         field("x", ModelFieldType.number()),
         field("y", ModelFieldType.number()),
         field("z", ModelFieldType.number()),
         field("yaw", ModelFieldType.number()),
         field("pitch", ModelFieldType.number()),
-    ), primary = null)
+    ), primary = "location")
 
     val PAGINATION_NEXT = ActionSchema("pagination_next", listOf(field("element_id", ModelFieldType.string())))
     val PAGINATION_PREV = ActionSchema("pagination_prev", listOf(field("element_id", ModelFieldType.string())))
@@ -139,10 +144,42 @@ object CoreActions {
     /** `actions` is an expression naming a chain carried by a source (`{row.on_buy}`), not a chain. */
     val RUN_ACTIONS = ActionSchema("run_actions", listOf(field("actions", ModelFieldType.string(), required = true)))
 
+    // ── Variables (ADR `triggers-and-variables` §5, §7) ─────────────────────
+
+    /** `value` is read as the Variable's type: a template is resolved, then converted (§6). */
+    val SET_VAR = ActionSchema("set_var", listOf(
+        field("var", ModelFieldType.documentRef(ProjectVariable.KIND), required = true),
+        field("value", ModelFieldType.string(), required = true),
+    ), primary = null)
+
+    /** A `number` Variable only; absent, it starts from its default, or 0. */
+    val ADD_VAR = ActionSchema("add_var", listOf(
+        field("var", ModelFieldType.documentRef(ProjectVariable.KIND), required = true),
+        field("amount", ModelFieldType.number()).withDefault(1.0),
+    ), primary = "var")
+
+    val CLEAR_VAR = ActionSchema("clear_var", listOf(
+        field("var", ModelFieldType.documentRef(ProjectVariable.KIND), required = true),
+    ))
+
+    /**
+     * A chat line with a button: [text] then [label], clickable [uses] times within
+     * [expires_seconds] by the player it was sent to; the click runs `do` with the bindings of
+     * the moment it was sent. The token is held in memory: a restart forgets it.
+     */
+    val CHAT_BUTTON = ActionSchema("chat_button", listOf(
+        ltext("text"),
+        ltext("label", required = true),
+        field("uses", ModelFieldType.integer()).withDefault(1),
+        field("expires_seconds", ModelFieldType.integer()).withDefault(300),
+        field("do", ModelFieldType.actions(), required = true),
+    ), primary = null)
+
     val all: List<ActionSchema> = listOf(
         RUN_COMMAND, OPEN_MENU, CLOSE_MENU, OPEN_PREVIOUS_MENU, GIVE_ITEM, TAKE_ITEM, GIVE_MONEY, TAKE_MONEY,
         GIVE_XP, GIVE_LEVEL, SEND_MESSAGE, BROADCAST, PLAY_SOUND, TELEPORT, PAGINATION_NEXT, PAGINATION_PREV,
         SHOW_TITLE, OPEN_DIALOG, CLOSE_DIALOG, SET_ARG, SET_ARG_CYCLE_NEXT, SET_ARG_CYCLE_PREV, RUN_ACTIONS,
+        SET_VAR, ADD_VAR, CLEAR_VAR, CHAT_BUTTON,
     )
 
     private val byName = all.associateBy { it.name }

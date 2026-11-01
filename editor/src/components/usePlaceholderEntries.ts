@@ -2,6 +2,7 @@ import type { ProjectId } from "@/domain/types";
 import { type FieldLocation, type PlaceholderEntry, compute } from "@/lib/placeholderCatalog";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
+import { useServerVariablesStore } from "@/state/serverVariablesStore";
 import { useMemo } from "react";
 
 /**
@@ -17,6 +18,7 @@ export function usePlaceholderEntries(
 ): PlaceholderEntry[] {
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const serverSources = useServerDataSourcesStore((s) => s.sources);
+  const moduleVariables = useServerVariablesStore((s) => s.variables);
   return useMemo(() => {
     if (!project) return [];
     const rowSchemas = Object.fromEntries(
@@ -25,6 +27,6 @@ export function usePlaceholderEntries(
         src.schema.map((f) => ({ name: f.name, type: f.type })),
       ]),
     );
-    return compute(project, location, rowSchemas);
-  }, [project, location, serverSources]);
+    return compute(project, location, rowSchemas, moduleVariables);
+  }, [project, location, serverSources, moduleVariables]);
 }

@@ -35,6 +35,7 @@ const BUILTIN_PLAYER = [
   { path: "player", type: "player", sample: "Steve", origin: "context" },
   { path: "player.first_seen.ago()", type: "string", sample: "40d", origin: "context" },
   { path: "player.last_seen.ago()", type: "string", sample: "3d 4h", origin: "context" },
+  { path: "player.location", type: "string", sample: "world 12 64 -30", origin: "context" },
   { path: "player.name", type: "string", sample: "Steve", origin: "context" },
   { path: "player.playtime.duration()", type: "string", sample: "12h 30m", origin: "context" },
   {
@@ -43,6 +44,7 @@ const BUILTIN_PLAYER = [
     sample: "8667ba71-b85a-4004-af54-457a9734eed7",
     origin: "context",
   },
+  { path: "player.vanished", type: "boolean", sample: "false", origin: "context" },
   { path: "player.world", type: "string", sample: "world", origin: "context" },
 ];
 
@@ -100,6 +102,7 @@ describe("PlaceholderCatalog.compute", () => {
       { path: "active", type: "boolean", sample: "true", origin: "context" },
       BUILTIN_NAV[0],
       { path: "player", type: "player", sample: "Steve", origin: "context" },
+      { path: "player.location", type: "string", sample: "world 12 64 -30", origin: "context" },
       { path: "player.name", type: "string", sample: "Steve", origin: "context" },
       {
         path: "player.uuid",
@@ -107,6 +110,7 @@ describe("PlaceholderCatalog.compute", () => {
         sample: "8667ba71-b85a-4004-af54-457a9734eed7",
         origin: "context",
       },
+      { path: "player.vanished", type: "boolean", sample: "false", origin: "context" },
       { path: "player.world", type: "string", sample: "world", origin: "context" },
       ...BUILTIN_NAV.slice(1),
       { path: "rank", type: "integer", sample: "5", origin: "context" },
@@ -129,6 +133,7 @@ describe("PlaceholderCatalog.compute", () => {
     expect(out).toEqual([
       ...BUILTIN_MENU,
       { path: "target", type: "player", sample: "Alex", origin: "context" },
+      { path: "target.location", type: "string", sample: "world 12 64 -30", origin: "context" },
       { path: "target.name", type: "string", sample: "Alex", origin: "context" },
       {
         path: "target.uuid",
@@ -136,6 +141,7 @@ describe("PlaceholderCatalog.compute", () => {
         sample: "8667ba71-b85a-4004-af54-457a9734eed7",
         origin: "context",
       },
+      { path: "target.vanished", type: "boolean", sample: "false", origin: "context" },
       { path: "target.world", type: "string", sample: "world", origin: "context" },
     ]);
   });
@@ -400,13 +406,17 @@ describe("PlaceholderCatalog.compute", () => {
       ["player", "player"],
       ["player.first_seen.ago()", "string"],
       ["player.last_seen.ago()", "string"],
+      ["player.location", "string"],
       ["player.name", "string"],
       ["player.playtime.duration()", "string"],
       ["player.uuid", "string"],
+      ["player.vanished", "boolean"],
       ["player.world", "string"],
       ["target", "player"],
+      ["target.location", "string"],
       ["target.name", "string"],
       ["target.uuid", "string"],
+      ["target.vanished", "boolean"],
       ["target.world", "string"],
     ]);
   });
@@ -580,9 +590,11 @@ describe("PlaceholderCatalog.compute", () => {
       "context:player",
       "context:player.first_seen.ago()",
       "context:player.last_seen.ago()",
+      "context:player.location",
       "context:player.name",
       "context:player.playtime.duration()",
       "context:player.uuid",
+      "context:player.vanished",
       "context:player.world",
       "context:previous_menu",
       "context:previous_menu.id",

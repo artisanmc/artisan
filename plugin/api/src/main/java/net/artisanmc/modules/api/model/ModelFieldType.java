@@ -15,7 +15,8 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>Leaves: {@code string}, {@code number}, {@code integer}, {@code boolean}, {@code ltext}
  * (localizable text), {@code minimessage}, {@code minimessage_multiline}, {@code item},
- * {@code actions} (an action chain), {@code conditions}. Composites: {@code list(of)},
+ * {@code actions} (an action chain), {@code conditions}, {@code location} (a place in a world,
+ * {@code {world, x, y, z, yaw?, pitch?}}, since 2.25.0). Composites: {@code list(of)},
  * {@code object(fields)}, {@code model(ref)}, {@code map(of)}, {@code enum(values)},
  * {@code union(tag, variants)}. {@code document_ref(kind)} is the reference to a Document of
  * a kind ({@code menu}, {@code dialog}, a module kind): the editor resolves it, renames it,
@@ -88,6 +89,15 @@ public final class ModelFieldType {
     /** A material id or a complete item value. */
     public static ModelFieldType item() {
         return leaf("item");
+    }
+
+    /**
+     * A place in a world: {@code {world, x, y, z, yaw?, pitch?}}, or a template that resolves to
+     * one ({@code "{event.location}"}, {@code "{var.last_death}"}). ADR {@code triggers-and-variables}
+     * §4. Since 2.25.0.
+     */
+    public static ModelFieldType location() {
+        return leaf("location");
     }
 
     /** An action chain (the keyed structured wire). */

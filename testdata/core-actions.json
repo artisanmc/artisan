@@ -220,6 +220,11 @@
   }, {
     "name" : "teleport",
     "args" : [ {
+      "name" : "location",
+      "type" : {
+        "kind" : "location"
+      }
+    }, {
       "name" : "world",
       "type" : {
         "kind" : "string"
@@ -250,7 +255,7 @@
         "kind" : "number"
       }
     } ],
-    "primary" : null
+    "primary" : "location"
   }, {
     "name" : "pagination_next",
     "args" : [ {
@@ -393,5 +398,83 @@
       "required" : true
     } ],
     "primary" : "actions"
+  }, {
+    "name" : "set_var",
+    "args" : [ {
+      "name" : "var",
+      "type" : {
+        "kind" : "document_ref",
+        "document" : "variable"
+      },
+      "required" : true
+    }, {
+      "name" : "value",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    } ],
+    "primary" : null
+  }, {
+    "name" : "add_var",
+    "args" : [ {
+      "name" : "var",
+      "type" : {
+        "kind" : "document_ref",
+        "document" : "variable"
+      },
+      "required" : true
+    }, {
+      "name" : "amount",
+      "type" : {
+        "kind" : "number"
+      },
+      "default" : 1.0
+    } ],
+    "primary" : "var"
+  }, {
+    "name" : "clear_var",
+    "args" : [ {
+      "name" : "var",
+      "type" : {
+        "kind" : "document_ref",
+        "document" : "variable"
+      },
+      "required" : true
+    } ],
+    "primary" : "var"
+  }, {
+    "name" : "chat_button",
+    "args" : [ {
+      "name" : "text",
+      "type" : {
+        "kind" : "ltext"
+      }
+    }, {
+      "name" : "label",
+      "type" : {
+        "kind" : "ltext"
+      },
+      "required" : true
+    }, {
+      "name" : "uses",
+      "type" : {
+        "kind" : "integer"
+      },
+      "default" : 1
+    }, {
+      "name" : "expires_seconds",
+      "type" : {
+        "kind" : "integer"
+      },
+      "default" : 300
+    }, {
+      "name" : "do",
+      "type" : {
+        "kind" : "actions"
+      },
+      "required" : true
+    } ],
+    "primary" : null
   } ]
 }

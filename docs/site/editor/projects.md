@@ -35,9 +35,6 @@ into the project you are editing, so each project keeps everything it needs:
   it again to update it. A captured item already copied is reused as it is, so remove it
   first to take the new version.
 
-Copying an image or font is an import into the resource pack, so it needs Pro, like an
-upload. Captured items can be copied in both editions.
-
 Each project has its own frame on the server-wide canvas. Inside a project, each top-level folder
 that holds documents has a frame. Select documents, then choose **File in a folder** to put them in a
 new or existing folder, with a color; the background uses that color at 15% opacity.

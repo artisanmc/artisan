@@ -36,6 +36,7 @@ class ConditionEvaluator(
         is Condition.PlaceholderMatch  -> deps.papi?.resolve(ctx.player, condition.placeholder)
                                             ?.matches(Regex(condition.regex)) ?: false
         is Condition.CooldownPassed    -> !cooldowns.isOnCooldown(condition.cooldownId, ctx.player.uniqueId, "player")
+        is Condition.HasVar            -> ModuleVariableValues.has(ctx.player, ctx.projectId, condition.name)
         is Condition.WorldIs           -> ctx.player.world.name.equals(condition.world, ignoreCase = true)
         is Condition.ClientIs          -> (condition.client == "bedrock") == client.isBedrock(ctx.player)
         Condition.HasResourcePack      -> client.hasPack(ctx.player)
@@ -58,7 +59,8 @@ class ConditionEvaluator(
     private fun evaluateExpression(condition: Condition.Expression, ctx: ExecutionContext): Boolean {
         val papi: ((String) -> String?)? = deps.papi?.let { p -> { name -> p.resolve(ctx.player, "%$name%") } }
         val value = try {
-            net.artisanmc.plugin.actiondsl.evalLeafOrThrow(condition.expr, ctx.resolvedArgs, papi)
+            // Live objects adapted as templates see them: `player.name`, `player.vanished` read the same in both.
+            net.artisanmc.plugin.actiondsl.evalLeafOrThrow(condition.expr, ctx.resolvedArgs.mapValues { adapt(it.value) }, papi)
         } catch (e: Exception) {
             if (expressionWarned.compareAndSet(false, true)) {
                 Bukkit.getLogger().warning(

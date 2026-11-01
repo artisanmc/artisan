@@ -38,7 +38,6 @@ Not updating = the next session will not know the code changed.
 | `CONTEXT.md` | Domain glossary — **source of truth for terms**. |
 | `docs/architecture/invariants.md` | The critical invariants in detail (disk, CAS, exclusions, threads). |
 | `docs/architecture/modules.md` | Modular monolith: module abstraction, data sources + commands, how to add one. |
-| `docs/architecture/editions.md` | Jar gratuit / jar Pro (`-Pedition`), ce que le gratuit verrouille, règles. |
 | `docs/architecture/versioning.md` | The disciplines (CHANGELOG, versioned schemas, protocol version, REST `/api/v1/`). |
 | `docs/architecture/api-surface.md` | Stable public API surface (`@Stable`/`@Beta`/`@Internal`/`@Sunset`). |
 | `docs/architecture/ws-protocol.md` | Hub ↔ server messages (`/ws/plugin`) + `/ws/editor`. |
@@ -74,7 +73,7 @@ docker compose up       # Paper :25565 + plugin editor :8765 + the shop's MySQL
 docker compose -f docker/network/compose.yml up   # network: one hub + one leaf
 ```
 
-**Plugin commands** — `/artisan menu|reload|sync|editor [sessions|revoke <id>|logout]|dump-title`, detail in
+**Plugin commands** — `/artisan menu|reload|sync|editor [sessions|revoke <id>|logout]|dump-title` (+ the internal `click <token>` of `chat_button`), detail in
 `docs/architecture/plugin-commands.md`.
 
 **MC assets** — `cd tools/minecraft-assets && bun gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`

@@ -89,7 +89,13 @@ class ActionExecutor(
             warn("unknown action '${step.name}' — skipped (no module declares it)")
             return ctx
         }
-        val args = decl.bind(step.value)
+        val args = when (val coerced = ArgCoercion.coerce(decl.args, decl.bind(step.value), argResolver(ctx))) {
+            is ArgCoercion.Result.Ok -> coerced.args
+            is ArgCoercion.Result.Failed -> {
+                warn(coerced.failure.message(step.name) + where(ctx))
+                return ctx
+            }
+        }
         val result = try {
             decl.handler.execute(EngineActionContext(ctx), args, EngineRuntime(this, step.i18n))
         } catch (e: Exception) {
@@ -98,6 +104,15 @@ class ActionExecutor(
         }
         return if (result == null) ctx else context(result)
     }
+
+    /** How a typed argument's template is read (ADR `triggers-and-variables` §6): against [ctx], `%papi%` included. */
+    internal fun argResolver(ctx: ExecutionContext): ArgCoercion.Resolver = object : ArgCoercion.Resolver {
+        override fun value(expr: String): Any? = ctx.exprValue(expr, deps.papi)
+        override fun text(template: String): String = ctx.render(template, deps.papi)
+    }
+
+    /** ` (in <project>)` for a warning: which Document's chain it is. */
+    private fun where(ctx: ExecutionContext): String = ctx.projectId?.let { " (project $it)" } ?: ""
 
     /** A module's own [ActionContext] folded back into the engine's: its bindings are kept. */
     fun context(ctx: ActionContext): ExecutionContext =

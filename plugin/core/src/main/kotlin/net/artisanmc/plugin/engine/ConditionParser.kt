@@ -15,6 +15,7 @@ object ConditionParser {
             "placeholder_equals" -> Condition.PlaceholderEquals(str(raw, "placeholder"), str(raw, "value"))
             "placeholder_match"  -> Condition.PlaceholderMatch(str(raw, "placeholder"), str(raw, "regex"))
             "cooldown_passed"    -> Condition.CooldownPassed(str(raw, "cooldown_id"))
+            "has_var"            -> Condition.HasVar(str(raw, "var"))
             "world_is"           -> Condition.WorldIs(str(raw, "world"))
             "client_is"          -> Condition.ClientIs(str(raw, "client").lowercase())
             "has_resource_pack"  -> Condition.HasResourcePack

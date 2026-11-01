@@ -8,7 +8,7 @@ sidebar:
 Artisan's menus and projects live in files, not in a database. The database is one
 Artisan **lends** to the plugins of its suite (add-ons such as the shop) so they do
 not each need their own configuration. Artisan keeps a few tables of its own there
-(servers, project history, drafts), and each plugin that asks gets its own connection pool.
+(servers, project history, drafts, cooldowns, the values of Variables), and each plugin that asks gets its own connection pool.
 
 ## Which one
 
