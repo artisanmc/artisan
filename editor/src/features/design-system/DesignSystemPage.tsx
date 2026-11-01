@@ -127,7 +127,7 @@ const COLOR_GROUPS: { key: string; tokens: string[] }[] = [
   {
     key: "kinds",
     tokens: [
-      ...["menu", "command", "dialog", "trigger", "module"].flatMap((k) => [
+      ...["menu", "command", "dialog", "trigger", "variable", "module"].flatMap((k) => [
         `--kind-${k}`,
         `--kind-${k}-soft`,
         `--kind-${k}-line`,

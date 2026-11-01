@@ -801,6 +801,90 @@
       ]
     },
     {
+      "name": "Variables: has_var, set_var, add_var, clear_var, a place and a chat button",
+      "wire": [
+        {
+          "if": [
+            {
+              "has_var": "last_death"
+            }
+          ],
+          "do": [
+            {
+              "teleport": "{var.last_death}"
+            }
+          ]
+        },
+        {
+          "set_var": {
+            "var": "last_death",
+            "value": "{player.location}"
+          }
+        },
+        {
+          "add_var": {
+            "var": "deaths"
+          }
+        },
+        {
+          "clear_var": "streak"
+        },
+        {
+          "chat_button": {
+            "label": "[Back]",
+            "do": [
+              {
+                "teleport": "{var.last_death}"
+              }
+            ]
+          }
+        }
+      ],
+      "canonical": [
+        {
+          "if": [
+            {
+              "has_var": "last_death"
+            }
+          ],
+          "do": [
+            {
+              "teleport": "{var.last_death}"
+            }
+          ]
+        },
+        {
+          "set_var": {
+            "var": "last_death",
+            "value": "{player.location}"
+          }
+        },
+        {
+          "add_var": "deaths"
+        },
+        {
+          "clear_var": "streak"
+        },
+        {
+          "chat_button": {
+            "label": "[Back]",
+            "do": [
+              {
+                "teleport": "{var.last_death}"
+              }
+            ]
+          }
+        }
+      ],
+      "names": [
+        "if",
+        "set_var",
+        "add_var",
+        "clear_var",
+        "chat_button"
+      ]
+    },
+    {
       "name": "an empty chain",
       "wire": [],
       "canonical": [],

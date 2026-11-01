@@ -5,63 +5,72 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import type { ModuleVariable } from "@/lib/api/moduleVariables";
+import type { Condition } from "@/domain/types";
 import { cx } from "@/lib/cx";
 import { COMPARISON_OPS } from "@/lib/expr/tryParseAsComparison";
 import {
   type VariableCondition,
-  parseVariableCondition,
-  serializeVariableCondition,
+  conditionOfCriterion,
+  variableCriterionOf,
 } from "@/lib/expr/variableCondition";
-import { useServerVariablesStore } from "@/state/serverVariablesStore";
+import { type VariableChoice, useVariableChoices } from "@/lib/projectVariables";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-/** The operators a variable of that type offers; an unknown one (module missing) gets them all. */
-function opsFor(v: ModuleVariable | undefined): VariableCondition["op"][] {
-  if (v?.type === "boolean") return ["is", "is_not"];
-  if (v?.type === "string") return ["==", "!="];
-  if (v?.type === "number") return [...COMPARISON_OPS];
-  return ["is", "is_not", ...COMPARISON_OPS];
+/**
+ * The operators a variable of that type offers, "is set" first; an unknown one (module missing)
+ * gets them all. A location only compares as set.
+ */
+function opsFor(v: VariableChoice | undefined): VariableCondition["op"][] {
+  if (v?.type === "boolean") return ["is", "is_not", "is_set"];
+  if (v?.type === "string") return ["==", "!=", "is_set"];
+  if (v?.type === "number") return [...COMPARISON_OPS, "is_set"];
+  if (v?.type === "location") return ["is_set"];
+  return ["is", "is_not", "is_set", ...COMPARISON_OPS];
 }
 
 /** A criterion on `v` with its first operator and a value of its type. */
-export function criterionFor(v: ModuleVariable): VariableCondition {
+export function criterionFor(v: VariableChoice): VariableCondition {
   const key = v.key ? "" : null;
   if (v.type === "boolean") return { name: v.name, key, op: "is", value: null };
   if (v.type === "number") return { name: v.name, key, op: ">=", value: 1 };
+  if (v.type === "location") return { name: v.name, key, op: "is_set", value: null };
   return { name: v.name, key, op: "==", value: v.values[0] ?? "" };
 }
 
 /**
- * A criterion on a module Variable (ADR `triggers-and-variables` §10): variable → key →
- * operator → value, picked from what the active server declares. It writes a plain
- * `expression` (`var.guilds.has_guild`, `var.guilds.level >= 3`). A variable the server does
- * not declare stays as written and is flagged: its module is not installed there.
+ * A criterion on a Variable (ADR `triggers-and-variables` §5, §10): variable → key → operator →
+ * value, picked from the open project's Variables and what the active server's modules declare.
+ * It writes a plain `expression` (`var.vip`, `var.guilds.level >= 3`), or `has_var` for "is
+ * set". A name neither declares stays as written and is flagged.
  */
 export function VariableConditionField({
-  expr,
+  condition,
   onChange,
 }: {
-  expr: string;
-  onChange: (expr: string) => void;
+  condition: Condition;
+  onChange: (next: Condition) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const variables = useServerVariablesStore((s) => s.variables);
-  const ready = useServerVariablesStore((s) => s.status === "ready");
-  const c = parseVariableCondition(expr);
+  const { choices: variables, ready } = useVariableChoices();
+  const c = variableCriterionOf(condition);
   if (!c) return null;
   const variable = variables.find((v) => v.name === c.name);
-  const missing = c.name !== "" && ready && !variable;
-  const write = (next: VariableCondition) => onChange(serializeVariableCondition(next));
-  const describe = (v: ModuleVariable) =>
-    v.description[i18n.language] ?? v.description.en ?? Object.values(v.description)[0] ?? "";
+  // A Project variable is known from the project itself; a module's needs the server's list.
+  const missing = c.name !== "" && !variable && (ready || !c.name.includes("."));
+  const write = (next: VariableCondition) => onChange(conditionOfCriterion(next));
+  const describe = (v: VariableChoice) =>
+    v.source === "project"
+      ? t("conditions.variable.project")
+      : (v.description[i18n.language] ?? v.description.en ?? Object.values(v.description)[0] ?? "");
   const opLabel = (op: VariableCondition["op"]) =>
     op === "is"
       ? t("conditions.variable.isTrue")
       : op === "is_not"
         ? t("conditions.variable.isFalse")
-        : op;
+        : op === "is_set"
+          ? t("conditions.variable.isSet")
+          : op;
 
   return (
     <>
@@ -117,7 +126,7 @@ export function VariableConditionField({
                   ...c,
                   op,
                   value:
-                    op === "is" || op === "is_not"
+                    op === "is" || op === "is_not" || op === "is_set"
                       ? null
                       : (c.value ?? (variable?.type === "number" ? 0 : "")),
                 })
@@ -129,7 +138,7 @@ export function VariableConditionField({
           ))}
         </Picker>
       ) : null}
-      {c.name && c.op !== "is" && c.op !== "is_not" ? (
+      {c.name && c.op !== "is" && c.op !== "is_not" && c.op !== "is_set" ? (
         variable?.values.length ? (
           <Picker label={<span className="font-mono">{String(c.value ?? "")}</span>}>
             {variable.values.map((value) => (

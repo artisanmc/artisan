@@ -124,6 +124,7 @@ open class ArtisanPlugin : JavaPlugin() {
             MenusModule(),
             CommandsModule(),
             net.artisanmc.modules.triggers.TriggersModule(),
+            net.artisanmc.modules.variables.VariablesModule(),
         )
 
         fun buildApi(plugin: ArtisanPlugin): ArtisanAPI = ArtisanApiFactory.build(plugin)

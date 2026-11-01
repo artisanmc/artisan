@@ -358,6 +358,7 @@ Every action of a chain, Artisan's own included, runs through this registry (ADR
 | `RegisteredAction.getDeclaration()`, `getModuleId()`, `toWire()` (`{name, args, primary?, module_id?}`, the `declared_actions` wire) | `RegisteredAction` | 2.0.0 |
 | `ModelField(name, type[, required])`, `withDefault`, `withLabel`, `withHelp`, `withRequired`, `toWire()` | `ModelField` | 2.0.0 |
 | `ModelFieldType.string()`, `number()`, `integer()`, `bool()`, `ltext()`, `minimessage()`, `minimessageMultiline()`, `item()`, `actions()`, `conditions()`, `list(of)`, `object(fields)`, `model(ref)`, `map(of)`, `enumOf(values)`, `union(tag, variants)`, `documentRef(kind)` ; `toWire()` (the editor's `ModelFieldType` shape) | `ModelFieldType` | 2.0.0 |
+| `ModelFieldType.location()`: a position, `{world, x, y, z, yaw?, pitch?}` or the string `world x y z [yaw pitch]`, or a template resolved to one (an action argument, ADR `triggers-and-variables` §4) | `ModelFieldType` | 2.25.0 |
 | `UnionVariant(name, fields)` | `UnionVariant` | 2.0.0 |
 | `ArtisanAPI.Builder.actionRegistry(registry)` (`@Internal`) | `Builder` | 2.0.0 |
 
@@ -431,6 +432,9 @@ api.getVariables().declare(new ModuleVariableDeclaration("has_guild", VariableTy
 | `VariableType.STRING`, `NUMBER`, `BOOLEAN`, `wire()`, `accepts(value)` ; `VariableScope.PLAYER`, `SERVER`, `wire()` | | 2.24.0 |
 | `RegisteredVariable.getModuleId()`, `getDeclaration()`, `getQualifiedName()`, `toWire()` (`{name, type, scope, values?, key?, description?, module_id}`) ; `DuplicateVariableException` | | 2.24.0 |
 | `ArtisanAPI.Builder.variables(registry)`, `VariableRegistry.bindWarnings(warn)` (`@Internal`) | | 2.24.0 |
+| `VariableType.LOCATION` (a map with a `world` string and numeric `x`/`y`/`z`), `VariableType.fromWire(wire)` (nullable) | | 2.25.0 |
+| `VariableRegistry.changed(player, qualifiedName, key)`: fires the Game event `variable_changed` for a Trigger listening to it; an undeclared name does nothing; on the thread that owns the player | | 2.25.0 |
+| `VariableRegistry.bindChanges(listener)`, `VariableRegistry.ChangeListener` (`@Internal`) | | 2.25.0 |
 
 Not yet: `changed(player, name, key)` and the core Game event `variable_changed` (§10's change notice), the `location` type, `rowRef` keys with a picker, and Project variables (§5); `has_var` does not exist yet, `var.<module>.<name> != null` tests presence.
 

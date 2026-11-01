@@ -100,10 +100,11 @@ internal object CoreGameEvents {
 
     private fun round(d: Double): Double = Math.round(d * 100) / 100.0
 
+    /** A [LocationValue]: read field by field (`{event.location.x}`), as `world x y z` in a text, as a place by `teleport`. */
     fun locationOf(l: Location?): Map<String, Any?>? = l?.let {
-        mapOf(
-            "world" to it.world?.name, "x" to round(it.x), "y" to round(it.y), "z" to round(it.z),
-            "yaw" to round(it.yaw.toDouble()), "pitch" to round(it.pitch.toDouble()),
+        val world = it.world?.name ?: return@let null
+        net.artisanmc.plugin.engine.LocationValue(
+            world, round(it.x), round(it.y), round(it.z), round(it.yaw.toDouble()), round(it.pitch.toDouble()),
         )
     }
     fun itemOf(i: ItemStack?): Map<String, Any?>? =
@@ -158,6 +159,18 @@ internal object CoreGameEvents {
         GameEventDeclaration(name, group, frequency, context, cancellable, effects),
         ignoreCancelled, accept, player, values, apply,
     )
+
+    /**
+     * Events Artisan fires itself, not from a Bukkit listener. `variable_changed` (ADR
+     * `triggers-and-variables` §5, §10): a Variable's value changed for the player. `var` is its
+     * name as `var.` reads it (`last_death`, `guilds.rank`), `project` the project of a Project
+     * variable ("" for a module's), `key` the key of a keyed module Variable ("" otherwise).
+     */
+    val VARIABLE_CHANGED: GameEventDeclaration = GameEventDeclaration(
+        "variable_changed", "variables", NORMAL, listOf(text("var"), text("project"), text("key")),
+    )
+
+    val FIRED_BY_ARTISAN: List<GameEventDeclaration> = listOf(VARIABLE_CHANGED)
 
     @Suppress("DEPRECATION") // the String setters exist on Spigot and Paper alike
     val ALL: List<CatalogEvent<*>> = listOf(

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.artisanmc.net/schema/variable/v1.json",
+  "title": "Artisan Variable",
+  "description": "A Variable is a named, typed value that chains write (`set_var`, `add_var`, `clear_var`) and that conditions and texts read as `{var.<id>}`. File `variables/<id>.yml`; the id is the file name.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "type"
+  ],
+  "properties": {
+    "schema": {
+      "const": "variable/v1"
+    },
+    "scope": {
+      "enum": [
+        "player",
+        "server"
+      ],
+      "default": "player",
+      "description": "`player`: one value per player, follows them across the network. `server`: one value shared by every player of the network."
+    },
+    "type": {
+      "enum": [
+        "string",
+        "number",
+        "boolean",
+        "location"
+      ],
+      "description": "What the value is. A write of another type is refused; a stored value that no longer matches (the type changed) is read as absent."
+    },
+    "default": {
+      "description": "What `{var.<id>}` reads while nothing is stored. `has_var` stays false: the default is not a stored value.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Location"
+        }
+      ]
+    },
+    "expires_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Lifetime of a value after its last write; 0 or absent: it never expires."
+    },
+    "notes": {
+      "type": "string",
+      "description": "The author's notes, never read by the server."
+    }
+  }
+}

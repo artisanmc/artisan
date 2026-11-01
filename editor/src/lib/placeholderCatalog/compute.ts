@@ -1,8 +1,9 @@
 import { commandNodeAt } from "@/domain/commandNodes";
 import { sourceFieldType } from "@/domain/dataModels";
-import { commandsOf, menusOf } from "@/domain/documents";
+import { commandsOf, documentsOf, menusOf } from "@/domain/documents";
 import type { FieldType, Menu, Project } from "@/domain/types";
 import {
+  SAMPLE_PLAYER_LOCATION,
   SAMPLE_PLAYER_NAME,
   SAMPLE_PLAYER_UUID,
   SAMPLE_PLAYER_WORLD,
@@ -27,6 +28,45 @@ const ORDER: Record<PlaceholderOrigin, number> = {
 export type RowModelSchemas = Record<string, { name: string; type: string }[]>;
 
 export function compute(
+  project: Project,
+  location: FieldLocation,
+  rowSchemas?: RowModelSchemas,
+  moduleVariables: CatalogVariable[] = [],
+): PlaceholderEntry[] {
+  const scoped = computeScoped(project, location, rowSchemas);
+  // `var` is bound wherever a chain or a text runs, once a server answers (ADR
+  // `triggers-and-variables` §5, §10).
+  return sorted([...scoped, ...variableEntries(project, moduleVariables)]);
+}
+
+/** A module Variable as the catalog lists it (the server's declaration, trimmed). */
+export interface CatalogVariable {
+  name: string;
+  type: string;
+  key: unknown;
+}
+
+/**
+ * `{var.<id>}` for each Variable of the project, then `{var.<module>.<name>}` for the server's
+ * module Variables that are not keyed (a keyed one needs its `["key"]`). A project Variable hides
+ * the module of the same name, as on the server.
+ */
+export function variableEntries(project: Project, modules: CatalogVariable[]): PlaceholderEntry[] {
+  const own = documentsOf(project, "variable").map((d) => {
+    const doc = d as unknown as { id: string; type?: string };
+    return { name: doc.id, type: doc.type ?? "string" };
+  });
+  const hidden = new Set(own.map((v) => v.name));
+  const theirs = modules.filter((m) => !m.key && !hidden.has(m.name.split(".")[0]!));
+  return [...own, ...theirs].map((v) => ({
+    path: `var.${v.name}`,
+    type: v.type === "number" ? "number" : v.type === "boolean" ? "boolean" : "string",
+    sample: null,
+    origin: "context",
+  }));
+}
+
+function computeScoped(
   project: Project,
   location: FieldLocation,
   rowSchemas?: RowModelSchemas,
@@ -128,6 +168,8 @@ function playerSubfieldEntries(base: string, nameSample: string | null): Placeho
     { path: `${base}.name`, type: "string", sample: nameSample, origin: "context" },
     { path: `${base}.uuid`, type: "string", sample: SAMPLE_PLAYER_UUID, origin: "context" },
     { path: `${base}.world`, type: "string", sample: SAMPLE_PLAYER_WORLD, origin: "context" },
+    { path: `${base}.location`, type: "string", sample: SAMPLE_PLAYER_LOCATION, origin: "context" },
+    { path: `${base}.vanished`, type: "boolean", sample: "false", origin: "context" },
   ];
 }
 

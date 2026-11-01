@@ -90,6 +90,7 @@ object KeyedStepParser {
             "world_is" -> Condition.WorldIs(value?.toString() ?: "")
             "random_chance" -> Condition.RandomChance((value as? Number)?.toDouble() ?: 0.0)
             "cooldown_passed" -> Condition.CooldownPassed(value?.toString() ?: "")
+            "has_var" -> Condition.HasVar(value?.toString() ?: "")
             "player_in_region" -> Condition.PlayerInRegion(value?.toString() ?: "")
             "time_is" ->
                 if (value is Map<*, *>)
@@ -120,6 +121,7 @@ object KeyedStepParser {
         is Condition.HasItem -> c.material.isNotBlank()
         is Condition.WorldIs -> c.world.isNotBlank()
         is Condition.CooldownPassed -> c.cooldownId.isNotBlank()
+        is Condition.HasVar -> c.name.isNotBlank()
         is Condition.PlayerInRegion -> c.region.isNotBlank()
         is Condition.PlaceholderEquals -> c.placeholder.isNotBlank()
         is Condition.PlaceholderMatch ->
