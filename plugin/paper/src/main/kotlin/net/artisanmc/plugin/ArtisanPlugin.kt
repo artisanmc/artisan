@@ -323,6 +323,7 @@ open class ArtisanPlugin : JavaPlugin() {
         actions = api.actionRegistry.registered().map { it.toWire() },
         documentKinds = api.documentKinds.registered().map { it.toWire() },
         gameEvents = api.gameEvents.registered().map { it.toWire() },
+        variables = api.variables.registered().map { it.toWire() },
         playerCommands = net.artisanmc.plugin.ws.PlayerCommandReport.build(api.playerCommands),
     )
 

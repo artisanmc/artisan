@@ -115,6 +115,22 @@ Only `+` and `-`. There is no `*` or `/`, and `%` is reserved for PlaceholderAPI
 There is no leading minus either: write `{0 - price}`, not `{-price}`.
 :::
 
+### A module's state: `var`
+
+An installed module can share part of its state as **module variables**, named
+`var.<module>.<name>`: whether the player has a guild, their rank, a quest's status.
+They read like any value, in a condition or a text:
+
+```
+var.guilds.has_guild
+{var.guilds.rank}
+var.quests.status["daily/miner"] == "completed"
+```
+
+In a condition list, **module variable** offers the ones your server declares: pick the
+variable, then the comparison. A variable whose module is not installed reads as nothing
+(the condition is false) and is struck through in the editor.
+
 ## Time
 
 Time fields carry an exact instant — the moment a quest group resets, the moment an

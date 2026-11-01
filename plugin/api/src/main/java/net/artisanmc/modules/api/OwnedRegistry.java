@@ -6,7 +6,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * A registry that records which module made each registration, so that {@link ModuleRegistry}
  * can scope a module's {@code onEnable} and undo it on unregister. Implemented by the data
- * source, command, model, screen, action, document-kind, game-event, editor-bundle, module-brand and template registries; only
+ * source, command, model, screen, action, document-kind, game-event, variable, editor-bundle, module-brand and template registries; only
  * {@link ModuleRegistry} calls it. Not for add-ons.
  */
 @Internal

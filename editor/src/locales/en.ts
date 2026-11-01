@@ -659,6 +659,15 @@ export default {
     caseConditionEmpty: "(always — no condition gates this case)",
   },
   conditions: {
+    variable: {
+      pick: "pick a variable",
+      none: "No module variable on this server",
+      missing: "{{name}}: no installed module declares this variable on this server",
+      key: "key",
+      value: "value",
+      isTrue: "is true",
+      isFalse: "is false",
+    },
     removeCondition: "Remove",
     keptUnknown_one: "{{count}} condition this editor cannot show is kept as written",
     keptUnknown_other: "{{count}} conditions this editor cannot show are kept as written",

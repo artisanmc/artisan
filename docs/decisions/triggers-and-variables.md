@@ -3,7 +3,9 @@
 **Status:** accepted (2026-10-24). Batches 3 (registry, Trigger kind, core catalog, effects) and 5
 (editor) delivered first, at Iban's request; batches 1, 2 and 4 (`location` type, Variables,
 `chat_button`) remain to be done. Deviations of the implementation, see "Implementation" at the end.
-§10 (module variables, batch 6) is a **proposed** amendment of 2026-10-31, not yet accepted.
+§10 (module variables, batch 6) is an amendment of 2026-10-31, accepted on 2026-11-01 (Iban, to
+let `/guild` decide in its file whether the player has a guild) and delivered in part ahead of
+batch 2: see "Implementation (batch 6, 2026-11-01)" at the end.
 
 **Naming (Iban, 2026-10-24)**: the kind is called **Trigger** (not "Automation"). The event it
 listens to is therefore called **Game event**, so as not to say "trigger" twice. This is consistent
@@ -415,3 +417,22 @@ What differs from the text above, and why:
   without a server.
 - **Editor**: `cancel_event` / `set_event` are only offered in a Trigger's chain, under "This
   event", based on the chosen event; never in the generic action list.
+
+## Implementation (batch 6, 2026-11-01)
+
+Delivered before batch 2 (Project variables), so the reading path is the module side alone:
+
+- `api.getVariables()` (`VariableRegistry`, API 2.24.0, `@Beta`), declarations and Presence
+  `declared_variables` as in §10, with an optional `description` by language for the editor.
+- Every context binds `var` (`ExecutionContext.resolvedArgs`, `ModuleVariableValues`): a map read
+  lazily, so `expression` conditions and texts read `var.<module>.<name>` and
+  `var.<module>.<name>["<key>"]` through the expression engine as it is, with no new syntax. An
+  arg named `var` is not overridden.
+- Editor: the condition list gains "module variable", a criterion (variable → key → operator →
+  value) that writes a plain `expression` and reads it back; a name the active server does not
+  declare is struck through.
+
+Not yet: `has_var` (`var.<m>.<n> != null` meanwhile), `variable_changed` and `changed(...)`,
+`rowRef` keys with a picker (the key is typed), the `{` autocomplete of templates, the
+`artisan_var` PlaceholderAPI namespace, and the `location` type.
+
