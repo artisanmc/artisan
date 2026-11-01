@@ -1977,8 +1977,6 @@ const fr: typeof en = {
     ctxInDocument: "dans {{owner}}",
   },
   moduleHome: {
-    pluginModule: "Module du plugin {{name}}",
-    contentModule: "Module de contenu",
     content: "Contenu",
     boardEmpty: "Rien sur le canvas pour l'instant.",
     folders_one: "{{count}} dossier",

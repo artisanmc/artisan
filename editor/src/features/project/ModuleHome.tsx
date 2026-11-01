@@ -10,7 +10,6 @@ import { BoardThumbnail } from "@/features/canvas/BoardThumbnail";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
-import { listLanguages } from "@/lib/i18nUsages";
 import { kindCreatableIn } from "@/lib/moduleDocumentKinds";
 import {
   collectionDestination,
@@ -54,7 +53,6 @@ export function ModuleHome({
     screens,
   );
   const ownerModule = owner ? getModule(owner) : undefined;
-  const ownerLabel = owner ? (ownerModule?.displayName ?? owner) : null;
   const OwnSection = ownerModule?.home;
   const brand = useModuleBrand(owner);
   const collections = projectCollections(project);
@@ -81,7 +79,6 @@ export function ModuleHome({
 
   const commands = documentsOf(project, "command");
   const moduleActions = owner ? actions.filter((a) => a.moduleId === owner) : [];
-  const languages = listLanguages(project);
 
   const boardPlace = (
     <Place
@@ -130,11 +127,8 @@ export function ModuleHome({
       className="absolute inset-0 z-30 overflow-auto bg-[var(--surface)]"
     >
       <div className="mx-auto flex max-w-5xl flex-col gap-7 p-[var(--page-pad)]">
-        {/* With a module's own icon and logo, the text column is exactly the icon's height:
-            logo on its top edge, subtitle on its bottom edge. */}
-        <header
-          className={`flex flex-wrap gap-3 ${brand?.icon && brand.logo ? "items-stretch" : "items-center"}`}
-        >
+        {/* The module's icon and its logo (or its name), side by side, centred on each other. */}
+        <header className="flex flex-wrap items-center gap-3">
           {/* A module of the suite shows its own icon and logo; any other one, the tile. */}
           {brand?.icon ? (
             <ModuleIcon src={brand.icon} />
@@ -147,13 +141,7 @@ export function ModuleHome({
               size="lg"
             />
           )}
-          <div
-            className={
-              brand?.icon && brand.logo
-                ? "flex min-w-0 flex-1 flex-col justify-between"
-                : "min-w-0 flex-1"
-            }
-          >
+          <div className="min-w-0 flex-1">
             {brand?.logo ? (
               <h1 className="flex">
                 <ModuleLogo logo={brand.logo} alt={project.name} />
@@ -161,16 +149,6 @@ export function ModuleHome({
             ) : (
               <h1 className="truncate text-lg font-semibold">{project.name}</h1>
             )}
-            <div
-              className={`flex flex-wrap gap-x-3 text-[12.5px] text-[var(--text-mut)] ${brand?.logo ? "mt-1.5 leading-none" : ""}`}
-            >
-              <span>
-                {ownerLabel
-                  ? t("moduleHome.pluginModule", { name: ownerLabel })
-                  : t("moduleHome.contentModule")}
-              </span>
-              <span className="font-mono">{languages.join(" · ")}</span>
-            </div>
           </div>
         </header>
 
