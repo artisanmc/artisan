@@ -142,6 +142,18 @@ class ProjectRootsTest {
         assertEquals(dir, roots.all()["quests"])
     }
 
+    @Test fun `a module folder keeps its addon key before its module registers it`() {
+        roots.moduleFolder("quests", "artisanquests", null)
+        // The next start: the editor answers before the module registers its folder.
+        val restarted = ProjectRoots(coreRoot)
+        assertEquals("addon:quests", restarted.key("quests"))
+        // A copy of the folder is not the module: it gets a key of its own.
+        File(coreRoot, "quests").copyRecursively(File(coreRoot, "quests_copy"))
+        val again = ProjectRoots(coreRoot)
+        assertTrue(again.key("quests_copy").let { !it.startsWith("addon:") })
+        assertEquals("addon:quests", again.key("quests"))
+    }
+
     @Test fun `a module folder adopts the former add-on root once, with its key`() {
         val legacy = File(addonDir, "project")
         roots.register("boutique", legacy, "boutique")

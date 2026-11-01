@@ -21,7 +21,7 @@ plugins/Artisan/modules/
     models/<id>.yml                ← schema model/v1; `<id>` = the source it types (owned model), otherwise the model id, the identity remains the internal `id:`
     assets/{glyphs,textures,fonts}/ ← images and fonts (binaries, written by publication)
     .artisan/editor.yaml           ← editor board state (the only `.artisan*` the editor writes)
-    .artisan/project-id            ← project UUID, written once by the plugin (keeps Versions and drafts across a rename)
+    .artisan/project-id            ← project UUID, written once by the plugin (keeps Versions and drafts across a rename); `addon:<folder>` in a module's own folder, so the key holds before the module registers it at startup
     .artisan/drafts/<id>/          ← drafts from before the suite database, no longer read
     .artisan/transactions/         ← publication journal, receipts in `.receipts/`
     .artisan/history/              ← archives from before 2026-09-26, read only
