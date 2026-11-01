@@ -6,22 +6,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Segmented } from "@/components/ui/segmented";
 import { Switch } from "@/components/ui/switch";
 import type { ProjectId, VariantRule } from "@/domain/types";
 import { variantNames } from "@/domain/variants";
+import { ConditionsField } from "@/features/inspector/properties/ConditionsField";
 import { useProjectsStore } from "@/state/projectsStore";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { parse, stringify } from "yaml";
-
-type Tri = "any" | "yes" | "no";
 
 /**
  * The display rules of `variants.yml` (design `variantes-modules` §9), edited as a list: order,
- * on/off, the conditions, all required together. Saved on "Done", in one undo step.
+ * on/off, the variant shown, and when, with the action editor's conditions (all required).
+ * Saved on "Done", in one undo step.
  */
 export function VariantRulesDialog({
   projectId,
@@ -77,6 +74,7 @@ export function VariantRulesDialog({
             >
               <div className="flex items-center gap-2">
                 <span className="eyebrow">{t("variants.rule", { n: i + 1 })}</span>
+                <span className="text-sm text-[var(--text-mut)]">{t("variants.show")}</span>
                 <select
                   aria-label={t("variants.variant")}
                   className="input h-8 w-auto"
@@ -123,41 +121,12 @@ export function VariantRulesDialog({
                   <Trash2 className="size-4" />
                 </Button>
               </div>
-              <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">
-                <span className="field-label">{t("variants.client")}</span>
-                <Segmented
-                  label={t("variants.client")}
-                  value={rule.client ?? "any"}
-                  options={[
-                    { value: "any", label: t("variants.clientAny") },
-                    { value: "java", label: t("variants.clientJava") },
-                    { value: "bedrock", label: t("variants.clientBedrock") },
-                  ]}
-                  onChange={(v) => set(i, { client: v === "any" ? undefined : v })}
-                />
-                <span className="field-label">{t("variants.hasPack")}</span>
-                <Segmented<Tri>
-                  label={t("variants.hasPack")}
-                  value={rule.hasPack === undefined ? "any" : rule.hasPack ? "yes" : "no"}
-                  options={[
-                    { value: "any", label: t("variants.hasPackAny") },
-                    { value: "yes", label: t("variants.hasPackYes") },
-                    { value: "no", label: t("variants.hasPackNo") },
-                  ]}
-                  onChange={(v) => set(i, { hasPack: v === "any" ? undefined : v === "yes" })}
-                />
-                <span className="field-label">{t("variants.permission")}</span>
-                <Input
-                  value={rule.permission ?? ""}
-                  placeholder={t("variants.permissionPlaceholder")}
-                  onChange={(e) => set(i, { permission: e.target.value.trim() || undefined })}
-                />
-                <span className="field-label self-start pt-1.5">{t("variants.condition")}</span>
-                <ConditionField
-                  value={rule.condition}
-                  onChange={(condition) => set(i, { condition })}
-                />
-              </div>
+              <ConditionsField
+                label={t("variants.showIf")}
+                value={rule.conditions}
+                emptyHint={t("variants.showAlways")}
+                onChange={(conditions) => set(i, { conditions })}
+              />
             </li>
           ))}
         </ol>
@@ -165,7 +134,9 @@ export function VariantRulesDialog({
           <Button
             variant="ghost"
             className="self-start"
-            onClick={() => setRules((rs) => [...rs, { variant: names[0]!, enabled: true }])}
+            onClick={() =>
+              setRules((rs) => [...rs, { variant: names[0]!, enabled: true, conditions: [] }])
+            }
           >
             <Plus className="size-4" /> {t("variants.addRule")}
           </Button>
@@ -198,46 +169,5 @@ export function VariantRulesDialog({
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/** An engine condition as YAML text: kept as written until it parses. */
-function ConditionField({
-  value,
-  onChange,
-}: {
-  value: unknown;
-  onChange: (value: unknown) => void;
-}) {
-  const { t } = useTranslation();
-  const [text, setText] = useState(() => (value === undefined ? "" : stringify(value).trimEnd()));
-  const [invalid, setInvalid] = useState(false);
-  return (
-    <div className="flex flex-col gap-1">
-      <textarea
-        className="input min-h-[2.5rem] font-mono text-xs"
-        rows={Math.max(1, text.split("\n").length)}
-        value={text}
-        placeholder="{ type: has_permission, perm: guilds.vip }"
-        onChange={(e) => {
-          setText(e.target.value);
-          if (!e.target.value.trim()) {
-            setInvalid(false);
-            onChange(undefined);
-            return;
-          }
-          try {
-            const parsed = parse(e.target.value);
-            setInvalid(false);
-            onChange(parsed ?? undefined);
-          } catch {
-            setInvalid(true);
-          }
-        }}
-      />
-      {invalid && (
-        <span className="text-xs text-[var(--danger)]">{t("variants.conditionInvalid")}</span>
-      )}
-    </div>
   );
 }

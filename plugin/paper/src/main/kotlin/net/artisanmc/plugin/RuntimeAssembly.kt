@@ -204,7 +204,10 @@ internal class RuntimeAssembly(
         capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
         capturedItems.reload()
         val softDeps = SoftDepRegistry(plugin, capturedItems, placeholders)
-        evaluator = ConditionEvaluator(softDeps, cooldowns)
+        evaluator = ConditionEvaluator(softDeps, cooldowns, object : net.artisanmc.plugin.engine.ClientProbe {
+            override fun isBedrock(player: org.bukkit.entity.Player) = plugin.geyser.isBedrock(player)
+            override fun hasPack(player: org.bukkit.entity.Player) = this@RuntimeAssembly.hasPack(player)
+        })
 
         val provider = createProvider(cfg)
         menuProvider = provider

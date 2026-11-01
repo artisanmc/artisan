@@ -54,6 +54,8 @@ const TYPES: Array<{ value: Condition["type"]; label: string; chip: string }> = 
   { value: "has_xp", label: "has XP", chip: "xp" },
   { value: "has_level", label: "has level", chip: "lvl" },
   { value: "world_is", label: "world is", chip: "world" },
+  { value: "client_is", label: "client is (Java / Bedrock)", chip: "client" },
+  { value: "has_resource_pack", label: "has the resource pack", chip: "pack" },
   { value: "time_is", label: "time is", chip: "time" },
   { value: "random_chance", label: "random chance", chip: "%" },
   { value: "cooldown_passed", label: "cooldown passed", chip: "cd" },
@@ -92,6 +94,10 @@ const defaultCondition = (type: Condition["type"]): Condition => {
       return { type: "has_level", level: 1 };
     case "world_is":
       return { type: "world_is", world: "" };
+    case "client_is":
+      return { type: "client_is", client: "bedrock" };
+    case "has_resource_pack":
+      return { type: "has_resource_pack" };
     case "time_is":
       return { type: "time_is", range: "day" };
     case "random_chance":
@@ -426,6 +432,21 @@ function ConditionInline({
         </>
       );
     }
+    case "client_is":
+      return (
+        <select
+          value={condition.client}
+          onChange={(e) =>
+            onChange({ ...condition, client: e.target.value === "java" ? "java" : "bedrock" })
+          }
+          className="input h-6 w-[90px] px-1.5 py-0 text-[11px]"
+        >
+          <option value="java">Java</option>
+          <option value="bedrock">Bedrock</option>
+        </select>
+      );
+    case "has_resource_pack":
+      return null;
     case "world_is":
       return (
         <Input

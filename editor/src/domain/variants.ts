@@ -281,7 +281,7 @@ export function addVariant(project: Project, name: string): boolean {
   const v: ProjectVariants = project.variants;
   if (v.names.includes(name)) return false;
   v.names.push(name);
-  v.rules.push({ variant: name, enabled: false });
+  v.rules.push({ variant: name, enabled: false, conditions: [] });
   return true;
 }
 
@@ -314,36 +314,36 @@ export function rulesFromYaml(raw: unknown): VariantRule[] {
     if (!r || typeof r !== "object") return [];
     const m = r as Record<string, unknown>;
     if (typeof m.variant !== "string" || !m.variant) return [];
-    const when = (m.when && typeof m.when === "object" ? m.when : {}) as Record<string, unknown>;
     return [
       {
         ...(typeof m.id === "string" ? { id: m.id } : {}),
         variant: m.variant,
         enabled: m.enabled !== false,
-        ...(when.client === "bedrock" || when.client === "java" ? { client: when.client } : {}),
-        ...(typeof when.has_pack === "boolean" ? { hasPack: when.has_pack } : {}),
-        ...(typeof when.permission === "string" ? { permission: when.permission } : {}),
-        ...(when.condition !== undefined ? { condition: when.condition } : {}),
+        conditions: [...whenConditions(m.when), ...(m.if === undefined ? [] : [m.if].flat())],
       },
     ];
   });
 }
 
+/** The old `when:` keys as conditions of the engine, in the order the plugin tests them. */
+function whenConditions(raw: unknown): unknown[] {
+  const when = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const out: unknown[] = [];
+  if (when.client === "bedrock" || when.client === "java") out.push({ client_is: when.client });
+  if (typeof when.has_pack === "boolean") out.push({ has_resource_pack: when.has_pack });
+  if (typeof when.permission === "string") out.push({ has_permission: when.permission });
+  if (when.condition !== undefined) out.push(when.condition);
+  return out;
+}
+
 export function rulesToYaml(rules: VariantRule[]): Record<string, unknown> {
   return {
     schema: VARIANTS_SCHEMA,
-    rules: rules.map((r) => {
-      const when: Record<string, unknown> = {};
-      if (r.client) when.client = r.client;
-      if (r.hasPack !== undefined) when.has_pack = r.hasPack;
-      if (r.permission) when.permission = r.permission;
-      if (r.condition !== undefined) when.condition = r.condition;
-      return {
-        ...(r.id ? { id: r.id } : {}),
-        variant: r.variant,
-        ...(r.enabled ? {} : { enabled: false }),
-        ...(Object.keys(when).length > 0 ? { when } : {}),
-      };
-    }),
+    rules: rules.map((r) => ({
+      ...(r.id ? { id: r.id } : {}),
+      variant: r.variant,
+      ...(r.enabled ? {} : { enabled: false }),
+      ...(r.conditions.length > 0 ? { if: r.conditions } : {}),
+    })),
   };
 }

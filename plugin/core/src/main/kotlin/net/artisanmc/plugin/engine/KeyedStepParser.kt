@@ -88,6 +88,9 @@ object KeyedStepParser {
             "has_xp" -> Condition.HasXp(num(value))
             "has_level" -> Condition.HasLevel(num(value))
             "world_is" -> Condition.WorldIs(value?.toString() ?: "")
+            "client_is" -> Condition.ClientIs(value?.toString()?.lowercase() ?: "")
+            // `has_resource_pack: false` reads as its negation.
+            "has_resource_pack" -> if (value == false) Condition.Not(Condition.HasResourcePack) else Condition.HasResourcePack
             "random_chance" -> Condition.RandomChance((value as? Number)?.toDouble() ?: 0.0)
             "cooldown_passed" -> Condition.CooldownPassed(value?.toString() ?: "")
             "player_in_region" -> Condition.PlayerInRegion(value?.toString() ?: "")
@@ -119,6 +122,7 @@ object KeyedStepParser {
         is Condition.HasPermission -> c.perm.isNotBlank()
         is Condition.HasItem -> c.material.isNotBlank()
         is Condition.WorldIs -> c.world.isNotBlank()
+        is Condition.ClientIs -> c.client in setOf("java", "bedrock")
         is Condition.CooldownPassed -> c.cooldownId.isNotBlank()
         is Condition.PlayerInRegion -> c.region.isNotBlank()
         is Condition.PlaceholderEquals -> c.placeholder.isNotBlank()
@@ -132,7 +136,7 @@ object KeyedStepParser {
         is Condition.And -> c.all.all(::isWellFormed)
         is Condition.Or -> c.any.all(::isWellFormed)
         is Condition.HasMoney, is Condition.HasXp, is Condition.HasLevel,
-        is Condition.PaginationAtFirst, is Condition.PaginationAtLast -> true
+        is Condition.PaginationAtFirst, is Condition.PaginationAtLast, Condition.HasResourcePack -> true
     }
 
     private fun asList(v: Any?): List<*> = when (v) {

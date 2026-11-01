@@ -41,14 +41,15 @@ module's other menus to Bedrock players.
 
 A rule holds when all of its conditions do:
 
+Each rule reads **Show [variant] if [conditions]**. The conditions are the same as an action's
+`if`, edited the same way: permission, money, world, placeholder, and two made for variants:
+
 | Condition | Holds when |
 |---|---|
-| Client | The player plays on Java, or on Bedrock (through Geyser). |
-| Resource pack | The player loaded the server's resource pack, or did not. A Bedrock player counts as having it when the server has a Bedrock pack. |
-| Permission | The player has this permission (`op` style permissions work). |
-| Engine condition | Any condition of the action engine, written in YAML, e.g. `{ type: has_permission, perm: guilds.vip }`. |
+| Client is | The player plays on Java, or on Bedrock (through Geyser). |
+| Has the resource pack | The player loaded the server's resource pack. A Bedrock player counts as having it when the server has a Bedrock pack. Wrap it in NOT for players without it. |
 
-A rule with no condition holds for everyone. Turn a rule off to keep a variant without showing it.
+Both work in actions too. A rule with no condition holds for everyone. Turn a rule off to keep a variant without showing it.
 
 ## What a variant can change
 
@@ -78,11 +79,11 @@ schema: variants/v1
 rules:
   - variant: dev
     enabled: false
-    when: { permission: op }
+    if: [{ has_permission: op }]
   - variant: bedrock
-    when: { client: bedrock }
+    if: [{ client_is: bedrock }]
   - variant: textured
-    when: { has_pack: true }
+    if: [{ has_resource_pack: true }]
 ```
 
 The resource packs (Java and Bedrock) include the variants' menus. An AI app connected through

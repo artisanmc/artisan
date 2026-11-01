@@ -89,7 +89,7 @@ describe("variants in the editor", () => {
       expect(addVariant(d, "vip")).toBe(true);
       expect(addVariant(d, "vip")).toBe(false);
     });
-    expect(p.variants?.rules.at(-1)).toEqual({ variant: "vip", enabled: false });
+    expect(p.variants?.rules.at(-1)).toEqual({ variant: "vip", enabled: false, conditions: [] });
     const gone = produce(p, (d) => removeVariant(d, "textured"));
     expect(gone.variants?.names).toEqual(["vip"]);
     expect(Object.keys(projectToFiles(gone)).some((k) => k.includes("variants/textured"))).toBe(
@@ -108,6 +108,19 @@ describe("variants in the editor", () => {
         },
       ],
     };
-    expect(rulesToYaml(rulesFromYaml(raw))).toEqual({ schema: "variants/v1", ...raw });
+    // The old `when:` reads as conditions of the engine, written back as `if:`.
+    expect(rulesToYaml(rulesFromYaml(raw))).toEqual({
+      schema: "variants/v1",
+      rules: [
+        { id: "dev", variant: "dev", enabled: false, if: [{ has_permission: "op" }] },
+        { variant: "bedrock", if: [{ client_is: "bedrock" }] },
+        {
+          variant: "vip",
+          if: [{ has_resource_pack: true }, { type: "has_permission", perm: "vip" }],
+        },
+      ],
+    });
+    const now = { schema: "variants/v1", rules: rulesToYaml(rulesFromYaml(raw)).rules };
+    expect(rulesToYaml(rulesFromYaml(now))).toEqual(now);
   });
 });

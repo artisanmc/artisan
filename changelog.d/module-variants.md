@@ -1,7 +1,8 @@
 - **Added** (preview): Module variants. A module with `variants.yml` keeps other versions of its
   menus and dialogs under `variants/<name>/` (same ids), and its display rules pick, for each
-  player and each file, the first variant whose rule holds and that has the file: `client:
-  bedrock`, `has_pack`, `permission`, or any condition. Without `variants.yml`, nothing changes.
+  player and each file, the first variant whose rule holds and that has the file. A rule's
+  `if:` lists conditions of the action engine, edited with the action's condition editor; two new
+  conditions, `client_is` (java | bedrock) and `has_resource_pack`, serve variants and actions alike. Without `variants.yml`, nothing changes.
   In the editor, **View as** on the canvas toolbar shows a variant: its versions in place, the
   module's shared documents faded; editing a faded document (or **Create a version for …**) gives the variant its own copy of a menu, dialog or command, the module's left as it
   was; **Display rules…** orders and edits the rules. AI apps (MCP) see the variants in
