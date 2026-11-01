@@ -122,7 +122,7 @@ internal object DocumentLayout {
     }
 }
 
-/** The menus of a Project the Bedrock pack styles (`bedrockMenus.ts`): chests of 3 or 6 rows. */
+/** The menus of a Project the Bedrock pack styles (`bedrockMenus.ts`): chests of 1 to 6 rows. */
 internal object BedrockMenus {
     private const val PLAIN_X = 8.0
     private const val PLAIN_Y = 6.0
@@ -203,9 +203,9 @@ internal object BedrockMenus {
             if (doc.containsKey("inventory_type") && doc["inventory_type"] != "chest") continue
             if (doc["player_inventory"] == "hidden") continue
             val size = Js.toNumber(doc["size"])
-            if (size != 27.0 && size != 54.0) continue
+            if (size % 9.0 != 0.0 || size < 9.0 || size > 54.0) continue
             val sizeInt = size.toInt()
-            val rows = if (sizeInt == 27) 3 else 6
+            val rows = sizeInt / 9
 
             val images = ArrayList<BedrockImageLayer>()
             for (layer in asList(doc["title"])) {
@@ -289,6 +289,15 @@ internal object BedrockUi {
     }
 
     private fun hasKey(menu: BedrockMenu) = contains(BedrockTitle.MARKER + menu.key)
+
+    /** Rows of the Bedrock screen a chest of [rows] rows opens on: Geyser shows 1 to 3 as a small chest, 4 to 6 as a large one. */
+    fun panelRows(rows: Int) = if (rows <= 3) 3 else 6
+
+    /** The row counts of [menus], ascending, the screen's own first (`gridRows` in `bedrockUi.ts`). */
+    private fun gridRows(menus: List<BedrockMenu>): List<Int> {
+        val all = menus.map { it.rows }.distinct().sorted()
+        return all.filter { it == panelRows(it) } + all.filter { it != panelRows(it) }
+    }
 
     /**
      * Bytes in front of the marker as the client may receive them: the proxy chain adds formatting
@@ -427,9 +436,8 @@ internal object BedrockUi {
             ),
         )
         for ((rows, panel) in listOf(3 to "small", 6 to "large")) {
-            val here = menus.filter { it.rows == rows }
+            val here = menus.filter { panelRows(it.rows) == rows }
             if (here.isEmpty()) continue
-            val styled = anyOf(here.map(::hasKey))
             val transparent = here.filter { it.transparent }
             val modifications = ArrayList<Map<String, Any?>>()
             if (transparent.isNotEmpty()) {
@@ -449,13 +457,25 @@ internal object BedrockUi {
             }
             val value = ArrayList<Map<String, Any?>>()
             here.forEach { value += backgroundElement(it, backgroundHeight(it)) }
-            value += mapOf(
-                "artisan_chest_grid@chest.${panel}_chest_grid" to element(
-                    "offset" to listOf(GRID_X, GRID_Y),
-                    "grid_item_template" to "chest.artisan_grid_item",
-                    "layer" to LAYER_GRID,
-                ).whenVisible(styled),
-            )
+            // A chest of fewer rows than its screen gets a grid of its own rows only: the slots
+            // Geyser pads it with stay under the background.
+            for (own in gridRows(here)) {
+                val visible = anyOf(here.filter { it.rows == own }.map(::hasKey))
+                value += if (own == rows) mapOf(
+                    "artisan_chest_grid@chest.${panel}_chest_grid" to element(
+                        "offset" to listOf(GRID_X, GRID_Y),
+                        "grid_item_template" to "chest.artisan_grid_item",
+                        "layer" to LAYER_GRID,
+                    ).whenVisible(visible),
+                ) else mapOf(
+                    "artisan_chest_grid_$own@chest.${panel}_chest_grid" to element(
+                        "offset" to listOf(GRID_X, GRID_Y),
+                        "grid_dimensions" to listOf(9, own),
+                        "grid_item_template" to "chest.artisan_grid_item",
+                        "layer" to LAYER_GRID,
+                    ).whenVisible(visible),
+                )
+            }
             here.forEach { menu -> value += buttonElements(menu) { b, s -> buttonKey(menu, b, s) } }
             here.forEach { value += textElements(it) }
             modifications += element("array_name" to "controls", "operation" to "insert_back", "value" to value)
@@ -472,6 +492,8 @@ internal object BedrockPack {
     private const val WIDTH = 176
     private const val TITLE_H = 17
     private const val ROW_H = 18
+    /** A plain row of the chest texture (left border, grey, right border), just under the slot rows. */
+    private const val FILL_Y = 126
     private const val GLYPH_Y_BASE = 13
 
     private fun u(b: Byte) = b.toInt() and 0xff
@@ -503,19 +525,21 @@ internal object BedrockPack {
     private fun scaleOf(png: RgbaImage): Int =
         if (png.width == png.height && png.width >= 256 && png.width % 256 == 0) png.width / 256 else 1
 
-    /** The top of the vanilla chest window (title bar and slot rows), at 1x. */
+    /**
+     * The top of the vanilla chest window (title bar and slot rows), at 1x, as tall as the
+     * Bedrock screen's top half: below a menu's own rows, a plain band of the texture
+     * ([FILL_Y]) covers the slots Geyser fills to reach 3 or 6 rows.
+     */
     private fun chestTop(texture: ByteArray, rows: Int): RgbaImage {
         val src = Png.decode(texture)
         val k = scaleOf(src)
-        val h = TITLE_H + rows * ROW_H
+        val own = TITLE_H + rows * ROW_H
+        val h = TITLE_H + BedrockUi.panelRows(rows) * ROW_H
         val out = RgbaImage(WIDTH, h)
-        if (k == 1) {
-            Png.bitblt(src, out, 0, 0, WIDTH, h, 0, 0)
-            return out
-        }
-        // An HD texture: nearest-neighbour down to the pack's pixel grid.
-        for (y in 0 until h) for (x in 0 until WIDTH) {
-            System.arraycopy(src.data, (y * k * src.width + x * k) * 4, out.data, (y * WIDTH + x) * 4, 4)
+        // Nearest-neighbour down to the pack's pixel grid when the texture is HD.
+        for (y in 0 until h) {
+            val sy = (if (y < own) y else FILL_Y) * k
+            for (x in 0 until WIDTH) System.arraycopy(src.data, (sy * src.width + x * k) * 4, out.data, (y * WIDTH + x) * 4, 4)
         }
         return out
     }

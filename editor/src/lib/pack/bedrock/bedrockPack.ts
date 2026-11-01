@@ -5,7 +5,7 @@ import type { AssetRow } from "../fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonKey, renderImageButton } from "../imageButtons";
 import { type RgbaImage, bitblt, createImage, decodePng, encodePng } from "../png";
 import type { BedrockMenu } from "./bedrockMenus";
-import { backgroundTexture, buildChestScreen, buttonTexture } from "./bedrockUi";
+import { backgroundTexture, buildChestScreen, buttonTexture, panelRows } from "./bedrockUi";
 
 /**
  * The Bedrock resource pack of a server (`.mcpack`): for each styled menu, a
@@ -38,6 +38,8 @@ const WIDTH = 176;
 const TITLE_H = 17;
 const ROW_H = 18;
 const GLYPH_Y_BASE = 13;
+/** A plain row of the chest texture (left border, grey, right border), just under the slot rows. */
+const FILL_Y = 126;
 const ZIP_MTIME = () => new Date(2020, 0, 1, 0, 0, 0);
 
 /** `src` composited over `dst` at (dx, dy), straight alpha. */
@@ -70,23 +72,26 @@ function scaleOf(png: RgbaImage): number {
     : 1;
 }
 
-/** The top of the vanilla chest window (title bar and slot rows), at 1x. */
+/**
+ * The top of the vanilla chest window (title bar and slot rows), at 1x, as tall as
+ * the Bedrock screen's top half: below a menu's own rows, a plain band of the
+ * texture covers the slots Geyser fills to reach 3 or 6 rows.
+ */
 function chestTop(texture: Uint8Array, rows: number): RgbaImage {
   const src = decodePng(texture);
   const k = scaleOf(src);
-  const h = TITLE_H + rows * ROW_H;
+  const own = TITLE_H + rows * ROW_H;
+  const h = TITLE_H + panelRows(rows) * ROW_H;
   const out = createImage(WIDTH, h);
-  if (k === 1) {
-    bitblt(src, out, 0, 0, WIDTH, h, 0, 0);
-    return out;
-  }
-  // An HD texture: nearest-neighbour down to the pack's pixel grid.
-  for (let y = 0; y < h; y++)
+  // Nearest-neighbour down to the pack's pixel grid when the texture is HD.
+  for (let y = 0; y < h; y++) {
+    const sy = (y < own ? y : FILL_Y) * k;
     for (let x = 0; x < WIDTH; x++)
       out.data.set(
-        src.data.subarray((y * k * src.width + x * k) * 4, (y * k * src.width + x * k) * 4 + 4),
+        src.data.subarray((sy * src.width + x * k) * 4, (sy * src.width + x * k) * 4 + 4),
         (y * WIDTH + x) * 4,
       );
+  }
   return out;
 }
 

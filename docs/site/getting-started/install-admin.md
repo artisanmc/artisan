@@ -54,7 +54,8 @@ Artisan <version> enabled
 ### Bedrock players (Geyser)
 
 With Geyser-Spigot on the same server, Artisan hands Bedrock players a pack that redraws the menus
-the editor styled (chests of 3 or 6 rows). On first start next to Geyser, Artisan writes
+the editor styled (chests of 1 to 6 rows; a chest of 1, 2, 4 or 5 rows shows a plain band where
+Bedrock keeps the rows it lacks). On first start next to Geyser, Artisan writes
 `plugins/Geyser-Spigot/custom_mappings/artisan.json` and asks for one more restart so that Geyser
 loads it.
 

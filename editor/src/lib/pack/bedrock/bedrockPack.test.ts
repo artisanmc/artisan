@@ -118,10 +118,11 @@ describe("bedrockTitle", () => {
 describe("bedrockMenusFromProject", () => {
   const menus = bedrockMenusFromProject("lobby", files);
 
-  test("keeps chests of 3 and 6 rows with a visible player inventory", () => {
+  test("keeps chests of 1 to 6 rows with a visible player inventory", () => {
     expect(menus.map((m) => [m.id, m.rows, m.transparent])).toEqual([
       ["shop", 6, true],
       ["info", 3, false],
+      ["four", 4, false],
     ]);
     expect(menus[0]?.key).toBe(bedrockMenuKey("lobby", "shop"));
   });
@@ -246,6 +247,16 @@ describe("buildBedrockPack", () => {
     expect([infoBg.width, infoBg.height]).toEqual([176, 17 + 3 * 18]);
     // The window corner is transparent; the title bar is not.
     expect(infoBg.data[(10 * 176 + 10) * 4 + 3]).toBe(255);
+    // 4 rows open on the 6-row screen: the background covers its top half, the two
+    // rows Geyser pads with drawn from the texture's plain band (row 126).
+    const four = menus[2] as BedrockMenu;
+    const fourBg = decodePng(out[`${backgroundTexture(four)}.png`] as Uint8Array);
+    expect([fourBg.width, fourBg.height]).toEqual([176, 17 + 6 * 18]);
+    const texture = decodePng(chest);
+    for (const y of [17 + 4 * 18, 17 + 6 * 18 - 1])
+      expect([...fourBg.data.subarray(y * 176 * 4, (y + 1) * 176 * 4)]).toEqual([
+        ...texture.data.subarray(126 * texture.width * 4, (126 * texture.width + 176) * 4),
+      ]);
   });
 
   test("draws button images once per geometry and places the screen's elements", () => {
@@ -273,14 +284,29 @@ describe("buildBedrockPack", () => {
     >;
     const names = Object.keys(inserted);
     const k = hex(shop.key);
+    const k4 = hex((menus[2] as BedrockMenu).key);
     expect(names).toEqual([
       `artisan_${k}_bg`,
+      `artisan_${k4}_bg`,
       "artisan_chest_grid@chest.large_chest_grid",
+      "artisan_chest_grid_4@chest.large_chest_grid",
       `artisan_${k}_b0_0`,
       `artisan_${k}_b0_2`,
       ...LEAD_CANDIDATES.map((lead) => `artisan_${k}_t0_${lead}`),
       ...LEAD_CANDIDATES.map((lead) => `artisan_${k}_t1_${lead}`),
     ]);
+    // Each grid shows only its menus' rows: the slots Geyser pads a 4-row chest with stay hidden.
+    const grid = inserted["artisan_chest_grid@chest.large_chest_grid"] as Record<string, unknown>;
+    expect(grid.grid_dimensions).toBeUndefined();
+    expect(grid.visible).toBe(
+      `(not (($artisan_title - '${BEDROCK_MARKER}${shop.key}') = $artisan_title))`,
+    );
+    const grid4 = inserted["artisan_chest_grid_4@chest.large_chest_grid"] as Record<
+      string,
+      unknown
+    >;
+    expect(grid4.grid_dimensions).toEqual([9, 4]);
+    expect(String(grid4.visible)).toContain(`'${BEDROCK_MARKER}${(menus[2] as BedrockMenu).key}'`);
     const bg = inserted[`artisan_${k}_bg`] as Record<string, unknown>;
     expect(bg.offset).toEqual([0, 4]);
     expect(bg.size).toEqual([176, 100]);

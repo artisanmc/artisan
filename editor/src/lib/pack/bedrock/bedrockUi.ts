@@ -16,6 +16,8 @@ import {
  *
  * What the in-game prototype established (`prototypes/bedrock-overlay/`):
  * only `insert_back` and `replace` on `<panel>/root_panel` take effect;
+ * a chest of fewer rows than its screen (1, 2, 4, 5) gets a grid of its own
+ * rows only, so the slots Geyser pads it with stay under the background;
  * redefining vanilla elements or editing the top half does nothing. So the
  * background is drawn ABOVE the whole vanilla chest panel (it hides the
  * vanilla title and slot cells) and a second slot grid, bound to the same
@@ -34,7 +36,13 @@ const LAYER_GRID = 31;
 const LAYER_IMAGE = 32;
 const LAYER_TEXT = 33;
 
+/** The Bedrock screen of a chest: Geyser shows 1 to 3 rows as a small chest, 4 to 6 as a large one. */
 export const PANELS = { 3: "small", 6: "large" } as const;
+
+/** Rows of the Bedrock screen a chest of `rows` rows opens on. */
+export function panelRows(rows: number): 3 | 6 {
+  return rows <= 3 ? 3 : 6;
+}
 
 const T = "$artisan_title";
 
@@ -239,6 +247,13 @@ function chestPanel(panel: "small" | "large", visible: string): Record<string, u
   };
 }
 
+/** The row counts of `menus`, ascending, the screen's own first. */
+function gridRows(menus: BedrockMenu[]): number[] {
+  const all = [...new Set(menus.map((m) => m.rows))].sort((a, b) => a - b);
+  const full = all.filter((r) => r === panelRows(r));
+  return [...full, ...all.filter((r) => r !== panelRows(r))];
+}
+
 /**
  * The screen file. `backgroundHeight(menu)` is the pixel height of the
  * composed background, `buttonKey` the texture name of a button image.
@@ -260,9 +275,8 @@ export function buildChestScreen(
   };
   for (const rows of [3, 6] as const) {
     const panel = PANELS[rows];
-    const here = menus.filter((m) => m.rows === rows);
+    const here = menus.filter((m) => panelRows(m.rows) === rows);
     if (!here.length) continue;
-    const styled = anyOf(here.map(hasKey));
     const transparent = here.filter((m) => m.transparent);
     const modifications: Record<string, unknown>[] = [];
     if (transparent.length) {
@@ -288,14 +302,26 @@ export function buildChestScreen(
       operation: "insert_back",
       value: [
         ...here.map((menu) => backgroundElement(menu, backgroundHeight(menu))),
-        {
-          [`artisan_chest_grid@chest.${panel}_chest_grid`]: {
-            offset: [GRID_X, GRID_Y],
-            grid_item_template: "chest.artisan_grid_item",
-            layer: LAYER_GRID,
-            ...when(styled),
-          },
-        },
+        ...gridRows(here).map((own) =>
+          own === rows
+            ? {
+                [`artisan_chest_grid@chest.${panel}_chest_grid`]: {
+                  offset: [GRID_X, GRID_Y],
+                  grid_item_template: "chest.artisan_grid_item",
+                  layer: LAYER_GRID,
+                  ...when(anyOf(here.filter((m) => m.rows === own).map(hasKey))),
+                },
+              }
+            : {
+                [`artisan_chest_grid_${own}@chest.${panel}_chest_grid`]: {
+                  offset: [GRID_X, GRID_Y],
+                  grid_dimensions: [9, own],
+                  grid_item_template: "chest.artisan_grid_item",
+                  layer: LAYER_GRID,
+                  ...when(anyOf(here.filter((m) => m.rows === own).map(hasKey))),
+                },
+              },
+        ),
         ...here.flatMap((menu) => buttonElements(menu, (b, s) => buttonKey(menu, b, s))),
         ...here.flatMap(textElements),
       ],

@@ -45,7 +45,7 @@ export interface BedrockMenu {
   projectId: string;
   id: string;
   key: string;
-  rows: 3 | 6;
+  rows: 1 | 2 | 3 | 4 | 5 | 6;
   /** `vanilla_texture` off: the Bedrock panel and its bottom half are hidden too. */
   transparent: boolean;
   /** Background and glyph layers in title order; a background has no position. */
@@ -136,8 +136,9 @@ function textLayers(title: unknown): BedrockTextLayer[] {
 }
 
 /**
- * The menus of a Project the Bedrock pack can style: chests of 3 or 6 rows
- * (the two Bedrock screens the pack modifies). Any other menu reaches Bedrock
+ * The menus of a Project the Bedrock pack can style: chests of 1 to 6 rows (Geyser
+ * shows 1 to 3 rows on the small chest screen and 4 to 6 on the large one, the two
+ * Bedrock screens the pack modifies). Any other menu reaches Bedrock
  * players as the chest Geyser translates, without a key in its title.
  * An unreadable menu is skipped — the plugin will not render it either.
  */
@@ -168,8 +169,8 @@ export function bedrockMenusFromProject(
     if (doc.inventory_type !== undefined && doc.inventory_type !== "chest") continue;
     if (doc.player_inventory === "hidden") continue;
     const size = Number(doc.size);
-    if (size !== 27 && size !== 54) continue;
-    const rows = size / 9 === 3 ? 3 : 6;
+    if (!Number.isInteger(size) || size % 9 !== 0 || size < 9 || size > 54) continue;
+    const rows = (size / 9) as BedrockMenu["rows"];
 
     const images: BedrockMenu["images"] = [];
     const title = Array.isArray(doc.title) ? doc.title : doc.title ? [doc.title] : [];

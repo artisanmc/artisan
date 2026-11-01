@@ -48,9 +48,9 @@ object BedrockTitle {
         return String(Character.toChars(KEY_BASE + b0 % KEY_RANGE)) + String(Character.toChars(KEY_BASE + b1 % KEY_RANGE))
     }
 
-    /** Chests of 3 or 6 rows with the player inventory visible: the screens the pack modifies. */
+    /** Chests of 1 to 6 rows with the player inventory visible: the menus the pack styles. */
     fun supports(menu: MenuYaml): Boolean =
-        menu.inventoryType == "chest" && (menu.size == 27 || menu.size == 54) &&
+        menu.inventoryType == "chest" && menu.size % 9 == 0 && menu.size in 9..54 &&
             PlayerInventoryMode.parse(menu.playerInventory) != PlayerInventoryMode.HIDDEN
 
     /**

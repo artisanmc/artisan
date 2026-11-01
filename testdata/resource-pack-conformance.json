@@ -649,6 +649,7 @@
           "textures/artisan/b/2749bd31641c6a50.png",
           "textures/artisan/b/2d07a2a14dca56be.png",
           "textures/artisan/b/466efd090bf3d352.png",
+          "textures/artisan/m/16921c3bb395eba4.png",
           "textures/artisan/m/b46a02a56fe5e5f6.png",
           "textures/artisan/m/f24cafec2cb0f966.png",
           "textures/item_texture.json",
@@ -657,18 +658,19 @@
         ],
         "entryHashes": {
           "font/glyph_F8.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
-          "manifest.json": "c897c52760882cd23c3f142715286f0342dfcf5a74b28c412f96be94328f9403",
+          "manifest.json": "bd3536fc84fb2bd3c4dd4146b15e10ddfecfb5fcacf8b7da2718b0dce47749cf",
           "textures/artisan/b/25fbf94015681ba6.png": "b48ba7a73ca1b98633504fdcd2e47e35f882e396916833638108cbbefc62640b",
           "textures/artisan/b/2749bd31641c6a50.png": "a9bf45d0315102a59092c755a9b2af7712f2e3285f8b4aacb43742fd6ca730e6",
           "textures/artisan/b/2d07a2a14dca56be.png": "34b4222d54289fca70484028860a56f6ac77860308d2985ede4b3f9ec5ef77f6",
           "textures/artisan/b/466efd090bf3d352.png": "74a4b36ac0fc683aa675b83cc1e80c230c9015438a8c3eef873d15c369d5c0dd",
+          "textures/artisan/m/16921c3bb395eba4.png": "be464cebfe24076be570bb7fd6eee6cf9c00fa3345d4b7a68de0688b80543869",
           "textures/artisan/m/b46a02a56fe5e5f6.png": "9e2ec8bab93428b7a6cde29c90db243061a47594cc915b519c07e1b5f33ece75",
           "textures/artisan/m/f24cafec2cb0f966.png": "84b56b2cbfaa36c26b25f64b7e92e5cdc6d0be4ab87b2a02eec1ee38d07324a6",
           "textures/item_texture.json": "e92840b8dfe4a3742dbbe6928e287b39be6b80fe187a3874f4dd2373406e23c5",
           "textures/items/artisan_hit_area.png": "c1ccd6abeb4908889bd726ab86450635b7898607cd6fcbc20c37c5e5607455de",
-          "ui/chest_screen.json": "81fa3c13bcec0687bf52726e08ec5e37dda40a7b0f57db39a8808d331bb23629"
+          "ui/chest_screen.json": "87a699cea7fc7cac4326d50a0927cddd1ae12bfd78883e6f96cc86f201374fae"
         },
-        "sha1": "e34fb34122588a3c16da6c49719eae6679f280df"
+        "sha1": "aa2452575a98356917133afa19d56e48fb52cddf"
       },
       "entries": [
         "assets/artisan/asset-index.json",
