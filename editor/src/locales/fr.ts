@@ -10,6 +10,7 @@ import { onboardingFr } from "./onboarding";
 import { projectIdentityFr } from "./projectIdentity";
 import { selfHostedFr } from "./selfHosted";
 import { triggersFr } from "./triggers";
+import { variablesFr } from "./variables";
 
 const fr: typeof en = {
   onboarding: onboardingFr,
@@ -91,6 +92,7 @@ const fr: typeof en = {
   changes: changesFr,
   actionCatalog: actionCatalogFr,
   triggers: triggersFr,
+  variables: variablesFr,
   navigation: {
     label: "Navigation principale",
     open: "Ouvrir la navigation",
@@ -427,6 +429,9 @@ const fr: typeof en = {
       "Cette action n'est pas déclarée par le serveur connecté : ses arguments s'éditent en JSON brut.",
     moduleAddText: "Ajouter un texte",
     moduleValueInvalid: "JSON invalide : la valeur n'a pas été modifiée.",
+    numberLiteral: "Saisir un nombre",
+    numberTemplate:
+      "Utiliser un template ({var.coins}, %placeholder%), résolu quand l'action s'exécute",
     textName: "texte (MiniMessage)",
     textLang: "texte (MiniMessage) [{{lang}}]",
     textLangFallback: "texte (MiniMessage) [{{lang}} — fallback]",
@@ -480,7 +485,22 @@ const fr: typeof en = {
       give_xp: { amount: "quantité" },
       give_level: { amount: "quantité" },
       play_sound: { sound: "son", volume: "volume (0–1)", pitch: "hauteur (0–2)" },
-      teleport: { world: "monde", yaw: "yaw (optionnel)", pitch: "pitch (optionnel)" },
+      teleport: {
+        location: "position",
+        world: "monde",
+        yaw: "yaw (optionnel)",
+        pitch: "pitch (optionnel)",
+      },
+      set_var: { var: "variable", value: "valeur" },
+      add_var: { var: "variable", amount: "quantité" },
+      clear_var: { var: "variable" },
+      chat_button: {
+        text: "texte avant le bouton (MiniMessage)",
+        label: "bouton (MiniMessage)",
+        uses: "clics permis",
+        expires_seconds: "expire après (secondes)",
+        do: "au clic",
+      },
       pagination_next: { element_id: "cible" },
       pagination_prev: { element_id: "cible" },
       set_arg: { arg: "entrée de contexte à modifier", value: "nouvelle valeur (expression)" },
@@ -522,6 +542,18 @@ const fr: typeof en = {
       },
       run_actions: {
         actions: "Une expression désignant un champ actions (ex. item.on_buy). Exécuté en ligne.",
+      },
+      teleport: {
+        location:
+          "monde x y z [yaw pitch], ou un template qui désigne une position ({var.last_death}). Les champs world/x/y/z des anciens fichiers restent lus.",
+      },
+      set_var: {
+        value:
+          "Lue selon le type de la variable : true/false, un nombre, une position, ou un template ({player.location}, {var.coins + 1}).",
+      },
+      add_var: { amount: "Variable nombre seulement. Une quantité négative soustrait." },
+      chat_button: {
+        uses: "Seul le joueur qui a reçu la ligne peut cliquer. Un redémarrage oublie le bouton.",
       },
     },
   },
@@ -670,6 +702,20 @@ const fr: typeof en = {
     caseConditionEmpty: "(toujours — aucune condition sur ce cas)",
   },
   conditions: {
+    variable: {
+      pick: "choisir une variable",
+      none: "Aucune variable dans ce projet ni sur ce serveur",
+      missing:
+        "{{name}} : ni ce projet ni un module installé sur ce serveur ne déclare cette variable",
+      key: "clé",
+      value: "valeur",
+      isTrue: "est vrai",
+      isFalse: "est faux",
+      isSet: "est définie",
+      project: "ce projet",
+      placeholderOnly:
+        'Un placeholder seul est un texte, et tout texte non vide est vrai (« false » aussi). Comparez-le : %…% == "yes".',
+    },
     removeCondition: "Supprimer",
     keptUnknown_one: "{{count}} condition non affichable ici, conservée telle quelle",
     keptUnknown_other: "{{count}} conditions non affichables ici, conservées telles quelles",
@@ -877,6 +923,7 @@ const fr: typeof en = {
     commands: "Commandes",
     dialogs: "Dialogs",
     triggers: "Triggers",
+    variables: "Variables",
     edit: "Éditer",
     delete: "Supprimer du projet",
     empty: "Aucun élément pour l'instant",
@@ -951,6 +998,12 @@ const fr: typeof en = {
       give_xp: "donner {{amount}} xp",
       give_level: "donner {{amount}} niveaux",
       teleport: "téléportation vers {{world}} {{x}} {{y}} {{z}}",
+      teleportTo: "téléportation vers {{location}}",
+      set_var: "variable {{var}} = {{value}} (gardée par le serveur, pas ici)",
+      add_var: "variable {{var}} + {{amount}} (gardée par le serveur, pas ici)",
+      clear_var: "variable {{var}} effacée (gardée par le serveur, pas ici)",
+      chatButton: "bouton dans le chat : {{text}}",
+      chatButtonNotPlayed: "ses actions au clic ne s'exécutent que sur le serveur",
       moduleAction: "action du module {{module}} : elle s'exécute sur le serveur, pas ici",
       notRun: "non exécutée",
     },
@@ -1425,14 +1478,6 @@ const fr: typeof en = {
         xxl: "Géant (32)",
       },
     },
-  },
-  edition: {
-    pro: "Pro",
-    advancedExpression:
-      "Expression avancée : sa vue lisible et son aperçu viennent avec Artisan Pro. Elle fonctionne en jeu de la même façon.",
-    proOnly: "Fonction Artisan Pro : disponible avec le jar Pro.",
-    composedReadOnly:
-      "Ce titre a été composé avec Artisan Pro. Il reste tel quel et fonctionne toujours en jeu ; modifier ses calques demande Artisan Pro.",
   },
   layersPanel: {
     vanilla: "Vanilla",

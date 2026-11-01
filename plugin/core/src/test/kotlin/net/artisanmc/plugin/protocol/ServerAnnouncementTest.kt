@@ -20,6 +20,7 @@ class ServerAnnouncementTest {
          "declared_actions":[{"name":"message","args":[],"primary":"text"}],
          "document_kinds":[{"kind":"quest","dir":"quests","schema_versions":["quest/v1"],"module_id":"quests"}],
          "declared_game_events":[],
+         "declared_variables":[{"name":"guilds.has_guild","type":"boolean","scope":"player","module_id":"guilds"}],
          "player_commands":[{"id":"attribution:open","module_id":"attribution","name":"attribution","children":[]}],
          "server_config":{"language":"fr"}}
     """.trimIndent()

@@ -69,7 +69,48 @@ class ModuleCommandFilesTest {
         )
         .executor(run).build()
 
-    private fun cases() = listOf("ah" to auctionHouse(), "boutique" to shop(), "tricky" to tricky())
+    /** A root whose file decides on a module Variable, as the module wrote it (`fileActions`). */
+    private fun guildRoot() = PlayerCommandDeclaration.builder("guilds:guild")
+        .name("guild").aliases("g").description(mapOf("en" to "Guilds"))
+        .executor(run)
+        .fileActions(
+            listOf(
+                linkedMapOf(
+                    "if" to listOf(mapOf("expression" to "var.guilds.has_guild")),
+                    "do" to listOf(mapOf("open_menu" to "guilds:main")),
+                    "else" to listOf(mapOf("module_command" to "guilds:guild.help")),
+                ),
+            ),
+        )
+        .child(PlayerCommandDeclaration.builder("guilds:guild.help").name("help").executor(run).build())
+        .build()
+
+    private fun cases() = listOf("ah" to auctionHouse(), "boutique" to shop(), "tricky" to tricky(), "guild" to guildRoot())
+
+    @Test fun `actions a module wrote are the file's, its executor still declared`() {
+        assertEquals(
+            """
+            |schema: command/v1
+            |actions:
+            |  - if:
+            |      - expression: var.guilds.has_guild
+            |    do:
+            |      - open_menu: guilds:main
+            |    else:
+            |      - module_command: guilds:guild.help
+            |aliases:
+            |  - g
+            |description: Guilds
+            |subcommands:
+            |  - name: help
+            |    actions:
+            |      - module_command: guilds:guild.help
+            |
+            """.trimMargin(),
+            ModuleCommandFiles.yaml(guildRoot()),
+        )
+        assertNotNull(guildRoot().executor)
+    }
 
     @Test fun `a declaration becomes its command file`() {
         assertEquals(

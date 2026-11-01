@@ -9,8 +9,11 @@ import com.anthropic.errors.AnthropicServiceException
 import com.anthropic.errors.PermissionDeniedException
 import com.anthropic.errors.RateLimitException
 import com.anthropic.errors.UnauthorizedException
+import com.anthropic.models.messages.Base64ImageSource
 import com.anthropic.models.messages.CacheControlEphemeral
 import com.anthropic.models.messages.ContentBlockParam
+import com.anthropic.models.messages.DocumentBlockParam
+import com.anthropic.models.messages.ImageBlockParam
 import com.anthropic.models.messages.MessageCreateParams
 import com.anthropic.models.messages.MessageParam
 import com.anthropic.models.messages.OutputConfig
@@ -118,6 +121,12 @@ class AnthropicProvider(private val config: AiConfig) : AiProvider {
         is AiInput.ToolResult -> ContentBlockParam.ofToolResult(
             ToolResultBlockParam.builder().toolUseId(input.callId).content(input.json).isError(input.error).build(),
         )
+        is AiInput.Image -> ContentBlockParam.ofImage(
+            ImageBlockParam.builder().source(
+                Base64ImageSource.builder().mediaType(Base64ImageSource.MediaType.of(input.mediaType)).data(input.base64).build(),
+            ).build(),
+        )
+        is AiInput.Pdf -> ContentBlockParam.ofDocument(DocumentBlockParam.builder().base64Source(input.base64).title(input.name).build())
     }
 
     private fun declare(tool: McpTools.Tool): Tool {

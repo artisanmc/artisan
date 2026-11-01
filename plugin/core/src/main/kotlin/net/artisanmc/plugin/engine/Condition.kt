@@ -9,6 +9,8 @@ sealed class Condition {
     data class PlaceholderEquals(val placeholder: String, val value: String) : Condition()
     data class PlaceholderMatch(val placeholder: String, val regex: String) : Condition()
     data class CooldownPassed(val cooldownId: String) : Condition()
+    /** A Variable holds a value (ADR `triggers-and-variables` §5): `id`, `project/id`, `module.name`, `module.name["key"]`. */
+    data class HasVar(val name: String) : Condition()
     data class WorldIs(val world: String) : Condition()
     /** The player's client: `java` or `bedrock` (through Geyser). */
     data class ClientIs(val client: String) : Condition()

@@ -20,7 +20,7 @@ import java.util.UUID
 class McpTools(
     private val projects: McpProjects,
     private val editorUrl: () -> String = { "" },
-    /** The hub's own pack build (Pro jar only): the resource pack tools; null, they are not offered. */
+    /** The hub's own pack build: the resource pack tools; null, they are not offered. */
     private val packs: PackBuilder? = null,
 ) {
     /** A tool as `tools/list` describes it, and what it does. [requires]: the permission without which it is not offered. */
@@ -140,7 +140,7 @@ class McpTools(
     private fun packTools(): List<Tool> = if (packs == null) emptyList() else listOf(
         Tool(
             "resource_pack_status", "Resource pack status",
-            "What the hub last built for a server's resource packs: the Java pack's SHA-1 (Pro), the SHA-1 of the Java pack the " +
+            "What the hub last built for a server's resource packs: the Java pack's SHA-1, the SHA-1 of the Java pack the " +
                 "editor last uploaded, whether the two match, the Bedrock pack's SHA-1, when, and the build error if it failed. The " +
                 "Bedrock pack is applied: Bedrock players get the hub's. The Java one is in shadow mode: Java players still get the " +
                 "editor's pack; the hub's build is compared with it.",

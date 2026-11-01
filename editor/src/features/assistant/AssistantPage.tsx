@@ -165,7 +165,7 @@ export function AssistantPage() {
           <div ref={end} />
         </div>
         <div className="mx-auto w-full max-w-3xl">
-          <Composer running={running} onSend={(message) => void send(message)} />
+          <Composer running={running} onSend={send} serverId={serverId} />
         </div>
       </section>
 

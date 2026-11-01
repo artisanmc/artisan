@@ -162,6 +162,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `text` (`getText()`, `@Stable` since 2.18.0) | `TextApi` | 2.10.0 |
 | `network` (`getNetwork()`, `@Beta`) | `NetworkApi` | 2.13.0 |
 | `gameEvents` (`getGameEvents()`, `@Beta`) | `GameEventRegistry` | 2.16.0 |
+| `variables` (`getVariables()`, `@Beta`) | `VariableRegistry` | 2.24.0 |
 | `cooldowns` (`getCooldowns()`, `@Beta`) | `CooldownApi`: `isActive(id, player)`, `start(id, player, seconds)`, `inMemory()` (tests); the store of menu and command cooldowns, kept in `artisan_cooldowns` | 2.16.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
@@ -357,6 +358,7 @@ Every action of a chain, Artisan's own included, runs through this registry (ADR
 | `RegisteredAction.getDeclaration()`, `getModuleId()`, `toWire()` (`{name, args, primary?, module_id?}`, the `declared_actions` wire) | `RegisteredAction` | 2.0.0 |
 | `ModelField(name, type[, required])`, `withDefault`, `withLabel`, `withHelp`, `withRequired`, `toWire()` | `ModelField` | 2.0.0 |
 | `ModelFieldType.string()`, `number()`, `integer()`, `bool()`, `ltext()`, `minimessage()`, `minimessageMultiline()`, `item()`, `actions()`, `conditions()`, `list(of)`, `object(fields)`, `model(ref)`, `map(of)`, `enumOf(values)`, `union(tag, variants)`, `documentRef(kind)` ; `toWire()` (the editor's `ModelFieldType` shape) | `ModelFieldType` | 2.0.0 |
+| `ModelFieldType.location()`: a position, `{world, x, y, z, yaw?, pitch?}` or the string `world x y z [yaw pitch]`, or a template resolved to one (an action argument, ADR `triggers-and-variables` §4) | `ModelFieldType` | 2.25.0 |
 | `UnionVariant(name, fields)` | `UnionVariant` | 2.0.0 |
 | `ArtisanAPI.Builder.actionRegistry(registry)` (`@Internal`) | `Builder` | 2.0.0 |
 
@@ -410,6 +412,31 @@ if (api.getGameEvents().isObserved("quests:completed")) {
 | `GameEventFrame.getText(name, viewer)` : a text effect as `viewer` reads it (null viewer: the project's default language) ; `EffectText.render(viewer)`, what `set_event` writes for a text effect | `GameEventFrame`, `EffectText` | 2.16.0 |
 | `RegisteredGameEvent.getDeclaration()`, `getModuleId()`, `toWire()` (+ `module_id?`) ; `DuplicateGameEventException` (extends `IllegalStateException`) | | 2.16.0 |
 | `ArtisanAPI.Builder.gameEvents(registry)`, `GameEventRegistry.bindWarnings(warn)` (`@Internal`) | | 2.16.0 |
+
+### `net.artisanmc.modules.api.variable.VariableRegistry` and the module Variable contract (`@Beta`, 2.24.0)
+
+A module Variable is a read-only value a module declares (ADR `triggers-and-variables` §10): its own state, computed by its resolver at each read, never stored by Artisan. Conditions and texts read it as `var.<module>.<name>` (`expression: "var.guilds.has_guild"`, `{var.guilds.rank}`), a keyed one as `var.<module>.<name>["<key>"]`. It is reported at Presence as `declared_variables` and the editor offers it in the condition list ("module variable"), so a Document decides on a module's state in a way the admin sees and edits, in place of a `module_command` whose code decides. A name nobody declares (the module is not installed on that server) reads as absent (`null`, false in a condition): reading a variable creates no dependency between modules. The resolver runs on the thread that owns the player, like a placeholder resolver: it reads memory and never blocks.
+
+```java
+// From onEnable: the module id is the namespace, `guilds.has_guild`.
+api.getVariables().declare(new ModuleVariableDeclaration("has_guild", VariableType.BOOLEAN, VariableScope.PLAYER,
+    (player, key) -> registry.member(player.getUniqueId()) != null));
+```
+
+| Member | Type | Since |
+|---|---|---|
+| `VariableRegistry.declare(decl)` (named `<owner>.<name>`; outside a module's `onEnable` `IllegalStateException`; a name its module already declared `DuplicateVariableException`), `undeclare(qualifiedName)`, `find(qualifiedName)` (nullable), `registered()` (by qualified name) | `RegisteredVariable` | 2.24.0 |
+| `VariableRegistry.read(player, qualifiedName, key)`: the value, or null when undeclared, absent, of another type than declared or the resolver threw (the last two logged once per variable); a number is read as a `Double` | | 2.24.0 |
+| `ModuleVariableDeclaration(name, type, scope, resolver)`, `(name, type, scope, values, key, description, resolver)` (`name` `[a-z][a-z0-9_]*`; closed `values` for a `STRING` only; `key` a `ModelField`, nullable; `description` by language code) ; getters, `toWire()` | `ModuleVariableDeclaration` | 2.24.0 |
+| `ModuleVariableResolver.resolve(player, key)` (nullable key; null result = absent) | | 2.24.0 |
+| `VariableType.STRING`, `NUMBER`, `BOOLEAN`, `wire()`, `accepts(value)` ; `VariableScope.PLAYER`, `SERVER`, `wire()` | | 2.24.0 |
+| `RegisteredVariable.getModuleId()`, `getDeclaration()`, `getQualifiedName()`, `toWire()` (`{name, type, scope, values?, key?, description?, module_id}`) ; `DuplicateVariableException` | | 2.24.0 |
+| `ArtisanAPI.Builder.variables(registry)`, `VariableRegistry.bindWarnings(warn)` (`@Internal`) | | 2.24.0 |
+| `VariableType.LOCATION` (a map with a `world` string and numeric `x`/`y`/`z`), `VariableType.fromWire(wire)` (nullable) | | 2.25.0 |
+| `VariableRegistry.changed(player, qualifiedName, key)`: fires the Game event `variable_changed` for a Trigger listening to it; an undeclared name does nothing; on the thread that owns the player | | 2.25.0 |
+| `VariableRegistry.bindChanges(listener)`, `VariableRegistry.ChangeListener` (`@Internal`) | | 2.25.0 |
+
+Not yet: `changed(player, name, key)` and the core Game event `variable_changed` (§10's change notice), the `location` type, `rowRef` keys with a picker, and Project variables (§5); `has_var` does not exist yet, `var.<module>.<name> != null` tests presence.
 
 ### `net.artisanmc.modules.api.editor.EditorBundleRegistry` and the editor bundle contract (2.3.0, `@Stable` since 2.18.0)
 
@@ -481,6 +508,7 @@ A module declares the commands players type: each root becomes a `command/v1` fi
 | `PlayerCommandContext`: `getCommandId()`, `getSender()`, `getPlayer()` (null for the console), `getLanguage()`, `getArguments()`, `get(name, type)` | | 2.7.0 |
 | `PlayerCommandRegistry.onChange(callback)`, `ArtisanAPI.Builder.playerCommands(registry)` (`@Internal`) | | 2.7.0 |
 | `PlayerCommandDeclaration.Builder.opensMenu(menuRef)`, `getOpensMenu()`: the command opens that menu (Action DSL ref, `folder:menu` or a bare id resolved server-wide) instead of running an executor, its arguments as the menu's context; player-only. `build()` refuses an executor and a menu together, and a menu with `consoleAllowed(true)` (`IllegalArgumentException`). The editor draws the link on the board | | 2.11.0 |
+| `PlayerCommandDeclaration.Builder.fileActions(actions)` (`@Beta`), `getFileActions()`: the actions its generated command file starts with, in the file's format (maps and lists), in place of the `module_command` or `open_menu` Artisan derives; puts in the file a decision the admin sees and edits (an `if:` on a module Variable). The executor, if any, still runs for a `module_command` call (a menu button, the console); a node may declare file actions alone | | 2.24.0 |
 | `CommandArgument.suggestions(provider)`, `getSuggestions()` (nullable); `SuggestionProvider.suggest(SuggestionContext)`, (all `@Beta`) `SuggestionContext`: `getSender()`, `getPreviousArguments()` (the arguments typed before, unparsed), `getInput()`. The values completed in place of Artisan's own (online players, worlds), computed at completion: kept by prefix ignoring case, without duplicates, 100 at most. Parsing is unchanged. Runs on the thread Bukkit completes on, so it must be cheap and thread-safe (memory, never the database); one that throws is logged and offers nothing. Not on a `choice` (`IllegalStateException`). Not announced in `player_commands` | | 2.14.0 |
 
 ```java

@@ -7,6 +7,9 @@ import {
 import { Input } from "@/components/ui/input";
 import type { Condition } from "@/domain/types";
 import { cx } from "@/lib/cx";
+import { isVariableCondition, serializeVariableCondition } from "@/lib/expr/variableCondition";
+import { moduleVariableChoice } from "@/lib/projectVariables";
+import { useServerVariablesStore } from "@/state/serverVariablesStore";
 import {
   DndContext,
   type DragEndEvent,
@@ -27,6 +30,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Fragment, type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { ExpressionConditionField } from "./ExpressionConditionField";
+import { VariableConditionField, criterionFor } from "./VariableConditionField";
 
 interface ConditionListEditorProps {
   /** Label shown above the list (e.g. "visibility", "when"). */
@@ -45,7 +49,13 @@ interface ConditionListEditorProps {
   onJoinChange?: (joinIndex: number, op: "and" | "or") => void;
 }
 
-const TYPES: Array<{ value: Condition["type"]; label: string; chip: string }> = [
+/**
+ * A condition type, or `variable`: an `expression` (or `has_var`) condition read as a criterion
+ * on a Variable, of the project or of a module.
+ */
+type PickKey = Condition["type"] | "variable";
+
+const TYPES: Array<{ value: PickKey; label: string; chip: string }> = [
   { value: "has_permission", label: "has permission", chip: "perm" },
   { value: "has_money", label: "has money", chip: "$" },
   { value: "placeholder_equals", label: "placeholder = value", chip: "= value" },
@@ -65,11 +75,25 @@ const TYPES: Array<{ value: Condition["type"]; label: string; chip: string }> = 
   { value: "not", label: "NOT (…)", chip: "NOT" },
   { value: "and", label: "AND group", chip: "AND" },
   { value: "or", label: "OR group", chip: "OR" },
+  { value: "variable", label: "variable", chip: "var" },
   { value: "expression", label: "expression (advanced)", chip: "expr" },
 ];
 
-const defaultCondition = (type: Condition["type"]): Condition => {
+const defaultCondition = (type: PickKey): Condition => {
   switch (type) {
+    case "variable": {
+      // The first variable the server declares, else one left to pick (the picker lists the
+      // project's own too).
+      const first = useServerVariablesStore.getState().variables[0];
+      return {
+        type: "expression",
+        expr: first
+          ? serializeVariableCondition(criterionFor(moduleVariableChoice(first)))
+          : "var.",
+      };
+    }
+    case "has_var":
+      return { type: "has_var", var: "" };
     case "has_permission":
       return { type: "has_permission", perm: "" };
     case "has_money":
@@ -113,7 +137,15 @@ const defaultCondition = (type: Condition["type"]): Condition => {
   }
 };
 
-const labelForType = (t: Condition["type"]): string => TYPES.find((x) => x.value === t)?.chip ?? t;
+const labelForType = (t: PickKey): string => TYPES.find((x) => x.value === t)?.chip ?? t;
+
+/** The chip's label: `var` for `has_var` and for an expression that reads a Variable. */
+const labelFor = (c: Condition): string =>
+  labelForType(
+    c.type === "has_var" || (c.type === "expression" && isVariableCondition(c.expr))
+      ? "variable"
+      : c.type,
+  );
 
 export function ConditionListEditor({
   label,
@@ -137,7 +169,7 @@ export function ConditionListEditor({
     copy.splice(i, 1);
     onChange(copy);
   };
-  const append = (type: Condition["type"]) => {
+  const append = (type: PickKey) => {
     onChange([...conditions, defaultCondition(type)]);
   };
 
@@ -247,7 +279,7 @@ function ConditionChip({ id, condition, joiner, onChange, onRemove }: ConditionC
               {...listeners}
               className="cursor-grab rounded bg-[var(--fam-logic-soft)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)] active:cursor-grabbing"
             >
-              {labelForType(condition.type)}
+              {labelFor(condition)}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -362,7 +394,7 @@ function ConditionInline({
                 type="button"
                 className="rounded bg-[var(--fam-logic-soft)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)]"
               >
-                {labelForType(condition.of.type)}
+                {labelFor(condition.of)}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -553,12 +585,17 @@ function ConditionInline({
         />
       );
     case "expression":
+      if (isVariableCondition(condition.expr)) {
+        return <VariableConditionField condition={condition} onChange={onChange} />;
+      }
       return (
         <ExpressionConditionField
           expr={condition.expr}
           onChange={(expr) => onChange({ ...condition, expr })}
         />
       );
+    case "has_var":
+      return <VariableConditionField condition={condition} onChange={onChange} />;
     case "and":
     case "or":
       return <CompositeInner condition={condition} onChange={onChange} />;
@@ -588,7 +625,7 @@ function CompositeInner({
     copy.splice(i, 1);
     onChange({ ...condition, of: copy });
   };
-  const append = (type: Condition["type"]) =>
+  const append = (type: PickKey) =>
     onChange({ ...condition, of: [...condition.of, defaultCondition(type)] });
   return (
     <div className="flex flex-wrap items-center gap-1 rounded border border-[var(--border-soft)] border-dashed bg-[var(--surface)]/50 px-1 py-0.5">
@@ -638,7 +675,7 @@ function InnerChip({
             type="button"
             className="rounded bg-[var(--fam-logic-soft)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)]"
           >
-            {labelForType(condition.type)}
+            {labelFor(condition)}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -673,7 +710,7 @@ function AppendChip({
   onPick,
   joiner,
 }: {
-  onPick: (type: Condition["type"]) => void;
+  onPick: (type: PickKey) => void;
   joiner?: string | null;
 }) {
   return (
@@ -693,7 +730,7 @@ function ConditionTypeMenu({
   onPick,
   children,
 }: {
-  onPick: (type: Condition["type"]) => void;
+  onPick: (type: PickKey) => void;
   children: ReactNode;
 }) {
   return (

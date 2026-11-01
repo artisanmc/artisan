@@ -124,9 +124,18 @@ internal object PlayerActions {
         return ctx
     }
 
+    /** `location` first (already a [LocationValue], see [ArgCoercion]); else the legacy `world/x/y/z`. */
     fun teleport(ctx: ExecutionContext, args: Map<String, Any>, rt: EngineRuntime): ExecutionContext {
-        val world = Args.str(args, "world")?.let { Bukkit.getWorld(it) } ?: return ctx
-        ServerPlatform.teleport(ctx.player, org.bukkit.Location(
+        val place = args["location"] as? LocationValue
+        val worldName = place?.world ?: Args.str(args, "world")
+        val world = worldName?.let { Bukkit.getWorld(it) }
+        if (world == null) {
+            rt.warn("teleport: no world '${worldName.orEmpty()}' on this server — skipped")
+            return ctx
+        }
+        ServerPlatform.teleport(ctx.player, if (place != null) org.bukkit.Location(
+            world, place.x, place.y, place.z, place.yaw.toFloat(), place.pitch.toFloat(),
+        ) else org.bukkit.Location(
             world,
             Args.double(args, "x", 0.0), Args.double(args, "y", 0.0), Args.double(args, "z", 0.0),
             Args.float(args, "yaw", 0f), Args.float(args, "pitch", 0f),

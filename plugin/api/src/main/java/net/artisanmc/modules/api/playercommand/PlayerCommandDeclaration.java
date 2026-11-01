@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
+import net.artisanmc.modules.api.annotations.Beta;
 import net.artisanmc.modules.api.annotations.Stable;
 import org.jetbrains.annotations.Nullable;
 
@@ -49,6 +50,7 @@ public final class PlayerCommandDeclaration {
     private final List<CommandArgument> arguments;
     private final @Nullable PlayerCommandExecutor executor;
     private final @Nullable String opensMenu;
+    private final List<Object> fileActions;
     private final boolean consoleAllowed;
     private final List<PlayerCommandDeclaration> children;
 
@@ -62,10 +64,11 @@ public final class PlayerCommandDeclaration {
         this.arguments = List.copyOf(b.arguments);
         this.executor = b.executor;
         this.opensMenu = b.opensMenu;
+        this.fileActions = List.copyOf(b.fileActions);
         this.consoleAllowed = b.consoleAllowed;
         this.children = List.copyOf(b.children);
-        if (executor == null && opensMenu == null && children.isEmpty()) {
-            throw new IllegalArgumentException("command '" + id + "' has neither an executor, a menu nor a child");
+        if (executor == null && opensMenu == null && fileActions.isEmpty() && children.isEmpty()) {
+            throw new IllegalArgumentException("command '" + id + "' has neither an executor, a menu, file actions nor a child");
         }
         if (executor != null && opensMenu != null) {
             throw new IllegalArgumentException("command '" + id + "' has both an executor and a menu");
@@ -131,6 +134,13 @@ public final class PlayerCommandDeclaration {
     @Stable
     public @Nullable String getOpensMenu() { return opensMenu; }
 
+    /**
+     * The actions its command file starts with, as {@link Builder#fileActions} set them; empty:
+     * the one action Artisan derives (its executor through {@code module_command}, or {@code open_menu}).
+     */
+    @Beta
+    public List<Object> getFileActions() { return fileActions; }
+
     /** Whether the console may run it; a player-only command refuses the console with a message. */
     public boolean isConsoleAllowed() { return consoleAllowed; }
 
@@ -152,6 +162,7 @@ public final class PlayerCommandDeclaration {
         private @Nullable PlayerCommandExecutor executor;
         private @Nullable String opensMenu;
         private boolean consoleAllowed;
+        private final List<Object> fileActions = new ArrayList<>();
         private final List<PlayerCommandDeclaration> children = new ArrayList<>();
 
         private Builder(String id) {
@@ -191,6 +202,29 @@ public final class PlayerCommandDeclaration {
         }
 
         public Builder consoleAllowed(boolean allowed) { this.consoleAllowed = allowed; return this; }
+
+        /**
+         * The actions its command file starts with, in the file's format (maps and lists, as an
+         * {@code actions:} of a {@code command/v1} reads), in place of the single
+         * {@code module_command} or {@code open_menu} Artisan derives. Use it to put in the file a
+         * decision the admin should see and edit, such as a condition on a module Variable:
+         *
+         * <pre>{@code
+         * .fileActions(List.of(Map.of(
+         *     "if", List.of(Map.of("expression", "var.guilds.has_guild")),
+         *     "do", List.of(Map.of("open_menu", "guilds:main")),
+         *     "else", List.of(Map.of("module_command", "guilds:guild.help")))))
+         * }</pre>
+         *
+         * The executor, if any, still runs when something calls this command through
+         * {@code module_command} (a menu button, the console). Since 2.24.0.
+         */
+        @Beta
+        public Builder fileActions(List<?> actions) {
+            fileActions.clear();
+            fileActions.addAll(Objects.requireNonNull(actions, "actions"));
+            return this;
+        }
 
         public Builder child(PlayerCommandDeclaration child) { children.add(Objects.requireNonNull(child)); return this; }
 

@@ -86,8 +86,21 @@ class CoreActionSchemaConformanceTest {
 
     /** The declared [ModelField] kind the JSON Schema fragment stands for. */
     private fun assertTypeMatches(action: String, arg: ModelField, prop: JsonNode) {
+        // A typed argument also accepts a template (ADR `triggers-and-variables` §6): `anyOf [<type>, Template]`.
+        prop["anyOf"]?.let { alts ->
+            // `set_var.value`: any type, read as the Variable's; declared as a string the template resolves.
+            if (alts.none { it["\$ref"]?.asText() == "#/\$defs/Template" }) {
+                return assertEquals("string", arg.type.kind, "$action.${arg.name}: a value of any type is declared a string")
+            }
+            val typed = alts.filter { it["\$ref"]?.asText() != "#/\$defs/Template" }
+            assertEquals(1, typed.size, "$action.${arg.name}: one typed alternative beside the template")
+            assertTrue(alts.any { it["\$ref"]?.asText() == "#/\$defs/Template" }, "$action.${arg.name} accepts a template")
+            return assertTypeMatches(action, arg, typed.single())
+        }
         val expected = when {
             prop["\$ref"]?.asText() == "#/\$defs/LText" -> "ltext"
+            prop["\$ref"]?.asText() == "#/\$defs/Location" -> "location"
+            prop["type"]?.asText() == "array" && prop["items"]?.get("\$ref")?.asText() == "#/\$defs/Step" -> "actions"
             prop["enum"] != null -> "enum"
             else -> when (prop["type"]?.asText()) {
                 "string" -> if (arg.type.kind == "document_ref") "document_ref" else "string"

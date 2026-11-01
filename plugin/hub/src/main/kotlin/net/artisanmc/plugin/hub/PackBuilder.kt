@@ -27,8 +27,8 @@ import java.util.logging.Logger
  * editor kind declares `pack.images` without the Java twin leaves them out of the hub's build.
  *
  * The **Bedrock pack** is applied: after each build the hub stores it ([bedrock]) and sends it to the
- * server when its hash changed, in every edition, so a publication made without an editor tab (MCP,
- * `/artisan reload`) reaches Bedrock players. The Java pack is built only in Pro ([java]).
+ * server when its hash changed, so a publication made without an editor tab (MCP, `/artisan reload`)
+ * reaches Bedrock players. [java] false skips comparing the Java pack.
  *
  * One build at a time on a thread of its own (never Jetty's), at most one waiting per server:
  * requests arriving while one runs share the next, which reads the latest state.
@@ -40,7 +40,7 @@ class PackBuilder(
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { r ->
         Thread(r, "Artisan-pack-builder").apply { isDaemon = true }
     },
-    /** Compare the Java pack with the editor's (Pro): false leaves [Status.hubHash] null. */
+    /** Compare the Java pack with the editor's: false leaves [Status.hubHash] null. */
     private val java: Boolean = true,
     /** Where the Bedrock packs the hub applies are served from; null builds none. */
     private val bedrock: PackStore? = null,

@@ -31,6 +31,8 @@ export function conditionSummary(condition: Condition): string {
       return `chance ${Math.round(condition.probability * 100)}%`;
     case "cooldown_passed":
       return `cooldown "${condition.cooldown_id}" passed`;
+    case "has_var":
+      return `${condition.var} is set`;
     case "player_in_region":
       return `in region "${condition.region}"`;
     case "pagination_at_first":

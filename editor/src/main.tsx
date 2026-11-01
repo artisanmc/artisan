@@ -15,6 +15,7 @@ import { commandsModule } from "./modules/commands";
 import { dialogsModule } from "./modules/dialogs";
 import { menusModule } from "./modules/menus";
 import { triggersModule } from "./modules/triggers";
+import { variablesModule } from "./modules/variables";
 
 installRandomUuidFallback();
 // Before any module renders: the SDK's hooks reach the editor through it.
@@ -31,6 +32,7 @@ if (listModules().length === 0) {
   registerEditorModule(commandsModule);
   registerEditorModule(dialogsModule);
   registerEditorModule(triggersModule);
+  registerEditorModule(variablesModule);
 }
 
 const router = createRouter({ routeTree });

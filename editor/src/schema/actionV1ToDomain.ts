@@ -218,7 +218,11 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
       pushUnsupported(`action: ${name || "<invalid>"}`);
       return null;
     }
-    if (name === "teleport" && (typeof a.world !== "string" || a.world === "")) {
+    if (
+      name === "teleport" &&
+      (typeof a.world !== "string" || a.world === "") &&
+      (a.location === undefined || a.location === null || a.location === "")
+    ) {
       pushUnsupported("action: teleport (missing world)");
       return null;
     }

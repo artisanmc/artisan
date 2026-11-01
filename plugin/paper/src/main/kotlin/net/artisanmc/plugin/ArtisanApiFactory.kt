@@ -140,6 +140,11 @@ internal object ArtisanApiFactory {
             .gameEvents(net.artisanmc.modules.api.gameevent.GameEventRegistry().also { r ->
                 r.bindWarnings { plugin.logger.warning("[Artisan] $it") }
             })
+            // The modules' read-only values: `var.<module>.<name>` in every context reads them (ModuleVariableValues).
+            .variables(net.artisanmc.modules.api.variable.VariableRegistry().also { r ->
+                r.bindWarnings { plugin.logger.warning("[Artisan] $it") }
+                net.artisanmc.plugin.engine.ModuleVariableValues.registry = r
+            })
             .build()
         // A module reports the core plugin version: ArtisanModule has no version of its own.
         registry.bind(api) {
