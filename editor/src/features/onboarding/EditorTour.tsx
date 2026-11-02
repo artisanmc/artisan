@@ -2,6 +2,7 @@ import { GuidedTour } from "@/components/ui/guided-tour";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTourPresentation } from "./tourPresentation";
+import { visibleTarget } from "./tourTargets";
 
 interface EditorTourProps {
   state: { open: boolean; step: number; busy: boolean };
@@ -16,26 +17,6 @@ interface EditorTourProps {
 
 function hasPriorityDialog() {
   return !!document.querySelector('[role="dialog"]:not([data-guided-tour]), [role="alertdialog"]');
-}
-
-function visibleTarget(names: string[]) {
-  for (const name of names) {
-    for (const element of document.querySelectorAll<HTMLElement>(`[data-tour="${name}"]`)) {
-      const rect = element.getBoundingClientRect();
-      if (
-        !element.closest("[hidden], [inert]") &&
-        getComputedStyle(element).visibility !== "hidden" &&
-        rect.width > 0 &&
-        rect.height > 0 &&
-        rect.right > 0 &&
-        rect.bottom > 0 &&
-        rect.left < window.innerWidth &&
-        rect.top < window.innerHeight
-      )
-        return element;
-    }
-  }
-  return null;
 }
 
 export function EditorTour({ state, storage, actions }: EditorTourProps) {

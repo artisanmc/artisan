@@ -263,6 +263,13 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > short: the left bar lists the Documents. Shown on the project the module owns; a section that
 > throws is left out and the rest of the Home stays. A 1.17 bundle still loads.
 
+> **Page tour (since 2026-11-02, SDK 1.19)** — `PageTour` (host component) is the editor's guided
+> tour (`GuidedTour`, the one of the canvas) over a module's own steps: `steps: {target?, title,
+> description}[]`, each spotlighting its `[data-tour="<target>"]` element, scrolled into view, or
+> centred when it has none or the element is not on the page; Previous, Next, Close, Escape. The
+> module opens it from its own button, as often as the player wants: nothing is saved, and it never
+> opens by itself. A 1.18 bundle still loads.
+
 > **Module folder (since 2026-10-19)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the
