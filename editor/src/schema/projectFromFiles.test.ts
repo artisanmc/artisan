@@ -5,6 +5,7 @@ import { menusOf } from "@/domain/documents";
 // `projectToFiles()` — domain → files → domain → files must be a fixed point
 // (total — the export is a pure function of the Project, no timestamps).
 import type { DataModelId, DataSourceId, MenuId, Project, ProjectId } from "@/domain/types";
+import { stepsToWire } from "@/lib/literalSteps";
 import { describe, expect, it } from "vitest";
 import { parseEditorEdges, parseEditorLayout, projectFromFiles } from "./projectFromFiles";
 import { projectToFiles } from "./projectToFiles";
@@ -532,9 +533,8 @@ it("reads a module's variants, keeps a command without its module's verbatim, wr
   const project = projectFromFiles(PID, files);
   expect(menusOf(project).map((m) => m.id)).toEqual(["ranks"]);
   expect(project.variants?.names).toEqual(["textured", "dev"]);
-  expect(project.variants?.rules.map((r) => [r.variant, r.enabled, r.conditions])).toEqual([
-    ["textured", true, [{ has_resource_pack: true }]],
-    ["dev", false, [{ has_permission: "op" }]],
+  expect(stepsToWire(project.variants?.show ?? [])).toEqual([
+    { if: [{ has_resource_pack: true }], do: [{ show_variant: "textured" }] },
   ]);
   const textured = project.variants?.documents.textured?.menu ?? [];
   expect(textured.map((m) => [m.id, m.folder])).toEqual([

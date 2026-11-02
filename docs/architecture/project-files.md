@@ -141,19 +141,20 @@ changes for an existing module).
 ```yaml
 # variants.yml
 schema: variants/v1
-rules:                       # in order; implicit last: the module's own files
-  - id: dev                  # optional, default: the variant name
-    variant: dev
-    enabled: false           # optional, default true
-    if: [{ has_permission: op }]
-  - variant: bedrock
-    if: [{ client_is: bedrock }]       # bedrock | java
-  - variant: textured
-    if: [{ has_resource_pack: true }]  # Java pack, or Bedrock pack for a Bedrock player
-# `if:` lists any conditions of the action engine (the keyed wire of an action's `if:`), all
-# required; the editor edits them with the action's condition editor. The old form,
-# `when: { client, has_pack, permission, condition }`, is still read (`VariantRule` keeps its
-# fields); the editor reads it into `if:` and writes `if:`.
+variants: [bedrock, textured, dev]   # every variant, even one nothing shows yet
+show:                        # a step tree, the keyed wire of an action chain
+  - if: [{ client_is: bedrock }]           # bedrock | java
+    do: [{ show_variant: bedrock }]
+    else:
+      - if: [{ has_resource_pack: true }]  # Java pack, or Bedrock pack for a Bedrock player
+        do: [{ show_variant: textured }]
+  - show_default             # implicit at the end anyway: the module's own files
+# `if:` takes any conditions of the action engine (and/or joins, `else:` chains), edited with
+# the action chains' step tree. For each file, the first variant shown on the player's path that
+# has it wins; `show_default` gives the module's file. The plugin reads `show:` as ordered rules
+# (`VariantRules.parseShow`: one per show step, its path's conditions, the earlier cases negated).
+# The old form, `rules: [{variant, enabled, if, when}]` (first rule that holds), is still read;
+# the editor reads it as one `if` per rule on and writes `show:`.
 ```
 
 - `DocumentLayout` puts a variant's Documents in `Result.variants` (with their `variant`), ids
@@ -180,7 +181,7 @@ rules:                       # in order; implicit last: the module's own files
   `projectToFiles` and `projectTree` restore the module's view first (`withModuleView`), before
   `rekeyProject`. Texts: a version gets keys of its own on creation (`createVersion` copies the
   values), and the Documents out of view never hold a canonical key, so an edit minting one
-  cannot overwrite the twin's text. While a variant is shown, an edit of a module's Document (itself or one of its texts) makes it the variant's version (`versionEditedDocuments`, run by `mutateProject`), the module's restored; a command's registration edit stays the module's. UI: `VariantSwitcher` (canvas toolbar), `VariantRulesDialog`,
+  cannot overwrite the twin's text. While a variant is shown, an edit of a module's Document (itself or one of its texts) makes it the variant's version (`versionEditedDocuments`, run by `mutateProject`), the module's restored; a command's registration edit stays the module's. UI: `VariantSwitcher` (canvas toolbar), `VariantRulesDialog` (the `show:` tree in the chains' `StepTree`, its actions given by a `ChainVocabulary`),
   `VariantTag` (board), `VariantVersionBar` (properties panel).
 - `documents_check` checks a variant's menu or dialog against its schema like the module's; a
   variant's command goes through the engine load only (`CommandVariant`). A disabled rule naming
@@ -256,7 +257,7 @@ guilds/
   then kind, `rules`, `required`, `excluded`) and the effective Documents into `documents` as
   usual. `domain/originals.ts`: `originStatus` (`original` / `modified` / `added`, compared after
   serialization), `revertToOriginal`, `isRequired`. `projectToFiles` skips a Document identical to
-  its shipped twin, writes `variants.yml` only when the rules differ, and writes the exclusions
+  its shipped twin, writes `variants.yml` only when its tree differs (or lists a variant nothing else keeps), and writes the exclusions
   (a shipped Document absent from the project; a required one cannot be deleted).
   `saveProjectToDisk` carries `originals/` unchanged. UI: `OriginBar` (properties panel title row: badge,
   Compare and Revert icons), `OriginTag` on the board.

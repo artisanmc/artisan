@@ -225,20 +225,6 @@ export interface Project {
   ownerModule?: string;
 }
 
-/** A rule of `variants.yml`: when it holds and its variant has the file, the player sees that file. */
-export interface VariantRule {
-  /** As written; absent: the variant name serves as id. */
-  id?: string;
-  variant: string;
-  enabled: boolean;
-  /**
-   * `if:`, all required: conditions of the action engine in the keyed wire of an action's `if:`
-   * (`{client_is: bedrock}`, `{has_resource_pack: true}`, `{has_permission: …}`). An old `when:`
-   * reads into this list.
-   */
-  conditions: unknown[];
-}
-
 /** What the canvas shows while "View as" a variant: its versions stand in for the module's. */
 export interface VariantView {
   variant: string;
@@ -256,9 +242,13 @@ export interface OriginalView {
 }
 
 export interface ProjectVariants {
-  /** `variants.yml`, in order. */
-  rules: VariantRule[];
-  /** Every variant, in order: the rules' then the folders'. */
+  /**
+   * `variants.yml`'s `show:`, a step tree like an action chain (`if` / `else`), whose actions
+   * are `show_variant: <name>` and `show_default`. For each file, the first variant shown on
+   * the player's path that has it wins; `show_default`, or the end, gives the module's.
+   */
+  show: Step[];
+  /** Every variant, in order: the file's `variants:`, those `show` names, then the folders'. */
   names: string[];
   /** Each variant's menus and dialogs, by kind; the viewed variant's sit in `Project.documents`. */
   documents: Record<string, Record<string, Document[]>>;
@@ -273,8 +263,8 @@ export interface ProjectVariants {
 export interface ProjectOriginals {
   /** By variant (`""`: the module's own), then kind: the shipped Documents, as shipped. */
   documents: Record<string, Record<string, Document[]>>;
-  /** The shipped `variants.yml`, when the module ships one. */
-  rules?: VariantRule[];
+  /** The shipped `variants.yml`'s tree, when the module ships one. */
+  show?: Step[];
   /** Paths relative to `originals/` the module's code needs (`originals/originals.yml`). */
   required: string[];
   /** The module file's `originals.exclude`, as read: kept for what the editor does not model. */

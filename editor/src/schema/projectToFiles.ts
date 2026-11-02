@@ -9,9 +9,10 @@ import { documentKeys, documentsOf } from "@/domain/documents";
 import { persistedFolderMeta } from "@/domain/folders";
 import { sameAsShipped, shippedPath, shippedTwin } from "@/domain/originals";
 import type { Document, Project } from "@/domain/types";
-import { rulesToYaml, withModuleView } from "@/domain/variants";
+import { variantsShown, variantsToYaml, withModuleView } from "@/domain/variants";
 import { listLanguages } from "@/lib/i18nUsages";
 import { nestLangTree } from "@/lib/langTree";
+import { stepsToWire } from "@/lib/literalSteps";
 import { MODULE_FILE, MODULE_SCHEMA, YAML_EXT } from "@/lib/yamlFiles";
 import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { stringify } from "yaml";
@@ -94,15 +95,22 @@ export function projectToFiles(shown: Project): Record<string, string> {
         }
       }
     }
-    // The module's rules serve while the owner keeps them as shipped.
-    const shippedRules = project.originals?.rules;
+    // The module's tree serves while the owner keeps it as shipped, and names no variant
+    // that only the file would keep (one without a tree step nor a file).
+    const v = project.variants;
+    const shippedShow = project.originals?.show;
+    const kept = new Set([
+      ...variantsShown(v.show),
+      ...Object.keys(v.documents),
+      ...Object.keys(project.originals?.documents ?? {}),
+    ]);
     if (
-      !shippedRules ||
-      JSON.stringify(rulesToYaml(shippedRules)) !==
-        JSON.stringify(rulesToYaml(project.variants.rules))
+      !shippedShow ||
+      JSON.stringify(stepsToWire(shippedShow)) !== JSON.stringify(stepsToWire(v.show)) ||
+      v.names.some((n) => !kept.has(n))
     )
       files[`${base}/${VARIANTS_FILE}${YAML_EXT}`] = stringify(
-        rulesToYaml(project.variants.rules),
+        variantsToYaml(v.show, v.names),
         yamlOpts,
       );
   }

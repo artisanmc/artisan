@@ -52,6 +52,7 @@ object VariantRules {
         val problems = mutableListOf<String>()
         val schema = root["schema"]?.toString().orEmpty()
         if (schema.isNotEmpty() && schema != SCHEMA) return Parsed(emptyList(), listOf("unsupported schema '$schema', expected $SCHEMA"))
+        if (root.containsKey("show")) return parseShow(root["show"])
         val raw = root["rules"] ?: return Parsed(emptyList(), emptyList())
         if (raw !is List<*>) return Parsed(emptyList(), listOf("rules must be a list"))
         val seen = mutableSetOf<String>()
@@ -72,6 +73,60 @@ object VariantRules {
             null
         }
         return Parsed(rules, problems)
+    }
+
+    const val SHOW_VARIANT = "show_variant"
+    const val SHOW_DEFAULT = "show_default"
+
+    /**
+     * `show:`, the editor's form: a step tree like an action chain (`if` / `do` / `else`)
+     * whose actions are `show_variant: <name>` and `show_default`. Read as the rules it means,
+     * in order: each `show` step is a rule holding on its path (the conditions of the `if`
+     * cases it is under, the cases before them false). A `show_default` rule gives the module's
+     * file (variant ""). A variant without files is kept: it has nothing, so it never wins.
+     */
+    fun parseShow(raw: Any?): Parsed {
+        val problems = mutableListOf<String>()
+        val rules = mutableListOf<VariantRule>()
+        fun walk(steps: List<Step>, guard: List<Condition>) {
+            for (step in steps) when (step) {
+                is Step.ActionStep -> when (step.name) {
+                    SHOW_VARIANT -> {
+                        val variant = when (val v = step.value) {
+                            is String -> v
+                            is Map<*, *> -> v["variant"]?.toString().orEmpty()
+                            else -> ""
+                        }
+                        if (variant.isEmpty()) problems += "show step ${rules.size + 1}: show_variant without a variant"
+                        else rules += VariantRule("show ${rules.size + 1}", variant, conditions = guard)
+                    }
+                    SHOW_DEFAULT -> rules += VariantRule("show ${rules.size + 1}", "", conditions = guard)
+                    else -> problems += "unknown step '${step.name}' (expected $SHOW_VARIANT or $SHOW_DEFAULT)"
+                }
+                is Step.IfStep -> {
+                    val before = mutableListOf<Condition>()
+                    for (case in step.cases) {
+                        val holds = caseCondition(case)
+                        walk(case.steps, guard + before + holds)
+                        before += Condition.Not(holds)
+                    }
+                    walk(step.elseSteps, guard + before)
+                }
+            }
+        }
+        walk(KeyedStepParser.parseKeyed(raw), emptyList())
+        return Parsed(rules, problems)
+    }
+
+    /** An `if` case's conditions as one, joined left to right like `ActionExecutor.caseMatches`. */
+    private fun caseCondition(case: IfCase): Condition {
+        if (case.conditions.isEmpty()) return Condition.And(emptyList())
+        var out = case.conditions[0]
+        for (i in 1 until case.conditions.size) {
+            val next = case.conditions[i]
+            out = if (case.joins.getOrNull(i - 1) == "or") Condition.Or(listOf(out, next)) else Condition.And(listOf(out, next))
+        }
+        return out
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -119,5 +174,5 @@ object VariantRules {
      * [has], `null` for the module's own file. Rules are evaluated lazily, in order.
      */
     fun select(rules: List<VariantRule>, has: (variant: String) -> Boolean, player: VariantPlayer): String? =
-        rules.firstOrNull { has(it.variant) && holds(it, player) }?.variant
+        rules.firstOrNull { (it.variant.isEmpty() || has(it.variant)) && holds(it, player) }?.variant?.ifEmpty { null }
 }

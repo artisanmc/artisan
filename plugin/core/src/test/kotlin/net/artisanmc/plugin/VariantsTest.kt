@@ -44,6 +44,8 @@ class VariantsTest {
             is Condition.ClientIs -> (condition.client == "bedrock") == bedrock
             Condition.HasResourcePack -> pack
             is Condition.Not -> !test(condition.inner)
+            is Condition.And -> condition.all.all(::test)
+            is Condition.Or -> condition.any.any(::test)
             else -> false
         }
     }
@@ -255,5 +257,41 @@ class VariantsTest {
         assertEquals("bedrock", pick(player(bedrock = true)))
         assertEquals("flat", pick(player(perms = setOf("guilds.vip"))))
         assertNull(pick(player(pack = true, perms = setOf("guilds.vip"))))
+    }
+
+    @Test
+    fun `show, the editor's tree, reads as the rules of its paths, show_default giving the module's`() {
+        val parsed = VariantRules.parse(
+            mapOf(
+                "schema" to "variants/v1",
+                "variants" to listOf("bedrock", "pack", "vip"),
+                "show" to listOf(
+                    mapOf(
+                        "if" to listOf(mapOf("client_is" to "bedrock")),
+                        "do" to listOf(mapOf("show_variant" to "bedrock")),
+                        "else" to listOf(
+                            mapOf(
+                                "if" to listOf(mapOf("has_resource_pack" to true)),
+                                "do" to listOf(mapOf("show_variant" to "pack")),
+                                "else" to listOf("show_default"),
+                            ),
+                        ),
+                    ),
+                    mapOf("show_variant" to "vip"),
+                ),
+            ),
+            setOf("bedrock", "pack"),
+        )
+        assertTrue(parsed.problems.isEmpty(), parsed.problems.toString())
+        assertEquals(listOf("bedrock", "pack", "", "vip"), parsed.rules.map { it.variant })
+        // Each file: the first variant shown on the player's path that has it.
+        val pick = { who: VariantPlayer, has: Set<String> -> VariantRules.select(parsed.rules, { it in has }, who) }
+        assertEquals("bedrock", pick(player(bedrock = true, pack = true), setOf("bedrock", "pack")))
+        assertEquals("pack", pick(player(pack = true), setOf("bedrock", "pack")))
+        // A Bedrock player without a bedrock file: the `vip` step after the tree, if it has one.
+        assertEquals("vip", pick(player(bedrock = true), setOf("vip")))
+        // show_default stops: the module's file, even though `vip` comes later.
+        assertNull(pick(player(), setOf("vip")))
+        assertNull(pick(player(bedrock = true), setOf("pack")))
     }
 }

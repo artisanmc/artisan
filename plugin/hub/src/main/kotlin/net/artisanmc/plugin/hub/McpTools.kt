@@ -668,14 +668,14 @@ class McpTools(
         /** How a module's variants are written, through the same file tools (design `variantes-modules`). */
         const val VARIANTS_HOWTO =
             "Variants: a module may show other versions of its menus and dialogs to some players (Bedrock, resource pack " +
-                "loaded, a permission, any condition). They are files too. `variants.yml` at the module root lists the display " +
-                "rules in order (`schema: variants/v1`, `rules: [{variant: textured, if: [{has_resource_pack: true}]}, {variant: bedrock, " +
-                "if: [{client_is: bedrock}]}, {variant: dev, enabled: false, if: [{has_permission: op}]}]`; `if` lists " +
-                "conditions of the action engine, as in an action's `if`, all required; the old `when:` is still read). A variant's version of " +
+                "loaded, a permission, any condition). They are files too. `variants.yml` at the module root holds the display " +
+                "rules as a step tree like an action chain (`schema: variants/v1`, `variants: [bedrock, textured]`, `show: [{if: " +
+                "[{client_is: bedrock}], do: [{show_variant: bedrock}], else: [{if: [{has_resource_pack: true}], do: [{show_variant: " +
+                "textured}]}]}, show_default]`; `if` takes conditions of the action engine; the old `rules:` list is still read). A variant's version of " +
                 "`menus/ranks.yml` is `variants/<name>/menus/ranks.yml`: same id, same `inputs`, a whole Document. A variant's " +
                 "command file (`variants/<name>/commands/<id>.yml`) holds only `actions`, `requirements`, `fallback`, on the root " +
-                "and on `subcommands` found by `name`. For each player and each file, the first enabled rule that holds and whose " +
-                "variant has the file wins, else the module's own file. list_documents shows the variants apart."
+                "and on `subcommands` found by `name`. For each player and each file, the first variant shown on the player's path " +
+                "that has the file wins; `show_default` or the end gives the module's own file. list_documents shows the variants apart."
 
         /** How a module's originals work, through the same file tools (design `originaux-modules`). */
         const val ORIGINALS_HOWTO =

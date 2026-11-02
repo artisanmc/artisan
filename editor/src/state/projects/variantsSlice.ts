@@ -1,11 +1,11 @@
 import { revertToOriginal } from "@/domain/originals";
-import type { ProjectId, VariantRule } from "@/domain/types";
+import type { ProjectId, Step } from "@/domain/types";
 import {
   addVariant,
   createVersion,
   dropVersion,
   removeVariant,
-  setVariantRules,
+  setVariantShow,
   showOriginal,
   showVariant,
 } from "@/domain/variants";
@@ -24,7 +24,8 @@ export interface VariantsSlice {
   createVersion: (projectId: ProjectId, kind: string, id: string) => void;
   /** The viewed variant drops its version: the module's Document shows again. */
   dropVersion: (projectId: ProjectId, kind: string, id: string) => void;
-  setVariantRules: (projectId: ProjectId, rules: VariantRule[]) => void;
+  /** The display rules' tree (`variants.yml` `show:`). */
+  setVariantShow: (projectId: ProjectId, show: Step[]) => void;
   /** The Document shown becomes what the module ships again (`domain/originals.ts`). */
   revertToOriginal: (projectId: ProjectId, kind: string, id: string) => void;
 }
@@ -69,7 +70,7 @@ export const createVariantsSlice = ({ mutateProject }: ProjectsSliceContext): Va
     mutateProject(projectId, (p) => {
       if (!dropVersion(p, kind, id)) return false;
     }),
-  setVariantRules: (projectId, rules) => mutateProject(projectId, (p) => setVariantRules(p, rules)),
+  setVariantShow: (projectId, show) => mutateProject(projectId, (p) => setVariantShow(p, show)),
   revertToOriginal: (projectId, kind, id) =>
     mutateProject(projectId, (p) => {
       if (!revertToOriginal(p, kind, id)) return false;

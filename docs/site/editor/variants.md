@@ -30,26 +30,29 @@ the copy; the variant's players see the module's document again. A command's nam
 arguments and permission are shared by every variant: editing them in a variant's view changes
 the module's command.
 
-**New variant…** in the same menu creates one. Its display rule starts **off**.
+**New variant…** in the same menu creates one. Nobody sees it until the display rules show it.
+To delete a variant, hover it in that menu and click its trash icon.
 
 ## Display rules
 
-**View as → Display rules…** lists the rules, in order. For each player and each menu or dialog,
-the **first rule that is on, holds, and whose variant has that file** wins; otherwise the player
-gets the module's own file. So a `bedrock` variant that only redraws two menus still shows the
+**View as → Display rules…** is one tree, edited like an action chain: **If** branches (with
+**Else if** and **Else**), and two steps, **Show variant** (pick which) and **Show Default**. It
+always ends on **Otherwise: Show Default**, which cannot be removed.
+
+The tree is read for each player, top to bottom. For each menu or dialog, the **first variant
+shown on the player's path that has that file** wins; **Show Default**, or the end of the tree,
+gives the module's own file. So a `bedrock` variant that only redraws two menus still shows the
 module's other menus to Bedrock players.
 
-A rule holds when all of its conditions do:
-
-Each rule reads **Show [variant] if [conditions]**. The conditions are the same as an action's
-`if`, edited the same way: permission, money, world, placeholder, and two made for variants:
+The conditions are the same as an action's `if`, edited the same way: permission, money, world,
+placeholder, and two made for variants:
 
 | Condition | Holds when |
 |---|---|
 | Client is | The player plays on Java, or on Bedrock (through Geyser). |
 | Has the resource pack | The player loaded the server's resource pack. A Bedrock player counts as having it when the server has a Bedrock pack. Wrap it in NOT for players without it. |
 
-Both work in actions too. A rule with no condition holds for everyone. Turn a rule off to keep a variant without showing it.
+Both work in actions too.
 
 ## What a variant can change
 
@@ -76,14 +79,14 @@ guilds/
 ```yaml
 # variants.yml
 schema: variants/v1
-rules:
-  - variant: dev
-    enabled: false
-    if: [{ has_permission: op }]
-  - variant: bedrock
-    if: [{ client_is: bedrock }]
-  - variant: textured
-    if: [{ has_resource_pack: true }]
+variants: [bedrock, textured]
+show:
+  - if: [{ client_is: bedrock }]
+    do: [{ show_variant: bedrock }]
+    else:
+      - if: [{ has_resource_pack: true }]
+        do: [{ show_variant: textured }]
+  - show_default
 ```
 
 The resource packs (Java and Bedrock) include the variants' menus. An AI app connected through

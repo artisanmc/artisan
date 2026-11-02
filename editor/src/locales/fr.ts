@@ -1297,25 +1297,19 @@ const fr: typeof en = {
     newVariant: "Nouvelle variante…",
     newVariantTitle: "Nouvelle variante",
     newVariantHint:
-      "Un nom de dossier (minuscules, chiffres, - et _). Sa règle d'affichage commence désactivée : active-la dans les règles d'affichage.",
+      "Un nom de dossier (minuscules, chiffres, - et _). Personne ne la voit tant que les règles d'affichage ne l'affichent pas.",
     nameInvalid:
       "Minuscules, chiffres, - et _ uniquement, en commençant par une lettre ou un chiffre.",
     nameTaken: "Cette variante existe déjà.",
     rules: "Règles d'affichage…",
     rulesTitle: "Règles d'affichage",
     rulesHint:
-      "Pour chaque joueur et chaque fichier, la première règle vraie dont la variante a ce fichier l'emporte ; sinon, le fichier du module.",
+      "Un arbre de conditions lu pour chaque joueur, de haut en bas. Pour chaque fichier, la première variante affichée sur son chemin qui a ce fichier l'emporte ; sinon, le fichier du module.",
     rulesEmpty: "Aucune variante pour l'instant.",
-    rule: "Règle {{n}}",
-    enabled: "Active",
     variant: "Variante",
-    addRule: "Ajouter une règle",
-    removeRule: "Retirer la règle",
-    moveUp: "Monter",
-    moveDown: "Descendre",
     removeVariant: "Supprimer la variante {{name}}",
     removeVariantConfirm:
-      "Supprimer la variante {{name}}, ses {{count}} version(s) et ses règles ? Les fichiers partent à la corbeille du serveur à la prochaine publication.",
+      "Supprimer la variante {{name}}, ses {{count}} version(s) et ses étapes dans les règles d'affichage ? Les fichiers partent à la corbeille du serveur à la prochaine publication.",
     done: "Terminé",
     viewing: "Variante affichée : {{name}}",
     viewingHint:
@@ -1331,13 +1325,15 @@ const fr: typeof en = {
     commandLocked:
       "Nom, alias, arguments, permission et sous-commandes sont ceux du module, communs à toutes les variantes : cette version ne change que ce qui s'exécute.",
     editShared: "Les modifications s'appliquent à toutes les variantes.",
-    show: "Afficher",
-    showIf: "Si",
-    showAlways: "Toujours : tous les joueurs, sans condition.",
     editMakesVersion: "Le modifier crée sa version pour {{name}} : celui du module reste tel quel.",
     count_one: "{{count}} variante",
     count_other: "{{count}} variantes",
     badge: "A des versions dans : {{names}}",
+    showVariantStep: "Afficher la variante",
+    showDefaultStep: "Afficher Défaut",
+    otherwise: "Sinon",
+    otherwiseDefaultHint:
+      "Toujours en fin d'arbre : le joueur pour qui rien au-dessus n'affiche de variante voit les fichiers du module.",
   },
   canvas: {
     systemElement: "système · {{module}}",

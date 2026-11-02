@@ -22,7 +22,7 @@ import type { ProjectId } from "@/domain/types";
 import { VARIANT_NAME, variantNames, viewedVariant } from "@/domain/variants";
 import { VariantRulesDialog } from "@/features/project/VariantRulesDialog";
 import { useProjectsStore } from "@/state/projectsStore";
-import { ChevronDown, Layers, ListOrdered, Lock, Plus } from "lucide-react";
+import { ChevronDown, Layers, ListOrdered, Lock, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -42,6 +42,11 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
   const original = project.originalView !== undefined;
   const viewed = viewedVariant(project) ?? project.originalView?.variant;
   const store = useProjectsStore.getState();
+  const versions = (name: string) =>
+    Object.values(project.variants?.documents[name] ?? {}).reduce((n, docs) => n + docs.length, 0) +
+    (project.variants?.view?.variant === name
+      ? Object.values(project.variants.view.shown).reduce((n, ids) => n + ids.length, 0)
+      : 0);
   // Picking a variant (the one shown included) leaves the original: back to editing it.
   const pick = (variant: string | undefined) => {
     if (original) store.showOriginal(projectId, false);
@@ -84,8 +89,34 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
               {t("variants.module")}
             </DropdownMenuRadioItem>
             {names.map((name) => (
-              <DropdownMenuRadioItem key={name} value={name} onSelect={() => pick(name)}>
-                {name}
+              <DropdownMenuRadioItem
+                key={name}
+                value={name}
+                onSelect={() => pick(name)}
+                className="group/variant"
+              >
+                <span className="min-w-0 flex-1 truncate">{name}</span>
+                <button
+                  type="button"
+                  title={t("variants.removeVariant", { name })}
+                  aria-label={t("variants.removeVariant", { name })}
+                  disabled={original}
+                  className="-my-1 ml-2 flex size-6 shrink-0 items-center justify-center rounded text-[var(--text-faint)] opacity-0 hover:bg-[var(--surface-hover)] hover:text-[var(--danger)] group-hover/variant:opacity-100 group-focus/variant:opacity-100 disabled:hidden"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (
+                      !window.confirm(
+                        t("variants.removeVariantConfirm", { name, count: versions(name) }),
+                      )
+                    )
+                      return;
+                    store.removeVariant(projectId, name);
+                  }}
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>

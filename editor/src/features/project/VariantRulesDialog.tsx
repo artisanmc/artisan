@@ -6,19 +6,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import type { ProjectId, VariantRule } from "@/domain/types";
-import { variantNames } from "@/domain/variants";
-import { ConditionsField } from "@/features/inspector/properties/ConditionsField";
+import type { ProjectId, Step } from "@/domain/types";
+import { SHOW_DEFAULT, SHOW_VARIANT, variantNames } from "@/domain/variants";
+import { StepTree } from "@/features/inspector/chain/StepTree";
+import { controlledChainOps } from "@/features/inspector/chain/chainOps";
+import { type ChainVocabulary, ChainVocabularyProvider } from "@/lib/actions/chainVocabulary";
 import { useProjectsStore } from "@/state/projectsStore";
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
- * The display rules of `variants.yml` (design `variantes-modules` §9), edited as a list: order,
- * on/off, the variant shown, and when, with the action editor's conditions (all required).
- * Saved on "Done", in one undo step.
+ * The display rules of `variants.yml` (design `variantes-modules` §9): one tree, edited with
+ * the action chains' step tree, whose actions are "Show variant X" and "Show Default"; it ends
+ * on a fixed "Otherwise: show Default". Saved on "Done", in one undo step.
  */
 export function VariantRulesDialog({
   projectId,
@@ -31,28 +31,44 @@ export function VariantRulesDialog({
 }) {
   const { t } = useTranslation();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
-  const [rules, setRules] = useState<VariantRule[]>([]);
+  const [show, setShow] = useState<Step[]>([]);
   useEffect(() => {
-    if (open) setRules(project?.variants?.rules ?? []);
-  }, [open, project?.variants?.rules]);
+    if (open) setShow(project?.variants?.show ?? []);
+  }, [open, project?.variants?.show]);
+  const names = project ? variantNames(project) : [];
+  const namesKey = names.join("\n");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `names` is read through its key.
+  const vocabulary = useMemo<ChainVocabulary>(
+    () => ({
+      actions: [
+        {
+          name: SHOW_VARIANT,
+          args: [
+            {
+              name: "variant",
+              label: t("variants.variant"),
+              type: { kind: "enum", values: names },
+              required: true,
+              ...(names[0] ? { default: names[0] } : {}),
+            },
+          ],
+          primary: "variant",
+          moduleId: null,
+        },
+        { name: SHOW_DEFAULT, args: [], primary: null, moduleId: null },
+      ],
+      label: (name) =>
+        name === SHOW_VARIANT
+          ? t("variants.showVariantStep")
+          : name === SHOW_DEFAULT
+            ? t("variants.showDefaultStep")
+            : name,
+    }),
+    [namesKey, t],
+  );
   if (!project) return null;
-  const names = variantNames(project);
-  const set = (i: number, patch: Partial<VariantRule>) =>
-    setRules((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const move = (i: number, by: number) =>
-    setRules((rs) => {
-      const out = [...rs];
-      const [r] = out.splice(i, 1);
-      out.splice(i + by, 0, r!);
-      return out;
-    });
-  const versions = (name: string) =>
-    Object.values(project.variants?.documents[name] ?? {}).reduce((n, docs) => n + docs.length, 0) +
-    (project.variants?.view?.variant === name
-      ? Object.values(project.variants.view.shown).reduce((n, ids) => n + ids.length, 0)
-      : 0);
   const save = () => {
-    useProjectsStore.getState().setVariantRules(projectId, rules);
+    useProjectsStore.getState().setVariantShow(projectId, show);
     onOpenChange(false);
   };
   return (
@@ -62,104 +78,34 @@ export function VariantRulesDialog({
           <DialogTitle>{t("variants.rulesTitle")}</DialogTitle>
           <DialogDescription>{t("variants.rulesHint")}</DialogDescription>
         </DialogHeader>
-        {names.length === 0 && (
+        {names.length === 0 ? (
           <p className="text-sm text-[var(--text-mut)]">{t("variants.rulesEmpty")}</p>
-        )}
-        <ol className="flex flex-col gap-3">
-          {rules.map((rule, i) => (
-            <li
-              // biome-ignore lint/suspicious/noArrayIndexKey: rules have no stable id while edited
-              key={i}
-              className="card flex flex-col gap-2 p-3"
-            >
-              <div className="flex items-center gap-2">
-                <span className="eyebrow">{t("variants.rule", { n: i + 1 })}</span>
-                <span className="text-sm text-[var(--text-mut)]">{t("variants.show")}</span>
-                <select
-                  aria-label={t("variants.variant")}
-                  className="input h-8 w-auto"
-                  value={rule.variant}
-                  onChange={(e) => set(i, { variant: e.target.value })}
-                >
-                  {names.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-                <span className="ml-auto flex items-center gap-1.5 text-xs text-[var(--text-mut)]">
-                  {t("variants.enabled")}
-                  <Switch
-                    checked={rule.enabled}
-                    onCheckedChange={(enabled) => set(i, { enabled })}
-                  />
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  title={t("variants.moveUp")}
-                  disabled={i === 0}
-                  onClick={() => move(i, -1)}
-                >
-                  <ArrowUp className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  title={t("variants.moveDown")}
-                  disabled={i === rules.length - 1}
-                  onClick={() => move(i, 1)}
-                >
-                  <ArrowDown className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  title={t("variants.removeRule")}
-                  onClick={() => setRules((rs) => rs.filter((_, j) => j !== i))}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-              <ConditionsField
-                label={t("variants.showIf")}
-                value={rule.conditions}
-                emptyHint={t("variants.showAlways")}
-                onChange={(conditions) => set(i, { conditions })}
+        ) : (
+          <ChainVocabularyProvider value={vocabulary}>
+            <div className="flex flex-col gap-1.5">
+              <StepTree
+                projectId={projectId}
+                ops={controlledChainOps(show, setShow)}
+                steps={show}
+                frames={[]}
+                indent={0}
+                literalText
               />
-            </li>
-          ))}
-        </ol>
-        {names.length > 0 && (
-          <Button
-            variant="ghost"
-            className="self-start"
-            onClick={() =>
-              setRules((rs) => [...rs, { variant: names[0]!, enabled: true, conditions: [] }])
-            }
-          >
-            <Plus className="size-4" /> {t("variants.addRule")}
-          </Button>
-        )}
-        {names.length > 0 && (
-          <div className="flex flex-wrap gap-2 border-[var(--border)] border-t pt-3">
-            {names.map((name) => (
-              <Button
-                key={name}
-                variant="ghost"
-                size="sm"
-                className="text-[var(--danger)]"
-                onClick={() => {
-                  const count = versions(name);
-                  if (!window.confirm(t("variants.removeVariantConfirm", { name, count }))) return;
-                  useProjectsStore.getState().removeVariant(projectId, name);
-                  setRules((rs) => rs.filter((r) => r.variant !== name));
-                }}
+              {/* What every player gets when nothing above showed a variant: not removable. */}
+              <div
+                data-testid="variant-rules-default"
+                className="flex min-h-[40px] items-center gap-2.5 rounded-[var(--r-sm)] border border-[var(--border-soft)] border-dashed px-2"
+                title={t("variants.otherwiseDefaultHint")}
               >
-                <Trash2 className="size-4" /> {t("variants.removeVariant", { name })}
-              </Button>
-            ))}
-          </div>
+                <span className="shrink-0 rounded-[5px] bg-[var(--fam-logic-soft)] px-2 py-[3px] font-mono text-[11.5px] font-semibold uppercase tracking-[.04em] text-[var(--fam-logic)]">
+                  {t("variants.otherwise")}
+                </span>
+                <span className="text-[13px] font-semibold text-[var(--text)]">
+                  {t("variants.showDefaultStep")}
+                </span>
+              </div>
+            </div>
+          </ChainVocabularyProvider>
         )}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

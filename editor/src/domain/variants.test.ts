@@ -5,15 +5,17 @@ import { projectFromFiles } from "@/schema/projectFromFiles";
 import { projectToFiles } from "@/schema/projectToFiles";
 import { produce } from "immer";
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 import {
   addVariant,
   createVersion,
   dropVersion,
   removeVariant,
-  rulesFromYaml,
-  rulesToYaml,
+  showFromYaml,
   showVariant,
+  variantNamesFromYaml,
   variantsHaving,
+  variantsToYaml,
   versionOf,
   viewedVariant,
 } from "./variants";
@@ -89,7 +91,9 @@ describe("variants in the editor", () => {
       expect(addVariant(d, "vip")).toBe(true);
       expect(addVariant(d, "vip")).toBe(false);
     });
-    expect(p.variants?.rules.at(-1)).toEqual({ variant: "vip", enabled: false, conditions: [] });
+    expect(p.variants?.names).toContain("vip");
+    // A variant no step shows nor file holds stays listed in variants.yml.
+    expect(parse(projectToFiles(p)[`${base}/variants.yml`]!).variants).toContain("vip");
     const gone = produce(p, (d) => removeVariant(d, "textured"));
     expect(gone.variants?.names).toEqual(["vip"]);
     expect(Object.keys(projectToFiles(gone)).some((k) => k.includes("variants/textured"))).toBe(
@@ -97,30 +101,39 @@ describe("variants in the editor", () => {
     );
   });
 
-  it("rules read and write variants.yml as the plugin does", () => {
+  it("variants.yml: the old rules read as the tree, which writes back as itself", () => {
     const raw = {
       rules: [
         { id: "dev", variant: "dev", enabled: false, when: { permission: "op" } },
         { variant: "bedrock", when: { client: "bedrock" } },
-        {
-          variant: "vip",
-          when: { has_pack: true, condition: { type: "has_permission", perm: "vip" } },
-        },
+        { variant: "vip", if: [{ has_permission: "vip" }] },
+        { variant: "all" },
       ],
     };
-    // The old `when:` reads as conditions of the engine, written back as `if:`.
-    expect(rulesToYaml(rulesFromYaml(raw))).toEqual({
+    const show = showFromYaml(raw);
+    const yaml = variantsToYaml(show, variantNamesFromYaml(raw));
+    // A rule off is left out of the tree; its variant stays listed.
+    expect(yaml).toEqual({
       schema: "variants/v1",
-      rules: [
-        { id: "dev", variant: "dev", enabled: false, if: [{ has_permission: "op" }] },
-        { variant: "bedrock", if: [{ client_is: "bedrock" }] },
-        {
-          variant: "vip",
-          if: [{ has_resource_pack: true }, { type: "has_permission", perm: "vip" }],
-        },
+      variants: ["dev", "bedrock", "vip", "all"],
+      show: [
+        { if: [{ client_is: "bedrock" }], do: [{ show_variant: "bedrock" }] },
+        { if: [{ has_permission: "vip" }], do: [{ show_variant: "vip" }] },
+        { show_variant: "all" },
       ],
     });
-    const now = { schema: "variants/v1", rules: rulesToYaml(rulesFromYaml(raw)).rules };
-    expect(rulesToYaml(rulesFromYaml(now))).toEqual(now);
+    const tree = {
+      schema: "variants/v1",
+      variants: ["bedrock", "pack"],
+      show: [
+        {
+          if: [{ client_is: "bedrock" }],
+          do: [{ show_variant: "bedrock" }],
+          else: [{ if: [{ has_resource_pack: true }], do: [{ show_variant: "pack" }] }],
+        },
+        "show_default",
+      ],
+    };
+    expect(variantsToYaml(showFromYaml(tree), variantNamesFromYaml(tree))).toEqual(tree);
   });
 });

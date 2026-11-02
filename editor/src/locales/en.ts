@@ -1273,24 +1273,18 @@ export default {
     newVariant: "New variant…",
     newVariantTitle: "New variant",
     newVariantHint:
-      "A folder name (lowercase letters, digits, - and _). Its display rule starts off: turn it on in the display rules.",
+      "A folder name (lowercase, digits, - and _). Nobody sees it until the display rules show it.",
     nameInvalid: "Lowercase letters, digits, - and _ only, starting with a letter or a digit.",
     nameTaken: "This variant exists already.",
     rules: "Display rules…",
     rulesTitle: "Display rules",
     rulesHint:
-      "For each player and each file, the first rule that holds and whose variant has that file wins; otherwise the module's own file.",
+      "A tree of conditions read for each player, top to bottom. For each file, the first variant shown on their path that has the file wins; otherwise, the module's file.",
     rulesEmpty: "No variant yet.",
-    rule: "Rule {{n}}",
-    enabled: "On",
     variant: "Variant",
-    addRule: "Add a rule",
-    removeRule: "Remove the rule",
-    moveUp: "Move up",
-    moveDown: "Move down",
     removeVariant: "Delete the variant {{name}}",
     removeVariantConfirm:
-      "Delete the variant {{name}}, its {{count}} version(s) and its rules? The files go to the server's trash at the next publish.",
+      "Delete variant {{name}}, its {{count}} version(s) and its steps in the display rules? The files go to the server's trash at the next publish.",
     done: "Done",
     viewing: "Viewing the variant {{name}}",
     viewingHint:
@@ -1305,13 +1299,15 @@ export default {
     commandLocked:
       "Name, aliases, arguments, permission and sub-commands are the module's, shared by every variant: this version only changes what runs.",
     editShared: "Edits change it for every variant.",
-    show: "Show",
-    showIf: "If",
-    showAlways: "Always: every player, no condition.",
     editMakesVersion: "Editing it gives {{name}} its own version: the module's stays as it is.",
     count_one: "{{count}} variant",
     count_other: "{{count}} variants",
     badge: "Has versions in: {{names}}",
+    showVariantStep: "Show variant",
+    showDefaultStep: "Show Default",
+    otherwise: "Otherwise",
+    otherwiseDefaultHint:
+      "Always at the end of the tree: a player for whom nothing above shows a variant sees the module's files.",
   },
   canvas: {
     systemElement: "system · {{module}}",

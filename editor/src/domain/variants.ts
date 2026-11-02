@@ -5,6 +5,7 @@
 // place on a Project (an immer draft in the store), except `withModuleView`.
 import { newI18nKey } from "@/lib/i18n";
 import { moveLTextKey } from "@/lib/i18nKeys";
+import { stepsFromWire, stepsToWire } from "@/lib/literalSteps";
 import { current, isDraft, original } from "immer";
 import { documentLTextSites } from "./documentKindVisitors";
 import { gcDocumentLTexts } from "./i18nSites";
@@ -15,7 +16,7 @@ import type {
   I18nKey,
   Project,
   ProjectVariants,
-  VariantRule,
+  Step,
 } from "./types";
 
 /**
@@ -316,18 +317,17 @@ export function dropVersion(project: Project, kind: string, id: string): boolean
   return true;
 }
 
-/** A new variant, with a rule that is off until the admin turns it on. */
+/** A new variant: listed in `variants.yml`, shown to nobody until the tree shows it. */
 export function addVariant(project: Project, name: string): boolean {
   if (!VARIANT_NAME.test(name)) return false;
-  project.variants ??= { rules: [], names: [], documents: {} };
+  project.variants ??= { show: [], names: [], documents: {} };
   const v: ProjectVariants = project.variants;
   if (v.names.includes(name)) return false;
   v.names.push(name);
-  v.rules.push({ variant: name, enabled: false, conditions: [] });
   return true;
 }
 
-/** Removes a variant: its versions, its rules. */
+/** Removes a variant: its versions, the tree's steps that show it. */
 export function removeVariant(project: Project, name: string): void {
   const v = project.variants;
   if (!v?.names.includes(name)) return;
@@ -336,29 +336,112 @@ export function removeVariant(project: Project, name: string): void {
     for (const doc of docs) gcDocumentLTexts(project, kind, doc);
   delete v.documents[name];
   v.names = v.names.filter((n) => n !== name);
-  v.rules = v.rules.filter((r) => r.variant !== name);
+  v.show = withoutVariant(plain(v.show), name);
 }
 
-export function setVariantRules(project: Project, rules: VariantRule[]): void {
+export function setVariantShow(project: Project, show: Step[]): void {
   if (!project.variants) return;
-  project.variants.rules = rules.filter((r) => project.variants!.names.includes(r.variant));
+  project.variants.show = show;
 }
 
 // --- variants.yml -------------------------------------------------------------------------
 
 export const VARIANTS_SCHEMA = "variants/v1";
+/** The tree's two actions: a variant's files for the player, or the module's. */
+export const SHOW_VARIANT = "show_variant";
+export const SHOW_DEFAULT = "show_default";
 
-/** `variants.yml` → rules; an unreadable rule is left out (the plugin reports it). */
-export function rulesFromYaml(raw: unknown): VariantRule[] {
-  const list = (raw as { rules?: unknown } | null)?.rules;
+/** The variant a `show_variant` step names ("" when none). */
+export function shownVariantOf(value: unknown): string {
+  if (typeof value === "string") return value;
+  const v = (value as { variant?: unknown } | null)?.variant;
+  return typeof v === "string" ? v : "";
+}
+
+/** Every variant [steps] show, in order, once each. */
+export function variantsShown(steps: Step[], out: string[] = []): string[] {
+  for (const step of steps) {
+    if (step.kind === "action") {
+      if (step.action.name !== SHOW_VARIANT) continue;
+      const name = shownVariantOf(step.action.value);
+      if (name && !out.includes(name)) out.push(name);
+    } else {
+      for (const c of step.cases) variantsShown(c.steps, out);
+      variantsShown(step.else ?? [], out);
+    }
+  }
+  return out;
+}
+
+/** [steps] without the steps that show [name]. */
+function withoutVariant(steps: Step[], name: string): Step[] {
+  return steps.flatMap((step): Step[] => {
+    if (step.kind === "action")
+      return step.action.name === SHOW_VARIANT && shownVariantOf(step.action.value) === name
+        ? []
+        : [step];
+    return [
+      {
+        ...step,
+        cases: step.cases.map((c) => ({ ...c, steps: withoutVariant(c.steps, name) })),
+        ...(step.else ? { else: withoutVariant(step.else, name) } : {}),
+      },
+    ];
+  });
+}
+
+/**
+ * `variants.yml` → its tree. The old form, `rules:` (in order, the first that holds), reads as
+ * one `if` per rule on, showing its variant; a rule off is left out (its variant stays listed).
+ */
+export function showFromYaml(raw: unknown): Step[] {
+  const file = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  if (file.show !== undefined) return stepsFromWire(file.show);
+  const wire = legacyRules(file.rules)
+    .filter((r) => r.enabled)
+    .map((r) =>
+      r.conditions.length > 0
+        ? { if: r.conditions, do: [{ [SHOW_VARIANT]: r.variant }] }
+        : { [SHOW_VARIANT]: r.variant },
+    );
+  return stepsFromWire(wire);
+}
+
+/** The variants `variants.yml` names: its `variants:` list, its old rules', its tree's. */
+export function variantNamesFromYaml(raw: unknown): string[] {
+  const file = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const listed = Array.isArray(file.variants)
+    ? file.variants.filter((n): n is string => typeof n === "string" && VARIANT_NAME.test(n))
+    : [];
+  return [
+    ...new Set([
+      ...listed,
+      ...legacyRules(file.rules).map((r) => r.variant),
+      ...variantsShown(showFromYaml(raw)),
+    ]),
+  ];
+}
+
+/** `variants.yml` as the editor writes it: every variant, and the tree. */
+export function variantsToYaml(show: Step[], names: string[]): Record<string, unknown> {
+  return { schema: VARIANTS_SCHEMA, variants: names, show: stepsToWire(show) };
+}
+
+interface LegacyRule {
+  variant: string;
+  enabled: boolean;
+  conditions: unknown[];
+}
+
+/** The old `rules:` list, each rule's `when:` and `if:` as keyed conditions. */
+function legacyRules(list: unknown): LegacyRule[] {
   if (!Array.isArray(list)) return [];
-  return list.flatMap((r): VariantRule[] => {
+  return list.flatMap((r): LegacyRule[] => {
     if (!r || typeof r !== "object") return [];
     const m = r as Record<string, unknown>;
     if (typeof m.variant !== "string" || !m.variant) return [];
     return [
       {
-        ...(typeof m.id === "string" ? { id: m.id } : {}),
         variant: m.variant,
         enabled: m.enabled !== false,
         conditions: [...whenConditions(m.when), ...(m.if === undefined ? [] : [m.if].flat())],
@@ -376,16 +459,4 @@ function whenConditions(raw: unknown): unknown[] {
   if (typeof when.permission === "string") out.push({ has_permission: when.permission });
   if (when.condition !== undefined) out.push(when.condition);
   return out;
-}
-
-export function rulesToYaml(rules: VariantRule[]): Record<string, unknown> {
-  return {
-    schema: VARIANTS_SCHEMA,
-    rules: rules.map((r) => ({
-      ...(r.id ? { id: r.id } : {}),
-      variant: r.variant,
-      ...(r.enabled ? {} : { enabled: false }),
-      ...(r.conditions.length > 0 ? { if: r.conditions } : {}),
-    })),
-  };
 }

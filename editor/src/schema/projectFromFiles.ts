@@ -52,7 +52,7 @@ import type {
   ProjectOriginals,
   ProjectVariants,
 } from "@/domain/types";
-import { VARIANT_KINDS, rulesFromYaml } from "@/domain/variants";
+import { VARIANT_KINDS, showFromYaml, variantNamesFromYaml } from "@/domain/variants";
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
 import { MODULE_FILE_NAMES, YAML_EXT, isYamlPath, yamlFilesUnder, yamlStem } from "@/lib/yamlFiles";
@@ -644,9 +644,10 @@ export function projectFromFiles(
   const byId = (a: LayoutEntry, b: LayoutEntry) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   let variants: ProjectVariants | undefined;
   if (variantsFile) {
-    const rules = rulesFromYaml(tryParse<Json>(getFile(files, projectId, variantsFile)));
+    const file = tryParse<Json>(getFile(files, projectId, variantsFile));
+    const show = showFromYaml(file);
     const names = [
-      ...new Set([...rules.map((r) => r.variant), ...layout.variants.map((e) => e.variant!)]),
+      ...new Set([...variantNamesFromYaml(file), ...layout.variants.map((e) => e.variant!)]),
     ];
     const byVariant: ProjectVariants["documents"] = {};
     for (const e of [...layout.variants].sort(byId)) {
@@ -661,7 +662,7 @@ export function projectFromFiles(
       byVariant[e.variant!] = ofVariant;
       ofVariant[kind] = [...(ofVariant[kind] ?? []), doc];
     }
-    variants = { rules, names, documents: byVariant };
+    variants = { show, names, documents: byVariant };
   }
   // What the module ships, as shipped: each Document of `originals/`, the ones the owner's
   // files cover or exclude included, for the comparison and the way back.
@@ -703,7 +704,7 @@ export function projectFromFiles(
       documents: docs,
       ...(shippedRules
         ? {
-            rules: rulesFromYaml(
+            show: showFromYaml(
               tryParse<Json>(getFile(files, projectId, `${ORIGINALS_DIR}/${shippedRules}`)),
             ),
           }
