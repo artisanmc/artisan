@@ -25,10 +25,20 @@ mappings:
   - touches: "plugin/*/src/main/kotlin/**/ArtisanCommand.kt"
     updates:
       - "docs/architecture/plugin-commands.md"
-      - "docs/site/getting-started/install-admin.md"
+      - "docs/site/configuration/commands-permissions.md"
       - "CLAUDE.md"
       - "AGENTS.md"
-    reason: "Commands: dev detail in plugin-commands.md, user table in install-admin, one-line list in CLAUDE.md"
+    reason: "Commands: dev detail in plugin-commands.md, user table in configuration/commands-permissions, one-line list in CLAUDE.md"
+
+  - touches: "plugin/paper/src/main/resources/plugin.yml"
+    updates:
+      - "docs/site/configuration/commands-permissions.md"
+    reason: "Declared permissions and their defaults: the user-facing permissions table"
+
+  - touches: "plugin/hub/src/main/kotlin/**/*Routes.kt"
+    updates:
+      - "docs/site/configuration/commands-permissions.md"
+    reason: "Which artisan.editor.* permission each editor action needs: the permissions table"
 
   - touches: "plugin/*/src/main/kotlin/**/ResourcePackDelegator.kt"
     updates:
