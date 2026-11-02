@@ -63,6 +63,7 @@ export function VariantRulesDialog({
           : name === SHOW_DEFAULT
             ? t("variants.showDefaultStep")
             : name,
+      terminal: (name) => name === SHOW_VARIANT || name === SHOW_DEFAULT,
     }),
     [namesKey, t],
   );

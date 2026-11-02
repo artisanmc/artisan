@@ -136,4 +136,21 @@ describe("variants in the editor", () => {
     };
     expect(variantsToYaml(showFromYaml(tree), variantNamesFromYaml(tree))).toEqual(tree);
   });
+
+  it("a show step ends its list: what follows it is dropped", () => {
+    const tree = {
+      show: [
+        {
+          if: [{ client_is: "bedrock" }],
+          do: [{ show_variant: "bedrock" }, "show_default"],
+        },
+        { show_variant: "pack" },
+        { show_variant: "late" },
+      ],
+    };
+    expect(variantsToYaml(showFromYaml(tree), []).show).toEqual([
+      { if: [{ client_is: "bedrock" }], do: [{ show_variant: "bedrock" }] },
+      { show_variant: "pack" },
+    ]);
+  });
 });

@@ -11,6 +11,8 @@ export interface ChainVocabulary {
   actions: DeclaredAction[];
   /** The name a person reads for one of [actions]. */
   label: (name: string) => string;
+  /** An action that ends its list: nothing can follow it ("+ step" is gone after it). */
+  terminal?: (name: string) => boolean;
 }
 
 const ChainVocabularyContext = createContext<ChainVocabulary | null>(null);

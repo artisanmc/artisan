@@ -23,6 +23,11 @@ data class VariantRule(
     val condition: Condition? = null,
     /** `if:`, the editor's form: conditions of the action engine, all required. */
     val conditions: List<Condition> = emptyList(),
+    /**
+     * A step of the `show:` tree: the player's path ends here. Its variant serves each file it
+     * has, the module the others; no later rule is tried.
+     */
+    val terminal: Boolean = false,
 )
 
 /** What a player is, for the rules: answered by the server, tested by [VariantRules.select]. */
@@ -81,9 +86,10 @@ object VariantRules {
     /**
      * `show:`, the editor's form: a step tree like an action chain (`if` / `do` / `else`)
      * whose actions are `show_variant: <name>` and `show_default`. Read as the rules it means,
-     * in order: each `show` step is a rule holding on its path (the conditions of the `if`
-     * cases it is under, the cases before them false). A `show_default` rule gives the module's
-     * file (variant ""). A variant without files is kept: it has nothing, so it never wins.
+     * in order: each `show` step is a [VariantRule.terminal] rule holding on its path (the
+     * conditions of the `if` cases it is under, the cases before them false); a list stops at
+     * its first `show` step. A player's path ends at the first that holds: its variant for the
+     * files it has, the module for the rest. `show_default` is variant "", the module's.
      */
     fun parseShow(raw: Any?): Parsed {
         val problems = mutableListOf<String>()
@@ -98,9 +104,13 @@ object VariantRules {
                             else -> ""
                         }
                         if (variant.isEmpty()) problems += "show step ${rules.size + 1}: show_variant without a variant"
-                        else rules += VariantRule("show ${rules.size + 1}", variant, conditions = guard)
+                        else rules += VariantRule("show ${rules.size + 1}", variant, conditions = guard, terminal = true)
+                        return
                     }
-                    SHOW_DEFAULT -> rules += VariantRule("show ${rules.size + 1}", "", conditions = guard)
+                    SHOW_DEFAULT -> {
+                        rules += VariantRule("show ${rules.size + 1}", "", conditions = guard, terminal = true)
+                        return
+                    }
                     else -> problems += "unknown step '${step.name}' (expected $SHOW_VARIANT or $SHOW_DEFAULT)"
                 }
                 is Step.IfStep -> {
@@ -174,5 +184,6 @@ object VariantRules {
      * [has], `null` for the module's own file. Rules are evaluated lazily, in order.
      */
     fun select(rules: List<VariantRule>, has: (variant: String) -> Boolean, player: VariantPlayer): String? =
-        rules.firstOrNull { (it.variant.isEmpty() || has(it.variant)) && holds(it, player) }?.variant?.ifEmpty { null }
+        rules.firstOrNull { (it.terminal || it.variant.isEmpty() || has(it.variant)) && holds(it, player) }
+            ?.variant?.takeIf { it.isNotEmpty() && has(it) }
 }

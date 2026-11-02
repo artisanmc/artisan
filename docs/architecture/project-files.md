@@ -150,9 +150,11 @@ show:                        # a step tree, the keyed wire of an action chain
         do: [{ show_variant: textured }]
   - show_default             # implicit at the end anyway: the module's own files
 # `if:` takes any conditions of the action engine (and/or joins, `else:` chains), edited with
-# the action chains' step tree. For each file, the first variant shown on the player's path that
-# has it wins; `show_default` gives the module's file. The plugin reads `show:` as ordered rules
-# (`VariantRules.parseShow`: one per show step, its path's conditions, the earlier cases negated).
+# the action chains' step tree. A show step ends its list (nothing after it is read): the player's
+# path ends at the first one reached, and they get that variant for each file it has, the
+# module's for the rest (`show_default`: the module's for all). The plugin reads `show:` as
+# ordered terminal rules (`VariantRules.parseShow`: one per show step, its path's conditions,
+# the earlier cases negated).
 # The old form, `rules: [{variant, enabled, if, when}]` (first rule that holds), is still read;
 # the editor reads it as one `if` per rule on and writes `show:`.
 ```

@@ -1279,7 +1279,7 @@ export default {
     rules: "Display rules…",
     rulesTitle: "Display rules",
     rulesHint:
-      "A tree of conditions read for each player, top to bottom. For each file, the first variant shown on their path that has the file wins; otherwise, the module's file.",
+      'A tree of conditions read for each player, top to bottom, up to the first "Show" they reach. They see that variant; a file it does not have comes from the module.',
     rulesEmpty: "No variant yet.",
     variant: "Variant",
     removeVariant: "Delete the variant {{name}}",

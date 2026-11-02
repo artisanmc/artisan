@@ -1,6 +1,6 @@
 - **Added** (preview): Module variants. A module with `variants.yml` keeps other versions of its
   menus and dialogs under `variants/<name>/` (same ids), and its display rules pick, for each
-  player and each file, the first variant shown on their path that has the file. The rules are
+  player and each file, the variant their path reaches, or the module's file when it has none. The rules are
   one tree (`show:`), edited like an action chain: **If** / **Else if** / **Else** branches,
   **Show variant** and **Show Default** steps, ending on a fixed **Otherwise: Show Default**; two new
   conditions, `client_is` (java | bedrock) and `has_resource_pack`, serve variants and actions alike. Without `variants.yml`, nothing changes.

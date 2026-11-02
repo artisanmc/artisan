@@ -2,6 +2,7 @@ import { type ChainAddress, chainActionContext, chainAllowsIf } from "@/domain/c
 import { menusOf } from "@/domain/documents";
 import { type StepFrame, resolveParent } from "@/domain/stepPath";
 import type { ClickType, ElementId, MenuId, ProjectId, Step } from "@/domain/types";
+import { useChainVocabulary } from "@/lib/actions/chainVocabulary";
 import { cx } from "@/lib/cx";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -123,6 +124,11 @@ function StepList(props: StepTreeProps) {
     (s) => menusOf(s.openProjects.projects.find((p) => p.id === projectId))[0]?.id,
   );
   const ids = useStepIds(steps);
+  // A list that holds a terminal step of its vocabulary ("Show variant") takes no more.
+  const vocabulary = useChainVocabulary();
+  const ended = steps.some(
+    (s) => s.kind === "action" && vocabulary?.terminal?.(s.action.name) === true,
+  );
   const listData: StepDragData = { frames, index: steps.length, list: true };
   const { setNodeRef, isOver } = useDroppable({ id: `steps-${useId()}`, data: listData });
 
@@ -142,13 +148,15 @@ function StepList(props: StepTreeProps) {
             <StepLine {...props} step={step} stepIndex={i} />
           </SortableStep>
         ))}
-        <AddStepLine
-          indent={indent}
-          firstMenuId={firstMenuId}
-          onPick={(newStep) => ops.add(frames, steps.length, newStep)}
-          allowIf={allowIf}
-          literalText={literalText}
-        />
+        {ended ? null : (
+          <AddStepLine
+            indent={indent}
+            firstMenuId={firstMenuId}
+            onPick={(newStep) => ops.add(frames, steps.length, newStep)}
+            allowIf={allowIf}
+            literalText={literalText}
+          />
+        )}
       </div>
     </SortableContext>
   );

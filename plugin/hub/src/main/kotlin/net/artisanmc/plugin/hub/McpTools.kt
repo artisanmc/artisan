@@ -674,8 +674,8 @@ class McpTools(
                 "textured}]}]}, show_default]`; `if` takes conditions of the action engine; the old `rules:` list is still read). A variant's version of " +
                 "`menus/ranks.yml` is `variants/<name>/menus/ranks.yml`: same id, same `inputs`, a whole Document. A variant's " +
                 "command file (`variants/<name>/commands/<id>.yml`) holds only `actions`, `requirements`, `fallback`, on the root " +
-                "and on `subcommands` found by `name`. For each player and each file, the first variant shown on the player's path " +
-                "that has the file wins; `show_default` or the end gives the module's own file. list_documents shows the variants apart."
+                "and on `subcommands` found by `name`. A show step ends its list: the player gets the variant of the first one their " +
+                "path reaches, for each file it has, else the module's file; `show_default` or the end gives the module's own files. list_documents shows the variants apart."
 
         /** How a module's originals work, through the same file tools (design `originaux-modules`). */
         const val ORIGINALS_HOWTO =

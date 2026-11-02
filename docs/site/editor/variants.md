@@ -39,9 +39,10 @@ To delete a variant, hover it in that menu and click its trash icon.
 **Else if** and **Else**), and two steps, **Show variant** (pick which) and **Show Default**. It
 always ends on **Otherwise: Show Default**, which cannot be removed.
 
-The tree is read for each player, top to bottom. For each menu or dialog, the **first variant
-shown on the player's path that has that file** wins; **Show Default**, or the end of the tree,
-gives the module's own file. So a `bedrock` variant that only redraws two menus still shows the
+The tree is read for each player, top to bottom, up to the first **Show** step they reach: a
+Show step ends its branch, nothing can follow it. The player sees that variant; a menu or dialog
+the variant does not have comes from the module. **Show Default**, or the end of the tree, gives
+the module's own files. So a `bedrock` variant that only redraws two menus still shows the
 module's other menus to Bedrock players.
 
 The conditions are the same as an action's `if`, edited the same way: permission, money, world,

@@ -284,14 +284,15 @@ class VariantsTest {
         )
         assertTrue(parsed.problems.isEmpty(), parsed.problems.toString())
         assertEquals(listOf("bedrock", "pack", "", "vip"), parsed.rules.map { it.variant })
-        // Each file: the first variant shown on the player's path that has it.
+        // The path ends at the first show step reached: that variant for its files, the module for the rest.
         val pick = { who: VariantPlayer, has: Set<String> -> VariantRules.select(parsed.rules, { it in has }, who) }
         assertEquals("bedrock", pick(player(bedrock = true, pack = true), setOf("bedrock", "pack")))
         assertEquals("pack", pick(player(pack = true), setOf("bedrock", "pack")))
-        // A Bedrock player without a bedrock file: the `vip` step after the tree, if it has one.
-        assertEquals("vip", pick(player(bedrock = true), setOf("vip")))
-        // show_default stops: the module's file, even though `vip` comes later.
+        assertNull(pick(player(bedrock = true), setOf("vip", "pack")))
+        // Neither bedrock nor pack: show_default, the module's, though `vip` comes later.
         assertNull(pick(player(), setOf("vip")))
-        assertNull(pick(player(bedrock = true), setOf("pack")))
+        // A list stops at its first show step.
+        val cut = VariantRules.parse(mapOf("show" to listOf(mapOf("show_variant" to "a"), mapOf("show_variant" to "b"))), setOf("a", "b"))
+        assertEquals(listOf("a"), cut.rules.map { it.variant })
     }
 }

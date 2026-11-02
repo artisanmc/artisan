@@ -1304,7 +1304,7 @@ const fr: typeof en = {
     rules: "Règles d'affichage…",
     rulesTitle: "Règles d'affichage",
     rulesHint:
-      "Un arbre de conditions lu pour chaque joueur, de haut en bas. Pour chaque fichier, la première variante affichée sur son chemin qui a ce fichier l'emporte ; sinon, le fichier du module.",
+      "Un arbre de conditions lu pour chaque joueur, de haut en bas, jusqu'au premier « Afficher » qu'il atteint. Il voit cette variante ; un fichier qu'elle n'a pas vient du module.",
     rulesEmpty: "Aucune variante pour l'instant.",
     variant: "Variante",
     removeVariant: "Supprimer la variante {{name}}",
