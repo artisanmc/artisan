@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
  * <p>Server names are the {@code name} of {@code environment.yml}, which must be the server's
  * name in {@code velocity.toml}.
  *
- * @since 2.13.0
+ * @since 1.0.0
  */
 @Beta
 public interface NetworkApi {

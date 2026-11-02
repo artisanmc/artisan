@@ -20,7 +20,7 @@ dependency as `compileOnly` (Gradle) or `provided` (Maven), and **never shade it
 
 | Repository | Contents |
 |---|---|
-| `https://repo.artisanmc.net/releases` | Released versions (`2.0.0`, …) |
+| `https://repo.artisanmc.net/releases` | Released versions (`1.0.0`, …) |
 | `https://repo.artisanmc.net/snapshots` | `X.Y.0-SNAPSHOT` of the next minor, rebuilt on every API change |
 
 ### Gradle (Kotlin DSL)
@@ -34,7 +34,7 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
-    compileOnly("net.artisanmc:artisan-core-api:2.0.0")
+    compileOnly("net.artisanmc:artisan-core-api:1.0.0")
 }
 
 java {
@@ -66,7 +66,7 @@ java {
     <dependency>
         <groupId>net.artisanmc</groupId>
         <artifactId>artisan-core-api</artifactId>
-        <version>2.0.0</version>
+        <version>1.0.0</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -76,7 +76,7 @@ Artisan targets Paper 1.21+ (Folia and Leaf included) on Java 21.
 
 ### Java or Kotlin
 
-The API is written in **Java** since 2.0.0: interfaces, immutable classes, enums
+The API is written in **Java**: interfaces, immutable classes, enums
 and functional interfaces (`DataFetcher`, `CommandHandler`, `ModuleEventHandler`,
 `SchemaVersionReader`). No `kotlin.*` type appears in it and its POM declares no
 dependency: a Java add-on needs nothing else.
@@ -96,9 +96,7 @@ From Java:
 From Kotlin, a getter reads as a property (`api.dataSources`, `module.id`), a
 functional interface takes a lambda, and your module implements the getters:
 `override fun getId() = "homes"`. Constructors take positional arguments (no
-named arguments, no `copy`). Before 2.0.0 the API was Kotlin with the same JVM
-names, so a 1.x add-on recompiles with those two changes and the removed members
-(`api.messages`, `DataSourceDeclaration.schemaHint`).
+named arguments, no `copy`).
 
 A **Kotlin** add-on must bring its own Kotlin standard library: shade it into
 your jar and relocate it (Shadow's `relocate("kotlin", "com.example.myplugin.kotlin")`),
@@ -190,8 +188,8 @@ Check the running API at startup with `isCompatibleWith`, passing the *Since*
 of the newest member you use:
 
 ```kotlin
-if (!api.isCompatibleWith("1.8.0")) {
-    logger.severe("MyPlugin needs Artisan API 1.8.0+, this server runs ${api.apiVersion}.")
+if (!api.isCompatibleWith("1.0.0")) {
+    logger.severe("MyPlugin needs Artisan API 1.0.0+, this server runs ${api.apiVersion}.")
     server.pluginManager.disablePlugin(this)
     return
 }
@@ -200,22 +198,6 @@ if (!api.isCompatibleWith("1.8.0")) {
 `isCompatibleWith(min)` returns true when `api.apiVersion` has the same major
 as `min` and is greater than or equal to it.
 
-:::caution[Servers older than API 1.8.0]
-`apiVersion` itself appeared in 1.8.0, and before it `isCompatibleWith`
-compared the **Artisan plugin's** version (`coreVersion`, `1.0.<build>`):
-`isCompatibleWith("1.7.0")` was false there. If you support older servers,
-probe the member you need instead:
-
-```kotlin
-val hasDatabase = try {
-    api.database      // added in API 1.7.0
-    true
-} catch (e: NoSuchMethodError) {
-    false
-}
-```
-:::
-
 `coreVersion` is the Artisan plugin version, for logs and support only.
 
 ## What the handle gives you
@@ -223,17 +205,17 @@ val hasDatabase = try {
 | Property | What for | Stability | Since |
 |---|---|---|---|
 | `plugin` | Artisan's own `JavaPlugin` (logger, data folder) — register your listeners and tasks on **your** plugin, not this one | `@Stable` | 1.0.0 |
-| `modules` | Register your `ArtisanModule` | `@Stable` | 1.1.0 |
+| `modules` | Register your `ArtisanModule` | `@Stable` | 1.0.0 |
 | `dataSources` | Register and fetch data sources | `@Stable` | 1.0.0 |
 | `commands` | Register handlers that menu buttons can call | `@Stable` | 1.0.0 |
 | `events` | Subscribe to and publish reload events | `@Stable` | 1.0.0 |
 | `schemas` | Migrate your own versioned YAML documents | `@Stable` | 1.0.0 |
-| `project` | Read project files from disk, trigger a reload | `@Stable` | 1.2.0 |
-| `projectRoots` | Host your project in your own plugin folder | `@Stable` | 1.5.0 |
-| `apiVersion` / `isCompatibleWith` | The running API version, and a check against it (compared `coreVersion` before 1.8.0) | `@Stable` | 1.8.0 / 1.1.0 |
-| `coreVersion` | The Artisan plugin version (`1.0.<build>`), not the API version | `@Stable` | 1.1.0 |
-| `actions` | Run Action DSL for a player — open menus, give items… | `@Beta` | 1.4.0 |
-| `items` | Serialize and describe `ItemStack`s the way the editor stores them | `@Beta` | 1.4.0 |
-| `models` | Declare `model/v1` shapes for your config | `@Beta` | 1.5.0 |
-| `screens` | Declare config screens in the editor | `@Beta` | 1.6.0 |
-| `database` | A connection pool on the suite's shared database | `@Beta` | 1.7.0 |
+| `project` | Read project files from disk, trigger a reload | `@Stable` | 1.0.0 |
+| `projectRoots` | Host your project in your own plugin folder | `@Stable` | 1.0.0 |
+| `apiVersion` / `isCompatibleWith` | The running API version, and a check against it | `@Stable` | 1.0.0 |
+| `coreVersion` | The Artisan plugin version (`1.0.0`, …), not the API version | `@Stable` | 1.0.0 |
+| `actions` | Run Action DSL for a player — open menus, give items… | `@Beta` | 1.0.0 |
+| `items` | Serialize and describe `ItemStack`s the way the editor stores them | `@Beta` | 1.0.0 |
+| `models` | Declare `model/v1` shapes for your config | `@Beta` | 1.0.0 |
+| `screens` | Declare config screens in the editor | `@Beta` | 1.0.0 |
+| `database` | A connection pool on the suite's shared database | `@Beta` | 1.0.0 |

@@ -325,7 +325,7 @@ export interface OverlayPreviewContent {
 
 export interface OverlayComposerProps {
   projectId: string;
-  /** The layout as the file holds it: a YAML list of layers (`OverlayLayout`, API 2.21.0). */
+  /** The layout as the file holds it: a YAML list of layers (`OverlayLayout`). */
   value: unknown;
   /** The new list, written back with the entries the composer could not read kept as they were. */
   onChange: (next: unknown[]) => void;

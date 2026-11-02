@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * One declared row field: drives editor tooling (schema table, filter autocomplete).
  *
- * <p>Its type is a {@link ModelFieldType} since 2.0.0, the vocabulary Data models and Action
+ * <p>Its type is a {@link ModelFieldType}, the vocabulary Data models and Action
  * arguments use. The {@code data_sources} wire reports its {@link ModelFieldType#getKind() kind}.
  */
 @Stable
@@ -29,14 +29,14 @@ public final class DataSourceField {
     }
 
     /** Same as {@code new DataSourceField(name, type.toModelFieldType())}. */
-    @Sunset(reason = "FieldKind is replaced by ModelFieldType", removeInVersion = "3.0.0",
+    @Sunset(reason = "FieldKind is replaced by ModelFieldType", removeInVersion = "2.0.0",
         replacement = "DataSourceField(String, ModelFieldType)")
     public DataSourceField(String name, FieldKind type) {
         this(name, Objects.requireNonNull(type, "type").toModelFieldType(), null);
     }
 
     /** Same as {@code new DataSourceField(name, type.toModelFieldType(), description)}. */
-    @Sunset(reason = "FieldKind is replaced by ModelFieldType", removeInVersion = "3.0.0",
+    @Sunset(reason = "FieldKind is replaced by ModelFieldType", removeInVersion = "2.0.0",
         replacement = "DataSourceField(String, ModelFieldType, String)")
     public DataSourceField(String name, FieldKind type, @Nullable String description) {
         this(name, Objects.requireNonNull(type, "type").toModelFieldType(), description);
@@ -52,7 +52,7 @@ public final class DataSourceField {
     }
 
     /** The closest {@link FieldKind} of {@link #getFieldType()} ({@link FieldKind#closestTo}). */
-    @Sunset(reason = "FieldKind is replaced by ModelFieldType", removeInVersion = "3.0.0",
+    @Sunset(reason = "FieldKind is replaced by ModelFieldType", removeInVersion = "2.0.0",
         replacement = "getFieldType()")
     public FieldKind getType() {
         return FieldKind.closestTo(fieldType);

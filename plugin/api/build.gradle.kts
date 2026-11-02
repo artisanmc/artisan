@@ -2,7 +2,7 @@ plugins {
     `maven-publish`
 }
 
-// The public surface is Java (API 2.0.0): no Kotlin type, no kotlin-stdlib for add-ons.
+// The public surface is Java: no Kotlin type, no kotlin-stdlib for add-ons.
 // Only the tests are Kotlin. ApiSurfaceIsJavaFriendlyTest fails on a Kotlin class in main.
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")

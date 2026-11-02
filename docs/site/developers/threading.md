@@ -13,7 +13,7 @@ it never calls `Bukkit.getScheduler()`.
 
 ## `api.scheduler`
 
-Since 1.8.0 that port is exposed as `api.scheduler` (`@Beta`): ask it for a
+That port is exposed as `api.scheduler` (`@Beta`): ask it for a
 scheduler owned by **your** plugin, and every task lands on the right thread on
 Paper, Folia and Leaf alike.
 

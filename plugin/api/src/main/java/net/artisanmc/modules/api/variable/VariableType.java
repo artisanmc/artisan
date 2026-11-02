@@ -17,7 +17,7 @@ public enum VariableType {
     BOOLEAN("boolean"),
     /**
      * A place in a world: a {@link java.util.Map} with a {@code world} name and numeric {@code x},
-     * {@code y}, {@code z} (optional {@code yaw}, {@code pitch}). Since 2.25.0.
+     * {@code y}, {@code z} (optional {@code yaw}, {@code pitch}).
      */
     LOCATION("location");
 

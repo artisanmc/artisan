@@ -217,7 +217,7 @@ public final class PlayerCommandDeclaration {
          * }</pre>
          *
          * The executor, if any, still runs when something calls this command through
-         * {@code module_command} (a menu button, the console). Since 2.24.0.
+         * {@code module_command} (a menu button, the console).
          */
         @Beta
         public Builder fileActions(List<?> actions) {

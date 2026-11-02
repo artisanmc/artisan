@@ -50,7 +50,7 @@ public final class EditorScreenRegistry implements OwnedRegistry {
      * Same as {@link #declare(String, String, String, String)}, rendered by the module's own view:
      * {@code component} is a key of its {@code FrontendModule.screens} ({@code ^[a-z][a-zA-Z0-9_-]*$},
      * {@link IllegalArgumentException} otherwise). The editor falls back to the generated form when
-     * the module's bundle has no such view. Since 2.7.0.
+     * the module's bundle has no such view.
      */
     @Beta
     public void declare(String id, String label, String table, String projectId, @Nullable String component) {

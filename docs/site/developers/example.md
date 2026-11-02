@@ -14,7 +14,7 @@ This page builds **Kits**, a small but complete level-3 add-on, in Kotlin:
 - a command `kits:claim` gives a kit when a menu button calls it;
 - a starter menu and a `/kits` command ship with the plugin, editable by admins.
 
-The Kotlin sources on this page compile against `artisan-core-api` 2.0.0 (the API is Java; Kotlin reads its getters as properties).
+The Kotlin sources on this page compile against `artisan-core-api` 1.0.0 (the API is Java; Kotlin reads its getters as properties).
 
 ## Layout
 
@@ -63,7 +63,7 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
-    compileOnly("net.artisanmc:artisan-core-api:2.0.0")   // provided by Artisan at runtime
+    compileOnly("net.artisanmc:artisan-core-api:1.0.0")   // provided by Artisan at runtime
 }
 
 kotlin {
@@ -149,7 +149,7 @@ class KitsModule(private val plugin: KitsPlugin) : ArtisanModule {
     private val lastClaims = ConcurrentHashMap<String, Long>()
 
     override fun onEnable(api: ArtisanAPI) {
-        this.api = api   // first: before API 1.8.0, registering the root calls onReload() right away
+        this.api = api   // first: onReload() may run as soon as onEnable returns
 
         // 1. Own a project in plugins/Kits/editor/, ship the starter content.
         val projectDir = File(plugin.dataFolder, "editor")
@@ -248,12 +248,10 @@ class KitsModule(private val plugin: KitsPlugin) : ArtisanModule {
 
 Points worth noticing:
 
-- `this.api` is assigned **first**: before API 1.8.0, `projectRoots.register`
-  reloads the projects immediately, which calls `onReload()` before `onEnable`
-  returns. Since 1.8.0 that reload waits for the next tick.
+- `this.api` is assigned **first**: the projects reload on the next tick after
+  `projectRoots.register`, and that reload calls `onReload()`.
 - The bootstrap runs after `register`, then `api.project.reload()` makes the
-  new files visible right away. Since 1.8.0 the reload of the next tick would
-  pick them up anyway; the call keeps the example working on 1.7.x.
+  new files visible right away instead of on the next tick.
 - The fetcher only reads memory (`kits`, `lastClaims`), so it is safe on any
   region thread and returns instantly. With `player == null` (editor preview)
   every kit shows as ready.

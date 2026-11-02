@@ -237,7 +237,7 @@ public final class ArtisanAPI {
     }
 
     /**
-     * The read-only values modules declare (ADR {@code triggers-and-variables} §10, API 2.24.0):
+     * The read-only values modules declare (ADR {@code triggers-and-variables} §10):
      * {@code var.<module>.<name>} in conditions and texts, computed by the module at each read.
      * Reported at Presence as {@code declared_variables}.
      */
@@ -246,7 +246,7 @@ public final class ArtisanAPI {
         return variables;
     }
 
-    /** Per-player cooldowns, kept in the suite database (API 2.16.0); see {@link CooldownApi}. */
+    /** Per-player cooldowns, kept in the suite database; see {@link CooldownApi}. */
     @Beta
     public CooldownApi getCooldowns() {
         return cooldowns;
@@ -327,7 +327,7 @@ public final class ArtisanAPI {
         return translations;
     }
 
-    /** Text for players without Adventure types: sent, or as a {@code §} string for Bukkit. Since 2.10.0. */
+    /** Text for players without Adventure types: sent, or as a {@code §} string for Bukkit. */
     @Stable
     public TextApi getText() {
         return text;
@@ -336,7 +336,7 @@ public final class ArtisanAPI {
     /**
      * The servers of the network and what crosses between them: channels, presence, teleports.
      *
-     * @since 2.13.0
+     * @since 1.0.0
      */
     @Beta
     public NetworkApi getNetwork() {
@@ -346,7 +346,7 @@ public final class ArtisanAPI {
     /**
      * A HUD drawn in the action bar with the pack's fonts: text and images at a height.
      *
-     * @since 2.20.0
+     * @since 1.0.0
      */
     @Beta
     public OverlayApi getOverlay() {

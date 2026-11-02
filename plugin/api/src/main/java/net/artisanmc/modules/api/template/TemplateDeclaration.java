@@ -27,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
  * the project's {@code .artisan/origins.yaml}), so the editor can tell an untouched copy from a
  * modified one when the module ships a new version, and restore the shipped version on request.
  *
- * <p>A <b>system</b> template ({@link Builder#system()}, 2.12.0) holds the module's system
+ * <p>A <b>system</b> template ({@link Builder#system()}) holds the module's system
  * elements instead: the menus and dialogs its code opens by id. Artisan keeps them in the
  * module's folder whatever the owner does: a missing file is written again, an untouched copy
  * follows each new version, and an edited one stays the owner's version until reset in the

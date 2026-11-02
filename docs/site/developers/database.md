@@ -6,8 +6,7 @@ sidebar:
 ---
 
 Artisan lends a SQL database to the plugins built on it, so a server owner sets
-credentials **once** and every add-on uses them. `api.database` is `@Beta`,
-Since 1.7.0.
+credentials **once** and every add-on uses them. `api.database` is `@Beta`.
 
 What you get, and what you don't:
 

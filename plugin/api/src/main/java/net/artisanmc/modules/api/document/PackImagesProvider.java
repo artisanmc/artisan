@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
  * call throws adds no image; an answer with a blank asset, or a rise outside
  * {@code OverlayApi.MIN_RISE..MAX_RISE}, is skipped.
  *
- * @since 2.22.0
+ * @since 1.0.0
  */
 @Beta
 @FunctionalInterface

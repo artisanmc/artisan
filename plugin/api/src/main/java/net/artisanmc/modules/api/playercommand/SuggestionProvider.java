@@ -12,7 +12,7 @@ import net.artisanmc.modules.api.annotations.Beta;
  * thread): it must be cheap and thread-safe, reading what the plugin holds in memory, never the
  * database. One that throws is logged and offers nothing.
  *
- * @since 2.14.0
+ * @since 1.0.0
  */
 @Beta
 @FunctionalInterface

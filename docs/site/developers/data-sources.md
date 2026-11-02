@@ -47,14 +47,14 @@ api.getDataSources().register(new DataSourceDeclaration(
 // Static sources take two more arguments: new DataSourceDeclaration(ref, fetcher, schema, Stability.STATIC, "id")
 ```
 
-Since API 1.8.0 the optional parameters can be left out from Java too:
+The optional parameters can be left out from Java too:
 `new DataSourceDeclaration(ref, fetcher)`, `new DataSourceDeclaration(ref, fetcher, schema)`,
 `new DataSourceField(name, type)`.
 
-A row field is typed with `ModelFieldType` (Since 2.0.0), the same field kinds as
+A row field is typed with `ModelFieldType`, the same field kinds as
 [Data models](../data-models/#field-kinds) and action arguments.
-The 1.x `FieldKind` constructors (`DataSourceField("x", FieldKind.NUMBER)`) still
-compile, `@Sunset` until 3.0.0: `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN` and
+The older `FieldKind` constructors (`DataSourceField("x", FieldKind.NUMBER)`) still
+compile, `@Sunset` until 2.0.0: `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN` and
 `ITEM` map to the kind of the same name, `LIST` to `list(string())`, `OBJECT`
 to `object([])`.
 
@@ -66,7 +66,7 @@ anywhere else works, but the source is listed as unattributed.
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `ref` | — | Globally unique `namespace:id`, lowercase (`boutique:items`). Use your module id as namespace. A second registration throws `DuplicateDataSourceException`; `unregister(ref)` (Since 1.8.0) frees it |
+| `ref` | — | Globally unique `namespace:id`, lowercase (`boutique:items`). Use your module id as namespace. A second registration throws `DuplicateDataSourceException`; `unregister(ref)` frees it |
 | `fetcher` | — | `DataFetcher`: `(Player?, Map<String, Any?>) -> List<Map<String, Any?>>` |
 | `schema` | empty | Declared row fields — powers the editor's field pickers, filter autocomplete and schema table |
 | `stability` | `DYNAMIC` | Whether the set of rows is knowable at design time — see [Static or dynamic](#static-or-dynamic) |
@@ -202,6 +202,6 @@ module id) list what is available.
 
 ## Remove one
 
-`api.dataSources.unregister("homes:list")` (Since 1.8.0) removes a source and
+`api.dataSources.unregister("homes:list")` removes a source and
 returns whether it existed. Artisan removes your sources by itself when your
 plugin disables, and a module's sources with `api.modules.unregister`.

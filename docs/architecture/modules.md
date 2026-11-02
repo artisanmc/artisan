@@ -174,7 +174,7 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > name)` (a hook) gives a Project's image asset as `{url, width, height}` for an `<img>`, undefined
 > until it is loaded. The conversations add-on uses all of it for its live HUD preview.
 
-> **HUD layers (since 2026-10-28, SDK 1.13, API 2.20.0)** — a kind declares the images
+> **HUD layers (since 2026-10-28, SDK 1.13)** — a kind declares the images
 > its files draw at a height: `pack: { images: (src) => [{ asset, rise }] }`, `src` the parsed YAML of
 > each `<dir>/*.yaml` (`id` included), in every project. When the pack is built (`buildServerPack`,
 > `lib/pack/overlayImages.ts`), each (asset, rise) becomes a font `artisan:overlay/<sha256(asset)>_<rise>`:
@@ -190,7 +190,7 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > keeps a chat fallback.
 > The images reach the pack once the module's editor bundle is loaded in the editor that builds it.
 
-> **HUD layouts (since 2026-10-30, API 2.21.0)** — rather than placing each piece with `move` and
+> **HUD layouts (since 2026-10-30)** — rather than placing each piece with `move` and
 > `raise`, a module can keep its HUD as an `OverlayLayout`, a YAML list of layers drawn in order:
 > `image` (a fixed asset), `image_slot` (an asset the module names when it draws, `anchor: top|bottom`,
 > `default: <asset>` drawn when it names none),
@@ -233,7 +233,7 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `useOpenDocument()` returns a function that opens a Document's page (`{projectId, kind, id}`). A
 > 1.15 bundle still loads.
 
-> **Pack images on the server (since 2026-10-31, API 2.22.0, `@Beta`)** — the hub builds the pack
+> **Pack images on the server (since 2026-10-31, `@Beta`)** — the hub builds the pack
 > without the editor (`PackBuilder`), so it cannot run a kind's `pack.images`. Its Java twin goes on the
 > kind declaration: `new DocumentKindDeclaration(...).withPackImages((doc, ctx) -> ...)`, a
 > `PackImagesProvider` that receives the file's YAML as `ProjectContentApi.documents` reads it, with
@@ -270,7 +270,7 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > module opens it from its own button, as often as the player wants: nothing is saved, and it never
 > opens by itself. A 1.18 bundle still loads.
 
-> **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
+> **Module folder (since 2026-10-19)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the
 > module then reads its files in the returned folder. To be called in `onEnable`, before
@@ -451,7 +451,7 @@ interface ArtisanModule {
 }
 ```
 
-Since API 1.8.0, `onDisable()` is called when the plugin that loaded the module is disabled (`PluginDisableEvent`, before its own `onDisable`), and everything that plugin registered (modules, data sources, commands) is removed: a plugin reload can re-register the same ids. `ModuleRegistry.unregister(id)` does the same on demand.
+`onDisable()` is called when the plugin that loaded the module is disabled (`PluginDisableEvent`, before its own `onDisable`), and everything that plugin registered (modules, data sources, commands) is removed: a plugin reload can re-register the same ids. `ModuleRegistry.unregister(id)` does the same on demand.
 
 #### 3.3.4 Advantages of the plugin split
 
@@ -517,7 +517,7 @@ The `schema` is a `List<DataSourceField>` where each field is typed by a `ModelF
 
 At runtime, when the menus module renders an Element with `data_source.ref = "shop:items"`, the `DataSourceRegistry` routes the request to the shop module, which returns the data. Zero direct coupling.
 
-**Origin (API 2.19.0, SDK 1.12)** — a source says where its rows come from with the sixth constructor argument, `Origin`:
+**Origin (SDK 1.12)** — a source says where its rows come from with the sixth constructor argument, `Origin`:
 
 | Origin | Rows | What the editor previews |
 |---|---|---|
@@ -564,7 +564,7 @@ api.commands.register(CommandDeclaration(
 ))
 ```
 
-### 4.2 bis Player commands (API 2.7.0)
+### 4.2 bis Player commands
 
 Distinct from the commands above, which only a menu calls: a **player command** is typed in
 game. The module declares the behavior with a stable id; the command itself is a `command/v1` file
@@ -605,7 +605,7 @@ api.getPlayerCommands().register(PlayerCommandDeclaration.builder("quests:track"
     .build());
 ```
 
-An argument is completed with values computed as you type (API 2.14.0):
+An argument is completed with values computed as you type:
 `CommandArgument.string("guild").suggestions(ctx -> guilds.names())`. The provider runs on
 Bukkit's completion thread: it reads the plugin's memory, never the database. It follows the argument of the
 same position in the command's file, whether the admin renamed it or not.
@@ -622,7 +622,7 @@ contract: `api-surface.md`.
 - **Testability**: each module can be tested in isolation by mocking the registry.
 - **Third-party plugin compatibility (V2+)**: a third-party plugin can register in the same registry and become a data source / command available to all modules.
 
-### 4.4 Actions (ADR `extensible-document-kinds`, R1 — API 2.0.0)
+### 4.4 Actions (ADR `extensible-document-kinds`, R1)
 
 An **action** is a verb of a chain (`click`, a command's `steps`, a dialog button): `- name`,
 `- name: value`, `- name: {args}` (ADR `structured-action-wire`). Every action, Artisan's own included
@@ -652,7 +652,7 @@ renders the form from them and offers them in the step picker as soon as the ser
 (`declared_actions` at Presence, `GET …/actions`). Core actions are declared the same way
 (`CoreActions` in `core`, handlers in `paper`), locked against `docs/schema/menu/v1/schema.json`.
 
-### 4.5 Document kinds (ADR `extensible-document-kinds`, W6 — API 2.1.0)
+### 4.5 Document kinds (ADR `extensible-document-kinds`, W6)
 
 A module that owns a Document **kind** (a quest, a shop…) declares it in `onEnable`,
 through the same door as its actions; the kind is removed with the module:
@@ -684,10 +684,10 @@ active server does not list (the file would be written in a folder that nothing 
 the project tree and when creating a Document of this kind.
 
 A chain stored in a module Document (a quest's rewards) runs in its keyed form
-through `api.getActions().run(player, chain, args, projectId)` (API 2.2.0); `execute` remains for
+through `api.getActions().run(player, chain, args, projectId)`; `execute` remains for
 the legacy DSL chain.
 
-### 4.6 Conditions outside a chain (API 2.2.0)
+### 4.6 Conditions outside a chain
 
 A module that has its own prerequisites (a quest startable under conditions) writes them in
 Artisan's condition vocabulary and evaluates them without a chain:
@@ -702,7 +702,7 @@ Same evaluator as `if:`, **strict** reading: an unknown or malformed condition m
 false (single warning) instead of being ignored as in a menu. To be called on the thread that
 owns the player (`IllegalStateException` otherwise). Detail: `api-surface.md`.
 
-### 4.6 bis Translated system messages (API 2.5.0)
+### 4.6 bis Translated system messages
 
 A suite plugin does not redo its lang system: it registers its files under its
 namespace and Artisan picks the player's language, handles fallbacks and renders the MiniMessage:
@@ -717,7 +717,7 @@ Placeholder values (`<name>`, `{name}`, `%name%`) are inserted as text. A plugin
 that keeps its own files passes a `MessageSource` (`MessageBundleDeclaration.of`). Detail:
 `api-surface.md`.
 
-### 4.6 ter Network between servers (API 2.13.0)
+### 4.6 ter Network between servers
 
 Servers that share the suite's MySQL/MariaDB database form the network: a suite plugin
 publishes messages there, sees the players of all servers and teleports from one server to
@@ -735,7 +735,7 @@ Transport through the database (`artisan_network_messages`, read every 100 ms, k
 presence in `artisan_network_players`, server switching through the proxy's `BungeeCord` channel.
 On H2, a server is a network of its own. Detail: `api-surface.md`.
 
-### 4.7 Module editor bundle (level 3) — API 2.3.0, protocol 1.2
+### 4.7 Module editor bundle (level 3), protocol 1.2
 
 An add-on (ArtisanQuests…) can ship its module's **editor view** in its own jar, instead of
 waiting for an editor release: an ES module script built against `@artisan/editor-sdk`.
@@ -762,7 +762,7 @@ api.getEditorBundles().register(
 - **Loaded** by the editor against the SDK it embeds: `editor-internals.md` § "Module views
   loaded at runtime".
 
-### 4.8 Module templates — API 2.6.0, protocol 1.3
+### 4.8 Module templates, protocol 1.3
 
 A module ships **example content** that can be copied into any Project (ADR `module-templates`):
 a template = Project files (Documents, menus, `lang/`… never the module file, specific to each Project) read from its jar, a version it
@@ -787,7 +787,7 @@ api.getTemplates().register(TemplateDeclaration
   recreated if the owner deletes it. If that name is the module's own folder
   (`moduleFolder`, created empty), the files are copied there, with the manifest if missing, without
   overwriting what is there.
-- **System elements** (API 2.12.0, design `framework-commandes` §3.8): a `.system()` template carries
+- **System elements** (design `framework-commandes` §3.8): a `.system()` template carries
   the menus and dialogs that the module's code opens by id. No seeding: at each startup and when
   the module arrives, `SystemFiles` keeps them in the module's first folder by name. A missing
   file is rewritten (unless a file of the same name lives under the same type folder elsewhere in the
@@ -1013,7 +1013,7 @@ Modules delivered:
 - `translations` — i18n keys (integrated into menus + commands)
 
 Architecture pattern in place:
-- `ArtisanModule` interface (Java since API 2.0.0) on the plugin side
+- `ArtisanModule` interface (Java) on the plugin side
 - `BackendModule` / `FrontendModule` interfaces on the web side
 - `DataSourceRegistry` + `CommandRegistry` operational
 - 5 homemade data sources (EssentialsX, ChestShop, JobsReborn, LuckPerms, Quests) — these are already read-only modules in practice
@@ -1173,9 +1173,9 @@ The admin sees the clear error in the logs, knows what to do, has the choice (up
 - `ArtisanModule` interface
 - Public registries (`DataSourceRegistry`, `CommandRegistry`, `SchemaRegistry`, `ModuleRegistry`)
 - `DataSourceDeclaration`, `CommandDeclaration` classes
-- Since API 2.18.0: actions (`ActionRegistry`, `ModuleActionsApi`), database (`DatabaseApi`), scheduler, placeholders, translations (`TranslationsApi`), `TextApi`, player commands (`PlayerCommandRegistry`), items (`ItemStackApi`), Document kinds, editor bundles, and the `ModelField`/`ModelFieldType` field vocabulary. The rest (`ConditionsApi`, templates, screens, menus, model registry, network, Game events, cooldowns) stays `@Beta`: list and reasons in `api-surface.md` § Beta APIs
+- `@Stable`: actions (`ActionRegistry`, `ModuleActionsApi`), database (`DatabaseApi`), scheduler, placeholders, translations (`TranslationsApi`), `TextApi`, player commands (`PlayerCommandRegistry`), items (`ItemStackApi`), Document kinds, editor bundles, and the `ModelField`/`ModelFieldType` field vocabulary. The rest (`ConditionsApi`, templates, screens, menus, model registry, network, Game events, cooldowns) stays `@Beta`: list and reasons in `api-surface.md` § Beta APIs
 - Versioned schemas (`menu/v1`, `command/v1`, `shop/v1`, etc.)
-- Public events: `ModuleEventBus` bus (`ConfigReloadEvent`, `DataReloadEvent`); Bukkit menu events `MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent` (`@Beta`, API 1.8.0)
+- Public events: `ModuleEventBus` bus (`ConfigReloadEvent`, `DataReloadEvent`); Bukkit menu events `MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent` (`@Beta`)
 
 **Internals (modules MUST NOT depend on them)**:
 - Internal implementation of the WebSocket client

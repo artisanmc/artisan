@@ -181,7 +181,7 @@ in the meantime goes back to it. Keys under `menus.`, `commands.`, `dialogs.`, `
 sources: a Deploy wiped out the rest.
 
 An add-on stores its **system messages** in the `lang/` of its folder with
-`MessageBundleDeclaration.files(...).inFolder(folder)` (API 2.17.0): Artisan reads the
+`MessageBundleDeclaration.files(...).inFolder(folder)`: Artisan reads the
 server's files there instead of `plugins/<Plugin>/lang/`, moves them there once
 (`LangFolderMove`, a file whose language already exists in the folder stays and the log
 names it), and rereads the bundle at every project reload (`Translations.reloadFolderBundles`).

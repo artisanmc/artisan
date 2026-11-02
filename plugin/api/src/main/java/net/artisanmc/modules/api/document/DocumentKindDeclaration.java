@@ -92,7 +92,7 @@ public final class DocumentKindDeclaration {
      * This kind, whose files ask the resource pack for images ({@link PackImagesProvider}): what lets
      * the hub build the pack without the editor.
      *
-     * @since 2.22.0
+     * @since 1.0.0
      */
     @Beta
     public DocumentKindDeclaration withPackImages(PackImagesProvider provider) {
@@ -102,7 +102,7 @@ public final class DocumentKindDeclaration {
     /**
      * What the kind's files ask the pack for, or null.
      *
-     * @since 2.22.0
+     * @since 1.0.0
      */
     @Beta
     public @Nullable PackImagesProvider getPackImages() {
