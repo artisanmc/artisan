@@ -31,6 +31,11 @@ export type Mutation<Args extends unknown[]> = (...args: Args) => void | false;
 export interface MutateOptions {
   /** `false`: the edit is not Project content (board layout, sources), never stamp `updatedAt`. */
   touch?: boolean;
+  /**
+   * `true`: the edit changes what the canvas shows ("View as"), the one edit allowed while it
+   * shows the module's original, which is read-only.
+   */
+  view?: boolean;
 }
 
 /**
@@ -100,6 +105,8 @@ export function createProjectMutators(set: StoreApi<ProjectsState>["setState"]):
       produce((draft: ProjectsState) => {
         const project = draft.openProjects.projects.find((p) => p.id === projectId);
         if (!project) return;
+        // The module's original is read-only: only "View as" changes it.
+        if (project.originalView && !options?.view) return;
         // The recipe itself returns nothing: a returned value would replace the state.
         if (fn(project, draft) === false || options?.touch === false) return;
         // While a variant is shown, an edit of the module's Document makes it the variant's.

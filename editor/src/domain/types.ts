@@ -213,6 +213,11 @@ export interface Project {
   /** What the module ships (`originals/`), when it ships anything. */
   originals?: ProjectOriginals;
   /**
+   * "View as" the module's original: `Project.documents` holds what the module ships (in the
+   * viewed variant), read-only; the Project's own Documents wait here. Never written.
+   */
+  originalView?: OriginalView;
+  /**
    * Owning Add-on module id (from `manifest.module`) when this is an Add-on's
    * dedicated project — drives the sidebar "Installed modules" grouping and is
    * round-tripped through the manifest (ADR `addon-owned-project-roots`).
@@ -241,6 +246,13 @@ export interface VariantView {
   shown: Record<string, string[]>;
   /** The module's Documents they cover, by kind, back in place when the view ends. */
   hidden: Record<string, Document[]>;
+}
+
+/** The Project's own Documents while the canvas shows the module's original. */
+export interface OriginalView {
+  /** The variant viewed when the original was opened, shown again when it closes. */
+  variant?: string;
+  documents: Record<string, Document[]>;
 }
 
 export interface ProjectVariants {

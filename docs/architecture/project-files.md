@@ -260,6 +260,11 @@ guilds/
   (a shipped Document absent from the project; a required one cannot be deleted).
   `saveProjectToDisk` carries `originals/` unchanged. UI: `OriginBar` (properties panel: badge,
   Compare, Revert), `OriginTag` on the board.
+- View as the original (`showOriginal`, "View as" > Module original): `Project.documents` holds
+  the shipped Documents, the viewed variant's shipped versions over them; the Project's own wait
+  in `Project.originalView` (with the variant), back on closing. Read-only: `mutateProject`
+  drops any edit but a change of view (`MutateOptions.view`); `withModuleView` and `projectTree`
+  close it before writing.
 - MCP: `list_documents` gives each Document's `origin` and an `originals` section; `read_document`
   reads `originals/…`.
 

@@ -6,6 +6,7 @@ import {
   dropVersion,
   removeVariant,
   setVariantRules,
+  showOriginal,
   showVariant,
 } from "@/domain/variants";
 import type { ProjectsSliceContext } from "./types";
@@ -14,6 +15,8 @@ import type { ProjectsSliceContext } from "./types";
 export interface VariantsSlice {
   /** "View as": the variant's versions on the canvas; undefined shows the module's own. */
   showVariant: (projectId: ProjectId, variant: string | undefined) => void;
+  /** "View as" the module's original, in the variant viewed: what it ships, read-only. */
+  showOriginal: (projectId: ProjectId, on: boolean) => void;
   /** A new variant, its rule off; false when the name is taken or not a folder name. */
   addVariant: (projectId: ProjectId, name: string) => boolean;
   removeVariant: (projectId: ProjectId, name: string) => void;
@@ -28,10 +31,27 @@ export interface VariantsSlice {
 
 export const createVariantsSlice = ({ mutateProject }: ProjectsSliceContext): VariantsSlice => ({
   showVariant: (projectId, variant) =>
-    mutateProject(projectId, (p) => {
-      showVariant(p, variant);
-      return false;
-    }),
+    mutateProject(
+      projectId,
+      (p) => {
+        // In the original, the variant's shipped versions take the place of the others.
+        const original = p.originalView !== undefined;
+        showOriginal(p, false);
+        showVariant(p, variant);
+        if (original) showOriginal(p, true);
+        return false;
+      },
+      { view: true },
+    ),
+  showOriginal: (projectId, on) =>
+    mutateProject(
+      projectId,
+      (p) => {
+        showOriginal(p, on);
+        return false;
+      },
+      { view: true },
+    ),
   addVariant: (projectId, name) => {
     let added = false;
     mutateProject(projectId, (p) => {

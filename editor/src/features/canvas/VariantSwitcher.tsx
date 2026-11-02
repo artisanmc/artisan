@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -21,7 +22,7 @@ import type { ProjectId } from "@/domain/types";
 import { VARIANT_NAME, variantNames, viewedVariant } from "@/domain/variants";
 import { VariantRulesDialog } from "@/features/project/VariantRulesDialog";
 import { useProjectsStore } from "@/state/projectsStore";
-import { ChevronDown, Layers, ListOrdered, Plus } from "lucide-react";
+import { ChevronDown, Layers, ListOrdered, Lock, Plus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -38,7 +39,8 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
   const [rulesOpen, setRulesOpen] = useState(false);
   if (!project) return null;
   const names = variantNames(project);
-  const viewed = viewedVariant(project);
+  const original = project.originalView !== undefined;
+  const viewed = viewedVariant(project) ?? project.originalView?.variant;
   const store = useProjectsStore.getState();
   return (
     <>
@@ -48,14 +50,20 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
             type="button"
             title={t("variants.viewAs")}
             className={`flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[8px] px-2.5 text-[12px] transition-colors ${
-              viewed
+              viewed || original
                 ? "bg-[var(--brand-soft)] text-[var(--brand)]"
                 : "text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
             }`}
           >
-            <Layers className="size-4 shrink-0" />
+            {original ? (
+              <Lock className="size-4 shrink-0" />
+            ) : (
+              <Layers className="size-4 shrink-0" />
+            )}
             <span className="max-w-[16rem] truncate">
-              {t("variants.viewAsValue", { name: viewed ?? t("variants.module") })}
+              {t(original ? "variants.viewAsOriginal" : "variants.viewAsValue", {
+                name: viewed ?? t("variants.module"),
+              })}
             </span>
             <ChevronDown className="size-3.5 shrink-0 opacity-60" />
           </button>
@@ -75,11 +83,26 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
+          {project.originals && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={original}
+                title={t("variants.originalHint")}
+                onCheckedChange={(on) => store.showOriginal(projectId, on === true)}
+              >
+                {t("variants.original")}
+              </DropdownMenuCheckboxItem>
+            </>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setCreating(true)}>
+          <DropdownMenuItem onSelect={() => setCreating(true)} disabled={original}>
             <Plus className="size-4" /> {t("variants.newVariant")}
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setRulesOpen(true)} disabled={names.length === 0}>
+          <DropdownMenuItem
+            onSelect={() => setRulesOpen(true)}
+            disabled={names.length === 0 || original}
+          >
             <ListOrdered className="size-4" /> {t("variants.rules")}
           </DropdownMenuItem>
         </DropdownMenuContent>

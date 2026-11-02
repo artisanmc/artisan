@@ -1,7 +1,7 @@
 import { isOriginalPath } from "@/domain/documentLayout";
 import { rekeyProject } from "@/domain/i18nSites";
 import type { Project } from "@/domain/types";
-import { showVariant, viewedVariant } from "@/domain/variants";
+import { showOriginal, showVariant, viewedVariant } from "@/domain/variants";
 import { DraftApiError } from "@/lib/api/projectDrafts";
 import type { ProjectFileConflict, ProjectFilesError } from "@/lib/api/projectFiles";
 import { projectClient } from "@/lib/projectClient";
@@ -22,6 +22,7 @@ import { publishPersistedDraft, usePersistedDraftStore } from "./persistedDrafts
 export function projectTree(project: Project): Record<string, string> {
   const cloned = structuredClone(project);
   // Before the keys are canonicalized: a variant's version must not take its module twin's.
+  showOriginal(cloned, false);
   showVariant(cloned, undefined);
   rekeyProject(cloned);
   const disk = useProjectBaselineStore.getState().get(project.id);
@@ -60,8 +61,9 @@ export function adoptDiskIntoProject(
     diskId: project.diskId,
     serverKeyId: project.serverKeyId,
   });
-  // The canvas keeps showing the variant it showed.
-  showVariant(adopted, viewedVariant(project));
+  // The canvas keeps showing the variant it showed, and the original if it did.
+  showVariant(adopted, viewedVariant(project) ?? project.originalView?.variant);
+  if (project.originalView) showOriginal(adopted, true);
   return adopted;
 }
 

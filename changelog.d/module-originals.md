@@ -8,6 +8,7 @@
   dialogs the module's code opens (`.system()`) are required and cannot be excluded.
   In the editor, each document of a module shows whether it is the module's, modified or yours,
   with **Compare with the original** and **Back to the original**; only documents that differ from the module's are
-  written. AI apps (MCP) see each document's origin and cannot write into `originals/`.
+  written. **View as > Module original** shows what the module ships, read-only, in the variant
+  viewed. AI apps (MCP) see each document's origin and cannot write into `originals/`.
   Going back to an older Artisan after this: copy the contents of `originals/` to the module's
   folder (without overwriting your files) first, or its shipped documents disappear.

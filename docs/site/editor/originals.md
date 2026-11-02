@@ -28,6 +28,10 @@ On a modified document:
 - **Compare with the original** shows the module's file beside yours, to copy what you need.
 - **Back to the original** drops your version. Deploy to apply it.
 
+To see the whole module as it ships, without your changes, tick **View as > Module original** on
+the canvas toolbar. It combines with the variant chosen above it (the variant's shipped
+versions, the module's elsewhere) and is read-only: look, copy what you need, untick it to edit.
+
 Edit a document and it becomes yours; edit it back to what the module ships and it is the
 module's again. Only documents that differ from the module's are written to your folder.
 

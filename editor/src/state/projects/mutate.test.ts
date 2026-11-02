@@ -233,4 +233,28 @@ describe("an edit while a variant is shown (design variantes-modules §9)", () =
     });
     expect(versionOf(project(), "command", CMD)).toBe("test");
   });
+
+  it("the module's original is read-only: only a change of view goes through", () => {
+    const { mutateProject, project } = setup();
+    mutateProject(P, (p) => {
+      p.originals = { documents: { "": {} }, required: [], excluded: [] };
+      p.originalView = { documents: p.documents };
+      p.documents = {};
+    });
+    const stamp = project().updatedAt;
+    mutateProject(P, (p) => {
+      p.name = "renamed";
+    });
+    expect(project().name).not.toBe("renamed");
+    mutateProject(
+      P,
+      (p) => {
+        p.name = "renamed";
+        return false;
+      },
+      { view: true },
+    );
+    expect(project().name).toBe("renamed");
+    expect(project().updatedAt).toBe(stamp);
+  });
 });

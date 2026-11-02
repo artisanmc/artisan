@@ -1,12 +1,13 @@
 import { commandsOf, menusOf } from "@/domain/documents";
-import type { ProjectId } from "@/domain/types";
+import type { Menu, ProjectId } from "@/domain/types";
+import { getText } from "@/lib/i18n";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { projectToFiles } from "@/schema/projectToFiles";
 import { produce } from "immer";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { isRequired, originStatus, revertToOriginal } from "./originals";
-import { showVariant } from "./variants";
+import { showOriginal, showVariant, viewedVariant } from "./variants";
 
 const PID = "p_originals" as ProjectId;
 const base = `plugins/Artisan/projects/${PID}`;
@@ -21,6 +22,12 @@ const files = {
   [`${base}/originals/variants/textured/menus/main.yml`]:
     "schema: menu/v1\ntitle: Main T\nsize: 27\n",
   [`${base}/menus/ranks.yml`]: "schema: menu/v1\ntitle: My ranks\nsize: 27\n",
+};
+
+const title = (p: ReturnType<typeof projectFromFiles>, id: string) => {
+  const menu = menusOf(p).find((m) => m.id === id) as Menu;
+  const layer = menu.title[0] as { value: { key: string } };
+  return getText(p, layer.value as never, "en");
 };
 
 const rel = (out: Record<string, string>) =>
@@ -89,5 +96,28 @@ describe("a module's originals in the editor (design originaux-modules)", () => 
     });
     expect(originStatus(edited, "menu", "main")).toBe("modified");
     expect(rel(projectToFiles(edited))).toContain("variants/textured/menus/main.yml");
+  });
+
+  it("View as the original shows what the module ships, in the variant viewed, and back", () => {
+    const start = projectFromFiles(PID, files);
+    const shown = produce(start, (p) => showOriginal(p, true));
+    expect(title(shown, "ranks")).toBe("Ranks");
+    expect(title(shown, "main")).toBe("Main");
+    expect(rel(projectToFiles(shown))).toEqual(rel(projectToFiles(start)));
+    const back = produce(shown, (p) => showOriginal(p, false));
+    expect(back.originalView).toBeUndefined();
+    expect(title(back, "ranks")).toBe("My ranks");
+
+    // In a variant: its shipped versions over the shipped Documents; closing shows it again.
+    const textured = produce(start, (p) => {
+      showVariant(p, "textured");
+      showOriginal(p, true);
+    });
+    expect(title(textured, "main")).toBe("Main T");
+    expect(title(textured, "ranks")).toBe("Ranks");
+    expect(textured.originalView?.variant).toBe("textured");
+    const closed = produce(textured, (p) => showOriginal(p, false));
+    expect(viewedVariant(closed)).toBe("textured");
+    expect(title(closed, "ranks")).toBe("My ranks");
   });
 });

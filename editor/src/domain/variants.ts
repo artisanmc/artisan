@@ -141,6 +141,47 @@ export function showVariant(project: Project, variant: string | undefined): void
   v.view = { variant, shown, hidden };
 }
 
+/**
+ * Shows what the module ships (`originals/`) on the canvas, in the variant viewed (its shipped
+ * versions over the shipped Documents), or, `on` false, the Project's own Documents back in
+ * the variant they were viewed in. Read-only while shown: `mutateProject` drops edits.
+ */
+export function showOriginal(project: Project, on: boolean): void {
+  const view = project.originalView;
+  if (view) {
+    project.documents = view.documents;
+    project.originalView = undefined;
+    showVariant(project, view.variant);
+  }
+  const shipped = project.originals?.documents;
+  if (!on || !shipped) return;
+  const variant = viewedVariant(project);
+  showVariant(project, undefined);
+  const own = project.documents;
+  const over = variant ? (shipped[variant] ?? {}) : {};
+  const shown: Record<string, Document[]> = {};
+  for (const kind of new Set([
+    ...Object.keys(own),
+    ...Object.keys(shipped[""] ?? {}),
+    ...Object.keys(over),
+  ])) {
+    const list = (shipped[""]?.[kind] ?? []).map(plain);
+    for (const doc of over[kind] ?? []) {
+      const at = list.findIndex((d) => d.id === doc.id);
+      if (at >= 0) list[at] = plain(doc);
+      else list.push(plain(doc));
+    }
+    shown[kind] = list;
+  }
+  project.documents = shown;
+  project.originalView = { ...(variant ? { variant } : {}), documents: own };
+}
+
+/** Whether the canvas shows the module's original (read-only). */
+export function viewsOriginal(project: Project): boolean {
+  return project.originalView !== undefined;
+}
+
 /** The steps a command's version may change, kept in a node's `wire`. */
 const COMMAND_STEP_WIRE = ["requirements", "fallback"];
 
@@ -172,10 +213,11 @@ function graftSteps(node: CommandNode, version: CommandNode): void {
   }
 }
 
-/** [project] as the files hold it: the module's own Documents in place, a copy when a variant is shown. */
+/** [project] as the files hold it: its own Documents in place, a copy when a variant or the original is shown. */
 export function withModuleView(project: Project): Project {
-  if (!project.variants?.view) return project;
+  if (!project.variants?.view && !project.originalView) return project;
   const copy = structuredClone(project);
+  showOriginal(copy, false);
   showVariant(copy, undefined);
   return copy;
 }
