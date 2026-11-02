@@ -55,7 +55,7 @@ export const mmEditorEn = {
     selector: "Selector",
     placeholder: "Placeholder",
   },
-  palettes: { builtin: "Built-in" },
+  palettes: { builtin: "Built-in", server: "Server" },
   wrapMarker: "The line wraps here in game (lore max width: {{width}} px)",
   library: {
     open: "Library",
@@ -224,7 +224,7 @@ export const mmEditorFr: typeof mmEditorEn = {
     selector: "Sélecteur",
     placeholder: "Placeholder",
   },
-  palettes: { builtin: "Intégrées" },
+  palettes: { builtin: "Intégrées", server: "Serveur" },
   wrapMarker: "La ligne passe à la ligne ici en jeu (largeur max du lore : {{width}} px)",
   library: {
     open: "Bibliothèque",

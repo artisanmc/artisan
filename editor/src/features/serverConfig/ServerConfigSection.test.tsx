@@ -107,4 +107,28 @@ describe("ServerConfigSection", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("edits the server's text palette as named colors and gradients", async () => {
+    api.getServerConfig.mockResolvedValue({
+      config: {
+        ...config,
+        "text-palette.colors": ["Brand #ff6b35"],
+        "text-palette.gradients": ["Sunset #ff5f6d #ffc371"],
+      },
+      online: true,
+    });
+    api.patchServerConfig.mockImplementation(async (_id, changes) => ({ ...config, ...changes }));
+    renderSection();
+    expect(await screen.findByText("Palette de texte", { selector: "h3" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Brand")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Sunset")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter une couleur" }));
+    fireEvent.change(screen.getAllByLabelText("Nom")[1]!, { target: { value: "Gold" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() =>
+      expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
+        "text-palette.colors": ["Brand #ff6b35", "Gold #5ab4ff"],
+      }),
+    );
+  });
 });

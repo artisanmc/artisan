@@ -242,3 +242,20 @@ export function diagnose(src: string, profile: MmProfile): MmDiagnostic[] {
   }
   return out;
 }
+
+/**
+ * The profile of a project text from its key, where the screen editing it (the
+ * Translations panel) does not know its use: `…lore` a lore, a menu's `title` its
+ * container title, an element's `title` an item name, a `show_title`/`subtitle` a title,
+ * an action bar its own; anything else a chat text, or one line when the text has one.
+ */
+export function profileForTextKey(key: string, multiline: boolean): MmProfile {
+  const last = key.slice(key.lastIndexOf(".") + 1);
+  if (last === "lore" || /\.lore\.\d+$/.test(key)) return LORE;
+  if (/^menus\.[^.]+\.title(\.|$)/.test(key)) return CONTAINER_TITLE;
+  if (/\.elements\./.test(key) && last === "title" && !/show_title\.title$/.test(key))
+    return ITEM_NAME;
+  if (/(show_title|show_subtitle|subtitle)/.test(key)) return TITLE;
+  if (/action_?bar/.test(key)) return ACTION_BAR;
+  return multiline ? CHAT : TEXT_LINE;
+}

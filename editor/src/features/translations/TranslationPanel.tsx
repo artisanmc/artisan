@@ -14,7 +14,7 @@ import {
   listLanguages,
 } from "@/lib/i18nUsages";
 import { flattenLangTree } from "@/lib/langTree";
-import { CHAT, TEXT_LINE } from "@/lib/mm/profiles";
+import { profileForTextKey } from "@/lib/mm/profiles";
 import { useAiStatus } from "@/state/aiStatus";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -557,7 +557,7 @@ function VisualRow({
           <MmEditor
             value={row.target}
             onChange={onChange}
-            profile={isMultiline ? CHAT : TEXT_LINE}
+            profile={profileForTextKey(row.key, isMultiline)}
             placeholder={t("translations.translationPlaceholder")}
             aria-label={t("translations.translationPlaceholder")}
             toolbar="focus"
