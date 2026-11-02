@@ -51,6 +51,8 @@ dependencies {
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.2")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Anonymous install counts (ServerMetrics), relocated as bStats requires.
+    implementation("org.bstats:bstats-bukkit:3.2.1")
     testImplementation("com.github.seeseemelk:MockBukkit-v1.21:3.133.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     // Force Adventure 4.23 in tests (MockBukkit pulls 4.17 which lacks ShadowColor).
@@ -80,6 +82,7 @@ tasks.shadowJar {
     relocate("com.fasterxml.jackson", "net.artisanmc.shaded.jackson")
     relocate("okhttp3", "net.artisanmc.shaded.okhttp3")
     relocate("okio", "net.artisanmc.shaded.okio")
+    relocate("org.bstats", "net.artisanmc.shaded.bstats")
     // Document checks against the JSON schemas (ADR `mcp-server`) and its date/time parser.
     relocate("com.networknt", "net.artisanmc.shaded.networknt")
     // The editor's assistant (ADR `editor-assistant`). Anthropic's SDK is NOT relocated: it

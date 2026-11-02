@@ -72,6 +72,15 @@ reverse proxy in front: see [Web server & HTTPS](../../configuration/web-server/
 - [Open the editor](../open-the-editor/) with `/artisan editor`.
 - [Build your first menu](../first-menu/).
 
+## Usage statistics (bStats)
+
+Artisan reports anonymous usage to [bStats](https://bstats.org), like most plugins: the
+server count, player count, Minecraft and Java versions, plus four Artisan charts: the active
+modules (Artisan's own and the suite's add-ons; any other module only counts as `other`),
+whether the server is a hub, a leaf or has the editor off, the database type and the
+`language` setting. Nothing identifies the server or its players. To turn it off for every
+plugin, set `enabled: false` in `plugins/bStats/config.yml` and restart.
+
 ## Updating
 
 Stop the server, replace the jar, start it again. Projects, `config.yml` and
