@@ -1,7 +1,7 @@
 import { LocalizedTextField } from "@/components/LocalizedTextField";
 import { MiniMessageField } from "@/components/MiniMessageField";
-import { RevealField } from "@/components/RevealField";
 import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
+import { MmEditor } from "@/components/minimessage/MmEditor";
 import { Input } from "@/components/ui/input";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { isLTextNode, normalizeActionArgs, withActionArg } from "@/domain/actionArgs";
@@ -23,12 +23,12 @@ import type {
 } from "@/domain/types";
 import { MaterialField } from "@/features/canvas/MaterialField";
 import { useOtherServerProjects } from "@/features/serverIndex/useOtherServerProjects";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
 import { isEventAction, setEventArgs, useChainEvent } from "@/lib/actions/eventActions";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
 import type { DeclaredCommand } from "@/lib/api/playerCommands";
 import { stepsFromWire, stepsToWire } from "@/lib/literalSteps";
+import { CHAT } from "@/lib/mm/profiles";
 import type { FieldLocation, PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useGetText } from "@/lib/useText";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -53,8 +53,6 @@ interface ActionEditorProps {
    *  and edits go through `onChange` — no i18n key, no store write. */
   literalText?: boolean;
 }
-
-const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
 
 /**
  * Where the edited actions run, for the actions that don't sit in an element
@@ -772,31 +770,15 @@ function TextArgInput({
         lt={lt}
         label={t("actionEditor.textName")}
         renderEditor={({ value, fallback, label, onChange }) => (
-          <RevealField
-            multiline
-            rows={2}
+          <MmEditor
             aria-label={label}
             placeholder={fallback ?? t("actionEditor.textPlaceholder")}
             value={value}
             onChange={onChange}
+            profile={CHAT}
             entries={placeholderEntries}
-            className="min-h-0 rounded-[var(--r-xs)] text-[13px]"
-            facade={
-              <MiniMessageInline
-                source={value || fallback || ""}
-                className={value ? "mc-text" : "mc-text opacity-50"}
-              />
-            }
-            preview={
-              looksLikeMiniMessage(value) ? (
-                <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-                  <span className="mr-2 text-[11px] font-medium text-[var(--text-faint)]">
-                    {t("menuProperties.preview")}
-                  </span>
-                  <MiniMessageInline source={value} className="mc-text text-[13px]" />
-                </div>
-              ) : null
-            }
+            toolbar="focus"
+            minHeight="0"
           />
         )}
       />

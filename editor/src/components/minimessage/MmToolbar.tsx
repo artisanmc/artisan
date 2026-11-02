@@ -1,12 +1,12 @@
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Segmented } from "@/components/ui/segmented";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip } from "@/components/ui/tooltip";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
 import {
   type ClickAction,
   type Decoration,
-  type MmEditResult,
   clearFormatting,
   removeColor,
   setClick,
@@ -28,7 +28,6 @@ import {
   MessageSquareText,
   MousePointerClick,
   Paintbrush,
-  Palette as PaletteIcon,
   Sparkles,
   Strikethrough,
   Underline,
@@ -37,20 +36,32 @@ import {
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { MmViewMode } from "./mmCodeMirror";
+import type { MmOp } from "./pendingFormat";
 
-/** An operation of `lib/mm/edit`, bound to everything but the text and the range. */
-export type MmOp = (src: string, from: number, to: number, perLine: boolean) => MmEditResult | null;
+export type { MmOp };
+
+/**
+ * What an operation is, for when nothing is selected and it waits for the next typed
+ * text: the same `key` replaces itself (one color), a `toggle` chosen twice cancels.
+ */
+export interface FormatKey {
+  key: string;
+  toggle?: boolean;
+}
 
 export interface MmToolbarProps {
   profile: MmProfile;
   palettes: Palette[];
   mode: MmViewMode;
   onModeChange: (mode: MmViewMode) => void;
-  /** Whether some text is selected (formatting needs a range). */
-  hasSelection: boolean;
-  /** Decorations on over the whole selection. */
+  /** Decorations on over the whole selection, or that typing at the caret would get. */
   active: Partial<Record<Decoration, boolean>>;
-  onOp: (op: MmOp) => void;
+  /** Formats chosen with nothing selected, waiting for the next typed text. */
+  pending?: ReadonlySet<string>;
+  /**
+   * Runs `op` on the selection; with nothing selected, keeps it for the next typed text.
+   */
+  onOp: (op: MmOp, format: FormatKey) => void;
   /** Shown when the text holds legacy codes. */
   onConvertLegacy?: () => void;
   onCopy: () => Promise<void>;
@@ -67,6 +78,8 @@ const DECORATIONS: { key: Decoration; icon: typeof Bold }[] = [
 ];
 
 const HEX = /^#[0-9a-f]{6}$/i;
+/** Colors and gradients replace one another: one pending color at a time. */
+const COLOR: FormatKey = { key: "color" };
 
 function ToolButton({
   label,
@@ -101,32 +114,33 @@ function ToolButton({
   );
 }
 
-/** A toolbar button opening a small form; disabled without a selection. */
+/**
+ * A toolbar button opening a small form. `pending`: what it applies waits for the next
+ * typed text, the button shows it.
+ */
 function ToolPopover({
   label,
   icon,
-  disabled,
-  disabledLabel,
+  pending,
   children,
 }: {
   label: string;
   icon: ReactNode;
-  disabled: boolean;
-  disabledLabel: string;
+  pending?: boolean;
   children: ReactNode;
 }) {
-  if (disabled) {
-    return (
-      <ToolButton label={`${label} — ${disabledLabel}`} disabled>
-        {icon}
-      </ToolButton>
-    );
-  }
   return (
     <Popover>
       <Tooltip content={label}>
         <PopoverTrigger asChild>
-          <button type="button" aria-label={label} className="btn btn-ghost btn-icon btn-sm">
+          <button
+            type="button"
+            aria-label={label}
+            className={cx(
+              "btn btn-ghost btn-icon btn-sm",
+              pending && "bg-[var(--brand-soft)] text-[var(--brand)]",
+            )}
+          >
             {icon}
           </button>
         </PopoverTrigger>
@@ -165,8 +179,8 @@ export function MmToolbar({
   palettes,
   mode,
   onModeChange,
-  hasSelection,
   active,
+  pending,
   onOp,
   onConvertLegacy,
   onCopy,
@@ -174,8 +188,7 @@ export function MmToolbar({
 }: MmToolbarProps) {
   const { t } = useTranslation();
   const has = (f: MmFeature) => profile.features.has(f);
-  const needSel = t("mmEditor.toolbar.needSelection");
-  const off = !hasSelection;
+  const waiting = (key: string) => pending?.has(key) ?? false;
   const [custom, setCustom] = useState("#5ab4ff");
   const [gradFrom, setGradFrom] = useState("#ff5f6d");
   const [gradTo, setGradTo] = useState("#ffc371");
@@ -184,7 +197,7 @@ export function MmToolbar({
   const [hoverText, setHoverText] = useState("");
   const [copied, setCopied] = useState(false);
   const styles = palettes.flatMap((p) => p.styles);
-  const gradients = palettes.flatMap((p) => p.gradients);
+  const gradients = palettes.flatMap((p) => p.gradients.map((g) => ({ ...g, paletteId: p.id })));
 
   return (
     <div
@@ -196,137 +209,143 @@ export function MmToolbar({
         DECORATIONS.map(({ key, icon: Icon }) => (
           <ToolButton
             key={key}
-            label={
-              off ? `${t(`mmEditor.toolbar.${key}`)} — ${needSel}` : t(`mmEditor.toolbar.${key}`)
-            }
-            disabled={off}
+            label={t(`mmEditor.toolbar.${key}`)}
             pressed={!!active[key]}
-            onClick={() => onOp((s, f, to, pl) => toggleDecoration(s, f, to, key, pl))}
+            onClick={() =>
+              onOp((s, f, to, pl) => toggleDecoration(s, f, to, key, pl), { key, toggle: true })
+            }
           >
             <Icon className="size-4" />
           </ToolButton>
         ))}
 
-      {has("color") && (
+      {(has("color") || has("gradient")) && (
         <ToolPopover
           label={t("mmEditor.toolbar.color")}
           icon={<Paintbrush className="size-4" />}
-          disabled={off}
-          disabledLabel={needSel}
+          pending={waiting("color")}
         >
-          <div className="flex flex-col gap-3">
-            {palettes
-              .filter((p) => p.swatches.length > 0)
-              .map((p) => (
-                <div key={p.id} className="flex flex-col gap-1.5">
-                  <span className="field-label">{p.name}</span>
-                  <div className="flex flex-wrap gap-1">
-                    {p.swatches.map((s) => (
-                      <PopoverClose asChild key={s.id}>
-                        <button
-                          type="button"
-                          aria-label={s.name}
-                          title={s.name}
-                          onClick={() =>
-                            onOp((src, f, to, pl) => setColor(src, f, to, s.color, pl))
-                          }
-                          className="size-6 rounded border border-[var(--border)] transition-transform hover:scale-110"
-                          style={{ background: swatchHex(s.color) }}
-                        />
-                      </PopoverClose>
-                    ))}
+          <Tabs defaultValue={has("color") ? "color" : "gradient"} className="flex flex-col gap-3">
+            {has("color") && has("gradient") && (
+              <TabsList aria-label={t("mmEditor.toolbar.color")}>
+                <TabsTrigger value="color">{t("mmEditor.color.tab")}</TabsTrigger>
+                <TabsTrigger value="gradient">{t("mmEditor.gradient.tab")}</TabsTrigger>
+              </TabsList>
+            )}
+            <TabsContent value="color" className="flex flex-col gap-3">
+              {palettes
+                .filter((p) => p.swatches.length > 0)
+                .map((p) => (
+                  <div key={p.id} className="flex flex-col gap-1.5">
+                    <span className="field-label">{p.name}</span>
+                    <div className="flex flex-wrap gap-1">
+                      {p.swatches.map((s) => (
+                        <PopoverClose asChild key={s.id}>
+                          <button
+                            type="button"
+                            aria-label={s.name}
+                            title={s.name}
+                            onClick={() =>
+                              onOp((src, f, to, pl) => setColor(src, f, to, s.color, pl), COLOR)
+                            }
+                            className="size-6 rounded border border-[var(--border)] transition-transform hover:scale-110"
+                            style={{ background: swatchHex(s.color) }}
+                          />
+                        </PopoverClose>
+                      ))}
+                    </div>
                   </div>
+                ))}
+              <div className="flex flex-col gap-1.5">
+                <span className="field-label">{t("mmEditor.color.custom")}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <ColorField
+                    value={custom}
+                    onChange={setCustom}
+                    label={t("mmEditor.color.custom")}
+                  />
+                  <PopoverClose asChild>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      disabled={!HEX.test(custom)}
+                      onClick={() =>
+                        onOp((src, f, to, pl) => setColor(src, f, to, custom, pl), COLOR)
+                      }
+                    >
+                      {t("mmEditor.color.apply")}
+                    </button>
+                  </PopoverClose>
                 </div>
-              ))}
-            <div className="flex flex-col gap-1.5">
-              <span className="field-label">{t("mmEditor.color.custom")}</span>
-              <div className="flex items-center justify-between gap-2">
+              </div>
+            </TabsContent>
+            <TabsContent value="gradient" className="flex flex-col gap-3">
+              {gradients.length > 0 && (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {gradients.map((g) => (
+                    <PopoverClose asChild key={`${g.paletteId}:${g.id}`}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onOp(
+                            (src, f, to, pl) => setGradient(src, f, to, g.stops, pl, g.phase),
+                            COLOR,
+                          )
+                        }
+                        className="flex items-center gap-2 rounded-[var(--r-xs)] border border-[var(--border-soft)] px-2 py-1 text-left text-xs hover:bg-[var(--surface-hover)]"
+                      >
+                        <span
+                          aria-hidden
+                          className="h-3 w-8 shrink-0 rounded-sm"
+                          style={{
+                            background: `linear-gradient(to right, ${g.stops.map(swatchHex).join(", ")})`,
+                          }}
+                        />
+                        <span className="truncate">{g.name}</span>
+                      </button>
+                    </PopoverClose>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <span className="field-label">{t("mmEditor.gradient.custom")}</span>
                 <ColorField
-                  value={custom}
-                  onChange={setCustom}
-                  label={t("mmEditor.color.custom")}
+                  value={gradFrom}
+                  onChange={setGradFrom}
+                  label={t("mmEditor.gradient.custom")}
+                />
+                <ColorField
+                  value={gradTo}
+                  onChange={setGradTo}
+                  label={t("mmEditor.gradient.custom")}
                 />
                 <PopoverClose asChild>
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm"
-                    disabled={!HEX.test(custom)}
-                    onClick={() => onOp((src, f, to, pl) => setColor(src, f, to, custom, pl))}
+                    className="btn btn-primary btn-sm self-end"
+                    disabled={!HEX.test(gradFrom) || !HEX.test(gradTo)}
+                    onClick={() =>
+                      onOp(
+                        (src, f, to, pl) => setGradient(src, f, to, [gradFrom, gradTo], pl),
+                        COLOR,
+                      )
+                    }
                   >
-                    {t("mmEditor.color.apply")}
+                    {t("mmEditor.gradient.apply")}
                   </button>
                 </PopoverClose>
               </div>
-            </div>
+            </TabsContent>
             <PopoverClose asChild>
               <button
                 type="button"
                 className="btn btn-ghost btn-sm self-start"
-                onClick={() => onOp(removeColor)}
+                onClick={() => onOp(removeColor, COLOR)}
               >
                 {t("mmEditor.color.remove")}
               </button>
             </PopoverClose>
-          </div>
-        </ToolPopover>
-      )}
-
-      {has("gradient") && (
-        <ToolPopover
-          label={t("mmEditor.toolbar.gradient")}
-          icon={<PaletteIcon className="size-4" />}
-          disabled={off}
-          disabledLabel={needSel}
-        >
-          <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-1.5">
-              {gradients.map((g) => (
-                <PopoverClose asChild key={g.id}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onOp((src, f, to, pl) => setGradient(src, f, to, g.stops, pl, g.phase))
-                    }
-                    className="flex items-center gap-2 rounded-[var(--r-xs)] border border-[var(--border-soft)] px-2 py-1 text-left text-xs hover:bg-[var(--surface-hover)]"
-                  >
-                    <span
-                      aria-hidden
-                      className="h-3 w-8 shrink-0 rounded-sm"
-                      style={{
-                        background: `linear-gradient(to right, ${g.stops.map(swatchHex).join(", ")})`,
-                      }}
-                    />
-                    <span className="truncate">{g.name}</span>
-                  </button>
-                </PopoverClose>
-              ))}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <span className="field-label">{t("mmEditor.gradient.custom")}</span>
-              <ColorField
-                value={gradFrom}
-                onChange={setGradFrom}
-                label={t("mmEditor.gradient.custom")}
-              />
-              <ColorField
-                value={gradTo}
-                onChange={setGradTo}
-                label={t("mmEditor.gradient.custom")}
-              />
-              <PopoverClose asChild>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm self-end"
-                  disabled={!HEX.test(gradFrom) || !HEX.test(gradTo)}
-                  onClick={() =>
-                    onOp((src, f, to, pl) => setGradient(src, f, to, [gradFrom, gradTo], pl))
-                  }
-                >
-                  {t("mmEditor.gradient.apply")}
-                </button>
-              </PopoverClose>
-            </div>
-          </div>
+          </Tabs>
         </ToolPopover>
       )}
 
@@ -334,8 +353,7 @@ export function MmToolbar({
         <ToolPopover
           label={t("mmEditor.toolbar.styles")}
           icon={<Wand2 className="size-4" />}
-          disabled={off}
-          disabledLabel={needSel}
+          pending={waiting("style")}
         >
           {styles.length === 0 ? (
             <p className="text-[var(--text-mut)]">{t("mmEditor.styles.empty")}</p>
@@ -346,7 +364,9 @@ export function MmToolbar({
                   <button
                     type="button"
                     onClick={() =>
-                      onOp((src, f, to, pl) => wrapWith(src, f, to, s.open, s.close, pl))
+                      onOp((src, f, to, pl) => wrapWith(src, f, to, s.open, s.close, pl), {
+                        key: "style",
+                      })
                     }
                     className="rounded-[var(--r-xs)] px-2 py-1 text-left hover:bg-[var(--surface-hover)]"
                   >
@@ -366,8 +386,7 @@ export function MmToolbar({
         <ToolPopover
           label={t("mmEditor.toolbar.click")}
           icon={<MousePointerClick className="size-4" />}
-          disabled={off}
-          disabledLabel={needSel}
+          pending={waiting("click")}
         >
           <div className="flex flex-col gap-2">
             <label className="flex flex-col gap-1">
@@ -401,7 +420,9 @@ export function MmToolbar({
                 className="btn btn-primary btn-sm self-end"
                 disabled={!clickValue}
                 onClick={() =>
-                  onOp((src, f, to, pl) => setClick(src, f, to, clickAction, clickValue, pl))
+                  onOp((src, f, to, pl) => setClick(src, f, to, clickAction, clickValue, pl), {
+                    key: "click",
+                  })
                 }
               >
                 {t("mmEditor.click.apply")}
@@ -415,8 +436,7 @@ export function MmToolbar({
         <ToolPopover
           label={t("mmEditor.toolbar.hover")}
           icon={<MessageSquareText className="size-4" />}
-          disabled={off}
-          disabledLabel={needSel}
+          pending={waiting("hover")}
         >
           <div className="flex flex-col gap-2">
             <label className="flex flex-col gap-1">
@@ -433,7 +453,9 @@ export function MmToolbar({
                 type="button"
                 className="btn btn-primary btn-sm self-end"
                 disabled={!hoverText}
-                onClick={() => onOp((src, f, to, pl) => setHover(src, f, to, hoverText, pl))}
+                onClick={() =>
+                  onOp((src, f, to, pl) => setHover(src, f, to, hoverText, pl), { key: "hover" })
+                }
               >
                 {t("mmEditor.hover.apply")}
               </button>
@@ -443,9 +465,9 @@ export function MmToolbar({
       )}
 
       <ToolButton
-        label={off ? `${t("mmEditor.toolbar.clear")} — ${needSel}` : t("mmEditor.toolbar.clear")}
-        disabled={off}
-        onClick={() => onOp(clearFormatting)}
+        label={t("mmEditor.toolbar.clear")}
+        pressed={waiting("clear")}
+        onClick={() => onOp(clearFormatting, { key: "clear" })}
       >
         <Eraser className="size-4" />
       </ToolButton>

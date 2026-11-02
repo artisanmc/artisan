@@ -1,4 +1,4 @@
-import { RevealField } from "@/components/RevealField";
+import { MmEditor } from "@/components/minimessage/MmEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LocalizedField } from "@/components/ui/localized-field";
@@ -26,6 +26,7 @@ import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { listLanguages } from "@/lib/i18nUsages";
+import { ITEM_NAME, LORE } from "@/lib/mm/profiles";
 import { lookupPath } from "@/lib/placeholders";
 import { useGetText } from "@/lib/useText";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
@@ -564,19 +565,15 @@ function StateCard({
                 values={translations.title}
                 onChange={(lang, value) => translations.onText("title", lang, value)}
                 renderEditor={({ value, fallback, label, onChange }) => (
-                  <RevealField
+                  <MmEditor
                     value={value}
                     onChange={onChange}
                     aria-label={label}
+                    profile={ITEM_NAME}
                     entries={placeholderEntries}
-                    placeholder={fallback}
-                    className="input w-full"
-                    facade={
-                      <MiniMessageInline
-                        source={value || fallback || t("flow.titlePlaceholder")}
-                        className={value ? undefined : "opacity-50"}
-                      />
-                    }
+                    placeholder={fallback || t("flow.titlePlaceholder")}
+                    toolbar="focus"
+                    minHeight="0"
                   />
                 )}
               />
@@ -590,20 +587,14 @@ function StateCard({
                 values={translations.lore}
                 onChange={(lang, value) => translations.onText("lore", lang, value)}
                 renderEditor={({ value, fallback, label, onChange }) => (
-                  <RevealField
+                  <MmEditor
                     value={value}
                     onChange={onChange}
                     aria-label={label}
+                    profile={LORE}
                     entries={placeholderEntries}
-                    multiline
-                    placeholder={fallback}
-                    className="input w-full"
-                    facade={
-                      <MiniMessageInline
-                        source={value || fallback || t("flow.lorePlaceholder")}
-                        className={value ? undefined : "opacity-50"}
-                      />
-                    }
+                    placeholder={fallback || t("flow.lorePlaceholder")}
+                    toolbar="focus"
                   />
                 )}
               />
