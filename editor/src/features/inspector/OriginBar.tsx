@@ -44,16 +44,8 @@ export function OriginBar({
   const [comparing, setComparing] = useState(false);
   const ref = parseDocKey(docKey);
   if (!ref || !project.originals) return null;
-  if (project.originalView)
-    return (
-      <div
-        data-testid="origin-bar"
-        className="mx-3 mb-2 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-mut)]"
-      >
-        <span className="badge mr-2">{t("originals.original")}</span>
-        {t("originals.readOnly")}
-      </div>
-    );
+  // The original view says so on the canvas (`OriginalBanner`); everything there is shipped.
+  if (project.originalView) return null;
   const status = originStatus(project, ref.kind, ref.id);
   if (!status) return null;
   const required = isRequired(project, ref.kind, ref.id);

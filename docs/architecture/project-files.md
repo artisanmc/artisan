@@ -264,7 +264,8 @@ guilds/
   the shipped Documents, the viewed variant's shipped versions over them; the Project's own wait
   in `Project.originalView` (with the variant), back on closing. Read-only: `mutateProject`
   drops any edit but a change of view (`MutateOptions.view`); `withModuleView` and `projectTree`
-  close it before writing.
+  close it before writing. UI: `OriginalBanner` on the canvas (and its way out), the properties
+  panel in a disabled `fieldset`.
 - MCP: `list_documents` gives each Document's `origin` and an `originals` section; `read_document`
   reads `originals/…`.
 

@@ -37,6 +37,7 @@ import { GhostChips } from "./GhostChips";
 import { ItemTooltip } from "./ItemTooltip";
 import { MarqueeRect } from "./MarqueeRect";
 import { MenuGroup } from "./MenuGroup";
+import { OriginalBanner } from "./OriginalBanner";
 import { Selection } from "./Selection";
 import { StageContextMenu } from "./StageContextMenu";
 import { TriggerGroup } from "./TriggerGroup";
@@ -237,6 +238,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
     >
       <div aria-hidden className="stage-bg-glow pointer-events-none absolute inset-0" />
       <ArmedBanner />
+      {!focusMode && <OriginalBanner projectId={projectId} />}
       {!focusMode && (
         <BoardChrome
           project={project}

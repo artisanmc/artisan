@@ -1268,8 +1268,6 @@ const fr: typeof en = {
     errFetchError: "Le module a échoué : {{message}}",
   },
   originals: {
-    readOnly:
-      "Tel que le module le livre, en lecture seule. Copie ce qu'il te faut, puis décoche « Original du module » pour modifier.",
     original: "Version du module",
     modified: "Ta version",
     added: "Ajouté par toi",
@@ -1286,6 +1284,9 @@ const fr: typeof en = {
     revertConfirm: "Abandonner tes modifications et revenir à la version du module ?",
   },
   variants: {
+    originalBanner: "Original du module : {{name}}",
+    originalBannerHint: "Lecture seule, tel que le module le livre.",
+    originalLeave: "Quitter",
     original: "Original du module (lecture seule)",
     originalHint: "Ce que le module livre, sans tes modifications : pour regarder et copier",
     viewAsOriginal: "Original du module : {{name}}",

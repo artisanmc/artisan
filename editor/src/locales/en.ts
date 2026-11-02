@@ -1245,8 +1245,6 @@ export default {
     errFetchError: "The module failed: {{message}}",
   },
   originals: {
-    readOnly:
-      "As the module ships it, read-only. Copy what you need, then untick “Module original” to edit.",
     original: "Module's version",
     modified: "Your version",
     added: "Added by you",
@@ -1262,6 +1260,9 @@ export default {
     revertConfirm: "Drop your changes and go back to the module's version?",
   },
   variants: {
+    originalBanner: "Module original: {{name}}",
+    originalBannerHint: "Read-only, as the module ships it.",
+    originalLeave: "Leave",
     original: "Module original (read-only)",
     originalHint: "What the module ships, without your changes: to look and copy",
     viewAsOriginal: "Module original: {{name}}",

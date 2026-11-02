@@ -78,13 +78,17 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
           <OriginBar projectId={projectId} project={project} docKey={docId} />
         </>
       )}
-      <div className="page-pane flex min-h-0 flex-1 flex-col overflow-hidden">
+      {/* The module's original is read-only: its fields show greyed out. */}
+      <fieldset
+        disabled={project?.originalView !== undefined}
+        className="page-pane m-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-0 p-0 disabled:opacity-70"
+      >
         {yamlMode && project && relPath ? (
           <DocumentYamlView key={relPath} project={project} relPath={relPath} />
         ) : (
           <SelectionInspector projectId={projectId} />
         )}
-      </div>
+      </fieldset>
     </section>
   );
 }
