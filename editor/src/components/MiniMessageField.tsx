@@ -1,7 +1,6 @@
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { CHAT, TEXT_LINE } from "@/lib/mm/profiles";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
-import { useTranslation } from "react-i18next";
-import { RevealField } from "./RevealField";
+import { MmEditor } from "./minimessage/MmEditor";
 
 export interface MiniMessageFieldProps {
   value: string;
@@ -15,46 +14,34 @@ export interface MiniMessageFieldProps {
   "aria-label"?: string;
 }
 
+const NO_ENTRIES: PlaceholderEntry[] = [];
+
 /**
- * The one behaviour of a MiniMessage text field: rendered until clicked, then the raw source
- * with the live rendering below it ({@link RevealField}). Used wherever a text supports
- * MiniMessage, module views included (SDK `MiniMessageInput`).
+ * A MiniMessage text field wherever the editor does not know the text's use: the rich
+ * editor, its toolbar shown while the field is edited. Module views get it too (SDK
+ * `MiniMessageInput`).
  */
 export function MiniMessageField({
   value,
   onChange,
-  entries = [],
+  entries = NO_ENTRIES,
   multiline,
   rows,
   placeholder,
   className,
   "aria-label": ariaLabel,
 }: MiniMessageFieldProps) {
-  const { t } = useTranslation();
   return (
-    <RevealField
+    <MmEditor
       value={value}
       onChange={onChange}
+      profile={multiline ? CHAT : TEXT_LINE}
       entries={entries}
-      multiline={multiline}
-      rows={rows}
+      toolbar="focus"
+      minHeight={multiline ? `${Math.max(2, rows ?? 3) * 20 + 16}px` : "0"}
       placeholder={placeholder}
-      className={className}
       aria-label={ariaLabel}
-      facade={<MiniMessageInline source={value} className="mc-text" />}
-      preview={
-        value.trim() ? (
-          <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-            <span className="mr-2 text-[11px] font-medium text-[var(--text-faint)]">
-              {t("menuProperties.preview")}
-            </span>
-            <MiniMessageInline
-              source={value}
-              className={multiline ? "mc-text whitespace-pre-wrap text-xs" : "mc-text text-xs"}
-            />
-          </div>
-        ) : null
-      }
+      className={className}
     />
   );
 }

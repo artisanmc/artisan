@@ -110,8 +110,30 @@ export const MOTD: MmProfile = {
   preview: "motd",
 };
 
+/**
+ * A menu's title (the vanilla text or a text layer of a textured title): one line, no
+ * click. Shown light on the editor's dark field, though the game draws it dark gray.
+ */
+export const CONTAINER_TITLE: MmProfile = {
+  id: "container-title",
+  features: new Set(ONE_LINE),
+  lines: "single",
+  defaults: { color: "#ffffff" },
+  preview: "item-name",
+};
+
+/** A one-line text whose use the editor does not know (a data value, a module's field). */
+export const TEXT_LINE: MmProfile = {
+  id: "text-line",
+  features: new Set(ALL.filter((f) => f !== "newline")),
+  lines: "single",
+  defaults: { color: "#ffffff" },
+  preview: "chat",
+};
+
 const registry = new Map<string, MmProfile>();
-for (const p of [CHAT, ITEM_NAME, LORE, TITLE, ACTION_BAR, MOTD]) registry.set(p.id, p);
+for (const p of [CHAT, ITEM_NAME, LORE, TITLE, ACTION_BAR, MOTD, CONTAINER_TITLE, TEXT_LINE])
+  registry.set(p.id, p);
 
 /** Adds a profile (a module's own usage); the last registration of an id wins. */
 export function registerMmProfile(profile: MmProfile): void {

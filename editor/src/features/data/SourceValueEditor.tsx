@@ -1,5 +1,5 @@
 import { LocalizedTextField } from "@/components/LocalizedTextField";
-import { RevealField } from "@/components/RevealField";
+import { MmEditor } from "@/components/minimessage/MmEditor";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
@@ -19,8 +19,8 @@ import { ItemValueField } from "@/features/canvas/ItemValueField";
 import { resolveRowTexts } from "@/features/canvas/menuPreviewScope";
 import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
 import { ConditionListEditor } from "@/features/inspector/properties/ConditionListEditor";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
+import { CHAT, TEXT_LINE } from "@/lib/mm/profiles";
 import { useProjectsStore } from "@/state/projectsStore";
 import { Plus, X } from "lucide-react";
 import {
@@ -423,26 +423,21 @@ export function ValueEditor({
       return <ActionFieldEditor projectId={projectId} value={value} onChange={set} />;
     case "minimessage":
     case "minimessage_multiline": {
-      // MiniMessage widget kit: rendered facade at
-      // rest, raw markup in a PlaceholderInput on focus. Plain string value.
+      // The rich MiniMessage editor, its toolbar shown while editing. Plain string value.
       const multiline = type.kind === "minimessage_multiline";
       const text = typeof value === "string" ? value : "";
       return (
-        <RevealField
+        <MmEditor
           value={text}
           onChange={set}
-          entries={[]}
-          multiline={multiline}
-          rows={multiline ? 3 : undefined}
+          profile={multiline ? CHAT : TEXT_LINE}
+          toolbar="focus"
+          minHeight={multiline ? "64px" : "0"}
           className={
-            multiline
-              ? "w-full min-w-48 text-[12px]"
-              : settings
-                ? `${SETTINGS_INPUT} w-full max-w-md`
-                : "h-7 w-full min-w-24 px-2 text-[12px]"
+            multiline ? "w-full min-w-48" : settings ? "w-full max-w-md" : "w-full min-w-24"
           }
           placeholder={String(path[path.length - 1])}
-          facade={<MiniMessageInline source={text} className="font-mono text-xs" />}
+          aria-label={String(path[path.length - 1])}
         />
       );
     }
