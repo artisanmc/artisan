@@ -42,6 +42,11 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
   const original = project.originalView !== undefined;
   const viewed = viewedVariant(project) ?? project.originalView?.variant;
   const store = useProjectsStore.getState();
+  // Picking a variant (the one shown included) leaves the original: back to editing it.
+  const pick = (variant: string | undefined) => {
+    if (original) store.showOriginal(projectId, false);
+    store.showVariant(projectId, variant);
+  };
   return (
     <>
       <DropdownMenu>
@@ -70,15 +75,16 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="center" side="top" className="w-64">
           <DropdownMenuLabel>{t("variants.viewAs")}</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={viewed ?? MODULE}
-            onValueChange={(v) => store.showVariant(projectId, v === MODULE ? undefined : v)}
-          >
-            <DropdownMenuRadioItem value={MODULE} title={t("variants.moduleHint")}>
+          <DropdownMenuRadioGroup value={viewed ?? MODULE}>
+            <DropdownMenuRadioItem
+              value={MODULE}
+              title={t("variants.moduleHint")}
+              onSelect={() => pick(undefined)}
+            >
               {t("variants.module")}
             </DropdownMenuRadioItem>
             {names.map((name) => (
-              <DropdownMenuRadioItem key={name} value={name}>
+              <DropdownMenuRadioItem key={name} value={name} onSelect={() => pick(name)}>
                 {name}
               </DropdownMenuRadioItem>
             ))}

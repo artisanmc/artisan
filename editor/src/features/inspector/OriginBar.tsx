@@ -54,29 +54,34 @@ export function OriginBar({
   const badge =
     status === "modified" ? "badge badge-amber" : status === "added" ? "badge badge-sage" : "badge";
   return (
-    <div
-      data-testid="origin-bar"
-      className="mx-3 mb-2 flex flex-col gap-1.5 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface-inset)] p-2 text-xs"
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={badge}>{t(`originals.${status}`)}</span>
-        {required && <span className="text-[var(--text-mut)]">{t("originals.required")}</span>}
-      </div>
+    <div data-testid="origin-bar" className="flex shrink-0 items-center gap-0.5 text-xs">
+      <span className={`${badge} mr-1`} title={required ? t("originals.required") : undefined}>
+        {t(`originals.${status}`)}
+      </span>
       {status === "modified" && twin && doc && (
-        <div className="flex flex-wrap gap-1">
-          <Button size="sm" variant="ghost" onClick={() => setComparing(true)}>
-            <GitCompare className="size-4" /> {t("originals.compare")}
+        <>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-7"
+            title={t("originals.compare")}
+            aria-label={t("originals.compare")}
+            onClick={() => setComparing(true)}
+          >
+            <GitCompare className="size-4" />
           </Button>
           <Button
-            size="sm"
+            size="icon"
             variant="ghost"
-            title={t("originals.revertHint")}
+            className="size-7"
+            title={`${t("originals.revert")} : ${t("originals.revertHint")}`}
+            aria-label={t("originals.revert")}
             onClick={() => {
               if (!window.confirm(t("originals.revertConfirm"))) return;
               useProjectsStore.getState().revertToOriginal(projectId, ref.kind, ref.id);
             }}
           >
-            <Undo2 className="size-4" /> {t("originals.revert")}
+            <Undo2 className="size-4" />
           </Button>
           <Dialog open={comparing} onOpenChange={setComparing}>
             <DialogContent className="max-h-[85vh] max-w-5xl overflow-hidden">
@@ -99,7 +104,7 @@ export function OriginBar({
               </div>
             </DialogContent>
           </Dialog>
-        </div>
+        </>
       )}
     </div>
   );

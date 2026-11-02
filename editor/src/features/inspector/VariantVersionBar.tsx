@@ -27,27 +27,27 @@ export function VariantVersionBar({
   const own = versionOf(project, ref.kind, ref.id) === variant;
   const store = useProjectsStore.getState();
   return (
-    <div
-      data-testid="variant-version-bar"
-      className="mx-3 mb-2 flex flex-col gap-1.5 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface-inset)] p-2 text-xs"
-    >
-      <div className="flex items-center gap-2">
-        <span className={own ? "badge badge-sage" : "badge"}>
-          {own ? t("variants.ownVersion", { name: variant }) : t("variants.inherited")}
-        </span>
-        {!own && (
-          <span className="text-[var(--text-mut)]">
-            {variable
+    <div data-testid="variant-version-bar" className="flex shrink-0 items-center gap-0.5 text-xs">
+      <span
+        className={`${own ? "badge badge-sage" : "badge"} mr-1`}
+        title={
+          own
+            ? undefined
+            : variable
               ? t("variants.editMakesVersion", { name: variant })
-              : t("variants.editShared")}
-          </span>
-        )}
-      </div>
+              : t("variants.editShared")
+        }
+      >
+        {own ? t("variants.ownVersion", { name: variant }) : t("variants.inherited")}
+      </span>
       {variable && (
         <Button
-          size="sm"
+          size="icon"
           variant="ghost"
-          className="self-start"
+          className="size-7"
+          aria-label={t(own ? "variants.dropVersion" : "variants.createVersion", {
+            name: variant,
+          })}
           title={t(own ? "variants.dropVersionHint" : "variants.createVersionHint", {
             name: variant,
           })}
@@ -58,7 +58,6 @@ export function VariantVersionBar({
           }
         >
           {own ? <Undo2 className="size-4" /> : <Copy className="size-4" />}
-          {t(own ? "variants.dropVersion" : "variants.createVersion", { name: variant })}
         </Button>
       )}
     </div>

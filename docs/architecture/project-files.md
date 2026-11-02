@@ -258,8 +258,8 @@ guilds/
   serialization), `revertToOriginal`, `isRequired`. `projectToFiles` skips a Document identical to
   its shipped twin, writes `variants.yml` only when the rules differ, and writes the exclusions
   (a shipped Document absent from the project; a required one cannot be deleted).
-  `saveProjectToDisk` carries `originals/` unchanged. UI: `OriginBar` (properties panel: badge,
-  Compare, Revert), `OriginTag` on the board.
+  `saveProjectToDisk` carries `originals/` unchanged. UI: `OriginBar` (properties panel title row: badge,
+  Compare and Revert icons), `OriginTag` on the board.
 - View as the original (`showOriginal`, "View as" > Module original): `Project.documents` holds
   the shipped Documents, the viewed variant's shipped versions over them; the Project's own wait
   in `Project.originalView` (with the variant), back on closing. Read-only: `mutateProject`
