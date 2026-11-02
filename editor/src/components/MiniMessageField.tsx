@@ -17,6 +17,16 @@ export interface MiniMessageFieldProps {
 const NO_ENTRIES: PlaceholderEntry[] = [];
 
 /**
+ * The classes a caller wrote for the old one-line input (`h-7 px-2 font-mono…`): a fixed
+ * height would clip the toolbar, and the rich view sets its own type. Width and margins stay.
+ */
+const layoutOnly = (className?: string) =>
+  className
+    ?.split(/\s+/)
+    .filter((c) => !/^(min-h-|max-h-|h-|p[xytblr]?-|font-|text-|rounded)/.test(c))
+    .join(" ");
+
+/**
  * A MiniMessage text field wherever the editor does not know the text's use: the rich
  * editor, its toolbar shown while the field is edited. Module views get it too (SDK
  * `MiniMessageInput`).
@@ -41,7 +51,7 @@ export function MiniMessageField({
       minHeight={multiline ? `${Math.max(2, rows ?? 3) * 20 + 16}px` : "0"}
       placeholder={placeholder}
       aria-label={ariaLabel}
-      className={className}
+      className={layoutOnly(className)}
     />
   );
 }
