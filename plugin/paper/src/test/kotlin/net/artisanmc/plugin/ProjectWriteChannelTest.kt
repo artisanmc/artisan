@@ -25,7 +25,9 @@ class ProjectWriteChannelTest {
 
     private class Harness {
         val root: File = Files.createTempDirectory("artisan_pwrite_").toFile()
-        val sink: MutableList<Map<String, Any?>> = java.util.Collections.synchronizedList(mutableListOf())
+        // Written from the provider's threads while await() iterates it: a synchronizedList is
+        // not safe to iterate without its lock (ConcurrentModificationException in CI).
+        val sink: MutableList<Map<String, Any?>> = java.util.concurrent.CopyOnWriteArrayList()
         val latch = CountDownLatch(1)
         val provider = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(root),
