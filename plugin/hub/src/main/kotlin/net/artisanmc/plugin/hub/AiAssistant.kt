@@ -71,6 +71,45 @@ class AiAssistant(
             events += Event(events.size, type, data.toMap().filterValues { it != null })
         }
 
+        /** The answer being written: its text blocks, and the tool calls not yet in the events. */
+        private val liveTexts = sortedMapOf<Int, StringBuilder>()
+        private val liveTools = linkedMapOf<String, Pair<String, StringBuilder>>()
+
+        @Synchronized internal fun onDelta(delta: AiDelta) {
+            when (delta) {
+                is AiDelta.Text -> liveTexts.getOrPut(delta.block) { StringBuilder() }.append(delta.text)
+                is AiDelta.ToolStart -> liveTools[delta.id] = delta.name to StringBuilder()
+                is AiDelta.ToolInput -> liveTools[delta.id]?.second?.takeIf { it.length < MAX_LIVE_INPUT }?.append(delta.json)
+            }
+        }
+
+        /** The step's answer is in: its texts become events, the same instant they leave the live text. */
+        @Synchronized internal fun answered(texts: List<String>) {
+            texts.forEach { add(TEXT, "text" to it) }
+            liveTexts.clear()
+        }
+
+        /** A tool call's event is in: it leaves the live calls. */
+        @Synchronized internal fun called(id: String, type: String, vararg data: Pair<String, Any?>) {
+            add(type, *data)
+            liveTools.remove(id)
+        }
+
+        @Synchronized internal fun clearLive() {
+            liveTexts.clear()
+            liveTools.clear()
+        }
+
+        /** What the editor shows after the events while a turn runs; null: nothing being written. */
+        @Synchronized fun live(): Map<String, Any?>? {
+            val text = liveTexts.values.filter { it.isNotBlank() }.joinToString("\n\n")
+            if (text.isBlank() && liveTools.isEmpty()) return null
+            return mapOf(
+                "text" to text.ifBlank { null },
+                "tools" to liveTools.map { (id, tool) -> mapOf("id" to id, "name" to tool.first, "input" to tool.second.toString()) },
+            ).filterValues { it != null }
+        }
+
         /** The transcript to send before the next message, once. */
         @Synchronized internal fun takePreface(): String? = preface.also { preface = null }
 
@@ -215,10 +254,10 @@ class AiAssistant(
             var input: List<AiInput> = listOfNotNull(conversation.takePreface()?.let(AiInput::Text)) +
                 attachments.map { it.input() } + listOfNotNull(text.takeIf { it.isNotBlank() }?.let(AiInput::Text))
             for (step in 1..maxSteps) {
-                val reply = model.step(input)
+                val reply = model.stream(input, conversation::onDelta)
                 conversation.inputTokens += reply.inputTokens
                 conversation.outputTokens += reply.outputTokens
-                reply.texts.forEach { conversation.add(TEXT, "text" to it) }
+                conversation.answered(reply.texts)
                 when (reply.stop) {
                     AiReply.LIMIT -> return conversation.add(NOTICE, "code" to "ai_output_limit")
                     AiReply.REFUSED -> return conversation.add(NOTICE, "code" to "ai_refused")
@@ -235,6 +274,7 @@ class AiAssistant(
             logger?.log(Level.WARNING, "[Artisan] Assistant for ${principal.playerName} failed", e)
             conversation.add(ERROR, "code" to "ai_error")
         } finally {
+            conversation.clearLive()
             conversation.lastActive = clock.instant()
             conversation.add(DONE, "inputTokens" to conversation.inputTokens, "outputTokens" to conversation.outputTokens)
             conversation.running = false
@@ -283,7 +323,8 @@ class AiAssistant(
             tools.invoke(principal, tool, call.input)
         }
         val body = outcome.body as? Map<*, *>
-        conversation.add(
+        conversation.called(
+            call.id,
             TOOL,
             "name" to call.name,
             "project" to (call.input.text("project") ?: body?.get("project")?.takeIf { !outcome.error }),
@@ -347,6 +388,8 @@ class AiAssistant(
         val IDLE: Duration = Duration.ofHours(6)
         val KEPT: Duration = Duration.ofDays(30)
         const val MAX_TRANSCRIPT = 60_000
+        /** A tool call's input shown while written: enough for any file the assistant writes. */
+        const val MAX_LIVE_INPUT = 400_000
 
         private fun digest(text: String): String =
             java.security.MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).take(8).joinToString("") { "%02x".format(it) }

@@ -387,6 +387,45 @@ class AiAssistantTest {
     }
 
     @Test
+    fun `while the model writes, the conversation shows the text and the file being written`() {
+        val gate = CountDownLatch(1)
+        val model = object : AiProvider {
+            override val model = "streaming"
+            var steps = 0
+            override fun conversation(system: String, tools: List<McpTools.Tool>) = object : AiConversation {
+                override fun step(input: List<AiInput>) = stream(input) {}
+                override fun stream(input: List<AiInput>, live: (AiDelta) -> Unit): AiReply {
+                    if (steps++ > 0) return AiReply(listOf("Fini."), emptyList(), AiReply.END)
+                    live(AiDelta.Text(0, "Je crée "))
+                    live(AiDelta.Text(0, "le menu."))
+                    live(AiDelta.ToolStart("call_1", "write_document"))
+                    live(AiDelta.ToolInput("call_1", """{"project":"u-local.shop","path":"menus/vip.yml","content":"title: V"""))
+                    gate.await(5, TimeUnit.SECONDS)
+                    return AiReply(listOf("Je crée le menu."), listOf(AiToolCall("call_1", "read_docs", mapper.readTree("{}"))), AiReply.TOOLS)
+                }
+            }
+        }
+        start(model)
+        val id = conversation()
+        assertEquals(202, editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "un menu VIP")).status)
+        val deadline = System.currentTimeMillis() + 5000
+        var read = editor("GET", "${AiRoutes.CONVERSATIONS}/$id")
+        while (read.body!!["live"]?.get("tools") == null && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20)
+            read = editor("GET", "${AiRoutes.CONVERSATIONS}/$id")
+        }
+        val live = read.body!!["live"]
+        assertEquals("Je crée le menu.", live["text"].asText())
+        assertEquals("write_document", live["tools"][0]["name"].asText())
+        assertTrue(live["tools"][0]["input"].asText().endsWith("\"title: V"), "the input as written so far")
+        assertEquals(listOf("user"), read.body["events"].map { it["type"].asText() }, "nothing is an event yet")
+        gate.countDown()
+        val events = finished(id)
+        assertEquals(listOf("user", "text", "tool", "text", "done"), events.map { it["type"].asText() })
+        assertTrue(editor("GET", "${AiRoutes.CONVERSATIONS}/$id").body!!["live"].isNull, "nothing left being written")
+    }
+
+    @Test
     fun `a conversation is its player's own`() {
         start(ScriptedModel())
         val id = conversation()

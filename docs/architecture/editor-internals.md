@@ -1105,6 +1105,15 @@ talks in it and starts one in `scope` (`{project, server}`) when there is none. 
 navigates to `/servers/$serverId/assistant` and closes the dock; the root does not mount the dock on
 that route.
 
+**Live answer** (2026-11-02): the store keeps each conversation's `live` (`AiLive`: the text the
+model is writing, its tool calls with their input so far), polled every 400 ms during a turn.
+`LiveLines` (in `AssistantPanel.tsx`, shared by the dock and the tab) shows it after the events:
+the text through `Markdown` with a pulsing caret, a `write_document` as "Writing <path>" and its
+line count, another tool by its label; nothing yet, "Working…". `lib/aiLive.ts` reads a call's
+unfinished JSON (`partialStringFields`, `liveWrites`). The Assistant tab puts a `LiveArtifactCard`
+(`features/assistant/ArtifactCard.tsx`) at the top of its files for each file being written, its
+content following the last line, until the checked file's card replaces it.
+
 **Files in a message** (2026-11-01): `Composer` takes up to 5 files per message
 (`lib/aiAttachments.ts`, the hub's limits checked first): the paperclip opens "From my computer" (a
 file input) and, when the view knows its server, "From the server's modules" (`ServerFilePicker`: the

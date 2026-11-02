@@ -19,11 +19,13 @@ class AnthropicProviderTest {
     private val answers = ArrayDeque<Pair<Int, String>>()
     private val api = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
         createContext("/v1/messages") { exchange ->
-            requests.add(mapper.readTree(exchange.requestBody))
+            val request = mapper.readTree(exchange.requestBody)
+            requests.add(request)
             headers += exchange.requestHeaders.mapValues { it.value.joinToString(",") }.mapKeys { it.key.lowercase() }
             val (status, body) = answers.removeFirst()
-            val bytes = body.toByteArray()
-            exchange.responseHeaders.add("Content-Type", "application/json")
+            val streamed = status == 200 && request.path("stream").asBoolean(false)
+            val bytes = (if (streamed) events(body) else body).toByteArray()
+            exchange.responseHeaders.add("Content-Type", if (streamed) "text/event-stream" else "application/json")
             exchange.sendResponseHeaders(status, bytes.size.toLong())
             exchange.responseBody.use { it.write(bytes) }
         }
@@ -39,6 +41,40 @@ class AnthropicProviderTest {
         {"id":"msg_1","type":"message","role":"assistant","model":"claude-opus-5-5","content":$content,
          "stop_reason":"$stop","stop_sequence":null,"usage":{"input_tokens":50,"output_tokens":7}}
     """.trimIndent()
+
+    /** [message] as the API streams it: each block opened, written in pieces, closed. */
+    private fun events(message: String): String {
+        val m = mapper.readTree(message) as com.fasterxml.jackson.databind.node.ObjectNode
+        val out = StringBuilder()
+        fun send(type: String, data: Any) {
+            out.append("event: ").append(type).append("\ndata: ").append(mapper.writeValueAsString(mapOf("type" to type) + mapper.convertValue(data, Map::class.java).mapKeys { it.key.toString() })).append("\n\n")
+        }
+        val start = m.deepCopy().apply { putArray("content"); putNull("stop_reason") }
+        send("message_start", mapOf("message" to start))
+        m["content"].forEachIndexed { i, block ->
+            val type = block["type"].asText()
+            when (type) {
+                "text" -> {
+                    send("content_block_start", mapOf("index" to i, "content_block" to mapOf("type" to "text", "text" to "")))
+                    val text = block["text"].asText()
+                    text.chunked(maxOf(1, text.length / 2 + 1)).forEach { send("content_block_delta", mapOf("index" to i, "delta" to mapOf("type" to "text_delta", "text" to it))) }
+                }
+                "thinking" -> {
+                    send("content_block_start", mapOf("index" to i, "content_block" to mapOf("type" to "thinking", "thinking" to "", "signature" to "")))
+                    send("content_block_delta", mapOf("index" to i, "delta" to mapOf("type" to "signature_delta", "signature" to block["signature"].asText())))
+                }
+                "tool_use" -> {
+                    send("content_block_start", mapOf("index" to i, "content_block" to mapOf("type" to "tool_use", "id" to block["id"].asText(), "name" to block["name"].asText(), "input" to emptyMap<String, Any>())))
+                    val json = mapper.writeValueAsString(block["input"])
+                    json.chunked(maxOf(1, json.length / 2 + 1)).forEach { send("content_block_delta", mapOf("index" to i, "delta" to mapOf("type" to "input_json_delta", "partial_json" to it))) }
+                }
+            }
+            send("content_block_stop", mapOf("index" to i))
+        }
+        send("message_delta", mapOf("delta" to mapOf("stop_reason" to m["stop_reason"].asText(), "stop_sequence" to null), "usage" to mapOf("output_tokens" to m["usage"]["output_tokens"].asInt())))
+        send("message_stop", emptyMap<String, Any>())
+        return out.toString()
+    }
 
     private val tools = McpTools(McpProjects(Servers(McpFixtures.server(mutableListOf())))).tools
 
@@ -84,6 +120,25 @@ class AnthropicProviderTest {
         assertEquals("refais ça", text["text"].asText())
         val stored = conversation.history()!!
         assertEquals(mapper.readTree(stored), mapper.readTree(provider().resume("s", tools, stored)!!.history()))
+    }
+
+    @Test
+    fun `an answer streams its text and its tool calls as they are written`() {
+        answers += 200 to message("""[{"type":"text","text":"Je lis le menu."},{"type":"tool_use","id":"toolu_1","name":"read_document","input":{"project":"u-local.shop","path":"menus/shop.yml"}}]""", "tool_use")
+        val deltas = CopyOnWriteArrayList<AiDelta>()
+        val reply = provider().conversation("s", tools).stream(listOf(AiInput.Text("lis"))) { deltas += it }
+        assertTrue(requests.single()["stream"].asBoolean(), "asked as a stream")
+        assertEquals("Je lis le menu.", deltas.filterIsInstance<AiDelta.Text>().joinToString("") { it.text })
+        assertTrue(deltas.filterIsInstance<AiDelta.Text>().size > 1, "in pieces")
+        assertEquals(AiDelta.ToolStart("toolu_1", "read_document"), deltas.filterIsInstance<AiDelta.ToolStart>().single())
+        val input = deltas.filterIsInstance<AiDelta.ToolInput>().joinToString("") { it.json }
+        assertEquals("menus/shop.yml", mapper.readTree(input)["path"].asText())
+        // The answer is the same as without a stream.
+        assertEquals(listOf("Je lis le menu."), reply.texts)
+        assertEquals("menus/shop.yml", reply.toolCalls.single().input["path"].asText())
+        assertEquals(AiReply.TOOLS, reply.stop)
+        assertEquals(50, reply.inputTokens)
+        assertEquals(7, reply.outputTokens)
     }
 
     @Test

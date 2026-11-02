@@ -101,6 +101,17 @@ than the hub. One single Artisan user at this date: the admin's key first.
    each file stays in the history the model rereads at every step and in `artisan_ai_conversations`.
    The events keep only `{name, kind, size, project?, path?}`; a conversation started again from its
    transcript knows the files' names, not their content.
+11. **The answer as it is written** (2026-11-02). The hub calls the model as a stream
+   (`AiConversation.stream`, `AnthropicProvider`: `createStreaming` folded by `MessageAccumulator`,
+   the same history as before) and keeps what is being written beside the events: the step's text,
+   and each tool call with its input as raw JSON so far (`eager_input_streaming` on the tools, off
+   behind another `baseUrl`, so a file's content streams before the call ends). The conversation's
+   read carries it as `live`, never as an event: the step's texts become events the moment they
+   leave `live`, a tool call leaves it when its event is added, and the read takes the events
+   before `live`, so a line shows in one or the other, never both. The editor polls every 400 ms
+   during a turn (no second channel through the tunnel): the text grows with a caret, a
+   `write_document` shows "Writing <path>" with its line count, and the Assistant tab shows the file
+   as it is written in a card of its own, replaced by the checked file's card once the call ends.
 
 ## Consequences
 
@@ -117,6 +128,4 @@ than the hub. One single Artisan user at this date: the admin's key first.
 - Other providers (OpenAI-compatible APIs: Mistral, OpenRouter, Ollama): one more implementation
   of `AiProvider`.
 - An `artisan.editor.ai` permission and a per-player quota, if others than the admin use it.
-- Streamed text and the model's progress notes between two tools
-  (`display: "updates"`); with them, the file being written known early and animated in the
-  Assistant tab.
+- The model's progress notes between two tools (`display: "updates"`).

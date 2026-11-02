@@ -5,6 +5,7 @@ import com.anthropic.client.okhttp.AnthropicOkHttpClient
 import com.anthropic.core.JsonValue
 import com.anthropic.core.jsonMapper
 import com.anthropic.errors.AnthropicIoException
+import com.anthropic.helpers.MessageAccumulator
 import com.anthropic.errors.AnthropicServiceException
 import com.anthropic.errors.PermissionDeniedException
 import com.anthropic.errors.RateLimitException
@@ -17,6 +18,7 @@ import com.anthropic.models.messages.ImageBlockParam
 import com.anthropic.models.messages.MessageCreateParams
 import com.anthropic.models.messages.MessageParam
 import com.anthropic.models.messages.OutputConfig
+import com.anthropic.models.messages.RawMessageStreamEvent
 import com.anthropic.models.messages.StopReason
 import com.anthropic.models.messages.TextBlockParam
 import com.anthropic.models.messages.Tool
@@ -60,8 +62,10 @@ class AnthropicProvider(private val config: AiConfig) : AiProvider {
         @Synchronized
         override fun history(): String = jsonMapper().writeValueAsString(history)
 
+        override fun step(input: List<AiInput>): AiReply = stream(input) {}
+
         @Synchronized
-        override fun step(input: List<AiInput>): AiReply {
+        override fun stream(input: List<AiInput>, live: (AiDelta) -> Unit): AiReply {
             val answered = input.filterIsInstance<AiInput.ToolResult>().map { it.callId }.toSet()
             val interrupted = unanswered.filter { it !in answered }
                 .map { AiInput.ToolResult(it, """{"error":"interrupted","message":"The turn stopped before this result was sent; check what the call did before doing it again."}""", true) }
@@ -84,7 +88,15 @@ class AnthropicProvider(private val config: AiConfig) : AiProvider {
                 }
                 .build()
             val response = try {
-                client.messages().create(params)
+                val accumulator = MessageAccumulator.create()
+                val listener = Listener(live)
+                client.messages().createStreaming(params).use { events ->
+                    events.stream().forEach { event ->
+                        accumulator.accumulate(event)
+                        listener.on(event)
+                    }
+                }
+                accumulator.message()
             } catch (e: Exception) {
                 // The message stays out of the history: the next one is sent after the last answer.
                 history.removeAt(history.lastIndex)
@@ -104,6 +116,29 @@ class AnthropicProvider(private val config: AiConfig) : AiProvider {
             }
             val usage = response.usage()
             return AiReply(texts, calls, stop, usage.inputTokens(), usage.outputTokens())
+        }
+    }
+
+    /** Turns the stream's events into [AiDelta]s; a listener that fails never stops the answer. */
+    private class Listener(private val live: (AiDelta) -> Unit) {
+        private val tools = mutableMapOf<Long, String>()
+        private val texts = mutableMapOf<Long, Int>()
+
+        fun on(event: RawMessageStreamEvent) {
+            val delta = event.contentBlockStart().map { start ->
+                val block = start.contentBlock()
+                block.toolUse().map { tool ->
+                    tools[start.index()] = tool.id()
+                    AiDelta.ToolStart(tool.id(), tool.name())
+                }.orElse(null)
+            }.orElse(null) ?: event.contentBlockDelta().map { d ->
+                d.delta().text().map { text ->
+                    AiDelta.Text(texts.getOrPut(d.index()) { texts.size }, text.text())
+                }.orElse(null) ?: d.delta().inputJson().map { json ->
+                    tools[d.index()]?.let { AiDelta.ToolInput(it, json.partialJson()) }
+                }.orElse(null)
+            }.orElse(null) ?: return
+            runCatching { live(delta) }
         }
     }
 
@@ -138,7 +173,11 @@ class AnthropicProvider(private val config: AiConfig) : AiProvider {
         }.build())
         (tool.input["required"] as? List<*>)?.let { required -> schema.required(required.map(Any?::toString)) }
         schema.putAdditionalProperty("additionalProperties", JsonValue.from(false))
-        return Tool.builder().name(tool.name).description(tool.description).inputSchema(schema.build()).build()
+        // The input streams as the model writes it: a file being written shows before the call ends.
+        // Not through another address: a proxy may refuse the field.
+        return Tool.builder().name(tool.name).description(tool.description).inputSchema(schema.build())
+            .apply { if (config.baseUrl.isBlank()) eagerInputStreaming(true) }
+            .build()
     }
 
     private fun toJson(value: JsonValue): JsonNode = Call.mapper.readTree(Call.mapper.writeValueAsString(value))
