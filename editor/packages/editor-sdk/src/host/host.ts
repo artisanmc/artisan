@@ -367,6 +367,21 @@ export interface AssetInputProps {
   clearable?: boolean;
 }
 
+/** One step of a page's tour: the element it points at, by its `data-tour`, and what it says. */
+export interface PageTourStep {
+  /** `data-tour` of the element the step points at; none, or not on the page: the step shows centred. */
+  target?: string;
+  title: string;
+  description: string;
+}
+
+export interface PageTourProps {
+  open: boolean;
+  steps: readonly PageTourStep[];
+  /** Closed: "Close", Escape, or "Finish" on the last step. */
+  onClose: () => void;
+}
+
 /** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`, `ItemInput`, `MiniMessageInput`, `SortableList`, `ConditionsEditor`, `DocumentRefInput`). */
 export interface HostComponents {
   ActionChainEditor: ComponentType<ActionChainEditorProps>;
@@ -395,6 +410,8 @@ export interface HostComponents {
   OverlaySlotsComposer: ComponentType<OverlaySlotsComposerProps>;
   /** SDK 1.17. */
   LocalizedField: ComponentType<LocalizedFieldProps>;
+  /** SDK 1.19. */
+  PageTour: ComponentType<PageTourProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -562,6 +579,16 @@ export function OverlayComposer(props: OverlayComposerProps): ReactElement {
  */
 export function OverlaySlotsComposer(props: OverlaySlotsComposerProps): ReactElement {
   const Impl = current().components.OverlaySlotsComposer;
+  return createElement(Impl, props);
+}
+
+/**
+ * A page's tour, the editor's guided tour over the module's own steps (SDK 1.19): each step
+ * spotlights its `[data-tour="…"]` element, scrolled into view, with Previous, Next and Close.
+ * The module opens it from its own button ("?"), as often as the player wants; nothing is saved.
+ */
+export function PageTour(props: PageTourProps): ReactElement {
+  const Impl = current().components.PageTour;
   return createElement(Impl, props);
 }
 
