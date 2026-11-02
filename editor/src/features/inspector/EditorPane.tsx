@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { docKey } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
+import { OriginBar } from "@/features/inspector/OriginBar";
 import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { VariantVersionBar } from "@/features/inspector/VariantVersionBar";
 import {
@@ -72,7 +73,10 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
         </Button>
       </div>
       {project && docId && (
-        <VariantVersionBar projectId={projectId} project={project} docKey={docId} />
+        <>
+          <VariantVersionBar projectId={projectId} project={project} docKey={docId} />
+          <OriginBar projectId={projectId} project={project} docKey={docId} />
+        </>
       )}
       <div className="page-pane flex min-h-0 flex-1 flex-col overflow-hidden">
         {yamlMode && project && relPath ? (

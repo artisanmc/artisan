@@ -1267,7 +1267,28 @@ const fr: typeof en = {
     errPlayerRequired: "Cette source requiert un joueur en ligne — preview indisponible.",
     errFetchError: "Le module a échoué : {{message}}",
   },
+  originals: {
+    readOnly:
+      "Tel que le module le livre, en lecture seule. Copie ce qu'il te faut, puis décoche « Original du module » pour modifier.",
+    original: "Version du module",
+    modified: "Ta version",
+    added: "Ajouté par toi",
+    tagModified: "ta version",
+    tagAdded: "ajouté",
+    required: "Le code du module l'ouvre : il ne peut pas être supprimé.",
+    compare: "Comparer avec l'original",
+    compareTitle: "{{name}} : la version du module et la tienne",
+    shipped: "Tel que le module le livre",
+    yours: "Ta version",
+    revert: "Revenir à l'original",
+    revertHint:
+      "Abandonne tes modifications : la version du module sert de nouveau et suit ses mises à jour.",
+    revertConfirm: "Abandonner tes modifications et revenir à la version du module ?",
+  },
   variants: {
+    original: "Original du module (lecture seule)",
+    originalHint: "Ce que le module livre, sans tes modifications : pour regarder et copier",
+    viewAsOriginal: "Original du module : {{name}}",
     viewAs: "Voir en tant que",
     viewAsValue: "Voir en tant que : {{name}}",
     module: "Défaut",

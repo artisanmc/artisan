@@ -2,6 +2,9 @@ package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.JsonNode
 import net.artisanmc.plugin.model.DocumentLayout
+import net.artisanmc.plugin.model.ManifestYaml
+import net.artisanmc.plugin.model.ModuleFile
+import net.artisanmc.plugin.model.Originals
 import net.artisanmc.plugin.project.ProjectMetadataPaths
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import java.util.UUID
@@ -225,6 +228,7 @@ class McpTools(
                         "deploy: the player can allow it in Settings → AI apps.",
                 "Visible text goes in the Document as written; references to other Documents use their id, e.g. `open_menu shop`.",
                 VARIANTS_HOWTO,
+                ORIGINALS_HOWTO,
             ),
             "editor_url" to editorUrl().ifEmpty { null },
         )
@@ -237,13 +241,30 @@ class McpTools(
         val read = projects.read(project)
         val tree = draftId?.let { draftSnapshot(principal, project, it).tree } ?: files(read)
         val kinds = kinds(project.server)
-        val layout = DocumentLayout.classify(tree.keys, kinds.keys)
-        val documents = layout.documents.map { mapOf("path" to it.path, "kind" to kinds[it.dir], "id" to it.id) }
-        val variantDocs = layout.variants.map {
-            mapOf("path" to it.path, "kind" to kinds[it.dir], "id" to it.id, "variant" to it.variant)
+        val manifest = ModuleFile.NAMES.firstNotNullOfOrNull { tree[it] }?.let(ManifestYaml::parse)
+        val index = Originals.parseIndex(tree[Originals.INDEX_PATH])
+        val exclusions = Originals.exclusions(manifest, index)
+        val layout = DocumentLayout.classify(tree.keys, kinds.keys, exclusions.excluded)
+        // What the module ships, id for id: an owner's Document over one of them is a modified one.
+        val prefix = "${Originals.DIR}/"
+        val shipped = DocumentLayout.classify(tree.keys.filter { it.startsWith(prefix) }.map { it.removePrefix(prefix) }, kinds.keys)
+            .let { it.documents + it.variants }.mapTo(HashSet()) { Triple(it.variant, it.dir, it.id) }
+        fun origin(e: DocumentLayout.Entry) = when {
+            e.original -> "original"
+            Triple(e.variant, e.dir, e.id) in shipped -> "modified"
+            else -> "added"
         }
-        val rulesFile = tree.keys.firstOrNull { '/' !in it && it.substringBeforeLast('.') == DocumentLayout.VARIANTS_FILE }
-        val listed = (documents + variantDocs).map { it["path"] }.toSet() + listOfNotNull(rulesFile)
+        val hasOriginals = shipped.isNotEmpty()
+        fun entry(e: DocumentLayout.Entry, vararg extra: Pair<String, Any?>) =
+            linkedMapOf<String, Any?>("path" to e.path, "kind" to kinds[e.dir], "id" to e.id).apply {
+                putAll(extra)
+                if (hasOriginals) put("origin", origin(e))
+            }
+        val documents = layout.documents.map { entry(it) }
+        val variantDocs = layout.variants.map { entry(it, "variant" to it.variant) }
+        val rulesFile = DocumentLayout.variantsPath(tree.keys)
+        val listed = (documents + variantDocs).map { it["path"] }.toSet() + listOfNotNull(rulesFile) +
+            tree.keys.filter { it.startsWith(prefix) }
         @Suppress("UNCHECKED_CAST")
         val failed = (read["failed"] as? List<Map<String, Any?>>).orEmpty()
         val drafts = runCatching { projects.draft(principal, project, "list") }.getOrNull()
@@ -260,6 +281,10 @@ class McpTools(
                     "documents" to variantDocs,
                 )
             },
+            "originals" to if (!hasOriginals) null else mapOf(
+                "module" to index.module, "version" to index.version, "required" to index.required,
+                "excluded" to exclusions.excluded, "exclusions_refused" to exclusions.refused,
+            ),
             "other_files" to tree.keys.filter { it !in listed }.sorted(),
             "not_loaded" to if (draftId == null) failed else emptyList(),
             "your_drafts" to drafts,
@@ -391,6 +416,7 @@ class McpTools(
         val content = if (delete) null else args.get("content")?.takeIf { it.isTextual }?.asText()
             ?: throw McpRefusal("invalid_input", "content is required, unless delete is true.")
         if (!contentPath(path)) throw McpRefusal("invalid_path", "'$path' is not a path a Project file can have.")
+        if (Originals.isOriginal(path)) throw McpRefusal("originals_read_only", ORIGINALS_HOWTO)
         if (content != null && content.length > MAX_FILE) throw McpRefusal("too_large", "A file is at most $MAX_FILE characters.")
         val draft = draftSnapshot(principal, project, draftId)
         if (delete && path !in draft.tree) throw McpRefusal("not_found", "No file '$path' in draft $draftId.")
@@ -650,6 +676,16 @@ class McpTools(
                 "command file (`variants/<name>/commands/<id>.yml`) holds only `actions`, `requirements`, `fallback`, on the root " +
                 "and on `subcommands` found by `name`. For each player and each file, the first enabled rule that holds and whose " +
                 "variant has the file wins, else the module's own file. list_documents shows the variants apart."
+
+        /** How a module's originals work, through the same file tools (design `originaux-modules`). */
+        const val ORIGINALS_HOWTO =
+            "Originals: `originals/` in a module holds what the module ships (its menus, dialogs, commands, variants), " +
+                "written by the server only and updated with the module; it cannot be written. The module's own files hold only " +
+                "what the owner changed or added, and a Document there wins over the original of the same kind and id (same " +
+                "variant). To change an original, write it without the `originals/` prefix (read it first: start from its " +
+                "content). To go back to the original, delete that file. To drop an original, add its path relative to " +
+                "`originals/` to `originals: {exclude: [...]}` in artisan-module.yml; `originals/originals.yml` lists the " +
+                "required ones, which cannot be dropped. list_documents gives each Document's origin: original, modified or added."
 
         /** A result as the model reads it: prose as it is, anything else as JSON, indented for an MCP client's reader. */
         fun resultText(body: Any?, indent: Boolean = true): String = body as? String

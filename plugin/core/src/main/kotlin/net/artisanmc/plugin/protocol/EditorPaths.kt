@@ -21,8 +21,14 @@ object EditorPaths {
         if (p.isBlank()) return false
         val norm = p.replace('\\', '/')
         if (norm.startsWith("/") || norm.contains("..") || norm.contains(":")) return false
+        // A module's originals are the server's to write (design `originaux-modules`).
+        if (net.artisanmc.plugin.model.Originals.isOriginal(norm)) return false
         return !isInvisible(norm)
     }
+
+    /** What the editor may read: [isWritable], plus a module's originals. */
+    fun isReadable(p: String): Boolean =
+        isWritable(p) || (ProjectPathPolicy.valid(p) && net.artisanmc.plugin.model.Originals.isOriginal(p) && !isInvisible(p))
 
     /** Traversal guard for relay-provided relative paths (mirror of ProjectContentReader.resolve). */
     fun isSafeRelPath(p: String): Boolean {

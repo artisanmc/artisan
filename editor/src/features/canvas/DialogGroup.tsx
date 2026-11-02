@@ -7,7 +7,13 @@ import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { SystemTag } from "./SystemTag";
-import { INHERITED_OPACITY, VariantTag, useVariantStatus } from "./VariantTag";
+import {
+  INHERITED_OPACITY,
+  OriginTag,
+  VariantTag,
+  useOriginTag,
+  useVariantStatus,
+} from "./VariantTag";
 import { dispatchOpenElement } from "./canvasEvents";
 import { commitNodeDrag } from "./commitNodeDrag";
 import { DIALOG_BOX } from "./menuLayout";
@@ -27,6 +33,7 @@ export function DialogGroup({ projectId, dialog, position, systemModule }: Dialo
   const key = docKey("dialog", dialog.id);
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(key));
   const variantStatus = useVariantStatus(projectId, "dialog", dialog.id);
+  const originTag = useOriginTag(projectId, "dialog", dialog.id);
   const nodeAlign = useNodeAlignment(projectId, key);
   const node = useNodeColors();
   const accent = useCssVar("--kind-dialog");
@@ -77,6 +84,9 @@ export function DialogGroup({ projectId, dialog, position, systemModule }: Dialo
       opacity={variantStatus === "inherited" ? INHERITED_OPACITY : 1}
     >
       {systemModule && <SystemTag module={systemModule} width={DIALOG_BOX.width} />}
+      {originTag && (
+        <OriginTag status={originTag} width={DIALOG_BOX.width} y={systemModule ? -28 : -14} />
+      )}
       {variantStatus && (
         <VariantTag
           projectId={projectId}

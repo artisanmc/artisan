@@ -4,10 +4,11 @@
 // save). Each Document kind is written by its codec (`documentCodecs.ts`), data
 // sources by `dataV1FromDomain.ts`, translations by `langV1FromDomain.ts`.
 import { listDocumentKinds } from "@/domain/documentKinds";
-import { VARIANTS_DIR, VARIANTS_FILE, documentPath } from "@/domain/documentLayout";
+import { VARIANTS_DIR, VARIANTS_FILE, documentPath, sameFile } from "@/domain/documentLayout";
 import { documentKeys, documentsOf } from "@/domain/documents";
 import { persistedFolderMeta } from "@/domain/folders";
-import type { Project } from "@/domain/types";
+import { sameAsShipped, shippedPath, shippedTwin } from "@/domain/originals";
+import type { Document, Project } from "@/domain/types";
 import { rulesToYaml, withModuleView } from "@/domain/variants";
 import { listLanguages } from "@/lib/i18nUsages";
 import { nestLangTree } from "@/lib/langTree";
@@ -56,9 +57,16 @@ export function projectToFiles(shown: Project): Record<string, string> {
   // One file per document, in its kind's folder under its themed folder, through
   // its kind's codec (ADR `extensible-document-kinds`): the writer knows no kind
   // by name.
+  // Originals (`domain/originals.ts`): a Document equal to what the module ships is not
+  // written, the server's `originals/` serves it.
+  const asShipped = (kind: string, doc: Document, variant: string) => {
+    const twin = shippedTwin(project, kind, doc.id, variant);
+    return !!twin && sameAsShipped(project, kind, doc, twin);
+  };
   for (const def of listDocumentKinds()) {
     const codec = documentCodec(def.kind);
     for (const doc of documentsOf(project, def.kind)) {
+      if (asShipped(def.kind, doc, "")) continue;
       files[`${base}/${documentPath(def.dir, doc.id, doc.folder)}`] = stringify(
         withoutId(codec.serialize(doc, project)),
         yamlOpts,
@@ -73,6 +81,7 @@ export function projectToFiles(shown: Project): Record<string, string> {
       const codec = documentCodec(def.kind);
       for (const name of project.variants.names) {
         for (const doc of project.variants.documents[name]?.[def.kind] ?? []) {
+          if (asShipped(def.kind, doc, name)) continue;
           let body = withoutId(codec.serialize(doc, project));
           // A command's version: only the steps that differ from the module's.
           const own =
@@ -85,10 +94,17 @@ export function projectToFiles(shown: Project): Record<string, string> {
         }
       }
     }
-    files[`${base}/${VARIANTS_FILE}${YAML_EXT}`] = stringify(
-      rulesToYaml(project.variants.rules),
-      yamlOpts,
-    );
+    // The module's rules serve while the owner keeps them as shipped.
+    const shippedRules = project.originals?.rules;
+    if (
+      !shippedRules ||
+      JSON.stringify(rulesToYaml(shippedRules)) !==
+        JSON.stringify(rulesToYaml(project.variants.rules))
+    )
+      files[`${base}/${VARIANTS_FILE}${YAML_EXT}`] = stringify(
+        rulesToYaml(project.variants.rules),
+        yamlOpts,
+      );
   }
 
   // Captured items: the opaque serialized stack is the runtime truth — emit it
@@ -133,6 +149,7 @@ export function projectToFiles(shown: Project): Record<string, string> {
     languages: langs,
     ...(project.loreMaxWidth ? { lore_max_width: project.loreMaxWidth } : {}),
     ...(project.escapeGoesBack ? { escape_goes_back: true } : {}),
+    ...originalsBlock(project),
     // No `files:` block: it duplicated the content of menus/, commands/ and
     // dialogs/ without adding load order or exclusions — a hand-maintained index
     // whose only possible effect was to drift out of sync. Documents are
@@ -209,4 +226,32 @@ export function projectToFiles(shown: Project): Record<string, string> {
   // every export a different byte tree. projectToFiles() is a pure function of
   // the Project.
   return files;
+}
+
+/**
+ * `originals: { exclude }` of the module file: each shipped Document the Project no longer has
+ * (a required one cannot be left out), and what was excluded that names no shipped Document.
+ */
+function originalsBlock(project: Project): Record<string, unknown> {
+  const o = project.originals;
+  if (!o) return {};
+  const required = new Set(o.required.map(sameFile));
+  const shipped = new Set<string>();
+  const exclude: string[] = [];
+  for (const [variant, byKind] of Object.entries(o.documents)) {
+    for (const [kind, docs] of Object.entries(byKind)) {
+      const present = new Set(
+        (variant ? project.variants?.documents[variant]?.[kind] : project.documents[kind])?.map(
+          (d) => d.id,
+        ) ?? [],
+      );
+      for (const doc of docs) {
+        const path = shippedPath(kind, doc, variant);
+        shipped.add(sameFile(path));
+        if (!present.has(doc.id) && !required.has(sameFile(path))) exclude.push(path);
+      }
+    }
+  }
+  for (const path of o.excluded) if (!shipped.has(sameFile(path))) exclude.push(path);
+  return exclude.length > 0 ? { originals: { exclude: [...new Set(exclude)].sort() } } : {};
 }

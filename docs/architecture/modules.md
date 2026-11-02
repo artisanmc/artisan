@@ -777,35 +777,31 @@ api.getTemplates().register(TemplateDeclaration
   Each copied file is tracked in `.artisan/origins.yaml`; `GET …/projects/:project/origins` reads them.
 - **Seeding**: a template with `seed(projectId)` is copied once into a new Project of that
   name (`.artisan-seeds.yaml` at the core root), with a manifest in the server's language, never
-  recreated if the owner deletes it. If that name is the module's own folder
-  (`moduleFolder`, created empty), the files are copied there, with the manifest if missing, without
-  overwriting what is there.
+  recreated if the owner deletes it. If that name is the module's own folder (`moduleFolder`),
+  only the module file is written there: the template's files go to `originals/` like a system
+  template's, optional (design `originaux-modules` §9), so they follow the module's updates and
+  the owner can exclude them. An example the owner had deleted before originals existed is added
+  to the exclusions.
 - **System elements** (API 2.12.0, design `framework-commandes` §3.8): a `.system()` template carries
-  the menus and dialogs that the module's code opens by id. No seeding: at each startup and when
-  the module arrives, `SystemFiles` keeps them in the module's first folder by name. A missing
-  file is rewritten (unless a file of the same name lives under the same type folder elsewhere in the
-  module: moved), an intact copy of an older version is replaced, a file the
-  module no longer ships is deleted if intact, kept if modified, a modified copy
-  stays the admin's and receives the new version through a three-way merge
-  (`ThreeWayMerge`, design `commandes-unifiees` §5): base = the version the file came from,
-  kept in `.artisan/bases/<hash>` (private, outside any scan, deleted when no origin
-  names it any more). Key by key; a list of maps that all carry an `id` (otherwise a `name`) is
-  merged element by element (layers, elements, subcommands, arguments), any other list is
-  a value. An addition by the module is placed after what precedes it in its version. Without conflict, the file
-  is rewritten in the editor's format (`EditorYaml`) and its origin moves to the new version;
-  a value changed on both sides keeps the admin's, and the origin stays on the copied
-  version (the editor flags the new version, Reset takes it), with a line in the log. A
-  non-YAML file, or one without a kept base (modified before this Artisan version while the module
-  already shipped a version other than the one copied), stays as is until Reset.
-  A file present before the module made it a system element counts as modified. Copying a
-  system template anywhere but the module's folder is refused (`system_template`): in that
-  folder, it is a reset. The editor does not offer it for copying.
-  In the editor, Reset of a system element puts the shipped file (read through
-  `GET …/modules/:module/templates/:template`) **into the draft**, like any edit:
-  Deploy publishes it, "Discard changes" cancels it, and a draft in progress does not block it. The
-  "edited" badge compares the published file with the shipped file once both are rewritten in the
-  editor's format (`sameAsShipped`): a file deployed from the editor, identical in substance,
-  remains the module's version.
+  the menus and dialogs that the module's code opens by id. At each startup and when the module
+  arrives, `SystemFiles` writes them under `originals/` in the module's first folder by name, listed
+  `required` in `originals/originals.yml` (they cannot be excluded). The owner's folder holds only
+  their edits (`project-files.md` § Originals): an owner copy identical to the shipped file, or
+  untouched since its origin, is deleted; a modified copy stays the admin's and receives the new
+  version through a three-way merge (`ThreeWayMerge`, design `commandes-unifiees` §5): base = the
+  version the file came from, kept in `.artisan/bases/<hash>` (private, outside any scan, deleted
+  when no origin names it any more). Key by key; a list of maps that all carry an `id` (otherwise a
+  `name`) is merged element by element (layers, elements, subcommands, arguments), any other list
+  is a value. An addition by the module is placed after what precedes it in its version. Without
+  conflict, the file is rewritten in the editor's format (`EditorYaml`) and its origin moves to the
+  new version, and deleted if it now equals the shipped file; a value changed on both sides keeps
+  the admin's, and the origin stays on the copied version, with a line in the log. A non-YAML file,
+  or one without a kept base, stays as is. A file the module no longer ships leaves `originals/`.
+  Copying a system template anywhere but the module's folder is refused (`system_template`). The
+  editor does not offer it for copying.
+  In the editor, a Document of the module shows its origin (original, modified, added); Compare
+  shows the shipped file beside the owner's, Revert drops the owner's version **in the draft**,
+  like any edit: Deploy publishes it (the owner's file is deleted), "Discard changes" cancels it.
 
 ```java
 api.getTemplates().register(TemplateDeclaration

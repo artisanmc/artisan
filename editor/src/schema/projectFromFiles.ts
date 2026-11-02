@@ -1,7 +1,16 @@
 import { normalizeBaseLore } from "@/domain/baseLore";
 import { parseCapturedStack } from "@/domain/capturedStack";
 import { listDocumentKinds } from "@/domain/documentKinds";
-import { VARIANTS_FILE, classifyDocumentLayout } from "@/domain/documentLayout";
+import {
+  type LayoutEntry,
+  ORIGINALS_DIR,
+  ORIGINALS_INDEX,
+  VARIANTS_FILE,
+  classifyDocumentLayout,
+  isOriginalPath,
+  sameFile,
+  variantsPath,
+} from "@/domain/documentLayout";
 import {
   type DocKey,
   allDocuments,
@@ -31,6 +40,7 @@ import type {
   DataModelId,
   DataSource,
   DataSourceId,
+  Document,
   EdgeAnchor,
   I18nKey,
   LText,
@@ -39,12 +49,13 @@ import type {
   ModelFieldType,
   Project,
   ProjectId,
+  ProjectOriginals,
   ProjectVariants,
 } from "@/domain/types";
 import { VARIANT_KINDS, rulesFromYaml } from "@/domain/variants";
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
-import { MODULE_FILE_NAMES, isYamlPath, yamlFilesUnder, yamlStem } from "@/lib/yamlFiles";
+import { MODULE_FILE_NAMES, YAML_EXT, isYamlPath, yamlFilesUnder, yamlStem } from "@/lib/yamlFiles";
 import { parse as parseYaml } from "yaml";
 import { mergeCommandVariant } from "./commandVariant";
 import { documentCodec } from "./documentCodecs";
@@ -62,6 +73,8 @@ interface ManifestYaml {
   escape_goes_back?: boolean;
   /** Legacy, keyed by document folder (`menus`, `commands`, `dialogs`). */
   files?: Record<string, string[] | undefined>;
+  /** What the owner does with the module's originals (design `originaux-modules`). */
+  originals?: { exclude?: unknown };
   /** Legacy home of the board state (pre `.artisan/editor.yaml`). */
   editor_layout?: Record<string, unknown>;
   editor_edges?: Record<string, unknown>;
@@ -562,7 +575,22 @@ export function projectFromFiles(
   // Every Document the layout finds — at the module root or in themed folders
   // (`domain/documentLayout.ts`) — each file through its kind's codec. The
   // container is the project's only store of documents (ADR decision 10).
-  const layout = classifyDocumentLayout(projectPaths(files, projectId), kindDirs());
+  // Originals (design `originaux-modules`): what the module ships, the owner's files over it.
+  const originalsIndex = tryParse<{ required?: unknown }>(
+    getFile(files, projectId, ORIGINALS_INDEX),
+  );
+  const required = Array.isArray(originalsIndex?.required)
+    ? originalsIndex.required.filter((p): p is string => typeof p === "string")
+    : [];
+  const excludedRaw = Array.isArray(manifest.originals?.exclude)
+    ? (manifest.originals.exclude as unknown[]).filter((p): p is string => typeof p === "string")
+    : [];
+  const requiredFiles = new Set(required.map(sameFile));
+  const layout = classifyDocumentLayout(
+    projectPaths(files, projectId),
+    kindDirs(),
+    excludedRaw.filter((p) => !requiredFiles.has(sameFile(p))),
+  );
   const documents = emptyDocuments();
   for (const def of listDocumentKinds()) {
     const entries = layout.documents
@@ -581,19 +609,39 @@ export function projectFromFiles(
   // Refused Document files are kept verbatim: a save must not delete them.
   const unreadFiles: Record<string, string> = {};
   for (const e of layout.errors) {
-    unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
+    if (!isOriginalPath(e.path)) unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
     console.warn(`[projectFromFiles] ${projectId}: ${e.path} not read (${e.reason})`);
   }
   // Variants (design `variantes-modules`, `domain/variants.ts`): their menus and dialogs
   // read like the module's, its commands on the module's (`commandVariant.ts`), the rules from
-  // `variants.yml`. Any other kind, or a command the plugin would refuse, is kept verbatim.
-  const variantsFile = projectPaths(files, projectId).find(
-    (p) => !p.includes("/") && yamlStem(p) === VARIANTS_FILE,
-  );
+  // `variants.yml` (the owner's, else the module's in `originals/`). Any other kind, or a
+  // command the plugin would refuse, is kept verbatim (never an original: the server's).
+  const allPaths = projectPaths(files, projectId);
+  const variantsFile = variantsPath(allPaths);
   const variantPaths = [
     ...layout.variants.map((e) => e.path),
     ...(variantsFile ? [variantsFile] : []),
   ];
+  /** A variant's Document, its command read on [base] (the module's command file, whole). */
+  function readVersion(e: LayoutEntry, basePath: string | undefined): Document | null {
+    const def = listDocumentKinds().find((d) => d.dir === e.dir);
+    let y =
+      def && VARIANT_KINDS.includes(def.kind)
+        ? tryParse<Json>(getFile(files, projectId, e.path))
+        : null;
+    // A command's version holds only its steps: read on the module's command, whole.
+    if (y && def?.kind === "command") {
+      const base = basePath ? tryParse<Json>(getFile(files, projectId, basePath)) : null;
+      y = base ? (mergeCommandVariant(base, y) as Json | null) : null;
+    }
+    if (!def || !y) return null;
+    const r = documentCodec(def.kind).parse({ ...y, id: e.id }, convertOpts);
+    Object.assign(i18nKeys, r.i18nKeys);
+    unsupported.push(...r.unsupported);
+    return e.folder ? ({ ...r.doc, folder: e.folder } as Document) : r.doc;
+  }
+  const kindOfDir = (dir: string) => listDocumentKinds().find((d) => d.dir === dir)!.kind;
+  const byId = (a: LayoutEntry, b: LayoutEntry) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   let variants: ProjectVariants | undefined;
   if (variantsFile) {
     const rules = rulesFromYaml(tryParse<Json>(getFile(files, projectId, variantsFile)));
@@ -601,38 +649,75 @@ export function projectFromFiles(
       ...new Set([...rules.map((r) => r.variant), ...layout.variants.map((e) => e.variant!)]),
     ];
     const byVariant: ProjectVariants["documents"] = {};
-    for (const e of [...layout.variants].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
-      const def = listDocumentKinds().find((d) => d.dir === e.dir);
-      let y =
-        def && VARIANT_KINDS.includes(def.kind)
-          ? tryParse<Json>(getFile(files, projectId, e.path))
-          : null;
-      // A command's version holds only its steps: read on the module's command, whole.
-      if (y && def?.kind === "command") {
-        const own = layout.documents.find((d) => d.dir === e.dir && d.id === e.id);
-        const base = own ? tryParse<Json>(getFile(files, projectId, own.path)) : null;
-        y = base ? (mergeCommandVariant(base, y) as Json | null) : null;
-      }
-      if (!def || !y) {
-        unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
+    for (const e of [...layout.variants].sort(byId)) {
+      const own = layout.documents.find((d) => d.dir === e.dir && d.id === e.id);
+      const doc = readVersion(e, own?.path);
+      if (!doc) {
+        if (!isOriginalPath(e.path)) unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
         continue;
       }
-      const r = documentCodec(def.kind).parse({ ...y, id: e.id }, convertOpts);
-      Object.assign(i18nKeys, r.i18nKeys);
-      unsupported.push(...r.unsupported);
+      const kind = kindOfDir(e.dir);
       const ofVariant = byVariant[e.variant!] ?? {};
       byVariant[e.variant!] = ofVariant;
-      ofVariant[def.kind] = [
-        ...(ofVariant[def.kind] ?? []),
-        e.folder ? { ...r.doc, folder: e.folder } : r.doc,
-      ];
+      ofVariant[kind] = [...(ofVariant[kind] ?? []), doc];
     }
     variants = { rules, names, documents: byVariant };
+  }
+  // What the module ships, as shipped: each Document of `originals/`, the ones the owner's
+  // files cover or exclude included, for the comparison and the way back.
+  const originalPaths = allPaths.filter(isOriginalPath);
+  let originals: ProjectOriginals | undefined;
+  if (originalPaths.length > 0) {
+    const shippedPaths = originalPaths.map((p) => p.slice(ORIGINALS_DIR.length + 1));
+    const shipped = classifyDocumentLayout(
+      // The variants' folder only when the module ships its rules or the owner has some.
+      variantsFile && !shippedPaths.some((p) => !p.includes("/") && yamlStem(p) === VARIANTS_FILE)
+        ? [...shippedPaths, `${VARIANTS_FILE}${YAML_EXT}`]
+        : shippedPaths,
+      kindDirs(),
+    );
+    const at = (e: LayoutEntry): LayoutEntry => ({ ...e, path: `${ORIGINALS_DIR}/${e.path}` });
+    const docs: ProjectOriginals["documents"] = {};
+    const put = (variant: string, kind: string, doc: Document) => {
+      const ofVariant = docs[variant] ?? {};
+      docs[variant] = ofVariant;
+      ofVariant[kind] = [...(ofVariant[kind] ?? []), doc];
+    };
+    for (const e of [...shipped.documents].sort(byId)) {
+      const kind = kindOfDir(e.dir);
+      const y = tryParse<Json>(getFile(files, projectId, at(e).path));
+      if (!y) continue;
+      const r = documentCodec(kind).parse({ ...y, id: e.id }, convertOpts);
+      Object.assign(i18nKeys, r.i18nKeys);
+      put("", kind, e.folder ? ({ ...r.doc, folder: e.folder } as Document) : r.doc);
+    }
+    for (const e of [...shipped.variants].sort(byId)) {
+      const base = shipped.documents.find((d) => d.dir === e.dir && d.id === e.id);
+      const doc = readVersion(at(e), base ? at(base).path : undefined);
+      if (doc) put(e.variant!, kindOfDir(e.dir), doc);
+    }
+    const shippedRules = shippedPaths.find(
+      (p) => !p.includes("/") && yamlStem(p) === VARIANTS_FILE,
+    );
+    originals = {
+      documents: docs,
+      ...(shippedRules
+        ? {
+            rules: rulesFromYaml(
+              tryParse<Json>(getFile(files, projectId, `${ORIGINALS_DIR}/${shippedRules}`)),
+            ),
+          }
+        : {}),
+      required,
+      excluded: excludedRaw,
+    };
   }
   const claimedPaths = new Set([
     ...layout.documents.map((e) => e.path),
     ...layout.errors.map((e) => e.path),
     ...variantPaths,
+    // The server's to write: never kept as the owner's files.
+    ...originalPaths,
   ]);
   const menus = menusOf({ documents });
 
@@ -1025,6 +1110,7 @@ export function projectFromFiles(
     ...(Object.keys(moduleData).length > 0 ? { moduleData: { ...moduleData } } : {}),
     ...(Object.keys(unreadFiles).length > 0 ? { unreadFiles } : {}),
     ...(variants ? { variants } : {}),
+    ...(originals ? { originals } : {}),
     ...(typeof manifest.module === "string" && manifest.module
       ? { ownerModule: manifest.module }
       : {}),

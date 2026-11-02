@@ -66,6 +66,8 @@ class DraftPublication(private val root: File) {
         val changes = linkedMapOf<String, ByteArray?>()
         val expected = linkedMapOf<String, String?>()
         (baseline.fieldNames().asSequence() + tree.fieldNames().asSequence()).toSet().forEach { path ->
+            // A module's originals follow the module, never a draft (design `originaux-modules`).
+            if (net.artisanmc.plugin.model.Originals.isOriginal(path)) return@forEach
             val before = baseline[path]?.asText(); val after = tree[path]?.asText()
             // A file the editor only reformatted keeps its bytes: a draft autosaved before the
             // editor kept them (`keepEquivalentText`) holds every file it read in its own format.
@@ -74,6 +76,7 @@ class DraftPublication(private val root: File) {
         }
         val binaryBase = snapshot["binaryBaseline"]; val binaryTree = snapshot["binaryTree"]
         (binaryBase?.fieldNames()?.asSequence().orEmpty() + binaryTree?.fieldNames()?.asSequence().orEmpty()).toSet().forEach { path ->
+            if (net.artisanmc.plugin.model.Originals.isOriginal(path)) return@forEach
             val before = binaryBase?.get(path)?.get("hash")?.asText(); val after = binaryTree?.get(path)?.get("hash")?.asText()
             if (before != after) {
                 expected[path] = before

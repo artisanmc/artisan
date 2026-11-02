@@ -589,6 +589,7 @@ class SyncedMenuProvider(
         val registry = templates()
         workspace.io.execute {
             val seeds = net.artisanmc.plugin.project.TemplateSeeds(roots, logger, seedLang)
+            val seededBefore = seeds.seeded()
             var wrote = false
             registry?.registered()?.forEach { (moduleId, list) ->
                 list.forEach { template ->
@@ -603,6 +604,18 @@ class SyncedMenuProvider(
                 list.filter { it.isSystem }.forEach { template ->
                     runCatching { if (syncSystemFiles(moduleId, template)) wrote = true }
                         .onFailure { logger?.warning("[Artisan] System elements '$moduleId/${template.id}' not written: ${it.message}") }
+                }
+                // The examples a module seeds into its own folder: originals too, optional.
+                list.filter { !it.isSystem }.forEach { template ->
+                    val dir = seeds.ownFolderSeed(moduleId, template) ?: return@forEach
+                    runCatching {
+                        val seeded = "$moduleId/${template.id}" in seededBefore
+                        val written = net.artisanmc.plugin.project.SystemFiles.sync(dir, moduleId, template, required = false, seeded = seeded)
+                        if (written.isNotEmpty()) {
+                            wrote = true
+                            logger?.info("[Artisan] Originals of '$moduleId/${template.id}' updated in '${dir.name}': ${describeChanges(dir, written)}.")
+                        }
+                    }.onFailure { logger?.warning("[Artisan] Originals '$moduleId/${template.id}' not written: ${it.message}") }
                 }
             }
             if (wrote) refresh(folders = null, notifyModules = false)
@@ -625,8 +638,20 @@ class SyncedMenuProvider(
             if (conflicts.isEmpty()) logger?.info("[Artisan] '${folder.key}/$path' was edited: the new version of '$moduleId' merged into it.")
             else logger?.info("[Artisan] '${folder.key}/$path' was edited: the new version of '$moduleId' merged into it, except ${conflicts.joinToString()}, edited on both sides (the edit stays; Reset in the editor takes the module's version).")
         }
-        if (written.isNotEmpty()) logger?.info("[Artisan] System elements of '$moduleId' written in '${folder.key}': ${written.joinToString()}.")
+        if (written.isNotEmpty()) logger?.info("[Artisan] System elements of '$moduleId' updated in '${folder.key}': ${describeChanges(folder.value, written)}.")
         return written.isNotEmpty()
+    }
+
+    /**
+     * What `SystemFiles.sync` changed, read on the disk after it: the files it wrote, and apart the
+     * owner's copies it removed because the original now serves (an untouched or equal copy).
+     */
+    private fun describeChanges(dir: java.io.File, paths: List<String>): String {
+        val (written, removed) = paths.partition { java.io.File(dir, it).exists() }
+        return buildList {
+            if (written.isNotEmpty()) add("wrote ${written.joinToString()}")
+            if (removed.isNotEmpty()) add("removed (the original serves) ${removed.joinToString()}")
+        }.joinToString("; ")
     }
 
     fun setCustomItemsManager(manager: CustomItemsManager) {

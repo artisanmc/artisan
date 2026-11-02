@@ -108,10 +108,32 @@ internal object DocumentLayout {
     /** A Document's id, and its variant (`""` for the module's own). */
     data class Doc(val id: String, val variant: String)
 
-    /** Document path → [Doc], for the kinds of [kindDirs]. */
+    /**
+     * Document path → [Doc], for the kinds of [kindDirs]. `originals/…` (design `originaux-modules`)
+     * holds what the module ships: an original is read unless the owner's files have a Document
+     * of the same kind, id and variant. (The owner's exclusions live in the module file: the
+     * packs keep an excluded menu's images, unused.)
+     */
     fun docs(paths: List<String>, kindDirs: Set<String>): Map<String, Doc> {
+        val prefix = "originals/"
+        val variantsOn = paths.any { '/' !in it && YamlPaths.stem(it) == "variants" } ||
+            paths.any { it.startsWith(prefix) && it.count { c -> c == '/' } == 1 && YamlPaths.stem(it.removePrefix(prefix)) == "variants" }
+        val own = candidates(paths.filter { !it.startsWith(prefix) }, kindDirs, variantsOn)
+        val shipped = candidates(paths.filter { it.startsWith(prefix) }.map { it.removePrefix(prefix) }, kindDirs, variantsOn)
+        val covered = own.mapTo(HashSet(), ::key)
+        val byPath = shipped.associateBy { it.first }
+        return unique(own) + unique(shipped).filterKeys { key(byPath.getValue(it)) !in covered }.mapKeys { prefix + it.key }
+    }
+
+    private fun key(c: Triple<String, String, Doc>) = c.third.variant + "\u0000" + c.second + "\u0000" + c.third.id
+
+    private fun unique(candidates: List<Triple<String, String, Doc>>): Map<String, Doc> {
+        val count = candidates.groupingBy(::key).eachCount()
+        return candidates.filter { count.getValue(key(it)) == 1 }.associate { it.first to it.third }
+    }
+
+    private fun candidates(paths: List<String>, kindDirs: Set<String>, variantsOn: Boolean): List<Triple<String, String, Doc>> {
         val candidates = ArrayList<Triple<String, String, Doc>>()
-        val variantsOn = paths.any { '/' !in it && YamlPaths.stem(it) == "variants" }
         for (path in paths.sorted()) {
             var rest = path
             var variant = ""
@@ -132,9 +154,7 @@ internal object DocumentLayout {
             if (folders.any { it in RESOURCE_DIRS || !FOLDER.matches(it) } || folders.size > MAX_FOLDER_DEPTH) continue
             candidates += Triple(path, dirs[kindAt], Doc(id, variant))
         }
-        val key = { c: Triple<String, String, Doc> -> c.third.variant + "\u0000" + c.second + "\u0000" + c.third.id }
-        val count = candidates.groupingBy(key).eachCount()
-        return candidates.filter { count.getValue(key(it)) == 1 }.associate { it.first to it.third }
+        return candidates
     }
 
     /** The menu files of a module, its variants' included, as the plugin reads them. */

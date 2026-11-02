@@ -155,7 +155,7 @@ class ProjectReader(
      * refuses (duplicate id, subfolder of a kind folder…) is reported through
      * [onSkip] and not read. Alphabetical order, so stable from one load to the next.
      */
-    private fun documentLayout(projectId: String, projectDir: File): DocumentLayout.Result {
+    private fun documentLayout(projectId: String, projectDir: File, manifest: ManifestYaml): DocumentLayout.Result {
         val paths = projectDir.walkTopDown()
             .maxDepth(SCAN_DEPTH)
             .onEnter { dir ->
@@ -165,7 +165,10 @@ class ProjectReader(
             .filter { it.isFile }
             .map { it.relativeTo(projectDir).invariantSeparatorsPath }
             .toList()
-        val layout = DocumentLayout.classify(paths, DocumentKinds.all().map { it.dir }.toSet())
+        val index = Originals.parseIndex(File(projectDir, Originals.INDEX_PATH).takeIf { it.isFile }?.readText())
+        val exclusions = Originals.exclusions(manifest, index)
+        for (path in exclusions.refused) skip(projectId, ModuleFile.find(projectDir)?.name ?: "manifest.yaml", "originals_required: $path")
+        val layout = DocumentLayout.classify(paths, DocumentKinds.all().map { it.dir }.toSet(), exclusions.excluded)
         for (e in layout.errors) {
             logger?.warning("[Artisan] skipping ${projectDir.name}/${e.path}: ${e.reason}")
             onSkip(projectId, e.path, e.reason)
@@ -210,7 +213,7 @@ class ProjectReader(
         val langMaps = readLangMaps(projectDir, manifest)
         val templates = readLegacyTemplates(projectDir)
         val ctx = ReadContext(projectId, manifest, langMaps, templates)
-        val layout = documentLayout(projectId, projectDir)
+        val layout = documentLayout(projectId, projectDir, manifest)
         val documents = readDocuments(projectDir, layout.documents, ctx)
         val variants = readVariants(projectDir, layout.variants, documents, ctx)
         val variantRules = readVariantRules(projectId, projectDir, variants.keys)
@@ -365,7 +368,10 @@ class ProjectReader(
 
     /** `variants.yml`: its rules, each naming a variant of [variants]; a rule left out is reported. */
     private fun readVariantRules(projectId: String, projectDir: File, variants: Set<String>): List<VariantRule> {
-        val file = YamlFiles.find(projectDir, DocumentLayout.VARIANTS_FILE, ::ignored) ?: return emptyList()
+        // The owner's rules, else the module's (`originals/variants.yml`).
+        val file = YamlFiles.find(projectDir, DocumentLayout.VARIANTS_FILE, ::ignored)
+            ?: YamlFiles.find(File(projectDir, Originals.DIR), DocumentLayout.VARIANTS_FILE, ::ignored)
+            ?: return emptyList()
         val root = tolerant("${file.name} of project ${projectDir.name}", loudSchema = false, onFail = { e ->
             onSkip(projectId, file.name, e.message ?: e::class.simpleName.orEmpty())
         }) {

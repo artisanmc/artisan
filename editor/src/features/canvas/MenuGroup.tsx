@@ -18,7 +18,13 @@ import { PreviewContextBanner } from "./PreviewContextBanner";
 import { SlotDragGhosts } from "./SlotDragGhosts";
 import { SlotItem } from "./SlotItem";
 import { SystemTag } from "./SystemTag";
-import { INHERITED_OPACITY, VariantTag, useVariantStatus } from "./VariantTag";
+import {
+  INHERITED_OPACITY,
+  OriginTag,
+  VariantTag,
+  useOriginTag,
+  useVariantStatus,
+} from "./VariantTag";
 import { dispatchOpenElement } from "./canvasEvents";
 import { positionCount } from "./inventoryTypes";
 import { type SlotEntry, fanoutElements } from "./menuFanout";
@@ -160,6 +166,7 @@ export function MenuGroup({
 
   const total = positionCount(type, menu.rows, menu.playerInventory);
   const variantStatus = useVariantStatus(projectId, "menu", menu.id);
+  const originTag = useOriginTag(projectId, "menu", menu.id);
 
   return (
     <Group
@@ -182,6 +189,9 @@ export function MenuGroup({
     >
       <MenuBackground menu={menu} />
       {systemModule && !solo && <SystemTag module={systemModule} width={box.width} />}
+      {originTag && !solo && (
+        <OriginTag status={originTag} width={box.width} y={systemModule ? -28 : -14} />
+      )}
       {variantStatus && !solo && (
         <VariantTag
           projectId={projectId}

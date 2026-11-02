@@ -27,14 +27,15 @@ class DocumentLayoutConformanceTest {
             val result = DocumentLayout.classify(
                 c["paths"].map { it.asText() },
                 c["kindDirs"].map { it.asText() }.toSet(),
+                c["excluded"]?.map { it.asText() }.orEmpty(),
             )
             assertEquals(
-                c["documents"].map { DocumentLayout.Entry(it["path"].asText(), it["dir"].asText(), it["id"].asText(), it["folder"].asText()) },
+                c["documents"].map { DocumentLayout.Entry(it["path"].asText(), it["dir"].asText(), it["id"].asText(), it["folder"].asText(), original = it["original"]?.asBoolean() ?: false) },
                 result.documents,
             )
             assertEquals(
                 c["variants"]?.map {
-                    DocumentLayout.Entry(it["path"].asText(), it["dir"].asText(), it["id"].asText(), it["folder"].asText(), it["variant"].asText())
+                    DocumentLayout.Entry(it["path"].asText(), it["dir"].asText(), it["id"].asText(), it["folder"].asText(), it["variant"].asText(), it["original"]?.asBoolean() ?: false)
                 }.orEmpty(),
                 result.variants,
             )

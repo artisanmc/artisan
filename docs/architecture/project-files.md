@@ -212,6 +212,62 @@ Paths whose **first segment** starts with `.artisan` are outside the hash and
 invisible to the disk scan — see `invariants.md` § Universal `.artisan*` exclusion. Same for
 `.artisan-trash/`, at the top of `projectsDir`.
 
+## Originals (`originals/`)
+
+Design `originaux-modules`. What a module ships into its own folder lives under `originals/`,
+written by the server only; the owner's folder holds only what they changed or added.
+
+```
+guilds/
+  artisan-module.yml          originals: { exclude: [menus/top.yml] }
+  originals/                  the server's: rewritten at each start and module update
+    originals.yml             index: module, version, required: [menus/main.yml]
+    menus/main.yml
+    menus/ranks.yml
+    variants.yml              the module's display rules
+    variants/textured/menus/main.yml
+  menus/ranks.yml             the owner's edit: wins over the original
+  menus/my_menu.yml           the owner's own
+```
+
+- Loaded = `originals/` under the owner's files. `DocumentLayout.classify(paths, kindDirs,
+  excluded)` adds an `originals/…` entry (`Entry.original = true`) unless the owner has the same
+  (variant, kind folder, id), wherever it sits (a themed folder counts), or the path is excluded.
+  Same in the three copies (core, `plugin/pack`, editor `domain/documentLayout.ts`); vectors in
+  `document-layout-conformance.json` (`excluded`, `original`) and
+  `resource-pack-conformance.json` (case "originals: …"; packs ignore exclusions).
+- `variants.yml`: the owner's if present, else `originals/variants.yml` (`variantsPath`). The
+  owner who changes one rule takes the whole file.
+- Exclusions: `originals.exclude` in the module file (`ManifestYaml.originals`), paths relative
+  to `originals/`, any YAML extension (`sameFile`). A path listed `required` in the index is
+  never excluded: `ProjectReader` reports `originals_required: <path>` on the module file
+  (`Originals.exclusions`).
+- Writing: `SystemFiles.sync` (startup, module arrival) writes `originals/<path>`, keeps the
+  index, deletes an owner copy identical to the shipped file or untouched since its origin,
+  three-way merges an edited one (base in `.artisan/bases/`) and deletes it when the merge
+  equals the shipped file, removes originals no longer shipped. A `.system()` template's files
+  are required; a seed into the module's own folder (`TemplateCopies.ownFolderSeed`) goes the same
+  way with `required = false`, and an example the owner had deleted before is added to the
+  exclusions. A seed or `template_copy` into another project stays a plain copy.
+- Nobody else writes `originals/`: `EditorPaths.isWritable` refuses it (`isReadable` allows it),
+  `DraftPublication` skips it, `DocumentCheck` and MCP `write_document` refuse it
+  (`McpTools.ORIGINALS_HOWTO`). It stays in the content hash: a module update makes a Version.
+- Editor: `projectFromFiles` reads the originals into `Project.originals` (`documents` by variant
+  then kind, `rules`, `required`, `excluded`) and the effective Documents into `documents` as
+  usual. `domain/originals.ts`: `originStatus` (`original` / `modified` / `added`, compared after
+  serialization), `revertToOriginal`, `isRequired`. `projectToFiles` skips a Document identical to
+  its shipped twin, writes `variants.yml` only when the rules differ, and writes the exclusions
+  (a shipped Document absent from the project; a required one cannot be deleted).
+  `saveProjectToDisk` carries `originals/` unchanged. UI: `OriginBar` (properties panel: badge,
+  Compare, Revert), `OriginTag` on the board.
+- View as the original (`showOriginal`, "View as" > Module original): `Project.documents` holds
+  the shipped Documents, the viewed variant's shipped versions over them; the Project's own wait
+  in `Project.originalView` (with the variant), back on closing. Read-only: `mutateProject`
+  drops any edit but a change of view (`MutateOptions.view`); `withModuleView` and `projectTree`
+  close it before writing.
+- MCP: `list_documents` gives each Document's `origin` and an `originals` section; `read_document`
+  reads `originals/…`.
+
 ## Module file — `lore_max_width`
 
 Maximum width of a lore line, in **MC pixels** (vanilla font advances, +1 px per bold

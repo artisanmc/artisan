@@ -1,5 +1,5 @@
 {
-  "note": "Where a module's Documents live on disk — the cross-language contract behind themed folders (docs/architecture/project-files.md § Thematic folders). Input: every file path relative to the module folder, and the registered kind folders. A Document is `<folders…>/<kind dir>/<id>.yml` (or `.yaml`): zero to three themed folders, then a kind folder holding files only. The id is the file name, unique per kind across the module; the themed path never enters it. Paths are sorted. Owned by: plugin DocumentLayoutConformanceTest + editor domain/documentLayout.test.ts. Variants (design variantes-modules): with `variants.yml` (or `.yaml`) at the module root, `variants/<name>/…` is classified like a module path under the variant `<name>` and reported in `variants` (ids unique per kind inside a variant; absent key = no variant); without that file `variants/` is an ordinary themed folder.",
+  "note": "Where a module's Documents live on disk — the cross-language contract behind themed folders (docs/architecture/project-files.md § Thematic folders). Input: every file path relative to the module folder, and the registered kind folders. A Document is `<folders…>/<kind dir>/<id>.yml` (or `.yaml`): zero to three themed folders, then a kind folder holding files only. The id is the file name, unique per kind across the module; the themed path never enters it. Paths are sorted. Owned by: plugin DocumentLayoutConformanceTest + editor domain/documentLayout.test.ts. Variants (design variantes-modules): with `variants.yml` (or `.yaml`) at the module root, `variants/<name>/…` is classified like a module path under the variant `<name>` and reported in `variants` (ids unique per kind inside a variant; absent key = no variant); without that file `variants/` is an ordinary themed folder. Originals (design originaux-modules): `originals/…` holds what the module ships, laid out the same way; an original Document is read (`original: true`, its `originals/…` path) unless the owner has a Document of the same kind and id in the same variant anywhere, or `excluded` (paths relative to `originals/`, `.yml`/`.yaml` alike) lists it. `variants.yml` in `originals/` turns variants on too.",
   "cases": [
     {
       "name": "root kind folders, as before folders existed",
@@ -188,6 +188,35 @@
         { "path": "variants/textured/menus/sub/x.yml", "reason": "kind_dir_subfolder" }
       ],
       "variants": []
+    },
+    {
+      "name": "originals: the owner's Document wins id for id, an excluded original is not read",
+      "kindDirs": ["menus", "commands", "dialogs"],
+      "excluded": ["menus/old.yaml"],
+      "paths": ["artisan-module.yml", "originals/originals.yml", "originals/menus/ranks.yml", "originals/menus/home.yml", "originals/menus/old.yml", "originals/commands/guild.yml", "shop/menus/home.yml", "menus/mine.yml", "originals/menus/sub/x.yml"],
+      "documents": [
+        { "path": "menus/mine.yml", "dir": "menus", "id": "mine", "folder": "" },
+        { "path": "originals/commands/guild.yml", "dir": "commands", "id": "guild", "folder": "", "original": true },
+        { "path": "originals/menus/ranks.yml", "dir": "menus", "id": "ranks", "folder": "", "original": true },
+        { "path": "shop/menus/home.yml", "dir": "menus", "id": "home", "folder": "shop" }
+      ],
+      "errors": [
+        { "path": "originals/menus/sub/x.yml", "reason": "kind_dir_subfolder" }
+      ],
+      "variants": []
+    },
+    {
+      "name": "originals: the module's variants, the owner's version of one",
+      "kindDirs": ["menus", "commands", "dialogs"],
+      "paths": ["originals/variants.yml", "originals/menus/ranks.yml", "originals/variants/textured/menus/ranks.yml", "originals/variants/textured/menus/home.yml", "variants/textured/menus/home.yml"],
+      "documents": [
+        { "path": "originals/menus/ranks.yml", "dir": "menus", "id": "ranks", "folder": "", "original": true }
+      ],
+      "errors": [],
+      "variants": [
+        { "path": "originals/variants/textured/menus/ranks.yml", "dir": "menus", "id": "ranks", "folder": "", "variant": "textured", "original": true },
+        { "path": "variants/textured/menus/home.yml", "dir": "menus", "id": "home", "folder": "", "variant": "textured" }
+      ]
     }
   ]
 }

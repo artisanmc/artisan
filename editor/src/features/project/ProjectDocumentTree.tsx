@@ -13,8 +13,9 @@ import { IconTile } from "@/components/ui/icon-tile";
 import { Tooltip } from "@/components/ui/tooltip";
 import { DEFAULT_GROUP_COLOR, folderGroups } from "@/domain/canvasGroups";
 import { MAX_FOLDER_DEPTH } from "@/domain/documentLayout";
-import { docKey, documentCount, findDocumentByKey } from "@/domain/documents";
+import { docKey, documentCount, findDocumentByKey, parseDocKey } from "@/domain/documents";
 import { childFolders, folderName, listFolders } from "@/domain/folders";
+import { isRequired, originStatus } from "@/domain/originals";
 import { listedDataSources } from "@/domain/projectData";
 import type { Project, ProjectId } from "@/domain/types";
 import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
@@ -304,7 +305,9 @@ export function DocumentGroups({
   const groups = allGroups.filter((g) => !isCollectionKind(g.type));
   const collections = projectCollections(project);
   const originOf = (id: string) =>
-    templateOrigin(templates, project, documentRelPath(project, id), t);
+    project.originals
+      ? originalsOrigin(project, id, t)
+      : templateOrigin(templates, project, documentRelPath(project, id), t);
   // Dropped outside every folder: back to the module's root.
   const root = useFolderDroppable("", editable);
   const container = useRef<HTMLDivElement>(null);
@@ -678,6 +681,32 @@ type DocumentOrigin = Omit<TemplateOrigin, "label"> & {
   /** Puts the module's version back into the draft; absent when it already is. A system file and a copy alike. */
   reset?: () => void;
 };
+
+/**
+ * A Document of a module that ships originals (design `originaux-modules`): the module's
+ * version as is, or the owner's over it, which "Back to the original" drops.
+ */
+function originalsOrigin(project: Project, key: string, t: TFunction): DocumentOrigin | null {
+  const ref = parseDocKey(key);
+  if (!ref) return null;
+  const status = originStatus(project, ref.kind, ref.id);
+  if (!status || status === "added") return null;
+  const system = isRequired(project, ref.kind, ref.id);
+  const reset =
+    status === "modified"
+      ? () => {
+          if (!window.confirm(t("originals.revertConfirm"))) return;
+          useProjectsStore.getState().revertToOriginal(project.id, ref.kind, ref.id);
+          toast.success(t("projectPanel.systemResetDone"));
+        }
+      : undefined;
+  return {
+    tone: status === "modified" ? "modified" : "identical",
+    module: project.ownerModule ?? "",
+    system,
+    ...(reset ? { reset } : {}),
+  };
+}
 
 function templateOrigin(
   templates: ProjectTemplates,
