@@ -428,7 +428,23 @@ export const MM_THEME = EditorView.theme({
     whiteSpace: "nowrap",
     maxWidth: "14em",
   },
-  ".cm-mm-obf": { textDecoration: "underline dashed", textDecorationColor: "var(--text-faint)" },
+  // Obfuscated text stays readable to be edited: a moving hatch over it says it will be
+  // scrambled in game (the preview animates the real glyphs).
+  ".cm-mm-obf": {
+    textDecorationLine: "underline",
+    textDecorationStyle: "wavy",
+    textDecorationColor: "var(--text-mut)",
+    backgroundImage:
+      "repeating-linear-gradient(115deg, transparent 0 4px, color-mix(in srgb, var(--text-faint) 30%, transparent) 4px 6px)",
+    backgroundSize: "16px 100%",
+    animation: "cm-mm-obf-scroll 0.6s linear infinite",
+    borderRadius: "2px",
+  },
+  "@keyframes cm-mm-obf-scroll": {
+    from: { backgroundPosition: "0 0" },
+    to: { backgroundPosition: "16px 0" },
+  },
+  "@media (prefers-reduced-motion: reduce)": { ".cm-mm-obf": { animation: "none" } },
 });
 
 class WrapMarker extends WidgetType {

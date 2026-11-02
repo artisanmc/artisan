@@ -1,0 +1,3 @@
+- **Fixed**: The color and gradient popover keeps one height across its two tabs.
+- **Fixed**: A translation offers only what its text allows in game: no hover or click action on a lore or a menu title.
+- **Fixed**: Obfuscated text is scrambled in the text previews and marked by a moving hatch in the rich editor; its toolbar icon no longer reuses the assistant's.

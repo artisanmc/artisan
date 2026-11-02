@@ -37,6 +37,12 @@ The plugin's other settings (`config.yml`) could only be edited by hand.
    validates, rewrites `config.yml` (comments kept), reloads, and returns the config.
 6. **Migration**: at startup, `server_key`/`ws_url` present in `config.yml`
    are moved to `connection.yml`.
+7. **Text palette** (2026-11-02): `text-palette.colors` (`"<name> #rrggbb"`) and
+   `text-palette.gradients` (`"<name> #rrggbb #rrggbb…"`), string lists the plugin checks
+   entry by entry (`invalid_palette_entry`). A server setting, not a Project's: the
+   palette belongs to the server whatever modules it runs. Editor-only (the toolbar
+   writes the colors into the text), so it is read from the config the plugin reported:
+   offline since the hub started, only the built-in palettes are offered. No history yet.
 
 *Rejected:* `settings.yml` next to `config.yml` (names indistinguishable for an admin);
 closed choices (Nexo/Oraxen…) for pack delegation (guardrail moot given point 3);

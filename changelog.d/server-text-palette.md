@@ -1,0 +1,1 @@
+- **Added**: A text palette per server: named colors and gradients in `config.yml` (`text-palette.colors`, `text-palette.gradients`), edited from the server page's Settings tab and offered first by the MiniMessage toolbar in every module of the server.
