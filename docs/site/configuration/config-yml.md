@@ -33,6 +33,11 @@ Edit it in either place:
 | `resource-pack.container-textures.chest` | `""` | Texture drawn back on other chest windows when a menu turns the vanilla chest texture off. `project:image` names a project image in the vanilla layout (256×256 or an HD multiple). Empty: vanilla texture. |
 | `resource-pack.container-textures.hopper` | `""` | Same, for hoppers. |
 | `resource-pack.container-textures.dispenser` | `""` | Same, for dispensers. |
+| `text-palette.colors` | `[]` | The server's named colors, `"<name> #rrggbb"` each. The editor's formatting toolbar offers them in every module, beside the built-in palettes. |
+| `text-palette.gradients` | `[]` | The server's named gradients, `"<name> #rrggbb #rrggbb [...]"` each (two colors or more). |
+
+The text palette is editor-only: applying a color writes its value into the text, so changing
+the palette never changes existing texts. Edit it from the server page, **Settings**, **Text palette**.
 
 How the pack reaches players is explained in [Resource packs](../resource-packs/).
 
@@ -60,4 +65,8 @@ resource-pack:
     chest: ""
     hopper: ""
     dispenser: ""
+
+text-palette:
+  colors: []
+  gradients: []
 ```
