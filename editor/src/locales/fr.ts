@@ -1332,6 +1332,7 @@ const fr: typeof en = {
     showVariantStep: "Afficher la variante",
     showDefaultStep: "Afficher Défaut",
     otherwise: "Sinon",
+    unreachable: "Jamais atteinte : une étape « Afficher » plus haut termine cette branche.",
     otherwiseDefaultHint:
       "Toujours en fin d'arbre : le joueur pour qui rien au-dessus n'affiche de variante voit les fichiers du module.",
   },

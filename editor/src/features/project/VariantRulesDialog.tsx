@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { ProjectId, Step } from "@/domain/types";
-import { SHOW_DEFAULT, SHOW_VARIANT, endAtShow, variantNames } from "@/domain/variants";
+import { SHOW_DEFAULT, SHOW_VARIANT, variantNames } from "@/domain/variants";
 import { StepTree } from "@/features/inspector/chain/StepTree";
 import { controlledChainOps } from "@/features/inspector/chain/chainOps";
 import { type ChainVocabulary, ChainVocabularyProvider } from "@/lib/actions/chainVocabulary";
@@ -64,6 +64,7 @@ export function VariantRulesDialog({
             ? t("variants.showDefaultStep")
             : name,
       terminal: (name) => name === SHOW_VARIANT || name === SHOW_DEFAULT,
+      unreachable: t("variants.unreachable"),
     }),
     [namesKey, t],
   );
@@ -86,10 +87,7 @@ export function VariantRulesDialog({
             <div className="flex flex-col gap-1.5">
               <StepTree
                 projectId={projectId}
-                ops={controlledChainOps(show, (next) => {
-                  // A show step ends its branch: a drop that leaves a step after one is undone.
-                  if (JSON.stringify(endAtShow(next)) === JSON.stringify(next)) setShow(next);
-                })}
+                ops={controlledChainOps(show, setShow)}
                 steps={show}
                 frames={[]}
                 indent={0}

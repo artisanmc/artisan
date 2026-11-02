@@ -124,9 +124,10 @@ function StepList(props: StepTreeProps) {
     (s) => menusOf(s.openProjects.projects.find((p) => p.id === projectId))[0]?.id,
   );
   const ids = useStepIds(steps);
-  // A list that holds a terminal step of its vocabulary ("Show variant") takes no more.
+  // After a terminal step of its vocabulary ("Show variant"), a list is never read further:
+  // the steps there stay, struck through.
   const vocabulary = useChainVocabulary();
-  const ended = steps.some(
+  const endsAt = steps.findIndex(
     (s) => s.kind === "action" && vocabulary?.terminal?.(s.action.name) === true,
   );
   const listData: StepDragData = { frames, index: steps.length, list: true };
@@ -145,18 +146,26 @@ function StepList(props: StepTreeProps) {
             id={ids[i]!}
             data={{ frames, index: i } satisfies StepDragData}
           >
-            <StepLine {...props} step={step} stepIndex={i} />
+            {endsAt >= 0 && i > endsAt ? (
+              <div
+                data-testid="step-unreachable"
+                title={vocabulary?.unreachable}
+                className="line-through decoration-[var(--text-mut)] opacity-50"
+              >
+                <StepLine {...props} step={step} stepIndex={i} />
+              </div>
+            ) : (
+              <StepLine {...props} step={step} stepIndex={i} />
+            )}
           </SortableStep>
         ))}
-        {ended ? null : (
-          <AddStepLine
-            indent={indent}
-            firstMenuId={firstMenuId}
-            onPick={(newStep) => ops.add(frames, steps.length, newStep)}
-            allowIf={allowIf}
-            literalText={literalText}
-          />
-        )}
+        <AddStepLine
+          indent={indent}
+          firstMenuId={firstMenuId}
+          onPick={(newStep) => ops.add(frames, steps.length, newStep)}
+          allowIf={allowIf}
+          literalText={literalText}
+        />
       </div>
     </SortableContext>
   );

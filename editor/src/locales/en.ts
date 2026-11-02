@@ -1306,6 +1306,7 @@ export default {
     showVariantStep: "Show variant",
     showDefaultStep: "Show Default",
     otherwise: "Otherwise",
+    unreachable: 'Never reached: a "Show" step above ends this branch.',
     otherwiseDefaultHint:
       "Always at the end of the tree: a player for whom nothing above shows a variant sees the module's files.",
   },

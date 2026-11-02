@@ -11,8 +11,10 @@ export interface ChainVocabulary {
   actions: DeclaredAction[];
   /** The name a person reads for one of [actions]. */
   label: (name: string) => string;
-  /** An action that ends its list: nothing can follow it ("+ step" is gone after it). */
+  /** An action that ends its list: the steps after it are never read, shown struck through. */
   terminal?: (name: string) => boolean;
+  /** Why a struck-through step is: shown on hover. */
+  unreachable?: string;
 }
 
 const ChainVocabularyContext = createContext<ChainVocabulary | null>(null);

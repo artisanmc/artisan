@@ -40,7 +40,7 @@ To delete a variant, hover it in that menu and click its trash icon.
 always ends on **Otherwise: Show Default**, which cannot be removed.
 
 The tree is read for each player, top to bottom, up to the first **Show** step they reach: a
-Show step ends its branch, nothing can follow it. The player sees that variant; a menu or dialog
+Show step ends its branch, and steps placed after it show struck through (never reached). The player sees that variant; a menu or dialog
 the variant does not have comes from the module. **Show Default**, or the end of the tree, gives
 the module's own files. So a `bedrock` variant that only redraws two menus still shows the
 module's other menus to Bedrock players.

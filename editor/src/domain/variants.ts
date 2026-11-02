@@ -341,24 +341,7 @@ export function removeVariant(project: Project, name: string): void {
 
 export function setVariantShow(project: Project, show: Step[]): void {
   if (!project.variants) return;
-  project.variants.show = endAtShow(show);
-}
-
-/** [steps] with each list cut after its first show step: a player's path ends there. */
-export function endAtShow(steps: Step[]): Step[] {
-  const at = steps.findIndex(
-    (s) =>
-      s.kind === "action" && (s.action.name === SHOW_VARIANT || s.action.name === SHOW_DEFAULT),
-  );
-  return (at < 0 ? steps : steps.slice(0, at + 1)).map((step) =>
-    step.kind === "action"
-      ? step
-      : {
-          ...step,
-          cases: step.cases.map((c) => ({ ...c, steps: endAtShow(c.steps) })),
-          ...(step.else ? { else: endAtShow(step.else) } : {}),
-        },
-  );
+  project.variants.show = show;
 }
 
 // --- variants.yml -------------------------------------------------------------------------
@@ -413,7 +396,7 @@ function withoutVariant(steps: Step[], name: string): Step[] {
  */
 export function showFromYaml(raw: unknown): Step[] {
   const file = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  if (file.show !== undefined) return endAtShow(stepsFromWire(file.show));
+  if (file.show !== undefined) return stepsFromWire(file.show);
   const wire = legacyRules(file.rules)
     .filter((r) => r.enabled)
     .map((r) =>
