@@ -8,7 +8,7 @@ import org.bukkit.command.CommandSender;
  * and Spigot alike. Input is MiniMessage; {@code §} codes are accepted and converted. Malformed
  * text never throws: it degrades to plain text. Every method may be called from any thread.
  *
- * @since 2.10.0
+ * @since 1.0.0
  */
 @Stable
 public interface TextApi {

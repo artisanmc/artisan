@@ -7,7 +7,7 @@ import org.bukkit.command.CommandSender;
 /**
  * What a {@link SuggestionProvider} knows about the completion under way.
  *
- * @since 2.14.0
+ * @since 1.0.0
  */
 @Beta
 public interface SuggestionContext {

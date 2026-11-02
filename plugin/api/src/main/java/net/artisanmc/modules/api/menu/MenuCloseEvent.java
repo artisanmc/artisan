@@ -17,7 +17,7 @@ public final class MenuCloseEvent extends PlayerEvent {
     private final MenuRef menu;
     private final MenuCloseReason reason;
 
-    /** @since 2.10.0 */
+    /** @since 1.0.0 */
     public MenuCloseEvent(Player player, MenuRef menu, MenuCloseReason reason) {
         super(player);
         this.menu = menu;
@@ -34,7 +34,7 @@ public final class MenuCloseEvent extends PlayerEvent {
         return menu;
     }
 
-    /** @since 2.10.0 */
+    /** @since 1.0.0 */
     public MenuCloseReason getCloseReason() {
         return reason;
     }

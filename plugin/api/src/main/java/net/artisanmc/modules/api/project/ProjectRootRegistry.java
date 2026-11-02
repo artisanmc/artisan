@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Lets an add-on host its Project in its <b>own plugin dir</b> instead of the core
  * {@code plugins/Artisan/modules/} ({@code api.projectRoots}, ADR {@code addon-owned-project-roots}).
- * Call {@link #register} once from {@code onEnable(api)}. Since 2.8.0, {@link #moduleFolder} gives
+ * Call {@link #register} once from {@code onEnable(api)}. {@link #moduleFolder} gives
  * the module a folder under {@code plugins/Artisan/modules/} instead, where its project moves.
  */
 @Stable
@@ -46,7 +46,7 @@ public interface ProjectRootRegistry {
      * Same as {@link #register(String, File, String)}, for a root that holds the module's
      * <b>configuration</b> (a singleton edited by its config screens, such as a rewards table),
      * not content: the editor lists it under the module, not among the server's Projects. It is
-     * read, published and versioned like any Project. Since 2.7.0.
+     * read, published and versioned like any Project.
      */
     @Beta
     default void registerConfig(String projectId, File dir, String moduleId) {
@@ -64,7 +64,7 @@ public interface ProjectRootRegistry {
      * folder does not exist yet. Pass as {@code folder} the project id it was registered under:
      * its Versions and drafts follow, and qualified references ({@code <folder>:<id>}) keep
      * resolving. While both directories hold files, or when the move fails, {@code legacyDir}
-     * stays registered as before and is returned, with an error in the log. Since 2.8.0.
+     * stays registered as before and is returned, with an error in the log.
      *
      * @param folder lowercase letters, digits, {@code _} and {@code -}
      * @param legacyDir the former root, or {@code null} for a module that never had one

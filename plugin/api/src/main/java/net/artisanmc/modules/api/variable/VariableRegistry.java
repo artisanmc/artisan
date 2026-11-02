@@ -52,7 +52,7 @@ public final class VariableRegistry implements OwnedRegistry {
      * value for {@code player}: Artisan fires the core Game event {@code variable_changed}, so a
      * Trigger reacts to it instead of polling (ADR {@code triggers-and-variables} §10). Optional: a
      * module that never calls it stays correct, readers learn the value at their next read. Call it
-     * on the thread that owns {@code player}. An undeclared name does nothing. Since 2.25.0.
+     * on the thread that owns {@code player}. An undeclared name does nothing.
      */
     @Beta
     public void changed(Player player, String qualifiedName, @Nullable String key) {

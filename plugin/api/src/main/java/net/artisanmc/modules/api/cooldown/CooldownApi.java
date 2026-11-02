@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.artisanmc.modules.api.annotations.Beta;
 
 /**
- * Per-player cooldowns ({@code api.getCooldowns()}, API 2.16.0): the store behind a menu's and a
+ * Per-player cooldowns ({@code api.getCooldowns()}): the store behind a menu's and a
  * command's {@code cooldown} and the {@code cooldown_passed} condition. Kept in the suite database
  * ({@code artisan_cooldowns}), so a cooldown survives a restart and follows its player across the
  * servers of a network. A read never waits for the database: it answers from memory, which is

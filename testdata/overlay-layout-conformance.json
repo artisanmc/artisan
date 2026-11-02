@@ -1,5 +1,5 @@
 {
-  "_comment": "Overlay layouts (OverlayLayout, API 2.21.0): reading the YAML list (problems by path and code, how many layers are kept, the pack images at their rise, or by their bottom for a slot's default anchored bottom) and placing a frame (draws in order: image or text, left x from the screen's centre, rise of the top). Widths are width_per_char px a character of the row's string; image heights come from heights (an asset absent there is not in the pack). Read by OverlayLayoutConformanceTest (plugin api); the editor's port reads it too.",
+  "_comment": "Overlay layouts (OverlayLayout): reading the YAML list (problems by path and code, how many layers are kept, the pack images at their rise, or by their bottom for a slot's default anchored bottom) and placing a frame (draws in order: image or text, left x from the screen's centre, rise of the top). Widths are width_per_char px a character of the row's string; image heights come from heights (an asset absent there is not in the pack). Read by OverlayLayoutConformanceTest (plugin api); the editor's port reads it too.",
   "width_per_char": 6,
   "read": [
     {

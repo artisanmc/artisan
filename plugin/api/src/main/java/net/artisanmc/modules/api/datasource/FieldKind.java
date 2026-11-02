@@ -7,7 +7,7 @@ import net.artisanmc.modules.api.model.ModelFieldType;
 
 /**
  * Row-field kinds a data source could declare in its {@link DataSourceDeclaration#getSchema()}
- * before 2.0.0. Since 2.0.0 a {@link DataSourceField} takes a {@link ModelFieldType}, the one
+ * in their first form. A {@link DataSourceField} now takes a {@link ModelFieldType}, the one
  * field-type vocabulary of the API (Data models, Action arguments, data source rows).
  *
  * <p>Mapping ({@link #toModelFieldType()}): {@code STRING} → {@link ModelFieldType#string()},
@@ -26,7 +26,7 @@ import net.artisanmc.modules.api.model.ModelFieldType;
 @Stable
 @Sunset(
     reason = "One field-type vocabulary: ModelFieldType (data source rows, Data models, Action arguments)",
-    removeInVersion = "3.0.0",
+    removeInVersion = "2.0.0",
     replacement = "ModelFieldType, through new DataSourceField(name, ModelFieldType)"
 )
 public enum FieldKind {

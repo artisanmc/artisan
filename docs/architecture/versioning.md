@@ -4,6 +4,8 @@ Reference manual for evolving Artisan without breaking existing servers and modu
 
 **Status**: target architecture — V1 implements the necessary minimum, the rest is added organically.
 
+**Public numbering (2026-11).** The plugin and the API both start their public line at **1.0.0**. The plugin's version is its `v*` tag (`release-jars.yml`); the API's is the highest `Since` of `api-surface.md` (`deploy/api-version.mjs`), released as `api-v*`. Before that, the API was numbered 1.0.0 → 2.25.0 internally: those artifacts and `api-v*` tags were removed from repo.artisanmc.net and GitHub (backup in the project files, `backups/api-2x-2026-11-02/`), and `api-surface.md` quotes them as "internal X.Y.Z". The two lines are independent: an add-on states the API it needs (`isCompatibleWith`), never a plugin version.
+
 ---
 
 ## 1. The 6 versioning surfaces
@@ -188,7 +190,7 @@ net.artisanmc.core
 
 ### 3.2 Stability annotations
 
-`plugin/api` has been written **in Java** since API 2.0.0 (ADR `extensible-document-kinds`, "Language of
+`plugin/api` has been written **in Java** since the first public API (ADR `extensible-document-kinds`, "Language of
 the public API"): interfaces, immutable classes, enums, `@FunctionalInterface` callbacks, no
 `kotlin.*` type and no `kotlin-stdlib` in the POM. The annotations live in
 `net.artisanmc.modules.api.annotations`:
