@@ -54,6 +54,8 @@ below, Durable Object `QuotaObject` (migration `v1`). `PACK_ALERT_WEBHOOK` is no
 `PACK_ADMIN_TOKEN` is to be replaced by one Iban keeps (Worker → Settings → Variables and Secrets).
 Deployed through the Cloudflare API with the bundle of `npm run build`; with a token, the commands
 below do the same.
+`vanilla/icons-<version>.zip` for 1.21.4, 1.21.11, 26.1.2, 26.2 and 26.3 uploaded 2026-11-03 (through a
+temporary Worker bound to the bucket, deleted after), with the Worker carrying the `/vanilla` route.
 
 ```bash
 npx wrangler r2 bucket create artisan-packs
