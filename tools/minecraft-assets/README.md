@@ -29,5 +29,17 @@ bun gen-char-advances.ts 1.21.x   # if the vanilla font changed
 bun gen-padded-fonts.ts 1.21.x    # idem
 ```
 
-Commit `items/<version>.json` and `icons/icons-<version>.zip`. The hub embeds them in its jar
-(`plugin/hub/build.gradle.kts`: the catalogue always, the icons with `-PwithEditor`).
+Commit `items/<version>.json` and `icons/icons-<version>.zip`. The jar embeds the catalogue and only
+the SHA-256 of each icon zip (`plugin/hub/build.gradle.kts`); hubs download the zip itself from the pack
+CDN (`https://cdn.artisanmc.net/vanilla/icons-<version>.zip`, `VanillaAssets`), so upload it before
+releasing a jar that knows its hash:
+
+```bash
+cd deploy/pack-cdn-worker
+npx wrangler r2 object put artisan-packs/vanilla/icons-<version>.zip --remote \
+  --file ../../tools/minecraft-assets/icons/icons-<version>.zip
+```
+
+A zip changed after a release must keep its name and contents together: a hub whose hash differs
+refuses it and shows flat textures. To render, Playwright needs its own Chromium; another one goes
+through `CHROMIUM_PATH=/path/to/chromium`.

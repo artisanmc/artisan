@@ -12,6 +12,7 @@ its tunnel, carries no player download.
 | `POST /resource-pack/<sha1>.zip` | hub, bearer tunnel secret | "I still serve it": 200 `{url}`, rewritten if older than `PACK_REFRESH_DAYS`; 404: upload it. |
 | `PUT /resource-pack/<sha1>.zip` | hub, bearer tunnel secret | The zip, `Content-Length` required. 201 `{url}`, 200 if already there, 401, 411, 413, 422 (SHA-1 mismatch, or no `pack.mcmeta` at the root), 429 (quota, `Retry-After` until midnight UTC). |
 | `DELETE /admin/resource-pack/<sha1>.zip` | bearer `PACK_ADMIN_TOKEN` | Takes a pack down; answers which server sent it. Other colos' caches keep it a day at most. |
+| `GET`, `HEAD /vanilla/icons-<version>.zip` | hubs | The editor's 3D item icons (`tools/minecraft-assets/icons`), uploaded by hand: `npx wrangler r2 object put artisan-packs/vanilla/icons-<version>.zip --remote --file …`. The hub checks their SHA-256. |
 | `GET /health` | | `ok` |
 
 ## How it works
@@ -66,5 +67,5 @@ curl https://cdn.artisanmc.net/health
 ```
 
 The bucket gets no public access and no R2 custom domain: every read goes through the Worker, which
-serves only `packs/`. Rollback: `web.pack-cdn: ""` on the hubs, or delete the Worker; hubs then serve
+serves only `packs/` and `vanilla/` (no lifecycle rule on `vanilla/`). Rollback: `web.pack-cdn: ""` on the hubs, or delete the Worker; hubs then serve
 their packs themselves.

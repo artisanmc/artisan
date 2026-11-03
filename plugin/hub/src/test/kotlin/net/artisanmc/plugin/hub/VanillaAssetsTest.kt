@@ -18,7 +18,7 @@ class VanillaAssetsTest {
     private val cache = Files.createTempDirectory("vanilla").toFile()
     private val http = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
 
-    @AfterTest fun stop() { http.stop(0); cache.deleteRecursively() }
+    @AfterTest fun stop() { http.stop(0); cache.deleteRecursively(); jarRoots.forEach { it.deleteRecursively() } }
 
     @Test fun `the catalogue closest to the server version is picked`() {
         assertEquals("1.21.4", VanillaAssets(cache, "1.21.4", null).catalogVersion)
@@ -60,6 +60,38 @@ class VanillaAssetsTest {
         assertTrue(!File(cache, "1.21.4/.done").exists())
     }
 
+    @Test fun `icons come from the CDN once their checksum matches the jar's`() {
+        val zip = zip("mc-assets/1.21.4/textures/icons/oak_log.png" to "log", "items/1.21.4.json" to "[]")
+        serve("/vanilla/icons-1.21.4.zip", zip)
+        http.start()
+
+        val assets = VanillaAssets(cache, "1.21.4", null, loader = jarWithIconHash(sha256(zip)), manifestUrl = OFFLINE, iconsUrl = url("/vanilla"))
+        assertTrue(assets.downloadIcons())
+        assertEquals("log", assets.texture("icons/oak_log")!!.decodeToString())
+        assertTrue(File(cache, "icons/1.21.4/.done").isFile)
+        assertTrue(!File(cache, "icons/icons-1.21.4.zip.part").exists())
+    }
+
+    @Test fun `icons that do not match the jar's checksum are not extracted`() {
+        serve("/vanilla/icons-1.21.4.zip", zip("mc-assets/1.21.4/textures/icons/oak_log.png" to "log"))
+        http.start()
+
+        val assets = VanillaAssets(cache, "1.21.4", null, loader = jarWithIconHash("00"), manifestUrl = OFFLINE, iconsUrl = url("/vanilla"))
+        assertTrue(!assets.downloadIcons())
+        assertNull(assets.texture("icons/oak_log"))
+    }
+
+    /** A jar holding the 1.21.4 catalogue and the checksum of its icons. */
+    private fun jarWithIconHash(hash: String): ClassLoader {
+        val root = Files.createTempDirectory("jar").toFile().also { jarRoots += it }
+        File(root, "vanilla/items").apply { mkdirs() }.resolve("versions.txt").writeText("1.21.4")
+        File(root, "vanilla/items/1.21.4.json").writeText("[]")
+        File(root, "vanilla/icons").apply { mkdirs() }.resolve("1.21.4.sha256").writeText(hash)
+        return java.net.URLClassLoader(arrayOf(root.toURI().toURL()), null)
+    }
+
+    private val jarRoots = mutableListOf<File>()
+
     companion object { const val OFFLINE = "http://127.0.0.1:1/manifest" }
 
     private fun url(path: String) = "http://127.0.0.1:${http.address.port}$path"
@@ -74,6 +106,8 @@ class VanillaAssetsTest {
         ZipOutputStream(out).use { zip -> entries.forEach { (name, text) -> zip.putNextEntry(ZipEntry(name)); zip.write(text.toByteArray()); zip.closeEntry() } }
         return out.toByteArray()
     }
+
+    private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
     private fun sha1(bytes: ByteArray) = MessageDigest.getInstance("SHA-1").digest(bytes).joinToString("") { "%02x".format(it) }
 }
