@@ -23,6 +23,8 @@ class PackInput(
     val containerTextures: Map<String, String> = emptyMap(),
     /** Redraw the containers a menu makes transparent (`vanilla_gui_v1`). */
     val transparentContainers: Boolean = true,
+    /** `resource-pack.hide-inventory-label` of `config.yml`: empty the client's "Inventory" label ([InventoryLabel]). */
+    val hideInventoryLabel: Boolean = false,
     /** Also build the server's Bedrock pack; the id seeds its uuid. */
     val bedrockServerId: String? = null,
 )
@@ -118,6 +120,7 @@ object ResourcePackBuilder {
             sources,
             if (input.transparentContainers) transparent else emptySet(),
             overlayImages,
+            input.hideInventoryLabel,
         )
         val serverId = input.bedrockServerId ?: return java
         // Asset names collide across Projects as the Java pack resolves them: the first Project (by id) wins.
@@ -155,6 +158,7 @@ object ResourcePackBuilder {
         sources: Map<GuiContainer, ByteArray>,
         transparent: Set<GuiContainer>,
         overlayImages: List<OverlayImageRequest>,
+        hideInventoryLabel: Boolean,
     ): PackResult {
         val remapped = assets.map { a ->
             if (a.type != "glyph" || a.codepoint == null) a
@@ -167,6 +171,7 @@ object ResourcePackBuilder {
 
         val index = AssetIndex(remapped, transparent)
         VanillaGui.files(sources, transparent, files)
+        if (hideInventoryLabel) InventoryLabel.files(files)
         ImageButtons.build(files, index, glyphPngs, imageButtons)
         OverlayImages.build(files, index, glyphPngs, overlayImages)
         files["assets/artisan/asset-index.json"] = Js.stringifyBytes(index.json(), 2)

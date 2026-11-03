@@ -2049,6 +2049,8 @@ const fr: typeof en = {
         "send-delay-ticks": "Délai d'envoi (ticks)",
         "delegate-to-dir": "Dossier du pack de Nexo, Oraxen ou ItemsAdder (chemin)",
         "delegate-reload-command": "Commande de rechargement après délégation",
+        "hide-inventory-label":
+          "Masquer le libellé « Inventaire » sous les menus (tous les conteneurs, toutes les langues)",
         "container-textures": {
           chest: "Coffres",
           hopper: "Entonnoirs",

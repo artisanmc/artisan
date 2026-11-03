@@ -35,6 +35,7 @@ class ResourcePackConformanceTest {
             projects = projects,
             containerTextures = case["containerTextures"].fields().asSequence().associate { (k, v) -> k to v.asText() },
             transparentContainers = case["vanillaGui"].asBoolean(),
+            hideInventoryLabel = case["hideInventoryLabel"]?.asBoolean() ?: false,
             bedrockServerId = case["bedrock"]?.get("serverId")?.asText(),
         )
     }
