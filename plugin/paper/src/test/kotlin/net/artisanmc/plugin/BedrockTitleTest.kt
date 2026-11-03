@@ -26,10 +26,11 @@ class BedrockTitleTest {
         assertEquals(BedrockTitle.key("guilds", "main"), BedrockTitle.key("guilds", "main", ""))
     }
 
-    @Test fun `only chests of 3 or 6 rows with a visible inventory are styled`() {
+    @Test fun `only chests of 1 to 6 rows with a visible inventory are styled`() {
         assertTrue(BedrockTitle.supports(menu("id: a\nsize: 27")))
         assertTrue(BedrockTitle.supports(menu("id: a\nsize: 54")))
-        assertFalse(BedrockTitle.supports(menu("id: a\nsize: 36")))
+        assertTrue(BedrockTitle.supports(menu("id: a\nsize: 36")))
+        assertTrue(BedrockTitle.supports(menu("id: a\nsize: 9")))
         assertFalse(BedrockTitle.supports(menu("id: a\nsize: 27\nplayer_inventory: hidden")))
         assertFalse(BedrockTitle.supports(menu("id: a\nsize: 5\ninventory_type: hopper")))
     }

@@ -9,6 +9,8 @@ import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
  * pack host, where players then download it; either way it goes to `ResourcePackManager`:
  * delegation to the pack plugin or direct push. The Bedrock pack goes to `BedrockPackManager`
  * (Geyser hands it to Bedrock players), never to the host: Geyser downloads it, not the players.
+ * `GET SERVER/bedrock-pack` (public) tells a Geyser elsewhere (the Artisan Geyser extension on a
+ * proxy) which Bedrock pack is current.
  *
  * With [builder] applying the Java pack, the hub builds both packs itself: `POST
  * …/resource-pack/rebuild` asks it to (the editor after a publication or a config change), and the
@@ -64,6 +66,12 @@ class PackRoutes(
                 call.json(mapOf("hash" to hash))
             }
             serve(router, packs)
+            // The Artisan Geyser extension on a proxy polls this to follow the server's pack.
+            router.on("GET", "$SERVER/bedrock-pack", null) { call ->
+                val server = servers.of(call) ?: return@on call.error(404, "not_found")
+                val pack = server.bedrockPack() ?: return@on call.error(404, "no_pack")
+                call.json(pack)
+            }
         }
     }
 
