@@ -2132,6 +2132,33 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
+            "client_is"
+          ],
+          "properties": {
+            "client_is": {
+              "enum": [
+                "java",
+                "bedrock"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "has_resource_pack"
+          ],
+          "properties": {
+            "has_resource_pack": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
             "random_chance"
           ],
           "properties": {
@@ -2529,6 +2556,35 @@
             },
             "world": {
               "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "client"
+          ],
+          "properties": {
+            "type": {
+              "const": "client_is"
+            },
+            "client": {
+              "enum": [
+                "java",
+                "bedrock"
+              ]
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "has_resource_pack"
             }
           }
         },

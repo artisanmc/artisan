@@ -94,6 +94,8 @@ private fun printAtom(c: DslCondition): String = when (c) {
     is DslCondition.HasXp -> "has_xp(${jsNum(c.amount)})"
     is DslCondition.HasLevel -> "has_level(${jsNum(c.level)})"
     is DslCondition.WorldIs -> "world_is(${arg(c.world)})"
+    is DslCondition.ClientIs -> "client_is(${arg(c.client)})"
+    DslCondition.HasResourcePack -> "has_resource_pack"
     is DslCondition.RandomChance -> "random_chance(${jsNum(c.probability)})"
     is DslCondition.CooldownPassed -> "cooldown_passed(${arg(c.cooldownId)})"
     is DslCondition.PlayerInRegion -> "player_in_region(${arg(c.region)})"

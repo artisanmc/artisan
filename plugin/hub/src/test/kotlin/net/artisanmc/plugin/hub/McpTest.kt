@@ -172,6 +172,8 @@ class McpTest {
         val docs = tool(access, "list_documents", "project" to "u-local.shop")["structuredContent"]
         assertEquals("menus/shop.yml", docs["documents"][0]["path"].asText())
         assertEquals("menu", docs["documents"][0]["kind"].asText())
+        assertTrue(docs["variants"].isNull, docs.toString())
+        assertTrue("variants.yml" in overview["workflow"].toString())
 
         val started = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: boutique")["structuredContent"]
         val draftId = started["draft_id"].asText()

@@ -70,10 +70,17 @@ class DocumentCheck(
         val problems = mutableListOf<Problem>()
         val actionCheck = ActionCheck(actions())
         val layout = DocumentLayout.classify(project.keys, DocumentKinds.all().map { it.dir }.toSet())
-        val documents = layout.documents.associateBy { it.path }
+        // A variant's menu or dialog is a whole Document, checked like the module's; its command
+        // holds only steps (`CommandVariant`): the engine load checks it.
+        val variable = setOf(DocumentKinds.MENU.dir, DocumentKinds.DIALOG.dir)
+        val documents = (layout.documents + layout.variants.filter { it.dir in variable }).associateBy { it.path }
         for (path in paths) {
             if (!ProjectPathPolicy.valid(path)) {
                 problems += Problem(path, "layout", "this path cannot be written in a Project")
+                continue
+            }
+            if (net.artisanmc.plugin.model.Originals.isOriginal(path)) {
+                problems += Problem(path, "layout", "originals/ holds what the module ships: the server writes it; write the same path without originals/ instead")
                 continue
             }
             layout.errors.firstOrNull { it.path == path }?.let { problems += Problem(path, "layout", it.reason) }

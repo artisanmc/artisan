@@ -14,6 +14,10 @@ export interface TestPlayer {
   xp: number;
   level: number;
   world: string;
+  /** The client played on (`client_is`); absent: Java. */
+  client?: "java" | "bedrock";
+  /** Whether the client loaded the server's pack (`has_resource_pack`); absent: no. */
+  hasPack?: boolean;
   /** PlaceholderAPI values by name, without the `%`: `vault_eco_balance` → `1200`. */
   placeholders: Record<string, string>;
   /** The value of each condition the preview cannot evaluate, by `conditionKey`; absent: true. */

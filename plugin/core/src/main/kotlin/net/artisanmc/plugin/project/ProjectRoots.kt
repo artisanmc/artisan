@@ -129,9 +129,29 @@ class ProjectRoots(
             logger?.info("[Artisan] Module '$moduleId' moved from ${legacy.path} to ${target.path}.")
         }
         target.mkdirs()
+        stampModuleKey(folder, target)
         register(folder, target, moduleId)
         return@synchronized target
     }
+
+    /**
+     * A module's folder sits in the core root, where it is a plain folder until its module
+     * registers it (seconds after the editor answers, at startup). Its key file says `addon:<folder>`
+     * so that window reads the same key: else a request then gets a new UUID, and the owner's
+     * draft splits in two rows.
+     */
+    private fun stampModuleKey(folder: String, dir: File) {
+        val file = File(dir, KEY_FILE)
+        val key = "addon:$folder"
+        if (file.takeIf { it.isFile }?.readText()?.trim() == key) return
+        file.parentFile.mkdirs()
+        file.writeText("$key\n")
+        invalidate()
+    }
+
+    /** A key file naming another module's folder: a copy of it, which is not that module. */
+    private fun foreignAddonKey(projectId: String, key: String): Boolean =
+        key.startsWith("addon:") && key != "addon:$projectId"
 
     override fun registerConfig(projectId: String, dir: File, moduleId: String) {
         configRoots.add(projectId)
@@ -147,7 +167,7 @@ class ProjectRoots(
         if (isRegistered(projectId)) return "addon:$projectId"
         listing?.keys?.get(projectId)?.let { return it }
         val file = File(dirFor(projectId), KEY_FILE)
-        return file.takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() } ?: newKey(file)
+        return file.takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() && !foreignAddonKey(projectId, it) } ?: newKey(file)
     }
 
     private fun newKey(file: File): String = java.util.UUID.randomUUID().toString().also {
@@ -166,6 +186,10 @@ class ProjectRoots(
             if (isRegistered(projectId)) continue
             val file = File(dir, KEY_FILE)
             val key = file.takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+            if (foreignAddonKey(projectId, key)) {
+                keys[projectId] = newKey(file)
+                continue
+            }
             val first = seen.putIfAbsent(key, projectId)
             if (first == null) {
                 keys[projectId] = key

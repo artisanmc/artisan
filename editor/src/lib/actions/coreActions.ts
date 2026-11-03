@@ -4,6 +4,7 @@ import { CORE_GAME_EVENTS } from "@/modules/triggers/gameEvents";
 import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useCallback } from "react";
 import vector from "../../../../testdata/core-actions.json";
+import { useChainVocabulary } from "./chainVocabulary";
 
 /**
  * Artisan's own action vocabulary, as the plugin declares it (`CoreActions.kt`): the
@@ -91,8 +92,12 @@ export const declaredActionOf: DeclaredActionLookup = (name) =>
 /** The same lookup as a hook: re-renders when the server's declared actions change. */
 export function useDeclaredActionOf(): DeclaredActionLookup {
   const actions = useServerActionsStore((s) => s.actions);
+  const vocabulary = useChainVocabulary();
   return useCallback(
-    (name: string) => coreActionOf(name) ?? actions.find((a) => a.name === name),
-    [actions],
+    (name: string) =>
+      vocabulary?.actions.find((a) => a.name === name) ??
+      coreActionOf(name) ??
+      actions.find((a) => a.name === name),
+    [actions, vocabulary],
   );
 }

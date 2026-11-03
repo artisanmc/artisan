@@ -101,6 +101,8 @@ internal class RuntimeAssembly(
             commandOwner = api.playerCommands::ownerOf,
             folderOwner = projectRoots::ownerOf,
             consoleRunner = moduleCommand,
+            isBedrock = plugin.geyser::isBedrock,
+            hasPack = ::hasPack,
         )
         // A module enabled or disabled after the start: its commands come and go without a reload,
         // their files follow in its folder, and the editor lists the new set (a leaf tells its hub).
@@ -208,7 +210,10 @@ internal class RuntimeAssembly(
         capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
         capturedItems.reload()
         val softDeps = SoftDepRegistry(plugin, capturedItems, placeholders)
-        evaluator = ConditionEvaluator(softDeps, cooldowns)
+        evaluator = ConditionEvaluator(softDeps, cooldowns, object : net.artisanmc.plugin.engine.ClientProbe {
+            override fun isBedrock(player: org.bukkit.entity.Player) = plugin.geyser.isBedrock(player)
+            override fun hasPack(player: org.bukkit.entity.Player) = this@RuntimeAssembly.hasPack(player)
+        })
 
         val provider = createProvider(cfg)
         menuProvider = provider
@@ -241,6 +246,10 @@ internal class RuntimeAssembly(
         commandRegistrar.reload(provider.runtimeProjects(), executor, evaluator)
     }
 
+    /** Whether [p] has the server's pack: Geyser's for a Bedrock player, the Java one's load otherwise. */
+    private fun hasPack(p: org.bukkit.entity.Player): Boolean =
+        if (plugin.geyser.isBedrock(p)) plugin.geyser.currentPack() != null else plugin.packLoads.hasLoaded(p.uniqueId)
+
     private fun createProvider(cfg: PluginConfig) = SyncedMenuProvider(
         roots            = projectRoots,
         logger           = logger,
@@ -268,6 +277,7 @@ internal class RuntimeAssembly(
         editorEvents = { editorChannel.relay(it, serverId.toString()) },
         hub = editorHost.hubLink(cfg.web),
         isBedrock = plugin.geyser::isBedrock,
+        hasPack = ::hasPack,
         peers = { editorHost.peerLinks },
         menuEvents = menuEvents,
         onSnapshot = suite::recordVersions,

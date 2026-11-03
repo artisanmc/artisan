@@ -1,5 +1,5 @@
 import { documentKindDef, isDocumentKind } from "@/domain/documentKinds";
-import { documentPath } from "@/domain/documentLayout";
+import { ORIGINALS_DIR, documentPath } from "@/domain/documentLayout";
 import { allDocuments, docKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import type { ActiveModule } from "@/lib/api/modules";
@@ -20,9 +20,15 @@ export function systemDocuments(
   const out = new Map<string, string>();
   for (const { kind, doc } of allDocuments(project)) {
     const dir = isDocumentKind(kind) ? documentKindDef(kind).dir : kind;
-    const path = yamlPathOnDisk(documentPath(dir, doc.id, doc.folder), origins);
-    const origin = origins[path];
+    // The owner's version, else the module's original (design `originaux-modules`).
+    const own = yamlPathOnDisk(documentPath(dir, doc.id, doc.folder), origins);
+    const shipped = yamlPathOnDisk(
+      `${ORIGINALS_DIR}/${documentPath(dir, doc.id, doc.folder)}`,
+      origins,
+    );
+    const origin = origins[own] ?? origins[shipped];
     if (!origin) continue;
+    const path = origins[own] ? own : shipped.slice(ORIGINALS_DIR.length + 1);
     const template = modules
       .find((m) => m.id === origin.module)
       ?.templates?.find((t) => t.id === origin.template);

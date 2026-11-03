@@ -347,7 +347,7 @@ export type Condition =
   | HasXpCondition | HasLevelCondition
   | PlaceholderEqualsCondition | PlaceholderMatchCondition
   | CooldownPassedCondition
-  | WorldIsCondition | TimeIsCondition
+  | WorldIsCondition | ClientIsCondition | HasResourcePackCondition | TimeIsCondition
   | RandomChanceCondition | PlayerInRegionCondition
   | PaginationAtFirstCondition | PaginationAtLastCondition
   | NotCondition | AndCondition | OrCondition
@@ -367,6 +367,8 @@ export interface PlaceholderEqualsCondition { type: "placeholder_equals"; placeh
 export interface PlaceholderMatchCondition  { type: "placeholder_match"; placeholder: string; regex: string; }
 export interface CooldownPassedCondition    { type: "cooldown_passed"; cooldown_id: string; }
 export interface WorldIsCondition           { type: "world_is"; world: string; }
+export interface ClientIsCondition          { type: "client_is"; client: "java" | "bedrock"; }
+export interface HasResourcePackCondition   { type: "has_resource_pack"; }
 export interface TimeIsCondition            { type: "time_is"; range: "day" | "night" | { from_ticks: number; to_ticks: number }; }
 export interface RandomChanceCondition      { type: "random_chance"; probability: number; }
 export interface PlayerInRegionCondition    { type: "player_in_region"; region: string; }
@@ -416,7 +418,7 @@ export const CONDITION_TYPES = [
   "has_money", "has_item", "has_xp", "has_level",
   "placeholder_equals", "placeholder_match",
   "cooldown_passed",
-  "world_is", "time_is",
+  "world_is", "client_is", "has_resource_pack", "time_is",
   "random_chance", "player_in_region",
   "pagination_at_first", "pagination_at_last",
   "not", "and", "or",

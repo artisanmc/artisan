@@ -116,7 +116,7 @@ class TemplateSeeds(
         if (key in seeded()) return false
         val existing = roots.all().keys.firstOrNull { it.equals(projectId, ignoreCase = true) }
         val wrote = if (existing != null && roots.ownerOf(existing) == moduleId) {
-            seedOwnFolder(roots.dirFor(existing), moduleId, template, key)
+            seedOwnFolder(roots.dirFor(existing), key)
         } else if (existing != null) {
             logger?.info("[Artisan] Template '$key' not seeded: a project '$projectId' already exists.")
             false
@@ -131,16 +131,23 @@ class TemplateSeeds(
         return wrote
     }
 
-    /** Into the module's own folder, created empty by `moduleFolder`: a file already there wins. */
-    private fun seedOwnFolder(dir: File, moduleId: String, template: TemplateDeclaration, key: String): Boolean {
-        if (ModuleFile.find(dir) == null) writeManifest(dir)
-        val result = TemplateCopies.copy(dir, moduleId, template)
-        if (result.conflicts.isNotEmpty()) {
-            logger?.warning("[Artisan] Template '$key' not seeded into ${dir.path}: ${result.conflicts.joinToString()} already hold other content.")
-        } else {
-            logger?.info("[Artisan] Template '$key' seeded into the module's folder ${dir.path}.")
-        }
-        return result.written.isNotEmpty()
+    /**
+     * Into the module's own folder, created empty by `moduleFolder`: only its module file. The
+     * files themselves are originals (design `originaux-modules`), kept by [SystemFiles] at
+     * each start like a system template's, but optional ([ownFolderSeed]).
+     */
+    private fun seedOwnFolder(dir: File, key: String): Boolean {
+        if (ModuleFile.find(dir) != null) return false
+        writeManifest(dir)
+        logger?.info("[Artisan] Template '$key' seeded into the module's folder ${dir.path}.")
+        return true
+    }
+
+    /** The module's own folder when [template] seeds it: its examples are originals there. */
+    fun ownFolderSeed(moduleId: String, template: TemplateDeclaration): File? {
+        val projectId = template.seedProject ?: return null
+        val existing = roots.all().keys.firstOrNull { it.equals(projectId, ignoreCase = true) } ?: return null
+        return if (roots.ownerOf(existing) == moduleId) roots.dirFor(existing) else null
     }
 
     /** Before the files: a folder without a module file is not a project. */

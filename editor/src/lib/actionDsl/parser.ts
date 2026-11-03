@@ -28,6 +28,8 @@ const PREDICATES = new Set([
   "has_xp",
   "has_level",
   "world_is",
+  "client_is",
+  "has_resource_pack",
   "time_is",
   "random_chance",
   "cooldown_passed",
@@ -345,6 +347,10 @@ class CondParser {
         return { type: "has_level", level: num(0) };
       case "world_is":
         return { type: "world_is", world: str(0) };
+      case "client_is":
+        return { type: "client_is", client: str(0).toLowerCase() === "java" ? "java" : "bedrock" };
+      case "has_resource_pack":
+        return { type: "has_resource_pack" };
       case "random_chance":
         return { type: "random_chance", probability: num(0) };
       case "cooldown_passed":
