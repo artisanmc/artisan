@@ -670,7 +670,7 @@ hub generates once in `plugins/Artisan/network-secret` (to copy to each leaf).
 ## Plan and entitlements — **retired term** (2026-10)
 
 *Was* the cloud's commercial model (Free/Pro plans, custom offers, AI credits,
-resource quotas). Removed in phase F: the core is free and Add-ons are sold once on
+resource quotas). Removed in phase F: Artisan and its Add-ons are each sold once on
 marketplaces. `ProjectMutations` still understands a `commercial_policy` quota,
 but nothing sends one.
 _Avoid_: plan, tier, credits, quota, Pro.
