@@ -171,8 +171,31 @@ export function requestResourcePackRebuild(serverId: string): Promise<void> {
   return next;
 }
 
+/**
+ * Asks the hub to build and apply the server's packs itself (`POST …/resource-pack/rebuild`).
+ * False when the hub does not (an older plugin, or a hub still in shadow mode: 404): the
+ * browser then builds them, as before.
+ */
+export async function requestHubPackRebuild(serverId: string): Promise<boolean> {
+  try {
+    await apiFetch<{ done: boolean }>(`/api/v1/servers/${serverId}/resource-pack/rebuild`, {
+      method: "POST",
+    });
+    return true;
+  } catch (error) {
+    const failure = ApiError.from(error);
+    if (failure.status === 404) return false;
+    throw new ApiError(
+      `resource_pack_rebuild_failed:${failure.status}`,
+      failure.status,
+      failure.body,
+    );
+  }
+}
+
 function start(serverId: string): Promise<void> {
   const run = (async () => {
+    if (await requestHubPackRebuild(serverId)) return;
     const { zipBytes, bedrock } = await buildServerPack(serverId);
     await uploadResourcePack(serverId, zipBytes);
     if (bedrock) await uploadBedrockPack(serverId, bedrock.bytes);
