@@ -7,7 +7,7 @@ import org.bstats.charts.SimplePie
 import org.bukkit.plugin.java.JavaPlugin
 
 /**
- * Anonymous install counts on bStats (https://bstats.org/plugin/bukkit/Artisan/[SERVICE_ID]).
+ * Anonymous install counts on bStats ([SERVICE_ID]).
  * The server owner turns them off for every plugin in `plugins/bStats/config.yml`.
  *
  * On Folia bStats calls the charts from its own thread: each one reads only thread-safe state
@@ -40,8 +40,8 @@ internal class ServerMetrics(
     }
 
     companion object {
-        /** Artisan's service on bStats. 0: not registered yet, nothing is sent. */
-        const val SERVICE_ID = 0
+        /** Artisan's service on bStats (bstats.org/plugin/bukkit/Artisan/35104). */
+        const val SERVICE_ID = 35104
 
         /** Set to `false` to never start bStats: the Gradle tests do, so no test reports an install. */
         const val PROPERTY = "artisan.metrics"
