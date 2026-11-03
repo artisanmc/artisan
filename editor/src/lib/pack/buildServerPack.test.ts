@@ -44,7 +44,14 @@ const HUB = "824473e8-413e-4109-ae91-185021a150e9";
 const LOBBY = "5f0c1e2a-9b7d-4c3e-8a61-2d4f9e0b7c15";
 
 function mockHub(
-  options: { failBinary?: string; server?: string; ids?: string[]; projects?: unknown[] } = {},
+  options: {
+    failBinary?: string;
+    server?: string;
+    ids?: string[];
+    projects?: unknown[];
+    /** The hub builds the packs itself: its rebuild route answers with this status. */
+    hubBuilds?: number;
+  } = {},
 ) {
   const server = options.server ?? HUB;
   const uploads: Uint8Array[] = [];
@@ -63,6 +70,10 @@ function mockHub(
       return json({ project_ids: options.ids ?? ["beta", "alpha"], projects: options.projects });
     if (pathname === `/api/v1/servers/${server}/server-config`)
       return json({ config: {}, online: true });
+    if (pathname === `/api/v1/servers/${server}/resource-pack/rebuild` && options.hubBuilds)
+      return options.hubBuilds < 400
+        ? json({ done: options.hubBuilds === 200, hash: "def" }, options.hubBuilds)
+        : json({ error: "pack_build_failed" }, options.hubBuilds);
     if (pathname === `/api/v1/servers/${server}/resource-pack` && init?.method === "PUT") {
       uploads.push(init.body as Uint8Array);
       return json({ hash: "abc" });
@@ -187,5 +198,21 @@ describe("buildServerPack", () => {
       .map(([url]) => new URL(String(url), "http://x").pathname)
       .filter((path) => path.endsWith("/files"));
     expect(reads).toEqual(["/api/v1/projects/beta/files", "/api/v1/projects/lobby.alpha/files"]);
+  });
+
+  test("a hub that builds the packs itself: the browser asks it and builds nothing", async () => {
+    const { fetchMock, uploads } = mockHub({ hubBuilds: 200 });
+    await requestResourcePackRebuild(HUB);
+    expect(uploads).toHaveLength(0);
+    const paths = fetchMock.mock.calls.map(([url]) => new URL(String(url), "http://x").pathname);
+    expect(paths).toEqual([`/api/v1/servers/${HUB}/resource-pack/rebuild`]);
+  });
+
+  test("the hub's build failing is a failure, not a browser build", async () => {
+    const { uploads } = mockHub({ hubBuilds: 500 });
+    await expect(requestResourcePackRebuild(HUB)).rejects.toThrow(
+      "resource_pack_rebuild_failed:500",
+    );
+    expect(uploads).toHaveLength(0);
   });
 });

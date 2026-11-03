@@ -401,6 +401,8 @@ class EditorApiTest {
         val bad = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/servers/u-local/resource-pack"))
             .PUT(HttpRequest.BodyPublishers.ofString("nope")).header("Cookie", cookie).build()
         assertEquals(422, client.send(bad, HttpResponse.BodyHandlers.ofString()).statusCode())
+        // No hub build here: no rebuild route, the editor builds in the browser.
+        assertEquals(404, call("POST", "/api/v1/servers/u-local/resource-pack/rebuild").first)
     }
 
     @Test
