@@ -1,7 +1,7 @@
 import { copyText } from "@/lib/clipboard";
 import { cx } from "@/lib/cx";
 import { renderSample } from "@/lib/expr/sampleRender";
-import { type Decoration, diffText, rangeHas, toggleDecoration } from "@/lib/mm/edit";
+import { type Decoration, diffText, rangeHas, styleAt, toggleDecoration } from "@/lib/mm/edit";
 import { hasLegacyCodes, legacyToMiniMessage } from "@/lib/mm/legacy";
 import type { Palette } from "@/lib/mm/palettes";
 import { type MmProfile, diagnose } from "@/lib/mm/profiles";
@@ -13,10 +13,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
 import { ExpressionRules } from "./ExpressionRules";
-import { type MmOp, MmToolbar } from "./MmToolbar";
+import { type FormatKey, MmToolbar } from "./MmToolbar";
 import { PlaceholderLibrary } from "./PlaceholderLibrary";
 import { type ExpressionView, type MmViewMode, mmExtensions, mmInternal } from "./mmCodeMirror";
+import {
+  type MmOp,
+  type PendingFormat,
+  addPending,
+  pendingFormat,
+  pendingFormatFilter,
+  pendingToggles,
+} from "./pendingFormat";
 import { usePaletteLibrary } from "./usePaletteLibrary";
+import { useServerPapi } from "./useServerPapi";
 import { type Simulation, useSimulation } from "./useSimulation";
 
 export interface MmEditorProps {
@@ -36,6 +45,11 @@ export interface MmEditorProps {
   wrapWidth?: number;
   /** The example player whose case is lit in the rules; shared with a preview drawn elsewhere. */
   simulation?: Simulation;
+  /**
+   * `always`: the toolbar stays on top. `focus`: shown only while the field is being
+   * edited, for a field among many (a form, a table cell) that should read as text at rest.
+   */
+  toolbar?: "always" | "focus";
   /** Called when the editor, toolbar included, takes the focus. */
   onFocus?: () => void;
   "aria-label"?: string;
@@ -43,6 +57,8 @@ export interface MmEditorProps {
 }
 
 const NO_ENTRIES: PlaceholderEntry[] = [];
+/** Where Radix draws a popover: focus there stays in the field. */
+const POPPER = "[data-radix-popper-content-wrapper]";
 const DECOS: Decoration[] = ["bold", "italic", "underlined", "strikethrough", "obfuscated"];
 
 /**
@@ -61,14 +77,19 @@ export function MmEditor({
   placeholder,
   wrapWidth,
   simulation,
+  toolbar = "always",
   onFocus,
   "aria-label": ariaLabel,
   className,
 }: MmEditorProps) {
   const { t } = useTranslation();
   const library = usePaletteLibrary();
+  const papi = useServerPapi();
   const [mode, setMode] = useState<MmViewMode>(initialMode);
   const [sel, setSel] = useState({ from: 0, to: 0 });
+  const [pending, setPending] = useState<PendingFormat[]>([]);
+  // Focus anywhere in the field, its toolbar's popovers (portals) included.
+  const [engaged, setEngaged] = useState(false);
   const viewRef = useRef<EditorView | null>(null);
   const perLine = profile.lines === "separate";
   // Each `{…}` is drawn by React into the widget CodeMirror gives it.
@@ -128,11 +149,16 @@ export function MmEditor({
     [scope, color, entries, sampleOf, profile.lines],
   );
 
-  const apply = (op: MmOp) => {
+  // With nothing selected, the format waits for the next typed text (bold, then type).
+  const apply = (op: MmOp, format: FormatKey) => {
     const view = viewRef.current;
     if (!view) return;
     const { from, to } = view.state.selection.main;
-    if (from === to) return;
+    if (from === to) {
+      addPending(view, { ...format, op });
+      view.focus();
+      return;
+    }
     const src = view.state.doc.toString();
     const res = op(src, from, to, perLine);
     if (!res || res.text === src) return;
@@ -167,7 +193,10 @@ export function MmEditor({
 
   const extensions = useMemo(() => {
     const shortcut = (deco: Decoration) => () => {
-      applyRef.current((s, f, to, pl) => toggleDecoration(s, f, to, deco, pl));
+      applyRef.current((s, f, to, pl) => toggleDecoration(s, f, to, deco, pl), {
+        key: deco,
+        toggle: true,
+      });
       return true;
     };
     return [
@@ -178,6 +207,7 @@ export function MmEditor({
         wrapWidth,
         wrapLabel: t("mmEditor.wrapMarker", { width: wrapWidth }),
         expressions,
+        papi: papi.placeholders,
         // The example value says more than the type; the type when there is none.
         completionDetail: (e) =>
           e.type === "boolean" && (e.sample === "true" || e.sample === "false")
@@ -186,6 +216,8 @@ export function MmEditor({
               ? (e.sample.split("\n")[0] ?? "")
               : t(`itemContext.types.${e.type}`),
       }),
+      pendingFormat,
+      pendingFormatFilter(profile.lines === "separate"),
       Prec.high(
         keymap.of([
           { key: "Mod-b", run: shortcut("bold") },
@@ -194,52 +226,71 @@ export function MmEditor({
         ]),
       ),
     ];
-  }, [mode, profile, entries, wrapWidth, expressions, t]);
+  }, [mode, profile, entries, wrapWidth, expressions, papi.placeholders, t]);
 
+  // Over a selection, what all of it has; at the caret, what typing would give.
   const active = useMemo(() => {
-    if (sel.from === sel.to) return {};
+    if (sel.from === sel.to) {
+      const style = styleAt(value, sel.from, perLine);
+      const flipped = pendingToggles(pending);
+      return Object.fromEntries(DECOS.map((d) => [d, (style?.[d] === true) !== flipped.has(d)]));
+    }
     return Object.fromEntries(
       DECOS.map((d) => [d, rangeHas(value, sel.from, sel.to, (s) => s[d] === true, perLine)]),
     );
-  }, [value, sel, perLine]);
+  }, [value, sel, perLine, pending]);
+  const pendingKeys = useMemo(() => new Set(pending.map((p) => p.key)), [pending]);
 
   const diagnostics = useMemo(() => diagnose(value, profile), [value, profile]);
-  // A selection of hidden markup only has nothing to format.
-  const hasSelection = useMemo(
-    () => sel.from !== sel.to && rangeHas(value, sel.from, sel.to, () => true, perLine),
-    [value, sel, perLine],
-  );
 
   return (
     <div
-      onFocus={onFocus}
+      onFocus={() => {
+        setEngaged(true);
+        papi.load();
+        onFocus?.();
+      }}
+      // A toolbar button does not take the focus: the text keeps its caret and selection,
+      // and a browser that blurs on click (Safari) does not fold the toolbar mid-click.
+      onMouseDown={(e) => {
+        const target = e.target as Element;
+        if (e.currentTarget.contains(target) && target.closest('[role="toolbar"] button'))
+          e.preventDefault();
+      }}
+      onBlur={(e) => {
+        const next = e.relatedTarget as HTMLElement | null;
+        if (next && (e.currentTarget.contains(next) || next.closest(POPPER))) return;
+        setEngaged(false);
+      }}
       className={cx(
         "overflow-hidden rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface-inset)] focus-within:border-[var(--brand-line)]",
         className,
       )}
     >
-      <MmToolbar
-        profile={profile}
-        palettes={palettes ?? library}
-        mode={mode}
-        onModeChange={setMode}
-        hasSelection={hasSelection}
-        active={active}
-        onOp={apply}
-        onConvertLegacy={
-          hasLegacyCodes(value) ? () => onChange(legacyToMiniMessage(value)) : undefined
-        }
-        onCopy={() => copyText(value)}
-        library={
-          entries.length > 0 ? (
-            <PlaceholderLibrary
-              entries={entries}
-              onInsert={insert}
-              preview={(src) => renderSample(src, sampleOf)}
-            />
-          ) : undefined
-        }
-      />
+      {(toolbar === "always" || engaged) && (
+        <MmToolbar
+          profile={profile}
+          palettes={palettes ?? library}
+          mode={mode}
+          onModeChange={setMode}
+          active={active}
+          pending={pendingKeys}
+          onOp={apply}
+          onConvertLegacy={
+            hasLegacyCodes(value) ? () => onChange(legacyToMiniMessage(value)) : undefined
+          }
+          onCopy={() => copyText(value)}
+          library={
+            entries.length > 0 ? (
+              <PlaceholderLibrary
+                entries={entries}
+                onInsert={insert}
+                preview={(src) => renderSample(src, sampleOf)}
+              />
+            ) : undefined
+          }
+        />
+      )}
       <div
         style={{
           background: mode === "rich" ? "var(--mc-chat-bg)" : undefined,
@@ -269,6 +320,8 @@ export function MmEditor({
           }}
           onUpdate={(update) => {
             if (update.focusChanged && update.view.hasFocus) focused.current = true;
+            const next = update.state.field(pendingFormat, false) ?? [];
+            setPending((prev) => (prev === next ? prev : next));
             if (update.selectionSet || update.docChanged) {
               const { from, to } = update.state.selection.main;
               setSel((prev) => (prev.from === from && prev.to === to ? prev : { from, to }));

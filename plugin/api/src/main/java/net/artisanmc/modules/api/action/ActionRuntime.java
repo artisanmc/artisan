@@ -20,7 +20,7 @@ public interface ActionRuntime {
     String text(ActionContext ctx, @Nullable Object text);
 
     /**
-     * The same text as {@code viewer} reads it (API 2.16.0): in the viewer's language, the
+     * The same text as {@code viewer} reads it: in the viewer's language, the
      * templates still those of {@code ctx} ({@code {player}} is the acting player). For a text
      * several players see (a broadcast, a join message); null renders it in the project's
      * default language, for the console. The default ignores the viewer.

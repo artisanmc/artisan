@@ -21,7 +21,7 @@ export interface TemplateInfo {
   version: number;
   /** The Project the server created with these files once, at its first start. */
   seed_project?: string;
-  /** The module's system elements (API 2.12.0): kept in its folder, never offered to copy. */
+  /** The module's system elements: kept in its folder, never offered to copy. */
   system?: boolean;
   files: TemplateFileInfo[];
 }

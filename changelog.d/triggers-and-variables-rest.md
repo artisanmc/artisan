@@ -7,7 +7,7 @@
 - **Added**: `chat_button`: a chat line with a button that only the player it was sent to can
   click, a given number of times before it expires, and that runs its own actions.
 - **Added**: The Game event `variable_changed`, fired when a Variable is written or a module
-  reports a change (API 2.25.0: `VariableRegistry.changed`, `ModelFieldType.location()`,
+  reports a change (`VariableRegistry.changed`, `ModelFieldType.location()`,
   `VariableType.LOCATION`).
 - **Added**: `player.location`, and `player.vanished`, which reads the vanish plugins'
   `vanished` metadata (EssentialsX, SuperVanish, PremiumVanish).

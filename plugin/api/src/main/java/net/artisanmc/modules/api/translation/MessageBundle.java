@@ -53,11 +53,11 @@ public interface MessageBundle {
     /**
      * {@link #raw} in {@code viewer}'s language, {@link #format}ted, parsed and sent to it.
      *
-     * @since 2.10.0
+     * @since 1.0.0
      */
     void send(CommandSender viewer, String key, Map<String, ?> placeholders);
 
-    /** @since 2.10.0 */
+    /** @since 1.0.0 */
     default void send(CommandSender viewer, String key) {
         send(viewer, key, Map.of());
     }
@@ -66,11 +66,11 @@ public interface MessageBundle {
      * {@link #raw}, {@link #format}ted, as a {@code §}-coded string for the Bukkit methods that
      * take one (item names and lore, inventory and boss bar titles). See {@code TextApi.legacy}.
      *
-     * @since 2.10.0
+     * @since 1.0.0
      */
     String legacy(String lang, String key, Map<String, ?> placeholders);
 
-    /** @since 2.10.0 */
+    /** @since 1.0.0 */
     default String legacy(CommandSender viewer, String key, Map<String, ?> placeholders) {
         return legacy(langOf(viewer), key, placeholders);
     }

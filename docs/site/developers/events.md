@@ -63,9 +63,8 @@ someone else's.
 
 ### Your own events
 
-Since API 1.8.0 `ModuleEvent` is an open interface: implement it to give other
-add-ons a typed event (before 1.8.0 it was sealed and only the two built-in
-events existed).
+`ModuleEvent` is an open interface: implement it to give other
+add-ons a typed event.
 
 ```kotlin
 data class HomeSetEvent(val player: UUID, val name: String) : ModuleEvent
@@ -83,7 +82,7 @@ subscribe to it, like Artisan does with `artisan-core-api`.
 
 ## Bukkit events
 
-Since 1.8.0 Artisan fires three Bukkit events for its menus, so any plugin —
+Artisan fires three Bukkit events for its menus, so any plugin —
 add-on or not — can react with a plain `@EventHandler`. They live in the API
 artifact (`net.artisanmc.modules.api`), so compile against it.
 

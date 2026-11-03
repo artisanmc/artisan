@@ -364,3 +364,19 @@ export function diffText(a: string, b: string): { from: number; to: number; inse
   }
   return { from: start, to: endA, insert: b.slice(start, endB) };
 }
+
+/**
+ * The style text typed at `pos` would get: the one of the visible character before it on
+ * its line (typing continues it), or of the first one after it at a line start.
+ */
+export function styleAt(src: string, pos: number, perLine = false): Style | undefined {
+  let before: VisibleUnit | undefined;
+  let after: VisibleUnit | undefined;
+  for (const u of richLayout(src, perLine).units) {
+    const nl = src.slice(u.from, u.to) === "\n";
+    if (u.to <= pos) before = nl ? undefined : u;
+    else if (nl) break;
+    else if (!after) after = u;
+  }
+  return (before ?? after)?.style;
+}

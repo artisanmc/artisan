@@ -2001,15 +2001,32 @@ const fr: typeof en = {
       invalid_type: "valeur du mauvais type.",
       unsafe_path: "le chemin doit rester dans le dossier du serveur.",
       invalid_reference: "choisir une image au format projet:image.",
+      invalid_palette_entry: "chaque entrée a un nom et des couleurs #rrggbb.",
     },
     listHint: "Valeurs séparées par des virgules.",
     vanillaTexture: "Texture vanilla",
+    palette: {
+      colors: "Couleurs",
+      gradients: "Dégradés",
+      name: "Nom",
+      colorOf: "Couleur de {{name}}",
+      stopOf: "Couleur {{index}} de {{name}}",
+      newColor: "Nouvelle couleur",
+      newGradient: "Nouveau dégradé",
+      addColor: "Ajouter une couleur",
+      addGradient: "Ajouter un dégradé",
+      addStop: "Ajouter une couleur au dégradé",
+      removeStop: "Retirer la dernière couleur",
+      remove: "Supprimer",
+    },
     connectionHint:
       "Les identifiants de la base de données vivent dans environment.yml, qui ne se modifie qu'à la main.",
     discard: "Annuler",
     pending_one: "{{count}} réglage modifié",
     pending_other: "{{count}} réglages modifiés",
     groupHints: {
+      palette:
+        "Couleurs et dégradés proposés par la barre de mise en forme dans tous les modules du serveur. Appliquer une couleur écrit sa valeur dans le texte : modifier la palette ne change pas les textes existants.",
       textures:
         "Redessinent les coffres, entonnoirs et distributeurs du serveur quand un menu désactive sa texture vanilla.",
     },
@@ -2018,6 +2035,7 @@ const fr: typeof en = {
       textures: "Textures des conteneurs",
       resourcePack: "Resource pack",
       editor: "Accès à l'éditeur",
+      palette: "Palette de texte",
       other: "Autres",
     },
     fields: {

@@ -5,7 +5,7 @@ sidebar:
   order: 8
 ---
 
-`api.models` and `api.screens` are `@Beta` (Since 1.5.0 and 1.6.0).
+`api.models` and `api.screens` are `@Beta`.
 
 Level 3 integration: instead of shipping a `config.yml` and hoping admins edit it
 correctly, you **declare the shape** of your configuration as a `model/v1`
@@ -16,7 +16,7 @@ You write no UI. The shape is versioned with your jar — admins cannot break it
 
 ## Declare a model
 
-A model is a `ModelDeclaration` (Since 2.0.0): a namespaced id, the key field
+A model is a `ModelDeclaration`: a namespaced id, the key field
 and `ModelField`s typed with `ModelFieldType`, the same types an action's
 arguments use. Nothing is interpreted plugin-side: its `model/v1` document
 (`toWire()`) travels to the editor, which renders the form.
@@ -50,7 +50,7 @@ static ModelDeclaration kit() {
 `key_field` names the top-level scalar field that identifies a row.
 
 `api.models.declare(Map)`, which takes the `model/v1` document as a raw map,
-still works for add-ons built on 1.x; it is `@Sunset` until 3.0.0.
+is `@Sunset` until 2.0.0: use `declare(ModelDeclaration)`.
 
 Declare from `onEnable(api)` so the model is attributed to your module.
 A duplicate or non-namespaced id throws at declare time.

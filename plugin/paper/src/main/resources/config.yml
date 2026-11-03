@@ -69,3 +69,13 @@ resource-pack:
     chest: ""
     hopper: ""
     dispenser: ""
+
+# The server's text palette: colors and gradients the editor's MiniMessage
+# toolbar offers in every module, beside the built-in Minecraft and Artisan
+# palettes. Editor-only: applying one writes its colors into the text
+# (`<color:#ff6b35>`), so changing the palette never changes existing texts.
+#   colors:    "<name> #rrggbb"                  e.g. "Brand #ff6b35"
+#   gradients: "<name> #rrggbb #rrggbb [...]"    e.g. "Sunset #ff5f6d #ffc371"
+text-palette:
+  colors: []
+  gradients: []

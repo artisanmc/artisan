@@ -1,4 +1,4 @@
-import { RevealField } from "@/components/RevealField";
+import { MmEditor } from "@/components/minimessage/MmEditor";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import type { I18nKey, ProjectId } from "@/domain/types";
@@ -14,6 +14,7 @@ import {
   listLanguages,
 } from "@/lib/i18nUsages";
 import { flattenLangTree } from "@/lib/langTree";
+import { profileForTextKey } from "@/lib/mm/profiles";
 import { useAiStatus } from "@/state/aiStatus";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -546,31 +547,21 @@ function VisualRow({
         </div>
       ) : null}
 
-      {/* Target row (the input). Uses the same focus-reveal field as the
-          title/lore/action editors: a rendered MiniMessage facade until
-          focused, then a raw editor with a live preview below. */}
+      {/* Target row (the input): the rich MiniMessage editor, as for titles, lores and
+          action texts; its toolbar shows while it is being edited. */}
       <div className="flex items-start gap-2 px-3 pb-2 text-xs">
         <span className="mt-1.5 w-7 shrink-0 font-mono text-[11px] text-[var(--text-faint)]">
           {activeLang}
         </span>
         <div className="min-w-0 flex-1">
-          <RevealField
+          <MmEditor
             value={row.target}
             onChange={onChange}
-            entries={[]}
-            multiline={isMultiline}
-            rows={Math.min(6, Math.max(2, row.target.split("\n").length))}
+            profile={profileForTextKey(row.key, isMultiline)}
             placeholder={t("translations.translationPlaceholder")}
-            className="font-mono text-xs"
-            facade={<MMLines text={row.target} />}
-            preview={
-              row.target.split("\n").some(looksLikeMM) ? (
-                <div className="mt-1 flex flex-col rounded border border-[var(--border-soft)] bg-[var(--color-bg)] px-2 py-1">
-                  <span className="field-label !mb-0.5">{t("translations.previewLabel")}</span>
-                  <MMLines text={row.target} />
-                </div>
-              ) : undefined
-            }
+            aria-label={t("translations.translationPlaceholder")}
+            toolbar="focus"
+            minHeight={isMultiline ? "64px" : "0"}
           />
         </div>
       </div>

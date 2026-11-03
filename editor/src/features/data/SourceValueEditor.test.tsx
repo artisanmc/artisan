@@ -215,25 +215,14 @@ describe("SourceRowsTable", () => {
     expect(table.className).toContain("min-w-max");
   });
 
-  it("minimessage cell shows a rendered facade, edits raw markup on click", () => {
+  it("minimessage cells are rich editors: tags hidden, the source in the Code view", () => {
     render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
-    // At rest: rendered facade — tags consumed, no raw markup in an input.
-    // (accessible name concatenates spans without inter-element spaces)
-    const facade = screen.getByRole("button", { name: /Best\s*rank/ });
-    expect(facade.textContent).not.toContain("<gold>");
-    fireEvent.click(facade);
-    const editor = screen.getByDisplayValue("<gold>Best</gold> rank");
-    fireEvent.change(editor, { target: { value: "<red>Worst</red>" } });
-    expect(tableSource().rows[0]!.tagline).toBe("<red>Worst</red>");
-  });
-
-  it("minimessage_multiline cell edits in a textarea", () => {
-    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
-    fireEvent.click(screen.getByRole("button", { name: /No refund/ }));
-    const editor = screen.getByDisplayValue(/No refund/) as HTMLTextAreaElement;
-    expect(editor.tagName).toBe("TEXTAREA");
-    fireEvent.change(editor, { target: { value: "line1\nline2" } });
-    expect(tableSource().rows[0]!.rules).toBe("line1\nline2");
+    const editors = [...document.querySelectorAll(".cm-content")].map((n) => n.textContent);
+    // At rest: the text styled, tags consumed, no toolbar.
+    expect(editors).toContain("Best rank");
+    expect(editors.some((t) => t?.includes("No refund"))).toBe(true);
+    expect(editors.some((t) => t?.includes("<gold>"))).toBe(false);
+    expect(screen.queryByRole("toolbar")).toBeNull();
   });
 
   it("adds a row with minted ltexts and removes it releasing them", () => {

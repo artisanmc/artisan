@@ -149,7 +149,7 @@ it("edits the name and lore in rich editors next to the item's in-game tooltip",
   expect(editors).toEqual(["Rare sword", "A reward"]);
   // No click action on an item's text: the game ignores it there.
   expect(within(dialog).queryByRole("button", { name: /^Action au clic/ })).toBeNull();
-  expect(within(dialog).getAllByRole("button", { name: /^Dégradé/ })).toHaveLength(2);
+  expect(within(dialog).getAllByRole("button", { name: /^Couleur et dégradé/ })).toHaveLength(2);
   const column = within(dialog).getByTestId("item-preview-column");
   expect(within(column).getByTestId("mc-tooltip")).toBeInTheDocument();
 });

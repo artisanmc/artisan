@@ -6,7 +6,7 @@ import net.artisanmc.modules.api.annotations.Beta;
  * Why a menu window closed ({@link MenuCloseEvent#getCloseReason()}). Paper reports it; Spigot
  * does not, so there it is always {@link #UNKNOWN}.
  *
- * @since 2.10.0
+ * @since 1.0.0
  */
 @Beta
 public enum MenuCloseReason {

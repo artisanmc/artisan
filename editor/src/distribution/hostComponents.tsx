@@ -11,13 +11,14 @@ import { OverlaySlotsComposer } from "@/features/canvas/overlay/OverlaySlotsComp
 import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
 import { ConditionsField } from "@/features/inspector/properties/ConditionsField";
 import { DocumentRefField } from "@/features/inspector/properties/DocumentRefField";
+import { PageTour } from "@/features/onboarding/PageTour";
 import { useFieldTranslate } from "@/lib/aiTranslate";
 import type { HostComponents } from "@artisan/editor-sdk";
 
 /**
  * The editor widgets a module view embeds through the SDK (`ActionChainEditor`,
  * `MaterialInput`, `ItemInput`, `MiniMessageInput`, `SortableList`, `ConditionsEditor`,
- * `DocumentRefInput`, `McText`, `McScreen`, `McScreenControls`, `OverlayComposer`, `OverlaySlotsComposer`, `AssetInput`, `LocalizedField`): the same
+ * `DocumentRefInput`, `McText`, `McScreen`, `McScreenControls`, `OverlayComposer`, `OverlaySlotsComposer`, `AssetInput`, `LocalizedField`, `PageTour`): the same
  * components as the core views, on a controlled value.
  */
 export const hostComponents: HostComponents = {
@@ -41,6 +42,7 @@ export const hostComponents: HostComponents = {
   OverlayComposer: (props) => <OverlayComposer {...props} />,
   OverlaySlotsComposer: (props) => <OverlaySlotsComposer {...props} />,
   AssetInput: (props) => <AssetInput {...props} />,
+  PageTour: (props) => <PageTour {...props} />,
   LocalizedField: function HostLocalizedField(props) {
     // A module's own texts get "Translate the missing ones" too, when the assistant is on.
     const translate = useFieldTranslate();

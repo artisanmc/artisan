@@ -54,6 +54,8 @@ subprojects {
         // (PackCdn.HOST_PROPERTY): no test uploads a pack to production.
         systemProperty("artisan.web.tunnel", "")
         systemProperty("artisan.web.pack-cdn", "")
+        // No test reports an install to bStats (ServerMetrics.PROPERTY).
+        systemProperty("artisan.metrics", "false")
         testLogging { exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
     }
 }

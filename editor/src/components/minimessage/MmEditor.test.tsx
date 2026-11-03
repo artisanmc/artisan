@@ -1,6 +1,7 @@
 import { CHAT, LORE } from "@/lib/mm/profiles";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { EditorView } from "@codemirror/view";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
@@ -170,6 +171,65 @@ describe("MmEditor", () => {
     expect(screen.getByTestId("value").textContent).toBe(
       '{m.online ? "En ligne" : "Absent"}\n{m.kick ? "<red>Bannir" : ""}',
     );
+  });
+
+  it("formats the next typed text when nothing is selected, as a word processor", async () => {
+    render(<Controlled initial="Hi " />);
+    const view = EditorView.findFromDOM(document.querySelector(".cm-editor") as HTMLElement)!;
+    const type = (text: string) => {
+      const at = view.state.selection.main.head;
+      act(() =>
+        view.dispatch({
+          changes: { from: at, insert: text },
+          selection: { anchor: at + text.length },
+          userEvent: "input.type",
+        }),
+      );
+    };
+    view.dispatch({ selection: { anchor: 3 } });
+    const bold = screen.getByRole("button", { name: "Gras (Ctrl+B)" });
+    fireEvent.click(bold);
+    expect(bold.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("value").textContent).toBe("Hi ");
+    type("a");
+    type("b");
+    expect(screen.getByTestId("value").textContent).toBe("Hi <bold>ab</bold>");
+
+    // Off again at the caret: what follows is no longer bold.
+    fireEvent.click(bold);
+    expect(bold.getAttribute("aria-pressed")).toBe("false");
+    type("c");
+    expect(screen.getByTestId("value").textContent).toBe("Hi <bold>ab</bold>c");
+
+    // A color too, from the color and gradient button.
+    fireEvent.click(screen.getByRole("button", { name: "Couleur et dégradé" }));
+    fireEvent.click(await screen.findByRole("button", { name: "red" }));
+    type("d");
+    expect(screen.getByTestId("value").textContent).toBe("Hi <bold>ab</bold>c<red>d</red>");
+  });
+
+  it("drops a pending format once the caret moves", () => {
+    render(<Controlled initial="Hi there" />);
+    const view = EditorView.findFromDOM(document.querySelector(".cm-editor") as HTMLElement)!;
+    view.dispatch({ selection: { anchor: 2 } });
+    fireEvent.click(screen.getByRole("button", { name: "Italique (Ctrl+I)" }));
+    act(() => {
+      view.dispatch({ selection: { anchor: 8 } });
+      view.dispatch({
+        changes: { from: 8, insert: "!" },
+        selection: { anchor: 9 },
+        userEvent: "input.type",
+      });
+    });
+    expect(screen.getByTestId("value").textContent).toBe("Hi there!");
+  });
+
+  it("puts colors and gradients behind one button, in tabs", async () => {
+    render(<Controlled initial="x" />);
+    expect(screen.queryByRole("button", { name: "Dégradé" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Couleur et dégradé" }));
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Dégradé" }));
+    expect(await screen.findByRole("button", { name: /Sunset/ })).toBeTruthy();
   });
 
   it("converts legacy codes on request", () => {

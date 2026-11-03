@@ -110,8 +110,30 @@ export const MOTD: MmProfile = {
   preview: "motd",
 };
 
+/**
+ * A menu's title (the vanilla text or a text layer of a textured title): one line, no
+ * click. Shown light on the editor's dark field, though the game draws it dark gray.
+ */
+export const CONTAINER_TITLE: MmProfile = {
+  id: "container-title",
+  features: new Set(ONE_LINE),
+  lines: "single",
+  defaults: { color: "#ffffff" },
+  preview: "item-name",
+};
+
+/** A one-line text whose use the editor does not know (a data value, a module's field). */
+export const TEXT_LINE: MmProfile = {
+  id: "text-line",
+  features: new Set(ALL.filter((f) => f !== "newline")),
+  lines: "single",
+  defaults: { color: "#ffffff" },
+  preview: "chat",
+};
+
 const registry = new Map<string, MmProfile>();
-for (const p of [CHAT, ITEM_NAME, LORE, TITLE, ACTION_BAR, MOTD]) registry.set(p.id, p);
+for (const p of [CHAT, ITEM_NAME, LORE, TITLE, ACTION_BAR, MOTD, CONTAINER_TITLE, TEXT_LINE])
+  registry.set(p.id, p);
 
 /** Adds a profile (a module's own usage); the last registration of an id wins. */
 export function registerMmProfile(profile: MmProfile): void {
@@ -219,4 +241,21 @@ export function diagnose(src: string, profile: MmProfile): MmDiagnostic[] {
     out.push({ from: breaks[cap - 1]!, to: src.length, code: "lines" });
   }
   return out;
+}
+
+/**
+ * The profile of a project text from its key, where the screen editing it (the
+ * Translations panel) does not know its use: `…lore` a lore, a menu's `title` its
+ * container title, an element's `title` an item name, a `show_title`/`subtitle` a title,
+ * an action bar its own; anything else a chat text, or one line when the text has one.
+ */
+export function profileForTextKey(key: string, multiline: boolean): MmProfile {
+  const last = key.slice(key.lastIndexOf(".") + 1);
+  if (last === "lore" || /\.lore\.\d+$/.test(key)) return LORE;
+  if (/^menus\.[^.]+\.title(\.|$)/.test(key)) return CONTAINER_TITLE;
+  if (/\.elements\./.test(key) && last === "title" && !/show_title\.title$/.test(key))
+    return ITEM_NAME;
+  if (/(show_title|show_subtitle|subtitle)/.test(key)) return TITLE;
+  if (/action_?bar/.test(key)) return ACTION_BAR;
+  return multiline ? CHAT : TEXT_LINE;
 }

@@ -47,7 +47,7 @@ public interface DatabaseApi {
      * of every table of the suite. Lower-case letters, digits and {@code _}, ending with {@code _}.
      *
      * @throws IllegalArgumentException when the configured value is not a valid prefix
-     * @since 2.9.0
+     * @since 1.0.0
      */
     String getTablePrefix();
 
@@ -58,7 +58,7 @@ public interface DatabaseApi {
      * never share a name. Read it once in {@code onEnable}: it does not change before a restart.
      *
      * @throws IllegalArgumentException when {@code module} is not one word, or is reserved
-     * @since 2.9.0
+     * @since 1.0.0
      */
     String tablePrefix(String module);
 }

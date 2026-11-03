@@ -23,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Plugin version (e.g. 2.0.0)
+        description: Plugin version (e.g. 1.0.0)
         required: true
 
 permissions:
