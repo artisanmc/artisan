@@ -29,8 +29,9 @@ than the hub. One single Artisan user at this date: the admin's key first.
    `artisan.editor.publish`: its principal keeps that permission but never deploys
    (`deploys = false`, ADR `mcp-server`, decision 9).
 3. **A provider behind an interface.** `AiProvider` / `AiConversation`: each provider
-   keeps the history in its own types. First provider: Anthropic, through the official Java
-   SDK (`com.anthropic:anthropic-java`, bundled without relocation: it loads classes by name; okhttp and Jackson shared, those relocated).
+   keeps the history in its own types. First provider: Anthropic, over plain HTTP
+   (okhttp and Jackson, already bundled; the history in the API's own JSON). The official Java SDK was used first and
+   dropped on 2026-11-03: 16 MB of the jar for one endpoint.
    Append-only history (responses go back as they are, thinking blocks included),
    tools and system prompt fixed per conversation, automatic prompt caching, configurable `effort`
    (default `medium`), server-side fallback when a classifier refuses, for the models
@@ -106,8 +107,7 @@ than the hub. One single Artisan user at this date: the admin's key first.
 
 - The admin pays for every message of every player who has `edit`. No per-player quota nor
   dedicated permission in milestone 1.
-- The jar grows by Anthropic's SDK (the `com.anthropic` package as is) and its schema generator; Jackson goes from
-  2.17.2 to 2.18.3.
+- No dependency added: the Messages API is called with the okhttp and Jackson the hub already has.
 - What the assistant writes goes through the same check as `write_document`, then the same review and
   the same `DocumentCheck` on deploy.
 

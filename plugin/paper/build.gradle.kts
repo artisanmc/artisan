@@ -83,9 +83,6 @@ tasks.shadowJar {
     relocate("org.bstats", "net.artisanmc.shaded.bstats")
     // Document checks against the JSON schemas (ADR `mcp-server`) and its date/time parser.
     relocate("com.networknt", "net.artisanmc.shaded.networknt")
-    // The editor's assistant (ADR `editor-assistant`). Anthropic's SDK is NOT relocated: it
-    // looks classes up by name (`com.anthropic.core.JsonField`), which the relocator leaves as is.
-    relocate("com.github.victools", "net.artisanmc.shaded.victools")
     relocate("com.ethlo", "net.artisanmc.shaded.ethlo")
     // Pulled in by the bundled adventure-api; Paper 26.x no longer provides it.
     relocate("net.kyori.examination", "net.artisanmc.shaded.examination")
