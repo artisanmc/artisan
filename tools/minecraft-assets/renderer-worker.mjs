@@ -25,7 +25,8 @@ try {
   process.exit(1);
 }
 
-const { baseUrl, VERSION, rendererJs, iconsDir, toRender } = config;
+const { baseUrl, VERSION, rendererJs, iconsDir } = config;
+const toRender = process.env.RENDER_LIMIT ? config.toRender.slice(0, Number(process.env.RENDER_LIMIT)) : config.toRender;
 
 // Ensure icons dir exists
 await mkdir(iconsDir, { recursive: true });
@@ -42,6 +43,8 @@ const { chromium } = playwright;
 
 const browser = await chromium.launch({
   headless: true,
+  // A Chromium other than the one this Playwright version downloads (a preinstalled one).
+  ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
   args: [
     "--enable-webgl",
     "--use-gl=angle",
@@ -51,6 +54,12 @@ const browser = await chromium.launch({
 });
 
 const page = await browser.newPage();
+if (process.env.RENDER_DEBUG) {
+  page.on("console", (m) => process.stderr.write(`[page ${m.type()}] ${m.text()}\n`));
+  page.on("pageerror", (e) => process.stderr.write(`[page error] ${e.message}\n`));
+  page.on("response", (r) => { if (r.status() >= 400) process.stderr.write(`[http ${r.status()}] ${r.url()}\n`); });
+  page.on("requestfailed", (r) => process.stderr.write(`[request failed] ${r.url()} ${r.failure()?.errorText}\n`));
+}
 await page.setViewportSize({ width: 256, height: 256 });
 await page.setContent("<!DOCTYPE html><html><body></body></html>");
 await page.addScriptTag({ content: rendererJs });
@@ -91,9 +100,12 @@ for (let i = 0; i < toRender.length; i++) {
       rendered++;
     } else {
       failed++;
+      if (failed <= 3) process.stderr.write(`${item.id}: the renderer returned nothing\n`);
     }
-  } catch {
+  } catch (e) {
     failed++;
+    // The first few reasons, enough to see a cause shared by every item.
+    if (failed <= 3) process.stderr.write(`${item.id}: ${e instanceof Error ? e.message : e}\n`);
   }
 
   process.stdout.write(JSON.stringify({ type: "progress", i: i + 1, total: toRender.length, rendered, failed }) + "\n");

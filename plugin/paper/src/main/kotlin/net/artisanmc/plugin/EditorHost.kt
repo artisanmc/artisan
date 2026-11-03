@@ -141,7 +141,10 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             return
         }
         try {
-            val vanilla = net.artisanmc.plugin.hub.VanillaAssets(File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger)
+            val vanilla = net.artisanmc.plugin.hub.VanillaAssets(
+                File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger,
+                iconsUrl = web.packCdn.takeIf { it.isNotBlank() }?.let { net.artisanmc.plugin.hub.PackCdn.baseUrl(it) + "/vanilla" },
+            )
             val packs = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/resource-pack"))
             val packCdn = web.packCdn.takeIf { it.isNotBlank() }?.let { net.artisanmc.plugin.hub.PackCdn(it, ::tunnelSecret, logger) }
             val bedrockPacks = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/bedrock-pack-store"), net.artisanmc.plugin.hub.PackStore.BEDROCK_PATH, "mcpack")

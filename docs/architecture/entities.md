@@ -46,6 +46,7 @@ request (`artisan.editor` grants them all). Access is given with a permissions p
 | `modules/` | The Projects (module folders) | The plugin (only writer), on an editor action, or the admin by hand then `/artisan reload`. |
 | `editor-prefs/<uuid>.json` | A player's editor preferences (`PATCH /api/v1/auth/me`) | The hub. |
 | `cache/minecraft/<version>/` | Vanilla textures extracted from the Mojang client jar (SHA-1 verified) | The hub, at the first texture requested. |
+| `cache/minecraft/icons/<version>/` | The editor's 3D item icons, from `<web.pack-cdn>/vanilla/icons-<version>.zip` (SHA-256 from the jar) | The hub, at the first icon requested; a failure is retried 10 minutes later. |
 | `cache/resource-pack/`, `cache/resource-pack.json`, `cache/asset-index.json` | Served packs (hub), last applied pack, asset index | `PackStore`, `ResourcePackManager`, `AssetCatalog`. |
 | `cache/bedrock-pack-store/`, `cache/bedrock-pack/`, `cache/geyser/` | Served Bedrock packs (hub), the server's current Bedrock pack, a copy of the Geyser mapping for a Geyser on the proxy | `PackStore`, `BedrockPackManager`, `GeyserIntegration`. |
 | `database/suite.mv.db` | Default H2 database | The suite's plugins. |

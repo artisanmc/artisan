@@ -47,7 +47,11 @@ No equivalent for now: Versions (empty).
 Versions and drafts in the follow-up database.*
 
 **⑦ Vanilla items and textures without a backend.** The item catalog (`tools/minecraft-assets/items`)
-travels in the jar; the 3D icons (`tools/minecraft-assets/icons`) too with `-PwithEditor`. Textures
+travels in the jar. The 3D icons (`tools/minecraft-assets/icons`, ~10 MB a version) do not: the hub
+downloads `icons-<version>.zip` from the pack CDN (`cdn.artisanmc.net/vanilla/`, uploaded by hand)
+on the first icon requested, checks it against the SHA-256 the jar carries, and extracts it into
+`plugins/Artisan/cache/minecraft/icons/<version>/` (*revised 2026-11-03*, they were in the jar with
+`-PwithEditor`; without `web.pack-cdn`, items show their flat texture). Textures
 are extracted from the Mojang client jar, downloaded and verified (SHA-1) at the first
 requested texture, into `plugins/Artisan/cache/minecraft/<version>/`. Custom items
 are read directly in `CustomItemsManager` (`ItemRoutes`, `VanillaAssets`).

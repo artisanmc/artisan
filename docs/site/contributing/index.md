@@ -15,7 +15,7 @@ pack itself. The architecture notes for contributors live in the repository, und
 |---|---|
 | `editor/` | The web editor (React 19, Vite, Konva). It also builds the resource pack, in the browser. |
 | `plugin/` | The Paper plugin (Kotlin 2.0), in Gradle modules: `api` (surface for add-ons), `core` (domain, no Bukkit), `database`, `hub` (web server and network), `paper` (Bukkit integration and the jar). |
-| `tools/minecraft-assets/` | Bun generators for vanilla Minecraft assets (item catalogue, 3D icons, glyph widths). Their outputs are committed and embedded in the jar. |
+| `tools/minecraft-assets/` | Bun generators for vanilla Minecraft assets (item catalogue, 3D icons, glyph widths). Their outputs are committed; the jar embeds the catalogue, the icon zips are served by the CDN. |
 | `docs-site/` | This wiki (Astro Starlight). |
 | `docker/` | Local Minecraft servers for development. |
 

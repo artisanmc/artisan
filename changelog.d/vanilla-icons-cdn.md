@@ -1,0 +1,2 @@
+- **Changed**: the editor's 3D item icons no longer ship in the jar (about 15 MB): the hub downloads them once from `cdn.artisanmc.net` (or the `web.pack-cdn` host), checked against a SHA-256 the jar carries, into `cache/minecraft/icons/`. Without the CDN, items show their flat texture.
+- **Added**: 3D item icons for Minecraft 26.1.2, 26.2 and 26.3.
