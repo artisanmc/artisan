@@ -130,6 +130,33 @@ describe("bedrockMenusFromProject", () => {
     expect(menus[0]?.key).toBe(bedrockMenuKey("lobby", "shop"));
   });
 
+  test("a hidden player inventory: kept when drawn without the vanilla texture and nothing sits in the inventory", () => {
+    const hidden = (name: string, body: string) => ({
+      path: `menus/${name}.yaml`,
+      content: `size: 27\nplayer_inventory: hidden\n${body}`,
+    });
+    const kept = bedrockMenusFromProject("lobby", [
+      hidden(
+        "drawn",
+        "vanilla_texture: false\nelements:\n  - positions: 10-16\n    material: STONE\n",
+      ),
+      hidden("textured", "elements:\n  - positions: 10\n    material: STONE\n"),
+      hidden(
+        "below",
+        "vanilla_texture: false\nelements:\n  - positions: '10,40'\n    material: STONE\n",
+      ),
+      hidden(
+        "listed",
+        "vanilla_texture: false\nelements:\n  - positions: [3, 27]\n    material: STONE\n",
+      ),
+      hidden(
+        "placed",
+        "vanilla_texture: false\nelements:\n  - places: { source: s, placements: [] }\n",
+      ),
+    ]);
+    expect(kept.map((m) => [m.id, m.transparent])).toEqual([["drawn", true]]);
+  });
+
   test("a layer without color takes the color tag its value opens with", () => {
     expect(leadingColor("<white>Bien le bonjour")).toBe("white");
     expect(leadingColor("<#ff8800>x")).toBe("#ff8800");

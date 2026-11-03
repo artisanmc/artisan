@@ -32,6 +32,11 @@ class BedrockTitleTest {
         assertTrue(BedrockTitle.supports(menu("id: a\nsize: 36")))
         assertTrue(BedrockTitle.supports(menu("id: a\nsize: 9")))
         assertFalse(BedrockTitle.supports(menu("id: a\nsize: 27\nplayer_inventory: hidden")))
+        // Hidden inventory: drawn without the vanilla texture, nothing in the inventory (same rule as bedrockMenus.ts).
+        val hidden = "id: a\nsize: 27\nplayer_inventory: hidden\nvanilla_texture: false\nelements:\n"
+        assertTrue(BedrockTitle.supports(menu(hidden + "  - positions: 10-16\n    material: STONE")))
+        assertFalse(BedrockTitle.supports(menu(hidden + "  - positions: '10,40'\n    material: STONE")))
+        assertFalse(BedrockTitle.supports(menu(hidden + "  - positions: [3, 27]\n    material: STONE")))
         assertFalse(BedrockTitle.supports(menu("id: a\nsize: 5\ninventory_type: hopper")))
     }
 

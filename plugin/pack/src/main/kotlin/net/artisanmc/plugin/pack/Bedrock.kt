@@ -182,6 +182,15 @@ internal object BedrockMenus {
         return slots.toList().ifEmpty { null }
     }
 
+    /** An element whose positions all fall in the chest (no placement, whose slots are free). */
+    private fun inChest(element: Any?, size: Double): Boolean {
+        val el = element as? Map<*, *> ?: return true
+        if (el["places"] != null) return false
+        return DIGITS.findAll(Js.string(el["positions"] ?: "")).all { it.value.toDouble() < size }
+    }
+
+    private val DIGITS = Regex("\\d+")
+
     private fun imageOf(app: Any?): BedrockButtonImage? {
         val image = (app as? Map<*, *>)?.get("image") as? Map<*, *> ?: return null
         val asset = image["asset"] as? String
@@ -241,7 +250,6 @@ internal object BedrockMenus {
             val (id, variant) = docs[file.path] ?: continue
             val doc = runCatching { Yaml.parse(file.content) }.getOrNull() as? Map<*, *> ?: continue
             if (doc.containsKey("inventory_type") && doc["inventory_type"] != "chest") continue
-            if (doc["player_inventory"] == "hidden") continue
             val size = Js.toNumber(doc["size"])
             if (size % 9.0 != 0.0 || size < 9.0 || size > 54.0) continue
             val sizeInt = size.toInt()
@@ -268,6 +276,12 @@ internal object BedrockMenus {
                 }
                 else -> emptyList()
             }
+            // Player inventory hidden: only drawn without the vanilla texture (the whole Bedrock panel,
+            // inventory included, is hidden) and with every element in the chest — buttons placed in
+            // the inventory are not drawn yet. Same rule as the plugin's `BedrockTitle.supports`.
+            if (doc["player_inventory"] == "hidden" &&
+                (doc["vanilla_texture"] != false || !elements.all { inChest(it, size) })
+            ) continue
             val buttons = ArrayList<BedrockButton>()
             for (element in elements) {
                 if (!Js.truthy(element)) continue

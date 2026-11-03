@@ -71,6 +71,15 @@ function slotsOf(positions: unknown, limit: number): number[] | null {
   return slots.size ? [...slots] : null;
 }
 
+/** An element whose positions all fall in the chest (no placement, whose slots are free). */
+// biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
+function inChest(el: any, size: number): boolean {
+  if (!el || typeof el !== "object") return true;
+  if (el.places !== undefined && el.places !== null) return false;
+  const spec = String(el.positions ?? "");
+  return (spec.match(/\d+/g) ?? []).every((n) => Number(n) < size);
+}
+
 // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
 function imageOf(app: any): ImageButtonImage | null {
   if (typeof app?.image?.asset !== "string" || !app.image.asset) return null;
@@ -168,10 +177,23 @@ export function bedrockMenusFromProject(
     }
     if (!doc || typeof doc !== "object") continue;
     if (doc.inventory_type !== undefined && doc.inventory_type !== "chest") continue;
-    if (doc.player_inventory === "hidden") continue;
     const size = Number(doc.size);
     if (!Number.isInteger(size) || size % 9 !== 0 || size < 9 || size > 54) continue;
     const rows = (size / 9) as BedrockMenu["rows"];
+    const elements = Array.isArray(doc.elements)
+      ? doc.elements
+      : Array.isArray(doc.layers)
+        ? // biome-ignore lint/suspicious/noExplicitAny: idem
+          doc.layers.flatMap((layer: any) => layer?.elements ?? [])
+        : [];
+    // Player inventory hidden: only drawn without the vanilla texture (the whole Bedrock panel,
+    // inventory included, is hidden) and with every element in the chest — buttons placed in
+    // the inventory are not drawn yet. Same rule as the plugin's `BedrockTitle.supports`.
+    if (
+      doc.player_inventory === "hidden" &&
+      (doc.vanilla_texture !== false || !elements.every((el: unknown) => inChest(el, size)))
+    )
+      continue;
 
     const images: BedrockMenu["images"] = [];
     const title = Array.isArray(doc.title) ? doc.title : doc.title ? [doc.title] : [];
@@ -184,12 +206,6 @@ export function bedrockMenusFromProject(
         images.push({ asset, x: layer.x, y: layer.y });
     }
 
-    const elements = Array.isArray(doc.elements)
-      ? doc.elements
-      : Array.isArray(doc.layers)
-        ? // biome-ignore lint/suspicious/noExplicitAny: idem
-          doc.layers.flatMap((layer: any) => layer?.elements ?? [])
-        : [];
     const buttons: BedrockButton[] = [];
     for (const el of elements) {
       if (!el || el.iterates || el.places) continue;
