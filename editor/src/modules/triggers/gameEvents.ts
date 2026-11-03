@@ -24,6 +24,7 @@ export const EVENT_GROUPS = [
   "combat",
   "progression",
   "commands",
+  "variables",
 ] as const;
 
 /**

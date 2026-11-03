@@ -18,6 +18,12 @@ vi.mock("@/lib/api/ai", async (importOriginal) => ({
   ...api,
 }));
 
+const files = vi.hoisted(() => ({ listServerProjects: vi.fn(), readProjectFiles: vi.fn() }));
+vi.mock("@/lib/api/projectFiles", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/projectFiles")>()),
+  ...files,
+}));
+
 const navigate = vi.hoisted(() => vi.fn());
 vi.mock("@tanstack/react-router", async () => ({
   ...(await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router")),
@@ -109,7 +115,7 @@ describe("assistant", () => {
       project: "u-local.shop",
       server: null,
     });
-    expect(api.sendAiMessage).toHaveBeenCalledWith("c1", "Un menu VIP");
+    expect(api.sendAiMessage).toHaveBeenCalledWith("c1", "Un menu VIP", []);
     expect(screen.getByText("A lu menus/shop.yml")).toBeTruthy();
     expect(screen.getByText("A écrit menus/vip.yml")).toBeTruthy();
     expect(screen.getByText("· 2 problèmes")).toBeTruthy();
@@ -280,5 +286,93 @@ describe("assistant", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
     expect(await screen.findByText("L’assistant répond encore.")).toBeTruthy();
+  });
+  it("sends files from the computer with the message, and shows them in the conversation", async () => {
+    api.readAiConversation.mockResolvedValue(
+      conversation([
+        {
+          seq: 0,
+          type: "user",
+          text: "Convertis",
+          attachments: [{ name: "zmenu.yml", kind: "text", size: 12 }],
+        },
+        { seq: 1, type: "done", inputTokens: 1, outputTokens: 1 },
+      ]),
+    );
+    render(<Assistant />);
+    fireEvent.click(await screen.findByTestId("open-assistant"));
+    const input = screen.getByTestId("assistant-file-input");
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["items: {}\n"], "zmenu.yml", { type: "application/yaml" }),
+          new File([new Uint8Array([0, 1, 2])], "data.bin"),
+        ],
+      },
+    });
+    expect(await screen.findByText(/l’assistant lit les images/)).toBeTruthy();
+    expect(screen.getByRole("list", { name: "Fichiers à envoyer" }).textContent).toContain(
+      "zmenu.yml",
+    );
+    // A file alone can be sent.
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+    await waitFor(() => expect(api.sendAiMessage).toHaveBeenCalled());
+    const [, text, sent] = api.sendAiMessage.mock.calls[0] ?? [];
+    expect(text).toBe("");
+    expect(sent).toEqual([{ name: "zmenu.yml", data: btoa("items: {}\n") }]);
+    expect(await screen.findByText("Convertis")).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Fichiers à envoyer" })).toBeNull();
+    expect(screen.getByTitle("zmenu.yml")).toBeTruthy();
+  });
+
+  it("gives back the files when the hub refuses the message", async () => {
+    api.sendAiMessage.mockRejectedValueOnce(new ApiError("ai_conversation_full", 413));
+    render(<Assistant />);
+    fireEvent.click(await screen.findByTestId("open-assistant"));
+    fireEvent.change(screen.getByTestId("assistant-file-input"), {
+      target: { files: [new File(["a"], "a.txt")] },
+    });
+    await screen.findByRole("list", { name: "Fichiers à envoyer" });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+    expect(await screen.findByText(/trop de fichiers/)).toBeTruthy();
+    expect(screen.getByRole("list", { name: "Fichiers à envoyer" }).textContent).toContain("a.txt");
+  });
+
+  it("attaches a file picked among the server's modules", async () => {
+    files.listServerProjects.mockResolvedValue({ ok: true, projectIds: ["shop", "old"] });
+    files.readProjectFiles.mockResolvedValue({
+      ok: true,
+      files: { "menus/old.yml": "title: Old" },
+      binaries: [{ path: "assets/a.ogg", hash: "h", size: 3 }],
+      failed: [],
+      hash: "h",
+    });
+    render(
+      <>
+        <AssistantButton />
+        <AssistantDock projectId="u-local.shop" serverId="u-local" />
+      </>,
+    );
+    fireEvent.click(await screen.findByTestId("open-assistant"));
+    const trigger = screen.getByRole("button", { name: "Joindre des fichiers" });
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByText("Depuis les modules du serveur"));
+    fireEvent.click(await screen.findByRole("button", { name: "old" }));
+    expect(files.readProjectFiles).toHaveBeenCalledWith({ serverId: "u-local", diskId: "old" });
+    const list = await screen.findByTestId("server-file-list");
+    expect(list.textContent).not.toContain("a.ogg");
+    fireEvent.click(await screen.findByRole("button", { name: "menus/old.yml" }));
+    expect(await screen.findByText("Ajouté")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Terminé" }));
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+    await waitFor(() => expect(api.sendAiMessage).toHaveBeenCalled());
+    expect(api.sendAiMessage.mock.calls[0]?.[2]).toEqual([
+      {
+        name: "old/menus/old.yml",
+        data: btoa("title: Old"),
+        project: "u-local.old",
+        path: "menus/old.yml",
+      },
+    ]);
   });
 });

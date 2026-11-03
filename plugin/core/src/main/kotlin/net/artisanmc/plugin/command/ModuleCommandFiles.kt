@@ -13,7 +13,7 @@ import net.artisanmc.plugin.project.EditorYaml
 /**
  * The `command/v1` file of each command a module declares (design `commandes-unifiees` §2): its
  * name, aliases, permission, description and arguments, and actions that call the module's code
- * (`module_command`) or open its menu (`open_menu`). They are the module's system elements of
+ * (`module_command`) or open its menu (`open_menu`), or the actions it wrote (`fileActions`). They are the module's system elements of
  * the template [TEMPLATE_ID], kept in its folder by `SystemFiles`: rewritten while untouched,
  * the admin's once edited.
  *
@@ -77,7 +77,9 @@ object ModuleCommandFiles {
         return out
     }
 
-    private fun actions(declaration: PlayerCommandDeclaration): List<Map<String, Any?>> = when {
+    private fun actions(declaration: PlayerCommandDeclaration): List<Any?> = when {
+        // The module wrote them (a condition the admin should see): as given, in the file's format.
+        declaration.fileActions.isNotEmpty() -> declaration.fileActions
         declaration.executor != null -> listOf(mapOf(ACTION to declaration.id))
         declaration.opensMenu != null -> listOf(mapOf("open_menu" to declaration.opensMenu))
         else -> emptyList()

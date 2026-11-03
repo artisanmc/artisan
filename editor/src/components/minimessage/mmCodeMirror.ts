@@ -1,3 +1,4 @@
+import type { PapiPlaceholder } from "@/components/PlaceholderInput";
 import { loreWrapPoints } from "@/lib/loreWrap";
 import type { Segment, Style } from "@/lib/miniMessage";
 import { parseMiniMessageSource } from "@/lib/miniMessage";
@@ -310,6 +311,23 @@ function placeholderCompletion(
   };
 }
 
+/** `%…%` of the server's PlaceholderAPI expansions, as the plain text fields offer them. */
+function papiCompletion(papi: PapiPlaceholder[]) {
+  return (ctx: CompletionContext) => {
+    const word = ctx.matchBefore(/%[\w-]*$/);
+    if (!word || papi.length === 0) return null;
+    return {
+      from: word.from,
+      options: papi.map((p) => ({
+        label: p.placeholder,
+        detail: p.expansion,
+        apply: p.placeholder,
+      })),
+      validFor: /^%[\w-]*$/,
+    };
+  };
+}
+
 export const MM_THEME = EditorView.theme({
   "&": { fontSize: "13px", background: "transparent" },
   "&.cm-focused": { outline: "none" },
@@ -410,7 +428,23 @@ export const MM_THEME = EditorView.theme({
     whiteSpace: "nowrap",
     maxWidth: "14em",
   },
-  ".cm-mm-obf": { textDecoration: "underline dashed", textDecorationColor: "var(--text-faint)" },
+  // Obfuscated text stays readable to be edited: a moving hatch over it says it will be
+  // scrambled in game (the preview animates the real glyphs).
+  ".cm-mm-obf": {
+    textDecorationLine: "underline",
+    textDecorationStyle: "wavy",
+    textDecorationColor: "var(--text-mut)",
+    backgroundImage:
+      "repeating-linear-gradient(115deg, transparent 0 4px, color-mix(in srgb, var(--text-faint) 30%, transparent) 4px 6px)",
+    backgroundSize: "16px 100%",
+    animation: "cm-mm-obf-scroll 0.6s linear infinite",
+    borderRadius: "2px",
+  },
+  "@keyframes cm-mm-obf-scroll": {
+    from: { backgroundPosition: "0 0" },
+    to: { backgroundPosition: "16px 0" },
+  },
+  "@media (prefers-reduced-motion: reduce)": { ".cm-mm-obf": { animation: "none" } },
 });
 
 class WrapMarker extends WidgetType {
@@ -469,6 +503,8 @@ export interface MmExtensionOptions {
   expressions?: ExpressionView;
   /** What the `{` completion list says beside a placeholder. */
   completionDetail?: (entry: PlaceholderEntry) => string;
+  /** The server's PlaceholderAPI placeholders, offered after `%`. */
+  papi?: PapiPlaceholder[];
 }
 
 export function mmExtensions({
@@ -479,6 +515,7 @@ export function mmExtensions({
   wrapLabel = "",
   expressions,
   completionDetail = (e) => e.sample ?? e.type,
+  papi = [],
 }: MmExtensionOptions): Extension[] {
   const exts: Extension[] = [MM_THEME, EditorView.lineWrapping];
   if (wrapWidth && wrapWidth > 0 && profile.lines === "separate") {
@@ -487,10 +524,10 @@ export function mmExtensions({
   if (profile.lines === "single") {
     exts.push(Prec.highest(keymap.of([{ key: "Enter", run: () => true }])));
   }
-  if (entries.length)
+  if (entries.length || papi.length)
     exts.push(
       autocompletion({
-        override: [placeholderCompletion(entries, completionDetail)],
+        override: [placeholderCompletion(entries, completionDetail), papiCompletion(papi)],
         icons: false,
       }),
     );

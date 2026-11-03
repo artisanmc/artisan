@@ -56,6 +56,15 @@ class CoreGameEventsTest {
     }
 
     @Test
+    fun `the events Artisan fires itself register beside the catalog, under their own domain`() {
+        val reg = GameEventRegistry()
+        catalog.forEach { reg.register(it.declaration) }
+        CoreGameEvents.FIRED_BY_ARTISAN.forEach(reg::register)
+        assertEquals(listOf("variables"), CoreGameEvents.FIRED_BY_ARTISAN.map { it.group }.distinct())
+        assertTrue(reg.has("variable_changed"))
+    }
+
+    @Test
     fun `the domains the editor groups by`() {
         assertEquals(
             setOf("connection", "life", "world", "blocks", "items", "combat", "progression", "commands"),

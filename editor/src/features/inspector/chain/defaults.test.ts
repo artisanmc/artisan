@@ -51,7 +51,7 @@ describe("defaultAction", () => {
     expect(defaultAction("set_arg")).toEqual({ name: "set_arg", value: { arg: "", value: '""' } });
     expect(defaultAction("teleport")).toEqual({
       name: "teleport",
-      value: { world: "world", x: 0, y: 64, z: 0 },
+      value: "world 0 64 0",
     });
   });
 });

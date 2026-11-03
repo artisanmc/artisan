@@ -1,9 +1,9 @@
 import { LocalizedTextField } from "@/components/LocalizedTextField";
-import { RevealField } from "@/components/RevealField";
+import { MmEditor } from "@/components/minimessage/MmEditor";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { menusOf } from "@/domain/documents";
 import type { MenuId, ProjectId } from "@/domain/types";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { CONTAINER_TITLE } from "@/lib/mm/profiles";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -39,25 +39,15 @@ export function PlainTitleForm({ projectId, menuId }: PlainTitleFormProps) {
         lt={plainLayer.value}
         label={t("layerEditForm.plainName")}
         renderEditor={({ value, fallback, label, onChange }) => (
-          <RevealField
+          <MmEditor
             value={value}
             onChange={onChange}
             aria-label={label}
+            profile={CONTAINER_TITLE}
             entries={placeholderEntries}
             placeholder={fallback ?? t("layerEditForm.plainPlaceholder")}
-            className="text-xs"
-            facade={
-              <MiniMessageInline
-                source={value || fallback || ""}
-                className={value ? "font-mono text-xs" : "font-mono text-xs opacity-50"}
-              />
-            }
-            preview={
-              <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)]/40 p-2">
-                <div className="field-label !mb-1">{t("layerEditForm.preview")}</div>
-                <MiniMessageInline source={value || fallback || ""} className="font-mono text-xs" />
-              </div>
-            }
+            toolbar="focus"
+            minHeight="0"
           />
         )}
       />

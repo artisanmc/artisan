@@ -13,6 +13,12 @@ import {
   tryParseAsComparison,
 } from "@/lib/expr/tryParseAsComparison";
 import { useEffect, useState } from "react";
+
+/**
+ * A PlaceholderAPI placeholder alone (`%essentials_vanished%`, `!%x%`): its value is a text, and any
+ * text that is not empty is true, "false" and "no" included (ADR `triggers-and-variables` §10).
+ */
+export const isLonePlaceholder = (expr: string): boolean => /^\s*!?\s*%[^%\s]+%\s*$/.test(expr);
 import { useTranslation } from "react-i18next";
 import { ExpressionPreview } from "./ExpressionPreview";
 
@@ -84,6 +90,11 @@ export function ExpressionConditionField({ expr, onChange }: ExpressionCondition
             {t("conditions.exprFormModeShort")}
           </button>
         </div>
+        {isLonePlaceholder(expr) ? (
+          <p role="alert" className="max-w-[260px] text-[10.5px] text-[var(--warning)]">
+            {t("conditions.variable.placeholderOnly")}
+          </p>
+        ) : null}
         <ExpressionPreview expr={expr} />
       </div>
     );

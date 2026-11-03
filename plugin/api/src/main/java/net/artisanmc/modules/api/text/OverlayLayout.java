@@ -46,7 +46,7 @@ import java.util.Set;
  * <p>Same format and geometry in the editor (conformance vectors
  * {@code testdata/overlay-layout-conformance.json}).
  *
- * @since 2.21.0
+ * @since 1.0.0
  */
 @Beta
 public final class OverlayLayout {

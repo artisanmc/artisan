@@ -22,20 +22,21 @@ internal data class ImageButtonPlacement(
 
 /** What a Project's menus ask of the pack (`menuGlyphPlacements.ts`, `imageButtons.ts`, `vanillaGui.ts`). */
 internal object MenuReaders {
-    private fun menus(files: List<PackFile>, pattern: (String) -> Boolean): Sequence<Any?> =
-        files.asSequence().filter { pattern(it.path) }.mapNotNull { f ->
+    /** The module's menus and its variants' (`DocumentLayout`), in file order. */
+    private fun menus(files: List<PackFile>): Sequence<Any?> {
+        val paths = DocumentLayout.menuPaths(files.map { it.path })
+        return files.asSequence().filter { it.path in paths }.mapNotNull { f ->
             // An unreadable menu is skipped: the plugin does not render it either.
             runCatching { Yaml.parse(f.content) }.fold({ Holder(it) }, { null })
         }.map { it.value }
+    }
 
     private class Holder(val value: Any?)
-
-    private fun isMenu(path: String) = path.startsWith("menus/") && YamlPaths.isYaml(path)
 
     /** Glyph title layers: which image sits at which Y, for a `glyph_y{Y}` font per Y in use. */
     fun glyphPlacements(files: List<PackFile>): List<GlyphPlacement> {
         val out = ArrayList<GlyphPlacement>()
-        for (doc in menus(files, ::isMenu)) {
+        for (doc in menus(files)) {
             val title = (doc as? Map<*, *>)?.get("title")
             val layers = when (title) {
                 is List<*> -> title
@@ -58,7 +59,7 @@ internal object MenuReaders {
     /** Containers whose menus turn their vanilla texture off (`vanilla_texture: false`). */
     fun transparentContainers(files: List<PackFile>): Set<GuiContainer> {
         val out = LinkedHashSet<GuiContainer>()
-        for (doc in menus(files, ::isMenu)) {
+        for (doc in menus(files)) {
             val map = doc as? Map<*, *>
             val type = map?.get("inventory_type")
             val container = MENU_CONTAINER[Js.string(type ?: "chest")]
@@ -67,13 +68,12 @@ internal object MenuReaders {
         return out
     }
 
-    private val MENU_FILE = Regex("^menus/.*\\.ya?ml$")
     private const val WS = "[\\t\\n\\u000b\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]"
     private val POSITION = Regex("^$WS*([0-9]+)(?:$WS*-$WS*([0-9]+))?$WS*$")
 
     fun imageButtons(files: List<PackFile>): List<ImageButtonPlacement> {
         val out = ArrayList<ImageButtonPlacement>()
-        for (raw in menus(files) { MENU_FILE.containsMatchIn(it) }) {
+        for (raw in menus(files)) {
             val doc = raw as? Map<*, *> ?: if (raw is List<*>) emptyMap<String, Any?>() else continue
             val inventoryType = doc["inventory_type"]
             val type = if (inventoryType == "hopper" || inventoryType == "dropper") inventoryType as String else "chest"

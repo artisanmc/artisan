@@ -337,5 +337,21 @@
         "action": { "type": "open_dialog", "dialogId": "my-shop:confirm", "clearContext": true }
       }
     ]
+  },
+  {
+    "name": "has_var condition (a stored Variable)",
+    "dsl": "if has_var(last_death):\n  broadcast \"a\"",
+    "canonicalDsl": "if has_var(last_death):\n  broadcast \"a\"",
+    "ast": [
+      {
+        "kind": "if",
+        "cases": [
+          {
+            "conditions": [{ "type": "has_var", "var": "last_death" }],
+            "steps": [{ "kind": "action", "action": { "type": "broadcast", "text": { "lit": "a" } } }]
+          }
+        ]
+      }
+    ]
   }
 ]

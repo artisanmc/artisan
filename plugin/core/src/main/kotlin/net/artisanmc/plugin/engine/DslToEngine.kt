@@ -110,9 +110,12 @@ private fun mapCondition(c: DslCondition): Condition = when (c) {
     is DslCondition.HasXp -> Condition.HasXp(c.amount.toInt())
     is DslCondition.HasLevel -> Condition.HasLevel(c.level.toInt())
     is DslCondition.WorldIs -> Condition.WorldIs(c.world)
+    is DslCondition.ClientIs -> Condition.ClientIs(c.client)
+    DslCondition.HasResourcePack -> Condition.HasResourcePack
     is DslCondition.RandomChance -> Condition.RandomChance(c.probability)
     is DslCondition.CooldownPassed -> Condition.CooldownPassed(c.cooldownId)
     is DslCondition.PlayerInRegion -> Condition.PlayerInRegion(c.region)
+    is DslCondition.HasVar -> Condition.HasVar(c.name)
     is DslCondition.TimeIs -> Condition.TimeIs(
         when (val r = c.range) {
             is TimeRange.Named -> r.name

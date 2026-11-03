@@ -1,8 +1,9 @@
 # Plugin `/artisan` commands
 
 Dev-facing detail. Source of truth: `plugin/paper/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`.
-The user-facing table (EN) lives in `docs/site/getting-started/install-admin.md` —
-the two must change together.
+The user-facing tables (EN), commands and permissions, live in
+`docs/site/configuration/commands-permissions.md` — the two must change together, along with
+the `permissions:` block of `paper/src/main/resources/plugin.yml`.
 
 | Subcommand | Effect |
 |---|---|
@@ -11,7 +12,8 @@ the two must change together.
 | `sync status` | Fixed message pointing to the logs (leftover of cloud sync). |
 | `sync reject` | Permission `artisan.admin`. `menuProvider.unload()/load()` — reloads from disk and, on a leaf, reconnects to the hub. |
 | `editor` | Editor login link. See below. |
-| `dump-title <menu_id> [lang]` | Permission `artisan.admin`. **Diagnostic**, not documented user-side. Compiles the menu title and prints each step: the exact MiniMessage emitted, the offset advances, and the MC X cursor at each layer boundary. Use it when the in-game position differs from the editor preview. |
+| `dump-title <menu_id> [lang]` | Permission `artisan.admin`. **Diagnostic**, listed user-side as such. Compiles the menu title and prints each step: the exact MiniMessage emitted, the offset advances, and the MC X cursor at each layer boundary. Use it when the in-game position differs from the editor preview. |
+| `click <token>` | No permission, absent from completion and help. **Internal**: the command a `chat_button` line runs when clicked (`/artisan:artisan click <token>`, `ChatButtons`). A token that is unknown, expired, used up or clicked by another player than the one it was sent to does nothing. Tokens live in memory, a restart forgets them. ADR `triggers-and-variables` §7. |
 
 Removed in phase F: `link <code>` (cloud linking), `member add <email>` (console access),
 and with them `editor.access_mode` / `editor.console_only`.

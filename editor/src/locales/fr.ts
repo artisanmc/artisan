@@ -10,6 +10,7 @@ import { onboardingFr } from "./onboarding";
 import { projectIdentityFr } from "./projectIdentity";
 import { selfHostedFr } from "./selfHosted";
 import { triggersFr } from "./triggers";
+import { variablesFr } from "./variables";
 
 const fr: typeof en = {
   onboarding: onboardingFr,
@@ -91,6 +92,7 @@ const fr: typeof en = {
   changes: changesFr,
   actionCatalog: actionCatalogFr,
   triggers: triggersFr,
+  variables: variablesFr,
   navigation: {
     label: "Navigation principale",
     open: "Ouvrir la navigation",
@@ -427,6 +429,9 @@ const fr: typeof en = {
       "Cette action n'est pas déclarée par le serveur connecté : ses arguments s'éditent en JSON brut.",
     moduleAddText: "Ajouter un texte",
     moduleValueInvalid: "JSON invalide : la valeur n'a pas été modifiée.",
+    numberLiteral: "Saisir un nombre",
+    numberTemplate:
+      "Utiliser un template ({var.coins}, %placeholder%), résolu quand l'action s'exécute",
     textName: "texte (MiniMessage)",
     textLang: "texte (MiniMessage) [{{lang}}]",
     textLangFallback: "texte (MiniMessage) [{{lang}} — fallback]",
@@ -480,7 +485,22 @@ const fr: typeof en = {
       give_xp: { amount: "quantité" },
       give_level: { amount: "quantité" },
       play_sound: { sound: "son", volume: "volume (0–1)", pitch: "hauteur (0–2)" },
-      teleport: { world: "monde", yaw: "yaw (optionnel)", pitch: "pitch (optionnel)" },
+      teleport: {
+        location: "position",
+        world: "monde",
+        yaw: "yaw (optionnel)",
+        pitch: "pitch (optionnel)",
+      },
+      set_var: { var: "variable", value: "valeur" },
+      add_var: { var: "variable", amount: "quantité" },
+      clear_var: { var: "variable" },
+      chat_button: {
+        text: "texte avant le bouton (MiniMessage)",
+        label: "bouton (MiniMessage)",
+        uses: "clics permis",
+        expires_seconds: "expire après (secondes)",
+        do: "au clic",
+      },
       pagination_next: { element_id: "cible" },
       pagination_prev: { element_id: "cible" },
       set_arg: { arg: "entrée de contexte à modifier", value: "nouvelle valeur (expression)" },
@@ -522,6 +542,18 @@ const fr: typeof en = {
       },
       run_actions: {
         actions: "Une expression désignant un champ actions (ex. item.on_buy). Exécuté en ligne.",
+      },
+      teleport: {
+        location:
+          "monde x y z [yaw pitch], ou un template qui désigne une position ({var.last_death}). Les champs world/x/y/z des anciens fichiers restent lus.",
+      },
+      set_var: {
+        value:
+          "Lue selon le type de la variable : true/false, un nombre, une position, ou un template ({player.location}, {var.coins + 1}).",
+      },
+      add_var: { amount: "Variable nombre seulement. Une quantité négative soustrait." },
+      chat_button: {
+        uses: "Seul le joueur qui a reçu la ligne peut cliquer. Un redémarrage oublie le bouton.",
       },
     },
   },
@@ -670,6 +702,20 @@ const fr: typeof en = {
     caseConditionEmpty: "(toujours — aucune condition sur ce cas)",
   },
   conditions: {
+    variable: {
+      pick: "choisir une variable",
+      none: "Aucune variable dans ce projet ni sur ce serveur",
+      missing:
+        "{{name}} : ni ce projet ni un module installé sur ce serveur ne déclare cette variable",
+      key: "clé",
+      value: "valeur",
+      isTrue: "est vrai",
+      isFalse: "est faux",
+      isSet: "est définie",
+      project: "ce projet",
+      placeholderOnly:
+        'Un placeholder seul est un texte, et tout texte non vide est vrai (« false » aussi). Comparez-le : %…% == "yes".',
+    },
     removeCondition: "Supprimer",
     keptUnknown_one: "{{count}} condition non affichable ici, conservée telle quelle",
     keptUnknown_other: "{{count}} conditions non affichables ici, conservées telles quelles",
@@ -877,6 +923,7 @@ const fr: typeof en = {
     commands: "Commandes",
     dialogs: "Dialogs",
     triggers: "Triggers",
+    variables: "Variables",
     edit: "Éditer",
     delete: "Supprimer du projet",
     empty: "Aucun élément pour l'instant",
@@ -951,6 +998,12 @@ const fr: typeof en = {
       give_xp: "donner {{amount}} xp",
       give_level: "donner {{amount}} niveaux",
       teleport: "téléportation vers {{world}} {{x}} {{y}} {{z}}",
+      teleportTo: "téléportation vers {{location}}",
+      set_var: "variable {{var}} = {{value}} (gardée par le serveur, pas ici)",
+      add_var: "variable {{var}} + {{amount}} (gardée par le serveur, pas ici)",
+      clear_var: "variable {{var}} effacée (gardée par le serveur, pas ici)",
+      chatButton: "bouton dans le chat : {{text}}",
+      chatButtonNotPlayed: "ses actions au clic ne s'exécutent que sur le serveur",
       moduleAction: "action du module {{module}} : elle s'exécute sur le serveur, pas ici",
       notRun: "non exécutée",
     },
@@ -1214,6 +1267,75 @@ const fr: typeof en = {
     errPlayerRequired: "Cette source requiert un joueur en ligne — preview indisponible.",
     errFetchError: "Le module a échoué : {{message}}",
   },
+  originals: {
+    original: "Version du module",
+    modified: "Ta version",
+    added: "Ajouté par toi",
+    tagModified: "ta version",
+    tagAdded: "ajouté",
+    required: "Le code du module l'ouvre : il ne peut pas être supprimé.",
+    compare: "Comparer avec l'original",
+    compareTitle: "{{name}} : la version du module et la tienne",
+    shipped: "Tel que le module le livre",
+    yours: "Ta version",
+    revert: "Revenir à l'original",
+    revertHint:
+      "Abandonne tes modifications : la version du module sert de nouveau et suit ses mises à jour.",
+    revertConfirm: "Abandonner tes modifications et revenir à la version du module ?",
+  },
+  variants: {
+    originalBanner: "Original du module : {{name}}",
+    originalBannerHint: "Lecture seule, tel que le module le livre.",
+    originalLeave: "Quitter",
+    original: "Original du module (lecture seule)",
+    originalHint: "Ce que le module livre, sans tes modifications : pour regarder et copier",
+    viewAsOriginal: "Original du module : {{name}}",
+    viewAs: "Voir en tant que",
+    viewAsValue: "Voir en tant que : {{name}}",
+    module: "Défaut",
+    moduleHint: "Les fichiers du module, la version que reçoit tout joueur sans règle",
+    newVariant: "Nouvelle variante…",
+    newVariantTitle: "Nouvelle variante",
+    newVariantHint:
+      "Un nom de dossier (minuscules, chiffres, - et _). Personne ne la voit tant que les règles d'affichage ne l'affichent pas.",
+    nameInvalid:
+      "Minuscules, chiffres, - et _ uniquement, en commençant par une lettre ou un chiffre.",
+    nameTaken: "Cette variante existe déjà.",
+    rules: "Règles d'affichage…",
+    rulesTitle: "Règles d'affichage",
+    rulesHint:
+      "Un arbre de conditions lu pour chaque joueur, de haut en bas, jusqu'au premier « Afficher » qu'il atteint. Il voit cette variante ; un fichier qu'elle n'a pas vient du module.",
+    rulesEmpty: "Aucune variante pour l'instant.",
+    variant: "Variante",
+    removeVariant: "Supprimer la variante {{name}}",
+    removeVariantConfirm:
+      "Supprimer la variante {{name}}, ses {{count}} version(s) et ses étapes dans les règles d'affichage ? Les fichiers partent à la corbeille du serveur à la prochaine publication.",
+    done: "Terminé",
+    viewing: "Variante affichée : {{name}}",
+    viewingHint:
+      "Les documents qui ont une version pour {{name}} la montrent ; les autres sont ceux du module, partagés par toutes les variantes.",
+    ownVersion: "Version pour {{name}}",
+    inherited: "Du module, partagé",
+    createVersion: "Créer une version pour {{name}}",
+    createVersionHint:
+      "Copie ce document dans la variante : les modifications ne changent alors que ce que voient les joueurs de {{name}}.",
+    dropVersion: "Retirer la version pour {{name}}",
+    dropVersionHint:
+      "La copie de la variante est supprimée ; ses joueurs revoient le document du module.",
+    commandLocked:
+      "Nom, alias, arguments, permission et sous-commandes sont ceux du module, communs à toutes les variantes : cette version ne change que ce qui s'exécute.",
+    editShared: "Les modifications s'appliquent à toutes les variantes.",
+    editMakesVersion: "Le modifier crée sa version pour {{name}} : celui du module reste tel quel.",
+    count_one: "{{count}} variante",
+    count_other: "{{count}} variantes",
+    badge: "A des versions dans : {{names}}",
+    showVariantStep: "Afficher la variante",
+    showDefaultStep: "Afficher Défaut",
+    otherwise: "Sinon",
+    unreachable: "Jamais atteinte : une étape « Afficher » plus haut termine cette branche.",
+    otherwiseDefaultHint:
+      "Toujours en fin d'arbre : le joueur pour qui rien au-dessus n'affiche de variante voit les fichiers du module.",
+  },
   canvas: {
     systemElement: "système · {{module}}",
     systemDocumentKept:
@@ -1359,14 +1481,6 @@ const fr: typeof en = {
         xxl: "Géant (32)",
       },
     },
-  },
-  edition: {
-    pro: "Pro",
-    advancedExpression:
-      "Expression avancée : sa vue lisible et son aperçu viennent avec Artisan Pro. Elle fonctionne en jeu de la même façon.",
-    proOnly: "Fonction Artisan Pro : disponible avec le jar Pro.",
-    composedReadOnly:
-      "Ce titre a été composé avec Artisan Pro. Il reste tel quel et fonctionne toujours en jeu ; modifier ses calques demande Artisan Pro.",
   },
   layersPanel: {
     vanilla: "Vanilla",
@@ -1887,15 +2001,32 @@ const fr: typeof en = {
       invalid_type: "valeur du mauvais type.",
       unsafe_path: "le chemin doit rester dans le dossier du serveur.",
       invalid_reference: "choisir une image au format projet:image.",
+      invalid_palette_entry: "chaque entrée a un nom et des couleurs #rrggbb.",
     },
     listHint: "Valeurs séparées par des virgules.",
     vanillaTexture: "Texture vanilla",
+    palette: {
+      colors: "Couleurs",
+      gradients: "Dégradés",
+      name: "Nom",
+      colorOf: "Couleur de {{name}}",
+      stopOf: "Couleur {{index}} de {{name}}",
+      newColor: "Nouvelle couleur",
+      newGradient: "Nouveau dégradé",
+      addColor: "Ajouter une couleur",
+      addGradient: "Ajouter un dégradé",
+      addStop: "Ajouter une couleur au dégradé",
+      removeStop: "Retirer la dernière couleur",
+      remove: "Supprimer",
+    },
     connectionHint:
       "Les identifiants de la base de données vivent dans environment.yml, qui ne se modifie qu'à la main.",
     discard: "Annuler",
     pending_one: "{{count}} réglage modifié",
     pending_other: "{{count}} réglages modifiés",
     groupHints: {
+      palette:
+        "Couleurs et dégradés proposés par la barre de mise en forme dans tous les modules du serveur. Appliquer une couleur écrit sa valeur dans le texte : modifier la palette ne change pas les textes existants.",
       textures:
         "Redessinent les coffres, entonnoirs et distributeurs du serveur quand un menu désactive sa texture vanilla.",
     },
@@ -1904,6 +2035,7 @@ const fr: typeof en = {
       textures: "Textures des conteneurs",
       resourcePack: "Resource pack",
       editor: "Accès à l'éditeur",
+      palette: "Palette de texte",
       other: "Autres",
     },
     fields: {
@@ -1977,8 +2109,6 @@ const fr: typeof en = {
     ctxInDocument: "dans {{owner}}",
   },
   moduleHome: {
-    pluginModule: "Module du plugin {{name}}",
-    contentModule: "Module de contenu",
     content: "Contenu",
     boardEmpty: "Rien sur le canvas pour l'instant.",
     folders_one: "{{count}} dossier",

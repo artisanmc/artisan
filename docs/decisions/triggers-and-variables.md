@@ -1,9 +1,10 @@
 # Triggers and variables — reacting to game events, remembering values
 
-**Status:** accepted (2026-10-24). Batches 3 (registry, Trigger kind, core catalog, effects) and 5
-(editor) delivered first, at Iban's request; batches 1, 2 and 4 (`location` type, Variables,
-`chat_button`) remain to be done. Deviations of the implementation, see "Implementation" at the end.
-§10 (module variables, batch 6) is a **proposed** amendment of 2026-10-31, not yet accepted.
+**Status:** accepted (2026-10-24), delivered. Batches 3 (registry, Trigger kind, core catalog,
+effects) and 5 (editor) delivered first, at Iban's request; §10 (module variables, batch 6) is an
+amendment of 2026-10-31, accepted on 2026-11-01 and delivered in part ahead of batch 2; batches 1, 2
+and 4 (`location` type, Variables, `chat_button`) and the rest of batch 6 delivered on 2026-11-01.
+Deviations of the implementation, see the "Implementation" sections at the end.
 
 **Naming (Iban, 2026-10-24)**: the kind is called **Trigger** (not "Automation"). The event it
 listens to is therefore called **Game event**, so as not to say "trigger" twice. This is consistent
@@ -415,3 +416,67 @@ What differs from the text above, and why:
   without a server.
 - **Editor**: `cancel_event` / `set_event` are only offered in a Trigger's chain, under "This
   event", based on the chosen event; never in the generic action list.
+
+## Implementation (batch 6, 2026-11-01)
+
+Delivered before batch 2 (Project variables), so the reading path is the module side alone:
+
+- `api.getVariables()` (`VariableRegistry`, API 2.24.0, `@Beta`), declarations and Presence
+  `declared_variables` as in §10, with an optional `description` by language for the editor.
+- Every context binds `var` (`ExecutionContext.resolvedArgs`, `ModuleVariableValues`): a map read
+  lazily, so `expression` conditions and texts read `var.<module>.<name>` and
+  `var.<module>.<name>["<key>"]` through the expression engine as it is, with no new syntax. An
+  arg named `var` is not overridden.
+- Editor: the condition list gains "module variable", a criterion (variable → key → operator →
+  value) that writes a plain `expression` and reads it back; a name the active server does not
+  declare is struck through.
+
+Not yet: `has_var` (`var.<m>.<n> != null` meanwhile), `variable_changed` and `changed(...)`,
+`rowRef` keys with a picker (the key is typed), the `{` autocomplete of templates, the
+`artisan_var` PlaceholderAPI namespace, and the `location` type.
+
+## Implementation (batches 1, 2, 4 and the rest of 6, 2026-11-01)
+
+What differs from the text above, and why:
+
+- **`expires_seconds: 600`** (an integer) in `variable/v1` and `chat_button`, instead of
+  `expires: 10m`: the same choice as `cooldown_seconds` (batch 3), no duration parser on both sides.
+- **Storage**: table `artisan_vars` (migration 39) with `owner` (a player's UUID, or `*` for a
+  `server` Variable), `name` (the qualified ref `project/id`), `val` (JSON, null = cleared),
+  `expires_at` and `updated_at`. No `scope` column: the owner says it. A clear is written as a
+  tombstone so a network's other servers learn it at their next refresh (30 s, like
+  `CooldownSync`); tombstones older than 24 h are purged once a day. Without a database, memory
+  only, with one line in the logs at startup.
+- **Typed arguments** (§6): `ArgCoercion` runs after `bind`, in `ActionExecutor`, on `number`,
+  `integer`, `boolean` and `location` arguments; the menu schema accepts a template on each of
+  them (`$defs.Template`). A template alone keeps its value (`{var.last_death}` is a location);
+  anything else is rendered then converted.
+- **`teleport`**: `location` is the primary argument (`teleport: "world 0 64 0"` or
+  `teleport: "{var.last_death}"`), a string `world x y z [yaw pitch]` or an object. The old
+  `world/x/y/z/yaw/pitch` are still read; a missing world warns and does nothing.
+- **`player.location`** joins `player.*` so `set_var { var: last_death, value: "{player.location}" }`
+  needs no event. `player.*` stays reserved to the core; **`player.vanished`** is the one
+  integration there: it reads the Bukkit metadata `vanished` that EssentialsX, SuperVanish and
+  PremiumVanish set by convention (true when one of its values is true, false without such a
+  plugin). It replaces `%essentials_vanished%` in a condition, which is always true (below).
+- **`chat_button`** runs `/artisan:artisan click <token>` (a subcommand of `/artisan`, no
+  permission, no completion) instead of `/artisan:click`: one command to register, not two. 64
+  buttons per player at most, the oldest dropped first.
+- **`variable_changed`** (group `variables`) carries `var`, `project` (empty for a module
+  Variable) and `key`, and fires for `set_var`/`add_var`/`clear_var` as well as for a module's
+  `changed(...)`. It fires only when a Trigger listens to it.
+- **PlaceholderAPI**: `%artisan_var_<name>%`, where `<name>` is `project/id`, a bare `id` when one
+  Project has it, or `module.name`; a keyed module Variable takes `:key`
+  (`%artisan_var_quests.status:daily/miner%`).
+- **Reading order**: in a Project, `var.<id>` reads its own Variable first; a Project variable
+  named like a module (`guilds`) hides that module's Variables in that Project, as in the editor.
+- **Condition traps** (editor): a boolean Variable is a condition by itself (`expression: var.vip`,
+  `!var.vip`, shown as "is true / is false"). A PlaceholderAPI placeholder alone is a text, and
+  any non-empty text is true, `"false"` included: the expression field warns when an `expression`
+  is a placeholder alone, and says to compare it (`%x% == "yes"`).
+- **Action DSL**: gains `has_var(<name>)` on both sides (vector `action-dsl-conformance.json`); no
+  form for the new actions, the DSL stays a reading aid.
+
+Not yet: `rowRef` keys with a picker (the key of a keyed module Variable is typed), the action
+budget of §8, the board's Variable nodes and their `document_ref` edges, and renaming that
+repoints usages.

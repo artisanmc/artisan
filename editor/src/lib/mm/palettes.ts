@@ -118,3 +118,84 @@ export const builtinPaletteSource: PaletteSource = {
 /** The hex a swatch draws with. */
 export const swatchHex = (color: string): string =>
   color.startsWith("#") ? color : (NAMED_COLORS[color] ?? "#ffffff");
+
+/**
+ * The server's palette, in its `config.yml` (`text-palette.*`, ADR
+ * `server-config-from-editor`): `"<name> #rrggbb"` per color, `"<name> #rrggbb #rrggbb…"`
+ * per gradient. The plugin checks each entry on write.
+ */
+export const SERVER_PALETTE_KEYS = {
+  colors: "text-palette.colors",
+  gradients: "text-palette.gradients",
+} as const;
+
+const TRAILING_HEX = /(?:\s+#[0-9a-fA-F]{6})+$/;
+
+/** `"Sunset #ff5f6d #ffc371"` → name and colors; null when the entry is malformed. */
+function parseEntry(entry: string): { name: string; colors: string[] } | null {
+  const m = TRAILING_HEX.exec(entry);
+  if (!m) return null;
+  const name = entry.slice(0, m.index).trim();
+  if (!name) return null;
+  return {
+    name,
+    colors: m[0]
+      .trim()
+      .split(/\s+/)
+      .map((c) => c.toLowerCase()),
+  };
+}
+
+const strings = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((s): s is string => typeof s === "string") : [];
+
+/** The server's palette from its reported config; null when it has none. */
+export function serverPaletteFromConfig(
+  config: Record<string, unknown> | null,
+  name: string,
+): Palette | null {
+  if (!config) return null;
+  const swatches: PaletteSwatch[] = [];
+  for (const [k, e] of strings(config[SERVER_PALETTE_KEYS.colors]).entries()) {
+    const p = parseEntry(e);
+    if (p?.colors.length === 1) swatches.push({ id: `c${k}`, name: p.name, color: p.colors[0]! });
+  }
+  const gradients: PaletteGradient[] = [];
+  for (const [k, e] of strings(config[SERVER_PALETTE_KEYS.gradients]).entries()) {
+    const p = parseEntry(e);
+    if (p && p.colors.length >= 2) gradients.push({ id: `g${k}`, name: p.name, stops: p.colors });
+  }
+  if (swatches.length === 0 && gradients.length === 0) return null;
+  return { id: "server", name, swatches, gradients, styles: [] };
+}
+
+/** The config entries of a palette, as the plugin expects them. */
+export function serverPaletteEntries(
+  swatches: { name: string; color: string }[],
+  gradients: { name: string; stops: string[] }[],
+): { colors: string[]; gradients: string[] } {
+  const clean = (name: string) => name.trim().replace(/\s+/g, " ");
+  return {
+    colors: swatches.map((s) => `${clean(s.name)} ${s.color.toLowerCase()}`),
+    gradients: gradients.map(
+      (g) => `${clean(g.name)} ${g.stops.map((c) => c.toLowerCase()).join(" ")}`,
+    ),
+  };
+}
+
+/** Parses the config entries back, for the palette's own form. */
+export function serverPaletteForm(config: Record<string, unknown>): {
+  swatches: { name: string; color: string }[];
+  gradients: { name: string; stops: string[] }[];
+} {
+  return {
+    swatches: strings(config[SERVER_PALETTE_KEYS.colors])
+      .map(parseEntry)
+      .filter((p): p is NonNullable<typeof p> => p?.colors.length === 1)
+      .map((p) => ({ name: p.name, color: p.colors[0]! })),
+    gradients: strings(config[SERVER_PALETTE_KEYS.gradients])
+      .map(parseEntry)
+      .filter((p): p is NonNullable<typeof p> => !!p && p.colors.length >= 2)
+      .map((p) => ({ name: p.name, stops: p.colors })),
+  };
+}

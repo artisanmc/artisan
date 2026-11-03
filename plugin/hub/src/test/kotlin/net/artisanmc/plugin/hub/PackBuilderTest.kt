@@ -206,4 +206,66 @@ class PackBuilderTest {
         assertNull(builder.status("u-local")?.matches)
         assertTrue(warnings.isEmpty(), warnings.toString())
     }
+
+    /** A server recording the Java packs it receives: (hash, path, url). */
+    private val javaReceived = mutableListOf<Triple<String, String, String?>>()
+    private val javaServers = Servers(object : EditorServer by McpFixtures.server(mutableListOf()) {
+        override fun applyResourcePack(hash: String, path: String) = applyResourcePack(hash, path, null)
+        override fun applyResourcePack(hash: String, path: String, url: String?) { javaReceived += Triple(hash, path, url) }
+    })
+
+    private fun javaBuilder() = PackBuilder(
+        javaServers, loaded, logger, direct,
+        javaPacks = PackStore(kotlin.io.path.createTempDirectory("java-packs").toFile()),
+    )
+
+    @Test
+    fun `applies the Java pack it builds once per change`() {
+        val expected = case["sha1"].asText()
+        val builder = javaBuilder()
+        assertTrue(builder.appliesJava)
+
+        val status = builder.request("u-local").get()
+        assertEquals(expected, status?.javaHash)
+        assertEquals(listOf(Triple<String, String, String?>(expected, "/resource-pack/$expected.zip", null)), javaReceived.toList())
+        // The same bytes again: nothing sent.
+        builder.request("u-local").get()
+        assertEquals(1, javaReceived.size)
+        // An older editor sent other bytes in between: the hub's build takes over again, with a warning.
+        builder.editorUploaded("u-local", "0".repeat(40))
+        assertEquals("0".repeat(40), builder.status("u-local")?.javaHash)
+        assertEquals(1, warnings.size)
+        builder.request("u-local").get()
+        assertEquals(listOf(expected, expected), javaReceived.map { it.first })
+    }
+
+    @Test
+    fun `the editor's upload of the same Java bytes spares a resend`() {
+        val builder = javaBuilder()
+        builder.editorUploaded("u-local", case["sha1"].asText())
+        builder.request("u-local").get()
+        assertTrue(javaReceived.isEmpty())
+        assertTrue(warnings.isEmpty(), warnings.toString())
+    }
+
+    @Test
+    fun `shadow mode sends no Java pack`() {
+        val builder = PackBuilder(javaServers, loaded, logger, direct)
+        assertEquals(false, builder.appliesJava)
+        builder.request("u-local").get()
+        assertTrue(javaReceived.isEmpty())
+    }
+
+    @Test
+    fun `a failed build keeps the Java pack the server has`() {
+        val lossy = object : LoadedProjects by loaded {
+            override fun binary(server: String, folder: String, path: String): ByteArray? = null
+        }
+        val builder = PackBuilder(javaServers, lossy, logger, direct, javaPacks = PackStore(kotlin.io.path.createTempDirectory("java-packs").toFile()))
+        builder.editorUploaded("u-local", "0".repeat(40))
+        val status = builder.request("u-local").get()
+        assertTrue(status?.error != null)
+        assertEquals("0".repeat(40), status?.javaHash)
+        assertTrue(javaReceived.isEmpty())
+    }
 }

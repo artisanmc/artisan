@@ -1,12 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ProBadge } from "@/components/ui/pro-badge";
 import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
 import type { Project, ProjectId } from "@/domain/types";
 import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
 import { cx } from "@/lib/cx";
-import { useIsPro } from "@/lib/edition";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useMemo, useState } from "react";
@@ -134,8 +132,6 @@ function OtherProjectAssets({
   const [category, setCategory] = useState<Category>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // A copy is an import into the resource pack: Pro, like an upload.
-  const pro = useIsPro();
   const filtered = assets.filter((asset) =>
     matchesFilter(asset, asset.projectId, owners.get(asset.projectId), search, category),
   );
@@ -215,17 +211,9 @@ function OtherProjectAssets({
                 {t("projectSource.from", { project: ownerName(selected) })}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                className="flex-1"
-                onClick={() => void copy()}
-                disabled={busy || !pro}
-                title={pro ? undefined : t("edition.proOnly")}
-              >
-                {t(busy ? "projectSource.copying" : "projectSource.copy")}
-              </Button>
-              {!pro && <ProBadge />}
-            </div>
+            <Button onClick={() => void copy()} disabled={busy}>
+              {t(busy ? "projectSource.copying" : "projectSource.copy")}
+            </Button>
             <p className="text-[11px] text-[var(--text-faint)]">
               {t("projectSource.snapshotHint")}
             </p>
@@ -239,9 +227,6 @@ function OtherProjectAssets({
 function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: boolean }) {
   const { t } = useTranslation();
   const isDesktop = useIsDesktop();
-  // Images and fonts go into the resource pack: importing them is Pro. Existing ones stay listed.
-  const pro = useIsPro();
-  const proTitle = pro ? undefined : t("edition.proOnly");
   const narrow = compact || !isDesktop;
   // Assets are loaded by `useAssetInit` in ProjectLibraryWorkspace — title-layer
   // rendering needs them before the user ever opens this tab, so we
@@ -270,26 +255,13 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
       {(!narrow || !selectedId) && (
         <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
           <div className="flex flex-wrap gap-2">
-            <Button disabled={!pro} title={proTitle} onClick={() => setUploadOpen(true)}>
-              {t("resources.upload")}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={!pro}
-              title={proTitle}
-              onClick={() => setImportFontOpen(true)}
-            >
+            <Button onClick={() => setUploadOpen(true)}>{t("resources.upload")}</Button>
+            <Button variant="outline" onClick={() => setImportFontOpen(true)}>
               {t("resources.importFont")}
             </Button>
-            <Button
-              variant="outline"
-              disabled={!pro}
-              title={proTitle}
-              onClick={() => setImportNexoOpen(true)}
-            >
+            <Button variant="outline" onClick={() => setImportNexoOpen(true)}>
               {t("resources.importNexo")}
             </Button>
-            {!pro && <ProBadge className="self-center" />}
             <Input
               aria-label={t("resources.search")}
               placeholder={t("resources.search")}

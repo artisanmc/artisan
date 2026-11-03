@@ -2,7 +2,7 @@
 
 | Module | Role | Forbidden |
 |---|---|---|
-| `api` | Public add-on surface, **in Java** (API 2.0.0), published as `net.artisanmc:artisan-core-api`. | Depending on another module; a Kotlin class in `src/main`. |
+| `api` | Public add-on surface, **in Java**, published as `net.artisanmc:artisan-core-api`. | Depending on another module; a Kotlin class in `src/main`. |
 | `core` | Domain: projects, model, action language, expressions, parsers. | Bukkit, JDBC, HTTP. |
 | `database` | Per-plugin connection pools (H2, MySQL, MariaDB). | Bukkit. |
 | `hub` | The editor's web server (Jetty): editor files, API, sessions opened by `/artisan editor`. | Bukkit. |

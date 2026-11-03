@@ -47,6 +47,11 @@ class ArtisanCommand(
             return true
         }
         when (args.getOrNull(0)?.lowercase()) {
+            // A `chat_button` click (ADR `triggers-and-variables` §7): no permission, no completion,
+            // nothing said back; a token that is not this player's to use does nothing.
+            "click" -> {
+                if (sender is Player) args.getOrNull(1)?.let { net.artisanmc.plugin.engine.ChatButtons.click(sender, it) }
+            }
             "menu" -> {
                 if (sender !is Player) { Chat.send(sender, lang.get("artisan.in_game_only", sender)); return true }
                 val menuId = args.getOrNull(1) ?: run { Chat.send(sender, lang.get("artisan.usage_menu", sender)); return true }

@@ -343,12 +343,13 @@ object TitleCompiler {
                 // (e.g. max-end-of-line) would shift them left/right in-game.
                 var localX = startX
                 for ((i, line) in lines.withIndex()) {
-                    val lineY = layer.y + i * layer.lineHeight
                     // text_y{Y}_h{H}.json files exist for Y in [minYForSize(H), TEXT_Y_MAX]
                     // (kept in sync with editor/src/lib/pack/resourcePackBuilder.ts).
-                    // Lines outside this range would render as missing-glyph
-                    // squares in-game, so drop them rather than emit broken refs.
-                    if (lineY < minYForSize(layer.size) || lineY > TEXT_Y_MAX) break
+                    // A line above the range is drawn at its top, as a Text layer is clamped
+                    // (a block placed at y 4 would otherwise lose every line, silently); a
+                    // line below it would render as missing-glyph squares, so it is dropped.
+                    val lineY = (layer.y + i * layer.lineHeight).coerceAtLeast(minYForSize(layer.size))
+                    if (lineY > TEXT_Y_MAX) break
                     if (line.isEmpty()) continue // skip empty lines (no advance, no render)
                     val lineWidth = (measureLineWidth(line) * layer.size) / 8
                     val lineX = when (layer.alignment) {

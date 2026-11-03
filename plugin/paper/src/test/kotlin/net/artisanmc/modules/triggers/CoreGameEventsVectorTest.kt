@@ -38,7 +38,7 @@ class CoreGameEventsVectorTest {
                 "(CoreGameEventsVectorTest keeps it equal; regenerate with ARTISAN_WRITE_VECTORS=1). " +
                 "Entries are in the declared_game_events wire shape of Presence. The editor imports this " +
                 "file as its table of core events (modules/triggers/gameEvents.ts).",
-            "events" to CoreGameEvents.ALL.map { it.declaration.toWire() },
+            "events" to (CoreGameEvents.ALL.map { it.declaration } + CoreGameEvents.FIRED_BY_ARTISAN).map { it.toWire() },
         ),
     )
 

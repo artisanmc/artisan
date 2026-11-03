@@ -56,7 +56,7 @@ public final class HomesModule implements ArtisanModule {
         loadFromProject();
     }
 
-    @Override public void onReload() { loadFromProject(); }   // optional since API 1.8.0
+    @Override public void onReload() { loadFromProject(); }   // optional
     @Override public void onDisable() {}
 
     private void loadFromProject() { /* … */ }
@@ -81,7 +81,7 @@ tells the editor that the module list changed — connected editors pick up your
 module, sources, models and screens without reconnecting.
 
 - Registering an id twice throws `DuplicateModuleException`.
-- `api.modules.unregister("homes")` (Since 1.8.0) calls your `onDisable()` and
+- `api.modules.unregister("homes")` calls your `onDisable()` and
   removes the module with the data sources, commands, models and screens it
   declared in `onEnable(api)`. You rarely need it: Artisan does it when your
   plugin disables.
@@ -107,15 +107,11 @@ data. An exception thrown from `onReload()` is caught and ignored, so log your
 own failures.
 
 :::note[When your plugin disables]
-Since API 1.8.0, as soon as your plugin starts disabling, Artisan calls your
+As soon as your plugin starts disabling, Artisan calls your
 module's `onDisable()` — your plugin is still enabled at that point — then
 removes your modules, and the data sources and commands your plugin
 registered (matched by the class loader of your fetchers and handlers). A
 plugin reloader can then enable your plugin again and register the same ids.
-
-Before 1.8.0, Artisan called `onDisable()` only when it disabled itself, after
-your plugin, and kept every registration: a reload threw a
-`Duplicate…Exception`.
 :::
 
 ## Read project content
@@ -171,16 +167,15 @@ api.projectRoots.register("homes", projectDir, id)   // projectId, directory, ow
 - Call it **once per boot, from `onEnable(api)`.** Artisan then reads, hashes,
   publishes, trashes and hot-reloads that project from your directory.
 - Registering reloads the projects **on the next server tick**, once your
-  `onEnable` has returned (Since 1.8.0): files you write after `register` in the
+  `onEnable` has returned: files you write after `register` in the
   same `onEnable` are read, and every module's `onReload()` — yours included —
-  runs then. Before 1.8.0 the reload ran inside `register`, calling your
-  `onReload()` before your `onEnable(api)` was done.
+  runs then.
 - The `projectId` is a permanent identity: the editor cannot rename a
   registered project. If a project with the same id exists in the core
   directory, yours wins.
-- The three-argument form (Since 1.6.0) names your module so the editor lists
+- The three-argument form names your module so the editor lists
   the project under it even when you declare no config screen. The two-argument
-  form (Since 1.5.0) still works.
+  form still works.
 
 :::danger[Use a dedicated directory]
 Never pass your plugin's data folder itself. When content is published, files

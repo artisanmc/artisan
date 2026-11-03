@@ -75,6 +75,12 @@ internal class RuntimeAssembly(
         CooldownSync(cooldowns, {
             suite.artisanData?.let { net.artisanmc.plugin.database.CooldownRows(it, plugin.database.dialect, plugin.database.tables) }
         }, suite.sessionWriter(), plugin).start()
+        // Project variables (ADR `triggers-and-variables` §5): values in memory, kept in `artisan_vars` once the database opens.
+        val variables = net.artisanmc.plugin.engine.ProjectVariables(net.artisanmc.plugin.engine.VariableStore())
+        net.artisanmc.plugin.engine.ModuleVariableValues.projects = variables
+        VariableSync(variables.store, {
+            suite.artisanData?.let { net.artisanmc.plugin.database.VariableRows(it, plugin.database.dialect, plugin.database.tables) }
+        }, suite.sessionWriter(), plugin).start()
         // Every player seen on the network, read by `{player.first_seen}`, `{player.last_seen}`, `{player.playtime}`.
         PlayerSync({
             suite.artisanData?.let { net.artisanmc.plugin.database.PlayerRows(it, plugin.database.tables) }
@@ -95,6 +101,8 @@ internal class RuntimeAssembly(
             commandOwner = api.playerCommands::ownerOf,
             folderOwner = projectRoots::ownerOf,
             consoleRunner = moduleCommand,
+            isBedrock = plugin.geyser::isBedrock,
+            hasPack = ::hasPack,
         )
         // A module enabled or disabled after the start: its commands come and go without a reload,
         // their files follow in its folder, and the editor lists the new set (a leaf tells its hub).
@@ -202,7 +210,10 @@ internal class RuntimeAssembly(
         capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
         capturedItems.reload()
         val softDeps = SoftDepRegistry(plugin, capturedItems, placeholders)
-        evaluator = ConditionEvaluator(softDeps, cooldowns)
+        evaluator = ConditionEvaluator(softDeps, cooldowns, object : net.artisanmc.plugin.engine.ClientProbe {
+            override fun isBedrock(player: org.bukkit.entity.Player) = plugin.geyser.isBedrock(player)
+            override fun hasPack(player: org.bukkit.entity.Player) = this@RuntimeAssembly.hasPack(player)
+        })
 
         val provider = createProvider(cfg)
         menuProvider = provider
@@ -231,8 +242,13 @@ internal class RuntimeAssembly(
         provider.load()
 
         executor = ActionExecutor(plugin, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry, plugin.langManager)
+        net.artisanmc.plugin.engine.ChatButtons.executor = executor
         commandRegistrar.reload(provider.runtimeProjects(), executor, evaluator)
     }
+
+    /** Whether [p] has the server's pack: Geyser's for a Bedrock player, the Java one's load otherwise. */
+    private fun hasPack(p: org.bukkit.entity.Player): Boolean =
+        if (plugin.geyser.isBedrock(p)) plugin.geyser.currentPack() != null else plugin.packLoads.hasLoaded(p.uniqueId)
 
     private fun createProvider(cfg: PluginConfig) = SyncedMenuProvider(
         roots            = projectRoots,
@@ -261,6 +277,7 @@ internal class RuntimeAssembly(
         editorEvents = { editorChannel.relay(it, serverId.toString()) },
         hub = editorHost.hubLink(cfg.web),
         isBedrock = plugin.geyser::isBedrock,
+        hasPack = ::hasPack,
         peers = { editorHost.peerLinks },
         menuEvents = menuEvents,
         onSnapshot = suite::recordVersions,

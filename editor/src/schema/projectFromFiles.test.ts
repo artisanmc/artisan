@@ -5,6 +5,7 @@ import { menusOf } from "@/domain/documents";
 // `projectToFiles()` — domain → files → domain → files must be a fixed point
 // (total — the export is a pure function of the Project, no timestamps).
 import type { DataModelId, DataSourceId, MenuId, Project, ProjectId } from "@/domain/types";
+import { stepsToWire } from "@/lib/literalSteps";
 import { describe, expect, it } from "vitest";
 import { parseEditorEdges, parseEditorLayout, projectFromFiles } from "./projectFromFiles";
 import { projectToFiles } from "./projectToFiles";
@@ -516,4 +517,45 @@ it("reads a module of .yml files and its artisan-module.yml", () => {
   expect(menusOf(p).map((m) => m.id)).toEqual(["main"]);
   expect(p.dataSources.map((s) => String(s.id))).toEqual(["settings"]);
   expect(Object.entries(p.i18nKeys).find(([key]) => key === "k")?.[1].fr).toBe("nouveau");
+});
+
+it("reads a module's variants, keeps a command without its module's verbatim, writes a fixed point (design variantes-modules)", () => {
+  const files = {
+    [`${base}/manifest.yaml`]: "schema: manifest/v1\n",
+    [`${base}/variants.yml`]:
+      "schema: variants/v1\nrules:\n  - variant: textured\n    when: { has_pack: true }\n  - variant: dev\n    enabled: false\n    when: { permission: op }\n",
+    [`${base}/menus/ranks.yml`]: "schema: menu/v1\ntitle: Ranks\nsize: 27\nelements: []\n",
+    [`${base}/variants/textured/menus/ranks.yml`]: "schema: menu/v1\ntitle: T\nsize: 27\n",
+    [`${base}/variants/textured/shop/menus/info.yml`]: "schema: menu/v1\ntitle: I\nsize: 27\n",
+    [`${base}/variants/textured/commands/guild.yml`]:
+      "subcommands:\n  - name: info\n    actions: open_menu info\n",
+  };
+  const project = projectFromFiles(PID, files);
+  expect(menusOf(project).map((m) => m.id)).toEqual(["ranks"]);
+  expect(project.variants?.names).toEqual(["textured", "dev"]);
+  expect(stepsToWire(project.variants?.show ?? [])).toEqual([
+    { if: [{ has_resource_pack: true }], do: [{ show_variant: "textured" }] },
+  ]);
+  const textured = project.variants?.documents.textured?.menu ?? [];
+  expect(textured.map((m) => [m.id, m.folder])).toEqual([
+    ["info", "shop"],
+    ["ranks", undefined],
+  ]);
+  const out = projectToFiles(project);
+  expect(out[`${base}/variants/textured/commands/guild.yml`]).toBe(
+    files[`${base}/variants/textured/commands/guild.yml`],
+  );
+  expect(
+    Object.keys(out)
+      .filter((k) => k.includes("variants"))
+      .sort(),
+  ).toEqual(
+    [
+      "variants.yml",
+      "variants/textured/commands/guild.yml",
+      "variants/textured/menus/ranks.yml",
+      "variants/textured/shop/menus/info.yml",
+    ].map((p) => `${base}/${p}`),
+  );
+  expect(projectToFiles(projectFromFiles(PID, out))).toEqual(out);
 });

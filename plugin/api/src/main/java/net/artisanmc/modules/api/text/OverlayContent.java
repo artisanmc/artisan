@@ -14,7 +14,7 @@ import java.util.Map;
  * are MiniMessage, already cut to the layer's width by the module ({@link OverlayApi#width}). A
  * layer left unfilled draws nothing.
  *
- * @since 2.21.0
+ * @since 1.0.0
  */
 @Beta
 public final class OverlayContent {

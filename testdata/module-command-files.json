@@ -12,6 +12,10 @@
     {
       "id": "tricky",
       "yaml": "schema: command/v1\nactions:\n  - module_command: x:tricky\npermission: x.*\ndescription:\n  de: \"123\"\n  en: \"- dash\"\n  es: \"#hash\"\n  fr: \"<gold>Ta guilde</gold> : ok\"\n  it: \"null\"\n  ja: \"a: b\"\n  nl: \"trailing \"\n  pt: \"@at\"\n  ru: \"%p%\"\n  zh: \"1.5e3\"\n"
+    },
+    {
+      "id": "guild",
+      "yaml": "schema: command/v1\nactions:\n  - if:\n      - expression: var.guilds.has_guild\n    do:\n      - open_menu: guilds:main\n    else:\n      - module_command: guilds:guild.help\naliases:\n  - g\ndescription: Guilds\nsubcommands:\n  - name: help\n    actions:\n      - module_command: guilds:guild.help\n"
     }
   ]
 }

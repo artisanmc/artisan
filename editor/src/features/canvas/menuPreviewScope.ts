@@ -174,6 +174,8 @@ function resolveLTexts(value: unknown, project: Project, lang: string): unknown 
 export const SAMPLE_PLAYER_NAME = "Steve";
 export const SAMPLE_PLAYER_UUID = "8667ba71-b85a-4004-af54-457a9734eed7";
 export const SAMPLE_PLAYER_WORLD = "world";
+/** `{player.location}` renders as `world x y z`, like the server's location value. */
+export const SAMPLE_PLAYER_LOCATION = "world 12 64 -30";
 /** First seen 40 days ago, last seen 3 days 4 hours ago, 12 h 30 min of play. */
 export const SAMPLE_FIRST_SEEN_AGO = 40 * 86_400_000;
 export const SAMPLE_LAST_SEEN_AGO = 3 * 86_400_000 + 4 * 3_600_000;
@@ -190,6 +192,9 @@ export function makeSamplePlayer(name: string = SAMPLE_PLAYER_NAME): Record<stri
     name,
     uuid: SAMPLE_PLAYER_UUID,
     world: SAMPLE_PLAYER_WORLD,
+    // The `vanished` metadata of vanish plugins (EssentialsX, SuperVanish…): a sample player is seen.
+    vanished: false,
+    location: SAMPLE_PLAYER_LOCATION,
     // What the server reads from `artisan_players`: instants and the play time in milliseconds.
     first_seen: now - SAMPLE_FIRST_SEEN_AGO,
     last_seen: now - SAMPLE_LAST_SEEN_AGO,

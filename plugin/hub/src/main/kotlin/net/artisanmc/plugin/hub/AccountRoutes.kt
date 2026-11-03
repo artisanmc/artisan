@@ -7,7 +7,6 @@ class AccountRoutes(
     private val servers: Servers,
     private val sessions: Sessions,
     private val prefs: PlayerPrefs?,
-    private val edition: Edition = Edition.PRO,
 ) {
     fun register(router: Router) {
         router.on("GET", "/api/v1/auth/me", VIEW) { it.json(mapOf("user" to user(it.session!!))) }
@@ -35,8 +34,6 @@ class AccountRoutes(
         "theme" to saved?.theme,
         "editorTour" to if (saved == null) PlayerPrefs.Tour(0, true) else saved.editorTour,
         "permissions" to EditorPermissions.ALL.filter(session::can),
-        // What the session may edit depends on the jar too: the editor hides Pro editing in free.
-        "edition" to edition.wire,
     )
 
     /** A server by its id, with what the editor shows of it: its name, presence and versions. */

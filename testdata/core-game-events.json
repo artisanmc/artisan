@@ -1659,6 +1659,33 @@
       ],
       "cancellable": true,
       "effects": [ ]
+    },
+    {
+      "name": "variable_changed",
+      "group": "variables",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "var",
+          "type": {
+            "kind": "string"
+          }
+        },
+        {
+          "name": "project",
+          "type": {
+            "kind": "string"
+          }
+        },
+        {
+          "name": "key",
+          "type": {
+            "kind": "string"
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [ ]
     }
   ]
 }

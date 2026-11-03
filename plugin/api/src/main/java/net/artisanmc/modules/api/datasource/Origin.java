@@ -4,7 +4,7 @@ import net.artisanmc.modules.api.annotations.Stable;
 
 /**
  * Where a data source's rows come from, which tells the editor what a preview of the source
- * should show while an admin edits a draft (API 2.19.0).
+ * should show while an admin edits a draft.
  *
  * <ul>
  *   <li>{@link #RUNTIME} (default): state that only exists on the server (sales, guild members,

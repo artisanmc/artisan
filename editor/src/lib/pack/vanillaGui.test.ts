@@ -39,7 +39,10 @@ const cp = (n: number) => String.fromCodePoint(n);
 
 describe("transparentContainersFromMenus", () => {
   test("collects the containers whose menus turn their vanilla texture off", () => {
-    const menu = (body: string) => ({ path: "menus/m.yaml", content: `id: m\nsize: 27\n${body}` });
+    const menu = (body: string, id = "m") => ({
+      path: `menus/${id}.yaml`,
+      content: `size: 27\n${body}`,
+    });
     expect(transparentContainersFromMenus([menu("")])).toEqual(none);
     expect(transparentContainersFromMenus([menu("vanilla_texture: true\n")])).toEqual(none);
     expect(transparentContainersFromMenus([menu("vanilla_texture: false\n")])).toEqual(
@@ -48,7 +51,7 @@ describe("transparentContainersFromMenus", () => {
     expect(
       transparentContainersFromMenus([
         menu("inventory_type: hopper\nvanilla_texture: false\n"),
-        menu("inventory_type: dropper\nvanilla_texture: false\n"),
+        menu("inventory_type: dropper\nvanilla_texture: false\n", "d"),
       ]),
     ).toEqual(new Set(["hopper", "dispenser"]));
     expect(
@@ -58,6 +61,21 @@ describe("transparentContainersFromMenus", () => {
     ).toEqual(none);
     expect(
       transparentContainersFromMenus([{ path: "menus/broken.yaml", content: "title: [" }]),
+    ).toEqual(none);
+    // A themed folder and a variant count, as the plugin loads them; twin ids do not.
+    const off = "inventory_type: hopper\nvanilla_texture: false\n";
+    expect(
+      transparentContainersFromMenus([
+        { path: "shop/menus/h.yml", content: off },
+        { path: "variants.yml", content: "rules: []\n" },
+        { path: "variants/textured/menus/d.yml", content: off.replace("hopper", "dropper") },
+      ]),
+    ).toEqual(new Set(["hopper", "dispenser"]));
+    expect(
+      transparentContainersFromMenus([
+        { path: "menus/h.yml", content: off },
+        { path: "menus/h.yaml", content: off },
+      ]),
     ).toEqual(none);
   });
 });

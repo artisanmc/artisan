@@ -1,8 +1,5 @@
-import { ProBadge } from "@/components/ui/pro-badge";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
-import { useIsPro } from "@/lib/edition";
-import { isAdvancedExpression } from "@/lib/expr/advanced";
 import { toBoolean } from "@/lib/expr/coercion";
 import { evaluate } from "@/lib/expr/evaluator";
 import {
@@ -74,7 +71,6 @@ export function ExpressionRules({
   preview = (src) => src,
 }: ExpressionRulesProps) {
   const { t } = useTranslation();
-  const pro = useIsPro();
   const [editing, setEditing] = useState(false);
   useEffect(() => onDrawn?.());
   const inner = source.slice(1, -1);
@@ -95,16 +91,6 @@ export function ExpressionRules({
           <Chip title={source}>{source}</Chip>
         )}
       </CardCtx.Provider>
-    );
-  }
-  // Free jar: the readable view of an advanced expression is Pro. It still runs and stays
-  // editable in the Code view.
-  if (!pro && isAdvancedExpression(inner)) {
-    return (
-      <span className="inline-flex items-center gap-2" title={t("edition.advancedExpression")}>
-        <ProBadge />
-        <Chip title={source}>{source}</Chip>
-      </span>
     );
   }
   if (!read.ok) {

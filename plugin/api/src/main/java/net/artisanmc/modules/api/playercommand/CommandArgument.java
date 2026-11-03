@@ -71,7 +71,7 @@ public final class CommandArgument {
      * or not. Not on an {@link Type#ENUM} argument, whose values are fixed.
      *
      * @throws IllegalStateException on an {@link Type#ENUM} argument
-     * @since 2.14.0
+     * @since 1.0.0
      */
     @Beta
     public CommandArgument suggestions(SuggestionProvider provider) {
@@ -85,7 +85,7 @@ public final class CommandArgument {
     public boolean isRequired() { return required; }
     /** The accepted values of an {@link Type#ENUM} argument, empty otherwise. */
     public List<String> getValues() { return values; }
-    /** What {@link #suggestions(SuggestionProvider)} set; null: Artisan's own completion. @since 2.14.0 */
+    /** What {@link #suggestions(SuggestionProvider)} set; null: Artisan's own completion. @since 1.0.0 */
     @Beta
     public @Nullable SuggestionProvider getSuggestions() { return suggestions; }
 

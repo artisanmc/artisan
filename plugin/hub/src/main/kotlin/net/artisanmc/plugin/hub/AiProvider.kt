@@ -54,6 +54,10 @@ interface AiConversation {
 sealed interface AiInput {
     data class Text(val text: String) : AiInput
     data class ToolResult(val callId: String, val json: String, val error: Boolean) : AiInput
+    /** An image the player attached ([AiAttachment]), in base64. */
+    data class Image(val name: String, val mediaType: String, val base64: String) : AiInput
+    /** A PDF the player attached, in base64. */
+    data class Pdf(val name: String, val base64: String) : AiInput
 }
 
 data class AiToolCall(val id: String, val name: String, val input: JsonNode)

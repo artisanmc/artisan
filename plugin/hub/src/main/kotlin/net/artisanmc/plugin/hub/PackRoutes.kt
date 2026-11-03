@@ -12,24 +12,40 @@ import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
  * `GET SERVER/bedrock-pack` (public) tells a Geyser elsewhere (the Artisan Geyser extension on a
  * proxy) which Bedrock pack is current.
  *
- * Building a Java pack is an Artisan Pro feature: the free [edition] refuses a new one (403
- * `pro_required`) but keeps serving the packs it already has, so content made with Pro still
- * renders after a switch to the free jar. The Bedrock pack is accepted in every edition.
+ * With [builder] applying the Java pack, the hub builds both packs itself: `POST
+ * …/resource-pack/rebuild` asks it to (the editor after a publication or a config change), and the
+ * `PUT` routes stay for an older editor. A hub without the route answers 404: the editor then
+ * builds in the browser, as before.
  */
 class PackRoutes(
     private val servers: Servers,
     private val store: PackStore,
     private val cdn: PackCdn? = null,
-    private val edition: Edition = Edition.PRO,
     private val bedrock: PackStore? = null,
     /** Told of each pack the editor uploads ([PackBuilder.editorUploaded], shadow mode). */
     private val uploaded: (server: String, hash: String) -> Unit = { _, _ -> },
     /** Told of each Bedrock pack the editor uploads ([PackBuilder.bedrockApplied]). */
     private val bedrockUploaded: (server: String, hash: String) -> Unit = { _, _ -> },
+    /** The hub's own build; its rebuild route exists when it applies the Java pack. */
+    private val builder: PackBuilder? = null,
 ) {
     fun register(router: Router) {
+        builder?.takeIf { it.appliesJava }?.let { hub ->
+            router.on("POST", "$SERVER/resource-pack/rebuild", PUBLISH) { call ->
+                val server = servers.of(call) ?: return@on call.error(404, "not_found")
+                val status = try {
+                    hub.request(server.id).get(REBUILD_WAIT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+                } catch (_: java.util.concurrent.TimeoutException) {
+                    return@on call.json(mapOf("done" to false), 202)
+                }
+                when {
+                    status == null -> call.error(409, "no_loaded_state")
+                    status.error != null -> call.error(500, "pack_build_failed", status.error)
+                    else -> call.json(mapOf("done" to true, "hash" to status.javaHash, "bedrock_hash" to status.bedrockHash))
+                }
+            }
+        }
         router.on("PUT", "$SERVER/resource-pack", PUBLISH) { call ->
-            if (!edition.pro) return@on call.error(403, PRO_REQUIRED)
             val server = servers.of(call) ?: return@on call.error(404, "not_found")
             val zip = receive(call) ?: return@on
             val hash = store.put(zip)
@@ -75,6 +91,7 @@ class PackRoutes(
 
     companion object {
         private const val MAX_BYTES = 100 * 1024 * 1024
-        const val PRO_REQUIRED = "pro_required"
+        /** How long the rebuild route waits for the build before answering 202 (the build goes on). */
+        private const val REBUILD_WAIT_SECONDS = 60L
     }
 }

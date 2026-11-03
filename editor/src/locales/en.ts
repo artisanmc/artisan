@@ -9,6 +9,7 @@ import { onboardingEn } from "./onboarding";
 import { projectIdentityEn } from "./projectIdentity";
 import { selfHostedEn } from "./selfHosted";
 import { triggersEn } from "./triggers";
+import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
@@ -88,6 +89,7 @@ export default {
   changes: changesEn,
   actionCatalog: actionCatalogEn,
   triggers: triggersEn,
+  variables: variablesEn,
   navigation: {
     label: "Main navigation",
     open: "Open navigation",
@@ -417,6 +419,8 @@ export default {
       "This action is not declared by the connected server: its arguments are edited as raw JSON.",
     moduleAddText: "Add a text",
     moduleValueInvalid: "Invalid JSON: the value was not changed.",
+    numberLiteral: "Type a number",
+    numberTemplate: "Use a template ({var.coins}, %placeholder%), resolved when the action runs",
     textName: "text (MiniMessage)",
     textLang: "text (MiniMessage) [{{lang}}]",
     textLangFallback: "text (MiniMessage) [{{lang}} — fallback]",
@@ -470,7 +474,22 @@ export default {
       give_xp: { amount: "amount" },
       give_level: { amount: "amount" },
       play_sound: { sound: "sound", volume: "volume (0–1)", pitch: "pitch (0–2)" },
-      teleport: { world: "world", yaw: "yaw (optional)", pitch: "pitch (optional)" },
+      teleport: {
+        location: "location",
+        world: "world",
+        yaw: "yaw (optional)",
+        pitch: "pitch (optional)",
+      },
+      set_var: { var: "variable", value: "value" },
+      add_var: { var: "variable", amount: "amount" },
+      clear_var: { var: "variable" },
+      chat_button: {
+        text: "text before the button (MiniMessage)",
+        label: "button (MiniMessage)",
+        uses: "clicks allowed",
+        expires_seconds: "expires after (seconds)",
+        do: "on click",
+      },
       pagination_next: { element_id: "target" },
       pagination_prev: { element_id: "target" },
       set_arg: { arg: "context input to set", value: "new value (expression)" },
@@ -511,6 +530,18 @@ export default {
       },
       run_actions: {
         actions: "An expression pointing at an actions field (e.g. item.on_buy). Runs it inline.",
+      },
+      teleport: {
+        location:
+          "world x y z [yaw pitch], or a template naming a location ({var.last_death}). The world/x/y/z fields of older files are still read.",
+      },
+      set_var: {
+        value:
+          "Read as the variable's type: true/false, a number, a location, or a template ({player.location}, {var.coins + 1}).",
+      },
+      add_var: { amount: "A number variable only. A negative amount subtracts." },
+      chat_button: {
+        uses: "Only the player the line was sent to can click. A restart forgets the button.",
       },
     },
   },
@@ -659,6 +690,20 @@ export default {
     caseConditionEmpty: "(always — no condition gates this case)",
   },
   conditions: {
+    variable: {
+      pick: "pick a variable",
+      none: "No variable in this project or on this server",
+      missing:
+        "{{name}}: neither this project nor an installed module on this server declares this variable",
+      key: "key",
+      value: "value",
+      isTrue: "is true",
+      isFalse: "is false",
+      isSet: "is set",
+      project: "this project",
+      placeholderOnly:
+        'A placeholder alone is a text, and any text that is not empty is true ("false" too). Compare it: %…% == "yes".',
+    },
     removeCondition: "Remove",
     keptUnknown_one: "{{count}} condition this editor cannot show is kept as written",
     keptUnknown_other: "{{count}} conditions this editor cannot show are kept as written",
@@ -862,6 +907,7 @@ export default {
     commands: "Commands",
     dialogs: "Dialogs",
     triggers: "Triggers",
+    variables: "Variables",
     edit: "Edit",
     delete: "Delete from project",
     empty: "No elements yet",
@@ -935,6 +981,12 @@ export default {
       give_xp: "give {{amount}} xp",
       give_level: "give {{amount}} levels",
       teleport: "teleport to {{world}} {{x}} {{y}} {{z}}",
+      teleportTo: "teleport to {{location}}",
+      set_var: "variable {{var}} = {{value}} (stored on the server, not here)",
+      add_var: "variable {{var}} + {{amount}} (stored on the server, not here)",
+      clear_var: "variable {{var}} cleared (stored on the server, not here)",
+      chatButton: "chat button: {{text}}",
+      chatButtonNotPlayed: "its click actions run on the server only",
       moduleAction: "a {{module}} module action: it runs on the server, not here",
       notRun: "not run",
     },
@@ -1192,6 +1244,72 @@ export default {
     errPlayerRequired: "This source needs an online player — preview unavailable.",
     errFetchError: "The module failed: {{message}}",
   },
+  originals: {
+    original: "Module's version",
+    modified: "Your version",
+    added: "Added by you",
+    tagModified: "your version",
+    tagAdded: "added",
+    required: "The module's code opens it: it cannot be deleted.",
+    compare: "Compare with the original",
+    compareTitle: "{{name}}: the module's version and yours",
+    shipped: "As the module ships it",
+    yours: "Your version",
+    revert: "Back to the original",
+    revertHint: "Drops your changes: the module's version serves again, and follows its updates.",
+    revertConfirm: "Drop your changes and go back to the module's version?",
+  },
+  variants: {
+    originalBanner: "Module original: {{name}}",
+    originalBannerHint: "Read-only, as the module ships it.",
+    originalLeave: "Leave",
+    original: "Module original (read-only)",
+    originalHint: "What the module ships, without your changes: to look and copy",
+    viewAsOriginal: "Module original: {{name}}",
+    viewAs: "View as",
+    viewAsValue: "View as: {{name}}",
+    module: "Default",
+    moduleHint: "The module's own files, the version every player gets without a rule",
+    newVariant: "New variant…",
+    newVariantTitle: "New variant",
+    newVariantHint:
+      "A folder name (lowercase, digits, - and _). Nobody sees it until the display rules show it.",
+    nameInvalid: "Lowercase letters, digits, - and _ only, starting with a letter or a digit.",
+    nameTaken: "This variant exists already.",
+    rules: "Display rules…",
+    rulesTitle: "Display rules",
+    rulesHint:
+      'A tree of conditions read for each player, top to bottom, up to the first "Show" they reach. They see that variant; a file it does not have comes from the module.',
+    rulesEmpty: "No variant yet.",
+    variant: "Variant",
+    removeVariant: "Delete the variant {{name}}",
+    removeVariantConfirm:
+      "Delete variant {{name}}, its {{count}} version(s) and its steps in the display rules? The files go to the server's trash at the next publish.",
+    done: "Done",
+    viewing: "Viewing the variant {{name}}",
+    viewingHint:
+      "Documents with a version for {{name}} show it; the others are the module's, shared by every variant.",
+    ownVersion: "Version for {{name}}",
+    inherited: "Module's, shared",
+    createVersion: "Create a version for {{name}}",
+    createVersionHint:
+      "Copies this document into the variant: edits then change only what players of {{name}} see.",
+    dropVersion: "Remove the version for {{name}}",
+    dropVersionHint: "The variant's copy is deleted; its players see the module's document again.",
+    commandLocked:
+      "Name, aliases, arguments, permission and sub-commands are the module's, shared by every variant: this version only changes what runs.",
+    editShared: "Edits change it for every variant.",
+    editMakesVersion: "Editing it gives {{name}} its own version: the module's stays as it is.",
+    count_one: "{{count}} variant",
+    count_other: "{{count}} variants",
+    badge: "Has versions in: {{names}}",
+    showVariantStep: "Show variant",
+    showDefaultStep: "Show Default",
+    otherwise: "Otherwise",
+    unreachable: 'Never reached: a "Show" step above ends this branch.',
+    otherwiseDefaultHint:
+      "Always at the end of the tree: a player for whom nothing above shows a variant sees the module's files.",
+  },
   canvas: {
     systemElement: "system · {{module}}",
     systemDocumentKept:
@@ -1336,14 +1454,6 @@ export default {
         xxl: "Giant (32)",
       },
     },
-  },
-  edition: {
-    pro: "Pro",
-    advancedExpression:
-      "Advanced expression: its readable view and preview come with Artisan Pro. It runs in game all the same.",
-    proOnly: "Artisan Pro feature: available with the Pro jar.",
-    composedReadOnly:
-      "This title was composed with Artisan Pro. It stays as it is and keeps working in game; editing its layers requires Artisan Pro.",
   },
   layersPanel: {
     vanilla: "Vanilla",
@@ -1857,14 +1967,31 @@ export default {
       invalid_type: "wrong kind of value.",
       unsafe_path: "the path must stay inside the server folder.",
       invalid_reference: "pick an image as project:image.",
+      invalid_palette_entry: "each entry needs a name and #rrggbb colors.",
     },
     listHint: "Comma-separated values.",
     vanillaTexture: "Vanilla texture",
+    palette: {
+      colors: "Colors",
+      gradients: "Gradients",
+      name: "Name",
+      colorOf: "Color of {{name}}",
+      stopOf: "Color {{index}} of {{name}}",
+      newColor: "New color",
+      newGradient: "New gradient",
+      addColor: "Add a color",
+      addGradient: "Add a gradient",
+      addStop: "Add a color to the gradient",
+      removeStop: "Remove the last color",
+      remove: "Remove",
+    },
     connectionHint: "The database credentials live in environment.yml, edited by hand only.",
     discard: "Discard",
     pending_one: "{{count}} setting changed",
     pending_other: "{{count}} settings changed",
     groupHints: {
+      palette:
+        "Colors and gradients the formatting toolbar offers in every module of the server. Applying a color writes its value into the text: changing the palette does not change existing texts.",
       textures:
         "Redraw the server's chests, hoppers and dispensers when a menu turns off its vanilla texture.",
     },
@@ -1873,6 +2000,7 @@ export default {
       textures: "Container textures",
       resourcePack: "Resource pack",
       editor: "Editor access",
+      palette: "Text palette",
       other: "Other",
     },
     fields: {
@@ -1945,8 +2073,6 @@ export default {
     ctxInDocument: "in {{owner}}",
   },
   moduleHome: {
-    pluginModule: "Module of the {{name}} plugin",
-    contentModule: "Content module",
     content: "Content",
     boardEmpty: "Nothing on the canvas yet.",
     folders_one: "{{count}} folder",

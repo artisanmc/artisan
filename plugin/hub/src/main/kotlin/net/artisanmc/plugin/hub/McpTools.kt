@@ -2,6 +2,9 @@ package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.JsonNode
 import net.artisanmc.plugin.model.DocumentLayout
+import net.artisanmc.plugin.model.ManifestYaml
+import net.artisanmc.plugin.model.ModuleFile
+import net.artisanmc.plugin.model.Originals
 import net.artisanmc.plugin.project.ProjectMetadataPaths
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import java.util.UUID
@@ -17,7 +20,7 @@ import java.util.UUID
 class McpTools(
     private val projects: McpProjects,
     private val editorUrl: () -> String = { "" },
-    /** The hub's own pack build (Pro jar only): the resource pack tools; null, they are not offered. */
+    /** The hub's own pack build: the resource pack tools; null, they are not offered. */
     private val packs: PackBuilder? = null,
 ) {
     /** A tool as `tools/list` describes it, and what it does. [requires]: the permission without which it is not offered. */
@@ -137,19 +140,19 @@ class McpTools(
     private fun packTools(): List<Tool> = if (packs == null) emptyList() else listOf(
         Tool(
             "resource_pack_status", "Resource pack status",
-            "What the hub last built for a server's resource packs: the Java pack's SHA-1 (Pro), the SHA-1 of the Java pack the " +
-                "editor last uploaded, whether the two match, the Bedrock pack's SHA-1, when, and the build error if it failed. The " +
-                "Bedrock pack is applied: Bedrock players get the hub's. The Java one is in shadow mode: Java players still get the " +
-                "editor's pack; the hub's build is compared with it.",
+            "What the hub last built for a server's resource packs: the Java pack's SHA-1, the Java pack the server has, the " +
+                "SHA-1 of the Java pack an editor last uploaded and whether it matches, the Bedrock pack's SHA-1, when, and the " +
+                "build error if it failed. mode \"server\": the hub applies both packs, players get the hub's. mode \"shadow\": " +
+                "Java players get the editor's pack, the hub's build is only compared with it.",
             schema("server" to string("A server id from artisan_overview."), required = listOf("server")),
             readOnly = true, ::packStatus,
         ),
         Tool(
             "resource_pack_rebuild", "Rebuild the resource pack",
             "Rebuilds a server's resource packs in the hub from the modules that server loaded (online or not), waits for the " +
-                "build (wait_seconds, default 30) and returns resource_pack_status. A Bedrock pack that changed is sent to the " +
-                "server's Bedrock players, so ask the player first. The Java pack is in shadow mode: built and compared, it does " +
-                "not reach Java players yet. A build still running at the deadline goes on: call resource_pack_status later.",
+                "build (wait_seconds, default 30) and returns resource_pack_status. A pack that changed is sent to the server's " +
+                "players (Java too in mode \"server\"), so ask the player first. A build still running at the deadline goes on: " +
+                "call resource_pack_status later.",
             schema(
                 "server" to string("A server id from artisan_overview."),
                 "wait_seconds" to mapOf("type" to "integer", "minimum" to 0, "maximum" to 120, "description" to "How long to wait for the build (default 30)."),
@@ -224,10 +227,13 @@ class McpTools(
                     "4. Tell the player the draft's name: they open it in the editor (Drafts), review, and click Deploy. This app may not " +
                         "deploy: the player can allow it in Settings → AI apps.",
                 "Visible text goes in the Document as written; references to other Documents use their id, e.g. `open_menu shop`.",
+                VARIANTS_HOWTO,
+                ORIGINALS_HOWTO,
             ),
             "editor_url" to editorUrl().ifEmpty { null },
         )
     }
+
 
     private fun listDocuments(principal: McpPrincipal, args: JsonNode): Any {
         val project = projects.project(text(args, "project"))
@@ -235,9 +241,30 @@ class McpTools(
         val read = projects.read(project)
         val tree = draftId?.let { draftSnapshot(principal, project, it).tree } ?: files(read)
         val kinds = kinds(project.server)
-        val layout = DocumentLayout.classify(tree.keys, kinds.keys)
-        val documents = layout.documents.map { mapOf("path" to it.path, "kind" to kinds[it.dir], "id" to it.id) }
-        val listed = documents.map { it["path"] }.toSet()
+        val manifest = ModuleFile.NAMES.firstNotNullOfOrNull { tree[it] }?.let(ManifestYaml::parse)
+        val index = Originals.parseIndex(tree[Originals.INDEX_PATH])
+        val exclusions = Originals.exclusions(manifest, index)
+        val layout = DocumentLayout.classify(tree.keys, kinds.keys, exclusions.excluded)
+        // What the module ships, id for id: an owner's Document over one of them is a modified one.
+        val prefix = "${Originals.DIR}/"
+        val shipped = DocumentLayout.classify(tree.keys.filter { it.startsWith(prefix) }.map { it.removePrefix(prefix) }, kinds.keys)
+            .let { it.documents + it.variants }.mapTo(HashSet()) { Triple(it.variant, it.dir, it.id) }
+        fun origin(e: DocumentLayout.Entry) = when {
+            e.original -> "original"
+            Triple(e.variant, e.dir, e.id) in shipped -> "modified"
+            else -> "added"
+        }
+        val hasOriginals = shipped.isNotEmpty()
+        fun entry(e: DocumentLayout.Entry, vararg extra: Pair<String, Any?>) =
+            linkedMapOf<String, Any?>("path" to e.path, "kind" to kinds[e.dir], "id" to e.id).apply {
+                putAll(extra)
+                if (hasOriginals) put("origin", origin(e))
+            }
+        val documents = layout.documents.map { entry(it) }
+        val variantDocs = layout.variants.map { entry(it, "variant" to it.variant) }
+        val rulesFile = DocumentLayout.variantsPath(tree.keys)
+        val listed = (documents + variantDocs).map { it["path"] }.toSet() + listOfNotNull(rulesFile) +
+            tree.keys.filter { it.startsWith(prefix) }
         @Suppress("UNCHECKED_CAST")
         val failed = (read["failed"] as? List<Map<String, Any?>>).orEmpty()
         val drafts = runCatching { projects.draft(principal, project, "list") }.getOrNull()
@@ -247,6 +274,17 @@ class McpTools(
             "project" to project.id,
             "draft_id" to draftId,
             "documents" to documents,
+            "variants" to rulesFile?.let { file ->
+                mapOf(
+                    "rules_file" to file,
+                    "names" to variantDocs.map { it["variant"] }.distinct(),
+                    "documents" to variantDocs,
+                )
+            },
+            "originals" to if (!hasOriginals) null else mapOf(
+                "module" to index.module, "version" to index.version, "required" to index.required,
+                "excluded" to exclusions.excluded, "exclusions_refused" to exclusions.refused,
+            ),
             "other_files" to tree.keys.filter { it !in listed }.sorted(),
             "not_loaded" to if (draftId == null) failed else emptyList(),
             "your_drafts" to drafts,
@@ -312,10 +350,11 @@ class McpTools(
 
     private fun packAnswer(server: String, status: PackBuilder.Status?, done: Boolean): Map<String, Any?> = mapOf(
         "server" to server,
-        "mode" to "shadow",
+        "mode" to if (packs!!.appliesJava) "server" else "shadow",
         "done" to done,
         "built" to (status?.builtAt != null),
         "hub_sha1" to status?.hubHash,
+        "applied_sha1" to status?.javaHash,
         "editor_sha1" to status?.editorHash,
         "matches" to status?.matches,
         "bedrock_sha1" to status?.bedrockHash,
@@ -325,8 +364,10 @@ class McpTools(
             !done -> "The build is still running: call resource_pack_status in a moment."
             status == null -> "No pack state for this server: it has not loaded its modules into the suite database yet."
             status.error != null -> "The hub's build failed; players keep the pack they had."
-            status.matches == false -> "The hub's pack differs from the editor's: a module may declare pack images in its editor only."
             status.hubHash == null -> "Bedrock players get the hub's pack (bedrock_sha1). The Java pack is built by the Pro edition only."
+            packs.appliesJava -> "Players get the hub's packs: Java hub_sha1, Bedrock bedrock_sha1." +
+                (if (status.matches == false) " An editor uploaded a different Java pack (editor_sha1): it may build module images the server does not." else "")
+            status.matches == false -> "The hub's pack differs from the editor's: a module may declare pack images in its editor only."
             else -> "Bedrock players get the hub's pack (bedrock_sha1); Java players get the editor's, compared with the hub's build (shadow mode)."
         },
     )
@@ -378,6 +419,7 @@ class McpTools(
         val content = if (delete) null else args.get("content")?.takeIf { it.isTextual }?.asText()
             ?: throw McpRefusal("invalid_input", "content is required, unless delete is true.")
         if (!contentPath(path)) throw McpRefusal("invalid_path", "'$path' is not a path a Project file can have.")
+        if (Originals.isOriginal(path)) throw McpRefusal("originals_read_only", ORIGINALS_HOWTO)
         if (content != null && content.length > MAX_FILE) throw McpRefusal("too_large", "A file is at most $MAX_FILE characters.")
         val draft = draftSnapshot(principal, project, draftId)
         if (delete && path !in draft.tree) throw McpRefusal("not_found", "No file '$path' in draft $draftId.")
@@ -626,6 +668,28 @@ class McpTools(
     private fun path(args: JsonNode) = text(args, "path").trim().removePrefix("/")
 
     companion object {
+        /** How a module's variants are written, through the same file tools (design `variantes-modules`). */
+        const val VARIANTS_HOWTO =
+            "Variants: a module may show other versions of its menus and dialogs to some players (Bedrock, resource pack " +
+                "loaded, a permission, any condition). They are files too. `variants.yml` at the module root holds the display " +
+                "rules as a step tree like an action chain (`schema: variants/v1`, `variants: [bedrock, textured]`, `show: [{if: " +
+                "[{client_is: bedrock}], do: [{show_variant: bedrock}], else: [{if: [{has_resource_pack: true}], do: [{show_variant: " +
+                "textured}]}]}, show_default]`; `if` takes conditions of the action engine; the old `rules:` list is still read). A variant's version of " +
+                "`menus/ranks.yml` is `variants/<name>/menus/ranks.yml`: same id, same `inputs`, a whole Document. A variant's " +
+                "command file (`variants/<name>/commands/<id>.yml`) holds only `actions`, `requirements`, `fallback`, on the root " +
+                "and on `subcommands` found by `name`. A show step ends its list: the player gets the variant of the first one their " +
+                "path reaches, for each file it has, else the module's file; `show_default` or the end gives the module's own files. list_documents shows the variants apart."
+
+        /** How a module's originals work, through the same file tools (design `originaux-modules`). */
+        const val ORIGINALS_HOWTO =
+            "Originals: `originals/` in a module holds what the module ships (its menus, dialogs, commands, variants), " +
+                "written by the server only and updated with the module; it cannot be written. The module's own files hold only " +
+                "what the owner changed or added, and a Document there wins over the original of the same kind and id (same " +
+                "variant). To change an original, write it without the `originals/` prefix (read it first: start from its " +
+                "content). To go back to the original, delete that file. To drop an original, add its path relative to " +
+                "`originals/` to `originals: {exclude: [...]}` in artisan-module.yml; `originals/originals.yml` lists the " +
+                "required ones, which cannot be dropped. list_documents gives each Document's origin: original, modified or added."
+
         /** A result as the model reads it: prose as it is, anything else as JSON, indented for an MCP client's reader. */
         fun resultText(body: Any?, indent: Boolean = true): String = body as? String
             ?: (if (indent) Call.mapper.writerWithDefaultPrettyPrinter() else Call.mapper.writer()).writeValueAsString(body)

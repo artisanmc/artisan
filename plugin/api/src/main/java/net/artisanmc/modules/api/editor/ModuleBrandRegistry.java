@@ -16,7 +16,7 @@ import org.jetbrains.annotations.Nullable;
  * files on demand ({@code module_brand_fetch}). A module that registers none keeps Artisan's.
  *
  * <pre>{@code
- * if (api.isCompatibleWith("2.23.0")) {
+ * if (api.isCompatibleWith("1.0.0")) {
  *     api.getModuleBrands().register(
  *         ModuleBrandDeclaration.fromResources(getClass().getClassLoader(), "artisan-brand"));
  * }

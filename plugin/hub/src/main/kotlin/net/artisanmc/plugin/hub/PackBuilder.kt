@@ -20,15 +20,18 @@ import java.util.logging.Logger
  * the suite database through [LoadedProjects], leaf servers included), with `plugin/pack`: the
  * same bytes as the editor's build.
  *
- * **Shadow mode** for now: the hub builds after each `projects_reloaded` and compares its pack
- * with the one the editor uploads, without applying its own. A match is logged at FINE, a pack
- * the editor sent that the hub's build does not reproduce at WARNING. Module images come from
- * what each server computed at load (`pack_images`, a kind's `PackImagesProvider`): a module whose
- * editor kind declares `pack.images` without the Java twin leaves them out of the hub's build.
+ * The hub builds after each `projects_reloaded` (and on [request]: the editor's rebuild, MCP).
+ * With [javaPacks], the **Java pack** is applied: stored, published on the pack host ([cdn]) when
+ * there is one, and sent to the server when its hash differs from the Java pack the server last
+ * received (the hub's or one an older editor uploaded, [editorUploaded]). Without [javaPacks], it is
+ * only compared with the editor's (**shadow mode**). Either way, a pack the editor sent that the
+ * hub's build does not reproduce is logged at WARNING. Module images come from what each server
+ * computed at load (`pack_images`, a kind's `PackImagesProvider`): a module whose editor kind
+ * declares `pack.images` without the Java twin leaves them out of the hub's build.
  *
- * The **Bedrock pack** is applied: after each build the hub stores it ([bedrock]) and sends it to the
- * server when its hash changed, in every edition, so a publication made without an editor tab (MCP,
- * `/artisan reload`) reaches Bedrock players. The Java pack is built only in Pro ([java]).
+ * The **Bedrock pack** is applied the same way: after each build the hub stores it ([bedrock]) and
+ * sends it to the server when its hash changed. So a publication made without an editor tab (MCP,
+ * `/artisan reload`) reaches every player. [java] false skips the Java pack.
  *
  * One build at a time on a thread of its own (never Jetty's), at most one waiting per server:
  * requests arriving while one runs share the next, which reads the latest state.
@@ -40,14 +43,22 @@ class PackBuilder(
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { r ->
         Thread(r, "Artisan-pack-builder").apply { isDaemon = true }
     },
-    /** Compare the Java pack with the editor's (Pro): false leaves [Status.hubHash] null. */
+    /** Compare the Java pack with the editor's: false leaves [Status.hubHash] null. */
     private val java: Boolean = true,
     /** Where the Bedrock packs the hub applies are served from; null builds none. */
     private val bedrock: PackStore? = null,
+    /** Where the Java packs the hub applies are served from; null: shadow mode, the editor's pack serves. */
+    private val javaPacks: PackStore? = null,
+    /** Artisan's pack host (`web.pack-cdn`) players download the Java pack from; null: from the hub. */
+    private val cdn: PackCdn? = null,
 ) : AutoCloseable {
+    /** The hub applies the Java pack it builds (not shadow mode). */
+    val appliesJava: Boolean get() = java && javaPacks != null
+
     /**
      * What the hub and the editor last built for a server, and whether the two agreed;
-     * [bedrockHash] is the Bedrock pack the hub last applied.
+     * [bedrockHash] is the Bedrock pack the hub last applied, [javaHash] the Java pack the server
+     * last received (the hub's or the editor's).
      */
     data class Status(
         val hubHash: String?,
@@ -55,6 +66,7 @@ class PackBuilder(
         val builtAt: Long?,
         val error: String?,
         val bedrockHash: String? = null,
+        val javaHash: String? = null,
     ) {
         val matches: Boolean? get() = if (hubHash == null || editorHash == null) null else hubHash == editorHash
     }
@@ -97,12 +109,14 @@ class PackBuilder(
         result.onSuccess { pack ->
             if (pack == null) return@onSuccess
             val bedrockHash = pack.bedrock?.let { applyBedrock(server, it.zip, previous?.bedrockHash) } ?: previous?.bedrockHash
-            status[server] = Status(pack.sha1.takeIf { java }, previous?.editorHash, started, null, bedrockHash)
+            val javaHash = if (appliesJava) applyJava(server, pack.zip, previous?.javaHash) else previous?.javaHash
+            status[server] = Status(pack.sha1.takeIf { java }, previous?.editorHash, started, null, bedrockHash, javaHash)
             logger?.fine { "[Artisan] Pack of $server built by the hub in ${System.currentTimeMillis() - started} ms: ${pack.sha1}" }
             if (java && previous?.editorHash == pack.sha1) logger?.fine { "[Artisan] Pack of $server: the hub's build matches the editor's" }
         }.onFailure { error ->
-            status[server] = Status(previous?.hubHash, previous?.editorHash, started, error.message ?: error.javaClass.simpleName, previous?.bedrockHash)
-            logger?.log(Level.WARNING, "[Artisan] The hub could not build the pack of $server (the editor's stays in use)", error)
+            status[server] = previous?.copy(builtAt = started, error = error.message ?: error.javaClass.simpleName)
+                ?: Status(null, null, started, error.message ?: error.javaClass.simpleName)
+            logger?.log(Level.WARNING, "[Artisan] The hub could not build the pack of $server (players keep the pack they have)", error)
         }
     }
 
@@ -121,6 +135,22 @@ class PackBuilder(
     }
 
     /**
+     * Stores the Java pack [zip] and sends it to [server] when it differs from [applied], the Java
+     * pack the server last received; its hash. Players download it from the pack host when [cdn]
+     * has it, else from the hub.
+     */
+    private fun applyJava(server: String, zip: ByteArray, applied: String?): String {
+        val store = javaPacks!!
+        val hash = store.put(zip)
+        if (hash != applied) {
+            val url = cdn?.publish(hash) { zip }
+            servers.find(server)?.applyResourcePack(hash, store.pathOf(hash), url)
+            logger?.info("[Artisan] Java pack of $server rebuilt by the hub: $hash")
+        }
+        return hash
+    }
+
+    /**
      * The editor sent [server] the Bedrock pack [hash]: the hub's next build sends its own only
      * when it differs, so the two never take turns with the same bytes.
      */
@@ -129,11 +159,12 @@ class PackBuilder(
     }
 
     /**
-     * The editor sent [server] the pack [hash]. Compared once the builds waiting for that server
-     * are done, against the hub's latest.
+     * The editor sent [server] the pack [hash] (an editor older than the hub's build, or a hub in
+     * shadow mode); the server now has it. Compared once the builds waiting for that server are
+     * done, against the hub's latest; the hub's next build sends its own only when it differs.
      */
     fun editorUploaded(server: String, hash: String) {
-        status.merge(server, Status(null, hash, null, null)) { old, _ -> old.copy(editorHash = hash) }
+        status.merge(server, Status(null, hash, null, null, javaHash = hash)) { old, _ -> old.copy(editorHash = hash, javaHash = hash) }
         executor.execute {
             val now = status[server] ?: return@execute
             when {

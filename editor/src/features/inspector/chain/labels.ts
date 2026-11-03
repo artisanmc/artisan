@@ -19,6 +19,10 @@ export function conditionSummary(condition: Condition): string {
       return `level ≥ ${condition.level}`;
     case "world_is":
       return `world = "${condition.world}"`;
+    case "client_is":
+      return `client = ${condition.client}`;
+    case "has_resource_pack":
+      return "has the resource pack";
     case "time_is":
       return typeof condition.range === "string"
         ? `time is ${condition.range}`
@@ -27,6 +31,8 @@ export function conditionSummary(condition: Condition): string {
       return `chance ${Math.round(condition.probability * 100)}%`;
     case "cooldown_passed":
       return `cooldown "${condition.cooldown_id}" passed`;
+    case "has_var":
+      return `${condition.var} is set`;
     case "player_in_region":
       return `in region "${condition.region}"`;
     case "pagination_at_first":

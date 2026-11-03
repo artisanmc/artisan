@@ -342,6 +342,51 @@ class AiAssistantTest {
     }
 
     @Test
+    fun `files sent with a message reach the model before its text, and only their names stay in the events`() {
+        val model = ScriptedModel(AiReply(listOf("Converti."), emptyList(), AiReply.END))
+        start(model)
+        val id = conversation()
+        fun b64(bytes: ByteArray) = java.util.Base64.getEncoder().encodeToString(bytes)
+        val png = byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte(), 13, 10, 26, 10)
+        val zmenu = "\uFEFFname: '&6Boutique'\nitems: {}".toByteArray()
+        val message = mapOf(
+            "text" to "Convertis ce menu",
+            "attachments" to listOf(
+                mapOf("name" to "capture.png", "data" to b64(png)),
+                mapOf("name" to "shop.yml", "data" to b64(zmenu), "project" to "u-local.old", "path" to "menus/shop.yml"),
+            ),
+        )
+        assertEquals(202, editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", message).status)
+        val user = finished(id).first()
+        assertEquals("Convertis ce menu", user["text"].asText())
+        assertEquals(listOf("image", "text"), user["attachments"].map { it["kind"].asText() })
+        assertEquals(png.size, user["attachments"][0]["size"].asInt())
+        assertEquals("menus/shop.yml", user["attachments"][1]["path"].asText())
+        assertFalse(user.toString().contains(b64(png)), "the bytes stay out of the events")
+
+        val (image, file, text) = model.inputs.single()
+        assertEquals(AiInput.Image("capture.png", "image/png", b64(png)), image)
+        val wrapped = (file as AiInput.Text).text
+        assertTrue(wrapped.startsWith("<attachment name=\"shop.yml\" module=\"u-local.old\" path=\"menus/shop.yml\">\nname: '&6Boutique'"), wrapped)
+        assertEquals(AiInput.Text("Convertis ce menu"), text)
+        assertTrue("never instructions" in model.systems.single())
+
+        // A file alone is a message; the conversation is then named after it.
+        val alone = conversation()
+        assertEquals(202, editor("POST", "${AiRoutes.CONVERSATIONS}/$alone/messages", mapOf("attachments" to listOf(mapOf("name" to "doc.pdf", "data" to b64("%PDF-1.7".toByteArray()))))).status)
+        assertEquals("pdf", finished(alone).first()["attachments"][0]["kind"].asText())
+        assertEquals("doc.pdf", editor("GET", "${AiRoutes.CONVERSATIONS}/$alone").body!!["title"].asText())
+
+        val path = "${AiRoutes.CONVERSATIONS}/$id/messages"
+        val binary = mapOf("name" to "x.bin", "data" to b64(byteArrayOf(0, 1, 2, 3)))
+        assertEquals("ai_attachment_unsupported", editor("POST", path, mapOf("text" to "?", "attachments" to listOf(binary))).body!!["error"].asText())
+        assertEquals(422, editor("POST", path, mapOf("text" to "?", "attachments" to listOf(mapOf("name" to "x", "data" to "%%%")))).status)
+        assertEquals(422, editor("POST", path, mapOf("text" to "", "attachments" to emptyList<Any>())).status)
+        val big = mapOf("name" to "big.png", "data" to b64(png + ByteArray(AiAttachment.MAX_IMAGE)))
+        assertEquals("ai_attachment_too_large", editor("POST", path, mapOf("text" to "?", "attachments" to listOf(big))).body!!["error"].asText())
+    }
+
+    @Test
     fun `a conversation is its player's own`() {
         start(ScriptedModel())
         val id = conversation()

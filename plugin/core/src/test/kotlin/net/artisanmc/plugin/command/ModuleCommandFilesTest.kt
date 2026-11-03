@@ -69,7 +69,48 @@ class ModuleCommandFilesTest {
         )
         .executor(run).build()
 
-    private fun cases() = listOf("ah" to auctionHouse(), "boutique" to shop(), "tricky" to tricky())
+    /** A root whose file decides on a module Variable, as the module wrote it (`fileActions`). */
+    private fun guildRoot() = PlayerCommandDeclaration.builder("guilds:guild")
+        .name("guild").aliases("g").description(mapOf("en" to "Guilds"))
+        .executor(run)
+        .fileActions(
+            listOf(
+                linkedMapOf(
+                    "if" to listOf(mapOf("expression" to "var.guilds.has_guild")),
+                    "do" to listOf(mapOf("open_menu" to "guilds:main")),
+                    "else" to listOf(mapOf("module_command" to "guilds:guild.help")),
+                ),
+            ),
+        )
+        .child(PlayerCommandDeclaration.builder("guilds:guild.help").name("help").executor(run).build())
+        .build()
+
+    private fun cases() = listOf("ah" to auctionHouse(), "boutique" to shop(), "tricky" to tricky(), "guild" to guildRoot())
+
+    @Test fun `actions a module wrote are the file's, its executor still declared`() {
+        assertEquals(
+            """
+            |schema: command/v1
+            |actions:
+            |  - if:
+            |      - expression: var.guilds.has_guild
+            |    do:
+            |      - open_menu: guilds:main
+            |    else:
+            |      - module_command: guilds:guild.help
+            |aliases:
+            |  - g
+            |description: Guilds
+            |subcommands:
+            |  - name: help
+            |    actions:
+            |      - module_command: guilds:guild.help
+            |
+            """.trimMargin(),
+            ModuleCommandFiles.yaml(guildRoot()),
+        )
+        assertNotNull(guildRoot().executor)
+    }
 
     @Test fun `a declaration becomes its command file`() {
         assertEquals(
@@ -159,12 +200,16 @@ class ModuleCommandFilesTest {
     @Test fun `an untouched command file the module no longer ships is removed, an edited one kept`() {
         val folder = kotlin.io.path.createTempDirectory("commands").toFile()
         try {
-            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", assertNotNull(ModuleCommandFiles.template(listOf(shop(), guild()))))
-            File(folder, "commands/g.yml").appendText("enabled: false\n")
+            val v1 = assertNotNull(ModuleCommandFiles.template(listOf(shop(), guild())))
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", v1)
+            File(folder, "commands/g.yml").apply { parentFile.mkdirs() }
+                .writeText(File(folder, "originals/commands/g.yml").readText() + "enabled: false\n")
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", v1)
             net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", assertNotNull(ModuleCommandFiles.template(listOf(auctionHouse()))))
-            assertTrue(!File(folder, "commands/boutique.yml").exists())
-            assertTrue(File(folder, "commands/g.yml").isFile)
-            assertTrue(File(folder, "commands/ah.yml").isFile)
+            assertTrue(!File(folder, "originals/commands/boutique.yml").exists())
+            assertTrue(!File(folder, "originals/commands/g.yml").exists())
+            assertTrue(File(folder, "commands/g.yml").isFile, "edited: the owner's")
+            assertTrue(File(folder, "originals/commands/ah.yml").isFile)
         } finally {
             folder.deleteRecursively()
         }
@@ -180,8 +225,9 @@ class ModuleCommandFilesTest {
         try {
             val v1 = assertNotNull(ModuleCommandFiles.template(listOf(guild("bank"))))
             net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", v1)
-            val file = File(folder, "commands/g.yml")
-            file.writeText(file.readText().replace("permission: guilds.use", "permission: vip"))
+            val file = File(folder, "commands/g.yml").apply { parentFile.mkdirs() }
+            file.writeText(File(folder, "originals/commands/g.yml").readText().replace("permission: guilds.use", "permission: vip"))
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", v1)
 
             val v2 = guild("bank", "war")
             net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", assertNotNull(ModuleCommandFiles.template(listOf(v2))))

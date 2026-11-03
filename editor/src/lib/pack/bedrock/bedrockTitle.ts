@@ -41,8 +41,10 @@ export const BEDROCK_PAD2 = "\u00A0";
 const CONTROL_BYTES = 3;
 
 /** The 2-character key of a menu, from the folder name of its project. */
-export function bedrockMenuKey(projectId: string, menuId: string): string {
-  const hex = sha256Hex(new TextEncoder().encode(`${projectId}:${menuId}`));
+export function bedrockMenuKey(projectId: string, menuId: string, variant?: string): string {
+  // A variant's menu hashes `project:menu@variant` (`BedrockTitle.key` in paper).
+  const seed = variant ? `${projectId}:${menuId}@${variant}` : `${projectId}:${menuId}`;
+  const hex = sha256Hex(new TextEncoder().encode(seed));
   const b0 = Number.parseInt(hex.slice(0, 2), 16);
   const b1 = Number.parseInt(hex.slice(2, 4), 16);
   return String.fromCodePoint(KEY_BASE + (b0 % KEY_RANGE), KEY_BASE + (b1 % KEY_RANGE));

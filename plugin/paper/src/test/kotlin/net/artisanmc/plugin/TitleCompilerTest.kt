@@ -585,6 +585,19 @@ class TitleCompilerTest {
     }
 
     @Test
+    fun `compileLayerBody textarea above the text fonts' top is clamped to it, like a Text layer`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 0, y = 4, width = 256, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        val (s, _) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "a\nb"), emptyLookup, standardEncoder,
+        )
+        assertTrue(s.contains("<font:artisan:text_y5_h8>a</font>"), s)
+        assertTrue(s.contains("<font:artisan:text_y14_h8>b</font>"), s)
+    }
+
+    @Test
     fun `compileLayerBody textarea with three lines emits three text_y wrappers`() {
         val layer = MenuTitleLayer.Textarea(
             value = LText("g"), x = 0, y = 5, width =256, lineHeight = 10,

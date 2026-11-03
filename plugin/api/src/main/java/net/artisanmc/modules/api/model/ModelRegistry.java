@@ -59,7 +59,7 @@ public final class ModelRegistry implements OwnedRegistry {
      */
     @Beta
     @Sunset(reason = "Untyped: a Data model is declared with ModelField / ModelFieldType like everything else",
-        removeInVersion = "3.0.0", replacement = "declare(ModelDeclaration)")
+        removeInVersion = "2.0.0", replacement = "declare(ModelDeclaration)")
     public void declare(Map<String, Object> document) {
         Object rawId = document.get("id");
         if (!(rawId instanceof String id)) throw new IllegalArgumentException("declared model document requires an 'id'");

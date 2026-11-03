@@ -115,6 +115,58 @@ Only `+` and `-`. There is no `*` or `/`, and `%` is reserved for PlaceholderAPI
 There is no leading minus either: write `{0 - price}`, not `{-price}`.
 :::
 
+### Remembered values: `var`
+
+A **Variable** is a value the server remembers: where the player last died, how many coins
+they earned, the current season. Create one from the project's **+** menu
+(`variables/<id>.yml`): a type (text, number, true/false, a place), a scope (one value per
+player, or one for the whole server), an optional default and an optional lifetime.
+
+Chains write it with **Set a variable** (`set_var`), **Add to a variable** (`add_var`, numbers
+only) and **Clear a variable** (`clear_var`). Everything reads it as `var.<id>`:
+
+```yaml
+do:
+  - set_var: { var: last_death, value: "{player.location}" }
+  - add_var: deaths
+  - send_message: "You died {var.deaths} times."
+  - teleport: "{var.last_death}"
+```
+
+The values live in the suite's database, so they survive a restart and follow a player
+across a network. Without a database they are kept in memory only.
+
+An installed module can share part of its state the same way, as **module variables** named
+`var.<module>.<name>`: whether the player has a guild, their rank, a quest's status. You read
+them, you never write them (the module does, through its own actions):
+
+```
+var.guilds.has_guild
+{var.guilds.rank}
+var.quests.status["daily/miner"] == "completed"
+```
+
+In a condition list, **variable** offers both kinds: pick the variable, then the comparison.
+A true/false variable is a condition by itself (*is true*, *is false*); *is set* writes
+`has_var`, true when a value is stored (a default is not a stored value). Typing `{` in a text
+lists them too. A variable that neither the project nor an installed module declares reads as
+nothing and is struck through in the editor. Scoreboards read them through PlaceholderAPI as
+`%artisan_var_<id>%` (`%artisan_var_guilds.rank%` for a module's).
+
+:::caution[A placeholder alone is always true]
+`%essentials_vanished%` gives the text `yes` or `no`, and any text that is not empty is true,
+`"false"` and `"no"` included. Compare it: `%essentials_vanished% == "yes"`. For the vanish
+state, use `player.vanished`, which reads the vanish plugin directly (EssentialsX, SuperVanish,
+PremiumVanish).
+:::
+
+### Numbers and places in action arguments
+
+A number, a true/false or a place in an action can be a template, resolved when the action
+runs: `give_money: "{var.reward}"`, `teleport: "{var.last_death}"`. In the editor, the `{}`
+button next to a number switches it to a template. A template that does not give a number (or a
+place) skips that action and writes a warning in the server console; the rest of the chain runs.
+
 ## Time
 
 Time fields carry an exact instant — the moment a quest group resets, the moment an

@@ -72,4 +72,18 @@ class EditableConfigTest {
         assertNull(editable.apply(cfg, mapOf("resource-pack.delegate-to-dir" to "")))
         assertTrue(cfg.getString("resource-pack.delegate-to-dir")!!.isEmpty())
     }
+
+    @Test
+    fun `edits the text palette, each entry checked`() {
+        val cfg = fileConfig()
+        assertEquals(emptyList<String>(), editable.report(cfg)["text-palette.colors"])
+        assertNull(editable.apply(cfg, mapOf(
+            "text-palette.colors" to listOf("Brand #ff6b35", "Deep sea #0a3d62"),
+            "text-palette.gradients" to listOf("Sunset #ff5f6d #ffc371", "Aurora #00c9ff #92fe9d #f0f0f0"),
+        )))
+        assertEquals(listOf("Brand #ff6b35", "Deep sea #0a3d62"), cfg.getStringList("text-palette.colors"))
+        assertEquals("text-palette.colors: invalid_palette_entry", editable.apply(cfg, mapOf("text-palette.colors" to listOf("#ff6b35"))))
+        assertEquals("text-palette.gradients: invalid_palette_entry", editable.apply(cfg, mapOf("text-palette.gradients" to listOf("One #ff6b35"))))
+        assertNull(editable.apply(cfg, mapOf("text-palette.gradients" to listOf("Ice #a8e6ff #4f8cff #ffffff"))))
+    }
 }

@@ -197,6 +197,20 @@ object ArtisanSchema {
             )""",
         ),
         Migration(38, "CREATE INDEX ${t.aiConversationsOwnerIndex} ON ${t.aiConversations} (owner_id)") { hasIndex(it, t.aiConversations, t.aiConversationsOwnerIndex) },
+        // Project variables (`VariableRows`, ADR `triggers-and-variables` §5): one value per Variable and owner.
+        // `owner` is a player's UUID, or `*` for a server-wide one; `name` the qualified ref `project/id`;
+        // `val` JSON, NULL once cleared; `expires_at` and `updated_at` in epoch milliseconds (0: never expires).
+        Migration(
+            39,
+            """CREATE TABLE IF NOT EXISTS ${t.vars} (
+                owner VARCHAR(36) NOT NULL,
+                name VARCHAR(200) NOT NULL,
+                val LONGTEXT NULL,
+                expires_at BIGINT NOT NULL,
+                updated_at BIGINT NOT NULL,
+                PRIMARY KEY (owner, name)
+            )""",
+        ),
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

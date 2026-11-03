@@ -156,6 +156,7 @@ export function modelFieldTypeToFieldType(
     case "minimessage_multiline":
     case "actions":
     case "document_ref":
+    case "location":
       return { kind: "string" };
     case "number":
     case "integer":

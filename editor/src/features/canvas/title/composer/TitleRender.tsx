@@ -4,7 +4,6 @@ import { menusOf } from "@/domain/documents";
 import type { MenuId, MenuTitleLayer, Project, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
-import { useIsPro } from "@/lib/edition";
 import { getText } from "@/lib/i18n";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -283,7 +282,6 @@ function LayerNode({
   const [image] = useAuthenticatedImage(asset ? assetPreviewUrl(asset) : "");
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const { onPositionChange } = useTitleLayerDrag({ menuId, layerIndex: index });
-  const pro = useIsPro();
   const textFrame = layer.kind === "text" || layer.kind === "textarea" ? asTextFrame(layer) : null;
   const anchorOffset = textFrame ? textAnchorOffset(textFrame) : 0;
 
@@ -515,8 +513,7 @@ function LayerNode({
   // Drag is only active when the layer is selected. Unselected layers are
   // click-through: events fall to the backdrop (which deselects) or the
   // underlying menu. This preserves menu clickability.
-  // Free jar: the composer is Pro, a composed title is shown but not moved.
-  const draggable = selected && layer.kind !== "background" && pro;
+  const draggable = selected && layer.kind !== "background";
 
   // Scale factor for text/textarea layers based on their `size` property.
   // size=8 (default) → sizeScale=1, size=16 → sizeScale=2, etc.
@@ -590,7 +587,7 @@ function LayerNode({
             fill="transparent"
             listening={false}
           />
-          {textFrame && pro ? (
+          {textFrame ? (
             <WidthResizeHandle
               x={textFrame.width * scale}
               y={0}

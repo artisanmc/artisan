@@ -5,6 +5,7 @@ import {
   readAiConversation,
   sendAiMessage,
 } from "@/lib/api/ai";
+import type { PendingAttachment } from "@/lib/aiAttachments";
 import { ApiError } from "@/lib/api/client";
 import { useCallback, useEffect, useState } from "react";
 import { create } from "zustand";
@@ -119,7 +120,7 @@ export function useAssistant(scope: AiScope) {
   useEffect(() => setSendFailure(null), [id]);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, attachments: PendingAttachment[] = []): Promise<boolean> => {
       setSendFailure(null);
       try {
         let target = useConversationsStore.getState().currentId;
@@ -128,11 +129,17 @@ export function useAssistant(scope: AiScope) {
           patch(target, {});
           setCurrentConversation(target);
         }
-        await sendAiMessage(target, text);
+        await sendAiMessage(
+          target,
+          text,
+          attachments.map(({ name, data, project, path }) => ({ name, data, project, path })),
+        );
         patch(target, { running: true, failure: null });
         await followConversation(target);
+        return true;
       } catch (e) {
         setSendFailure(e instanceof ApiError ? e.code : "network_error");
+        return false;
       }
     },
     [project, server],

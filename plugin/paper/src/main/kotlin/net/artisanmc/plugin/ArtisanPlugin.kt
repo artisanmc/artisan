@@ -110,6 +110,11 @@ open class ArtisanPlugin : JavaPlugin() {
     /** The modules' icons and logos: registered, or read from their jars' `artisan-brand/`. */
     internal val moduleBrands by lazy { ModuleBrands(api.moduleBrands, { api.modules.active() }, logger) }
 
+    /** Anonymous install counts on bStats. */
+    private val metrics = net.artisanmc.plugin.metrics.ServerMetrics(
+        this, { api.modules.active().map { it.id } }, ::currentConfig, { runCatching { database.dialect.name }.getOrDefault("") },
+    )
+
     /** Null if `web.enabled` is false or the port could not be opened. */
     val editor: net.artisanmc.plugin.hub.HubServer? get() = editorHost.editor
     /** The editor's public address from `web.url`; empty when not set. */
@@ -124,6 +129,7 @@ open class ArtisanPlugin : JavaPlugin() {
             MenusModule(),
             CommandsModule(),
             net.artisanmc.modules.triggers.TriggersModule(),
+            net.artisanmc.modules.variables.VariablesModule(),
         )
 
         fun buildApi(plugin: ArtisanPlugin): ArtisanAPI = ArtisanApiFactory.build(plugin)
@@ -222,7 +228,8 @@ open class ArtisanPlugin : JavaPlugin() {
                 t,
             )
         }
-        logger.info("Artisan ${description.version} (${net.artisanmc.plugin.hub.Edition.bundled(javaClass.classLoader).wire}) enabled")
+        metrics.start()
+        logger.info("Artisan ${description.version} enabled")
     }
 
     /** The editor side: the hub (or the link to it), the dev bundles, the permission reports. */
@@ -270,6 +277,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
     override fun onDisable() {
         if (unsupported) return
+        metrics.stop()
         menuPackets?.uninjectAll()
         localEditorBundles.stop()
         stopEditor()
@@ -323,6 +331,7 @@ open class ArtisanPlugin : JavaPlugin() {
         actions = api.actionRegistry.registered().map { it.toWire() },
         documentKinds = api.documentKinds.registered().map { it.toWire() },
         gameEvents = api.gameEvents.registered().map { it.toWire() },
+        variables = api.variables.registered().map { it.toWire() },
         playerCommands = net.artisanmc.plugin.ws.PlayerCommandReport.build(api.playerCommands),
     )
 

@@ -4,15 +4,19 @@
 // save). Each Document kind is written by its codec (`documentCodecs.ts`), data
 // sources by `dataV1FromDomain.ts`, translations by `langV1FromDomain.ts`.
 import { listDocumentKinds } from "@/domain/documentKinds";
-import { documentPath } from "@/domain/documentLayout";
+import { VARIANTS_DIR, VARIANTS_FILE, documentPath, sameFile } from "@/domain/documentLayout";
 import { documentKeys, documentsOf } from "@/domain/documents";
 import { persistedFolderMeta } from "@/domain/folders";
-import type { Project } from "@/domain/types";
+import { sameAsShipped, shippedPath, shippedTwin } from "@/domain/originals";
+import type { Document, Project } from "@/domain/types";
+import { variantsShown, variantsToYaml, withModuleView } from "@/domain/variants";
 import { listLanguages } from "@/lib/i18nUsages";
 import { nestLangTree } from "@/lib/langTree";
+import { stepsToWire } from "@/lib/literalSteps";
 import { MODULE_FILE, MODULE_SCHEMA, YAML_EXT } from "@/lib/yamlFiles";
 import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { stringify } from "yaml";
+import { commandVariantOverlay } from "./commandVariant";
 import { dataSourceI18n, emitDataSources, modelV1FromDomain } from "./dataV1FromDomain";
 import { documentCodec } from "./documentCodecs";
 import { collectReferencedKeys, keptLangEntries, serializeLang } from "./langV1FromDomain";
@@ -40,7 +44,9 @@ function rawModuleFiles(data: unknown): Record<string, string> | null {
  * Transform a Project into a flat map of filename → YAML string.
  * Keys use the server-side path (e.g. "plugins/Artisan/projects/<id>/menus/shop_main.yaml").
  */
-export function projectToFiles(project: Project): Record<string, string> {
+export function projectToFiles(shown: Project): Record<string, string> {
+  // The files hold the module's own Documents in place, whatever variant the canvas shows.
+  const project = withModuleView(shown);
   const files: Record<string, string> = {};
 
   const yamlOpts = { lineWidth: 0 };
@@ -52,14 +58,61 @@ export function projectToFiles(project: Project): Record<string, string> {
   // One file per document, in its kind's folder under its themed folder, through
   // its kind's codec (ADR `extensible-document-kinds`): the writer knows no kind
   // by name.
+  // Originals (`domain/originals.ts`): a Document equal to what the module ships is not
+  // written, the server's `originals/` serves it.
+  const asShipped = (kind: string, doc: Document, variant: string) => {
+    const twin = shippedTwin(project, kind, doc.id, variant);
+    return !!twin && sameAsShipped(project, kind, doc, twin);
+  };
   for (const def of listDocumentKinds()) {
     const codec = documentCodec(def.kind);
     for (const doc of documentsOf(project, def.kind)) {
+      if (asShipped(def.kind, doc, "")) continue;
       files[`${base}/${documentPath(def.dir, doc.id, doc.folder)}`] = stringify(
         withoutId(codec.serialize(doc, project)),
         yamlOpts,
       );
     }
+  }
+
+  // Variants (`domain/variants.ts`): each version at the same place under `variants/<name>/`,
+  // the rules in `variants.yml`.
+  if (project.variants) {
+    for (const def of listDocumentKinds()) {
+      const codec = documentCodec(def.kind);
+      for (const name of project.variants.names) {
+        for (const doc of project.variants.documents[name]?.[def.kind] ?? []) {
+          if (asShipped(def.kind, doc, name)) continue;
+          let body = withoutId(codec.serialize(doc, project));
+          // A command's version: only the steps that differ from the module's.
+          const own =
+            def.kind === "command"
+              ? documentsOf(project, def.kind).find((d) => d.id === doc.id)
+              : undefined;
+          if (own) body = commandVariantOverlay(withoutId(codec.serialize(own, project)), body);
+          files[`${base}/${VARIANTS_DIR}/${name}/${documentPath(def.dir, doc.id, doc.folder)}`] =
+            stringify(body, yamlOpts);
+        }
+      }
+    }
+    // The module's tree serves while the owner keeps it as shipped, and names no variant
+    // that only the file would keep (one without a tree step nor a file).
+    const v = project.variants;
+    const shippedShow = project.originals?.show;
+    const kept = new Set([
+      ...variantsShown(v.show),
+      ...Object.keys(v.documents),
+      ...Object.keys(project.originals?.documents ?? {}),
+    ]);
+    if (
+      !shippedShow ||
+      JSON.stringify(stepsToWire(shippedShow)) !== JSON.stringify(stepsToWire(v.show)) ||
+      v.names.some((n) => !kept.has(n))
+    )
+      files[`${base}/${VARIANTS_FILE}${YAML_EXT}`] = stringify(
+        variantsToYaml(v.show, v.names),
+        yamlOpts,
+      );
   }
 
   // Captured items: the opaque serialized stack is the runtime truth — emit it
@@ -104,6 +157,7 @@ export function projectToFiles(project: Project): Record<string, string> {
     languages: langs,
     ...(project.loreMaxWidth ? { lore_max_width: project.loreMaxWidth } : {}),
     ...(project.escapeGoesBack ? { escape_goes_back: true } : {}),
+    ...originalsBlock(project),
     // No `files:` block: it duplicated the content of menus/, commands/ and
     // dialogs/ without adding load order or exclusions — a hand-maintained index
     // whose only possible effect was to drift out of sync. Documents are
@@ -180,4 +234,32 @@ export function projectToFiles(project: Project): Record<string, string> {
   // every export a different byte tree. projectToFiles() is a pure function of
   // the Project.
   return files;
+}
+
+/**
+ * `originals: { exclude }` of the module file: each shipped Document the Project no longer has
+ * (a required one cannot be left out), and what was excluded that names no shipped Document.
+ */
+function originalsBlock(project: Project): Record<string, unknown> {
+  const o = project.originals;
+  if (!o) return {};
+  const required = new Set(o.required.map(sameFile));
+  const shipped = new Set<string>();
+  const exclude: string[] = [];
+  for (const [variant, byKind] of Object.entries(o.documents)) {
+    for (const [kind, docs] of Object.entries(byKind)) {
+      const present = new Set(
+        (variant ? project.variants?.documents[variant]?.[kind] : project.documents[kind])?.map(
+          (d) => d.id,
+        ) ?? [],
+      );
+      for (const doc of docs) {
+        const path = shippedPath(kind, doc, variant);
+        shipped.add(sameFile(path));
+        if (!present.has(doc.id) && !required.has(sameFile(path))) exclude.push(path);
+      }
+    }
+  }
+  for (const path of o.excluded) if (!shipped.has(sameFile(path))) exclude.push(path);
+  return exclude.length > 0 ? { originals: { exclude: [...new Set(exclude)].sort() } } : {};
 }

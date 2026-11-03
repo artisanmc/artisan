@@ -3,4 +3,4 @@
   **Project** menu; what you drag, click or pick there is first copied into the edited project's
   draft, then used. An identical resource is reused, a taken name becomes `name_2`, a glyph
   gets a free character. The copy is a snapshot: it does not follow later changes to the
-  original. Copying images and fonts is Pro, like an upload.
+  original.

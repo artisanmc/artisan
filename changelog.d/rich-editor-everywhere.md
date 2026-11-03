@@ -1,0 +1,3 @@
+- **Added**: Formatting with nothing selected in the rich MiniMessage editor: bold, italic, a color, a gradient, a style, a click or hover action chosen at the caret applies to the text typed next, as in a word processor. Chosen again, a decoration is cancelled; moving the caret drops it.
+- **Changed**: The rich MiniMessage editor replaces the plain source fields wherever MiniMessage is typed: menu title, text layers of a textured title, button title and lore, action texts, translations, `minimessage` data values and module fields. Its toolbar shows while the field is edited, and `%…%` server placeholders are offered as before.
+- **Changed**: Color and gradient share one toolbar button, with a tab each.

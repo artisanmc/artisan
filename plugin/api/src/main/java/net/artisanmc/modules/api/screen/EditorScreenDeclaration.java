@@ -36,7 +36,7 @@ public final class EditorScreenDeclaration {
     /**
      * @param component key of the view in the module's {@code FrontendModule.screens}
      *     ({@code rewards}), or null for the generated form
-     * @since 2.7.0
+     * @since 1.0.0
      */
     public EditorScreenDeclaration(
         String id, String label, String table, String projectId, @Nullable String moduleId, @Nullable String component
@@ -69,7 +69,7 @@ public final class EditorScreenDeclaration {
         return moduleId;
     }
 
-    /** The module's own view of this screen, null for the generated form. Since 2.7.0. */
+    /** The module's own view of this screen, null for the generated form. */
     public @Nullable String getComponent() {
         return component;
     }

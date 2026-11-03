@@ -6,6 +6,7 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import Konva from "konva";
 import { useCallback, useRef, useState } from "react";
+import { VariantSwitcher } from "./VariantSwitcher";
 
 // Only the primary (left) button drags Konva nodes / the stage. This frees the
 // middle button for panning (handled manually via useMiddleClickPan) without it
@@ -36,6 +37,7 @@ import { GhostChips } from "./GhostChips";
 import { ItemTooltip } from "./ItemTooltip";
 import { MarqueeRect } from "./MarqueeRect";
 import { MenuGroup } from "./MenuGroup";
+import { OriginalBanner } from "./OriginalBanner";
 import { Selection } from "./Selection";
 import { StageContextMenu } from "./StageContextMenu";
 import { TriggerGroup } from "./TriggerGroup";
@@ -236,6 +238,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
     >
       <div aria-hidden className="stage-bg-glow pointer-events-none absolute inset-0" />
       <ArmedBanner />
+      {!focusMode && <OriginalBanner projectId={projectId} />}
       {!focusMode && (
         <BoardChrome
           project={project}
@@ -251,6 +254,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
         />
       )}
       <CanvasToolbar
+        variants={focusMode ? undefined : <VariantSwitcher projectId={projectId} />}
         onRearrange={
           focusMode
             ? undefined

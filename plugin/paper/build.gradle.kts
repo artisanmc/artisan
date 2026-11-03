@@ -1,9 +1,5 @@
-import io.papermc.hangarpublishplugin.model.Platforms
-
 plugins {
     id("io.github.goooler.shadow")
-    id("com.modrinth.minotaur")
-    id("io.papermc.hangar-publish-plugin")
 }
 
 dependencies {
@@ -51,6 +47,8 @@ dependencies {
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.2")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Anonymous install counts (ServerMetrics), relocated as bStats requires.
+    implementation("org.bstats:bstats-bukkit:3.2.1")
     testImplementation("com.github.seeseemelk:MockBukkit-v1.21:3.133.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     // Force Adventure 4.23 in tests (MockBukkit pulls 4.17 which lacks ShadowColor).
@@ -68,9 +66,6 @@ tasks.shadowJar {
     // One build gives both jars: the plugin and the Geyser extension of a proxy (geyser-extension/build/libs/).
     dependsOn(":artisan-geyser:jar")
     archiveBaseName.set("artisan-plugin")
-    // The free jar sits next to the Pro one: `artisan-plugin-<v>-free.jar`. The Pro jar keeps the
-    // historical `-all` name the deploy task and docker setup use.
-    if (rootProject.extra["artisanEdition"] == "free") archiveClassifier.set("free")
     // NO `relocate("kotlin", …)`: it breaks the runtime. kotlin-reflect (pulled in by
     // jackson-module-kotlin, which reads our data classes) resolves built-ins BY STRING
     // NAME from .kotlin_builtins files the relocator does not rewrite: it looks for
@@ -85,6 +80,7 @@ tasks.shadowJar {
     relocate("com.fasterxml.jackson", "net.artisanmc.shaded.jackson")
     relocate("okhttp3", "net.artisanmc.shaded.okhttp3")
     relocate("okio", "net.artisanmc.shaded.okio")
+    relocate("org.bstats", "net.artisanmc.shaded.bstats")
     // Document checks against the JSON schemas (ADR `mcp-server`) and its date/time parser.
     relocate("com.networknt", "net.artisanmc.shaded.networknt")
     // The editor's assistant (ADR `editor-assistant`). Anthropic's SDK is NOT relocated: it
@@ -114,45 +110,4 @@ val deploy by tasks.registering(Exec::class) {
         jar.copyTo(dest, overwrite = true)
     }
     commandLine("docker", "compose", "restart", "minecraft")
-}
-
-// Publication of the free jar on a `v*` tag (.github/workflows/release-jars.yml): the workflow
-// passes the jar it built and checked as `-PreleaseJar`, so what goes out is exactly that file;
-// nothing is rebuilt here. The Pro jar never goes to Modrinth or Hangar (docs/architecture/editions.md).
-// Tokens, project ids and notes come from the environment (deploy/README.md, "Releasing the
-// plugin"). A version with a suffix (`2.0.0-beta.1`) goes out as a beta on Modrinth and on
-// Hangar's Snapshot channel. Paper 1.21 and newer; 26.2 is the dev server (docker-compose.yml).
-val minecraftVersions = providers.gradleProperty("minecraftVersions")
-    .getOrElse("1.21,1.21.1,1.21.2,1.21.3,1.21.4,1.21.5,1.21.6,1.21.7,1.21.8,1.21.9,1.21.10,1.21.11,26.1,26.2")
-    .split(",").map { it.trim() }.filter { it.isNotEmpty() }
-val releaseJar = providers.gradleProperty("releaseJar").map { rootDir.resolve(it) }
-val prerelease = project.version.toString().contains("-")
-val releaseNotes = providers.environmentVariable("RELEASE_NOTES").orElse("")
-
-modrinth {
-    token.set(providers.environmentVariable("MODRINTH_TOKEN"))
-    projectId.set(providers.environmentVariable("MODRINTH_PROJECT_ID"))
-    versionNumber.set(project.version.toString())
-    versionName.set("Artisan ${project.version}")
-    versionType.set(if (prerelease) "beta" else "release")
-    uploadFile.set(releaseJar)
-    gameVersions.set(minecraftVersions)
-    loaders.set(listOf("paper", "folia", "purpur"))
-    changelog.set(releaseNotes)
-}
-
-hangarPublish {
-    publications.register("plugin") {
-        version.set(project.version.toString())
-        channel.set(if (prerelease) "Snapshot" else "Release")
-        id.set(providers.environmentVariable("HANGAR_PROJECT"))
-        apiKey.set(providers.environmentVariable("HANGAR_API_TOKEN"))
-        changelog.set(releaseNotes)
-        platforms {
-            register(Platforms.PAPER) {
-                jar.set(layout.file(releaseJar))
-                platformVersions.set(listOf("${minecraftVersions.first()}-${minecraftVersions.last()}"))
-            }
-        }
-    }
 }

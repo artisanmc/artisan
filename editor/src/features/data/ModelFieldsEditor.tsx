@@ -39,8 +39,9 @@ type KindChoice =
 
 function kindOf(t: ModelFieldType): KindChoice {
   // `document_ref` is declared by modules (ADR extensible-document-kinds), not
-  // authored here: the field editor shows it as the string id it stores.
-  return t.kind === "document_ref" ? "string" : t.kind;
+  // authored here: the field editor shows it as the string id it stores. `location` is an action
+  // argument only.
+  return t.kind === "document_ref" || t.kind === "location" ? "string" : t.kind;
 }
 
 function defaultTypeForKind(kind: KindChoice, models: DataModel[]): ModelFieldType {

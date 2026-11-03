@@ -40,9 +40,13 @@ object BedrockTitle {
     const val PAD2 = '\u00A0'
     private const val CONTROL_BYTES = 3
 
-    /** The 2-character key of a menu, from the folder name of its project. */
-    fun key(projectId: String, menuId: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest("$projectId:$menuId".toByteArray(Charsets.UTF_8))
+    /**
+     * The 2-character key of a menu, from the folder name of its project. A variant's menu
+     * (`variants/<name>/`) hashes `project:menu@variant`: the pack styles it apart.
+     */
+    fun key(projectId: String, menuId: String, variant: String = ""): String {
+        val seed = if (variant.isEmpty()) "$projectId:$menuId" else "$projectId:$menuId@$variant"
+        val digest = MessageDigest.getInstance("SHA-256").digest(seed.toByteArray(Charsets.UTF_8))
         val b0 = digest[0].toInt() and 0xFF
         val b1 = digest[1].toInt() and 0xFF
         return String(Character.toChars(KEY_BASE + b0 % KEY_RANGE)) + String(Character.toChars(KEY_BASE + b1 % KEY_RANGE))
@@ -75,7 +79,7 @@ object BedrockTitle {
         choices: Map<String, CompiledAppearance?>,
         resolve: (LText) -> String,
     ): String {
-        val out = StringBuilder().append(MARKER).append(key(menu.projectId, menu.id))
+        val out = StringBuilder().append(MARKER).append(key(menu.projectId, menu.id, menu.variant))
         for ((index, el) in buttons(menu.yaml).withIndex()) {
             val appearances = listOf(el.display) + el.states
             val state = appearances.indexOfFirst { it === choices[el.id]?.yaml }.coerceIn(0, STATE_MAX - 1)

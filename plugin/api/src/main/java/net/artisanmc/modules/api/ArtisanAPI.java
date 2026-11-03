@@ -14,6 +14,7 @@ import net.artisanmc.modules.api.datasource.DataSourceRegistry;
 import net.artisanmc.modules.api.document.DocumentKindRegistry;
 import net.artisanmc.modules.api.cooldown.CooldownApi;
 import net.artisanmc.modules.api.gameevent.GameEventRegistry;
+import net.artisanmc.modules.api.variable.VariableRegistry;
 import net.artisanmc.modules.api.editor.EditorBundleRegistry;
 import net.artisanmc.modules.api.editor.ModuleBrandRegistry;
 import net.artisanmc.modules.api.event.ModuleEventBus;
@@ -69,6 +70,7 @@ public final class ArtisanAPI {
     private final ActionRegistry actionRegistry;
     private final DocumentKindRegistry documentKinds;
     private final GameEventRegistry gameEvents;
+    private final VariableRegistry variables;
     private final CooldownApi cooldowns;
     private final EditorBundleRegistry editorBundles;
     private final ModuleBrandRegistry moduleBrands;
@@ -101,6 +103,7 @@ public final class ArtisanAPI {
         this.actionRegistry = b.actionRegistry;
         this.documentKinds = b.documentKinds;
         this.gameEvents = b.gameEvents;
+        this.variables = b.variables;
         this.cooldowns = b.cooldowns;
         this.editorBundles = b.editorBundles;
         this.moduleBrands = b.moduleBrands;
@@ -233,7 +236,17 @@ public final class ArtisanAPI {
         return gameEvents;
     }
 
-    /** Per-player cooldowns, kept in the suite database (API 2.16.0); see {@link CooldownApi}. */
+    /**
+     * The read-only values modules declare (ADR {@code triggers-and-variables} §10):
+     * {@code var.<module>.<name>} in conditions and texts, computed by the module at each read.
+     * Reported at Presence as {@code declared_variables}.
+     */
+    @Beta
+    public VariableRegistry getVariables() {
+        return variables;
+    }
+
+    /** Per-player cooldowns, kept in the suite database; see {@link CooldownApi}. */
     @Beta
     public CooldownApi getCooldowns() {
         return cooldowns;
@@ -314,7 +327,7 @@ public final class ArtisanAPI {
         return translations;
     }
 
-    /** Text for players without Adventure types: sent, or as a {@code §} string for Bukkit. Since 2.10.0. */
+    /** Text for players without Adventure types: sent, or as a {@code §} string for Bukkit. */
     @Stable
     public TextApi getText() {
         return text;
@@ -323,7 +336,7 @@ public final class ArtisanAPI {
     /**
      * The servers of the network and what crosses between them: channels, presence, teleports.
      *
-     * @since 2.13.0
+     * @since 1.0.0
      */
     @Beta
     public NetworkApi getNetwork() {
@@ -333,7 +346,7 @@ public final class ArtisanAPI {
     /**
      * A HUD drawn in the action bar with the pack's fonts: text and images at a height.
      *
-     * @since 2.20.0
+     * @since 1.0.0
      */
     @Beta
     public OverlayApi getOverlay() {
@@ -371,6 +384,7 @@ public final class ArtisanAPI {
         private ActionRegistry actionRegistry = new ActionRegistry();
         private DocumentKindRegistry documentKinds = new DocumentKindRegistry();
         private GameEventRegistry gameEvents = new GameEventRegistry();
+        private VariableRegistry variables = new VariableRegistry();
         private CooldownApi cooldowns = CooldownApi.inMemory();
         private EditorBundleRegistry editorBundles = new EditorBundleRegistry();
         private ModuleBrandRegistry moduleBrands = new ModuleBrandRegistry();
@@ -443,6 +457,11 @@ public final class ArtisanAPI {
 
         public Builder gameEvents(GameEventRegistry gameEvents) {
             this.gameEvents = Objects.requireNonNull(gameEvents);
+            return this;
+        }
+
+        public Builder variables(VariableRegistry variables) {
+            this.variables = Objects.requireNonNull(variables);
             return this;
         }
 

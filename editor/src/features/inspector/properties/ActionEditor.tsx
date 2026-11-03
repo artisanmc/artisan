@@ -1,7 +1,7 @@
 import { LocalizedTextField } from "@/components/LocalizedTextField";
 import { MiniMessageField } from "@/components/MiniMessageField";
-import { RevealField } from "@/components/RevealField";
 import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
+import { MmEditor } from "@/components/minimessage/MmEditor";
 import { Input } from "@/components/ui/input";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { isLTextNode, normalizeActionArgs, withActionArg } from "@/domain/actionArgs";
@@ -23,17 +23,19 @@ import type {
 } from "@/domain/types";
 import { MaterialField } from "@/features/canvas/MaterialField";
 import { useOtherServerProjects } from "@/features/serverIndex/useOtherServerProjects";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
 import { isEventAction, setEventArgs, useChainEvent } from "@/lib/actions/eventActions";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
 import type { DeclaredCommand } from "@/lib/api/playerCommands";
+import { stepsFromWire, stepsToWire } from "@/lib/literalSteps";
+import { CHAT } from "@/lib/mm/profiles";
 import type { FieldLocation, PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useGetText } from "@/lib/useText";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerPlayerCommandsStore } from "@/state/serverPlayerCommandsStore";
 import { createContext, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ControlledStepsEditor } from "../chain/ControlledStepsEditor";
 import { UNALLOCATED_LTEXT_KEY } from "../chain/defaults";
 import { FieldLabel } from "../layout";
 import { DocumentRefField } from "./DocumentRefField";
@@ -51,8 +53,6 @@ interface ActionEditorProps {
    *  and edits go through `onChange` — no i18n key, no store write. */
   literalText?: boolean;
 }
-
-const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
 
 /**
  * Where the edited actions run, for the actions that don't sit in an element
@@ -368,6 +368,7 @@ const ARG_WIDGETS: Record<string, (p: ArgInputProps) => React.ReactElement> = {
   "pagination_prev.element_id": (p) => <IterableTargetSelect {...p} />,
   "run_command.command": (p) => <ExpressionInput {...p} placeholder="spawn" />,
   "set_arg.value": (p) => <ExpressionInput {...p} placeholder='"weapon"' />,
+  "set_var.value": (p) => <ExpressionInput {...p} placeholder="{player.location}" />,
   "run_actions.actions": (p) => <ExpressionInput {...p} placeholder="item.on_buy" />,
   "set_arg_cycle_next.list": (p) => <ExpressionInput {...p} placeholder="categories" />,
   "set_arg_cycle_prev.list": (p) => <ExpressionInput {...p} placeholder="categories" />,
@@ -446,6 +447,21 @@ function ArgInput(p: ArgInputProps) {
     case "number":
     case "integer":
       return <NumberInput {...p} />;
+    case "location":
+      // `world x y z [yaw pitch]` or a template naming one (`{var.last_death}`); the object form
+      // a file may carry is edited as JSON.
+      if (typeof value === "string" || value == null)
+        return <ExpressionInput {...p} placeholder="world 0 64 0 · {var.last_death}" />;
+      return <JsonValueInput value={value} onChange={onChange} ariaLabel={field.name} />;
+    case "actions":
+      // A nested chain (`chat_button.do`): its text is literal, as in a module's data.
+      return (
+        <ControlledStepsEditor
+          projectId={p.projectId}
+          value={stepsFromWire(value)}
+          onChange={(next) => onChange(stepsToWire(next))}
+        />
+      );
     case "boolean":
       return (
         <label className="flex items-center gap-2 text-[11px] text-[var(--text-mut)]">
@@ -465,7 +481,30 @@ function ArgInput(p: ArgInputProps) {
   }
 }
 
-function NumberInput({ decl, field, value, onChange }: ArgInputProps) {
+/**
+ * A number, or a template resolved to one when the action runs (`{var.coins}`, `%vault_eco_balance%`,
+ * ADR `triggers-and-variables` §6): the small toggle switches between the two.
+ */
+function NumberInput(p: ArgInputProps) {
+  const { t } = useTranslation();
+  const { value, onChange } = p;
+  const template = typeof value === "string";
+  return (
+    <div className="flex items-center gap-1">
+      {template ? <ExpressionInput {...p} placeholder="{var.coins}" /> : <NumberField {...p} />}
+      <button
+        type="button"
+        onClick={() => onChange(template ? undefined : "{}")}
+        title={t(template ? "actionEditor.numberLiteral" : "actionEditor.numberTemplate")}
+        className="rounded px-1 font-mono text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
+      >
+        {template ? "123" : "{}"}
+      </button>
+    </div>
+  );
+}
+
+function NumberField({ decl, field, value, onChange }: ArgInputProps) {
   const bounds = NUMBER_BOUNDS[`${decl.name}.${field.name}`] ?? {};
   const min = field.min ?? bounds.min;
   const max = field.max ?? bounds.max;
@@ -731,31 +770,15 @@ function TextArgInput({
         lt={lt}
         label={t("actionEditor.textName")}
         renderEditor={({ value, fallback, label, onChange }) => (
-          <RevealField
-            multiline
-            rows={2}
+          <MmEditor
             aria-label={label}
             placeholder={fallback ?? t("actionEditor.textPlaceholder")}
             value={value}
             onChange={onChange}
+            profile={CHAT}
             entries={placeholderEntries}
-            className="min-h-0 rounded-[var(--r-xs)] text-[13px]"
-            facade={
-              <MiniMessageInline
-                source={value || fallback || ""}
-                className={value ? "mc-text" : "mc-text opacity-50"}
-              />
-            }
-            preview={
-              looksLikeMiniMessage(value) ? (
-                <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-                  <span className="mr-2 text-[11px] font-medium text-[var(--text-faint)]">
-                    {t("menuProperties.preview")}
-                  </span>
-                  <MiniMessageInline source={value} className="mc-text text-[13px]" />
-                </div>
-              ) : null
-            }
+            toolbar="focus"
+            minHeight="0"
           />
         )}
       />

@@ -19,10 +19,13 @@ private val PREDICATES = setOf(
     "has_xp",
     "has_level",
     "world_is",
+    "client_is",
+    "has_resource_pack",
     "time_is",
     "random_chance",
     "cooldown_passed",
     "player_in_region",
+    "has_var",
     "pagination_at_first",
     "pagination_at_last",
 )
@@ -279,9 +282,12 @@ private class CondParser(private val toks: List<Token>, private val line: Int) {
             "has_xp" -> DslCondition.HasXp(num(0))
             "has_level" -> DslCondition.HasLevel(num(0))
             "world_is" -> DslCondition.WorldIs(str(0))
+            "client_is" -> DslCondition.ClientIs(str(0).lowercase())
+            "has_resource_pack" -> DslCondition.HasResourcePack
             "random_chance" -> DslCondition.RandomChance(num(0))
             "cooldown_passed" -> DslCondition.CooldownPassed(str(0))
             "player_in_region" -> DslCondition.PlayerInRegion(str(0))
+            "has_var" -> DslCondition.HasVar(str(0))
             "time_is" -> {
                 val v = str(0)
                 if (v == "day" || v == "night") {

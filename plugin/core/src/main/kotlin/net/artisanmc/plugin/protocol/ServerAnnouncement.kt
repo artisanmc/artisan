@@ -5,7 +5,8 @@ package net.artisanmc.plugin.protocol
  * they declare. Built by the server, read by the hub; each list keeps its own wire entries
  * (`{id, version, editor_bundle?, brand?}`, data sources, `model/v1` documents, Config screens, `{name, args, primary?,
  * module_id?}` actions, `{kind, dir, schema_versions, id_prefix?, module_id?}` Document kinds, `{name, group, frequency,
- * context, cancellable, effects, module_id?}` Game events, and the
+ * context, cancellable, effects, module_id?}` Game events, `{name, type, scope, values?, key?, description?,
+ * module_id}` module Variables, and the
  * player commands modules declare, as `PlayerCommandReport` writes them).
  */
 data class ServerAnnouncement(
@@ -16,6 +17,7 @@ data class ServerAnnouncement(
     val actions: List<Map<String, Any?>> = emptyList(),
     val documentKinds: List<Map<String, Any?>> = emptyList(),
     val gameEvents: List<Map<String, Any?>> = emptyList(),
+    val variables: List<Map<String, Any?>> = emptyList(),
     val playerCommands: List<Map<String, Any?>> = emptyList(),
 ) {
     /** The wire fields, in the order `hello` sends them. */
@@ -27,6 +29,7 @@ data class ServerAnnouncement(
         DECLARED_ACTIONS to actions,
         DOCUMENT_KINDS to documentKinds,
         DECLARED_GAME_EVENTS to gameEvents,
+        DECLARED_VARIABLES to variables,
         PLAYER_COMMANDS to playerCommands,
     )
 
@@ -56,6 +59,7 @@ data class ServerAnnouncement(
             actions = field(DECLARED_ACTIONS, actions),
             documentKinds = field(DOCUMENT_KINDS, documentKinds),
             gameEvents = field(DECLARED_GAME_EVENTS, gameEvents),
+            variables = field(DECLARED_VARIABLES, variables),
             playerCommands = field(PLAYER_COMMANDS, playerCommands),
         )
     }
@@ -68,6 +72,7 @@ data class ServerAnnouncement(
         const val DECLARED_ACTIONS = "declared_actions"
         const val DOCUMENT_KINDS = "document_kinds"
         const val DECLARED_GAME_EVENTS = "declared_game_events"
+        const val DECLARED_VARIABLES = "declared_variables"
         const val PLAYER_COMMANDS = "player_commands"
         const val EDITOR_BUNDLE = "editor_bundle"
         const val BRAND = "brand"

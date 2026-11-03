@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.fail
 
 /**
- * The public surface `net.artisanmc.modules.api.**` is Java (API 2.0.0): an add-on compiles
+ * The public surface `net.artisanmc.modules.api.**` is Java: an add-on compiles
  * against `artisan-core-api` without kotlin-stdlib, and no `kotlin.*` type can leak into a
  * signature, where it would make an add-on resolve it through the server's global plugin
  * lookup and die with a `LinkageError` on the first cross-plugin call (2026-08-08).

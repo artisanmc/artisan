@@ -11,7 +11,7 @@ import kotlin.test.fail
 
 /**
  * A `@Stable` signature must not expose a `@Beta` or `@Internal` type: SemVer would freeze the
- * member while its parameter or return type may still change in a minor (API 2.18.0, where
+ * member while its parameter or return type may still change in a minor (before 1.0.0,
  * `DataSourceField(String, ModelFieldType)` was `@Stable` and `ModelFieldType` still `@Beta`).
  *
  * The annotations have `SOURCE` retention, so their placement is read from the Java sources and
