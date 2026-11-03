@@ -1184,7 +1184,7 @@ Documentation in `docs/architecture/api-surface.md`, which explicitly lists what
 
 ### 13.5 Communication to admins
 
-**On SpigotMC / Modrinth**:
+**On the store pages (SpigotMC, BuiltByBit, Voxel)**:
 - Artisan Core page: clear changelog, breaking changes flagged in bold red.
 - Premium module pages: *"Compatible with Artisan core 1.x"* shown visibly.
 

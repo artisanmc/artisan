@@ -89,35 +89,31 @@ Locally: `npm ci --prefix docs-site`, then `npm run dev:site --prefix editor`.
 
 ## Releasing the plugin
 
-`.github/workflows/release-jars.yml` builds the plugin jar, `Artisan-<v>.jar`: one jar, free and
-complete, the same on every platform. On a tag `v<version>` (`v2.0.0`, `v2.1.0-beta.1`):
+`.github/workflows/release-jars.yml` builds the plugin jar, `Artisan-<v>.jar`: one paid jar, the
+same on every store. Modrinth and Hangar take no paid plugin, so it goes to none of them. On a tag
+`v<version>` (`v2.0.0`, `v2.1.0-beta.1`):
 
 1. job `jars`: tests, `Artisan-<v>.jar`, checked for the embedded editor, then a **draft** GitHub
-   Release carrying it;
-2. job `publish` (environment `release`): the jar to Modrinth (`:artisan-paper:modrinth`), Hangar
-   (`:artisan-paper:publishPluginPublicationToHangar`) and Voxel (`api.voxel.shop/v1/postUpdate`). Both Gradle tasks upload the exact jar of job `jars`
-   (`-PreleaseJar`), nothing is rebuilt. A version with a suffix goes out as a beta (Modrinth, Voxel)
-   and on Hangar's `Snapshot` channel. A platform whose token is not set is skipped.
+   Release carrying it (the workflow artifact is kept one day);
+2. job `publish` (environment `release`): the exact jar of job `jars` to Voxel
+   (`api.voxel.shop/v1/postUpdate`), nothing is rebuilt. A version with a suffix goes out as a beta.
+   Skipped while its key is not set.
 
 Notes are the annotated tag's message, refused when empty:
 `git tag -a v2.0.0 -m "…" && git push origin v2.0.0`. Write them for server owners; the
 `CHANGELOG.md` section is for developers.
 
 By hand after `publish`: SpigotMC and BuiltByBit have no upload API; take the jar from the draft
-Release, then publish the Release.
+Release. **Never publish the GitHub Release**: the repository is public, a published Release hands
+the paid jar to anyone. Pushes to `main` build a dev version as a check and upload nothing.
 
 GitHub `release` environment (restrict it to tags `v*`; a required reviewer lets you check the
 draft Release before anything goes out):
 
 | Type | Name | Value |
 |---|---|---|
-| Secret | `MODRINTH_TOKEN` | Modrinth personal token, scope "Create versions" |
-| Variable | `MODRINTH_PROJECT_ID` | Modrinth project id or slug |
-| Secret | `HANGAR_API_TOKEN` | Hangar API key, permission "create_version" |
-| Variable | `HANGAR_PROJECT` | Hangar project slug |
 | Secret | `VOXEL_API_KEY` | Voxel API key with "Post Updates" (it reaches the whole account) |
 | Variable | `VOXEL_RESOURCE_ID` | number at the end of the Artisan resource's URL |
-| Variable | `MINECRAFT_VERSIONS` | optional: supported versions, comma separated, instead of the default list in `plugin/paper/build.gradle.kts` |
 
 Each project is created by hand the first time (name, description, icon, license, first file where
 the platform requires one); the workflow only adds versions.

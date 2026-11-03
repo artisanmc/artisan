@@ -590,12 +590,8 @@ For each release of the core or a module:
 ### 11.2 Release
 
 - [ ] Git tag `v{X.Y.Z}` on the release commit
-- [ ] GitHub Release created with the CHANGELOG entries
-- [ ] `.jar` uploaded to:
-  - GitHub Releases
-  - SpigotMC resource (free core) or Premium Resources (modules)
-  - Modrinth (core)
-  - BBV / Polymart (modules premium)
+- [ ] Draft GitHub Release created by `release-jars.yml` (never published: the repository is public and the jar is paid)
+- [ ] `.jar` uploaded to the paid listings: Voxel (by the workflow), SpigotMC Premium and BuiltByBit (by hand)
 - [ ] The jar embeds the editor (`./gradlew shadowJar -PwithEditor`)
 - [ ] `artisan-api` published (`maven-publish`)
 

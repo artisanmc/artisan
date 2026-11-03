@@ -1,16 +1,15 @@
 name: Release jars
 
-# The plugin jar, `Artisan-<v>.jar`, editor embedded: one jar, free and complete, the same on every
-# platform. A tag `v<version>` makes a draft GitHub Release carrying it; a manual run only keeps it
-# as a workflow artifact.
+# The plugin jar, `Artisan-<v>.jar`, editor embedded: one paid jar, the same on every store. The
+# repository is public, so the jar is never: a tag `v<version>` makes a **draft** GitHub Release
+# carrying it (drafts are visible to maintainers only, never publish it), and the workflow artifact
+# is kept one day.
 #
-# Publication (tag only, job `publish`, GitHub environment `release`): Modrinth, Hangar and Voxel.
-# Notes: the tag's annotation. A platform whose token is not set is skipped. SpigotMC and
-# BuiltByBit have no upload API: upload by hand from the draft Release. Setup: deploy/README.md,
-# "Releasing the plugin".
+# Publication (tag only, job `publish`, GitHub environment `release`): Voxel. Notes: the tag's
+# annotation. SpigotMC and BuiltByBit have no upload API: upload by hand from the draft Release.
+# Setup: deploy/README.md, "Releasing the plugin".
 #
-# Development builds: each push to `v2` or `main` builds `<last tag>-dev.<run>` and replaces the
-# asset of the `dev` pre-release, never marked latest.
+# Pushes to `v2` or `main` build `<last tag>-dev.<run>` as a check only, nothing is uploaded.
 on:
   push:
     tags: ["v*"]
@@ -92,6 +91,7 @@ jobs:
           name: artisan-jars-${{ steps.version.outputs.version }}
           path: dist/*.jar
           if-no-files-found: error
+          retention-days: 1
       - name: Draft GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
@@ -101,20 +101,6 @@ jobs:
           gh release create "$GITHUB_REF_NAME" dist/*.jar --draft --verify-tag \
             --title "Artisan $VERSION" \
             --notes "Artisan-$VERSION.jar: the plugin, editor included."
-      # One rolling pre-release, never marked latest: only its assets change.
-      - name: Development build
-        if: github.ref_type == 'branch' && github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          if ! gh release view dev > /dev/null 2>&1; then
-            gh release create dev --prerelease --latest=false --target "$GITHUB_SHA" \
-              --title "Artisan development build" --notes "Development builds of Artisan. Not for production."
-          fi
-          for old in $(gh release view dev --json assets --jq '.assets[].name'); do gh release delete-asset dev "$old" --yes; done
-          gh release upload dev dist/*.jar
-          gh release edit dev --title "Artisan development build ($VERSION)" --notes "Built from $GITHUB_SHA on $GITHUB_REF_NAME. Development build, not for production."
 
   publish:
     needs: jars
@@ -127,24 +113,13 @@ jobs:
     permissions:
       contents: read
     env:
-      MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-      MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
-      HANGAR_API_TOKEN: ${{ secrets.HANGAR_API_TOKEN }}
-      HANGAR_PROJECT: ${{ vars.HANGAR_PROJECT }}
       VOXEL_API_KEY: ${{ secrets.VOXEL_API_KEY }}
       VOXEL_RESOURCE_ID: ${{ vars.VOXEL_RESOURCE_ID }}
-      MINECRAFT_VERSIONS: ${{ vars.MINECRAFT_VERSIONS }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-          cache: gradle
-      - uses: gradle/actions/setup-gradle@v5
       - uses: actions/download-artifact@v4
         with:
           name: artisan-jars-${{ needs.jars.outputs.version }}
@@ -155,24 +130,6 @@ jobs:
           notes="$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME")"
           [ -n "$notes" ] || { echo "Tag $GITHUB_REF_NAME has no message: use git tag -a" >&2; exit 1; }
           { echo "RELEASE_NOTES<<__NOTES__"; echo "$notes"; echo "__NOTES__"; } >> "$GITHUB_ENV"
-      - name: Publish to Modrinth
-        if: env.MODRINTH_TOKEN != ''
-        working-directory: plugin
-        env:
-          VERSION: ${{ needs.jars.outputs.version }}
-        run: |
-          args=(-PartisanVersion="$VERSION" -PreleaseJar="../dist/Artisan-$VERSION.jar")
-          [ -n "$MINECRAFT_VERSIONS" ] && args+=(-PminecraftVersions="$MINECRAFT_VERSIONS")
-          bash ./gradlew :artisan-paper:modrinth "${args[@]}" --no-daemon
-      - name: Publish to Hangar
-        if: env.HANGAR_API_TOKEN != ''
-        working-directory: plugin
-        env:
-          VERSION: ${{ needs.jars.outputs.version }}
-        run: |
-          args=(-PartisanVersion="$VERSION" -PreleaseJar="../dist/Artisan-$VERSION.jar")
-          [ -n "$MINECRAFT_VERSIONS" ] && args+=(-PminecraftVersions="$MINECRAFT_VERSIONS")
-          bash ./gradlew :artisan-paper:publishPluginPublicationToHangar "${args[@]}" --no-daemon
       # https://voxel.shop/wiki/api (postUpdate). The key needs the "Post Updates" permission.
       - name: Publish to Voxel
         if: env.VOXEL_API_KEY != '' && env.VOXEL_RESOURCE_ID != ''
