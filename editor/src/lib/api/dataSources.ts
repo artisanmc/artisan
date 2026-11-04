@@ -16,7 +16,7 @@ export interface ServerDataSource {
   /** Row key field name for a static source (null/absent unless static). */
   keyField?: string | null;
   /**
-   * Where the rows come from (API 2.19.0): server state, Project content, or
+   * Where the rows come from: server state, Project content, or
    * content joined to per-player state. null/absent = an older plugin, read as runtime.
    */
   origin?: DataSourceOrigin | null;

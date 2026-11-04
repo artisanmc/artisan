@@ -29,7 +29,7 @@ import java.util.Set;
  *
  * <p>Every method may be called from any thread.
  *
- * @since 2.20.0
+ * @since 1.0.0
  */
 @Beta
 public interface OverlayApi {
@@ -119,7 +119,7 @@ public interface OverlayApi {
      * A frame drawn by {@link #compose}: its MiniMessage, pen back at the centre, ready for
      * {@link #show}, and the images the pack lacks (left out of the frame).
      *
-     * @since 2.21.0
+     * @since 1.0.0
      */
     record Composed(String miniMessage, List<String> missingImages) {
         public Composed {
@@ -133,7 +133,7 @@ public interface OverlayApi {
      * to the centre after each. An image the pack lacks is left out and named in
      * {@link Composed#missingImages()}: a module that cannot do without it falls back to the chat.
      *
-     * @since 2.21.0
+     * @since 1.0.0
      */
     default Composed compose(OverlayLayout layout, OverlayContent content) {
         OverlayPlan.Plan plan = OverlayPlan.plan(layout, content, this::width, this::imageHeight);
@@ -159,7 +159,7 @@ public interface OverlayApi {
      * The height in px of the image {@code asset} as the pack draws it, or -1 when the pack holds
      * it at no rise. Places an {@code image_slot} anchored by its bottom.
      *
-     * @since 2.21.0
+     * @since 1.0.0
      */
     default int imageHeight(String asset) {
         return -1;

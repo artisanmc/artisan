@@ -86,6 +86,11 @@ class SyncedMenuProvider(
     private val menuEvents: net.artisanmc.plugin.listener.MenuEventDispatcher? = null,
     /** Who plays from Bedrock (Geyser): their menus get the title the Bedrock pack reads. */
     private val isBedrock: (Player) -> Boolean = { false },
+    /**
+     * Whether the player's client loaded the server's pack (Java pack, or Bedrock pack for a
+     * Bedrock player): the `has_pack` of the variants' rules (design `variantes-modules`).
+     */
+    private val hasPack: (Player) -> Boolean = { false },
     /** Each loaded Snapshot, with the editor players whose publication it loads, by project id. */
     /** Each loaded Snapshot, with its publications' authors by project id; [done] announces the reload once it is recorded. */
     private val onSnapshot: (ProjectSnapshot, Map<String, net.artisanmc.plugin.project.PublicationAuthor>, done: () -> Unit) -> Unit =
@@ -400,11 +405,12 @@ class SyncedMenuProvider(
     fun projectDirs(): Map<String, File> = projects.projectIds.associateWith(roots::dirFor)
 
     override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
-        val menu = findMenu(menuId, ctx.projectId) ?: run {
+        val found = findMenu(menuId, ctx.projectId) ?: run {
             Chat.send(player, langManager?.get("cmd.menu_not_found", player, "id" to menuId)
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
+        val menu = inVariant(player, ctx, DocumentKinds.MENU.kind, found)
         // This menu's clicks resolve in ITS project, not in the one we came from.
         val opened = ctx.copy(projectId = menu.projectId.ifEmpty { null } ?: ctx.projectId)
         val ref = net.artisanmc.modules.api.menu.MenuRef(opened.projectId, menu.id)
@@ -432,11 +438,12 @@ class SyncedMenuProvider(
         resolveRef(dialogTable, "Dialog", ref, fromProject)
 
     override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {
-        val dialog = findDialog(dialogId, ctx.projectId) ?: run {
+        val found = findDialog(dialogId, ctx.projectId) ?: run {
             Chat.send(player, langManager?.get("cmd.dialog_not_found", player, "id" to dialogId)
                 ?: net.kyori.adventure.text.Component.text("Dialog '$dialogId' not found."))
             return
         }
+        val dialog = inVariant(player, ctx, DocumentKinds.DIALOG.kind, found)
         val executor = executorProvider?.invoke() ?: run {
             logger?.warning("openDialog called but executorProvider is null")
             return
@@ -460,6 +467,33 @@ class SyncedMenuProvider(
             runCatching { net.artisanmc.plugin.render.dialog.SpigotDialogRenderer.open(player, dialog, lang, decorated, executor) }
                 .onFailure { logger?.warning("[Artisan] dialog '$dialogId' not opened for ${player.name}: ${it.message}") }
         }
+    }
+
+    /**
+     * [found] as [player] sees it (design `variantes-modules`): the copy of the first variant
+     * whose rule holds and that has this file, else [found] itself. Chosen at each opening
+     * (going back included), never while the menu stays open.
+     */
+    private fun <T : RuntimeDocument> inVariant(player: Player, ctx: ExecutionContext, kind: String, found: T): T {
+        val project = runtimes.firstOrNull { it.projectId == projectOf(found) } ?: return found
+        if (project.variantRules.isEmpty()) return found
+        val who = object : net.artisanmc.plugin.engine.VariantPlayer {
+            override val bedrock by lazy { isBedrock(player) }
+            override val hasPack by lazy { this@SyncedMenuProvider.hasPack(player) }
+            override fun hasPermission(permission: String) = player.hasPermission(permission)
+            override fun test(condition: net.artisanmc.plugin.engine.Condition) = evaluator.evaluate(condition, ctx)
+        }
+        val variant = net.artisanmc.plugin.engine.VariantRules.select(
+            project.variantRules, { project.variantDocument(it, kind, found.id) != null }, who,
+        ) ?: return found
+        @Suppress("UNCHECKED_CAST")
+        return project.variantDocument(variant, kind, found.id) as? T ?: found
+    }
+
+    private fun projectOf(doc: RuntimeDocument): String = when (doc) {
+        is RuntimeMenu -> doc.projectId
+        is RuntimeDialog -> doc.projectId
+        else -> ""
     }
 
     /**
@@ -555,6 +589,7 @@ class SyncedMenuProvider(
         val registry = templates()
         workspace.io.execute {
             val seeds = net.artisanmc.plugin.project.TemplateSeeds(roots, logger, seedLang)
+            val seededBefore = seeds.seeded()
             var wrote = false
             registry?.registered()?.forEach { (moduleId, list) ->
                 list.forEach { template ->
@@ -569,6 +604,18 @@ class SyncedMenuProvider(
                 list.filter { it.isSystem }.forEach { template ->
                     runCatching { if (syncSystemFiles(moduleId, template)) wrote = true }
                         .onFailure { logger?.warning("[Artisan] System elements '$moduleId/${template.id}' not written: ${it.message}") }
+                }
+                // The examples a module seeds into its own folder: originals too, optional.
+                list.filter { !it.isSystem }.forEach { template ->
+                    val dir = seeds.ownFolderSeed(moduleId, template) ?: return@forEach
+                    runCatching {
+                        val seeded = "$moduleId/${template.id}" in seededBefore
+                        val written = net.artisanmc.plugin.project.SystemFiles.sync(dir, moduleId, template, required = false, seeded = seeded)
+                        if (written.isNotEmpty()) {
+                            wrote = true
+                            logger?.info("[Artisan] Originals of '$moduleId/${template.id}' updated in '${dir.name}': ${describeChanges(dir, written)}.")
+                        }
+                    }.onFailure { logger?.warning("[Artisan] Originals '$moduleId/${template.id}' not written: ${it.message}") }
                 }
             }
             if (wrote) refresh(folders = null, notifyModules = false)
@@ -591,8 +638,20 @@ class SyncedMenuProvider(
             if (conflicts.isEmpty()) logger?.info("[Artisan] '${folder.key}/$path' was edited: the new version of '$moduleId' merged into it.")
             else logger?.info("[Artisan] '${folder.key}/$path' was edited: the new version of '$moduleId' merged into it, except ${conflicts.joinToString()}, edited on both sides (the edit stays; Reset in the editor takes the module's version).")
         }
-        if (written.isNotEmpty()) logger?.info("[Artisan] System elements of '$moduleId' written in '${folder.key}': ${written.joinToString()}.")
+        if (written.isNotEmpty()) logger?.info("[Artisan] System elements of '$moduleId' updated in '${folder.key}': ${describeChanges(folder.value, written)}.")
         return written.isNotEmpty()
+    }
+
+    /**
+     * What `SystemFiles.sync` changed, read on the disk after it: the files it wrote, and apart the
+     * owner's copies it removed because the original now serves (an untouched or equal copy).
+     */
+    private fun describeChanges(dir: java.io.File, paths: List<String>): String {
+        val (written, removed) = paths.partition { java.io.File(dir, it).exists() }
+        return buildList {
+            if (written.isNotEmpty()) add("wrote ${written.joinToString()}")
+            if (removed.isNotEmpty()) add("removed (the original serves) ${removed.joinToString()}")
+        }.joinToString("; ")
     }
 
     fun setCustomItemsManager(manager: CustomItemsManager) {
@@ -754,6 +813,9 @@ class SyncedMenuProvider(
     fun applyLocalResourcePack(playerUrl: String, downloadUrl: String, hash: String) {
         rpm()?.applyPack(playerUrl, downloadUrl, hash)
     }
+
+    /** The Bedrock pack file in use, `cache/bedrock-pack/<sha1>.mcpack`. */
+    fun currentBedrockPack(): java.io.File? = bedrockPacks?.current
 
     /** The Bedrock pack built by the editor and served by the hub: [downloadUrl] is the hub's local address. */
     fun applyLocalBedrockPack(downloadUrl: String, hash: String) {

@@ -22,7 +22,7 @@ click actions. An add-on does not build inventories through the API — it
 
 ## Open a menu from your code
 
-`api.menus` (`@Beta`, Since 1.8.0) opens a menu by reference: `project:menu`,
+`api.menus` (`@Beta`) opens a menu by reference: `project:menu`,
 or a bare id looked up on the whole server.
 
 ```kotlin
@@ -79,7 +79,7 @@ fired right after the listeners: a plugin that is not an add-on can use
 
 ## Run actions
 
-`api.actions` (`@Beta`, Since 1.4.0) runs Action DSL — the same language admins
+`api.actions` (`@Beta`) runs Action DSL — the same language admins
 write on buttons — for a player. Opening a menu is one action:
 
 ```kotlin
@@ -95,7 +95,7 @@ api.getActions().execute(player, "open_menu homes", Map.of(), "homes");
 | `player` | Who the actions run for (`{player}` is bound to them) |
 | `actions` | Action DSL text: one action per line, `if`/`else` blocks allowed ([syntax](../../editor/data-sources/#syntax)) |
 | `args` | Extra placeholder bindings: `mapOf("target" to "Steve")` makes `{target}` available in the text |
-| `projectId` | The project the actions run in (Since 1.6.0): a bare menu id is looked up there first, and `@key` messages resolve in its `lang/` files. `null` = no project scope |
+| `projectId` | The project the actions run in: a bare menu id is looked up there first, and `@key` messages resolve in its `lang/` files. `null` = no project scope |
 
 Pass values to the menu's inputs with `with`:
 
@@ -179,7 +179,7 @@ Admins can also open any menu with `/artisan menu <id>`.
 
 ## Placeholders
 
-`api.placeholders` (`@Beta`, Since 1.8.0) is the simplest way to show a single
+`api.placeholders` (`@Beta`) is the simplest way to show a single
 per-player value. Register a namespace, and every `%<namespace>_<key>%` in menu
 titles, names, lore, action text and conditions asks your resolver — with or
 without PlaceholderAPI installed:
@@ -230,7 +230,7 @@ Use a data source instead when the value is a list or has several fields.
 A data source field of kind `ITEM` hands a complete item to the menu: admins
 pick it under **Displayed item → Use an item from data**. To produce item
 values the editor understands — for example an admin command that captures the
-item in hand — use `api.items` (`@Beta`, Since 1.4.0):
+item in hand — use `api.items` (`@Beta`):
 
 | Method | Returns |
 |---|---|

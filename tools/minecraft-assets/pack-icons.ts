@@ -8,9 +8,9 @@
  *   - mc-assets/<version>/textures/icons/*.png  (rendered by gen-icons.ts)
  *   - items/<version>.json                      (post-render, points to icons/)
  *
- * The hub embeds them in its jar with -PwithEditor (plugin/hub/build.gradle.kts).
- * Re-run (and commit) after each `gen-items.ts` + `gen-icons.ts`, so on every
- * new Minecraft version.
+ * The jar carries only each zip's SHA-256 (plugin/hub/build.gradle.kts); the zip
+ * itself is uploaded to the pack CDN's `vanilla/` (README). Re-run (and commit)
+ * after each `gen-items.ts` + `gen-icons.ts`, so on every new Minecraft version.
  */
 
 import { zipSync } from "fflate";

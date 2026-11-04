@@ -40,8 +40,8 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useReducer, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { formatSaveError, initialPublishState, publishReducer } from "./publishFlow";
 import { deployDraftsAndReport } from "./deployDrafts";
+import { formatSaveError, initialPublishState, publishReducer } from "./publishFlow";
 import { selectedDrafts, useOtherDrafts } from "./useOtherDrafts";
 
 /**

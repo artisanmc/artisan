@@ -1,3 +1,5 @@
+import java.security.MessageDigest
+
 // Web server of the self-hosted editor: HTTP, WebSocket, sessions.
 // No platform dependency: the game is reached only through `core`'s ports.
 // Jetty is not bundled: Paper downloads it from `libraries:` in plugin.yml.
@@ -12,7 +14,6 @@ dependencies {
     // Tunnel to an editor tunnel server (ADR `editor-tunnel`); bundled and relocated by `paper`, like its WsClient.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
-    implementation("com.anthropic:anthropic-java:2.34.0")
     compileOnly("org.eclipse.jetty:jetty-server:$jetty")
     compileOnly("org.eclipse.jetty.websocket:jetty-websocket-jetty-server:$jetty")
     testImplementation("org.eclipse.jetty:jetty-server:$jetty")
@@ -45,6 +46,23 @@ val vanillaIndex by tasks.registering {
     }
 }
 
+// 3D item icons (`gen-icons.ts` + `pack-icons.ts`, ~10 MB a version): not in the jar. The hub downloads
+// `icons-<version>.zip` from the CDN (`deploy/pack-cdn-worker`) and checks it against the SHA-256 written here.
+val vanillaIcons: File = minecraftAssets.resolve("icons")
+val vanillaIconHashes by tasks.registering {
+    val out = layout.buildDirectory.dir("generated/vanilla/icons")
+    inputs.dir(vanillaIcons)
+    outputs.dir(out)
+    doLast {
+        val dir = out.get().asFile.apply { deleteRecursively(); mkdirs() }
+        vanillaIcons.listFiles { f -> f.name.matches(Regex("icons-.+\\.zip")) }.orEmpty().forEach { zip ->
+            val digest = MessageDigest.getInstance("SHA-256").digest(zip.readBytes())
+            dir.resolve(zip.name.removePrefix("icons-").removeSuffix(".zip") + ".sha256")
+                .writeText(digest.joinToString("") { "%02x".format(it) })
+        }
+    }
+}
+
 // The user docs (`docs/site`), read by the MCP tool `read_docs`: the pages of this release.
 val wikiPages: File = rootDir.resolve("../docs/site").canonicalFile
 val wikiIndex by tasks.registering {
@@ -59,7 +77,7 @@ val wikiIndex by tasks.registering {
 }
 
 tasks.processResources {
-    dependsOn(vanillaIndex, wikiIndex)
+    dependsOn(vanillaIndex, vanillaIconHashes, wikiIndex)
     from(vanillaItems) { include("*.json"); into("vanilla/items") }
     from(layout.buildDirectory.dir("generated/vanilla")) { into("vanilla") }
     from(wikiPages) { include("**/*.md"); exclude("**/_*"); into("wiki") }
@@ -70,14 +88,6 @@ if (providers.gradleProperty("withEditor").isPresent) {
     tasks.processResources {
         dependsOn(buildEditor)
         from(editorDist) { into("editor") }
-        // 3D block icons (`gen-icons.ts`), only used by the editor: ~15 MB.
-        minecraftAssets.resolve("icons").listFiles { f -> f.name.matches(Regex("icons-.*\\.zip")) }.orEmpty().forEach { zip ->
-            from(zipTree(zip)) {
-                include("mc-assets/**")
-                eachFile { path = "vanilla/" + path.removePrefix("mc-assets/") }
-                includeEmptyDirs = false
-            }
-        }
     }
 }
 

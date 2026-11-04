@@ -17,6 +17,8 @@ object ConditionParser {
             "cooldown_passed"    -> Condition.CooldownPassed(str(raw, "cooldown_id"))
             "has_var"            -> Condition.HasVar(str(raw, "var"))
             "world_is"           -> Condition.WorldIs(str(raw, "world"))
+            "client_is"          -> Condition.ClientIs(str(raw, "client").lowercase())
+            "has_resource_pack"  -> Condition.HasResourcePack
             "time_is"            -> Condition.TimeIs(parseTimeRange(raw["range"]))
             "random_chance"      -> Condition.RandomChance((raw["probability"] as Number).toDouble())
             "player_in_region"   -> Condition.PlayerInRegion(str(raw, "region"))

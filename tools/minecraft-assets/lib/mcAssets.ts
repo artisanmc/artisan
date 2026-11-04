@@ -70,7 +70,8 @@ async function _download(version: string): Promise<void> {
     "assets/minecraft/font/",
   ];
   const jar = unzipSync(jarBuf, {
-    filter: (file) => WANT_PREFIXES.some((p) => file.name.startsWith(p)),
+    // Newer client jars (26.x) list directories as entries too: only files are written.
+    filter: (file) => !file.name.endsWith("/") && WANT_PREFIXES.some((p) => file.name.startsWith(p)),
   });
 
   // 5. Write files to disk, stripping the leading "assets/minecraft/" segment
@@ -79,8 +80,9 @@ async function _download(version: string): Promise<void> {
   const writes: Promise<void>[] = [];
   for (const [zipPath, bytes] of Object.entries(jar)) {
     const localPath = join(root, zipPath.replace(/^assets\/minecraft\//, ""));
+    const data = zipPath.startsWith("assets/minecraft/models/") ? flattenSprites(bytes) : bytes;
     writes.push(
-      mkdir(dirname(localPath), { recursive: true }).then(() => writeFile(localPath, bytes)),
+      mkdir(dirname(localPath), { recursive: true }).then(() => writeFile(localPath, data)),
     );
     count++;
   }
@@ -89,4 +91,25 @@ async function _download(version: string): Promise<void> {
   // 6. Done marker
   await writeFile(join(root, ".done"), version);
   console.log(`[mc-assets] Done — ${count} assets saved to ${root}`);
+}
+
+/**
+ * 26.x models may give a texture as `{sprite, force_translucent}` instead of a string. Every
+ * reader here (item catalogue, model bundle, renderer) expects the string: the model is written
+ * with `sprite` in its place.
+ */
+function flattenSprites(bytes: Uint8Array): Uint8Array {
+  let model: { textures?: Record<string, unknown> };
+  try {
+    model = JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return bytes;
+  }
+  const textures = model.textures;
+  if (!textures || !Object.values(textures).some((v) => typeof v === "object" && v !== null)) return bytes;
+  for (const [key, value] of Object.entries(textures)) {
+    if (typeof value === "object" && value !== null && typeof (value as { sprite?: unknown }).sprite === "string")
+      textures[key] = (value as { sprite: string }).sprite;
+  }
+  return new TextEncoder().encode(JSON.stringify(model));
 }

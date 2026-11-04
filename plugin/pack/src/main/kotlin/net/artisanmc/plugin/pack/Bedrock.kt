@@ -32,8 +32,10 @@ internal object BedrockTitle {
     const val PAD2 = "\u00A0"
     private const val CONTROL_BYTES = 3
 
-    fun menuKey(projectId: String, menuId: String): String {
-        val hex = sha256Hex("$projectId:$menuId".toByteArray(Charsets.UTF_8))
+    /** `variant` empty for the module's own menu; a variant's menu hashes `project:menu@variant`. */
+    fun menuKey(projectId: String, menuId: String, variant: String = ""): String {
+        val seed = if (variant.isEmpty()) "$projectId:$menuId" else "$projectId:$menuId@$variant"
+        val hex = sha256Hex(seed.toByteArray(Charsets.UTF_8))
         val b0 = hex.substring(0, 2).toInt(16)
         val b1 = hex.substring(2, 4).toInt(16)
         return String(Character.toChars(KEY_BASE + b0 % KEY_RANGE)) + String(Character.toChars(KEY_BASE + b1 % KEY_RANGE))
@@ -94,19 +96,54 @@ internal class BedrockMenu(
 
 /**
  * Where a module's Documents live (`documentLayout.ts`, `DocumentLayout.kt` in core): zero to three
- * themed folders, then the kind folder, then `<id>.yml`. Only what the Bedrock menus need: the id of
- * each Document path, duplicates left out.
+ * themed folders, then the kind folder, then `<id>.yml`. With `variants.yml` at the module root,
+ * `variants/<name>/` holds a variant laid out the same way (design `variantes-modules`). Only what
+ * the packs need: the id and variant of each Document path, duplicates left out.
  */
 internal object DocumentLayout {
     private val RESOURCE_DIRS = setOf("lang", "items", "data", "models", "templates", "assets", "overrides", "config")
     private const val MAX_FOLDER_DEPTH = 3
     private val FOLDER = Regex("^[a-z0-9][a-z0-9_-]*$")
 
-    /** Document path → id, for the kinds of [kindDirs]. */
-    fun ids(paths: List<String>, kindDirs: Set<String>): Map<String, String> {
-        val candidates = ArrayList<Triple<String, String, String>>()
+    /** A Document's id, and its variant (`""` for the module's own). */
+    data class Doc(val id: String, val variant: String)
+
+    /**
+     * Document path → [Doc], for the kinds of [kindDirs]. `originals/…` (design `originaux-modules`)
+     * holds what the module ships: an original is read unless the owner's files have a Document
+     * of the same kind, id and variant. (The owner's exclusions live in the module file: the
+     * packs keep an excluded menu's images, unused.)
+     */
+    fun docs(paths: List<String>, kindDirs: Set<String>): Map<String, Doc> {
+        val prefix = "originals/"
+        val variantsOn = paths.any { '/' !in it && YamlPaths.stem(it) == "variants" } ||
+            paths.any { it.startsWith(prefix) && it.count { c -> c == '/' } == 1 && YamlPaths.stem(it.removePrefix(prefix)) == "variants" }
+        val own = candidates(paths.filter { !it.startsWith(prefix) }, kindDirs, variantsOn)
+        val shipped = candidates(paths.filter { it.startsWith(prefix) }.map { it.removePrefix(prefix) }, kindDirs, variantsOn)
+        val covered = own.mapTo(HashSet(), ::key)
+        val byPath = shipped.associateBy { it.first }
+        return unique(own) + unique(shipped).filterKeys { key(byPath.getValue(it)) !in covered }.mapKeys { prefix + it.key }
+    }
+
+    private fun key(c: Triple<String, String, Doc>) = c.third.variant + "\u0000" + c.second + "\u0000" + c.third.id
+
+    private fun unique(candidates: List<Triple<String, String, Doc>>): Map<String, Doc> {
+        val count = candidates.groupingBy(::key).eachCount()
+        return candidates.filter { count.getValue(key(it)) == 1 }.associate { it.first to it.third }
+    }
+
+    private fun candidates(paths: List<String>, kindDirs: Set<String>, variantsOn: Boolean): List<Triple<String, String, Doc>> {
+        val candidates = ArrayList<Triple<String, String, Doc>>()
         for (path in paths.sorted()) {
-            val segs = path.split("/")
+            var rest = path
+            var variant = ""
+            if (variantsOn && path.startsWith("variants/")) {
+                val segs = path.split("/")
+                if (segs.size < 3 || !FOLDER.matches(segs[1])) continue
+                variant = segs[1]
+                rest = segs.drop(2).joinToString("/")
+            }
+            val segs = rest.split("/")
             if (segs.any { it.isEmpty() || it.startsWith(".") }) continue
             val id = YamlPaths.stem(segs.last()) ?: continue
             val dirs = segs.dropLast(1)
@@ -115,14 +152,16 @@ internal object DocumentLayout {
             if (kindAt < 0 || kindAt != dirs.size - 1) continue
             val folders = dirs.subList(0, kindAt)
             if (folders.any { it in RESOURCE_DIRS || !FOLDER.matches(it) } || folders.size > MAX_FOLDER_DEPTH) continue
-            candidates += Triple(path, dirs[kindAt], id)
+            candidates += Triple(path, dirs[kindAt], Doc(id, variant))
         }
-        val count = candidates.groupingBy { it.second + "\u0000" + it.third }.eachCount()
-        return candidates.filter { count.getValue(it.second + "\u0000" + it.third) == 1 }.associate { it.first to it.third }
+        return candidates
     }
+
+    /** The menu files of a module, its variants' included, as the plugin reads them. */
+    fun menuPaths(paths: List<String>): Set<String> = docs(paths, setOf("menus")).keys
 }
 
-/** The menus of a Project the Bedrock pack styles (`bedrockMenus.ts`): chests of 3 or 6 rows. */
+/** The menus of a Project the Bedrock pack styles (`bedrockMenus.ts`): chests of 1 to 6 rows. */
 internal object BedrockMenus {
     private const val PLAIN_X = 8.0
     private const val PLAIN_Y = 6.0
@@ -142,6 +181,15 @@ internal object BedrockMenus {
         }
         return slots.toList().ifEmpty { null }
     }
+
+    /** An element whose positions all fall in the chest (no placement, whose slots are free). */
+    private fun inChest(element: Any?, size: Double): Boolean {
+        val el = element as? Map<*, *> ?: return true
+        if (el["places"] != null) return false
+        return DIGITS.findAll(Js.string(el["positions"] ?: "")).all { it.value.toDouble() < size }
+    }
+
+    private val DIGITS = Regex("\\d+")
 
     private fun imageOf(app: Any?): BedrockButtonImage? {
         val image = (app as? Map<*, *>)?.get("image") as? Map<*, *> ?: return null
@@ -196,16 +244,16 @@ internal object BedrockMenus {
     fun fromProject(projectId: String, files: List<PackFile>): List<BedrockMenu> {
         val out = ArrayList<BedrockMenu>()
         // The id is the file name, wherever the menu sits (themed folders included), as the plugin reads it.
-        val ids = DocumentLayout.ids(files.map { it.path }, setOf("menus"))
+        // A variant's menu gets its own key: the plugin sends it for that variant only.
+        val docs = DocumentLayout.docs(files.map { it.path }, setOf("menus"))
         for (file in files) {
-            val id = ids[file.path] ?: continue
+            val (id, variant) = docs[file.path] ?: continue
             val doc = runCatching { Yaml.parse(file.content) }.getOrNull() as? Map<*, *> ?: continue
             if (doc.containsKey("inventory_type") && doc["inventory_type"] != "chest") continue
-            if (doc["player_inventory"] == "hidden") continue
             val size = Js.toNumber(doc["size"])
-            if (size != 27.0 && size != 54.0) continue
+            if (size % 9.0 != 0.0 || size < 9.0 || size > 54.0) continue
             val sizeInt = size.toInt()
-            val rows = if (sizeInt == 27) 3 else 6
+            val rows = sizeInt / 9
 
             val images = ArrayList<BedrockImageLayer>()
             for (layer in asList(doc["title"])) {
@@ -228,6 +276,12 @@ internal object BedrockMenus {
                 }
                 else -> emptyList()
             }
+            // Player inventory hidden: only drawn without the vanilla texture (its background covers
+            // the top; Bedrock's own inventory stays below, empty) and with every element in the
+            // chest — buttons placed in the inventory are not drawn yet. Same rule as the plugin's `BedrockTitle.supports`.
+            if (doc["player_inventory"] == "hidden" &&
+                (doc["vanilla_texture"] != false || !elements.all { inChest(it, size) })
+            ) continue
             val buttons = ArrayList<BedrockButton>()
             for (element in elements) {
                 if (!Js.truthy(element)) continue
@@ -249,7 +303,7 @@ internal object BedrockMenus {
             }
 
             out += BedrockMenu(
-                projectId, id, BedrockTitle.menuKey(projectId, id), rows,
+                projectId, id, BedrockTitle.menuKey(projectId, id, variant), rows,
                 doc["vanilla_texture"] == false, images, textLayers(doc["title"]), buttons,
             )
         }
@@ -259,7 +313,7 @@ internal object BedrockMenus {
 
 /** `ui/chest_screen.json` (`bedrockUi.ts`): the vanilla chest screen, changed through JSON UI `modifications`. */
 internal object BedrockUi {
-    private const val BEDROCK_Y = 4
+    const val BEDROCK_Y = 4
     private const val GRID_X = 7
     private const val GRID_Y = 21
     private const val CELL = 18
@@ -281,7 +335,6 @@ internal object BedrockUi {
 
     private fun contains(text: String) = "(not (($T - '$text') = $T))"
 
-    private fun anyOf(conditions: List<String>) = if (conditions.size == 1) conditions[0] else "(${conditions.joinToString(" or ")})"
 
     private fun MutableMap<String, Any?>.whenVisible(condition: String): MutableMap<String, Any?> = apply {
         put(T, "\$container_title")
@@ -289,6 +342,9 @@ internal object BedrockUi {
     }
 
     private fun hasKey(menu: BedrockMenu) = contains(BedrockTitle.MARKER + menu.key)
+
+    /** Rows of the Bedrock screen a chest of [rows] rows opens on: Geyser shows 1 to 3 as a small chest, 4 to 6 as a large one. */
+    fun panelRows(rows: Int) = if (rows <= 3) 3 else 6
 
     /**
      * Bytes in front of the marker as the client may receive them: the proxy chain adds formatting
@@ -326,9 +382,12 @@ internal object BedrockUi {
         return "artisan_${key}_$what"
     }
 
-    fun backgroundTexture(menu: BedrockMenu) = "textures/artisan/menus/${id(menu, "bg")}"
+    /** 16 hex chars of a SHA-256: Geyser warns about pack paths over 80 chars (mirror of `bedrockUi.ts`). */
+    private fun shortName(value: String) = sha256Hex(value.toByteArray(Charsets.UTF_8)).substring(0, 16)
 
-    fun buttonTexture(key: String) = "textures/artisan/$key"
+    fun backgroundTexture(menu: BedrockMenu) = "textures/artisan/m/${shortName(menu.key)}"
+
+    fun buttonTexture(key: String) = "textures/artisan/b/${shortName(key)}"
 
     private fun element(vararg pairs: Pair<String, Any?>): MutableMap<String, Any?> = linkedMapOf(*pairs)
 
@@ -337,7 +396,8 @@ internal object BedrockUi {
             "type" to "image",
             "texture" to backgroundTexture(menu),
             "size" to listOf(WIDTH, height),
-            "offset" to listOf(0, BEDROCK_Y),
+            // Composed from the panel's top, BEDROCK_Y px above the Java layout.
+            "offset" to listOf(0, 0),
             "anchor_from" to "top_left",
             "anchor_to" to "top_left",
             "layer" to LAYER_BACKGROUND,
@@ -395,21 +455,6 @@ internal object BedrockUi {
             ).whenVisible("(${hasKey(menu)} and ${keyAt(menu, lead)})"),
         )
 
-    private fun chestPanel(panel: String, visible: String): Map<String, Any?> = mapOf(
-        "chest_panel" to element("type" to "panel", "layer" to 5).whenVisible(visible).apply {
-            put(
-                "controls",
-                listOf(
-                    mapOf("${panel}_chest_panel_top_half@chest.${panel}_chest_panel_top_half" to emptyMap<String, Any?>()),
-                    mapOf("inventory_panel_bottom_half_with_label@common.inventory_panel_bottom_half_with_label" to emptyMap<String, Any?>()),
-                    mapOf("hotbar_grid@common.hotbar_grid_template" to emptyMap<String, Any?>()),
-                    mapOf("inventory_take_progress_icon_button@common.inventory_take_progress_icon_button" to emptyMap<String, Any?>()),
-                    mapOf("flying_item_renderer@common.flying_item_renderer" to mapOf("layer" to 15)),
-                ),
-            )
-        },
-    )
-
     fun chestScreen(
         menus: List<BedrockMenu>,
         backgroundHeight: (BedrockMenu) -> Int,
@@ -424,35 +469,27 @@ internal object BedrockUi {
             ),
         )
         for ((rows, panel) in listOf(3 to "small", 6 to "large")) {
-            val here = menus.filter { it.rows == rows }
+            val here = menus.filter { panelRows(it.rows) == rows }
             if (here.isEmpty()) continue
-            val styled = anyOf(here.map(::hasKey))
-            val transparent = here.filter { it.transparent }
+            // The vanilla panel stays, even under a `vanilla_texture: false` menu: replacing
+            // `common_panel` / `chest_panel` to hide it left every chest screen blank on Bedrock.
             val modifications = ArrayList<Map<String, Any?>>()
-            if (transparent.isNotEmpty()) {
-                val visible = "(not ${anyOf(transparent.map(::hasKey))})"
-                modifications += element(
-                    "array_name" to "controls",
-                    "operation" to "replace",
-                    "control_name" to "common_panel",
-                    "value" to mapOf("common_panel@common.common_panel" to element().whenVisible(visible)),
-                )
-                modifications += element(
-                    "array_name" to "controls",
-                    "operation" to "replace",
-                    "control_name" to "chest_panel",
-                    "value" to chestPanel(panel, visible),
-                )
-            }
             val value = ArrayList<Map<String, Any?>>()
             here.forEach { value += backgroundElement(it, backgroundHeight(it)) }
-            value += mapOf(
-                "artisan_chest_grid@chest.${panel}_chest_grid" to element(
-                    "offset" to listOf(GRID_X, GRID_Y),
-                    "grid_item_template" to "chest.artisan_grid_item",
-                    "layer" to LAYER_GRID,
-                ).whenVisible(styled),
-            )
+            // One slot grid per menu, shown by its own key alone (as in bedrockUi.ts). A chest of
+            // fewer rows than its screen gets a grid of its own rows only: the slots Geyser pads
+            // it with stay under the background.
+            for (menu in here) {
+                value += mapOf(
+                    "${id(menu, "grid")}@chest.${panel}_chest_grid" to element(
+                        "offset" to listOf(GRID_X, GRID_Y),
+                    ).apply {
+                        if (menu.rows != rows) put("grid_dimensions", listOf(9, menu.rows))
+                        put("grid_item_template", "chest.artisan_grid_item")
+                        put("layer", LAYER_GRID)
+                    }.whenVisible(hasKey(menu)),
+                )
+            }
             here.forEach { menu -> value += buttonElements(menu) { b, s -> buttonKey(menu, b, s) } }
             here.forEach { value += textElements(it) }
             modifications += element("array_name" to "controls", "operation" to "insert_back", "value" to value)
@@ -469,6 +506,8 @@ internal object BedrockPack {
     private const val WIDTH = 176
     private const val TITLE_H = 17
     private const val ROW_H = 18
+    /** A plain row of the chest texture (left border, grey, right border), just under the slot rows. */
+    private const val FILL_Y = 126
     private const val GLYPH_Y_BASE = 13
 
     private fun u(b: Byte) = b.toInt() and 0xff
@@ -500,19 +539,25 @@ internal object BedrockPack {
     private fun scaleOf(png: RgbaImage): Int =
         if (png.width == png.height && png.width >= 256 && png.width % 256 == 0) png.width / 256 else 1
 
-    /** The top of the vanilla chest window (title bar and slot rows), at 1x. */
+    /**
+     * The top of the vanilla chest window (title bar and slot rows), at 1x, as tall as the
+     * Bedrock screen's top half: below a menu's own rows, a plain band of the texture
+     * ([FILL_Y]) covers the slots Geyser fills to reach 3 or 6 rows.
+     */
     private fun chestTop(texture: ByteArray, rows: Int): RgbaImage {
         val src = Png.decode(texture)
         val k = scaleOf(src)
-        val h = TITLE_H + rows * ROW_H
+        val own = TITLE_H + rows * ROW_H
+        // From the top of the Bedrock panel: the texture's top border, then its first grey row
+        // repeated BEDROCK_Y times, so the Bedrock frame does not show above (as chestTop in bedrockPack.ts).
+        val pad = BedrockUi.BEDROCK_Y
+        val h = pad + TITLE_H + BedrockUi.panelRows(rows) * ROW_H
         val out = RgbaImage(WIDTH, h)
-        if (k == 1) {
-            Png.bitblt(src, out, 0, 0, WIDTH, h, 0, 0)
-            return out
-        }
-        // An HD texture: nearest-neighbour down to the pack's pixel grid.
-        for (y in 0 until h) for (x in 0 until WIDTH) {
-            System.arraycopy(src.data, (y * k * src.width + x * k) * 4, out.data, (y * WIDTH + x) * 4, 4)
+        // Nearest-neighbour down to the pack's pixel grid when the texture is HD.
+        for (y in 0 until h) {
+            val ly = if (y < pad) y else if (y < 2 * pad) pad else y - pad
+            val sy = (if (ly < own) ly else FILL_Y) * k
+            for (x in 0 until WIDTH) System.arraycopy(src.data, (sy * src.width + x * k) * 4, out.data, (y * WIDTH + x) * 4, 4)
         }
         return out
     }
@@ -536,10 +581,15 @@ internal object BedrockPack {
     private fun composeBackground(menu: BedrockMenu, pngs: Map<String, ByteArray>, assets: List<AssetRow>, chest: ByteArray): RgbaImage {
         val layers = placedImages(menu, pngs, assets)
         val top = if (menu.transparent) null else chestTop(chest, menu.rows)
-        val height = maxOf(1, top?.height ?: 0, layers.maxOfOrNull { it.y + it.image.height } ?: 0)
+        val pad = BedrockUi.BEDROCK_Y
+        val height = maxOf(1, top?.height ?: 0, layers.maxOfOrNull { pad + it.y + it.image.height } ?: 0)
         val out = RgbaImage(WIDTH, height)
         if (top != null) Png.bitblt(top, out, 0, 0, top.width, top.height, 0, 0)
-        for (l in layers) blend(l.image, out, l.x, l.y)
+        for (l in layers) blend(l.image, out, l.x, pad + l.y)
+        // Without the vanilla top, the window's first row is repeated over the lead (as in bedrockPack.ts).
+        if (top == null && height > pad) {
+            for (y in 0 until pad) System.arraycopy(out.data, pad * WIDTH * 4, out.data, y * WIDTH * 4, WIDTH * 4)
+        }
         return out
     }
 

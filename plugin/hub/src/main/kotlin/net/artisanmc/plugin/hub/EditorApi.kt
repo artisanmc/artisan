@@ -23,7 +23,7 @@ object EditorApi {
         online: () -> Set<String> = { emptySet() },
         /** Artisan's pack host (`web.pack-cdn`); null: players download packs from this server. */
         packCdn: PackCdn? = null,
-        /** The hub's own pack build: the Java one compared with the editor's (shadow mode), the Bedrock one applied. */
+        /** The hub's own pack build: the Bedrock one applied, the Java one applied or compared with the editor's (shadow mode). */
         packBuilder: PackBuilder? = null,
     ): Router {
         val router = Router()
@@ -38,6 +38,7 @@ object EditorApi {
                 servers, store, packCdn, bedrockPacks,
                 uploaded = { server, hash -> packBuilder?.editorUploaded(server, hash) },
                 bedrockUploaded = { server, hash -> packBuilder?.bedrockApplied(server, hash) },
+                builder = packBuilder,
             ).register(router)
         }
         AddressRoutes(tunnel, sessions).register(router)

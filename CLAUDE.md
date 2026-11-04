@@ -57,7 +57,8 @@ Not updating = the next session will not know the code changed.
 cd plugin
 ./gradlew test          # every module (api, core, database, hub, pack, paper)
 ./gradlew shadowJar     # → paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
-./gradlew shadowJar -PwithEditor   # same, with the editor and the 3D icons bundled (npm required)
+                        #   + geyser-extension/build/libs/artisan-geyser-1.0.0-SNAPSHOT.jar (a proxy's Geyser)
+./gradlew shadowJar -PwithEditor   # same, with the editor bundled (npm required)
 ./gradlew deploy        # build + restart the container
 
 # Editor (React 19 + Vite 6)
@@ -77,8 +78,8 @@ docker compose -f docker/network/compose.yml up   # network: one hub + one leaf
 `docs/architecture/plugin-commands.md`.
 
 **MC assets** — `cd tools/minecraft-assets && bun gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`
-(→ `items/<version>.json` + `icons/icons-<version>.zip`, **to be committed**; the hub bundles them in the
-jar). Detail: `tools/minecraft-assets/README.md`.
+(→ `items/<version>.json` + `icons/icons-<version>.zip`, **to be committed**; the jar bundles the
+catalogue, the icon zips go to the CDN by hand). Detail: `tools/minecraft-assets/README.md`.
 
 ## Architecture
 
@@ -96,7 +97,7 @@ docs/            architecture/ · archive/ · decisions/ · specs/ · schema/
 (8765). Sign-in through the link from `/artisan editor`. Network: one server with `web.role: hub`, the
 others `leaf`, connected to its `/ws/plugin` with a shared secret. ADR `editor-web-server`.
 
-**Plugin as Gradle modules** — `plugin/api` (add-on surface, **in Java**: API 2.0.0), `plugin/core` (domain, no Bukkit),
+**Plugin as Gradle modules** — `plugin/api` (add-on surface, **in Java**), `plugin/core` (domain, no Bukkit),
 `plugin/database`, `plugin/hub` (web server, no Bukkit), `plugin/pack` (resource pack builder, pure), `plugin/runtime` (action engine, conditions, items,
 translations), `plugin/paper` (menus, presence, jar). An
 `org.bukkit` import outside `paper`, `runtime` or `api` does not compile. Detail: `plugin/README.md`, ADRs `plugin-gradle-modules`,

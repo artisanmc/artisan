@@ -30,7 +30,19 @@ data class RuntimeProject(
      * i18n follows the consumer).
      */
     val langMaps: Map<String, Map<String, String>> = emptyMap(),
+    /**
+     * The menus and dialogs of the module's variants (design `variantes-modules`), by variant
+     * name then kind, each under the id of the file it replaces (or its own). Empty without
+     * `variants.yml`.
+     */
+    val variants: Map<String, Map<String, List<RuntimeDocument>>> = emptyMap(),
+    /** The display rules of `variants.yml`, in order: which variant a player gets. */
+    val variantRules: List<VariantRule> = emptyList(),
 ) {
+    /** The Document [id] of [kind] in [variant], or `null` when that variant does not have it. */
+    fun variantDocument(variant: String, kind: String, id: String): RuntimeDocument? =
+        variants[variant]?.get(kind)?.firstOrNull { it.id == id }
+
     /** Typed read façade over [documents] for the core kinds — the one cast point. */
     val menus: List<RuntimeMenu> get() = documentsOf(DocumentKinds.MENU.kind)
     val commands: List<CommandYaml> get() = documentsOf(DocumentKinds.COMMAND.kind)
@@ -71,6 +83,8 @@ data class RuntimeMenu(
     val loreMaxWidth: Int = 0,
     /** From the project manifest — see [ManifestYaml.escapeGoesBack]. */
     val escapeGoesBack: Boolean = false,
+    /** The variant this menu comes from (`variants/<name>/`), `""` for the module's own. */
+    val variant: String = "",
 ) : RuntimeDocument {
     override val id: String get() = yaml.id
 

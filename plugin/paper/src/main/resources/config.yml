@@ -61,6 +61,12 @@ resource-pack:
   # glyphs until they manually rejoin. Examples: "n reload" (Nexo),
   # "oraxen reload pack" (Oraxen).
   delegate-reload-command: ""
+  # True: the pack empties the "Inventory" label the client writes under every
+  # container window (the `container.inventory` translation, every language).
+  # Meant for menus with `player_inventory: hidden`; it also removes the label
+  # from every other chest, furnace… for players with the pack. Not written
+  # when delegating (only `assets/artisan/` is).
+  hide-inventory-label: false
   # Textures drawn back on the other windows when a menu turns its vanilla
   # texture off (the pack makes that container transparent server-wide).
   # "project:image" names a project image in the vanilla layout (256×256 or an
@@ -69,3 +75,13 @@ resource-pack:
     chest: ""
     hopper: ""
     dispenser: ""
+
+# The server's text palette: colors and gradients the editor's MiniMessage
+# toolbar offers in every module, beside the built-in Minecraft and Artisan
+# palettes. Editor-only: applying one writes its colors into the text
+# (`<color:#ff6b35>`), so changing the palette never changes existing texts.
+#   colors:    "<name> #rrggbb"                  e.g. "Brand #ff6b35"
+#   gradients: "<name> #rrggbb #rrggbb [...]"    e.g. "Sunset #ff5f6d #ffc371"
+text-palette:
+  colors: []
+  gradients: []

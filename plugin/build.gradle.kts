@@ -3,8 +3,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     kotlin("jvm") version "2.0.21" apply false
     id("io.github.goooler.shadow") version "8.1.8" apply false
-    id("com.modrinth.minotaur") version "2.10.0" apply false
-    id("io.papermc.hangar-publish-plugin") version "0.1.4" apply false
 }
 
 // The deploy CI passes `-PartisanVersion=1.0.<run>`.
@@ -54,6 +52,8 @@ subprojects {
         // (PackCdn.HOST_PROPERTY): no test uploads a pack to production.
         systemProperty("artisan.web.tunnel", "")
         systemProperty("artisan.web.pack-cdn", "")
+        // No test reports an install to bStats (ServerMetrics.PROPERTY).
+        systemProperty("artisan.metrics", "false")
         testLogging { exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
     }
 }

@@ -23,12 +23,12 @@ import {
   Bold,
   Check,
   Copy,
+  Dices,
   Eraser,
   Italic,
   MessageSquareText,
   MousePointerClick,
   Paintbrush,
-  Sparkles,
   Strikethrough,
   Underline,
   Wand2,
@@ -74,7 +74,7 @@ const DECORATIONS: { key: Decoration; icon: typeof Bold }[] = [
   { key: "italic", icon: Italic },
   { key: "underlined", icon: Underline },
   { key: "strikethrough", icon: Strikethrough },
-  { key: "obfuscated", icon: Sparkles },
+  { key: "obfuscated", icon: Dices },
 ];
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -232,110 +232,122 @@ export function MmToolbar({
                 <TabsTrigger value="gradient">{t("mmEditor.gradient.tab")}</TabsTrigger>
               </TabsList>
             )}
-            <TabsContent value="color" className="flex flex-col gap-3">
-              {palettes
-                .filter((p) => p.swatches.length > 0)
-                .map((p) => (
-                  <div key={p.id} className="flex flex-col gap-1.5">
-                    <span className="field-label">{p.name}</span>
-                    <div className="flex flex-wrap gap-1">
-                      {p.swatches.map((s) => (
-                        <PopoverClose asChild key={s.id}>
-                          <button
-                            type="button"
-                            aria-label={s.name}
-                            title={s.name}
-                            onClick={() =>
-                              onOp((src, f, to, pl) => setColor(src, f, to, s.color, pl), COLOR)
-                            }
-                            className="size-6 rounded border border-[var(--border)] transition-transform hover:scale-110"
-                            style={{ background: swatchHex(s.color) }}
-                          />
-                        </PopoverClose>
-                      ))}
+            {/* Both tabs in one grid cell, the hidden one kept: the popover keeps the
+                taller one's height instead of jumping when the tab changes. */}
+            <div className="grid">
+              <TabsContent
+                value="color"
+                forceMount
+                className="col-start-1 row-start-1 flex flex-col gap-3 data-[state=inactive]:invisible"
+              >
+                {palettes
+                  .filter((p) => p.swatches.length > 0)
+                  .map((p) => (
+                    <div key={p.id} className="flex flex-col gap-1.5">
+                      <span className="field-label">{p.name}</span>
+                      <div className="flex flex-wrap gap-1">
+                        {p.swatches.map((s) => (
+                          <PopoverClose asChild key={s.id}>
+                            <button
+                              type="button"
+                              aria-label={s.name}
+                              title={s.name}
+                              onClick={() =>
+                                onOp((src, f, to, pl) => setColor(src, f, to, s.color, pl), COLOR)
+                              }
+                              className="size-6 rounded border border-[var(--border)] transition-transform hover:scale-110"
+                              style={{ background: swatchHex(s.color) }}
+                            />
+                          </PopoverClose>
+                        ))}
+                      </div>
                     </div>
+                  ))}
+                <div className="flex flex-col gap-1.5">
+                  <span className="field-label">{t("mmEditor.color.custom")}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <ColorField
+                      value={custom}
+                      onChange={setCustom}
+                      label={t("mmEditor.color.custom")}
+                    />
+                    <PopoverClose asChild>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        disabled={!HEX.test(custom)}
+                        onClick={() =>
+                          onOp((src, f, to, pl) => setColor(src, f, to, custom, pl), COLOR)
+                        }
+                      >
+                        {t("mmEditor.color.apply")}
+                      </button>
+                    </PopoverClose>
                   </div>
-                ))}
-              <div className="flex flex-col gap-1.5">
-                <span className="field-label">{t("mmEditor.color.custom")}</span>
-                <div className="flex items-center justify-between gap-2">
+                </div>
+              </TabsContent>
+              <TabsContent
+                value="gradient"
+                forceMount
+                className="col-start-1 row-start-1 flex flex-col gap-3 data-[state=inactive]:invisible"
+              >
+                {gradients.length > 0 && (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {gradients.map((g) => (
+                      <PopoverClose asChild key={`${g.paletteId}:${g.id}`}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onOp(
+                              (src, f, to, pl) => setGradient(src, f, to, g.stops, pl, g.phase),
+                              COLOR,
+                            )
+                          }
+                          className="flex items-center gap-2 rounded-[var(--r-xs)] border border-[var(--border-soft)] px-2 py-1 text-left text-xs hover:bg-[var(--surface-hover)]"
+                        >
+                          <span
+                            aria-hidden
+                            className="h-3 w-8 shrink-0 rounded-sm"
+                            style={{
+                              background: `linear-gradient(to right, ${g.stops.map(swatchHex).join(", ")})`,
+                            }}
+                          />
+                          <span className="truncate">{g.name}</span>
+                        </button>
+                      </PopoverClose>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-col gap-1.5">
+                  <span className="field-label">{t("mmEditor.gradient.custom")}</span>
                   <ColorField
-                    value={custom}
-                    onChange={setCustom}
-                    label={t("mmEditor.color.custom")}
+                    value={gradFrom}
+                    onChange={setGradFrom}
+                    label={t("mmEditor.gradient.custom")}
+                  />
+                  <ColorField
+                    value={gradTo}
+                    onChange={setGradTo}
+                    label={t("mmEditor.gradient.custom")}
                   />
                   <PopoverClose asChild>
                     <button
                       type="button"
-                      className="btn btn-primary btn-sm"
-                      disabled={!HEX.test(custom)}
+                      className="btn btn-primary btn-sm self-end"
+                      disabled={!HEX.test(gradFrom) || !HEX.test(gradTo)}
                       onClick={() =>
-                        onOp((src, f, to, pl) => setColor(src, f, to, custom, pl), COLOR)
+                        onOp(
+                          (src, f, to, pl) => setGradient(src, f, to, [gradFrom, gradTo], pl),
+                          COLOR,
+                        )
                       }
                     >
-                      {t("mmEditor.color.apply")}
+                      {t("mmEditor.gradient.apply")}
                     </button>
                   </PopoverClose>
                 </div>
-              </div>
-            </TabsContent>
-            <TabsContent value="gradient" className="flex flex-col gap-3">
-              {gradients.length > 0 && (
-                <div className="grid grid-cols-2 gap-1.5">
-                  {gradients.map((g) => (
-                    <PopoverClose asChild key={`${g.paletteId}:${g.id}`}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onOp(
-                            (src, f, to, pl) => setGradient(src, f, to, g.stops, pl, g.phase),
-                            COLOR,
-                          )
-                        }
-                        className="flex items-center gap-2 rounded-[var(--r-xs)] border border-[var(--border-soft)] px-2 py-1 text-left text-xs hover:bg-[var(--surface-hover)]"
-                      >
-                        <span
-                          aria-hidden
-                          className="h-3 w-8 shrink-0 rounded-sm"
-                          style={{
-                            background: `linear-gradient(to right, ${g.stops.map(swatchHex).join(", ")})`,
-                          }}
-                        />
-                        <span className="truncate">{g.name}</span>
-                      </button>
-                    </PopoverClose>
-                  ))}
-                </div>
-              )}
-              <div className="flex flex-col gap-1.5">
-                <span className="field-label">{t("mmEditor.gradient.custom")}</span>
-                <ColorField
-                  value={gradFrom}
-                  onChange={setGradFrom}
-                  label={t("mmEditor.gradient.custom")}
-                />
-                <ColorField
-                  value={gradTo}
-                  onChange={setGradTo}
-                  label={t("mmEditor.gradient.custom")}
-                />
-                <PopoverClose asChild>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm self-end"
-                    disabled={!HEX.test(gradFrom) || !HEX.test(gradTo)}
-                    onClick={() =>
-                      onOp(
-                        (src, f, to, pl) => setGradient(src, f, to, [gradFrom, gradTo], pl),
-                        COLOR,
-                      )
-                    }
-                  >
-                    {t("mmEditor.gradient.apply")}
-                  </button>
-                </PopoverClose>
-              </div>
-            </TabsContent>
+              </TabsContent>
+            </div>
             <PopoverClose asChild>
               <button
                 type="button"

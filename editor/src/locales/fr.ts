@@ -1267,6 +1267,75 @@ const fr: typeof en = {
     errPlayerRequired: "Cette source requiert un joueur en ligne — preview indisponible.",
     errFetchError: "Le module a échoué : {{message}}",
   },
+  originals: {
+    original: "Version du module",
+    modified: "Ta version",
+    added: "Ajouté par toi",
+    tagModified: "ta version",
+    tagAdded: "ajouté",
+    required: "Le code du module l'ouvre : il ne peut pas être supprimé.",
+    compare: "Comparer avec l'original",
+    compareTitle: "{{name}} : la version du module et la tienne",
+    shipped: "Tel que le module le livre",
+    yours: "Ta version",
+    revert: "Revenir à l'original",
+    revertHint:
+      "Abandonne tes modifications : la version du module sert de nouveau et suit ses mises à jour.",
+    revertConfirm: "Abandonner tes modifications et revenir à la version du module ?",
+  },
+  variants: {
+    originalBanner: "Original du module : {{name}}",
+    originalBannerHint: "Lecture seule, tel que le module le livre.",
+    originalLeave: "Quitter",
+    original: "Original du module (lecture seule)",
+    originalHint: "Ce que le module livre, sans tes modifications : pour regarder et copier",
+    viewAsOriginal: "Original du module : {{name}}",
+    viewAs: "Voir en tant que",
+    viewAsValue: "Voir en tant que : {{name}}",
+    module: "Défaut",
+    moduleHint: "Les fichiers du module, la version que reçoit tout joueur sans règle",
+    newVariant: "Nouvelle variante…",
+    newVariantTitle: "Nouvelle variante",
+    newVariantHint:
+      "Un nom de dossier (minuscules, chiffres, - et _). Personne ne la voit tant que les règles d'affichage ne l'affichent pas.",
+    nameInvalid:
+      "Minuscules, chiffres, - et _ uniquement, en commençant par une lettre ou un chiffre.",
+    nameTaken: "Cette variante existe déjà.",
+    rules: "Règles d'affichage…",
+    rulesTitle: "Règles d'affichage",
+    rulesHint:
+      "Un arbre de conditions lu pour chaque joueur, de haut en bas, jusqu'au premier « Afficher » qu'il atteint. Il voit cette variante ; un fichier qu'elle n'a pas vient du module.",
+    rulesEmpty: "Aucune variante pour l'instant.",
+    variant: "Variante",
+    removeVariant: "Supprimer la variante {{name}}",
+    removeVariantConfirm:
+      "Supprimer la variante {{name}}, ses {{count}} version(s) et ses étapes dans les règles d'affichage ? Les fichiers partent à la corbeille du serveur à la prochaine publication.",
+    done: "Terminé",
+    viewing: "Variante affichée : {{name}}",
+    viewingHint:
+      "Les documents qui ont une version pour {{name}} la montrent ; les autres sont ceux du module, partagés par toutes les variantes.",
+    ownVersion: "Version pour {{name}}",
+    inherited: "Du module, partagé",
+    createVersion: "Créer une version pour {{name}}",
+    createVersionHint:
+      "Copie ce document dans la variante : les modifications ne changent alors que ce que voient les joueurs de {{name}}.",
+    dropVersion: "Retirer la version pour {{name}}",
+    dropVersionHint:
+      "La copie de la variante est supprimée ; ses joueurs revoient le document du module.",
+    commandLocked:
+      "Nom, alias, arguments, permission et sous-commandes sont ceux du module, communs à toutes les variantes : cette version ne change que ce qui s'exécute.",
+    editShared: "Les modifications s'appliquent à toutes les variantes.",
+    editMakesVersion: "Le modifier crée sa version pour {{name}} : celui du module reste tel quel.",
+    count_one: "{{count}} variante",
+    count_other: "{{count}} variantes",
+    badge: "A des versions dans : {{names}}",
+    showVariantStep: "Afficher la variante",
+    showDefaultStep: "Afficher Défaut",
+    otherwise: "Sinon",
+    unreachable: "Jamais atteinte : une étape « Afficher » plus haut termine cette branche.",
+    otherwiseDefaultHint:
+      "Toujours en fin d'arbre : le joueur pour qui rien au-dessus n'affiche de variante voit les fichiers du module.",
+  },
   canvas: {
     systemElement: "système · {{module}}",
     systemDocumentKept:
@@ -1932,15 +2001,32 @@ const fr: typeof en = {
       invalid_type: "valeur du mauvais type.",
       unsafe_path: "le chemin doit rester dans le dossier du serveur.",
       invalid_reference: "choisir une image au format projet:image.",
+      invalid_palette_entry: "chaque entrée a un nom et des couleurs #rrggbb.",
     },
     listHint: "Valeurs séparées par des virgules.",
     vanillaTexture: "Texture vanilla",
+    palette: {
+      colors: "Couleurs",
+      gradients: "Dégradés",
+      name: "Nom",
+      colorOf: "Couleur de {{name}}",
+      stopOf: "Couleur {{index}} de {{name}}",
+      newColor: "Nouvelle couleur",
+      newGradient: "Nouveau dégradé",
+      addColor: "Ajouter une couleur",
+      addGradient: "Ajouter un dégradé",
+      addStop: "Ajouter une couleur au dégradé",
+      removeStop: "Retirer la dernière couleur",
+      remove: "Supprimer",
+    },
     connectionHint:
       "Les identifiants de la base de données vivent dans environment.yml, qui ne se modifie qu'à la main.",
     discard: "Annuler",
     pending_one: "{{count}} réglage modifié",
     pending_other: "{{count}} réglages modifiés",
     groupHints: {
+      palette:
+        "Couleurs et dégradés proposés par la barre de mise en forme dans tous les modules du serveur. Appliquer une couleur écrit sa valeur dans le texte : modifier la palette ne change pas les textes existants.",
       textures:
         "Redessinent les coffres, entonnoirs et distributeurs du serveur quand un menu désactive sa texture vanilla.",
     },
@@ -1949,6 +2035,7 @@ const fr: typeof en = {
       textures: "Textures des conteneurs",
       resourcePack: "Resource pack",
       editor: "Accès à l'éditeur",
+      palette: "Palette de texte",
       other: "Autres",
     },
     fields: {
@@ -1962,6 +2049,8 @@ const fr: typeof en = {
         "send-delay-ticks": "Délai d'envoi (ticks)",
         "delegate-to-dir": "Dossier du pack de Nexo, Oraxen ou ItemsAdder (chemin)",
         "delegate-reload-command": "Commande de rechargement après délégation",
+        "hide-inventory-label":
+          "Masquer le libellé « Inventaire » sous les menus (tous les conteneurs, toutes les langues)",
         "container-textures": {
           chest: "Coffres",
           hopper: "Entonnoirs",

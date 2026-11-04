@@ -10,6 +10,13 @@ import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback, useMemo } from "react";
 import { Group, Rect, Text } from "react-konva";
+import {
+  INHERITED_OPACITY,
+  OriginTag,
+  VariantTag,
+  useOriginTag,
+  useVariantStatus,
+} from "./VariantTag";
 import { dispatchOpenElement } from "./canvasEvents";
 import { commitNodeDrag } from "./commitNodeDrag";
 import { COMMAND_BOX, COMMAND_ROWS, commandBox } from "./menuLayout";
@@ -33,6 +40,8 @@ interface CommandGroupProps {
 export function CommandGroup({ projectId, command, position }: CommandGroupProps) {
   const key = docKey("command", command.id);
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(key));
+  const variantStatus = useVariantStatus(projectId, "command", command.id);
+  const originTag = useOriginTag(projectId, "command", command.id);
   const nodeAlign = useNodeAlignment(projectId, key);
   const node = useNodeColors();
   const accent = useCssVar("--kind-command");
@@ -95,7 +104,7 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
       x={position.x}
       y={position.y}
       draggable
-      opacity={disabled ? 0.55 : 1}
+      opacity={(disabled ? 0.55 : 1) * (variantStatus === "inherited" ? INHERITED_OPACITY : 1)}
       onDragStart={onDragStart}
       onDragMove={nodeAlign.onDragMove}
       onDragEnd={onDragEnd}
@@ -109,6 +118,10 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
       name={`command:${command.id}`}
       id={key}
     >
+      {originTag && <OriginTag status={originTag} width={size.width} y={-14} />}
+      {variantStatus && (
+        <VariantTag projectId={projectId} status={variantStatus} width={size.width} />
+      )}
       <Rect
         width={size.width}
         height={size.height}

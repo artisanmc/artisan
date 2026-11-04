@@ -70,6 +70,11 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val local = editorBind.takeUnless { it.isBlank() || it == "0.0.0.0" } ?: "127.0.0.1"
             provider.applyLocalBedrockPack("http://$local:$port$path", hash)
         }
+        /** The pack the plugin keeps names the file the hub's store serves (both are by SHA-1). */
+        override fun bedrockPack(): Map<String, String>? {
+            val hash = provider.currentBedrockPack()?.nameWithoutExtension ?: return null
+            return mapOf("hash" to hash, "url" to "${net.artisanmc.plugin.hub.PackStore.BEDROCK_PATH}/$hash.mcpack")
+        }
     }
 
     /** The editor address for browsers: `web.url`, else the tunnel server's, else [host] or the server IP. */
@@ -136,7 +141,10 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             return
         }
         try {
-            val vanilla = net.artisanmc.plugin.hub.VanillaAssets(File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger)
+            val vanilla = net.artisanmc.plugin.hub.VanillaAssets(
+                File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger,
+                iconsUrl = web.packCdn.takeIf { it.isNotBlank() }?.let { net.artisanmc.plugin.hub.PackCdn.baseUrl(it) + "/vanilla" },
+            )
             val packs = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/resource-pack"))
             val packCdn = web.packCdn.takeIf { it.isNotBlank() }?.let { net.artisanmc.plugin.hub.PackCdn(it, ::tunnelSecret, logger) }
             val bedrockPacks = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/bedrock-pack-store"), net.artisanmc.plugin.hub.PackStore.BEDROCK_PATH, "mcpack")
@@ -152,9 +160,8 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
                 editorSessions.onPermissions(grants::permissionsChanged)
                 logger.info("[Artisan] MCP endpoint enabled at /mcp")
             } else null
-            // The hub builds each server's packs after its reload: the Bedrock one is applied, the Java
-            // one only compared with the editor's (shadow mode).
-            val packBuilder = net.artisanmc.plugin.hub.PackBuilder(servers, data.loaded, logger, bedrock = bedrockPacks)
+            // The hub builds and applies each server's packs, Java and Bedrock, after its reload.
+            val packBuilder = net.artisanmc.plugin.hub.PackBuilder(servers, data.loaded, logger, bedrock = bedrockPacks, javaPacks = packs, cdn = packCdn)
             this.packBuilder = packBuilder
             if (!packBuilderListens) {
                 packBuilderListens = true

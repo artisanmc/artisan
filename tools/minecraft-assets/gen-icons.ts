@@ -65,7 +65,11 @@ const server = Bun.serve({
   port: 0, // OS picks a free port
   fetch(req) {
     const path = decodeURIComponent(new URL(req.url).pathname);
-    const cors = { "Access-Control-Allow-Origin": "*" };
+    // The renderer fetches with credentials (the hub's session cookie): a wildcard origin is refused then.
+    const cors = {
+      "Access-Control-Allow-Origin": req.headers.get("Origin") ?? "*",
+      "Access-Control-Allow-Credentials": "true",
+    };
 
     if (path === `/api/v1/model-bundle/${VERSION}`) {
       return new Response(bundleJson, {

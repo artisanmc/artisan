@@ -31,7 +31,7 @@ api.getCommands().register(new CommandDeclaration("homes:teleport", (player, arg
 ```
 
 Registering the same name twice throws `DuplicateCommandException`.
-`api.commands.unregister("homes:teleport")` (Since 1.8.0) removes it; Artisan
+`api.commands.unregister("homes:teleport")` removes it; Artisan
 does it for you when your plugin disables, and for a module's commands on
 `api.modules.unregister`.
 

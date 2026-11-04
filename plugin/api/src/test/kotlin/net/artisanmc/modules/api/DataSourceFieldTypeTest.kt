@@ -7,7 +7,7 @@ import net.artisanmc.modules.api.datasource.FieldKind
 import net.artisanmc.modules.api.model.ModelFieldType
 
 /**
- * One field-type vocabulary (CONTEXT.md, API 2.0.0): a data source row field is typed with
+ * One field-type vocabulary (CONTEXT.md): a data source row field is typed with
  * [ModelFieldType]; the 1.x [FieldKind] maps onto it and still compiles, `@Sunset`.
  */
 class DataSourceFieldTypeTest {

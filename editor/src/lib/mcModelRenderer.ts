@@ -222,6 +222,8 @@ interface EntityRenderDef {
   textureW: number;
   textureH: number;
   texturePath: string;
+  /** Tried in order when `texturePath` is missing: where a later version moved the texture. */
+  movedTo?: string[];
   boxes: EntityBox[];
   display: {
     rotation: [number, number, number];
@@ -322,6 +324,7 @@ export const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {
     textureW: 64,
     textureH: 64,
     texturePath: "entity/shield_base",
+    movedTo: ["entity/shield/shield_base"], // 26.1+
     boxes: [
       { origin: [-6, -11, -2], size: [12, 22, 1], texOffset: [0, 0] },
       { origin: [-1, -3, -1], size: [2, 6, 6], texOffset: [26, 0] },
@@ -525,8 +528,11 @@ async function renderEntityItem(itemId: string, version: string): Promise<string
   const def = ENTITY_RENDER_MAP[itemId];
   if (!def) return null;
 
-  const texUrl = `${API_URL}/api/v1/textures/${version}/${def.texturePath}`;
-  const texture = await loadTex(texUrl);
+  let texture: THREE.Texture | null = null;
+  for (const path of [def.texturePath, ...(def.movedTo ?? [])]) {
+    texture = await loadTex(`${API_URL}/api/v1/textures/${version}/${path}`);
+    if (texture) break;
+  }
   if (!texture) return null;
 
   const scene = new THREE.Scene();

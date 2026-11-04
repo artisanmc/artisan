@@ -1,3 +1,4 @@
+import { sha256Hex } from "../../sha256";
 import type { BedrockMenu, BedrockTextLayer } from "./bedrockMenus";
 import {
   BEDROCK_MARKER,
@@ -15,6 +16,8 @@ import {
  *
  * What the in-game prototype established (`prototypes/bedrock-overlay/`):
  * only `insert_back` and `replace` on `<panel>/root_panel` take effect;
+ * a chest of fewer rows than its screen (1, 2, 4, 5) gets a grid of its own
+ * rows only, so the slots Geyser pads it with stay under the background;
  * redefining vanilla elements or editing the top half does nothing. So the
  * background is drawn ABOVE the whole vanilla chest panel (it hides the
  * vanilla title and slot cells) and a second slot grid, bound to the same
@@ -33,17 +36,19 @@ const LAYER_GRID = 31;
 const LAYER_IMAGE = 32;
 const LAYER_TEXT = 33;
 
+/** The Bedrock screen of a chest: Geyser shows 1 to 3 rows as a small chest, 4 to 6 as a large one. */
 export const PANELS = { 3: "small", 6: "large" } as const;
+
+/** Rows of the Bedrock screen a chest of `rows` rows opens on. */
+export function panelRows(rows: number): 3 | 6 {
+  return rows <= 3 ? 3 : 6;
+}
 
 const T = "$artisan_title";
 
 /** JSON UI boolean: `$artisan_title` contains `text`. */
 function contains(text: string): string {
   return `(not ((${T} - '${text}') = ${T}))`;
-}
-
-function anyOf(conditions: string[]): string {
-  return conditions.length === 1 ? (conditions[0] as string) : `(${conditions.join(" or ")})`;
 }
 
 /** The `$artisan_title` binding and the visibility every element carries. */
@@ -124,14 +129,22 @@ function id(menu: BedrockMenu, what: string): string {
   return `artisan_${key}_${what}`;
 }
 
-/** Bedrock texture path (no extension) of a menu's composed background. */
-export function backgroundTexture(menu: BedrockMenu): string {
-  return `textures/artisan/menus/${id(menu, "bg")}`;
+/**
+ * 16 hex chars of the SHA-256 of [value]: texture file names stay short because
+ * Geyser warns about (and some Bedrock platforms fail on) pack paths over 80 chars.
+ */
+function shortName(value: string): string {
+  return sha256Hex(new TextEncoder().encode(value)).slice(0, 16);
 }
 
-/** Bedrock texture path (no extension) of a button image. */
+/** Bedrock texture path (no extension) of a menu's composed background, 38 chars. */
+export function backgroundTexture(menu: BedrockMenu): string {
+  return `textures/artisan/m/${shortName(menu.key)}`;
+}
+
+/** Bedrock texture path (no extension) of a button image ([key]: the Java image button key), 38 chars. */
 export function buttonTexture(key: string): string {
-  return `textures/artisan/${key}`;
+  return `textures/artisan/b/${shortName(key)}`;
 }
 
 function backgroundElement(menu: BedrockMenu, height: number): Record<string, unknown> {
@@ -140,7 +153,8 @@ function backgroundElement(menu: BedrockMenu, height: number): Record<string, un
       type: "image",
       texture: backgroundTexture(menu),
       size: [WIDTH, height],
-      offset: [0, BEDROCK_Y],
+      // Composed from the panel's top, `BEDROCK_Y` px above the Java layout.
+      offset: [0, 0],
       anchor_from: "top_left",
       anchor_to: "top_left",
       layer: LAYER_BACKGROUND,
@@ -207,29 +221,6 @@ function textElements(menu: BedrockMenu): Record<string, unknown>[] {
   );
 }
 
-/** The vanilla `chest_panel` of a root panel, restated so it can be hidden. */
-function chestPanel(panel: "small" | "large", visible: string): Record<string, unknown> {
-  return {
-    chest_panel: {
-      type: "panel",
-      layer: 5,
-      ...when(visible),
-      controls: [
-        { [`${panel}_chest_panel_top_half@chest.${panel}_chest_panel_top_half`]: {} },
-        {
-          "inventory_panel_bottom_half_with_label@common.inventory_panel_bottom_half_with_label":
-            {},
-        },
-        { "hotbar_grid@common.hotbar_grid_template": {} },
-        {
-          "inventory_take_progress_icon_button@common.inventory_take_progress_icon_button": {},
-        },
-        { "flying_item_renderer@common.flying_item_renderer": { layer: 15 } },
-      ],
-    },
-  };
-}
-
 /**
  * The screen file. `backgroundHeight(menu)` is the pixel height of the
  * composed background, `buttonKey` the texture name of a button image.
@@ -251,42 +242,30 @@ export function buildChestScreen(
   };
   for (const rows of [3, 6] as const) {
     const panel = PANELS[rows];
-    const here = menus.filter((m) => m.rows === rows);
+    const here = menus.filter((m) => panelRows(m.rows) === rows);
     if (!here.length) continue;
-    const styled = anyOf(here.map(hasKey));
-    const transparent = here.filter((m) => m.transparent);
+    // The vanilla panel stays, even under a `vanilla_texture: false` menu: replacing
+    // `common_panel` / `chest_panel` to hide it left every chest screen blank on Bedrock,
+    // vanilla chests included (in game, 2026-11-04).
     const modifications: Record<string, unknown>[] = [];
-    if (transparent.length) {
-      // `vanilla_texture: false`: no Bedrock panel either, and no bottom half.
-      const visible = `(not ${anyOf(transparent.map(hasKey))})`;
-      modifications.push(
-        {
-          array_name: "controls",
-          operation: "replace",
-          control_name: "common_panel",
-          value: { "common_panel@common.common_panel": when(visible) },
-        },
-        {
-          array_name: "controls",
-          operation: "replace",
-          control_name: "chest_panel",
-          value: chestPanel(panel, visible),
-        },
-      );
-    }
     modifications.push({
       array_name: "controls",
       operation: "insert_back",
       value: [
         ...here.map((menu) => backgroundElement(menu, backgroundHeight(menu))),
-        {
-          [`artisan_chest_grid@chest.${panel}_chest_grid`]: {
+        // One slot grid per menu, shown by its own key alone: grids shared by every menu
+        // of a row count, shown by a long `or` of keys, drew no item for some menus in game.
+        // A chest of fewer rows than its screen gets a grid of its own rows only: the slots
+        // Geyser pads it with stay under the background.
+        ...here.map((menu) => ({
+          [`${id(menu, "grid")}@chest.${panel}_chest_grid`]: {
             offset: [GRID_X, GRID_Y],
+            ...(menu.rows === rows ? {} : { grid_dimensions: [9, menu.rows] }),
             grid_item_template: "chest.artisan_grid_item",
             layer: LAYER_GRID,
-            ...when(styled),
+            ...when(hasKey(menu)),
           },
-        },
+        })),
         ...here.flatMap((menu) => buttonElements(menu, (b, s) => buttonKey(menu, b, s))),
         ...here.flatMap(textElements),
       ],

@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { docKey } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
+import { OriginBar } from "@/features/inspector/OriginBar";
 import { SelectionInspector } from "@/features/inspector/SelectionInspector";
+import { VariantVersionBar } from "@/features/inspector/VariantVersionBar";
 import {
   DocumentYamlView,
   documentRelPath,
@@ -44,7 +46,16 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
   return (
     <section className="flex h-full min-h-0 flex-col" aria-label={t("projectLibrary.properties")}>
       <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-3">
-        <h2 className="flex-1 text-sm font-medium">{t("projectLibrary.properties")}</h2>
+        <h2 className="shrink-0 text-sm font-medium">{t("projectLibrary.properties")}</h2>
+        {/* Where the Document comes from (variant, module original): badges and their actions. */}
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-hidden">
+          {project && docId && (
+            <>
+              <VariantVersionBar projectId={projectId} project={project} docKey={docId} />
+              <OriginBar projectId={projectId} project={project} docKey={docId} />
+            </>
+          )}
+        </div>
         {relPath ? (
           <Button
             type="button"
@@ -70,13 +81,17 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
           <X className="size-4" />
         </Button>
       </div>
-      <div className="page-pane flex min-h-0 flex-1 flex-col overflow-hidden">
+      {/* The module's original is read-only: its fields show greyed out. */}
+      <fieldset
+        disabled={project?.originalView !== undefined}
+        className="page-pane m-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-0 p-0 disabled:opacity-70"
+      >
         {yamlMode && project && relPath ? (
           <DocumentYamlView key={relPath} project={project} relPath={relPath} />
         ) : (
           <SelectionInspector projectId={projectId} />
         )}
-      </div>
+      </fieldset>
     </section>
   );
 }

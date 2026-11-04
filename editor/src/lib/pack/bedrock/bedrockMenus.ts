@@ -45,8 +45,8 @@ export interface BedrockMenu {
   projectId: string;
   id: string;
   key: string;
-  rows: 3 | 6;
-  /** `vanilla_texture` off: the Bedrock panel and its bottom half are hidden too. */
+  rows: 1 | 2 | 3 | 4 | 5 | 6;
+  /** `vanilla_texture` off: no vanilla chest top under its background. */
   transparent: boolean;
   /** Background and glyph layers in title order; a background has no position. */
   images: { asset: string; x: number; y: number | null }[];
@@ -69,6 +69,15 @@ function slotsOf(positions: unknown, limit: number): number[] | null {
     for (let i = Math.min(a, b); i <= Math.max(a, b); i++) slots.add(i);
   }
   return slots.size ? [...slots] : null;
+}
+
+/** An element whose positions all fall in the chest (no placement, whose slots are free). */
+// biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
+function inChest(el: any, size: number): boolean {
+  if (!el || typeof el !== "object") return true;
+  if (el.places !== undefined && el.places !== null) return false;
+  const spec = String(el.positions ?? "");
+  return (spec.match(/\d+/g) ?? []).every((n) => Number(n) < size);
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
@@ -136,8 +145,9 @@ function textLayers(title: unknown): BedrockTextLayer[] {
 }
 
 /**
- * The menus of a Project the Bedrock pack can style: chests of 3 or 6 rows
- * (the two Bedrock screens the pack modifies). Any other menu reaches Bedrock
+ * The menus of a Project the Bedrock pack can style: chests of 1 to 6 rows (Geyser
+ * shows 1 to 3 rows on the small chest screen and 4 to 6 on the large one, the two
+ * Bedrock screens the pack modifies). Any other menu reaches Bedrock
  * players as the chest Geyser translates, without a key in its title.
  * An unreadable menu is skipped — the plugin will not render it either.
  */
@@ -148,15 +158,16 @@ export function bedrockMenusFromProject(
   const out: BedrockMenu[] = [];
   // The id is the file name, wherever the menu sits (themed folders included), as the
   // plugin reads it: a `id:` field in the file is ignored there, and the editor drops it.
-  const ids = new Map(
-    classifyDocumentLayout(
-      files.map((f) => f.path),
-      MENU_DIRS,
-    ).documents.map((d) => [d.path, d.id]),
+  // A variant's menu gets its own key: the plugin sends it for that variant only.
+  const layout = classifyDocumentLayout(
+    files.map((f) => f.path),
+    MENU_DIRS,
   );
+  const docs = new Map([...layout.documents, ...layout.variants].map((d) => [d.path, d]));
   for (const file of files) {
-    const id = ids.get(file.path);
-    if (id === undefined) continue;
+    const entry = docs.get(file.path);
+    if (entry === undefined) continue;
+    const id = entry.id;
     // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
     let doc: any;
     try {
@@ -166,10 +177,23 @@ export function bedrockMenusFromProject(
     }
     if (!doc || typeof doc !== "object") continue;
     if (doc.inventory_type !== undefined && doc.inventory_type !== "chest") continue;
-    if (doc.player_inventory === "hidden") continue;
     const size = Number(doc.size);
-    if (size !== 27 && size !== 54) continue;
-    const rows = size / 9 === 3 ? 3 : 6;
+    if (!Number.isInteger(size) || size % 9 !== 0 || size < 9 || size > 54) continue;
+    const rows = (size / 9) as BedrockMenu["rows"];
+    const elements = Array.isArray(doc.elements)
+      ? doc.elements
+      : Array.isArray(doc.layers)
+        ? // biome-ignore lint/suspicious/noExplicitAny: idem
+          doc.layers.flatMap((layer: any) => layer?.elements ?? [])
+        : [];
+    // Player inventory hidden: only drawn without the vanilla texture (its background covers
+    // the top; Bedrock's own inventory stays below, empty) and with every element in the
+    // chest — buttons placed in the inventory are not drawn yet. Same rule as the plugin's `BedrockTitle.supports`.
+    if (
+      doc.player_inventory === "hidden" &&
+      (doc.vanilla_texture !== false || !elements.every((el: unknown) => inChest(el, size)))
+    )
+      continue;
 
     const images: BedrockMenu["images"] = [];
     const title = Array.isArray(doc.title) ? doc.title : doc.title ? [doc.title] : [];
@@ -182,12 +206,6 @@ export function bedrockMenusFromProject(
         images.push({ asset, x: layer.x, y: layer.y });
     }
 
-    const elements = Array.isArray(doc.elements)
-      ? doc.elements
-      : Array.isArray(doc.layers)
-        ? // biome-ignore lint/suspicious/noExplicitAny: idem
-          doc.layers.flatMap((layer: any) => layer?.elements ?? [])
-        : [];
     const buttons: BedrockButton[] = [];
     for (const el of elements) {
       if (!el || el.iterates || el.places) continue;
@@ -215,7 +233,7 @@ export function bedrockMenusFromProject(
     out.push({
       projectId,
       id,
-      key: bedrockMenuKey(projectId, id),
+      key: bedrockMenuKey(projectId, id, entry.variant),
       rows,
       transparent: doc.vanilla_texture === false,
       images,

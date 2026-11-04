@@ -12,6 +12,7 @@ its tunnel, carries no player download.
 | `POST /resource-pack/<sha1>.zip` | hub, bearer tunnel secret | "I still serve it": 200 `{url}`, rewritten if older than `PACK_REFRESH_DAYS`; 404: upload it. |
 | `PUT /resource-pack/<sha1>.zip` | hub, bearer tunnel secret | The zip, `Content-Length` required. 201 `{url}`, 200 if already there, 401, 411, 413, 422 (SHA-1 mismatch, or no `pack.mcmeta` at the root), 429 (quota, `Retry-After` until midnight UTC). |
 | `DELETE /admin/resource-pack/<sha1>.zip` | bearer `PACK_ADMIN_TOKEN` | Takes a pack down; answers which server sent it. Other colos' caches keep it a day at most. |
+| `GET`, `HEAD /vanilla/icons-<version>.zip` | hubs | The editor's 3D item icons (`tools/minecraft-assets/icons`), uploaded by hand: `npx wrangler r2 object put artisan-packs/vanilla/icons-<version>.zip --remote --file …`. The hub checks their SHA-256. |
 | `GET /health` | | `ok` |
 
 ## How it works
@@ -53,6 +54,8 @@ below, Durable Object `QuotaObject` (migration `v1`). `PACK_ALERT_WEBHOOK` is no
 `PACK_ADMIN_TOKEN` is to be replaced by one Iban keeps (Worker → Settings → Variables and Secrets).
 Deployed through the Cloudflare API with the bundle of `npm run build`; with a token, the commands
 below do the same.
+`vanilla/icons-<version>.zip` for 1.21.4, 1.21.11, 26.1.2, 26.2 and 26.3 uploaded 2026-11-03 (through a
+temporary Worker bound to the bucket, deleted after), with the Worker carrying the `/vanilla` route.
 
 ```bash
 npx wrangler r2 bucket create artisan-packs
@@ -66,5 +69,5 @@ curl https://cdn.artisanmc.net/health
 ```
 
 The bucket gets no public access and no R2 custom domain: every read goes through the Worker, which
-serves only `packs/`. Rollback: `web.pack-cdn: ""` on the hubs, or delete the Worker; hubs then serve
+serves only `packs/` and `vanilla/` (no lifecycle rule on `vanilla/`). Rollback: `web.pack-cdn: ""` on the hubs, or delete the Worker; hubs then serve
 their packs themselves.

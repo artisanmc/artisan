@@ -2,6 +2,7 @@ import { type ChainAddress, chainActionContext, chainAllowsIf } from "@/domain/c
 import { menusOf } from "@/domain/documents";
 import { type StepFrame, resolveParent } from "@/domain/stepPath";
 import type { ClickType, ElementId, MenuId, ProjectId, Step } from "@/domain/types";
+import { useChainVocabulary } from "@/lib/actions/chainVocabulary";
 import { cx } from "@/lib/cx";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -123,6 +124,12 @@ function StepList(props: StepTreeProps) {
     (s) => menusOf(s.openProjects.projects.find((p) => p.id === projectId))[0]?.id,
   );
   const ids = useStepIds(steps);
+  // After a terminal step of its vocabulary ("Show variant"), a list is never read further:
+  // the steps there stay, struck through.
+  const vocabulary = useChainVocabulary();
+  const endsAt = steps.findIndex(
+    (s) => s.kind === "action" && vocabulary?.terminal?.(s.action.name) === true,
+  );
   const listData: StepDragData = { frames, index: steps.length, list: true };
   const { setNodeRef, isOver } = useDroppable({ id: `steps-${useId()}`, data: listData });
 
@@ -139,7 +146,17 @@ function StepList(props: StepTreeProps) {
             id={ids[i]!}
             data={{ frames, index: i } satisfies StepDragData}
           >
-            <StepLine {...props} step={step} stepIndex={i} />
+            {endsAt >= 0 && i > endsAt ? (
+              <div
+                data-testid="step-unreachable"
+                title={vocabulary?.unreachable}
+                className="line-through decoration-[var(--text-mut)] opacity-50"
+              >
+                <StepLine {...props} step={step} stepIndex={i} />
+              </div>
+            ) : (
+              <StepLine {...props} step={step} stepIndex={i} />
+            )}
           </SortableStep>
         ))}
         <AddStepLine

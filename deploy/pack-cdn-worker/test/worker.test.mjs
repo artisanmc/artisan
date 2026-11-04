@@ -3,7 +3,7 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, before, test } from "node:test";
@@ -182,6 +182,28 @@ test("an admin takes a pack down", async () => {
   assert.equal(done.status, 200);
   assert.equal((await done.json()).deleted, true);
   assert.equal((await fetch(`${base}/resource-pack/${hash}.zip`)).status, 404);
+});
+
+test("the editor's vanilla icons are served read-only", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "vanilla-"));
+  const file = join(dir, "icons-1.21.4.zip");
+  const body = zip({ "mc-assets/1.21.4/textures/icons/stone.png": "icon" });
+  writeFileSync(file, body);
+  // As in production: uploaded by hand into the bucket, never through the Worker.
+  await new Promise((resolve, reject) => {
+    const put = spawn("npx", ["wrangler", "r2", "object", "put", "artisan-packs-local/vanilla/icons-1.21.4.zip", "--file", file,
+      "--local", "--persist-to", state, "-c", "test/wrangler.test.jsonc"], { cwd: root, stdio: "ignore" });
+    put.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`wrangler r2 object put: ${code}`))));
+  });
+  rmSync(dir, { recursive: true, force: true });
+
+  const got = await fetch(`${base}/vanilla/icons-1.21.4.zip`);
+  assert.equal(got.status, 200);
+  assert.equal(got.headers.get("content-disposition"), 'attachment; filename="icons-1.21.4.zip"');
+  assert.deepEqual(Buffer.from(await got.arrayBuffer()), body);
+  assert.equal((await fetch(`${base}/vanilla/icons-26.9.zip`)).status, 404);
+  assert.equal((await fetch(`${base}/vanilla/icons-1.21.4.zip`, { method: "PUT", body })).status, 405);
+  assert.equal((await fetch(`${base}/vanilla/../packs/x.zip`)).status, 404);
 });
 
 // Last: it uses up the global quota (PACK_GLOBAL_DAILY_MB is 2 here).

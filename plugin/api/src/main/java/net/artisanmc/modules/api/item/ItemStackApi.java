@@ -11,7 +11,7 @@ import org.bukkit.inventory.ItemStack;
  * and the generic display descriptor (material, enriched to a recognized custom ref when possible;
  * head_texture, enchanted, count, name).
  *
- * <p>Since 2.4.0, an item spec as a module stores it in its Document: a map with the fields of a
+ * <p>An item spec as a module stores it in its Document: a map with the fields of a
  * menu button's appearance ({@code material}: a vanilla material, {@code item:<captured id>} or
  * {@code <namespace>:<id>} of a custom-items plugin; {@code title}, {@code lore}, {@code enchants},
  * {@code custom_model_data}, {@code count}…). {@link #build} makes its stack the way a menu does,
@@ -39,7 +39,6 @@ public interface ItemStackApi {
     /**
      * The stack of an item spec, or null when its material resolves to nothing (unknown material,
      * captured item or custom-items plugin absent). Text is MiniMessage, rendered without a player.
-     * Since 2.4.0.
      */
     default ItemStack build(Map<String, ?> spec) {
         return null;
@@ -48,7 +47,7 @@ public interface ItemStackApi {
     /**
      * Whether {@code stack} is the item of {@code spec} on every criterion of {@code comparisons}; an empty set
      * reads as {@link #defaultComparisons}. False when the spec builds nothing or the stack is
-     * null or air. The amount is never compared. Since 2.4.0.
+     * null or air. The amount is never compared.
      */
     default boolean matches(Map<String, ?> spec, ItemStack stack, Set<ItemComparison> comparisons) {
         return false;
@@ -60,7 +59,6 @@ public interface ItemStackApi {
      * item built on that material is not it), plus each of name, lore, enchants and custom
      * model data the item carries, and always its wear (an item that cannot wear has none). What these leave out
      * (repair cost, hidden tags) is never compared unless {@link ItemComparison#EXACT} is asked.
-     * Since 2.4.0.
      */
     default Set<ItemComparison> defaultComparisons(Map<String, ?> spec) {
         return Set.of(ItemComparison.MATERIAL, ItemComparison.CUSTOM_ITEM);

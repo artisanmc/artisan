@@ -29,6 +29,7 @@ import {
   actionLabel,
   familyColors,
 } from "@/lib/actions/actionFamily";
+import { useChainVocabulary } from "@/lib/actions/chainVocabulary";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
 import { isEventAction, setEventArgs, useChainEvent } from "@/lib/actions/eventActions";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
@@ -380,13 +381,20 @@ export function AddStepLine({
   const [query, setQuery] = useState("");
   const shown = (name: string) =>
     matchesMenuSearch(actionLabel(name, t), query) || matchesMenuSearch(name, query);
-  const coreActions = ACTION_TYPES.filter(shown);
+  // A tree of another vocabulary (variant rules) offers its own actions, and only them.
+  const vocabulary = useChainVocabulary();
+  const coreActions = vocabulary ? [] : ACTION_TYPES.filter(shown);
   // The event actions are offered from the chain's event below, never by name.
-  const moduleActions = moduleActionsOf(declared).filter(
-    (decl) => !isEventAction(decl.name) && shown(decl.name),
-  );
+  const moduleActions = vocabulary
+    ? vocabulary.actions.filter(
+        (decl) =>
+          matchesMenuSearch(vocabulary.label(decl.name), query) ||
+          matchesMenuSearch(decl.name, query),
+      )
+    : moduleActionsOf(declared).filter((decl) => !isEventAction(decl.name) && shown(decl.name));
   const ifShown = allowIf && matchesMenuSearch(t("flow.addStepIfBranch"), query);
-  const event = useChainEvent();
+  const chainEvent = useChainEvent();
+  const event = vocabulary ? null : chainEvent;
   const effectLabel = (field: ModelField) =>
     t("triggers.setEffect", {
       effect: t(`triggers.effects.${field.name}`, { defaultValue: field.label ?? field.name }),
@@ -564,7 +572,8 @@ function ActionName({ name, label: forced }: { name: string; label?: string }) {
   const { t } = useTranslation();
   const { family, icon } = actionAppearance(name);
   const colon = name.indexOf(":");
-  const label = forced ?? actionLabel(name, t);
+  const vocabulary = useChainVocabulary();
+  const label = forced ?? vocabulary?.label(name) ?? actionLabel(name, t);
   return (
     <>
       <IconTile icon={icon} {...familyColors(family)} />

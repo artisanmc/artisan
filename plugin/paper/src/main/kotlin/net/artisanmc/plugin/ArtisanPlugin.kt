@@ -110,6 +110,11 @@ open class ArtisanPlugin : JavaPlugin() {
     /** The modules' icons and logos: registered, or read from their jars' `artisan-brand/`. */
     internal val moduleBrands by lazy { ModuleBrands(api.moduleBrands, { api.modules.active() }, logger) }
 
+    /** Anonymous install counts on bStats. */
+    private val metrics = net.artisanmc.plugin.metrics.ServerMetrics(
+        this, { api.modules.active().map { it.id } }, ::currentConfig, { runCatching { database.dialect.name }.getOrDefault("") },
+    )
+
     /** Null if `web.enabled` is false or the port could not be opened. */
     val editor: net.artisanmc.plugin.hub.HubServer? get() = editorHost.editor
     /** The editor's public address from `web.url`; empty when not set. */
@@ -132,6 +137,10 @@ open class ArtisanPlugin : JavaPlugin() {
 
     /** Set when this server cannot run Artisan: [onEnable] disables it, [onDisable] has nothing to stop. */
     private var unsupported = false
+
+    override fun onLoad() {
+        LogPrefix.install(logger)
+    }
 
     override fun onEnable() {
         val version = net.artisanmc.plugin.platform.ServerPlatform.minecraftVersion(server)
@@ -223,6 +232,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 t,
             )
         }
+        metrics.start()
         logger.info("Artisan ${description.version} enabled")
     }
 
@@ -271,6 +281,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
     override fun onDisable() {
         if (unsupported) return
+        metrics.stop()
         menuPackets?.uninjectAll()
         localEditorBundles.stop()
         stopEditor()

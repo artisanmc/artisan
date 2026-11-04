@@ -54,11 +54,22 @@ Artisan <version> enabled
 ### Bedrock players (Geyser)
 
 With Geyser-Spigot on the same server, Artisan hands Bedrock players a pack that redraws the menus
-the editor styled (chests of 3 or 6 rows). On first start next to Geyser, Artisan writes
+the editor styled (chests of 1 to 6 rows; a chest of 1, 2, 4 or 5 rows shows a plain band where
+Bedrock keeps the rows it lacks). On first start next to Geyser, Artisan writes
 `plugins/Geyser-Spigot/custom_mappings/artisan.json` and asks for one more restart so that Geyser
-loads it. With Geyser on your proxy instead, copy `plugins/Artisan/cache/bedrock-pack/<hash>.mcpack`
-into that Geyser's `packs/` and `plugins/Artisan/cache/geyser/custom_mappings/artisan.json` into its
-`custom_mappings/`, and restart the proxy; Bedrock players are recognised by their Floodgate UUID.
+loads it.
+
+With Geyser on your proxy instead (Velocity, BungeeCord), drop `artisan-geyser.jar` into that
+Geyser's `extensions/` folder and start the proxy once. It creates `extensions/artisan/config.yml`:
+set `hub` to the editor's address (the plugin's `web.url`, or `http://<server ip>:8765`) and
+`server` to the content of `plugins/Artisan/server-id` on the server whose menus Bedrock players
+see, then restart the proxy (this restart also loads the click mapping the extension writes). From
+then on the extension checks the server's Bedrock pack every 30 seconds and hands the new one to
+Bedrock players at their next connection, with no copy and no restart. Bedrock players are
+recognised by their Floodgate UUID. Without the extension, you can still copy
+`plugins/Artisan/cache/bedrock-pack/<hash>.mcpack` into Geyser's `packs/` and
+`plugins/Artisan/cache/geyser/custom_mappings/artisan.json` into its `custom_mappings/` by hand;
+don't do both, or Bedrock players receive the pack twice.
 
 ## 3. Nothing to open (or your own address)
 
@@ -71,6 +82,15 @@ reverse proxy in front: see [Web server & HTTPS](../../configuration/web-server/
 
 - [Open the editor](../open-the-editor/) with `/artisan editor`.
 - [Build your first menu](../first-menu/).
+
+## Usage statistics (bStats)
+
+Artisan reports anonymous usage to [bStats](https://bstats.org), like most plugins: the
+server count, player count, Minecraft and Java versions, plus four Artisan charts: the active
+modules (Artisan's own and the suite's add-ons; any other module only counts as `other`),
+whether the server is a hub, a leaf or has the editor off, the database type and the
+`language` setting. Nothing identifies the server or its players. To turn it off for every
+plugin, set `enabled: false` in `plugins/bStats/config.yml` and restart.
 
 ## Updating
 

@@ -670,7 +670,7 @@ hub generates once in `plugins/Artisan/network-secret` (to copy to each leaf).
 ## Plan and entitlements — **retired term** (2026-10)
 
 *Was* the cloud's commercial model (Free/Pro plans, custom offers, AI credits,
-resource quotas). Removed in phase F: the core is free and Add-ons are sold once on
+resource quotas). Removed in phase F: Artisan and its Add-ons are each sold once on
 marketplaces. `ProjectMutations` still understands a `commercial_policy` quota,
 but nothing sends one.
 _Avoid_: plan, tier, credits, quota, Pro.
@@ -912,6 +912,41 @@ Non-examples:
 - A cooldown is not a Variable — it only answers "has this delay passed?".
 - A placeholder is not a Variable — it is display text, untyped and undeclared; a
   Module shares its state through Module variables, not through its placeholders.
+
+## Original
+
+A Document a **Module** ships into its own folder, kept under `originals/` (written by the server
+only, rewritten at each start and module update). The owner's folder holds only their edits and
+additions; for the same kind and id, the owner's file wins. Each Document of the module is
+*original* (only in `originals/`), *modified* (both) or *added* (owner only). An original the owner
+does not want is listed in the module file (`originals.exclude`); a *required* one (the module's
+code opens it) cannot be. Cf. design `originaux-modules`.
+
+Non-examples:
+- A **Variant** is not an original: variants answer "which player sees which version", originals
+  "where does this file come from, did I change it". A module's variants are originals too
+  (`originals/variants/…`).
+- A template copied into another Project (`template_copy`) is not an original: it is the
+  owner's copy and does not follow the module's updates.
+
+## Variant
+
+A named set of a **Module**'s menus, dialogs and command steps that replace, for some players, the files of
+the same id (`variants/<name>/menus/ranks.yml` for `menus/ranks.yml`): a textured version,
+one for Bedrock, one for VIPs, one in development. Every variant is loaded; none is
+"active" on the server. The **display rules** of `variants.yml` say which variant a player
+gets: in order, the first rule that holds **and** whose variant has the file wins, else the
+module's own file (the **default variant**). Chosen at each opening, file by file; ids never
+change, so code, commands and links open the same id. A **variant pack** is one or more
+variants distributed apart (later: marketplace). Cf. design `variantes-modules`.
+
+Non-examples:
+- A **Folder** is not a variant: it only arranges files, every player sees its Documents.
+- A theme is not a term of the code: the word is taken by the Folders (*themed folders*), and
+  a variant changes behaviour too (where the actions sit, which clicks).
+- What is registered for the server (a command's name, aliases, permission, arguments;
+  triggers, data sources, actions) has no variants: a variant's command file only changes what
+  the command runs (`actions`, `requirements`, `fallback`).
 
 ## Version
 

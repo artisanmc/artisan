@@ -1,3 +1,4 @@
+import { invalidateServerPalette } from "@/components/minimessage/usePaletteLibrary";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -6,10 +7,14 @@ import { ApiError } from "@/lib/api/client";
 import { type ServerConfig, getServerConfig, patchServerConfig } from "@/lib/api/serverConfig";
 import type { ProjectSummary } from "@/lib/api/servers";
 import { listAssets } from "@/lib/api/userAssets";
+import { SERVER_PALETTE_KEYS, serverPaletteEntries, serverPaletteForm } from "@/lib/mm/palettes";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { TextPaletteFields } from "./TextPaletteFields";
 
 const TEXTURES = "resource-pack.container-textures.";
+const PALETTE = "text-palette.";
+const INVENTORY_LABEL = "resource-pack.hide-inventory-label";
 
 /** Vanilla container layout: square, 256 px or an HD multiple. */
 const containerLayout = (w: number, h: number) => w === h && w >= 256 && w % 256 === 0;
@@ -91,8 +96,9 @@ export function ServerConfigSection({
     try {
       setConfig(await patchServerConfig(serverKeyId, changes));
       setChanges({});
-      // Changing container textures requires rebuilding the pack.
-      if (Object.keys(changes).some((key) => key.startsWith(TEXTURES)))
+      if (Object.keys(changes).some((key) => key.startsWith(PALETTE))) invalidateServerPalette();
+      // Changing container textures or the inventory label requires rebuilding the pack.
+      if (Object.keys(changes).some((key) => key.startsWith(TEXTURES) || key === INVENTORY_LABEL))
         rebuildServerPackInBackground(t, serverKeyId);
     } catch (e) {
       setError(
@@ -182,6 +188,7 @@ export function ServerConfigSection({
     ["textures", keys.filter((k) => k.startsWith(TEXTURES))],
     ["resourcePack", keys.filter((k) => k.startsWith("resource-pack.") && !k.startsWith(TEXTURES))],
     ["editor", keys.filter((k) => k.startsWith("editor."))],
+    ["palette", keys.filter((k) => k.startsWith(PALETTE))],
   ];
   const grouped = new Set(groups.flatMap(([, ks]) => ks));
   groups.push(["other", keys.filter((k) => !grouped.has(k))]);
@@ -225,7 +232,26 @@ export function ServerConfigSection({
                 {t("serverConfig.groupHints.textures")}
               </p>
             )}
-            {ks.map(field)}
+            {group === "palette" && (
+              <p className="-mt-1 text-[12px] text-[var(--text-mut)]">
+                {t("serverConfig.groupHints.palette")}
+              </p>
+            )}
+            {group === "palette" ? (
+              <TextPaletteFields
+                value={serverPaletteForm({
+                  [SERVER_PALETTE_KEYS.colors]: value(SERVER_PALETTE_KEYS.colors),
+                  [SERVER_PALETTE_KEYS.gradients]: value(SERVER_PALETTE_KEYS.gradients),
+                })}
+                onChange={(next) => {
+                  const entries = serverPaletteEntries(next.swatches, next.gradients);
+                  set(SERVER_PALETTE_KEYS.colors, entries.colors);
+                  set(SERVER_PALETTE_KEYS.gradients, entries.gradients);
+                }}
+              />
+            ) : (
+              ks.map(field)
+            )}
           </section>
         ))}
         {(pending > 0 || error) && (

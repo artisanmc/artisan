@@ -57,7 +57,7 @@ Not updating = the next session will not know the code changed.
 cd plugin
 ./gradlew test          # every module (api, core, database, hub, paper)
 ./gradlew shadowJar     # → paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
-./gradlew shadowJar -PwithEditor   # same, with the editor and the 3D icons bundled (npm required)
+./gradlew shadowJar -PwithEditor   # same, with the editor bundled (npm required)
 ./gradlew deploy        # build + restart the container
 
 # Editor (React 19 + Vite 6)
@@ -76,8 +76,8 @@ docker compose -f docker/network/compose.yml up   # network: one hub + one leaf
 `docs/architecture/plugin-commands.md`.
 
 **MC assets** — `cd tools/minecraft-assets && bun gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`
-(→ `items/<version>.json` + `icons/icons-<version>.zip`, **to be committed**; the hub bundles them in the
-jar). Detail: `tools/minecraft-assets/README.md`.
+(→ `items/<version>.json` + `icons/icons-<version>.zip`, **to be committed**; the jar bundles the
+catalogue, the icon zips go to the CDN by hand). Detail: `tools/minecraft-assets/README.md`.
 
 ## Architecture
 

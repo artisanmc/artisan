@@ -1,5 +1,7 @@
+import { isOriginalPath } from "@/domain/documentLayout";
 import { rekeyProject } from "@/domain/i18nSites";
 import type { Project } from "@/domain/types";
+import { showOriginal, showVariant, viewedVariant } from "@/domain/variants";
 import { DraftApiError } from "@/lib/api/projectDrafts";
 import type { ProjectFileConflict, ProjectFilesError } from "@/lib/api/projectFiles";
 import { projectClient } from "@/lib/projectClient";
@@ -19,12 +21,19 @@ import { publishPersistedDraft, usePersistedDraftStore } from "./persistedDrafts
  */
 export function projectTree(project: Project): Record<string, string> {
   const cloned = structuredClone(project);
+  // Before the keys are canonicalized: a variant's version must not take its module twin's.
+  showOriginal(cloned, false);
+  showVariant(cloned, undefined);
   rekeyProject(cloned);
   const disk = useProjectBaselineStore.getState().get(project.id);
-  return keepEquivalentText(
+  const tree = keepEquivalentText(
     keepYamlExtensions(toRelative(projectToFiles(cloned), project.diskId ?? project.id), disk),
     disk,
   );
+  // The module's originals are the server's: carried as they are on disk, never written.
+  for (const [path, text] of Object.entries(disk ?? {}))
+    if (isOriginalPath(path)) tree[path] = text;
+  return tree;
 }
 
 /**
@@ -47,11 +56,15 @@ export function adoptDiskIntoProject(
   for (const [rel, content] of Object.entries(tree)) {
     canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
   }
-  return projectFromFiles(project.id, canonical, {
+  const adopted = projectFromFiles(project.id, canonical, {
     name: project.name,
     diskId: project.diskId,
     serverKeyId: project.serverKeyId,
   });
+  // The canvas keeps showing the variant it showed, and the original if it did.
+  showVariant(adopted, viewedVariant(project) ?? project.originalView?.variant);
+  if (project.originalView) showOriginal(adopted, true);
+  return adopted;
 }
 
 export type SaveToDiskResult =

@@ -28,6 +28,8 @@ export interface Env {
 /** The path players download, the same as on the hub (`PackStore.PATH`): a leaf maps it onto its hub. */
 const PATH = /^\/resource-pack\/([0-9a-f]{40})\.zip$/;
 const ADMIN_PATH = /^\/admin\/resource-pack\/([0-9a-f]{40})\.zip$/;
+/** The editor's 3D item icons for one Minecraft version: hubs download them once (`VanillaAssets`). Uploaded by hand. */
+const VANILLA_PATH = /^\/vanilla\/(icons-[0-9][0-9a-z.-]{0,30}\.zip)$/;
 const IMMUTABLE = "public, max-age=31536000, immutable";
 /** What this colo's cache keeps: a pack taken down stops being served within a day. */
 const EDGE_CACHE = "public, max-age=86400";
@@ -46,13 +48,18 @@ export default {
     if (url.pathname === "/health") return text(200, "ok");
     const admin = ADMIN_PATH.exec(url.pathname);
     if (admin) return takeDown(request, env, admin[1]);
+    const vanilla = VANILLA_PATH.exec(url.pathname);
+    if (vanilla) {
+      if (request.method !== "GET" && request.method !== "HEAD") return text(405, "method not allowed", { Allow: "GET, HEAD" });
+      return serve(request, env, ctx, `vanilla/${vanilla[1]}`, vanilla[1]);
+    }
     const match = PATH.exec(url.pathname);
     if (!match) return text(404, "Artisan resource packs");
     const hash = match[1];
     switch (request.method) {
       case "GET":
       case "HEAD":
-        return serve(request, env, ctx, hash);
+        return serve(request, env, ctx, packKey(hash), `${hash}.zip`);
       case "PUT":
         return upload(request, env, ctx, hash);
       case "POST":
@@ -69,29 +76,29 @@ function publicUrl(env: Env, hash: string): string {
   return `${env.PACK_PUBLIC_URL.replace(/\/+$/, "")}/resource-pack/${hash}.zip`;
 }
 
-async function serve(request: Request, env: Env, ctx: ExecutionContext, hash: string): Promise<Response> {
+async function serve(request: Request, env: Env, ctx: ExecutionContext, key: string, name: string): Promise<Response> {
   const cache = caches.default;
   const cacheKey = new Request(new URL(request.url).origin + new URL(request.url).pathname);
   const cached = await cache.match(cacheKey);
   if (cached) return request.method === "HEAD" ? new Response(null, cached) : withClientHeaders(cached);
   if (request.method === "HEAD") {
-    const head = await env.PACKS.head(packKey(hash));
-    return head ? new Response(null, { headers: packHeaders(hash, head.size, head.httpEtag) }) : text(404, "no such pack");
+    const head = await env.PACKS.head(key);
+    return head ? new Response(null, { headers: packHeaders(name, head.size, head.httpEtag) }) : text(404, "no such pack");
   }
-  const object = await env.PACKS.get(packKey(hash));
+  const object = await env.PACKS.get(key);
   if (!object) return text(404, "no such pack");
   const [toPlayer, toCache] = object.body.tee();
-  const edgeHeaders = packHeaders(hash, object.size, object.httpEtag);
+  const edgeHeaders = packHeaders(name, object.size, object.httpEtag);
   edgeHeaders.set("Cache-Control", EDGE_CACHE);
-  ctx.waitUntil(cache.put(cacheKey, new Response(toCache, { headers: edgeHeaders })).catch((e) => console.warn(`Cache ${hash}: ${e}`)));
-  return new Response(toPlayer, { headers: packHeaders(hash, object.size, object.httpEtag) });
+  ctx.waitUntil(cache.put(cacheKey, new Response(toCache, { headers: edgeHeaders })).catch((e) => console.warn(`Cache ${name}: ${e}`)));
+  return new Response(toPlayer, { headers: packHeaders(name, object.size, object.httpEtag) });
 }
 
-function packHeaders(hash: string, size: number, etag: string): Headers {
+function packHeaders(name: string, size: number, etag: string): Headers {
   return new Headers({
     "Content-Type": "application/zip",
     "Content-Length": String(size),
-    "Content-Disposition": `attachment; filename="${hash}.zip"`,
+    "Content-Disposition": `attachment; filename="${name}"`,
     "Cache-Control": IMMUTABLE,
     "X-Content-Type-Options": "nosniff",
     ETag: etag,

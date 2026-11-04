@@ -34,6 +34,8 @@ const DOMAIN_CONDITIONS = new Set([
   "has_xp",
   "has_level",
   "world_is",
+  "client_is",
+  "has_resource_pack",
   "time_is",
   "random_chance",
   "cooldown_passed",
@@ -102,6 +104,10 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
         return { type: "has_level", level: c.level };
       case "world_is":
         return { type: "world_is", world: c.world };
+      case "client_is":
+        return { type: "client_is", client: c.client };
+      case "has_resource_pack":
+        return { type: "has_resource_pack" };
       case "time_is":
         return { type: "time_is", range: c.range };
       case "random_chance":

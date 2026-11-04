@@ -35,8 +35,9 @@ class GeyserIntegration(private val plugin: JavaPlugin) {
     fun start() {
         writeMappings(File(plugin.dataFolder, "cache/geyser"), announce = false)
         if (plugin.server.pluginManager.getPlugin("Geyser-Spigot") == null) {
-            plugin.logger.info("[Artisan] Geyser is not on this server: Bedrock players are recognised by their Floodgate UUID, " +
-                "the menus' Bedrock pack and ${File(plugin.dataFolder, "cache/geyser/custom_mappings/artisan.json").path} go to the proxy's Geyser by hand")
+            plugin.logger.info("[Artisan] Geyser is not on this server: Bedrock players are recognised by their Floodgate UUID; " +
+                "install the Artisan Geyser extension (artisan-geyser.jar) on the proxy's Geyser, or copy the menus' Bedrock pack and " +
+                "${File(plugin.dataFolder, "cache/geyser/custom_mappings/artisan.json").path} into it by hand")
             return
         }
         try {

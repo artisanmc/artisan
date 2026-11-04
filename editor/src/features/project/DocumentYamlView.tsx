@@ -1,8 +1,9 @@
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { documentKindDef, isDocumentKind } from "@/domain/documentKinds";
-import { documentPath } from "@/domain/documentLayout";
+import { VARIANTS_DIR, documentPath } from "@/domain/documentLayout";
 import { findDocumentRef } from "@/domain/documents";
 import type { Project } from "@/domain/types";
+import { versionOf } from "@/domain/variants";
 import { rebuildServerPackInBackground } from "@/features/project/resourcePackSync";
 import { adoptDiskIntoProject } from "@/features/project/saveProjectToDisk";
 import { hashContent } from "@/lib/contentHash";
@@ -24,7 +25,9 @@ export function documentRelPath(project: Project, id: string): string | null {
   if (!found) return null;
   // A kind nobody registered (its module is absent) keeps its folder name as the kind.
   const dir = isDocumentKind(found.kind) ? documentKindDef(found.kind).dir : found.kind;
-  const path = documentPath(dir, found.doc.id, found.doc.folder);
+  // The viewed variant's version lives in its folder (`domain/variants.ts`).
+  const variant = versionOf(project, found.kind, found.doc.id);
+  const path = `${variant ? `${VARIANTS_DIR}/${variant}/` : ""}${documentPath(dir, found.doc.id, found.doc.folder)}`;
   return yamlPathOnDisk(path, useProjectBaselineStore.getState().get(project.id) ?? {});
 }
 

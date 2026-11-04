@@ -16,6 +16,7 @@ import type {
   CommandNodePath,
   ProjectId,
 } from "@/domain/types";
+import { versionOf } from "@/domain/variants";
 import { cx } from "@/lib/cx";
 import { useCommandNodeStore } from "@/state/commandNodeStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -96,6 +97,11 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
   const node = commandNodeAt(command, selected) ?? command;
   const sub = node === command ? undefined : selected;
   const words = [command.name, ...wordsTo(command, sub ?? [])];
+  // A variant's version: what is registered is the module's, only the steps are its own.
+  const locked = useProjectsStore((s) => {
+    const p = s.openProjects.projects.find((x) => x.id === projectId);
+    return !!p && versionOf(p, "command", command.id) !== undefined;
+  });
   const commandScope = useMemo(
     () => ({ kind: "command" as const, commandId: command.id, sub }),
     [command.id, sub],
@@ -116,88 +122,108 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
                   command={command}
                   selected={sub ?? []}
                   onSelect={setSelected}
+                  locked={locked}
                 />
               </Lane>
             </section>
-            <section className="panel rounded-[var(--r-md)] p-4">
-              <Lane label={t("command.settingsLabel")}>
-                <div className="flex flex-col gap-3">
-                  <PropertyField
-                    label={t("command.nameLabel")}
-                    value={node.name}
-                    onChange={(v) =>
-                      setCommandField({
-                        projectId,
-                        commandId: command.id,
-                        sub,
-                        field: "name",
-                        value: sub ? v.trim().toLowerCase() : v,
-                      })
-                    }
-                  />
-                  <PropertyField
-                    label={t("command.permissionLabel")}
-                    value={node.permission ?? ""}
-                    placeholder={
-                      sub
-                        ? t("command.subPermissionPlaceholder")
-                        : t("command.permissionPlaceholder")
-                    }
-                    onChange={(v) =>
-                      setCommandField({
-                        projectId,
-                        commandId: command.id,
-                        sub,
-                        field: "permission",
-                        value: v,
-                      })
-                    }
-                  />
-                  <LocalizedTextField
+            {locked ? (
+              <p
+                data-testid="command-version-locked"
+                className="text-[12px] text-[var(--text-faint)]"
+              >
+                {t("variants.commandLocked")}
+              </p>
+            ) : null}
+            <fieldset
+              disabled={locked}
+              className={cx("flex min-w-0 flex-col gap-4", locked && "opacity-60")}
+            >
+              <section className="panel rounded-[var(--r-md)] p-4">
+                <Lane label={t("command.settingsLabel")}>
+                  <div className="flex flex-col gap-3">
+                    <PropertyField
+                      label={t("command.nameLabel")}
+                      value={node.name}
+                      onChange={(v) =>
+                        setCommandField({
+                          projectId,
+                          commandId: command.id,
+                          sub,
+                          field: "name",
+                          value: sub ? v.trim().toLowerCase() : v,
+                        })
+                      }
+                    />
+                    <PropertyField
+                      label={t("command.permissionLabel")}
+                      value={node.permission ?? ""}
+                      placeholder={
+                        sub
+                          ? t("command.subPermissionPlaceholder")
+                          : t("command.permissionPlaceholder")
+                      }
+                      onChange={(v) =>
+                        setCommandField({
+                          projectId,
+                          commandId: command.id,
+                          sub,
+                          field: "permission",
+                          value: v,
+                        })
+                      }
+                    />
+                    <LocalizedTextField
+                      projectId={projectId}
+                      lt={node.description}
+                      label={t("command.descriptionName")}
+                      onChange={(lang, value) =>
+                        setCommandDescription({
+                          projectId,
+                          commandId: command.id,
+                          sub,
+                          lang,
+                          value,
+                        })
+                      }
+                      renderEditor={({ value, fallback, label, onChange }) => (
+                        <textarea
+                          className="textarea min-h-0 rounded-[var(--r-xs)] px-2.5 py-2 text-[13px]"
+                          rows={3}
+                          aria-label={label}
+                          value={value}
+                          placeholder={fallback ?? t("command.descriptionPlaceholder")}
+                          onChange={(e) => onChange(e.target.value)}
+                        />
+                      )}
+                    />
+                    <AliasesField
+                      label={t("command.aliasesLabel")}
+                      aliases={node.aliases ?? []}
+                      onChange={(aliases) =>
+                        setCommandAliases({
+                          projectId,
+                          commandId: command.id,
+                          sub,
+                          aliases,
+                        })
+                      }
+                    />
+                    {sub ? null : <CommandIdField projectId={projectId} commandId={command.id} />}
+                  </div>
+                </Lane>
+              </section>
+              <section className="panel rounded-[var(--r-md)] p-4">
+                <Lane label={t("command.argumentsLabel")}>
+                  <CommandArgsEditor
                     projectId={projectId}
-                    lt={node.description}
-                    label={t("command.descriptionName")}
-                    onChange={(lang, value) =>
-                      setCommandDescription({ projectId, commandId: command.id, sub, lang, value })
-                    }
-                    renderEditor={({ value, fallback, label, onChange }) => (
-                      <textarea
-                        className="textarea min-h-0 rounded-[var(--r-xs)] px-2.5 py-2 text-[13px]"
-                        rows={3}
-                        aria-label={label}
-                        value={value}
-                        placeholder={fallback ?? t("command.descriptionPlaceholder")}
-                        onChange={(e) => onChange(e.target.value)}
-                      />
-                    )}
+                    commandId={command.id}
+                    sub={sub}
+                    node={node}
+                    typed={words.join(" ")}
                   />
-                  <AliasesField
-                    label={t("command.aliasesLabel")}
-                    aliases={node.aliases ?? []}
-                    onChange={(aliases) =>
-                      setCommandAliases({
-                        projectId,
-                        commandId: command.id,
-                        sub,
-                        aliases,
-                      })
-                    }
-                  />
-                  {sub ? null : <CommandIdField projectId={projectId} commandId={command.id} />}
-                </div>
-              </Lane>
-            </section>
-            <section className="panel rounded-[var(--r-md)] p-4">
-              <Lane label={t("command.argumentsLabel")}>
-                <CommandArgsEditor
-                  projectId={projectId}
-                  commandId={command.id}
-                  sub={sub}
-                  node={node}
-                  typed={words.join(" ")}
-                />
-              </Lane>
-            </section>
+                </Lane>
+              </section>
+            </fieldset>
           </div>
           <div className="flex min-w-0 flex-col gap-4">
             <section className="panel min-w-0 rounded-[var(--r-md)] p-4">

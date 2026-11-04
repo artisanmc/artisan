@@ -1,7 +1,16 @@
-import { allDocuments, docKey, emptyDocuments, menusOf, mutableMenus } from "@/domain/documents";
+import {
+  allDocuments,
+  docKey,
+  emptyDocuments,
+  menusOf,
+  mutableMenus,
+  parseDocKey,
+} from "@/domain/documents";
 import { newProjectId } from "@/domain/ids";
 import { migrateTitle } from "@/domain/migrateTitle";
+import { isRequired } from "@/domain/originals";
 import type { MenuId, OpenProjects, Project, ProjectId } from "@/domain/types";
+import { viewedVariant } from "@/domain/variants";
 import { migrateProjectToI18n } from "@/lib/i18nMigration";
 import { migrateProjectDocuments } from "@/lib/projectDocumentsMigration";
 import { parseEditorEdges, parseEditorLayout } from "@/schema/projectFromFiles";
@@ -225,10 +234,16 @@ export const createProjectsSlice = ({
       }
     }),
   deleteFromProject: ({ projectId: pId, nodeIds }) => {
-    const ids = new Set(nodeIds);
     mutateProject(
       pId,
       (project) => {
+        // What the module's code opens by id stays (design `originaux-modules`).
+        const ids = new Set(
+          nodeIds.filter((key) => {
+            const ref = parseDocKey(key);
+            return !ref || viewedVariant(project) || !isRequired(project, ref.kind, ref.id);
+          }),
+        );
         for (const { kind, doc } of allDocuments(project)) {
           if (ids.has(docKey(kind, doc.id))) gcDocumentLTexts(project, kind, doc);
         }

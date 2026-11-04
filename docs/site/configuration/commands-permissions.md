@@ -37,7 +37,7 @@ go through the hub; if the hub is unreachable they say so and change nothing.
 | `artisan.editor` | All four editor permissions below. | op |
 | `artisan.editor.view` | Request a link with `/artisan editor`, open the editor, read projects, their versions and the server's settings. | op |
 | `artisan.editor.edit` | Change projects (private drafts); use the editor's AI assistant; connect an AI app to the editor. | op |
-| `artisan.editor.publish` | Publish projects to the server; upload the resource pack and the Bedrock pack; let a connected AI app publish. | op |
+| `artisan.editor.publish` | Publish projects to the server; rebuild or upload the resource pack and the Bedrock pack; let a connected AI app publish. | op |
 | `artisan.editor.config` | Change the server's settings from the editor's server page; set up the AI assistant; pick the editor's address name on the tunnel; `/artisan editor sessions` and `/artisan editor revoke`. | op |
 
 `artisan.editor` is a parent: granting it grants the four `artisan.editor.*` permissions. To give

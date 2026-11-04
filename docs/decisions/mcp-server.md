@@ -122,8 +122,8 @@ deployed.
      asks `PackBuilder.request` and waits up to 120 s (default 30) for the build, a build still
      running answering `done: false` (read `resource_pack_status` later). Rebuilding is
      destructive: deploying tools only, because a changed Bedrock pack reaches every Bedrock player
-     (the Java pack is still in shadow mode: it builds and compares, Java players get the editor's
-     pack until the hub applies it too).
+     (the Java pack too since the hub applies it: `mode: "server"`; `mode: "shadow"` on a hub that
+     only compares it with the editor's).
    - **Alternatives set aside:** a single "write and deploy" tool (no point where the player sees
      the whole change); a confirmation step in Artisan (a second screen for a yes the client already
      asked, and a link to follow from a chat); a scope in the OAuth sense (clients ask for scopes at

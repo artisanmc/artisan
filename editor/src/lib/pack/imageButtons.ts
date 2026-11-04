@@ -8,6 +8,7 @@ import {
 } from "../../../../docs/schema/menu/v1/imageButtonGeometry";
 import { sha256Hex } from "../sha256";
 import type { AssetIndex } from "./assetIndexBuilder";
+import { menuPaths } from "./menuPaths";
 import { type RgbaImage, createImage, decodePng, encodePng } from "./png";
 
 export interface ImageButtonPlacement extends ImageButtonImage {
@@ -28,8 +29,9 @@ export function imageButtonsFromMenus(
   files: { path: string; content: string }[],
 ): ImageButtonPlacement[] {
   const out: ImageButtonPlacement[] = [];
+  const menus = menuPaths(files);
   for (const file of files) {
-    if (!/^menus\/.*\.ya?ml$/.test(file.path)) continue;
+    if (!menus.has(file.path)) continue;
     // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
     let doc: any;
     try {

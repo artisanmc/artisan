@@ -78,7 +78,7 @@ public final class MessageBundleDeclaration {
      *
      * <p>The data folder's {@code lang/*.yml} move there once, at {@link TranslationsApi#register}:
      * each file whose name {@code folder/lang/} does not hold yet, the other ones left in place and
-     * named in the log. The jar's files still answer the keys the server's lack. Since 2.17.0.
+     * named in the log. The jar's files still answer the keys the server's lack.
      *
      * @throws IllegalStateException for a declaration made with {@link #of}
      */

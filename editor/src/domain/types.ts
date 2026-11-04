@@ -206,11 +206,69 @@ export interface Project {
    */
   keptLangKeys?: string[];
   /**
+   * The module's variants (design `variantes-modules`): `variants.yml` and the menus and
+   * dialogs of `variants/<name>/`. Absent without `variants.yml`. See `domain/variants.ts`.
+   */
+  variants?: ProjectVariants;
+  /** What the module ships (`originals/`), when it ships anything. */
+  originals?: ProjectOriginals;
+  /**
+   * "View as" the module's original: `Project.documents` holds what the module ships (in the
+   * viewed variant), read-only; the Project's own Documents wait here. Never written.
+   */
+  originalView?: OriginalView;
+  /**
    * Owning Add-on module id (from `manifest.module`) when this is an Add-on's
    * dedicated project — drives the sidebar "Installed modules" grouping and is
    * round-tripped through the manifest (ADR `addon-owned-project-roots`).
    */
   ownerModule?: string;
+}
+
+/** What the canvas shows while "View as" a variant: its versions stand in for the module's. */
+export interface VariantView {
+  variant: string;
+  /** Ids, by kind, of the variant's Documents now in `Project.documents`. */
+  shown: Record<string, string[]>;
+  /** The module's Documents they cover, by kind, back in place when the view ends. */
+  hidden: Record<string, Document[]>;
+}
+
+/** The Project's own Documents while the canvas shows the module's original. */
+export interface OriginalView {
+  /** The variant viewed when the original was opened, shown again when it closes. */
+  variant?: string;
+  documents: Record<string, Document[]>;
+}
+
+export interface ProjectVariants {
+  /**
+   * `variants.yml`'s `show:`, a step tree like an action chain (`if` / `else`), whose actions
+   * are `show_variant: <name>` and `show_default`. For each file, the first variant shown on
+   * the player's path that has it wins; `show_default`, or the end, gives the module's.
+   */
+  show: Step[];
+  /** Every variant, in order: the file's `variants:`, those `show` names, then the folders'. */
+  names: string[];
+  /** Each variant's menus and dialogs, by kind; the viewed variant's sit in `Project.documents`. */
+  documents: Record<string, Record<string, Document[]>>;
+  view?: VariantView;
+}
+
+/**
+ * What the module ships (design `originaux-modules`): `originals/`, written by the server.
+ * Read-only: the editor compares the Project's Documents to them and writes only those that
+ * differ; a shipped Document left out of the Project is excluded in the module file.
+ */
+export interface ProjectOriginals {
+  /** By variant (`""`: the module's own), then kind: the shipped Documents, as shipped. */
+  documents: Record<string, Record<string, Document[]>>;
+  /** The shipped `variants.yml`'s tree, when the module ships one. */
+  show?: Step[];
+  /** Paths relative to `originals/` the module's code needs (`originals/originals.yml`). */
+  required: string[];
+  /** The module file's `originals.exclude`, as read: kept for what the editor does not model. */
+  excluded: string[];
 }
 
 /** One editable unit of a Project, whatever its kind. A module's kind adds its own member. */
@@ -459,6 +517,8 @@ export type Condition =
   | { type: "has_xp"; amount: number }
   | { type: "has_level"; level: number }
   | { type: "world_is"; world: string }
+  | { type: "client_is"; client: "java" | "bedrock" }
+  | { type: "has_resource_pack" }
   | { type: "time_is"; range: "day" | "night" | { from_ticks: number; to_ticks: number } }
   | { type: "random_chance"; probability: number }
   | { type: "cooldown_passed"; cooldown_id: string }

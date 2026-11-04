@@ -19,6 +19,10 @@ export function conditionSummary(condition: Condition): string {
       return `level ≥ ${condition.level}`;
     case "world_is":
       return `world = "${condition.world}"`;
+    case "client_is":
+      return `client = ${condition.client}`;
+    case "has_resource_pack":
+      return "has the resource pack";
     case "time_is":
       return typeof condition.range === "string"
         ? `time is ${condition.range}`
