@@ -270,6 +270,11 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > module opens it from its own button, as often as the player wants: nothing is saved, and it never
 > opens by itself. A 1.18 bundle still loads.
 
+> **Item textures (since 2026-11-04, SDK 1.20)** — `useItemTexture(material)` (host hook) gives
+> the URL of the texture the editor's item fields show for a material (`DIAMOND`, any case), to
+> draw an item in a module's own view (a reward grid) with an `<img>`; undefined until the item
+> catalogue is loaded and for an item without one (custom item, typo). A 1.19 bundle still loads.
+
 > **Module folder (since 2026-10-19)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the

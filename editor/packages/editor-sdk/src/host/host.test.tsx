@@ -18,6 +18,7 @@ import {
   installEditorHost,
   mcTextWidth,
   mcWrap,
+  useItemTexture,
 } from "./host";
 
 describe("host components", () => {
@@ -122,5 +123,14 @@ describe("host components", () => {
     } as unknown as EditorHost);
     expect(mcTextWidth("abc")).toBe(18);
     expect(mcWrap("abcd", 2)).toEqual(["ab", "cd"]);
+  });
+
+  it("hand the host's item texture to a module", () => {
+    installEditorHost({
+      useItemTexture: (material: string) =>
+        material.toLowerCase() === "diamond" ? "/api/v1/textures/1.21/diamond.png" : undefined,
+    } as unknown as EditorHost);
+    expect(useItemTexture("DIAMOND")).toBe("/api/v1/textures/1.21/diamond.png");
+    expect(useItemTexture("oraxen:ruby")).toBeUndefined();
   });
 });

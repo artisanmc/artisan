@@ -63,6 +63,12 @@ export interface EditorHost {
    * word never splits, a continued line reopens the tags still open (SDK 1.14).
    */
   mcWrap(source: string, width: number): string[];
+  /**
+   * The texture of an item, drawable in an `<img>` (SDK 1.20): the one the editor's item
+   * fields show for that `material` (`DIAMOND`, any case). A hook: undefined until the item
+   * catalogue is loaded, and for an item that has none (a custom item, a typo).
+   */
+  useItemTexture(material: string): string | undefined;
   /** The editor's own widgets a module view embeds (SDK 1.1). */
   components: HostComponents;
 }
@@ -455,6 +461,8 @@ export const useAssetImage = (projectId: string, name: string): AssetImage | und
   current().useAssetImage(projectId, name);
 export const mcTextWidth = (source: string): number => current().mcTextWidth(source);
 export const mcWrap = (source: string, width: number): string[] => current().mcWrap(source, width);
+export const useItemTexture = (material: string): string | undefined =>
+  current().useItemTexture(material);
 
 /**
  * The editor's Action chain editor (the one of commands and dialogs) on a controlled value:

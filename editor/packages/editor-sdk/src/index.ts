@@ -109,6 +109,7 @@ export {
   useAssetImage,
   mcTextWidth,
   mcWrap,
+  useItemTexture,
 } from "./host/host";
 export {
   type GuiScaleChoice,
