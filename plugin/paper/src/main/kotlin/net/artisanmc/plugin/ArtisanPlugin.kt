@@ -62,6 +62,12 @@ open class ArtisanPlugin : JavaPlugin() {
             }
         }
     }
+    /** `api.getScenes()`: display entities seen by one player. The book is the only owner of their handles. */
+    internal val sceneBackend: net.artisanmc.plugin.scene.EntityDisplayBackend by lazy {
+        net.artisanmc.plugin.scene.EntityDisplayBackend(this, scheduler) { anchorId -> sceneBook.endAnchor(anchorId) }
+    }
+    private val sceneBook: net.artisanmc.plugin.scene.SceneBook by lazy { net.artisanmc.plugin.scene.SceneBook(sceneBackend) }
+    internal val scenes by lazy { net.artisanmc.plugin.scene.PaperScenes(sceneBook) { geyser.isBedrock(it) } }
     private val openedContainers = net.artisanmc.plugin.render.title.OpenedContainers()
     private var menuPackets: MenuPacketInterceptor? = null
     /** Exposed for /artisan dump-title diagnostics. */
@@ -171,6 +177,8 @@ open class ArtisanPlugin : JavaPlugin() {
         }
         server.pluginManager.registerEvents(packLoads, this)
         server.pluginManager.registerEvents(overlaySlots, this)
+        server.pluginManager.registerEvents(scenes, this)
+        server.pluginManager.registerEvents(sceneBackend, this)
         server.pluginManager.registerEvents(openedContainers, this)
         geyser.start()
         saveDefaultConfig()
@@ -250,6 +258,8 @@ open class ArtisanPlugin : JavaPlugin() {
             @org.bukkit.event.EventHandler
             fun on(event: org.bukkit.event.server.PluginDisableEvent) {
                 if (event.plugin === this@ArtisanPlugin) return
+                val loader = event.plugin.javaClass.classLoader
+                api.modules.active().filter { it.javaClass.classLoader === loader }.forEach { scenes.endModule(it.id) }
                 api.modules.unregisterLoadedBy(event.plugin.javaClass.classLoader).forEach {
                     logger.log(java.util.logging.Level.WARNING, "[Artisan] ${it.message}", it.cause)
                 }
@@ -283,6 +293,10 @@ open class ArtisanPlugin : JavaPlugin() {
         stopEditor()
         // Modules of add-ons already went with their plugin (registerAddonRelease).
         api.modules.active().forEach { runCatching { it.onDisable() } }
+        // After the modules (a module may hide its scenes in onDisable). No task runs any more:
+        // the entities go now, on this thread, then the book forgets their scenes.
+        runCatching { sceneBackend.removeAllNow() }
+        runCatching { scenes.endAll() }
         if (::network.isInitialized) network.stop()
         suite.stopWriter()
         runtime.stopReloads()

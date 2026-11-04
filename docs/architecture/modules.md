@@ -233,6 +233,16 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `useOpenDocument()` returns a function that opens a Document's page (`{projectId, kind, id}`). A
 > 1.15 bundle still loads.
 
+> **Scenes in the world (since 2026-11-04, API 1.1.0, `@Beta`)** — the overlay's counterpart in the
+> world (ADR `world-scenes`). `api.getScenes().show(player, "quests:marker", SceneAnchor.above(npc, 2.3),
+> elements, transitionTicks)` draws text, items and blocks around a point or an entity for that player
+> alone, with display entities Artisan owns (hidden from the others, never saved). Name a scene after
+> the module; show it again to update it (same element key and type: same entity, a changed transform
+> animated by the client over `transitionTicks`), `hide` to take it away. Artisan ends it alone on
+> quit, change of world, the anchor leaving the world, the module's plugin disabling and its own stop;
+> the module is not told yet. Check `supports(player)` first: false for Bedrock, fall back to the
+> chat or the overlay. `/artisan scene-demo` shows one above the entity you look at.
+
 > **Pack images on the server (since 2026-10-31, `@Beta`)** — the hub builds the pack
 > without the editor (`PackBuilder`), so it cannot run a kind's `pack.images`. Its Java twin goes on the
 > kind declaration: `new DocumentKindDeclaration(...).withPackImages((doc, ctx) -> ...)`, a

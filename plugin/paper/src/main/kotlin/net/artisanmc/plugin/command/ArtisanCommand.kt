@@ -24,7 +24,7 @@ class ArtisanCommand(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> listOf("menu", "reload", "sync", "editor", "dump-title")
+            args.size == 1 -> listOf("menu", "reload", "sync", "editor", "dump-title", "scene-demo")
                 .filter { it.startsWith(args[0].lowercase()) && PERMISSIONS[it]?.let(sender::hasPermission) != false }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
@@ -90,10 +90,59 @@ class ArtisanCommand(
                 }
                 dumpTitle(sender, menuId, args.getOrNull(2))
             }
+            "scene-demo" -> (sender as? org.bukkit.entity.Player)?.let(::sceneDemo)
+                ?: sender.sendMessage("/artisan scene-demo: players only")
             else -> Chat.send(sender, lang.get("artisan.usage_main", sender))
         }
         return true
     }
+
+    /**
+     * Diagnostic of `api.getScenes()` (ADR `world-scenes`): a marker above the entity [player]
+     * looks at (else 3 blocks ahead), seen by them alone, bobbing for 10 s, then hidden.
+     */
+    private fun sceneDemo(player: org.bukkit.entity.Player) {
+        val scenes = plugin.scenes
+        if (!scenes.supports(player)) {
+            player.sendMessage("scene-demo: this client does not draw display entities (Bedrock)")
+            return
+        }
+        val target = player.getTargetEntity(16)
+        val anchor = if (target != null) {
+            net.artisanmc.modules.api.scene.SceneAnchor.above(target, target.height + 0.3)
+        } else {
+            net.artisanmc.modules.api.scene.SceneAnchor.at(
+                player.eyeLocation.add(player.location.direction.setY(0).normalize().multiply(3.0)),
+            )
+        }
+        fun frame(up: Boolean) = listOf(
+            net.artisanmc.modules.api.scene.SceneElement.Text.of(
+                "mark", net.artisanmc.modules.api.scene.SceneTransform.offset(0.0, if (up) 0.25 else 0.0, 0.0),
+                "<gold><bold>!</bold></gold>",
+            ).let { it.withScale(2f) },
+            net.artisanmc.modules.api.scene.SceneElement.Text.of(
+                "label", net.artisanmc.modules.api.scene.SceneTransform.offset(0.0, -0.35, 0.0),
+                "<gray>Scene demo: <white>${player.name}</white> only",
+            ),
+        )
+        val name = "artisan:scene_demo"
+        scenes.show(player, name, anchor, frame(false))
+        fun bob(step: Int) {
+            plugin.scheduler.playerLater(player.uniqueId, 20) {
+                if (!scenes.isShown(player, name)) return@playerLater
+                if (step >= 10) return@playerLater scenes.hide(player, name)
+                scenes.show(player, name, anchor, frame(step % 2 == 0), 20)
+                bob(step + 1)
+            }
+        }
+        bob(0)
+        player.sendMessage("scene-demo: shown ${if (target != null) "above ${target.type.name.lowercase()}" else "ahead"} for 10 s")
+    }
+
+    private fun net.artisanmc.modules.api.scene.SceneElement.Text.withScale(scale: Float) =
+        net.artisanmc.modules.api.scene.SceneElement.Text(
+            key(), transform().withScale(scale), miniMessage(), billboard(), background(), shadow(), lineWidth(),
+        )
 
     /**
      * Diagnostic: compile the title for [menuId] and print every step.
@@ -363,6 +412,7 @@ class ArtisanCommand(
             "reload" to "artisan.admin",
             "sync" to "artisan.admin",
             "dump-title" to "artisan.admin",
+            "scene-demo" to "artisan.admin",
         )
     }
 }
