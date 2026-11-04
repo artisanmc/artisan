@@ -52,10 +52,19 @@ object BedrockTitle {
         return String(Character.toChars(KEY_BASE + b0 % KEY_RANGE)) + String(Character.toChars(KEY_BASE + b1 % KEY_RANGE))
     }
 
-    /** Chests of 1 to 6 rows with the player inventory visible: the menus the pack styles. */
+    /**
+     * Chests of 1 to 6 rows: the menus the pack styles. With the player inventory hidden, only a
+     * menu drawn without the vanilla texture (Bedrock's own inventory stays below it, empty)
+     * whose elements all sit in the chest: buttons in the inventory are not drawn yet.
+     */
     fun supports(menu: MenuYaml): Boolean =
         menu.inventoryType == "chest" && menu.size % 9 == 0 && menu.size in 9..54 &&
-            PlayerInventoryMode.parse(menu.playerInventory) != PlayerInventoryMode.HIDDEN
+            (PlayerInventoryMode.parse(menu.playerInventory) != PlayerInventoryMode.HIDDEN ||
+                (!menu.vanillaTexture && menu.allElements.all { el ->
+                    el.places == null && POSITION_NUMBER.findAll(el.positionsSpec).all { it.value.toInt() < menu.size }
+                }))
+
+    private val POSITION_NUMBER = Regex("\\d+")
 
     /**
      * The image buttons of a menu, in the order the editor numbers them: no

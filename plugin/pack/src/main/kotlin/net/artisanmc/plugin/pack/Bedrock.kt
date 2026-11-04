@@ -182,6 +182,15 @@ internal object BedrockMenus {
         return slots.toList().ifEmpty { null }
     }
 
+    /** An element whose positions all fall in the chest (no placement, whose slots are free). */
+    private fun inChest(element: Any?, size: Double): Boolean {
+        val el = element as? Map<*, *> ?: return true
+        if (el["places"] != null) return false
+        return DIGITS.findAll(Js.string(el["positions"] ?: "")).all { it.value.toDouble() < size }
+    }
+
+    private val DIGITS = Regex("\\d+")
+
     private fun imageOf(app: Any?): BedrockButtonImage? {
         val image = (app as? Map<*, *>)?.get("image") as? Map<*, *> ?: return null
         val asset = image["asset"] as? String
@@ -241,7 +250,6 @@ internal object BedrockMenus {
             val (id, variant) = docs[file.path] ?: continue
             val doc = runCatching { Yaml.parse(file.content) }.getOrNull() as? Map<*, *> ?: continue
             if (doc.containsKey("inventory_type") && doc["inventory_type"] != "chest") continue
-            if (doc["player_inventory"] == "hidden") continue
             val size = Js.toNumber(doc["size"])
             if (size % 9.0 != 0.0 || size < 9.0 || size > 54.0) continue
             val sizeInt = size.toInt()
@@ -268,6 +276,12 @@ internal object BedrockMenus {
                 }
                 else -> emptyList()
             }
+            // Player inventory hidden: only drawn without the vanilla texture (its background covers
+            // the top; Bedrock's own inventory stays below, empty) and with every element in the
+            // chest — buttons placed in the inventory are not drawn yet. Same rule as the plugin's `BedrockTitle.supports`.
+            if (doc["player_inventory"] == "hidden" &&
+                (doc["vanilla_texture"] != false || !elements.all { inChest(it, size) })
+            ) continue
             val buttons = ArrayList<BedrockButton>()
             for (element in elements) {
                 if (!Js.truthy(element)) continue
@@ -299,7 +313,7 @@ internal object BedrockMenus {
 
 /** `ui/chest_screen.json` (`bedrockUi.ts`): the vanilla chest screen, changed through JSON UI `modifications`. */
 internal object BedrockUi {
-    private const val BEDROCK_Y = 4
+    const val BEDROCK_Y = 4
     private const val GRID_X = 7
     private const val GRID_Y = 21
     private const val CELL = 18
@@ -321,7 +335,6 @@ internal object BedrockUi {
 
     private fun contains(text: String) = "(not (($T - '$text') = $T))"
 
-    private fun anyOf(conditions: List<String>) = if (conditions.size == 1) conditions[0] else "(${conditions.joinToString(" or ")})"
 
     private fun MutableMap<String, Any?>.whenVisible(condition: String): MutableMap<String, Any?> = apply {
         put(T, "\$container_title")
@@ -332,12 +345,6 @@ internal object BedrockUi {
 
     /** Rows of the Bedrock screen a chest of [rows] rows opens on: Geyser shows 1 to 3 as a small chest, 4 to 6 as a large one. */
     fun panelRows(rows: Int) = if (rows <= 3) 3 else 6
-
-    /** The row counts of [menus], ascending, the screen's own first (`gridRows` in `bedrockUi.ts`). */
-    private fun gridRows(menus: List<BedrockMenu>): List<Int> {
-        val all = menus.map { it.rows }.distinct().sorted()
-        return all.filter { it == panelRows(it) } + all.filter { it != panelRows(it) }
-    }
 
     /**
      * Bytes in front of the marker as the client may receive them: the proxy chain adds formatting
@@ -389,7 +396,8 @@ internal object BedrockUi {
             "type" to "image",
             "texture" to backgroundTexture(menu),
             "size" to listOf(WIDTH, height),
-            "offset" to listOf(0, BEDROCK_Y),
+            // Composed from the panel's top, BEDROCK_Y px above the Java layout.
+            "offset" to listOf(0, 0),
             "anchor_from" to "top_left",
             "anchor_to" to "top_left",
             "layer" to LAYER_BACKGROUND,
@@ -447,21 +455,6 @@ internal object BedrockUi {
             ).whenVisible("(${hasKey(menu)} and ${keyAt(menu, lead)})"),
         )
 
-    private fun chestPanel(panel: String, visible: String): Map<String, Any?> = mapOf(
-        "chest_panel" to element("type" to "panel", "layer" to 5).whenVisible(visible).apply {
-            put(
-                "controls",
-                listOf(
-                    mapOf("${panel}_chest_panel_top_half@chest.${panel}_chest_panel_top_half" to emptyMap<String, Any?>()),
-                    mapOf("inventory_panel_bottom_half_with_label@common.inventory_panel_bottom_half_with_label" to emptyMap<String, Any?>()),
-                    mapOf("hotbar_grid@common.hotbar_grid_template" to emptyMap<String, Any?>()),
-                    mapOf("inventory_take_progress_icon_button@common.inventory_take_progress_icon_button" to emptyMap<String, Any?>()),
-                    mapOf("flying_item_renderer@common.flying_item_renderer" to mapOf("layer" to 15)),
-                ),
-            )
-        },
-    )
-
     fun chestScreen(
         menus: List<BedrockMenu>,
         backgroundHeight: (BedrockMenu) -> Int,
@@ -478,42 +471,23 @@ internal object BedrockUi {
         for ((rows, panel) in listOf(3 to "small", 6 to "large")) {
             val here = menus.filter { panelRows(it.rows) == rows }
             if (here.isEmpty()) continue
-            val transparent = here.filter { it.transparent }
+            // The vanilla panel stays, even under a `vanilla_texture: false` menu: replacing
+            // `common_panel` / `chest_panel` to hide it left every chest screen blank on Bedrock.
             val modifications = ArrayList<Map<String, Any?>>()
-            if (transparent.isNotEmpty()) {
-                val visible = "(not ${anyOf(transparent.map(::hasKey))})"
-                modifications += element(
-                    "array_name" to "controls",
-                    "operation" to "replace",
-                    "control_name" to "common_panel",
-                    "value" to mapOf("common_panel@common.common_panel" to element().whenVisible(visible)),
-                )
-                modifications += element(
-                    "array_name" to "controls",
-                    "operation" to "replace",
-                    "control_name" to "chest_panel",
-                    "value" to chestPanel(panel, visible),
-                )
-            }
             val value = ArrayList<Map<String, Any?>>()
             here.forEach { value += backgroundElement(it, backgroundHeight(it)) }
-            // A chest of fewer rows than its screen gets a grid of its own rows only: the slots
-            // Geyser pads it with stay under the background.
-            for (own in gridRows(here)) {
-                val visible = anyOf(here.filter { it.rows == own }.map(::hasKey))
-                value += if (own == rows) mapOf(
-                    "artisan_chest_grid@chest.${panel}_chest_grid" to element(
+            // One slot grid per menu, shown by its own key alone (as in bedrockUi.ts). A chest of
+            // fewer rows than its screen gets a grid of its own rows only: the slots Geyser pads
+            // it with stay under the background.
+            for (menu in here) {
+                value += mapOf(
+                    "${id(menu, "grid")}@chest.${panel}_chest_grid" to element(
                         "offset" to listOf(GRID_X, GRID_Y),
-                        "grid_item_template" to "chest.artisan_grid_item",
-                        "layer" to LAYER_GRID,
-                    ).whenVisible(visible),
-                ) else mapOf(
-                    "artisan_chest_grid_$own@chest.${panel}_chest_grid" to element(
-                        "offset" to listOf(GRID_X, GRID_Y),
-                        "grid_dimensions" to listOf(9, own),
-                        "grid_item_template" to "chest.artisan_grid_item",
-                        "layer" to LAYER_GRID,
-                    ).whenVisible(visible),
+                    ).apply {
+                        if (menu.rows != rows) put("grid_dimensions", listOf(9, menu.rows))
+                        put("grid_item_template", "chest.artisan_grid_item")
+                        put("layer", LAYER_GRID)
+                    }.whenVisible(hasKey(menu)),
                 )
             }
             here.forEach { menu -> value += buttonElements(menu) { b, s -> buttonKey(menu, b, s) } }
@@ -574,11 +548,15 @@ internal object BedrockPack {
         val src = Png.decode(texture)
         val k = scaleOf(src)
         val own = TITLE_H + rows * ROW_H
-        val h = TITLE_H + BedrockUi.panelRows(rows) * ROW_H
+        // From the top of the Bedrock panel: the texture's top border, then its first grey row
+        // repeated BEDROCK_Y times, so the Bedrock frame does not show above (as chestTop in bedrockPack.ts).
+        val pad = BedrockUi.BEDROCK_Y
+        val h = pad + TITLE_H + BedrockUi.panelRows(rows) * ROW_H
         val out = RgbaImage(WIDTH, h)
         // Nearest-neighbour down to the pack's pixel grid when the texture is HD.
         for (y in 0 until h) {
-            val sy = (if (y < own) y else FILL_Y) * k
+            val ly = if (y < pad) y else if (y < 2 * pad) pad else y - pad
+            val sy = (if (ly < own) ly else FILL_Y) * k
             for (x in 0 until WIDTH) System.arraycopy(src.data, (sy * src.width + x * k) * 4, out.data, (y * WIDTH + x) * 4, 4)
         }
         return out
@@ -603,10 +581,15 @@ internal object BedrockPack {
     private fun composeBackground(menu: BedrockMenu, pngs: Map<String, ByteArray>, assets: List<AssetRow>, chest: ByteArray): RgbaImage {
         val layers = placedImages(menu, pngs, assets)
         val top = if (menu.transparent) null else chestTop(chest, menu.rows)
-        val height = maxOf(1, top?.height ?: 0, layers.maxOfOrNull { it.y + it.image.height } ?: 0)
+        val pad = BedrockUi.BEDROCK_Y
+        val height = maxOf(1, top?.height ?: 0, layers.maxOfOrNull { pad + it.y + it.image.height } ?: 0)
         val out = RgbaImage(WIDTH, height)
         if (top != null) Png.bitblt(top, out, 0, 0, top.width, top.height, 0, 0)
-        for (l in layers) blend(l.image, out, l.x, l.y)
+        for (l in layers) blend(l.image, out, l.x, pad + l.y)
+        // Without the vanilla top, the window's first row is repeated over the lead (as in bedrockPack.ts).
+        if (top == null && height > pad) {
+            for (y in 0 until pad) System.arraycopy(out.data, pad * WIDTH * 4, out.data, y * WIDTH * 4, WIDTH * 4)
+        }
         return out
     }
 
