@@ -243,6 +243,8 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > the module is not told yet. A Bedrock player gets the text elements only (`support(player)` is
 > `TEXT_ONLY`): a scene that needs items, blocks or animation checks `supports(player)` and falls
 > back to the chat or the overlay. `/artisan scene-demo` shows one above the entity you look at.
+> A `SceneElement.Hitbox` draws nothing: `aimed(player, scene)` gives the key of the one the player's
+> crosshair is on (call it on their move event to highlight, on their click to take it).
 
 > **Pack images on the server (since 2026-10-31, `@Beta`)** — the hub builds the pack
 > without the editor (`PackBuilder`), so it cannot run a kind's `pack.images`. Its Java twin goes on the

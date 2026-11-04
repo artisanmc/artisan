@@ -47,7 +47,8 @@ interface DisplayBackend {
  */
 class SceneBook(private val backend: DisplayBackend) {
 
-    private class Shown(val anchor: Anchor, val elements: Map<String, Pair<SceneElement, Any>>)
+    /** A [SceneElement.Hitbox] has no handle: nothing draws it. */
+    private class Shown(val anchor: Anchor, val elements: Map<String, Pair<SceneElement, Any?>>)
 
     private val viewers = HashMap<UUID, LinkedHashMap<String, Shown>>()
 
@@ -62,23 +63,24 @@ class SceneBook(private val backend: DisplayBackend) {
             scenes.remove(scene)
         }
         val old = scenes[scene]?.elements ?: emptyMap()
-        val next = LinkedHashMap<String, Pair<SceneElement, Any>>()
+        val next = LinkedHashMap<String, Pair<SceneElement, Any?>>()
         for (element in elements) {
             val kept = old[element.key()]
             next[element.key()] = when {
-                kept == null -> element to backend.spawn(viewer, anchor, element)
+                kept == null -> element to spawn(viewer, anchor, element)
                 kept.first.javaClass != element.javaClass -> {
-                    backend.remove(kept.second)
-                    element to backend.spawn(viewer, anchor, element)
+                    kept.second?.let(backend::remove)
+                    element to spawn(viewer, anchor, element)
                 }
                 kept.first == element -> kept
+                kept.second == null -> element to null
                 else -> {
-                    backend.update(kept.second, element, transitionTicks)
+                    backend.update(kept.second!!, element, transitionTicks)
                     element to kept.second
                 }
             }
         }
-        old.filterKeys { it !in next }.values.forEach { backend.remove(it.second) }
+        old.filterKeys { it !in next }.values.forEach { it.second?.let(backend::remove) }
         scenes[scene] = Shown(anchor, next)
     }
 
@@ -87,6 +89,13 @@ class SceneBook(private val backend: DisplayBackend) {
         val scenes = viewers[viewer] ?: return
         scenes.remove(scene)?.let(::end)
         if (scenes.isEmpty()) viewers.remove(viewer)
+    }
+
+    /** The anchor and hitboxes of [viewer]'s [scene], to aim at; null when it is not shown. */
+    @Synchronized
+    fun hitboxes(viewer: UUID, scene: String): Pair<Anchor, List<SceneElement.Hitbox>>? {
+        val shown = viewers[viewer]?.get(scene) ?: return null
+        return shown.anchor to shown.elements.values.mapNotNull { it.first as? SceneElement.Hitbox }
     }
 
     @Synchronized
@@ -142,7 +151,10 @@ class SceneBook(private val backend: DisplayBackend) {
         return ended
     }
 
+    private fun spawn(viewer: UUID, anchor: Anchor, element: SceneElement): Any? =
+        if (element is SceneElement.Hitbox) null else backend.spawn(viewer, anchor, element)
+
     private fun end(shown: Shown) {
-        shown.elements.values.forEach { runCatching { backend.remove(it.second) } }
+        shown.elements.values.forEach { e -> e.second?.let { runCatching { backend.remove(it) } } }
     }
 }

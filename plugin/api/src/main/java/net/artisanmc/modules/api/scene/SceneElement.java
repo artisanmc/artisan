@@ -13,7 +13,7 @@ import java.util.Objects;
  * @since 1.1.0
  */
 @Beta
-public sealed interface SceneElement permits SceneElement.Text, SceneElement.Item, SceneElement.Block {
+public sealed interface SceneElement permits SceneElement.Text, SceneElement.Item, SceneElement.Block, SceneElement.Hitbox {
 
     /** Unique within its scene: {@code [a-z0-9_.-]+}. */
     String key();
@@ -78,6 +78,25 @@ public sealed interface SceneElement permits SceneElement.Text, SceneElement.Ite
             checkKey(key);
             Objects.requireNonNull(transform, "transform");
             block = block.clone();
+        }
+    }
+
+    /**
+     * An area the viewer aims at, drawn by nothing: {@link ScenesApi#aimed} answers which one the
+     * viewer's crosshair is on. A vertical rectangle {@code width} × {@code height} blocks (times the
+     * transform's scale), centred across on its point with its bottom there, turned by the
+     * transform's yaw: the area a {@link Billboard#FIXED} text of that size covers. Seen from any
+     * side.
+     *
+     * @since 1.1.0
+     */
+    record Hitbox(String key, SceneTransform transform, double width, double height) implements SceneElement {
+        public Hitbox {
+            checkKey(key);
+            Objects.requireNonNull(transform, "transform");
+            if (!(width > 0) || !(height > 0) || width > 64 || height > 64) {
+                throw new IllegalArgumentException("hitbox size must be in (0, 64]: " + width + " × " + height);
+            }
         }
     }
 

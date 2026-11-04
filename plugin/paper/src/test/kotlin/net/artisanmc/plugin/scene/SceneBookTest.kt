@@ -156,4 +156,24 @@ class SceneBookTest {
             MockBukkit.unmock()
         }
     }
+
+    @Test
+    fun `a hitbox draws nothing, and the book hands it out to aim at`() {
+        val box = SceneElement.Hitbox("choice", SceneTransform.offset(0.0, 1.0, 0.0), 2.0, 0.3)
+        book.show(alex, "m:s", here, listOf(text("a"), box), 0)
+        assertEquals(listOf("spawn a#0"), backend.log)
+        assertEquals(here to listOf(box), book.hitboxes(alex, "m:s"))
+        // Moved, turned into text, ended: never a backend call for the hitbox itself.
+        book.show(alex, "m:s", here, listOf(text("a"), SceneElement.Hitbox("choice", SceneTransform.ORIGIN, 2.0, 0.3)), 5)
+        book.show(alex, "m:s", here, listOf(text("a"), text("choice")), 0)
+        book.hide(alex, "m:s")
+        assertEquals(listOf("spawn a#0", "spawn choice#1", "remove a#0", "remove choice#1"), backend.log)
+        assertEquals(null, book.hitboxes(alex, "m:s"))
+    }
+
+    @Test
+    fun `a Bedrock viewer keeps the hitboxes, the server aims for every client`() {
+        val box = SceneElement.Hitbox("choice", SceneTransform.ORIGIN, 1.0, 1.0)
+        assertEquals(listOf(text("a"), box), PaperScenes.drawable(ScenesApi.Support.TEXT_ONLY, listOf(text("a"), box)))
+    }
 }

@@ -220,9 +220,15 @@ still, which the engine owns as a **camera session**:
 
 ### 10. Inputs: clicks and a cursor (batch ④)
 
-- **Hitbox**: an `Interaction` element (shown to the viewer only) turns a left or right click
-  into the Game event `scene_click` (scene, element key, button), so an Action chain reacts to it
-  like to a menu click.
+- **Hitbox** (done, ahead of the camera): `SceneElement.Hitbox` is a vertical rectangle that
+  draws nothing; `ScenesApi.aimed(viewer, scene)` returns the key of the one the viewer's
+  crosshair is on, computed by the server from the eyes the client reported (`ScenePick`, pure).
+  The crosshair is the cursor: no camera session is needed while the scene stands still in the
+  world in front of the viewer. The module listens to the move event (hover) and to the click
+  itself (ArtisanConversations' left click), so no `Interaction` entity and no Game event yet;
+  `scene_click` comes with the Scene Document kind (batch ②).
+  *Rejected for now:* an `Interaction` entity per hitbox (one more entity per viewer, an
+  axis-aligned box that does not turn with the element).
 - **Cursor** (needs a camera session): the player's head still turns while spectating; the
   engine reads the yaw and pitch deltas each tick, moves a cursor element over the scene's plane
   and resets the view. Hover and click become Game events. This is UltimateUI's model. Under
@@ -317,3 +323,4 @@ Each batch is usable on its own.
   `PaperScenes`, wired in `ArtisanPlugin` (listeners, add-on release, `onDisable`).
 - `/artisan scene-demo` (admin): a marker above the entity the player looks at, seen by them
   alone, bobbing for 10 s, then hidden.
+- Hitboxes (§10): `SceneElement.Hitbox`, `ScenesApi.aimed`, `ScenePick` (tested: `ScenePickTest`).

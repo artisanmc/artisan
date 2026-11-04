@@ -197,6 +197,7 @@ class EntityDisplayBackend(
             is SceneElement.Text -> TextDisplay::class.java
             is SceneElement.Item -> ItemDisplay::class.java
             is SceneElement.Block -> BlockDisplay::class.java
+            is SceneElement.Hitbox -> error("a hitbox draws nothing: SceneBook never spawns one")
         }
 
         /** [element] onto [display]; its transform reached over [transitionTicks]. */
@@ -219,6 +220,7 @@ class EntityDisplayBackend(
                     billboard = billboard(element.billboard())
                 }
                 is SceneElement.Block -> (display as BlockDisplay).block = element.block()
+                is SceneElement.Hitbox -> return
             }
             val next = transformation(element.transform())
             if (display.transformation != next) {

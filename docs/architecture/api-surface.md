@@ -113,9 +113,9 @@ The Java twin of an editor kind's `pack.images` (SDK 1.13): the server calls it 
 
 | Member | Type | Since |
 |---|---|---|
-| `api.scene.ScenesApi` `@Beta` (`support`, `supports`, `Support`, `show`, `hide`, `isShown`, `MAX_ELEMENTS`, `NONE`) | interface | 1.1.0 |
+| `api.scene.ScenesApi` `@Beta` (`support`, `supports`, `Support`, `show`, `hide`, `isShown`, `aimed`, `AIM_RANGE`, `MAX_ELEMENTS`, `NONE`) | interface | 1.1.0 |
 | `api.scene.SceneAnchor` `@Beta` (`at`, `above`, `Point`, `OnEntity`) | sealed interface | 1.1.0 |
-| `api.scene.SceneElement` `@Beta` (`Text`, `Item`, `Block`, `Billboard`, `key`, `transform`) | sealed interface | 1.1.0 |
+| `api.scene.SceneElement` `@Beta` (`Text`, `Item`, `Block`, `Hitbox`, `Billboard`, `key`, `transform`) | sealed interface | 1.1.0 |
 | `api.scene.SceneTransform` `@Beta` (`offset`, `withScale`, `withYaw`, `ORIGIN`) | record | 1.1.0 |
 | `getScenes()` `@Beta` | `ScenesApi` | 1.1.0 |
 

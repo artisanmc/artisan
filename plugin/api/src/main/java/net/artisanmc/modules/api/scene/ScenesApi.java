@@ -2,6 +2,7 @@ package net.artisanmc.modules.api.scene;
 
 import net.artisanmc.modules.api.annotations.Beta;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -24,6 +25,9 @@ import java.util.List;
  * with the chunk: a crash leaves none behind.
  *
  * <p>A Bedrock player sees the text elements only ({@link #support}).
+ *
+ * <p>A {@link SceneElement.Hitbox} draws nothing: it is an area the viewer can aim at with their
+ * crosshair ({@link #aimed}), a choice to click for instance.
  *
  * <p>The content is already the viewer's: placeholders, conditions and language are resolved by
  * the caller. Every method may be called from any thread; the entities change on the thread that
@@ -68,6 +72,11 @@ public interface ScenesApi {
         public boolean isShown(Player viewer, String scene) {
             return false;
         }
+
+        @Override
+        public @Nullable String aimed(Player viewer, String scene) {
+            return null;
+        }
     };
 
     /**
@@ -100,4 +109,18 @@ public interface ScenesApi {
 
     /** Whether {@code viewer} has the scene {@code scene} (shown, not yet taken away). */
     boolean isShown(Player viewer, String scene);
+
+    /** How far {@link #aimed} looks, in blocks. */
+    double AIM_RANGE = 8;
+
+    /**
+     * The key of the {@link SceneElement.Hitbox} of {@code scene} that {@code viewer}'s crosshair is
+     * on (the nearest when several are, within {@link #AIM_RANGE}), or null. Computed by the server
+     * from the eyes' position and direction, as the client sent them: call it from the viewer's
+     * thread, typically on their move event (a turn of the head is one) to show what they aim at,
+     * and on their click to take it. Blocks in between are not checked.
+     *
+     * @since 1.1.0
+     */
+    @Nullable String aimed(Player viewer, String scene);
 }
