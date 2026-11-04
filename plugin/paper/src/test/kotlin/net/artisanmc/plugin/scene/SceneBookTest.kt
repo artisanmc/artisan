@@ -2,6 +2,7 @@ package net.artisanmc.plugin.scene
 
 import net.artisanmc.modules.api.scene.SceneElement
 import net.artisanmc.modules.api.scene.SceneTransform
+import net.artisanmc.modules.api.scene.ScenesApi
 import be.seeseemelk.mockbukkit.MockBukkit
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
@@ -138,5 +139,21 @@ class SceneBookTest {
     fun `element keys are checked by the API`() {
         assertFailsWith<IllegalArgumentException> { text("Not A Key") }
         assertFailsWith<IllegalArgumentException> { SceneTransform(0.0, 0.0, 0.0, 0f, 0f) }
+    }
+
+    @Test
+    fun `a Bedrock viewer gets the text elements only`() {
+        MockBukkit.mock()
+        try {
+            val elements = listOf(
+                text("mark"),
+                SceneElement.Item.of("icon", SceneTransform.ORIGIN, ItemStack(Material.STONE)),
+            )
+            assertEquals(elements, PaperScenes.drawable(ScenesApi.Support.FULL, elements))
+            assertEquals(listOf("mark"), PaperScenes.drawable(ScenesApi.Support.TEXT_ONLY, elements).map { it.key() })
+            assertTrue(PaperScenes.drawable(ScenesApi.Support.NONE, elements).isEmpty())
+        } finally {
+            MockBukkit.unmock()
+        }
     }
 }

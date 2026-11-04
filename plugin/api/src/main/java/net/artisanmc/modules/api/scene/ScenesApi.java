@@ -23,6 +23,8 @@ import java.util.List;
  * unload), when the module's plugin disables and when Artisan stops. The entities are never saved
  * with the chunk: a crash leaves none behind.
  *
+ * <p>A Bedrock player sees the text elements only ({@link #support}).
+ *
  * <p>The content is already the viewer's: placeholders, conditions and language are resolved by
  * the caller. Every method may be called from any thread; the entities change on the thread that
  * owns them.
@@ -35,11 +37,25 @@ public interface ScenesApi {
     /** The most elements of one scene: each one is an entity per viewer. */
     int MAX_ELEMENTS = 64;
 
+    /** What a viewer's client draws of a scene. */
+    enum Support {
+        /** Everything: Java Edition. */
+        FULL,
+        /**
+         * {@link SceneElement.Text} only, as a floating name: a Bedrock player through Geyser. No
+         * scale, rotation, background, line width nor animation; items and blocks are left out by
+         * Artisan. A marker made of text works; a menu does not.
+         */
+        TEXT_ONLY,
+        /** Nothing. */
+        NONE
+    }
+
     /** Inert default (tests / partial wiring): nothing is ever shown. */
     ScenesApi NONE = new ScenesApi() {
         @Override
-        public boolean supports(Player viewer) {
-            return false;
+        public Support support(Player viewer) {
+            return Support.NONE;
         }
 
         @Override
@@ -55,10 +71,17 @@ public interface ScenesApi {
     };
 
     /**
-     * Whether {@code viewer}'s client draws display entities: false for a Bedrock player (Geyser
-     * translates them partly or not at all). A module falls back (chat, HUD) when false.
+     * What {@code viewer}'s client draws: {@link Support#FULL} on Java, {@link Support#TEXT_ONLY}
+     * for a Bedrock player (Geyser translates a text display into a floating name and drops item
+     * and block displays). A scene shown to a {@code TEXT_ONLY} viewer keeps its text elements
+     * only; a module whose scene needs more falls back (chat, overlay, chest menu).
      */
-    boolean supports(Player viewer);
+    Support support(Player viewer);
+
+    /** Whether {@code viewer} gets the whole scene: {@code support(viewer) == FULL}. */
+    default boolean supports(Player viewer) {
+        return support(viewer) == Support.FULL;
+    }
 
     /**
      * Shows the scene {@code scene} to {@code viewer}, or updates it. {@code transitionTicks} (0 to

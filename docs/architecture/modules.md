@@ -240,8 +240,9 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > the module; show it again to update it (same element key and type: same entity, a changed transform
 > animated by the client over `transitionTicks`), `hide` to take it away. Artisan ends it alone on
 > quit, change of world, the anchor leaving the world, the module's plugin disabling and its own stop;
-> the module is not told yet. Check `supports(player)` first: false for Bedrock, fall back to the
-> chat or the overlay. `/artisan scene-demo` shows one above the entity you look at.
+> the module is not told yet. A Bedrock player gets the text elements only (`support(player)` is
+> `TEXT_ONLY`): a scene that needs items, blocks or animation checks `supports(player)` and falls
+> back to the chat or the overlay. `/artisan scene-demo` shows one above the entity you look at.
 
 > **Pack images on the server (since 2026-10-31, `@Beta`)** — the hub builds the pack
 > without the editor (`PackBuilder`), so it cannot run a kind's `pack.images`. Its Java twin goes on the

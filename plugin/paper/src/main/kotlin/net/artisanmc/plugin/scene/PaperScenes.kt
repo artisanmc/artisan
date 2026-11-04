@@ -22,14 +22,15 @@ class PaperScenes(
     private val isBedrock: (Player) -> Boolean,
 ) : ScenesApi, Listener {
 
-    override fun supports(viewer: Player): Boolean = !isBedrock(viewer)
+    override fun support(viewer: Player): ScenesApi.Support =
+        if (isBedrock(viewer)) ScenesApi.Support.TEXT_ONLY else ScenesApi.Support.FULL
 
     override fun show(viewer: Player, scene: String, anchor: SceneAnchor, elements: List<SceneElement>, transitionTicks: Int) {
         require(NAME.matches(scene)) { "scene name must be <module>:<name> ([a-z0-9_.-]): $scene" }
         require(elements.size <= ScenesApi.MAX_ELEMENTS) { "scene $scene has ${elements.size} elements, at most ${ScenesApi.MAX_ELEMENTS}" }
         require(transitionTicks in 0..MAX_TRANSITION) { "transitionTicks must be 0..$MAX_TRANSITION: $transitionTicks" }
         if (!viewer.isOnline) return
-        book.show(viewer.uniqueId, scene, anchorOf(anchor), elements, transitionTicks)
+        book.show(viewer.uniqueId, scene, anchorOf(anchor), drawable(support(viewer), elements), transitionTicks)
     }
 
     override fun hide(viewer: Player, scene: String) = book.hide(viewer.uniqueId, scene)
@@ -59,6 +60,13 @@ class PaperScenes(
     companion object {
         const val MAX_TRANSITION = 200
         private val NAME = Regex("[a-z0-9_.-]+:[a-z0-9_./-]+")
+
+        /** What [support] draws of [elements]: a Bedrock client (Geyser) only shows text displays. */
+        internal fun drawable(support: ScenesApi.Support, elements: List<SceneElement>): List<SceneElement> = when (support) {
+            ScenesApi.Support.FULL -> elements
+            ScenesApi.Support.TEXT_ONLY -> elements.filterIsInstance<SceneElement.Text>()
+            ScenesApi.Support.NONE -> emptyList()
+        }
 
         internal fun anchorOf(anchor: SceneAnchor): Anchor = when (anchor) {
             is SceneAnchor.Point -> anchor.location().let { Anchor.Point(it.world.uid, it.x, it.y, it.z) }

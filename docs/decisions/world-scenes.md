@@ -1,7 +1,8 @@
 # Scenes — interfaces drawn in the world, for one player, with display entities
 
 **Status:** proposed (2026-11-04). Batch ① (engine, Paper backend, `api.getScenes()`) delivered
-as a prototype in the same PR, `@Beta`; batches ② to ⑤ to be accepted one by one.
+as a prototype in the same PR, `@Beta`, tried on the lobby on Java and Bedrock (2026-11-04);
+batches ② to ⑤ to be accepted one by one.
 
 ## Context
 
@@ -157,10 +158,15 @@ scenes.hide(player, "quests:marker");
 
 Records and sealed interfaces, Java, no Adventure type (MiniMessage strings as in the overlay),
 Bukkit types where the API already uses them (`Player`, `Entity`, `Location`, `ItemStack`,
-`BlockData`). `supports(player)` is false for a Bedrock player: Geyser translates a
-`TextDisplay` partly and item or block displays not at all, so a module falls back (chat,
-overlay, chest menu). The Bedrock renderings of §10 and §11 come with the Document kind: they need
-a scene described as data, not built in a module's code. `@Beta` until batch ② has used it from a Document.
+`BlockData`).
+
+**Bedrock: text only (Iban, 2026-11-04, tested on the lobby).** Geyser draws a `TextDisplay` as a
+floating name (no scale, rotation, background, line width nor animation) and draws nothing for an
+item or block display. `support(player)` says what a viewer gets: `FULL` on Java, `TEXT_ONLY` for
+a Bedrock player, for whom Artisan keeps the scene's text elements and leaves the others out. A
+quest marker made of text works on Bedrock as is; a scene that needs items, blocks or animation
+checks `supports(player)` (`FULL`) and falls back (chat, overlay, chest menu). `@Beta` until
+batch ② has used it from a Document.
 
 ### 8. A Scene Document kind, composed in the editor (batch ②)
 
@@ -281,14 +287,15 @@ on one client version, measured against Iris.
 
 Each batch is usable on its own.
 
-1. **Engine + API** (this PR): `SceneBook`, `EntityDisplayBackend`, `PaperScenes`,
+1. **Engine + API** (this PR, with text-only Bedrock): `SceneBook`, `EntityDisplayBackend`, `PaperScenes`,
    `api.getScenes()` `@Beta`, `/artisan scene-demo`. First real use: the quest markers
    above NPCs (ArtisanQuests).
 2. **Scene Document kind**: YAML, `show_scene`/`hide_scene`, slots, groups, end callback, editor
    composer.
 3. **Camera**: camera anchor, camera session (lock, vignette, zoom), cinematic conversations.
 4. **Inputs**: hitboxes, cursor, `scene_click`/`scene_hover` Game events; chest-less menus.
-5. **Screen HUD**: overlay slots for the boss bar and the sidebar (centred), then the `screen`
+5. **Screen HUD** (Iban, 2026-11-04: on Bedrock, HUDs go through the overlay, not scenes):
+   the overlay's Bedrock rendering (`hud_screen.json` fed like `BedrockTitle`), overlay slots for the boss bar and the sidebar (centred), then the `screen`
    anchor redrawn by a core shader (pinned to a corner).
 
 ## Consequences
@@ -297,7 +304,8 @@ Each batch is usable on its own.
   to clean up after it.
 - Per-viewer entities cost server memory and tracking: fine for markers and one-player UIs,
   measured before anything is shown to a crowd (a packet backend is the way out, §1).
-- The prototype has no Bedrock rendering; modules must keep a fallback.
+- Bedrock gets text only; a scene with items, blocks or animation needs a fallback until the
+  JSON UI renderings (§10, §11).
 - Open: Folia/Leaf threading of `showEntity` (§6); whether a display removed by someone else
   (`/kill @e`) should end its scene (today the scene stays shown with a missing element until
   the next show or hide).

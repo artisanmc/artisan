@@ -103,8 +103,8 @@ class ArtisanCommand(
      */
     private fun sceneDemo(player: org.bukkit.entity.Player) {
         val scenes = plugin.scenes
-        if (!scenes.supports(player)) {
-            player.sendMessage("scene-demo: this client does not draw display entities (Bedrock)")
+        if (scenes.support(player) == net.artisanmc.modules.api.scene.ScenesApi.Support.NONE) {
+            player.sendMessage("scene-demo: this client draws no scene")
             return
         }
         val target = player.getTargetEntity(16)
@@ -136,7 +136,7 @@ class ArtisanCommand(
             }
         }
         bob(0)
-        player.sendMessage("scene-demo: shown ${if (target != null) "above ${target.type.name.lowercase()}" else "ahead"} for 10 s")
+        player.sendMessage("scene-demo: shown ${if (target != null) "above ${target.type.name.lowercase()}" else "ahead"} for 10 s (${scenes.support(player).name.lowercase()})")
     }
 
     private fun net.artisanmc.modules.api.scene.SceneElement.Text.withScale(scale: Float) =

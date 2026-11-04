@@ -113,13 +113,13 @@ The Java twin of an editor kind's `pack.images` (SDK 1.13): the server calls it 
 
 | Member | Type | Since |
 |---|---|---|
-| `api.scene.ScenesApi` `@Beta` (`supports`, `show`, `hide`, `isShown`, `MAX_ELEMENTS`, `NONE`) | interface | 1.1.0 |
+| `api.scene.ScenesApi` `@Beta` (`support`, `supports`, `Support`, `show`, `hide`, `isShown`, `MAX_ELEMENTS`, `NONE`) | interface | 1.1.0 |
 | `api.scene.SceneAnchor` `@Beta` (`at`, `above`, `Point`, `OnEntity`) | sealed interface | 1.1.0 |
 | `api.scene.SceneElement` `@Beta` (`Text`, `Item`, `Block`, `Billboard`, `key`, `transform`) | sealed interface | 1.1.0 |
 | `api.scene.SceneTransform` `@Beta` (`offset`, `withScale`, `withYaw`, `ORIGIN`) | record | 1.1.0 |
 | `getScenes()` `@Beta` | `ScenesApi` | 1.1.0 |
 
-Interfaces drawn in the world for one player with display entities (ADR `world-scenes`). A module shows a named scene (`<module>:<name>`) to a viewer: elements (`Text` in MiniMessage, `Item`, `Block`), each with a key unique in the scene and a transform (offset in blocks, yaw, scale), around an anchor (`SceneAnchor.at(location)` or `above(entity, height)`, followed as it moves). Artisan owns the entities: hidden from everyone but the viewer, never saved with the chunk. Showing the scene again updates it in place: an element keeps its entity while its key and type stay, a changed transform is interpolated by the client over `transitionTicks` (0..200), a missing key is removed. Artisan ends a scene by itself when its viewer quits or changes world, when its anchor entity leaves the world, when its module's plugin disables and when Artisan stops. `supports(player)` is false for a Bedrock player: the module falls back. At most `MAX_ELEMENTS` (64) per scene. Detail: `modules.md`, "Scenes in the world".
+Interfaces drawn in the world for one player with display entities (ADR `world-scenes`). A module shows a named scene (`<module>:<name>`) to a viewer: elements (`Text` in MiniMessage, `Item`, `Block`), each with a key unique in the scene and a transform (offset in blocks, yaw, scale), around an anchor (`SceneAnchor.at(location)` or `above(entity, height)`, followed as it moves). Artisan owns the entities: hidden from everyone but the viewer, never saved with the chunk. Showing the scene again updates it in place: an element keeps its entity while its key and type stay, a changed transform is interpolated by the client over `transitionTicks` (0..200), a missing key is removed. Artisan ends a scene by itself when its viewer quits or changes world, when its anchor entity leaves the world, when its module's plugin disables and when Artisan stops. `support(player)` is `FULL` on Java and `TEXT_ONLY` for a Bedrock player (Geyser draws a text display as a floating name, no item or block display): Artisan keeps only the text elements for that viewer; `supports(player)` (`FULL`) tells a module whose scene needs more to fall back. At most `MAX_ELEMENTS` (64) per scene. Detail: `modules.md`, "Scenes in the world".
 
 ## Stable APIs
 
