@@ -144,6 +144,10 @@ open class ArtisanPlugin : JavaPlugin() {
     /** Set when this server cannot run Artisan: [onEnable] disables it, [onDisable] has nothing to stop. */
     private var unsupported = false
 
+    override fun onLoad() {
+        LogPrefix.install(logger)
+    }
+
     override fun onEnable() {
         val version = net.artisanmc.plugin.platform.ServerPlatform.minecraftVersion(server)
         if (net.artisanmc.plugin.platform.ServerPlatform.obfuscated(net.artisanmc.plugin.platform.ServerPlatform.paper, version)) {
