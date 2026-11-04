@@ -79,7 +79,9 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     // Keyed by the folder name: the plugin names a menu's Project that way.
     if (input.bedrock)
       bedrockMenus.push(...bedrockMenusFromProject(project.folder ?? project.id, files));
-    const fromDisk: DiskAsset[] = diskAssetsFromTree(project.id, files, project.binaries);
+    const fromDisk: DiskAsset[] = diskAssetsFromTree(project.id, files, project.binaries, {
+      originals: true,
+    });
 
     contribs.push({
       projectId: project.id,

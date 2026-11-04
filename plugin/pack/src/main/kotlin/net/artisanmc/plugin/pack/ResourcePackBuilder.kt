@@ -84,7 +84,7 @@ object ResourcePackBuilder {
             transparent += MenuReaders.transparentContainers(files)
             // Keyed by the folder name: the plugin names a menu's Project that way.
             if (input.bedrockServerId != null) bedrockMenus += BedrockMenus.fromProject(project.folder, files)
-            val fromDisk = DiskAssets.fromTree(project.id, files, project.binaries)
+            val fromDisk = DiskAssets.fromTree(project.id, files, project.binaries, originals = true)
             contribs += project.id to fromDisk
                 .filter { it.row.type == "glyph" && it.row.codepoint != null }
                 .map { it.row.id to it.row.codepoint!! }

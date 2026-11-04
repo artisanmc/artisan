@@ -1316,6 +1316,85 @@
       "textYFonts": 1072,
       "textUpFonts": 129,
       "sha1": "9725dfa63eb80724180e7942e8d4e3b955f698d4"
+    },
+    {
+      "name": "originals: the module's assets from originals/assets/, the owner's file winning name for name",
+      "projects": [
+        {
+          "id": "u-local.conversations",
+          "files": {
+            "originals/assets/textures/hud.yml": "width: 0\n",
+            "originals/assets/textures/frame.yml": "width: 0\n",
+            "assets/textures/frame.yaml": "width: 0\n"
+          },
+          "binaries": {
+            "originals/assets/textures/hud.png": "iVBORw0KGgoAAAANSUhEUgAAASwAAAAUCAYAAAA3IwABAAAAaUlEQVR42u3coQ0AIAxFwQ6BRqMZgiGYmK0gbIAhhOSanKt+8kfJaQK8FKe3n3urA+AFwQIEC0CwAMESLECwAAQLECzBAgQLQLAAwRIsQLAABAsQLMECBAtAsADBEixAsABuBAvgh4nkBdzqrraq/1WXAAAAAElFTkSuQmCC",
+            "originals/assets/textures/frame.png": "iVBORw0KGgoAAAANSUhEUgAAASwAAAAUCAYAAAA3IwABAAAAaUlEQVR42u3coQ0AIAxFwQ6BRqMZgiGYmK0gbIAhhOSanKt+8kfJaQK8FKe3n3urA+AFwQIEC0CwAMESLECwAAQLECzBAgQLQLAAwRIsQLAABAsQLMECBAtAsADBEixAsABuBAvgh4nkBdzqrraq/1WXAAAAAElFTkSuQmCC",
+            "assets/textures/frame.png": "iVBORw0KGgoAAAANSUhEUgAAAAYAAAAJCAYAAAARml2dAAAAHklEQVR42mNgoBh8eHbiPwhjCMAl0AUI6yBoB9EAAK+UQQts/KsoAAAAAElFTkSuQmCC"
+          },
+          "overlayImages": [
+            {
+              "asset": "hud",
+              "rise": 10
+            },
+            {
+              "asset": "frame",
+              "rise": 20
+            }
+          ]
+        }
+      ],
+      "containerTextures": {},
+      "vanillaGui": false,
+      "entries": [
+        "assets/artisan/asset-index.json",
+        "assets/artisan/font/default.json",
+        "assets/artisan/font/overlay/78cf4842afe41dcb96be60c73489b311db583418c3c4e98f4f1dea3fc42995ad_10.json",
+        "assets/artisan/font/overlay/9dff50df08c635815f4b19da10f756605a34a79a48d4ba48712782502975a70e_20.json",
+        "assets/artisan/font/vanilla_gui.json",
+        "assets/artisan/textures/font/accented_up.png",
+        "assets/artisan/textures/font/ascii_up.png",
+        "assets/artisan/textures/font/nonlatin_european_up.png",
+        "assets/artisan/textures/gui/dispenser.png",
+        "assets/artisan/textures/gui/generic_9x1.png",
+        "assets/artisan/textures/gui/generic_9x2.png",
+        "assets/artisan/textures/gui/generic_9x3.png",
+        "assets/artisan/textures/gui/generic_9x4.png",
+        "assets/artisan/textures/gui/generic_9x5.png",
+        "assets/artisan/textures/gui/generic_9x6.png",
+        "assets/artisan/textures/gui/hopper.png",
+        "assets/artisan/textures/overlay/78cf4842afe41dcb96be60c73489b311db583418c3c4e98f4f1dea3fc42995ad_10_0.png",
+        "assets/artisan/textures/overlay/78cf4842afe41dcb96be60c73489b311db583418c3c4e98f4f1dea3fc42995ad_10_1.png",
+        "assets/artisan/textures/overlay/9dff50df08c635815f4b19da10f756605a34a79a48d4ba48712782502975a70e_20_0.png",
+        "pack.mcmeta",
+        "pack.png"
+      ],
+      "textYFonts": 1072,
+      "textUpFonts": 129,
+      "sha1": "f65299575e4b705ac7bbb5067473a82e6e303d86",
+      "entryHashes": {
+        "assets/artisan/asset-index.json": "72ddb3d810deb18efa80ff1dafcd9485c6df45f09e44a4619b5d56d29f654dba",
+        "assets/artisan/font/default.json": "3c35a70ee671afbb22c13e41b4c695e7c46f60b393d787d789c1c6f99bcac91f",
+        "assets/artisan/font/overlay/78cf4842afe41dcb96be60c73489b311db583418c3c4e98f4f1dea3fc42995ad_10.json": "04b42a8c9b0007281cbeca4212f50d40721e8bd5b668011a0c8c7b6a6ad83d00",
+        "assets/artisan/font/overlay/9dff50df08c635815f4b19da10f756605a34a79a48d4ba48712782502975a70e_20.json": "018a720197d301b1814bdcd2472b4d5f5d342f817e7e43e64cd5055624ae61d8",
+        "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
+        "assets/artisan/textures/font/accented_up.png": "00615ae046e35e18b8cc07eb97b750f4228b66db2ee2658f5311b93bb46aab08",
+        "assets/artisan/textures/font/ascii_up.png": "f15b11eb5088fffe26be53f613ce3b186313847dc7a468fe91e95cb3af59f6c4",
+        "assets/artisan/textures/font/nonlatin_european_up.png": "ac34c8eb477c012101f587847cc74843be4df9287839502111535169584e222c",
+        "assets/artisan/textures/gui/dispenser.png": "437f4c4c7cc98af96577d01a62aba607cf999bdc6ad032fa6cdf6ad47f44b718",
+        "assets/artisan/textures/gui/generic_9x1.png": "898d282a843d306f23652f10f78e8bf765f25d5095f60e8cab8db8543b2fee02",
+        "assets/artisan/textures/gui/generic_9x2.png": "fcb46d8c1adfb5c510e2f6560a037854c580e74059a57525bfd56b81f5a21a19",
+        "assets/artisan/textures/gui/generic_9x3.png": "6a5e5e3951556e6b87c73bf26096997afe63dd6da00116c97bbb2782e0a77da0",
+        "assets/artisan/textures/gui/generic_9x4.png": "bcb32b11964ab9aac32c6b8711618b94918461a73ffee7b9dc3f0073931337ef",
+        "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
+        "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
+        "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/artisan/textures/overlay/78cf4842afe41dcb96be60c73489b311db583418c3c4e98f4f1dea3fc42995ad_10_0.png": "8dfb5a55d07b70223653ee34e87d24f0b6d443e3e2ee71d4cc17cea2dc77d529",
+        "assets/artisan/textures/overlay/78cf4842afe41dcb96be60c73489b311db583418c3c4e98f4f1dea3fc42995ad_10_1.png": "57c25e4e11f9244a58ab02ccf3b7b96f8c71e708627dd86cdca6051e94de60de",
+        "assets/artisan/textures/overlay/9dff50df08c635815f4b19da10f756605a34a79a48d4ba48712782502975a70e_20_0.png": "5804b77d14097e8b57ddf372b3b59d1c7bf46d9c3a52bb034b9a2d822ddcaa51",
+        "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
+        "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
+      }
     }
   ]
 }
