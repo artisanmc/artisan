@@ -1,6 +1,5 @@
-import { Spinner } from "@/components/ui/spinner";
 import { DeployReviewDialog } from "@/features/project/DeployReviewDialog";
-import { Composer, EventLine } from "@/features/project/assistant/AssistantPanel";
+import { Composer, EventLine, LiveLines } from "@/features/project/assistant/AssistantPanel";
 import {
   setCurrentConversation,
   useAiStatus,
@@ -15,7 +14,8 @@ import { useParams } from "@tanstack/react-router";
 import { MessageSquarePlus, Play, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArtifactCard } from "./ArtifactCard";
+import { liveWrites } from "@/lib/aiLive";
+import { ArtifactCard, LiveArtifactCard } from "./ArtifactCard";
 import { artifactsOf, conversationDrafts, draftVersions } from "./artifacts";
 
 const ROUTE = "/servers/$serverId/assistant" as const;
@@ -31,7 +31,7 @@ export function AssistantPage() {
   const { t } = useTranslation();
   const { serverId } = useParams({ from: ROUTE });
   const status = useAiStatus();
-  const { id, events, running, failure, send, reset } = useAssistant({ server: serverId });
+  const { id, events, live, running, failure, send, reset } = useAssistant({ server: serverId });
   // A module the assistant created joins the listing: its cards name it and show its menus.
   const created = events.filter(
     (e) => e.type === "tool" && e.name === "create_module" && e.ok,
@@ -44,9 +44,10 @@ export function AssistantPage() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on each new line.
   useEffect(() => {
     end.current?.scrollIntoView?.({ block: "end" });
-  }, [events.length, running]);
+  }, [events.length, running, live?.text?.length, live?.tools?.length]);
 
   const artifacts = useMemo(() => artifactsOf(events), [events]);
+  const writing = useMemo(() => liveWrites(live?.tools), [live]);
   const versions = useMemo(() => draftVersions(events), [events]);
   const drafts = useMemo(() => conversationDrafts(events), [events]);
 
@@ -141,12 +142,7 @@ export function AssistantPage() {
           {events.map((event) => (
             <EventLine key={event.seq} event={event} />
           ))}
-          {running && (
-            <div className="flex items-center gap-2 text-[13px] text-[var(--text-mut)]">
-              <Spinner className="size-3.5" />
-              {t("ai.working")}
-            </div>
-          )}
+          {running && <LiveLines live={live} />}
           {drafts.length > 0 && !running && (
             <button
               type="button"
@@ -174,7 +170,10 @@ export function AssistantPage() {
         className="flex min-h-0 w-[min(46%,720px)] shrink-0 flex-col gap-3 overflow-y-auto border-l border-[var(--border-soft)] p-3 max-lg:w-full max-lg:border-l-0 max-lg:border-t"
       >
         <h2 className="eyebrow text-[var(--text-mut)]">{t("ai.page.files")}</h2>
-        {artifacts.length === 0 ? (
+        {writing.map((write) => (
+          <LiveArtifactCard key={write.id} write={write} projects={projects} />
+        ))}
+        {artifacts.length === 0 && writing.length === 0 ? (
           <p className="text-[12.5px] text-[var(--text-faint)]">{t("ai.page.noFiles")}</p>
         ) : (
           artifacts.map((artifact) => (

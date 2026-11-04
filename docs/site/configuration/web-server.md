@@ -218,6 +218,8 @@ want (a menu, a command, a change to a dialog), and the assistant does it in a d
   missing ones" for the whole module. The model fills the empty languages from the default one;
   the result changes your module like typing would, so you review it and deploy as usual. A
   translation that loses a placeholder such as `{player}` is not written.
+- The answer shows as the model writes it, and the Assistant tab shows each file while it is
+  being written, before the server checks it.
 - **Files**: the paperclip under the message box attaches up to 5 files to a message, from your
   computer or from the server's modules (a module, then its text files and images); you can also
   drop or paste them. The model sees images (a screenshot, a texture, up to 3.7 MB) and PDFs (up to

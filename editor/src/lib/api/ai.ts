@@ -64,8 +64,23 @@ export type AiEvent =
   | { seq: number; type: "error"; code: string }
   | { seq: number; type: "done"; inputTokens: number; outputTokens: number };
 
+/** A tool call the model is writing, or that runs: its input as raw JSON written so far. */
+export interface AiLiveTool {
+  id: string;
+  name: string;
+  input: string;
+}
+
+/** What the model is writing while a turn runs, after the events: never an event itself. */
+export interface AiLive {
+  text?: string;
+  tools?: AiLiveTool[];
+}
+
 export interface AiConversation extends AiConversationSummary {
   events: AiEvent[];
+  /** Null or absent: nothing being written. */
+  live?: AiLive | null;
 }
 
 const STATUS = "/api/v1/ai";

@@ -207,6 +207,48 @@ describe("the Assistant tab", () => {
     expect(api.readDraft).toHaveBeenCalledWith("u-local.shop", "d1");
   });
 
+  it("shows the text and the file the model is writing, then the file once written", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api.readAiConversation.mockResolvedValueOnce({
+      ...summary("c1", null),
+      running: true,
+      events: [{ seq: 0, type: "user", text: "Une boutique" }],
+      live: {
+        text: "Je crée la commande",
+        tools: [
+          {
+            id: "t1",
+            name: "write_document",
+            input:
+              '{"project":"u-local.shop","path":"commands/shop.yml","content":"name: shop\\nali',
+          },
+        ],
+      },
+    });
+    render(<AssistantPage />);
+    fireEvent.change(screen.getByLabelText("Demande à l’assistant…"), {
+      target: { value: "Une boutique" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+    expect(await screen.findByText("Je crée la commande")).toBeTruthy();
+    const card = await screen.findByTestId("assistant-live-artifact");
+    expect(card.getAttribute("aria-label")).toBe("Écrit commands/shop.yml");
+    expect(within(card).getByText("Store ·", { exact: false })).toBeTruthy();
+    expect(card.querySelector("pre")?.textContent).toBe("name: shop\nali");
+    expect(screen.getByText("Écrit commands/shop.yml")).toBeTruthy();
+    expect(screen.getByText("2 lignes")).toBeTruthy();
+
+    // The next read has the turn done: the live card gives way to the file's own.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(await screen.findByText("C’est prêt.")).toBeTruthy();
+    expect(screen.queryByTestId("assistant-live-artifact")).toBeNull();
+    expect(screen.queryByTestId("assistant-live")).toBeNull();
+    expect(await screen.findByRole("article", { name: "Store · commands/shop.yml" })).toBeTruthy();
+    vi.useRealTimers();
+  });
+
   it("shows a menu it wrote as the game would, and as YAML against the server", async () => {
     api.readAiConversation.mockResolvedValue({
       ...summary("c1", null),
