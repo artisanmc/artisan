@@ -157,7 +157,8 @@ function backgroundElement(menu: BedrockMenu, height: number): Record<string, un
       type: "image",
       texture: backgroundTexture(menu),
       size: [WIDTH, height],
-      offset: [0, BEDROCK_Y],
+      // Composed from the panel's top, `BEDROCK_Y` px above the Java layout.
+      offset: [0, 0],
       anchor_from: "top_left",
       anchor_to: "top_left",
       layer: LAYER_BACKGROUND,

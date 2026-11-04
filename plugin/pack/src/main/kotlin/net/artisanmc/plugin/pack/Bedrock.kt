@@ -313,7 +313,7 @@ internal object BedrockMenus {
 
 /** `ui/chest_screen.json` (`bedrockUi.ts`): the vanilla chest screen, changed through JSON UI `modifications`. */
 internal object BedrockUi {
-    private const val BEDROCK_Y = 4
+    const val BEDROCK_Y = 4
     private const val GRID_X = 7
     private const val GRID_Y = 21
     private const val CELL = 18
@@ -403,7 +403,8 @@ internal object BedrockUi {
             "type" to "image",
             "texture" to backgroundTexture(menu),
             "size" to listOf(WIDTH, height),
-            "offset" to listOf(0, BEDROCK_Y),
+            // Composed from the panel's top, BEDROCK_Y px above the Java layout.
+            "offset" to listOf(0, 0),
             "anchor_from" to "top_left",
             "anchor_to" to "top_left",
             "layer" to LAYER_BACKGROUND,
@@ -559,11 +560,15 @@ internal object BedrockPack {
         val src = Png.decode(texture)
         val k = scaleOf(src)
         val own = TITLE_H + rows * ROW_H
-        val h = TITLE_H + BedrockUi.panelRows(rows) * ROW_H
+        // From the top of the Bedrock panel: the texture's top border, then its first grey row
+        // repeated BEDROCK_Y times, so the Bedrock frame does not show above (as chestTop in bedrockPack.ts).
+        val pad = BedrockUi.BEDROCK_Y
+        val h = pad + TITLE_H + BedrockUi.panelRows(rows) * ROW_H
         val out = RgbaImage(WIDTH, h)
         // Nearest-neighbour down to the pack's pixel grid when the texture is HD.
         for (y in 0 until h) {
-            val sy = (if (y < own) y else FILL_Y) * k
+            val ly = if (y < pad) y else if (y < 2 * pad) pad else y - pad
+            val sy = (if (ly < own) ly else FILL_Y) * k
             for (x in 0 until WIDTH) System.arraycopy(src.data, (sy * src.width + x * k) * 4, out.data, (y * WIDTH + x) * 4, 4)
         }
         return out
@@ -588,10 +593,11 @@ internal object BedrockPack {
     private fun composeBackground(menu: BedrockMenu, pngs: Map<String, ByteArray>, assets: List<AssetRow>, chest: ByteArray): RgbaImage {
         val layers = placedImages(menu, pngs, assets)
         val top = if (menu.transparent) null else chestTop(chest, menu.rows)
-        val height = maxOf(1, top?.height ?: 0, layers.maxOfOrNull { it.y + it.image.height } ?: 0)
+        val pad = BedrockUi.BEDROCK_Y
+        val height = maxOf(1, top?.height ?: 0, layers.maxOfOrNull { pad + it.y + it.image.height } ?: 0)
         val out = RgbaImage(WIDTH, height)
         if (top != null) Png.bitblt(top, out, 0, 0, top.width, top.height, 0, 0)
-        for (l in layers) blend(l.image, out, l.x, l.y)
+        for (l in layers) blend(l.image, out, l.x, pad + l.y)
         return out
     }
 

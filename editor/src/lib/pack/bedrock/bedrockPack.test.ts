@@ -267,23 +267,31 @@ describe("buildBedrockPack", () => {
     const shop = menus[0] as BedrockMenu;
     const info = menus[1] as BedrockMenu;
     const shopBg = decodePng(out[`${backgroundTexture(shop)}.png`] as Uint8Array);
-    // The frame (ascent 13 → y 0, 100 tall) then the coin at (100, 40).
-    expect([shopBg.width, shopBg.height]).toEqual([176, 100]);
-    expect([...shopBg.data.subarray(0, 4)]).toEqual([0, 0, 255, 255]);
-    expect([...shopBg.data.subarray((40 * 176 + 100) * 4, (40 * 176 + 100) * 4 + 4)]).toEqual([
+    // From the Bedrock panel's top, 4 px above the Java layout: the frame (ascent 13 →
+    // y 0, 100 tall) then the coin at (100, 40), both 4 px lower.
+    expect([shopBg.width, shopBg.height]).toEqual([176, 104]);
+    expect([...shopBg.data.subarray(4 * 176 * 4, 4 * 176 * 4 + 4)]).toEqual([0, 0, 255, 255]);
+    expect([...shopBg.data.subarray((44 * 176 + 100) * 4, (44 * 176 + 100) * 4 + 4)]).toEqual([
       255, 255, 0, 255,
     ]);
     const infoBg = decodePng(out[`${backgroundTexture(info)}.png`] as Uint8Array);
-    expect([infoBg.width, infoBg.height]).toEqual([176, 17 + 3 * 18]);
+    expect([infoBg.width, infoBg.height]).toEqual([176, 4 + 17 + 3 * 18]);
     // The window corner is transparent; the title bar is not.
     expect(infoBg.data[(10 * 176 + 10) * 4 + 3]).toBe(255);
     // 4 rows open on the 6-row screen: the background covers its top half, the two
     // rows Geyser pads with drawn from the texture's plain band (row 126).
     const four = menus[2] as BedrockMenu;
     const fourBg = decodePng(out[`${backgroundTexture(four)}.png`] as Uint8Array);
-    expect([fourBg.width, fourBg.height]).toEqual([176, 17 + 6 * 18]);
+    expect([fourBg.width, fourBg.height]).toEqual([176, 4 + 17 + 6 * 18]);
     const texture = decodePng(chest);
-    for (const y of [17 + 4 * 18, 17 + 6 * 18 - 1])
+    const row = (img: typeof texture, y: number) => [
+      ...img.data.subarray(y * img.width * 4, (y * img.width + 176) * 4),
+    ];
+    // The 4 px on top: the texture's border (rows 0-3), then row 4 again before the rest.
+    for (const y of [0, 3]) expect(row(fourBg, y)).toEqual(row(texture, y));
+    for (const y of [4, 7, 8]) expect(row(fourBg, y)).toEqual(row(texture, 4));
+    expect(row(fourBg, 4 + 20)).toEqual(row(texture, 20));
+    for (const y of [4 + 17 + 4 * 18, 4 + 17 + 6 * 18 - 1])
       expect([...fourBg.data.subarray(y * 176 * 4, (y + 1) * 176 * 4)]).toEqual([
         ...texture.data.subarray(126 * texture.width * 4, (126 * texture.width + 176) * 4),
       ]);
@@ -334,8 +342,8 @@ describe("buildBedrockPack", () => {
     expect(grid4.grid_dimensions).toEqual([9, 4]);
     expect(String(grid4.visible)).toContain(`'${BEDROCK_MARKER}${(menus[2] as BedrockMenu).key}'`);
     const bg = inserted[`artisan_${k}_bg`] as Record<string, unknown>;
-    expect(bg.offset).toEqual([0, 4]);
-    expect(bg.size).toEqual([176, 100]);
+    expect(bg.offset).toEqual([0, 0]);
+    expect(bg.size).toEqual([176, 104]);
     expect(bg.visible).toBe(
       `(not (($artisan_title - '${BEDROCK_MARKER}${shop.key}') = $artisan_title))`,
     );
