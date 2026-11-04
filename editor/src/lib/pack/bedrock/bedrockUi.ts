@@ -51,10 +51,6 @@ function contains(text: string): string {
   return `(not ((${T} - '${text}') = ${T}))`;
 }
 
-function anyOf(conditions: string[]): string {
-  return conditions.length === 1 ? (conditions[0] as string) : `(${conditions.join(" or ")})`;
-}
-
 /** The `$artisan_title` binding and the visibility every element carries. */
 function when(condition: string): Record<string, unknown> {
   return { [T]: "$container_title", visible: condition };
@@ -225,13 +221,6 @@ function textElements(menu: BedrockMenu): Record<string, unknown>[] {
   );
 }
 
-/** The row counts of `menus`, ascending, the screen's own first. */
-function gridRows(menus: BedrockMenu[]): number[] {
-  const all = [...new Set(menus.map((m) => m.rows))].sort((a, b) => a - b);
-  const full = all.filter((r) => r === panelRows(r));
-  return [...full, ...all.filter((r) => r !== panelRows(r))];
-}
-
 /**
  * The screen file. `backgroundHeight(menu)` is the pixel height of the
  * composed background, `buttonKey` the texture name of a button image.
@@ -264,26 +253,19 @@ export function buildChestScreen(
       operation: "insert_back",
       value: [
         ...here.map((menu) => backgroundElement(menu, backgroundHeight(menu))),
-        ...gridRows(here).map((own) =>
-          own === rows
-            ? {
-                [`artisan_chest_grid@chest.${panel}_chest_grid`]: {
-                  offset: [GRID_X, GRID_Y],
-                  grid_item_template: "chest.artisan_grid_item",
-                  layer: LAYER_GRID,
-                  ...when(anyOf(here.filter((m) => m.rows === own).map(hasKey))),
-                },
-              }
-            : {
-                [`artisan_chest_grid_${own}@chest.${panel}_chest_grid`]: {
-                  offset: [GRID_X, GRID_Y],
-                  grid_dimensions: [9, own],
-                  grid_item_template: "chest.artisan_grid_item",
-                  layer: LAYER_GRID,
-                  ...when(anyOf(here.filter((m) => m.rows === own).map(hasKey))),
-                },
-              },
-        ),
+        // One slot grid per menu, shown by its own key alone: grids shared by every menu
+        // of a row count, shown by a long `or` of keys, drew no item for some menus in game.
+        // A chest of fewer rows than its screen gets a grid of its own rows only: the slots
+        // Geyser pads it with stay under the background.
+        ...here.map((menu) => ({
+          [`${id(menu, "grid")}@chest.${panel}_chest_grid`]: {
+            offset: [GRID_X, GRID_Y],
+            ...(menu.rows === rows ? {} : { grid_dimensions: [9, menu.rows] }),
+            grid_item_template: "chest.artisan_grid_item",
+            layer: LAYER_GRID,
+            ...when(hasKey(menu)),
+          },
+        })),
         ...here.flatMap((menu) => buttonElements(menu, (b, s) => buttonKey(menu, b, s))),
         ...here.flatMap(textElements),
       ],

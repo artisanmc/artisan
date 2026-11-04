@@ -322,25 +322,25 @@ describe("buildBedrockPack", () => {
     expect(names).toEqual([
       `artisan_${k}_bg`,
       `artisan_${k4}_bg`,
-      "artisan_chest_grid@chest.large_chest_grid",
-      "artisan_chest_grid_4@chest.large_chest_grid",
+      `artisan_${k}_grid@chest.large_chest_grid`,
+      `artisan_${k4}_grid@chest.large_chest_grid`,
       `artisan_${k}_b0_0`,
       `artisan_${k}_b0_2`,
       ...LEAD_CANDIDATES.map((lead) => `artisan_${k}_t0_${lead}`),
       ...LEAD_CANDIDATES.map((lead) => `artisan_${k}_t1_${lead}`),
     ]);
     // Each grid shows only its menus' rows: the slots Geyser pads a 4-row chest with stay hidden.
-    const grid = inserted["artisan_chest_grid@chest.large_chest_grid"] as Record<string, unknown>;
+    // One grid per menu, shown by its own key alone.
+    const grid = inserted[`artisan_${k}_grid@chest.large_chest_grid`] as Record<string, unknown>;
     expect(grid.grid_dimensions).toBeUndefined();
     expect(grid.visible).toBe(
       `(not (($artisan_title - '${BEDROCK_MARKER}${shop.key}') = $artisan_title))`,
     );
-    const grid4 = inserted["artisan_chest_grid_4@chest.large_chest_grid"] as Record<
-      string,
-      unknown
-    >;
+    const grid4 = inserted[`artisan_${k4}_grid@chest.large_chest_grid`] as Record<string, unknown>;
     expect(grid4.grid_dimensions).toEqual([9, 4]);
-    expect(String(grid4.visible)).toContain(`'${BEDROCK_MARKER}${(menus[2] as BedrockMenu).key}'`);
+    expect(grid4.visible).toBe(
+      `(not (($artisan_title - '${BEDROCK_MARKER}${(menus[2] as BedrockMenu).key}') = $artisan_title))`,
+    );
     const bg = inserted[`artisan_${k}_bg`] as Record<string, unknown>;
     expect(bg.offset).toEqual([0, 0]);
     expect(bg.size).toEqual([176, 104]);

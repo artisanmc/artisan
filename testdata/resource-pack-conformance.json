@@ -153,14 +153,14 @@
         ],
         "entryHashes": {
           "font/glyph_F8.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
-          "manifest.json": "7172028f3f271b222b100b53d95d9944b99292917a94c5cb494cb3d4843030d0",
+          "manifest.json": "1afd997dc9605a895d72f012a49dcd706fd8350424d2ebb1cabeaee28563b76c",
           "textures/artisan/m/672a67d229c542f2.png": "3c1cb0a741ff8c068dedaae46e47f939fe6791355e1d6555e6b704b6b5d34283",
           "textures/artisan/m/7cd4340a7b11500a.png": "619d7e11dae36505800298444d632beecb4adea89e2f2f41f61aa43158852bd6",
           "textures/item_texture.json": "e92840b8dfe4a3742dbbe6928e287b39be6b80fe187a3874f4dd2373406e23c5",
           "textures/items/artisan_hit_area.png": "c1ccd6abeb4908889bd726ab86450635b7898607cd6fcbc20c37c5e5607455de",
-          "ui/chest_screen.json": "5f3be9cbe92ddd804524d8471a8af0dbf592320d77ada747a1af0ebd0176594f"
+          "ui/chest_screen.json": "29fde3dfd8b7a162008208abe1af8fad1f2efee78edaaa0c44ac78db693c776c"
         },
-        "sha1": "321e4aa38833024cadba3452aefa1d30b87d1a9c"
+        "sha1": "f5d446ead303931bdcc3d7e325af0079674af505"
       }
     },
     {
@@ -340,13 +340,13 @@
         ],
         "entryHashes": {
           "font/glyph_F8.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
-          "manifest.json": "74942bfa9f1ba4ef6b7f1a1d0df60a4aaaaff22270273b0dfd6acbaf02a24cf1",
+          "manifest.json": "cf0469916be393c06782c231765f780ae044b1a74bbf5d753bab28c2e3b8da9d",
           "textures/artisan/m/065414d103bc0d92.png": "c5a2daba35ea0888f9341dd02e554c9170e00040595be667c5177385599ea5c0",
           "textures/item_texture.json": "e92840b8dfe4a3742dbbe6928e287b39be6b80fe187a3874f4dd2373406e23c5",
           "textures/items/artisan_hit_area.png": "c1ccd6abeb4908889bd726ab86450635b7898607cd6fcbc20c37c5e5607455de",
-          "ui/chest_screen.json": "5341aad331e59116b50ddce488f16fa7545ebd104be87a2d8554a7edbf83e177"
+          "ui/chest_screen.json": "8ef5a7601bf01edb20ac1479a65b6cc526a3d20cebbf17cb402a82c3c3262be7"
         },
-        "sha1": "75feac148b79a050c30b07b4221eeeec49349721"
+        "sha1": "042b72b2fccdc78ac69da60c8942942141a4253d"
       }
     },
     {
@@ -661,7 +661,7 @@
         ],
         "entryHashes": {
           "font/glyph_F8.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
-          "manifest.json": "40005f0249e6776e687ecb14b9caae0ae9f9494c732d83fbbda24bcbd5ef1d87",
+          "manifest.json": "33164d901a8f237cb50e3bd0355bd3af45b7c56e84a3488a71ab94c5bd5416e5",
           "textures/artisan/b/25fbf94015681ba6.png": "b48ba7a73ca1b98633504fdcd2e47e35f882e396916833638108cbbefc62640b",
           "textures/artisan/b/2749bd31641c6a50.png": "a9bf45d0315102a59092c755a9b2af7712f2e3285f8b4aacb43742fd6ca730e6",
           "textures/artisan/b/2d07a2a14dca56be.png": "34b4222d54289fca70484028860a56f6ac77860308d2985ede4b3f9ec5ef77f6",
@@ -672,9 +672,9 @@
           "textures/artisan/m/f24cafec2cb0f966.png": "95707a872720c1af42965c6cac28fb011c04428bd666a41c96702fcbbfddb443",
           "textures/item_texture.json": "e92840b8dfe4a3742dbbe6928e287b39be6b80fe187a3874f4dd2373406e23c5",
           "textures/items/artisan_hit_area.png": "c1ccd6abeb4908889bd726ab86450635b7898607cd6fcbc20c37c5e5607455de",
-          "ui/chest_screen.json": "e17c2f6a208e222136c6144fb59467e66c3d04b03ec7f15e2f2e651bce45a673"
+          "ui/chest_screen.json": "ec8d6fabaecc59e41e28a28bf2e168937c3e82423abed4a824defce88f029e10"
         },
-        "sha1": "bce529b69d4e98f7d20d1dbd19664a60b6e06299"
+        "sha1": "c7aa93b787561f79df62659b6a4902e91c6a3fee"
       },
       "entries": [
         "assets/artisan/asset-index.json",
@@ -803,7 +803,7 @@
         ],
         "entryHashes": {
           "font/glyph_F8.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
-          "manifest.json": "451aa360fed3a5cb18106cda64313c86ea932fb441c27dabcb4ec0b25376b4e5",
+          "manifest.json": "b4002fb3644af757c7aaab79a829a449e828d4ab2fedffeb405237ea2614ec03",
           "textures/artisan/b/2d07a2a14dca56be.png": "34b4222d54289fca70484028860a56f6ac77860308d2985ede4b3f9ec5ef77f6",
           "textures/artisan/b/5045c6b48ff8773d.png": "3f6ed6055261f2880cd5d898b64458e9d648f10a6255891d6882b1265dde1c61",
           "textures/artisan/b/d407216355a26de5.png": "c7bfd548729ceffcbb733dc9be2badf36f942f54a20491df8606a5308720d136",
@@ -815,9 +815,9 @@
           "textures/artisan/m/729e6f23592230fe.png": "c5f385ac8b77eb46e75dda1cc0bb4d67a4af25cb7ad8e0e51f3e886734f633ad",
           "textures/item_texture.json": "e92840b8dfe4a3742dbbe6928e287b39be6b80fe187a3874f4dd2373406e23c5",
           "textures/items/artisan_hit_area.png": "c1ccd6abeb4908889bd726ab86450635b7898607cd6fcbc20c37c5e5607455de",
-          "ui/chest_screen.json": "051febf8269b2af46fc98fc1b5572320f2272ffd15d685267170a6313970da02"
+          "ui/chest_screen.json": "ffdb269462c661f73fd76a87e330c7eaa2e6ce962414412ec37bdb7b0c058f4a"
         },
-        "sha1": "b259ce3efb00cd0d31f39abefe240160d26388b1"
+        "sha1": "8a97990b24b44360bc6dbf2adae39ad3cb886ee2"
       },
       "entries": [
         "assets/artisan/asset-index.json",
@@ -946,7 +946,7 @@
         ],
         "entryHashes": {
           "font/glyph_F8.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
-          "manifest.json": "451aa360fed3a5cb18106cda64313c86ea932fb441c27dabcb4ec0b25376b4e5",
+          "manifest.json": "b4002fb3644af757c7aaab79a829a449e828d4ab2fedffeb405237ea2614ec03",
           "textures/artisan/b/2d07a2a14dca56be.png": "34b4222d54289fca70484028860a56f6ac77860308d2985ede4b3f9ec5ef77f6",
           "textures/artisan/b/5045c6b48ff8773d.png": "3f6ed6055261f2880cd5d898b64458e9d648f10a6255891d6882b1265dde1c61",
           "textures/artisan/b/d407216355a26de5.png": "c7bfd548729ceffcbb733dc9be2badf36f942f54a20491df8606a5308720d136",
@@ -958,9 +958,9 @@
           "textures/artisan/m/729e6f23592230fe.png": "c5f385ac8b77eb46e75dda1cc0bb4d67a4af25cb7ad8e0e51f3e886734f633ad",
           "textures/item_texture.json": "e92840b8dfe4a3742dbbe6928e287b39be6b80fe187a3874f4dd2373406e23c5",
           "textures/items/artisan_hit_area.png": "c1ccd6abeb4908889bd726ab86450635b7898607cd6fcbc20c37c5e5607455de",
-          "ui/chest_screen.json": "051febf8269b2af46fc98fc1b5572320f2272ffd15d685267170a6313970da02"
+          "ui/chest_screen.json": "ffdb269462c661f73fd76a87e330c7eaa2e6ce962414412ec37bdb7b0c058f4a"
         },
-        "sha1": "b259ce3efb00cd0d31f39abefe240160d26388b1"
+        "sha1": "8a97990b24b44360bc6dbf2adae39ad3cb886ee2"
       },
       "entries": [
         "assets/artisan/asset-index.json",

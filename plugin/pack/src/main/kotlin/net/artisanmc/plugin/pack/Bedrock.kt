@@ -335,7 +335,6 @@ internal object BedrockUi {
 
     private fun contains(text: String) = "(not (($T - '$text') = $T))"
 
-    private fun anyOf(conditions: List<String>) = if (conditions.size == 1) conditions[0] else "(${conditions.joinToString(" or ")})"
 
     private fun MutableMap<String, Any?>.whenVisible(condition: String): MutableMap<String, Any?> = apply {
         put(T, "\$container_title")
@@ -346,12 +345,6 @@ internal object BedrockUi {
 
     /** Rows of the Bedrock screen a chest of [rows] rows opens on: Geyser shows 1 to 3 as a small chest, 4 to 6 as a large one. */
     fun panelRows(rows: Int) = if (rows <= 3) 3 else 6
-
-    /** The row counts of [menus], ascending, the screen's own first (`gridRows` in `bedrockUi.ts`). */
-    private fun gridRows(menus: List<BedrockMenu>): List<Int> {
-        val all = menus.map { it.rows }.distinct().sorted()
-        return all.filter { it == panelRows(it) } + all.filter { it != panelRows(it) }
-    }
 
     /**
      * Bytes in front of the marker as the client may receive them: the proxy chain adds formatting
@@ -483,23 +476,18 @@ internal object BedrockUi {
             val modifications = ArrayList<Map<String, Any?>>()
             val value = ArrayList<Map<String, Any?>>()
             here.forEach { value += backgroundElement(it, backgroundHeight(it)) }
-            // A chest of fewer rows than its screen gets a grid of its own rows only: the slots
-            // Geyser pads it with stay under the background.
-            for (own in gridRows(here)) {
-                val visible = anyOf(here.filter { it.rows == own }.map(::hasKey))
-                value += if (own == rows) mapOf(
-                    "artisan_chest_grid@chest.${panel}_chest_grid" to element(
+            // One slot grid per menu, shown by its own key alone (as in bedrockUi.ts). A chest of
+            // fewer rows than its screen gets a grid of its own rows only: the slots Geyser pads
+            // it with stay under the background.
+            for (menu in here) {
+                value += mapOf(
+                    "${id(menu, "grid")}@chest.${panel}_chest_grid" to element(
                         "offset" to listOf(GRID_X, GRID_Y),
-                        "grid_item_template" to "chest.artisan_grid_item",
-                        "layer" to LAYER_GRID,
-                    ).whenVisible(visible),
-                ) else mapOf(
-                    "artisan_chest_grid_$own@chest.${panel}_chest_grid" to element(
-                        "offset" to listOf(GRID_X, GRID_Y),
-                        "grid_dimensions" to listOf(9, own),
-                        "grid_item_template" to "chest.artisan_grid_item",
-                        "layer" to LAYER_GRID,
-                    ).whenVisible(visible),
+                    ).apply {
+                        if (menu.rows != rows) put("grid_dimensions", listOf(9, menu.rows))
+                        put("grid_item_template", "chest.artisan_grid_item")
+                        put("layer", LAYER_GRID)
+                    }.whenVisible(hasKey(menu)),
                 )
             }
             here.forEach { menu -> value += buttonElements(menu) { b, s -> buttonKey(menu, b, s) } }
