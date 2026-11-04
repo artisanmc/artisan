@@ -51,3 +51,24 @@ it("serves draft-only bytes from the draft blob and unchanged ones from the publ
     /binary\?path=assets%2Ffonts%2Fpixel%2Fa\.png&h=cc$/,
   );
 });
+
+it("previews an image the module ships from originals/, the owner's file first", () => {
+  useProjectDraftStore.getState().save("p", {
+    baseline: {},
+    tree: {},
+    at: 1,
+    binaryBaseline: {
+      "originals/assets/textures/hud_box.png": { hash: "s1", size: 1 },
+      "originals/assets/textures/frame.png": { hash: "s2", size: 1 },
+      "assets/textures/frame.png": { hash: "o2", size: 1 },
+    },
+  });
+  const texture = (id: string, contentHash: string) =>
+    asset({ id, name: id, type: "texture", contentHash });
+  expect(localAssetPreviewUrl(texture("hud_box", "s1"))).toMatch(
+    /binary\?path=originals%2Fassets%2Ftextures%2Fhud_box\.png&h=s1$/,
+  );
+  expect(localAssetPreviewUrl(texture("frame", "o2"))).toMatch(
+    /binary\?path=assets%2Ftextures%2Fframe\.png&h=o2$/,
+  );
+});

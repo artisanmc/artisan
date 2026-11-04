@@ -40,6 +40,23 @@ class PackImageRequestsTest {
     }
 
     @Test
+    fun `the module's shipped files ask too, the owner's file winning`() {
+        val files = mapOf(
+            "originals/modes/hud.yml" to "image: shipped_hud\nrise: 4\n",
+            "originals/modes/chat.yml" to "image: shipped_chat\nrise: 1\n",
+            "originals/speakers/amy.yml" to "portrait: amy\n",
+            "modes/chat.yaml" to "image: own_chat\nrise: 2\n",
+        )
+        assertEquals(
+            listOf(
+                PackImageRequest("own_chat", rise = 2), PackImageRequest("amy", rise = 10),
+                PackImageRequest("shipped_hud", rise = 4), PackImageRequest("amy", rise = 10),
+            ),
+            PackImageRequests.of(files, mapOf("modes" to modes)),
+        )
+    }
+
+    @Test
     fun `a broken file or provider costs only its own images`() {
         val warnings = mutableListOf<String>()
         val files = mapOf(

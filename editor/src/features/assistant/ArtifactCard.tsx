@@ -5,8 +5,9 @@ import { menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { MenuPlayPreview } from "@/features/play/MenuPlayPreview";
 import { type PersistedDraft, readDraft } from "@/lib/api/projectDrafts";
-import { FileText } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import type { LiveWrite } from "@/lib/aiLive";
+import { FileText, PenLine } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type Artifact, isProject, menuIdOfPath, projectFromDraftTree } from "./artifacts";
 
@@ -171,6 +172,59 @@ export function ArtifactCard({
           wrap
         />
       )}
+    </article>
+  );
+}
+
+/**
+ * A file the model is writing right now: its lines appear as they come, the last ones in view.
+ * Once the server has checked it, the call's event replaces this card with the file's own.
+ */
+export function LiveArtifactCard({
+  write,
+  projects,
+}: {
+  write: LiveWrite;
+  projects: readonly Project[];
+}) {
+  const { t } = useTranslation();
+  const end = useRef<HTMLPreElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: follow each new piece.
+  useEffect(() => {
+    const pre = end.current;
+    if (pre) pre.scrollTop = pre.scrollHeight;
+  }, [write.content.length]);
+  const base = write.project ? projects.find((p) => isProject(p, write.project!)) : undefined;
+  const projectName = base?.name ?? write.project?.slice(write.project.indexOf(".") + 1) ?? "";
+  return (
+    <article
+      className="card flex flex-col gap-3 border-[var(--brand-line)] p-3"
+      data-testid="assistant-live-artifact"
+      aria-label={t("ai.live.writing", { path: write.path ?? "…" })}
+      aria-busy
+    >
+      <header className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <PenLine className="size-4 shrink-0 animate-pulse text-[var(--brand)]" aria-hidden />
+          <p className="truncate text-[13px] font-medium text-[var(--text)]">
+            {projectName && <span className="text-[var(--text-mut)]">{projectName} · </span>}
+            <span className="font-mono">{write.path ?? "…"}</span>
+          </p>
+        </div>
+        <span className="shrink-0 text-[11.5px] text-[var(--brand)]">
+          {t("ai.live.writingShort")}
+        </span>
+      </header>
+      <pre
+        ref={end}
+        className="max-h-[50vh] overflow-auto whitespace-pre-wrap rounded-[var(--r-md)] bg-[var(--surface-inset)] p-2 font-mono text-[12px] leading-[1.5] text-[var(--text)]"
+      >
+        {write.content}
+        <span
+          aria-hidden
+          className="inline-block h-3 w-1.5 animate-pulse rounded-[1px] bg-[var(--brand)] align-middle"
+        />
+      </pre>
     </article>
   );
 }

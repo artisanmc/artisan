@@ -4,6 +4,7 @@ import { sha256Hex } from "../sha256";
 import { parseAssetUsages } from "./assetUsages";
 import { FONT_DIR, FONT_STEM, fontFromDisk } from "./fontOnDisk";
 import type { AssetRow } from "./resourcePackBuilder";
+import { shippedView } from "./shippedView";
 
 /**
  * A Project's assets **read from the server's disk** (ADR
@@ -55,9 +56,20 @@ function num(value: unknown, fallback: number | null): number | null {
  */
 export function diskAssetsFromTree(
   anchorProjectId: string,
-  files: { path: string; content: string }[],
-  binaries: { path: string; hash: string; size: number }[],
+  ownFiles: { path: string; content: string }[],
+  ownBinaries: { path: string; hash: string; size: number }[],
+  /**
+   * The pack's read: the module's assets (`originals/assets/…`) too, the owner's file winning
+   * name for name. A returned `path` stays the file's real one, to read its bytes.
+   */
+  options: { originals?: boolean } = {},
 ): DiskAsset[] {
+  const files = options.originals
+    ? shippedView(ownFiles).map(({ entry, at }) => ({ ...entry, path: at, real: entry.path }))
+    : ownFiles.map((f) => ({ ...f, real: f.path }));
+  const binaries = options.originals
+    ? shippedView(ownBinaries).map(({ entry, at }) => ({ ...entry, path: at, real: entry.path }))
+    : ownBinaries.map((b) => ({ ...b, real: b.path }));
   const descriptors = new Map<string, Record<string, unknown>>();
   for (const f of files) {
     const stem = f.path.startsWith("assets/") ? yamlStem(f.path) : null;
@@ -87,7 +99,7 @@ export function diskAssetsFromTree(
     if (!meta) continue; // unreadable descriptor: do not invent a font
     const now = new Date();
     out.push({
-      path: f.path,
+      path: f.real,
       // A font's hash is its descriptor's: that is what changes when a glyph is
       // added, removed or moved.
       hash: sha256(f.content),
@@ -115,7 +127,7 @@ export function diskAssetsFromTree(
     const meta = descriptors.get(bin.path.replace(/\.[^.]+$/, "")) ?? {};
     const now = new Date();
     out.push({
-      path: bin.path,
+      path: bin.real,
       hash: bin.hash,
       row: {
         id: nameOf(bin.path),

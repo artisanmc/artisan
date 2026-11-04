@@ -47,6 +47,12 @@ interface AiConversation {
     /** Sends [input] after the history and returns the model's answer, which joins the history too. */
     fun step(input: List<AiInput>): AiReply
 
+    /**
+     * [step], telling [live] the answer as it is written: its text, and each tool call with its
+     * input as it grows. A provider that cannot stream answers at once (the default).
+     */
+    fun stream(input: List<AiInput>, live: (AiDelta) -> Unit): AiReply = step(input)
+
     /** The history as the provider keeps it, to store; null: it keeps none worth storing. */
     fun history(): String? = null
 }
@@ -58,6 +64,15 @@ sealed interface AiInput {
     data class Image(val name: String, val mediaType: String, val base64: String) : AiInput
     /** A PDF the player attached, in base64. */
     data class Pdf(val name: String, val base64: String) : AiInput
+}
+
+/** A piece of an answer being written ([AiConversation.stream]). */
+sealed interface AiDelta {
+    /** More text; [block] counts the answer's text blocks from 0, so two blocks do not run together. */
+    data class Text(val block: Int, val text: String) : AiDelta
+    data class ToolStart(val id: String, val name: String) : AiDelta
+    /** More of a tool call's input, as raw JSON that is not complete until the call ends. */
+    data class ToolInput(val id: String, val json: String) : AiDelta
 }
 
 data class AiToolCall(val id: String, val name: String, val input: JsonNode)

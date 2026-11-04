@@ -56,6 +56,12 @@ export const aiEn = {
     start_draft: "Started a draft",
     write_document: "Wrote {{path}}",
   },
+  live: {
+    writing: "Writing {{path}}",
+    writingShort: "Writing…",
+    lines_one: "{{count}} line",
+    lines_other: "{{count}} lines",
+  },
   attach: {
     button: "Attach files",
     upload: "From my computer",
@@ -208,6 +214,12 @@ export const aiFr: typeof aiEn = {
     read_docs: "A lu la doc d’Artisan",
     start_draft: "A créé un brouillon",
     write_document: "A écrit {{path}}",
+  },
+  live: {
+    writing: "Écrit {{path}}",
+    writingShort: "En cours…",
+    lines_one: "{{count}} ligne",
+    lines_other: "{{count}} lignes",
   },
   attach: {
     button: "Joindre des fichiers",

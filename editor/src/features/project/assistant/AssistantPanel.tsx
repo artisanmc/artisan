@@ -16,7 +16,8 @@ import {
   fits,
   formatBytes,
 } from "@/lib/aiAttachments";
-import type { AiEvent } from "@/lib/api/ai";
+import { liveWrites } from "@/lib/aiLive";
+import type { AiEvent, AiLive } from "@/lib/api/ai";
 import { cn } from "@/lib/cx";
 import { ASSISTANT_WIDTH, useAssistantPanelStore } from "@/state/assistantPanelStore";
 import { useNavigate } from "@tanstack/react-router";
@@ -71,7 +72,7 @@ export function AssistantDock({
   const navigate = useNavigate();
   const status = useAiStatus();
   const { open, setOpen, width, setWidth } = useAssistantPanelStore();
-  const { events, running, failure, send, reset } = useAssistant({
+  const { events, live, running, failure, send, reset } = useAssistant({
     project: projectId,
     server: serverId,
   });
@@ -80,7 +81,7 @@ export function AssistantDock({
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on each new line.
   useEffect(() => {
     end.current?.scrollIntoView?.({ block: "end" });
-  }, [events.length, running, open]);
+  }, [events.length, running, open, live?.text?.length, live?.tools?.length]);
 
   if (!status?.enabled || !status.canUse) return null;
 
@@ -168,12 +169,7 @@ export function AssistantDock({
         {events.map((event) => (
           <EventLine key={event.seq} event={event} />
         ))}
-        {running && (
-          <div className="flex items-center gap-2 text-[13px] text-[var(--text-mut)]">
-            <Spinner className="size-3.5" />
-            {t("ai.working")}
-          </div>
-        )}
+        {running && <LiveLines live={live} />}
         {projectId && drafts.length > 0 && !running && (
           <button
             type="button"
@@ -381,6 +377,61 @@ export function Composer({
 function AttachmentIcon({ kind }: { kind: AiAttachmentKind }) {
   if (kind === "image") return <Image className="size-3 shrink-0" />;
   return <FileText className="size-3 shrink-0" />;
+}
+
+/**
+ * What the model is writing during a turn, after the events: its text as it comes (a caret at
+ * its end), then each tool call it writes or runs. Nothing written yet: "Working…".
+ */
+export function LiveLines({ live }: { live: AiLive | null }) {
+  const { t } = useTranslation();
+  const writes = liveWrites(live?.tools);
+  const others = (live?.tools ?? []).filter((tool) => tool.name !== "write_document");
+  if (!live?.text && !live?.tools?.length)
+    return (
+      <div className="flex items-center gap-2 text-[13px] text-[var(--text-mut)]">
+        <Spinner className="size-3.5" />
+        {t("ai.working")}
+      </div>
+    );
+  return (
+    <div className="flex flex-col gap-1.5" data-testid="assistant-live">
+      {live.text && (
+        <div className="mr-4">
+          <Markdown>{live.text}</Markdown>
+          <span
+            aria-hidden
+            className="inline-block h-3.5 w-1.5 animate-pulse rounded-[1px] bg-[var(--brand)] align-middle"
+          />
+        </div>
+      )}
+      {writes.map((write) => (
+        <p
+          key={write.id}
+          className="flex items-center gap-1.5 font-mono text-[12px] text-[var(--brand)]"
+        >
+          <Spinner className="size-3 shrink-0" />
+          <span className="truncate">{t("ai.live.writing", { path: write.path ?? "…" })}</span>
+          {write.content && (
+            <span className="shrink-0 text-[var(--text-faint)]">
+              {t("ai.live.lines", { count: write.content.split("\n").length })}
+            </span>
+          )}
+        </p>
+      ))}
+      {others.map((tool) => (
+        <p
+          key={tool.id}
+          className="flex items-center gap-1.5 font-mono text-[12px] text-[var(--text-faint)]"
+        >
+          <Spinner className="size-3 shrink-0" />
+          <span className="truncate">
+            {t(`ai.tools.${tool.name}`, { path: "", module: "", defaultValue: tool.name })}
+          </span>
+        </p>
+      ))}
+    </div>
+  );
 }
 
 /** One line of a conversation: what the player asked, what the assistant said or did. */
