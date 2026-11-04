@@ -276,9 +276,9 @@ internal object BedrockMenus {
                 }
                 else -> emptyList()
             }
-            // Player inventory hidden: only drawn without the vanilla texture (the whole Bedrock panel,
-            // inventory included, is hidden) and with every element in the chest — buttons placed in
-            // the inventory are not drawn yet. Same rule as the plugin's `BedrockTitle.supports`.
+            // Player inventory hidden: only drawn without the vanilla texture (its background covers
+            // the top; Bedrock's own inventory stays below, empty) and with every element in the
+            // chest — buttons placed in the inventory are not drawn yet. Same rule as the plugin's `BedrockTitle.supports`.
             if (doc["player_inventory"] == "hidden" &&
                 (doc["vanilla_texture"] != false || !elements.all { inChest(it, size) })
             ) continue
@@ -461,21 +461,6 @@ internal object BedrockUi {
             ).whenVisible("(${hasKey(menu)} and ${keyAt(menu, lead)})"),
         )
 
-    private fun chestPanel(panel: String, visible: String): Map<String, Any?> = mapOf(
-        "chest_panel" to element("type" to "panel", "layer" to 5).whenVisible(visible).apply {
-            put(
-                "controls",
-                listOf(
-                    mapOf("${panel}_chest_panel_top_half@chest.${panel}_chest_panel_top_half" to emptyMap<String, Any?>()),
-                    mapOf("inventory_panel_bottom_half_with_label@common.inventory_panel_bottom_half_with_label" to emptyMap<String, Any?>()),
-                    mapOf("hotbar_grid@common.hotbar_grid_template" to emptyMap<String, Any?>()),
-                    mapOf("inventory_take_progress_icon_button@common.inventory_take_progress_icon_button" to emptyMap<String, Any?>()),
-                    mapOf("flying_item_renderer@common.flying_item_renderer" to mapOf("layer" to 15)),
-                ),
-            )
-        },
-    )
-
     fun chestScreen(
         menus: List<BedrockMenu>,
         backgroundHeight: (BedrockMenu) -> Int,
@@ -492,23 +477,9 @@ internal object BedrockUi {
         for ((rows, panel) in listOf(3 to "small", 6 to "large")) {
             val here = menus.filter { panelRows(it.rows) == rows }
             if (here.isEmpty()) continue
-            val transparent = here.filter { it.transparent }
+            // The vanilla panel stays, even under a `vanilla_texture: false` menu: replacing
+            // `common_panel` / `chest_panel` to hide it left every chest screen blank on Bedrock.
             val modifications = ArrayList<Map<String, Any?>>()
-            if (transparent.isNotEmpty()) {
-                val visible = "(not ${anyOf(transparent.map(::hasKey))})"
-                modifications += element(
-                    "array_name" to "controls",
-                    "operation" to "replace",
-                    "control_name" to "common_panel",
-                    "value" to mapOf("common_panel@common.common_panel" to element().whenVisible(visible)),
-                )
-                modifications += element(
-                    "array_name" to "controls",
-                    "operation" to "replace",
-                    "control_name" to "chest_panel",
-                    "value" to chestPanel(panel, visible),
-                )
-            }
             val value = ArrayList<Map<String, Any?>>()
             here.forEach { value += backgroundElement(it, backgroundHeight(it)) }
             // A chest of fewer rows than its screen gets a grid of its own rows only: the slots

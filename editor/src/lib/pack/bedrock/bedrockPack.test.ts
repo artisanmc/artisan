@@ -301,14 +301,10 @@ describe("buildBedrockPack", () => {
       "small_chest_panel/root_panel",
     ]);
     const large = screen["large_chest_panel/root_panel"].modifications;
-    // The transparent menu hides the vanilla panel; the small one (styled) does not.
-    expect(large.map((m: { operation: string }) => m.operation)).toEqual([
-      "replace",
-      "replace",
-      "insert_back",
-    ]);
+    // The vanilla panel is never replaced, even under a transparent menu.
+    expect(large.map((m: { operation: string }) => m.operation)).toEqual(["insert_back"]);
     expect(screen["small_chest_panel/root_panel"].modifications).toHaveLength(1);
-    const inserted = Object.assign({}, ...large[2].value) as Record<
+    const inserted = Object.assign({}, ...large[0].value) as Record<
       string,
       Record<string, unknown>
     >;

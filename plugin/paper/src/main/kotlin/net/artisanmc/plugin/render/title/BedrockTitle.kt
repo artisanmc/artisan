@@ -54,8 +54,8 @@ object BedrockTitle {
 
     /**
      * Chests of 1 to 6 rows: the menus the pack styles. With the player inventory hidden, only a
-     * menu drawn without the vanilla texture (the pack hides the whole Bedrock panel, inventory
-     * included) whose elements all sit in the chest: buttons in the inventory are not drawn yet.
+     * menu drawn without the vanilla texture (Bedrock's own inventory stays below it, empty)
+     * whose elements all sit in the chest: buttons in the inventory are not drawn yet.
      */
     fun supports(menu: MenuYaml): Boolean =
         menu.inventoryType == "chest" && menu.size % 9 == 0 && menu.size in 9..54 &&

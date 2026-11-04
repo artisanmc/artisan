@@ -224,29 +224,6 @@ function textElements(menu: BedrockMenu): Record<string, unknown>[] {
   );
 }
 
-/** The vanilla `chest_panel` of a root panel, restated so it can be hidden. */
-function chestPanel(panel: "small" | "large", visible: string): Record<string, unknown> {
-  return {
-    chest_panel: {
-      type: "panel",
-      layer: 5,
-      ...when(visible),
-      controls: [
-        { [`${panel}_chest_panel_top_half@chest.${panel}_chest_panel_top_half`]: {} },
-        {
-          "inventory_panel_bottom_half_with_label@common.inventory_panel_bottom_half_with_label":
-            {},
-        },
-        { "hotbar_grid@common.hotbar_grid_template": {} },
-        {
-          "inventory_take_progress_icon_button@common.inventory_take_progress_icon_button": {},
-        },
-        { "flying_item_renderer@common.flying_item_renderer": { layer: 15 } },
-      ],
-    },
-  };
-}
-
 /** The row counts of `menus`, ascending, the screen's own first. */
 function gridRows(menus: BedrockMenu[]): number[] {
   const all = [...new Set(menus.map((m) => m.rows))].sort((a, b) => a - b);
@@ -277,26 +254,10 @@ export function buildChestScreen(
     const panel = PANELS[rows];
     const here = menus.filter((m) => panelRows(m.rows) === rows);
     if (!here.length) continue;
-    const transparent = here.filter((m) => m.transparent);
+    // The vanilla panel stays, even under a `vanilla_texture: false` menu: replacing
+    // `common_panel` / `chest_panel` to hide it left every chest screen blank on Bedrock,
+    // vanilla chests included (in game, 2026-11-04).
     const modifications: Record<string, unknown>[] = [];
-    if (transparent.length) {
-      // `vanilla_texture: false`: no Bedrock panel either, and no bottom half.
-      const visible = `(not ${anyOf(transparent.map(hasKey))})`;
-      modifications.push(
-        {
-          array_name: "controls",
-          operation: "replace",
-          control_name: "common_panel",
-          value: { "common_panel@common.common_panel": when(visible) },
-        },
-        {
-          array_name: "controls",
-          operation: "replace",
-          control_name: "chest_panel",
-          value: chestPanel(panel, visible),
-        },
-      );
-    }
     modifications.push({
       array_name: "controls",
       operation: "insert_back",

@@ -46,7 +46,7 @@ export interface BedrockMenu {
   id: string;
   key: string;
   rows: 1 | 2 | 3 | 4 | 5 | 6;
-  /** `vanilla_texture` off: the Bedrock panel and its bottom half are hidden too. */
+  /** `vanilla_texture` off: no vanilla chest top under its background. */
   transparent: boolean;
   /** Background and glyph layers in title order; a background has no position. */
   images: { asset: string; x: number; y: number | null }[];
@@ -186,9 +186,9 @@ export function bedrockMenusFromProject(
         ? // biome-ignore lint/suspicious/noExplicitAny: idem
           doc.layers.flatMap((layer: any) => layer?.elements ?? [])
         : [];
-    // Player inventory hidden: only drawn without the vanilla texture (the whole Bedrock panel,
-    // inventory included, is hidden) and with every element in the chest — buttons placed in
-    // the inventory are not drawn yet. Same rule as the plugin's `BedrockTitle.supports`.
+    // Player inventory hidden: only drawn without the vanilla texture (its background covers
+    // the top; Bedrock's own inventory stays below, empty) and with every element in the
+    // chest — buttons placed in the inventory are not drawn yet. Same rule as the plugin's `BedrockTitle.supports`.
     if (
       doc.player_inventory === "hidden" &&
       (doc.vanilla_texture !== false || !elements.every((el: unknown) => inChest(el, size)))
