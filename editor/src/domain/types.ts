@@ -269,6 +269,11 @@ export interface ProjectOriginals {
   required: string[];
   /** The module file's `originals.exclude`, as read: kept for what the editor does not model. */
   excluded: string[];
+  /**
+   * Shipped files (relative to `originals/`) in a folder no registered kind claimed when
+   * the Project was read: a module's kind arriving later reads them (`adoptLateDocuments`).
+   */
+  pending?: Record<string, string>;
 }
 
 /** One editable unit of a Project, whatever its kind. A module's kind adds its own member. */

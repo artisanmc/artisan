@@ -82,4 +82,26 @@ describe("diskAssetsFromTree", () => {
     // read from the folder, not the extension.
     expect(diskAssetsFromTree("p1", [], [bin("capture.png")])).toEqual([]);
   });
+
+  test("the pack's read takes the module's assets too, the owner's file winning", () => {
+    const files = [
+      { path: "originals/assets/textures/hud.yml", content: "width: 100\n" },
+      { path: "originals/assets/textures/frame.yml", content: "width: 1\n" },
+      { path: "assets/textures/frame.yml", content: "width: 2\n" },
+    ];
+    const binaries = [
+      bin("originals/assets/textures/hud.png"),
+      bin("originals/assets/textures/frame.png", "shipped"),
+      bin("assets/textures/frame.png", "own"),
+    ];
+    const read = diskAssetsFromTree("p1", files, binaries, { originals: true });
+    expect(read.map((a) => [a.row.id, a.path, a.hash, a.row.width])).toEqual([
+      ["frame", "assets/textures/frame.png", "own", 2],
+      ["hud", "originals/assets/textures/hud.png", "h", 100],
+    ]);
+    // The library shows the owner's files only.
+    expect(diskAssetsFromTree("p1", files, binaries).map((a) => a.path)).toEqual([
+      "assets/textures/frame.png",
+    ]);
+  });
 });

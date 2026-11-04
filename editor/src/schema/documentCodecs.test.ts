@@ -20,6 +20,23 @@ afterEach(() => {
 const PID = "p1" as ProjectId;
 const base = `plugins/Artisan/projects/${PID}`;
 
+function registerNote(): void {
+  registerDocumentKind({ kind: "note", dir: "notes", schemaVersion: "note/v1", rank: 9 });
+  registerDocumentCodec({
+    kind: "note",
+    parse: (src) => ({
+      doc: { id: src.id, text: src.text } as unknown as Document,
+      i18nKeys: {},
+      unsupported: [],
+    }),
+    serialize: (doc) => ({
+      schema: "note/v1",
+      id: doc.id,
+      text: (doc as unknown as { text: string }).text,
+    }),
+  });
+}
+
 describe("document codecs", () => {
   it("round-trips a module's kind through its folder once kind and codec are registered", () => {
     registerDocumentKind({
@@ -95,6 +112,42 @@ describe("document codecs", () => {
       __files: { "broken.yml": "text: [unclosed\n", "deep/nested.yml": "text: kept\n" },
     });
     expect(project.moduleData?.shop).toEqual({ __files: { "shop.yml": "items: []\n" } });
+    expect(adoptLateDocuments(project)).toBe(0);
+  });
+
+  it("adopts the shipped Documents of a kind registered after the project was read", () => {
+    const project = projectFromFiles(PID, {
+      [`${base}/artisan-module.yml`]:
+        "schema: module/v1\nmodule: notes\noriginals:\n  exclude: [notes/gone.yml]\n",
+      [`${base}/originals/originals.yml`]: "module: notes\nrequired: []\n",
+      [`${base}/originals/notes/hello.yml`]: "schema: note/v1\ntext: shipped\n",
+      [`${base}/originals/notes/mine.yml`]: "schema: note/v1\ntext: shipped\n",
+      [`${base}/originals/notes/gone.yml`]: "schema: note/v1\ntext: shipped\n",
+      [`${base}/notes/mine.yml`]: "schema: note/v1\ntext: owner\n",
+    });
+    // Opened directly on the module's page: its view arrives after the read.
+    registerNote();
+
+    expect(adoptLateDocuments(project)).toBe(2);
+    const byId = (docs: Document[]) => [...docs].sort((a, b) => (a.id < b.id ? -1 : 1));
+    // The owner's version wins; an excluded one stays out; the rest is the module's.
+    expect(byId(documentsOf(project, "note"))).toEqual([
+      { id: "hello", text: "shipped" },
+      { id: "mine", text: "owner" },
+    ]);
+    expect(project.originals?.documents[""]?.note?.map((d) => d.id).sort()).toEqual([
+      "gone",
+      "hello",
+      "mine",
+    ]);
+    expect(project.originals?.pending).toBeUndefined();
+    // Saved, nothing is lost: the shipped one is not written, the exclusion is kept.
+    const files = projectToFiles(project);
+    expect(files[`${base}/notes/hello.yml`]).toBeUndefined();
+    expect(parse(files[`${base}/notes/mine.yml`]!)).toEqual({ schema: "note/v1", text: "owner" });
+    expect(parse(files[`${base}/artisan-module.yml`]!).originals).toEqual({
+      exclude: ["notes/gone.yml"],
+    });
     expect(adoptLateDocuments(project)).toBe(0);
   });
 });

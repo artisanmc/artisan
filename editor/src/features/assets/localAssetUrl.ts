@@ -31,14 +31,17 @@ function fileUrl(asset: Asset, path: string, hash: string | undefined, published
 /** A texture or glyph PNG: its real path in the tree, or the canonical path as a fallback. */
 export function localAssetPreviewUrl(asset: Asset): string {
   const { published, draft } = trees(asset.projectId, asset.draftId);
-  const dir = assetDiskPath(asset.type, asset.id).replace(/\/[^/]*$/, "/");
-  const path =
-    Object.keys({ ...published, ...draft }).find(
+  const own = assetDiskPath(asset.type, asset.id).replace(/\/[^/]*$/, "/");
+  const paths = Object.keys({ ...published, ...draft });
+  const at = (dir: string) =>
+    paths.find(
       (p) =>
         p.startsWith(dir) &&
         !p.slice(dir.length).includes("/") &&
         p.slice(dir.length).replace(/\.[^.]+$/, "") === asset.id,
-    ) ?? assetDiskPath(asset.type, asset.id);
+    );
+  // The owner's file, else the one the module ships (`originals/`, as `diskAssetsFromTree` reads it).
+  const path = at(own) ?? at(`originals/${own}`) ?? assetDiskPath(asset.type, asset.id);
   return fileUrl(asset, path, asset.contentHash, published);
 }
 

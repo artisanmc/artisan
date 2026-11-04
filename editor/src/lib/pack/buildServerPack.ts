@@ -11,6 +11,7 @@ import { projectClient } from "@/lib/projectClient";
 import { listDocumentKindContributions } from "@artisan/editor-sdk";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { overlayImagesFromFiles } from "./overlayImages";
+import { filesWithOriginals } from "./shippedView";
 import { type PackProject, type ServerPacks, assembleServerPack } from "./packAssembly";
 import type { GuiContainer } from "./vanillaGui";
 
@@ -64,7 +65,8 @@ export async function buildServerPack(serverId: string): Promise<ServerPacks> {
       files,
       binaries: tree.binaries ?? [],
       binary: (path) => client.binary(path),
-      overlayImages: overlayImagesFromFiles(files, kinds),
+      // The module's shipped Documents ask too, the owner's version winning.
+      overlayImages: overlayImagesFromFiles(filesWithOriginals(files), kinds),
       folder: folders.get(projectId),
     });
   }

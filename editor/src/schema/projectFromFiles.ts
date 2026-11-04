@@ -700,6 +700,15 @@ export function projectFromFiles(
     const shippedRules = shippedPaths.find(
       (p) => !p.includes("/") && yamlStem(p) === VARIANTS_FILE,
     );
+    // A module's kind may not be registered yet: its shipped files wait for it.
+    const classified = new Set(
+      [...shipped.documents, ...shipped.variants, ...shipped.errors].map((e) => e.path),
+    );
+    const pending: Record<string, string> = {};
+    for (const p of shippedPaths) {
+      if (classified.has(p) || !p.includes("/") || yamlStem(p) === null) continue;
+      pending[p] = getFile(files, projectId, `${ORIGINALS_DIR}/${p}`) ?? "";
+    }
     originals = {
       documents: docs,
       ...(shippedRules
@@ -711,6 +720,7 @@ export function projectFromFiles(
         : {}),
       required,
       excluded: excludedRaw,
+      ...(Object.keys(pending).length > 0 ? { pending } : {}),
     };
   }
   const claimedPaths = new Set([
@@ -1183,5 +1193,51 @@ export function adoptLateDocuments(project: Project): number {
       adopted++;
     }
   }
+  return adopted + adoptLateOriginals(project);
+}
+
+/**
+ * The shipped Documents of kinds registered after the Project was read: each becomes an
+ * original (the comparison and the way back), and a Document of the Project unless the
+ * owner has one of that kind and id, or excluded it. Without this, a module page opened
+ * directly showed only the owner's files, and saving wrote that partial state.
+ */
+function adoptLateOriginals(project: Project): number {
+  const originals = project.originals;
+  const pending = originals?.pending;
+  if (!originals || !pending) return 0;
+  const required = new Set(originals.required.map(sameFile));
+  const off = new Set(originals.excluded.filter((p) => !required.has(sameFile(p))).map(sameFile));
+  const layout = classifyDocumentLayout(Object.keys(pending), kindDirs());
+  let adopted = 0;
+  for (const def of listDocumentKinds()) {
+    const codec = documentCodec(def.kind);
+    const entries = layout.documents
+      .filter((e) => e.dir === def.dir)
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    for (const entry of entries) {
+      const y = tryParse<Json>(pending[entry.path] ?? null);
+      if (!y || typeof y !== "object") continue;
+      const r = codec.parse(
+        { ...y, id: entry.id },
+        { projectId: project.id, lang: project.defaultLang, translations: project.i18nKeys },
+      );
+      for (const [key, langs] of Object.entries(r.i18nKeys)) {
+        project.i18nKeys[key as I18nKey] ??= langs;
+      }
+      const doc = entry.folder ? ({ ...r.doc, folder: entry.folder } as Document) : r.doc;
+      const shipped = originals.documents[""] ?? {};
+      originals.documents[""] = shipped;
+      const twins = shipped[def.kind] ?? [];
+      shipped[def.kind] = twins;
+      if (!twins.some((d) => d.id === entry.id)) twins.push(doc);
+      delete pending[entry.path];
+      const docs = mutableDocuments(project, def.kind);
+      if (off.has(sameFile(entry.path)) || docs.some((d) => d.id === entry.id)) continue;
+      docs.push(structuredClone(doc));
+      adopted++;
+    }
+  }
+  if (Object.keys(pending).length === 0) originals.pending = undefined;
   return adopted;
 }
