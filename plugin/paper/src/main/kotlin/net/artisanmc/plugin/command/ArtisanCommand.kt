@@ -117,11 +117,11 @@ class ArtisanCommand(
         }
         fun frame(up: Boolean) = listOf(
             net.artisanmc.modules.api.scene.SceneElement.Text.of(
-                "mark", net.artisanmc.modules.api.scene.SceneTransform.offset(0.0, if (up) 0.25 else 0.0, 0.0),
+                "mark", net.artisanmc.modules.api.scene.SceneTransform.offset(0.0, if (up) 0.6 else 0.35, 0.0),
                 "<gold><bold>!</bold></gold>",
             ).let { it.withScale(2f) },
             net.artisanmc.modules.api.scene.SceneElement.Text.of(
-                "label", net.artisanmc.modules.api.scene.SceneTransform.offset(0.0, -0.35, 0.0),
+                "label", net.artisanmc.modules.api.scene.SceneTransform.offset(0.0, 0.0, 0.0),
                 "<gray>Scene demo: <white>${player.name}</white> only",
             ),
         )
