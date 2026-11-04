@@ -8,6 +8,7 @@ import {
   DocumentRefInput,
   type EditorHost,
   ItemInput,
+  ItemValueInput,
   MaterialInput,
   McScreen,
   McScreenControls,
@@ -41,6 +42,8 @@ describe("host components", () => {
             `hud:${(value as unknown[]).length}:${slots.map((s) => s.name)}`,
           ),
         AssetInput: ({ value }) => createElement("kbd", null, `asset:${value}`),
+        ItemValueInput: ({ value }) =>
+          createElement("var", null, `value:${(value as { material: string }).material}`),
         SortableList: ({ ids, children }) =>
           createElement(
             "ol",
@@ -106,13 +109,19 @@ describe("host components", () => {
           slots: [{ name: "lines", kind: "text", label: "Text" }],
         }),
         createElement(AssetInput, { key: "n", projectId: "p", value: "box", onChange: () => {} }),
+        createElement(ItemValueInput, {
+          key: "v",
+          projectId: "p",
+          value: { material: "BREAD" },
+          onChange: () => {},
+        }),
       ]),
     );
     expect(html).toBe(
       "<div><i>chain:1</i><b>material:STONE</b><u>item:FISHING_ROD:material,enchants</u><s>mm:&lt;red&gt;Hi</s>" +
         "<ol><li><span><hr/>row0</span></li><li><span><hr/>row1</span></li></ol>" +
         "<em>if:2</em><a>ref:quest_group:forge</a><q>mc:&lt;gold&gt;Hi</q><dl>screen:854x480layer</dl><dd>scale:auto</dd>" +
-        "<dfn>hud:1:lines</dfn><kbd>asset:box</kbd></div>",
+        "<dfn>hud:1:lines</dfn><kbd>asset:box</kbd><var>value:BREAD</var></div>",
     );
   });
 

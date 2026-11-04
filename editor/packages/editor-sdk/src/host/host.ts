@@ -123,6 +123,17 @@ export interface ItemInputProps {
   onMatchChange?: (match: ItemComparisonWire[] | undefined) => void;
 }
 
+/**
+ * An item field of a module's data file, the one of the generated form (SDK 1.20): the item as
+ * the file holds it (a material name, or `{material, count, title, lore…}`), the title and lore
+ * kept as the Project's texts. The value it writes goes back through the screen's `set`.
+ */
+export interface ItemValueInputProps {
+  projectId: string;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}
+
 export interface MiniMessageInputProps {
   /** The raw text, MiniMessage tags included. */
   value: string;
@@ -418,6 +429,8 @@ export interface HostComponents {
   LocalizedField: ComponentType<LocalizedFieldProps>;
   /** SDK 1.19. */
   PageTour: ComponentType<PageTourProps>;
+  /** SDK 1.20. */
+  ItemValueInput: ComponentType<ItemValueInputProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -494,6 +507,12 @@ export function ItemInput(props: ItemInputProps): ReactElement {
  * A text field that supports MiniMessage, the way every such field of the editor behaves:
  * rendered until clicked, then the raw text with its live rendering below (SDK 1.4).
  */
+/** The generated form's item field, on a module's data value (SDK 1.20). */
+export function ItemValueInput(props: ItemValueInputProps): ReactElement {
+  const Impl = current().components.ItemValueInput;
+  return createElement(Impl, props);
+}
+
 export function MiniMessageInput(props: MiniMessageInputProps): ReactElement {
   const Impl = current().components.MiniMessageInput;
   return createElement(Impl, props);
