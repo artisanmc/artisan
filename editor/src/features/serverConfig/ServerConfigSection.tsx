@@ -14,6 +14,7 @@ import { TextPaletteFields } from "./TextPaletteFields";
 
 const TEXTURES = "resource-pack.container-textures.";
 const PALETTE = "text-palette.";
+const INVENTORY_LABEL = "resource-pack.hide-inventory-label";
 
 /** Vanilla container layout: square, 256 px or an HD multiple. */
 const containerLayout = (w: number, h: number) => w === h && w >= 256 && w % 256 === 0;
@@ -96,8 +97,8 @@ export function ServerConfigSection({
       setConfig(await patchServerConfig(serverKeyId, changes));
       setChanges({});
       if (Object.keys(changes).some((key) => key.startsWith(PALETTE))) invalidateServerPalette();
-      // Changing container textures requires rebuilding the pack.
-      if (Object.keys(changes).some((key) => key.startsWith(TEXTURES)))
+      // Changing container textures or the inventory label requires rebuilding the pack.
+      if (Object.keys(changes).some((key) => key.startsWith(TEXTURES) || key === INVENTORY_LABEL))
         rebuildServerPackInBackground(t, serverKeyId);
     } catch (e) {
       setError(
