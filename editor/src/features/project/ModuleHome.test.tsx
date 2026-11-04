@@ -96,6 +96,16 @@ afterEach(() => {
 const project = () => useProjectsStore.getState().openProjects.projects[0]!;
 
 describe("ModuleHome", () => {
+  it("counts the store's version of the project, not the one the page opened with", () => {
+    const opened = project();
+    const docs = opened.documents as Record<string, unknown[]>;
+    // The page opened before the module's kind arrived: no conversation yet.
+    const before = { ...opened, documents: { ...docs, conversation: [] } } as Project;
+    render(<ModuleHome project={before} onOpenBoard={() => {}} />);
+    const list = screen.getByTestId("module-home-collection-conversation");
+    expect(within(list).getByText("2")).toBeInTheDocument();
+  });
+
   it("shows one block per place, with counts, not one row per Document", () => {
     render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
     const board = screen.getByTestId("module-home-board");

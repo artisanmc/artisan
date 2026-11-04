@@ -16,6 +16,7 @@ import {
   dataSourceDestination,
   screenDestination,
 } from "@/lib/projectNavigation";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
@@ -36,10 +37,14 @@ import { documentLabel } from "./useProjectDocuments";
  * and leads to the page that edits them.
  */
 export function ModuleHome({
-  project,
+  project: opened,
   onOpenBoard,
 }: { project: Project; onOpenBoard: () => void }) {
   const { t } = useTranslation();
+  // The store's version, not the one the page opened: Documents adopted once a module's kinds
+  // arrive (a module page loaded directly), or created here, land there.
+  const project =
+    useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === opened.id)) ?? opened;
   const navigate = useNavigate();
   const { serverId } = useParams({ strict: false }) as { serverId?: string };
   const uiLang = useUiStore((s) => s.editorLang);
