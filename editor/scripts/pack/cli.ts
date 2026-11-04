@@ -140,6 +140,16 @@ function containerTextures(configPath: string | undefined): Partial<Record<GuiCo
   return out;
 }
 
+/** `resource-pack.hide-inventory-label` of a server's `config.yml`, nested or flat. */
+function hideInventoryLabel(configPath: string | undefined): boolean {
+  if (!configPath) return false;
+  const config = parse(readFileSync(configPath, "utf-8")) as Record<string, unknown> | null;
+  const nested = (config?.["resource-pack"] as Record<string, unknown> | undefined)?.[
+    "hide-inventory-label"
+  ];
+  return (nested ?? config?.["resource-pack.hide-inventory-label"]) === true;
+}
+
 async function build(args: string[]): Promise<number> {
   const dir = args.find((a, i) => !a.startsWith("-") && !args[i - 1]?.startsWith("-"));
   if (!dir) {
@@ -159,6 +169,7 @@ async function build(args: string[]): Promise<number> {
   const { zipBytes, hash, bedrock } = await assembleServerPack({
     projects,
     containerTextures: containerTextures(option(args, "--config")),
+    hideInventoryLabel: hideInventoryLabel(option(args, "--config")),
     vanillaTexture,
     textUp: textUp(),
     ...(serverId ? { bedrock: { serverId } } : {}),
@@ -195,6 +206,8 @@ export interface ConformanceCase {
   };
   containerTextures: Partial<Record<GuiContainer, string>>;
   vanillaGui: boolean;
+  /** `resource-pack.hide-inventory-label`; absent = false. */
+  hideInventoryLabel?: boolean;
   entries: string[];
   /** SHA-256 of each entry listed in `entries`: says which file drifted when `sha1` does. */
   entryHashes?: Record<string, string>;
@@ -234,6 +247,7 @@ export function buildCase(c: ConformanceCase): Promise<ServerPacks> {
     vanillaTexture,
     textUp: textUp(),
     transparentContainers: c.vanillaGui,
+    hideInventoryLabel: c.hideInventoryLabel === true,
     ...(c.bedrock ? { bedrock: { serverId: c.bedrock.serverId } } : {}),
   });
 }

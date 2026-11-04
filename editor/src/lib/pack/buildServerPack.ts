@@ -78,6 +78,7 @@ export async function buildServerPack(serverId: string): Promise<ServerPacks> {
   return assembleServerPack({
     projects,
     containerTextures: containerTextureRefs(config.config),
+    hideInventoryLabel: config.config?.["resource-pack.hide-inventory-label"] === true,
     vanillaTexture: (container) => fetchBytes(VANILLA_TEXTURES[container]),
     textUp,
     bedrock: { serverId },

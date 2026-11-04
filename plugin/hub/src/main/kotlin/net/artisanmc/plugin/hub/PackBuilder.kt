@@ -205,7 +205,14 @@ class PackBuilder(
             )
         }
         return ResourcePackBuilder.build(
-            PackInput(projects, containerTextures(target.serverConfig()), bedrockServerId = server.takeIf { bedrock != null }),
+            target.serverConfig().let { config ->
+                PackInput(
+                    projects,
+                    containerTextures(config),
+                    hideInventoryLabel = config?.get("resource-pack.hide-inventory-label") == true,
+                    bedrockServerId = server.takeIf { bedrock != null },
+                )
+            },
         )
     }
 

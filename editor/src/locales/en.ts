@@ -2014,6 +2014,8 @@ export default {
         "send-delay-ticks": "Send delay (ticks)",
         "delegate-to-dir": "Pack folder of Nexo, Oraxen or ItemsAdder (path)",
         "delegate-reload-command": "Reload command after delegation",
+        "hide-inventory-label":
+          "Hide the “Inventory” label under menus (every container, every language)",
         "container-textures": {
           chest: "Chests",
           hopper: "Hoppers",

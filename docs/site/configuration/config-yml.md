@@ -30,6 +30,7 @@ Edit it in either place:
 | `resource-pack.send-delay-ticks` | `20` | Ticks between joining and receiving the pack. |
 | `resource-pack.delegate-to-dir` | `""` | Where Artisan writes its pack for Nexo, Oraxen or ItemsAdder to merge and send to players; setting it turns direct sending off. Empty: Artisan sends its pack itself (`enabled`). A `.zip` path writes one zip; any other path is a directory (Artisan writes `<path>/assets/artisan/`, wiped on each update). Absolute, or relative to the server root. |
 | `resource-pack.delegate-reload-command` | `""` | Console command run after each pack update, e.g. `n reload` (Nexo), `oraxen reload pack` (Oraxen). |
+| `resource-pack.hide-inventory-label` | `false` | `true`: the pack empties the "Inventory" label the client writes under every container window (the `container.inventory` translation, every language). Meant for menus with a hidden player inventory; it also removes the label from every other chest, furnace… for players with the pack. Not applied when delegating. |
 | `resource-pack.container-textures.chest` | `""` | Texture drawn back on other chest windows when a menu turns the vanilla chest texture off. `project:image` names a project image in the vanilla layout (256×256 or an HD multiple). Empty: vanilla texture. |
 | `resource-pack.container-textures.hopper` | `""` | Same, for hoppers. |
 | `resource-pack.container-textures.dispenser` | `""` | Same, for dispensers. |
