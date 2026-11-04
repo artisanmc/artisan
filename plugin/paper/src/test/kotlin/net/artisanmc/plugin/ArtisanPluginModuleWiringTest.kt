@@ -40,11 +40,12 @@ class ArtisanPluginModuleWiringTest {
     @Test
     fun `isCompatibleWith compares the API version, not the plugin version`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
-        // The plugin is 1.0.0-SNAPSHOT and the API 1.0.0: a minor above the API's, or another
+        // The plugin is 1.0.0-SNAPSHOT and the API 1.1.0: a minor above the API's, or another
         // major, is refused.
         assertTrue(plugin.api.isCompatibleWith(plugin.api.apiVersion))
         assertTrue(plugin.api.isCompatibleWith("1.0.0"))
-        assertFalse(plugin.api.isCompatibleWith("1.1.0"))
+        assertTrue(plugin.api.isCompatibleWith("1.1.0"))
+        assertFalse(plugin.api.isCompatibleWith("1.2.0"))
         assertFalse(plugin.api.isCompatibleWith("2.0.0"))
     }
 

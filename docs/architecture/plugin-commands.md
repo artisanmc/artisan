@@ -13,6 +13,7 @@ the `permissions:` block of `paper/src/main/resources/plugin.yml`.
 | `sync reject` | Permission `artisan.admin`. `menuProvider.unload()/load()` — reloads from disk and, on a leaf, reconnects to the hub. |
 | `editor` | Editor login link. See below. |
 | `dump-title <menu_id> [lang]` | Permission `artisan.admin`. **Diagnostic**, listed user-side as such. Compiles the menu title and prints each step: the exact MiniMessage emitted, the offset advances, and the MC X cursor at each layer boundary. Use it when the in-game position differs from the editor preview. |
+| `scene-demo` | Permission `artisan.admin`, players only. **Diagnostic** of `api.getScenes()` (ADR `world-scenes`): a marker above the entity the player looks at (else 3 blocks ahead), seen by them alone, bobbing for 10 s by interpolated transforms, then hidden. Use it to check display entities, per-player visibility and cleanup on a server. |
 | `click <token>` | No permission, absent from completion and help. **Internal**: the command a `chat_button` line runs when clicked (`/artisan:artisan click <token>`, `ChatButtons`). A token that is unknown, expired, used up or clicked by another player than the one it was sent to does nothing. Tokens live in memory, a restart forgets them. ADR `triggers-and-variables` §7. |
 
 Removed in phase F: `link <code>` (cloud linking), `member add <email>` (console access),
