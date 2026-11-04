@@ -130,6 +130,33 @@ describe("bedrockMenusFromProject", () => {
     expect(menus[0]?.key).toBe(bedrockMenuKey("lobby", "shop"));
   });
 
+  test("a hidden player inventory: kept when drawn without the vanilla texture and nothing sits in the inventory", () => {
+    const hidden = (name: string, body: string) => ({
+      path: `menus/${name}.yaml`,
+      content: `size: 27\nplayer_inventory: hidden\n${body}`,
+    });
+    const kept = bedrockMenusFromProject("lobby", [
+      hidden(
+        "drawn",
+        "vanilla_texture: false\nelements:\n  - positions: 10-16\n    material: STONE\n",
+      ),
+      hidden("textured", "elements:\n  - positions: 10\n    material: STONE\n"),
+      hidden(
+        "below",
+        "vanilla_texture: false\nelements:\n  - positions: '10,40'\n    material: STONE\n",
+      ),
+      hidden(
+        "listed",
+        "vanilla_texture: false\nelements:\n  - positions: [3, 27]\n    material: STONE\n",
+      ),
+      hidden(
+        "placed",
+        "vanilla_texture: false\nelements:\n  - places: { source: s, placements: [] }\n",
+      ),
+    ]);
+    expect(kept.map((m) => [m.id, m.transparent])).toEqual([["drawn", true]]);
+  });
+
   test("a layer without color takes the color tag its value opens with", () => {
     expect(leadingColor("<white>Bien le bonjour")).toBe("white");
     expect(leadingColor("<#ff8800>x")).toBe("#ff8800");
@@ -240,23 +267,34 @@ describe("buildBedrockPack", () => {
     const shop = menus[0] as BedrockMenu;
     const info = menus[1] as BedrockMenu;
     const shopBg = decodePng(out[`${backgroundTexture(shop)}.png`] as Uint8Array);
-    // The frame (ascent 13 → y 0, 100 tall) then the coin at (100, 40).
-    expect([shopBg.width, shopBg.height]).toEqual([176, 100]);
-    expect([...shopBg.data.subarray(0, 4)]).toEqual([0, 0, 255, 255]);
-    expect([...shopBg.data.subarray((40 * 176 + 100) * 4, (40 * 176 + 100) * 4 + 4)]).toEqual([
+    // From the Bedrock panel's top, 4 px above the Java layout: the frame (ascent 13 →
+    // y 0, 100 tall) then the coin at (100, 40), both 4 px lower.
+    expect([shopBg.width, shopBg.height]).toEqual([176, 104]);
+    expect([...shopBg.data.subarray(4 * 176 * 4, 4 * 176 * 4 + 4)]).toEqual([0, 0, 255, 255]);
+    expect([...shopBg.data.subarray((44 * 176 + 100) * 4, (44 * 176 + 100) * 4 + 4)]).toEqual([
       255, 255, 0, 255,
     ]);
+    // No chest top under it: its first row covers the 4 px lead (the Bedrock frame's edge).
+    const lead = (y: number) => [...shopBg.data.subarray(y * 176 * 4, (y + 1) * 176 * 4)];
+    for (const y of [0, 3]) expect(lead(y)).toEqual(lead(4));
     const infoBg = decodePng(out[`${backgroundTexture(info)}.png`] as Uint8Array);
-    expect([infoBg.width, infoBg.height]).toEqual([176, 17 + 3 * 18]);
+    expect([infoBg.width, infoBg.height]).toEqual([176, 4 + 17 + 3 * 18]);
     // The window corner is transparent; the title bar is not.
     expect(infoBg.data[(10 * 176 + 10) * 4 + 3]).toBe(255);
     // 4 rows open on the 6-row screen: the background covers its top half, the two
     // rows Geyser pads with drawn from the texture's plain band (row 126).
     const four = menus[2] as BedrockMenu;
     const fourBg = decodePng(out[`${backgroundTexture(four)}.png`] as Uint8Array);
-    expect([fourBg.width, fourBg.height]).toEqual([176, 17 + 6 * 18]);
+    expect([fourBg.width, fourBg.height]).toEqual([176, 4 + 17 + 6 * 18]);
     const texture = decodePng(chest);
-    for (const y of [17 + 4 * 18, 17 + 6 * 18 - 1])
+    const row = (img: typeof texture, y: number) => [
+      ...img.data.subarray(y * img.width * 4, (y * img.width + 176) * 4),
+    ];
+    // The 4 px on top: the texture's border (rows 0-3), then row 4 again before the rest.
+    for (const y of [0, 3]) expect(row(fourBg, y)).toEqual(row(texture, y));
+    for (const y of [4, 7, 8]) expect(row(fourBg, y)).toEqual(row(texture, 4));
+    expect(row(fourBg, 4 + 20)).toEqual(row(texture, 20));
+    for (const y of [4 + 17 + 4 * 18, 4 + 17 + 6 * 18 - 1])
       expect([...fourBg.data.subarray(y * 176 * 4, (y + 1) * 176 * 4)]).toEqual([
         ...texture.data.subarray(126 * texture.width * 4, (126 * texture.width + 176) * 4),
       ]);
@@ -274,14 +312,10 @@ describe("buildBedrockPack", () => {
       "small_chest_panel/root_panel",
     ]);
     const large = screen["large_chest_panel/root_panel"].modifications;
-    // The transparent menu hides the vanilla panel; the small one (styled) does not.
-    expect(large.map((m: { operation: string }) => m.operation)).toEqual([
-      "replace",
-      "replace",
-      "insert_back",
-    ]);
+    // The vanilla panel is never replaced, even under a transparent menu.
+    expect(large.map((m: { operation: string }) => m.operation)).toEqual(["insert_back"]);
     expect(screen["small_chest_panel/root_panel"].modifications).toHaveLength(1);
-    const inserted = Object.assign({}, ...large[2].value) as Record<
+    const inserted = Object.assign({}, ...large[0].value) as Record<
       string,
       Record<string, unknown>
     >;
@@ -291,28 +325,28 @@ describe("buildBedrockPack", () => {
     expect(names).toEqual([
       `artisan_${k}_bg`,
       `artisan_${k4}_bg`,
-      "artisan_chest_grid@chest.large_chest_grid",
-      "artisan_chest_grid_4@chest.large_chest_grid",
+      `artisan_${k}_grid@chest.large_chest_grid`,
+      `artisan_${k4}_grid@chest.large_chest_grid`,
       `artisan_${k}_b0_0`,
       `artisan_${k}_b0_2`,
       ...LEAD_CANDIDATES.map((lead) => `artisan_${k}_t0_${lead}`),
       ...LEAD_CANDIDATES.map((lead) => `artisan_${k}_t1_${lead}`),
     ]);
     // Each grid shows only its menus' rows: the slots Geyser pads a 4-row chest with stay hidden.
-    const grid = inserted["artisan_chest_grid@chest.large_chest_grid"] as Record<string, unknown>;
+    // One grid per menu, shown by its own key alone.
+    const grid = inserted[`artisan_${k}_grid@chest.large_chest_grid`] as Record<string, unknown>;
     expect(grid.grid_dimensions).toBeUndefined();
     expect(grid.visible).toBe(
       `(not (($artisan_title - '${BEDROCK_MARKER}${shop.key}') = $artisan_title))`,
     );
-    const grid4 = inserted["artisan_chest_grid_4@chest.large_chest_grid"] as Record<
-      string,
-      unknown
-    >;
+    const grid4 = inserted[`artisan_${k4}_grid@chest.large_chest_grid`] as Record<string, unknown>;
     expect(grid4.grid_dimensions).toEqual([9, 4]);
-    expect(String(grid4.visible)).toContain(`'${BEDROCK_MARKER}${(menus[2] as BedrockMenu).key}'`);
+    expect(grid4.visible).toBe(
+      `(not (($artisan_title - '${BEDROCK_MARKER}${(menus[2] as BedrockMenu).key}') = $artisan_title))`,
+    );
     const bg = inserted[`artisan_${k}_bg`] as Record<string, unknown>;
-    expect(bg.offset).toEqual([0, 4]);
-    expect(bg.size).toEqual([176, 100]);
+    expect(bg.offset).toEqual([0, 0]);
+    expect(bg.size).toEqual([176, 104]);
     expect(bg.visible).toBe(
       `(not (($artisan_title - '${BEDROCK_MARKER}${shop.key}') = $artisan_title))`,
     );
