@@ -130,7 +130,9 @@ export async function listLocalAssets(
     files = Object.entries(read.files).map(([path, content]) => ({ path, content }));
     binaries = read.binaries ?? [];
   }
-  return diskAssetsFromTree(projectId, files, binaries)
+  // What the module ships (`originals/assets/…`) is listed too, read-only: menus and module
+  // previews pick their images here. Changes go through the owner's files alone (`DraftOverlay`).
+  return diskAssetsFromTree(projectId, files, binaries, { originals: true })
     .map((a) => a.row)
     .filter((r) => !filters.type || r.type === filters.type)
     .filter((r) => !filters.search || r.name.toLowerCase().includes(filters.search.toLowerCase()))
@@ -180,7 +182,7 @@ export async function readAssetFiles(
     binaries = read.binaries ?? [];
   }
   const found =
-    diskAssetsFromTree(projectId, files, binaries).find(
+    diskAssetsFromTree(projectId, files, binaries, { originals: true }).find(
       (a) => a.row.id === asset.id && a.row.type === asset.type,
     ) ?? fail(404, "not_found");
   const bytesOf = async (path: string, hash: string): Promise<Uint8Array> => {
