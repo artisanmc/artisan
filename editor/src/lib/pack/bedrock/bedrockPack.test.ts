@@ -274,6 +274,9 @@ describe("buildBedrockPack", () => {
     expect([...shopBg.data.subarray((44 * 176 + 100) * 4, (44 * 176 + 100) * 4 + 4)]).toEqual([
       255, 255, 0, 255,
     ]);
+    // No chest top under it: its first row covers the 4 px lead (the Bedrock frame's edge).
+    const lead = (y: number) => [...shopBg.data.subarray(y * 176 * 4, (y + 1) * 176 * 4)];
+    for (const y of [0, 3]) expect(lead(y)).toEqual(lead(4));
     const infoBg = decodePng(out[`${backgroundTexture(info)}.png`] as Uint8Array);
     expect([infoBg.width, infoBg.height]).toEqual([176, 4 + 17 + 3 * 18]);
     // The window corner is transparent; the title bar is not.

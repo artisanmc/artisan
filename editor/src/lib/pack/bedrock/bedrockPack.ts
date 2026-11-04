@@ -149,6 +149,12 @@ function composeBackground(menu: BedrockMenu, input: BedrockPackInput): RgbaImag
   const out = createImage(WIDTH, height);
   if (top) bitblt(top, out, 0, 0, top.width, top.height, 0, 0);
   for (const l of layers) blend(l.image, out, l.x, BEDROCK_Y + l.y);
+  // Without the vanilla top, the window's first row is repeated over the lead so the
+  // Bedrock frame does not show above the menu's own background.
+  if (!top && height > BEDROCK_Y) {
+    const first = out.data.slice(BEDROCK_Y * WIDTH * 4, (BEDROCK_Y + 1) * WIDTH * 4);
+    for (let y = 0; y < BEDROCK_Y; y++) out.data.set(first, y * WIDTH * 4);
+  }
   return out;
 }
 

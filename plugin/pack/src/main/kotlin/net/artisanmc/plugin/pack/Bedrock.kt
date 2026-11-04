@@ -586,6 +586,10 @@ internal object BedrockPack {
         val out = RgbaImage(WIDTH, height)
         if (top != null) Png.bitblt(top, out, 0, 0, top.width, top.height, 0, 0)
         for (l in layers) blend(l.image, out, l.x, pad + l.y)
+        // Without the vanilla top, the window's first row is repeated over the lead (as in bedrockPack.ts).
+        if (top == null && height > pad) {
+            for (y in 0 until pad) System.arraycopy(out.data, pad * WIDTH * 4, out.data, y * WIDTH * 4, WIDTH * 4)
+        }
         return out
     }
 
