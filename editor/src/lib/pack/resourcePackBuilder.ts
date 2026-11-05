@@ -15,6 +15,7 @@ import {
   minYForSize,
 } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, buildImageButtons } from "./imageButtons";
+import { inventoryLabelFiles } from "./inventoryLabel";
 import type { GlyphPlacement } from "./menuGlyphPlacements";
 import { type OverlayImageRequest, buildOverlayImages } from "./overlayImages";
 import { type GuiContainer, buildVanillaGuiFiles } from "./vanillaGui";
@@ -77,6 +78,8 @@ export function buildResourcePackZip(
   textUp?: Record<TextUpTexture, Uint8Array>,
   /** Module images at a height (`pack.images`, SDK 1.13), as `artisan:overlay/…` fonts. */
   overlayImages: OverlayImageRequest[] = [],
+  /** Empty the client's "Inventory" label (`resource-pack.hide-inventory-label`, cf. inventoryLabel.ts). */
+  hideInventoryLabel = false,
 ): BuildResult {
   const remapped = assets.map((a) => {
     if (a.type !== "glyph" || a.codepoint === null) return a;
@@ -95,6 +98,8 @@ export function buildResourcePackZip(
   const assetIndex = buildAssetIndex(remapped, vanillaGui?.transparent);
   if (vanillaGui)
     Object.assign(files, buildVanillaGuiFiles(vanillaGui.sources, vanillaGui.transparent));
+  if (hideInventoryLabel)
+    for (const [path, json] of Object.entries(inventoryLabelFiles())) files[path] = strToU8(json);
   buildImageButtons(files, assetIndex, glyphPngs, imageButtons);
   buildOverlayImages(files, assetIndex, glyphPngs, overlayImages);
   files["assets/artisan/asset-index.json"] = strToU8(JSON.stringify(assetIndex, null, 2));

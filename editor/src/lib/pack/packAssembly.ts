@@ -38,6 +38,8 @@ export interface PackInput {
   textUp: Record<TextUpTexture, Uint8Array>;
   /** Redraw the containers a menu makes transparent (`vanilla_gui_v1`); true for every current plugin. */
   transparentContainers?: boolean;
+  /** `resource-pack.hide-inventory-label` from `config.yml`: empty the client's "Inventory" label. */
+  hideInventoryLabel?: boolean;
   /** Also build the Bedrock pack (`bedrock/bedrockPack.ts`) for this server. */
   bedrock?: { serverId: string };
 }
@@ -77,7 +79,9 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     // Keyed by the folder name: the plugin names a menu's Project that way.
     if (input.bedrock)
       bedrockMenus.push(...bedrockMenusFromProject(project.folder ?? project.id, files));
-    const fromDisk: DiskAsset[] = diskAssetsFromTree(project.id, files, project.binaries);
+    const fromDisk: DiskAsset[] = diskAssetsFromTree(project.id, files, project.binaries, {
+      originals: true,
+    });
 
     contribs.push({
       projectId: project.id,
@@ -125,6 +129,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     { sources, transparent: input.transparentContainers === false ? new Set() : transparent },
     input.textUp,
     overlayImages,
+    input.hideInventoryLabel === true,
   );
   if (!input.bedrock) return java;
   // Asset names collide across Projects the same way the Java pack resolves

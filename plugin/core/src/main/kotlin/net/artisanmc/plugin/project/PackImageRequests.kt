@@ -32,6 +32,8 @@ data class PackImageRequest(val asset: String, val rise: Int? = null, val bottom
  * computed at load so the hub builds the pack without the modules' editor code
  * (`overlayImagesFromFiles` in the editor, which this mirrors request for request).
  *
+ * The module's shipped files (`originals/…`) ask too, unless the owner has the same file.
+ *
  * Order: the files in path order (code units), each asking through the kind of its folder. A file
  * that does not parse, or whose provider throws, adds nothing: a module's bug must not cost the
  * server its pack. [warn] hears about the throws.
@@ -42,11 +44,12 @@ object PackImageRequests {
     private val IN_DIR = Regex("^(.+)/([^/]+)\\.ya?ml$")
 
     fun of(
-        files: Map<String, String>,
+        ownFiles: Map<String, String>,
         providers: Map<String, PackImagesProvider>,
         warn: (String) -> Unit = {},
     ): List<PackImageRequest> {
         if (providers.isEmpty()) return emptyList()
+        val files = withOriginals(ownFiles)
         val paths = files.keys.sorted()
         val parsed = HashMap<String, Any?>()
         fun parse(path: String): Any? = parsed.getOrPut(path) {
@@ -80,6 +83,25 @@ object PackImageRequests {
                     rise != null && rise >= OverlayApi.MIN_RISE && rise <= OverlayApi.MAX_RISE -> out += PackImageRequest(asset, rise = rise)
                 }
             }
+        }
+        return out
+    }
+
+    /**
+     * The module's folder as the server serves it (design `originaux-modules`): the owner's files, and
+     * each shipped one (`originals/…`) at its path without the prefix unless the owner has that file
+     * (`x.yml` and `x.yaml` name the same one). `shippedView.ts` in the editor.
+     */
+    private fun withOriginals(files: Map<String, String>): Map<String, String> {
+        val prefix = "originals/"
+        fun same(path: String) = path.removeSuffix(".yml").removeSuffix(".yaml")
+        val out = LinkedHashMap<String, String>()
+        for ((path, content) in files) if (!path.startsWith(prefix)) out[path] = content
+        val taken = out.keys.mapTo(HashSet(), ::same)
+        for ((path, content) in files) {
+            if (!path.startsWith(prefix)) continue
+            val at = path.removePrefix(prefix)
+            if (same(at) !in taken) out[at] = content
         }
         return out
     }

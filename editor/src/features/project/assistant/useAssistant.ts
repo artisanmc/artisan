@@ -1,5 +1,6 @@
 import {
   type AiEvent,
+  type AiLive,
   type AiScope,
   createAiConversation,
   readAiConversation,
@@ -10,21 +11,29 @@ import { ApiError } from "@/lib/api/client";
 import { useCallback, useEffect, useState } from "react";
 import { create } from "zustand";
 
-/** How often a view asks for new events while the assistant answers. */
-export const POLL_MS = 800;
+/** How often a view asks for new events while the assistant answers: often enough to see it write. */
+export const POLL_MS = 400;
 
 export { resetAiStatus, useAiStatus } from "@/state/aiStatus";
 
 /** A conversation as the editor has read it so far. */
 export interface ConversationView {
   events: AiEvent[];
+  /** What the model is writing now (its text, the file it writes), between two events. */
+  live: AiLive | null;
   running: boolean;
   failure: string | null;
   /** The hub no longer has it (deleted, or kept past its time): the next message starts another. */
   gone: boolean;
 }
 
-const EMPTY: ConversationView = { events: [], running: false, failure: null, gone: false };
+const EMPTY: ConversationView = {
+  events: [],
+  live: null,
+  running: false,
+  failure: null,
+  gone: false,
+};
 
 interface ConversationsState {
   byId: Record<string, ConversationView>;
@@ -74,6 +83,7 @@ export async function followConversation(id: string): Promise<void> {
     const current = useConversationsStore.getState().byId[id]?.events ?? [];
     patch(id, {
       events: read.events.length ? [...current, ...read.events] : current,
+      live: read.running ? (read.live ?? null) : null,
       running: read.running,
     });
     if (read.running)
@@ -84,6 +94,7 @@ export async function followConversation(id: string): Promise<void> {
   } catch (e) {
     patch(id, {
       running: false,
+      live: null,
       failure: e instanceof ApiError ? e.code : "network_error",
       ...(e instanceof ApiError && e.code === "not_found" ? { gone: true } : {}),
     });
@@ -154,6 +165,7 @@ export function useAssistant(scope: AiScope) {
   return {
     id,
     events: view.events,
+    live: view.live,
     running: view.running,
     failure: sendFailure ?? view.failure,
     send,
