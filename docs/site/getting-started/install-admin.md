@@ -35,7 +35,7 @@ On first start Artisan creates its folder:
 | `plugins/Artisan/database/` | The embedded H2 database (`suite.mv.db`), created when a plugin first asks for the database. |
 | `plugins/Artisan/cache/` | Downloaded Minecraft assets, resource packs (Java and Bedrock), asset index. |
 | `plugins/Artisan/network-secret` | Only on a network hub with no other secret source. See [the shared secret](../../network/setup/#4-the-shared-secret). |
-| `plugins/Artisan/tunnel-secret` | On the hub, unless `web.url` is set or `web.tunnel` is empty: it decides the editor's address on the tunnel server. Keep it to keep the address; delete it to get a new one. Also sent to the pack host (`web.pack-cdn`), which counts this hub's daily quota with it. |
+| `plugins/Artisan/tunnel-secret` | On the hub using the tunnel: it fixes the editor's `https://<id>.artisanmc.app` address. Delete it to get a new address. |
 
 The console should show:
 
@@ -53,23 +53,8 @@ Artisan <version> enabled
 
 ### Bedrock players (Geyser)
 
-With Geyser-Spigot on the same server, Artisan hands Bedrock players a pack that redraws the menus
-the editor styled (chests of 1 to 6 rows; a chest of 1, 2, 4 or 5 rows shows a plain band where
-Bedrock keeps the rows it lacks). On first start next to Geyser, Artisan writes
-`plugins/Geyser-Spigot/custom_mappings/artisan.json` and asks for one more restart so that Geyser
-loads it.
-
-With Geyser on your proxy instead (Velocity, BungeeCord), drop `artisan-geyser.jar` into that
-Geyser's `extensions/` folder and start the proxy once. It creates `extensions/artisan/config.yml`:
-set `hub` to the editor's address (the plugin's `web.url`, or `http://<server ip>:8765`) and
-`server` to the content of `plugins/Artisan/server-id` on the server whose menus Bedrock players
-see, then restart the proxy (this restart also loads the click mapping the extension writes). From
-then on the extension checks the server's Bedrock pack every 30 seconds and hands the new one to
-Bedrock players at their next connection, with no copy and no restart. Bedrock players are
-recognised by their Floodgate UUID. Without the extension, you can still copy
-`plugins/Artisan/cache/bedrock-pack/<hash>.mcpack` into Geyser's `packs/` and
-`plugins/Artisan/cache/geyser/custom_mappings/artisan.json` into its `custom_mappings/` by hand;
-don't do both, or Bedrock players receive the pack twice.
+Artisan can redraw your menus for Bedrock players through Geyser. See
+[Bedrock players](../../configuration/bedrock/).
 
 ## 3. Nothing to open (or your own address)
 
