@@ -12,7 +12,12 @@ class AiRoutes(private val setup: AiSetup) {
     fun register(router: Router) {
         router.on("GET", STATUS, VIEW) { call ->
             val assistant = setup.assistant()
-            call.json(mapOf("enabled" to (assistant != null), "model" to assistant?.model, "canUse" to (assistant != null && call.session!!.can(EDIT))))
+            call.json(
+                mapOf(
+                    "enabled" to (assistant != null), "model" to assistant?.model, "canUse" to (assistant != null && call.session!!.can(EDIT)),
+                    "attachments" to assistant?.attachments?.map { it.id }?.sorted(),
+                ),
+            )
         }
         router.on("GET", CONFIG_PATH, CONFIG) { call -> call.json(config()) }
         router.on("PUT", CONFIG_PATH, CONFIG) { call ->
@@ -74,6 +79,8 @@ class AiRoutes(private val setup: AiSetup) {
                 is AiAttachment.Parsed.Invalid -> return@on call.error(parsed.status, parsed.code)
                 is AiAttachment.Parsed.Valid -> parsed.attachments
             }
+            // A kind the model does not read (an image to DeepSeek): refused, rather than an error from the provider.
+            if (attachments.any { it.kind !in assistant.attachments }) return@on call.error(422, "ai_attachment_model")
             if ((text.isEmpty() && attachments.isEmpty()) || text.length > MAX_MESSAGE) return@on call.error(422, "invalid_input")
             when (assistant.send(call.session!!, call.params.getValue("conversation"), text, attachments)) {
                 AiAssistant.Sent.Accepted -> call.json(mapOf("ok" to true), 202)

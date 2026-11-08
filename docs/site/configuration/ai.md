@@ -30,6 +30,21 @@ ai:
   api-key: "${ANTHROPIC_API_KEY}"
 ```
 
+**Another vendor.** Pick **OpenAI-compatible** and one of the known addresses (DeepSeek,
+Mistral, OpenRouter, a local Ollama, which takes any key), or type another, then the model as the
+vendor names it:
+
+```yaml
+ai:
+  provider: "openai"
+  api-key: "${DEEPSEEK_API_KEY}"
+  base-url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+```
+
+Not every model reads every file: DeepSeek reads text files only, PDFs go to Anthropic, OpenAI
+and OpenRouter. The editor refuses another kind before sending.
+
 **Use it.** Players with `artisan.editor.edit` open a project and click ✦, then describe what
 they want:
 

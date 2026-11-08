@@ -974,8 +974,10 @@ editor sessions of the network, with "You", "Editor open", last activity (to the
 server and rights; **Close** revokes one, one's own after a confirmation, then
 `authStore.sessionClosed()` sends the tab to `/login?expired=1`. Also for `artisan.editor.config`,
 **Assistant** (`features/settings/AssistantSettingsSection.tsx`, `/api/v1/ai/config`, `#assistant`):
-the assistant's API, address, model, key (write-only: a saved one shows as its last four characters
-and stays when the field is left empty), effort and steps; saving applies at once and resets
+the assistant's API (Anthropic Messages, or OpenAI-compatible), address (the known vendors' as
+chips under the field, `PRESETS`; switching the API empties it, and empties a Claude model name),
+model, key (write-only: a saved one shows as its last four characters
+and stays when the field is left empty), effort (Anthropic only, hidden otherwise) and steps; saving applies at once and resets
 `useAiStatus`'s cache. Read-only when environment.yml's `ai` section sets them. As long as the address has no name,
 `EditorAddressBanner` offers it at the top of a server's page; "Later" hides it for
 this browser (`localStorage`).
@@ -1120,7 +1122,9 @@ file input) and, when the view knows its server, "From the server's modules" (`S
 server's module folders, `listServerProjects`, then a module's text files and images,
 `readProjectFiles` and `SERVER/projects/:project/asset`, read with the player's session). A drop on
 the composer and a paste add files too. An image larger than 1568 px is drawn again at that size in
-its own format before it is sent. The kind comes from the bytes (image, PDF, UTF-8 text). Pending
+its own format before it is sent. The kind comes from the bytes (image, PDF, UTF-8 text); a kind
+the model does not read (`useAiStatus().attachments`, DeepSeek: text only) is refused at once
+(`ai_attachment_model`). Pending
 files show as chips; a message the hub refuses gives its text and files back. A `user` event shows
 the names of the files sent with it.
 

@@ -182,6 +182,9 @@ class AiAssistant(
 
     val model: String get() = provider.model
 
+    /** The kinds of files the model reads ([AiProvider.attachments]). */
+    val attachments: Set<AiAttachment.Kind> get() = provider.attachments
+
     /** "Translate the missing ones" on the same model and key. */
     val translator = AiTranslator(provider)
 

@@ -105,6 +105,8 @@ export const aiEn = {
     ai_attachment_too_large:
       "Too large: up to 3.7 MB per image, 6 MB per PDF, 200,000 characters per text file and 6 MB per message.",
     ai_attachment_count: "Up to 5 files per message.",
+    ai_attachment_model:
+      "The configured model does not read this kind of file (DeepSeek reads text files only; PDFs go to Anthropic, OpenAI and OpenRouter).",
     ai_conversation_full:
       "This conversation holds too many files already. Start a new one to send more.",
     read_error: "This file could not be read.",
@@ -122,12 +124,30 @@ export const aiEn = {
       "These settings come from the ai section of environment.yml, which wins over the editor. Empty it there to set them here.",
     provider: "API",
     providerHint: "The protocol the hub speaks.",
-    providers: { anthropic: "Anthropic Messages API" },
+    providers: {
+      anthropic: "Anthropic Messages API",
+      openai: "OpenAI-compatible (Chat Completions)",
+    },
     baseUrl: "Address",
-    baseUrlHint:
-      "Empty: Anthropic. Another vendor with a compatible API, e.g. DeepSeek: https://api.deepseek.com/anthropic",
+    baseUrlHint: "Empty: the API's own vendor. Otherwise a vendor with a compatible API.",
+    baseUrlHints: {
+      anthropic:
+        "Empty: Anthropic. Another vendor with a compatible API, e.g. DeepSeek: https://api.deepseek.com/anthropic",
+      openai:
+        "Empty: OpenAI. DeepSeek, Mistral, OpenRouter, a local Ollama (any key) or any other compatible API. DeepSeek reads no images; PDFs go to OpenAI and OpenRouter only.",
+    },
+    presets: "Known addresses",
+    vendors: {
+      anthropic: "Anthropic",
+      openai: "OpenAI",
+      deepseek: "DeepSeek",
+      mistral: "Mistral",
+      openrouter: "OpenRouter",
+      ollama: "Ollama",
+    },
     model: "Model",
-    modelHint: "As the vendor names it: claude-opus-5-5, deepseek-chat…",
+    modelHint: "As the vendor names it: claude-opus-5-5, deepseek-chat, mistral-large-latest…",
+    modelExamples: "deepseek-chat, mistral-large-latest…",
     apiKey: "API key",
     apiKeyHint: "Stored by the hub, never shown again.",
     apiKeySaved:
@@ -267,6 +287,8 @@ export const aiFr: typeof aiEn = {
     ai_attachment_too_large:
       "Trop lourd : 3,7 Mo par image, 6 Mo par PDF, 200 000 caractères par fichier texte et 6 Mo par message au plus.",
     ai_attachment_count: "5 fichiers par message au plus.",
+    ai_attachment_model:
+      "Le modèle configuré ne lit pas ce type de fichier (DeepSeek ne lit que les fichiers texte ; les PDF passent chez Anthropic, OpenAI et OpenRouter).",
     ai_conversation_full:
       "Cette conversation contient déjà trop de fichiers. Commence-en une nouvelle pour en envoyer d’autres.",
     read_error: "Ce fichier n’a pas pu être lu.",
@@ -284,12 +306,31 @@ export const aiFr: typeof aiEn = {
       "Ces réglages viennent de la section ai d’environment.yml, qui l’emporte sur l’éditeur. Vide-la pour les régler ici.",
     provider: "API",
     providerHint: "Le protocole que parle le hub.",
-    providers: { anthropic: "API Messages d’Anthropic" },
+    providers: {
+      anthropic: "API Messages d’Anthropic",
+      openai: "Compatible OpenAI (Chat Completions)",
+    },
     baseUrl: "Adresse",
-    baseUrlHint:
-      "Vide : Anthropic. Un autre fournisseur avec une API compatible, par exemple DeepSeek : https://api.deepseek.com/anthropic",
+    baseUrlHint: "Vide : le fournisseur de l’API. Sinon un fournisseur avec une API compatible.",
+    baseUrlHints: {
+      anthropic:
+        "Vide : Anthropic. Un autre fournisseur avec une API compatible, par exemple DeepSeek : https://api.deepseek.com/anthropic",
+      openai:
+        "Vide : OpenAI. DeepSeek, Mistral, OpenRouter, un Ollama local (n’importe quelle clé) ou toute autre API compatible. DeepSeek ne lit pas les images ; les PDF ne passent que chez OpenAI et OpenRouter.",
+    },
+    presets: "Adresses connues",
+    vendors: {
+      anthropic: "Anthropic",
+      openai: "OpenAI",
+      deepseek: "DeepSeek",
+      mistral: "Mistral",
+      openrouter: "OpenRouter",
+      ollama: "Ollama",
+    },
     model: "Modèle",
-    modelHint: "Tel que le fournisseur le nomme : claude-opus-5-5, deepseek-chat…",
+    modelHint:
+      "Tel que le fournisseur le nomme : claude-opus-5-5, deepseek-chat, mistral-large-latest…",
+    modelExamples: "deepseek-chat, mistral-large-latest…",
     apiKey: "Clé d’API",
     apiKeyHint: "Gardée par le hub, jamais réaffichée.",
     apiKeySaved:

@@ -23,7 +23,8 @@ export interface PendingAttachment {
 export type AttachmentRefusal =
   | "ai_attachment_unsupported"
   | "ai_attachment_too_large"
-  | "ai_attachment_count";
+  | "ai_attachment_count"
+  | "ai_attachment_model";
 
 /** The hub's limits (`AiAttachment`), checked here first so the player learns before sending. */
 export const ATTACHMENT_LIMITS = {
@@ -128,11 +129,16 @@ export async function attachmentFromFile(
   return attachmentFromBytes(file.name || "file", new Uint8Array(await blob.arrayBuffer()));
 }
 
-/** Whether [next] still fits beside [current] in one message. */
+/**
+ * Whether [next] still fits beside [current] in one message, and is a kind the model reads
+ * ([kinds], from the hub's status; absent: every kind).
+ */
 export function fits(
   current: PendingAttachment[],
   next: PendingAttachment,
+  kinds?: AiAttachmentKind[] | null,
 ): AttachmentRefusal | null {
+  if (kinds && !kinds.includes(next.kind)) return "ai_attachment_model";
   if (current.length >= ATTACHMENT_LIMITS.files) return "ai_attachment_count";
   const total = current.reduce((sum, a) => sum + a.size, 0) + next.size;
   return total > ATTACHMENT_LIMITS.message ? "ai_attachment_too_large" : null;
