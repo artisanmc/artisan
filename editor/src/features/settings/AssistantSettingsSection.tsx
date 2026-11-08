@@ -165,11 +165,7 @@ export function AssistantSettingsSection() {
             />
           </FormField>
           {(PRESETS[form.provider] ?? []).length > 0 && (
-            <div
-              className="flex flex-wrap gap-1.5"
-              role="group"
-              aria-label={t("ai.settings.presets")}
-            >
+            <div className="flex flex-wrap gap-1.5">
               {(PRESETS[form.provider] ?? []).map((preset) => (
                 <button
                   key={preset.id}

@@ -136,7 +136,6 @@ export const aiEn = {
       openai:
         "Empty: OpenAI. DeepSeek, Mistral, OpenRouter, a local Ollama (any key) or any other compatible API. DeepSeek reads no images; PDFs go to OpenAI and OpenRouter only.",
     },
-    presets: "Known addresses",
     vendors: {
       anthropic: "Anthropic",
       openai: "OpenAI",
@@ -318,7 +317,6 @@ export const aiFr: typeof aiEn = {
       openai:
         "Vide : OpenAI. DeepSeek, Mistral, OpenRouter, un Ollama local (n’importe quelle clé) ou toute autre API compatible. DeepSeek ne lit pas les images ; les PDF ne passent que chez OpenAI et OpenRouter.",
     },
-    presets: "Adresses connues",
     vendors: {
       anthropic: "Anthropic",
       openai: "OpenAI",
