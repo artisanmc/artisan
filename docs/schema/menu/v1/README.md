@@ -142,7 +142,7 @@ Every data flow entering a menu — whether from the caller or from a third-part
 - **Data source**: the slot carries a `source: ConnectorBinding`; the engine calls the referenced data source and stores the result.
 - **Default**: literal fallback value.
 
-An Element becomes iterative by pointing `iterates: { source, alias }` to a slot of type `"list"` (whether the list comes from the caller or from a data source doesn't matter — it is opaque to the Element). Fields access the current item via `{alias.field}`. Concept detailed in `main-spec.md` section 14.
+An Element becomes iterative by pointing `iterates: { source, alias }` to a slot of type `"list"` (whether the list comes from the caller or from a data source doesn't matter — it is opaque to the Element). Fields access the current item via `{alias.field}`. Concept first described in `docs/archive/specs/main-spec.md` §14.
 
 ```json
 {

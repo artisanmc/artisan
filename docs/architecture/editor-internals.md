@@ -561,7 +561,7 @@ See `docs/archive/specs/2026-06-13-workspace-board-curation-design.md` (supersed
 
 ### `canvasLayout` = pinned positions (derived board, since 2026-09-25)
 
-**Revises the curation of 2026-06-13** (spec `docs/specs/server-registry-and-derived-canvas.md`, decision 5). The board shows **all** the project's Documents, arranged automatically; `canvasLayout` no longer lists the members, it only keeps the hand-placed positions (a drag-and-drop writes a pinned position). The old `canvasLayout` entries therefore become pinned positions, kept as is.
+**Revises the curation of 2026-06-13** (spec `docs/archive/specs/server-registry-and-derived-canvas.md`, decision 5). The board shows **all** the project's Documents, arranged automatically; `canvasLayout` no longer lists the members, it only keeps the hand-placed positions (a drag-and-drop writes a pinned position). The old `canvasLayout` entries therefore become pinned positions, kept as is.
 
 Positions and modifications are kept by `useDraftSync` in a local
 copy, then saved automatically through the resolved storage (see below). After a save that clears the draft,
