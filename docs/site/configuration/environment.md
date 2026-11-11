@@ -57,12 +57,12 @@ editor shows its values read-only. See [The editor's assistant](../ai/#the-edito
 
 | Key | Default | Meaning |
 |---|---|---|
-| `ai.provider` | `""` | `"anthropic"`. Empty: no assistant. |
+| `ai.provider` | `""` | `"anthropic"` (Anthropic's Messages API) or `"openai"` (any OpenAI-compatible API: OpenAI, DeepSeek, Mistral, OpenRouter, Ollama…). Empty: no assistant. |
 | `ai.api-key` | `""` | The provider's API key. Write `"${ANTHROPIC_API_KEY}"` to read it from the environment instead of the file. Every message of every player who uses the assistant is billed to it. |
 | `ai.model` | `"claude-opus-5-5"` | The model the assistant runs on. |
-| `ai.effort` | `"medium"` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the model thinks, and how many tokens it spends. |
+| `ai.effort` | `"medium"` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the model thinks, and how many tokens it spends. `anthropic` only. |
 | `ai.max-steps` | `25` | Model calls one message may make (1 to 100). The assistant stops there and says so; the next message lets it go on. |
-| `ai.base-url` | `""` | Another address for the API: a proxy, or another vendor's compatible API (DeepSeek: `https://api.deepseek.com/anthropic`). Empty: Anthropic's. |
+| `ai.base-url` | `""` | Another address for the API: a proxy, or another vendor's compatible API. With `anthropic`: DeepSeek `https://api.deepseek.com/anthropic`. With `openai`: DeepSeek `https://api.deepseek.com`, Mistral `https://api.mistral.ai/v1`, OpenRouter `https://openrouter.ai/api/v1`, Ollama `http://localhost:11434/v1`. Empty: the provider's own (Anthropic, OpenAI). |
 
 ## `database`
 

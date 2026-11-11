@@ -30,7 +30,9 @@ class AiAssistantTest {
         val inputs = CopyOnWriteArrayList<List<AiInput>>()
         val systems = CopyOnWriteArrayList<String>()
         @Volatile var gate: CountDownLatch? = null
+        @Volatile var kinds: Set<AiAttachment.Kind> = AiAttachment.Kind.entries.toSet()
         override val model = "scripted"
+        override val attachments get() = kinds
         override fun conversation(system: String, tools: List<McpTools.Tool>): AiConversation {
             systems += system
             return object : AiConversation {
@@ -384,6 +386,13 @@ class AiAssistantTest {
         assertEquals(422, editor("POST", path, mapOf("text" to "", "attachments" to emptyList<Any>())).status)
         val big = mapOf("name" to "big.png", "data" to b64(png + ByteArray(AiAttachment.MAX_IMAGE)))
         assertEquals("ai_attachment_too_large", editor("POST", path, mapOf("text" to "?", "attachments" to listOf(big))).body!!["error"].asText())
+
+        // A model that reads text alone (DeepSeek): the status says so, an image is refused before it goes.
+        assertEquals(listOf("image", "pdf", "text"), editor("GET", AiRoutes.STATUS).body!!["attachments"].map { it.asText() })
+        model.kinds = setOf(AiAttachment.Kind.TEXT)
+        assertEquals(listOf("text"), editor("GET", AiRoutes.STATUS).body!!["attachments"].map { it.asText() })
+        val picture = mapOf("name" to "capture.png", "data" to b64(png))
+        assertEquals("ai_attachment_model", editor("POST", path, mapOf("text" to "?", "attachments" to listOf(picture))).body!!["error"].asText())
     }
 
     @Test

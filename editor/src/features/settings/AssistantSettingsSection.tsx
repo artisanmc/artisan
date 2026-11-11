@@ -9,9 +9,33 @@ import {
   saveAiSettings,
 } from "@/lib/api/ai";
 import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/cx";
 import { resetAiStatus } from "@/state/aiStatus";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+/**
+ * Known addresses, one click away: the vendors whose compatible APIs the assistant was tried
+ * against. Empty: the API's own vendor.
+ */
+const PRESETS: Record<string, { id: string; url: string }[]> = {
+  anthropic: [
+    { id: "anthropic", url: "" },
+    { id: "deepseek", url: "https://api.deepseek.com/anthropic" },
+  ],
+  openai: [
+    { id: "openai", url: "" },
+    { id: "deepseek", url: "https://api.deepseek.com" },
+    { id: "mistral", url: "https://api.mistral.ai/v1" },
+    { id: "openrouter", url: "https://openrouter.ai/api/v1" },
+    { id: "ollama", url: "http://localhost:11434/v1" },
+  ],
+};
+
+const DEFAULT_URL: Record<string, string> = {
+  anthropic: "https://api.anthropic.com",
+  openai: "https://api.openai.com/v1",
+};
 
 type Form = Required<Omit<AiSettingsInput, "maxSteps">> & { maxSteps: string };
 
@@ -112,22 +136,56 @@ export function AssistantSettingsSection() {
               label: t(`ai.settings.providers.${p}`, { defaultValue: p }),
             }))}
             value={form.provider}
-            onChange={(provider) => set({ provider })}
+            onChange={(provider) =>
+              // Claude's name means nothing to another API: the model is asked again.
+              set({
+                provider,
+                baseUrl: "",
+                model:
+                  provider !== "anthropic" && form.model === settings.defaultModel
+                    ? ""
+                    : form.model,
+              })
+            }
           />
         </FormField>
-        <FormField label={t("ai.settings.baseUrl")} hint={t("ai.settings.baseUrlHint")}>
-          <Input
-            value={form.baseUrl}
-            placeholder="https://api.anthropic.com"
-            inputMode="url"
-            maxLength={300}
-            onChange={(e) => set({ baseUrl: e.target.value })}
-          />
-        </FormField>
+        <div className="flex flex-col gap-2">
+          <FormField
+            label={t("ai.settings.baseUrl")}
+            hint={t(`ai.settings.baseUrlHints.${form.provider}`, {
+              defaultValue: t("ai.settings.baseUrlHint"),
+            })}
+          >
+            <Input
+              value={form.baseUrl}
+              placeholder={DEFAULT_URL[form.provider] ?? ""}
+              inputMode="url"
+              maxLength={300}
+              onChange={(e) => set({ baseUrl: e.target.value })}
+            />
+          </FormField>
+          {(PRESETS[form.provider] ?? []).length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {(PRESETS[form.provider] ?? []).map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={cn("chip text-[12px]", form.baseUrl === preset.url && "is-active")}
+                  aria-pressed={form.baseUrl === preset.url}
+                  onClick={() => set({ baseUrl: preset.url })}
+                >
+                  {t(`ai.settings.vendors.${preset.id}`)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <FormField label={t("ai.settings.model")} hint={t("ai.settings.modelHint")}>
           <Input
             value={form.model}
-            placeholder={settings.defaultModel}
+            placeholder={
+              form.provider === "anthropic" ? settings.defaultModel : t("ai.settings.modelExamples")
+            }
             maxLength={128}
             required
             onChange={(e) => set({ model: e.target.value })}
@@ -150,14 +208,17 @@ export function AssistantSettingsSection() {
             onChange={(e) => set({ apiKey: e.target.value })}
           />
         </FormField>
-        <FormField group label={t("ai.settings.effort")} hint={t("ai.settings.effortHint")}>
-          <Segmented
-            label={t("ai.settings.effort")}
-            options={settings.efforts.map((e) => ({ value: e, label: e }))}
-            value={form.effort}
-            onChange={(effort) => set({ effort })}
-          />
-        </FormField>
+        {/* Only Anthropic's API takes it: a compatible API leaves the model's own default. */}
+        {form.provider === "anthropic" && (
+          <FormField group label={t("ai.settings.effort")} hint={t("ai.settings.effortHint")}>
+            <Segmented
+              label={t("ai.settings.effort")}
+              options={settings.efforts.map((e) => ({ value: e, label: e }))}
+              value={form.effort}
+              onChange={(effort) => set({ effort })}
+            />
+          </FormField>
+        )}
         <FormField label={t("ai.settings.maxSteps")} hint={t("ai.settings.maxStepsHint")}>
           <Input
             type="number"

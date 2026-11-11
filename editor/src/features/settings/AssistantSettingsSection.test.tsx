@@ -91,6 +91,33 @@ describe("assistant settings", () => {
     expect(await screen.findByText(/enter the key again/)).toBeInTheDocument();
   });
 
+  it("switches to an OpenAI-compatible API: a vendor's address in one click, no Claude model, no effort", async () => {
+    api.getAiSettings.mockResolvedValue(settings({ providers: ["anthropic", "openai"] }));
+    api.saveAiSettings.mockResolvedValue(settings({ providers: ["anthropic", "openai"] }));
+    render(<AssistantSettingsSection />);
+    fireEvent.click(await screen.findByRole("button", { name: /OpenAI-compatible/ }));
+    expect(screen.getByLabelText(/^Model/)).toHaveValue("");
+    expect(screen.queryByRole("button", { name: "high" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "DeepSeek" }));
+    expect(screen.getByLabelText(/^Address/)).toHaveValue("https://api.deepseek.com");
+    expect(screen.getByRole("button", { name: "DeepSeek" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.change(screen.getByLabelText(/^Model/), { target: { value: "deepseek-chat" } });
+    fireEvent.change(screen.getByLabelText(/^API key/), { target: { value: "sk-123456789" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(api.saveAiSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: "openai",
+          model: "deepseek-chat",
+          baseUrl: "https://api.deepseek.com",
+        }),
+      ),
+    );
+  });
+
   it("shows environment.yml's settings read-only", async () => {
     api.getAiSettings.mockResolvedValue(
       settings({ source: "file", editable: false, enabled: true, provider: "anthropic" }),
