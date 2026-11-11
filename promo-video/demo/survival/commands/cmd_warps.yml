@@ -1,0 +1,6 @@
+schema: command/v1
+name: warps
+aliases: [warp]
+description: { en: "Teleport to a server area", fr: "Se téléporter vers une zone du serveur" }
+actions:
+  - open_menu: warps

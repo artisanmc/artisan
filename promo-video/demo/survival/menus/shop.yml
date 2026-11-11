@@ -1,0 +1,90 @@
+schema: menu/v1
+title:
+  - kind: background
+    asset_id: shop_background
+  - kind: text
+    value: { en: "Shop", fr: "<#4a2f12>Boutique" }
+    x: 8
+    y: 6
+size: 27
+elements:
+  - id: balance
+    positions: 4
+    material: SUNFLOWER
+    title: { en: "<gold>{player.balance} coins", fr: "<gold>{player.balance} pièces" }
+  - id: kit_miner
+    positions: 10
+    material: DIAMOND_PICKAXE
+    title: { en: "<aqua>Miner kit", fr: "<aqua>Kit mineur" }
+    lore:
+      en: [ "<gray>Pickaxe, torches and food.", "", "<gold>Price: 250 coins", "<yellow>Click to buy" ]
+      fr: [ "<gray>Pioche, torches et nourriture.", "", "<gold>Prix : 250 pièces", "<yellow>Clic pour acheter" ]
+    click:
+      left:
+        - if:
+            - expression: balance >= 250
+          do:
+            - take_money: 250
+            - give_item:
+                material: DIAMOND_PICKAXE
+                count: 1
+            - give_item:
+                material: TORCH
+                count: 32
+            - play_sound:
+                sound: ENTITY_PLAYER_LEVELUP
+                pitch: 1.2
+            - send_message: <green>Miner kit bought.
+          else:
+            - send_message: <red>You need 250 coins.
+  - id: food
+    positions: 11
+    material: COOKED_BEEF
+    title: { en: "<yellow>Steak ×16", fr: "<yellow>Steak ×16" }
+    lore:
+      en: [ "<gold>Price: 40 coins" ]
+      fr: [ "<gold>Prix : 40 pièces" ]
+  - id: elytra
+    positions: 12
+    material: ELYTRA
+    title: { en: "<light_purple>Elytra", fr: "<light_purple>Élytres" }
+    lore:
+      en: [ "<gold>Price: 5,000 coins" ]
+      fr: [ "<gold>Prix : 5 000 pièces" ]
+    click:
+      left:
+        - open_dialog: confirm_purchase
+  - id: rank_vip
+    positions: 14
+    material: NAME_TAG
+    title: { en: "<green>VIP rank", fr: "<green>Grade VIP" }
+    lore:
+      en: [ "<gray>/hat, /craft, 2 homes more.", "", "<gold>Price: 10,000 coins" ]
+      fr: [ "<gray>/hat, /craft, 2 homes en plus.", "", "<gold>Prix : 10 000 pièces" ]
+    click:
+      left:
+        - open_dialog: confirm_purchase
+    states:
+      - if:
+          - has_permission: rank.vip
+        material: LIME_DYE
+        title: { en: "<green>VIP · owned", fr: "<green>VIP · possédé" }
+        enchanted: true
+  - id: spawners
+    positions: 15
+    material: SPAWNER
+    title: { en: "<red>Spawners", fr: "<red>Spawners" }
+    lore:
+      en: [ "<gray>Pig, cow, zombie, skeleton." ]
+      fr: [ "<gray>Cochon, vache, zombie, squelette." ]
+  - id: keys
+    positions: 16
+    material: TRIPWIRE_HOOK
+    title: { en: "<gold>Crate keys", fr: "<gold>Clés de box" }
+  - id: back
+    positions: 22
+    material: ARROW
+    title: { en: "<gray>Back", fr: "<gray>Retour" }
+    click:
+      left:
+        - open_previous_menu

@@ -1,0 +1,12 @@
+schema: dialog/v1
+title: { en: "Confirm your purchase", fr: "Confirmer l'achat" }
+body:
+  - { type: text, text: { en: "Buy <white>{item}</white> for <gold>{price} coins</gold>?", fr: "Acheter <white>{item}</white> pour <gold>{price} pièces</gold> ?" } }
+buttons:
+  - id: confirm
+    label: { en: "<green>Buy", fr: "<green>Acheter" }
+    actions:
+      - open_previous_menu
+  - id: cancel
+    label: { en: "Cancel", fr: "Annuler" }
+    actions: [ open_previous_menu ]

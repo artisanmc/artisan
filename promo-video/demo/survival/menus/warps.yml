@@ -1,0 +1,60 @@
+schema: menu/v1
+title:
+  - kind: plain
+    value: { en: "<dark_gray>Warps", fr: "<dark_gray>Téléportations" }
+size: 36
+elements:
+  - id: mine
+    positions: 10
+    material: IRON_PICKAXE
+    title: { en: "<yellow>Resource world", fr: "<yellow>Monde ressources" }
+    lore:
+      en: [ "<gray>Reset every Monday." ]
+      fr: [ "<gray>Réinitialisé chaque lundi." ]
+    click:
+      left:
+        - close_menu
+        - run_command: rtp resources
+  - id: nether
+    positions: 12
+    material: NETHERRACK
+    title: { en: "<red>Nether", fr: "<red>Nether" }
+    click:
+      left:
+        - close_menu
+        - teleport:
+            world: world_nether
+            x: 0
+            y: 70
+            z: 0
+  - id: end
+    positions: 14
+    material: GRAY_DYE
+    title: { en: "<dark_gray>The End · locked", fr: "<dark_gray>L'End · verrouillé" }
+    lore:
+      en: [ "<gray>Unlocked at level 30." ]
+      fr: [ "<gray>Débloqué au niveau 30." ]
+    states:
+      - if:
+          - has_permission: warp.end
+        material: END_STONE
+        title: { en: "<light_purple>The End", fr: "<light_purple>L'End" }
+        click:
+          left:
+            - close_menu
+            - teleport:
+                world: world_the_end
+                x: 100
+                y: 50
+                z: 0
+  - id: arena
+    positions: 16
+    material: IRON_SWORD
+    title: { en: "<gold>PvP arena", fr: "<gold>Arène PvP" }
+  - id: back
+    positions: 31
+    material: ARROW
+    title: { en: "<gray>Back", fr: "<gray>Retour" }
+    click:
+      left:
+        - open_previous_menu

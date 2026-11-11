@@ -1,0 +1,134 @@
+schema: menu/v1
+# The server's main menu: one entry per gameplay system, the modules included.
+title:
+  - kind: background
+    asset_id: hub_background
+  - kind: text
+    value: { en: "Survival · Main menu", fr: "<#4a2f12>Survie · Menu principal" }
+    x: 8
+    y: 6
+  - kind: glyph
+    asset_id: coin
+    x: 150
+    y: 2
+size: 54
+elements:
+  - id: profile
+    positions: 4
+    material: PLAYER_HEAD
+    head: "playerhead:{player.name}"
+    title: "<gold><bold>{player.name}"
+    lore:
+      en:
+        - "<gray>First visit: <white>{player.first_seen.ago()} ago"
+        - "<gray>Time played: <white>{player.playtime.duration()}"
+        - ""
+        - "{player.world == \"world\" ? \"<green>● In the overworld\" : \"<gray>● Exploring {player.world}\"}"
+      fr:
+        - "<gray>Première visite : <white>il y a {player.first_seen.ago()}"
+        - "<gray>Temps de jeu : <white>{player.playtime.duration()}"
+        - ""
+        - "{player.world == \"world\" ? \"<green>● Dans le monde principal\" : \"<gray>● En exploration : {player.world}\"}"
+  - id: spawn
+    positions: 19
+    material: COMPASS
+    title: { en: "<yellow>Spawn", fr: "<yellow>Spawn" }
+    lore:
+      en: [ "<gray>Back to the town square." ]
+      fr: [ "<gray>Retour sur la place du village." ]
+    click:
+      left:
+        - close_menu
+        - teleport:
+            world: world
+            x: 0
+            y: 72
+            z: 0
+        - play_sound:
+            sound: ENTITY_ENDERMAN_TELEPORT
+            pitch: 1.2
+  - id: warps
+    positions: 20
+    material: ENDER_PEARL
+    title: { en: "<yellow>Warps", fr: "<yellow>Téléportations" }
+    lore:
+      en: [ "<gray>Mines, arena, farms and more." ]
+      fr: [ "<gray>Mines, arène, fermes et plus." ]
+    click:
+      left:
+        - open_menu: warps
+  - id: shop
+    positions: 21
+    material: EMERALD
+    title: { en: "<yellow>Shop", fr: "<yellow>Boutique" }
+    lore:
+      en: [ "<gray>Spend the coins you earn." ]
+      fr: [ "<gray>Dépense les pièces que tu gagnes." ]
+    click:
+      left:
+        - open_menu: shop
+  - id: daily
+    positions: 23
+    material: CLOCK
+    title: { en: "<yellow>Daily rewards", fr: "<yellow>Récompenses quotidiennes" }
+    lore:
+      en: [ "<gray>Log in every day, keep your streak." ]
+      fr: [ "<gray>Connecte-toi chaque jour, garde ton streak." ]
+    click:
+      left:
+        - run_command: daily
+  - id: quests
+    positions: 24
+    material: WRITABLE_BOOK
+    title: { en: "<yellow>Quests", fr: "<yellow>Quêtes" }
+    lore:
+      en: [ "<gray>Daily and weekly objectives." ]
+      fr: [ "<gray>Objectifs du jour et de la semaine." ]
+    click:
+      left:
+        - run_command: quests
+  - id: guild
+    positions: 25
+    material: WHITE_BANNER
+    title: { en: "<yellow>Guild", fr: "<yellow>Guilde" }
+    lore:
+      en: [ "<gray>Your guild, its bank and its ranks." ]
+      fr: [ "<gray>Ta guilde, sa banque et ses grades." ]
+    click:
+      left:
+        - run_command: guild
+  - id: auctions
+    positions: 38
+    material: GOLD_INGOT
+    title: { en: "<yellow>Auction house", fr: "<yellow>Hôtel des ventes" }
+    lore:
+      en: [ "<gray>Buy and sell with other players." ]
+      fr: [ "<gray>Achète et vends entre joueurs." ]
+    click:
+      left:
+        - run_command: ah
+  - id: vote
+    positions: 40
+    material: DIAMOND
+    title: { en: "<aqua>Vote for the server", fr: "<aqua>Voter pour le serveur" }
+    lore:
+      en: [ "<gray>One vote = one key, every day." ]
+      fr: [ "<gray>Un vote = une clé, chaque jour." ]
+    click:
+      left:
+        - close_menu
+        - send_message: <aqua><click:open_url:'https://example.com/vote'>Click here to vote</click>
+  - id: rules
+    positions: 42
+    material: BOOK
+    title: { en: "<yellow>Rules", fr: "<yellow>Règlement" }
+    click:
+      left:
+        - run_command: rules
+  - id: close
+    positions: 49
+    material: BARRIER
+    title: { en: "<red>Close", fr: "<red>Fermer" }
+    click:
+      left:
+        - close_menu

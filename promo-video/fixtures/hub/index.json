@@ -1,0 +1,282 @@
+{
+ "GET /api/v1/ai": {
+  "status": 200,
+  "type": "application/json",
+  "body": "275509f69a30b2a718aa"
+ },
+ "GET /api/v1/auth/me": {
+  "status": 200,
+  "type": "application/json",
+  "body": "acf9033fe0f6a92c662c"
+ },
+ "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/binary?path=assets%2Fglyphs%2Fcoin.png&h=684d0423680f1d813b62dded26e1f72c8fc07fd23192bf922dd9e4805766ae75": {
+  "status": 200,
+  "type": "image/png",
+  "body": "16b863009efc7f6329c5"
+ },
+ "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/binary?path=assets%2Fglyphs%2Fhub_background.png&h=3baa30ba775ca4462cfd6be7cc9f439b26c2fba23a5ae19dd07b7ac2aa7e6c38": {
+  "status": 200,
+  "type": "image/png",
+  "body": "bc2e507f4922d82b55d9"
+ },
+ "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/binary?path=assets%2Fglyphs%2Fshop_background.png&h=7d34787e7402a5456802063309945b4a6b67b44bb699881720a1e6b08ad21f6c": {
+  "status": 200,
+  "type": "image/png",
+  "body": "65fe5810555e82fa934a"
+ },
+ "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/files": {
+  "status": 200,
+  "type": "application/json",
+  "body": "57d2ef3d0eedea817704"
+ },
+ "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/versions": {
+  "status": 200,
+  "type": "application/json",
+  "body": "d9f98234dee653cb0cb7"
+ },
+ "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/versions/2": {
+  "status": 200,
+  "type": "application/json",
+  "body": "a9ea259ace49d13063c5"
+ },
+ "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/versions/3": {
+  "status": 200,
+  "type": "application/json",
+  "body": "c738518f735adc0e21d3"
+ },
+ "GET /api/v1/servers": {
+  "status": 200,
+  "type": "application/json",
+  "body": "c7e33b18dbacc7cd275e"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/actions": {
+  "status": 200,
+  "type": "application/json",
+  "body": "d96385082c84b2f4a08e"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/data-sources": {
+  "status": 200,
+  "type": "application/json",
+  "body": "2828be909c0c899d582a"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/document-kinds": {
+  "status": 200,
+  "type": "application/json",
+  "body": "c42c4f02aa33f1dcf4ef"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/game-events": {
+  "status": 200,
+  "type": "application/json",
+  "body": "cee2b7c3b7e140be17c7"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/models": {
+  "status": 200,
+  "type": "application/json",
+  "body": "9740829a52c474f662d5"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/modules": {
+  "status": 200,
+  "type": "application/json",
+  "body": "ad650ae3fc3ebf795c62"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/papi-placeholders": {
+  "status": 200,
+  "type": "application/json",
+  "body": "34a60914ca526b42fa31"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/player-commands": {
+  "status": 200,
+  "type": "application/json",
+  "body": "cd976da14a7d8116602f"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/projects": {
+  "status": 200,
+  "type": "application/json",
+  "body": "17ed767dbc961cea0261"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/projects/survival/files": {
+  "status": 200,
+  "type": "application/json",
+  "body": "57d2ef3d0eedea817704"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/screens": {
+  "status": 200,
+  "type": "application/json",
+  "body": "f9af995be7ce295563b9"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/server-config": {
+  "status": 200,
+  "type": "application/json",
+  "body": "30d4124fb1572d9f39a1"
+ },
+ "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/variables": {
+  "status": 200,
+  "type": "application/json",
+  "body": "0b0dba97d8bd0bb0bf36"
+ },
+ "GET /api/v1/textures/1.21.11/block/sunflower_front": {
+  "status": 200,
+  "type": "image/png",
+  "body": "533958c2facd62fa98c9"
+ },
+ "GET /api/v1/textures/1.21.11/block/tripwire_hook": {
+  "status": 200,
+  "type": "image/png",
+  "body": "4f31a02574c8f094d1d9"
+ },
+ "GET /api/v1/textures/1.21.11/block/white_wool": {
+  "status": 200,
+  "type": "image/png",
+  "body": "cfeb728eefb85016341d"
+ },
+ "GET /api/v1/textures/1.21.11/icons/netherrack": {
+  "status": 200,
+  "type": "image/png",
+  "body": "9944f42728de00a35c92"
+ },
+ "GET /api/v1/textures/1.21.11/icons/player_head": {
+  "status": 200,
+  "type": "image/png",
+  "body": "dc4ab1902078b0a5a6c6"
+ },
+ "GET /api/v1/textures/1.21.11/icons/spawner": {
+  "status": 200,
+  "type": "image/png",
+  "body": "e588cfc5649110edb3db"
+ },
+ "GET /api/v1/textures/1.21.11/item/arrow": {
+  "status": 200,
+  "type": "image/png",
+  "body": "945023fa43cf341956de"
+ },
+ "GET /api/v1/textures/1.21.11/item/barrier": {
+  "status": 200,
+  "type": "image/png",
+  "body": "65e026aecb78ea244553"
+ },
+ "GET /api/v1/textures/1.21.11/item/book": {
+  "status": 200,
+  "type": "image/png",
+  "body": "75086cffbfd1aa625742"
+ },
+ "GET /api/v1/textures/1.21.11/item/clock_00": {
+  "status": 200,
+  "type": "image/png",
+  "body": "eca5d585b52befaecd70"
+ },
+ "GET /api/v1/textures/1.21.11/item/compass_16": {
+  "status": 200,
+  "type": "image/png",
+  "body": "347818dda90c34594e9a"
+ },
+ "GET /api/v1/textures/1.21.11/item/cooked_beef": {
+  "status": 200,
+  "type": "image/png",
+  "body": "9eedcba6384fe7bffef6"
+ },
+ "GET /api/v1/textures/1.21.11/item/diamond": {
+  "status": 200,
+  "type": "image/png",
+  "body": "5f8d8d0990073f364532"
+ },
+ "GET /api/v1/textures/1.21.11/item/diamond_pickaxe": {
+  "status": 200,
+  "type": "image/png",
+  "body": "f9d9e85c2b423ecb8353"
+ },
+ "GET /api/v1/textures/1.21.11/item/elytra": {
+  "status": 200,
+  "type": "image/png",
+  "body": "5e8cd8988f0585f1814d"
+ },
+ "GET /api/v1/textures/1.21.11/item/emerald": {
+  "status": 200,
+  "type": "image/png",
+  "body": "e59ac2c5414807c301a2"
+ },
+ "GET /api/v1/textures/1.21.11/item/ender_pearl": {
+  "status": 200,
+  "type": "image/png",
+  "body": "c2d509bd5f42e61ea739"
+ },
+ "GET /api/v1/textures/1.21.11/item/gold_ingot": {
+  "status": 200,
+  "type": "image/png",
+  "body": "b502f0626f117cccd738"
+ },
+ "GET /api/v1/textures/1.21.11/item/gray_dye": {
+  "status": 200,
+  "type": "image/png",
+  "body": "0558d8ea813e43a50e82"
+ },
+ "GET /api/v1/textures/1.21.11/item/iron_pickaxe": {
+  "status": 200,
+  "type": "image/png",
+  "body": "385134078cafbacd0efd"
+ },
+ "GET /api/v1/textures/1.21.11/item/iron_sword": {
+  "status": 200,
+  "type": "image/png",
+  "body": "f4638d9308707af2c48d"
+ },
+ "GET /api/v1/textures/1.21.11/item/name_tag": {
+  "status": 200,
+  "type": "image/png",
+  "body": "0995caae554efb3bfc04"
+ },
+ "GET /api/v1/textures/1.21.11/item/writable_book": {
+  "status": 200,
+  "type": "image/png",
+  "body": "6c1ac297efca0648f621"
+ },
+ "GET /api/v1/textures/1.21.4/font/accented": {
+  "status": 200,
+  "type": "image/png",
+  "body": "8ef73dad812e87daeb5e"
+ },
+ "GET /api/v1/textures/1.21.4/font/ascii": {
+  "status": 200,
+  "type": "image/png",
+  "body": "b015d6cac492732cbbf2"
+ },
+ "GET /api/v1/textures/1.21.4/font/nonlatin_european": {
+  "status": 200,
+  "type": "image/png",
+  "body": "2f54e2287539b87b3ea7"
+ },
+ "GET /api/v1/user/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/custom-items": {
+  "status": 200,
+  "type": "application/json",
+  "body": "5fce0a3aaad29f728135"
+ },
+ "GET /api/v1/user/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/drafts": {
+  "status": 200,
+  "type": "application/json",
+  "body": "638cc0a8045769924887"
+ },
+ "GET /api/v1/user/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/items": {
+  "status": 200,
+  "type": "application/json",
+  "body": "735232c7c0c14d214f30"
+ },
+ "GET /api/v1/user/projects/survival?server=2b14913d-0ff0-4c2c-96ed-28a322713587": {
+  "status": 200,
+  "type": "application/json",
+  "body": "d0fc95688a79ca0f6e3d"
+ },
+ "GET /api/v1/user/projects/survival/drafts": {
+  "status": 404,
+  "type": "application/json",
+  "body": "7f266f50637a6d50ac6d"
+ },
+ "GET /ext/mc-heads.net/head/Steve": {
+  "status": 200,
+  "type": "image/png",
+  "body": "5623d7dfed52a60e459a"
+ },
+ "POST /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/check 51497b1360ad": {
+  "status": 200,
+  "type": "application/json",
+  "body": "ba81c1fef08350515d0e"
+ }
+}

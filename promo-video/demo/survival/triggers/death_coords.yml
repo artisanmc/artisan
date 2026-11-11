@@ -1,0 +1,6 @@
+schema: trigger/v1
+# Tell players where they died, at most once a minute.
+on: player_death
+cooldown_seconds: 60
+do:
+  - send_message: <gray>You died at <white>{event.location.x}, {event.location.y}, {event.location.z}</white> in {event.location.world}.

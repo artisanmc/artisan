@@ -26,14 +26,14 @@ export function Caption({ frame, start, end, title, accent, sub, position = "bot
     position === "center"
       ? { left: 0, right: 0, top: "50%", textAlign: "center" as const, transform: `translateY(calc(-50% + ${rise}px))` }
       : position === "top-left"
-        ? { left: 96, top: 80, transform: `translateY(${rise}px)` }
-        : { left: 96, bottom: 96, transform: `translateY(${rise}px)` };
+        ? { left: 64, top: 96, transform: `translateY(${rise}px)` }
+        : { left: 64, bottom: 64, transform: `translateY(${rise}px)` };
   return (
     <div style={{ position: "absolute", ...place, opacity: t, zIndex: 50, pointerEvents: "none" }}>
       <div
         style={{
           display: "inline-block",
-          padding: position === "center" ? 0 : "28px 36px",
+          padding: position === "center" ? 0 : "22px 30px",
           borderRadius: "var(--r-lg)",
           background: position === "center" ? "none" : "color-mix(in srgb, var(--surface) 88%, transparent)",
           border: position === "center" ? "none" : "1px solid var(--border-soft)",
@@ -45,7 +45,7 @@ export function Caption({ frame, start, end, title, accent, sub, position = "bot
           style={{
             fontFamily: "var(--font-display)",
             fontWeight: 700,
-            fontSize: position === "center" ? 92 : 64,
+            fontSize: position === "center" ? 76 : 46,
             letterSpacing: "-0.035em",
             lineHeight: 1.05,
             color: "var(--text)",
@@ -64,9 +64,10 @@ export function Caption({ frame, start, end, title, accent, sub, position = "bot
         {sub && (
           <div
             style={{
-              marginTop: 14,
+              marginTop: 10,
               fontFamily: "var(--font-body)",
-              fontSize: 28,
+              fontSize: 22,
+              maxWidth: 760,
               color: "var(--text-mut)",
             }}
           >

@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "assets": "node scripts/fetch-assets.mjs",
-    "studio": "node scripts/render.mjs studio",
-    "render": "node scripts/render.mjs render Promo out/artisan-promo.mp4",
+    "routes": "cd ../editor && npx tsr generate",
+    "hub": "node scripts/hub.mjs",
+    "render": "node scripts/render.mjs",
     "still": "node scripts/render.mjs still",
     "typecheck": "tsc --noEmit -p ."
   },
@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@types/webpack-env": "^1.18.8",
-    "typescript": "5.9"
+    "typescript": "5.9",
+    "ws": "^8.18.0"
   }
 }

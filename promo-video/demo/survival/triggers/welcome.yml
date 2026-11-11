@@ -1,0 +1,13 @@
+schema: trigger/v1
+# A new player: greet them, give a starter kit, show the main menu.
+on: player_first_join
+do:
+  - broadcast: <gold>Welcome <white>{player.name}</white> to the server!
+  - give_item:
+      material: STONE_SWORD
+      count: 1
+  - give_item:
+      material: BREAD
+      count: 16
+  - play_sound: ENTITY_PLAYER_LEVELUP
+  - open_menu: hub

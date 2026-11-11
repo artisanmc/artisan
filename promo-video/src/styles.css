@@ -15,3 +15,9 @@
   transition: none !important;
   animation: none !important;
 }
+
+/* Le navigateur sans tête garde sa souris en (0, 0), sur le bord qui déplie la navigation :
+   elle resterait ouverte par-dessus l'espace de travail. */
+[data-testid="navigation-edge"] {
+  pointer-events: none;
+}

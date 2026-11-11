@@ -1,0 +1,6 @@
+schema: command/v1
+name: menu
+aliases: [hub, m]
+description: { en: "Open the server menu", fr: "Ouvre le menu du serveur" }
+actions:
+  - open_menu: hub

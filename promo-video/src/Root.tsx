@@ -1,26 +1,41 @@
 import { Composition } from "remotion";
 import "./styles.css";
-import "./setup";
-import { Promo, PROMO_FRAMES } from "./Promo";
-import { Design } from "./scenes/Design";
-import { Intro } from "./scenes/Intro";
-import { Links } from "./scenes/Links";
-import { Outro } from "./scenes/Outro";
-import { Publish } from "./scenes/Publish";
-import { Setup } from "./scenes/Setup";
+import "./app/boot";
+import { EditorApp } from "./app/EditorApp";
+import { H, W } from "./app/engine";
+import order from "./order.json";
+import { Automate, Board, Composer, History, Item, Languages, Publish } from "./scenes/editor";
+import { Intro, Modules, Outro, Setup } from "./scenes/titles";
 
-const scene = { fps: 30, width: 1920, height: 1080 };
+/** Chaque scène est une composition ; order.json donne le montage, que scripts/render.mjs rend scène par scène puis colle. */
+const ALL = [Intro, Board, Item, Publish, Automate, Composer, Languages, History, Setup, Modules, Outro];
+const SCENES = (order as string[]).map((id) => {
+  const found = ALL.find((s) => s.id === id);
+  if (!found) throw new Error(`Scène inconnue dans order.json : ${id}`);
+  return found;
+});
+
+// L'éditeur et la scène, montés une fois : un composant recréé à chaque rendu de Root remonterait
+// tout l'éditeur au milieu d'une scène (textures rechargées, dialogues fermés).
+const COMPOSITIONS = SCENES.map(({ id, Component, frames }) => ({
+  id,
+  frames,
+  Mounted: () => (
+    <>
+      <EditorApp />
+      <Component />
+    </>
+  ),
+}));
+
+const video = { fps: 30, width: W, height: H };
 
 export function Root() {
   return (
     <>
-      <Composition id="Promo" component={Promo} durationInFrames={PROMO_FRAMES} {...scene} />
-      <Composition id="Intro" component={Intro} durationInFrames={120} {...scene} />
-      <Composition id="Design" component={Design} durationInFrames={300} {...scene} />
-      <Composition id="Links" component={Links} durationInFrames={270} {...scene} />
-      <Composition id="Setup" component={Setup} durationInFrames={270} {...scene} />
-      <Composition id="Publish" component={Publish} durationInFrames={180} {...scene} />
-      <Composition id="Outro" component={Outro} durationInFrames={120} {...scene} />
+      {COMPOSITIONS.map(({ id, Mounted, frames }) => (
+        <Composition key={id} id={id} durationInFrames={frames} {...video} component={Mounted} />
+      ))}
     </>
   );
 }

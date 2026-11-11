@@ -1,0 +1,6 @@
+artisan:
+  duration:
+    days: "{n}d"
+    hours: "{n}h"
+    minutes: "{n}m"
+    seconds: "{n}s"

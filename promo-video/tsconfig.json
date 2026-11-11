@@ -30,9 +30,6 @@
       "@artisan/editor-sdk": [
         "../editor/packages/editor-sdk/src/index.ts"
       ],
-      "@artisan/quests-editor": [
-        "../editor/packages/quests-editor/src/index.ts"
-      ],
       "@artisan/boutique-editor": [
         "../editor/packages/boutique-editor/src/index.ts"
       ],

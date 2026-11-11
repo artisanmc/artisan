@@ -1,5 +1,0 @@
-schema: command/v1
-id: play
-aliases: [servers, menu]
-description: Open the server selector.
-actions: open_menu servers
