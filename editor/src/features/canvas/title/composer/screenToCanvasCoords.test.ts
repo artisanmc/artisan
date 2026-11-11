@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  isInsideWrapper,
-  screenToCanvasCoords,
   type Viewport,
   type WrapperRect,
+  isInsideWrapper,
+  screenToCanvasCoords,
 } from "./screenToCanvasCoords";
 
 const identity: Viewport = { x: 0, y: 0, scale: 1 };

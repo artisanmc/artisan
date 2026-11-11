@@ -5,7 +5,7 @@ export interface OffBoardLink {
   target: string;
 }
 
-/** Liens dont la source est sur la planche mais la cible non — candidats aux chips. Dédupliqué par (source,target). */
+/** Links whose source is on the board but not the target — chip candidates. Deduplicated by (source,target). */
 export function offBoardLinks(
   edges: Edge[],
   layout: Record<string, { x: number; y: number }>,

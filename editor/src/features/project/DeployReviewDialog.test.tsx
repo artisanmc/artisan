@@ -122,3 +122,148 @@ describe("DeployReviewDialog — cross-project checks", () => {
     expect(screen.getByRole("button", { name: "Déployer sur le serveur" })).toBeEnabled();
   });
 });
+
+describe("DeployReviewDialog — server check of the files", () => {
+  const edited = {
+    before: { "menus/shop.yml": "title: Shop\n" },
+    after: { "menus/shop.yml": "tittle: Shop\n" },
+  };
+
+  it("says when the server is still checking", () => {
+    render(
+      <DeployReviewDialog
+        changes={edited}
+        documents={{ status: "pending" }}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    );
+    expect(screen.getByText("Le serveur vérifie les fichiers modifiés…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Déployer sur le serveur" })).toBeEnabled();
+  });
+
+  it("shows each problem on its file and blocks the deployment", () => {
+    render(
+      <DeployReviewDialog
+        changes={edited}
+        documents={{
+          status: "ready",
+          problems: [{ path: "menus/shop.yml", stage: "schema", message: "tittle is not allowed" }],
+        }}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    );
+    expect(screen.getByText("schema: tittle is not allowed")).toBeInTheDocument();
+    expect(screen.getByText("1 problème")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Déployer sur le serveur" })).toBeDisabled();
+  });
+
+  it("confirms explicitly when every file loads", () => {
+    render(
+      <DeployReviewDialog
+        changes={edited}
+        documents={{ status: "ready", problems: [] }}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    );
+    expect(
+      screen.getByText("Chaque fichier modifié se charge sur le serveur."),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("DeployReviewDialog — other Projects' drafts", () => {
+  const other = (draftId: string, projectName: string) => ({
+    projectId: `s1.${projectName}`,
+    projectName,
+    serverId: "s1",
+    serverLabel: "lobby",
+    draftId,
+    draftName: `IA : ${draftId}`,
+    revision: 1,
+    changes: { before: { "a.yml": "1" }, after: { "a.yml": "2" } },
+    unsynced: false,
+  });
+
+  it("deploys this project and the picked drafts, and is blocked by a picked draft's problems", async () => {
+    const onToggleOther = vi.fn();
+    const confirm = vi.fn();
+    const view = (checks: Record<string, unknown>) => (
+      <DeployReviewDialog
+        changes={{ before: { "x.yml": "1" }, after: { "x.yml": "2" } }}
+        documents={{ status: "ready", problems: [] }}
+        current={{ dirty: true, picked: true, toggle: vi.fn() }}
+        others={{
+          status: "ready",
+          drafts: [other("d1", "guilds"), { ...other("d2", "quests"), unsynced: true }],
+          selected: ["d1"],
+          checks: checks as never,
+        }}
+        onToggleOther={onToggleOther}
+        onConfirm={confirm}
+        onCancel={noop}
+      />
+    );
+    const { rerender } = render(view({ d1: { status: "ready", problems: [] } }));
+    expect(screen.getByText("Autres brouillons")).toBeInTheDocument();
+    const deploy = screen.getByRole("button", { name: "Déployer 2 projets" });
+    expect(deploy).toBeEnabled();
+    expect(
+      screen.getByText("ouvre le projet pour enregistrer d’abord ses dernières modifications"),
+    ).toBeInTheDocument();
+    const boxes = screen.getAllByRole("checkbox");
+    expect(boxes[2]).toBeDisabled();
+    boxes[1]?.click();
+    expect(onToggleOther).toHaveBeenCalledWith("d1");
+
+    rerender(
+      view({
+        d1: { status: "ready", problems: [{ path: "a.yml", stage: "yaml", message: "bad" }] },
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Déployer 2 projets" })).toBeDisabled();
+    expect(screen.getByText("yaml: bad")).toBeInTheDocument();
+  });
+
+  it("deploys only other drafts when this project has no change", () => {
+    render(
+      <DeployReviewDialog
+        changes={{ before: {}, after: {} }}
+        current={{ dirty: false, picked: false, toggle: vi.fn() }}
+        others={{ status: "ready", drafts: [other("d1", "guilds")], selected: [], checks: {} }}
+        onToggleOther={vi.fn()}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    );
+    expect(screen.getByText("aucun changement")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Déployer sur le serveur" })).toBeDisabled();
+  });
+
+  it("says so while the drafts load, and when there are none", () => {
+    const { rerender } = render(
+      <DeployReviewDialog
+        changes={changes}
+        others={{ status: "loading" }}
+        onToggleOther={vi.fn()}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    );
+    expect(
+      screen.getByText("Recherche de tes brouillons dans les autres projets…"),
+    ).toBeInTheDocument();
+    rerender(
+      <DeployReviewDialog
+        changes={changes}
+        others={{ status: "ready", drafts: [], selected: [], checks: {} }}
+        onToggleOther={vi.fn()}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    );
+    expect(screen.getByText("Aucun autre brouillon avec des changements.")).toBeInTheDocument();
+  });
+});

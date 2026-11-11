@@ -19,7 +19,6 @@ test("hosted project opens with zero servers and never inherits the previous liv
   useProjectDraftStore.setState({ drafts: {}, pendingRenames: {}, ownerId: null, backups: {} });
   vi.spyOn(metadata, "loadUserProject").mockResolvedValue({
     project: { id: "host", name: "Demo", externalId: "demo", serverKeyId: null },
-    networkId: "network",
     serverKeyId: null,
     minecraftVersion: "1.21.4",
     capabilities: { preview: true, liveData: false, captureInGame: false, canRename: true },
@@ -37,7 +36,7 @@ test("hosted project opens with zero servers and never inherits the previous liv
   const { result, unmount } = renderHook(() => useProjectLoader("host"));
   await waitFor(() => expect(result.current.project?.id).toBe("host"));
   expect(result.current.offline).toBe(false);
-  expect(read).toHaveBeenCalledWith("host", undefined, undefined, undefined);
+  expect(read).toHaveBeenCalledWith("host", undefined);
   expect(liveModels).not.toHaveBeenCalled();
   expect(useServersStore.getState().activeServerId).toBeNull();
   expect(useProjectRuntimeStore.getState().current?.minecraftVersion).toBe("1.21.4");

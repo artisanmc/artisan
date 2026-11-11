@@ -1,0 +1,174 @@
+import {
+  type AiEvent,
+  type AiLive,
+  type AiScope,
+  createAiConversation,
+  readAiConversation,
+  sendAiMessage,
+} from "@/lib/api/ai";
+import type { PendingAttachment } from "@/lib/aiAttachments";
+import { ApiError } from "@/lib/api/client";
+import { useCallback, useEffect, useState } from "react";
+import { create } from "zustand";
+
+/** How often a view asks for new events while the assistant answers: often enough to see it write. */
+export const POLL_MS = 400;
+
+export { resetAiStatus, useAiStatus } from "@/state/aiStatus";
+
+/** A conversation as the editor has read it so far. */
+export interface ConversationView {
+  events: AiEvent[];
+  /** What the model is writing now (its text, the file it writes), between two events. */
+  live: AiLive | null;
+  running: boolean;
+  failure: string | null;
+  /** The hub no longer has it (deleted, or kept past its time): the next message starts another. */
+  gone: boolean;
+}
+
+const EMPTY: ConversationView = {
+  events: [],
+  live: null,
+  running: false,
+  failure: null,
+  gone: false,
+};
+
+interface ConversationsState {
+  byId: Record<string, ConversationView>;
+  /**
+   * The conversation the docked panel and the Assistant tab both show: "Expand" carries it from
+   * one to the other. Null: the next message starts one.
+   */
+  currentId: string | null;
+}
+
+/**
+ * The conversations read from the hub, shared by every view of them (ADR `editor-assistant`):
+ * the dock and the server's Assistant tab show the same events, polled once.
+ */
+export const useConversationsStore = create<ConversationsState>(() => ({
+  byId: {},
+  currentId: null,
+}));
+
+export const setCurrentConversation = (id: string | null) =>
+  useConversationsStore.setState({ currentId: id });
+
+const timers = new Map<string, ReturnType<typeof setTimeout>>();
+const reading = new Set<string>();
+const again = new Set<string>();
+
+function patch(id: string, next: Partial<ConversationView>) {
+  useConversationsStore.setState((s) => ({
+    byId: { ...s.byId, [id]: { ...(s.byId[id] ?? EMPTY), ...next } },
+  }));
+}
+
+/**
+ * Reads what is new in [id] and keeps reading while the assistant answers. One read at a time per
+ * conversation: a call meanwhile reads again once it ends.
+ */
+export async function followConversation(id: string): Promise<void> {
+  if (reading.has(id)) {
+    again.add(id);
+    return;
+  }
+  reading.add(id);
+  clearTimeout(timers.get(id));
+  try {
+    const seen = useConversationsStore.getState().byId[id]?.events.length ?? 0;
+    const read = await readAiConversation(id, seen);
+    const current = useConversationsStore.getState().byId[id]?.events ?? [];
+    patch(id, {
+      events: read.events.length ? [...current, ...read.events] : current,
+      live: read.running ? (read.live ?? null) : null,
+      running: read.running,
+    });
+    if (read.running)
+      timers.set(
+        id,
+        setTimeout(() => void followConversation(id), POLL_MS),
+      );
+  } catch (e) {
+    patch(id, {
+      running: false,
+      live: null,
+      failure: e instanceof ApiError ? e.code : "network_error",
+      ...(e instanceof ApiError && e.code === "not_found" ? { gone: true } : {}),
+    });
+  } finally {
+    reading.delete(id);
+    if (again.delete(id)) void followConversation(id);
+  }
+}
+
+/** Forgets every conversation read (sign-out, tests). */
+export function resetConversations() {
+  for (const timer of timers.values()) clearTimeout(timer);
+  timers.clear();
+  reading.clear();
+  again.clear();
+  useConversationsStore.setState({ byId: {}, currentId: null });
+}
+
+/**
+ * The current conversation, for a view that talks in it: its events as they come, and [send],
+ * which starts one in [scope] when there is none.
+ */
+export function useAssistant(scope: AiScope) {
+  const id = useConversationsStore((s) => s.currentId);
+  const view = useConversationsStore((s) => (id ? s.byId[id] : undefined)) ?? EMPTY;
+  const [sendFailure, setSendFailure] = useState<string | null>(null);
+  const { project = null, server = null } = scope;
+
+  // A conversation picked elsewhere (the tab's list) is read once it shows.
+  useEffect(() => {
+    if (id && !useConversationsStore.getState().byId[id]) void followConversation(id);
+  }, [id]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: another conversation, another error.
+  useEffect(() => setSendFailure(null), [id]);
+
+  const send = useCallback(
+    async (text: string, attachments: PendingAttachment[] = []): Promise<boolean> => {
+      setSendFailure(null);
+      try {
+        let target = useConversationsStore.getState().currentId;
+        if (!target || useConversationsStore.getState().byId[target]?.gone) {
+          target = (await createAiConversation({ project, server })).id;
+          patch(target, {});
+          setCurrentConversation(target);
+        }
+        await sendAiMessage(
+          target,
+          text,
+          attachments.map(({ name, data, project, path }) => ({ name, data, project, path })),
+        );
+        patch(target, { running: true, failure: null });
+        await followConversation(target);
+        return true;
+      } catch (e) {
+        setSendFailure(e instanceof ApiError ? e.code : "network_error");
+        return false;
+      }
+    },
+    [project, server],
+  );
+
+  /** A new conversation: the next message starts it. */
+  const reset = useCallback(() => {
+    setSendFailure(null);
+    setCurrentConversation(null);
+  }, []);
+
+  return {
+    id,
+    events: view.events,
+    live: view.live,
+    running: view.running,
+    failure: sendFailure ?? view.failure,
+    send,
+    reset,
+  };
+}

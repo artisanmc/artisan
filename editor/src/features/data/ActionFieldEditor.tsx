@@ -1,5 +1,5 @@
 import type { ProjectId } from "@/domain/types";
-import { ControlledStepsEditor } from "@/features/flow/ControlledStepsEditor";
+import { ControlledStepsEditor } from "@/features/inspector/chain/ControlledStepsEditor";
 import { stepsFromWire, stepsToWire } from "@/lib/literalSteps";
 import { useMemo } from "react";
 

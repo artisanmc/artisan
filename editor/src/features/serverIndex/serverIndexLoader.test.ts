@@ -13,7 +13,11 @@ vi.mock("@/schema/projectFromFiles", () => ({
   projectFromFiles: (...args: unknown[]) => projectFromFiles(...args),
 }));
 
+import { registerDocumentKind, resetDocumentKinds } from "@/domain/documentKinds";
+import { afterEach } from "vitest";
 import { clearServerIndexCache, loadServerProjects } from "./serverIndexLoader";
+
+afterEach(() => resetDocumentKinds());
 
 const summary = (id: string, name = id) => ({
   id,
@@ -34,9 +38,11 @@ beforeEach(() => {
   projectFromFiles.mockImplementation((id: string, _files: unknown, meta: { name?: string }) => ({
     id,
     name: meta.name,
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
   }));
 });
 
@@ -47,19 +53,22 @@ describe("loadServerProjects", () => {
       projectIds: ["main", "boutique"],
       projects: [summary("main", "Main"), summary("boutique", "Boutique")],
     });
-    readProjectFiles.mockImplementation(async (_n: string, _s: string, diskId: string) => ({
+    readProjectFiles.mockImplementation(async ({ diskId }: { diskId: string }) => ({
       ok: true,
       files: tree(diskId),
       failed: [],
       hash: `h-${diskId}`,
     }));
 
-    const result = await loadServerProjects({ networkId: "net", serverId: "srv" });
+    const result = await loadServerProjects({ serverId: "srv" });
 
     expect(result.status).toBe("ready");
     expect(result.projects.map((p) => p.name)).toEqual(["Main", "Boutique"]);
-    expect(readProjectFiles).toHaveBeenCalledWith("net", "srv", "main", undefined);
-    expect(readProjectFiles).toHaveBeenCalledWith("net", "srv", "boutique", undefined);
+    expect(readProjectFiles).toHaveBeenCalledWith({ serverId: "srv", diskId: "main" }, undefined);
+    expect(readProjectFiles).toHaveBeenCalledWith(
+      { serverId: "srv", diskId: "boutique" },
+      undefined,
+    );
   });
 
   it("parses each tree under its folder prefix, like the project loader does", async () => {
@@ -75,7 +84,7 @@ describe("loadServerProjects", () => {
       hash: "h",
     });
 
-    await loadServerProjects({ networkId: "net", serverId: "srv" });
+    await loadServerProjects({ serverId: "srv" });
 
     const [id, files, meta] = projectFromFiles.mock.calls[0] as [
       string,
@@ -99,14 +108,45 @@ describe("loadServerProjects", () => {
       failed: [],
       hash: "h1",
     });
-    const first = await loadServerProjects({ networkId: "net", serverId: "srv" });
+    const first = await loadServerProjects({ serverId: "srv" });
 
     readProjectFiles.mockResolvedValueOnce({ ok: true, unchanged: true, hash: "h1" });
-    const second = await loadServerProjects({ networkId: "net", serverId: "srv" });
+    const second = await loadServerProjects({ serverId: "srv" });
 
-    expect(readProjectFiles).toHaveBeenLastCalledWith("net", "srv", "main", "h1");
+    expect(readProjectFiles).toHaveBeenLastCalledWith({ serverId: "srv", diskId: "main" }, "h1");
     expect(projectFromFiles).toHaveBeenCalledTimes(1);
     expect(second.projects[0]).toBe(first.projects[0] as Project);
+  });
+
+  it("reads an unchanged tree again once a module's kind is registered after the read", async () => {
+    listServerProjects.mockResolvedValue({
+      ok: true,
+      projectIds: ["main"],
+      projects: [summary("main")],
+    });
+    readProjectFiles.mockResolvedValueOnce({
+      ok: true,
+      files: tree("main"),
+      failed: [],
+      hash: "h1",
+    });
+    const first = await loadServerProjects({ serverId: "srv" });
+
+    // A module's view arrives: its kind did not exist when the tree was parsed.
+    registerDocumentKind({
+      kind: "late_kind",
+      dir: "late_kinds",
+      schemaVersion: "late/v1",
+      rank: 9,
+    });
+    readProjectFiles.mockResolvedValueOnce({ ok: true, unchanged: true, hash: "h1" });
+    const second = await loadServerProjects({ serverId: "srv" });
+
+    // Nothing transferred again, but the files are read with every kind now.
+    expect(readProjectFiles).toHaveBeenLastCalledWith({ serverId: "srv", diskId: "main" }, "h1");
+    expect(projectFromFiles).toHaveBeenCalledTimes(2);
+    expect(projectFromFiles.mock.calls[1]?.[1]).toEqual(projectFromFiles.mock.calls[0]?.[1]);
+    expect(second.projects[0]).not.toBe(first.projects[0] as Project);
   });
 
   it("reports an unreadable project without dropping the others", async () => {
@@ -115,13 +155,13 @@ describe("loadServerProjects", () => {
       projectIds: ["main", "cassé"],
       projects: [summary("main"), summary("cassé")],
     });
-    readProjectFiles.mockImplementation(async (_n: string, _s: string, diskId: string) =>
+    readProjectFiles.mockImplementation(async ({ diskId }: { diskId: string }) =>
       diskId === "cassé"
         ? { ok: false, error: "read_error" }
         : { ok: true, files: tree(diskId), failed: [], hash: "h" },
     );
 
-    const result = await loadServerProjects({ networkId: "net", serverId: "srv" });
+    const result = await loadServerProjects({ serverId: "srv" });
 
     expect(result.status).toBe("ready");
     expect(result.projects.map((p) => p.id)).toEqual(["main"]);
@@ -139,7 +179,7 @@ describe("loadServerProjects", () => {
       throw new Error("bad yaml");
     });
 
-    const result = await loadServerProjects({ networkId: "net", serverId: "srv" });
+    const result = await loadServerProjects({ serverId: "srv" });
 
     expect(result.projects).toEqual([]);
     expect(result.failed).toEqual(["main"]);
@@ -148,7 +188,7 @@ describe("loadServerProjects", () => {
   it("says so when the server's projects cannot be listed", async () => {
     listServerProjects.mockResolvedValue({ ok: false, error: "server_offline" });
 
-    const result = await loadServerProjects({ networkId: "net", serverId: "srv" });
+    const result = await loadServerProjects({ serverId: "srv" });
 
     expect(result).toEqual({ status: "unavailable", projects: [], failed: [] });
     expect(readProjectFiles).not.toHaveBeenCalled();

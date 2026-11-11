@@ -1,12 +1,15 @@
+import { Segmented } from "@/components/ui/segmented";
 import { type DragEvent, type ReactNode, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { cn } from "@/lib/cx";
 import { newI18nKey } from "@/lib/i18n";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { PlainTitleForm } from "./PlainTitleForm";
 
+import { menusOf } from "@/domain/documents";
 import { getStageGeometry } from "../../stageGeometry";
 import { AddLayerControls } from "./AddLayerControls";
 import { LayerEditForm } from "./LayerEditForm";
@@ -51,16 +54,17 @@ const DND_MIME = "application/x-layer-index";
  * whichever menu the selectionStore now points at).
  */
 export function LayersPanel({ projectId, menuId, className, imageControl }: LayersPanelProps) {
+  const { t } = useTranslation();
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
 
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const menu = project?.menus.find((m) => m.id === menuId);
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const menu = menusOf(project).find((m) => m.id === menuId);
 
-  const addMenuTitleLayer = useAccountStore((s) => s.addMenuTitleLayer);
-  const setMenuTitleLayers = useAccountStore((s) => s.setMenuTitleLayers);
-  const setMenuField = useAccountStore((s) => s.setMenuField);
-  const reorderMenuTitleLayers = useAccountStore((s) => s.reorderMenuTitleLayers);
+  const addMenuTitleLayer = useProjectsStore((s) => s.addMenuTitleLayer);
+  const setMenuTitleLayers = useProjectsStore((s) => s.setMenuTitleLayers);
+  const setMenuField = useProjectsStore((s) => s.setMenuField);
+  const reorderMenuTitleLayers = useProjectsStore((s) => s.reorderMenuTitleLayers);
   const applyLayerMoved = useUiStore((s) => s.applyLayerMoved);
 
   const isVanillaMode =
@@ -68,11 +72,7 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
 
   const switchToVanilla = () => {
     if (!menu || isVanillaMode) return;
-    if (
-      menu.title.length > 0 &&
-      !window.confirm("Passer en mode vanilla supprimera les layers actuels. Continuer ?")
-    )
-      return;
+    if (menu.title.length > 0 && !window.confirm(t("layersPanel.switchToVanillaConfirm"))) return;
     // Migrate the first text-bearing layer's i18n key into the plain layer so
     // the title text + its translations survive the round-trip (mirror of
     // switchToComposed). Minting a fresh key here would orphan the old one
@@ -146,7 +146,7 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
       if (geometry) {
         const placement = attachLayerAtCursor(project, geometry, cursor);
         if (placement) {
-          const targetMenu = project.menus.find((m) => m.id === placement.menuId);
+          const targetMenu = menusOf(project).find((m) => m.id === placement.menuId);
           if (targetMenu) {
             const newIndex = targetMenu.title.length;
             const layer = buildLayer(kind, { x: placement.x, y: placement.y });
@@ -213,32 +213,16 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
   return (
     <div className={cn("flex flex-col gap-3", className)} data-testid="layers-panel">
       {/* Mode toggle */}
-      <div className="flex rounded border border-[var(--border)] bg-[var(--surface-raised)] p-0.5 text-[11px]">
-        <button
-          type="button"
-          onClick={switchToVanilla}
-          className={cn(
-            "flex-1 rounded px-2 py-1 transition-colors",
-            isVanillaMode
-              ? "bg-[var(--surface-raised-2)] text-[var(--text)]"
-              : "text-[var(--text-mut)] hover:text-[var(--text)]",
-          )}
-        >
-          Vanilla
-        </button>
-        <button
-          type="button"
-          onClick={switchToComposed}
-          className={cn(
-            "flex-1 rounded px-2 py-1 transition-colors",
-            !isVanillaMode
-              ? "bg-[var(--surface-raised-2)] text-[var(--text)]"
-              : "text-[var(--text-mut)] hover:text-[var(--text)]",
-          )}
-        >
-          Composé (Resource Project)
-        </button>
-      </div>
+      <Segmented
+        label={t("menuProperties.titleSection")}
+        className="flex w-full [&>button]:flex-1"
+        options={[
+          { value: "vanilla", label: t("layersPanel.vanilla") },
+          { value: "composed", label: t("layersPanel.composed") },
+        ]}
+        value={isVanillaMode ? "vanilla" : "composed"}
+        onChange={(mode) => (mode === "vanilla" ? switchToVanilla() : switchToComposed())}
+      />
 
       {isVanillaMode ? (
         // Vanilla mode: show the plain layer form directly.
@@ -251,6 +235,7 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
             <VanillaTextureLayer projectId={projectId} menu={menu} />
             {menu.title.map((layer, index) => (
               <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: layers have no stable id (MenuTitleLayer has none) and reordering is by index
                 key={index}
                 data-testid="layer-row-wrapper"
                 data-index={index}

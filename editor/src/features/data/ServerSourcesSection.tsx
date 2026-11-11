@@ -16,9 +16,7 @@ export function ServerSourcesSection({ selectedRef, onSelect }: ServerSourcesSec
 
   return (
     <section>
-      <div className="mb-2 font-mono text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
-        {t("dataSources.sectionServer")}
-      </div>
+      <div className="section-label mb-2">{t("dataSources.sectionServer")}</div>
       {groups.length === 0 ? (
         <div className="rounded border border-dashed border-[var(--border-soft)] bg-[var(--surface-raised)]/40 px-2 py-2 text-[11px] text-[var(--text-faint)]">
           {t("dataSources.noServerSources")}

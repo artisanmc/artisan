@@ -4,9 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nKey, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { setStageGeometryProvider } from "@/features/canvas/stageGeometry";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 
+import { menusOf } from "@/domain/documents";
 import { LayersPanel } from "./LayersPanel";
 
 // Mock AssetPicker (used by LayerEditForm sub-form) so opening it doesn't
@@ -62,9 +63,8 @@ function seedProject(
   i18nKeys: Record<string, Record<string, string>> = {},
   canvasLayout: Record<string, { x: number; y: number }> = {},
 ) {
-  useAccountStore.setState({
-    account: {
-      id: "acc" as any,
+  useProjectsStore.setState({
+    openProjects: {
       projects: [
         {
           id: PACK_ID,
@@ -72,17 +72,19 @@ function seedProject(
           source: "user_created",
           createdAt: "",
           updatedAt: "",
-          menus: [
-            { id: MENU_ID, projectId: PACK_ID, title: layers, rows: 3, layers: [] },
-            { id: OTHER_MENU_ID, projectId: PACK_ID, title: [], rows: 3, layers: [] },
-          ],
-          commands: [],
+          documents: {
+            menu: [
+              { id: MENU_ID, projectId: PACK_ID, title: layers, rows: 3, layers: [] },
+              { id: OTHER_MENU_ID, projectId: PACK_ID, title: [], rows: 3, layers: [] },
+            ],
+            command: [],
+            dialog: [],
+          },
           assets: [],
           dataSources: [],
           importedConnectors: [],
           i18nKeys,
           defaultLang: "en",
-          dialogs: [],
           canvasLayout,
         },
       ],
@@ -131,17 +133,17 @@ it("keeps the appearance when clicking the already active composed mode", () => 
   seedProject(layers, { title: { en: "Shop", fr: "Boutique" } });
   render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
   fireEvent.click(screen.getByRole("button", { name: /composé/i }));
-  const project = useAccountStore.getState().account.projects[0]!;
-  expect(project.menus[0]!.title).toEqual(layers);
-  expect(project.i18nKeys.title).toEqual({ en: "Shop", fr: "Boutique" });
+  const project = useProjectsStore.getState().openProjects.projects[0]!;
+  expect(menusOf(project)[0]!.title).toEqual(layers);
+  expect(project.i18nKeys[K("title")]).toEqual({ en: "Shop", fr: "Boutique" });
 });
 
 it("shows the default texture first and restores it when going back to a vanilla title", () => {
   seedProject([{ kind: "text", value: { key: K("title") }, x: 8, y: 5 }]);
-  const project = () => useAccountStore.getState().account.projects[0]!;
-  useAccountStore.setState((s) => {
-    s.account.projects[0]!.menus[0]!.vanillaTexture = false;
-    return { account: { ...s.account } };
+  const project = () => useProjectsStore.getState().openProjects.projects[0]!;
+  useProjectsStore.setState((s) => {
+    menusOf(s.openProjects.projects[0]!)[0]!.vanillaTexture = false;
+    return { openProjects: { ...s.openProjects } };
   });
   render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
   const rows = screen.getAllByTestId(/vanilla-texture-layer|layer-row-wrapper/);
@@ -149,7 +151,7 @@ it("shows the default texture first and restores it when going back to a vanilla
 
   vi.spyOn(window, "confirm").mockReturnValue(true);
   fireEvent.click(screen.getByRole("button", { name: /^vanilla$/i }));
-  expect(project().menus[0]!.vanillaTexture).toBeUndefined();
+  expect(menusOf(project())[0]!.vanillaTexture).toBeUndefined();
 });
 
 describe("LayersPanel — body", () => {
@@ -203,7 +205,7 @@ describe("LayersPanel — AddLayerControls wiring", () => {
     // detail=0 which matches that path.
     fireEvent.click(screen.getByTestId("add-layer-image"));
 
-    const title = useAccountStore.getState().account.projects[0]!.menus[0]!.title;
+    const title = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title;
     expect(title).toHaveLength(1);
     expect(title[0]!.kind).toBe("glyph");
     // Selection moved to the new layer
@@ -215,8 +217,8 @@ describe("LayersPanel — AddLayerControls wiring", () => {
 
     fireEvent.click(screen.getByTestId("add-layer-text"));
 
-    const project = useAccountStore.getState().account.projects[0]!;
-    const title = project.menus[0]!.title;
+    const project = useProjectsStore.getState().openProjects.projects[0]!;
+    const title = menusOf(project)[0]!.title;
     expect(title).toHaveLength(1);
     expect(title[0]).toMatchObject({
       kind: "textarea",
@@ -269,7 +271,7 @@ describe("LayersPanel — drag-to-reorder", () => {
     fireEvent.dragOver(wrappers[2]!, { dataTransfer });
     fireEvent.drop(wrappers[2]!, { dataTransfer });
 
-    const title = useAccountStore.getState().account.projects[0]!.menus[0]!.title;
+    const title = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title;
     // alpha moved from 0 → 2, beta and gamma shift left
     expect((title[0] as any).value.key).toBe("k2");
     expect((title[1] as any).value.key).toBe("k3");
@@ -283,7 +285,11 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     // menu pick is unambiguous. Title-bar center for MENU_ID = (40+176, 40+17)
     // = (216, 57) in canvas coords. With identity viewport + origin wrapper,
     // screen coords == canvas coords.
-    seedProject([], {}, { [MENU_ID]: { x: 40, y: 40 }, [OTHER_MENU_ID]: { x: 800, y: 800 } });
+    seedProject(
+      [],
+      {},
+      { [`menu/${MENU_ID}`]: { x: 40, y: 40 }, [`menu/${OTHER_MENU_ID}`]: { x: 800, y: 800 } },
+    );
 
     setStageGeometryProvider(() => ({
       wrapperRect: { left: 0, top: 0, right: 2000, bottom: 1400 },
@@ -303,9 +309,9 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     dispatchWindowPointer("pointermove", 220, 50);
     dispatchWindowPointer("pointerup", 220, 50);
 
-    const project = useAccountStore.getState().account.projects[0]!;
-    const targetMenu = project.menus.find((m) => m.id === MENU_ID)!;
-    const otherMenu = project.menus.find((m) => m.id === OTHER_MENU_ID)!;
+    const project = useProjectsStore.getState().openProjects.projects[0]!;
+    const targetMenu = menusOf(project).find((m) => m.id === MENU_ID)!;
+    const otherMenu = menusOf(project).find((m) => m.id === OTHER_MENU_ID)!;
     expect(targetMenu.title).toHaveLength(1);
     expect(otherMenu.title).toHaveLength(0);
 
@@ -323,7 +329,11 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
   it("drag-end far from any menu falls back to the panel's own menuId default placement", () => {
     // Both menus parked at small coords; cursor far away (9000, 9000) is
     // well beyond NEAREST_MENU_THRESHOLD_PX.
-    seedProject([], {}, { [MENU_ID]: { x: 0, y: 0 }, [OTHER_MENU_ID]: { x: 200, y: 0 } });
+    seedProject(
+      [],
+      {},
+      { [`menu/${MENU_ID}`]: { x: 0, y: 0 }, [`menu/${OTHER_MENU_ID}`]: { x: 200, y: 0 } },
+    );
 
     setStageGeometryProvider(() => ({
       wrapperRect: { left: 0, top: 0, right: 10000, bottom: 10000 },
@@ -336,8 +346,8 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     dispatchWindowPointer("pointermove", 9000, 9000);
     dispatchWindowPointer("pointerup", 9000, 9000);
 
-    const project = useAccountStore.getState().account.projects[0]!;
-    const targetMenu = project.menus.find((m) => m.id === MENU_ID)!;
+    const project = useProjectsStore.getState().openProjects.projects[0]!;
+    const targetMenu = menusOf(project).find((m) => m.id === MENU_ID)!;
     // Fallback path → MENU_ID gets the new layer at default (0, 0) coords
     // (image kind default).
     expect(targetMenu.title).toHaveLength(1);
@@ -349,7 +359,7 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
 
   it("drag-end with no Stage geometry registered falls back to default placement", () => {
     // No setStageGeometryProvider call → getStageGeometry returns null.
-    seedProject([], {}, { [MENU_ID]: { x: 40, y: 40 } });
+    seedProject([], {}, { [`menu/${MENU_ID}`]: { x: 40, y: 40 } });
 
     render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
     const btn = screen.getByTestId("add-layer-text");
@@ -357,8 +367,8 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     dispatchWindowPointer("pointermove", 220, 50);
     dispatchWindowPointer("pointerup", 220, 50);
 
-    const project = useAccountStore.getState().account.projects[0]!;
-    const targetMenu = project.menus.find((m) => m.id === MENU_ID)!;
+    const project = useProjectsStore.getState().openProjects.projects[0]!;
+    const targetMenu = menusOf(project).find((m) => m.id === MENU_ID)!;
     expect(targetMenu.title).toHaveLength(1);
     const layer = targetMenu.title[0]!;
     expect(layer.kind).toBe("textarea");

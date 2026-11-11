@@ -1,6 +1,5 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Asset } from "@/domain/asset";
+import { menusOf } from "@/domain/documents";
 import type {
   AssetId,
   I18nKey,
@@ -11,11 +10,13 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MC_TITLE_H, TEX_SCALE } from "../../menuLayout";
-import { TitleRender } from "./TitleRender";
 import { LayerEditForm } from "./LayerEditForm";
+import { TitleRender } from "./TitleRender";
 
 // Mock react-konva to render plain divs (no canvas in jsdom). Each shape
 // exposes its load-bearing props as data-* attrs so tests can assert layout.
@@ -82,6 +83,7 @@ vi.mock("react-konva", () => ({
     listening?: boolean;
     onClick?: ClickHandler;
   }) => (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
       data-testid="rect"
       data-fill={props.fill}
@@ -107,6 +109,7 @@ vi.mock("react-konva", () => ({
     x?: number;
     y?: number;
   }) => (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
       data-testid="group"
       data-x={props.x}
@@ -195,31 +198,6 @@ vi.mock("../VanillaMcText", () => ({
   vanillaTextWidth: (text: string) => text.length * 6,
 }));
 
-// Stub ResizeHandles so we can detect when it's mounted (4 anchors per the
-// real component). We render 4 placeholder rects each tagged with
-// data-corner so test assertions match the real visual.
-vi.mock("./ResizeHandles", () => ({
-  ResizeHandles: (props: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }) => (
-    <div
-      data-testid="resize-handles"
-      data-x={props.x}
-      data-y={props.y}
-      data-width={props.width}
-      data-height={props.height}
-    >
-      <div data-testid="resize-anchor" data-corner="nw" />
-      <div data-testid="resize-anchor" data-corner="ne" />
-      <div data-testid="resize-anchor" data-corner="sw" />
-      <div data-testid="resize-anchor" data-corner="se" />
-    </div>
-  ),
-}));
-
 // Stub WidthResizeHandle so tests can assert its presence via data-testid.
 vi.mock("./WidthResizeHandle", () => ({
   WidthResizeHandle: (props: {
@@ -230,13 +208,17 @@ vi.mock("./WidthResizeHandle", () => ({
     scale?: number;
     onResize: (w: number) => void;
   }) => (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
       data-testid="width-resize-handle"
       data-x={props.x}
       data-y={props.y}
       data-height={props.height}
       data-current-width={props.currentWidth}
-      onClick={(e) => { e.stopPropagation(); props.onResize(120); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        props.onResize(120);
+      }}
     />
   ),
 }));
@@ -263,9 +245,7 @@ const FONT_ASSET: Asset = {
   codepoint: null,
   fontMeta: {
     namespace: "artisan",
-    glyphMap: [
-      { char: "H", texture: "artisan:font/H.png", ascent: 7, height: 8, width: 6 },
-    ],
+    glyphMap: [{ char: "H", texture: "artisan:font/H.png", ascent: 7, height: 8, width: 6 }],
   },
   contentHash: "fh",
   createdAt: "",
@@ -294,41 +274,43 @@ function makeProject(layers: MenuTitleLayer[]): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      {
-        id: MENU_ID,
-        projectId: PACK_ID,
-        title: layers,
-        rows: 6,
-        layers: [],
-      } as Menu,
-    ],
-    commands: [],
+    documents: {
+      menu: [
+        {
+          id: MENU_ID,
+          projectId: PACK_ID,
+          title: layers,
+          rows: 6,
+          layers: [],
+        } as Menu,
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: { [I18N_KEY]: { en: "Hello" } },
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   };
 }
 
 function seedProject(layers: MenuTitleLayer[]): Menu {
   const project = makeProject(layers);
-  useAccountStore.setState((state) => ({
-    account: {
-      ...state.account,
+  useProjectsStore.setState((state) => ({
+    openProjects: {
+      ...state.openProjects,
       projects: [project],
       projectOrder: [PACK_ID],
     },
   }));
-  return project.menus[0]!;
+  return menusOf(project)[0]!;
 }
 
 function getTitle(): MenuTitleLayer[] {
-  const project = useAccountStore.getState().account.projects.find((p) => p.id === PACK_ID)!;
-  return project.menus.find((m) => m.id === MENU_ID)!.title;
+  const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === PACK_ID)!;
+  return menusOf(project).find((m) => m.id === MENU_ID)!.title;
 }
 
 beforeEach(() => {
@@ -364,9 +346,7 @@ describe("TitleRender", () => {
   });
 
   it("text layer WITHOUT fontAssetId uses VanillaMcText (MC bitmap atlas)", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const vm = screen.getByTestId("vanilla-mc-text");
@@ -385,9 +365,7 @@ describe("TitleRender", () => {
   });
 
   it("text layer without explicit size passes sizeScale=1 (default)", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const node = screen.getByTestId("vanilla-mc-text");
@@ -409,9 +387,7 @@ describe("TitleRender", () => {
 
   it("plain text layer (no fontAssetId): groupY = layer.y * scale", () => {
     // Plain text uses Y-specific ascii fonts → group positioned at layer.y directly.
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 8, y: 20 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 8, y: 20 }];
     seedProject(layers);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const groups = screen.getAllByTestId("group");
@@ -419,9 +395,7 @@ describe("TitleRender", () => {
   });
 
   it("plain text layer at y=0 sits at group y=0", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 8, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 8, y: 0 }];
     seedProject(layers);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const groups = screen.getAllByTestId("group");
@@ -447,9 +421,7 @@ describe("TitleRender", () => {
       id: "asset_body_font" as AssetId,
       fontMeta: {
         namespace: "artisan:custom",
-        glyphMap: [
-          { char: "H", texture: "H.png", ascent: -20, height: 10, width: 6 },
-        ],
+        glyphMap: [{ char: "H", texture: "H.png", ascent: -20, height: 10, width: 6 }],
       },
     };
     const layers: MenuTitleLayer[] = [
@@ -495,9 +467,7 @@ describe("TitleRender", () => {
   });
 
   it("non-background layer is draggable when selected", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "glyph", assetId: ASSET_GLYPH, x: 10, y: 3 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "glyph", assetId: ASSET_GLYPH, x: 10, y: 3 }];
     seedProject(layers);
     useUiStore.getState().setSelectedLayerKey({ menuId: MENU_ID, index: 0 });
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
@@ -506,9 +476,7 @@ describe("TitleRender", () => {
   });
 
   it("clicking an already-selected layer deselects it (toggle)", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     useUiStore.getState().setSelectedLayerKey({ menuId: MENU_ID, index: 0 });
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
@@ -518,9 +486,7 @@ describe("TitleRender", () => {
   });
 
   it("clicking an unselected layer does not change selection (canvas is click-through when not selected)", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     // No selection set
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
@@ -531,9 +497,7 @@ describe("TitleRender", () => {
   });
 
   it("click on title-bar backdrop clears selection when this menu is selected", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     useUiStore.setState({
       selectedLayerKey: { menuId: MENU_ID, index: 0 },
@@ -547,9 +511,7 @@ describe("TitleRender", () => {
   });
 
   it("click on title-bar backdrop sets uiStore.selectedMenuId to this menu's id (P1.10)", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     // Start with no menu selected.
     expect(useUiStore.getState().selectedMenuId).toBeNull();
@@ -564,9 +526,7 @@ describe("TitleRender", () => {
   });
 
   it("click on title-bar backdrop when already selected keeps menu selected and clears matching layer (P1.10)", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     useUiStore.setState({
       selectedMenuId: MENU_ID,
@@ -585,9 +545,7 @@ describe("TitleRender", () => {
   });
 
   it("backdrop click clears any active layer selection, even from another menu", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     // Pre-existing selection belongs to a different menu — clicking this
     // menu's title bar should still deselect (global "click elsewhere = deselect").
@@ -604,9 +562,7 @@ describe("TitleRender", () => {
   });
 
   it("selected layer shows a yellow 1-px stroke outline", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     useUiStore.setState({
       selectedLayerKey: { menuId: MENU_ID, index: 0 },
@@ -618,9 +574,7 @@ describe("TitleRender", () => {
   });
 
   it("no selection outline when nothing is selected", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const rects = screen.getAllByTestId("rect");
@@ -628,9 +582,7 @@ describe("TitleRender", () => {
   });
 
   it("selection outline is scoped to the selected menu (different menu = no outline)", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     useUiStore.setState({
       selectedLayerKey: { menuId: "other-menu" as MenuId, index: 0 },
@@ -641,9 +593,7 @@ describe("TitleRender", () => {
   });
 
   it("no resize handles are rendered (resize removed — assets are pixel-perfect)", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "glyph", assetId: ASSET_GLYPH, x: 10, y: 3 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "glyph", assetId: ASSET_GLYPH, x: 10, y: 3 }];
     seedProject(layers);
     useAssetStore.getState().setAssets([GLYPH_ASSET]);
     useUiStore.setState({ selectedLayerKey: { menuId: MENU_ID, index: 0 } } as never);
@@ -679,9 +629,7 @@ describe("TitleRender", () => {
     // break drag pickup. We render a near-zero-alpha Rect sized to the
     // layer's bounding box so the user can grab the layer anywhere inside
     // its outline.
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
 
@@ -692,8 +640,9 @@ describe("TitleRender", () => {
     const layerGroup = groups[0]!;
     // The hit-area is the first child rect with the near-zero-alpha fill,
     // EXCLUDING the title-bar backdrop which is outside this Group.
-    const hitAreas = Array.from(layerGroup.querySelectorAll('[data-testid="rect"]'))
-      .filter((r) => r.getAttribute("data-fill") === BACKDROP_FILL);
+    const hitAreas = Array.from(layerGroup.querySelectorAll('[data-testid="rect"]')).filter(
+      (r) => r.getAttribute("data-fill") === BACKDROP_FILL,
+    );
     expect(hitAreas.length).toBeGreaterThan(0);
     const hit = hitAreas[0]!;
     expect(Number(hit.getAttribute("data-width"))).toBeGreaterThan(0);
@@ -709,10 +658,13 @@ describe("TitleRender", () => {
       { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
     ];
     seedProject(defaultLayers);
-    const { unmount } = render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+    const { unmount } = render(
+      <TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />,
+    );
     const defaultGroup = screen.getAllByTestId("group")[0]!;
-    const defaultHit = Array.from(defaultGroup.querySelectorAll('[data-testid="rect"]'))
-      .filter((r) => r.getAttribute("data-fill") === BACKDROP_FILL)[0]!;
+    const defaultHit = Array.from(defaultGroup.querySelectorAll('[data-testid="rect"]')).filter(
+      (r) => r.getAttribute("data-fill") === BACKDROP_FILL,
+    )[0]!;
     const defaultW = Number(defaultHit.getAttribute("data-width"));
     const defaultH = Number(defaultHit.getAttribute("data-height"));
     unmount();
@@ -723,8 +675,9 @@ describe("TitleRender", () => {
     seedProject(scaledLayers);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const scaledGroup = screen.getAllByTestId("group")[0]!;
-    const scaledHit = Array.from(scaledGroup.querySelectorAll('[data-testid="rect"]'))
-      .filter((r) => r.getAttribute("data-fill") === BACKDROP_FILL)[0]!;
+    const scaledHit = Array.from(scaledGroup.querySelectorAll('[data-testid="rect"]')).filter(
+      (r) => r.getAttribute("data-fill") === BACKDROP_FILL,
+    )[0]!;
     const scaledW = Number(scaledHit.getAttribute("data-width"));
     const scaledH = Number(scaledHit.getAttribute("data-height"));
 
@@ -741,8 +694,9 @@ describe("TitleRender", () => {
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
 
     const layerGroup = screen.getAllByTestId("group")[0]!;
-    const hitAreas = Array.from(layerGroup.querySelectorAll('[data-testid="rect"]'))
-      .filter((r) => r.getAttribute("data-fill") === BACKDROP_FILL);
+    const hitAreas = Array.from(layerGroup.querySelectorAll('[data-testid="rect"]')).filter(
+      (r) => r.getAttribute("data-fill") === BACKDROP_FILL,
+    );
     expect(hitAreas.length).toBeGreaterThan(0);
     const hit = hitAreas[0]!;
     expect(Number(hit.getAttribute("data-width"))).toBeGreaterThan(0);
@@ -750,42 +704,38 @@ describe("TitleRender", () => {
   });
 
   it("unselected glyph layer: hit-area Rect is present but listening=false (click-through to menu)", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "glyph", assetId: ASSET_GLYPH, x: 10, y: 3 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "glyph", assetId: ASSET_GLYPH, x: 10, y: 3 }];
     seedProject(layers);
     useAssetStore.getState().setAssets([GLYPH_ASSET]);
     // No selection set → layer is unselected
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
 
     const layerGroup = screen.getAllByTestId("group")[0]!;
-    const hitArea = Array.from(layerGroup.querySelectorAll('[data-testid="rect"]'))
-      .find((r) => r.getAttribute("data-fill") === BACKDROP_FILL);
+    const hitArea = Array.from(layerGroup.querySelectorAll('[data-testid="rect"]')).find(
+      (r) => r.getAttribute("data-fill") === BACKDROP_FILL,
+    );
     expect(hitArea).toBeDefined();
     expect(hitArea!.getAttribute("data-listening")).toBe("false");
   });
 
   it("selected glyph layer: hit-area Rect is listening=true and group is draggable", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "glyph", assetId: ASSET_GLYPH, x: 10, y: 3 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "glyph", assetId: ASSET_GLYPH, x: 10, y: 3 }];
     seedProject(layers);
     useAssetStore.getState().setAssets([GLYPH_ASSET]);
     useUiStore.getState().setSelectedLayerKey({ menuId: MENU_ID, index: 0 });
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
 
     const layerGroup = screen.getAllByTestId("group")[0]!;
-    const hitArea = Array.from(layerGroup.querySelectorAll('[data-testid="rect"]'))
-      .find((r) => r.getAttribute("data-fill") === BACKDROP_FILL);
+    const hitArea = Array.from(layerGroup.querySelectorAll('[data-testid="rect"]')).find(
+      (r) => r.getAttribute("data-fill") === BACKDROP_FILL,
+    );
     expect(hitArea).toBeDefined();
     expect(hitArea!.getAttribute("data-listening")).toBe("true");
     expect(layerGroup.getAttribute("data-draggable")).toBe("true");
   });
 
   it("dragging a layer dispatches a position update through useTitleLayerDrag → projectStore", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "glyph", assetId: ASSET_GLYPH, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "glyph", assetId: ASSET_GLYPH, x: 0, y: 0 }];
     seedProject(layers);
     useAssetStore.getState().setAssets([GLYPH_ASSET]);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
@@ -822,9 +772,7 @@ describe("TitleRender", () => {
     // drag events to the parent MenuGroup, whose onDragEnd reads
     // `e.target.x()/y()` and applies the layer's coords as the menu's new
     // position — moving the menu instead of the layer.
-    const layers: MenuTitleLayer[] = [
-      { kind: "glyph", assetId: ASSET_GLYPH, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "glyph", assetId: ASSET_GLYPH, x: 0, y: 0 }];
     seedProject(layers);
     useAssetStore.getState().setAssets([GLYPH_ASSET]);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
@@ -846,9 +794,7 @@ describe("TitleRender", () => {
     // doesn't see it (the layer handler set cancelBubble=true on the Konva
     // event, AND React events are scoped to their own dispatch — the test
     // here just asserts no extra mutation on the parent's spy).
-    const layers: MenuTitleLayer[] = [
-      { kind: "glyph", assetId: ASSET_GLYPH, x: 0, y: 0 },
-    ];
+    const layers: MenuTitleLayer[] = [{ kind: "glyph", assetId: ASSET_GLYPH, x: 0, y: 0 }];
     seedProject(layers);
     useAssetStore.getState().setAssets([GLYPH_ASSET]);
     const parentDragEnd = vi.fn();
@@ -870,7 +816,7 @@ describe("TitleRender", () => {
     expect(end.cancelBubble).toBe(true);
     // Parent's onDragEnd was never invoked — the inner handler is the only
     // one that ran. (In real Konva, cancelBubble halts the bubble walk;
-    // here we assert the spy spy stayed at zero calls.)
+    // here we assert the spy stayed at zero calls.)
     expect(parentDragEnd).not.toHaveBeenCalled();
   });
 });
@@ -879,29 +825,31 @@ describe("TitleRender — textarea layer", () => {
   it("renders N VanillaMcText children for N \\n-separated lines (3 lines)", () => {
     // The textarea's value resolves to "Line1\nLine2\nLine3" via the i18n key.
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
             i18nKeys: { lt_multiline: { en: "Line1\nLine2\nLine3" } },
-            menus: [
-              {
-                ...(project.menus[0]!),
-                title: [
-                  {
-                    kind: "textarea",
-                    value: { key: "lt_multiline" as I18nKey },
-                    x: 10,
-                    y: 6,
-                    width: 256,
-                    lineHeight: 10,
-                    alignment: "left",
-                  },
-                ],
-              } as Menu,
-            ],
+            documents: {
+              menu: [
+                {
+                  ...menusOf(project)[0]!,
+                  title: [
+                    {
+                      kind: "textarea",
+                      value: { key: "lt_multiline" as I18nKey },
+                      x: 10,
+                      y: 6,
+                      width: 256,
+                      lineHeight: 10,
+                      alignment: "left",
+                    },
+                  ],
+                } as Menu,
+              ],
+            },
           },
         ],
         projectOrder: [PACK_ID],
@@ -918,29 +866,31 @@ describe("TitleRender — textarea layer", () => {
   it("lines are stacked at y + i * lineHeight * scale", () => {
     // lineHeight=10, scale=2 → lines at y=0, 20, 40 (relative to group)
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
             i18nKeys: { lt_ml2: { en: "A\nB\nC" } },
-            menus: [
-              {
-                ...(project.menus[0]!),
-                title: [
-                  {
-                    kind: "textarea",
-                    value: { key: "lt_ml2" as I18nKey },
-                    x: 10,
-                    y: 6,
-                    width: 256,
-                    lineHeight: 10,
-                    alignment: "left",
-                  },
-                ],
-              } as Menu,
-            ],
+            documents: {
+              menu: [
+                {
+                  ...menusOf(project)[0]!,
+                  title: [
+                    {
+                      kind: "textarea",
+                      value: { key: "lt_ml2" as I18nKey },
+                      x: 10,
+                      y: 6,
+                      width: 256,
+                      lineHeight: 10,
+                      alignment: "left",
+                    },
+                  ],
+                } as Menu,
+              ],
+            },
           },
         ],
         projectOrder: [PACK_ID],
@@ -956,29 +906,31 @@ describe("TitleRender — textarea layer", () => {
   it("preserves the absolute position of legacy centered text", () => {
     // vanillaTextWidth mock: text.length * 6. "Hi" → 12px, center x = -6 * scale.
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
             i18nKeys: { lt_center: { en: "Hi" } },
-            menus: [
-              {
-                ...(project.menus[0]!),
-                title: [
-                  {
-                    kind: "textarea",
-                    value: { key: "lt_center" as I18nKey },
-                    x: 20,
-                    y: 6,
-                    width: 256,
-                    lineHeight: 10,
-                    alignment: "center",
-                  },
-                ],
-              } as Menu,
-            ],
+            documents: {
+              menu: [
+                {
+                  ...menusOf(project)[0]!,
+                  title: [
+                    {
+                      kind: "textarea",
+                      value: { key: "lt_center" as I18nKey },
+                      x: 20,
+                      y: 6,
+                      width: 256,
+                      lineHeight: 10,
+                      alignment: "center",
+                    },
+                  ],
+                } as Menu,
+              ],
+            },
           },
         ],
         projectOrder: [PACK_ID],
@@ -988,35 +940,39 @@ describe("TitleRender — textarea layer", () => {
     const lines = screen.getAllByTestId("vanilla-mc-text");
     // "Hi".length * 6 = 12, center x = -(12/2) * 2 = -12
     const group = lines[0]!.closest('[data-testid="group"]')!;
-    expect(Number(group.getAttribute("data-x")) + Number(lines[0]!.getAttribute("data-x"))).toBe((20 - 12 / 2) * TEX_SCALE);
+    expect(Number(group.getAttribute("data-x")) + Number(lines[0]!.getAttribute("data-x"))).toBe(
+      (20 - 12 / 2) * TEX_SCALE,
+    );
   });
 
   it("preserves the absolute position of legacy right-aligned text", () => {
     // "Hi" → 12px, right x = -12 * scale.
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
             i18nKeys: { lt_right: { en: "Hi" } },
-            menus: [
-              {
-                ...(project.menus[0]!),
-                title: [
-                  {
-                    kind: "textarea",
-                    value: { key: "lt_right" as I18nKey },
-                    x: 20,
-                    y: 6,
-                    width: 256,
-                    lineHeight: 10,
-                    alignment: "right",
-                  },
-                ],
-              } as Menu,
-            ],
+            documents: {
+              menu: [
+                {
+                  ...menusOf(project)[0]!,
+                  title: [
+                    {
+                      kind: "textarea",
+                      value: { key: "lt_right" as I18nKey },
+                      x: 20,
+                      y: 6,
+                      width: 256,
+                      lineHeight: 10,
+                      alignment: "right",
+                    },
+                  ],
+                } as Menu,
+              ],
+            },
           },
         ],
         projectOrder: [PACK_ID],
@@ -1026,34 +982,38 @@ describe("TitleRender — textarea layer", () => {
     const lines = screen.getAllByTestId("vanilla-mc-text");
     // "Hi".length * 6 = 12, right x = -12 * 2 = -24
     const group = lines[0]!.closest('[data-testid="group"]')!;
-    expect(Number(group.getAttribute("data-x")) + Number(lines[0]!.getAttribute("data-x"))).toBe((20 - 12) * TEX_SCALE);
+    expect(Number(group.getAttribute("data-x")) + Number(lines[0]!.getAttribute("data-x"))).toBe(
+      (20 - 12) * TEX_SCALE,
+    );
   });
 
   it("single-line textarea renders exactly one VanillaMcText", () => {
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
             i18nKeys: { lt_single: { en: "Hello" } },
-            menus: [
-              {
-                ...(project.menus[0]!),
-                title: [
-                  {
-                    kind: "textarea",
-                    value: { key: "lt_single" as I18nKey },
-                    x: 8,
-                    y: 6,
-                    width: 256,
-                    lineHeight: 10,
-                    alignment: "left",
-                  },
-                ],
-              } as Menu,
-            ],
+            documents: {
+              menu: [
+                {
+                  ...menusOf(project)[0]!,
+                  title: [
+                    {
+                      kind: "textarea",
+                      value: { key: "lt_single" as I18nKey },
+                      x: 8,
+                      y: 6,
+                      width: 256,
+                      lineHeight: 10,
+                      alignment: "left",
+                    },
+                  ],
+                } as Menu,
+              ],
+            },
           },
         ],
         projectOrder: [PACK_ID],
@@ -1067,29 +1027,31 @@ describe("TitleRender — textarea layer", () => {
 
   it("textarea group is positioned at layer.x * scale, layer.y * scale", () => {
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
             i18nKeys: { lt_pos: { en: "X" } },
-            menus: [
-              {
-                ...(project.menus[0]!),
-                title: [
-                  {
-                    kind: "textarea",
-                    value: { key: "lt_pos" as I18nKey },
-                    x: 15,
-                    y: 8,
-                    width: 256,
-                    lineHeight: 10,
-                    alignment: "left",
-                  },
-                ],
-              } as Menu,
-            ],
+            documents: {
+              menu: [
+                {
+                  ...menusOf(project)[0]!,
+                  title: [
+                    {
+                      kind: "textarea",
+                      value: { key: "lt_pos" as I18nKey },
+                      x: 15,
+                      y: 8,
+                      width: 256,
+                      lineHeight: 10,
+                      alignment: "left",
+                    },
+                  ],
+                } as Menu,
+              ],
+            },
           },
         ],
         projectOrder: [PACK_ID],
@@ -1102,10 +1064,8 @@ describe("TitleRender — textarea layer", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // Helpers for the wrap + resize-handle describe block below.
 // Mirrors the pattern from LayerEditForm.test.tsx (seedProject with i18nKeys).
-// ---------------------------------------------------------------------------
 
 const K = (s: string) => s as I18nKey;
 
@@ -1113,9 +1073,8 @@ function seedProjectWithI18n(
   layers: MenuTitleLayer[],
   i18nKeys: Record<string, Record<string, string>>,
 ) {
-  useAccountStore.setState({
-    account: {
-      id: "acc" as never,
+  useProjectsStore.setState({
+    openProjects: {
       projects: [
         {
           id: PACK_ID,
@@ -1123,14 +1082,16 @@ function seedProjectWithI18n(
           source: "user_created",
           createdAt: "",
           updatedAt: "",
-          menus: [{ id: MENU_ID, projectId: PACK_ID, title: layers, rows: 3, layers: [] }],
-          commands: [],
+          documents: {
+            menu: [{ id: MENU_ID, projectId: PACK_ID, title: layers, rows: 3, layers: [] }],
+            command: [],
+            dialog: [],
+          },
           assets: [],
           dataSources: [],
           importedConnectors: [],
           i18nKeys,
           defaultLang: "en",
-          dialogs: [],
           canvasLayout: {},
         },
       ],
@@ -1146,12 +1107,28 @@ function selectLayer(index: number) {
 
 describe("TitleRender — textarea wrap and resize handle", () => {
   it("keeps the frame and resize handle consistent when aligning and resizing sized text", () => {
-    seedProjectWithI18n([{
-      kind: "textarea", value: { key: K("fixed") }, x: 8, y: 20,
-      width: 100, lineHeight: 18, size: 16, alignment: "left",
-    }], { fixed: { en: "<bold>Hi</bold>" } });
+    seedProjectWithI18n(
+      [
+        {
+          kind: "textarea",
+          value: { key: K("fixed") },
+          x: 8,
+          y: 20,
+          width: 100,
+          lineHeight: 18,
+          size: 16,
+          alignment: "left",
+        },
+      ],
+      { fixed: { en: "<bold>Hi</bold>" } },
+    );
     selectLayer(0);
-    render(<><TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={2} /><LayerEditForm projectId={PACK_ID} /></>);
+    render(
+      <>
+        <TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={2} />
+        <LayerEditForm projectId={PACK_ID} />
+      </>,
+    );
     for (const alignment of ["left", "center", "right"] as const) {
       fireEvent.click(screen.getByTestId(`textarea-align-${alignment}`));
       fireEvent.click(screen.getByTestId("width-resize-handle"));
@@ -1164,31 +1141,59 @@ describe("TitleRender — textarea wrap and resize handle", () => {
       expect(Number(hit.getAttribute("data-width"))).toBe(240);
       const text = screen.getByTestId("vanilla-mc-text");
       const width = (12 + 2) * 2;
-      const expectedX = alignment === "left" ? 0 : alignment === "center" ? 60 - width / 2 : 120 - width;
+      const expectedX =
+        alignment === "left" ? 0 : alignment === "center" ? 60 - width / 2 : 120 - width;
       expect(Number(text.getAttribute("data-x"))).toBe(expectedX * 2);
     }
   });
 
   it("provides width resizing for existing single-line text", () => {
-    seedProjectWithI18n([{ kind: "text", value: { key: K("legacy") }, x: 8, y: 20 }], { legacy: { en: "Hi" } });
+    seedProjectWithI18n([{ kind: "text", value: { key: K("legacy") }, x: 8, y: 20 }], {
+      legacy: { en: "Hi" },
+    });
     selectLayer(0);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={1} />);
     fireEvent.click(screen.getByTestId("width-resize-handle"));
-    expect(useAccountStore.getState().account.projects[0].menus[0].title[0]).toMatchObject({ kind: "textarea", x: 8, width: 120 });
+    expect(
+      menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0],
+    ).toMatchObject({
+      kind: "textarea",
+      x: 8,
+      width: 120,
+    });
   });
 
   it("saves the runtime anchor when dragging a centered frame", () => {
-    seedProjectWithI18n([{
-      kind: "textarea", value: { key: K("drag") }, x: 68, y: 20,
-      width: 121, lineHeight: 10, alignment: "center",
-    }], { drag: { en: "Hi" } });
+    seedProjectWithI18n(
+      [
+        {
+          kind: "textarea",
+          value: { key: K("drag") },
+          x: 68,
+          y: 20,
+          width: 121,
+          lineHeight: 10,
+          alignment: "center",
+        },
+      ],
+      { drag: { en: "Hi" } },
+    );
     selectLayer(0);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={2} />);
-    const group = screen.getByTestId("width-resize-handle").closest('[data-testid="group"]') as HTMLElement;
+    const group = screen
+      .getByTestId("width-resize-handle")
+      .closest('[data-testid="group"]') as HTMLElement;
     expect(Number(group.getAttribute("data-x"))).toBe(16);
-    act(() => { dispatchDragEnd(group, { x: 60, y: 40 }); });
-    expect(useAccountStore.getState().account.projects[0].menus[0].title[0]).toMatchObject({
-      x: 90, y: 20, alignment: "center", width: 121,
+    act(() => {
+      dispatchDragEnd(group, { x: 60, y: 40 });
+    });
+    expect(
+      menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0],
+    ).toMatchObject({
+      x: 90,
+      y: 20,
+      alignment: "center",
+      width: 121,
     });
   });
 

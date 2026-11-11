@@ -3,11 +3,10 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/cx";
 
 /**
- * Indicateur d'attente — pour ce qui prend le temps d'un aller-retour jusqu'au
- * disque d'un serveur, où une page immobile passe pour une page cassée.
+ * Waiting indicator — for what takes a round-trip to a server's disk, where a
+ * still page passes for a broken one.
  *
- * Il ne dit que « ça travaille » : ce qu'on attend s'écrit à côté, en toutes
- * lettres. Un rond qui tourne seul n'informe de rien.
+ * It only says "working": what is being waited for is written next to it.
  */
 export function Spinner({ className, ...props }: React.HTMLAttributes<SVGElement>) {
   return (

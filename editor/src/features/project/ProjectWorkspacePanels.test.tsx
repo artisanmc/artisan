@@ -1,4 +1,5 @@
 import type { ProjectId } from "@/domain/types";
+import { useUiStore } from "@/state/uiStore";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { CanvasWithInspector } from "./CanvasWithInspector";
@@ -11,19 +12,20 @@ vi.mock("@/lib/usePanelPresence", () => ({
 let inspecting = false;
 vi.mock("./useInspector", () => ({ useInspector: () => ({ open: inspecting }) }));
 vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => true }));
-vi.mock("@/features/canvas/EditorPane", () => ({
+vi.mock("@/features/inspector/EditorPane", () => ({
   EditorPane: () => <div>Selection properties</div>,
 }));
-vi.mock("@/features/canvas/FloatingEditorPane", () => ({
+vi.mock("@/features/inspector/FloatingEditorPane", () => ({
   FloatingEditorPane: () => <div>Floating properties</div>,
 }));
 beforeEach(() => {
   inspecting = false;
+  useUiStore.getState().setProjectSettingsOpen(false);
 });
 const projectId = "p1" as ProjectId;
-function workspace(active = true) {
+function workspace(active = true, tabOpen = false) {
   return (
-    <ProjectWorkspacePanels projectId={projectId} active={active}>
+    <ProjectWorkspacePanels projectId={projectId} active={active} tabOpen={tabOpen}>
       <CanvasWithInspector
         projectId={projectId}
         canvas={<div>Canvas</div>}
@@ -68,4 +70,18 @@ it("hides properties on secondary views", () => {
   render(workspace(false));
   expect(screen.queryByText("Selection properties")).toBeNull();
   expect(screen.queryByText("Floating properties")).toBeNull();
+});
+
+it("shows the project settings beside a Document's page or a collection", () => {
+  inspecting = true;
+  useUiStore.getState().setProjectSettingsOpen(true);
+  render(workspace(false));
+  expect(screen.getByText("Selection properties")).toBeInTheDocument();
+});
+
+it("keeps a secondary tab free of the project settings", () => {
+  inspecting = true;
+  useUiStore.getState().setProjectSettingsOpen(true);
+  render(workspace(false, true));
+  expect(screen.queryByText("Selection properties")).toBeNull();
 });

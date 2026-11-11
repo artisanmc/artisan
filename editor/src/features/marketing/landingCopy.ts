@@ -3,9 +3,9 @@ export const landingEn = {
   title: ["Your server deserves", "menus of its own."],
   intro:
     "Turn your ideas into menus your players will remember. Design visually, connect your actions, and bring it all to your Minecraft server.",
-  demo: "Try the demo",
-  pricing: "Explore plans",
-  demoNote: "No account needed. Start creating right away.",
+  start: "Install Artisan",
+  wikiCta: "Read the wiki",
+  startNote: "A plugin for Paper. The editor is served by your own server.",
   pillars: [
     "Built for Paper servers",
     "Your textures. Your identity.",
@@ -26,9 +26,9 @@ export const landingEn = {
         "Open another menu, launch a command or guide a player to their next step. Connect your design to the way your server works.",
     },
     {
-      title: "Give your ideas a head start.",
+      title: "Your server, your files.",
       description:
-        "Work with the AI assistant when you need a helping hand. AI usage draws on your network’s credits, with plans and top-ups available.",
+        "The editor runs on your Minecraft server and writes straight to its plugin folder. Nothing leaves your machine.",
     },
   ],
   creativeTitle: "Recognizably yours.",
@@ -38,12 +38,12 @@ export const landingEn = {
   workflowIntro: "A clear path from your first idea to the moment a player opens your menu.",
   workflow: [
     {
-      title: "Create in the browser",
-      text: "Explore the editor in the demo, then create your account to organize your work.",
+      title: "Install the plugin",
+      text: "Drop the Artisan plugin into your Paper server and restart it.",
     },
     {
-      title: "Connect your server",
-      text: "Install the Artisan plugin on Paper and connect it to your network.",
+      title: "Open the editor",
+      text: "Run /artisan editor in game: the link opens the editor your server serves.",
     },
     {
       title: "Prepare. Then publish.",
@@ -58,29 +58,23 @@ export const landingEn = {
   faqTitle: "Before you start.",
   faq: [
     {
-      question: "Can I try Artisan before creating an account?",
+      question: "Where does the editor run?",
       answer:
-        "Yes. The demo opens a temporary workspace directly in your browser, without an account. You can explore the editor before choosing a plan.",
+        "On your own server. The Artisan plugin serves the editor and signs you in with the link from /artisan editor — no account, no external service.",
     },
     {
       question: "What do I need to use my menus in-game?",
       answer:
-        "You need a compatible Paper server with the Artisan plugin installed and connected to your network. The installation guide covers setup and resource pack configuration.",
+        "You need a compatible Paper server with the Artisan plugin installed. The installation guide covers setup and resource pack configuration.",
     },
     {
       question: "Do I have to write YAML?",
       answer:
         "The visual editor handles menu layouts, titles and elements. You can also work with commands and expressions when your menu needs more advanced behavior.",
     },
-    {
-      question: "How do plans and AI credits work?",
-      answer:
-        "Plans are attached to your network. The pricing page shows the current subscription prices and included credits. AI requests consume credits; additional credit packs are available separately.",
-    },
   ],
   closingTitle: "Your next great menu\nstarts here.",
   closingText: "Open the editor. Place your first item. Make it yours.",
-  signup: "Create my account",
 };
 
 export const landingFr: typeof landingEn = {
@@ -88,9 +82,9 @@ export const landingFr: typeof landingEn = {
   title: ["Votre serveur mérite", "des menus à part."],
   intro:
     "Transformez vos idées en menus que vos joueurs retiendront. Créez visuellement, reliez vos actions et donnez vie à votre univers sur Minecraft.",
-  demo: "Essayer la démo",
-  pricing: "Découvrir les offres",
-  demoNote: "Sans compte. Vos premières créations vous attendent.",
+  start: "Installer Artisan",
+  wikiCta: "Lire le wiki",
+  startNote: "Un plugin pour Paper. L’éditeur est servi par votre propre serveur.",
   pillars: [
     "Pensé pour les serveurs Paper",
     "Vos textures. Votre identité.",
@@ -111,9 +105,9 @@ export const landingFr: typeof landingEn = {
         "Ouvrez un autre menu, lancez une commande ou guidez un joueur vers la suite. Reliez votre création au fonctionnement de votre serveur.",
     },
     {
-      title: "Un coup de pouce pour vos idées.",
+      title: "Votre serveur, vos fichiers.",
       description:
-        "Avancez avec l’assistant IA quand vous en avez besoin. Son utilisation consomme les crédits de votre réseau, disponibles par abonnement ou recharge.",
+        "L’éditeur tourne sur votre serveur Minecraft et écrit directement dans le dossier du plugin. Rien ne quitte votre machine.",
     },
   ],
   creativeTitle: "Votre signature, jusque dans les détails.",
@@ -125,12 +119,12 @@ export const landingFr: typeof landingEn = {
     "Un parcours clair, de votre première idée au moment où un joueur ouvre votre menu.",
   workflow: [
     {
-      title: "Créez dans le navigateur",
-      text: "Explorez l’éditeur dans la démo, puis créez votre compte pour organiser vos projets.",
+      title: "Installez le plugin",
+      text: "Déposez le plugin Artisan sur votre serveur Paper et redémarrez-le.",
     },
     {
-      title: "Connectez votre serveur",
-      text: "Installez le plugin Artisan sur Paper et reliez-le à votre réseau.",
+      title: "Ouvrez l’éditeur",
+      text: "Lancez /artisan editor en jeu : le lien ouvre l’éditeur servi par votre serveur.",
     },
     {
       title: "Préparez. Puis publiez.",
@@ -145,27 +139,21 @@ export const landingFr: typeof landingEn = {
   faqTitle: "Avant de vous lancer.",
   faq: [
     {
-      question: "Puis-je essayer Artisan sans créer de compte ?",
+      question: "Où tourne l’éditeur ?",
       answer:
-        "Oui. La démo ouvre un espace temporaire directement dans votre navigateur, sans compte. Vous pouvez explorer l’éditeur avant de choisir une offre.",
+        "Sur votre propre serveur. Le plugin Artisan sert l’éditeur et vous connecte avec le lien de /artisan editor — sans compte ni service externe.",
     },
     {
       question: "De quoi ai-je besoin pour utiliser mes menus en jeu ?",
       answer:
-        "D’un serveur Paper compatible, avec le plugin Artisan installé et connecté à votre réseau. Le guide d’installation détaille la configuration et la gestion du resource pack.",
+        "D’un serveur Paper compatible, avec le plugin Artisan installé. Le guide d’installation détaille la configuration et la gestion du resource pack.",
     },
     {
       question: "Dois-je écrire du YAML ?",
       answer:
         "L’éditeur visuel prend en charge la mise en page, les titres et les éléments de vos menus. Les commandes et expressions restent à votre disposition pour les comportements plus avancés.",
     },
-    {
-      question: "Comment fonctionnent les offres et les crédits IA ?",
-      answer:
-        "Les abonnements sont rattachés à votre réseau. La page des offres présente les prix actuels et les crédits inclus. Les requêtes IA consomment des crédits ; des recharges sont aussi disponibles séparément.",
-    },
   ],
   closingTitle: "Votre prochain beau menu\ncommence ici.",
   closingText: "Ouvrez l’éditeur. Placez votre premier objet. Créez votre univers.",
-  signup: "Créer mon compte",
 };

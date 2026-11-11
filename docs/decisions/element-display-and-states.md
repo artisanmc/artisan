@@ -59,24 +59,22 @@ a field that is by construction always there.
 server, so there is no third party whose files we would break. Existing menus are
 rewritten in the canonical form.
 
-> **Corrigé le 2026-08-29 : la lecture, elle, tolère l'ancienne liste.**
+> **Corrected on 2026-08-29: reading, however, tolerates the old list.**
 >
-> La prémisse ci-dessus — « un seul serveur de test, les fichiers seront
-> réécrits » — était fausse. Des menus écrits avant le changement vivaient en
-> production (bootstrap d'un Add-on, dont le `bootstrapIfAbsent` refuse par
-> conception de retoucher un project existant : rien ne les a jamais réécrits).
-> L'éditeur les rendait alors **vides et sans un message** — items invisibles,
-> template sans contenu — ce qui ressemble à une mauvaise configuration, pas à
-> une panne. Dix jours pour que ça se voie.
+> The premise above — "a single test server, files will be rewritten" — was
+> wrong. Menus written before the change were living in production (an Add-on's
+> bootstrap, whose `bootstrapIfAbsent` refuses by design to touch an existing
+> project: nothing ever rewrote them). The editor then rendered them **empty
+> and without a message** — invisible items, template with no content — which
+> looks like a bad configuration, not a failure. It took ten days to be noticed.
 >
-> `menuV1ToDomain`, le lecteur de `templates/` **et le plugin**
-> (`ElementYamlDeserializer`) acceptent donc encore une liste
-> `appearances` (display en tête), quand aucun champ à plat n'est présent. Rien
-> ne change par ailleurs : l'écrivain reste canonique — le premier
-> enregistrement remet le fichier à l'endroit — et un état ne s'hérite toujours
-> pas. **Lecteur tolérant, écrivain canonique**, la règle déjà posée par
-> `bare-data-files` ; elle aurait dû s'appliquer ici dès le départ, un chemin de
-> lecture d'ancien format étant exactement ce qu'elle vise.
+> `menuV1ToDomain`, the `templates/` reader **and the plugin**
+> (`ElementYamlDeserializer`) therefore still accept an `appearances` list
+> (display first), when no flat field is present. Nothing else changes: the
+> writer stays canonical — the first save puts the file right — and a state
+> still does not inherit. **Tolerant reader, canonical writer**, the rule already
+> set by `bare-data-files`; it should have applied here from the start, a
+> read path for an old format being exactly what it targets.
 
 This mutates `menu/v1` in place. `versioning.md:57-61` forbids renaming a field
 within a version, but that rule is calqued on API surfaces where the producer is

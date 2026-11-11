@@ -1,4 +1,4 @@
-import { type CSSProperties, Fragment } from "react";
+import { type CSSProperties, Fragment, useEffect, useState } from "react";
 import { type Style, parseMiniMessage } from "./miniMessage";
 
 const fontFamilyFor = (font: string | undefined): string | undefined => {
@@ -40,6 +40,34 @@ const hexWithAlpha = (hex: string, alpha: number): string => {
   return `${hex}${a}`;
 };
 
+const POOL = Array.from({ length: 94 }, (_, k) => String.fromCharCode(33 + k));
+const reducedMotion = () =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** `<obfuscated>` text: random characters redrawn every 80 ms, as the client does. */
+function Obfuscated({ text, style }: { text: string; style: CSSProperties }) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (reducedMotion()) return;
+    const timer = setInterval(() => setTick((t) => t + 1), 80);
+    return () => clearInterval(timer);
+  }, []);
+  const shown = [...text]
+    .map((ch, k) =>
+      /\s/.test(ch)
+        ? ch
+        : POOL[Math.abs(Math.floor(Math.sin(k * 31 + tick) * 10000)) % POOL.length],
+    )
+    .join("");
+  return (
+    <span style={style} aria-label={text}>
+      {shown}
+    </span>
+  );
+}
+
 interface MiniMessageInlineProps {
   source: string;
   className?: string;
@@ -49,7 +77,7 @@ interface MiniMessageInlineProps {
 /**
  * DOM renderer: emit styled <span>s for each parsed segment. Use anywhere
  * MiniMessage text appears as HTML — properties pane previews, tooltips,
- * sidebar labels, etc. For Konva canvas text, use MiniMessageKonvaText.
+ * sidebar labels, etc. For Konva canvas text, use VanillaMcText (vanilla MC font) or McFontText (a font asset).
  *
  * Pass `style` (or class-based color/italic) on the wrapper to set defaults
  * — MM tags inside the source override on a per-segment basis (the segment
@@ -62,7 +90,11 @@ export function MiniMessageInline({ source, className, style }: MiniMessageInlin
       {segments.map((seg, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: segments are stable for a given source
         <Fragment key={i}>
-          <span style={styleToCss(seg.style)}>{seg.text}</span>
+          {seg.style.obfuscated ? (
+            <Obfuscated text={seg.text} style={styleToCss(seg.style)} />
+          ) : (
+            <span style={styleToCss(seg.style)}>{seg.text}</span>
+          )}
         </Fragment>
       ))}
     </span>

@@ -1,86 +1,81 @@
-# Un Menu paramétré unique plutôt qu'un Menu par catégorie
+# A single parameterised Menu rather than one Menu per category
 
 **Status:** accepted (2026-08-11)
 
 ## Context
 
-La reprise d'une boutique legacy (config MenuAPI : 7 catégories, 41 articles, chacun
-portant un `page`/`slot` explicite) demandait de rendre une mise en page hand-authored,
-donc le **placement** plutôt que la pagination.
+Taking over a legacy shop (MenuAPI config: 7 categories, 41 items, each carrying an
+explicit `page`/`slot`) required rendering a hand-authored layout, hence **placement**
+rather than pagination.
 
-Première implémentation : **un Menu par catégorie**, chacun filtrant la source sur son
-id et plaçant ses propres articles. Ça rendait la mise en page fidèlement, et le
-placement y gardait une sémantique simple — une source, un écran, des slots.
+First implementation: **one Menu per category**, each filtering the source on its id and
+placing its own items. It rendered the layout faithfully, and placement kept simple
+semantics there — one source, one screen, some slots.
 
-Le coût s'est révélé à l'usage, et il ne porte pas sur la migration mais sur **la vie
-d'après**. Ajouter une catégorie demandait cinq gestes : créer la ligne au catalogue,
-créer un Menu, ajouter au Menu principal un élément qui pointe dessus, configurer le
-filtre du Menu cible, placer les articles. Quatre artefacts corrélés pour un concept
-qui devrait en être un seul — et le même problème attend tout module de contenu
-(quêtes, kits), pas seulement la boutique.
+The cost showed up in use, and it is not about the migration but about **the life
+afterwards**. Adding a category took five steps: create the row in the catalog, create a
+Menu, add to the main Menu an element that points to it, configure the target Menu's
+filter, place the items. Four correlated artifacts for a concept that should be one —
+and the same problem awaits any content module (quests, kits), not only the shop.
 
-Le diagnostic initial visait le **catalogue** (« la donnée métier devrait vivre dans le
-Menu »). Il était faux : le catalogue n'a jamais été la contrainte, la découpe en
-Menus l'était.
+The initial diagnosis targeted the **catalog** ("the business data should live in the
+Menu"). It was wrong: the catalog was never the constraint, the split into Menus was.
 
 ## Decision
 
-Un **Menu paramétré unique** est la forme par défaut d'un écran répété : un seul
-document, une source filtrée par un input, et les **Placements de tous les contextes**
-portés par le même Élément.
+A **single parameterised Menu** is the default form of a repeated screen: one document,
+one source filtered by an input, and the **Placements of all contexts** carried by the
+same Element.
 
-Ajouter une catégorie redevient **un geste** : créer la ligne. Le Menu existe déjà, le
-filtre est dynamique, le lien depuis le Menu principal l'est aussi
-(`open_menu shop_category with category="{cat.id}"`), et le nouveau **Preview context**
-apparaît tout seul dans l'éditeur puisqu'il est dérivé des call sites.
+Adding a category becomes **one step** again: create the row. The Menu already exists,
+the filter is dynamic, the link from the main Menu is too
+(`open_menu shop_category with category="{cat.id}"`), and the new **Preview context**
+shows up by itself in the editor since it is derived from the call sites.
 
-Une catégorie qui mérite vraiment un écran à part garde son **Menu dédié** — il suffit
-que le Menu principal pointe ailleurs pour celle-là. Le cas général coûte un geste, le
-cas particulier reste possible, et personne ne paie pour une souplesse qu'il n'utilise
-pas.
+A category that really deserves a separate screen keeps its **dedicated Menu** — the main
+Menu just has to point elsewhere for that one. The general case costs one step, the
+special case remains possible, and nobody pays for flexibility they do not use.
 
 ## Considered options
 
-**Un Menu par catégorie** — rejeté pour la chorégraphie décrite plus haut. Reste
-l'échappatoire pour un écran atypique.
+**One Menu per category** — rejected for the choreography described above. The escape
+hatch remains for an atypical screen.
 
-**Un troisième mode de rendu, où la position vient d'un champ de la ligne**
-(`position_field`, l'article porte son `slot`). Séduisant : il donnait le Menu unique
-*et* les slots, sans rien changer d'autre. Rejeté parce que le mode **placement est le
-bon concept** — la difficulté n'était pas le modèle mais l'éditeur, qui ne montrait ni
-le contexte regardé ni les lignes restant à placer. Ajouter un mode aurait figé un
-défaut d'UX dans le schéma. Et la position serait devenue une propriété de l'article,
-donc inexprimable dès qu'un article apparaît sur deux écrans.
+**A third rendering mode, where the position comes from a field of the row**
+(`position_field`, the item carries its `slot`). Appealing: it gave the single Menu
+*and* the slots, changing nothing else. Rejected because the **placement mode is the
+right concept** — the difficulty was not the model but the editor, which showed neither
+the context being viewed nor the rows left to place. Adding a mode would have frozen a
+UX defect into the schema. And the position would have become a property of the item,
+hence inexpressible as soon as an item appears on two screens.
 
-**La donnée métier dans le document du Menu** — un module déclare un type d'élément
-(prix, description, actions), l'admin le pose dans un slot, la valeur vit dans
-`menus/*.yaml`. Rejeté : ça déplaçait l'autorité du prix hors du module, imposait une
-API pour que les modules lisent les éléments sans parser `menu/v1`, et créait une
-seconde façon de déclarer de la donnée métier à côté des Tables. Le tout pour résoudre
-un problème qui n'était pas là. À rouvrir seulement si un besoin réel apparaît, avec le
-critère « cette donnée a-t-elle une vie hors du Menu ? » (une quête oui, un article de
-boutique non).
+**Business data in the Menu's document** — a module declares an element type (price,
+description, actions), the admin drops it in a slot, the value lives in `menus/*.yaml`.
+Rejected: it moved the authority over the price out of the module, required an API for
+modules to read elements without parsing `menu/v1`, and created a second way to declare
+business data next to Tables. All to solve a problem that was not there. To be reopened
+only if a real need appears, with the criterion "does this data have a life outside the
+Menu?" (a quest yes, a shop item no).
 
 ## Consequences
 
-**L'éditeur devient responsable de la lisibilité.** Un Menu paramétré porte les
-Placements de tous ses contextes : lu sans contexte, c'est un tas d'épingles
-contradictoires. Et sans contexte choisi il ne rend **rien** — l'input retombe sur son
-`default`, le filtre compare à une valeur vide, aucune ligne ne sort (donner un
-`default` à l'input est donc le moyen de fixer un contexte de repli). Trois manques
-deviennent bloquants plutôt que cosmétiques :
+**The editor becomes responsible for readability.** A parameterised Menu carries the
+Placements of all its contexts: read without a context, it is a pile of contradictory
+pins. And without a chosen context it renders **nothing** — the input falls back to its
+`default`, the filter compares against an empty value, no row comes out (giving the input
+a `default` is therefore the way to set a fallback context). Three gaps become blocking
+rather than cosmetic:
 
-- le **Preview context** doit être visible et manipulable depuis le board — par
-  l'arête (cliquer le lien fixe le contexte de la cible) et par un bandeau permanent
-  sur le Menu (« Vu depuis : Boutique › Les Clés ») — et non enfoui dans un panneau de
-  propriétés ;
-- les lignes **non placées** du contexte courant doivent se voir : un plateau flottant
-  ancré au Menu, présent uniquement s'il reste du travail, d'où l'on glisse les tuiles
-  (le glisser-déposer, lui, existe déjà) ;
-- rien de tout ça pour un Menu paginé, où il n'y a pas de position à décider.
+- the **Preview context** must be visible and manipulable from the board — through the
+  edge (clicking the link sets the target's context) and through a permanent banner on
+  the Menu ("Seen from: Shop › Keys") — and not buried in a properties panel;
+- the **unplaced** rows of the current context must be visible: a floating tray
+  anchored to the Menu, present only if work remains, from which tiles are dragged
+  (drag-and-drop itself already exists);
+- none of this for a paginated Menu, where there is no position to decide.
 
-**La migration ne dépend pas de cette UX** : le migrateur génère les Placements depuis
-les slots legacy, donc une reprise arrive déjà placée. L'UX sert à la vie d'après.
+**The migration does not depend on this UX**: the migrator generates the Placements from
+the legacy slots, so a takeover arrives already placed. The UX serves the life
+afterwards.
 
-**Le catalogue reste en Table.** Aucune donnée métier ne migre vers les documents de
-Menu.
+**The catalog stays in a Table.** No business data migrates to the Menu documents.

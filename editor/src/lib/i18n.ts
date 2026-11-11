@@ -58,7 +58,12 @@ export function createLText(project: Project, initialValue: string, lang: string
  * one. If the key already exists in the project, the existing entry is kept
  * (idempotent). Caller must hold an immer draft.
  */
-export function createLTextAt(project: Project, key: I18nKey, initialValue: string, lang: string): LText {
+export function createLTextAt(
+  project: Project,
+  key: I18nKey,
+  initialValue: string,
+  lang: string,
+): LText {
   if (!project.i18nKeys[key]) {
     project.i18nKeys[key] = { [lang]: initialValue };
   }

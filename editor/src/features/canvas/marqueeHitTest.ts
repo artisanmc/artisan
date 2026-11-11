@@ -5,7 +5,7 @@ interface Box {
   height: number;
 }
 
-/** ids des boîtes qui intersectent le rectangle (coords monde). Rect normalisé (w/h peuvent être négatifs). */
+/** Ids of the boxes intersecting the rectangle (world coords). Normalised rect (w/h may be negative). */
 export function rectIntersectsBoxes(rect: Box, boxes: Record<string, Box>): string[] {
   const x1 = Math.min(rect.x, rect.x + rect.width);
   const y1 = Math.min(rect.y, rect.y + rect.height);

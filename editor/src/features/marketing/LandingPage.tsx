@@ -8,16 +8,15 @@ import {
   MousePointer2,
   Paintbrush,
   Send,
-  Sparkles,
+  Server,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { MarketingLayout } from "./MarketingLayout";
+import { INSTALL_URL, MarketingLayout } from "./MarketingLayout";
 import { PixelItem } from "./PixelItem";
 import { landingEn, landingFr } from "./landingCopy";
-import { editorHref } from "./marketingUrls";
 import "./landing.css";
 
-const featureIcons = [MousePointer2, Command, Sparkles];
+const featureIcons = [MousePointer2, Command, Server];
 const workflowIcons = [Paintbrush, Layers, Send];
 
 export function LandingPage() {
@@ -26,7 +25,7 @@ export function LandingPage() {
   const copy = language === "fr" ? landingFr : landingEn;
 
   return (
-    <MarketingLayout page="home" description={copy.intro}>
+    <MarketingLayout description={copy.intro}>
       <section className="landing-hero marketing-container" aria-labelledby="landing-title">
         <div className="landing-category">
           <span className="landing-category-mark">
@@ -42,16 +41,16 @@ export function LandingPage() {
         <p className="landing-hero-intro">{copy.intro}</p>
         <div className="landing-actions">
           <Button asChild variant="primary" size="lg">
-            <a href={editorHref("/demo")} target="_blank" rel="noopener noreferrer">
-              {copy.demo}
+            <a href={INSTALL_URL}>
+              {copy.start}
               <MousePointer2 size={16} aria-hidden="true" />
             </a>
           </Button>
           <Button asChild variant="outline" size="lg">
-            <a href="/pricing">{copy.pricing}</a>
+            <a href="/wiki/">{copy.wikiCta}</a>
           </Button>
         </div>
-        <p className="landing-demo-note">{copy.demoNote}</p>
+        <p className="landing-demo-note">{copy.startNote}</p>
         <div className="landing-pillars">
           {copy.pillars.map((pillar) => (
             <span key={pillar}>
@@ -151,7 +150,7 @@ export function LandingPage() {
             );
           })}
         </ol>
-        <a className="landing-text-link" href="/wiki/getting-started/install-admin/">
+        <a className="landing-text-link" href={INSTALL_URL}>
           {copy.install}
           <BookOpen size={16} aria-hidden="true" />
         </a>
@@ -194,13 +193,10 @@ export function LandingPage() {
         <p>{copy.closingText}</p>
         <div className="landing-actions">
           <Button asChild variant="primary" size="lg">
-            <a href={editorHref("/demo")} target="_blank" rel="noopener noreferrer">
-              {copy.demo}
+            <a href={INSTALL_URL}>
+              {copy.start}
               <MousePointer2 size={16} aria-hidden="true" />
             </a>
-          </Button>
-          <Button asChild variant="outline" size="lg">
-            <a href={editorHref("/signup")}>{copy.signup}</a>
           </Button>
         </div>
       </section>

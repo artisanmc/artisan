@@ -11,10 +11,10 @@ import { mergeDraftAssetResult } from "./mergeDraftAssetResult";
 import { type ConflictChoice, applyResolutions } from "./resolveConflicts";
 
 /**
- * Conflit entre deux sessions sur le MÊME brouillon : l'autre session a avancé la
- * révision. On garde le snapshot distant qui fait désormais foi, l'arbre rebasé
- * (les fichiers que l'autre session a seuls touchés sont déjà repris) et les
- * fichiers divergents des deux côtés, à trancher.
+ * Conflict between two sessions on the SAME draft: the other session moved
+ * the revision forward. Keeps the remote snapshot that is now authoritative,
+ * the rebased tree (files only the other session touched are already taken)
+ * and the files that diverge on both sides, to resolve.
  */
 type DraftConflict = {
   remote: api.PersistedDraft;
@@ -26,11 +26,25 @@ type Session = {
   ownerId: string;
   drafts: api.PersistedDraft[];
   active?: api.PersistedDraft;
-  status: "saved" | "pending" | "saving" | "offline" | "conflict" | "migration_pending";
+  /**
+   * `offline`: the hub did not answer (network, 5xx), retried on the interval. `rejected`: the
+   * hub refused the draft as sent (an unknown Project, a permission, an invalid body), retried
+   * only once it changes, or on request. `conflict`: another session or a closed draft.
+   */
+  status:
+    | "saved"
+    | "pending"
+    | "saving"
+    | "offline"
+    | "conflict"
+    | "migration_pending"
+    | "rejected";
   error?: string;
-  /** Conflits trouvés à l'ouverture (ADR `snapshot-mirror-and-backend-history`), à trancher une fois. */
+  /** The fingerprint of the snapshot the hub refused: an identical one is not sent again. */
+  rejected?: string;
+  /** Conflicts found on open (ADR `snapshot-mirror-and-backend-history`), to resolve once. */
   openConflicts?: api.PersistedDraft["conflicts"];
-  /** Révision distante avancée par une autre session : trancher fichier par fichier. */
+  /** Remote revision moved forward by another session: resolve file by file. */
   draftConflict?: DraftConflict;
 };
 export const usePersistedDraftStore = create<{ sessions: Record<string, Session> }>(() => ({
@@ -62,6 +76,39 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
     const drafts = await api.listDrafts(projectId);
     if (projectPrincipal.current(projectId)?.id !== ownerId) return;
     const active = before?.remote ? drafts.find((d) => d.id === before.remote?.id) : drafts[0];
+    if (before?.remote?.revision && !active) {
+      const archived = await api.readDraft(projectId, before.remote.id).catch((error) => {
+        if (!gone(error)) throw error;
+        return null;
+      });
+      if (projectPrincipal.current(projectId)?.id !== ownerId) return;
+      // The local work stays, as a new draft.
+      const detach = () => {
+        const current = useProjectDraftStore.getState().get(projectId);
+        if (current)
+          useProjectDraftStore.getState().save(projectId, { ...current, remote: undefined });
+        const kept = useProjectDraftStore.getState().get(projectId);
+        setSession(projectId, {
+          ownerId,
+          drafts,
+          status: kept && hasDraftChanges(kept) ? "pending" : "saved",
+        });
+      };
+      // The draft no longer exists on the hub.
+      if (!archived) return detach();
+      if (
+        archived.status !== "active" &&
+        useProjectDraftStore.getState().get(projectId) === before &&
+        before.remote.acknowledged === fingerprint(snapshotOf(projectId, before))
+      ) {
+        useProjectDraftStore.getState().clear(projectId);
+        setSession(projectId, { ownerId, drafts, status: "saved" });
+        return;
+      }
+      // Discarded or published elsewhere while newer work stayed here (not this tab's own publication).
+      if (archived.status !== "active" && before.remote.pendingMutation?.kind !== "publish")
+        return detach();
+    }
     if (before?.remote?.pendingMutation) {
       setSession(projectId, { ownerId, drafts, active, status: "pending" });
       return;
@@ -75,19 +122,6 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
       (!active || acknowledged.revision > active.revision)
     )
       return;
-    if (before?.remote?.revision && !active) {
-      const archived = await api.readDraft(projectId, before.remote.id);
-      if (projectPrincipal.current(projectId)?.id !== ownerId) return;
-      if (
-        archived.status !== "active" &&
-        useProjectDraftStore.getState().get(projectId) === before &&
-        before.remote.acknowledged === fingerprint(snapshotOf(projectId, before))
-      ) {
-        useProjectDraftStore.getState().clear(projectId);
-        setSession(projectId, { ownerId, drafts, status: "saved" });
-        return;
-      }
-    }
     const current = useProjectDraftStore.getState().get(projectId);
     let status: Session["status"] = current ? "pending" : "saved";
     if (
@@ -104,8 +138,8 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
         return;
       }
     } else if (current?.remote && active && active.revision !== current.remote.revision) {
-      // Une autre session a avancé ce brouillon pendant l'absence de cet onglet :
-      // on rebase et on expose le conflit, sans jamais écraser en silence.
+      // Another session moved this draft forward while this tab was away: rebase
+      // and expose the conflict, never overwrite silently.
       const conflict = draftConflictOf(projectId, current, active);
       useProjectDraftStore
         .getState()
@@ -118,7 +152,9 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
         draftConflict: conflict,
       });
       return;
-    } else if (current?.remote && !active) status = "conflict";
+      // A revision-0 draft was never created on the hub: nothing to conflict with, it is still to create.
+    } else if (current?.remote && !active)
+      status = current.remote.revision ? "conflict" : "pending";
     setSession(projectId, { ownerId, drafts, active, status });
   } catch (error) {
     if (projectPrincipal.current(projectId)?.id === ownerId)
@@ -126,8 +162,7 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
         ...usePersistedDraftStore.getState().sessions[projectId],
         ownerId,
         drafts: usePersistedDraftStore.getState().sessions[projectId]?.drafts ?? [],
-        status: errorStatus(error),
-        error: error instanceof Error ? error.message : "draft_error",
+        ...failure(projectId, error),
       });
   }
 }
@@ -145,13 +180,13 @@ export async function refreshPersistedDraftList(projectId: string): Promise<void
 export function markDraftPending(projectId: string): void {
   const session = usePersistedDraftStore.getState().sessions[projectId];
   const local = useProjectDraftStore.getState().get(projectId);
-  if (
-    session?.status === "saved" &&
-    local &&
-    local.remote?.acknowledged !== fingerprint(snapshotOf(projectId, local))
-  ) {
+  if (!session || !local) return;
+  const current = fingerprint(snapshotOf(projectId, local));
+  if (session.status === "saved" && local.remote?.acknowledged !== current) {
     if (local.remote || hasDraftChanges(local))
       setSession(projectId, { ...session, status: "pending" });
+  } else if (session.status === "rejected" && session.rejected !== current) {
+    setSession(projectId, { ...session, status: "pending", rejected: undefined });
   }
 }
 
@@ -239,17 +274,16 @@ export async function selectPersistedDraft(projectId: string, id: string): Promi
   });
 }
 
-/** La modale a pris les conflits d'ouverture : ils ne se représentent plus. */
+/** The modal took the open conflicts: they do not come back. */
 export function consumeOpenConflicts(projectId: string): void {
   const session = usePersistedDraftStore.getState().sessions[projectId];
   if (session?.openConflicts) setSession(projectId, { ...session, openConflicts: undefined });
 }
 
 /**
- * Tranche un conflit entre deux sessions, fichier par fichier. Les choix
- * (« garder ma version » / « prendre celle de l'autre session ») s'appliquent à
- * l'arbre rebasé, puis le brouillon repart sur la révision distante : la
- * sauvegarde suivante n'écrase plus rien.
+ * Resolves a conflict between two sessions, file by file. The choices ("keep
+ * mine" / "take the other session's") apply to the rebased tree, then the
+ * draft restarts from the remote revision: the next save overwrites nothing.
  */
 export async function resolveDraftConflict(
   projectId: string,
@@ -267,7 +301,7 @@ export async function resolveDraftConflict(
   for (const path of outcome.removeFromTree) delete tree[path];
   const resolved: ProjectDraft = {
     ...local,
-    // Le choix porte sur l'arbre ; la base reste le disque publié (cf. `draftConflictOf`).
+    // The choice is about the tree; the base stays the published disk (cf. `draftConflictOf`).
     baseline: conflict.merged.baseline,
     tree,
     binaryBaseline: conflict.merged.binaryBaseline ?? local.binaryBaseline,
@@ -281,8 +315,8 @@ export async function resolveDraftConflict(
       base: baseOf(conflict.remote.snapshot),
     },
   };
-  // Rien de local à écrire (tout « prendre celle de l'autre session ») : on
-  // s'épargne une révision qui re-déclencherait un conflit pour rien.
+  // Nothing local to write (all "take the other session's"): skip a revision
+  // that would trigger a conflict for nothing.
   const settled = sameWorkingCopy(resolved, conflict.remote.snapshot);
   const toSave: ProjectDraft = {
     ...resolved,
@@ -316,6 +350,8 @@ export async function discardPersistedDraft(projectId: string): Promise<void> {
       await api.discardDraft(projectId, operation.id, operation.revision, operation.operationId);
     } catch (error) {
       rejectMutation(projectId, operation.operationId, error);
+      // Already gone from the hub: there is nothing left to discard there.
+      if (gone(error)) return finishDiscard(projectId, local, ownerId);
       // Discarding is explicit: a revision saved elsewhere since is thrown away too.
       const server =
         error instanceof api.DraftApiError && error.code === "draft_conflict"
@@ -326,6 +362,14 @@ export async function discardPersistedDraft(projectId: string): Promise<void> {
         await api.discardDraft(projectId, server.id, server.revision, crypto.randomUUID());
     }
   }
+  finishDiscard(projectId, local, ownerId);
+}
+
+function finishDiscard(
+  projectId: string,
+  local: ProjectDraft | undefined,
+  ownerId: string | undefined,
+) {
   if (projectPrincipal.current(projectId)?.id !== ownerId) throw new Error("session_changed");
   const current = useProjectDraftStore.getState().get(projectId);
   if (
@@ -408,9 +452,13 @@ export async function publishPersistedDraft(projectId: string): Promise<{
 }
 function terminalMutation(projectId: string, local: ProjectDraft, kind: "publish" | "discard") {
   const remote = local.remote!;
-  if (remote.pendingMutation && remote.pendingMutation.kind !== kind)
-    throw new Error("draft_operation_pending");
-  const operation = remote.pendingMutation ?? {
+  // Discarding throws the work away: an unsent save does not stand in its way, a publication does.
+  const pending =
+    kind === "discard" && remote.pendingMutation?.kind === "save"
+      ? undefined
+      : remote.pendingMutation;
+  if (pending && pending.kind !== kind) throw new Error("draft_operation_pending");
+  const operation = pending ?? {
     kind,
     operationId: crypto.randomUUID(),
     id: remote.id,
@@ -423,8 +471,9 @@ function terminalMutation(projectId: string, local: ProjectDraft, kind: "publish
   return operation;
 }
 function rejectMutation(projectId: string, operationId: string, error: unknown) {
-  // A definitive rejection cannot later commit; transport failures remain retryable.
-  if (!(error instanceof api.DraftApiError) || error.status < 400 || error.status >= 500) return;
+  // A definitive refusal cannot later commit; a hub that did not answer may have.
+  const status = errorStatus(error);
+  if (status !== "conflict" && status !== "rejected") return;
   const current = useProjectDraftStore.getState().get(projectId);
   if (current?.remote?.pendingMutation?.operationId !== operationId) return;
   useProjectDraftStore.getState().save(projectId, {
@@ -432,13 +481,22 @@ function rejectMutation(projectId: string, operationId: string, error: unknown) 
     remote: { ...current.remote, pendingMutation: undefined },
   });
 }
+/** Server metadata the editor must neither see nor send: every `.artisan*` path but `.artisan/editor.yaml`. */
+const editorVisible = (tree: Record<string, string>) =>
+  Object.fromEntries(
+    Object.entries(tree).filter(
+      ([path]) => !path.split("/")[0]!.startsWith(".artisan") || path === ".artisan/editor.yaml",
+    ),
+  );
+
 function snapshotOf(projectId: string, draft: ProjectDraft): ProjectDraft {
   return {
     ...(draft.binaryBaseline ? { binaryBaseline: draft.binaryBaseline } : {}),
     ...(draft.binaryTree ? { binaryTree: draft.binaryTree } : {}),
-    baseline: draft.baseline,
-    tree: draft.tree,
-    initialTree: draft.initialTree,
+    ...(draft.restoredFrom ? { restoredFrom: draft.restoredFrom } : {}),
+    baseline: editorVisible(draft.baseline),
+    tree: editorVisible(draft.tree),
+    ...(draft.initialTree ? { initialTree: editorVisible(draft.initialTree) } : {}),
     at: draft.at,
     renames: useProjectDraftStore.getState().pendingRenames[projectId] ?? draft.renames ?? [],
   };
@@ -451,6 +509,7 @@ function fingerprint(draft: ProjectDraft): string {
     sorted(draft.tree),
     sorted(draft.initialTree),
     draft.at,
+    draft.restoredFrom ?? null,
     draft.renames ?? [],
     Object.entries(draft.binaryBaseline ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
     Object.entries(draft.binaryTree ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
@@ -458,9 +517,9 @@ function fingerprint(draft: ProjectDraft): string {
 }
 
 /**
- * Le brouillon n'a plus de travail local : son arbre de travail (texte, images,
- * renommages) égale celui de la révision distante. La base peut différer (c'est
- * le jeton de compare-and-swap), elle ne compte pas.
+ * The draft has no local work left: its working tree (text, images, renames)
+ * equals the remote revision's. The base may differ (it is the
+ * compare-and-swap token), it does not count.
  */
 function sameWorkingCopy(a: ProjectDraft, b: ProjectDraft): boolean {
   const normalize = (draft: ProjectDraft) => {
@@ -471,22 +530,22 @@ function sameWorkingCopy(a: ProjectDraft, b: ProjectDraft): boolean {
   return normalize(a) === normalize(b);
 }
 
-/** Point commun que fixe une révision acquittée (`remote.base`). */
+/** Common point set by an acknowledged revision (`remote.base`). */
 function baseOf(snapshot: ProjectDraft): NonNullable<ProjectDraft["remote"]>["base"] {
   const binaryTree = snapshot.binaryTree ?? snapshot.binaryBaseline;
   return { tree: snapshot.tree, ...(binaryTree ? { binaryTree } : {}) };
 }
 
 /**
- * Rebase le brouillon local sur celui d'une autre session (le distant fait foi).
- * Les fichiers touchés seulement par l'autre session sont repris en silence ;
- * ceux divergents des deux côtés sortent en `conflicts`.
+ * Rebases the local draft on another session's (the remote is
+ * authoritative). Files only the other session touched are taken silently;
+ * those diverging on both sides come out as `conflicts`.
  *
- * Fusion à trois voies depuis la dernière révision commune (`remote.base`), et
- * non depuis le disque : un fichier déjà modifié dans le brouillon partagé n'est
- * pas « modifié des deux côtés ». La `baseline` n'avance jamais ici : le travail
- * de l'autre session n'est pas publié, la base doit rester le disque, sinon la
- * publication l'omet et le rebase backend contre le disque l'annule.
+ * Three-way merge from the last common revision (`remote.base`), not from the
+ * disk: a file already changed in the shared draft is not "changed on both
+ * sides". The `baseline` never moves here: the other session's work is not
+ * published, the base must stay the disk, otherwise publishing omits it and
+ * the hub's rebase against the disk cancels it.
  */
 function draftConflictOf(
   projectId: string,
@@ -495,9 +554,9 @@ function draftConflictOf(
 ): DraftConflict {
   const renames = useProjectDraftStore.getState().pendingRenames[projectId] ?? local.renames ?? [];
   const common = local.remote?.base;
-  // `binaryTree`/`binaryBaseline` d'un brouillon est la carte complète des images
-  // suivies. Sans elle côté distant, on ne rebase pas les images : les passer
-  // pour vides ferait croire à une suppression et viderait la base locale.
+  // A draft's `binaryTree`/`binaryBaseline` is the complete map of tracked
+  // images. Without it on the remote side, images are not rebased: treating
+  // them as empty would look like a deletion and empty the local base.
   const theirsBinaries = remote.snapshot.binaryTree ?? remote.snapshot.binaryBaseline;
   const { snapshot, conflicts } = rebaseDraft(
     {
@@ -525,7 +584,7 @@ function draftConflictOf(
   };
 }
 
-/** Brouillon local adoptant la révision distante et l'arbre rebasé. */
+/** Local draft adopting the remote revision and the rebased tree. */
 function applyDraftConflict(
   local: ProjectDraft,
   conflict: DraftConflict,
@@ -549,10 +608,11 @@ function applyDraftConflict(
 }
 const pending = new Map<string, Promise<void>>();
 const publishing = new Set<string>();
-export async function syncPersistedDraft(projectId: string): Promise<void> {
+/** [retryRejected]: a draft the hub refused is sent again as it is (the Save button); the interval never does. */
+export async function syncPersistedDraft(projectId: string, retryRejected = false): Promise<void> {
   const running = pending.get(projectId);
   if (running) return running;
-  const work = syncOnce(projectId);
+  const work = syncOnce(projectId, retryRejected);
   pending.set(projectId, work);
   try {
     await work;
@@ -560,13 +620,15 @@ export async function syncPersistedDraft(projectId: string): Promise<void> {
     if (pending.get(projectId) === work) pending.delete(projectId);
   }
 }
-async function syncOnce(projectId: string): Promise<void> {
+async function syncOnce(projectId: string, retryRejected = false): Promise<void> {
   if (publishing.has(projectId)) return;
   const session = usePersistedDraftStore.getState().sessions[projectId];
   const local = useProjectDraftStore.getState().get(projectId);
   if (!session || !local || session.ownerId !== projectPrincipal.current(projectId)?.id) return;
   if (local.remote && local.remote.ownerId !== session.ownerId) return;
   if (session.draftConflict) return;
+  // Refused as sent: the same snapshot gets the same answer. An edit (markDraftPending) or the Save button sends again.
+  if (session.status === "rejected" && !retryRejected) return;
   if (
     session.status === "migration_pending" ||
     (session.status === "offline" &&
@@ -579,9 +641,9 @@ async function syncOnce(projectId: string): Promise<void> {
     return;
   }
   if (session.status === "conflict") {
-    // Conflit posé sans snapshot distant (lecture ratée au chargement, par ex.) :
-    // on relit pour soit réconcilier une révision identique, soit construire le
-    // conflit fichier par fichier. Aucune écriture tant que ce n'est pas tranché.
+    // Conflict set without a remote snapshot (e.g. failed read on load): re-read
+    // to either reconcile an identical revision or build the file-by-file
+    // conflict. No write until it is resolved.
     if (!local.remote || session.draftConflict) return;
     try {
       const remote = await api.readDraft(projectId, local.remote.id);
@@ -625,8 +687,17 @@ async function syncOnce(projectId: string): Promise<void> {
         error: undefined,
         draftConflict: conflict,
       });
-    } catch {
-      // An unavailable comparison cannot prove that the conflict is resolved.
+    } catch (error) {
+      // An unavailable comparison cannot prove that the conflict is resolved; a draft gone
+      // from the hub leaves nothing to conflict with: the local work becomes a new draft.
+      if (!gone(error) || useProjectDraftStore.getState().get(projectId) !== local) return;
+      useProjectDraftStore.getState().save(projectId, { ...local, remote: undefined });
+      setSession(projectId, {
+        ...session,
+        status: "pending",
+        error: undefined,
+        draftConflict: undefined,
+      });
     }
     return;
   }
@@ -677,7 +748,15 @@ async function syncOnce(projectId: string): Promise<void> {
         if (fingerprint(saved.snapshot) !== sent)
           throw new api.DraftApiError("draft_conflict", 409, saved);
       }
-    } else saved = await api.updateDraft(projectId, id, revision, name, snapshot, operationId);
+    } else {
+      try {
+        saved = await api.updateDraft(projectId, id, revision, name, snapshot, operationId);
+      } catch (error) {
+        // The draft no longer exists on the hub: created again under the same id, with the local work.
+        if (!gone(error)) throw error;
+        saved = await api.createDraft(projectId, id, name, snapshot, operationId);
+      }
+    }
     if (projectPrincipal.current(projectId)?.id !== session.ownerId) return;
     const current = useProjectDraftStore.getState().get(projectId);
     if (!current || current.remote?.id !== id) return;
@@ -708,13 +787,16 @@ async function syncOnce(projectId: string): Promise<void> {
     if (projectPrincipal.current(projectId)?.id !== session.ownerId) return;
     rejectMutation(projectId, operationId, error);
     const current = useProjectDraftStore.getState().get(projectId);
+    // Published or discarded elsewhere: the listing decides what the local work becomes (a new draft, or nothing).
+    if (error instanceof api.DraftApiError && error.code === "draft_closed")
+      return loadPersistedDrafts(projectId, session.ownerId);
     if (
       error instanceof api.DraftApiError &&
       error.code === "draft_conflict" &&
       error.draft &&
       current
     ) {
-      // Autre session : on rebase et on expose le conflit au lieu de boucler.
+      // Another session: rebase and expose the conflict instead of looping.
       const conflict = draftConflictOf(projectId, current, error.draft);
       useProjectDraftStore
         .getState()
@@ -727,11 +809,7 @@ async function syncOnce(projectId: string): Promise<void> {
       });
       return;
     }
-    setSession(projectId, {
-      ...session,
-      status: errorStatus(error),
-      error: error instanceof Error ? error.message : "draft_error",
-    });
+    setSession(projectId, { ...session, ...failure(projectId, error) });
   }
 }
 export type AssetMutation = NonNullable<NonNullable<ProjectDraft["remote"]>["pendingMutation"]>;
@@ -845,10 +923,10 @@ async function mutateDraftAssetsOnce<T extends { draft: api.PersistedDraft }>(
     const current = useProjectDraftStore.getState().get(projectId);
     if (!current || current.remote?.id !== operation.id) throw new Error("draft_changed");
     const merged = mergeDraftAssetResult(operation.snapshot!, current, result.draft.snapshot);
-    const { useAccountStore } = await import("@/state/accountStore");
-    const project = useAccountStore
+    const { useProjectsStore } = await import("@/state/projectsStore");
+    const project = useProjectsStore
       .getState()
-      .account.projects.find((entry) => entry.id === projectId);
+      .openProjects.projects.find((entry) => entry.id === projectId);
     if (project) {
       const { adoptDiskIntoProject } = await import("./saveProjectToDisk");
       const paths = new Set([
@@ -858,7 +936,7 @@ async function mutateDraftAssetsOnce<T extends { draft: api.PersistedDraft }>(
       const changed = [...paths].filter(
         (path) => operation.snapshot!.tree[path] !== result.draft.snapshot.tree[path],
       );
-      useAccountStore.getState().replaceProject(
+      useProjectsStore.getState().replaceProject(
         adoptDiskIntoProject(
           project,
           Object.fromEntries(
@@ -889,7 +967,7 @@ async function mutateDraftAssetsOnce<T extends { draft: api.PersistedDraft }>(
   } catch (error) {
     if (session.ownerId === projectPrincipal.current(projectId)?.id) {
       rejectMutation(projectId, operation.operationId, error);
-      setSession(projectId, { ...session, status: errorStatus(error) });
+      setSession(projectId, { ...session, ...failure(projectId, error) });
     }
     throw error;
   } finally {
@@ -897,10 +975,52 @@ async function mutateDraftAssetsOnce<T extends { draft: api.PersistedDraft }>(
   }
 }
 
+/**
+ * The hub no longer holds this draft (deleted elsewhere, or kept on the server's disk before).
+ * By code: a 404 is also `unknown_project` (this hub has no such Project) or `not_found` (no
+ * such route or file), which say nothing about the draft.
+ */
+function gone(error: unknown): boolean {
+  return error instanceof api.DraftApiError && error.code === "draft_not_found";
+}
+
+/** What another session or a closed draft refuses: resolved by rebasing or reloading, never by sending again. */
+const CONFLICT_CODES = new Set([
+  "draft_conflict",
+  "draft_exists",
+  "draft_closed",
+  "conflict",
+  "operation_conflict",
+  "operation_mismatch",
+  "operation_expired",
+]);
+
+/**
+ * The hub's error code decides, the status alone never does: `fetch_timeout`, `server_offline`
+ * or `storage_error` come back as 5xx and are retried; `forbidden`, `unknown_project` or
+ * `invalid_draft` are 4xx the next try would get again.
+ */
 function errorStatus(error: unknown): Session["status"] {
-  if (error instanceof api.DraftApiError) {
-    if (error.code === "draft_migration_pending") return "migration_pending";
-    if (error.status === 409) return "conflict";
-  }
-  return "offline";
+  if (!(error instanceof api.DraftApiError)) return "offline";
+  if (error.code === "draft_migration_pending") return "migration_pending";
+  if (CONFLICT_CODES.has(error.code)) return "conflict";
+  // 401: the session expired; signing in again is what fixes it, not another save. 408/429: try later.
+  if (error.status >= 500 || error.status === 401 || error.status === 408 || error.status === 429)
+    return "offline";
+  return "rejected";
+}
+
+/** The session fields of a failed operation: its status, the code, and the snapshot refused when it is. */
+function failure(
+  projectId: string,
+  error: unknown,
+): Pick<Session, "status" | "error" | "rejected"> {
+  const status = errorStatus(error);
+  const local = useProjectDraftStore.getState().get(projectId);
+  return {
+    status,
+    error: error instanceof Error ? error.message : "draft_error",
+    rejected:
+      status === "rejected" && local ? fingerprint(snapshotOf(projectId, local)) : undefined,
+  };
 }

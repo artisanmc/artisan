@@ -1,19 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { Account, Action, Condition, Element, Menu, Project } from "./types";
+import type { Action, Condition, Element, Menu, OpenProjects, Project } from "./types";
 
 describe("domain types — compile-time shape", () => {
-  it("an Account composes Projects", () => {
-    const account: Account = {
-      id: "acc_1" as Account["id"],
+  it("the open Projects compose Projects", () => {
+    const openProjects: OpenProjects = {
       projects: [],
       projectOrder: [],
     };
-    expect(account.projects).toHaveLength(0);
+    expect(openProjects.projects).toHaveLength(0);
   });
 
   it("an open_menu Action carries a MenuId", () => {
-    const a: Action = { type: "open_menu", menuId: "m_1" as Menu["id"] };
-    expect(a.type).toBe("open_menu");
+    const a: Action = { name: "open_menu", value: "m_1" as Menu["id"] };
+    expect(a.name).toBe("open_menu");
   });
 
   it("an Element holds a display and its states", () => {
@@ -34,11 +33,13 @@ describe("domain types — compile-time shape", () => {
       source: "user_created",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      menus: [],
-      commands: [],
+      documents: {
+        menu: [],
+        command: [],
+        dialog: [],
+      },
       assets: [],
       dataSources: [],
-      dialogs: [],
       importedConnectors: [],
       i18nKeys: { greeting: { en: "Hi" } } as Project["i18nKeys"],
       defaultLang: "en",
@@ -60,25 +61,23 @@ describe("Condition union — expression variant", () => {
 
 describe("Action union — context mutation variants", () => {
   it("constructs set_arg", () => {
-    const a: Action = { type: "set_arg", arg: "current_tag", value: `"weapon"` };
-    expect(a.type).toBe("set_arg");
+    const a: Action = { name: "set_arg", value: { arg: "current_tag", value: `"weapon"` } };
+    expect(a.name).toBe("set_arg");
   });
 
   it("constructs set_arg_cycle_next", () => {
     const a: Action = {
-      type: "set_arg_cycle_next",
-      arg: "current_tag",
-      list: "categories",
+      name: "set_arg_cycle_next",
+      value: { arg: "current_tag", list: "categories" },
     };
-    expect(a.type).toBe("set_arg_cycle_next");
+    expect(a.name).toBe("set_arg_cycle_next");
   });
 
   it("constructs set_arg_cycle_prev", () => {
     const a: Action = {
-      type: "set_arg_cycle_prev",
-      arg: "current_tag",
-      list: "categories",
+      name: "set_arg_cycle_prev",
+      value: { arg: "current_tag", list: "categories" },
     };
-    expect(a.type).toBe("set_arg_cycle_prev");
+    expect(a.name).toBe("set_arg_cycle_prev");
   });
 });

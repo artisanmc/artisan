@@ -1,6 +1,6 @@
-# data/ranks.yaml — Table source: un menu de grades.
-# Les valeurs ltext sont des clés i18n (traductions dans lang/) ; les valeurs
-# item sont des materials ou refs `item:<id>` (stacks dans items/).
+# data/ranks.yaml — Table source: a menu of ranks.
+# ltext values are i18n keys (translations in lang/); item values
+# are materials or `item:<id>` refs (stacks in items/).
 schema: data/v1
 id: ranks
 shape: table

@@ -28,10 +28,13 @@ const PREDICATES = new Set([
   "has_xp",
   "has_level",
   "world_is",
+  "client_is",
+  "has_resource_pack",
   "time_is",
   "random_chance",
   "cooldown_passed",
   "player_in_region",
+  "has_var",
   "pagination_at_first",
   "pagination_at_last",
 ]);
@@ -125,7 +128,7 @@ class BlockParser {
   }
 }
 
-// ── action lines ─────────────────────────────────────────────────────────────
+// Action lines
 
 function parseActionLine(line: LogicalLine): DslAction {
   const c = new LineCursor(line.tokens, line.line);
@@ -234,7 +237,7 @@ function parseVerb(verb: string, c: LineCursor): DslAction {
   }
 }
 
-// ── conditions ───────────────────────────────────────────────────────────────
+// Conditions
 
 class CondParser {
   private pos = 0;
@@ -344,12 +347,18 @@ class CondParser {
         return { type: "has_level", level: num(0) };
       case "world_is":
         return { type: "world_is", world: str(0) };
+      case "client_is":
+        return { type: "client_is", client: str(0).toLowerCase() === "java" ? "java" : "bedrock" };
+      case "has_resource_pack":
+        return { type: "has_resource_pack" };
       case "random_chance":
         return { type: "random_chance", probability: num(0) };
       case "cooldown_passed":
         return { type: "cooldown_passed", cooldown_id: str(0) };
       case "player_in_region":
         return { type: "player_in_region", region: str(0) };
+      case "has_var":
+        return { type: "has_var", var: str(0) };
       case "time_is": {
         const v = str(0);
         if (v === "day" || v === "night") return { type: "time_is", range: v };
@@ -395,7 +404,7 @@ class CondParser {
   }
 }
 
-// ── shared helpers ───────────────────────────────────────────────────────────
+// Shared helpers
 
 /** Canonical reconstruction of an expression token run (single-spaced ops). */
 export function exprSource(toks: Token[]): string {

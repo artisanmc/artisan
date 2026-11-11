@@ -5,14 +5,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { EditorAccessNotice } from "@/features/project/EditorAccessNotice";
-import { type SubscriptionDto, getSubscription } from "@/lib/api/billing";
 import { useAuthStore } from "@/state/authStore";
-import { useNetworksStore } from "@/state/networksStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { Link } from "@tanstack/react-router";
-import { LogOut, Settings as SettingsIcon, Shield, UserIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { LogOut, Settings as SettingsIcon, Type, UserIcon } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 function getInitial(name: string | null | undefined): string {
@@ -23,54 +20,19 @@ function getInitial(name: string | null | undefined): string {
 }
 
 export function UserMenu({
-  networkId: selectedNetworkId,
-  serverId,
   serverLabel,
 }: {
-  networkId?: string | null;
-  serverId?: string | null;
+  /** The selected server, named at the top of the menu when there is one. */
   serverLabel?: string;
 } = {}) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
-  const storedNetworkId = useNetworksStore((s) => s.activeId);
-  const networkId = selectedNetworkId === undefined ? storedNetworkId : selectedNetworkId;
   const [open, setOpen] = useState(false);
-  const [subscription, setSubscription] = useState<{
-    networkId: string;
-    value: SubscriptionDto;
-  } | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: opening the menu refreshes the subscription.
-  useEffect(() => {
-    let live = true;
-    setSubscription(null);
-    if (user && networkId) {
-      void getSubscription(networkId)
-        .then((value) => {
-          if (live && value) setSubscription({ networkId, value });
-        })
-        .catch(() => {});
-    }
-    return () => {
-      live = false;
-    };
-  }, [user, networkId, open]);
-  const currentSubscription = subscription?.networkId === networkId ? subscription.value : null;
-  const planName =
-    currentSubscription?.effectivePlan?.name ??
-    (currentSubscription
-      ? currentSubscription.status &&
-        !["canceled", "incomplete_expired"].includes(currentSubscription.status)
-        ? currentSubscription.planName
-        : "Free"
-      : null);
   const closeSidebar = useSidebarStore((s) => s.close);
   const displayName = user?.name ?? t("userMenu.anonymous");
   const initial = getInitial(user?.name);
-  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
-
   const onLogout = async () => {
-    await useAuthStore.getState().logout(apiUrl);
+    await useAuthStore.getState().logout();
   };
 
   return (
@@ -96,53 +58,32 @@ export function UserMenu({
           )}
           <span className="min-w-0 flex-1">
             <span className="block truncate font-medium">{displayName}</span>
-            {user && planName && (
-              <span className="block truncate text-xs text-[var(--text-mut)]">{planName}</span>
-            )}
           </span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="w-[280px] max-w-[calc(100vw-24px)]">
         {user ? (
           <>
-            {networkId && serverId && (
+            {serverLabel && (
               <>
-                <div className="px-2.5 pt-2 text-xs font-medium text-[var(--text)]">
-                  {t("userMenu.resourceUsage")}
-                  {serverLabel && (
-                    <div className="truncate pt-1 font-normal text-[var(--text-mut)]">
-                      {serverLabel}
-                    </div>
-                  )}
+                <div className="truncate px-2.5 pt-2 text-xs text-[var(--text-mut)]">
+                  {serverLabel}
                 </div>
-                <EditorAccessNotice
-                  key={`${networkId}:${serverId}`}
-                  networkId={networkId}
-                  serverId={serverId}
-                />
                 <DropdownMenuSeparator />
               </>
             )}
-            <DropdownMenuItem asChild>
-              <Link to="/account" onClick={closeSidebar} className="flex items-center gap-2.5">
-                <UserIcon className="size-[14px]" />
-                {t("userMenu.profile")}
-              </Link>
-            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/settings" onClick={closeSidebar} className="flex items-center gap-2.5">
                 <SettingsIcon className="size-[14px]" />
                 {t("sidebar.settings")}
               </Link>
             </DropdownMenuItem>
-            {user.isAdmin && (
-              <DropdownMenuItem asChild>
-                <Link to="/admin" onClick={closeSidebar} className="flex items-center gap-2.5">
-                  <Shield className="size-[14px]" />
-                  {t("userMenu.admin")}
-                </Link>
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem asChild>
+              <Link to="/tools/text" onClick={closeSidebar} className="flex items-center gap-2.5">
+                <Type className="size-[14px]" />
+                {t("textTool.menuEntry")}
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={onLogout}

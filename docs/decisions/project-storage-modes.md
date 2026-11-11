@@ -1,130 +1,127 @@
-# Projets serveur et hébergés : une seule source de vérité par projet
+# Server and hosted projects: a single source of truth per project
 
-**Statut :** accepté le 2026-09-12. Phases 1 à 7 vérifiées et déployées localement,
-dont la conservation de la démo dans le navigateur et la chaîne protocole
-Minecraft. Smoke final validé et fixtures d'acceptation nettoyées. Le
-[plan d'exécution](../superpowers/plans/2026-09-12-project-storage-modes.md)
-porte les migrations, tests et critères de livraison.
+**Status: superseded (phase F, 2026-10)** — no more hosted projects or backend storage: a Project lives on its server's disk. See [editor-web-server](editor-web-server.md).
 
-Le stockage hébergé utilise désormais un volume durable, avec un répertoire de
-projet lisible dans chaque révision immuable et une activation par pointeur atomique.
-La même révision porte fichiers publiés, binaires, historique et enveloppes privées :
-publier un brouillon et le marquer publié n'a qu'un seul point d'activation. Un verrou
-consultatif PostgreSQL par racine sérialise les workers. L'index vérifie les octets
-sur disque ; une modification manuelle incohérente provoque une erreur explicite.
-Le renommage déplace le dossier dans une révision puis réconcilie le journal SQL
-commun, en conservant l'ancre interne. Les projets hébergés gardent leur version
-Minecraft sélectionnée dans les métadonnées d'environnement SQL, hors manifeste.
-La procédure de sauvegarde/restauration du volume (retirée avec lui le 2026-09-28)
-décrit les verrous, le snapshot SQL exporté et les règles de rétention.
+**Status:** accepted on 2026-09-12. Phases 1 to 7 verified and deployed locally,
+including keeping the demo in the browser and the Minecraft protocol chain. Final
+smoke test passed and acceptance fixtures cleaned up. The execution plan
+(`docs/superpowers/plans/2026-09-12-project-storage-modes.md`, removed on 2026-10-21, in
+git history) carries the migrations, tests and delivery criteria.
 
-## Contexte
+Hosted storage now uses a durable volume, with a readable project directory in each
+immutable revision and activation by atomic pointer. The same revision carries
+published files, binaries, history and private envelopes: publishing a draft and marking
+it published has a single activation point. A PostgreSQL advisory lock per root
+serializes workers. The index checks the bytes on disk; an inconsistent manual change
+causes an explicit error. Renaming moves the folder in a revision then reconciles the
+shared SQL journal, keeping the internal anchor. Hosted projects keep their selected
+Minecraft version in the SQL environment metadata, outside the manifest. The volume
+backup/restore procedure (removed with it on 2026-09-28) describes the locks, the
+exported SQL snapshot and the retention rules.
 
-**Révision 2026-09-27** : l'hébergé est retiré pour les comptes, la démo devient
-jetable (export seulement) — voir [server-only-projects](server-only-projects.md).
+## Context
 
-**Révision 2026-09-26** : les brouillons des projets serveur reviennent côté
-backend, avec un miroir d'instantané et des Versions — voir
+**Revision 2026-09-27**: hosting is removed for accounts, the demo becomes disposable
+(export only) — see [server-only-projects](server-only-projects.md).
+
+**Revision 2026-09-26**: server project drafts return to the backend side, with a
+snapshot mirror and Versions — see
 [snapshot-mirror-and-backend-history](snapshot-mirror-and-backend-history.md).
-Direction décidée : le mode hébergé sera remplacé par des Servers non reliés.
+Decided direction: the hosted mode will be replaced by unlinked Servers.
 
-Le disque Minecraft convient aux projets liés à un serveur, mais imposer un
-serveur connecté empêche de découvrir immédiatement Artisan ou de préparer un
-projet avant installation. Deux emplacements de stockage doivent partager le
-même éditeur et les mêmes règles métier.
+The Minecraft disk suits projects linked to a server, but requiring a connected server
+prevents discovering Artisan immediately or preparing a project before installation.
+Two storage locations must share the same editor and the same business rules.
 
-Cette décision révise la restriction de
-[server-disk-only-storage](server-disk-only-storage.md) aux seuls projets serveur.
-Elle prévoit aussi une exception invitée confinée à la démo par rapport à
-[accounts-only-editing](accounts-only-editing.md). Ces changements restent soumis
-aux migrations et protections du plan ; les anciens parcours restent valides
-tant que leur remplacement n'est pas vérifié.
+This decision revises the restriction of
+[server-disk-only-storage](server-disk-only-storage.md) to server projects only. It
+also provides for a guest exception confined to the demo with respect to
+[accounts-only-editing](accounts-only-editing.md). These changes remain subject to the
+plan's migrations and safeguards; the old flows remain valid as long as their
+replacement is not verified.
 
-## Décisions
+## Decisions
 
-### Autorité et format
+### Authority and format
 
-Chaque Project possède un seul stockage actif pour ses fichiers, assets,
-historique et brouillons : disque Minecraft ou volume durable du backend.
-Le format fichier est commun. Les métadonnées SQL servent à l'identité, aux
-autorisations et aux index ; elles ne constituent pas une seconde représentation
-éditable du contenu. Les binaires restent des fichiers.
+Each Project has a single active storage for its files, assets, history and drafts:
+the Minecraft disk or the backend's durable volume. The file format is common. SQL
+metadata serves identity, authorizations and indexes; it is not a second editable
+representation of the content. Binaries stay files.
 
-Les brouillons serveur sont destinés à `.artisan/drafts/`, exclus des lectures
-ordinaires et du contenu publié. Leur migration conserve propriétaires,
-révisions et contenu avant tout retrait de la copie backend. Le secours local
-du navigateur protège la saisie et ne devient pas un troisième stockage actif.
+Server drafts are destined for `.artisan/drafts/`, excluded from ordinary reads and
+from published content. Their migration preserves owners, revisions and content before
+any removal of the backend copy. The browser's local fallback protects input and does
+not become a third active storage.
 
-La transition conserve les résultats historiques des mutations SQL pendant 24 h
-après basculement, uniquement pour rejouer un ACK perdu. Ils sont non modifiables
-et ne servent jamais de source de contenu ; l'expiration les remplace par un
-marqueur `operation_expired`, sans rejouer la mutation sur le serveur.
-Les reçus et blobs privés du plugin restent conservés avec son journal ; aucune
-rétention automatique n'est encore garantie. Sauvegardes et futurs quotas doivent
-compter `.artisan/`, y compris brouillons, blobs, reçus et marqueurs de révocation.
+The transition keeps the historical results of SQL mutations for 24 h after the
+switch, only to replay a lost ACK. They are immutable and are never used as a content
+source; expiry replaces them with an `operation_expired` marker, without replaying the
+mutation on the server. The plugin's private receipts and blobs are kept with its
+journal; no automatic retention is guaranteed yet. Backups and future quotas must count
+`.artisan/`, including drafts, blobs, receipts and revocation markers.
 
-### Interfaces et capacités
+### Interfaces and capabilities
 
-Une interface `ProjectStorage` définit les opérations communes. Les adaptateurs
-`ServerProjectStorage` et `HostedProjectStorage` sont composés avec les services
-métier. Un resolver central choisit le stockage depuis la localisation autorisée
-du projet ; le navigateur ne peut pas imposer ce choix.
+A `ProjectStorage` interface defines the common operations. The `ServerProjectStorage`
+and `HostedProjectStorage` adapters are composed with the business services. A central
+resolver chooses the storage from the project's authorized location; the browser
+cannot impose this choice.
 
-L'éditeur reçoit un contexte et un client communs. Les différences fonctionnelles
-passent par des capacités explicites, comme les données live ou la capture en jeu.
-Les composants, l'autosave et les règles métier ne multiplient pas les branches
-sur le type de stockage. Des tests de contrat communs vérifient les adaptateurs.
+The editor receives a common context and client. Functional differences go through
+explicit capabilities, such as live data or in-game capture. Components, autosave and
+business rules do not multiply branches on the storage type. Common contract tests
+verify the adapters.
 
-### Identité et add-ons
+### Identity and add-ons
 
-Pour un projet classique, le nom du dossier détermine l'ID côté fichiers ;
-`projects.id` reste une ancre backend immuable. Le manifeste ne fait plus autorité
-via `project_id`. Le renommage par l'éditeur conserve les liens ; un renommage
-manuel est découvert comme une nouvelle identité.
+For a regular project, the folder name determines the ID on the files side;
+`projects.id` remains an immutable backend anchor. The manifest no longer has authority
+through `project_id`. Renaming by the editor preserves links; a manual rename is
+discovered as a new identity.
 
-Un add-on conserve durablement son ID explicite via l'API stable
-`register(projectId, dir)`, indépendamment du dossier. Le resolver transmet cette
-identité au reste du système ; ces projets ne sont pas renommables dans l'éditeur.
-L'ID cible du projet Boutique est `boutique_addon`. Sa migration depuis
-`boutique_shop` doit préserver l'identité interne, les liens et les brouillons,
-sans renommer le module, ses namespaces ou son dossier par convention.
+An add-on durably keeps its explicit ID through the stable API
+`register(projectId, dir)`, independent of the folder. The resolver passes this
+identity to the rest of the system; these projects cannot be renamed in the editor.
+The target ID of the Shop project is `boutique_addon`. Its migration from
+`boutique_shop` must preserve the internal identity, links and drafts, without
+renaming the module, its namespaces or its folder by convention.
 
-### Accès, hébergement et copie
+### Access, hosting and copy
 
-L'interface générale reste accessible sans Minecraft. Ouvrir un projet serveur
-requiert un serveur connecté ; une coupure préserve la saisie et suspend les
-enregistrements jusqu'à une reprise avec contrôle des conflits. Les projets
-hébergés authentifiés appartiennent à un Network et fonctionnent sans serveur.
+The general interface stays accessible without Minecraft. Opening a server project
+requires a connected server; an outage preserves input and suspends saves until a
+resume with conflict checking. Authenticated hosted projects belong to a Network and
+work without a server.
 
-« Copier vers un serveur » crée un projet indépendant à partir d'une révision
-figée, assets compris. Cette opération ne crée pas de synchronisation permanente
-entre les deux projets et ne publie pas de copie partielle en jeu.
+"Copy to a server" creates an independent project from a frozen revision, assets
+included. This operation does not create a permanent sync between the two projects and
+does not publish a partial copy in game.
 
-### Démo anonyme
+### Anonymous demo
 
-Une démo sans compte possède un projet temporaire isolé stocké sur le backend,
-avec ses fichiers, assets et brouillons. Un cookie opaque HttpOnly permet de le
-retrouver dans le même navigateur. Le navigateur n'est pas le stockage principal.
+A demo without an account owns an isolated temporary project stored on the backend,
+with its files, assets and drafts. An opaque HttpOnly cookie makes it possible to find
+it again in the same browser. The browser is not the main storage.
 
-La démo expire après **24 heures d'inactivité effective**, délai configurable.
-Les mutations effectives renouvellent ce délai ; un polling ou heartbeat ne le
-prolonge pas. Le backend fournit `expiresAt` à l'interface. Effacer le cookie ou
-changer de navigateur ne permet pas de retrouver la même démo.
+The demo expires after **24 hours of effective inactivity**, configurable. Effective
+mutations renew this delay; polling or a heartbeat does not extend it. The backend
+provides `expiresAt` to the interface. Clearing the cookie or changing browser does not
+allow finding the same demo again.
 
-L'inscription ou la connexion permet de réclamer la démo dans un Network
-autorisé, en préservant contenu et brouillon et en retirant l'expiration de démo.
-La réclamation et la purge doivent être coordonnées et idempotentes. Les invités
-n'ont aucun accès aux serveurs ni à l'IA facturée. Les quotas par défaut sont
-un projet par session, 20 MiB et 1 000 fichiers physiques, staging, historique
-et brouillons compris.
+Signing up or logging in allows claiming the demo in an authorized Network, preserving
+content and draft and removing the demo expiry. The claim and the purge must be
+coordinated and idempotent. Guests have no access to servers or to billed AI. Default
+quotas are one project per session, 20 MiB and 1,000 physical files, staging, history
+and drafts included.
 
-## Conséquences et livraison
+## Consequences and delivery
 
-Le stockage hébergé exige sauvegarde et restauration conjointes du volume et des
-métadonnées, contrôle des quotas et purge des sessions expirées. Les deux modes
-nécessitent les mêmes garanties d'isolation, CAS, atomicité et reprise.
+Hosted storage requires joint backup and restore of the volume and the metadata, quota
+control and purging of expired sessions. Both modes need the same guarantees of
+isolation, CAS, atomicity and resumption.
 
-La livraison est progressive : contrats et identité, brouillons serveur,
-hébergement authentifié, copie vers Minecraft, puis démo. Chaque basculement
-doit vérifier les données avant de supprimer une ancienne copie. Un rollback
-conserve les données et ne réactive pas une source de vérité obsolète.
+Delivery is progressive: contracts and identity, server drafts, authenticated hosting,
+copy to Minecraft, then demo. Each switch must verify the data before deleting an old
+copy. A rollback preserves the data and does not reactivate an obsolete source of
+truth.

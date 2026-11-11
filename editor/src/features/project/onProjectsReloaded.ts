@@ -2,39 +2,49 @@ import { isDirty } from "@/features/project/draft";
 import { useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 
+export const PROJECTS_RELOADED_EVENT = "ifz:projects_reloaded";
+
+export interface ProjectsReloaded {
+  serverKeyId: string;
+}
+
 /**
- * Ce que l'éditeur fait d'un rechargement annoncé par le plugin.
+ * What the editor does with a reload announced by the plugin.
  *
- * Le plugin relit ses Projects sur `/artisan reload` (et sur ses propres
- * écritures) : c'est le seul moment où une édition faite à la main sur le disque
- * devient réelle. Sans cette annonce, l'éditeur gardait sa dernière version
- * connue jusqu'à ce que quelqu'un pense à actualiser.
+ * The plugin re-reads its Projects on `/artisan reload` (and on its own
+ * writes): the only moment a hand edit on the disk becomes real. Without this
+ * announcement, the editor kept its last known version until someone thought
+ * of refreshing.
  *
- * La conduite tenue ici est délibérément timide :
+ * The behaviour here is deliberately timid:
  *
- * - **On ne relit que si l'empreinte annoncée diffère** de celle qu'on détient.
- *   Un reload qui ne change rien pour nous ne doit rien coûter.
- * - **On ne touche à rien s'il existe un brouillon sale, où que ce soit.** Il
- *   n'existe nulle part ailleurs, et le remplacer sans rien demander serait
- *   faire dans le dos de l'admin ce que le bouton Actualiser lui fait
- *   confirmer. La question « lequel est ouvert ? » n'a délibérément pas été
- *   posée : l'URL porte parfois un slug là où le brouillon porte un id interne,
- *   et se tromper de rapprochement ferait écraser du travail. S'abstenir de
- *   trop, ici, ne coûte qu'un clic sur Actualiser.
+ * - **Re-read only if the announced fingerprint differs** from the one held.
+ *   A reload that changes nothing for us must cost nothing.
+ * - **Touch nothing if a dirty draft exists, anywhere.** It exists nowhere
+ *   else, and replacing it without asking would do behind the admin's back
+ *   what the Refresh button asks them to confirm. "Which one is open?" is
+ *   deliberately not asked: the URL sometimes carries a slug where the draft
+ *   carries an internal id, and a wrong match would overwrite work. Holding
+ *   back too much here only costs a click on Refresh.
  */
 export function onProjectsReloaded(
   serverKeyId: string,
   projects: { id: string; hash: string }[],
 ): void {
+  // The list of Projects may have changed too (an add-on registered its folder after the
+  // server started): the surfaces that list them re-read it, whatever the drafts hold.
+  window.dispatchEvent(
+    new CustomEvent<ProjectsReloaded>(PROJECTS_RELOADED_EVENT, { detail: { serverKeyId } }),
+  );
   const cache = useProjectCacheStore.getState();
   const dirtySomewhere = Object.values(useProjectDraftStore.getState().drafts).some((d) =>
     isDirty(d.initialTree, d.tree),
   );
   if (dirtySomewhere) return;
 
-  // Le plugin ne connaît que les ids ; nos clés portent ce que l'URL présente
-  // (souvent un slug). On reconnaît donc une version connue par son serveur et
-  // son id disque, pas par sa clé.
+  // The plugin only knows ids; our keys carry what the URL shows (often a
+  // slug). So a known version is recognised by its server and disk id, not by
+  // its key.
   const known = Object.values(cache.entries);
   for (const p of projects) {
     const mine = known.find((e) => e.serverKeyId === serverKeyId && e.diskId === p.id);

@@ -1,6 +1,6 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { serializeMenuToV1 } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
+import { menuV1FromDomain } from "./menuV1FromDomain";
 import { menuV1ToDomain } from "./menuV1ToDomain";
 import { validateMenuV1 } from "./validateMenuV1";
 
@@ -31,7 +31,7 @@ describe("image button documents", () => {
     const { menu, i18nKeys } = menuV1ToDomain(wire, { projectId: "p" as ProjectId, lang: "en" });
     expect(menu.layers[0]!.elements[0]!.display.image).toEqual(wire.elements[0]!.image);
     const project = { id: "p", defaultLang: "en", i18nKeys } as Project;
-    const result = serializeMenuToV1(menu, project);
+    const result = menuV1FromDomain(menu, project);
     expect(result).toMatchObject({
       elements: [
         {

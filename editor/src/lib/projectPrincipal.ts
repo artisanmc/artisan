@@ -1,8 +1,7 @@
 import { useAuthStore } from "@/state/authStore";
-import { useDemoStore } from "@/state/demoStore";
 
 export interface ProjectPrincipal {
-  kind: "account" | "guest";
+  kind: "player";
   id: string;
 }
 export interface ProjectPrincipalProvider {
@@ -13,38 +12,25 @@ export function watchProjectPrincipal(projectId: string) {
   let changed = false;
   const inspect = () => {
     const current = projectPrincipal.current(projectId);
-    if (current?.id !== initial?.id || current?.kind !== initial?.kind) changed = true;
+    if (current?.id !== initial?.id) changed = true;
   };
-  const stopAccount = useAuthStore.subscribe(inspect);
-  const stopDemo = useDemoStore.subscribe(inspect);
+  const stop = useAuthStore.subscribe(inspect);
   return {
     assertCurrent() {
       inspect();
       if (!initial || changed) throw new Error("session_changed");
     },
     dispose() {
-      stopAccount();
-      stopDemo();
+      stop();
     },
   };
 }
 export const projectPrincipal: ProjectPrincipalProvider = {
-  current(projectId) {
-    const demo = useDemoStore.getState();
-    if (demo.session && (projectId === demo.session.projectId || (!projectId && demo.active)))
-      return demo.expired ? null : demo.session.principal;
+  current() {
     const user = useAuthStore.getState().currentUser;
-    return user ? { kind: "account", id: user.id } : null;
+    return user ? { kind: "player", id: user.id } : null;
   },
 };
-export function useProjectPrincipalId(projectId?: string) {
-  const accountId = useAuthStore((state) => state.currentUser?.id);
-  const session = useDemoStore((state) => state.session);
-  const active = useDemoStore((state) => state.active);
-  const expired = useDemoStore((state) => state.expired);
-  return session && (projectId === session.projectId || (!projectId && active))
-    ? expired
-      ? undefined
-      : session.principal.id
-    : accountId;
+export function useProjectPrincipalId(_projectId?: string) {
+  return useAuthStore((state) => state.currentUser?.id);
 }

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useServerPapiPlaceholdersStore } from "./serverPapiPlaceholdersStore";
 
-const scope = { userId: "u1", networkId: "n1", serverId: "s1" };
+const scope = { userId: "u1", serverId: "s1" };
 const placeholders = [{ placeholder: "%player_name%", expansion: "player" }];
 
 describe("server PlaceholderAPI catalog", () => {
@@ -20,7 +20,7 @@ describe("server PlaceholderAPI catalog", () => {
     await useServerPapiPlaceholdersStore.getState().load(scope);
     expect(useServerPapiPlaceholdersStore.getState().placeholders).toEqual(placeholders);
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/networks/n1/servers/s1/papi-placeholders"),
+      expect.stringContaining("/servers/s1/papi-placeholders"),
       expect.objectContaining({ credentials: "include" }),
     );
     await useServerPapiPlaceholdersStore.getState().load(scope);

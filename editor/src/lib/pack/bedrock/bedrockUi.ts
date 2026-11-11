@@ -1,0 +1,276 @@
+import { sha256Hex } from "../../sha256";
+import type { BedrockMenu, BedrockTextLayer } from "./bedrockMenus";
+import {
+  BEDROCK_MARKER,
+  BEDROCK_PAD,
+  BEDROCK_PAD2,
+  bedrockButtonPair,
+  bedrockFieldOffset,
+} from "./bedrockTitle";
+
+/**
+ * `ui/chest_screen.json` of the Bedrock pack: the vanilla chest screen, changed
+ * only through JSON UI `modifications` on the two root panels (small = 3 rows,
+ * large = 6 rows). Each menu adds its elements, visible while the container
+ * title carries its key; a title without a key leaves the screen vanilla.
+ *
+ * What the in-game prototype established (`prototypes/bedrock-overlay/`):
+ * only `insert_back` and `replace` on `<panel>/root_panel` take effect;
+ * a chest of fewer rows than its screen (1, 2, 4, 5) gets a grid of its own
+ * rows only, so the slots Geyser pads it with stay under the background;
+ * redefining vanilla elements or editing the top half does nothing. So the
+ * background is drawn ABOVE the whole vanilla chest panel (it hides the
+ * vanilla title and slot cells) and a second slot grid, bound to the same
+ * item collection, sits above it to draw the items and take the clicks.
+ *
+ * Coordinates: a layer's chest pixels (Java, origin at the window's top-left)
+ * become Bedrock offsets on `root_panel` 4 px lower, where its slot grid is.
+ */
+export const BEDROCK_Y = 4;
+const GRID_X = 7;
+const GRID_Y = 21;
+const CELL = 18;
+const WIDTH = 176;
+const LAYER_BACKGROUND = 30;
+const LAYER_GRID = 31;
+const LAYER_IMAGE = 32;
+const LAYER_TEXT = 33;
+
+/** The Bedrock screen of a chest: Geyser shows 1 to 3 rows as a small chest, 4 to 6 as a large one. */
+export const PANELS = { 3: "small", 6: "large" } as const;
+
+/** Rows of the Bedrock screen a chest of `rows` rows opens on. */
+export function panelRows(rows: number): 3 | 6 {
+  return rows <= 3 ? 3 : 6;
+}
+
+const T = "$artisan_title";
+
+/** JSON UI boolean: `$artisan_title` contains `text`. */
+function contains(text: string): string {
+  return `(not ((${T} - '${text}') = ${T}))`;
+}
+
+/** The `$artisan_title` binding and the visibility every element carries. */
+function when(condition: string): Record<string, unknown> {
+  return { [T]: "$container_title", visible: condition };
+}
+
+function hasKey(menu: BedrockMenu): string {
+  return contains(BEDROCK_MARKER + menu.key);
+}
+
+/**
+ * Bytes in front of the marker, as the client may receive them: the proxy chain adds
+ * formatting codes before the title (Geyser a `§r`, 3 bytes; 12 measured in game with
+ * Geyser on Velocity and ViaVersion on Paper). A text label exists once per candidate
+ * and shows only where the marker and key really start, so no chain is assumed.
+ */
+/** A Bedrock label draws its text about a pixel lower than Java does (measured in game). */
+const TEXT_DY = -1;
+
+export const LEAD_CANDIDATES = [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30];
+/** Bytes of the marker and the menu key. */
+const KEY_BYTES = 9;
+
+/** JSON UI boolean: the marker and key of `menu` start at byte `lead` of the title. */
+function keyAt(menu: BedrockMenu, lead: number): string {
+  const head = `('%.${lead + KEY_BYTES}s' * ${T})`;
+  const before = lead === 0 ? head : `(${head} - ('%.${lead}s' * ${T}))`;
+  return `(${before} = '${BEDROCK_MARKER}${menu.key}')`;
+}
+
+/**
+ * Field `index` of the title, `lead` bytes in: `'%.Ns' * s` keeps the first N bytes,
+ * `s - p` drops every `p` from `s`, so the padding goes before the label shows it.
+ */
+function field(menu: BedrockMenu, layer: BedrockTextLayer, lead: number): string {
+  const offset =
+    lead +
+    bedrockFieldOffset(
+      menu.buttons.length,
+      menu.texts.map((t) => t.length),
+      layer.index,
+    );
+  return `((('%.${layer.length}s' * (${T} - ('%.${offset}s' * ${T}))) - '${BEDROCK_PAD}') - '${BEDROCK_PAD2}')`;
+}
+
+const NAMED_COLORS: Record<string, string> = {
+  black: "#000000",
+  dark_blue: "#0000aa",
+  dark_green: "#00aa00",
+  dark_aqua: "#00aaaa",
+  dark_red: "#aa0000",
+  dark_purple: "#aa00aa",
+  gold: "#ffaa00",
+  gray: "#aaaaaa",
+  dark_gray: "#555555",
+  blue: "#5555ff",
+  green: "#55ff55",
+  aqua: "#55ffff",
+  red: "#ff5555",
+  light_purple: "#ff55ff",
+  yellow: "#ffff55",
+  white: "#ffffff",
+};
+/** MC draws chest titles in 0x404040. */
+const DEFAULT_COLOR = "#404040";
+
+/** A MiniMessage color (`#rrggbb` or a name) as the `[r, g, b]` floats JSON UI reads. */
+export function labelColor(color: string | undefined): number[] {
+  const hex = (color && (NAMED_COLORS[color] ?? color)) || DEFAULT_COLOR;
+  const match = /^#([0-9a-f]{6})$/i.exec(hex) ?? /^#([0-9a-f]{6})$/i.exec(DEFAULT_COLOR);
+  const n = Number.parseInt((match as RegExpExecArray)[1] as string, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round((v / 255) * 1000) / 1000);
+}
+
+function id(menu: BedrockMenu, what: string): string {
+  const key = [...menu.key].map((c) => (c.codePointAt(0) as number).toString(16)).join("");
+  return `artisan_${key}_${what}`;
+}
+
+/**
+ * 16 hex chars of the SHA-256 of [value]: texture file names stay short because
+ * Geyser warns about (and some Bedrock platforms fail on) pack paths over 80 chars.
+ */
+function shortName(value: string): string {
+  return sha256Hex(new TextEncoder().encode(value)).slice(0, 16);
+}
+
+/** Bedrock texture path (no extension) of a menu's composed background, 38 chars. */
+export function backgroundTexture(menu: BedrockMenu): string {
+  return `textures/artisan/m/${shortName(menu.key)}`;
+}
+
+/** Bedrock texture path (no extension) of a button image ([key]: the Java image button key), 38 chars. */
+export function buttonTexture(key: string): string {
+  return `textures/artisan/b/${shortName(key)}`;
+}
+
+function backgroundElement(menu: BedrockMenu, height: number): Record<string, unknown> {
+  return {
+    [id(menu, "bg")]: {
+      type: "image",
+      texture: backgroundTexture(menu),
+      size: [WIDTH, height],
+      // Composed from the panel's top, `BEDROCK_Y` px above the Java layout.
+      offset: [0, 0],
+      anchor_from: "top_left",
+      anchor_to: "top_left",
+      layer: LAYER_BACKGROUND,
+      ...when(hasKey(menu)),
+    },
+  };
+}
+
+function buttonElements(
+  menu: BedrockMenu,
+  textureKey: (menuButton: BedrockMenu["buttons"][number], state: number) => string,
+): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  for (const button of menu.buttons) {
+    for (const image of button.images) {
+      out.push({
+        [id(menu, `b${button.index}_${image.state}`)]: {
+          type: "image",
+          texture: buttonTexture(textureKey(button, image.state)),
+          size: [button.width, button.height],
+          offset: [button.x, button.y + BEDROCK_Y],
+          anchor_from: "top_left",
+          anchor_to: "top_left",
+          layer: LAYER_IMAGE,
+          ...when(
+            `(${hasKey(menu)} and ${contains(bedrockButtonPair(button.index, image.state))})`,
+          ),
+        },
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Left edge of a label's box. A textarea's `x` is where its lines align, as on
+ * Java (`TitleCompiler`): their centre, or their right end.
+ */
+function labelX(layer: BedrockTextLayer): number {
+  if (layer.width === undefined) return layer.x;
+  if (layer.alignment === "center") return layer.x - Math.round(layer.width / 2);
+  if (layer.alignment === "right") return layer.x - layer.width;
+  return layer.x;
+}
+
+function textElements(menu: BedrockMenu): Record<string, unknown>[] {
+  return menu.texts.flatMap((layer) =>
+    LEAD_CANDIDATES.map((lead) => ({
+      [id(menu, `t${layer.index}_${lead}`)]: {
+        type: "label",
+        text: field(menu, layer, lead),
+        offset: [labelX(layer), layer.y + BEDROCK_Y + TEXT_DY],
+        anchor_from: "top_left",
+        anchor_to: "top_left",
+        size: [layer.width ?? "default", "default"],
+        text_alignment: layer.alignment ?? "left",
+        color: labelColor(layer.color),
+        font_scale_factor: layer.scale,
+        shadow: false,
+        layer: LAYER_TEXT,
+        ...when(`(${hasKey(menu)} and ${keyAt(menu, lead)})`),
+      },
+    })),
+  );
+}
+
+/**
+ * The screen file. `backgroundHeight(menu)` is the pixel height of the
+ * composed background, `buttonKey` the texture name of a button image.
+ */
+export function buildChestScreen(
+  menus: BedrockMenu[],
+  backgroundHeight: (menu: BedrockMenu) => number,
+  buttonKey: (menu: BedrockMenu, button: BedrockMenu["buttons"][number], state: number) => string,
+): Record<string, unknown> {
+  const screen: Record<string, unknown> = {
+    namespace: "chest",
+    // Our slot: the vanilla container item without its grey cell, the icon
+    // stretched to the whole 18x18 cell so that tiles of one image join.
+    "artisan_grid_item@common.container_item": {
+      $item_collection_name: "container_items",
+      $background_images: "common.empty_panel",
+      $item_renderer_size: [CELL, CELL],
+    },
+  };
+  for (const rows of [3, 6] as const) {
+    const panel = PANELS[rows];
+    const here = menus.filter((m) => panelRows(m.rows) === rows);
+    if (!here.length) continue;
+    // The vanilla panel stays, even under a `vanilla_texture: false` menu: replacing
+    // `common_panel` / `chest_panel` to hide it left every chest screen blank on Bedrock,
+    // vanilla chests included (in game, 2026-11-04).
+    const modifications: Record<string, unknown>[] = [];
+    modifications.push({
+      array_name: "controls",
+      operation: "insert_back",
+      value: [
+        ...here.map((menu) => backgroundElement(menu, backgroundHeight(menu))),
+        // One slot grid per menu, shown by its own key alone: grids shared by every menu
+        // of a row count, shown by a long `or` of keys, drew no item for some menus in game.
+        // A chest of fewer rows than its screen gets a grid of its own rows only: the slots
+        // Geyser pads it with stay under the background.
+        ...here.map((menu) => ({
+          [`${id(menu, "grid")}@chest.${panel}_chest_grid`]: {
+            offset: [GRID_X, GRID_Y],
+            ...(menu.rows === rows ? {} : { grid_dimensions: [9, menu.rows] }),
+            grid_item_template: "chest.artisan_grid_item",
+            layer: LAYER_GRID,
+            ...when(hasKey(menu)),
+          },
+        })),
+        ...here.flatMap((menu) => buttonElements(menu, (b, s) => buttonKey(menu, b, s))),
+        ...here.flatMap(textElements),
+      ],
+    });
+    screen[`${panel}_chest_panel/root_panel`] = { modifications };
+  }
+  return screen;
+}

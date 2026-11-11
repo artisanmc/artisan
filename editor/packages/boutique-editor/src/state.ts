@@ -39,7 +39,7 @@ interface ProjectLike {
   moduleData?: Record<string, unknown>;
 }
 
-/** moduleData.boutique structuré, ou normalisation de la forme __files seedée par le backend. */
+/** Structured moduleData.boutique, or normalisation of the seeded `__files` shape. */
 export function readBoutiqueState(project: unknown): BoutiqueState {
   const md = (project as ProjectLike).moduleData?.boutique;
   if (!md || typeof md !== "object") return EMPTY_STATE;

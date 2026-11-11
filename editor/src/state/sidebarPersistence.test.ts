@@ -22,7 +22,7 @@ it("restores the fixed navigation choice without reopening the mobile drawer", a
 });
 
 it("restores the library project and category, then remembers closing it", async () => {
-  const name = useProjectLibraryStore.persist.getOptions().name;
+  const name = useProjectLibraryStore.persist.getOptions().name!;
   const projectId = "project-a" as ProjectId;
   useProjectLibraryStore.getState().open(projectId, "captured");
   const saved = localStorage.getItem(name)!;

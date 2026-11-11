@@ -1,8 +1,8 @@
 import { Image as KonvaImage, Rect, Text } from "react-konva";
 import useImage from "use-image";
-import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 import { TEX_SCALE, TEX_SLOT_INNER } from "./menuLayout";
 import { useTextureUrl } from "./textureStore";
+import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 
 export interface SlotItemProps {
   material: string;

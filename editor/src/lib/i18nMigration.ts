@@ -1,4 +1,7 @@
+import { commandsOf, menusOf } from "@/domain/documents";
 import type { LText } from "@/domain/types";
+import type { DslAction } from "@/lib/actionDsl/ast";
+import { dslActionToAction } from "@/lib/actionDsl/domainSteps";
 import { newI18nKey } from "@/lib/i18n";
 
 /**
@@ -35,7 +38,9 @@ export function migrateProjectToI18n(project: any, fallbackDefaultLang: string):
     return { key };
   };
 
-  for (const menu of project.menus ?? []) {
+  // biome-ignore lint/suspicious/noExplicitAny: legacy menus carry plain-string titles
+  const menus: any[] = menusOf(project);
+  for (const menu of menus) {
     if (typeof menu.title === "string") menu.title = lift(menu.title);
     for (const layer of menu.layers ?? []) {
       for (const el of layer.elements ?? []) {
@@ -57,7 +62,7 @@ export function migrateProjectToI18n(project: any, fallbackDefaultLang: string):
       }
     }
   }
-  for (const cmd of project.commands ?? []) {
+  for (const cmd of commandsOf(project)) {
     migrateStepsI18n(cmd.steps ?? [], lift);
   }
   for (const tpl of project.templates ?? []) {
@@ -81,7 +86,7 @@ function migrateStepsI18n(
     if (!step || typeof step !== "object") continue;
     const s = step as {
       kind?: string;
-      action?: { type?: string; text?: unknown; title?: unknown; subtitle?: unknown };
+      action?: unknown;
       cases?: unknown[];
       else?: unknown[];
     };
@@ -92,6 +97,12 @@ function migrateStepsI18n(
       } else if (a.type === "show_title") {
         if (typeof a.title === "string") a.title = lift(a.title);
         if (typeof a.subtitle === "string") a.subtitle = lift(a.subtitle);
+      }
+      // The typed action of an older editor (`{type: "open_menu", menuId}`) → the keyed
+      // wire's `{name, value}` (ADR `extensible-document-kinds`, W4). Its shape was the DSL
+      // AST's, text as LText instead of DslText, so the DSL adapter converts it as is.
+      if (typeof a.type === "string" && !("name" in a && "value" in a)) {
+        s.action = dslActionToAction(a as unknown as DslAction, (t) => t as unknown as LText);
       }
     } else if (s.kind === "if") {
       for (const c of s.cases ?? []) {

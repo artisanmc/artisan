@@ -1,5 +1,5 @@
-import { useAccountStore } from "@/state/accountStore";
 import { useProjectCacheStore } from "@/state/projectCacheStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { flushDraftEdits } from "./draftFlush";
 
 export interface ProjectRenamed {
@@ -13,9 +13,9 @@ export function onProjectRenamed(event: ProjectRenamed): void {
   const renamedName = (name: string | undefined) =>
     name === event.previousDiskId ? event.diskId : name;
   flushDraftEdits();
-  const account = useAccountStore.getState().account;
+  const openProjects = useProjectsStore.getState().openProjects;
   let changed = false;
-  const projects = account.projects.map((project) => {
+  const projects = openProjects.projects.map((project) => {
     if (
       project.id !== event.projectId ||
       project.serverKeyId !== event.serverKeyId ||
@@ -25,7 +25,7 @@ export function onProjectRenamed(event: ProjectRenamed): void {
     changed = true;
     return { ...project, diskId: event.diskId, name: renamedName(project.name)! };
   });
-  if (changed) useAccountStore.getState().setAccount({ ...account, projects });
+  if (changed) useProjectsStore.getState().setOpenProjects({ ...openProjects, projects });
   const cache = useProjectCacheStore.getState();
   for (const [key, entry] of Object.entries(cache.entries)) {
     const identity = entry.identity as

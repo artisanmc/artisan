@@ -43,7 +43,7 @@ test("wiki root redirects to its canonical directory, preserving the query", asy
 test("wiki guides and landing are served independently from the application", async () => {
   assert.match(await (await fetch(`${origin}/wiki/`)).text(), /Artisan wiki/);
   assert.match(await (await fetch(`${origin}/wiki/editor/`)).text(), /Editor guide/);
-  assert.match(await (await fetch(`${origin}/pricing`)).text(), /Artisan application/);
+  assert.match(await (await fetch(`${origin}/`)).text(), /Artisan application/);
   assert.match(await (await fetch(`${origin}/wikipedia`)).text(), /Artisan application/);
 });
 

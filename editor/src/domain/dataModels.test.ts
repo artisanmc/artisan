@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { dataModelId, dataSourceId } from "./ids";
-import type { DataModel, DataSource, Project } from "./types";
 import {
   applyFieldEdit,
   defaultValueForModelType,
@@ -10,6 +8,8 @@ import {
   tableRowType,
   wouldCreateModelCycle,
 } from "./dataModels";
+import { dataModelId, dataSourceId } from "./ids";
+import type { DataModel, DataSource, Project } from "./types";
 
 const RANK: DataModel = {
   id: dataModelId("m_rank"),
@@ -28,14 +28,16 @@ const stubProject = (): Project =>
   ({
     id: "p1",
     name: "P",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     dataModels: [RANK],
     i18nKeys: {},
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   }) as unknown as Project;
 
@@ -53,7 +55,12 @@ describe("wouldCreateModelCycle", () => {
   const c = dataModelId("c");
   const models: DataModel[] = [
     { id: a, name: "a", keyField: "id", fields: [{ name: "b", type: { kind: "model", ref: b } }] },
-    { id: b, name: "b", keyField: "id", fields: [{ name: "x", type: { kind: "list", of: { kind: "model", ref: c } } }] },
+    {
+      id: b,
+      name: "b",
+      keyField: "id",
+      fields: [{ name: "x", type: { kind: "list", of: { kind: "model", ref: c } } }],
+    },
     { id: c, name: "c", keyField: "id", fields: [] },
   ];
   it("rejects a ref that closes a loop (direct + transitive + self)", () => {
@@ -77,7 +84,10 @@ describe("defaultValueForModelType", () => {
     expect(defaultValueForModelType({ kind: "minimessage_multiline" })).toBe("");
   });
   it("recurses objects and resolves model refs via the models list", () => {
-    const v = defaultValueForModelType({ kind: "model", ref: RANK.id }, [RANK]) as Record<string, unknown>;
+    const v = defaultValueForModelType({ kind: "model", ref: RANK.id }, [RANK]) as Record<
+      string,
+      unknown
+    >;
     expect(v.id).toBe("");
     expect(v.name).toEqual({ key: "" });
     expect(v.perks).toEqual([]);
@@ -100,7 +110,9 @@ describe("modelFieldTypeToFieldType", () => {
   });
   it("maps minimessage kinds to string", () => {
     expect(modelFieldTypeToFieldType({ kind: "minimessage" })).toEqual({ kind: "string" });
-    expect(modelFieldTypeToFieldType({ kind: "minimessage_multiline" })).toEqual({ kind: "string" });
+    expect(modelFieldTypeToFieldType({ kind: "minimessage_multiline" })).toEqual({
+      kind: "string",
+    });
     expect(modelFieldTypeToFieldType({ kind: "list", of: { kind: "minimessage" } })).toEqual({
       kind: "list",
       of: { kind: "string" },
@@ -109,7 +121,12 @@ describe("modelFieldTypeToFieldType", () => {
   it("survives a (theoretically impossible) model cycle without recursing forever", () => {
     const a = dataModelId("a");
     const loop: DataModel[] = [
-      { id: a, name: "a", keyField: "id", fields: [{ name: "self", type: { kind: "model", ref: a } }] },
+      {
+        id: a,
+        name: "a",
+        keyField: "id",
+        fields: [{ name: "self", type: { kind: "model", ref: a } }],
+      },
     ];
     const t = modelFieldTypeToFieldType({ kind: "model", ref: a }, loop);
     expect(t.kind).toBe("object");
@@ -146,7 +163,7 @@ describe("normalizeDataSources", () => {
     };
     const project = stubProject();
     project.dataSources = [legacy as unknown as DataSource, table];
-    delete (project as { dataModels?: unknown }).dataModels;
+    Reflect.deleteProperty(project, "dataModels");
     normalizeDataSources(project);
     expect(project.dataSources).toEqual([table]);
     expect(project.dataModels).toEqual([]);
@@ -164,7 +181,10 @@ describe("applyFieldEdit", () => {
         { name: "id", type: { kind: "string" } },
         { name: "name", type: { kind: "ltext" } },
         { name: "price", type: { kind: "number" } },
-        { name: "meta", type: { kind: "object", fields: [{ name: "tag", type: { kind: "string" } }] } },
+        {
+          name: "meta",
+          type: { kind: "object", fields: [{ name: "tag", type: { kind: "string" } }] },
+        },
       ],
     };
     const cat: DataModel = {
@@ -179,8 +199,11 @@ describe("applyFieldEdit", () => {
     const project = {
       id: "p1",
       name: "P",
-      menus: [],
-      commands: [],
+      documents: {
+        menu: [],
+        command: [],
+        dialog: [],
+      },
       assets: [],
       dataModels: [rank, cat],
       dataSources: [
@@ -199,7 +222,9 @@ describe("applyFieldEdit", () => {
           name: "cats",
           shape: "table",
           modelId: cat.id,
-          rows: [{ id: "c1", top: { id: "vip", name: { key: "lt_top" }, price: 1, meta: { tag: "c" } } }],
+          rows: [
+            { id: "c1", top: { id: "vip", name: { key: "lt_top" }, price: 1, meta: { tag: "c" } } },
+          ],
         },
         {
           id: dataSourceId("settings"),
@@ -216,7 +241,6 @@ describe("applyFieldEdit", () => {
         lt_motd: { en: "Hello" },
       },
       defaultLang: "en",
-      dialogs: [],
       canvasLayout: {},
     } as unknown as Project;
     return project;
@@ -224,17 +248,23 @@ describe("applyFieldEdit", () => {
 
   const model = (project: Project) => project.dataModels!.find((m) => m.name === "rank")!;
   const rows = (project: Project) =>
-    (project.dataSources.find((d) => d.name === "ranks") as { rows: Record<string, unknown>[] }).rows;
+    (project.dataSources.find((d) => d.name === "ranks") as { rows: Record<string, unknown>[] })
+      .rows;
   const catRow = (project: Project) =>
-    (project.dataSources.find((d) => d.name === "cats") as { rows: Record<string, unknown>[] }).rows[0]!;
+    (project.dataSources.find((d) => d.name === "cats") as { rows: Record<string, unknown>[] })
+      .rows[0]!;
 
   it("add: appends the field and seeds defaults in every instance (incl. nested model refs)", () => {
     const project = migProject();
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "add",
-      path: [],
-      field: { name: "perks", type: { kind: "list", of: { kind: "ltext" } } },
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "add",
+        path: [],
+        field: { name: "perks", type: { kind: "list", of: { kind: "ltext" } } },
+      },
+    );
     expect(model(project).fields.map((f) => f.name)).toContain("perks");
     expect(rows(project)[0]!.perks).toEqual([]);
     expect((catRow(project).top as Record<string, unknown>).perks).toEqual([]);
@@ -242,12 +272,16 @@ describe("applyFieldEdit", () => {
 
   it("rename: renames the field and moves the data everywhere", () => {
     const project = migProject();
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "rename",
-      path: [],
-      oldName: "price",
-      newName: "cost",
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "rename",
+        path: [],
+        oldName: "price",
+        newName: "cost",
+      },
+    );
     expect(model(project).fields.some((f) => f.name === "cost")).toBe(true);
     expect(rows(project)[0]!.cost).toBe(9.99);
     expect(rows(project)[0]!.price).toBeUndefined();
@@ -256,23 +290,31 @@ describe("applyFieldEdit", () => {
 
   it("rename on a nested path migrates nested objects", () => {
     const project = migProject();
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "rename",
-      path: ["meta"],
-      oldName: "tag",
-      newName: "label",
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "rename",
+        path: ["meta"],
+        oldName: "tag",
+        newName: "label",
+      },
+    );
     expect((rows(project)[0]!.meta as Record<string, unknown>).label).toBe("a");
     expect((rows(project)[1]!.meta as Record<string, unknown>).tag).toBeUndefined();
   });
 
   it("remove: drops the field, its data, and releases its i18n keys", () => {
     const project = migProject();
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "remove",
-      path: [],
-      name: "name",
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "remove",
+        path: [],
+        name: "name",
+      },
+    );
     expect(model(project).fields.some((f) => f.name === "name")).toBe(false);
     expect(rows(project)[0]!.name).toBeUndefined();
     expect(project.i18nKeys["lt_vip" as never]).toBeUndefined();
@@ -285,12 +327,16 @@ describe("applyFieldEdit", () => {
 
   it("retype string→ltext wraps the value as a defaultLang translation", () => {
     const project = migProject();
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "retype",
-      path: [],
-      name: "id",
-      newType: { kind: "ltext" },
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "retype",
+        path: [],
+        name: "id",
+        newType: { kind: "ltext" },
+      },
+    );
     const v = rows(project)[0]!.id as { key: string };
     expect(typeof v.key).toBe("string");
     expect(project.i18nKeys[v.key as never]).toEqual({ en: "vip" });
@@ -298,73 +344,101 @@ describe("applyFieldEdit", () => {
 
   it("retype ltext→string keeps the defaultLang text and releases the key", () => {
     const project = migProject();
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "retype",
-      path: [],
-      name: "name",
-      newType: { kind: "string" },
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "retype",
+        path: [],
+        name: "name",
+        newType: { kind: "string" },
+      },
+    );
     expect(rows(project)[0]!.name).toBe("VIP");
     expect(project.i18nKeys["lt_vip" as never]).toBeUndefined();
   });
 
   it("retype ltext→minimessage keeps the defaultLang text and releases the key", () => {
     const project = migProject();
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "retype",
-      path: [],
-      name: "name",
-      newType: { kind: "minimessage" },
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "retype",
+        path: [],
+        name: "name",
+        newType: { kind: "minimessage" },
+      },
+    );
     expect(rows(project)[0]!.name).toBe("VIP");
     expect(project.i18nKeys["lt_vip" as never]).toBeUndefined();
   });
 
   it("retype minimessage→ltext mints an LText from the raw markup", () => {
     const project = migProject();
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "retype",
-      path: [],
-      name: "id",
-      newType: { kind: "minimessage" },
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "retype",
+        path: [],
+        name: "id",
+        newType: { kind: "minimessage" },
+      },
+    );
     expect(rows(project)[0]!.id).toBe("vip");
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "retype",
-      path: [],
-      name: "id",
-      newType: { kind: "ltext" },
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "retype",
+        path: [],
+        name: "id",
+        newType: { kind: "ltext" },
+      },
+    );
     const v = rows(project)[0]!.id as { key: string };
     expect(project.i18nKeys[v.key as never]).toEqual({ en: "vip" });
   });
 
   it("retype minimessage→number parses, number→minimessage stringifies", () => {
     const project = migProject();
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "retype",
-      path: [],
-      name: "price",
-      newType: { kind: "minimessage" },
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "retype",
+        path: [],
+        name: "price",
+        newType: { kind: "minimessage" },
+      },
+    );
     expect(rows(project)[0]!.price).toBe("9.99");
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "retype",
-      path: [],
-      name: "price",
-      newType: { kind: "number" },
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "retype",
+        path: [],
+        name: "price",
+        newType: { kind: "number" },
+      },
+    );
     expect(rows(project)[0]!.price).toBe(9.99);
   });
 
   it("retype incompatible resets to the new type's default and releases lost ltexts", () => {
     const project = migProject();
-    applyFieldEdit(project, { kind: "model", modelId: model(project).id }, {
-      op: "retype",
-      path: [],
-      name: "name",
-      newType: { kind: "boolean" },
-    });
+    applyFieldEdit(
+      project,
+      { kind: "model", modelId: model(project).id },
+      {
+        op: "retype",
+        path: [],
+        name: "name",
+        newType: { kind: "boolean" },
+      },
+    );
     expect(rows(project)[0]!.name).toBe(false);
     expect(project.i18nKeys["lt_vip" as never]).toBeUndefined();
   });
@@ -372,12 +446,16 @@ describe("applyFieldEdit", () => {
   it("edits a config source's own fields", () => {
     const project = migProject();
     const settings = project.dataSources.find((d) => d.name === "settings")!;
-    applyFieldEdit(project, { kind: "config", sourceId: settings.id }, {
-      op: "rename",
-      path: [],
-      oldName: "motd",
-      newName: "welcome",
-    });
+    applyFieldEdit(
+      project,
+      { kind: "config", sourceId: settings.id },
+      {
+        op: "rename",
+        path: [],
+        oldName: "motd",
+        newName: "welcome",
+      },
+    );
     const ds = project.dataSources.find((d) => d.name === "settings") as {
       fields: { name: string }[];
       value: Record<string, unknown>;

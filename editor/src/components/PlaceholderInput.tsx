@@ -1,8 +1,8 @@
+import { cn } from "@/lib/cx";
+import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { cn } from "@/lib/cx";
-import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 
 export interface PapiPlaceholder {
   placeholder: string;
@@ -27,6 +27,7 @@ export interface PlaceholderInputProps {
   onBlur?: () => void;
   /** Merged after the design-system `.input` / `.textarea` base class. */
   className?: string;
+  "aria-label"?: string;
 }
 
 /**
@@ -47,6 +48,7 @@ export function PlaceholderInput({
   onFocus,
   onBlur,
   className,
+  "aria-label": ariaLabel,
 }: PlaceholderInputProps) {
   const { t } = useTranslation();
   const reactId = useId();
@@ -66,12 +68,16 @@ export function PlaceholderInput({
   const [anchorPos, setAnchorPos] = useState(0);
   const [trigger, setTrigger] = useState<"{" | "%">("{");
 
-  const suggestions = trigger === "%"
-    ? papiPlaceholders.map((p) => ({ path: p.placeholder, type: "PlaceholderAPI", sample: null, origin: p.expansion }))
-    : entries;
-  const filtered = suggestions.filter((e) =>
-    e.path.toLowerCase().includes(query.toLowerCase()),
-  );
+  const suggestions =
+    trigger === "%"
+      ? papiPlaceholders.map((p) => ({
+          path: p.placeholder,
+          type: "PlaceholderAPI",
+          sample: null,
+          origin: p.expansion,
+        }))
+      : entries;
+  const filtered = suggestions.filter((e) => e.path.toLowerCase().includes(query.toLowerCase()));
   const popupVisible = open && (trigger === "{" || papiPlaceholders.length > 0);
 
   // Close on outside click. The popup is portaled to document.body so it is
@@ -98,7 +104,9 @@ export function PlaceholderInput({
       // with no closing `}` or whitespace between the `{` and the caret.
       const head = next.slice(0, caretPos);
       const lastBrace = head.lastIndexOf("{");
-      const papiFragment = [...head.matchAll(/%[^%{}\s]*%|%([^%{}\s]*)$/g)].find((m) => m[1] !== undefined);
+      const papiFragment = [...head.matchAll(/%[^%{}\s]*%|%([^%{}\s]*)$/g)].find(
+        (m) => m[1] !== undefined,
+      );
       const percentPos = papiFragment?.index ?? -1;
       const start = Math.max(lastBrace, percentPos);
       if (start !== -1) {
@@ -128,7 +136,6 @@ export function PlaceholderInput({
         setOpen(false);
         return;
       }
-      // Derive query from the anchor to the current caret.
       const tail = next.slice(anchorPos, caretPos);
       // Close if the user added a closing brace, a space, or a newline.
       if ((trigger === "%" ? /[%{}\s]/ : /[}\s]/).test(tail)) {
@@ -179,7 +186,7 @@ export function PlaceholderInput({
     // Replace from anchorPos - 1 (the `{`) through the current caret with
     // `{path}`. Then close.
     const caret = el.selectionStart ?? value.length;
-    const bracePos = anchorPos - 1; // position of the `{` in value
+    const bracePos = anchorPos - 1;
     if (bracePos < 0 || value[bracePos] !== trigger) return;
     const token = trigger === "%" ? path : `{${path}}`;
     const newValue = value.slice(0, bracePos) + token + value.slice(caret);
@@ -193,9 +200,13 @@ export function PlaceholderInput({
     onChange: handleChange,
     onKeyDown: handleKeyDown,
     onFocus,
-    onBlur: () => { setOpen(false); onBlur?.(); },
+    onBlur: () => {
+      setOpen(false);
+      onBlur?.();
+    },
     autoFocus,
     placeholder,
+    "aria-label": ariaLabel,
     role: "combobox" as const,
     "aria-expanded": popupVisible,
     "aria-controls": listboxId,
@@ -205,14 +216,17 @@ export function PlaceholderInput({
 
   const popup = popupVisible
     ? createPortal(
+        // biome-ignore lint/a11y/useFocusableInteractive: ARIA combobox pattern: focus stays on the input (aria-activedescendant), so listbox/options are deliberately unfocusable and <select> can't render this popup
         <ul
           ref={popupRef}
+          // biome-ignore lint/a11y/useSemanticElements lint/a11y/noNoninteractiveElementToInteractiveRole: ARIA combobox pattern: focus stays on the input (aria-activedescendant), so listbox/options are deliberately unfocusable and <select> can't render this popup
           role="listbox"
           id={listboxId}
           className="placeholder-popup"
           style={{ left: popupPos.left, top: popupPos.top }}
         >
           {filtered.length === 0 ? (
+            // biome-ignore lint/a11y/useFocusableInteractive lint/a11y/useSemanticElements lint/a11y/noNoninteractiveElementToInteractiveRole: ARIA combobox pattern: focus stays on the input (aria-activedescendant), so listbox/options are deliberately unfocusable and <select> can't render this popup
             <li className="empty" role="option" aria-selected={false}>
               {suggestions.length === 0
                 ? t("placeholderInput.emptyContext")
@@ -220,9 +234,11 @@ export function PlaceholderInput({
             </li>
           ) : (
             filtered.map((e, i) => (
+              // biome-ignore lint/a11y/useFocusableInteractive: ARIA combobox pattern: focus stays on the input (aria-activedescendant), so listbox/options are deliberately unfocusable and <select> can't render this popup
               <li
                 key={e.path}
                 id={rowId(e.path)}
+                // biome-ignore lint/a11y/useSemanticElements lint/a11y/noNoninteractiveElementToInteractiveRole: ARIA combobox pattern: focus stays on the input (aria-activedescendant), so listbox/options are deliberately unfocusable and <select> can't render this popup
                 role="option"
                 aria-selected={i === highlight}
                 onMouseDown={(ev) => {

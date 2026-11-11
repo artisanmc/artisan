@@ -1,5 +1,5 @@
 import type { Asset } from "@/domain/asset";
-import type { ProjectSummary } from "@/lib/api/networks";
+import type { ProjectSummary } from "@/lib/api/servers";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ServerConfigSection } from "./ServerConfigSection";
@@ -19,7 +19,7 @@ vi.mock("@/lib/api/userAssets", () => ({ listAssets: api.listAssets }));
 const config = {
   language: "en",
   per_player_language: false,
-  "resource-pack.send-delay-ticks": 20,
+  "resource-pack.delegate-to-dir": "",
   "resource-pack.container-textures.chest": "",
   "resource-pack.container-textures.hopper": "",
   "resource-pack.container-textures.dispenser": "",
@@ -29,7 +29,7 @@ const image = (name: string, size: number, type: Asset["type"] = "texture") =>
   ({ id: name, name, type, width: size, height: size, projectId: "p1" }) as Asset;
 
 function renderSection() {
-  return render(<ServerConfigSection networkId="n1" serverKeyId="s1" projects={[project]} />);
+  return render(<ServerConfigSection serverKeyId="s1" projects={[project]} />);
 }
 
 describe("ServerConfigSection", () => {
@@ -49,16 +49,29 @@ describe("ServerConfigSection", () => {
     expect(await screen.findByText(/connecté/)).toBeInTheDocument();
   });
 
+  it("counts the pending changes, and discards them", async () => {
+    renderSection();
+    const language = await screen.findByLabelText("Langue");
+    expect(screen.queryByRole("button", { name: "Enregistrer" })).toBeNull();
+    fireEvent.change(language, { target: { value: "fr" } });
+    expect(screen.getByText("1 réglage modifié")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(language).toHaveValue("en");
+    expect(screen.queryByRole("button", { name: "Enregistrer" })).toBeNull();
+  });
+
   it("saves only the changed keys", async () => {
     api.patchServerConfig.mockResolvedValue({ ...config, language: "fr" });
     renderSection();
     fireEvent.change(await screen.findByLabelText("Langue"), { target: { value: "fr" } });
-    fireEvent.change(screen.getByLabelText(/Délai d'envoi/), { target: { value: "40" } });
+    fireEvent.change(screen.getByLabelText(/Dossier du pack/), {
+      target: { value: "plugins/Nexo/pack" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() =>
-      expect(api.patchServerConfig).toHaveBeenCalledWith("n1", "s1", {
+      expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
         language: "fr",
-        "resource-pack.send-delay-ticks": 40,
+        "resource-pack.delegate-to-dir": "plugins/Nexo/pack",
       }),
     );
   });
@@ -74,33 +87,48 @@ describe("ServerConfigSection", () => {
     fireEvent.change(chest, { target: { value: "ui:chest_hd" } });
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() =>
-      expect(api.patchServerConfig).toHaveBeenCalledWith("n1", "s1", {
+      expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
         "resource-pack.container-textures.chest": "ui:chest_hd",
       }),
     );
   });
 
   it("explains the plugin's refusal with the field's label", async () => {
-    const { ServerConfigError } = await import("@/lib/api/serverConfig");
+    const { ApiError } = await import("@/lib/api/client");
     api.patchServerConfig.mockRejectedValue(
-      new ServerConfigError("invalid_config", "resource-pack.send-delay-ticks: unsafe_path"),
+      new ApiError("invalid_config", 422, null, "resource-pack.delegate-to-dir: unsafe_path"),
     );
     renderSection();
     fireEvent.change(await screen.findByLabelText("Langue"), { target: { value: "xx" } });
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     expect(
       await screen.findByText(
-        "Délai d'envoi (ticks) : le chemin doit rester dans le dossier du serveur.",
+        "Dossier du pack de Nexo, Oraxen ou ItemsAdder (chemin) : le chemin doit rester dans le dossier du serveur.",
       ),
     ).toBeInTheDocument();
   });
 
-  it("names assistant source fields by source and field", async () => {
+  it("edits the server's text palette as named colors and gradients", async () => {
     api.getServerConfig.mockResolvedValue({
-      config: { "assistant.import-sources.zmenu.path": "plugins/zMenu/menus" },
+      config: {
+        ...config,
+        "text-palette.colors": ["Brand #ff6b35"],
+        "text-palette.gradients": ["Sunset #ff5f6d #ffc371"],
+      },
       online: true,
     });
+    api.patchServerConfig.mockImplementation(async (_id, changes) => ({ ...config, ...changes }));
     renderSection();
-    expect(await screen.findByLabelText("zmenu · Dossier")).toBeInTheDocument();
+    expect(await screen.findByText("Palette de texte", { selector: "h3" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Brand")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Sunset")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter une couleur" }));
+    fireEvent.change(screen.getAllByLabelText("Nom")[1]!, { target: { value: "Gold" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() =>
+      expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
+        "text-palette.colors": ["Brand #ff6b35", "Gold #5ab4ff"],
+      }),
+    );
   });
 });

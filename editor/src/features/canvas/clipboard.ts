@@ -1,3 +1,5 @@
+import { actionDocumentRefs } from "@/domain/actionArgs";
+import { visitCommandLTexts, visitElementLTexts, visitMenuLTexts } from "@/domain/i18nSites";
 import { newCommandId, newElementId, newLayerId, newMenuId } from "@/domain/ids";
 import type {
   Action,
@@ -5,10 +7,13 @@ import type {
   ClickHandler,
   ClickType,
   Command,
+  CommandNode,
   Element,
+  I18nKey,
   Layer,
   Menu,
   MenuId,
+  Project,
   Step,
 } from "@/domain/types";
 
@@ -27,6 +32,31 @@ export interface ClipboardPayload {
   menus: Menu[];
   commands: Command[];
   elements: ElementCopy[];
+  /**
+   * The translations of the copied texts, by key (key → lang → value): a paste into another
+   * Project (or from a module template's default version) finds them there, the target
+   * holding none of the source's keys.
+   */
+  texts?: Record<I18nKey, Record<string, string>>;
+}
+
+/** The translations of every text the copied menus, commands and elements hold, read in `project`. */
+export function collectTexts(
+  project: Project,
+  copied: { menus: Menu[]; commands: Command[]; elements: ElementCopy[] },
+): Record<I18nKey, Record<string, string>> {
+  const texts: Record<I18nKey, Record<string, string>> = {};
+  const take = (sites: Iterable<{ lText: { key: I18nKey } }>) => {
+    for (const site of sites) {
+      const values = project.i18nKeys[site.lText.key];
+      if (values) texts[site.lText.key] = { ...values };
+    }
+  };
+  for (const menu of copied.menus) take(visitMenuLTexts(menu));
+  for (const command of copied.commands) take(visitCommandLTexts(command));
+  for (const { sourceMenuId, element } of copied.elements)
+    take(visitElementLTexts(sourceMenuId, element));
+  return texts;
 }
 
 /** In-memory fallback when the system clipboard isn't available (permission denied, file:// origin, etc). */
@@ -87,12 +117,16 @@ export function rewriteIds(input: {
   const menuRemap = new Map<MenuId, MenuId>();
   for (const m of input.menus) menuRemap.set(m.id, newMenuId());
 
+  // Every `document_ref` to a menu of the rewritten set follows its new id (read through
+  // the action's declaration, so a module's action referencing a menu is rewritten too).
   const remapAction = (a: Action): Action => {
-    if (a.type === "open_menu") {
-      const target = menuRemap.get(a.menuId);
-      return target ? { ...a, menuId: target } : a;
+    const copy: Action = { name: a.name, value: a.value };
+    for (const ref of actionDocumentRefs(copy)) {
+      if (ref.document !== "menu") continue;
+      const target = menuRemap.get(ref.id as MenuId);
+      if (target) ref.set(target);
     }
-    return a;
+    return copy;
   };
   const remapStep = (step: Step): Step => {
     if (step.kind === "action") return { kind: "action", action: remapAction(step.action) };
@@ -130,11 +164,12 @@ export function rewriteIds(input: {
     id: menuRemap.get(m.id)!,
     layers: m.layers.map(remapLayer),
   }));
-  const commands = input.commands.map((c) => ({
-    ...c,
-    id: newCommandId(),
-    steps: c.steps.map(remapStep),
-  }));
+  const remapNode = <N extends CommandNode>(n: N): N => ({
+    ...n,
+    steps: n.steps.map(remapStep),
+    ...(n.subcommands ? { subcommands: n.subcommands.map(remapNode) } : {}),
+  });
+  const commands = input.commands.map((c) => ({ ...remapNode(c), id: newCommandId() }));
   const elements = (input.elements ?? []).map<ElementCopy>((ec) => ({
     sourceMenuId: ec.sourceMenuId,
     element: remapElement(ec.element),

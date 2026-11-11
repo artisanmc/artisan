@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+import { ApiError, apiFetch } from "./client";
 
 export interface DataSourceSchemaField {
   name: string;
@@ -15,24 +15,23 @@ export interface ServerDataSource {
   stability?: "static" | "dynamic" | null;
   /** Row key field name for a static source (null/absent unless static). */
   keyField?: string | null;
+  /**
+   * Where the rows come from: server state, Project content, or
+   * content joined to per-player state. null/absent = an older plugin, read as runtime.
+   */
+  origin?: DataSourceOrigin | null;
 }
 
+export type DataSourceOrigin = "runtime" | "content" | "mixed";
+
 /**
- * Data sources reported by the connected server for a network/server pair.
- * Cookie auth, `serverId` is the exact server_key id (not a slug). [] on any
- * failure (non-OK response, network error, or malformed JSON).
+ * Data sources reported by the connected server. `serverId` is the exact
+ * server id (not a slug). [] on any failure (refused, network error, or
+ * malformed JSON).
  */
-export async function fetchServerDataSourcesUser(
-  networkId: string,
-  serverId: string,
-): Promise<ServerDataSource[]> {
+export async function fetchServerDataSourcesUser(serverId: string): Promise<ServerDataSource[]> {
   try {
-    const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/data-sources`,
-      { credentials: "include" },
-    );
-    if (!res.ok) return [];
-    const data = (await res.json()) as {
+    const data = await apiFetch<{
       data_sources?: {
         ref: string;
         module_id?: string | null;
@@ -40,8 +39,9 @@ export async function fetchServerDataSourcesUser(
         schema_hint?: string | null;
         stability?: "static" | "dynamic" | null;
         key_field?: string | null;
+        origin?: string | null;
       }[];
-    };
+    }>(`/api/v1/servers/${serverId}/data-sources`);
     return (data.data_sources ?? []).map((d) => ({
       ref: d.ref,
       moduleId: d.module_id ?? null,
@@ -53,10 +53,16 @@ export async function fetchServerDataSourcesUser(
       schemaHint: d.schema_hint ?? null,
       stability: d.stability ?? null,
       keyField: d.key_field ?? null,
+      origin: parseOrigin(d.origin),
     }));
   } catch {
     return [];
   }
+}
+
+/** A value this editor does not know (a newer plugin) is treated like an absent one. */
+function parseOrigin(raw: string | null | undefined): DataSourceOrigin | null {
+  return raw === "runtime" || raw === "content" || raw === "mixed" ? raw : null;
 }
 
 export type PreviewErrorCode =
@@ -80,42 +86,30 @@ export interface PreviewRequest {
   args?: Record<string, string>;
 }
 
-/** Live preview relayed to the connected plugin (5 s backend timeout). */
+const KNOWN_PREVIEW_ERRORS: PreviewErrorCode[] = [
+  "server_offline",
+  "fetch_timeout",
+  "unknown_source",
+  "player_required",
+  "fetch_error",
+];
+
+/** Live preview relayed to the connected plugin (5 s hub timeout). */
 export async function previewDataSource(
-  networkId: string,
   serverId: string,
   req: PreviewRequest,
 ): Promise<PreviewResult> {
   try {
-    const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/data-sources/preview`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req),
-      },
+    const body = await apiFetch<{ rows?: Record<string, unknown>[]; truncated?: boolean }>(
+      `/api/v1/servers/${serverId}/data-sources/preview`,
+      { method: "POST", json: req },
     );
-    const body = (await res.json().catch(() => null)) as {
-      rows?: Record<string, unknown>[];
-      truncated?: boolean;
-      error?: string;
-      message?: string | null;
-    } | null;
-    if (res.ok) return { ok: true, rows: body?.rows ?? [], truncated: body?.truncated ?? false };
-    const known: PreviewErrorCode[] = [
-      "server_offline",
-      "fetch_timeout",
-      "unknown_source",
-      "player_required",
-      "fetch_error",
-    ];
-    const error = known.includes(body?.error as PreviewErrorCode)
-      ? (body?.error as PreviewErrorCode)
-      : "fetch_error";
-    return { ok: false, error, message: body?.message ?? null };
-  } catch {
-    return { ok: false, error: "network_error", message: null };
+    return { ok: true, rows: body.rows ?? [], truncated: body.truncated ?? false };
+  } catch (error) {
+    const failure = ApiError.from(error);
+    if (failure.status === 0) return { ok: false, error: "network_error", message: null };
+    const known = KNOWN_PREVIEW_ERRORS.find((code) => code === failure.code);
+    return { ok: false, error: known ?? "fetch_error", message: failure.detail ?? null };
   }
 }
 
@@ -124,16 +118,12 @@ export async function previewDataSource(
  * §4): model/v1 documents, verbatim. [] on any failure.
  */
 export async function fetchServerDeclaredModels(
-  networkId: string,
   serverId: string,
 ): Promise<Record<string, unknown>[]> {
   try {
-    const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/models`,
-      { credentials: "include" },
+    const data = await apiFetch<{ models?: Record<string, unknown>[] }>(
+      `/api/v1/servers/${serverId}/models`,
     );
-    if (!res.ok) return [];
-    const data = (await res.json()) as { models?: Record<string, unknown>[] };
     return data.models ?? [];
   } catch {
     return [];

@@ -3,6 +3,18 @@ import { renameProject } from "./projectIdentity";
 
 afterEach(() => vi.unstubAllGlobals());
 
+it("stops retrying when the server cannot rename", async () => {
+  for (const error of ["server_offline", "plugin_update_required", "unknown_project"]) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ error }), { status: 503 })),
+    );
+    await expect(
+      renameProject("shop", { operationId: "operation", targetId: "store" }),
+    ).rejects.toMatchObject({ message: error, terminal: true });
+  }
+});
+
 it("classifies reserved names as a terminal rejection", async () => {
   vi.stubGlobal(
     "fetch",

@@ -1,20 +1,20 @@
 import type { I18nKey, Step } from "@/domain/types";
 import { parseToSteps } from "@/lib/actionDsl";
 import {
+  type ActionTextCodec,
   stepsToStructured,
   structuredToSteps,
-  type ActionTextCodec,
 } from "@/lib/actions/structuredSteps";
 
 /**
- * Wire des chaînes d'actions d'un champ **`actions`** de data source (et du
- * widget module-data). Depuis l'ADR `structured-action-wire` la valeur est un
- * **arbre de steps keyed** (comme les click-handlers de document), plus une
- * string DSL.
+ * Wire for the action chains of a data source **`actions`** field (and of the
+ * module-data widget). Since ADR `structured-action-wire` the value is a
+ * **tree of keyed steps** (like document click handlers), no longer a DSL
+ * string.
  *
- * Le texte y est **littéral** : pas de clés i18n, le littéral vit dans le
- * `LText.key` du domaine. Un ancien fichier portant une **string DSL** reste lu
- * (et ré-écrit structuré au prochain save).
+ * Text there is **literal**: no i18n keys, the literal lives in the domain's
+ * `LText.key`. An old file holding a **DSL string** is still read (and
+ * rewritten structured on the next save).
  */
 
 const literalCodec: ActionTextCodec = {
@@ -22,7 +22,7 @@ const literalCodec: ActionTextCodec = {
   fromWire: (raw) => ({ key: (typeof raw === "string" ? raw : "") as I18nKey }),
 };
 
-/** Domain steps → wire value (arbre de steps keyed, texte littéral). */
+/** Domain steps → wire value (tree of keyed steps, literal text). */
 export function stepsToWire(steps: Step[]): unknown[] {
   return stepsToStructured(steps, literalCodec);
 }

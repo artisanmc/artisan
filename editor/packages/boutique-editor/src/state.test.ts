@@ -73,6 +73,9 @@ describe("exportBoutiqueFiles", () => {
     };
     const files = exportBoutiqueFiles({ moduleData: { boutique: state } });
     expect(files["boutique/promo.yaml"]).toBe("x: 1");
-    expect(parseShopYaml(files["boutique/shop.yaml"]!)).toEqual({ wholeShopDiscount: 0, categories: [] });
+    expect(parseShopYaml(files["boutique/shop.yaml"]!)).toEqual({
+      wholeShopDiscount: 0,
+      categories: [],
+    });
   });
 });

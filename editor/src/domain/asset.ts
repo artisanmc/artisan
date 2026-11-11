@@ -1,8 +1,15 @@
+import { localAssetPreviewUrl } from "@/features/assets/localAssetUrl";
+
 export type AssetType = "texture" | "glyph" | "font";
 export type AssetId = string;
 export type AssetUsage = "button" | "menu";
 /** Container textures moved to the server config (ADR `server-config-from-editor`). */
-type LegacyAssetUsage = "background" | "decoration" | "chest_texture" | "hopper_texture" | "dispenser_texture";
+type LegacyAssetUsage =
+  | "background"
+  | "decoration"
+  | "chest_texture"
+  | "hopper_texture"
+  | "dispenser_texture";
 
 export interface FontMeta {
   namespace: string;
@@ -12,10 +19,8 @@ export interface FontMeta {
     ascent: number;
     height: number;
     /**
-     * Pixel width of the glyph PNG. Written by the backend's mcFontsParser
-     * (read from the PNG header) and consumed by the canvas renderer to
-     * advance the cursor between glyphs. Required: present on every glyph
-     * the backend emits since SP4 Task 3.
+     * Pixel width of the glyph PNG (read from the PNG header), consumed by the
+     * canvas renderer to advance the cursor between glyphs.
      */
     width: number;
   }>;
@@ -39,9 +44,7 @@ export interface Asset {
   updatedAt: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
-
 /** URL to fetch the raw PNG of an asset for preview. */
 export function assetPreviewUrl(asset: Asset): string {
-  return `${API_URL}/api/v1/textures/asset/${asset.projectId}/${asset.id}?h=${asset.contentHash}${asset.draftId ? `&draftId=${encodeURIComponent(asset.draftId)}` : ""}`;
+  return localAssetPreviewUrl(asset);
 }

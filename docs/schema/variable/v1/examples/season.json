@@ -1,0 +1,6 @@
+{
+  "schema": "variable/v1",
+  "scope": "server",
+  "type": "string",
+  "default": "spring"
+}

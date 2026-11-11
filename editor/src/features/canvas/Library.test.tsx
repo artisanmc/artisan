@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import type { CustomItemsData, LibraryData } from "@/domain/library";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Library } from "./Library";
 import { useTextureStore } from "./textureStore";
-import type { LibraryData, CustomItemsData } from "@/domain/library";
 
 vi.mock("@/state/uiStore", () => ({
   useUiStore: (sel: (s: { armedMaterial: null; setArmedMaterial: () => void }) => unknown) =>
@@ -16,16 +16,25 @@ vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
     getTotalSize: () => count * estimateSize(),
     getVirtualItems: () =>
-      Array.from({ length: count }, (_, i) => ({ index: i, start: i * estimateSize(), size: estimateSize() })),
+      Array.from({ length: count }, (_, i) => ({
+        index: i,
+        start: i * estimateSize(),
+        size: estimateSize(),
+      })),
   }),
 }));
 
 const MOCK_DATA: LibraryData = {
   version: "1.21.4",
   items: [
-    { id: "diamond_sword", label: "Diamond Sword", category: "combat", texture: "item/diamond_sword" },
-    { id: "stone",         label: "Stone",         category: "misc",   texture: "item/stone" },
-    { id: "bread",         label: "Bread",         category: "food",   texture: "item/bread" },
+    {
+      id: "diamond_sword",
+      label: "Diamond Sword",
+      category: "combat",
+      texture: "item/diamond_sword",
+    },
+    { id: "stone", label: "Stone", category: "misc", texture: "item/stone" },
+    { id: "bread", label: "Bread", category: "food", texture: "item/bread" },
   ],
 };
 
@@ -57,7 +66,9 @@ describe("Library", () => {
 
   it("filters by search query", () => {
     render(<Library />);
-    fireEvent.change(screen.getByPlaceholderText(/search|recherche/i), { target: { value: "diamond" } });
+    fireEvent.change(screen.getByPlaceholderText(/search|recherche/i), {
+      target: { value: "diamond" },
+    });
     expect(screen.getByTitle("Diamond Sword")).toBeTruthy();
     expect(screen.queryByTitle("Stone")).toBeNull();
   });

@@ -1,11 +1,11 @@
-import { useCallback } from "react";
-import type Konva from "konva";
 import type { ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
-import { alignmentGuides, type Box } from "./alignmentGuides";
-import { nodeBox } from "./menuLayout";
+import { useProjectsStore } from "@/state/projectsStore";
+import type Konva from "konva";
+import { useCallback } from "react";
+import { type Box, alignmentGuides } from "./alignmentGuides";
 import { autoLayout } from "./autoLayout";
+import { nodeBox } from "./menuLayout";
 
 const THRESHOLD = 8;
 
@@ -20,7 +20,7 @@ export function computeAndApplyAlignment(
     align.clear();
     return;
   }
-  const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+  const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
   if (!project) return;
   const layout = autoLayout(project);
   const selfBox = nodeBox(project, selfId, layout);

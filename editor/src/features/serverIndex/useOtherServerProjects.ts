@@ -1,16 +1,16 @@
 import { projectNamespace } from "@/domain/docRef";
 import type { Project } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useMemo } from "react";
 import { useServerIndexStore } from "./serverIndexStore";
 
 /**
- * Les autres projects du serveur (état publié, index serveur), sans le project
- * édité : lui se lit en direct dans le compte, jamais en double.
+ * The server's other projects (published state, server index), without the
+ * edited project: that one is read live from the projects store, never twice.
  */
 export function useOtherServerProjects(projectId: string): Project[] {
-  const namespace = useAccountStore((s) => {
-    const edited = s.account.projects.find((p) => p.id === projectId);
+  const namespace = useProjectsStore((s) => {
+    const edited = s.openProjects.projects.find((p) => p.id === projectId);
     return edited ? projectNamespace(edited) : projectId;
   });
   const projects = useServerIndexStore((s) => s.projects);

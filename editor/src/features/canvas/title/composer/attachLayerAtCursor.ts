@@ -1,3 +1,4 @@
+import { docKey, menusOf } from "@/domain/documents";
 import type { MenuId, Project } from "@/domain/types";
 import { autoLayout } from "../../autoLayout";
 import { TEX_SCALE, TEX_TITLE_H, menuBoxSize } from "../../menuLayout";
@@ -37,8 +38,8 @@ export function attachLayerAtCursor(
 
   const layout = autoLayout(project);
   const bounds: MenuBounds[] = [];
-  for (const menu of project.menus) {
-    const pos = layout[menu.id];
+  for (const menu of menusOf(project)) {
+    const pos = layout[docKey("menu", menu.id)];
     if (!pos) continue;
     const box = menuBoxSize(menu.inventoryType ?? "chest", menu.rows);
     bounds.push({

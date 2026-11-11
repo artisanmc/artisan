@@ -25,12 +25,7 @@ export interface ExportZipResult {
  * is a snapshot of what the server actually runs. Unsaved edits are not in it,
  * for the same reason they are not in the game.
  */
-export async function runExportZip(
-  project: Project,
-  hasUser: boolean,
-  _networkId?: string,
-  _serverId?: string,
-): Promise<ExportZipResult> {
+export async function runExportZip(project: Project, hasUser: boolean): Promise<ExportZipResult> {
   if (!hasUser) return { ok: false, error: "not_signed_in" };
   try {
     const diskId = project.diskId ?? project.id;
@@ -40,12 +35,12 @@ export async function runExportZip(
       return { ok: false, error: disk.error === "server_offline" ? "server_offline" : "transport" };
     }
     if (disk.unchanged) {
-      // On n'annonce aucune empreinte ici : le serveur n'a rien à comparer, donc
-      // ce cas n'arrive pas. Plutôt que de forcer la main au compilateur, on
-      // échoue franchement — un zip vide serait pire qu'un export refusé.
+      // No fingerprint is announced here: the server has nothing to compare, so
+      // this case does not happen. Rather than forcing the compiler's hand, fail
+      // openly — an empty zip would be worse than a refused export.
       return { ok: false, error: "transport" };
     }
-    // buildZip attend les chemins canoniques que produisait le store backend.
+    // buildZip expects the canonical project paths.
     const canonical: Record<string, string | Uint8Array> = {};
     for (const [rel, content] of Object.entries(disk.files)) {
       canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
@@ -63,9 +58,9 @@ export async function runExportZip(
 }
 
 /**
- * Exporte le **brouillon courant** : ce que l'éditeur montre, images modifiées
- * comprises. C'est l'export de la démo (ADR `server-only-projects`) : elle ne
- * publie rien, son travail vit tout entier dans son brouillon.
+ * Exports the **current draft**: what the editor shows, modified images
+ * included. This is the demo's export (ADR `server-only-projects`): it
+ * publishes nothing, all its work lives in its draft.
  */
 export async function runExportDraftZip(project: Project): Promise<ExportZipResult> {
   try {

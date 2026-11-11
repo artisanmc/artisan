@@ -1,6 +1,7 @@
+import { menusOf } from "@/domain/documents";
 import type { ElementId, MenuId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { act, render, renderHook, screen } from "@testing-library/react";
@@ -31,38 +32,40 @@ beforeEach(() => {
     i18nKeys: {},
     assets: [],
     dataSources: [],
-    menus: [
-      {
-        id: menuId,
-        rows: 3,
-        layers: [
-          {
-            id: "l",
-            elements: [
-              {
-                id: elementId,
-                positions: "",
-                display: { material: "{entry.material}" },
-                states: [],
-                places: {
-                  source: "stock",
-                  alias: "entry",
-                  keyField: "id",
-                  placements: [
-                    { key: "a", page: 1, position: 0, cachedDisplay: { material: "STONE" } },
-                    { key: "b", page: 1, position: 4 },
-                    { key: "c", page: 0, position: 0 },
-                  ],
+    documents: {
+      menu: [
+        {
+          id: menuId,
+          rows: 3,
+          layers: [
+            {
+              id: "l",
+              elements: [
+                {
+                  id: elementId,
+                  positions: "",
+                  display: { material: "{entry.material}" },
+                  states: [],
+                  places: {
+                    source: "stock",
+                    alias: "entry",
+                    keyField: "id",
+                    placements: [
+                      { key: "a", page: 1, position: 0, cachedDisplay: { material: "STONE" } },
+                      { key: "b", page: 1, position: 4 },
+                      { key: "c", page: 0, position: 0 },
+                    ],
+                  },
                 },
-              },
-            ],
-          },
-        ],
-      },
-    ],
+              ],
+            },
+          ],
+        },
+      ],
+    },
   } as unknown as Project;
-  useAccountStore.setState({
-    account: { id: "acc" as never, projects: [project], projectOrder: [projectId] },
+  useProjectsStore.setState({
+    openProjects: { projects: [project], projectOrder: [projectId] },
   });
   usePaginationStore.setState({ pageByElement: { [elementId]: 1 } });
   useSelectionStore.getState().clear();
@@ -78,9 +81,9 @@ it.each(["paste", "move", "duplicate", "selection"])(
       display: { material: "STONE" },
       states: [],
     };
-    project.menus[0]!.layers[0]!.elements.push(ordinary);
-    const before = structuredClone(project.menus[0]!.layers[0]!.elements[0]);
-    const store = useAccountStore.getState();
+    menusOf(project)[0]!.layers[0]!.elements.push(ordinary);
+    const before = structuredClone(menusOf(project)[0]!.layers[0]!.elements[0]);
+    const store = useProjectsStore.getState();
     const target = { projectId, menuId, elementId: ordinary.id };
     if (operation === "paste")
       store.addElement({ projectId, menuId, element: { ...ordinary, positions: "7" } });
@@ -95,7 +98,8 @@ it.each(["paste", "move", "duplicate", "selection"])(
         dCol: -1,
         dRow: 0,
       });
-    const elements = useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements;
+    const elements = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!
+      .elements;
     expect(elements.find((el) => el.id === elementId)).toEqual(before);
     expect(elements.some((el) => el.positions.includes("7"))).toBe(true);
   },
@@ -105,7 +109,7 @@ it("resolves tray thumbnails with the placement alias", () => {
   render(
     <PlacementTray
       project={project}
-      menu={project.menus[0]!}
+      menu={menusOf(project)[0]!}
       scope={{ stock: [{ id: "new", material: "DIAMOND" }] }}
       boxWidth={352}
       boxHeight={200}
@@ -121,7 +125,7 @@ it.each([
   { altKey: false, outside: false, contextual: true },
 ])("edits only the dragged placement: %j", ({ altKey, outside, contextual }) => {
   if (contextual) {
-    const el = project.menus[0]!.layers[0]!.elements[0]!;
+    const el = menusOf(project)[0]!.layers[0]!.elements[0]!;
     el.places!.placements.unshift({ key: "hidden", page: 1, position: 0 });
     useUiStore.setState({ menuPreviewArgs: { [menuId]: { stock: [{ id: "a" }] } } });
   }
@@ -130,9 +134,10 @@ it.each([
       projectId,
       menuId,
       position: { x: 0, y: 0 },
-      layout: { [menuId]: { x: 0, y: 0 } },
-      menuLayers: project.menus[0]!.layers,
+      layout: { [`menu/${menuId}`]: { x: 0, y: 0 } },
+      menuLayers: menusOf(project)[0]!.layers,
       inventoryType: "chest",
+      menuRows: menusOf(project)[0]!.rows,
     }),
   );
   const target = outside ? { x: -100, y: -100 } : slotXY(1, "chest");
@@ -148,7 +153,8 @@ it.each([
   } as unknown as Konva.KonvaEventObject<DragEvent>;
   act(() => result.current.onSlotDragStart(event, 0, elementId));
   act(() => result.current.onSlotDragEnd(event, 0, elementId));
-  const elements = useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements;
+  const elements = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!
+    .elements;
   expect(elements).toHaveLength(1);
   expect(elements[0]!.places!.placements).toEqual([
     ...(contextual ? [{ key: "hidden", page: 1, position: 0 }] : []),

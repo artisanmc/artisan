@@ -1,1 +1,0 @@
-ALTER TABLE "network_billing" ADD COLUMN "paid_editor_pro" boolean DEFAULT false NOT NULL;

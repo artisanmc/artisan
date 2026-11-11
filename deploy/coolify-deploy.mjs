@@ -3,12 +3,9 @@ import { pathToFileURL } from "node:url";
 const REQUIRED_ENV_KEYS = [
   "COOLIFY_BASE_URL",
   "COOLIFY_API_TOKEN",
-  "COOLIFY_BACKEND_UUID",
   "COOLIFY_EDITOR_UUID",
   "CF_ACCESS_CLIENT_ID",
   "CF_ACCESS_CLIENT_SECRET",
-  "API_HEALTH_URL",
-  "EDITOR_HEALTH_URL",
   "MARKETING_HEALTH_URL",
   "EXPECTED_SHA",
 ];
@@ -113,16 +110,11 @@ export async function deployProduction(deps, env) {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   }
 
+  // A single resource: the artisanmc.net showcase (landing + wiki), built by editor/Dockerfile.
   const { fetchImpl, sleep = defaultSleep } = deps;
-  await pinApplicationRevision(fetchImpl, env, env.COOLIFY_BACKEND_UUID);
-  const backendDeployment = await triggerDeployment(fetchImpl, env, env.COOLIFY_BACKEND_UUID);
-  await waitForDeployment(fetchImpl, env, backendDeployment, sleep);
-  await waitForHealth(fetchImpl, env.API_HEALTH_URL, sleep);
-
   await pinApplicationRevision(fetchImpl, env, env.COOLIFY_EDITOR_UUID);
-  const editorDeployment = await triggerDeployment(fetchImpl, env, env.COOLIFY_EDITOR_UUID);
-  await waitForDeployment(fetchImpl, env, editorDeployment, sleep);
-  await waitForHealth(fetchImpl, env.EDITOR_HEALTH_URL, sleep);
+  const deployment = await triggerDeployment(fetchImpl, env, env.COOLIFY_EDITOR_UUID);
+  await waitForDeployment(fetchImpl, env, deployment, sleep);
   await waitForHealth(fetchImpl, env.MARKETING_HEALTH_URL, sleep);
 }
 

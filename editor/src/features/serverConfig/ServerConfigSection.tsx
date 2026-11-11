@@ -1,21 +1,22 @@
+import { invalidateServerPalette } from "@/components/minimessage/usePaletteLibrary";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import type { ProjectSummary } from "@/lib/api/networks";
-import {
-  type ServerConfig,
-  ServerConfigError,
-  getServerConfig,
-  patchServerConfig,
-} from "@/lib/api/serverConfig";
+import { rebuildServerPackInBackground } from "@/features/project/resourcePackSync";
+import { ApiError } from "@/lib/api/client";
+import { type ServerConfig, getServerConfig, patchServerConfig } from "@/lib/api/serverConfig";
+import type { ProjectSummary } from "@/lib/api/servers";
 import { listAssets } from "@/lib/api/userAssets";
+import { SERVER_PALETTE_KEYS, serverPaletteEntries, serverPaletteForm } from "@/lib/mm/palettes";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { TextPaletteFields } from "./TextPaletteFields";
 
 const TEXTURES = "resource-pack.container-textures.";
-const SOURCE_FIELD = /^assistant\.import-sources\.([^.]+)\.([^.]+)$/;
+const PALETTE = "text-palette.";
+const INVENTORY_LABEL = "resource-pack.hide-inventory-label";
 
-/** Vanilla container layout: square, 256 px or an HD multiple (cf. backend vanillaGui.ts). */
+/** Vanilla container layout: square, 256 px or an HD multiple. */
 const containerLayout = (w: number, h: number) => w === h && w >= 256 && w % 256 === 0;
 
 /**
@@ -24,11 +25,9 @@ const containerLayout = (w: number, h: number) => w === h && w >= 256 && w % 256
  * only sends the keys that changed.
  */
 export function ServerConfigSection({
-  networkId,
   serverKeyId,
   projects,
 }: {
-  networkId: string;
   serverKeyId: string;
   projects: ProjectSummary[];
 }) {
@@ -41,13 +40,13 @@ export function ServerConfigSection({
 
   useEffect(() => {
     let cancelled = false;
-    getServerConfig(networkId, serverKeyId)
+    getServerConfig(serverKeyId)
       .then((res) => !cancelled && setConfig(res.config))
       .catch(() => !cancelled && setConfig(null));
     return () => {
       cancelled = true;
     };
-  }, [networkId, serverKeyId]);
+  }, [serverKeyId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,12 +79,7 @@ export function ServerConfigSection({
       return JSON.stringify(next) === JSON.stringify(config[key]) ? rest : { ...rest, [key]: next };
     });
   };
-  const label = (key: string) => {
-    const source = SOURCE_FIELD.exec(key);
-    if (source)
-      return `${source[1]} · ${t(`serverConfig.sourceFields.${source[2]}`, { defaultValue: source[2] })}`;
-    return t(`serverConfig.fields.${key}`, { defaultValue: key });
-  };
+  const label = (key: string) => t(`serverConfig.fields.${key}`, { defaultValue: key });
   /** `"<key>: <code>"` from the plugin → "<label> : <explanation>". */
   const refusal = (detail: string) => {
     const [key, code] = detail.split(": ");
@@ -100,13 +94,15 @@ export function ServerConfigSection({
   const save = async () => {
     setSaving(true);
     try {
-      setConfig(await patchServerConfig(networkId, serverKeyId, changes));
+      setConfig(await patchServerConfig(serverKeyId, changes));
       setChanges({});
+      if (Object.keys(changes).some((key) => key.startsWith(PALETTE))) invalidateServerPalette();
+      // Changing container textures or the inventory label requires rebuilding the pack.
+      if (Object.keys(changes).some((key) => key.startsWith(TEXTURES) || key === INVENTORY_LABEL))
+        rebuildServerPackInBackground(t, serverKeyId);
     } catch (e) {
       setError(
-        e instanceof ServerConfigError && e.detail
-          ? refusal(e.detail)
-          : t("serverConfig.saveFailed"),
+        e instanceof ApiError && e.detail ? refusal(e.detail) : t("serverConfig.saveFailed"),
       );
     } finally {
       setSaving(false);
@@ -192,34 +188,105 @@ export function ServerConfigSection({
     ["textures", keys.filter((k) => k.startsWith(TEXTURES))],
     ["resourcePack", keys.filter((k) => k.startsWith("resource-pack.") && !k.startsWith(TEXTURES))],
     ["editor", keys.filter((k) => k.startsWith("editor."))],
-    ["assistant", keys.filter((k) => k.startsWith("assistant."))],
+    ["palette", keys.filter((k) => k.startsWith(PALETTE))],
   ];
   const grouped = new Set(groups.flatMap(([, ks]) => ks));
   groups.push(["other", keys.filter((k) => !grouped.has(k))]);
 
+  const shown = groups.filter(([, ks]) => ks.length > 0);
+  const pending = Object.keys(changes).length;
+
   return (
-    <div className="flex flex-col gap-6">
-      {groups
-        .filter(([, ks]) => ks.length > 0)
-        .map(([group, ks]) => (
-          <div key={group} className="card flex flex-col gap-3 p-4">
-            <h3 className="text-[14px] font-semibold text-[var(--text)]">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:items-start">
+      <nav
+        className="flex gap-1 overflow-x-auto lg:sticky lg:top-0 lg:flex-col"
+        aria-label={t("serverConfig.title")}
+      >
+        {shown.map(([group]) => (
+          <button
+            key={group}
+            type="button"
+            className="btn btn-ghost btn-sm shrink-0 justify-start"
+            onClick={() =>
+              document
+                .getElementById(groupAnchor(group))
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+          >
+            {t(`serverConfig.groups.${group}`)}
+          </button>
+        ))}
+      </nav>
+      <div className="flex min-w-0 flex-col gap-4">
+        {shown.map(([group, ks]) => (
+          <section
+            key={group}
+            id={groupAnchor(group)}
+            className="card flex scroll-mt-4 flex-col gap-3 p-5"
+          >
+            <h3 className="text-[15px] font-semibold text-[var(--text)]">
               {t(`serverConfig.groups.${group}`)}
             </h3>
-            {ks.map(field)}
-          </div>
+            {group === "textures" && (
+              <p className="-mt-1 text-[12px] text-[var(--text-mut)]">
+                {t("serverConfig.groupHints.textures")}
+              </p>
+            )}
+            {group === "palette" && (
+              <p className="-mt-1 text-[12px] text-[var(--text-mut)]">
+                {t("serverConfig.groupHints.palette")}
+              </p>
+            )}
+            {group === "palette" ? (
+              <TextPaletteFields
+                value={serverPaletteForm({
+                  [SERVER_PALETTE_KEYS.colors]: value(SERVER_PALETTE_KEYS.colors),
+                  [SERVER_PALETTE_KEYS.gradients]: value(SERVER_PALETTE_KEYS.gradients),
+                })}
+                onChange={(next) => {
+                  const entries = serverPaletteEntries(next.swatches, next.gradients);
+                  set(SERVER_PALETTE_KEYS.colors, entries.colors);
+                  set(SERVER_PALETTE_KEYS.gradients, entries.gradients);
+                }}
+              />
+            ) : (
+              ks.map(field)
+            )}
+          </section>
         ))}
-      <div className="flex items-center justify-end gap-3">
-        {error && <p className="text-[12px] text-[var(--danger)]">{error}</p>}
-        <button
-          type="button"
-          className="btn-primary btn-sm"
-          disabled={saving || Object.keys(changes).length === 0}
-          onClick={save}
-        >
-          {t("serverConfig.save")}
-        </button>
+        {(pending > 0 || error) && (
+          <div className="sticky bottom-4 flex flex-wrap items-center gap-3 rounded-[var(--r-md)] border border-[var(--brand-line)] bg-[var(--surface-raised)] px-4 py-3 shadow-lg">
+            <span className="flex-1 text-[13px] text-[var(--text)]">
+              {error ? (
+                <span className="text-[var(--danger)]">{error}</span>
+              ) : (
+                t("serverConfig.pending", { count: pending })
+              )}
+            </span>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={saving || pending === 0}
+              onClick={() => {
+                setChanges({});
+                setError(null);
+              }}
+            >
+              {t("serverConfig.discard")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={saving || pending === 0}
+              onClick={save}
+            >
+              {t("serverConfig.save")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+const groupAnchor = (group: string) => `server-config-${group}`;

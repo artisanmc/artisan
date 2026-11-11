@@ -16,7 +16,7 @@ export interface InventoryGeometry {
   boxHeight: number | null;
   /** MC-pixel y of the first player inventory row's outer cell. `null` = after the chest rows. */
   playerInvY: number | null;
-  /** Editor background texture key (resolved to a URL via TEXTURE_URLS in menuLayout, added later). */
+  /** Editor background texture key (resolved to a URL via TEXTURE_URLS in menuLayout). */
   textureKey: "generic_54" | "hopper" | "dispenser";
   /** Bukkit InventoryType name used by the plugin. */
   bukkitType: "CHEST" | "HOPPER" | "DROPPER";

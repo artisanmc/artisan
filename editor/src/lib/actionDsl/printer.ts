@@ -87,6 +87,10 @@ function printAction(a: DslAction): string {
       return `cycle ${a.arg} in ${a.list}`;
     case "set_arg_cycle_prev":
       return `cycle prev ${a.arg} in ${a.list}`;
+    case "module":
+      // The DSL (read-only since ADR structured-action-wire) has no syntax for a
+      // module's action: printed as its wire, for reading only.
+      return a.value == null ? a.name : `${a.name} ${JSON.stringify(a.value)}`;
     default: {
       const _exhaustive: never = a;
       return _exhaustive;
@@ -108,7 +112,7 @@ function menuTail(clear: boolean | undefined, context: Record<string, string> | 
   return s;
 }
 
-// ── conditions ───────────────────────────────────────────────────────────────
+// Conditions
 
 function printFlat(conditions: Condition[], joins: ("and" | "or")[] | undefined): string {
   let out = printAtom(conditions[0]!);
@@ -137,12 +141,18 @@ function printAtom(c: Condition): string {
       return `has_level(${c.level})`;
     case "world_is":
       return `world_is(${arg(c.world)})`;
+    case "client_is":
+      return `client_is(${arg(c.client)})`;
+    case "has_resource_pack":
+      return "has_resource_pack";
     case "random_chance":
       return `random_chance(${num(c.probability)})`;
     case "cooldown_passed":
       return `cooldown_passed(${arg(c.cooldown_id)})`;
     case "player_in_region":
       return `player_in_region(${arg(c.region)})`;
+    case "has_var":
+      return `has_var(${arg(c.var)})`;
     case "time_is":
       return `time_is(${typeof c.range === "string" ? c.range : `${c.range.from_ticks}-${c.range.to_ticks}`})`;
     case "pagination_at_first":

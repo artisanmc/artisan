@@ -18,23 +18,67 @@ export function findKeyUsages(project: Project): Map<I18nKey, string> {
 }
 
 const UNUSED_CONTEXT = "(unused)";
+/** Context of a key read outside the documents: an add-on's code, a `{i18n:key}`, an admin. */
+const OUTSIDE_CONTEXT = "(lang/ only)";
+
+/**
+ * Roots of the addresses the editor derives from a position (`lib/i18nKeys.ts`,
+ * `visitDataSourceLTexts`), plus the keys it mints (`newI18nKey`). Only these
+ * can be proven unused: a key elsewhere in `lang/` (`auctions.messages.*`, a
+ * `MessageBundle` moved to the module's folder, `artisan.duration.*`, an admin's
+ * `common.*`) is read by code the editor does not see.
+ */
+const SITE_ROOTS = new Set(["menus", "commands", "dialogs", "sources"]);
+const MINTED_KEY = /^lt_[a-z0-9_]+$/;
+
+/** Every `{i18n:key}` and `@key` written anywhere in the project: in a text, a data row, a module's state. */
+function textReferencedKeys(project: Project): Set<string> {
+  const out = new Set<string>();
+  const json = JSON.stringify(project);
+  for (const m of json.matchAll(/\{i18n:([^}"]+)\}/g)) out.add(m[1]!.trim());
+  for (const m of json.matchAll(/@([A-Za-z0-9_][A-Za-z0-9_.-]*)/g))
+    out.add(m[1]!.replace(/\.+$/, ""));
+  return out;
+}
+
+/**
+ * Whether the editor owns `key`'s address, so that no site holding it proves it
+ * stale. A data source's keys count only once the source is gone: its rows
+ * yield no site while their model is not declared yet (server offline, add-on
+ * not loaded).
+ */
+function isEditorAddress(project: Project, key: string): boolean {
+  if (MINTED_KEY.test(key)) return true;
+  const [root, second] = key.split(".");
+  if (!root || !SITE_ROOTS.has(root)) return false;
+  if (root !== "sources") return true;
+  return !(project.dataSources ?? []).some((ds) => String(ds.id).toLowerCase() === second);
+}
 
 /**
  * All i18n keys present in the project's translation map that no longer have a
- * reference anywhere in the tree (menus, commands, templates, dialogs). These
- * are stale leftovers from deleted elements / re-imports — safe to drop. Used
- * by the Translations panel's "remove unused" cleanup.
+ * reference anywhere in the tree (menus, commands, templates, dialogs) and that
+ * sit at an address the editor owns: stale leftovers from deleted elements /
+ * re-imports, safe to drop. A key no site holds but that something else may
+ * read is never one of them. Used by the Translations panel's "remove unused"
+ * cleanup.
  */
 export function findUnusedI18nKeys(project: Project): I18nKey[] {
   const used = findKeyUsages(project);
-  return (Object.keys(project.i18nKeys) as I18nKey[]).filter((key) => !used.has(key));
+  const unused = (Object.keys(project.i18nKeys) as I18nKey[]).filter(
+    (key) => !used.has(key) && isEditorAddress(project, key),
+  );
+  if (unused.length === 0) return unused;
+  const referenced = textReferencedKeys(project);
+  return unused.filter((key) => !referenced.has(key));
 }
 
 /**
  * Build the list of rows for the Translations panel. Each row has
  *   - the LText key
- *   - the dotted-path context (or "(unused)" if the key is orphaned —
- *     can happen with imports or stale entries that the GC missed)
+ *   - the dotted-path context, "(unused)" if the key is orphaned (stale
+ *     entries the GC missed, cf. {@link findUnusedI18nKeys}), or
+ *     "(lang/ only)" if no document holds it but something else may read it
  *   - the source value (defaultLang) — empty if missing
  *   - the target value (activeLang) — empty if missing
  *
@@ -71,9 +115,28 @@ export function validActiveLang(project: Project, activeLang: string): string {
 }
 
 /**
+ * A text with no word of its own: only placeholders and expressions (`{r.name}`,
+ * `{i18n:key}`), MiniMessage tags, legacy codes, digits and symbols. It reads the same
+ * in every language, so it has nothing to translate. Words inside an expression
+ * (`{x ? "Yes" : "No"}`) are not looked at.
+ */
+export function isLanguageNeutral(text: string): boolean {
+  let rest = text;
+  let previous: string;
+  do {
+    previous = rest;
+    rest = rest.replace(/\{[^{}]*\}/g, "");
+  } while (rest !== previous);
+  rest = rest.replace(/<[^<>]*>/g, "").replace(/[§&][0-9a-fk-or]/gi, "");
+  return !/\p{L}/u.test(rest);
+}
+
+/**
  * A translation is missing only when the source has content and a secondary
  * language has no content. An explicitly empty source is a valid intentional
- * blank (for example an item title or lore that should not render).
+ * blank (for example an item title or lore that should not render), and a
+ * language-neutral source ({@link isLanguageNeutral}) needs no translation: the
+ * fallback shows the same text.
  */
 export function isTranslationMissing(
   defaultLang: string,
@@ -81,7 +144,12 @@ export function isTranslationMissing(
   source: string | undefined,
   target: string | undefined,
 ): boolean {
-  return lang !== defaultLang && Boolean(source?.trim()) && !target?.trim();
+  return (
+    lang !== defaultLang &&
+    Boolean(source?.trim()) &&
+    !target?.trim() &&
+    !isLanguageNeutral(source ?? "")
+  );
 }
 
 /**
@@ -129,25 +197,28 @@ export function countMissingForLang(project: Project, lang: string): number {
 
 export function buildTranslationRows(project: Project, activeLang: string): TranslationRow[] {
   const usages = findKeyUsages(project);
+  const unused = new Set<string>(findUnusedI18nKeys(project));
   const rows: TranslationRow[] = [];
   for (const [key, entry] of Object.entries(project.i18nKeys)) {
     if (!entry) continue;
     rows.push({
       key: key as I18nKey,
-      context: usages.get(key as I18nKey) ?? UNUSED_CONTEXT,
+      context: usages.get(key as I18nKey) ?? (unused.has(key) ? UNUSED_CONTEXT : OUTSIDE_CONTEXT),
       source: entry[project.defaultLang] ?? "",
       target: entry[activeLang] ?? "",
     });
   }
   // Sort by context so related strings sit together — much easier to skim and
-  // to translate consistently (titles next to their lore, etc.). Orphaned
-  // "(unused)" keys go last: otherwise "(" sorts before letters and stale
-  // entries dominate the top of the list, reading as "everything is unused".
+  // to translate consistently (titles next to their lore, etc.). Keys without
+  // a site go after them, by key so a module's messages stay together, and
+  // orphaned "(unused)" keys last: otherwise "(" sorts before letters and
+  // stale entries dominate the top of the list.
+  const rank = (r: TranslationRow) =>
+    r.context === UNUSED_CONTEXT ? 2 : r.context === OUTSIDE_CONTEXT ? 1 : 0;
   rows.sort((a, b) => {
-    const aUnused = a.context === UNUSED_CONTEXT;
-    const bUnused = b.context === UNUSED_CONTEXT;
-    if (aUnused !== bUnused) return aUnused ? 1 : -1;
-    return a.context.localeCompare(b.context);
+    const byRank = rank(a) - rank(b);
+    if (byRank !== 0) return byRank;
+    return rank(a) === 0 ? a.context.localeCompare(b.context) : a.key.localeCompare(b.key);
   });
   return rows;
 }

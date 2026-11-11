@@ -23,7 +23,7 @@ async function input(
 }
 
 describe("diffImport", () => {
-  it("classe ajouts, identiques, conflits et fichiers serveur seuls", async () => {
+  it("classifies additions, identical files, conflicts and server-only files", async () => {
     const reference: ImportReference = {
       files: { "menus/a.yaml": "same", "menus/b.yaml": "server-b", "menus/gone.yaml": "bye" },
       binaries: { "assets/keep.png": await hashMeta("keep") },
@@ -40,7 +40,7 @@ describe("diffImport", () => {
     expect(diff.serverOnly).toEqual(["menus/gone.yaml"]);
   });
 
-  it("un binaire différent est un conflit binaire, sans contenu texte", async () => {
+  it("a differing binary is a binary conflict, without text content", async () => {
     const tree = await input({}, { "assets/icon.png": "import" });
     const reference: ImportReference = {
       files: {},
@@ -59,8 +59,8 @@ describe("diffImport", () => {
   });
 });
 
-describe("resolveImport — écrasement", () => {
-  it("l'import devient l'état, les fichiers serveur seuls disparaissent", async () => {
+describe("resolveImport — overwrite", () => {
+  it("the import becomes the state, the server-only files disappear", async () => {
     const tree = await input({ "menus/a.yaml": "import-a" }, { "assets/i.png": "i" });
     const reference: ImportReference = {
       files: { "menus/a.yaml": "server-a", "menus/old.yaml": "old" },
@@ -83,7 +83,7 @@ describe("resolveImport — fusion", () => {
     },
   });
 
-  it("ajoute l'import, garde le serveur seul, et l'import gagne les conflits par défaut", async () => {
+  it("adds the import, keeps the server-only files, and the import wins conflicts by default", async () => {
     const tree = await input(
       { "menus/a.yaml": "same", "menus/b.yaml": "import-b", "menus/new.yaml": "new" },
       { "assets/same.png": "same", "assets/diff.png": "import-diff" },
@@ -100,7 +100,7 @@ describe("resolveImport — fusion", () => {
     expect(resolved.binaries["assets/same.png"]!.hash).toBe((await hashMeta("same")).hash);
   });
 
-  it("un choix « serveur » garde le contenu et l'identité du serveur", async () => {
+  it("a 'server' choice keeps the server's content and identity", async () => {
     const tree = await input({ "menus/b.yaml": "import-b" }, { "assets/diff.png": "import-diff" });
 
     const resolved = resolveImport(tree, await reference(), "merge", {
@@ -117,7 +117,7 @@ describe("resolveImport — fusion", () => {
 });
 
 describe("prepareImportTree", () => {
-  it("sépare texte et binaires et calcule l'identité des binaires", async () => {
+  it("separates text and binaries and computes the binaries' identity", async () => {
     const entries = { "menus/a.yaml": "x: 1", "assets/i.png": new Uint8Array([1, 2, 3]) };
     const tree = await prepareImportTree(entries);
     expect(tree.files).toEqual({ "menus/a.yaml": "x: 1" });

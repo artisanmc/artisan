@@ -1,12 +1,12 @@
 import type { ProjectDraft } from "./draft";
 
 /**
- * Notification de brouillon entre onglets du même navigateur.
+ * Draft notification between tabs of the same browser.
  *
- * Un onglet qui réussit une écriture prévient les autres : un onglet resté
- * ouvert sans travail local se réaligne tout seul ; un onglet avec des
- * modifications voit le conflit se présenter immédiatement au lieu d'attendre un
- * 409. Cross-appareil non couvert (il passe par le `409 draft_conflict`).
+ * A tab that completes a write tells the others: a tab left open without
+ * local work realigns on its own; a tab with changes sees the conflict right
+ * away instead of waiting for a 409. Cross-device is not covered (it goes
+ * through the `409 draft_conflict`).
  */
 export type DraftSavedMessage = {
   ownerId: string;
@@ -23,7 +23,7 @@ function getChannel(): BroadcastChannel | null {
   return channel;
 }
 
-/** Diffuse l'écriture réussie d'un brouillon (jamais un brouillon reçu). */
+/** Broadcasts a successful draft write (never a received draft). */
 export function broadcastDraftSaved(
   ownerId: string,
   projectId: string,

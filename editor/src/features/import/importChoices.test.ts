@@ -9,18 +9,18 @@ const conflicts: ImportConflict[] = [
 ];
 
 describe("importChoices", () => {
-  it("fixe le choix d'un seul fichier", () => {
+  it("sets the choice of a single file", () => {
     expect(withChoice({}, "menus/b.yaml", "server")).toEqual({ "menus/b.yaml": "server" });
   });
 
-  it("étend un choix au fichier courant et à tous les suivants", () => {
+  it("extends a choice to the current file and all following ones", () => {
     expect(withChoiceForRemaining({}, conflicts, 1, "import")).toEqual({
       "menus/b.yaml": "import",
       "menus/c.yaml": "import",
     });
   });
 
-  it("un conflit sans choix bloque l'application", () => {
+  it("a conflict without a choice blocks applying", () => {
     expect(allConflictsResolved({ "menus/a.yaml": "server" }, conflicts)).toBe(false);
     expect(
       allConflictsResolved(

@@ -8,7 +8,7 @@ export function displayServerLabel(server: {
 }): string {
   if (server.label && server.label.trim().length > 0) return server.label.trim();
   // Short recognisable fallback: "Server abc1" from the id. Row ids are
-  // "srv_<hex>" (backend auth.ts); legacy/test ids use "sk_" or bare UUIDs.
+  // "srv_<hex>"; legacy/test ids use "sk_" or bare UUIDs.
   const bare = server.id.replace(/^(srv_|sk_)/, "");
   return `Server ${bare.slice(0, 4)}`;
 }

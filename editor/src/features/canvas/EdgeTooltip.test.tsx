@@ -13,33 +13,35 @@ const project = {
   updatedAt: "",
   defaultLang: "en",
   i18nKeys: { ["k_sword" as I18nKey]: { en: "<red>Épée</red> du <bold>boss</bold>" } },
-  menus: [
-    {
-      id: "m1",
-      projectId: "p1",
-      title: [],
-      rows: 3,
-      layers: [
-        {
-          id: "l1",
-          name: "default",
-          elements: [
-            {
-              id: "el1",
-              display: { material: "DIAMOND_SWORD", title: { key: "k_sword" as I18nKey } },
-              states: [],
-            },
-          ],
-        },
-      ],
-    },
-    { id: "m2", projectId: "p1", title: [], rows: 3, layers: [] },
-  ],
-  commands: [],
+  documents: {
+    menu: [
+      {
+        id: "m1",
+        projectId: "p1",
+        title: [],
+        rows: 3,
+        layers: [
+          {
+            id: "l1",
+            name: "default",
+            elements: [
+              {
+                id: "el1",
+                display: { material: "DIAMOND_SWORD", title: { key: "k_sword" as I18nKey } },
+                states: [],
+              },
+            ],
+          },
+        ],
+      },
+      { id: "m2", projectId: "p1", title: [], rows: 3, layers: [] },
+    ],
+    command: [],
+    dialog: [],
+  },
   assets: [],
   dataSources: [],
   importedConnectors: [],
-  dialogs: [],
   canvasLayout: {},
 } as unknown as Project;
 
@@ -48,8 +50,8 @@ describe("EdgeTooltip", () => {
     useEdgeHoverStore.getState().set(
       {
         id: "m1->m2",
-        source: "m1",
-        target: "m2",
+        source: "menu/m1",
+        target: "menu/m2",
         triggers: [
           { kind: "element", elementId: "el1", material: "DIAMOND_SWORD", clickType: "left" },
         ],

@@ -43,11 +43,10 @@ describe("TopBarKebabMenu", () => {
   });
 
   /**
-   * Le panneau d'édition n'apparaît plus qu'à la sélection : les paramètres du
-   * projet, qui ne correspondent à aucune sélection, ont besoin de portes
-   * d'entrée explicites — le kebab en est une.
+   * The edit panel only appears on selection: project settings, which match no
+   * selection, need explicit entry points — the kebab is one.
    */
-  it("expose les paramètres du projet", async () => {
+  it("exposes the project settings", async () => {
     const user = userEvent.setup();
     const onOpenProjectSettings = vi.fn();
     render(<TopBarKebabMenu {...baseProps} onOpenProjectSettings={onOpenProjectSettings} />);

@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 import { imageButtonArea } from "../../../docs/schema/menu/v1/imageButtonGeometry";
 
 /**
- * Same cases as ImageButtonLayoutTest.kt (plugin) and imageButtons.test.ts
- * (backend): the three must agree on which slots form a button and where
- * its image is drawn.
+ * Same cases as ImageButtonLayoutTest.kt (plugin): both must agree on which
+ * slots form a button and where its image is drawn.
  */
 describe("imageButtonArea", () => {
   it("places a rectangle of the menu grid from its type's slot origin", () => {

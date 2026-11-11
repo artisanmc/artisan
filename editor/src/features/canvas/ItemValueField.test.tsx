@@ -1,5 +1,5 @@
 import { buildScratchProject, diffScratchForWrite } from "@/features/screens/screenScratch";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
@@ -35,8 +35,8 @@ it("saves live catalogue item text in the file even when another preview languag
     },
   ];
   const p = buildScratchProject(config, files, []);
-  useAccountStore.setState({
-    account: { id: "test" as never, projects: [p], projectOrder: [p.id] },
+  useProjectsStore.setState({
+    openProjects: { projects: [p], projectOrder: [p.id] },
   });
   useUiStore.setState({ activeLang: "fr" });
   const source = p.dataSources[0]!;
@@ -46,20 +46,18 @@ it("saves live catalogue item text in the file even when another preview languag
       projectId={p.id}
       value={source.value.icon}
       onChange={(value) =>
-        useAccountStore
-          .getState()
-          .setSourceValue({
-            projectId: p.id,
-            sourceId: source.id,
-            row: null,
-            path: ["icon"],
-            value,
-          })
+        useProjectsStore.getState().setSourceValue({
+          projectId: p.id,
+          sourceId: source.id,
+          row: null,
+          path: ["icon"],
+          value,
+        })
       }
     />,
   );
   fireEvent.click(screen.getByText("Edit title"));
-  const updated = useAccountStore.getState().account.projects[0]!;
+  const updated = useProjectsStore.getState().openProjects.projects[0]!;
   expect(
     diffScratchForWrite(updated, config, files).files.find((f) => f.path === "data/items.yaml")
       ?.content,

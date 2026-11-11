@@ -16,7 +16,7 @@ vi.mock("@/features/export/projectZip", () => ({
   readProjectZip: mocks.readProjectZip,
   normalizeProjectFiles: mocks.normalizeProjectFiles,
 }));
-vi.mock("@/lib/api/networks", () => ({ createProject: mocks.createProject }));
+vi.mock("@/lib/api/servers", () => ({ createProject: mocks.createProject }));
 vi.mock("@/lib/api/projectDrafts", () => ({
   createDraft: mocks.createDraft,
   updateDraft: mocks.updateDraft,
@@ -31,7 +31,7 @@ vi.mock("@/lib/api/userProjects", () => ({ loadUserProject: mocks.loadUserProjec
 import { hashBytes } from "@/lib/contentHash";
 import { applyImportZip, prepareImportZip } from "./runImportZip";
 
-const target = { networkId: "n1", serverId: "sk1" };
+const target = { serverId: "sk1" };
 const file = new Blob(["zip"]);
 
 const shopSummary = {
@@ -39,17 +39,11 @@ const shopSummary = {
   externalId: "shop",
   name: "shop",
   hash: "h",
-  networkId: "n1",
   serverKeyId: "sk1",
 };
 
 function normalized(files: Record<string, string | Uint8Array>) {
   return { projectId: "shop", files };
-}
-
-async function hashMeta(content: string): Promise<{ hash: string; size: number }> {
-  const bytes = new TextEncoder().encode(content);
-  return { hash: await hashBytes(bytes), size: bytes.length };
 }
 
 beforeEach(() => {
@@ -60,13 +54,13 @@ beforeEach(() => {
 });
 
 describe("prepareImportZip", () => {
-  it("refuse une archive sans manifest", async () => {
+  it("rejects an archive without a manifest", async () => {
     mocks.readProjectZip.mockRejectedValue(new Error("no_manifest"));
     const result = await prepareImportZip(file, target, "merge");
     expect(result).toEqual({ ok: false, error: "no_manifest" });
   });
 
-  it("lit l'instantané du serveur pour un projet existant", async () => {
+  it("reads the server snapshot for an existing project", async () => {
     mocks.readProjectZip.mockResolvedValue({});
     mocks.normalizeProjectFiles.mockReturnValue(
       normalized({
@@ -97,7 +91,7 @@ describe("prepareImportZip", () => {
 });
 
 describe("applyImportZip", () => {
-  it("crée le Project et son brouillon pour un nouveau projet", async () => {
+  it("creates the Project and its draft for a new project", async () => {
     mocks.readProjectZip.mockResolvedValue({});
     mocks.normalizeProjectFiles.mockReturnValue(
       normalized({
@@ -120,7 +114,7 @@ describe("applyImportZip", () => {
     const result = await applyImportZip(prepared.preview);
 
     expect(result).toMatchObject({ ok: true, projectId: "shop", created: true });
-    expect(mocks.createProject).toHaveBeenCalledWith("n1", "sk1", "shop");
+    expect(mocks.createProject).toHaveBeenCalledWith("sk1", "shop");
     expect(mocks.createDraft.mock.calls[0]![0]).toBe("proj_shop");
     const snapshot = mocks.createDraft.mock.calls[0]![3];
     expect(snapshot.baseline).toEqual({});
@@ -130,7 +124,7 @@ describe("applyImportZip", () => {
     });
   });
 
-  it("résout l'ancre quand le serveur a déjà le projet (project_exists)", async () => {
+  it("resolves the anchor when the server already has the project (project_exists)", async () => {
     mocks.readProjectZip.mockResolvedValue({});
     mocks.normalizeProjectFiles.mockReturnValue(
       normalized({ "plugins/Artisan/projects/shop/menus/a.yaml": "v: 1\n" }),
@@ -151,11 +145,11 @@ describe("applyImportZip", () => {
     const result = await applyImportZip(prepared.preview);
 
     expect(result).toMatchObject({ ok: true, projectId: "shop", created: false });
-    expect(mocks.loadUserProject).toHaveBeenCalledWith("shop", "sk1", "n1");
+    expect(mocks.loadUserProject).toHaveBeenCalledWith("shop", "sk1");
     expect(mocks.createDraft.mock.calls[0]![0]).toBe("proj_shop");
   });
 
-  it("un conflit tranché « serveur » garde le contenu du serveur dans le brouillon", async () => {
+  it("a conflict settled as 'server' keeps the server's content in the draft", async () => {
     mocks.readProjectZip.mockResolvedValue({});
     mocks.normalizeProjectFiles.mockReturnValue(
       normalized({
@@ -180,7 +174,7 @@ describe("applyImportZip", () => {
     if (!prepared.ok) throw new Error("expected preview");
     await applyImportZip(prepared.preview, { "menus/a.yaml": "server" });
 
-    expect(mocks.readProjectFiles).toHaveBeenCalledWith("n1", "sk1", "shop");
+    expect(mocks.readProjectFiles).toHaveBeenCalledWith({ serverId: "sk1", diskId: "shop" });
     expect(mocks.createDraft.mock.calls[0]![0]).toBe("proj_shop");
     const snapshot = mocks.createDraft.mock.calls[0]![3];
     expect(snapshot.tree["menus/a.yaml"]).toBe("server\n");
@@ -188,7 +182,7 @@ describe("applyImportZip", () => {
     expect(mocks.updateDraft).not.toHaveBeenCalled();
   });
 
-  it("téléverse les blobs des images modifiées puis met à jour le brouillon", async () => {
+  it("uploads the blobs of the modified images then updates the draft", async () => {
     const bytes = new TextEncoder().encode("new-image");
     mocks.readProjectZip.mockResolvedValue({});
     mocks.normalizeProjectFiles.mockReturnValue(
@@ -221,7 +215,7 @@ describe("applyImportZip", () => {
     expect(updated.binaryTree["assets/icon.png"].hash).toBe(await hashBytes(bytes));
   });
 
-  it("en écrasement, retire du brouillon les images absentes de l'archive même sans autre image modifiée", async () => {
+  it("in overwrite mode, removes from the draft the images missing from the archive even with no other modified image", async () => {
     mocks.readProjectZip.mockResolvedValue({});
     mocks.normalizeProjectFiles.mockReturnValue(
       normalized({ "plugins/Artisan/projects/shop/manifest.yaml": "id: shop\n" }),

@@ -32,8 +32,8 @@ interface WidthResizeHandleProps {
  * Drag horizontal → updates `width` (clamped to [8, 256] MC px). The other
  * axis is ignored — height is derived from line count × lineHeight.
  *
- * Purely presentational: parent owns the store mutation. Sibling of
- * `ResizeHandles.tsx` (corner-aspect-locked, used for image layers).
+ * Purely presentational: parent owns the store mutation. Image layers have
+ * no handle: assets are pixel-perfect and are not resized.
  *
  * The bar is positioned so its center sits on the right edge:
  *   bar left edge = x - BAR_WIDTH/2 - HIT_PADDING

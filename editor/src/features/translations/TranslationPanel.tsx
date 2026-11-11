@@ -1,8 +1,11 @@
-import { RevealField } from "@/components/RevealField";
+import { MmEditor } from "@/components/minimessage/MmEditor";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import type { I18nKey, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { missingTexts, translateMissing } from "@/lib/aiTranslate";
+import { ApiError } from "@/lib/api/client";
+import { copyText } from "@/lib/clipboard";
 import {
   type TranslationRow,
   buildTranslationRows,
@@ -11,9 +14,19 @@ import {
   listLanguages,
 } from "@/lib/i18nUsages";
 import { flattenLangTree } from "@/lib/langTree";
-import { useAccountStore } from "@/state/accountStore";
+import { profileForTextKey } from "@/lib/mm/profiles";
+import { useAiStatus } from "@/state/aiStatus";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
-import { AlertCircle, ArrowDown, Check, Copy as CopyIcon, Plus, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowDown,
+  Check,
+  Copy as CopyIcon,
+  Plus,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -62,40 +75,36 @@ function MMLines({ text, className }: { text: string; className?: string }) {
   );
 }
 
-
 /**
  * Inner content of the Translation panel — all hooks + UI, no Sheet chrome.
  * Used both by the modal wrapper (`TranslationPanel`) and the inline workspace tab.
  */
 export function TranslationPanelContent({ projectId }: { projectId: ProjectId }) {
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   const setActiveLang = useUiStore((s) => s.setActiveLang);
-  const addLanguage = useAccountStore((s) => s.addLanguage);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
-  const removeUnusedI18nKeys = useAccountStore((s) => s.removeUnusedI18nKeys);
-  const setProjectI18nMode = useAccountStore((s) => s.setProjectI18nMode);
+  const addLanguage = useProjectsStore((s) => s.addLanguage);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
+  const removeUnusedI18nKeys = useProjectsStore((s) => s.removeUnusedI18nKeys);
   const { t } = useTranslation();
 
   const rows = useMemo(
     () => (project ? buildTranslationRows(project, activeLang) : []),
     [project, activeLang],
   );
+  const langs = useMemo(() => (project ? listLanguages(project) : []), [project]);
   // Per-language missing counts power both the in-panel tabs and the
   // header copy. Recomputed whenever the project ref shifts (immer keeps
   // it stable across unrelated edits).
-  const missingByLang = useMemo(
-    () => (project ? countMissingPerLang(project) : {}),
-    [project],
-  );
-  const langs = useMemo(() => (project ? listLanguages(project) : []), [project]);
+  const missingByLang = useMemo(() => (project ? countMissingPerLang(project) : {}), [project]);
 
   const [mode, setMode] = useState<Mode>("visual");
   const [filter, setFilter] = useState<Filter>("missing");
+  const ai = useAiStatus();
+  const [translating, setTranslating] = useState(false);
 
   if (!project) return null;
   const isOnDefault = activeLang === project.defaultLang;
-  const isInline = project.i18nMode === "inline";
 
   const missing = rows.filter((r) =>
     isTranslationMissing(project.defaultLang, activeLang, r.source, r.target),
@@ -111,17 +120,44 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
     toast.success(t("translations.removedUnused", { count: unusedCount }));
   };
 
-  // Flipping the shape rewrites every menu/command/dialog file at the next
-  // save — visible in the server's file tree and in the bundle hash. Worth one
-  // question; nothing is lost either way, and the trip back is symmetric.
-  const onSetShape = (next: "extract" | "inline") => {
-    if (next === (isInline ? "inline" : "extract")) return;
-    const key =
-      next === "inline"
-        ? "translations.fileShapeConfirmInline"
-        : "translations.fileShapeConfirmExtract";
-    if (!window.confirm(t(key, { lang: project.defaultLang }))) return;
-    setProjectI18nMode({ projectId, mode: next });
+  const missingEverywhere = Object.values(missingByLang).reduce((n, c) => n + c, 0);
+
+  // Every missing translation of the module, every language, on the assistant's model.
+  const onTranslateMissing = async () => {
+    const contexts = new Map(rows.map((r) => [r.key as string, r.context]));
+    const texts = missingTexts(project, undefined, (key) => contexts.get(key));
+    const progress = toast.loading(
+      t("translations.aiTranslating", { done: 0, total: texts.length }),
+    );
+    setTranslating(true);
+    try {
+      const outcome = await translateMissing(
+        texts,
+        project.defaultLang,
+        (key, lang, value) => setI18nValue({ projectId, lt: { key: key as I18nKey }, lang, value }),
+        {
+          module: projectId,
+          onProgress: (done, total) =>
+            toast.loading(t("translations.aiTranslating", { done, total }), { id: progress }),
+        },
+      );
+      if (outcome.failed > 0)
+        toast.warning(
+          t("translations.aiTranslatedPartly", { count: outcome.written, failed: outcome.failed }),
+          { id: progress },
+        );
+      else
+        toast.success(t("translations.aiTranslated", { count: outcome.written }), { id: progress });
+    } catch (e) {
+      toast.error(
+        t(`ai.errors.${e instanceof ApiError ? e.code : "network_error"}`, {
+          defaultValue: t("ai.errors.unknown"),
+        }),
+        { id: progress },
+      );
+    } finally {
+      setTranslating(false);
+    }
   };
 
   const onAddLang = () => {
@@ -136,10 +172,7 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
   return (
     <>
       {/* Left card — vertical language list */}
-      <nav
-        className="card flex shrink-0 flex-col gap-1 p-3 lg:w-[224px]"
-        aria-label="Languages"
-      >
+      <nav className="card flex shrink-0 flex-col gap-1 p-3 lg:w-[224px]" aria-label="Languages">
         {langs.map((lang) => {
           const isActive = lang === activeLang;
           const isDefault = lang === project.defaultLang;
@@ -157,11 +190,11 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
             >
               <span className="font-mono uppercase">{lang}</span>
               {isDefault ? (
-                <span className="rounded bg-[var(--surface-raised-2)] px-1 py-0.5 text-[8px] uppercase tracking-wide text-[var(--text-mut)]">
+                <span className="rounded bg-[var(--surface-raised-2)] px-1 py-0.5 text-[9.5px] uppercase tracking-wide text-[var(--text-mut)]">
                   src
                 </span>
               ) : count > 0 ? (
-                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--warning)] px-1 font-mono text-[9px] text-[#2A140C]">
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--warning)] px-1 font-mono text-[10px] text-[#2A140C]">
                   {count}
                 </span>
               ) : (
@@ -201,28 +234,19 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
               <span className="text-[var(--success)]">· {t("translations.statComplete")}</span>
             )}
           </div>
-          {/* How texts are written on disk — a file shape, not content. */}
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--text-mut)]">
-              {t("translations.fileShape")}
-            </span>
-            <div className="flex overflow-hidden rounded border border-[var(--border)]">
-              <ShapeTab
-                active={!isInline}
-                onClick={() => onSetShape("extract")}
-                title={t("translations.fileShapeExtractHint", { lang: project.defaultLang })}
-              >
-                {t("translations.fileShapeExtract")}
-              </ShapeTab>
-              <ShapeTab
-                active={isInline}
-                onClick={() => onSetShape("inline")}
-                title={t("translations.fileShapeInlineHint", { lang: project.defaultLang })}
-              >
-                {t("translations.fileShapeInline")}
-              </ShapeTab>
-            </div>
-          </div>
+          <span className="flex-1" />
+          {ai?.canUse && missingEverywhere > 0 ? (
+            <button
+              type="button"
+              onClick={() => void onTranslateMissing()}
+              disabled={translating}
+              title={t("translations.aiTranslateHint")}
+              className="btn btn-ghost btn-sm shrink-0"
+            >
+              <Sparkles className="h-3 w-3" aria-hidden />
+              {t("translations.aiTranslate", { count: missingEverywhere })}
+            </button>
+          ) : null}
           {unusedCount > 0 ? (
             <button
               type="button"
@@ -324,35 +348,6 @@ export function TranslationPanel({ projectId, open, onOpenChange }: TranslationP
   );
 }
 
-/** Segmented button choosing the on-disk text shape. */
-function ShapeTab({
-  active,
-  onClick,
-  title,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      aria-pressed={active}
-      className={
-        active
-          ? "bg-[var(--brand-soft)] px-2 py-0.5 text-[10px] text-[var(--brand)]"
-          : "px-2 py-0.5 text-[10px] text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
-      }
-    >
-      {children}
-    </button>
-  );
-}
-
 function ModeTab({
   active,
   onClick,
@@ -368,8 +363,8 @@ function ModeTab({
       onClick={onClick}
       className={
         active
-          ? "bg-[var(--brand-soft)] px-3 py-1 font-mono text-[10px] text-[var(--brand)] uppercase tracking-wide"
-          : "px-3 py-1 font-mono text-[10px] text-[var(--text-mut)] uppercase tracking-wide hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
+          ? "bg-[var(--brand-soft)] px-3 py-1 text-[12px] font-medium text-[var(--brand)]"
+          : "px-3 py-1 text-[12px] font-medium text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
       }
     >
       {children}
@@ -392,8 +387,8 @@ function FilterTab({
       onClick={onClick}
       className={
         active
-          ? "rounded bg-[var(--brand-soft)] px-2 py-1 font-mono text-[10px] text-[var(--brand)] uppercase tracking-wide"
-          : "rounded px-2 py-1 font-mono text-[10px] text-[var(--text-mut)] uppercase tracking-wide hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
+          ? "rounded bg-[var(--brand-soft)] px-2 py-1 text-[12px] font-medium text-[var(--brand)]"
+          : "rounded px-2 py-1 text-[12px] font-medium text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
       }
     >
       {children}
@@ -457,9 +452,7 @@ function VisualBody({
   if (rows.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center px-4 py-8 text-center text-[11px] text-[var(--text-faint)]">
-        {filter === "missing"
-          ? t("translations.nothingMissing")
-          : t("translations.noMatch")}
+        {filter === "missing" ? t("translations.nothingMissing") : t("translations.noMatch")}
       </div>
     );
   }
@@ -507,16 +500,16 @@ function VisualRow({
     >
       {/* Header: context path + missing/translated indicator. */}
       <div className="flex items-center gap-2 px-3 pt-2 pb-1">
-        <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-[var(--text-faint)]">
+        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-[var(--text-faint)]">
           {row.context}
         </span>
         {isMissing ? (
-          <span className="flex items-center gap-1 rounded bg-[var(--warning-soft)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--warning)] uppercase">
+          <span className="flex items-center gap-1 rounded bg-[var(--warning-soft)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--warning)] uppercase">
             <AlertCircle className="h-2.5 w-2.5" />
             {t("translations.badgeMissing")}
           </span>
         ) : (
-          <span className="flex items-center gap-1 rounded bg-[var(--success-soft)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--success)] uppercase">
+          <span className="flex items-center gap-1 rounded bg-[var(--success-soft)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--success)] uppercase">
             <Check className="h-2.5 w-2.5" />
             {t("translations.badgeDone")}
           </span>
@@ -526,7 +519,7 @@ function VisualRow({
       {/* Source row (skipped when active === default — redundant). */}
       {!sameLang ? (
         <div className="flex items-start gap-2 px-3 pb-1.5 text-xs">
-          <span className="mt-0.5 w-7 shrink-0 font-mono text-[10px] text-[var(--text-faint)] uppercase">
+          <span className="mt-0.5 w-7 shrink-0 font-mono text-[11px] text-[var(--text-faint)]">
             {defaultLang}
           </span>
           <div className="min-w-0 flex-1">
@@ -535,7 +528,9 @@ function VisualRow({
                 <MMLines text={row.source} />
               </div>
             ) : (
-              <span className="text-[var(--text-faint)] italic">{t("translations.emptySource")}</span>
+              <span className="text-[var(--text-faint)] italic">
+                {t("translations.emptySource")}
+              </span>
             )}
           </div>
           {row.source ? (
@@ -552,33 +547,21 @@ function VisualRow({
         </div>
       ) : null}
 
-      {/* Target row (the input). Uses the same focus-reveal field as the
-          title/lore/action editors: a rendered MiniMessage facade until
-          focused, then a raw editor with a live preview below. */}
+      {/* Target row (the input): the rich MiniMessage editor, as for titles, lores and
+          action texts; its toolbar shows while it is being edited. */}
       <div className="flex items-start gap-2 px-3 pb-2 text-xs">
-        <span className="mt-1.5 w-7 shrink-0 font-mono text-[10px] text-[var(--text-faint)] uppercase">
+        <span className="mt-1.5 w-7 shrink-0 font-mono text-[11px] text-[var(--text-faint)]">
           {activeLang}
         </span>
         <div className="min-w-0 flex-1">
-          <RevealField
+          <MmEditor
             value={row.target}
             onChange={onChange}
-            entries={[]}
-            multiline={isMultiline}
-            rows={Math.min(6, Math.max(2, row.target.split("\n").length))}
+            profile={profileForTextKey(row.key, isMultiline)}
             placeholder={t("translations.translationPlaceholder")}
-            className="font-mono text-xs"
-            facade={<MMLines text={row.target} />}
-            preview={
-              row.target.split("\n").some(looksLikeMM) ? (
-                <div className="mt-1 flex flex-col rounded border border-[var(--border-soft)] bg-[var(--color-bg)] px-2 py-1">
-                  <span className="mb-0.5 font-mono text-[9px] text-[var(--text-faint)] uppercase">
-                    {t("translations.previewLabel")}
-                  </span>
-                  <MMLines text={row.target} />
-                </div>
-              ) : undefined
-            }
+            aria-label={t("translations.translationPlaceholder")}
+            toolbar="focus"
+            minHeight={isMultiline ? "64px" : "0"}
           />
         </div>
       </div>
@@ -599,7 +582,7 @@ function YamlBody({
   rows: ReadonlyArray<TranslationRow>;
   modeKey: Mode;
 }) {
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
   const { t } = useTranslation();
   const [includeContext, setIncludeContext] = useState(true);
   const [draft, setDraft] = useState("");
@@ -635,7 +618,7 @@ function YamlBody({
 
   const onCopy = async () => {
     try {
-      await navigator.clipboard.writeText(draft);
+      await copyText(draft);
       toast.success(t("translations.yamlCopied"));
     } catch {
       toast.error(t("translations.yamlClipboardBlocked"));
@@ -734,4 +717,3 @@ function YamlBody({
     </>
   );
 }
-

@@ -1,23 +1,22 @@
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 
 /**
- * Le module propriétaire d'un Project (ADR `addon-owned-project-roots`), ou
- * `undefined` pour un project ordinaire.
+ * The module owning a Project (ADR `addon-owned-project-roots`), or
+ * `undefined` for an ordinary project.
  *
- * Il se lisait autrefois dans le `manifest.module` de la copie backend. Cette
- * copie n'existe plus (ADR `server-disk-only-storage`) et la relire coûterait un
- * aller-retour disque par Project juste pour peupler une sidebar. On la redérive
- * donc des **écrans déclarés**, où le module a lui-même annoncé le project qu'il
- * possède — la même donnée de Presence qui fait déjà exister son groupe.
+ * Re-reading the project manifest would cost a disk round-trip per Project
+ * just to fill a sidebar, so it is derived from the **declared screens**, where
+ * the module itself announced the project it owns — the same Presence data
+ * that makes its group exist.
  *
- * D'abord, `ownerModule` : le module que le plugin a rapporté avec la racine de
- * l'Add-on (`register(projectId, dir, moduleId)`). C'est la seule source pour un
- * Add-on sans écran de configuration (MSGuilds : menus seuls) ; les écrans restent
- * le repli pour un Add-on qui ne nomme pas son module.
+ * First, `ownerModule`: the module the plugin reported with the Add-on root
+ * (`register(projectId, dir, moduleId)`). It is the only source for an Add-on
+ * without a configuration screen (MSGuilds: menus only); screens remain the
+ * fallback for an Add-on that does not name its module.
  *
- * Le rapprochement se fait sur l'**id disque** : c'est celui que le module
- * déclare, et il diffère de l'id interne dès qu'un autre serveur a déjà réclamé
- * le même nom (cf. `projects.externalId`).
+ * Matching is done on the **disk id**: it is the one the module declares, and
+ * it differs from the internal id as soon as another server has already
+ * claimed the same name (cf. `projects.externalId`).
  */
 export function ownerModuleOf(
   project: { id: string; externalId?: string | null; ownerModule?: string | null },

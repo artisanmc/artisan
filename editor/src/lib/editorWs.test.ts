@@ -1,26 +1,30 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { EditorWs } from "./editorWs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EditorWs, SESSION_CLOSED } from "./editorWs";
 
 class FakeWebSocket {
+  static OPEN = 1;
   static instances: FakeWebSocket[] = [];
   url: string;
+  readyState = 0;
+  sent: string[] = [];
+  onopen: (() => void) | null = null;
+  onclose: ((evt: { code: number }) => void) | null = null;
   onmessage: ((evt: { data: string }) => void) | null = null;
   onerror: (() => void) | null = null;
+  closed = false;
+  send(data: string): void {
+    this.sent.push(data);
+  }
   constructor(url: string) {
     this.url = url;
     FakeWebSocket.instances.push(this);
   }
-  close(): void {}
+  close(): void {
+    this.closed = true;
+  }
 }
 
-describe("EditorWs.connectAsUser", () => {
-  it("dispatches a rename with immutable identity and both disk names", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ticket: "ticket" }) }));
-    const onProjectRenamed = vi.fn();
-    await EditorWs.connectAsUser("http://localhost:3001", { onProjectRenamed });
-    FakeWebSocket.instances[0]!.onmessage?.({ data: JSON.stringify({ type: "project_renamed", project_id: "internal", server_key_id: "server", previous_disk_id: "old", disk_id: "new" }) });
-    expect(onProjectRenamed).toHaveBeenCalledWith({ serverKeyId: "server", projectId: "internal", previousDiskId: "old", diskId: "new" });
-  });
+describe("EditorWs", () => {
   beforeEach(() => {
     FakeWebSocket.instances = [];
     vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
@@ -31,57 +35,77 @@ describe("EditorWs.connectAsUser", () => {
     vi.restoreAllMocks();
   });
 
-  it("fetches a ticket with credentials included, then opens ?ticket= on the WS URL", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ ticket: "wst_abc123" }),
-    });
+  // The session cookie authenticates the socket: no ticket round-trip, no
+  // query string (issue #44).
+  it("opens /ws/editor directly, with no ticket", () => {
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const onDraftUpdate = vi.fn();
-    const ws = await EditorWs.connectAsUser("http://localhost:3001", onDraftUpdate);
+    new EditorWs({});
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:3001/api/v1/user/ws-ticket",
-      expect.objectContaining({ method: "POST", credentials: "include" }),
-    );
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(FakeWebSocket.instances).toHaveLength(1);
-    expect(FakeWebSocket.instances[0].url).toContain("/ws/editor?ticket=wst_abc123");
-    expect(ws).toBeInstanceOf(EditorWs);
+    expect(FakeWebSocket.instances[0]!.url).toMatch(/\/ws\/editor$/);
   });
 
-  it("throws if the ticket fetch fails", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }));
-    await expect(EditorWs.connectAsUser("http://localhost:3001", vi.fn())).rejects.toThrow();
+  it("dispatches projects_reloaded and ignores other message types", () => {
+    const onProjectsReloaded = vi.fn();
+    new EditorWs({ onProjectsReloaded });
+    const socket = FakeWebSocket.instances[0]!;
+
+    expect(() =>
+      socket.onmessage?.({ data: JSON.stringify({ type: "unknown_type" }) }),
+    ).not.toThrow();
+    expect(() => socket.onmessage?.({ data: "not json" })).not.toThrow();
+    expect(onProjectsReloaded).not.toHaveBeenCalled();
+
+    const projects = [{ id: "shop", hash: "h1" }];
+    socket.onmessage?.({
+      data: JSON.stringify({ type: "projects_reloaded", server_key_id: "u-local", projects }),
+    });
+    expect(onProjectsReloaded).toHaveBeenCalledWith("u-local", projects);
   });
 
-  it("ignores unknown message types", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ticket: "wst_x" }) }),
-    );
-    const onDraftUpdate = vi.fn();
-    await EditorWs.connectAsUser("http://localhost:3001", onDraftUpdate);
-    const socket = FakeWebSocket.instances[0];
-
-    expect(() => socket.onmessage?.({ data: JSON.stringify({ type: "unknown_type" }) })).not.toThrow();
-    expect(onDraftUpdate).not.toHaveBeenCalled();
+  it("closes the socket on disconnect", () => {
+    const ws = new EditorWs({});
+    ws.disconnect();
+    expect(FakeWebSocket.instances[0]!.closed).toBe(true);
   });
 
-  it("dispatches sync_divergence and divergence_resolved to the handlers object", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ticket: "wst_y" }) }),
-    );
-    const onSyncDivergence = vi.fn();
-    const onDivergenceResolved = vi.fn();
-    await EditorWs.connectAsUser("http://localhost:3001", { onSyncDivergence, onDivergenceResolved });
-    const socket = FakeWebSocket.instances[0];
+  it("keeps the socket alive, and opens it again when it drops", () => {
+    vi.useFakeTimers();
+    try {
+      const ws = new EditorWs({});
+      const first = FakeWebSocket.instances[0]!;
+      first.readyState = FakeWebSocket.OPEN;
+      first.onopen?.();
+      vi.advanceTimersByTime(60_000);
+      expect(first.sent).toEqual(["ping"]);
 
-    socket.onmessage?.({ data: JSON.stringify({ type: "sync_divergence", project_id: "p1", disk_hash: "h" }) });
-    expect(onSyncDivergence).toHaveBeenCalledWith("p1");
+      first.onclose?.({ code: 1006 });
+      vi.advanceTimersByTime(1_000);
+      expect(FakeWebSocket.instances).toHaveLength(2);
 
-    socket.onmessage?.({ data: JSON.stringify({ type: "divergence_resolved", project_id: "p1" }) });
-    expect(onDivergenceResolved).toHaveBeenCalledWith("p1");
+      ws.disconnect();
+      FakeWebSocket.instances[1]!.onclose?.({ code: 1000 });
+      vi.advanceTimersByTime(60_000);
+      expect(FakeWebSocket.instances).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports a closed session instead of reconnecting", () => {
+    vi.useFakeTimers();
+    try {
+      const onSessionClosed = vi.fn();
+      new EditorWs({ onSessionClosed });
+      FakeWebSocket.instances[0]!.onclose?.({ code: SESSION_CLOSED });
+      vi.advanceTimersByTime(60_000);
+      expect(onSessionClosed).toHaveBeenCalledOnce();
+      expect(FakeWebSocket.instances).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

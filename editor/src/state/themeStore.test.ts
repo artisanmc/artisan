@@ -1,13 +1,19 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock localStorage
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: (k: string) => store[k] ?? null,
-    setItem: (k: string, v: string) => { store[k] = v; },
-    removeItem: (k: string) => { delete store[k]; },
-    clear: () => { store = {}; },
+    setItem: (k: string, v: string) => {
+      store[k] = v;
+    },
+    removeItem: (k: string) => {
+      delete store[k];
+    },
+    clear: () => {
+      store = {};
+    },
   };
 })();
 Object.defineProperty(globalThis, "localStorage", { value: localStorageMock, configurable: true });
@@ -72,14 +78,20 @@ describe("useThemeStore.setTheme", () => {
     datasetMock.theme = "";
     vi.resetModules();
     // Re-apply mocks after resetModules so the freshly imported module sees them
-    Object.defineProperty(globalThis, "localStorage", { value: localStorageMock, configurable: true, writable: true });
+    Object.defineProperty(globalThis, "localStorage", {
+      value: localStorageMock,
+      configurable: true,
+      writable: true,
+    });
     Object.defineProperty(globalThis, "window", {
       value: { matchMedia: vi.fn(() => ({ matches: false })), localStorage: localStorageMock },
-      configurable: true, writable: true,
+      configurable: true,
+      writable: true,
     });
     Object.defineProperty(globalThis, "document", {
       value: { documentElement: { dataset: datasetMock } },
-      configurable: true, writable: true,
+      configurable: true,
+      writable: true,
     });
   });
   afterEach(() => vi.clearAllMocks());

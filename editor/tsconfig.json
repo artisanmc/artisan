@@ -20,7 +20,6 @@
     "paths": {
       "@/*": ["src/*"],
       "@artisan/editor-sdk": ["packages/editor-sdk/src/index.ts"],
-      "@artisan/quests-editor": ["packages/quests-editor/src/index.ts"],
       "@artisan/boutique-editor": ["packages/boutique-editor/src/index.ts"]
     },
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo"

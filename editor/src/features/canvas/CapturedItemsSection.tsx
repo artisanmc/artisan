@@ -1,25 +1,28 @@
+import { PlayerNameInput } from "@/components/PlayerNameInput";
+import { Input } from "@/components/ui/input";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import { newCapturedItemId } from "@/domain/ids";
-import type { CapturedItem, ProjectId } from "@/domain/types";
-import { PlayerNameInput } from "@/components/PlayerNameInput";
-import { type InventorySlotPayload, fetchPlayerInventory } from "@/lib/api/playerInventory";
-import { useAccountStore } from "@/state/accountStore";
+import type { CapturedItem, Project, ProjectId } from "@/domain/types";
+import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
+import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { isScreenScratchId } from "@/features/screens/screenScratch";
-import { useNetworksStore } from "@/state/networksStore";
-import { useServersStore } from "@/state/serversStore";
+import { type InventorySlotPayload, fetchPlayerInventory } from "@/lib/api/playerInventory";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
+import { useProjectsStore } from "@/state/projectsStore";
+import { useServersStore } from "@/state/serversStore";
 import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { LIBRARY_DRAG_PREFIX } from "./Library";
+import { adoptCapturedItem } from "./adoptCapturedItem";
+import { draggableProps } from "./dragPayload";
 import { headPreviewUrl } from "./headTexture";
-import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 import { useTextureUrl } from "./textureStore";
+import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 
 /**
- * "Items capturés" section of the Library tab — the universal capture flow
+ * "Captured items" section of the Library tab — the universal capture flow
  * (ADR captured-items-and-module-field-kit). Two halves:
  *  - the project's captured items as draggable tiles (`item:<id>` material
  *    refs — same drag/arm gesture as vanilla Library items, zero new drop code);
@@ -35,14 +38,118 @@ export function CapturedItemsSection({
    *  calls back with the `item:<id>` ref instead of arming for the canvas. */
   onPick?: (ref: string) => void;
 }) {
+  // The library shares its source between its tabs; a picker keeps its own.
+  const librarySource = useProjectLibraryStore((s) => s.sourceId);
+  const setLibrarySource = useProjectLibraryStore((s) => s.setSourceId);
+  const [pickerSource, setPickerSource] = useState<ProjectSourceId>(null);
+  return (
+    <div className="flex flex-col gap-2">
+      <ProjectSource
+        projectId={projectId}
+        sourceId={onPick ? pickerSource : librarySource}
+        onSourceChange={onPick ? setPickerSource : setLibrarySource}
+      >
+        {(sources) =>
+          sources ? (
+            <OtherProjectItems projectId={projectId} sources={sources} onPick={onPick} />
+          ) : (
+            <OwnCapturedItems projectId={projectId} onPick={onPick} />
+          )
+        }
+      </ProjectSource>
+    </div>
+  );
+}
+
+/**
+ * Other projects' captured items, read only, grouped by project when there are
+ * several: a tile used here (dropped, armed or picked) is copied into
+ * `projectId` first, then its copy is used.
+ */
+function OtherProjectItems({
+  projectId,
+  sources,
+  onPick,
+}: {
+  projectId: ProjectId;
+  sources: Project[];
+  onPick?: (ref: string) => void;
+}) {
   const { t } = useTranslation();
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const addCapturedItem = useAccountStore((s) => s.addCapturedItem);
-  const removeCapturedItem = useAccountStore((s) => s.removeCapturedItem);
-  const networkId = useNetworksStore((s) => s.activeId);
+  const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const groups = sources
+    .map((source) => ({
+      source,
+      items: (source.capturedItems ?? []).filter(
+        (ci) => !needle || ci.name.toLowerCase().includes(needle),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+  const total = sources.reduce((n, p) => n + (p.capturedItems?.length ?? 0), 0);
+  return (
+    <div className="flex flex-col gap-2" data-testid="other-project-items">
+      <div className="eyebrow">{t("capturedItems.sectionTitle")}</div>
+      {total > 0 ? (
+        <>
+          <p className="text-[11px] text-[var(--text-faint)]">{t("projectSource.itemHint")}</p>
+          <Input
+            aria-label={t("projectSource.searchItems")}
+            placeholder={t("projectSource.searchItems")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 text-xs"
+          />
+          {groups.map(({ source, items }) => (
+            <div key={source.id} className="flex flex-col gap-1">
+              {sources.length > 1 && (
+                <div className="text-[11px] text-[var(--text-mut)]">{source.name}</div>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                {items.map((ci) => (
+                  <CapturedTile
+                    key={ci.id}
+                    project={source}
+                    item={ci}
+                    foreign
+                    onPick={() => {
+                      const local = adoptCapturedItem(projectId, ci);
+                      if (onPick) onPick(local);
+                      else setArmedMaterial(local);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          {groups.length === 0 && (
+            <p className="text-[11px] text-[var(--text-faint)]">{t("resources.noResults")}</p>
+          )}
+        </>
+      ) : (
+        <p className="text-[11px] text-[var(--text-faint)]">{t("projectSource.noItems")}</p>
+      )}
+    </div>
+  );
+}
+
+function OwnCapturedItems({
+  projectId,
+  onPick,
+}: {
+  projectId: ProjectId;
+  onPick?: (ref: string) => void;
+}) {
+  const { t } = useTranslation();
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const addCapturedItem = useProjectsStore((s) => s.addCapturedItem);
+  const removeCapturedItem = useProjectsStore((s) => s.removeCapturedItem);
   const serverId = useServersStore((s) => s.activeServerId);
   const runtime = useProjectRuntime(projectId);
-  const canCapture = runtime ? runtime.capabilities.captureInGame && runtime.connection.available : Boolean(serverId);
+  const canCapture = runtime
+    ? runtime.capabilities.captureInGame && runtime.connection.available
+    : Boolean(serverId);
 
   const [player, setPlayer] = useState("");
   const [state, setState] = useState<
@@ -57,9 +164,9 @@ export function CapturedItemsSection({
   const readOnly = isScreenScratchId(projectId);
 
   const load = async () => {
-    if (!canCapture || !networkId || !serverId || !player.trim()) return;
+    if (!canCapture || !serverId || !player.trim()) return;
     setState({ kind: "loading" });
-    const res = await fetchPlayerInventory(networkId, serverId, player.trim());
+    const res = await fetchPlayerInventory(serverId, player.trim());
     setState(res.ok ? { kind: "done", slots: res.slots } : { kind: "error", code: res.error });
   };
 
@@ -89,49 +196,53 @@ export function CapturedItemsSection({
           {captured.map((ci) => (
             <CapturedTile
               key={ci.id}
-              projectId={projectId}
+              project={project}
               item={ci}
               onPick={onPick}
-              onRemove={readOnly ? undefined : () => removeCapturedItem({ projectId, itemId: ci.id })}
+              onRemove={
+                readOnly ? undefined : () => removeCapturedItem({ projectId, itemId: ci.id })
+              }
             />
           ))}
         </div>
       ) : (
-        <p className="text-[10px] text-[var(--text-faint)]">{t("capturedItems.emptyHint")}</p>
+        <p className="text-[11px] text-[var(--text-faint)]">{t("capturedItems.emptyHint")}</p>
       )}
 
       {/* Inventory mirror */}
-      {!readOnly && canCapture && <div className="flex items-center gap-1.5">
-        <PlayerNameInput
-          value={player}
-          onChange={setPlayer}
-          onCommit={() => void load()}
-          placeholder={t("capturedItems.playerPlaceholder")}
-          className="h-7 w-36 px-2 py-0 text-xs"
-        />
-        <button
-          type="button"
-          data-testid="load-inventory"
-          disabled={state.kind === "loading" || !player.trim()}
-          onClick={() => void load()}
-          className="rounded border border-[var(--brand)]/60 bg-[var(--brand-soft)] px-2 py-1 text-[10px] text-[var(--brand)] hover:bg-[var(--brand)]/20 disabled:opacity-50"
-        >
-          {state.kind === "loading" ? t("capturedItems.loading") : t("capturedItems.load")}
-        </button>
-      </div>}
+      {!readOnly && canCapture && (
+        <div className="flex items-center gap-1.5">
+          <PlayerNameInput
+            value={player}
+            onChange={setPlayer}
+            onCommit={() => void load()}
+            placeholder={t("capturedItems.playerPlaceholder")}
+            className="h-7 w-36 px-2 py-0 text-xs"
+          />
+          <button
+            type="button"
+            data-testid="load-inventory"
+            disabled={state.kind === "loading" || !player.trim()}
+            onClick={() => void load()}
+            className="rounded border border-[var(--brand)]/60 bg-[var(--brand-soft)] px-2 py-1 text-[11px] text-[var(--brand)] hover:bg-[var(--brand)]/20 disabled:opacity-50"
+          >
+            {state.kind === "loading" ? t("capturedItems.loading") : t("capturedItems.load")}
+          </button>
+        </div>
+      )}
       {state.kind === "error" ? (
-        <div className="rounded border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[10px] text-[var(--warning)]">
+        <div className="rounded border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[11px] text-[var(--warning)]">
           {t(`capturedItems.err_${state.code}`, t("capturedItems.err_fetch_error"))}
         </div>
       ) : null}
       {state.kind === "done" ? (
         state.slots.length === 0 ? (
-          <p className="text-[10px] text-[var(--text-faint)]">
+          <p className="text-[11px] text-[var(--text-faint)]">
             {t("capturedItems.inventoryEmpty")}
           </p>
         ) : (
           <>
-            <p className="text-[10px] text-[var(--text-faint)]">{t("capturedItems.captureHint")}</p>
+            <p className="text-[11px] text-[var(--text-faint)]">{t("capturedItems.captureHint")}</p>
             <div className="flex flex-wrap gap-1.5">
               {state.slots.map((slot) => (
                 <InventoryTile key={slot.slot} slot={slot} onCapture={() => capture(slot)} />
@@ -147,37 +258,40 @@ export function CapturedItemsSection({
 /** A captured item tile — draggable/armable exactly like a Library material
  *  (or a plain pick button in picker mode). */
 function CapturedTile({
-  projectId,
+  project,
   item,
   onPick,
   onRemove,
+  foreign = false,
 }: {
-  projectId: ProjectId;
+  project: Project;
   item: CapturedItem;
   onPick?: (ref: string) => void;
   onRemove?: () => void;
+  /** An item of another project: dragging it carries the item, copied in on drop. */
+  foreign?: boolean;
 }) {
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
   const armed = useUiStore((s) => s.armedMaterial === `item:${item.id}`);
   const ref = `item:${item.id}`;
-  const display = project ? resolveDisplayRef(project, ref) : { material: ref };
+  const display = resolveDisplayRef(project, ref);
   const materialUrl = useTextureUrl(display.material);
   const textureUrl = useHeadPreviewUrl(display.head) ?? materialUrl;
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `${LIBRARY_DRAG_PREFIX}${ref}`,
-    data: { material: ref },
-  });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable(
+    draggableProps({ kind: "material", material: ref, ...(foreign ? { captured: item } : {}) }),
+  );
+  // A foreign tile both drags (copy on drop) and clicks (copy, then arm or pick).
+  const drags = !onPick || foreign;
 
   return (
     <div className="relative">
       <button
-        ref={onPick ? undefined : setNodeRef}
+        ref={drags ? setNodeRef : undefined}
         type="button"
         title={item.name}
         onClick={() => (onPick ? onPick(ref) : setArmedMaterial(armed ? null : ref))}
-        {...(onPick ? {} : listeners)}
-        {...(onPick ? {} : attributes)}
+        {...(drags ? listeners : {})}
+        {...(drags ? attributes : {})}
         className={
           armed
             ? "relative flex h-12 w-12 shrink-0 touch-none cursor-grab select-none items-center justify-center rounded-[8px] border border-[var(--brand)] bg-[var(--brand-soft)] ring-1 ring-[var(--brand)] active:cursor-grabbing"
@@ -194,27 +308,29 @@ function CapturedTile({
             style={{ imageRendering: "pixelated" }}
           />
         ) : (
-          <span className="px-0.5 text-[8px] text-[var(--text-mut)]">
+          <span className="px-0.5 text-[9.5px] text-[var(--text-mut)]">
             {(display.material ?? "?").slice(0, 6)}
           </span>
         )}
         {display.enchanted ? (
           <span
             aria-hidden
-            className="pointer-events-none absolute top-0 left-0.5 text-[9px] text-[#c77dff] drop-shadow"
+            className="pointer-events-none absolute top-0 left-0.5 text-[10px] text-[#c77dff] drop-shadow"
           >
             ✦
           </span>
         ) : null}
       </button>
-      {onRemove && <button
-        type="button"
-        data-testid={`remove-captured-${item.id}`}
-        onClick={onRemove}
-        className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised-2)] text-[9px] text-[var(--text-faint)] hover:text-[var(--danger)]"
-      >
-        ×
-      </button>}
+      {onRemove && (
+        <button
+          type="button"
+          data-testid={`remove-captured-${item.id}`}
+          onClick={onRemove}
+          className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised-2)] text-[10px] text-[var(--text-faint)] hover:text-[var(--danger)]"
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 }
@@ -250,12 +366,12 @@ function InventoryTile({
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="px-0.5 text-[8px] text-[var(--text-mut)]">
+        <span className="px-0.5 text-[9.5px] text-[var(--text-mut)]">
           {(slot.display.material ?? "?").slice(0, 6)}
         </span>
       )}
       {slot.display.count && slot.display.count > 1 ? (
-        <span className="absolute right-0.5 bottom-0 font-mono text-[9px] text-[var(--text)]">
+        <span className="absolute right-0.5 bottom-0 font-mono text-[10px] text-[var(--text)]">
           {slot.display.count}
         </span>
       ) : null}

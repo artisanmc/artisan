@@ -1,1 +1,0 @@
-ALTER TABLE "assistant_conversations" ADD COLUMN "uploaded_files" jsonb;

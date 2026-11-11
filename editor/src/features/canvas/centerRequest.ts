@@ -5,9 +5,9 @@ import { nodeBox } from "./menuLayout";
 import type { ViewportState } from "./usePanZoom";
 
 /**
- * Le cadrage qu'une demande de centrage (`goToDocument`) donne à CETTE planche,
- * ou `null` tant qu'elle ne peut pas encore y répondre (autre project, planche
- * sans taille, Document pas encore placé) — la demande attend alors.
+ * The framing a centre request (`goToDocument`) gives THIS board, or `null`
+ * while it cannot answer yet (other project, board without a size, Document
+ * not placed yet) — the request then waits.
  */
 export function viewportForCenterRequest(
   request: CenterRequest | null,

@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChangeList } from "@/components/ui/change-list";
 import {
@@ -72,7 +73,14 @@ export function PersistedDraftControls({
             <div className="flex flex-col gap-1.5">
               {session.drafts.map((draft) => (
                 <div className="card flex items-center justify-between gap-2 p-2" key={draft.id}>
-                  <span className="truncate text-sm">{draft.name}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm">{draft.name}</span>
+                    {draft.source === "ai" && (
+                      <Badge variant="amber" title={t("drafts.aiSourceHint")}>
+                        {t("drafts.aiSource")}
+                      </Badge>
+                    )}
+                  </span>
                   <Button
                     size="sm"
                     variant="ghost"

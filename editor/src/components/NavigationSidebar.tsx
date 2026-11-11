@@ -1,10 +1,19 @@
+import { ArtisanSymbol } from "@/components/ArtisanWordmark";
 import { Button } from "@/components/ui/button";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { useIsDesktop } from "@/lib/useMediaQuery";
-import { useSidebarStore } from "@/state/sidebarStore";
+import { SIDEBAR_WIDTH, useSidebarStore } from "@/state/sidebarStore";
 import { Link } from "@tanstack/react-router";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 const hasPopup = () => !!document.querySelector('[role="menu"], [role="dialog"], [role="listbox"]');
@@ -13,8 +22,10 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const desktop = useIsDesktop();
   const tourStep = useTourPresentation((s) => s.step);
-  const { pinned, togglePinned, isOpen, open, close } = useSidebarStore();
+  const { pinned, togglePinned, isOpen, open, close, width, setWidth } = useSidebarStore();
   const [revealed, setRevealed] = useState(false);
+  const [resizing, setResizing] = useState(false);
+  const resizingRef = useRef(false);
   const panel = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const hovered = useRef(false);
@@ -33,6 +44,7 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
       timer.current = undefined;
       if (
         !hovered.current &&
+        !resizingRef.current &&
         !hasPopup() &&
         !(keyboard.current && panel.current?.contains(document.activeElement))
       )
@@ -74,6 +86,43 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
       document.removeEventListener("focusin", onFocus);
     };
   }, [visible, desktop, pinned, close, cancelClose, scheduleClose]);
+  const onResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    resizingRef.current = true;
+    setResizing(true);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+  const onResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!resizingRef.current || !panel.current) return;
+    setWidth(event.clientX - panel.current.getBoundingClientRect().left);
+  };
+  const onResizeEnd = () => {
+    if (!resizingRef.current) return;
+    resizingRef.current = false;
+    setResizing(false);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    if (!hovered.current) scheduleClose();
+  };
+  const onResizeKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 48 : 16;
+    const next =
+      event.key === "ArrowLeft"
+        ? width - step
+        : event.key === "ArrowRight"
+          ? width + step
+          : event.key === "Home"
+            ? SIDEBAR_WIDTH.min
+            : event.key === "End"
+              ? SIDEBAR_WIDTH.max
+              : null;
+    if (next === null) return;
+    event.preventDefault();
+    setWidth(next);
+  };
   const buttonLabel = pinned
     ? t("navigation.close", "Close navigation")
     : t("navigation.open", "Open navigation");
@@ -82,7 +131,8 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
       <div
         data-testid="navigation-space"
         data-pinned={pinned}
-        className={`hidden shrink-0 transition-[width] duration-200 ease-out motion-reduce:transition-none lg:block ${pinned ? "w-[264px]" : "w-0"}`}
+        className={`hidden shrink-0 ease-out motion-reduce:transition-none lg:block ${resizing ? "" : "transition-[width] duration-200"}`}
+        style={{ width: pinned ? width : 0 }}
       />
       {desktop && !pinned && (
         <div
@@ -126,6 +176,7 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
           hovered.current = false;
           scheduleClose();
         }}
+        style={desktop ? { width } : undefined}
         className={`fixed z-50 flex w-[264px] flex-col overflow-hidden bg-[var(--surface)] transition-transform duration-200 motion-reduce:transition-none ${desktop && pinned ? "inset-y-0 left-0" : "inset-y-2 left-2 rounded-[var(--r-lg)] ring-1 ring-inset ring-[var(--border)]"} ${visible ? `translate-x-0 ${desktop && pinned ? "" : "shadow-[var(--shadow-lg)]"}` : "-translate-x-[calc(100%+8px)]"}`}
       >
         {!desktop && (
@@ -146,6 +197,37 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
         >
           {children}
         </div>
+        {desktop && (
+          // biome-ignore lint/a11y/useSemanticElements: <hr> can't host a pointerdown drag affordance
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t("navigation.resize")}
+            aria-valuemin={SIDEBAR_WIDTH.min}
+            aria-valuemax={SIDEBAR_WIDTH.max}
+            aria-valuenow={width}
+            title={t("navigation.resize")}
+            tabIndex={0}
+            data-testid="navigation-resize"
+            data-resizing={resizing || undefined}
+            onPointerDown={onResizeStart}
+            onPointerMove={onResizeMove}
+            onPointerUp={onResizeEnd}
+            onPointerCancel={onResizeEnd}
+            onLostPointerCapture={onResizeEnd}
+            onDoubleClick={() => setWidth(SIDEBAR_WIDTH.default)}
+            onKeyDown={onResizeKey}
+            className="group absolute inset-y-0 right-0 z-10 w-2 cursor-col-resize touch-none outline-none"
+          >
+            <div
+              className={`pointer-events-none absolute inset-y-0 right-0 w-[2px] bg-[var(--brand)] transition-opacity ${
+                resizing
+                  ? "opacity-100 duration-0"
+                  : "opacity-0 duration-100 group-hover:opacity-100 group-focus-visible:opacity-100"
+              }`}
+            />
+          </div>
+        )}
       </aside>
       <Button
         ref={toggle}
@@ -175,18 +257,11 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
       </Button>
       {desktop && !visible && (
         <Link
-          to="/networks"
+          to="/"
           aria-label="Artisan"
           className="fixed left-14 top-3.5 z-40 flex size-9 items-center justify-center rounded-[var(--r-md)] hover:bg-[var(--surface-hover)]"
         >
-          <img
-            src="/logo.svg"
-            alt=""
-            aria-hidden="true"
-            width={28}
-            height={28}
-            className="size-7"
-          />
+          <ArtisanSymbol />
         </Link>
       )}
     </>

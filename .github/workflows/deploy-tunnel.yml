@@ -1,0 +1,57 @@
+name: Deploy tunnel server
+
+# The editor tunnel server (connect.artisanmc.app): a Coolify Docker Compose resource built from
+# deploy/tunnel-server/. Runs after the plugin tests pass on main, and redeploys only when the
+# tunnel server's sources changed since the deployed commit. Cf. deploy/README.md.
+on:
+  workflow_run:
+    workflows: [Plugin]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - name: Checkout validated revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          # Full history: the deployed commit is compared with this one.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Reject stale CI runs
+        env:
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          CURRENT_MAIN_SHA="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$CURRENT_MAIN_SHA" != "$EXPECTED_SHA" ]; then
+            echo "Refusing stale deployment: validated SHA is not current main" >&2
+            exit 1
+          fi
+
+      - name: Deploy through Coolify
+        env:
+          COOLIFY_BASE_URL: ${{ vars.COOLIFY_BASE_URL }}
+          COOLIFY_TUNNEL_SERVER_UUID: ${{ vars.COOLIFY_TUNNEL_SERVER_UUID }}
+          TUNNEL_HEALTH_URL: https://connect.artisanmc.app/health
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node deploy/deploy-tunnel-server.mjs

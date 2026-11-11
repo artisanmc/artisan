@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ThemeSwitcher } from "./ThemeSwitcher";
 import { useThemeStore } from "@/state/themeStore";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 // Minimal i18next mock — uses real keys as values
 vi.mock("react-i18next", () => ({
@@ -9,7 +9,6 @@ vi.mock("react-i18next", () => ({
 }));
 
 beforeEach(() => {
-  // Reset store to dark before each test
   useThemeStore.setState({ theme: "dark" });
   document.documentElement.dataset.theme = "dark";
 });

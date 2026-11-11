@@ -1,14 +1,14 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/features/canvas/FloatingEditorPane", () => ({
+vi.mock("@/features/inspector/FloatingEditorPane", () => ({
   FloatingEditorPane: () => <div data-testid="inspector" />,
 }));
-vi.mock("@/features/canvas/EditorPane", () => ({
+vi.mock("@/features/inspector/EditorPane", () => ({
   EditorPane: () => <div data-testid="inspector" />,
 }));
 
@@ -45,9 +45,8 @@ beforeEach(() => {
   useProjectLibraryStore.getState().close();
   useSelectionStore.getState().clear();
   useUiStore.getState().setProjectSettingsOpen(false);
-  useAccountStore.setState({
-    account: {
-      id: "a" as any,
+  useProjectsStore.setState({
+    openProjects: {
       projectOrder: [PID],
       projects: [
         {
@@ -56,9 +55,11 @@ beforeEach(() => {
           source: "user_created",
           createdAt: "",
           updatedAt: "",
-          menus: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any],
-          commands: [],
-          dialogs: [],
+          documents: {
+            menu: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any],
+            command: [],
+            dialog: [],
+          },
           assets: [],
           dataSources: [],
           importedConnectors: [],
@@ -85,21 +86,21 @@ describe.each([
     expect([...useSelectionStore.getState().ids]).toEqual(["m1"]);
   });
 
-  /** Le grief de départ : le panneau mangeait de la place en permanence. */
-  it("sans sélection, la scène est seule", () => {
+  /** The original complaint: the panel took up space permanently. */
+  it("with no selection, the stage is alone", () => {
     renderIt();
     expect(screen.getByTestId("canvas")).toBeInTheDocument();
     expect(screen.queryByTestId("inspector")).toBeNull();
   });
 
-  it("une sélection fait apparaître l'inspecteur", () => {
+  it("a selection brings up the inspector", () => {
     useSelectionStore.getState().set(["m1"]);
     renderIt();
     expect(screen.getByTestId("inspector")).toBeInTheDocument();
   });
 
-  /** Les paramètres du project ne correspondent à aucune sélection. */
-  it("les paramètres du project l'ouvrent sans rien sélectionner", () => {
+  /** Project settings match no selection. */
+  it("the project settings open it without selecting anything", () => {
     useUiStore.getState().setProjectSettingsOpen(true);
     renderIt();
     expect(screen.getByTestId("inspector")).toBeInTheDocument();
@@ -107,10 +108,10 @@ describe.each([
   });
 
   /**
-   * Sinon, désélectionner pour dégager le canvas rouvrirait les paramètres du
-   * project au lieu de tout fermer.
+   * Otherwise, deselecting to clear the canvas would reopen the project
+   * settings instead of closing everything.
    */
-  it("sélectionner range les paramètres du project", () => {
+  it("selecting puts away the project settings", () => {
     useUiStore.getState().setProjectSettingsOpen(true);
     useSelectionStore.getState().set(["m1"]);
     renderIt();

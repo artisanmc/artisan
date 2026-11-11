@@ -30,9 +30,9 @@ it.each(["player_head", "zombie_head"])(
   "%s has a closed top and the face skin on the front",
   async (id) => {
     await renderToCanvas(`__entity__/${id}`, "1.21.11");
-    const scene = captured.render.mock.calls[0][0] as THREE.Scene;
+    const scene = captured.render.mock.calls[0]![0] as THREE.Scene;
     scene.updateMatrixWorld(true);
-    const display = scene.children[0];
+    const display = scene.children[0]!;
     for (const [point, normal, expectedUV] of [
       [new THREE.Vector3(0, 4, 0), new THREE.Vector3(0, 1, 0), [12 / 64, 1 - 4 / 64]],
       [new THREE.Vector3(0, 0, 4), new THREE.Vector3(0, 0, 1), [12 / 64, 1 - 12 / 64]],
@@ -43,7 +43,7 @@ it.each(["player_head", "zombie_head"])(
         surface.clone().addScaledVector(outward, 10),
         outward.negate(),
       );
-      const hit = ray.intersectObject(scene, true)[0];
+      const hit = ray.intersectObject(scene, true)[0]!;
       expect(hit, "the outer surface must exist").toBeDefined();
       expect(hit.point.distanceTo(surface)).toBeLessThan(0.0001);
       expect(hit.uv?.x).toBeCloseTo(expectedUV[0]);

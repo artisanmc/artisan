@@ -22,3 +22,4 @@ test-results
 .gstack/
 .env
 .env.local
+dist-self-hosted

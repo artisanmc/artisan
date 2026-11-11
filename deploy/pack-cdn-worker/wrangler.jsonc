@@ -1,0 +1,19 @@
+// Resource packs for Artisan hubs (README.md). The bucket's lifecycle rules are not in this file:
+// see "Deployment" in the README.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "artisan-pack-cdn",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "routes": [{ "pattern": "cdn.artisanmc.net", "custom_domain": true }],
+  "r2_buckets": [{ "binding": "PACKS", "bucket_name": "artisan-packs" }],
+  "durable_objects": {
+    "bindings": [{ "name": "QUOTAS", "class_name": "QuotaObject" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuotaObject"] }],
+  "vars": {
+    "PACK_PUBLIC_URL": "https://cdn.artisanmc.net"
+  },
+  "observability": { "enabled": true }
+}

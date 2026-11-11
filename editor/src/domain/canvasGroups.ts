@@ -1,65 +1,37 @@
+import { allDocuments, docKey, documentKeys } from "./documents";
 import type { CanvasGroup, Project } from "./types";
 
-/** Every Document id in a project — the live set groups may reference. */
-export const liveDocumentIds = (project: Project): string[] => [
-  ...project.menus.map((m) => m.id),
-  ...project.commands.map((c) => c.id),
-  ...(project.dialogs ?? []).map((d) => d.id),
-];
+/** Every Document key in a project (`docKey`). */
+export const liveDocumentIds = (project: Project): string[] => documentKeys(project);
 
 export const DEFAULT_GROUP_COLOR = "#60a5fa";
 export const isGroupColor = (value: unknown): value is string =>
   typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
 
 /**
- * Tolerant metadata reader: each live Document belongs to at most one group.
- * Reads `nodeIds` (menus, commands and dialogs) and the legacy `menuIds` field
- * written before groups were generalized.
+ * The board's frames: one per top-level themed folder holding at least one
+ * Document (at any depth), in name order. Color and position come from
+ * `Project.folders`.
  */
-export function normalizeCanvasGroups(value: unknown, liveIds: Iterable<string>): CanvasGroup[] {
-  if (!Array.isArray(value)) return [];
-  const live = new Set(liveIds);
-  const assigned = new Set<string>();
-  const ids = new Set<string>();
-  const groups: CanvasGroup[] = [];
-  for (const raw of value) {
-    if (
-      !raw ||
-      typeof raw !== "object" ||
-      typeof raw.id !== "string" ||
-      !raw.id ||
-      ids.has(raw.id) ||
-      typeof raw.name !== "string" ||
-      !raw.name.trim()
-    )
-      continue;
-    const rawMembers = Array.isArray(raw.nodeIds)
-      ? raw.nodeIds
-      : Array.isArray(raw.menuIds)
-        ? raw.menuIds
-        : null;
-    if (!rawMembers) continue;
-    const members = [
-      ...new Set<string>(
-        rawMembers.filter(
-          (id: unknown): id is string =>
-            typeof id === "string" && live.has(id) && !assigned.has(id),
-        ),
-      ),
-    ];
-    if (!members.length) continue;
-    ids.add(raw.id);
-    for (const id of members) assigned.add(id);
-    const p = raw.position;
-    groups.push({
-      id: raw.id,
-      name: raw.name.trim(),
-      nodeIds: members,
-      ...(isGroupColor(raw.color) ? { color: raw.color } : {}),
-      ...(p && Number.isFinite(p.x) && Number.isFinite(p.y)
-        ? { position: { x: p.x, y: p.y } }
-        : {}),
-    });
+export function folderGroups(project: Pick<Project, "documents" | "folders">): CanvasGroup[] {
+  const members = new Map<string, string[]>();
+  for (const { kind, doc } of allDocuments(project as Project)) {
+    if (!doc.folder) continue;
+    const top = doc.folder.split("/")[0]!;
+    const list = members.get(top) ?? [];
+    list.push(docKey(kind, doc.id));
+    members.set(top, list);
   }
-  return groups;
+  return [...members.keys()]
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    .map((name) => {
+      const meta = project.folders?.[name];
+      return {
+        id: name,
+        name,
+        nodeIds: members.get(name)!,
+        ...(meta?.color ? { color: meta.color } : {}),
+        ...(meta?.position ? { position: { ...meta.position } } : {}),
+      };
+    });
 }

@@ -1,5 +1,5 @@
-# data/settings.yaml — Config source: constantes du projet interpolées
-# dans les menus via {settings.currency}, {settings.support_url}…
+# data/settings.yaml — Config source: project constants interpolated
+# into menus via {settings.currency}, {settings.support_url}…
 schema: data/v1
 id: settings
 shape: config

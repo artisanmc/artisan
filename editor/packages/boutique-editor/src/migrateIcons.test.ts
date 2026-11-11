@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { menusOf } from "../../../src/domain/documents";
 import type { Project } from "../../../src/domain/types";
 import { previewItem } from "../../../src/features/canvas/itemValuePreview";
 import { migrateIcons } from "./migrateIcons";
@@ -36,21 +37,23 @@ function fixture(lore = "{item.lore}\nPrice: {item.price}"): Project {
         ],
       },
     ],
-    menus: [
-      {
-        layers: [
-          {
-            elements: [
-              {
-                iterates: { source: "products", alias: "item" },
-                display: { item: "{item.icon}", lore: { key: "menuLore" } },
-                states: [],
-              },
-            ],
-          },
-        ],
-      },
-    ],
+    documents: {
+      menu: [
+        {
+          layers: [
+            {
+              elements: [
+                {
+                  iterates: { source: "products", alias: "item" },
+                  display: { item: "{item.icon}", lore: { key: "menuLore" } },
+                  states: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
   } as unknown as Project;
 }
 describe("catalogue icon migration", () => {
@@ -66,7 +69,7 @@ describe("catalogue icon migration", () => {
     const project = fixture();
     const category = project.dataSources![0]! as { rows: { items: Record<string, unknown>[] }[] };
     const row = category.rows[0]!.items[0]!;
-    const app = project.menus[0]!.layers[0]!.elements[0]!.display!;
+    const app = menusOf(project)[0]!.layers[0]!.elements[0]!.display!;
     const before = previewItem(app, { item: { ...row, lore: "Rare" } }, project, "en");
     migrateIcons(project);
     expect(row.lore).toBeUndefined();
@@ -81,7 +84,7 @@ describe("catalogue icon migration", () => {
     migrateIcons(project);
     const row = (project.dataSources[0] as { rows: { items: Record<string, unknown>[] }[] })
       .rows[0]!.items[0]!;
-    const app = project.menus[0]!.layers[0]!.elements[0]!.display!;
+    const app = menusOf(project)[0]!.layers[0]!.elements[0]!.display!;
     expect(row.lore).toBeUndefined();
     expect(previewItem(app, { item: row }, project, "en").lore).toEqual([
       "Before",
@@ -91,7 +94,7 @@ describe("catalogue icon migration", () => {
   });
   it("moves legacy lore in a live catalogue without loaded menus", () => {
     const project = fixture();
-    project.menus = [];
+    project.documents.menu = [];
     migrateIcons(project);
     const row = (project.dataSources[0] as { rows: { items: Record<string, unknown>[] }[] })
       .rows[0]!.items[0]!;

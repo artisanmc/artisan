@@ -14,18 +14,18 @@ this ADR referenced was removed 2026-06-17, so resolution is per-file
 disk/web selection, not 3-way — cf. `no-branch-conflict-resolution.md`).
 The files-first epic's storage/sync decisions (2, 3, 6, 7) are all live.
 
-> **Révisé le 2026-08-12 par l'ADR `server-disk-only-storage` — décisions 2 et
-> 6.** Cet ADR a fait des fichiers la vérité de *forme* tout en laissant le
-> backend en détenir une **copie publiée** (le plugin téléchargeait depuis lui),
-> donc deux écrivains durables — d'où `syncedHash`, `detectSyncAction`,
-> `sync_divergence` et le hash à deux implémentations. Le nouvel ADR fait du
-> disque du serveur le **seul** store : le backend ne stocke plus aucun contenu
-> de Project, le plugin est le seul écrivain, l'éditeur lit et écrit par relais
-> WS sur geste explicite. La décision 2 (« one representation everywhere »)
-> devient « one *location* everywhere » ; la décision 6 (détection de divergence,
-> « no overwrite in either direction ») devient sans objet — il n'y a plus deux
-> côtés à diverger, seulement un compare-and-swap par fichier à l'écriture.
-> Les décisions 3, 4, 5 et 7 (formes de fichiers, i18n, `menu/v1`, assets
+> **Revised 2026-08-12 by the ADR `server-disk-only-storage` — decisions 2 and
+> 6.** This ADR made files the truth of *form* while leaving the backend
+> holding a **published copy** (the plugin downloaded from it), hence two
+> durable writers — hence `syncedHash`, `detectSyncAction`, `sync_divergence`
+> and the two-implementation hash. The new ADR makes the server's disk the
+> **only** store: the backend no longer stores any Project content, the plugin
+> is the only writer, and the editor reads and writes through the WS relay on
+> explicit gesture. Decision 2 ("one representation everywhere") becomes "one
+> *location* everywhere"; decision 6 (divergence detection, "no overwrite in
+> either direction") becomes moot — there are no longer two sides to diverge,
+> only a per-file compare-and-swap at write time. Decisions 3, 4, 5 and 7 (file
+> forms, i18n, `menu/v1`, offline assets) remain in force.
 > offline) restent en vigueur.
 
 ## Context
@@ -77,9 +77,9 @@ editing path.
      one truth inside the same tree.
    - **Data models** → `models/<id>.yaml`, **ignored by the plugin** (sources
      stay denormalized and self-contained for runtime; models only type them).
-     > **Révoqué par l'ADR `bare-data-files` (2026-07-26)** : le plugin lit
-     > `models/` au load pour typer les sources project-authored nues (même
-     > mouvement que la résolution des templates P2a, toujours offline).
+     > **Revoked by the ADR `bare-data-files` (2026-07-26)**: the plugin reads
+     > `models/` at load to type bare project-authored sources (same move as
+     > the P2a template resolution, still offline).
    - **Editor presentation state** (board layout/edges) moves out of
      `manifest.yaml` into **`.artisan/editor.yaml`** — hash-excluded (the
      `.artisan` prefix filter already exists), so cosmetic board moves no longer
@@ -94,59 +94,60 @@ editing path.
    inline `translations:` block — would require plugin-side positional key
    derivation, a fragile cross-language lockstep invariant.
 
-   **Amendement 2026-07-30 — les fichiers `lang/` sont des arborescences.** Un
-   fichier de langue s'écrit en arbre (chaque `.` de la clé = un niveau) et non
-   une clé pointée complète par ligne : c'est la forme lisible/éditable à la
-   main, cohérente avec « les fichiers sont la vérité ». L'adressage runtime
-   reste la clé pointée — le codec `nestLangTree`/`flattenLangTree`
-   (`editor/src/lib/langTree.ts`, miroir Kotlin `LangFlattener`, vecteur
-   `testdata/lang-tree-conformance.json`) est purement une forme de fichier.
-   Lecture tolérante aux trois formes (arbre / plat legacy / mélange) : rien à
-   migrer, le premier enregistrement renest. Cas limite assumé : `a.b` et
-   `a.b.c` ne peuvent pas coexister dans l'arbre — la clé bloquée reste pointée
-   à la racine (jamais perdue), l'ordre byte décide laquelle niche.
-   *Rejeté :* aplatir plus court (2-3 niveaux puis clés pointées) — deux règles
-   à retenir au lieu d'une.
+   **Amendment 2026-07-30 — `lang/` files are trees.** A language file is
+   written as a tree (each `.` of the key = one level) rather than one full
+   dotted key per line: this is the form that is readable and hand-editable,
+   consistent with "files are the truth". Runtime addressing stays the dotted
+   key — the `nestLangTree`/`flattenLangTree` codec
+   (`editor/src/lib/langTree.ts`, Kotlin mirror `LangFlattener`, vector
+   `testdata/lang-tree-conformance.json`) is purely a file form. Reading
+   tolerates all three forms (tree / legacy flat / mixed): nothing to migrate,
+   the first save re-nests. Accepted edge case: `a.b` and `a.b.c` cannot
+   coexist in the tree — the blocked key stays dotted at the root (never lost),
+   byte order decides which one nests. *Rejected:* flattening shorter (2-3
+   levels then dotted keys) — two rules to remember instead of one.
 
-   **Amendement 2026-08-03 — l'inline est un MODE de projet, adressé par site.**
-   La politique hybride ci-dessus était *par champ* : un texte traduit gardait
-   son `{i18n:key}`, donc un projet multi-langue restait illisible dès qu'on
-   traduisait. Le contrat effectif est désormais *par projet*, deux formes
-   valides en lecture pour le plugin :
+   **Amendment 2026-08-03 — inline is a project MODE, addressed per site.**
+   The hybrid policy above was *per field*: a translated text kept its
+   `{i18n:key}`, so a multi-language project became unreadable as soon as
+   something was translated. The effective contract is now *per project*, with
+   two forms the plugin accepts when reading:
 
-   - `extract` (défaut, statu quo) — `{i18n:key}` dans les documents, **toutes**
-     les langues dans `lang/`, la langue par défaut comprise.
-   - `inline` — le document porte le **littéral de la langue par défaut**, là où
-     on le lit ; les **autres** langues vivent dans `lang/<code>.yaml` à
-     l'**adresse canonique** du site de clé, et il n'y a **pas** de fichier
-     `lang/<défaut>.yaml` (ce serait une seconde copie de la même vérité). Un
-     projet mono-langue ⇒ zéro fichier `lang/`, exactement la promesse initiale.
+   - `extract` (default, status quo) — `{i18n:key}` in documents, **all**
+     languages in `lang/`, the default language included.
+   - `inline` — the document carries the **default-language literal**, where you
+     read it; the **other** languages live in `lang/<code>.yaml` at the site's
+     **canonical address**, and there is **no** `lang/<default>.yaml` file (it
+     would be a second copy of the same truth). A single-language project ⇒ zero
+     `lang/` files, exactly the initial promise.
 
-   Ce qui rend le mode possible sans clés dans le fichier : **l'adresse se
-   redérive de la structure**. L'éditeur la mint en écrivant (`domain/i18nSites.ts`,
-   `lib/i18nKeys.ts`), le plugin la recalcule en lisant (`engine/I18nAddresses.kt`,
-   `MenuTitleParser`, `DialogTextResolver`) — deux implémentations verrouillées
-   par le vecteur partagé `testdata/i18n-address-conformance.json`. La résolution
-   runtime est à trois étages : ref `{i18n:key}` explicite → adresse canonique →
-   littéral tel qu'écrit. Les deux modes se lisent donc indifféremment, y compris
-   mélangés dans un même fichier édité à la main.
+   What makes the mode possible without keys in the file: **the address is
+   re-derived from the structure**. The editor mints it when writing
+   (`domain/i18nSites.ts`, `lib/i18nKeys.ts`), the plugin recomputes it when
+   reading (`engine/I18nAddresses.kt`, `MenuTitleParser`, `DialogTextResolver`)
+   — two implementations locked by the shared vector
+   `testdata/i18n-address-conformance.json`. Runtime resolution has three
+   stages: explicit `{i18n:key}` ref → canonical address → literal as written.
+   Both modes therefore read interchangeably, including mixed in one
+   hand-edited file.
 
-   Le mode est un choix de **forme de fichier**, pas du contenu : il est persisté
-   dans `.artisan/editor.yaml` (`i18n_mode: inline`, hash-exclu) et seulement
-   quand il s'écarte du défaut. C'est le même mouvement que les fichiers data nus
-   (ADR `bare-data-files` ④), généralisé aux menus / commandes / dialogs.
-   *Rejeté :* inférer le mode du contenu à l'import — un fichier peut être mixte,
-   et « c'est ce que tu as choisi » bat un devin.
+   The mode is a choice of **file form**, not of content: it is persisted in
+   `.artisan/editor.yaml` (`i18n_mode: inline`, hash-excluded) and only when it
+   departs from the default. It is the same move as bare data files (ADR
+   `bare-data-files` ④), generalized to menus / commands / dialogs.
+   *Rejected:* inferring the mode from the content at import — a file can be
+   mixed, and "it's what you chose" beats a guess.
 
-   **Amendement 2026-09-30 — les textes structurels sont field-local.** L'ADR
-   `field-local-translations` remplace le mode projet `extract`/`inline` pour les
-   textes **structurels** (titre de menu, `title`/`lore` d'apparence,
-   `title`/`body`/labels de dialog) : un slot texte porte soit une string, soit
-   une map `{ <lang>: texte }` résolue langue demandée → `defaultLang`. Le
-   sous-système d'adresses positionnelles est retiré pour les documents (il ne
-   survit que pour les data sources). `lang/` ne porte plus que les textes
-   d'action (refs `@key`), les clés sans site et les data sources. La décision 4
-   ci-dessus (mode projet, hybride par champ) est donc superseded pour les
+   **Amendment 2026-09-30 — structural texts are field-local.** The ADR
+   `field-local-translations` replaces the `extract`/`inline` project mode for
+   **structural** texts (menu title, appearance `title`/`lore`, dialog
+   `title`/`body`/labels): a text slot carries either a string or a map
+   `{ <lang>: text }` resolved requested language → `defaultLang`. The
+   positional-address subsystem is removed for documents (it survives only for
+   data sources). `lang/` now carries only action texts (`@key` refs), keys
+   without a site, and data sources. Decision 4 above (project mode, hybrid per
+   field) is therefore superseded for documents; it remains as the history of
+   the inline form.
    documents ; elle reste l'historique de la forme inline.
 
 5. **`menu/v1` evolves in place.** The "never mutate a shipped schema version"

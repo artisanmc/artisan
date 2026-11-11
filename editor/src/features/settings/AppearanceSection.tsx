@@ -1,6 +1,6 @@
-import { useTranslation } from "react-i18next";
 import { EditorLangSwitcher } from "@/components/EditorLangSwitcher";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { useTranslation } from "react-i18next";
 
 export function AppearanceSection() {
   const { t } = useTranslation();

@@ -1,18 +1,22 @@
+import { type DocKey, parseDocKey } from "@/domain/documents";
 import type { MenuId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { commitNodeDrag } from "./commitNodeDrag";
 
 interface UseMenuDragArgs {
   projectId: ProjectId;
-  menuId: MenuId;
+  /** The menu's key (`docKey`): its id follows the slash. */
+  nodeId: DocKey;
   position: { x: number; y: number };
 }
 
-export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
-  const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
+export function useMenuDrag({ projectId, nodeId, position }: UseMenuDragArgs) {
+  const menuId = parseDocKey(nodeId)!.id as MenuId;
+  const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
 
   const onMenuDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.target.moveToTop();
@@ -38,7 +42,7 @@ export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
         cy = evt.changedTouches[0].clientY;
       } else {
         // No pointer info — just persist the new position in this project.
-        setCanvasPosition({ projectId, nodeId: menuId, x: e.target.x(), y: e.target.y() });
+        setCanvasPosition({ projectId, nodeId, x: e.target.x(), y: e.target.y() });
         return;
       }
 
@@ -52,7 +56,7 @@ export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
         if (!targetProjectId || targetProjectId === projectId) continue;
         e.target.position({ x: position.x, y: position.y });
         try {
-          useAccountStore
+          useProjectsStore
             .getState()
             .moveMenuToProject({ menuId, fromProjectId: projectId, toProjectId: targetProjectId });
           toast.success(`Moved ${menuId} to ${targetProjectId}`);
@@ -61,9 +65,9 @@ export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
         }
         return;
       }
-      setCanvasPosition({ projectId, nodeId: menuId, x: e.target.x(), y: e.target.y() });
+      commitNodeDrag(projectId, nodeId, e.target);
     },
-    [projectId, menuId, position.x, position.y, setCanvasPosition],
+    [projectId, nodeId, menuId, position.x, position.y, setCanvasPosition],
   );
 
   return { onMenuDragStart, onMenuDragEnd };

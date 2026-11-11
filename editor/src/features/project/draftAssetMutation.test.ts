@@ -1,9 +1,8 @@
 import * as api from "@/lib/api/projectDrafts";
-import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useDemoStore } from "@/state/demoStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { beforeEach, expect, test, vi } from "vitest";
 import {
   mutateDraftAssets,
@@ -33,7 +32,7 @@ const input = {
 beforeEach(() => {
   vi.restoreAllMocks();
   useAuthStore.setState({ currentUser: { id: "owner" } } as never);
-  useAccountStore.setState({ account: { id: "network", projects: [], projectOrder: [] } } as never);
+  useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } } as never);
   useProjectDraftStore.setState({ drafts: {}, ownerId: "owner", pendingRenames: {}, backups: {} });
   useProjectDraftStore.getState().save("project", {
     ...snapshot,
@@ -44,41 +43,7 @@ beforeEach(() => {
   });
   vi.spyOn(api, "updateDraft").mockResolvedValue(draft);
 });
-test("a late guest rejection cannot clear an asset intent remapped to the account", async () => {
-  useDemoStore.getState().setSession({
-    principal: { kind: "guest", id: "owner" },
-    projectId: "project",
-    csrfToken: "csrf",
-    expiresAt: "2099-01-01",
-  });
-  let reject!: (error: Error) => void;
-  const perform = vi.fn(
-    () =>
-      new Promise<{ draft: typeof draft }>((_, fail) => {
-        reject = fail;
-      }),
-  );
-  const saving = mutateDraftAssets("project", input, perform);
-  const rejected = expect(saving).rejects.toThrow("claim_pending");
-  await vi.waitFor(() => expect(perform).toHaveBeenCalledOnce());
-  const local = useProjectDraftStore.getState().get("project")!;
-  useDemoStore.getState().setSession(null);
-  useAuthStore.setState({ currentUser: { id: "account" } } as never);
-  useProjectDraftStore.setState({
-    ownerId: "account",
-    drafts: { project: { ...local, remote: { ...local.remote!, ownerId: "account" } } },
-  });
-  usePersistedDraftStore.setState({
-    sessions: { project: { ownerId: "account", drafts: [], status: "pending" } },
-  });
-  reject(new api.DraftApiError("claim_pending", 409));
-  await rejected;
-  expect(
-    useProjectDraftStore.getState().get("project")?.remote?.pendingMutation?.asset?.file?.base64,
-  ).toBe("AP8=");
-  expect(usePersistedDraftStore.getState().sessions.project?.ownerId).toBe("account");
-});
-test.each([{}, { "manifest.yaml": "name: Demo" }])(
+test.each<Record<string, string>>([{}, { "manifest.yaml": "name: Demo" }])(
   "first asset action materializes a clean private draft: %j",
   async (tree) => {
     useProjectDraftStore.setState({ drafts: {} });
@@ -111,14 +76,14 @@ test.each([{}, { "manifest.yaml": "name: Demo" }])(
 );
 
 test("private upload blocks autosave and preserves text typed while its ACK is pending", async () => {
-  let finish!: (result: { draft: typeof draft }) => void;
+  let finish!: (result: { draft: api.PersistedDraft }) => void;
   let started!: () => void;
   const ready = new Promise<void>((resolve) => {
     started = resolve;
   });
   const saving = mutateDraftAssets("project", input, async () => {
     started();
-    return new Promise((resolve) => {
+    return new Promise<{ draft: api.PersistedDraft }>((resolve) => {
       finish = resolve;
     });
   });

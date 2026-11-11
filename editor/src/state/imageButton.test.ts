@@ -1,53 +1,55 @@
+import { menusOf } from "@/domain/documents";
 import { elementId, type menuId, projectId } from "@/domain/ids";
 import { dropImageButton } from "@/features/canvas/imageButtonDrop";
 import { setStageSlotHitTest } from "@/features/canvas/stageDropTarget";
-import { mockAccount } from "@/mock/fixtures";
+import { mockOpenProjects } from "@/mock/fixtures";
 import { beforeEach, expect, it } from "vitest";
-import { useAccountStore } from "./accountStore";
+import { useProjectsStore } from "./projectsStore";
 
 const p = projectId("p_personal");
 let m: ReturnType<typeof menuId>;
 const e = elementId("image");
 const target = () => ({ projectId: p, menuId: m, elementId: e });
 const current = () =>
-  useAccountStore
-    .getState()
-    .account.projects.find((project) => project.id === p)!
-    .menus.find((menu) => menu.id === m)!;
+  menusOf(
+    useProjectsStore.getState().openProjects.projects.find((project) => project.id === p)!,
+  ).find((menu) => menu.id === m)!;
 beforeEach(() => {
-  useAccountStore.setState({ account: mockAccount() });
-  m = useAccountStore.getState().createMenu({ projectId: p, id: "images" });
-  useAccountStore.setState((state) => ({
-    account: {
-      ...state.account,
-      projects: state.account.projects.map((project) =>
+  useProjectsStore.setState({ openProjects: mockOpenProjects() });
+  m = useProjectsStore.getState().createMenu({ projectId: p, id: "images" });
+  useProjectsStore.setState((state) => ({
+    openProjects: {
+      ...state.openProjects,
+      projects: state.openProjects.projects.map((project) =>
         project.id !== p
           ? project
           : {
               ...project,
-              menus: project.menus.map((menu) =>
-                menu.id !== m
-                  ? menu
-                  : {
-                      ...menu,
-                      rows: 3,
-                      layers: [
-                        {
-                          id: "main" as never,
-                          name: "main",
-                          elements: [
-                            { id: e, positions: "0", display: { material: "STONE" }, states: [] },
-                            {
-                              id: elementId("other"),
-                              positions: "8",
-                              display: { material: "DIAMOND" },
-                              states: [],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-              ),
+              documents: {
+                menu: menusOf(project).map((menu) =>
+                  menu.id !== m
+                    ? menu
+                    : {
+                        ...menu,
+                        rows: 3,
+                        layers: [
+                          {
+                            id: "main" as never,
+                            name: "main",
+                            elements: [
+                              { id: e, positions: "0", display: { material: "STONE" }, states: [] },
+                              {
+                                id: elementId("other"),
+                                positions: "8",
+                                display: { material: "DIAMOND" },
+                                states: [],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                ),
+              },
             },
       ),
     },
@@ -55,7 +57,7 @@ beforeEach(() => {
 });
 
 it("changes the appearance to an image, resizes and moves the entire rectangle", () => {
-  const store = useAccountStore.getState();
+  const store = useProjectsStore.getState();
   store.setAppearanceImage({ ...target(), image: { asset: "buy", fit: "contain" } });
   store.setElementPositions({ ...target(), positions: "0-2,9-11" });
   store.moveElementPosition({ ...target(), fromPosition: 1, toPosition: 2 });
@@ -67,7 +69,7 @@ it("changes the appearance to an image, resizes and moves the entire rectangle",
 });
 
 it("rejects collisions and nonrectangular edits without changing either element", () => {
-  const store = useAccountStore.getState();
+  const store = useProjectsStore.getState();
   store.setAppearanceImage({ ...target(), image: { asset: "buy" } });
   const before = structuredClone(current());
   expect(() => store.setElementPositions({ ...target(), positions: "7-8" })).toThrow();
@@ -76,7 +78,7 @@ it("rejects collisions and nonrectangular edits without changing either element"
 });
 
 it("creates a correctly sized image button directly and refuses an occupied rectangle atomically", () => {
-  const store = useAccountStore.getState();
+  const store = useProjectsStore.getState();
   store.addImageButton({
     projectId: p,
     menuId: m,
@@ -125,7 +127,7 @@ it("drops an image on the resolved slot, selects it and does nothing outside a m
 });
 
 it("converts and resizes together, and preserves the old item when its image area is occupied", () => {
-  const store = useAccountStore.getState();
+  const store = useProjectsStore.getState();
   const before = structuredClone(current());
   expect(() =>
     store.setAppearanceImage({

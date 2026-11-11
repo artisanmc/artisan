@@ -11,10 +11,10 @@ describe("fetchActiveModulesUser", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await fetchActiveModulesUser("net1", "srv1");
+    const result = await fetchActiveModulesUser("srv1");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/networks/net1/servers/srv1/modules"),
+      expect.stringContaining("/api/v1/servers/srv1/modules"),
       expect.objectContaining({ credentials: "include" }),
     );
     expect(result).toEqual([{ id: "quests", version: "1.0.0" }]);
@@ -22,6 +22,6 @@ describe("fetchActiveModulesUser", () => {
 
   it("returns [] on a non-OK response", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
-    expect(await fetchActiveModulesUser("net1", "srv1")).toEqual([]);
+    expect(await fetchActiveModulesUser("srv1")).toEqual([]);
   });
 });

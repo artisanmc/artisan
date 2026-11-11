@@ -1,31 +1,73 @@
+import { walkDocumentRefs } from "@/domain/actionArgs";
+import { commandStepLists } from "@/domain/commandNodes";
+import { parseDocRef, projectNamespace } from "@/domain/docRef";
+import { documentChainSlots } from "@/domain/documentKindVisitors";
+import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
+import {
+  type DocKey,
+  allDocuments,
+  commandsOf,
+  dialogsOf,
+  docKey,
+  menusOf,
+} from "@/domain/documents";
 import { addressedAppearances } from "@/domain/element";
-import { walkActions } from "@/domain/stepPath";
 import type { Project } from "@/domain/types";
 
 export type EdgeTrigger =
   | { kind: "element"; elementId: string; material: string; clickType: string }
   | { kind: "command"; commandId: string }
-  | { kind: "dialog_button"; dialogId: string; buttonId: string };
+  | { kind: "dialog_button"; dialogId: string; buttonId: string }
+  /** A chain slot of a Document of another kind (its `chainSlots` visitor). */
+  | { kind: "chain"; documentId: string; slot: string; label?: string };
 
 export interface Edge {
   id: string;
-  source: string;
-  target: string;
+  /** The source Document's key (`docKey`). */
+  source: DocKey;
+  /**
+   * The target's key: the kind the reference names, then its id, bare when it is a Document
+   * of this board (`menu/shop`), qualified otherwise (`menu/boutique:shop`).
+   */
+  target: DocKey;
   triggers: EdgeTrigger[];
 }
 
+/**
+ * A ref qualified with [project]'s own folder (`boutique_addon:shop_main`, as a module
+ * declares its command's menu) is a Document of this board: its bare id.
+ */
+export function localDocRef(project: Project, ref: string): string {
+  const { namespace, id } = parseDocRef(ref);
+  return namespace === projectNamespace(project) ? id : ref;
+}
+
+/**
+ * The board's edges: one per (source Document, target Document) pair, carrying the
+ * triggers that open the target. A trigger is any action with a `document_ref` argument
+ * (`open_menu`, `open_dialog`, a module's action referencing a Document), read through
+ * its declaration (ADR `extensible-document-kinds`, R3).
+ */
 export function deriveEdges(project: Project): Edge[] {
   const edgeMap = new Map<string, Edge>();
   const triggerSeen = new Map<string, Set<string>>();
 
-  const addTrigger = (source: string, target: string, trigger: EdgeTrigger) => {
+  const local = (ref: string) => localDocRef(project, ref);
+  const addTrigger = (
+    source: DocKey,
+    ref: { document: string; id: string },
+    trigger: EdgeTrigger,
+  ) => {
+    const target = docKey(ref.document, local(ref.id));
     const id = `${source}->${target}`;
     const triggerKey =
       trigger.kind === "element"
         ? `el:${trigger.elementId}:${trigger.clickType}`
         : trigger.kind === "dialog_button"
           ? `dlg:${trigger.dialogId}:${trigger.buttonId}`
-          : `cmd:${trigger.commandId}`;
+          : trigger.kind === "chain"
+            ? `chain:${trigger.documentId}:${trigger.slot}`
+            : `cmd:${trigger.commandId}`;
 
     let edge = edgeMap.get(id);
     if (!edge) {
@@ -40,7 +82,7 @@ export function deriveEdges(project: Project): Edge[] {
     }
   };
 
-  for (const menu of project.menus) {
+  for (const menu of menusOf(project)) {
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
         for (const appearance of addressedAppearances(el)) {
@@ -48,22 +90,14 @@ export function deriveEdges(project: Project): Edge[] {
           const material = appearance.material ?? el.display.material ?? "";
           for (const [clickType, handler] of Object.entries(appearance.click)) {
             if (!handler) continue;
-            for (const action of walkActions(handler.steps)) {
-              if (action.type === "open_menu") {
-                addTrigger(menu.id, action.menuId, {
-                  kind: "element",
-                  elementId: el.id,
-                  material,
-                  clickType,
-                });
-              } else if (action.type === "open_dialog") {
-                addTrigger(menu.id, action.dialogId, {
-                  kind: "element",
-                  elementId: el.id,
-                  material,
-                  clickType,
-                });
-              }
+            for (const ref of walkDocumentRefs(handler.steps)) {
+              if (ref.id === "") continue;
+              addTrigger(docKey("menu", menu.id), ref, {
+                kind: "element",
+                elementId: el.id,
+                material,
+                clickType,
+              });
             }
           }
         }
@@ -71,32 +105,41 @@ export function deriveEdges(project: Project): Edge[] {
     }
   }
 
-  for (const cmd of project.commands) {
-    for (const action of walkActions(cmd.steps)) {
-      if (action.type === "open_menu") {
-        addTrigger(cmd.id, action.menuId, { kind: "command", commandId: cmd.id });
-      } else if (action.type === "open_dialog") {
-        addTrigger(cmd.id, action.dialogId, { kind: "command", commandId: cmd.id });
+  for (const cmd of commandsOf(project)) {
+    for (const steps of commandStepLists(cmd)) {
+      for (const ref of walkDocumentRefs(steps)) {
+        if (ref.id !== "")
+          addTrigger(docKey("command", cmd.id), ref, { kind: "command", commandId: cmd.id });
       }
     }
   }
 
-  for (const dialog of project.dialogs ?? []) {
+  for (const dialog of dialogsOf(project)) {
     for (const btn of dialog.buttons) {
-      for (const action of walkActions(btn.steps)) {
-        if (action.type === "open_menu") {
-          addTrigger(dialog.id, action.menuId, {
-            kind: "dialog_button",
-            dialogId: dialog.id,
-            buttonId: btn.id,
-          });
-        } else if (action.type === "open_dialog") {
-          addTrigger(dialog.id, action.dialogId, {
-            kind: "dialog_button",
-            dialogId: dialog.id,
-            buttonId: btn.id,
-          });
-        }
+      for (const ref of walkDocumentRefs(btn.steps)) {
+        if (ref.id === "") continue;
+        addTrigger(docKey("dialog", dialog.id), ref, {
+          kind: "dialog_button",
+          dialogId: dialog.id,
+          buttonId: btn.id,
+        });
+      }
+    }
+  }
+
+  // Any other kind: its chains come from its visitor, the trigger is the slot itself.
+  const core = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
+  for (const { kind, doc } of allDocuments(project)) {
+    if (core.has(kind)) continue;
+    for (const slot of documentChainSlots(kind, doc)) {
+      for (const ref of walkDocumentRefs(slot.steps)) {
+        if (ref.id === "") continue;
+        addTrigger(docKey(kind, doc.id), ref, {
+          kind: "chain",
+          documentId: doc.id,
+          slot: slot.name,
+          ...(slot.label !== undefined ? { label: slot.label } : {}),
+        });
       }
     }
   }

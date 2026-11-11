@@ -1,6 +1,6 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { serializeMenuToV1 } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
+import { menuV1FromDomain } from "./menuV1FromDomain";
 import { menuV1ToDomain } from "./menuV1ToDomain";
 import { validateMenuV1 } from "./validateMenuV1";
 
@@ -23,7 +23,7 @@ describe("explicit menu item binding", () => {
     expect(validateMenuV1(wire)).toEqual({ valid: true, errors: [] });
     const { menu } = menuV1ToDomain(wire, { projectId: "p" as ProjectId, lang: "fr" });
     const project = { id: "p", defaultLang: "fr", i18nKeys: {} } as Project;
-    const result = serializeMenuToV1(menu, project);
+    const result = menuV1FromDomain(menu, project);
     expect(result).toMatchObject({
       schema: "menu/v1",
       elements: [{ item: "{item.icon}", count: 1 }],
@@ -56,7 +56,7 @@ describe("explicit menu item binding", () => {
     });
     const project = { id: "p", defaultLang: "en", i18nKeys } as Project;
     expect(menu.layers[0]!.elements[0]!.display!.loreMode).toBe("replace");
-    const result = serializeMenuToV1(menu, project);
+    const result = menuV1FromDomain(menu, project);
     expect(result).toMatchObject({ schema: "menu/v1", elements: [{ lore_mode: "replace" }] });
     expect(validateMenuV1(result).valid).toBe(true);
   });

@@ -4,8 +4,8 @@ import type { Element, Menu, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useCssVar } from "@/lib/themeColors";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
-import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { isElementSelected, useSelectionStore } from "@/state/selectionStore";
 import { Group, Image, Rect, Text } from "react-konva";
 import { toast } from "sonner";
@@ -85,7 +85,7 @@ function ImageButtonRender({
         const dRow = Math.round((node.y() - y) / (18 * TEX_SCALE));
         node.position({ x, y });
         try {
-          useAccountStore.getState().moveSelectionByDelta({
+          useProjectsStore.getState().moveSelectionByDelta({
             projectId,
             menuId: menu.id,
             elementIds: [element.id],

@@ -134,7 +134,7 @@
 }
 .marketing-footer-top {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr;
   gap: 36px;
   padding-bottom: 54px;
 }
@@ -717,7 +717,7 @@
     font-size: 11px;
   }
   .marketing-footer-top {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 25px 14px;
   }
   .marketing-footer-top > div:first-child {

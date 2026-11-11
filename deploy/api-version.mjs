@@ -1,13 +1,13 @@
-// Version de l'API publique (net.artisanmc:artisan-core-api), déduite de la colonne
-// `Since` de docs/architecture/api-surface.md : la plus haute version citée est la
-// version courante. Utilisé par .github/workflows/publish-api.yml (release ou snapshot)
-// et api-version-check.yml (une PR qui touche l'API doit annoncer une nouvelle version).
+// Version of the public API (net.artisanmc:artisan-core-api), derived from the
+// `Since` column of docs/architecture/api-surface.md: the highest version cited is the
+// current one. Used by .github/workflows/publish-api.yml (release or snapshot)
+// and api-version-check.yml (a PR touching the API must announce a new version).
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
-export const API_SOURCES = "plugin/src/main/kotlin/net/artisanmc/modules/api/";
+export const API_SOURCES = "plugin/api/src/main/";
 export const API_SURFACE = "docs/architecture/api-surface.md";
 export const NO_RELEASE_LABEL = "api:no-release";
 
@@ -20,7 +20,7 @@ export function compare(a, b) {
 
 const max = (versions) => versions.reduce((m, v) => (m === null || compare(v, m) > 0 ? v : m), null);
 
-/** Plus haute version citée comme `Since` : dernière cellule d'une ligne de tableau, ou « Since X.Y.Z » en prose. */
+/** Highest version cited as `Since`: last cell of a table row, or "Since X.Y.Z" in prose. */
 export function currentApiVersion(markdown) {
   const found = [];
   for (const line of markdown.split("\n")) {
@@ -34,7 +34,7 @@ export function currentApiVersion(markdown) {
   return version;
 }
 
-/** Dernière release : plus haut tag strict `api-vX.Y.Z` (les pré-releases sont ignorées). */
+/** Latest release: highest strict `api-vX.Y.Z` tag (pre-releases are ignored). */
 export function latestRelease(tags) {
   return max(tags.map((t) => t.trim()).filter((t) => /^api-v\d+\.\d+\.\d+$/.test(t)).map((t) => t.slice("api-v".length)));
 }
@@ -44,7 +44,7 @@ export function nextSnapshot(version) {
   return `${major}.${Number(minor) + 1}.0-SNAPSHOT`;
 }
 
-/** Push sur main : release si la version documentée dépasse la dernière release, sinon snapshot. */
+/** Push to main: release if the documented version is above the latest release, snapshot otherwise. */
 export function planPublish(markdown, tags) {
   const current = currentApiVersion(markdown);
   const latest = latestRelease(tags);
@@ -52,7 +52,7 @@ export function planPublish(markdown, tags) {
   return { kind: "snapshot", version: nextSnapshot(latest) };
 }
 
-/** PR : un changement des sources de l'API doit monter la version documentée au-dessus de la dernière release. */
+/** PR: a change to the API sources must raise the documented version above the latest release. */
 export function checkApiChange({ changedFiles, markdown, tags, labels = [] }) {
   if (!changedFiles.some((f) => f.startsWith(API_SOURCES))) return { ok: true, reason: "API sources unchanged" };
   if (labels.includes(NO_RELEASE_LABEL)) return { ok: true, reason: `label ${NO_RELEASE_LABEL}` };

@@ -1,3 +1,4 @@
+import { docKey, menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { INVENTORY_TYPES, PLAYER_SLOTS, rowsFor, slotCount, slotMcXY } from "./inventoryTypes";
 import { TEX_SCALE, TEX_SLOT_STRIDE, menuBoxSize } from "./menuLayout";
@@ -26,8 +27,8 @@ export function hitTestSlot(
   worldX: number,
   worldY: number,
 ): SlotHit | null {
-  for (const menu of project.menus) {
-    const pos = layout[menu.id];
+  for (const menu of menusOf(project)) {
+    const pos = layout[docKey("menu", menu.id)];
     if (!pos) continue;
     const type = menu.inventoryType ?? "chest";
     const g = INVENTORY_TYPES[type];

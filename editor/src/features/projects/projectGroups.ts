@@ -3,21 +3,18 @@ import { selectModuleNavEntries } from "@/distribution/moduleNav";
 import type { Project } from "@/domain/types";
 import { fallbackScreensFor } from "@/features/screens/screenList";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
-import type { ProjectSummary } from "@/lib/api/networks";
+import type { ProjectSummary } from "@/lib/api/servers";
 import { getModule } from "@artisan/editor-sdk";
 
-export type OwnedProject = ProjectSummary & { ownerModule: string };
-
 /**
- * Les ids lus sur le disque du serveur, présentés comme des Projects.
+ * The ids read from the server's disk, presented as Projects.
  *
- * Il n'y a rien d'autre à en dire : le nom du dossier EST l'identité, et le
- * backend n'en tient plus de fiche (ADR `server-disk-only-storage`). Les
- * champs qui décrivaient sa copie (`hash`) restent donc vides — une seule
- * fabrique pour que la sidebar et la page d'un serveur ne divergent pas.
+ * Nothing more to say: the folder name IS the identity (ADR
+ * `server-disk-only-storage`). The fields that described the old copy
+ * (`hash`) stay empty — a single factory so the sidebar and a server's page
+ * do not diverge.
  */
 export function diskProjectsToSummaries(
-  networkId: string,
   serverKeyId: string,
   projectIds: string[],
   metadata: ProjectSummary[] = [],
@@ -29,7 +26,6 @@ export function diskProjectsToSummaries(
         name: id,
         externalId: id,
         hash: "",
-        networkId,
         serverKeyId,
       },
   );
@@ -41,28 +37,27 @@ export function diskProjectsToSummaries(
   ];
 }
 
-/** Une ligne sous un module. `label: null` = l'entrée « Éditeur » générique :
- *  le nom du module est déjà porté par l'en-tête du groupe. */
+/** A project of the list. `ownerModule`: the module that ships it (ADR
+ *  `addon-owned-project-roots`), null for an ordinary project; `ownerLabel`: that
+ *  module's name, for the badge. */
+export type ProjectRow = ProjectSummary & { ownerModule: string | null; ownerLabel: string | null };
+
+/** A row under a module: one of its Config screens, or its configuration route. */
 export type ModuleGroupEntry =
-  | { kind: "project"; project: OwnedProject; label: string | null }
   | { kind: "screen"; screen: ServerEditorScreen }
   | { kind: "config"; moduleId: string };
 
 export interface ModuleGroup {
   id: string;
   label: string;
-  projects: OwnedProject[];
   screens: ServerEditorScreen[];
-  /** Le module a une route éditeur (`/m/<id>`) → entrée « Configuration ». */
+  /** The module has an editor route (`/m/<id>`) → "Configuration" entry. */
   hasScreen: boolean;
   entries: ModuleGroupEntry[];
-  /** Tout le groupe tient en une seule entrée projet : une surface qui préfère
-   *  une ligne unique l'affiche sous le nom du module (cas boutique). */
-  collapsed: boolean;
 }
 
 export interface ProjectGroupsInput {
-  /** Les Projects du serveur, déjà ordonnés par la surface appelante. */
+  /** The server's Projects, already ordered by the calling surface. */
   projects: ProjectSummary[];
   screens: ServerEditorScreen[];
   mountedModuleIds: string[];
@@ -70,71 +65,116 @@ export interface ProjectGroupsInput {
 }
 
 /**
- * Sépare les Projects ordinaires des Projects possédés par un Add-on
- * (ADR `addon-owned-project-roots`) et compose, pour chaque module installé,
- * son groupe : le canvas, ses Config screens (ADR `module-config-screens`) et
- * sa route de configuration.
+ * Splits the two things a server offers by task, not by owner:
  *
- * Fonction pure et partagée : la sidebar et la page d'un serveur affichent la
- * même chose parce qu'elles lisent la même liste, pas parce qu'on a recopié la
- * règle deux fois.
+ * - `projects`: **every** Project, in one list. A module is usable in any project,
+ *   so the content a module ships is a project like the others, badged with the
+ *   module's name (`ownerLabel`) instead of hidden under it.
+ * - `moduleGroups`: what only the module manages — its Config screens (ADR
+ *   `module-config-screens`) and its configuration route. A module with neither
+ *   has no group. A module's configuration root (`role: "config"`) is reached
+ *   through these screens only: it holds settings, not content, so it is left out
+ *   of `projects`.
+ *
+ * Pure, shared function: the sidebar and a server's page show the same thing
+ * because they read the same list, not because the rule was copied twice.
  */
 export function buildProjectGroups({
   projects,
   screens,
   mountedModuleIds,
   localProjects,
-}: ProjectGroupsInput): { flatProjects: ProjectSummary[]; moduleGroups: ModuleGroup[] } {
-  const owned = projects.map((p) => ({ p, owner: ownerModuleOf(p, screens) }));
-  const flatProjects = owned.filter((e) => !e.owner).map((e) => e.p);
-  const ownedProjects: OwnedProject[] = owned
-    .filter((e) => e.owner)
-    .map((e) => ({ ...e.p, ownerModule: e.owner as string }));
-
+}: ProjectGroupsInput): { projects: ProjectRow[]; moduleGroups: ModuleGroup[] } {
   const nav = selectModuleNavEntries(mountedModuleIds);
   const navIds = nav.map((m) => m.id);
-  const groupIds = Array.from(
-    new Set<string>([...navIds, ...ownedProjects.map((p) => p.ownerModule)]),
-  );
+  // A routable module carries a sidebar label; otherwise its displayName.
+  // moduleNav only lists modules WITH a screen — fall back to the registered
+  // module's displayName for the others (shop).
+  const labelOf = (id: string) =>
+    nav.find((m) => m.id === id)?.sidebar.label ?? getModule(id)?.displayName ?? id;
 
-  const moduleGroups = groupIds.map((id) => {
-    const groupProjects = ownedProjects.filter((p) => p.ownerModule === id);
-    // Écrans déclarés à la Presence ; à défaut, écrans synthétisés depuis les
-    // tables de modèles déclarés du project possédé.
-    const declared = screens.filter((s) => s.moduleId === id);
-    const groupScreens =
-      declared.length > 0
-        ? declared
-        : fallbackScreensFor(
-            id,
-            groupProjects.map((p) => p.id),
-            localProjects,
-          );
-    const hasScreen = navIds.includes(id);
-    const entries: ModuleGroupEntry[] = [
-      ...groupProjects.map(
-        (project): ModuleGroupEntry => ({
-          kind: "project",
-          project,
-          label: groupProjects.length === 1 ? null : project.name,
-        }),
-      ),
-      ...groupScreens.map((screen): ModuleGroupEntry => ({ kind: "screen", screen })),
-      ...(hasScreen ? [{ kind: "config", moduleId: id } as ModuleGroupEntry] : []),
-    ];
-    return {
-      id,
-      // Un module routable porte un libellé de sidebar ; sinon son displayName.
-      // moduleNav ne liste que les modules AVEC un écran — repli sur le
-      // displayName du module enregistré pour les autres (boutique).
-      label: nav.find((m) => m.id === id)?.sidebar.label ?? getModule(id)?.displayName ?? id,
-      projects: groupProjects,
-      screens: groupScreens,
-      hasScreen,
-      entries,
-      collapsed: entries.length === 1 && entries[0]!.kind === "project",
-    };
+  const rows: ProjectRow[] = projects.map((p) => {
+    const owner = ownerModuleOf(p, screens) ?? null;
+    return { ...p, ownerModule: owner, ownerLabel: owner ? labelOf(owner) : null };
   });
 
-  return { flatProjects, moduleGroups };
+  const groupIds = Array.from(
+    new Set<string>([
+      ...navIds,
+      ...rows.flatMap((p) => (p.ownerModule ? [p.ownerModule] : [])),
+      ...screens.flatMap((s) => (s.moduleId ? [s.moduleId] : [])),
+    ]),
+  );
+
+  const moduleGroups = groupIds
+    .map((id): ModuleGroup => {
+      // Screens declared in the Presence; failing that, screens synthesised from
+      // the owned project's declared model tables.
+      const declared = screens.filter((s) => s.moduleId === id);
+      const groupScreens =
+        declared.length > 0
+          ? declared
+          : fallbackScreensFor(
+              id,
+              rows.filter((p) => p.ownerModule === id).map((p) => p.id),
+              localProjects,
+            );
+      const hasScreen = navIds.includes(id);
+      const entries: ModuleGroupEntry[] = [
+        ...groupScreens.map((screen): ModuleGroupEntry => ({ kind: "screen", screen })),
+        ...(hasScreen ? [{ kind: "config", moduleId: id } as ModuleGroupEntry] : []),
+      ];
+      return { id, label: labelOf(id), screens: groupScreens, hasScreen, entries };
+    })
+    .filter((g) => g.entries.length > 0);
+
+  return { projects: rows.filter((p) => p.role !== "config"), moduleGroups };
+}
+
+/**
+ * A plugin's module: the folder(s) it registered (`projects`, usually one, never its
+ * configuration root) and what it alone manages (`entries`: Config screens, then its
+ * configuration route).
+ */
+export interface PluginModule {
+  id: string;
+  label: string;
+  projects: ProjectRow[];
+  entries: ModuleGroupEntry[];
+}
+
+/**
+ * The server's modules, one folder = one module (design `projets-en-modules`):
+ *
+ * - `pluginModules`: every module a plugin provides, with its folders and screens, sorted
+ *   by name. A module with neither a folder nor anything to configure is left out.
+ * - `contentModules`: the admin's folders, owned by no plugin, in the caller's order.
+ *
+ * Built on [buildProjectGroups]: the same owners, labels and screens, grouped by module.
+ */
+export function buildModuleList(input: ProjectGroupsInput): {
+  pluginModules: PluginModule[];
+  contentModules: ProjectRow[];
+} {
+  const { projects, moduleGroups } = buildProjectGroups(input);
+  const byId = new Map<string, PluginModule>(
+    moduleGroups.map((g) => [g.id, { id: g.id, label: g.label, projects: [], entries: g.entries }]),
+  );
+  const contentModules: ProjectRow[] = [];
+  for (const row of projects) {
+    if (!row.ownerModule) {
+      contentModules.push(row);
+      continue;
+    }
+    const module = byId.get(row.ownerModule) ?? {
+      id: row.ownerModule,
+      label: row.ownerLabel ?? row.ownerModule,
+      projects: [],
+      entries: [],
+    };
+    module.projects.push(row);
+    byId.set(module.id, module);
+  }
+  const pluginModules = [...byId.values()].sort((a, b) => a.label.localeCompare(b.label));
+  return { pluginModules, contentModules };
 }

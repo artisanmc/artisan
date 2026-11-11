@@ -1,5 +1,6 @@
-import type { ElementId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { menusOf } from "@/domain/documents";
+import type { Project, ProjectId } from "@/domain/types";
+import { useProjectsStore } from "@/state/projectsStore";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Stage } from "./Stage";
@@ -29,7 +30,7 @@ vi.mock("./Edges", () => ({ Edges: () => <div data-testid="edges" /> }));
 
 const PID = "p1" as ProjectId;
 
-/** `m1` est sur la planche, `m2` ne l'est pas — c'est tout l'enjeu du focus. */
+/** `m1` is on the board, `m2` is not — that is the whole point of focus. */
 function project(): Project {
   return {
     id: PID,
@@ -37,18 +38,20 @@ function project(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      { id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
-      { id: "m2", projectId: PID, title: [], rows: 3, layers: [] } as any,
-    ],
-    commands: [],
+    documents: {
+      menu: [
+        { id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
+        { id: "m2", projectId: PID, title: [], rows: 3, layers: [] } as any,
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
-    dialogs: [],
-    canvasLayout: { m1: { x: 0, y: 0 } } as any,
+    canvasLayout: { "menu/m1": { x: 0, y: 0 } } as any,
   } as Project;
 }
 
@@ -58,29 +61,29 @@ function groupNames(): (string | null)[] {
 
 describe("Stage — mode focus", () => {
   beforeEach(() => {
-    useAccountStore.setState({
-      account: { id: "a" as any, projects: [project()], projectOrder: [PID] },
+    useProjectsStore.setState({
+      openProjects: { projects: [project()], projectOrder: [PID] },
     } as any);
   });
 
   /**
-   * Le focus fabrique sa propre table de layout : l'appartenance à la planche
-   * n'a aucun effet sur lui. C'est ce qui garantit qu'un Document jamais posé
-   * sur la planche reste pleinement éditable.
+   * Focus builds its own layout table: board membership has no effect on it.
+   * That is what guarantees a Document never placed on the board stays fully
+   * editable.
    */
-  it("rend le document ciblé même absent de canvasLayout", () => {
-    render(<Stage projectId={PID} focus={"m2" as ElementId} />);
+  it("renders the targeted document even when absent from canvasLayout", () => {
+    render(<Stage projectId={PID} focus="menu/m2" />);
     expect(groupNames()).toContain("menu:m2");
   });
 
-  it("ne rend aucun autre document, même présent sur la planche", () => {
-    render(<Stage projectId={PID} focus={"m2" as ElementId} />);
+  it("renders no other document, even one present on the board", () => {
+    render(<Stage projectId={PID} focus="menu/m2" />);
     expect(groupNames()).not.toContain("menu:m1");
   });
 
-  /** Pas de position de planche en focus : le déplacer n'aurait rien à écrire. */
-  it("le document focalisé n'est pas déplaçable", () => {
-    render(<Stage projectId={PID} focus={"m2" as ElementId} />);
+  /** No board position in focus: moving it would have nothing to write. */
+  it("the focused document cannot be dragged", () => {
+    render(<Stage projectId={PID} focus="menu/m2" />);
     const g = screen
       .getAllByTestId("konva-group")
       .find((x) => x.getAttribute("data-name") === "menu:m2");
@@ -88,11 +91,11 @@ describe("Stage — mode focus", () => {
   });
 
   /**
-   * Le trou que la fusion comble : la vue document enregistrait un canvas à
-   * elle, sans cible de dépôt — glisser un item depuis la Bibliothèque ne
-   * faisait rien, en silence.
+   * The gap the merge fills: the document view registered a canvas of its own,
+   * with no drop target — dragging an item from the Library silently did
+   * nothing.
    */
-  it("accepte le dépôt d'un item depuis la Bibliothèque", () => {
+  it("accepts dropping an item from the Library", () => {
     vi.spyOn(HTMLDivElement.prototype, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -104,7 +107,7 @@ describe("Stage — mode focus", () => {
       y: 0,
       toJSON: () => ({}),
     } as DOMRect);
-    render(<Stage projectId={PID} focus={"m2" as ElementId} />);
+    render(<Stage projectId={PID} focus="menu/m2" />);
 
     const g = INVENTORY_TYPES.chest;
     const placed = tryStageDrop(
@@ -114,7 +117,9 @@ describe("Stage — mode focus", () => {
     );
 
     expect(placed).toBe(true);
-    const menu = useAccountStore.getState().account.projects[0]!.menus.find((m) => m.id === "m2")!;
+    const menu = menusOf(useProjectsStore.getState().openProjects.projects[0]!).find(
+      (m) => m.id === "m2",
+    )!;
     expect(menu.layers.flatMap((l) => l.elements)).not.toHaveLength(0);
   });
 });

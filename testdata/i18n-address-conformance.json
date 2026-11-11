@@ -1,5 +1,5 @@
 {
-  "note": "Canonical i18n ADDRESSES — the cross-language contract of inline mode. A document holds the default language's literal text; every other language sits in lang/<lang>.yaml at the address of its key site. The editor mints those addresses when it writes the lang files (domain/i18nSites.ts + lib/i18nKeys.ts); the plugin re-derives them from the file structure when it reads them (engine/I18nAddresses.kt, MenuTitleParser, DialogTextResolver). Disagree on one address and a translation lands where the runtime never looks. Owned by: editor/src/features/export/i18nAddressConformance.test.ts + plugin I18nAddressConformanceTest.kt — changing the scheme means updating both and this file.",
+  "note": "Canonical i18n ADDRESSES — the cross-language contract of inline mode. A document holds the default language's literal text; every other language sits in lang/<lang>.yaml at the address of its key site. The editor mints those addresses when it writes the lang files (domain/i18nSites.ts + lib/i18nKeys.ts); the plugin re-derives them from the file structure when it reads them (engine/I18nAddresses.kt, MenuTitleParser, DialogTextResolver). Disagree on one address and a translation lands where the runtime never looks. Owned by: editor/src/features/export/i18nAddressConformance.test.ts + plugin I18nAddressConformanceTest.kt — changing the scheme means updating both and this file. Action texts (`step_addresses`): a case gives either a legacy `dsl` chain or keyed `steps` (the structured wire, module actions included), plus the `declared_actions` of the module actions it uses, in the Presence wire shape. The rule is driven by each action's schema: an ltext argument with a legacy slot (send_message/broadcast → message, show_title → show_title/show_subtitle) counts per slot; any other ltext argument hangs off the action's name (`:` read as `.`), numbered per occurrence of that action, a list(ltext) numbering its entries _2, _3…; an absent optional text consumes nothing; an undeclared action has no text site.",
 
   "sites": [
     { "name": "menu title, first text-bearing layer", "kind": "menu_title", "menu_id": "shop", "layer_index": 0, "address": "menus.shop.title" },
@@ -93,6 +93,85 @@
         "dialogs.confirm.buttons.ok.message",
         "dialogs.confirm.buttons.ok.message_1",
         "dialogs.confirm.buttons.ok.message_2"
+      ]
+    },
+    {
+      "name": "the keyed wire is addressed like the DSL, whatever the wire form of the text",
+      "prefix": "menus.shop.elements.buy.default.click.left",
+      "steps": [
+        { "send_message": "a" },
+        { "broadcast": { "en": "b", "fr": "c" } },
+        { "show_title": { "title": "t", "subtitle": "s" } },
+        { "show_title": "t2" }
+      ],
+      "addresses": [
+        "menus.shop.elements.buy.default.click.left.message",
+        "menus.shop.elements.buy.default.click.left.message_1",
+        "menus.shop.elements.buy.default.click.left.show_title",
+        "menus.shop.elements.buy.default.click.left.show_subtitle",
+        "menus.shop.elements.buy.default.click.left.show_title_1"
+      ]
+    },
+    {
+      "name": "a module action's text hangs off its name, numbered per occurrence of that action",
+      "prefix": "commands.give",
+      "declared_actions": [
+        { "name": "quests:notify", "args": [{ "name": "text", "type": { "kind": "ltext" }, "required": true }, { "name": "then", "type": { "kind": "actions" } }], "primary": "text", "module_id": "quests" },
+        { "name": "quests:toast", "args": [{ "name": "title", "type": { "kind": "ltext" }, "required": true }, { "name": "subtitle", "type": { "kind": "ltext" } }], "primary": "title", "module_id": "quests" }
+      ],
+      "steps": [
+        { "quests:notify": "hi" },
+        { "send_message": "m" },
+        { "quests:notify": { "text": { "en": "x" }, "then": [{ "give_xp": 1 }] } },
+        { "quests:toast": { "title": "t" } },
+        { "quests:toast": { "title": "t2", "subtitle": "s2" } }
+      ],
+      "addresses": [
+        "commands.give.quests.notify.text",
+        "commands.give.message",
+        "commands.give.quests.notify_1.text",
+        "commands.give.quests.toast.title",
+        "commands.give.quests.toast_1.title",
+        "commands.give.quests.toast_1.subtitle"
+      ]
+    },
+    {
+      "name": "a list of texts numbers its entries from _2",
+      "prefix": "dialogs.intro.buttons.ok",
+      "declared_actions": [
+        { "name": "quests:lore", "args": [{ "name": "lines", "type": { "kind": "list", "of": { "kind": "ltext" } } }], "primary": "lines", "module_id": "quests" }
+      ],
+      "steps": [{ "quests:lore": ["a", "b", "c"] }, { "quests:lore": ["d"] }],
+      "addresses": [
+        "dialogs.intro.buttons.ok.quests.lore.lines",
+        "dialogs.intro.buttons.ok.quests.lore.lines_2",
+        "dialogs.intro.buttons.ok.quests.lore.lines_3",
+        "dialogs.intro.buttons.ok.quests.lore_1.lines"
+      ]
+    },
+    {
+      "name": "an undeclared action has no text site",
+      "prefix": "commands.give",
+      "steps": [{ "unknown:thing": "x" }, { "send_message": "m" }],
+      "addresses": ["commands.give.message"]
+    },
+    {
+      "name": "keyed branches count in document order, cases before else",
+      "prefix": "commands.give",
+      "declared_actions": [
+        { "name": "quests:notify", "args": [{ "name": "text", "type": { "kind": "ltext" }, "required": true }], "primary": "text", "module_id": "quests" }
+      ],
+      "steps": [
+        { "if": [{ "has_permission": "vip" }], "do": [{ "send_message": "a" }, { "quests:notify": "n1" }], "else": [{ "send_message": "b" }] },
+        { "quests:notify": "n2" },
+        { "send_message": "c" }
+      ],
+      "addresses": [
+        "commands.give.message",
+        "commands.give.quests.notify.text",
+        "commands.give.message_1",
+        "commands.give.quests.notify_1.text",
+        "commands.give.message_2"
       ]
     }
   ]

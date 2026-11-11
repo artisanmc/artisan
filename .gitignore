@@ -29,6 +29,7 @@ docker/server/
 
 # Generated MC assets (large binary artifacts — regenerated via gen-items.ts + gen-icons.ts)
 backend/data/mc-assets/
+tools/minecraft-assets/mc-assets/
 
 # Runtime dev artifacts (regenerated at runtime by editor/backend — not source)
 backend/data/assets/
@@ -38,3 +39,7 @@ backend/data/asset-cache/
 backend/data/resource-projects/
 backend/data/plugin-release/
 /data/
+docker/network/data/
+
+# Vite dependency cache (created when vite runs from the repo root)
+.vite/

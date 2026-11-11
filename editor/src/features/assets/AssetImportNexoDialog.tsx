@@ -157,7 +157,7 @@ function NexoGlyphTile({
       title={glyph.available ? glyph.texture : t("nexoImport.unavailable")}
       onClick={onToggle}
       className={cx(
-        "flex flex-col items-center gap-1 rounded border p-2 text-[10px] disabled:opacity-40",
+        "flex flex-col items-center gap-1 rounded border p-2 text-[11px] disabled:opacity-40",
         selected
           ? "border-[var(--brand)] bg-[var(--brand-soft)]"
           : "border-[var(--border)] hover:border-[var(--border-strong)]",

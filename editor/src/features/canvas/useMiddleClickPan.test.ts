@@ -20,7 +20,13 @@ afterEach(() => {
 // PointerEvent isn't constructible in jsdom; a MouseEvent on a pointer-type
 // carries button/clientX/clientY, which is all the hook reads.
 function pdown(target: Element, button: number, clientX: number, clientY: number) {
-  const e = new MouseEvent("pointerdown", { button, clientX, clientY, cancelable: true, bubbles: true });
+  const e = new MouseEvent("pointerdown", {
+    button,
+    clientX,
+    clientY,
+    cancelable: true,
+    bubbles: true,
+  });
   act(() => {
     target.dispatchEvent(e);
   });
@@ -56,6 +62,24 @@ describe("useMiddleClickPan", () => {
     expect(setViewport).toHaveBeenLastCalledWith({ x: 130, y: 30, scale: 2 });
 
     act(() => window.dispatchEvent(new MouseEvent("pointerup")));
+    expect(result.current.panning).toBe(false);
+  });
+
+  it("ends the pan even when the container swallows the middle button's release", () => {
+    const { wrapper, child, result } = setup();
+    // As `usePrimaryButtonOnly` does on the canvas container.
+    wrapper.addEventListener(
+      "pointerup",
+      (e) => {
+        if (e.button > 0) e.stopPropagation();
+      },
+      true,
+    );
+    pdown(child, 1, 0, 0);
+    expect(result.current.panning).toBe(true);
+    act(() => {
+      child.dispatchEvent(new MouseEvent("pointerup", { button: 1, bubbles: true }));
+    });
     expect(result.current.panning).toBe(false);
   });
 

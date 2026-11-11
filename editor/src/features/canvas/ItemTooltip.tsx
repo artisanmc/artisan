@@ -1,11 +1,14 @@
+import { McTooltip } from "@/components/mc-preview";
+import { menusOf } from "@/domain/documents";
 import { formatEnchant } from "@/domain/itemAdvanced";
 import type { Element, Menu, ProjectId } from "@/domain/types";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import type { Style } from "@/lib/miniMessage";
+import { ITEM_NAME } from "@/lib/mm/profiles";
 import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
-import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useMemo } from "react";
@@ -13,23 +16,28 @@ import { previewItem } from "./itemValuePreview";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
 import { matchPlacementRow, placementAtSlot, placementTotalPages } from "./placement";
 
+/** An item without a custom name: the game shows its material name, white. */
+const MATERIAL_NAME: Style = { color: "#ffffff", italic: false };
+
 interface ItemTooltipProps {
   projectId: ProjectId;
 }
 
 /**
  * Locate `id` within the hovered menu: element ids can repeat across menus. NOT a
- * zustand selector — wrapping this in `useAccountStore(...)` would return
+ * zustand selector — wrapping this in `useProjectsStore(...)` would return
  * a fresh object every call and trigger an infinite re-render loop. Call
  * it from `useMemo` against a stable project ref instead.
  */
 const findElementAndMenu = (
-  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
+  project:
+    | ReturnType<typeof useProjectsStore.getState>["openProjects"]["projects"][number]
+    | undefined,
   id: string | null,
   menuId: string | null,
 ): { element: Element; menu: Menu } | null => {
   if (!project || !id || !menuId) return null;
-  const menu = project.menus.find((m) => m.id === menuId);
+  const menu = menusOf(project).find((m) => m.id === menuId);
   if (!menu) return null;
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
@@ -40,7 +48,7 @@ const findElementAndMenu = (
 };
 
 /** Convert "DIAMOND_SWORD" → "Diamond Sword" for tooltips when no custom title. */
-const humanize = (material: string): string =>
+export const humanizeMaterial = (material: string): string =>
   material
     .toLowerCase()
     .split("_")
@@ -70,7 +78,7 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   // thanks to immer) and derive the {element, menu} pair via useMemo so
   // the tooltip doesn't allocate a new object on every render — a fresh
   // selector return value would loop zustand's identity check.
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   // Live-server snapshots for real-data resolution. MUST stay above the early
   // returns below — a hook called conditionally throws "rendered more hooks
@@ -153,8 +161,8 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   } else if (element.places && slotPosition != null) {
     const totalPages = placementTotalPages(element.places.placements);
     const page = Math.min(Math.max(0, pageByElement[element.id] ?? 0), totalPages - 1);
-    // Le placement du contexte COURANT, pas le premier de la liste : plusieurs
-    // catégories se partagent les mêmes slots (cf. `placementAtSlot`).
+    // The placement of the CURRENT context, not the first in the list: several
+    // categories share the same slots (cf. `placementAtSlot`).
     const rowsHere = lookupPath(sampleCtx, element.places.source);
     const placement = placementAtSlot(element.places, rowsHere, page, slotPosition);
     if (placement) {
@@ -175,43 +183,23 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
 
   // A referenced item brings its own name and lore. The element's title wins
   // when it has one, its lore is APPENDED — same order as the runtime.
-  const rawTitle = cachedName || resolved.title || humanize(resolved.material ?? "");
+  const rawTitle = cachedName || resolved.title || humanizeMaterial(resolved.material ?? "");
   const title = renderPreview(rawTitle, ctx, project, activeLang);
   const lore = cachedLore ?? resolved.lore;
 
   return (
     <div className="pointer-events-none fixed z-50" style={{ left: x + 14, top: y + 14 }}>
-      <div className="min-w-[120px] whitespace-pre rounded-sm border border-purple-900 bg-zinc-950/95 px-2 py-1 shadow-lg">
-        <MiniMessageInline source={title} className="block font-mono text-white text-xs" />
-        {/* Enchantments sit between the name and the lore, as in the vanilla tooltip. */}
-        {enchants.length > 0 && (
-          <div className="mt-0.5 flex flex-col gap-0">
-            {enchants.map((ench) => (
-              <span
-                key={`${ench.id}-${ench.level}`}
-                className="block font-mono text-[10px] text-zinc-400"
-              >
-                {formatEnchant(ench)}
-              </span>
-            ))}
-          </div>
-        )}
-        {lore.length > 0 && (
-          <div className="mt-0.5 flex flex-col gap-0">
-            {/* Default lore color: white. Vanilla actually defaults to dark_purple
-                but most users don't want that — anyone who does adds an explicit
-                <dark_purple>/<#aa00aa> tag. Per-segment MM tags override via CSS. */}
-            {lore.map((line, i) => (
-              <MiniMessageInline
-                // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
-                key={i}
-                source={line}
-                className="block font-mono text-[10px] text-white"
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Drawn as the client draws it, with the plugin's defaults: a lore without a
+          color is white and not italic, long lines wrap at the project's
+          lore_max_width — the same rendering as the Edit item dialog. */}
+      <McTooltip
+        title={title}
+        titleDefaults={cachedName || resolved.title ? ITEM_NAME.defaults : MATERIAL_NAME}
+        enchants={(enchants ?? []).map(formatEnchant)}
+        lore={lore}
+        maxWidth={project.loreMaxWidth}
+        className="shadow-lg"
+      />
     </div>
   );
 }

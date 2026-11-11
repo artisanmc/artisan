@@ -2,31 +2,31 @@
 
 **Status:** superseded in part (2026-07-31)
 
-> **Révisé le 2026-07-26 (feedback utilisateur)** : le « set d'items » vit au
-> **niveau du menu**, pas des données. La création se fait depuis « Données du
-> menu » (`createMenuSet`) et produit un élément **auto-suffisant** (appearances
-> seedées, AUCUN Item template) ; le mode placement s'assiste du **contexte
-> d'aperçu** (panneau de rows contextuel — on navigue de catégorie en catégorie
-> et on place). La section « Sets d'items » du détail de source est supprimée.
+> **Revised 2026-07-26 (user feedback)**: the "item set" lives at the **menu
+> level**, not the data level. Creation happens from "Menu data"
+> (`createMenuSet`) and produces a **self-sufficient** element (seeded
+> appearances, NO Item template); placement mode is assisted by the **preview
+> context** (contextual rows panel — you navigate from category to category and
+> place). The "Item sets" section of the source detail is removed.
 >
-> **Révisé le 2026-07-31 — l'Item template est SUPPRIMÉ.** La révision ci-dessus
-> laissait cohabiter deux modèles : l'élément auto-suffisant (nouveau chemin de
-> création) et l'Item template project-level (partage de rendu entre menus, via
-> la bibliothèque « Sets » et les refs `iterates.template` / `places.template`).
-> Cette cohabitation est levée : **une apparence appartient au menu où elle est
-> rendue, jamais à une entité partagée.** Concrètement — `ItemTemplate`,
-> `Project.itemTemplates`, `templateId`, le dossier `templates/` et le schéma
-> `template/v1` n'existent plus ; l'onglet « Sets » et l'éditeur de template
-> sont supprimés ; `createMenuSet` est le seul chemin de création. Un
-> `templates/` legacy encore sur disque est **inliné à l'import** dans les
-> éléments qui le référençaient (clés i18n `item_templates.*` dupliquées puis
-> ré-adressées en `menus.<m>.elements.<el>.*`, cf. `templateMigration.test.ts`)
-> et n'est jamais réécrit ; le plugin garde la lecture de ces fichiers en
-> compat le temps que les serveurs déployés soient re-sauvegardés.
+> **Revised 2026-07-31 — the Item template is REMOVED.** The revision above let
+> two models coexist: the self-sufficient element (new creation path) and the
+> project-level Item template (rendering shared across menus, via the "Sets"
+> library and the `iterates.template` / `places.template` refs). That
+> coexistence is ended: **an appearance belongs to the menu where it is
+> rendered, never to a shared entity.** Concretely — `ItemTemplate`,
+> `Project.itemTemplates`, `templateId`, the `templates/` folder and the
+> `template/v1` schema no longer exist; the "Sets" tab and the template editor
+> are removed; `createMenuSet` is the only creation path. A legacy `templates/`
+> still on disk is **inlined at import** into the elements that referenced it
+> (`item_templates.*` i18n keys duplicated then re-addressed to
+> `menus.<m>.elements.<el>.*`, cf. `templateMigration.test.ts`) and is never
+> rewritten; the plugin keeps reading these files for compat until deployed
+> servers are re-saved.
 >
-> Ce qui est perdu volontairement : la vue « quelles rows de ma source ne sont
-> placées nulle part » qu'offrait la bibliothèque project-level, et la
-> réutilisation d'un même rendu dans plusieurs menus (à refaire par menu).
+> What is lost on purpose: the "which rows of my source are placed nowhere"
+> view that the project-level library offered, and reusing one rendering across
+> several menus (to be redone per menu).
 **Amends:** `data-source-stability-and-placement.md` (drops per-placement display
 overrides; moves template ownership off the Element)
 

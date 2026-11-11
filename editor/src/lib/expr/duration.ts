@@ -35,7 +35,10 @@ const LADDER = ["days", "hours", "minutes", "seconds"] as const;
  * A past or zero delta renders zero seconds rather than a negative or an empty
  * string: a countdown that has run out should read `0s`.
  */
-export function formatDuration(deltaMs: number, translate: (key: string) => string | undefined): string {
+export function formatDuration(
+  deltaMs: number,
+  translate: (key: string) => string | undefined,
+): string {
   const unit = (name: keyof typeof MS, n: number): string => {
     const pattern = translate(DURATION_KEYS[name]) ?? DURATION_DEFAULTS[name];
     return pattern.replace("{n}", String(n));

@@ -1,5 +1,5 @@
-import { useSelectionStore } from "@/state/selectionStore";
 import { useCssVar } from "@/lib/themeColors";
+import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useEffect, useRef } from "react";
 import { Transformer } from "react-konva";
@@ -10,7 +10,7 @@ interface SelectionProps {
 
 /**
  * Konva Transformer overlay attached to the currently-selected node(s).
- * v1 disables resize/rotate handles — Transformer is purely a visual
+ * Resize/rotate handles are disabled — the Transformer is purely a visual
  * indicator (the green stroke on each Group is the primary cue, but this
  * adds a subtle outer bounding box for multi-select).
  */

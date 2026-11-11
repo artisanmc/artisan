@@ -30,12 +30,7 @@ it("tints only the background at 15% and keeps the label readable without fold b
   expect(
     screen
       .getAllByTestId("rect")
-      .some(
-        (rect) =>
-          rect.dataset.fill === "#a855f7" &&
-          rect.dataset.opacity === "0.15" &&
-          rect.dataset.listening === "false",
-      ),
+      .some((rect) => rect.dataset.fill === "#a855f7" && rect.dataset.opacity === "0.15"),
   ).toBe(true);
   expect(screen.getByText("Crafts")).toBeVisible();
   expect(screen.queryByText("−")).not.toBeInTheDocument();

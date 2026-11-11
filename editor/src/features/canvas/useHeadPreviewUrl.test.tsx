@@ -1,4 +1,3 @@
-import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -11,7 +10,6 @@ const texture = btoa(
 );
 
 beforeEach(() => {
-  useNetworksStore.setState({ activeId: "heads-network" });
   useServersStore.setState({ activeServerId: "heads-server" });
 });
 afterEach(() => {
@@ -30,8 +28,8 @@ it("updates all previews after one HDB lookup and keeps cached skins scoped to t
     expect(result.current).toEqual(Array(2).fill(`https://mc-heads.net/head/${"a".repeat(64)}`)),
   );
   expect(fetcher).toHaveBeenCalledTimes(1);
-  expect(fetcher.mock.calls[0][0]).toContain(
-    "/heads-network/servers/heads-server/head-texture?id=128276",
+  expect(fetcher.mock.calls[0]![0]).toContain(
+    "/api/v1/servers/heads-server/head-texture?id=128276",
   );
   fetcher.mockResolvedValue({ ok: false });
   act(() => useServersStore.setState({ activeServerId: "other-heads-server" }));

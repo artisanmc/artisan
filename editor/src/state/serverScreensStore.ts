@@ -1,13 +1,12 @@
+import { type ServerEditorScreen, fetchServerEditorScreens } from "@/lib/api/configScreens";
 import { create } from "zustand";
-import { fetchServerEditorScreens, type ServerEditorScreen } from "@/lib/api/configScreens";
 
 interface ScreensSource {
-  networkId: string;
   serverId: string;
 }
 
 function sourceKey(source: ScreensSource): string {
-  return `u:${source.networkId}/${source.serverId}`;
+  return `u:${source.serverId}`;
 }
 
 interface ServerScreensState {
@@ -28,7 +27,7 @@ export const useServerScreensStore = create<ServerScreensState>((set, get) => ({
     if (loadedKey === key && status !== "idle") return;
     set({ status: "loading", loadedKey: key });
     try {
-      const screens = await fetchServerEditorScreens(source.networkId, source.serverId);
+      const screens = await fetchServerEditorScreens(source.serverId);
       if (get().loadedKey !== key) return;
       set({ screens, status: "ready", loadedKey: key });
     } catch {

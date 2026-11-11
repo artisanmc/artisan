@@ -1,7 +1,0 @@
-{
-  "manifest.yaml": "schema: manifest/v1\nname: Your first menu\ndefault_lang: en\nlanguages: [en, fr]\n",
-  "menus/welcome.yaml": "schema: menu/v1\nid: welcome\nsize: 27\ntitle:\n  - kind: plain\n    value:\n      key: menus.welcome.title\nlayers:\n  - id: main\n    name: default\n    elements:\n      - id: explore\n        positions: '11'\n        material: COMPASS\n        title: '{i18n:menus.welcome.explore}'\n        lore: ['{i18n:menus.welcome.hint}']\n      - id: customize\n        positions: '13'\n        material: DIAMOND\n        title: '{i18n:menus.welcome.customize}'\n        lore: ['{i18n:menus.welcome.hint}']\n      - id: create\n        positions: '15'\n        material: BOOK\n        title: '{i18n:menus.welcome.create}'\n        lore: ['{i18n:menus.welcome.hint}']\n",
-  "lang/en.yaml": "menus:\n  welcome:\n    title: Your first menu\n    explore: '<gold>Explore your menu'\n    customize: '<aqua>Make it yours'\n    create: '<green>Build something new'\n    hint: Select this item to change its name or material.\n",
-  "lang/fr.yaml": "menus:\n  welcome:\n    title: Votre premier menu\n    explore: '<gold>Explorez votre menu'\n    customize: '<aqua>Personnalisez-le'\n    create: '<green>Créez quelque chose'\n    hint: Sélectionnez cet objet pour changer son nom ou son matériau.\n",
-  ".artisan/editor.yaml": "schema: editor-state/v1\nlayout:\n  welcome:\n    x: 0\n    y: 0\n"
-}

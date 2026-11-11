@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import { previewDataSource } from "@/lib/api/dataSources";
+import { create } from "zustand";
 
 /**
  * Last-known snapshots of live server data sources, keyed by ref. Fetched via the
@@ -11,7 +11,6 @@ interface ServerSnapshotsState {
   rowsByRef: Record<string, Record<string, unknown>[]>;
   setSnapshot: (ref: string, rows: Record<string, unknown>[]) => void;
   loadSnapshot: (a: {
-    networkId: string;
     serverId: string;
     ref: string;
     /** Passed through to the fetcher — notably `player` for per-player sources. */
@@ -46,17 +45,17 @@ export const useServerSnapshotsStore = create<ServerSnapshotsState>((set) => ({
     signatureByRef.clear();
     set({ rowsByRef: {} });
   },
-  async loadSnapshot({ networkId, serverId, ref, params }) {
+  async loadSnapshot({ serverId, ref, params }) {
     if (ref.startsWith("pack:")) return; // project-owned; not a live server source
     // Params are part of the identity: the same ref previewed as two players is
     // two different result sets.
     const signature = JSON.stringify(params ?? {});
-    const key = `${networkId}/${serverId}/${ref}/${signature}`;
+    const key = `${serverId}/${ref}/${signature}`;
     if (inflight.has(key)) return;
     // Cached rows already answer these exact params — nothing to do.
     if (signatureByRef.get(ref) === signature) return;
     inflight.add(key);
-    const res = await previewDataSource(networkId, serverId, { ref, ...(params ? { params } : {}) });
+    const res = await previewDataSource(serverId, { ref, ...(params ? { params } : {}) });
     inflight.delete(key); // always: a transient failure must not block a retry
     if (res.ok) {
       signatureByRef.set(ref, signature);

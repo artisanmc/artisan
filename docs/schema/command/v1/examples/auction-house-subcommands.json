@@ -1,0 +1,28 @@
+{
+  "schema": "command/v1",
+  "name": "ah",
+  "aliases": ["hdv"],
+  "permission": "shop.ah",
+  "description": { "en": "Open the auction house", "fr": "Ouvrir l'hôtel des ventes" },
+  "notes": "Subcommands: each node has its own arguments, permission and actions; `admin` has no actions and shows the usage of its children.",
+  "actions": "open_menu auction_house",
+  "subcommands": [
+    {
+      "name": "sell",
+      "aliases": ["vendre"],
+      "permission": "shop.ah.sell",
+      "description": { "en": "Sell the item in your hand", "fr": "Vendre l'objet en main" },
+      "arguments": [{ "name": "price", "type": "integer" }],
+      "cooldown": { "id": "ah_sell", "duration_seconds": 5 },
+      "actions": "send_message \"Mis en vente pour {price}.\""
+    },
+    {
+      "name": "admin",
+      "permission": "shop.ah.admin",
+      "subcommands": [
+        { "name": "reload", "actions": "run_command \"ahreload\" as console" },
+        { "name": "legacy", "enabled": false, "actions": "close_menu" }
+      ]
+    }
+  ]
+}

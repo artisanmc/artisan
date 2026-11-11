@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import type { Guide } from "@/features/canvas/alignmentGuides";
+import { create } from "zustand";
 
 interface AlignmentState {
   guides: Guide[];

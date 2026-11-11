@@ -1,0 +1,21 @@
+{
+  "schema": "trigger/v1",
+  "on": "block_break",
+  "if": [
+    {
+      "world_is": "spawn"
+    },
+    {
+      "not": {
+        "has_permission": "build.spawn"
+      }
+    }
+  ],
+  "cooldown_seconds": 2,
+  "do": [
+    "cancel_event",
+    {
+      "send_message": "<red>Tu ne peux pas casser ici."
+    }
+  ]
+}

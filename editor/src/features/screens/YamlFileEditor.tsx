@@ -1,8 +1,8 @@
-import { parse } from "yaml";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
-import { useTranslation } from "react-i18next";
-import type { ConfigFile } from "@/lib/api/configScreens";
 import { FileHistory } from "@/features/project/FileHistory";
+import type { ConfigFile } from "@/lib/api/configScreens";
+import { useTranslation } from "react-i18next";
+import { parse } from "yaml";
 
 /** Parse failure of one edited file: the message and, when known, the line. */
 export interface YamlSyntaxError {
@@ -48,14 +48,15 @@ export function YamlFileEditor({
   errors: YamlSyntaxError[];
   selected: string;
   onSelect: (path: string) => void;
-  /** Corbeille du fichier — absente quand le contexte serveur est inconnu. */
-  history?: { networkId: string; serverId: string; diskId: string };
+  /** The file's trash — absent when the server context is unknown. */
+  history?: { serverId: string; diskId: string };
 }) {
   const { t } = useTranslation();
   const current = files.find((f) => f.path === selected) ?? files[0];
   const error = errors.find((e) => e.path === current?.path);
 
-  if (!current) return <p className="text-[12px] text-[var(--text-faint)]">{t("screens.emptyTable")}</p>;
+  if (!current)
+    return <p className="text-[12px] text-[var(--text-faint)]">{t("screens.emptyTable")}</p>;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="yaml-editor">
@@ -89,7 +90,6 @@ export function YamlFileEditor({
       {history ? (
         <FileHistory
           key={current.path}
-          networkId={history.networkId}
           serverId={history.serverId}
           diskId={history.diskId}
           path={current.path}

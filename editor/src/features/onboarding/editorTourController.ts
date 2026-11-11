@@ -2,8 +2,7 @@ import type { EditorTourAction, EditorTourProgress } from "@/lib/api/auth";
 export type { EditorTourProgress } from "@/lib/api/auth";
 
 export interface EditorTourIdentity {
-  accountId: string | null;
-  demo: boolean;
+  playerId: string | null;
   ready: boolean;
 }
 
@@ -19,13 +18,13 @@ export interface EditorTourSnapshot {
 export interface EditorTourDependencies {
   readGuest(): EditorTourProgress | null;
   writeGuest(progress: EditorTourProgress): void;
-  readTransfer?(accountId: string): EditorTourProgress | null;
-  clearTransfer?(accountId: string): void;
-  readAccount(
-    accountId: string,
+  readTransfer?(playerId: string): EditorTourProgress | null;
+  clearTransfer?(playerId: string): void;
+  readPlayer(
+    playerId: string,
   ): Promise<{ id: string; editorTour?: EditorTourProgress | null } | null>;
-  writeAccount(
-    accountId: string,
+  writePlayer(
+    playerId: string,
     action: EditorTourAction,
   ): Promise<
     | {
@@ -58,13 +57,13 @@ export function createEditorTourController(deps: EditorTourDependencies) {
     update({ busy: true, error: null });
     try {
       let progress = { step, completed: complete || snapshot.progress.completed };
-      if (current.accountId) {
-        const result = await deps.writeAccount(
-          current.accountId,
+      if (current.playerId) {
+        const result = await deps.writePlayer(
+          current.playerId,
           complete ? { action: "complete" } : { action: "progress", step },
         );
         if (started !== generation) return;
-        if ("error" in result || result.user.id !== current.accountId || !result.user.editorTour)
+        if ("error" in result || result.user.id !== current.playerId || !result.user.editorTour)
           throw new Error("tour_unavailable");
         progress = result.user.editorTour;
       } else {
@@ -88,35 +87,35 @@ export function createEditorTourController(deps: EditorTourDependencies) {
     const started = ++generation;
     update({ status: "loading", busy: true, error: null, open: false });
     try {
-      if (identity.accountId) {
-        const user = await deps.readAccount(identity.accountId);
+      if (identity.playerId) {
+        const user = await deps.readPlayer(identity.playerId);
         if (started !== generation) return;
-        if (!user || user.id !== identity.accountId || user.editorTour === undefined)
+        if (!user || user.id !== identity.playerId || user.editorTour === undefined)
           throw new Error("tour_unavailable");
         let progress = user.editorTour;
         let claimed = false;
-        const transfer = deps.readTransfer?.(identity.accountId);
+        const transfer = deps.readTransfer?.(identity.playerId);
         if (transfer) {
           if (!progress) {
-            const result = await deps.writeAccount(identity.accountId, {
+            const result = await deps.writePlayer(identity.playerId, {
               action: "import",
               ...transfer,
             });
             if (started !== generation) return;
             if (
               "error" in result ||
-              result.user.id !== identity.accountId ||
+              result.user.id !== identity.playerId ||
               !result.user.editorTour
             )
               throw new Error("tour_unavailable");
             progress = result.user.editorTour;
           }
-          deps.clearTransfer?.(identity.accountId);
+          deps.clearTransfer?.(identity.playerId);
         }
         if (!progress) {
-          const result = await deps.writeAccount(identity.accountId, { action: "start" });
+          const result = await deps.writePlayer(identity.playerId, { action: "start" });
           if (started !== generation) return;
-          if ("error" in result || result.user.id !== identity.accountId || !result.user.editorTour)
+          if ("error" in result || result.user.id !== identity.playerId || !result.user.editorTour)
             throw new Error("tour_unavailable");
           progress = result.user.editorTour;
           claimed = result.tourStarted === true;
@@ -154,13 +153,13 @@ export function createEditorTourController(deps: EditorTourDependencies) {
       };
     },
     async activate(identity: EditorTourIdentity) {
-      if (!identity.ready || (!identity.accountId && !identity.demo)) {
+      if (!identity.ready || !identity.playerId) {
         ++generation;
         current = null;
         update({ status: "idle", open: false, progress: null, step: 0, busy: false, error: null });
         return;
       }
-      if (current?.accountId !== identity.accountId) update({ progress: null, step: 0 });
+      if (current?.playerId !== identity.playerId) update({ progress: null, step: 0 });
       current = identity;
       await load(true);
     },

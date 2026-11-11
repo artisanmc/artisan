@@ -90,8 +90,10 @@ const makeProject = (overrides: Partial<Project> = {}): Project =>
     createdAt: "",
     updatedAt: "",
     i18nKeys: {},
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+    },
     assets: [],
     canvasLayout: {},
     ...overrides,
@@ -207,7 +209,7 @@ describe("rekeyMenu", () => {
                     steps: [
                       {
                         kind: "action",
-                        action: { type: "send_message", text: { key: "lt_msg" as I18nKey } },
+                        action: { name: "send_message", value: { key: "lt_msg" as I18nKey } },
                       },
                     ],
                   },
@@ -223,9 +225,11 @@ describe("rekeyMenu", () => {
     rekeyMenu(project, menu);
 
     const action = menu.layers[0]!.elements[0]!.display!.click!.left!.steps[0]!;
-    if (action.kind !== "action" || action.action.type !== "send_message")
+    if (action.kind !== "action" || action.action.name !== "send_message")
       throw new Error("unexpected");
-    expect(action.action.text.key).toBe("menus.shop.elements.btn.default.click.left.message");
+    expect((action.action.value as { key: string }).key).toBe(
+      "menus.shop.elements.btn.default.click.left.message",
+    );
     expect(project.i18nKeys["lt_msg" as I18nKey]).toBeUndefined();
   });
 });
@@ -239,15 +243,15 @@ describe("rekeyCommand", () => {
       name: "heal",
       arguments: [],
       steps: [
-        { kind: "action", action: { type: "send_message", text: { key: "lt_msg" as I18nKey } } },
+        { kind: "action", action: { name: "send_message", value: { key: "lt_msg" as I18nKey } } },
       ],
     };
 
     rekeyCommand(project, cmd);
 
     const action = cmd.steps[0]!;
-    if (action.kind !== "action" || action.action.type !== "send_message") throw new Error();
-    expect(action.action.text.key).toBe("commands.heal.message");
+    if (action.kind !== "action" || action.action.name !== "send_message") throw new Error();
+    expect((action.action.value as { key: string }).key).toBe("commands.heal.message");
     expect(project.i18nKeys["commands.heal.message" as I18nKey]).toEqual({ en: "Healed!" });
     expect(project.i18nKeys["lt_msg" as I18nKey]).toBeUndefined();
   });
@@ -265,8 +269,8 @@ describe("rekeyCommand", () => {
       name: "greet",
       arguments: [],
       steps: [
-        { kind: "action", action: { type: "send_message", text: { key: "lt_1" as I18nKey } } },
-        { kind: "action", action: { type: "send_message", text: { key: "lt_2" as I18nKey } } },
+        { kind: "action", action: { name: "send_message", value: { key: "lt_1" as I18nKey } } },
+        { kind: "action", action: { name: "send_message", value: { key: "lt_2" as I18nKey } } },
       ],
     };
 
@@ -274,10 +278,10 @@ describe("rekeyCommand", () => {
 
     const a0 = cmd.steps[0]!;
     const a1 = cmd.steps[1]!;
-    if (a0.kind !== "action" || a0.action.type !== "send_message") throw new Error();
-    if (a1.kind !== "action" || a1.action.type !== "send_message") throw new Error();
-    expect(a0.action.text.key).toBe("commands.greet.message");
-    expect(a1.action.text.key).toBe("commands.greet.message_1");
+    if (a0.kind !== "action" || a0.action.name !== "send_message") throw new Error();
+    if (a1.kind !== "action" || a1.action.name !== "send_message") throw new Error();
+    expect((a0.action.value as { key: string }).key).toBe("commands.greet.message");
+    expect((a1.action.value as { key: string }).key).toBe("commands.greet.message_1");
     expect(project.i18nKeys["commands.greet.message" as I18nKey]).toEqual({ en: "First" });
     expect(project.i18nKeys["commands.greet.message_1" as I18nKey]).toEqual({ en: "Second" });
   });
@@ -298,9 +302,11 @@ describe("rekeyCommand", () => {
         {
           kind: "action",
           action: {
-            type: "show_title",
-            title: { key: "stale.title" as I18nKey },
-            subtitle: { key: "stale.subtitle" as I18nKey },
+            name: "show_title",
+            value: {
+              title: { key: "stale.title" as I18nKey },
+              subtitle: { key: "stale.subtitle" as I18nKey },
+            },
           },
         },
       ],
@@ -309,9 +315,13 @@ describe("rekeyCommand", () => {
     rekeyCommand(project, cmd);
 
     const a0 = cmd.steps[0]!;
-    if (a0.kind !== "action" || a0.action.type !== "show_title") throw new Error();
-    expect(a0.action.title.key).toBe("commands.heal.show_title");
-    expect(a0.action.subtitle!.key).toBe("commands.heal.show_subtitle");
+    if (a0.kind !== "action" || a0.action.name !== "show_title") throw new Error();
+    expect((a0.action.value as { title: { key: string } }).title.key).toBe(
+      "commands.heal.show_title",
+    );
+    expect((a0.action.value as { subtitle: { key: string } }).subtitle.key).toBe(
+      "commands.heal.show_subtitle",
+    );
     expect(project.i18nKeys["commands.heal.show_title" as I18nKey]).toEqual({ en: "Welcome" });
     expect(project.i18nKeys["commands.heal.show_subtitle" as I18nKey]).toEqual({
       en: "to the shop",
@@ -335,10 +345,10 @@ describe("rekeyCommand", () => {
       name: "x",
       arguments: [],
       steps: [
-        { kind: "action", action: { type: "send_message", text: { key: "lt_m1" as I18nKey } } },
-        { kind: "action", action: { type: "show_title", title: { key: "lt_t1" as I18nKey } } },
-        { kind: "action", action: { type: "send_message", text: { key: "lt_m2" as I18nKey } } },
-        { kind: "action", action: { type: "show_title", title: { key: "lt_t2" as I18nKey } } },
+        { kind: "action", action: { name: "send_message", value: { key: "lt_m1" as I18nKey } } },
+        { kind: "action", action: { name: "show_title", value: { key: "lt_t1" as I18nKey } } },
+        { kind: "action", action: { name: "send_message", value: { key: "lt_m2" as I18nKey } } },
+        { kind: "action", action: { name: "show_title", value: { key: "lt_t2" as I18nKey } } },
       ],
     };
 
@@ -348,13 +358,13 @@ describe("rekeyCommand", () => {
     const a1 = cmd.steps[1]!;
     const a2 = cmd.steps[2]!;
     const a3 = cmd.steps[3]!;
-    if (a0.kind !== "action" || a0.action.type !== "send_message") throw new Error();
-    if (a1.kind !== "action" || a1.action.type !== "show_title") throw new Error();
-    if (a2.kind !== "action" || a2.action.type !== "send_message") throw new Error();
-    if (a3.kind !== "action" || a3.action.type !== "show_title") throw new Error();
-    expect(a0.action.text.key).toBe("commands.x.message");
-    expect(a1.action.title.key).toBe("commands.x.show_title");
-    expect(a2.action.text.key).toBe("commands.x.message_1");
-    expect(a3.action.title.key).toBe("commands.x.show_title_1");
+    if (a0.kind !== "action" || a0.action.name !== "send_message") throw new Error();
+    if (a1.kind !== "action" || a1.action.name !== "show_title") throw new Error();
+    if (a2.kind !== "action" || a2.action.name !== "send_message") throw new Error();
+    if (a3.kind !== "action" || a3.action.name !== "show_title") throw new Error();
+    expect((a0.action.value as { key: string }).key).toBe("commands.x.message");
+    expect((a1.action.value as { key: string }).key).toBe("commands.x.show_title");
+    expect((a2.action.value as { key: string }).key).toBe("commands.x.message_1");
+    expect((a3.action.value as { key: string }).key).toBe("commands.x.show_title_1");
   });
 });

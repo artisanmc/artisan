@@ -1,1 +1,0 @@
-ALTER TABLE "project_draft_operations" ADD COLUMN "expires_at" timestamp;

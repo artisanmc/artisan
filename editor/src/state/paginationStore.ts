@@ -9,7 +9,7 @@ interface PaginationState {
 
 /**
  * Editor-only pagination state for iterating elements. Lives outside
- * accountStore (not persisted, not part of undo/redo) and outside any
+ * projectsStore (not persisted, not part of undo/redo) and outside any
  * single component so MenuGroup (writes via the canvas controls) and
  * ItemTooltip (reads to bind the right item to a hovered slot) stay in
  * sync.

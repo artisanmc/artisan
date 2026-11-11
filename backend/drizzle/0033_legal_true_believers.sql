@@ -1,1 +1,0 @@
-ALTER TABLE "assistant_migration_steps" ADD COLUMN "continuation" jsonb;

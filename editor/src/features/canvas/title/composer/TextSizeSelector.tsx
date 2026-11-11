@@ -8,7 +8,7 @@ interface TextSizeSelectorProps {
   id: string;
   value: TextSize | undefined;
   /** Receives `undefined` when the user picks the vanilla default (8) — keeps
-   *  in-memory state compact, mirroring transform.ts's default-omit convention. */
+   *  in-memory state compact, mirroring menuV1FromDomain.ts's default-omit convention. */
   onChange: (size: TextSize | undefined) => void;
 }
 
@@ -22,14 +22,14 @@ export function TextSizeSelector({ id, value, onChange }: TextSizeSelectorProps)
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[10px] uppercase text-[var(--text-faint)]">
+      <label htmlFor={id} className="field-label !mb-0">
         {t("layerEditForm.size.label")}
       </label>
       <select
         id={id}
         value={value ?? 8}
         onChange={(e) => {
-          const n = parseInt(e.target.value, 10) as TextSize;
+          const n = Number.parseInt(e.target.value, 10) as TextSize;
           onChange(n === 8 ? undefined : n);
         }}
         className="h-8 w-full rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2 text-xs text-[var(--text)]"

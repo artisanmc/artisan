@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.artisanmc.net/schema/trigger/v1.json",
+  "title": "Artisan Trigger",
+  "description": "A Trigger runs an action chain when a game event happens. File `triggers/<id>.yml`; the id is the file name.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "on"
+  ],
+  "properties": {
+    "schema": {
+      "const": "trigger/v1"
+    },
+    "on": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$",
+      "description": "A declared game event: a core one (`player_death`) or a module's (`quests:completed`). A name the server does not declare is reported on load and never fires."
+    },
+    "if": {
+      "type": "array",
+      "items": {
+        "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/ConditionKeyed"
+      },
+      "description": "Conditions, all required, checked with the event bound as `event`. If one fails the Trigger does not run and its cooldown does not start."
+    },
+    "cooldown_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Per-player delay between two runs. Stored in the database: it survives restarts and follows the player across the network."
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "false: the Trigger loads but never runs."
+    },
+    "notes": {
+      "type": "string",
+      "description": "The author's notes, never read by the server."
+    },
+    "do": {
+      "type": "array",
+      "items": {
+        "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Step"
+      },
+      "description": "The chain run during the event, with the event bound as `event` (`{event.location.x}`). `cancel_event` and `set_event` act on the current event."
+    }
+  }
+}

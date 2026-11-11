@@ -9,9 +9,9 @@ export interface CheckboxProps
 }
 
 /**
- * Case à cocher native, teintée par le token de marque. Pour un état de
- * formulaire explicitement confirmé ; un réglage persistant qui change le
- * résultat en jeu utilise plutôt `<Switch>`.
+ * Native checkbox, tinted by the brand token. For an explicitly confirmed
+ * form state; a persistent setting that changes the in-game result uses
+ * `<Switch>` instead.
  */
 export function Checkbox({ className, checked, onCheckedChange, ...props }: CheckboxProps) {
   return (

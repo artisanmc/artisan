@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { DslStep } from "./ast";
 // Shared cross-stack conformance contract (mirrored by the Kotlin suite).
 import fixtures from "../../../../testdata/action-dsl-conformance.json";
+import type { DslStep } from "./ast";
 import { parseActionDsl, printActionDsl } from "./index";
 
 /**
@@ -32,6 +32,16 @@ describe("action DSL codec", () => {
       expect(printActionDsl(ast)).toBe(fx.canonicalDsl);
     });
   }
+
+  it("reads project:id refs as one token, and still opens blocks with a trailing colon", () => {
+    expect(parseActionDsl("open_menu 2024:main")).toEqual([
+      { kind: "action", action: { type: "open_menu", menuId: "2024:main" } },
+    ]);
+    const [step] = parseActionDsl("if world_is(shop):\n  open_menu shop:main");
+    expect(step?.kind).toBe("if");
+    expect(() => parseActionDsl("open_menu :main")).toThrow();
+    expect(() => parseActionDsl("open_menu shop:")).toThrow();
+  });
 
   it("empty source parses to no steps", () => {
     expect(parseActionDsl("")).toEqual([]);

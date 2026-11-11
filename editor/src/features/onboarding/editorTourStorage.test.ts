@@ -59,7 +59,7 @@ test.each(["{broken", "null", '{"step":99,"completed":false}'])(
     const local = memoryStorage();
     const session = memoryStorage();
     local.setItem(EDITOR_TOUR_GUEST_KEY, value);
-    session.setItem(EDITOR_TOUR_TRANSFER_KEY, '{"accountId":null,"progress":{"step":99}}');
+    session.setItem(EDITOR_TOUR_TRANSFER_KEY, '{"playerId":null,"progress":{"step":99}}');
     const storage = createEditorTourStorage(
       () => local,
       () => session,
@@ -70,7 +70,7 @@ test.each(["{broken", "null", '{"step":99,"completed":false}'])(
   },
 );
 
-test("only explicit anonymous demo authentication transfers to the first returning account", () => {
+test("only explicit anonymous demo authentication transfers to the first returning player", () => {
   const local = memoryStorage();
   const session = memoryStorage();
   const guest = createEditorTourStorage(

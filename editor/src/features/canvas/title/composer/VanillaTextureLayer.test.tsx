@@ -1,18 +1,19 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { menusOf } from "@/domain/documents";
 import { projectId } from "@/domain/ids";
 import type { Menu } from "@/domain/types";
-import { mockAccount } from "@/mock/fixtures";
-import { useAccountStore } from "@/state/accountStore";
+import { mockOpenProjects } from "@/mock/fixtures";
+import { useProjectsStore } from "@/state/projectsStore";
 import { VanillaTextureLayer } from "./VanillaTextureLayer";
 
 const PERSONAL = projectId("p_personal");
 const menu = () =>
-  useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!.menus[0]!;
+  menusOf(useProjectsStore.getState().openProjects.projects.find((p) => p.id === PERSONAL)!)[0]!;
 
 describe("VanillaTextureLayer", () => {
-  beforeEach(() => useAccountStore.setState({ account: mockAccount() }));
+  beforeEach(() => useProjectsStore.setState({ openProjects: mockOpenProjects() }));
 
   it("turns the vanilla texture off for a chest", () => {
     render(<VanillaTextureLayer projectId={PERSONAL} menu={menu()} />);
@@ -31,7 +32,7 @@ describe("VanillaTextureLayer", () => {
   });
 
   it("also turns the texture off for hoppers and droppers", () => {
-    useAccountStore.getState().setMenuField({
+    useProjectsStore.getState().setMenuField({
       projectId: PERSONAL,
       menuId: menu().id,
       field: "inventoryType",

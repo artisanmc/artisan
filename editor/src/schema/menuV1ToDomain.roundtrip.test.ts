@@ -1,3 +1,4 @@
+import { menusOf, mutableMenus } from "@/domain/documents";
 import { addressedAppearances } from "@/domain/element";
 import { assetId, dialogId, elementId, layerId, menuId, projectId } from "@/domain/ids";
 import type {
@@ -10,10 +11,11 @@ import type {
   Project,
   SourceRef,
 } from "@/domain/types";
-import { serializeMenuToV1, transform } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { menuV1FromDomain } from "./menuV1FromDomain";
 import { menuV1ToDomain } from "./menuV1ToDomain";
+import { projectToFiles } from "./projectToFiles";
 import { validateMenuV1 } from "./validateMenuV1";
 
 /**
@@ -47,14 +49,16 @@ function buildProject(): Project {
     source: "user_created",
     createdAt: "2026-06-08T00:00:00.000Z",
     updatedAt: "2026-06-08T00:00:00.000Z",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: LANG,
-    dialogs: [],
     canvasLayout: {},
   };
 
@@ -111,19 +115,22 @@ function buildProject(): Project {
                 {
                   conditions: [{ type: "placeholder_equals", placeholder: "%foo%", value: "bar" }],
                   steps: [
-                    { kind: "action", action: { type: "take_money", amount: 100 } },
+                    { kind: "action", action: { name: "take_money", value: 100 } },
                     {
                       kind: "action",
-                      action: { type: "send_message", text: lt(project, "Purchased!") },
+                      action: { name: "send_message", value: lt(project, "Purchased!") },
                     },
                   ],
                 },
               ],
-              else: [{ kind: "action", action: { type: "close_menu" } }],
+              else: [{ kind: "action", action: { name: "close_menu", value: null } }],
             },
             {
               kind: "action",
-              action: { type: "open_menu", menuId: menuId("other"), clearContext: true },
+              action: {
+                name: "open_menu",
+                value: { menu_id: menuId("other"), clear_context: true },
+              },
             },
           ],
         },
@@ -132,12 +139,14 @@ function buildProject(): Project {
             {
               kind: "action",
               action: {
-                type: "show_title",
-                title: lt(project, "Hi"),
-                subtitle: lt(project, "There"),
-                fadeIn: 5,
-                stay: 20,
-                fadeOut: 5,
+                name: "show_title",
+                value: {
+                  title: lt(project, "Hi"),
+                  subtitle: lt(project, "There"),
+                  fade_in: 5,
+                  stay: 20,
+                  fade_out: 5,
+                },
               },
             },
           ],
@@ -170,28 +179,35 @@ function buildProject(): Project {
           steps: [
             {
               kind: "action",
-              action: { type: "paginate", direction: "next", targetElementId: elementId("grid") },
+              action: { name: "pagination_next", value: elementId("grid") },
             },
-            { kind: "action", action: { type: "set_arg", arg: "page", value: "2" } },
-            { kind: "action", action: { type: "run_command", command: "say hi", as: "console" } },
-            { kind: "action", action: { type: "open_dialog", dialogId: dialogId("confirm") } },
-            { kind: "action", action: { type: "broadcast", text: lt(project, "Big news!") } },
+            { kind: "action", action: { name: "set_arg", value: { arg: "page", value: "2" } } },
+            {
+              kind: "action",
+              action: { name: "run_command", value: { command: "say hi", as: "console" } },
+            },
+            { kind: "action", action: { name: "open_dialog", value: dialogId("confirm") } },
+            { kind: "action", action: { name: "broadcast", value: lt(project, "Big news!") } },
             {
               kind: "action",
               action: {
-                type: "play_sound",
-                sound: "ENTITY_PLAYER_LEVELUP",
-                volume: 0.5,
-                pitch: 1.5,
+                name: "play_sound",
+                value: { sound: "ENTITY_PLAYER_LEVELUP", volume: 0.5, pitch: 1.5 },
               },
             },
-            { kind: "action", action: { type: "give_money", amount: 50 } },
-            { kind: "action", action: { type: "give_xp", amount: 5 } },
-            { kind: "action", action: { type: "give_level", amount: 1 } },
-            { kind: "action", action: { type: "take_item", material: "PAPER", count: 1 } },
+            { kind: "action", action: { name: "give_money", value: 50 } },
+            { kind: "action", action: { name: "give_xp", value: 5 } },
+            { kind: "action", action: { name: "give_level", value: 1 } },
             {
               kind: "action",
-              action: { type: "teleport", world: "spawn", x: 0.5, y: 64, z: -3, yaw: 90 },
+              action: { name: "take_item", value: { material: "PAPER", count: 1 } },
+            },
+            {
+              kind: "action",
+              action: {
+                name: "teleport",
+                value: { world: "spawn", x: 0.5, y: 64, z: -3, yaw: 90 },
+              },
             },
           ],
         },
@@ -232,7 +248,7 @@ function buildProject(): Project {
     ],
   };
 
-  project.menus.push(menu);
+  mutableMenus(project).push(menu);
   return project;
 }
 
@@ -247,12 +263,12 @@ function resolve(
 
 describe("menuV1ToDomain — round-trip oracle", () => {
   const project = buildProject();
-  const original = project.menus[0]!;
-  const files = transform(project);
-  const menuYaml = files[`plugins/Artisan/projects/${PACK}/menus/shop.yaml`]!;
+  const original = menusOf(project)[0]!;
+  const files = projectToFiles(project);
+  const menuYaml = files[`plugins/Artisan/projects/${PACK}/menus/shop.yml`]!;
   const wire = parse(menuYaml) as Record<string, unknown>;
-  // L'identité vient du NOM DE FICHIER : `projectFromFiles` l'injecte, ce test
-  // court-circuite le chargement, il doit donc le faire aussi.
+  // The identity comes from the FILE NAME: `projectFromFiles` injects it; this
+  // test bypasses loading, so it must do so too.
   const result = menuV1ToDomain(
     { ...wire, id: "shop" },
     {
@@ -451,21 +467,23 @@ describe("menuV1ToDomain — round-trip oracle", () => {
   });
 });
 
-describe("serializeMenuToV1 inventory_type", () => {
+describe("menuV1FromDomain inventory_type", () => {
   const project = {
     id: "p",
     i18nKeys: {},
     defaultLang: "en",
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
   } as any;
 
   it("omits inventory_type for chest and uses size = rows*9", () => {
     // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
     const menu = { id: "m", projectId: "p", title: [], rows: 3, layers: [] } as any;
-    const out = serializeMenuToV1(menu, project);
+    const out = menuV1FromDomain(menu, project);
     expect(out.inventory_type).toBeUndefined();
     expect(out.size).toBe(27);
   });
@@ -479,7 +497,7 @@ describe("serializeMenuToV1 inventory_type", () => {
       layers: [],
       // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
     } as any;
-    const out = serializeMenuToV1(menu, project);
+    const out = menuV1FromDomain(menu, project);
     expect(out.inventory_type).toBe("hopper");
     expect(out.size).toBe(5);
   });
@@ -493,7 +511,7 @@ describe("serializeMenuToV1 inventory_type", () => {
       layers: [],
       // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
     } as any;
-    const out = serializeMenuToV1(menu, project);
+    const out = menuV1FromDomain(menu, project);
     expect(out.inventory_type).toBe("dropper");
     expect(out.size).toBe(9);
   });
@@ -504,9 +522,11 @@ describe("inventory_type round-trip (domain -> v1 -> domain)", () => {
     id: "p",
     i18nKeys: {},
     defaultLang: "en",
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for round-trip
   } as any;
   for (const [type, rows, size] of [
@@ -524,7 +544,7 @@ describe("inventory_type round-trip (domain -> v1 -> domain)", () => {
         layers: [{ id: "l", name: "L", elements: [] }],
         // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for round-trip
       } as any;
-      const v1 = serializeMenuToV1(menu, project);
+      const v1 = menuV1FromDomain(menu, project);
       expect(v1.size).toBe(size);
       // biome-ignore lint/suspicious/noExplicitAny: wire object re-fed to importer
       const back = menuV1ToDomain(v1 as any, { projectId: projectId("p"), lang: "en" }).menu;
@@ -539,9 +559,11 @@ describe("player_inventory", () => {
     id: "p",
     i18nKeys: {},
     defaultLang: "en",
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
   } as any;
 
@@ -551,7 +573,7 @@ describe("player_inventory", () => {
       { projectId: projectId("p"), lang: "en" },
     ).menu;
     expect(menu.playerInventory).toBe("hidden");
-    expect(serializeMenuToV1(menu, project).player_inventory).toBe("hidden");
+    expect(menuV1FromDomain(menu, project).player_inventory).toBe("hidden");
 
     const visible = menuV1ToDomain(
       {
@@ -565,7 +587,7 @@ describe("player_inventory", () => {
       { projectId: projectId("p"), lang: "en" },
     ).menu;
     expect(visible.playerInventory).toBeUndefined();
-    expect(serializeMenuToV1(visible, project).player_inventory).toBeUndefined();
+    expect(menuV1FromDomain(visible, project).player_inventory).toBeUndefined();
   });
 });
 
@@ -574,9 +596,11 @@ describe("vanilla_texture", () => {
     id: "p",
     i18nKeys: {},
     defaultLang: "en",
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
   } as any;
   const read = (extra: Record<string, unknown>) =>
@@ -588,9 +612,9 @@ describe("vanilla_texture", () => {
   it("round-trips a texture turned off and omits the default", () => {
     const off = read({ vanilla_texture: false });
     expect(off.vanillaTexture).toBe(false);
-    expect(serializeMenuToV1(off, project).vanilla_texture).toBe(false);
+    expect(menuV1FromDomain(off, project).vanilla_texture).toBe(false);
     const on = read({ vanilla_texture: true });
     expect(on.vanillaTexture).toBeUndefined();
-    expect(serializeMenuToV1(on, project).vanilla_texture).toBeUndefined();
+    expect(menuV1FromDomain(on, project).vanilla_texture).toBeUndefined();
   });
 });

@@ -15,8 +15,11 @@ const ARRANGE_MODES: ArrangeMode[] = ["columns", "cluster", "force", "structured
 export function CanvasToolbar({
   onRearrange,
   rearrangeDisabled = false,
+  variants,
 }: {
-  /** Absent en vue focus : il n'y a qu'un Document, rien à arranger. */
+  /** "View as": the variant switcher of the project, on the board only. */
+  variants?: React.ReactNode;
+  /** Absent in focus view: there is only one Document, nothing to arrange. */
   onRearrange?: (mode: ArrangeMode) => void;
   rearrangeDisabled?: boolean;
 } = {}) {
@@ -56,6 +59,12 @@ export function CanvasToolbar({
       >
         <Hand className="size-4" /> {t("canvas.modeHand")}
       </button>
+      {variants && (
+        <>
+          <span className="mx-0.5 h-5 w-px bg-[var(--border)]" />
+          {variants}
+        </>
+      )}
       {onRearrange && (
         <>
           <span className="mx-0.5 h-5 w-px bg-[var(--border)]" />

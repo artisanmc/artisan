@@ -1,38 +1,39 @@
 import { Badge } from "@/components/ui/badge";
+import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import type { DataSource, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { yamlErrorsOf } from "@/features/screens/YamlFileEditor";
+import { cx } from "@/lib/cx";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ModelFieldsEditor } from "./ModelFieldsEditor";
 import { ConfigValueForm, SourceRowsTable } from "./SourceValueEditor";
-import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
-import { yamlErrorsOf } from "@/features/screens/YamlFileEditor";
-import { applySourceYaml, sourceYamlFiles, type SourceFile } from "./sourceYaml";
-import { cx } from "@/lib/cx";
+import { type SourceFile, applySourceYaml, sourceYamlFiles } from "./sourceYaml";
 
 interface DataSourceEditorProps {
   projectId: ProjectId;
   source: DataSource;
+  /** Called once the source is deleted, so its page can leave. */
+  onRemoved?: () => void;
 }
 
 /**
- * Project-source detail — form-only editing (the YAML pane died with the
- * declared-schema refactor, ADR `project-sources-and-data-models`): schema
- * section (Data model / config fields), then the rows table (table) or the
- * value form (config), then the Sets section (unchanged).
+ * Project-source detail: schema section (Data model / config fields), then
+ * the rows table (table) or the value form (config), then the Sets section.
+ * ADR `project-sources-and-data-models`.
  */
-export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
+export function DataSourceEditor({ projectId, source, onRemoved }: DataSourceEditorProps) {
   const { t } = useTranslation();
-  const renameDataSource = useAccountStore((s) => s.renameProjectDataSource);
-  const removeDataSource = useAccountStore((s) => s.removeProjectDataSource);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const renameDataSource = useProjectsStore((s) => s.renameProjectDataSource);
+  const removeDataSource = useProjectsStore((s) => s.removeProjectDataSource);
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const [schemaOpen, setSchemaOpen] = useState(true);
-  // Deux modes sur le MÊME fichier (ADR yaml-assisted-editing ⑦/⑧) : le
-  // panneau Données et l'écran de config parlent le même langage.
+  // Two modes on the SAME file (ADR yaml-assisted-editing ⑦/⑧): the data panel
+  // and the config screen speak the same language.
   const [mode, setMode] = useState<"form" | "yaml">("form");
   const [draft, setDraft] = useState<SourceFile[] | null>(null);
   const [selectedFile, setSelectedFile] = useState("");
-  const replaceProject = useAccountStore((s) => s.replaceProject);
+  const replaceProject = useProjectsStore((s) => s.replaceProject);
   const [nameDraft, setNameDraft] = useState(source.name.toLowerCase());
   const [nameError, setNameError] = useState<string | null>(null);
 
@@ -41,7 +42,8 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
     setNameError(null);
   }, [source.name]);
 
-  // Une autre source est un autre fichier : ni brouillon ni mode hérités.
+  // Another source is another file: neither draft nor mode is inherited.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: source.id is the reset trigger, not a value read by the effect
   useEffect(() => {
     setDraft(null);
     setMode("form");
@@ -52,16 +54,16 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
   const yamlErrors = draft ? yamlErrorsOf(draft) : [];
 
   /**
-   * Réinjecte le texte dans le project. Un YAML cassé n'est PAS appliqué (on
-   * ne détruit pas le domaine avec), mais le texte reste à l'écran, éditable.
+   * Writes the text back into the project. Broken YAML is NOT applied (the
+   * domain is not destroyed with it), but the text stays on screen, editable.
    */
   const applyDraft = () => {
     if (!draft || yamlErrors.length > 0) return;
     const next = applySourceYaml(project, draft);
     if (!next) return;
     replaceProject(next);
-    // Canonicalisation immédiate : le texte réaffiché est celui que le writer
-    // vient de produire, pas le brouillon.
+    // Immediate canonicalisation: the text shown again is what the writer just
+    // produced, not the draft.
     const reparsed = next.dataSources.find((d) => String(d.id) === String(source.id));
     setDraft(reparsed ? sourceYamlFiles(next, reparsed) : null);
   };
@@ -98,7 +100,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
             className="w-full bg-transparent text-lg font-semibold text-[var(--text)] outline-none focus:border-b focus:border-[var(--brand-line)]"
           />
           {nameError ? (
-            <p id="data-source-name-error" className="text-[10px] text-[var(--danger)]">
+            <p id="data-source-name-error" className="text-[11px] text-[var(--danger)]">
               {nameError}
             </p>
           ) : null}
@@ -112,9 +114,8 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
               key={m}
               type="button"
               onClick={() => {
-                // Le brouillon ne survit JAMAIS à un changement d'onglet : le
-                // garder ferait réapparaître un texte périmé et écraserait les
-                // éditions faites entre-temps dans le formulaire.
+                // The draft NEVER survives a tab change: keeping it would bring back stale
+                // text and overwrite the edits made in the form in the meantime.
                 if (m === "form") {
                   applyDraft();
                   setDraft(null);
@@ -134,6 +135,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
           onClick={() => {
             if (!window.confirm(t("dataSources.confirmRemove", { name: source.name }))) return;
             removeDataSource({ projectId, id: source.id });
+            onRemoved?.();
           }}
           className="shrink-0 whitespace-nowrap rounded px-2 py-1 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
         >
@@ -151,7 +153,9 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
               aria-label={t("screens.yamlFile")}
             >
               {(draft ?? []).map((f) => (
-                <option key={f.path} value={f.path}>{f.path}</option>
+                <option key={f.path} value={f.path}>
+                  {f.path}
+                </option>
               ))}
             </select>
           )}
@@ -167,13 +171,17 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
                     value={current.content}
                     ariaLabel={current.path}
                     onChange={(next) =>
-                      setDraft(files.map((f) => (f.path === current.path ? { ...f, content: next } : f)))
+                      setDraft(
+                        files.map((f) => (f.path === current.path ? { ...f, content: next } : f)),
+                      )
                     }
                   />
                 </div>
                 {err ? (
                   <p className="text-[11px] text-rose-300" role="alert">
-                    {err.line !== null ? `${t("screens.yamlErrorLine", { line: err.line })} — ` : ""}
+                    {err.line !== null
+                      ? `${t("screens.yamlErrorLine", { line: err.line })} — `
+                      : ""}
                     {err.message}
                   </p>
                 ) : (
@@ -186,36 +194,40 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
           })()}
         </div>
       ) : (
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto pr-1">
-        <section className="rounded border border-[var(--border-soft)] p-3">
-          <button
-            type="button"
-            onClick={() => setSchemaOpen((v) => !v)}
-            className="eyebrow mb-2 flex items-center gap-1"
-            aria-expanded={schemaOpen}
-          >
-            <span>{schemaOpen ? "▾" : "▸"}</span>
-            {t("dataSources.schemaTitle")}
-          </button>
-          {schemaOpen ? (
-            <ModelFieldsEditor projectId={projectId} project={project} source={source} />
-          ) : null}
-        </section>
+        <div className="min-h-0 flex-1 space-y-3 overflow-auto pr-1">
+          <section className="rounded border border-[var(--border-soft)] p-3">
+            <button
+              type="button"
+              onClick={() => setSchemaOpen((v) => !v)}
+              className="eyebrow mb-2 flex items-center gap-1"
+              aria-expanded={schemaOpen}
+            >
+              <span>{schemaOpen ? "▾" : "▸"}</span>
+              {t("dataSources.schemaTitle")}
+            </button>
+            {schemaOpen ? (
+              <ModelFieldsEditor projectId={projectId} project={project} source={source} />
+            ) : null}
+          </section>
 
-        <section className="rounded border border-[var(--border-soft)] p-3">
-          <div className="eyebrow mb-2">
-            {source.shape === "table" ? t("dataSources.rowsTitle") : t("dataSources.valuesTitle")}
-          </div>
-          {source.shape === "table" ? (
-            <SourceRowsTable projectId={projectId} project={project} source={source} />
-          ) : (
-            <ConfigValueForm projectId={projectId} project={project} source={source} />
-          )}
-        </section>
+          <section className="rounded border border-[var(--border-soft)] p-3">
+            <div className="eyebrow mb-2">
+              {source.shape === "table" ? t("dataSources.rowsTitle") : t("dataSources.valuesTitle")}
+            </div>
+            {source.shape === "table" ? (
+              <SourceRowsTable projectId={projectId} project={project} source={source} />
+            ) : (
+              <ConfigValueForm
+                projectId={projectId}
+                project={project}
+                source={source}
+                layout="compact"
+              />
+            )}
+          </section>
 
-        {/* Sets d'items live at the MENU level now ("Données du menu") —
-            no data-level creation surface (user feedback 2026-07-26). */}
-      </div>
+          {/* Item sets live at the MENU level — no data-level creation surface. */}
+        </div>
       )}
     </div>
   );

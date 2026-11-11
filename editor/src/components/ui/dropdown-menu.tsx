@@ -169,8 +169,93 @@ const DropdownMenuShortcut = ({ className, ...props }: React.HTMLAttributes<HTML
 };
 DropdownMenuShortcut.displayName = "DropdownMenuShortcut";
 
+/**
+ * A filter field at the top of a menu. The caller filters its items with `value`.
+ * The field takes the focus on open; ↓ moves to the first item, Enter picks the first
+ * one. Typing while an item is focused goes on in the field, never to the menu's
+ * typeahead.
+ */
+const DropdownMenuSearch = ({
+  value,
+  onValueChange,
+  placeholder,
+  className,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}) => {
+  const input = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => {
+    const field = input.current;
+    const menu = field?.closest<HTMLElement>("[role=menu]");
+    if (!field || !menu) return;
+    const frame = requestAnimationFrame(() => field.focus());
+    // A key typed on an item: back to the field, before the menu's typeahead sees it.
+    const redirect = (e: KeyboardEvent) => {
+      if (e.target === field || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key.length !== 1 && e.key !== "Backspace") return;
+      e.stopPropagation();
+      field.focus();
+    };
+    menu.addEventListener("keydown", redirect, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      menu.removeEventListener("keydown", redirect, true);
+    };
+  }, []);
+  const items = () => [
+    ...(input.current
+      ?.closest("[role=menu]")
+      ?.querySelectorAll<HTMLElement>("[role=menuitem]:not([data-disabled])") ?? []),
+  ];
+  return (
+    <div
+      className={cn(
+        "sticky -top-1 z-10 -mx-1 -mt-1 mb-1 border-[var(--border-soft)] border-b bg-[var(--surface-raised)] p-1.5",
+        className,
+      )}
+    >
+      <input
+        ref={input}
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        onChange={(e) => onValueChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            items()[0]?.focus();
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            items()[0]?.click();
+          } else if (e.key !== "Escape" && e.key !== "Tab") {
+            // The menu would read these keys as typeahead or navigation.
+            e.stopPropagation();
+          }
+        }}
+        className="input h-8 w-full text-[13px]"
+      />
+    </div>
+  );
+};
+
+/** Whether `text` holds `query`, ignoring case and accents. */
+const matchesMenuSearch = (text: string, query: string) => {
+  const fold = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase();
+  return fold(text).includes(fold(query.trim()));
+};
+
 export {
   DropdownMenu,
+  DropdownMenuSearch,
+  matchesMenuSearch,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,

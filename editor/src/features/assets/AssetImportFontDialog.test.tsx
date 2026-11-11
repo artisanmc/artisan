@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import * as userAssetsApi from "@/lib/api/userAssets";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetImportFontDialog } from "./AssetImportFontDialog";
 import { useAssetStore } from "./assetStore";
-import * as userAssetsApi from "@/lib/api/userAssets";
 
 let mockCurrentUser: { id: string } | null = { id: "u1" };
 
@@ -47,7 +47,9 @@ describe("AssetImportFontDialog", () => {
     render(<AssetImportFontDialog projectId={"p1" as never} open onClose={() => {}} />);
     // Spaces and dots are illegal under [a-z0-9_-]+ and must be replaced with _.
     // Hyphens and underscores are allowed and preserved as-is.
-    const file = new File([new Uint8Array([1, 2, 3])], "My Font.v2.zip", { type: "application/zip" });
+    const file = new File([new Uint8Array([1, 2, 3])], "My Font.v2.zip", {
+      type: "application/zip",
+    });
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });
     const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
     expect(nameInput.value).toBe("my_font_v2");
@@ -63,9 +65,7 @@ describe("AssetImportFontDialog", () => {
   });
 
   it("calls uploadFontAsset with the projectId and name on Import", async () => {
-    const spy = vi
-      .spyOn(userAssetsApi, "uploadFontAsset")
-      .mockResolvedValue({ asset: fakeAsset });
+    const spy = vi.spyOn(userAssetsApi, "uploadFontAsset").mockResolvedValue({ asset: fakeAsset });
     render(<AssetImportFontDialog projectId={"p1" as never} open onClose={() => {}} />);
 
     const file = new File([new Uint8Array([1, 2, 3])], "my_font.zip", { type: "application/zip" });
@@ -117,9 +117,7 @@ describe("AssetImportFontDialog", () => {
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });
     fireEvent.click(screen.getByRole("button", { name: /import/i }));
 
-    await vi.waitFor(() =>
-      expect(screen.getByText(/skipped malformed glyph X/i)).toBeTruthy(),
-    );
+    await vi.waitFor(() => expect(screen.getByText(/skipped malformed glyph X/i)).toBeTruthy());
     // Asset is still upserted immediately.
     expect(useAssetStore.getState().assets[0]?.id).toBe("asset_font_1");
     vi.useRealTimers();

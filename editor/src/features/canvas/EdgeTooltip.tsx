@@ -1,11 +1,12 @@
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Project } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { getText } from "@/lib/i18n";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useUiStore } from "@/state/uiStore";
-import { getTextureUrl } from "./textureStore";
 import type { BoardGroup } from "./groupedBoard";
+import { getTextureUrl } from "./textureStore";
 
 interface EdgeTooltipProps {
   project: Project;
@@ -23,20 +24,20 @@ export function EdgeTooltip({ project, groups }: EdgeTooltipProps) {
   const nodeName = (id: string): string => {
     const group = groups?.find((g) => g.key === id);
     if (group) return group.name;
-    const menu = project.menus.find((m) => m.id === id);
+    const menu = menusOf(project).find((m) => m.id === id);
     if (menu) {
       const lt = getFirstTitleText(menu);
       return (lt ? getText(project, lt, activeLang) : "") || id;
     }
-    const cmd = project.commands.find((c) => c.id === id);
+    const cmd = commandsOf(project).find((c) => c.id === id);
     if (cmd) return `/${cmd.name}`;
-    const dialog = (project.dialogs ?? []).find((d) => d.id === id);
+    const dialog = dialogsOf(project).find((d) => d.id === id);
     if (dialog) return `[dialog] ${id}`;
     return id;
   };
 
   const elementLabel = (elementId: string): string => {
-    for (const menu of project.menus) {
+    for (const menu of menusOf(project)) {
       for (const layer of menu.layers) {
         const el = layer.elements.find((e) => e.id === elementId);
         if (el) {
@@ -53,7 +54,7 @@ export function EdgeTooltip({ project, groups }: EdgeTooltipProps) {
       style={{ left: x + 14, top: y + 14, boxShadow: "var(--shadow-md)" }}
       className="card pointer-events-none fixed z-[9999] max-w-[240px] px-2.5 py-2"
     >
-      <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wide text-[var(--text-mut)]">
+      <div className="section-label mb-1.5">
         <MiniMessageInline source={nodeName(edge.source)} /> →{" "}
         <MiniMessageInline source={nodeName(edge.target)} />
       </div>
@@ -75,12 +76,19 @@ export function EdgeTooltip({ project, groups }: EdgeTooltipProps) {
               <span className="badge badge-sage shrink-0 font-mono">dialog</span>
               <span className="font-mono text-xs text-[var(--text-mut)]">{trigger.buttonId}</span>
             </div>
+          ) : trigger.kind === "chain" ? (
+            // biome-ignore lint/suspicious/noArrayIndexKey: stable per tooltip render
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="font-mono text-xs text-[var(--text-mut)]">
+                {trigger.label ?? trigger.slot}
+              </span>
+            </div>
           ) : (
             // biome-ignore lint/suspicious/noArrayIndexKey: stable per tooltip render
             <div key={i} className="flex items-center gap-1.5">
               <span className="font-mono text-xs text-[var(--text-mut)]">
                 /
-                {project.commands.find((c) => c.id === trigger.commandId)?.name ??
+                {commandsOf(project).find((c) => c.id === trigger.commandId)?.name ??
                   trigger.commandId}
               </span>
             </div>

@@ -22,7 +22,6 @@ import {
 } from "./runImportZip";
 
 interface ImportProjectDialogProps {
-  networkId: string;
   serverKeyId: string | null;
   open: boolean;
   onClose: () => void;
@@ -30,15 +29,14 @@ interface ImportProjectDialogProps {
 }
 
 /**
- * Import d'un Project depuis un ZIP, **dans le brouillon** du Project serveur
- * (ADR `server-only-projects`, décision 4) : rien n'atteint le disque avant que
- * l'admin ne déploie. En fusion, les conflits avec l'instantané courant se
- * tranchent fichier par fichier, jamais en silence. En écrasement, l'archive
- * remplace tout : rien à trancher, l'écran confirme seulement ce qui sera
- * remplacé ou supprimé.
+ * Imports a Project from a ZIP, **into the draft** of the server Project
+ * (ADR `server-only-projects`, decision 4): nothing reaches the disk before
+ * the admin deploys. When merging, conflicts with the current snapshot are
+ * resolved file by file, never silently. When overwriting, the archive
+ * replaces everything: nothing to resolve, the screen only confirms what will
+ * be replaced or deleted.
  */
 export function ImportProjectDialog({
-  networkId,
   serverKeyId,
   open,
   onClose,
@@ -84,7 +82,7 @@ export function ImportProjectDialog({
     if (!file || !serverKeyId) return;
     setBusy(true);
     setError(null);
-    const result = await prepareImportZip(file, { networkId, serverId: serverKeyId }, mode);
+    const result = await prepareImportZip(file, { serverId: serverKeyId }, mode);
     setBusy(false);
     if (!result.ok) {
       setError(result.error);

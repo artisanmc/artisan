@@ -1,7 +1,10 @@
+import { menusOf } from "@/domain/documents";
 import type { Menu, MenuId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useModulesStore } from "@/state/modulesStore";
+import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { canvasClipboardActions } from "./useCanvasKeyboard";
 
 const PID = "p1" as ProjectId;
@@ -24,16 +27,17 @@ it("deletes the selected items of a menu but never the menu that holds them", ()
       },
     ],
   } as unknown as Menu;
-  useAccountStore.setState({
-    account: {
-      id: "acc",
+  useProjectsStore.setState({
+    openProjects: {
       projectOrder: [PID],
       projects: [
         {
           id: PID,
-          menus: [menu],
-          commands: [],
-          dialogs: [],
+          documents: {
+            menu: [menu],
+            command: [],
+            dialog: [],
+          },
           dataSources: [],
           i18nKeys: {},
           defaultLang: "fr",
@@ -42,11 +46,67 @@ it("deletes the selected items of a menu but never the menu that holds them", ()
       ],
     },
   } as never);
-  useSelectionStore.getState().set(["shop", "a", "b"]);
+  useSelectionStore.getState().set(["menu/shop", "a", "b"]);
 
-  canvasClipboardActions.deleteSelection(PID, ["shop", "a", "b"]);
+  canvasClipboardActions.deleteSelection(PID, ["menu/shop", "a", "b"]);
 
-  const left = useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements;
+  const left = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!
+    .elements;
   expect(left.map((el) => el.id)).toEqual(["keep"]);
-  expect(useAccountStore.getState().account.projects[0]!.menus).toHaveLength(1);
+  expect(menusOf(useProjectsStore.getState().openProjects.projects[0]!)).toHaveLength(1);
+});
+
+it("never deletes a module's system menu, and says so", () => {
+  const menu = (id: string) => ({ id, projectId: PID, title: [], rows: 3, layers: [] });
+  useProjectsStore.setState({
+    openProjects: {
+      projectOrder: [PID],
+      projects: [
+        {
+          id: PID,
+          documents: { menu: [menu("shop_main"), menu("mine")], command: [], dialog: [] },
+          dataSources: [],
+          i18nKeys: {},
+          defaultLang: "fr",
+          canvasLayout: {},
+        } as unknown as Project,
+      ],
+    },
+  } as never);
+  useProjectTemplatesStore.setState({
+    entries: {
+      [PID]: {
+        status: "ready",
+        origins: {
+          "menus/shop_main.yaml": { module: "boutique", template: "menus", version: 1, hash: "h" },
+        },
+        hashes: {},
+      },
+    },
+  });
+  useModulesStore.setState({
+    active: [
+      {
+        id: "boutique",
+        version: "1",
+        templates: [
+          {
+            id: "menus",
+            title: "menus",
+            version: 1,
+            system: true,
+            files: [{ path: "menus/shop_main.yaml", hash: "h", size: 1 }],
+          },
+        ],
+      },
+    ],
+  });
+  const kept = vi.fn();
+
+  canvasClipboardActions.deleteSelection(PID, ["menu/shop_main", "menu/mine"], kept);
+
+  expect(menusOf(useProjectsStore.getState().openProjects.projects[0]!).map((m) => m.id)).toEqual([
+    "shop_main",
+  ]);
+  expect(kept).toHaveBeenCalledOnce();
 });

@@ -1,12 +1,14 @@
+import type { TFunction } from "i18next";
 import { Eye, EyeOff, GripVertical, Trash2 } from "lucide-react";
 import type { MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Asset } from "@/domain/asset";
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { cn } from "@/lib/cx";
 import { getText } from "@/lib/i18n";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 
 interface LayerListItemProps {
@@ -24,16 +26,17 @@ interface LayerListItemProps {
  * Layout, left → right:
  *  1. Eye toggle — flips `${menuId}:${index}` in `hiddenLayerKeys`.
  *  2. Drag handle — visual only; the parent's dnd library targets it
- *     via `data-drag-handle="true"`. Drag-reorder logic is wired in P1.9.
+ *     via `data-drag-handle="true"`.
  *  3. Auto-name label — derived from `layer.kind` + asset name / i18n value.
  *     Falls back to a truncated asset id when the asset isn't loaded.
  *  4. Delete — confirms via `window.confirm` then calls
- *     `accountStore.removeMenuTitleLayer`. Cancel = no-op.
+ *     `projectsStore.removeMenuTitleLayer`. Cancel = no-op.
  *
  * Row-level click sets `selectedLayerKey`. Sub-button clicks `stopPropagation`
  * so they don't also select the row.
  */
 export function LayerListItem({ projectId, menuId, index, layer }: LayerListItemProps) {
+  const { t } = useTranslation();
   const hidden = useUiStore((s) => s.hiddenLayerKeys.has(`${menuId}:${index}`));
   const selected = useUiStore(
     (s) => s.selectedLayerKey?.menuId === menuId && s.selectedLayerKey?.index === index,
@@ -41,13 +44,13 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
   const toggleHidden = useUiStore((s) => s.toggleHiddenLayer);
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
 
-  const removeLayer = useAccountStore((s) => s.removeMenuTitleLayer);
+  const removeLayer = useProjectsStore((s) => s.removeMenuTitleLayer);
   const applyLayerDeleted = useUiStore((s) => s.applyLayerDeleted);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
 
-  const name = deriveAutoName(layer, assets, project, activeLang);
+  const name = deriveAutoName(layer, assets, project, activeLang, t);
 
   const onRowClick = () => {
     setSelectedLayerKey({ menuId, index });
@@ -66,7 +69,7 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
 
   const onDeleteClick = (e: MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm("Supprimer cet élément du titre ?")) {
+    if (window.confirm(t("layerListItem.deleteConfirm"))) {
       removeLayer({ projectId, menuId, index });
       // Sync uiStore: clear/shift stale selection + hidden flags. Without
       // this, the next layer (which shifted up) would inherit selection and
@@ -86,6 +89,7 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
           onRowClick();
         }
       }}
+      // biome-ignore lint/a11y/useSemanticElements: the row itself holds <button>s (eye, menu); a wrapping <button> would nest buttons, which is invalid HTML
       role="button"
       tabIndex={0}
       className={cn(
@@ -100,19 +104,20 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
         data-testid="layer-list-item-eye"
         data-hidden={hidden ? "true" : "false"}
         onClick={onEyeClick}
-        title={hidden ? "Afficher" : "Masquer"}
-        aria-label={hidden ? "Afficher l'élément" : "Masquer l'élément"}
+        title={hidden ? t("layerListItem.show") : t("layerListItem.hide")}
+        aria-label={hidden ? t("layerListItem.showElement") : t("layerListItem.hideElement")}
         className="grid h-6 w-6 place-items-center rounded text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
       >
         {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
       </button>
 
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: drag handle; onClick only stops propagation to the row, there is no action to offer on the keyboard */}
       <span
         data-testid="layer-list-item-drag"
         data-drag-handle="true"
         onClick={onDragHandleClick}
-        title="Glisser pour réordonner"
-        aria-label="Glisser pour réordonner"
+        title={t("layerListItem.dragToReorder")}
+        aria-label={t("layerListItem.dragToReorder")}
         className="grid h-6 w-4 cursor-grab place-items-center text-[var(--text-faint)] hover:text-[var(--text-mut)]"
       >
         <GripVertical className="h-3.5 w-3.5" />
@@ -126,8 +131,8 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
         type="button"
         data-testid="layer-list-item-delete"
         onClick={onDeleteClick}
-        title="Supprimer"
-        aria-label="Supprimer l'élément du titre"
+        title={t("layerListItem.delete")}
+        aria-label={t("layerListItem.deleteElement")}
         className="grid h-6 w-6 place-items-center rounded text-[var(--text-faint)] opacity-0 transition-opacity hover:bg-[var(--surface-raised-2)] hover:text-[var(--danger)] focus:opacity-100 group-hover:opacity-100"
       >
         <Trash2 className="h-3.5 w-3.5" />
@@ -143,41 +148,47 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
  *  - background / glyph → "Image • <asset name | truncated id>"
  *      The two runtime kinds collapse into one UI concept; we drop the
  *      "Background" vocabulary entirely.
- *  - text               → "Texte • <first 20 chars of the resolved value>"
+ *  - text               → "Text • <first 20 chars of the resolved value>"
  *  - external_glyph     → "Image (Oraxen/Nexo) • <name>" so the user
  *      understands the source without seeing the word "glyph".
  */
 function deriveAutoName(
   layer: MenuTitleLayer,
   assets: Asset[],
-  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
+  project:
+    | ReturnType<typeof useProjectsStore.getState>["openProjects"]["projects"][number]
+    | undefined,
   activeLang: string,
+  t: TFunction,
 ): string {
   if (layer.kind === "background" || layer.kind === "glyph") {
-    return `Image • ${resolveAssetName(layer.assetId, assets)}`;
+    return t("layerListItem.nameImage", { name: resolveAssetName(layer.assetId, assets) });
   }
   if (layer.kind === "text") {
     const raw = project ? getText(project, layer.value, activeLang) : "";
     const display = raw && raw.length > 0 ? raw : layer.value.key;
-    return `Texte • ${truncate(display, 20)}`;
+    return t("layerListItem.nameText", { text: truncate(display, 20) });
   }
   if (layer.kind === "plain") {
     const raw = project ? getText(project, layer.value, activeLang) : "";
     const display = raw && raw.length > 0 ? raw : layer.value.key;
-    return `Titre vanilla • ${truncate(display, 20)}`;
+    return t("layerListItem.namePlain", { text: truncate(display, 20) });
   }
   if (layer.kind === "textarea") {
     const raw = project ? getText(project, layer.value, activeLang) : "";
-    const firstLine = (raw && raw.split("\n")[0]) || layer.value.key;
-    const hasMore = raw && raw.includes("\n");
+    const firstLine = raw?.split("\n")[0] || layer.value.key;
+    const hasMore = raw?.includes("\n");
     const suffix = hasMore ? "…" : "";
-    return `Texte • ${truncate(firstLine, 18)}${suffix}`;
+    return t("layerListItem.nameText", { text: `${truncate(firstLine, 18)}${suffix}` });
   }
   if (layer.kind === "external_glyph") {
-    return `Image (${externalProviderLabel(layer.provider)}) • ${layer.glyphName}`;
+    return t("layerListItem.nameExternal", {
+      provider: externalProviderLabel(layer.provider),
+      name: layer.glyphName,
+    });
   }
   // Exhaustiveness — discriminated union is closed.
-  return "Calque inconnu";
+  return t("layerListItem.nameUnknown");
 }
 
 function externalProviderLabel(provider: "oraxen" | "nexo" | "itemsadder"): string {
@@ -188,7 +199,7 @@ function externalProviderLabel(provider: "oraxen" | "nexo" | "itemsadder"): stri
 
 function resolveAssetName(id: AssetId, assets: Asset[]): string {
   const asset = assets.find((a) => a.id === id);
-  if (asset && asset.name) return asset.name;
+  if (asset?.name) return asset.name;
   return truncate(id, 12);
 }
 

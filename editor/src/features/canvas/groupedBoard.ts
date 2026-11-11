@@ -1,4 +1,5 @@
-import { normalizeCanvasGroups } from "@/domain/canvasGroups";
+import { folderGroups } from "@/domain/canvasGroups";
+import type { DocKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { type ArrangeEdge, type ArrangeMode, type ArrangeNode, arrangeBoard } from "./arrangeBoard";
 import type { Edge } from "./deriveEdges";
@@ -60,7 +61,7 @@ function navigationRoot(
   return candidates[0] ? [candidates[0].key] : [];
 }
 
-/** Layout each manual group first, then place its box alongside ungrouped documents. */
+/** Layout each folder frame first, then place its box alongside the module root's documents. */
 export function arrangeProjectGroups(
   project: Project,
   graph: Pick<ServerGraph, "nodes" | "edges">,
@@ -69,10 +70,10 @@ export function arrangeProjectGroups(
   const nodes = graph.nodes.filter((n) => n.projectId === project.id);
   const live = new Set(nodes.map((n) => n.key));
   const edges = graph.edges.filter((e) => live.has(e.source) && live.has(e.target));
-  const groups = normalizeCanvasGroups(
-    project.canvasGroups,
-    nodes.map((n) => n.docId),
-  );
+  const docKeys = new Set<string>(nodes.map((n) => n.docKey));
+  const groups = folderGroups(project)
+    .map((g) => ({ ...g, nodeIds: g.nodeIds.filter((key) => docKeys.has(key)) }))
+    .filter((g) => g.nodeIds.length > 0);
   const parent = new Map<string, string>();
   const inner = new Map<
     string,
@@ -82,14 +83,14 @@ export function arrangeProjectGroups(
   const pins: Record<string, Point> = {};
   const metadata = new Map(groups.map((g) => [manualKey(project.id, g.id), g]));
   for (const [key, group] of metadata) {
-    const members = group.nodeIds.map((id) => documentKey(project.id, id));
+    const members = group.nodeIds.map((key) => documentKey(project.id, key as DocKey));
     const memberSet = new Set(members);
     for (const id of members) parent.set(id, key);
     const childNodes = nodes.filter((n) => memberSet.has(n.key));
     const childEdges = edges.filter((e) => memberSet.has(e.source) && memberSet.has(e.target));
     const childPins = Object.fromEntries(
       childNodes.flatMap((n) => {
-        const p = project.canvasLayout[n.docId as keyof typeof project.canvasLayout];
+        const p = project.canvasLayout[n.docKey];
         return p ? [[n.key, p]] : [];
       }),
     );
@@ -119,7 +120,7 @@ export function arrangeProjectGroups(
   for (const n of nodes) {
     if (parent.has(n.key)) continue;
     outerNodes.push(n);
-    const p = project.canvasLayout[n.docId as keyof typeof project.canvasLayout];
+    const p = project.canvasLayout[n.docKey];
     if (p) pins[n.key] = p;
   }
   const outerEdges = edges
@@ -192,41 +193,6 @@ export function arrangeProjectGroups(
   return result;
 }
 
-/** Project boxes are the only nodes seen by the outer server layout. */
-export function serverBoard(
-  projects: Project[],
-  graph: Pick<ServerGraph, "nodes" | "edges">,
-): GroupedArrangement {
-  const boards = projects
-    .map((project) => ({ project, board: arrangeProjectGroups(project, graph) }))
-    .filter(({ board }) => board.groups.length > 0);
-  const projectOf = new Map(graph.nodes.map((n) => [n.key, projectGroupKey(n.projectId)]));
-  const nodes = boards.map(({ board }) => ({ ...board.groups[0]!, kind: "menu" as const }));
-  const edges = graph.edges
-    .map((e) => ({ source: projectOf.get(e.source)!, target: projectOf.get(e.target)! }))
-    .filter((e) => e.source && e.target && e.source !== e.target);
-  const outer = arrangeBoard({ nodes, edges });
-  const result: GroupedArrangement = {
-    positions: {},
-    allPositions: {},
-    groups: [],
-    representatives: {},
-    gutter: null,
-  };
-  for (const { board } of boards) {
-    const frame = board.groups[0]!;
-    const position = outer.positions[frame.key]!;
-    const dx = position.x - frame.x;
-    const dy = position.y - frame.y;
-    const shift = (p: Point) => ({ x: p.x + dx, y: p.y + dy });
-    for (const [key, p] of Object.entries(board.positions)) result.positions[key] = shift(p);
-    for (const [key, p] of Object.entries(board.allPositions)) result.allPositions[key] = shift(p);
-    result.groups.push(...board.groups.map((g) => ({ ...g, ...shift(g) })));
-    Object.assign(result.representatives, board.representatives);
-  }
-  return result;
-}
-
 /** Hidden endpoints converge on their folded frame; internal links disappear. */
 export function groupEdges(edges: Edge[], representatives: Record<string, string>): Edge[] {
   const result = new Map<string, Edge>();
@@ -238,7 +204,14 @@ export function groupEdges(edges: Edge[], representatives: Record<string, string
     const id = changed ? `${source}->${target}` : edge.id;
     const existing = result.get(id);
     if (existing) existing.triggers.push(...edge.triggers);
-    else result.set(id, { ...edge, id, source, target, triggers: [...edge.triggers] });
+    else
+      result.set(id, {
+        ...edge,
+        id,
+        source: source as DocKey,
+        target: target as DocKey,
+        triggers: [...edge.triggers],
+      });
   }
   return [...result.values()];
 }

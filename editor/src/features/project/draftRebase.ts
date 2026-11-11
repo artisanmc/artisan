@@ -1,9 +1,11 @@
+import { yamlPathOnDisk } from "@/lib/yamlFiles";
+
 type Meta = { hash: string; size: number };
 
 /**
- * Forme minimale partagée par le snapshot backend (`DraftSnapshot`) et le
- * brouillon éditeur (`ProjectDraft`) : le rebase ne connaît que l'arbre texte,
- * les images et les renommages.
+ * Minimal shape shared by the hub snapshot (`DraftSnapshot`) and the editor
+ * draft (`ProjectDraft`): the rebase only knows the text tree, the images and
+ * the renames.
  */
 export interface DraftRebaseShape {
   baseline: Record<string, string>;
@@ -14,17 +16,17 @@ export interface DraftRebaseShape {
 }
 
 /**
- * Rebase un brouillon sur un état « courant », fichier par fichier (ADR
- * `snapshot-mirror-and-backend-history`, décision 5) :
- * - modifié seulement côté courant → le brouillon prend la version courante ;
- * - modifié des deux côtés, différemment → conflit, le brouillon garde la sienne
- *   et sa base reste l'ancienne ;
- * - identique des deux côtés → la base avance.
- * Un chemin touché par un renommage du brouillon est à lui : on n'y touche pas.
+ * Rebases a draft on a "current" state, file by file (ADR
+ * `snapshot-mirror-and-backend-history`, decision 5):
+ * - changed only on the current side → the draft takes the current version;
+ * - changed on both sides, differently → conflict, the draft keeps its own
+ *   and its base stays the old one;
+ * - identical on both sides → the base moves forward.
+ * A path touched by one of the draft's renames belongs to it: left alone.
  *
- * Source unique : le backend rebase contre le disque publié (`current` = fichiers
- * du Snapshot), l'éditeur contre le brouillon d'une autre session ; l'algorithme
- * est le même, seul l'`current` change.
+ * Single source: the hub rebases against the published disk (`current` = the
+ * Snapshot's files), the editor against another session's draft; the
+ * algorithm is the same, only `current` changes.
  */
 export function rebaseDraft<S extends DraftRebaseShape>(
   snapshot: S,
@@ -40,7 +42,7 @@ export function rebaseDraft<S extends DraftRebaseShape>(
     renamed,
     conflicts,
   );
-  // Les images en conflit restent pour la publication (CAS) : pas de diff à montrer.
+  // Conflicting images are left to publication (CAS): no diff to show.
   const binaryConflicts: string[] = [];
   const binary =
     snapshot.binaryBaseline || snapshot.binaryTree
@@ -56,7 +58,7 @@ export function rebaseDraft<S extends DraftRebaseShape>(
   const next = { ...snapshot };
   next.baseline = text.baseline;
   next.tree = text.tree;
-  // Un brouillon sans suivi d'images laisse l'éditeur les lire à la source.
+  // A draft without image tracking lets the editor read them from the source.
   if (binary) {
     next.binaryBaseline = binary.baseline;
     next.binaryTree = binary.tree;
@@ -104,4 +106,100 @@ function rebaseMap<T>(
 function assign<T>(target: Record<string, T>, path: string, value: T | undefined) {
   if (value === undefined) delete target[path];
   else target[path] = value;
+}
+
+/**
+ * Brings a resumed draft up to the disk it reopens on: a file the disk changed, added or
+ * removed since the draft's base, and that the draft left as it loaded it, takes the disk's
+ * version, base included. A module that removes or rewrites one of its files at startup, or
+ * another tool writing the folder, no longer leaves the draft showing (and later publishing)
+ * the old file. A file the draft did change stays the draft's: publishing reports it.
+ *
+ * "Left as loaded" is measured against `initialTree` (the tree right after opening), not
+ * the base's bytes: opening reformats files nobody touched. A file the draft deleted stays
+ * deleted whatever the disk did to it. Returns null when nothing moved.
+ */
+export function followDisk<S extends DraftRebaseShape & { initialTree?: Record<string, string> }>(
+  resumed: S,
+  disk: Record<string, string>,
+): S | null {
+  const draft = spelledAsDisk(resumed, disk);
+  const renamed = new Set((draft.renames ?? []).flatMap((r) => [r.from, r.to]));
+  const loaded = draft.initialTree ?? draft.baseline;
+  const baseline = { ...draft.baseline };
+  const tree = { ...draft.tree };
+  const initialTree = draft.initialTree ? { ...draft.initialTree } : undefined;
+  let moved = false;
+  for (const path of new Set([...Object.keys(draft.baseline), ...Object.keys(disk)])) {
+    if (renamed.has(path) || draft.baseline[path] === disk[path]) continue;
+    if (draft.tree[path] !== loaded[path]) continue;
+    // A file the draft deleted, in this session or an earlier one (in its base, not in its
+    // tree), stays deleted: a category moved into a folder must not come back at the root
+    // when the disk rewrites the file it was moved from.
+    if (draft.tree[path] === undefined && draft.baseline[path] !== undefined) {
+      if (disk[path] !== undefined) continue;
+      assign(baseline, path, undefined);
+      moved = true;
+      continue;
+    }
+    assign(baseline, path, disk[path]);
+    assign(tree, path, disk[path]);
+    if (initialTree) assign(initialTree, path, disk[path]);
+    moved = true;
+  }
+  if (!moved && draft === resumed) return null;
+  return { ...draft, baseline, tree, ...(initialTree ? { initialTree } : {}) };
+}
+
+/**
+ * The draft's YAML paths as the disk spells them: a draft started before its
+ * folder moved to `.yml` names `menus/shop.yaml` where the disk now holds
+ * `menus/shop.yml` (and `manifest.yaml` where it holds `artisan-module.yml`).
+ * Without this, the draft would delete the old name and add the new one, and
+ * lose an edit made under the old name.
+ *
+ * A draft that already holds both spellings (an older resume took the disk's new
+ * file beside the old one) is folded onto the disk's: the same id twice is a
+ * `duplicate_id`, and the editor reads neither, so the menus vanished. Each map
+ * keeps the old name's text where the draft edited it (it differs from the base)
+ * and the new name's otherwise.
+ */
+function spelledAsDisk<S extends DraftRebaseShape & { initialTree?: Record<string, string> }>(
+  draft: S,
+  disk: Record<string, string>,
+): S {
+  const held = new Set([...Object.keys(draft.baseline), ...Object.keys(draft.tree)]);
+  const moves = new Map<string, string>();
+  for (const path of held) {
+    const onDisk = yamlPathOnDisk(path, disk);
+    if (onDisk !== path) moves.set(path, onDisk);
+  }
+  if (moves.size === 0) return draft;
+  const as = (path: string) => moves.get(path) ?? path;
+  const edited = (path: string) => draft.tree[path] !== draft.baseline[path];
+  const remap = (files: Record<string, string>) => {
+    const out: Record<string, string> = {};
+    for (const [path, text] of Object.entries(files)) {
+      const to = as(path);
+      if (to === path) {
+        // The disk's name, unless the old one carries the draft's edit.
+        const old = [...moves].find(([, target]) => target === path)?.[0];
+        if (old !== undefined && old in files && edited(old) && !edited(path)) continue;
+        out[path] = text;
+      } else if (!(to in files) || (edited(path) && !edited(to))) {
+        out[to] = text;
+      }
+    }
+    return out;
+  };
+  const renames = draft.renames
+    ?.map((r) => ({ from: as(r.from), to: as(r.to) }))
+    .filter((r) => r.from !== r.to);
+  return {
+    ...draft,
+    baseline: remap(draft.baseline),
+    tree: remap(draft.tree),
+    ...(draft.initialTree ? { initialTree: remap(draft.initialTree) } : {}),
+    ...(renames ? { renames } : {}),
+  };
 }

@@ -1,3 +1,4 @@
+import { menusOf } from "@/domain/documents";
 import { describe, expect, it } from "vitest";
 import type { Asset } from "./asset";
 import { assetMenuReferences, assetUsages } from "./assetUsage";
@@ -6,13 +7,15 @@ import type { Project } from "./types";
 const asset = { id: "image", projectId: "p", type: "glyph" } as Asset;
 const project = {
   id: "p",
-  menus: [
-    {
-      id: "shop",
-      title: [{ kind: "background", assetId: "image" }],
-      layers: [{ elements: [{ display: {}, states: [{ image: { asset: "image" } }] }] }],
-    },
-  ],
+  documents: {
+    menu: [
+      {
+        id: "shop",
+        title: [{ kind: "background", assetId: "image" }],
+        layers: [{ elements: [{ display: {}, states: [{ image: { asset: "image" } }] }] }],
+      },
+    ],
+  },
 } as unknown as Project;
 
 describe("asset classification", () => {
@@ -34,8 +37,12 @@ describe("asset classification", () => {
     ]);
     const decorated = {
       ...project,
-      menus: [{ ...project.menus[0], title: [{ kind: "glyph", assetId: asset.id, x: 30, y: 12 }] }],
-    } as Project;
+      documents: {
+        menu: [
+          { ...menusOf(project)[0], title: [{ kind: "glyph", assetId: asset.id, x: 30, y: 12 }] },
+        ],
+      },
+    } as unknown as Project;
     expect(assetUsages(asset, decorated)).toEqual(["button", "menu"]);
   });
 });

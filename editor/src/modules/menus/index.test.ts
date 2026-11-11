@@ -6,8 +6,8 @@ describe("menusModule (editor)", () => {
     expect(menusModule.id).toBe("menus");
   });
 
-  it("declares a sidebar entry pointing to /networks", () => {
+  it("declares a sidebar entry pointing to the home page", () => {
     expect(menusModule.sidebar.label).toMatch(/menu/i);
-    expect(menusModule.sidebar.to).toBe("/networks");
+    expect(menusModule.sidebar.to).toBe("/");
   });
 });

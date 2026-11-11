@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const navigate = vi.fn();
 let searchOpen = false;
 
-vi.mock("@tanstack/react-router", () => ({ useNavigate: () => navigate }));
+let params: Record<string, string> = {};
+vi.mock("@tanstack/react-router", () => ({
+  useNavigate: () => navigate,
+  useParams: () => params,
+}));
 vi.mock("@/state/uiStore", () => ({
   useUiStore: { getState: () => ({ searchOpen }) },
 }));
@@ -12,7 +16,7 @@ vi.mock("@/state/uiStore", () => ({
 import { useWorkspaceTabShortcuts } from "./useWorkspaceTabShortcuts";
 
 function Harness({ hasHistory = true }: { hasHistory?: boolean }) {
-  useWorkspaceTabShortcuts(true, hasHistory);
+  useWorkspaceTabShortcuts(hasHistory);
   return <input data-testid="field" />;
 }
 
@@ -30,39 +34,61 @@ describe("useWorkspaceTabShortcuts", () => {
   beforeEach(() => {
     navigate.mockClear();
     searchOpen = false;
+    params = { serverId: "s1", projectId: "shop" };
   });
 
-  it("Digit1 returns to the canvas (clears ?tab)", () => {
+  it("Digit1 returns to the module's home (clears ?tab)", () => {
     render(<Harness />);
     pressOnWindow("Digit1");
     expect(navigate).toHaveBeenCalledTimes(1);
     expect(resolvedSearch({ keep: 1 })).toEqual({ keep: 1, tab: undefined });
   });
 
-  it("Digit3 opens Data (data-sources), Numpad3 too", () => {
+  it("Digit2 opens the board", () => {
     render(<Harness />);
-    pressOnWindow("Digit3");
-    expect(resolvedSearch()).toEqual({ tab: "data-sources" });
+    pressOnWindow("Digit2");
+    expect(resolvedSearch()).toEqual({ tab: "board" });
+  });
+
+  it("from a Document's page, the home and the board go back to the module's root", () => {
+    params = { serverId: "s1", projectId: "shop", documentId: "main" };
+    render(<Harness />);
+    pressOnWindow("Digit2");
+    expect(navigate.mock.calls[0]?.[0]).toMatchObject({
+      to: "/servers/$serverId/projects/$projectId",
+      params: { serverId: "s1", projectId: "shop" },
+      search: { tab: "board" },
+    });
     navigate.mockClear();
-    pressOnWindow("Numpad3");
-    expect(resolvedSearch()).toEqual({ tab: "data-sources" });
+    // A secondary view covers the page in place.
+    pressOnWindow("Digit4");
+    expect(resolvedSearch()).toEqual({ tab: "resources" });
+  });
+
+  it("Digit4 opens Resources, Numpad4 too", () => {
+    render(<Harness />);
+    pressOnWindow("Digit4");
+    expect(resolvedSearch()).toEqual({ tab: "resources" });
+    navigate.mockClear();
+    pressOnWindow("Numpad4");
+    expect(resolvedSearch()).toEqual({ tab: "resources" });
   });
 
   it("fires on the physical key regardless of the produced character (AZERTY-safe)", () => {
     render(<Harness />);
-    // On AZERTY the unshifted Digit2 key yields "é", not "2" — we key off e.code.
-    window.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit2", key: "é" }));
+    // On AZERTY the unshifted Digit3 key yields "\"", not "3" — we key off e.code.
+    window.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit3", key: '"' }));
     expect(resolvedSearch()).toEqual({ tab: "translations" });
   });
 
-  it("Digit6 opens History, unless the Project has none (demo)", () => {
+  it("Digit5 opens History, unless the Project has none", () => {
     const { unmount } = render(<Harness />);
-    pressOnWindow("Digit6");
+    pressOnWindow("Digit5");
     expect(resolvedSearch()).toEqual({ tab: "history" });
     unmount();
     navigate.mockClear();
     render(<Harness hasHistory={false} />);
-    pressOnWindow("Digit6");
+    pressOnWindow("Digit5");
     expect(navigate).not.toHaveBeenCalled();
   });
 
@@ -75,9 +101,9 @@ describe("useWorkspaceTabShortcuts", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("ignores out-of-range digits (only 1-6 map to a tab)", () => {
+  it("ignores out-of-range digits (only 1-5 map to a tab)", () => {
     render(<Harness />);
-    pressOnWindow("Digit7");
+    pressOnWindow("Digit6");
     pressOnWindow("Digit9");
     expect(navigate).not.toHaveBeenCalled();
   });
@@ -96,16 +122,4 @@ describe("useWorkspaceTabShortcuts", () => {
     pressOnWindow("Digit2");
     expect(navigate).not.toHaveBeenCalled();
   });
-});
-
-it("opens Resources with Digit4 even when assistant is unavailable", () => {
-  function DemoHarness() {
-    useWorkspaceTabShortcuts(false);
-    return null;
-  }
-  navigate.mockClear();
-  searchOpen = false;
-  render(<DemoHarness />);
-  pressOnWindow("Digit4");
-  expect(resolvedSearch()).toEqual({ tab: "resources" });
 });

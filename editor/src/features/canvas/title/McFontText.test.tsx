@@ -1,6 +1,6 @@
+import type { Asset } from "@/domain/asset";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Asset } from "@/domain/asset";
 import { McFontText } from "./McFontText";
 
 // Render react-konva primitives as plain divs so jsdom can introspect them
@@ -18,12 +18,7 @@ vi.mock("react-konva", () => ({
     y?: number;
     listening?: boolean;
   }) => (
-    <div
-      data-testid="group"
-      data-x={x}
-      data-y={y}
-      data-listening={listening ? "true" : "false"}
-    >
+    <div data-testid="group" data-x={x} data-y={y} data-listening={listening ? "true" : "false"}>
       {children}
     </div>
   ),
@@ -76,7 +71,7 @@ import useImage from "use-image";
 function makeFontAsset(): Asset {
   return {
     id: "font-1",
-    serverKeyId: "sk1",
+    projectId: "p1",
     type: "font",
     name: "demo",
     width: 0,
@@ -100,9 +95,10 @@ function makeFontAsset(): Asset {
 describe("McFontText", () => {
   it("renders one Konva Image per char when all glyphs are present", () => {
     // Reset mock to default (image loaded) for this test.
-    vi.mocked(useImage).mockImplementation(
-      () => [{ src: "fake://img" } as HTMLImageElement, "loaded"],
-    );
+    vi.mocked(useImage).mockImplementation(() => [
+      { src: "fake://img" } as HTMLImageElement,
+      "loaded",
+    ]);
     const font = makeFontAsset();
     render(<McFontText text="abc" font={font} x={0} y={0} scale={2} />);
     const imgs = screen.getAllByTestId("konva-image");
@@ -110,9 +106,10 @@ describe("McFontText", () => {
   });
 
   it("renders a yellow-tinted placeholder Rect for missing glyphs", () => {
-    vi.mocked(useImage).mockImplementation(
-      () => [{ src: "fake://img" } as HTMLImageElement, "loaded"],
-    );
+    vi.mocked(useImage).mockImplementation(() => [
+      { src: "fake://img" } as HTMLImageElement,
+      "loaded",
+    ]);
     const font = makeFontAsset();
     // 'z' is not in the glyphMap.
     render(<McFontText text="az" font={font} x={0} y={0} scale={2} />);
@@ -127,9 +124,10 @@ describe("McFontText", () => {
   });
 
   it("advances the cursor by glyph.width * scale + scale (1px MC kerning) per glyph", () => {
-    vi.mocked(useImage).mockImplementation(
-      () => [{ src: "fake://img" } as HTMLImageElement, "loaded"],
-    );
+    vi.mocked(useImage).mockImplementation(() => [
+      { src: "fake://img" } as HTMLImageElement,
+      "loaded",
+    ]);
     const font = makeFontAsset();
     // 'a' has width=6, 'b' has width=8, 'c' has width=5. scale=2 means
     // each step adds glyph.width*2 + 2.
@@ -143,9 +141,10 @@ describe("McFontText", () => {
   });
 
   it("places each glyph at drawY = baselineY - ascent * scale", () => {
-    vi.mocked(useImage).mockImplementation(
-      () => [{ src: "fake://img" } as HTMLImageElement, "loaded"],
-    );
+    vi.mocked(useImage).mockImplementation(() => [
+      { src: "fake://img" } as HTMLImageElement,
+      "loaded",
+    ]);
     const font = makeFontAsset();
     // ascent=7, scale=2 → drawY = 0 - 7*2 = -14 (relative to the Group origin).
     render(<McFontText text="a" font={font} x={100} y={50} scale={2} />);
@@ -161,9 +160,10 @@ describe("McFontText", () => {
   });
 
   it("uses each glyph's intrinsic width when laying out a multi-glyph string", () => {
-    vi.mocked(useImage).mockImplementation(
-      () => [{ src: "fake://img" } as HTMLImageElement, "loaded"],
-    );
+    vi.mocked(useImage).mockImplementation(() => [
+      { src: "fake://img" } as HTMLImageElement,
+      "loaded",
+    ]);
     const font = makeFontAsset();
     // 'a' (width=6) then 'b' (width=8) at scale=3.
     // Expected x for 'b' = 6*3 + 3 = 21.
@@ -175,9 +175,7 @@ describe("McFontText", () => {
 
   it("falls back to a neutral grey placeholder Rect while the image is still loading", () => {
     // Pretend `useImage` is still loading: returns `[undefined, "loading"]`.
-    vi.mocked(useImage).mockImplementation(
-      () => [undefined, "loading"],
-    );
+    vi.mocked(useImage).mockImplementation(() => [undefined, "loading"]);
     const font = makeFontAsset();
     render(<McFontText text="a" font={font} x={0} y={0} scale={2} />);
     // No Konva Image rendered yet.
@@ -193,18 +191,20 @@ describe("McFontText", () => {
   });
 
   it("defaults the Group to listening=false so it doesn't intercept drags on a parent", () => {
-    vi.mocked(useImage).mockImplementation(
-      () => [{ src: "fake://img" } as HTMLImageElement, "loaded"],
-    );
+    vi.mocked(useImage).mockImplementation(() => [
+      { src: "fake://img" } as HTMLImageElement,
+      "loaded",
+    ]);
     const font = makeFontAsset();
     render(<McFontText text="a" font={font} x={0} y={0} scale={2} />);
     expect(screen.getByTestId("group").getAttribute("data-listening")).toBe("false");
   });
 
   it("supports surrogate-pair characters by iterating with [...text]", () => {
-    vi.mocked(useImage).mockImplementation(
-      () => [{ src: "fake://img" } as HTMLImageElement, "loaded"],
-    );
+    vi.mocked(useImage).mockImplementation(() => [
+      { src: "fake://img" } as HTMLImageElement,
+      "loaded",
+    ]);
     const font: Asset = {
       ...makeFontAsset(),
       fontMeta: {

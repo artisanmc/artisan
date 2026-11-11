@@ -118,7 +118,12 @@ describe("evaluator — list methods", () => {
   });
 
   it(".pluck extracts a field from each object", () => {
-    const s = new Scope({ ranks: [{ name: "VIP", price: 10 }, { name: "MVP", price: 50 }] });
+    const s = new Scope({
+      ranks: [
+        { name: "VIP", price: 10 },
+        { name: "MVP", price: 50 },
+      ],
+    });
     expect(evalSrc(`ranks.pluck("name")`, s)).toEqual(["VIP", "MVP"]);
   });
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://docs.artisanmc.net/schema/dialog/v1.json",
   "title": "Artisan Dialog",
-  "description": "Format intermédiaire d'un dialog Artisan (Paper 1.21+ dialogs). Source de vérité du wire émis par l'éditeur (transform.ts serializeDialog) et lu par le plugin (DialogYaml).",
+  "description": "An Artisan dialog (Paper 1.21+ dialogs).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,51 +13,51 @@
   "properties": {
     "schema": {
       "const": "dialog/v1",
-      "description": "Version du schéma. Verrouillée pour permettre les migrations applicables au load."
+      "description": "Schema version. Fixed, so that migrations can apply on load."
     },
     "id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]{0,63}$",
-      "description": "LEGACY, ignoré. L'identité d'un Document est le nom de son fichier (le reader force la valeur et signale une divergence). Toléré en lecture pour les projects antérieurs ; plus jamais écrit."
+      "description": "LEGACY, ignored. A Document's identity is its file name (the reader overrides this value and reports a mismatch). Still read in older Projects; never written."
     },
     "title": {
       "$ref": "#/$defs/LText",
-      "description": "Titre affiché. Référence i18n {i18n:key}, littéral MiniMessage, ou map field-local."
+      "description": "Displayed title: an {i18n:key} reference, MiniMessage text, or a {language: text} map."
     },
     "can_close_with_escape": {
       "type": "boolean",
       "default": true,
-      "description": "Émis uniquement quand false (le joueur ne peut pas fermer avec Échap)."
+      "description": "Written only when false (the player cannot close it with Escape)."
     },
     "body": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/DialogBody"
       },
-      "description": "Blocs de contenu affichés au-dessus des inputs/boutons."
+      "description": "Content blocks shown above the inputs and buttons."
     },
     "inputs": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/DialogInput"
       },
-      "description": "Champs de saisie. Les valeurs sont exposées comme args de contexte aux actions des boutons."
+      "description": "Input fields. Their values reach the buttons' actions as context arguments."
     },
     "buttons": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/DialogButton"
       },
-      "description": "Boutons du dialog, dans l'ordre d'affichage."
+      "description": "The dialog's buttons, in display order."
     }
   },
   "$defs": {
     "LText": {
-      "description": "Un texte de slot structurel (ADR field-local-translations) : string ('{i18n:key}' ou littéral, identique pour toutes les langues) ou map field-local { LangCode: texte }.",
+      "description": "A text: a string ('{i18n:key}' or literal, the same in every language) or a { language: text } map.",
       "oneOf": [
         {
           "type": "string",
-          "description": "Référence i18n {i18n:key} ou littéral MiniMessage."
+          "description": "An {i18n:key} reference or MiniMessage text."
         },
         {
           "type": "object",
@@ -67,7 +67,7 @@
               "type": "string"
             }
           },
-          "description": "Map field-local { lang: texte }."
+          "description": "A { language: text } map."
         }
       ]
     },
@@ -86,7 +86,7 @@
             },
             "text": {
               "$ref": "#/$defs/LText",
-              "description": "Référence i18n {i18n:key}, littéral MiniMessage, ou map field-local."
+              "description": "An {i18n:key} reference, MiniMessage text, or a { language: text } map."
             }
           }
         },
@@ -242,7 +242,7 @@
           "$ref": "#/$defs/LText"
         },
         "actions": {
-          "description": "Chaîne d'actions exécutée au clic du bouton. Wire canonique : steps structurés (ou un step / une liste). Une string = ancien Action DSL (legacy). Cf. ADR structured-action-wire.",
+          "description": "The action chain run when the button is clicked: a list of steps (or a single step). A plain string is the legacy Action DSL.",
           "oneOf": [
             {
               "type": "string"

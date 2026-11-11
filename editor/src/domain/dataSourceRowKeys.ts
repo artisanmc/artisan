@@ -49,9 +49,7 @@ export function validateSourceRowKey(
   candidate: unknown,
 ): SourceRowKeyValidation {
   const { field, kind } = rowKeyKind(project, source);
-  const value = kind === "string"
-    ? normalizeString(candidate)
-    : normalizeNumeric(candidate, kind);
+  const value = kind === "string" ? normalizeString(candidate) : normalizeNumeric(candidate, kind);
 
   if (value === "" || value === undefined) {
     return { ok: false, reason: "required" };
@@ -61,9 +59,8 @@ export function validateSourceRowKey(
     if (index === rowIndex) {
       return false;
     }
-    const existing = kind === "string"
-      ? normalizeString(row[field])
-      : normalizeNumeric(row[field], kind);
+    const existing =
+      kind === "string" ? normalizeString(row[field]) : normalizeNumeric(row[field], kind);
     return existing === value;
   });
 

@@ -1,20 +1,22 @@
 import * as api from "@/lib/api/projectVersions";
-import { mockAccount } from "@/mock/fixtures";
-import { useAccountStore } from "@/state/accountStore";
+import { mockOpenProjects } from "@/mock/fixtures";
+import { useProjectsStore } from "@/state/projectsStore";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { ProjectHistory } from "./ProjectHistory";
+import { mutateDraftAssets } from "./persistedDrafts";
 import { projectTree } from "./saveProjectToDisk";
 
 vi.mock("@/lib/api/projectVersions", () => ({
   listProjectVersions: vi.fn(),
   readProjectVersion: vi.fn(),
 }));
+vi.mock("./persistedDrafts", () => ({ mutateDraftAssets: vi.fn().mockResolvedValue({}) }));
 
 it("lists deployments and server edits, shows a Version's diff, and restores it into the draft", async () => {
-  const previous = useAccountStore.getState().account;
-  const account = mockAccount();
-  const project = account.projects[0]!;
+  const previous = useProjectsStore.getState().openProjects;
+  const openProjects = mockOpenProjects();
+  const project = openProjects.projects[0]!;
   const tree = projectTree(project);
   const dropped = Object.keys(tree).find((path) => path !== "manifest.yaml")!;
   const kept = Object.entries(tree).filter(([path]) => path !== dropped);
@@ -49,7 +51,7 @@ it("lists deployments and server edits, shows a Version's diff, and restores it 
         },
   );
   try {
-    useAccountStore.setState({ account });
+    useProjectsStore.setState({ openProjects });
     render(<ProjectHistory projectId={project.id} active />);
     expect(await screen.findByText(/Alice/)).toBeInTheDocument();
     expect(screen.getByText(/Deployment|Déploiement/)).toBeInTheDocument();
@@ -59,15 +61,27 @@ it("lists deployments and server edits, shows a Version's diff, and restores it 
       screen.getAllByRole("button", { name: /See changes|Voir les changements/ })[1]!,
     );
     const dialog = await screen.findByRole("dialog");
-    // Le diff compare v1 à la Version d'avant (v0), qui avait old.yaml.
+    // The diff compares v1 to the previous Version (v0), which had old.yaml.
     expect(await within(dialog).findByText("old.yaml")).toBeInTheDocument();
     expect(api.readProjectVersion).toHaveBeenCalledWith(project.id, "v0");
 
-    fireEvent.click(within(dialog).getByRole("button", { name: /Restore|Restaurer/ }));
+    const opened = vi.fn();
+    window.addEventListener("artisan:open-deploy-review", opened);
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /Restore and publish|Restaurer et publier/ }),
+    );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    const restored = useAccountStore.getState().account.projects.find((p) => p.id === project.id)!;
+    window.removeEventListener("artisan:open-deploy-review", opened);
+    const restored = useProjectsStore
+      .getState()
+      .openProjects.projects.find((p) => p.id === project.id)!;
     expect(Object.keys(projectTree(restored)).sort()).toEqual(kept.map(([path]) => path).sort());
+    expect(vi.mocked(mutateDraftAssets).mock.calls[0]![1]).toMatchObject({
+      suffix: "/restore",
+      fields: { versionId: "v1" },
+    });
+    expect(opened).toHaveBeenCalledOnce();
   } finally {
-    act(() => useAccountStore.setState({ account: previous }));
+    act(() => useProjectsStore.setState({ openProjects: previous }));
   }
 });

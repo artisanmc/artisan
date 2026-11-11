@@ -1,0 +1,265 @@
+// Project → files writer: the exact inverse of `projectFromFiles.ts` (ADR
+// files-first-source-of-truth: the file tree is the canonical, lossless Project
+// representation; the editor parses it on open and serializes it back on every
+// save). Each Document kind is written by its codec (`documentCodecs.ts`), data
+// sources by `dataV1FromDomain.ts`, translations by `langV1FromDomain.ts`.
+import { listDocumentKinds } from "@/domain/documentKinds";
+import { VARIANTS_DIR, VARIANTS_FILE, documentPath, sameFile } from "@/domain/documentLayout";
+import { documentKeys, documentsOf } from "@/domain/documents";
+import { persistedFolderMeta } from "@/domain/folders";
+import { sameAsShipped, shippedPath, shippedTwin } from "@/domain/originals";
+import type { Document, Project } from "@/domain/types";
+import { variantsShown, variantsToYaml, withModuleView } from "@/domain/variants";
+import { listLanguages } from "@/lib/i18nUsages";
+import { nestLangTree } from "@/lib/langTree";
+import { stepsToWire } from "@/lib/literalSteps";
+import { MODULE_FILE, MODULE_SCHEMA, YAML_EXT } from "@/lib/yamlFiles";
+import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
+import { stringify } from "yaml";
+import { commandVariantOverlay } from "./commandVariant";
+import { dataSourceI18n, emitDataSources, modelV1FromDomain } from "./dataV1FromDomain";
+import { documentCodec } from "./documentCodecs";
+import { collectReferencedKeys, keptLangEntries, serializeLang } from "./langV1FromDomain";
+
+/**
+ * Removes the `id` field before writing a Document to disk: the file already
+ * carries its identity in its name (mirror of the plugin's `withFileId`), and
+ * its themed `folder` in its path. The serializers keep the id because the AI
+ * assistant needs it on the wire, where there is no file name to carry it.
+ */
+function withoutId(doc: Record<string, unknown>): Record<string, unknown> {
+  const { id: _id, folder: _folder, ...rest } = doc;
+  return rest;
+}
+
+/** The raw files a project keeps for a module namespace no module has claimed. */
+function rawModuleFiles(data: unknown): Record<string, string> | null {
+  if (typeof data !== "object" || data === null || !("__files" in data)) return null;
+  const files = data.__files;
+  if (typeof files !== "object" || files === null) return null;
+  return files as Record<string, string>;
+}
+
+/**
+ * Transform a Project into a flat map of filename → YAML string.
+ * Keys use the server-side path (e.g. "plugins/Artisan/projects/<id>/menus/shop_main.yaml").
+ */
+export function projectToFiles(shown: Project): Record<string, string> {
+  // The files hold the module's own Documents in place, whatever variant the canvas shows.
+  const project = withModuleView(shown);
+  const files: Record<string, string> = {};
+
+  const yamlOpts = { lineWidth: 0 };
+
+  // DISK id: these paths are written as-is on the server, which stores the
+  // project under its own folder name (cf. `Project.diskId`).
+  const base = `plugins/Artisan/projects/${project.diskId ?? project.id}`;
+
+  // One file per document, in its kind's folder under its themed folder, through
+  // its kind's codec (ADR `extensible-document-kinds`): the writer knows no kind
+  // by name.
+  // Originals (`domain/originals.ts`): a Document equal to what the module ships is not
+  // written, the server's `originals/` serves it.
+  const asShipped = (kind: string, doc: Document, variant: string) => {
+    const twin = shippedTwin(project, kind, doc.id, variant);
+    return !!twin && sameAsShipped(project, kind, doc, twin);
+  };
+  for (const def of listDocumentKinds()) {
+    const codec = documentCodec(def.kind);
+    for (const doc of documentsOf(project, def.kind)) {
+      if (asShipped(def.kind, doc, "")) continue;
+      files[`${base}/${documentPath(def.dir, doc.id, doc.folder)}`] = stringify(
+        withoutId(codec.serialize(doc, project)),
+        yamlOpts,
+      );
+    }
+  }
+
+  // Variants (`domain/variants.ts`): each version at the same place under `variants/<name>/`,
+  // the rules in `variants.yml`.
+  if (project.variants) {
+    for (const def of listDocumentKinds()) {
+      const codec = documentCodec(def.kind);
+      for (const name of project.variants.names) {
+        for (const doc of project.variants.documents[name]?.[def.kind] ?? []) {
+          if (asShipped(def.kind, doc, name)) continue;
+          let body = withoutId(codec.serialize(doc, project));
+          // A command's version: only the steps that differ from the module's.
+          const own =
+            def.kind === "command"
+              ? documentsOf(project, def.kind).find((d) => d.id === doc.id)
+              : undefined;
+          if (own) body = commandVariantOverlay(withoutId(codec.serialize(own, project)), body);
+          files[`${base}/${VARIANTS_DIR}/${name}/${documentPath(def.dir, doc.id, doc.folder)}`] =
+            stringify(body, yamlOpts);
+        }
+      }
+    }
+    // The module's tree serves while the owner keeps it as shipped, and names no variant
+    // that only the file would keep (one without a tree step nor a file).
+    const v = project.variants;
+    const shippedShow = project.originals?.show;
+    const kept = new Set([
+      ...variantsShown(v.show),
+      ...Object.keys(v.documents),
+      ...Object.keys(project.originals?.documents ?? {}),
+    ]);
+    if (
+      !shippedShow ||
+      JSON.stringify(stepsToWire(shippedShow)) !== JSON.stringify(stepsToWire(v.show)) ||
+      v.names.some((n) => !kept.has(n))
+    )
+      files[`${base}/${VARIANTS_FILE}${YAML_EXT}`] = stringify(
+        variantsToYaml(v.show, v.names),
+        yamlOpts,
+      );
+  }
+
+  // Captured items: the opaque serialized stack is the runtime truth — emit it
+  // VERBATIM (never parse/re-stringify), one file per item. The plugin
+  // deserializes these to resolve `item:<id>` material refs with exact NBT.
+  for (const item of project.capturedItems ?? []) {
+    files[`${base}/items/${item.id}.yml`] = item.stackYaml;
+  }
+
+  const claimedModelIds = emitDataSources(project, base, files, yamlOpts);
+
+  const langs = listLanguages(project);
+  const referencedKeys = collectReferencedKeys(project);
+  const dsI18n = dataSourceI18n(project);
+  for (const lang of langs) {
+    // `lang/` now only holds siteless presentation keys, data-source addresses
+    // and the keys kept as read — document text is field-local in the documents.
+    // Written as a YAML tree (`nestLangTree` sorts every level byte-order).
+    const tree = nestLangTree(
+      serializeLang(project, lang, referencedKeys, {
+        ...keptLangEntries(project, lang),
+        ...(lang === project.defaultLang ? {} : (dsI18n.byLang[lang] ?? {})),
+      }),
+    );
+    // Nothing to say for this language → no file (a pure mono-language,
+    // structural-only project ships zero `lang/` files).
+    if (Object.keys(tree).length === 0) continue;
+    files[`${base}/lang/${lang}${YAML_EXT}`] = stringify(tree, yamlOpts);
+  }
+
+  const liveIds = new Set<string>(documentKeys(project));
+  const editorLayout = Object.fromEntries(
+    Object.entries(project.canvasLayout).filter(([id]) => liveIds.has(id)),
+  );
+
+  const manifest: Record<string, unknown> = {
+    schema: MODULE_SCHEMA,
+    // Round-trip the Add-on owner id (ADR addon-owned-project-roots) so it survives
+    // an editor save — `ownerModule` is re-derived from it on load.
+    ...(project.ownerModule ? { module: project.ownerModule } : {}),
+    default_lang: project.defaultLang,
+    languages: langs,
+    ...(project.loreMaxWidth ? { lore_max_width: project.loreMaxWidth } : {}),
+    ...(project.escapeGoesBack ? { escape_goes_back: true } : {}),
+    ...originalsBlock(project),
+    // No `files:` block: it duplicated the content of menus/, commands/ and
+    // dialogs/ without adding load order or exclusions — a hand-maintained index
+    // whose only possible effect was to drift out of sync. Documents are
+    // discovered by scanning, on both sides.
+  };
+  // Data models: models/<id>.yml (model/v1), fields VERBATIM (cross-model refs
+  // preserved) — the lossless editor store. data/<id>.yaml stays denormalized
+  // and self-contained for the runtime (the plugin reads models/ only to type
+  // a bare source beside its data).
+  // Module-DECLARED models are NOT project content — their truth is the
+  // declaration (Presence), never a project file (ADR composable-data-models §4).
+  for (const m of project.dataModels ?? []) {
+    if (m.provenance === "module") continue;
+    // Owned by a source (doc emitted at models/<sourceId>.yaml, or an untyped
+    // synthesized model with nothing to say) — ADR bare-data-files ⑤.
+    if (claimedModelIds.has(String(m.id))) continue;
+    files[`${base}/models/${m.id}${YAML_EXT}`] = stringify(modelV1FromDomain(m), yamlOpts);
+  }
+  // Editor presentation state (board layout/edges) lives in the hash-excluded
+  // `.artisan/editor.yaml` — NOT in the manifest — so cosmetic board moves no
+  // longer change the project hash and redeploy the server (ADR
+  // files-first-source-of-truth #3).
+  const editorEdges = Object.fromEntries(
+    Object.entries(project.canvasEdges ?? {}).filter(([edgeId, v]) => {
+      const [src = "", tgt = ""] = edgeId.split("->");
+      return liveIds.has(src) && liveIds.has(tgt) && (v.from || v.to);
+    }),
+  );
+  const editorState: Record<string, unknown> = { schema: "editor-state/v1" };
+  const folders = persistedFolderMeta(project);
+  if (Object.keys(folders).length) editorState.folders = folders;
+  if (Object.keys(editorLayout).length > 0) editorState.layout = editorLayout;
+  if (Object.keys(editorEdges).length > 0) editorState.edges = editorEdges;
+  // Captured item label + display descriptor: editor-only metadata, persisted
+  // here and hash-excluded. The descriptor IS derivable from the stack now
+  // (projectFromFiles falls back to parseCapturedStack), but it is still
+  // written: it records what the capture panel showed, including a material
+  // enriched by the plugin's custom-item reverse lookup. The user-given `name`
+  // has no equivalent in the stack at all.
+  if ((project.capturedItems ?? []).length > 0) {
+    editorState.items = Object.fromEntries(
+      (project.capturedItems ?? []).map((ci) => [ci.id, { name: ci.name, display: ci.display }]),
+    );
+  }
+  if (Object.keys(editorState).length > 1) {
+    files[`${base}/.artisan/editor.yaml`] = stringify(editorState, yamlOpts);
+  }
+  for (const [rel, content] of Object.entries(collectModuleExportFiles(project))) {
+    files[`${base}/${rel}`] = content;
+  }
+
+  // Defensive: moduleData namespaces no registered module claims (e.g. user-auth
+  // mode where module registration never ran) must not be silently dropped from
+  // the deploy. Re-emit their raw `__files` verbatim. Namespaces already
+  // normalized by a module (no `__files`) have nothing faithful to emit —
+  // documented limitation. Registered modules keep authority via exportFiles.
+  for (const [ns, data] of Object.entries(project.moduleData ?? {})) {
+    if (getModule(ns)) continue;
+    const rawFiles = rawModuleFiles(data);
+    if (!rawFiles) continue;
+    for (const [rel, content] of Object.entries(rawFiles)) {
+      files[`${base}/${ns}/${rel}`] = content;
+    }
+  }
+
+  // Document files the layout refused on read: back verbatim, never dropped.
+  for (const [rel, content] of Object.entries(project.unreadFiles ?? {})) {
+    files[`${base}/${rel}`] ??= content;
+  }
+
+  files[`${base}/${MODULE_FILE}`] = stringify(manifest, yamlOpts);
+
+  // No meta.yaml: nothing consumed it, and its `exported_at` timestamp made
+  // every export a different byte tree. projectToFiles() is a pure function of
+  // the Project.
+  return files;
+}
+
+/**
+ * `originals: { exclude }` of the module file: each shipped Document the Project no longer has
+ * (a required one cannot be left out), and what was excluded that names no shipped Document.
+ */
+function originalsBlock(project: Project): Record<string, unknown> {
+  const o = project.originals;
+  if (!o) return {};
+  const required = new Set(o.required.map(sameFile));
+  const shipped = new Set<string>();
+  const exclude: string[] = [];
+  for (const [variant, byKind] of Object.entries(o.documents)) {
+    for (const [kind, docs] of Object.entries(byKind)) {
+      const present = new Set(
+        (variant ? project.variants?.documents[variant]?.[kind] : project.documents[kind])?.map(
+          (d) => d.id,
+        ) ?? [],
+      );
+      for (const doc of docs) {
+        const path = shippedPath(kind, doc, variant);
+        shipped.add(sameFile(path));
+        if (!present.has(doc.id) && !required.has(sameFile(path))) exclude.push(path);
+      }
+    }
+  }
+  for (const path of o.excluded) if (!shipped.has(sameFile(path))) exclude.push(path);
+  return exclude.length > 0 ? { originals: { exclude: [...new Set(exclude)].sort() } } : {};
+}

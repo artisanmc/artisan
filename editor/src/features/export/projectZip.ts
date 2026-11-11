@@ -1,5 +1,6 @@
 import { isPrivateProjectPath } from "@/lib/projectFileVisibility";
 import { isValidProjectFolderName } from "@/lib/projectFolderName";
+import { isModuleFile } from "@/lib/yamlFiles";
 import JSZip from "jszip";
 
 /** Canonical on-disk root of a project's file tree. */
@@ -25,7 +26,8 @@ function isJunk(path: string): boolean {
  * our own export, a project directory zipped straight off the server, a
  * manifest at the archive root, or any of those wrapped in an extra folder.
  *
- * The project root is the directory holding the **shallowest** `manifest.yaml`.
+ * The project root is the directory holding the **shallowest** module file
+ * (`artisan-module.yml`, formerly `manifest.yaml`).
  * Everything under it is carried verbatim — including files the editor domain
  * does not model (`.artisan/editor.yaml`, an Add-on root's own `config.yml`),
  * which is the point of exporting the tree rather than regenerating it.
@@ -37,11 +39,11 @@ export function normalizeProjectFiles<T extends string | Uint8Array>(
   const paths = Object.keys(entries).filter((p) => !isJunk(p) && !isPrivateProjectPath(p));
 
   const manifestPath = paths
-    .filter((p) => p === "manifest.yaml" || p.endsWith("/manifest.yaml"))
+    .filter((p) => isModuleFile(p.split("/").pop()!))
     .sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b))[0];
   if (!manifestPath) throw new Error("no_manifest");
 
-  const root = manifestPath.slice(0, manifestPath.length - "manifest.yaml".length);
+  const root = manifestPath.slice(0, manifestPath.lastIndexOf("/") + 1);
   const dirName = root.replace(/\/$/, "").split("/").pop() ?? "";
   const projectId = targetId?.trim() || dirName;
   if (!projectId) throw new Error("project_id_required");

@@ -215,7 +215,7 @@ function DiffRow({ line, wrap }: { line: Line; wrap: boolean }) {
       <td className={cn("py-0.5 pr-3", wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre")}>
         <code>{line.text.replace(/\r?\n$/, "")}</code>
         {line.kind !== "same" && (
-          <span className="ml-3 select-none text-[10px] text-[var(--text-mut)]">
+          <span className="ml-3 select-none text-[11px] text-[var(--text-mut)]">
             {line.text.endsWith("\r\n")
               ? "CRLF"
               : line.text.endsWith("\n")

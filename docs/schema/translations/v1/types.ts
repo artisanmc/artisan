@@ -1,20 +1,20 @@
 /**
  * Artisan — Translations schema v1 — TypeScript types
  *
- * Source de vérité pour les traductions d'un workspace.
- * Maintenu à la main, en miroir de schema.json.
+ * Source of truth for a workspace's translations.
+ * Maintained by hand, mirroring schema.json.
  *
- * Modèle :
- *   - Une clé = un texte traduisible, scoped au workspace.
- *   - Le contenu de chaque valeur est du MiniMessage.
- *   - Référencée depuis menus/commandes via la syntaxe inline {i18n:<key>}.
+ * Model:
+ *   - One key = one translatable text, scoped to the workspace.
+ *   - The content of each value is MiniMessage.
+ *   - Referenced from menus/commands via the inline syntax {i18n:<key>}.
  *
- * Ordre de résolution côté plugin (à l'opening d'un menu / l'exécution d'une commande) :
- *   1. {i18n:key}        → valeur stockée pour la langue active du joueur (fallback default_lang)
- *   2. %papi_placeholder% → résolu via PlaceholderAPI
- *   3. parse MiniMessage → Component Adventure final envoyé au joueur
+ * Resolution order on the plugin side (when a menu opens / a command runs):
+ *   1. {i18n:key}        → value stored for the player's active language (fallback default_lang)
+ *   2. %papi_placeholder% → resolved via PlaceholderAPI
+ *   3. parse MiniMessage → final Adventure Component sent to the player
  *
- * Donc une traduction PEUT contenir des placeholders et des tags MiniMessage.
+ * So a translation CAN contain placeholders and MiniMessage tags.
  */
 
 // ============================================================================
@@ -30,14 +30,14 @@ export interface Translations {
 }
 
 /**
- * Code de langue style BCP-47-light :
+ * Language code, BCP-47-light style:
  *   - "fr", "en", "de", "es", "ja", "fil"
  *   - "en_US", "en_GB", "pt_BR", "zh_CN" (lang lowercase, region any case)
  */
 export type LangCode = string;
 
 /**
- * Clé de traduction. Slug hiérarchique avec '.' :
+ * Translation key. Hierarchical slug with '.':
  *   - "menu.shop_main.title"
  *   - "menu.shop_main.btn_buy.lore.0"
  *   - "command.profile.description"
@@ -46,8 +46,8 @@ export type LangCode = string;
 export type TranslationKey = string;
 
 /**
- * Map langue → valeur MiniMessage. Doit contenir au moins default_lang.
- * Une langue listée dans Translations.languages mais absente ici → fallback runtime à default_lang.
+ * Map language → MiniMessage value. Must contain at least default_lang.
+ * A language listed in Translations.languages but absent here → runtime fallback to default_lang.
  */
 export type KeyTranslations = Record<LangCode, string>;
 
@@ -59,18 +59,18 @@ export interface TranslationsMetadata {
 }
 
 // ============================================================================
-// REGEX & CONSTANTES
+// REGEX & CONSTANTS
 // ============================================================================
 
-/** Regex de validation d'une clé de traduction. */
+/** Validation regex for a translation key. */
 export const TRANSLATION_KEY_RE = /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/;
 
-/** Regex de validation d'un code de langue. */
+/** Validation regex for a language code. */
 export const LANG_CODE_RE = /^[a-z]{2,3}(?:_[A-Za-z]{2,4})?$/;
 
 /**
- * Regex pour extraire les références {i18n:key} d'une string MiniMessage.
- * Match groupe 1 = la clé.
+ * Regex to extract {i18n:key} references from a MiniMessage string.
+ * Match group 1 = the key.
  */
 export const I18N_REF_RE = /\{i18n:([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*)\}/g;
 
@@ -84,18 +84,18 @@ export interface TranslationsCheck {
 }
 
 /**
- * Vérifie cohérence du fichier translations au-delà du JSON Schema :
- *   - default_lang est bien dans languages[]
- *   - chaque clé a au minimum la default_lang
- *   - aucune valeur n'est vide
- *   - flag les langues déclarées mais jamais utilisées (warning)
+ * Checks the translations file's consistency beyond the JSON Schema:
+ *   - default_lang is in languages[]
+ *   - each key has at least the default_lang
+ *   - no value is empty
+ *   - flags languages declared but never used (warning)
  */
 export function validateTranslations(t: Translations): TranslationsCheck {
   const errors: string[] = [];
   const warnings: string[] = [];
 
   if (!t.languages.includes(t.default_lang)) {
-    errors.push(`default_lang "${t.default_lang}" n'est pas dans languages[].`);
+    errors.push(`default_lang "${t.default_lang}" is not in languages[].`);
   }
 
   const langUsage = new Map<LangCode, number>();
@@ -103,19 +103,19 @@ export function validateTranslations(t: Translations): TranslationsCheck {
 
   for (const [key, perLang] of Object.entries(t.keys)) {
     if (!TRANSLATION_KEY_RE.test(key)) {
-      errors.push(`Clé "${key}" ne respecte pas le format slug hiérarchique.`);
+      errors.push(`Key "${key}" does not follow the hierarchical slug format.`);
       continue;
     }
     if (!(t.default_lang in perLang)) {
-      errors.push(`Clé "${key}" n'a pas de valeur pour la default_lang "${t.default_lang}".`);
+      errors.push(`Key "${key}" has no value for the default_lang "${t.default_lang}".`);
     }
     for (const [lang, value] of Object.entries(perLang)) {
       if (!t.languages.includes(lang)) {
-        warnings.push(`Clé "${key}" a une valeur pour "${lang}" qui n'est pas dans languages[]. Sera ignorée.`);
+        warnings.push(`Key "${key}" has a value for "${lang}" which is not in languages[]. It will be ignored.`);
         continue;
       }
       if (value.trim().length === 0) {
-        warnings.push(`Clé "${key}" a une valeur vide pour "${lang}".`);
+        warnings.push(`Key "${key}" has an empty value for "${lang}".`);
       }
       langUsage.set(lang, (langUsage.get(lang) ?? 0) + 1);
     }
@@ -123,7 +123,7 @@ export function validateTranslations(t: Translations): TranslationsCheck {
 
   for (const [lang, count] of langUsage) {
     if (count === 0 && lang !== t.default_lang) {
-      warnings.push(`Langue "${lang}" déclarée mais aucune clé n'a de valeur — supprime ou complète.`);
+      warnings.push(`Language "${lang}" is declared but no key has a value — remove it or fill it in.`);
     }
   }
 
@@ -131,8 +131,8 @@ export function validateTranslations(t: Translations): TranslationsCheck {
 }
 
 /**
- * Liste les clés manquantes pour une langue donnée par rapport à la default_lang.
- * Utile pour afficher la barre de progression "FR: 100%, EN: 73%" dans l'UI.
+ * Lists the keys missing for a given language compared to the default_lang.
+ * Useful to show the progress bar "FR: 100%, EN: 73%" in the UI.
  */
 export function missingTranslations(t: Translations, lang: LangCode): TranslationKey[] {
   const missing: TranslationKey[] = [];
@@ -145,7 +145,7 @@ export function missingTranslations(t: Translations, lang: LangCode): Translatio
 }
 
 /**
- * Calcule le pourcentage de complétion d'une langue (vs default_lang).
+ * Computes a language's completion percentage (vs default_lang).
  */
 export function completionPercent(t: Translations, lang: LangCode): number {
   const total = Object.keys(t.keys).length;
@@ -158,8 +158,8 @@ export function completionPercent(t: Translations, lang: LangCode): number {
 // ============================================================================
 
 /**
- * Extrait toutes les références {i18n:key} d'une string MiniMessage.
- * Renvoie une liste dédupliquée des clés référencées.
+ * Extracts all {i18n:key} references from a MiniMessage string.
+ * Returns a deduplicated list of the referenced keys.
  */
 export function extractI18nRefs(text: string): TranslationKey[] {
   const refs = new Set<TranslationKey>();
@@ -170,8 +170,8 @@ export function extractI18nRefs(text: string): TranslationKey[] {
 }
 
 /**
- * Extrait toutes les clés i18n référencées par un objet (récursif).
- * Utile pour calculer les translations à embarquer dans un .itfz à l'export.
+ * Extracts all i18n keys referenced by an object (recursive).
+ * Useful to compute the translations to embed in an .itfz at export.
  */
 export function extractI18nRefsDeep(obj: unknown): TranslationKey[] {
   const refs = new Set<TranslationKey>();
@@ -198,8 +198,8 @@ function walk(obj: unknown, refs: Set<TranslationKey>): void {
 // ============================================================================
 
 /**
- * Génère une clé candidate à partir d'un contexte d'édition.
- * Exemples :
+ * Generates a candidate key from an editing context.
+ * Examples:
  *   generateAutoKey({ kind: "menu_title",   menu_id: "shop_main" })
  *     → "menu.shop_main.title"
  *   generateAutoKey({ kind: "element_lore", menu_id: "shop_main", element_id: "btn_buy", lore_index: 1 })
@@ -207,7 +207,7 @@ function walk(obj: unknown, refs: Set<TranslationKey>): void {
  *   generateAutoKey({ kind: "command_description", command_id: "profile" })
  *     → "command.profile.description"
  *
- * Si la clé existe déjà, l'éditeur doit appeler generateUniqueKey pour suffixer _2, _3...
+ * If the key already exists, the editor must call generateUniqueKey to suffix _2, _3...
  */
 export type AutoKeyContext =
   | { kind: "menu_title"; menu_id: string }
@@ -237,7 +237,7 @@ export function generateAutoKey(ctx: AutoKeyContext): TranslationKey {
 }
 
 /**
- * Suffixe la clé _2, _3, ... jusqu'à trouver une clé non utilisée.
+ * Suffixes the key with _2, _3, ... until an unused key is found.
  */
 export function generateUniqueKey(base: TranslationKey, existing: ReadonlySet<TranslationKey>): TranslationKey {
   if (!existing.has(base)) return base;

@@ -83,6 +83,9 @@ export function RenameProjectButton({
           invalid_path: "invalidTarget",
           invalid_input: "invalidTarget",
           addon_immutable: "immutable",
+          unknown_project: "missing",
+          server_offline: "serverOffline",
+          plugin_update_required: "updateRequired",
         };
         setMessage(t(`projectIdentity.${errors[error.message] ?? "rejected"}`));
       } else {

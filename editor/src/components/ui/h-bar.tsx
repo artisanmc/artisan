@@ -1,4 +1,4 @@
-import * as React from "react";
+import type * as React from "react";
 
 export interface HBarProps {
   label: React.ReactNode;
@@ -16,7 +16,11 @@ export function HBar({ label, value, max, caption }: HBarProps) {
         {caption != null && <span className="text-[var(--text-mut)] tabular-nums">{caption}</span>}
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-raised)]">
-        <div data-bar-fill className="h-full rounded-full bg-[var(--brand)]" style={{ width: `${pct}%` }} />
+        <div
+          data-bar-fill
+          className="h-full rounded-full bg-[var(--brand)]"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );

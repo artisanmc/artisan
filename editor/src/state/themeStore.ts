@@ -26,7 +26,10 @@ export function detectInitialTheme(): Theme {
   } catch {
     // localStorage unavailable or malformed — fall through
   }
-  if (typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
+  if (
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-color-scheme: dark)").matches
+  ) {
     return "dark";
   }
   return "light";
@@ -39,15 +42,14 @@ export const useThemeStore = create<ThemeState>()(
       setTheme: (next: Theme) => {
         document.documentElement.dataset.theme = next;
         set({ theme: next });
-        // Fire-and-forget backend sync — same pattern as editor_language in uiStore.
+        // Fire-and-forget sync to the player's profile — same pattern as editor_language in uiStore.
         import("./authStore").then(({ useAuthStore }) => {
           const user = useAuthStore.getState().currentUser;
           if (!user) return;
-          const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
           import("@/lib/api/auth").then(({ patchMe }) =>
-            patchMe({ apiUrl }, { theme: next }).catch(() => {
+            patchMe({ theme: next }).catch(() => {
               console.warn("theme sync to backend failed (offline?)");
-            })
+            }),
           );
         });
       },

@@ -1,4 +1,5 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { copyText } from "@/lib/clipboard";
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -43,7 +44,7 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(pattern.snippet);
+      await copyText(pattern.snippet);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -55,7 +56,7 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
     <div className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-3">
       <div className="mb-1 flex items-center gap-2">
         <span
-          className={`rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase ${KIND_BADGE[pattern.kind]}`}
+          className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase ${KIND_BADGE[pattern.kind]}`}
         >
           {pattern.kind}
         </span>
@@ -63,7 +64,9 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
           {t(`patterns.entries.${pattern.id}.name`)}
         </span>
       </div>
-      <p className="mb-2 text-[11px] text-[var(--text-mut)]">{t(`patterns.entries.${pattern.id}.desc`)}</p>
+      <p className="mb-2 text-[11px] text-[var(--text-mut)]">
+        {t(`patterns.entries.${pattern.id}.desc`)}
+      </p>
       <div className="flex items-center gap-2">
         <code className="flex-1 break-all rounded bg-[var(--surface)] px-2 py-1.5 font-mono text-[11px] text-[var(--text)]">
           {pattern.snippet}

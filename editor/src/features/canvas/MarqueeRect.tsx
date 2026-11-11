@@ -1,5 +1,5 @@
-import { Rect } from "react-konva";
 import { useCssVar } from "@/lib/themeColors";
+import { Rect } from "react-konva";
 import type { MarqueeRectState } from "./useMarqueeSelection";
 
 export function MarqueeRect({ rect }: { rect: MarqueeRectState | null }) {

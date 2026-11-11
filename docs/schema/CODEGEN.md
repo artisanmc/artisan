@@ -1,24 +1,24 @@
-# Codegen des schémas (quicktype)
+# Schema codegen (quicktype)
 
-Source de vérité : `docs/schema/<name>/v1/schema.json`.
+Source of truth: `docs/schema/<name>/v1/schema.json`.
 
-Commande Kotlin (plugin) :
+Kotlin command (plugin):
 `npx quicktype --src <schema.json> --src-lang schema --lang kotlin --framework jackson --package <pkg> -o <out.kt>`
 
-Commande TS (éditeur) :
+TS command (editor):
 `npx quicktype --src <schema.json> --src-lang schema --lang typescript --just-types --prefer-unions --prefer-const-values -o <out.ts>`
 
-Verdict spike 2026-06-08 : **NO-GO** — quicktype 23.2.6 (Node 25) ne produit pas de hiérarchie de types exploitable pour nos unions discriminées par `const`. Deux problèmes bloquants. (1) Crash dur : un `"const": true` booléen (`ComponentClick.use_component_default`) fait planter quicktype avec `Error: s.codePointAt is not a function` — quicktype suppose que toute valeur `const` est une string. Aucun output n'est généré tant que ce const booléen existe dans le schéma. (2) Même après avoir contourné le crash (en remplaçant le const booléen par `"enum": [true]` dans une copie throwaway du schéma), les `oneOf` discriminés par `const` (`Condition`, `Action`) ne deviennent **pas** des `sealed class` Kotlin ni des unions discriminées TS : quicktype aplatit les 16 variantes de `Condition` (et les 15 de `Action`) en **une seule `data class`/`interface` god-object** avec ~20-25 champs tous nullables, plus un `enum`/union de strings pour le discriminant `type`. Aucune sous-classe typée (`HasPermission`, `OpenMenu`…), aucune annotation Jackson `@JsonTypeInfo`/`@JsonSubTypes` émise, et le merge produit même des artefacts cassés (`amount?: number | number`, `of?: Cond[] | Cond` fusionnant `not`/`and`/`or`). C'est exactement le `Map<String, Any?>`-équivalent que les critères d'acceptation rejettent. Note : quicktype émet bien des `sealed class` pour les unions *scalaires/de forme* (`Amount` = Double|Long, `RangeUnion` = string-enum|object), donc le générateur sait faire des sealed classes — il ne le fait simplement pas pour les unions discriminées par `const`, qui sont précisément notre cas dur.
+Spike verdict 2026-06-08: **NO-GO** — quicktype 23.2.6 (Node 25) does not produce a usable type hierarchy for our `const`-discriminated unions. Two blocking problems. (1) Hard crash: a boolean `"const": true` (`ComponentClick.use_component_default`) makes quicktype fail with `Error: s.codePointAt is not a function` — quicktype assumes every `const` value is a string. No output is generated as long as this boolean const exists in the schema. (2) Even after working around the crash (replacing the boolean const with `"enum": [true]` in a throwaway copy of the schema), the `oneOf`s discriminated by `const` (`Condition`, `Action`) do **not** become Kotlin `sealed class`es or TS discriminated unions: quicktype flattens the 16 variants of `Condition` (and the 15 of `Action`) into **a single god-object `data class`/`interface`** with ~20-25 fields, all nullable, plus an `enum`/string union for the `type` discriminant. No typed subclass (`HasPermission`, `OpenMenu`…), no Jackson `@JsonTypeInfo`/`@JsonSubTypes` annotation emitted, and the merge even produces broken artifacts (`amount?: number | number`, `of?: Cond[] | Cond` merging `not`/`and`/`or`). This is exactly the `Map<String, Any?>`-equivalent that the acceptance criteria reject. Note: quicktype does emit `sealed class`es for *scalar/shape* unions (`Amount` = Double|Long, `RangeUnion` = string-enum|object), so the generator can do sealed classes — it just does not do it for `const`-discriminated unions, which are precisely our hard case.
 
-## Fallback retenu (NO-GO)
+## Chosen fallback (NO-GO)
 
-Types **écrits à la main** côté Kotlin et TS, modélisant `Condition`/`Action` comme de vraies hiérarchies :
-- Kotlin : `sealed class Condition` / `sealed class Action` avec une sous-classe `data class` par variante (`HasPermission(perm)`, `OpenMenu(menuId, …)`, …), désérialisation polymorphe Jackson via `@JsonTypeInfo(use = NAME, property = "type")` + `@JsonSubTypes`. Package `net.artisanmc.plugin.schema.menu`.
-- TS : `type Condition = HasPermission | HasMoney | …` (union discriminée par `type` littéral), une interface par variante.
+**Hand-written** types on the Kotlin and TS sides, modeling `Condition`/`Action` as real hierarchies:
+- Kotlin: `sealed class Condition` / `sealed class Action` with one `data class` subclass per variant (`HasPermission(perm)`, `OpenMenu(menuId, …)`, …), polymorphic Jackson deserialization via `@JsonTypeInfo(use = NAME, property = "type")` + `@JsonSubTypes`. Package `net.artisanmc.plugin.schema.menu`.
+- TS: `type Condition = HasPermission | HasMoney | …` (union discriminated by a literal `type`), one interface per variant.
 
-Le schéma JSON reste la **source de vérité**. La cohérence types ↔ schéma est garantie non par codegen mais par un **drift check CI** : un jeu de fixtures (un exemple valide minimal + un exemple riche par variante de `Condition`/`Action`, plus quelques menus complets) est validé contre `schema.json` via **ajv** (draft 2020-12). Tout champ ajouté/retiré/renommé dans les types à la main qui s'écarte du schéma est attrapé soit par la compilation (les fixtures sont aussi parsées dans les types), soit par ajv. Concrètement :
-1. `docs/schema/menu/v1/schema.json` = vérité.
-2. Fixtures `docs/schema/menu/v1/examples/*.json` (1 par variante d'union au minimum).
-3. CI : ajv-validate toutes les fixtures contre le schéma + parse-les dans les types Kotlin (test plugin) et TS (test éditeur). Échec si divergence.
+The JSON schema remains the **source of truth**. Consistency between types and schema is guaranteed not by codegen but by a **CI drift check**: a set of fixtures (one minimal valid example + one rich example per `Condition`/`Action` variant, plus a few complete menus) is validated against `schema.json` via **ajv** (draft 2020-12). Any field added/removed/renamed in the hand-written types that diverges from the schema is caught either by compilation (the fixtures are also parsed into the types) or by ajv. Concretely:
+1. `docs/schema/menu/v1/schema.json` = truth.
+2. Fixtures `docs/schema/menu/v1/examples/*.json` (at least 1 per union variant).
+3. CI: ajv-validate all fixtures against the schema + parse them into the Kotlin types (plugin test) and TS types (editor test). Fail on divergence.
 
-Re-spike quicktype recommandé seulement si : (a) un correctif upstream du crash `const` booléen ressort **et** (b) une option fiable de génération de sealed-class par `oneOf`+`const` apparaît. À défaut, rester sur types manuels + drift check.
+A quicktype re-spike is recommended only if: (a) an upstream fix for the boolean `const` crash lands **and** (b) a reliable option to generate sealed classes from `oneOf`+`const` appears. Otherwise, stay on manual types + drift check.

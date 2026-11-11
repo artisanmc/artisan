@@ -1,6 +1,7 @@
+import { menusOf } from "@/domain/documents";
 import type { ElementId, I18nKey, MenuId, Project } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -15,41 +16,46 @@ const project = {
     second_title: { fr: "Steve" },
     second_lore: { fr: "test" },
   },
-  menus: ["first", "second"].map((id) => ({
-    id,
-    projectId: "p1",
-    title: [],
-    rows: 6,
-    layers: [
-      {
-        id: `${id}_layer`,
-        elements: [
-          {
-            id: "player",
-            positions: "4",
-            display: {
-              material: "PLAYER_HEAD",
-              title: { key: `${id}_title` },
-              lore: { key: `${id}_lore` },
+  documents: {
+    menu: ["first", "second"].map((id) => ({
+      id,
+      projectId: "p1",
+      title: [],
+      rows: 6,
+      layers: [
+        {
+          id: `${id}_layer`,
+          elements: [
+            {
+              id: "player",
+              positions: "4",
+              display: {
+                material: "PLAYER_HEAD",
+                title: { key: `${id}_title` },
+                lore: { key: `${id}_lore` },
+              },
+              states: [],
             },
-            states: [],
-          },
-        ],
-      },
-    ],
-  })),
-  commands: [],
+          ],
+        },
+      ],
+    })),
+    command: [],
+    dialog: [],
+  },
   assets: [],
   dataSources: [],
   importedConnectors: [],
-  dialogs: [],
   canvasLayout: {},
 } as unknown as Project;
 
 describe("ItemTooltip menu scope", () => {
   beforeEach(() => {
-    useAccountStore.setState({
-      account: { ...useAccountStore.getState().account, projects: [structuredClone(project)] },
+    useProjectsStore.setState({
+      openProjects: {
+        ...useProjectsStore.getState().openProjects,
+        projects: [structuredClone(project)],
+      },
     });
     useUiStore.setState({ activeLang: "fr" });
     useHoverStore.getState().setElement("player" as ElementId, 4, "second" as MenuId);
@@ -65,8 +71,8 @@ describe("ItemTooltip menu scope", () => {
       for (const [key, value] of [
         ["second_title", "Alex"],
         ["second_lore", "Nouveau lore"],
-      ]) {
-        useAccountStore.getState().setI18nValue({
+      ] as const) {
+        useProjectsStore.getState().setI18nValue({
           projectId: project.id,
           lt: { key: key as I18nKey },
           lang: "fr",
@@ -86,10 +92,12 @@ describe("ItemTooltip menu scope", () => {
   it("does not fall back to another menu when the hovered menu disappears", () => {
     render(<ItemTooltip projectId={project.id} />);
     act(() =>
-      useAccountStore.setState({
-        account: {
-          ...useAccountStore.getState().account,
-          projects: [{ ...project, menus: [project.menus[0]] }],
+      useProjectsStore.setState({
+        openProjects: {
+          ...useProjectsStore.getState().openProjects,
+          projects: [
+            { ...project, documents: { ...project.documents, menu: [menusOf(project)[0]!] } },
+          ],
         },
       }),
     );
@@ -106,8 +114,8 @@ describe("ItemTooltip menu scope", () => {
 });
 
 /**
- * Ce que le serveur rend, l'aperçu doit le rendre : un item capturé porte son
- * propre lore, les lignes du template s'ajoutent dessous.
+ * What the server renders, the preview must render: a captured item carries
+ * its own lore, the template's lines are appended below.
  */
 describe("ItemTooltip over a captured item", () => {
   const captured = {
@@ -128,38 +136,43 @@ describe("ItemTooltip over a captured item", () => {
         display: {},
       },
     ],
-    menus: [
-      {
-        id: "shop",
-        projectId: "p1",
-        title: [],
-        rows: 6,
-        layers: [
-          {
-            id: "shop_layer",
-            elements: [
-              {
-                id: "product",
-                positions: "0",
-                display: { material: "item:ci_sword", lore: { key: "shop_lore" } },
-                states: [],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-    commands: [],
+    documents: {
+      menu: [
+        {
+          id: "shop",
+          projectId: "p1",
+          title: [],
+          rows: 6,
+          layers: [
+            {
+              id: "shop_layer",
+              elements: [
+                {
+                  id: "product",
+                  positions: "0",
+                  display: { material: "item:ci_sword", lore: { key: "shop_lore" } },
+                  states: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
-    dialogs: [],
     canvasLayout: {},
   } as unknown as Project;
 
   it("shows the captured lore above the element's own lines", () => {
-    useAccountStore.setState({
-      account: { ...useAccountStore.getState().account, projects: [structuredClone(captured)] },
+    useProjectsStore.setState({
+      openProjects: {
+        ...useProjectsStore.getState().openProjects,
+        projects: [structuredClone(captured)],
+      },
     });
     useUiStore.setState({ activeLang: "fr" });
     useHoverStore.getState().setElement("product" as ElementId, 0, "shop" as MenuId);

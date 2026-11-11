@@ -1,12 +1,14 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
-  registerModule,
-  listModules,
   clearRegistry,
-  getModule,
   collectModuleExportFiles,
+  documentKindContribution,
+  getModule,
+  listDocumentKindContributions,
+  listModules,
+  registerModule,
 } from "./registry";
-import type { FrontendModule } from "./types";
+import type { DocumentKindContribution, FrontendModule } from "./types";
 
 describe("frontend module registry", () => {
   beforeEach(() => clearRegistry());
@@ -37,6 +39,47 @@ describe("frontend module registry", () => {
   });
 });
 
+describe("document kind contributions", () => {
+  beforeEach(() => clearRegistry());
+
+  const kind = (name: string): DocumentKindContribution => ({
+    kind: name,
+    dir: `${name}s`,
+    schemaVersion: `${name}/v1`,
+    label: name,
+    component: () => null,
+    create: ({ id }) => ({ id }),
+    parse: (src) => ({ doc: src, i18nKeys: {}, unsupported: [] }),
+    serialize: () => ({}),
+  });
+  const mod = (id: string, ...documents: DocumentKindContribution[]): FrontendModule => ({
+    id,
+    displayName: id,
+    schemaVersion: `${id}/v1`,
+    sidebar: { icon: () => null, label: id, to: `/${id}` },
+    routes: [],
+    documents,
+  });
+
+  it("lists every contributed kind in registration order and finds one by kind", () => {
+    registerModule(mod("quests", kind("quest")));
+    registerModule(mod("shop", kind("product"), kind("offer")));
+    expect(listDocumentKindContributions().map((c) => c.kind)).toEqual([
+      "quest",
+      "product",
+      "offer",
+    ]);
+    expect(documentKindContribution("offer")?.dir).toBe("offers");
+    expect(documentKindContribution("ghost")).toBeUndefined();
+  });
+
+  it("refuses a kind two modules contribute", () => {
+    registerModule(mod("quests", kind("quest")));
+    expect(() => registerModule(mod("other", kind("quest")))).toThrow(/already contributed/);
+    expect(getModule("other")).toBeUndefined();
+  });
+});
+
 describe("collectModuleExportFiles", () => {
   beforeEach(() => clearRegistry());
 
@@ -49,7 +92,7 @@ describe("collectModuleExportFiles", () => {
       routes: [],
       exportFiles: () => ({
         "boutique/items.yaml": "items: []",
-        "menus/hijack.yaml": "nope", // hors namespace → ignoré
+        "menus/hijack.yaml": "nope", // outside the namespace: ignored
       }),
     });
     expect(collectModuleExportFiles({})).toEqual({ "boutique/items.yaml": "items: []" });

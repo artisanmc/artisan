@@ -2,10 +2,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Menu, MenuId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 
+import { menusOf } from "@/domain/documents";
 import { MenuGroup } from "./MenuGroup";
 
 // Stub react-konva so MenuGroup renders to plain DOM. We expose `name`
@@ -25,6 +26,7 @@ vi.mock("react-konva", () => ({
     x?: number;
     y?: number;
   }) => (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
       data-testid="konva-group"
       data-name={props.name}
@@ -65,30 +67,31 @@ function makeProject(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      {
-        id: MENU_ID,
-        projectId: PACK_ID,
-        title: [],
-        rows: 3,
-        layers: [],
-      } as Menu,
-    ],
-    commands: [],
+    documents: {
+      menu: [
+        {
+          id: MENU_ID,
+          projectId: PACK_ID,
+          title: [],
+          rows: 3,
+          layers: [],
+        } as Menu,
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   };
 }
 
 beforeEach(() => {
-  useAccountStore.setState({
-    account: {
-      id: "acc" as any,
+  useProjectsStore.setState({
+    openProjects: {
       projects: [makeProject()],
       projectOrder: [PACK_ID],
     },
@@ -104,7 +107,7 @@ beforeEach(() => {
 
 describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
   it("clicking the menu's outer Group sets uiStore.selectedMenuId to this menu's id", () => {
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]!;
+    const menu = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!;
     render(
       <MenuGroup
         projectId={PACK_ID}
@@ -132,7 +135,7 @@ describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
   });
 
   it("clicking the menu also sets it in the legacy selectionStore (element-selection store)", () => {
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]!;
+    const menu = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!;
     render(
       <MenuGroup
         projectId={PACK_ID}
@@ -147,11 +150,11 @@ describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
     fireEvent.click(outer);
     // Selection store still receives the menu id so drag-out / drag-to-move
     // continues working.
-    expect(useSelectionStore.getState().ids.has(MENU_ID)).toBe(true);
+    expect(useSelectionStore.getState().ids.has(`menu/${MENU_ID}`)).toBe(true);
   });
 
   it("solo: clicking the menu re-selects it after an element was selected", () => {
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]!;
+    const menu = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!;
     useSelectionStore.setState({ ids: new Set(["el1"]), focusedSlot: 3 } as any);
     render(
       <MenuGroup projectId={PACK_ID} menu={menu} position={{ x: 0, y: 0 }} layout={{}} solo />,
@@ -161,7 +164,7 @@ describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
       .find((g) => g.getAttribute("data-name") === `menu:${MENU_ID}`)!;
     fireEvent.click(outer);
 
-    expect(useSelectionStore.getState().ids.has(MENU_ID)).toBe(true);
+    expect(useSelectionStore.getState().ids.has(`menu/${MENU_ID}`)).toBe(true);
     expect(useSelectionStore.getState().ids.has("el1")).toBe(false);
     expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
   });

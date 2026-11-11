@@ -1,16 +1,16 @@
 # Issue tracker: GitHub
 
-Les tickets et PRD de ce dépôt vivent dans GitHub Issues. Utiliser `gh` pour toutes les opérations.
+This repository's tickets and PRDs live in GitHub Issues. Use `gh` for every operation.
 
 ## Conventions
 
-- Créer : `gh issue create --title "..." --body "..."`
-- Lire : `gh issue view <number> --comments`
-- Lister : `gh issue list --state open --json number,title,body,labels,comments`
-- Commenter : `gh issue comment <number> --body "..."`
-- Ajouter ou retirer un label : `gh issue edit <number> --add-label "..."` ou `--remove-label "..."`
-- Fermer : `gh issue close <number> --comment "..."`
+- Create: `gh issue create --title "..." --body "..."`
+- Read: `gh issue view <number> --comments`
+- List: `gh issue list --state open --json number,title,body,labels,comments`
+- Comment: `gh issue comment <number> --body "..."`
+- Add or remove a label: `gh issue edit <number> --add-label "..."` or `--remove-label "..."`
+- Close: `gh issue close <number> --comment "..."`
 
-Le dépôt est déduit du remote Git courant.
+The repository is inferred from the current Git remote.
 
-Quand un skill demande de publier un ticket, créer une GitHub Issue. Quand il demande de récupérer un ticket, utiliser `gh issue view <number> --comments`.
+When a skill asks to publish a ticket, create a GitHub Issue. When it asks to fetch a ticket, use `gh issue view <number> --comments`.

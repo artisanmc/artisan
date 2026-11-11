@@ -1,13 +1,13 @@
 import type { I18nKey, LText } from "@/domain/types";
-import { parse } from "yaml";
 import { describe, expect, it } from "vitest";
-import { stepsToStructured, structuredToSteps, type ActionTextCodec } from "./structuredSteps";
+import { parse } from "yaml";
+import { type ActionTextCodec, stepsToStructured, structuredToSteps } from "./structuredSteps";
 
 /**
  * Locks the reference examples in `docs/architecture/action-steps.md` — each wire
  * blob must decode and re-encode byte-for-byte (same shape). Mirrors the doc.
  */
-let values: Record<string, Record<string, string>> = {};
+const values: Record<string, Record<string, string>> = {};
 let counter = 0;
 const codec: ActionTextCodec = {
   // Mirror `fieldTextOf`: a single-language text collapses to its bare string.

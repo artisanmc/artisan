@@ -1,20 +1,33 @@
 import { expect, it } from "vitest";
-import { normalizeCanvasGroups } from "./canvasGroups";
+import { folderGroups } from "./canvasGroups";
+import type { Project } from "./types";
 
-it("retains valid colors and discards invalid colors and legacy folding", () => {
-  const group = { id: "g", name: "Crafts", nodeIds: ["a"], collapsed: true };
-  expect(normalizeCanvasGroups([{ ...group, color: "#a855f7" }], ["a"])).toEqual([
-    { id: "g", name: "Crafts", nodeIds: ["a"], color: "#a855f7" },
+const doc = (id: string, folder?: string) => ({ id, ...(folder ? { folder } : {}) });
+
+function project(folders?: Project["folders"]): Pick<Project, "documents" | "folders"> {
+  return {
+    documents: {
+      menu: [doc("a", "boutique"), doc("b", "boutique/armes"), doc("c")],
+      command: [doc("shop", "boutique"), doc("q", "quetes")],
+    },
+    folders,
+  } as unknown as Pick<Project, "documents" | "folders">;
+}
+
+it("frames each top-level folder with every Document filed under it, at any depth", () => {
+  expect(folderGroups(project())).toEqual([
+    { id: "boutique", name: "boutique", nodeIds: ["menu/a", "menu/b", "command/shop"] },
+    { id: "quetes", name: "quetes", nodeIds: ["command/q"] },
   ]);
-  for (const color of ["red", "#xyzxyz", "#fff", 42, null]) {
-    expect(normalizeCanvasGroups([{ ...group, color }], ["a"])).toEqual([
-      { id: "g", name: "Crafts", nodeIds: ["a"] },
-    ]);
-  }
 });
 
-it("reads the legacy menuIds field, prunes stale members and any Document kind is live", () => {
-  expect(
-    normalizeCanvasGroups([{ id: "g", name: "Crafts", menuIds: ["c1", "gone", "d1"] }], ["c1", "d1"]),
-  ).toEqual([{ id: "g", name: "Crafts", nodeIds: ["c1", "d1"] }]);
+it("takes color and position from the folder metadata, and skips empty folders", () => {
+  const groups = folderGroups(
+    project({
+      boutique: { color: "#a855f7", position: { x: 10, y: 20 } },
+      vide: { color: "#000000" },
+    }),
+  );
+  expect(groups.map((g) => g.id)).toEqual(["boutique", "quetes"]);
+  expect(groups[0]).toMatchObject({ color: "#a855f7", position: { x: 10, y: 20 } });
 });

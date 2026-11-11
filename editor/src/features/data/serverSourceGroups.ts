@@ -4,7 +4,7 @@ import type { ServerDataSource } from "@/lib/api/dataSources";
 export const CORE_MODULE_IDS = ["commands", "menus"];
 
 export interface ServerSourceGroup {
-  /** null = sources registered outside a module ("Serveur" group, rendered last). */
+  /** null = sources registered outside a module ("server" group, rendered last). */
   moduleId: string | null;
   sources: ServerDataSource[];
 }

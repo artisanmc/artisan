@@ -1,10 +1,10 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DataSourceEditor } from "./DataSourceEditor";
 
-// Le sujet est l'éditeur de source, pas CodeMirror : un textarea tient sa place.
+// The subject is the source editor, not CodeMirror: a textarea stands in for it.
 vi.mock("@/components/ui/yaml-code-editor", () => ({
   YamlCodeEditor: ({
     value,
@@ -24,31 +24,34 @@ function makeProject(sourceNames = ["settings"]): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataModels: [],
-    dataSources: sourceNames.map((name, index) =>
-      ({
-        id: `ds_${index + 1}` as never,
-        name,
-        shape: "config",
-        fields: [{ name: "currency", type: { kind: "string" } }],
-        value: { currency: "coins" },
-      }) as const,
+    dataSources: sourceNames.map(
+      (name, index) =>
+        ({
+          id: `ds_${index + 1}` as never,
+          name,
+          shape: "config",
+          fields: [{ name: "currency", type: { kind: "string" } }],
+          value: { currency: "coins" },
+        }) as const,
     ),
     i18nKeys: {} as Project["i18nKeys"],
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   } as unknown as Project;
 }
 
-const project = () => useAccountStore.getState().account.projects[0]!;
+const project = () => useProjectsStore.getState().openProjects.projects[0]!;
 
 beforeEach(() => {
-  useAccountStore.setState({
-    account: { id: "acc" as never, projects: [makeProject()], projectOrder: [PID] },
+  useProjectsStore.setState({
+    openProjects: { projects: [makeProject()], projectOrder: [PID] },
   } as never);
 });
 
@@ -73,9 +76,8 @@ describe("DataSourceEditor", () => {
   });
 
   it("lowercases the name input and reports a duplicate without renaming", () => {
-    useAccountStore.setState({
-      account: {
-        id: "acc" as never,
+    useProjectsStore.setState({
+      openProjects: {
         projects: [makeProject(["settings", "grades"])],
         projectOrder: [PID],
       },
@@ -91,36 +93,42 @@ describe("DataSourceEditor", () => {
     expect(project().dataSources[0]!.name).toBe("settings");
   });
 
-  // ── bascule Formulaire ↔ YAML ────────────────────────────────────────────
+  // Form ↔ YAML switch
 
-  it("montre le YAML de la source", () => {
+  it("shows the source's YAML", () => {
     render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
-    expect((screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value).toContain("coins");
+    expect((screen.getByLabelText("data/ds_1.yml") as HTMLTextAreaElement).value).toContain(
+      "coins",
+    );
   });
 
   /**
-   * Le défaut signalé : après un aller-retour sur l'onglet YAML, une édition
-   * faite dans le FORMULAIRE était écrasée par un brouillon périmé au retour
-   * sur YAML. L'onglet doit toujours refléter l'état courant.
+   * The reported defect: after a round trip through the YAML tab, an edit made
+   * in the FORM was overwritten by a stale draft when coming back to YAML. The
+   * tab must always reflect the current state.
    */
-  it("relit l'état courant à chaque ouverture de l'onglet YAML", () => {
+  it("re-reads the current state each time the YAML tab opens", () => {
     const view = render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));
 
-    useAccountStore.getState().setSourceValue({
-      projectId: PID, sourceId: "ds_1" as never, row: null, path: ["currency"], value: "jetons",
+    useProjectsStore.getState().setSourceValue({
+      projectId: PID,
+      sourceId: "ds_1" as never,
+      row: null,
+      path: ["currency"],
+      value: "jetons",
     });
     view.rerender(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
 
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
-    const shown = (screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value;
+    const shown = (screen.getByLabelText("data/ds_1.yml") as HTMLTextAreaElement).value;
     expect(shown).toContain("jetons");
     expect(shown).not.toContain("coins");
   });
 
-  it("un aller-retour sans rien toucher ne modifie pas la source", () => {
+  it("a round trip without touching anything leaves the source unchanged", () => {
     render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));

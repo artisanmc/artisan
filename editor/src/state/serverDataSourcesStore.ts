@@ -1,13 +1,12 @@
+import { type ServerDataSource, fetchServerDataSourcesUser } from "@/lib/api/dataSources";
 import { create } from "zustand";
-import { fetchServerDataSourcesUser, type ServerDataSource } from "@/lib/api/dataSources";
 
 export interface DataSourcesSource {
-  networkId: string;
   serverId: string;
 }
 
 function sourceKey(source: DataSourcesSource): string {
-  return `u:${source.networkId}/${source.serverId}`;
+  return `u:${source.serverId}`;
 }
 
 interface ServerDataSourcesState {
@@ -30,7 +29,7 @@ export const useServerDataSourcesStore = create<ServerDataSourcesState>((set, ge
     if (loadedKey === key && status !== "idle") return;
     set({ status: "loading", loadedKey: key });
     try {
-      const sources = await fetchServerDataSourcesUser(source.networkId, source.serverId);
+      const sources = await fetchServerDataSourcesUser(source.serverId);
       // A newer load() may have started (and set a different loadedKey) while
       // this fetch was in flight — don't let a stale resolver overwrite it.
       if (get().loadedKey !== key) return;

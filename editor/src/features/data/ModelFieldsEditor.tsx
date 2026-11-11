@@ -4,14 +4,8 @@ import {
   sourceRootFields,
   wouldTypeCreateModelCycle,
 } from "@/domain/dataModels";
-import type {
-  DataModel,
-  DataModelId,
-  ModelField,
-  ModelFieldType,
-  Project,
-} from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import type { DataModel, DataModelId, ModelField, ModelFieldType, Project } from "@/domain/types";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -34,10 +28,20 @@ const SCALAR_KINDS = [
   "actions",
   "conditions",
 ] as const;
-type KindChoice = (typeof SCALAR_KINDS)[number] | "list" | "object" | "model" | "map" | "enum" | "union";
+type KindChoice =
+  | (typeof SCALAR_KINDS)[number]
+  | "list"
+  | "object"
+  | "model"
+  | "map"
+  | "enum"
+  | "union";
 
 function kindOf(t: ModelFieldType): KindChoice {
-  return t.kind;
+  // `document_ref` is declared by modules (ADR extensible-document-kinds), not
+  // authored here: the field editor shows it as the string id it stores. `location` is an action
+  // argument only.
+  return t.kind === "document_ref" || t.kind === "location" ? "string" : t.kind;
 }
 
 function defaultTypeForKind(kind: KindChoice, models: DataModel[]): ModelFieldType {
@@ -103,7 +107,14 @@ function EnumValuesEditor({
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
-        const next = [...new Set(draft.split(",").map((v) => v.trim()).filter(Boolean))];
+        const next = [
+          ...new Set(
+            draft
+              .split(",")
+              .map((v) => v.trim())
+              .filter(Boolean),
+          ),
+        ];
         if (next.length === 0) {
           setDraft(values.join(", "));
           return;
@@ -148,7 +159,7 @@ function UnionShapeEditor({
   return (
     <div className="ml-4 flex flex-col gap-1.5 border-l border-[var(--border-soft)] pl-3">
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-[var(--text-faint)]">{t("dataSources.unionTag")}</span>
+        <span className="text-[11px] text-[var(--text-faint)]">{t("dataSources.unionTag")}</span>
         <Input
           defaultValue={type.tag}
           key={type.tag}
@@ -176,7 +187,7 @@ function UnionShapeEditor({
             <button
               type="button"
               onClick={() => commit({ variants: type.variants.filter((_, j) => j !== vi) })}
-              className="rounded px-1 text-[10px] text-[var(--text-faint)] hover:text-rose-300"
+              className="rounded px-1 text-[11px] text-[var(--text-faint)] hover:text-rose-300"
               aria-label={t("dataSources.removeVariant", { name: variant.name })}
             >
               ✕
@@ -203,9 +214,12 @@ function UnionShapeEditor({
                 <button
                   type="button"
                   onClick={() =>
-                    patchVariant(vi, { ...variant, fields: variant.fields.filter((_, j) => j !== fi) })
+                    patchVariant(vi, {
+                      ...variant,
+                      fields: variant.fields.filter((_, j) => j !== fi),
+                    })
                   }
-                  className="rounded px-1 text-[10px] text-[var(--text-faint)] hover:text-rose-300"
+                  className="rounded px-1 text-[11px] text-[var(--text-faint)] hover:text-rose-300"
                   aria-label={t("dataSources.removeField", { name: f.name })}
                 >
                   ✕
@@ -231,7 +245,7 @@ function UnionShapeEditor({
           if (type.variants.some((v) => v.name === name)) return;
           commit({ variants: [...type.variants, { name, fields: [] }] });
         }}
-        className="self-start rounded border border-dashed border-[var(--border)] px-2 py-0.5 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+        className="self-start rounded border border-dashed border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
       >
         {t("dataSources.addVariant")}
       </button>
@@ -239,7 +253,10 @@ function UnionShapeEditor({
   );
 }
 
-function VariantFieldAdder({ existing, onAdd }: { existing: string[]; onAdd: (name: string) => void }) {
+function VariantFieldAdder({
+  existing,
+  onAdd,
+}: { existing: string[]; onAdd: (name: string) => void }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
   const commit = () => {
@@ -260,7 +277,7 @@ function VariantFieldAdder({ existing, onAdd }: { existing: string[]; onAdd: (na
       <button
         type="button"
         onClick={commit}
-        className="btn-ghost h-6 rounded px-2 text-[10px]"
+        className="btn-ghost h-6 rounded px-2 text-[11px]"
         aria-label={t("dataSources.addField")}
       >
         {t("dataSources.addField")}
@@ -285,7 +302,7 @@ function FieldRow({
   isKeyField: boolean;
 }) {
   const { t } = useTranslation();
-  const editSourceField = useAccountStore((s) => s.editSourceField);
+  const editSourceField = useProjectsStore((s) => s.editSourceField);
   const [name, setName] = useState(field.name);
   const models = project.dataModels ?? [];
 
@@ -303,10 +320,7 @@ function FieldRow({
     });
   };
   const retype = (newType: ModelFieldType) => {
-    if (
-      target.kind === "model" &&
-      wouldTypeCreateModelCycle(models, target.modelId, newType)
-    )
+    if (target.kind === "model" && wouldTypeCreateModelCycle(models, target.modelId, newType))
       return;
     editSourceField({ projectId, target, edit: { op: "retype", path, name: field.name, newType } });
   };
@@ -345,14 +359,12 @@ function FieldRow({
         />
         {field.type.kind === "list" && listElem ? (
           <>
-            <span className="text-[10px] text-[var(--text-faint)]">{t("dataSources.listOf")}</span>
+            <span className="text-[11px] text-[var(--text-faint)]">{t("dataSources.listOf")}</span>
             <KindSelect
               value={kindOf(listElem)}
               allowComplex={false}
               labelFor={kindLabel}
-              onChange={(k) =>
-                retype({ kind: "list", of: defaultTypeForKind(k, models) })
-              }
+              onChange={(k) => retype({ kind: "list", of: defaultTypeForKind(k, models) })}
             />
           </>
         ) : null}
@@ -388,7 +400,7 @@ function FieldRow({
         ) : null}
         {field.type.kind === "map" && mapElem ? (
           <>
-            <span className="text-[10px] text-[var(--text-faint)]">{t("dataSources.mapOf")}</span>
+            <span className="text-[11px] text-[var(--text-faint)]">{t("dataSources.mapOf")}</span>
             <KindSelect
               value={kindOf(mapElem)}
               allowComplex={false}
@@ -420,7 +432,7 @@ function FieldRow({
           />
         ) : null}
         {isKeyField ? (
-          <span className="badge text-[9px]" title={t("dataSources.keyFieldHint")}>
+          <span className="badge text-[10px]" title={t("dataSources.keyFieldHint")}>
             {t("dataSources.keyField")}
           </span>
         ) : null}
@@ -429,7 +441,7 @@ function FieldRow({
           onClick={() =>
             editSourceField({ projectId, target, edit: { op: "remove", path, name: field.name } })
           }
-          className="ml-auto rounded px-1.5 py-0.5 text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+          className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
           aria-label={t("dataSources.removeField", { name: field.name })}
         >
           ✕
@@ -448,7 +460,12 @@ function FieldRow({
         </div>
       ) : null}
       {field.type.kind === "union" ? (
-        <UnionShapeEditor type={field.type} models={models} onCommit={retype} labelFor={kindLabel} />
+        <UnionShapeEditor
+          type={field.type}
+          models={models}
+          onCommit={retype}
+          labelFor={kindLabel}
+        />
       ) : null}
     </li>
   );
@@ -470,8 +487,8 @@ function FieldList({
   keyField: string | null;
 }) {
   const { t } = useTranslation();
-  const editSourceField = useAccountStore((s) => s.editSourceField);
-  // The draft stays hidden behind a dashed "+ Ajouter un champ" button:
+  const editSourceField = useProjectsStore((s) => s.editSourceField);
+  // The draft stays hidden behind a dashed "+ Add a field" button:
   // always-visible inputs looked like an already-added field row.
   const [draftOpen, setDraftOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -567,9 +584,9 @@ export function ModelFieldsEditor({
   source: Project["dataSources"][number];
 }) {
   const { t } = useTranslation();
-  const renameDataModel = useAccountStore((s) => s.renameDataModel);
-  const setModelKeyField = useAccountStore((s) => s.setModelKeyField);
-  const setSourceGranularity = useAccountStore((s) => s.setSourceGranularity);
+  const renameDataModel = useProjectsStore((s) => s.renameDataModel);
+  const setModelKeyField = useProjectsStore((s) => s.setModelKeyField);
+  const setSourceGranularity = useProjectsStore((s) => s.setSourceGranularity);
   const models = project.dataModels ?? [];
   const model = source.shape === "table" ? models.find((m) => m.id === source.modelId) : null;
   const target: FieldEditTarget =
@@ -579,7 +596,9 @@ export function ModelFieldsEditor({
   const fields = sourceRootFields(project, source);
   // Row-key candidates: top-level scalar fields.
   const keyCandidates = fields
-    .filter((f) => f.type.kind === "string" || f.type.kind === "number" || f.type.kind === "integer")
+    .filter(
+      (f) => f.type.kind === "string" || f.type.kind === "number" || f.type.kind === "integer",
+    )
     .map((f) => f.name);
 
   // Module-declared model: the Add-on owns the shape — read-only for the admin
@@ -590,11 +609,11 @@ export function ModelFieldsEditor({
         <div className="flex items-center gap-2">
           <span className="eyebrow">{t("dataSources.modelName")}</span>
           <code className="font-mono text-[12px] text-[var(--text)]">{model.name}</code>
-          <span className="badge text-[9px]" title={t("dataSources.declaredModelHint")}>
+          <span className="badge text-[10px]" title={t("dataSources.declaredModelHint")}>
             {t("dataSources.declaredModel")}
           </span>
           {model.version !== undefined ? (
-            <span className="text-[10px] text-[var(--text-faint)]">v{model.version}</span>
+            <span className="text-[11px] text-[var(--text-faint)]">v{model.version}</span>
           ) : null}
         </div>
         <ul className="flex flex-col gap-0.5">
@@ -605,7 +624,7 @@ export function ModelFieldsEditor({
                 {t(`dataSources.kind.${f.type.kind}`)}
               </span>
               {f.name === model.keyField ? (
-                <span className="badge text-[9px]">{t("dataSources.keyField")}</span>
+                <span className="badge text-[10px]">{t("dataSources.keyField")}</span>
               ) : null}
             </li>
           ))}

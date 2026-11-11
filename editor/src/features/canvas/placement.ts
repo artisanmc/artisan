@@ -47,18 +47,17 @@ export function matchPlacementRow(
 }
 
 /**
- * Le placement qui occupe VRAIMENT un slot dans le contexte d'aperçu courant.
+ * The placement that REALLY occupies a slot in the current preview context.
  *
- * Un menu paramétré réutilise les mêmes slots d'une catégorie à l'autre : la
- * position 20 porte la clé d'une catégorie ET celle d'une autre, sur la même
- * page, parce qu'un seul contexte est vivant à l'exécution. Prendre le premier
- * venu (`find`) tombe donc à côté dès que l'aperçu montre une autre catégorie —
- * aucune ligne ne se lie et le gabarit `{item.name}` s'affiche tel quel
- * (constaté en prod le 2026-08-17).
+ * A parameterised menu reuses the same slots from one category to another:
+ * position 20 carries one category's key AND another's, on the same page,
+ * because only one context is live at runtime. Taking the first one (`find`)
+ * therefore misses as soon as the preview shows another category — no row
+ * binds and the `{item.name}` template shows verbatim.
  *
- * La règle est celle que le canvas applique déjà : **une clé qui résout gagne**,
- * et à défaut on retombe sur la première, pour que le slot dise au moins ce
- * qu'il devait porter.
+ * The rule is the one the canvas already applies: **a key that resolves
+ * wins**, falling back to the first one so the slot at least says what it was
+ * meant to hold.
  */
 export function placementAtSlot(
   places: NonNullable<Element["places"]>,

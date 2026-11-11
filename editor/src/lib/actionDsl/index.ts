@@ -7,14 +7,6 @@
  */
 
 export type { DslStep, DslAction, DslIfCase, DslText } from "./ast";
-export { parseActionDsl, DslParseError } from "./parser";
+export { parseActionDsl } from "./parser";
 export { printActionDsl } from "./printer";
-export { DslLexError } from "./lexer";
-export {
-  dslStepsToSteps,
-  stepsToDslSteps,
-  parseToSteps,
-  printFromSteps,
-  type TextToLText,
-  type LTextToText,
-} from "./domainSteps";
+export { dslStepsToSteps, parseToSteps, type TextToLText, type LTextToText } from "./domainSteps";

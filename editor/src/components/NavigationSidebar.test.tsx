@@ -4,7 +4,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useSidebarStore } from "@/state/sidebarStore";
+import { SIDEBAR_WIDTH, useSidebarStore } from "@/state/sidebarStore";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NavigationSidebar } from "./NavigationSidebar";
@@ -23,7 +23,7 @@ vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => desktop }));
 beforeEach(() => {
   desktop = true;
   vi.useFakeTimers();
-  useSidebarStore.setState({ isOpen: false, pinned: false });
+  useSidebarStore.setState({ isOpen: false, pinned: false, width: SIDEBAR_WIDTH.default });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -150,5 +150,53 @@ it("uses explicit opening and a backdrop on mobile, regardless of the desktop pi
   expect(panel()).toHaveAttribute("inert");
   fireEvent.click(screen.getByRole("button", { name: /ouvrir.*navigation|open navigation/i }));
   fireEvent.click(screen.getByRole("button", { name: /refermer.*navigation|dismiss navigation/i }));
+  expect(panel()).toHaveAttribute("inert");
+});
+
+it("resizes from its right edge, within bounds, and the reserved space follows", () => {
+  useSidebarStore.setState({ pinned: true });
+  mount();
+  const handle = screen.getByTestId("navigation-resize");
+  fireEvent.pointerDown(handle, { button: 0, pointerId: 1, clientX: 264 });
+  fireEvent.pointerMove(handle, { pointerId: 1, clientX: 340 });
+  fireEvent.pointerUp(handle, { pointerId: 1, clientX: 340 });
+  expect(useSidebarStore.getState().width).toBe(340);
+  expect(panel()).toHaveStyle({ width: "340px" });
+  expect(screen.getByTestId("navigation-space")).toHaveStyle({ width: "340px" });
+
+  fireEvent.pointerDown(handle, { button: 0, pointerId: 1 });
+  fireEvent.pointerMove(handle, { pointerId: 1, clientX: 5000 });
+  fireEvent.pointerUp(handle, { pointerId: 1 });
+  expect(useSidebarStore.getState().width).toBe(SIDEBAR_WIDTH.max);
+});
+
+it("resizes with the keyboard and resets on double-click", () => {
+  useSidebarStore.setState({ pinned: true });
+  mount();
+  const handle = screen.getByRole("separator", { name: /navigation/i });
+  fireEvent.keyDown(handle, { key: "ArrowRight" });
+  expect(useSidebarStore.getState().width).toBe(SIDEBAR_WIDTH.default + 16);
+  fireEvent.keyDown(handle, { key: "Home" });
+  expect(useSidebarStore.getState().width).toBe(SIDEBAR_WIDTH.min);
+  fireEvent.doubleClick(handle);
+  expect(useSidebarStore.getState().width).toBe(SIDEBAR_WIDTH.default);
+});
+
+it("has no resize handle on mobile", () => {
+  desktop = false;
+  mount();
+  expect(screen.queryByTestId("navigation-resize")).toBeNull();
+});
+
+it("keeps a revealed sidebar open while it is being resized", () => {
+  mount();
+  fireEvent.mouseEnter(screen.getByTestId("navigation-edge"));
+  const handle = screen.getByTestId("navigation-resize");
+  fireEvent.pointerDown(handle, { button: 0, pointerId: 1 });
+  fireEvent.mouseLeave(panel());
+  advance();
+  expect(panel()).not.toHaveAttribute("inert");
+  fireEvent.pointerUp(handle, { pointerId: 1 });
+  advance();
   expect(panel()).toHaveAttribute("inert");
 });

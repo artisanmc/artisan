@@ -90,15 +90,14 @@ The editor exposes a typed data-item selector and inherited preview, with expres
   the held stack (name/lore derived from the stack's own components) and writes
   it to its **own project root** — live in game within seconds via the disk scan.
 
-  > **Révisé le 2026-08-13 par l'ADR `server-disk-only-storage`.** Cet ADR
-  > envoyait la mutation au backend, qui la posait dans sa copie du project,
-  > committait et rebroadcastait `bundle_available` — « le plugin n'écrit jamais
-  > les fichiers project directement ». Cette règle protégeait d'un danger qui
-  > n'existe plus : il n'y a plus de copie backend à contredire, donc plus de
-  > divergence à craindre. Le module possède sa racine
-  > (ADR `addon-owned-project-roots`) et y écrit lui-même
-  > (`CapturedItemWriter`, repo Boutique) ; une capture est une édition disque
-  > comme une autre, rechargée à chaud par le scan.
+  > **Revised on 2026-08-13 by the `server-disk-only-storage` ADR.** This ADR
+  > sent the mutation to the backend, which put it in its copy of the project,
+  > committed and rebroadcast `bundle_available` — "the plugin never writes
+  > project files directly". That rule protected against a danger that no longer
+  > exists: there is no backend copy to contradict anymore, hence no divergence
+  > to fear. The module owns its root (ADR `addon-owned-project-roots`) and
+  > writes there itself (`CapturedItemWriter`, Boutique repo); a capture is a
+  > disk edit like any other, hot-reloaded by the scan.
 
 ### 4. Minecraft field kit for module forms
 

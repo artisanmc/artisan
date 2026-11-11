@@ -13,7 +13,7 @@ vi.mock("./runImportZip", () => ({
 
 import { ImportProjectDialog } from "./ImportProjectDialog";
 
-const target = { networkId: "n1", serverId: "sk1" };
+const target = { serverId: "sk1" };
 const basePreview = {
   target,
   projectId: "shop",
@@ -32,7 +32,7 @@ function pickFile() {
 describe("ImportProjectDialog", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("applique directement un import sans conflit", async () => {
+  it("applies an import without conflicts directly", async () => {
     mocks.prepareImportZip.mockResolvedValue({
       ok: true,
       preview: {
@@ -49,13 +49,7 @@ describe("ImportProjectDialog", () => {
     const onImported = vi.fn();
 
     render(
-      <ImportProjectDialog
-        networkId="n1"
-        serverKeyId="sk1"
-        open
-        onClose={() => {}}
-        onImported={onImported}
-      />,
+      <ImportProjectDialog serverKeyId="sk1" open onClose={() => {}} onImported={onImported} />,
     );
     pickFile();
     fireEvent.click(screen.getByRole("button", { name: /^import/i }));
@@ -64,7 +58,7 @@ describe("ImportProjectDialog", () => {
     await waitFor(() => expect(onImported).toHaveBeenCalledWith("shop", true));
   });
 
-  it("tranche les conflits fichier par fichier", async () => {
+  it("settles the conflicts file by file", async () => {
     mocks.prepareImportZip.mockResolvedValue({
       ok: true,
       preview: {
@@ -86,7 +80,7 @@ describe("ImportProjectDialog", () => {
       conflicts: 1,
     });
 
-    render(<ImportProjectDialog networkId="n1" serverKeyId="sk1" open onClose={() => {}} />);
+    render(<ImportProjectDialog serverKeyId="sk1" open onClose={() => {}} />);
     pickFile();
     fireEvent.click(screen.getByRole("button", { name: /^import/i }));
 
@@ -103,7 +97,7 @@ describe("ImportProjectDialog", () => {
     );
   });
 
-  it("en écrasement, confirme sans demander de choix et applique sans choix", async () => {
+  it("in overwrite mode, confirms without asking for choices and applies without choices", async () => {
     mocks.prepareImportZip.mockResolvedValue({
       ok: true,
       preview: {
@@ -126,7 +120,7 @@ describe("ImportProjectDialog", () => {
       conflicts: 1,
     });
 
-    render(<ImportProjectDialog networkId="n1" serverKeyId="sk1" open onClose={() => {}} />);
+    render(<ImportProjectDialog serverKeyId="sk1" open onClose={() => {}} />);
     pickFile();
     fireEvent.click(screen.getByRole("button", { name: /^import/i }));
 
@@ -138,7 +132,7 @@ describe("ImportProjectDialog", () => {
     await waitFor(() => expect(mocks.applyImportZip).toHaveBeenCalledWith(expect.anything(), {}));
   });
 
-  it("en écrasement, fait confirmer la suppression des fichiers absents de l'archive", async () => {
+  it("in overwrite mode, asks to confirm deleting the files missing from the archive", async () => {
     mocks.prepareImportZip.mockResolvedValue({
       ok: true,
       preview: {
@@ -148,7 +142,7 @@ describe("ImportProjectDialog", () => {
       },
     });
 
-    render(<ImportProjectDialog networkId="n1" serverKeyId="sk1" open onClose={() => {}} />);
+    render(<ImportProjectDialog serverKeyId="sk1" open onClose={() => {}} />);
     pickFile();
     fireEvent.click(screen.getByRole("button", { name: /^import/i }));
 

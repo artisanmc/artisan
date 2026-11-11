@@ -1,50 +1,49 @@
-# Projets serveur uniquement — l'hébergé est retiré, la démo est jetable
+# Server-only projects — hosting is removed, the demo is disposable
 
-**Status :** accepted (2026-09-27) — implémenté : étape 1 le 2026-09-27, étape 2 le 2026-09-28. Révise
-[project-storage-modes](project-storage-modes.md) (projets hébergés, réclamation de
-la démo, « Copier vers Minecraft », import ZIP hébergé) et remplit la direction
-laissée par [snapshot-mirror-and-backend-history](snapshot-mirror-and-backend-history.md).
+**Status: superseded (phase F, 2026-10)** — the demo and the backend are removed; only server projects remain. See [editor-web-server](editor-web-server.md).
 
-## Contexte
+**Status:** accepted (2026-09-27) — implemented: step 1 on 2026-09-27, step 2 on 2026-09-28. Revises
+[project-storage-modes](project-storage-modes.md) (hosted projects, demo claim,
+"Copy to Minecraft", hosted ZIP import) and fills in the direction left by
+[snapshot-mirror-and-backend-history](snapshot-mirror-and-backend-history.md).
 
-Le mode hébergé répondait à « préparer un Project sans serveur » et à « garder la
-démo après inscription ». Depuis que brouillons, Versions et Snapshot vivent dans
-le backend, un Server **non relié** peut porter des Projects faits de brouillons :
-le second stockage n'apporte plus rien. Personne ne l'a utilisé en prod.
+## Context
 
-## Décisions
+The hosted mode answered "prepare a Project without a server" and "keep the demo
+after signing up". Since drafts, Versions and the Snapshot live in the backend, an
+**unlinked** Server can carry Projects made of drafts: the second storage no longer
+brings anything. Nobody used it in prod.
 
-1. **Tout Project de compte appartient à un Server**, relié ou non. Plus de
-   projets hébergés, plus de « Copier vers un serveur ». Aucune migration : aucun
-   projet hébergé réel en prod.
-2. **Créer un Project sur un Server non relié (ou hors ligne) est permis** : il
-   naît avec un brouillon vide. Sa première publication, une fois le serveur relié,
-   crée le dossier sur le disque ; un dossier déjà présent est un conflit normal
-   (modale existante). Le rattachement ne publie jamais rien.
-3. **La démo est jetable** : pas de réclamation dans un compte (états
-   `claiming`/`claimed`, dialogue de choix du Network, reprise idempotente —
-   supprimés). Elle expire après 24 h d'inactivité ; on la garde en l'**exportant**
-   en ZIP.
-4. **L'import ZIP est retiré** avec l'hébergé, dont il était la seule cible. Il
-   reviendra plus tard, vers un Server, sous forme d'un nouveau Project en brouillon.
-   *Rétabli le 2026-09-30 :* l'import cible un Server, identifie le Project par le
-   nom de dossier du ZIP, et dépose le résultat dans le **brouillon** (création ou
-   mise à jour). Fusion ou écrasement au choix ; les conflits se tranchent fichier
-   par fichier contre l'instantané courant (miroir backend), avec une case
-   « garder ce choix pour tous les fichiers suivants ». Voir
-   `docs-site/src/content/docs/editor/projects.md` et `editor/src/features/import/`.
+## Decisions
 
-*Rejeté :* rattacher la démo à un serveur au moment de déployer (machinerie pour
-des démos simples, qu'un export couvre) ; publier directement à l'import (écriture
-non relue sur un serveur en marche) ; garder l'import sur l'hébergé (maintient le
-second stockage pour une seule porte d'entrée).
+1. **Every account Project belongs to a Server**, linked or not. No more hosted
+   projects, no more "Copy to a server". No migration: no real hosted project in prod.
+2. **Creating a Project on an unlinked (or offline) Server is allowed**: it is born
+   with an empty draft. Its first publication, once the server is linked, creates the
+   folder on disk; an already existing folder is a normal conflict (existing modal).
+   Attaching never publishes anything.
+3. **The demo is disposable**: no claim into an account (`claiming`/`claimed` states,
+   Network choice dialog, idempotent resume — removed). It expires after 24 h of
+   inactivity; you keep it by **exporting** it as a ZIP.
+4. **ZIP import is removed** with hosting, of which it was the only target. It will come
+   back later, towards a Server, as a new Project in draft.
+   *Reinstated on 2026-09-30:* the import targets a Server, identifies the Project by
+   the ZIP's folder name, and drops the result into the **draft** (creation or update).
+   Merge or overwrite as chosen; conflicts are settled file by file against the current
+   snapshot (backend mirror), with a "keep this choice for all following files"
+   checkbox. See `docs/site/editor/projects.md` and `editor/src/features/import/`.
 
-## Livraison
+*Rejected:* attaching the demo to a server at deploy time (machinery for simple demos,
+which an export covers); publishing directly at import (unreviewed write on a running
+server); keeping the import on hosting (maintains the second storage for a single entry
+point).
 
-1. Retirer l'hébergé côté comptes : section, création, copie vers Minecraft,
-   import ZIP, réclamation de la démo ; permettre la création sur Server non relié.
-   La démo reste provisoirement sur le stockage hébergé.
-2. Basculer la démo en base : un Project démo n'a qu'un brouillon (`project_drafts`,
-   `project_draft_blobs`), publication désactivée, export depuis le brouillon,
-   expiration en cascade. Puis supprimer `HostedProjectStorage`, le volume, sa
-   maintenance et sa procédure de sauvegarde.
+## Delivery
+
+1. Remove hosting on the accounts side: section, creation, copy to Minecraft, ZIP
+   import, demo claim; allow creation on an unlinked Server. The demo temporarily stays
+   on hosted storage.
+2. Move the demo to the database: a demo Project only has a draft (`project_drafts`,
+   `project_draft_blobs`), publication disabled, export from the draft, cascading
+   expiry. Then remove `HostedProjectStorage`, the volume, its maintenance and its
+   backup procedure.

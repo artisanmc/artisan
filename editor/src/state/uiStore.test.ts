@@ -147,7 +147,7 @@ describe("uiStore — search flag", () => {
     useUiStore.setState({ searchOpen: false });
   });
 
-  it("searchOpen défaut false, set le modifie", () => {
+  it("searchOpen defaults to false, set changes it", () => {
     expect(useUiStore.getState().searchOpen).toBe(false);
     useUiStore.getState().setSearchOpen(true);
     expect(useUiStore.getState().searchOpen).toBe(true);
@@ -157,7 +157,7 @@ describe("uiStore — search flag", () => {
 });
 
 describe("uiStore — canvasMode", () => {
-  it("setter bascule entre hand (défaut) et select", () => {
+  it("setter toggles between hand (default) and select", () => {
     useUiStore.getState().setCanvasMode("select");
     expect(useUiStore.getState().canvasMode).toBe("select");
     useUiStore.getState().setCanvasMode("hand");
@@ -168,16 +168,16 @@ describe("uiStore — canvasMode", () => {
 describe("uiStore — canvasViewports", () => {
   beforeEach(() => useUiStore.setState({ canvasViewports: {} }));
 
-  it("défaut vide", () => {
+  it("empty by default", () => {
     expect(useUiStore.getState().canvasViewports).toEqual({});
   });
 
-  it("setCanvasViewport stocke par project et roundtrip", () => {
+  it("setCanvasViewport stores per project and roundtrips", () => {
     useUiStore.getState().setCanvasViewport("p1" as ProjectId, { x: 10, y: 20, scale: 2 });
     expect(useUiStore.getState().canvasViewports.p1).toEqual({ x: 10, y: 20, scale: 2 });
   });
 
-  it("setCanvasViewport laisse les autres projects intacts", () => {
+  it("setCanvasViewport leaves the other projects untouched", () => {
     useUiStore.getState().setCanvasViewport("p1" as ProjectId, { x: 1, y: 2, scale: 1 });
     useUiStore.getState().setCanvasViewport("p2" as ProjectId, { x: 3, y: 4, scale: 0.5 });
     expect(useUiStore.getState().canvasViewports.p1).toEqual({ x: 1, y: 2, scale: 1 });

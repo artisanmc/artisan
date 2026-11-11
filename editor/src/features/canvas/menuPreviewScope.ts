@@ -1,12 +1,12 @@
 import type { I18nKey, LText, Menu, Project, SourceRef } from "@/domain/types";
-import { lookupPath } from "@/lib/placeholders";
 import { AstCache } from "@/lib/expr/cache";
 import { Scope } from "@/lib/expr/scope";
 import { renderTemplate } from "@/lib/expr/template/renderer";
-import { listModules } from "@artisan/editor-sdk";
-import { useAccountStore } from "@/state/accountStore";
-import { useUiStore } from "@/state/uiStore";
 import { getText } from "@/lib/i18n";
+import { lookupPath } from "@/lib/placeholders";
+import { useProjectsStore } from "@/state/projectsStore";
+import { useUiStore } from "@/state/uiStore";
+import { listModules } from "@artisan/editor-sdk";
 
 /** Cached live-server snapshots keyed by ref (see serverSnapshotsStore). */
 export type SourceSnapshots = Record<string, unknown[]>;
@@ -18,24 +18,42 @@ export type SourceSnapshots = Record<string, unknown[]>;
  *
  * Module data may live in a **sibling project** (the plugin merges module
  * files across ALL projects of the server at runtime — cf. BoutiqueModule
- * .reloadRepo), so after the current project we probe the account's other
+ * .reloadRepo), so after the current project we probe the store's other
  * projects. Null when no module owns the ref or no project holds local data.
+ *
+ * `serverRows` (the cached server snapshot of the ref) is passed on to the module
+ * (SDK 1.12): a `mixed` source joins the player's state it holds to the draft's
+ * definitions. `params` are the fetcher params the menu declares on its input
+ * (`group: daily`), which the module applies like its fetcher does.
  */
 export function moduleLocalRows(
   project: Project,
   ref: SourceRef | string,
+  serverRows?: unknown[],
+  params?: Record<string, string>,
 ): Record<string, unknown>[] | null {
   const r = String(ref);
+  const ctx = {
+    ...(Array.isArray(serverRows) ? { serverRows: serverRows as Record<string, unknown>[] } : {}),
+    ...(params && Object.keys(params).length > 0 ? { params } : {}),
+  };
   for (const mod of listModules()) {
     const fn = mod.localPreviewRows;
     if (!fn) continue;
-    const forPreview = (p: Project) => ({ ...p, dataSources: resolveLTexts(p.dataSources, p, useUiStore.getState().activeLang || p.defaultLang) });
-    const own = fn(forPreview(project), r);
+    const forPreview = (p: Project) => ({
+      ...p,
+      dataSources: resolveLTexts(
+        p.dataSources,
+        p,
+        useUiStore.getState().activeLang || p.defaultLang,
+      ),
+    });
+    const own = fn(forPreview(project), r, ctx);
     if (own) return own;
-    // Lazy import avoided: accountStore never imports this module (no cycle).
-    for (const sibling of useAccountStore.getState().account.projects) {
+    // Lazy import avoided: projectsStore never imports this module (no cycle).
+    for (const sibling of useProjectsStore.getState().openProjects.projects) {
       if (sibling.id === project.id) continue;
-      const rows = fn(forPreview(sibling), r);
+      const rows = fn(forPreview(sibling), r, ctx);
       if (rows) return resolveRowTexts(rows, sibling);
     }
   }
@@ -50,29 +68,51 @@ export function moduleLocalRows(
  *  - unknown / malformed → undefined
  *
  * Local module rows win over the server snapshot (they're what WILL be
- * deployed). The legacy imported-connector sample fallback was removed
- * 2026-07-17 — server-reported sources + snapshots superseded it.
+ * deployed).
  */
 export function resolveSourceRef(
   ref: SourceRef,
   project: Project,
   snapshots?: SourceSnapshots,
+  params?: Record<string, string>,
 ): unknown {
+  return resolveSourceRefWithOrigin(ref, project, snapshots, params).value;
+}
+
+/**
+ * Where the preview rows of a source come from: `draft` = computed from the
+ * project as edited (a Project source, a module's `localPreviewRows`, a
+ * module-owned project's files); `deployed` = the server's last snapshot, so
+ * the version the server runs; `none` = nothing to show yet.
+ */
+export type SourceRowsOrigin = "draft" | "deployed" | "none";
+
+/** {@link resolveSourceRef}, telling where the value came from. */
+export function resolveSourceRefWithOrigin(
+  ref: SourceRef | string,
+  project: Project,
+  snapshots?: SourceSnapshots,
+  params?: Record<string, string>,
+): { value: unknown; origin: SourceRowsOrigin } {
   const r = String(ref);
-  if (r === "" || !r.includes(":")) return undefined;
+  const none = { value: undefined, origin: "none" as const };
+  if (r === "" || !r.includes(":")) return none;
   if (r.startsWith("pack:")) {
     const id = r.slice("pack:".length);
-    const ds = project.dataSources.find((d) => d.id === (id as Project["dataSources"][number]["id"]));
-    if (!ds) return undefined;
-    return ds.shape === "table" ? ds.rows : ds.value;
+    const ds = project.dataSources.find(
+      (d) => d.id === (id as Project["dataSources"][number]["id"]),
+    );
+    if (!ds) return none;
+    return { value: ds.shape === "table" ? ds.rows : ds.value, origin: "draft" };
   }
   // Module rows are derived from the project's own files too, so they carry
   // domain LText nodes just like a Project source — resolve both the same way.
-  const local = moduleLocalRows(project, r);
-  if (local) return resolveRowTexts(local, project);
+  const local = moduleLocalRows(project, r, snapshots?.[r], params);
+  if (local) return { value: resolveRowTexts(local, project), origin: "draft" };
   const owned = ownedSourceRows(project, r);
-  if (owned) return owned;
-  return snapshots?.[r];
+  if (owned) return { value: owned, origin: "draft" };
+  const snapshot = snapshots?.[r];
+  return snapshot === undefined ? none : { value: snapshot, origin: "deployed" };
 }
 
 /**
@@ -110,8 +150,11 @@ export function resolveRowTexts<T>(rows: T[], project: Project): T[] {
 /** True for an LText node — the domain's `{ key }` reference, nothing else. */
 function isLText(v: unknown): v is { key: string } {
   return (
-    typeof v === "object" && v !== null && !Array.isArray(v) &&
-    Object.keys(v).length === 1 && typeof (v as { key?: unknown }).key === "string"
+    typeof v === "object" &&
+    v !== null &&
+    !Array.isArray(v) &&
+    Object.keys(v).length === 1 &&
+    typeof (v as { key?: unknown }).key === "string"
   );
 }
 
@@ -131,6 +174,12 @@ function resolveLTexts(value: unknown, project: Project, lang: string): unknown 
 export const SAMPLE_PLAYER_NAME = "Steve";
 export const SAMPLE_PLAYER_UUID = "8667ba71-b85a-4004-af54-457a9734eed7";
 export const SAMPLE_PLAYER_WORLD = "world";
+/** `{player.location}` renders as `world x y z`, like the server's location value. */
+export const SAMPLE_PLAYER_LOCATION = "world 12 64 -30";
+/** First seen 40 days ago, last seen 3 days 4 hours ago, 12 h 30 min of play. */
+export const SAMPLE_FIRST_SEEN_AGO = 40 * 86_400_000;
+export const SAMPLE_LAST_SEEN_AGO = 3 * 86_400_000 + 4 * 3_600_000;
+export const SAMPLE_PLAYTIME = 12 * 3_600_000 + 30 * 60_000;
 
 /**
  * Build a sample Player value for previews. The custom `toString` makes a
@@ -138,20 +187,53 @@ export const SAMPLE_PLAYER_WORLD = "world";
  * arg resolves to the player's name).
  */
 export function makeSamplePlayer(name: string = SAMPLE_PLAYER_NAME): Record<string, unknown> {
-  return { name, uuid: SAMPLE_PLAYER_UUID, world: SAMPLE_PLAYER_WORLD, toString: () => name };
+  const now = Date.now();
+  return {
+    name,
+    uuid: SAMPLE_PLAYER_UUID,
+    world: SAMPLE_PLAYER_WORLD,
+    // The `vanished` metadata of vanish plugins (EssentialsX, SuperVanish…): a sample player is seen.
+    vanished: false,
+    location: SAMPLE_PLAYER_LOCATION,
+    // What the server reads from `artisan_players`: instants and the play time in milliseconds.
+    first_seen: now - SAMPLE_FIRST_SEEN_AGO,
+    last_seen: now - SAMPLE_LAST_SEEN_AGO,
+    playtime: SAMPLE_PLAYTIME,
+    toString: () => name,
+  };
+}
+
+/**
+ * Data source refs an element iterates or places directly (`iterates.source:
+ * "ns:id"`, the runtime's direct-ref sugar) instead of naming a declared input.
+ * Distinct, in element order.
+ */
+export function directSourceRefs(menu: Menu): string[] {
+  const declared = new Set((menu.contextInputs ?? []).map((i) => i.name));
+  const refs: string[] = [];
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) {
+      for (const source of [el.iterates?.source, el.places?.source]) {
+        if (source?.includes(":") && !declared.has(source) && !refs.includes(source)) {
+          refs.push(source);
+        }
+      }
+    }
+  }
+  return refs;
 }
 
 /**
  * Build the preview scope for a menu by walking its contextInputs:
  *  - primitive → coerce default to its declared type
  *  - sourceRef → resolveSourceRef
+ *  - then each direct ref of an element ({@link directSourceRefs}) → resolveSourceRef
  *
  * The builtin `player` (the viewing player at runtime) is seeded unless the
  * menu declares a contextInput with that name — caller arg wins, like the
  * plugin runtime.
  *
- * Used by MenuGroup and ItemTooltip preview rendering. Replaces the
- * pre-Plan-C1 sampleContext blob.
+ * Used by MenuGroup and ItemTooltip preview rendering.
  */
 export function buildPreviewScope(
   menu: Menu,
@@ -171,7 +253,10 @@ export function buildPreviewScope(
     scope[input.name] =
       override !== undefined && override !== ""
         ? typeof override === "string"
-          ? coerceDefault(override, input.type as "player" | "string" | "integer" | "number" | "boolean")
+          ? coerceDefault(
+              override,
+              input.type as "player" | "string" | "integer" | "number" | "boolean",
+            )
           : override
         : coerceDefault(
             input.default,
@@ -186,10 +271,14 @@ export function buildPreviewScope(
   }
   for (const input of menu.contextInputs ?? []) {
     if (input.kind === "primitive") continue;
-    const rows = resolveSourceRef(input.ref, project, snapshots);
+    const rows = resolveSourceRef(input.ref, project, snapshots, input.params);
     scope[input.name] = Array.isArray(rows)
       ? applyShaping(rows, input, { ...scope, ...(previewArgs ?? {}) })
       : rows;
+  }
+  // Direct refs resolve under their own key, as the runtime exposes them.
+  for (const ref of directSourceRefs(menu)) {
+    if (!(ref in scope)) scope[ref] = resolveSourceRef(ref as SourceRef, project, snapshots);
   }
   if (!(menu.contextInputs ?? []).some((i) => i.name === "player")) {
     scope.player = makeSamplePlayer();
