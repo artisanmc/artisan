@@ -17,12 +17,12 @@
  "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/binary?path=assets%2Fglyphs%2Fhub_background.png&h=3baa30ba775ca4462cfd6be7cc9f439b26c2fba23a5ae19dd07b7ac2aa7e6c38": {
   "status": 200,
   "type": "image/png",
-  "body": "bc2e507f4922d82b55d9"
+  "body": "04dcefcb8d9234db74af"
  },
  "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/binary?path=assets%2Fglyphs%2Fshop_background.png&h=7d34787e7402a5456802063309945b4a6b67b44bb699881720a1e6b08ad21f6c": {
   "status": 200,
   "type": "image/png",
-  "body": "65fe5810555e82fa934a"
+  "body": "b4279f6e2f792a8e426c"
  },
  "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/files": {
   "status": 200,
