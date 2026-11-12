@@ -1,5 +1,8 @@
-import { type Scene, type Shot, node, sel, text, textHas, typing, typingRich } from "../app/engine";
-import { BOARD, PROJECT } from "../demo";
+import { getInputProps } from "remotion";
+import { type Entry, type Scene, type Shot, node, sel, text, textHas, typing, typingRich } from "../app/engine";
+import { followConversation, useConversationsStore } from "@/features/project/assistant/useAssistant";
+import talk from "../../fixtures/assistant.json";
+import { BOARD, PROJECT, SERVER } from "../demo";
 import { Caption } from "../kit/Caption";
 import { EditorScene } from "../kit/EditorScene";
 
@@ -16,10 +19,14 @@ interface Title {
   position?: "bottom-left" | "top-left";
 }
 
+/** `--props='{"captions":false}'` rend les scènes sans titre (GIF de la page de vente). */
+const captions = (getInputProps() as { captions?: boolean }).captions !== false;
+
 function scene(spec: Scene, frames: number, titles: Title[]) {
   const Component = () => (
     <EditorScene scene={spec}>
       {(frame) =>
+        captions &&
         titles.map((t) => (
           <Caption key={t.title} frame={frame} start={t.from} end={t.to} title={t.title} accent={t.accent} sub={t.sub} position={t.position} />
         ))
@@ -275,3 +282,81 @@ export const History = scene(
   ],
 );
 
+
+const prompt = sel('[data-testid="assistant-page"] textarea');
+const ASK = "Make me a VIP menu with three ranks";
+const ANSWER_FROM = 112;
+const ANSWER_TO = 372;
+
+/** L'instant `step` de la conversation enregistrée : le hub rejoué le sert, l'éditeur le relit. */
+const instant = (at: number, step: number): Entry => ({
+  at,
+  run: async () => {
+    await fetch(`/api/promo/assistant?step=${step}`, { method: "POST" });
+    const id = useConversationsStore.getState().currentId;
+    if (id) await followConversation(id);
+  },
+});
+
+/** La réponse de l'assistant, étalée sur les images `from`…`to` : un instant toutes les deux images. */
+function answer(from: number, to: number): Entry[] {
+  const last = talk.snapshots.length - 1;
+  const entries: Entry[] = [];
+  for (let at = from; at <= to; at += 2)
+    entries.push(instant(at, Math.round((last * (at - from)) / (to - from))));
+  return entries;
+}
+
+/** L'assistant : une demande en une phrase, le fichier qui s'écrit, puis son aperçu et son YAML à relire. */
+export const Assistant = scene(
+  {
+    id: "assistant",
+    url: `${SERVER}/assistant`,
+    timeline: [
+      { at: 0, run: () => void fetch("/api/promo/assistant", { method: "POST" }) },
+      { at: 16, move: prompt },
+      { at: 28, click: true },
+      ...typing(34, prompt, ASK, 2),
+      { at: 104, run: () => fetch("/api/promo/assistant?step=0", { method: "POST" }).then(() => undefined) },
+      { at: 108, run: (h) => h.key("Enter") },
+      ...answer(ANSWER_FROM, ANSWER_TO),
+      { at: 416, move: text("YAML", '[data-testid="assistant-artifact"]') },
+      { at: 430, click: true },
+    ],
+    camera: [
+      [0, WIDE],
+      [14, WIDE],
+      [34, { cx: 620, cy: 760, zoom: 1.35 }],
+      [106, { cx: 620, cy: 760, zoom: 1.35 }],
+      [130, WIDE],
+      [200, WIDE],
+      [230, { cx: 1100, cy: 420, zoom: 1.2 }],
+      [470, { cx: 1100, cy: 420, zoom: 1.2 }],
+      [500, { cx: 1150, cy: 400, zoom: 1.3 }],
+    ],
+  },
+  510,
+  [
+    {
+      from: 6,
+      to: 104,
+      title: "Describe it, the AI drafts it",
+      accent: "the AI drafts it",
+      position: "top-left",
+    },
+    {
+      from: 126,
+      to: 372,
+      title: "A real draft, checked by your server",
+      accent: "checked by your server",
+      sub: "The assistant reads your modules and writes the file. Nothing is live yet.",
+    },
+    {
+      from: 380,
+      to: 505,
+      title: "You review, then deploy",
+      accent: "deploy",
+      sub: "With your own API key, or from Claude, ChatGPT and your IDE over MCP.",
+    },
+  ],
+);

@@ -66,6 +66,35 @@ async function record(method, url, body, headers) {
   return entry;
 }
 
+// La conversation de l'assistant, enregistrée instant par instant (scripts/record-assistant.mjs).
+// Le hub la rejoue au pas que la scène lui donne (`POST /api/promo/assistant?step=n`) : ce que le
+// modèle écrit avance avec les images de la vidéo, pas avec l'horloge.
+const talkFile = join(root, "fixtures/assistant.json");
+const talk = existsSync(talkFile) ? JSON.parse(readFileSync(talkFile, "utf8")) : null;
+const playing = { started: false, step: 0 };
+const talkDrafts = new Set((talk?.snapshots.at(-1).events ?? []).map((event) => event.draft?.id).filter(Boolean));
+function assistant(method, url, res) {
+  const [path, query = ""] = url.split("?");
+  const json = (status, value) => {
+    res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(value));
+    return true;
+  };
+  if (path === "/api/promo/assistant") {
+    const step = new URLSearchParams(query).get("step");
+    playing.started = step !== null;
+    playing.step = Math.min(Number(step ?? 0), (talk?.snapshots.length ?? 1) - 1);
+    return json(200, { steps: talk?.snapshots.length ?? 0 });
+  }
+  if (!talk || !path.startsWith("/api/v1/ai/conversations")) return false;
+  const now = talk.snapshots[playing.step];
+  const summary = { ...talk.conversation, running: now.running };
+  if (path === "/api/v1/ai/conversations")
+    return method === "POST" ? json(201, summary) : json(200, { conversations: playing.started ? [summary] : [] });
+  if (method !== "GET") return json(200, {});
+  const after = Number(new URLSearchParams(query).get("after") ?? 0);
+  return json(200, { ...summary, events: now.events.slice(after), live: now.live });
+}
+
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript",
@@ -103,6 +132,7 @@ const server = createServer(async (req, res) => {
   const body = Buffer.concat(chunks);
   const method = req.method ?? "GET";
   const url = req.url ?? "/";
+  if (assistant(method, url, res)) return;
   const read = method === "GET" || (method === "POST" && READ_POSTS.some((p) => p.test(url.split("?")[0])));
 
   if (!read) {
@@ -127,10 +157,17 @@ const server = createServer(async (req, res) => {
   }
   // Un brouillon n'existe que le temps d'un rendu, sous un identifiant tiré au hasard : jamais enregistré.
   const draftId = method === "GET" ? draftPath.exec(url.split("?")[0])?.[1] : undefined;
-  if (draftId) {
+  // Un brouillon enregistré (celui que l'assistant a écrit) se rejoue comme toute autre lecture.
+  if (draftId && !index[`GET ${url}`]) {
     const draft = drafts.get(draftId);
-    res.writeHead(draft ? 200 : 404, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify(draft ? { draft } : { error: "not_found" }));
+    const real = !draft && upstream ? await record(method, url, body, req.headers).catch(() => null) : null;
+    if (real?.status === 200) {
+      index[`GET ${url}`] = real;
+      save();
+    } else {
+      res.writeHead(draft ? 200 : 404, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify(draft ? { draft } : { error: "not_found" }));
+    }
   }
   const key = keyOf(method, url, body);
   let entry = index[key];
@@ -157,7 +194,13 @@ const server = createServer(async (req, res) => {
     ...(entry.type ? { "Content-Type": entry.type } : {}),
     "Cache-Control": "public, max-age=3600",
   });
-  res.end(readFileSync(join(bodies, entry.body)));
+  let answer = readFileSync(join(bodies, entry.body));
+  // Le brouillon écrit par l'assistant n'existe que dans sa scène : les autres montrent le module tel qu'il est déployé.
+  if (talkDrafts.size > 0 && req.headers["x-promo-scene"] !== "assistant" && /\/drafts$/.test(url.split("?")[0]) && entry.status === 200) {
+    const listed = JSON.parse(answer.toString());
+    answer = JSON.stringify({ ...listed, drafts: listed.drafts.filter((draft) => !talkDrafts.has(draft.id)) });
+  }
+  res.end(answer);
 });
 
 // Le canal de l'éditeur : ouvert et silencieux (aucun rechargement du serveur pendant la vidéo).

@@ -48,11 +48,14 @@ export const router = createRouter({
 let inFlight = 0;
 let lastActivity = performance.now();
 const nativeFetch = window.fetch.bind(window);
-window.fetch = async (...args) => {
+window.fetch = async (input, init) => {
   inFlight++;
   lastActivity = performance.now();
   try {
-    return await nativeFetch(...args);
+    // Le hub rejoué sert plusieurs rendus à la fois : chaque lecture dit de quelle scène elle vient.
+    const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+    headers.set("x-promo-scene", network.scene);
+    return await nativeFetch(input, { ...init, headers });
   } finally {
     inFlight--;
     lastActivity = performance.now();
@@ -73,6 +76,8 @@ window.addEventListener("promo:image", (event) => {
   image.addEventListener("error", done);
 });
 export const network = {
+  /** La scène en cours (engine.tsx). */
+  scene: "",
   idleFor: () => (inFlight > 0 ? 0 : performance.now() - lastActivity),
 };
 

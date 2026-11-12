@@ -157,6 +157,7 @@ function elementAt(p: Point): Element | null {
 async function advance(scene: Scene, frame: number) {
   if (played.scene !== scene.id) {
     played.scene = scene.id;
+    network.scene = scene.id;
     played.next = 0;
     played.points = [];
     played.targets = [];

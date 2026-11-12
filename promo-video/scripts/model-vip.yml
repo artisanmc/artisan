@@ -1,0 +1,83 @@
+schema: menu/v1
+title: Ranks
+size: 27
+elements:
+  - id: vip
+    positions: 11
+    material: IRON_INGOT
+    title: "<green>VIP"
+    lore: [ "<gray>/hat, /craft and 2 more homes.", "", "<gold>Price: 10,000 coins", "<yellow>Click to buy" ]
+    click:
+      left:
+        - if:
+            - has_money: 10000
+          do:
+            - take_money: 10000
+            - run_command:
+                command: lp user {player.name} parent add vip
+                as: console
+            - play_sound:
+                sound: ENTITY_PLAYER_LEVELUP
+            - send_message: <green>You are now VIP.
+          else:
+            - send_message: <red>You need 10,000 coins.
+    states:
+      - if:
+          - has_permission: group.vip
+        title: "<green>VIP · owned"
+        enchanted: true
+  - id: elite
+    positions: 13
+    material: GOLD_INGOT
+    title: "<gold>Elite"
+    lore: [ "<gray>Everything in VIP, and /fly at spawn.", "", "<gold>Price: 25,000 coins", "<yellow>Click to buy" ]
+    click:
+      left:
+        - if:
+            - has_money: 25000
+          do:
+            - take_money: 25000
+            - run_command:
+                command: lp user {player.name} parent add elite
+                as: console
+            - play_sound:
+                sound: ENTITY_PLAYER_LEVELUP
+            - send_message: <green>You are now Elite.
+          else:
+            - send_message: <red>You need 25,000 coins.
+    states:
+      - if:
+          - has_permission: group.elite
+        title: "<gold>Elite · owned"
+        enchanted: true
+  - id: legend
+    positions: 15
+    material: DIAMOND
+    title: "<aqua>Legend"
+    lore: [ "<gray>Everything in Elite, and a custom prefix.", "", "<gold>Price: 60,000 coins", "<yellow>Click to buy" ]
+    click:
+      left:
+        - if:
+            - has_money: 60000
+          do:
+            - take_money: 60000
+            - run_command:
+                command: lp user {player.name} parent add legend
+                as: console
+            - play_sound:
+                sound: ENTITY_PLAYER_LEVELUP
+            - send_message: <green>You are now Legend.
+          else:
+            - send_message: <red>You need 60,000 coins.
+    states:
+      - if:
+          - has_permission: group.legend
+        title: "<aqua>Legend · owned"
+        enchanted: true
+  - id: back
+    positions: 22
+    material: ARROW
+    title: "<gray>Back"
+    click:
+      left:
+        - open_previous_menu

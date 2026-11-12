@@ -4,11 +4,11 @@ import "./app/boot";
 import { EditorApp } from "./app/EditorApp";
 import { H, W } from "./app/engine";
 import order from "./order.json";
-import { Automate, Board, Composer, History, Item, Languages, Publish } from "./scenes/editor";
+import { Assistant, Automate, Board, Composer, History, Item, Languages, Publish } from "./scenes/editor";
 import { Intro, Modules, Outro, Setup } from "./scenes/titles";
 
 /** Chaque scène est une composition ; order.json donne le montage, que scripts/render.mjs rend scène par scène puis colle. */
-const ALL = [Intro, Board, Item, Publish, Automate, Composer, Languages, History, Setup, Modules, Outro];
+const ALL = [Intro, Board, Item, Publish, Automate, Composer, Languages, History, Assistant, Setup, Modules, Outro];
 const SCENES = (order as string[]).map((id) => {
   const found = ALL.find((s) => s.id === id);
   if (!found) throw new Error(`Scène inconnue dans order.json : ${id}`);

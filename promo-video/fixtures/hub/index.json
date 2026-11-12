@@ -2,7 +2,7 @@
  "GET /api/v1/ai": {
   "status": 200,
   "type": "application/json",
-  "body": "275509f69a30b2a718aa"
+  "body": "caa79113024e6a9823ca"
  },
  "GET /api/v1/auth/me": {
   "status": 200,
@@ -209,6 +209,11 @@
   "type": "image/png",
   "body": "0558d8ea813e43a50e82"
  },
+ "GET /api/v1/textures/1.21.11/item/iron_ingot": {
+  "status": 200,
+  "type": "image/png",
+  "body": "51cbac49b4be48dedbe4"
+ },
  "GET /api/v1/textures/1.21.11/item/iron_pickaxe": {
   "status": 200,
   "type": "image/png",
@@ -252,7 +257,7 @@
  "GET /api/v1/user/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/drafts": {
   "status": 200,
   "type": "application/json",
-  "body": "638cc0a8045769924887"
+  "body": "8fb294d3b8eb2f14aed8"
  },
  "GET /api/v1/user/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/items": {
   "status": 200,

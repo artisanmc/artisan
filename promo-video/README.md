@@ -15,6 +15,7 @@ cd promo-video && npm ci
 npm run routes                 # génère editor/src/routeTree.gen.ts (ignoré par git)
 npm run render                 # → out/artisan-promo.mp4 (1080p, 30 i/s)
 npm run still -- item out/item.png --frame=120    # une image d'une scène
+npm run gifs                   # les scènes de l'éditeur en GIF sans titre → out/gifs/ (800×450, 10 i/s)
 npm run typecheck
 ```
 
@@ -30,6 +31,7 @@ neuf et joue ses images dans l'ordre.
   silencieux, sur une seule origine (port de `scripts/hub.json`), comme le plugin sert l'éditeur.
 - `src/app/` : `preboot.ts` et `boot.ts` (le même amorçage que `editor/src/main.tsx`),
   `engine.tsx` (déroulé d'une scène, curseur, cadrage, cibles).
+- `fixtures/assistant.json` : la conversation de l'assistant, instant par instant.
 - `src/scenes/editor.tsx` : les scènes jouées dans l'éditeur. `src/scenes/titles.tsx` : les écrans
   hors éditeur (ouverture, installation, modules, fin).
 - `src/kit/` : curseur, titres, fond.
@@ -67,6 +69,29 @@ npm run render                 # sans HUB_RECORD : aucune ligne « inconnu » ne
 
 Les écritures (brouillons, préférences) ne partent jamais vers le vrai hub : le hub rejoué les
 accepte lui-même.
+
+## La scène de l'assistant
+
+La conversation de l'assistant avance dans le temps : elle ne se rejoue pas comme une lecture.
+`scripts/record-assistant.mjs` l'enregistre instant par instant dans `fixtures/assistant.json`, et le
+hub rejoué la sert au pas que la scène lui donne (`POST /api/promo/assistant?step=n`) : ce que le
+modèle écrit avance avec les images de la vidéo. Le brouillon écrit par l'assistant n'apparaît que
+dans sa scène ; chaque lecture porte l'en-tête `x-promo-scene`.
+
+Sans clé de fournisseur, `scripts/model.mjs` tient la place du modèle : une API Chat Completions
+qui répond un déroulé écrit d'avance (`scripts/model-vip.yml` est le menu qu'il écrit). Le hub le
+traite comme un vrai modèle : ses outils s'exécutent, le brouillon est écrit et contrôlé par le
+serveur. Avec une vraie clé, il suffit de ne pas le lancer.
+
+```bash
+# plugins/Artisan/environment.yml :  ai: { provider: "openai", api-key: "local",
+#                                          model: "…", base-url: "http://localhost:3902/v1" }
+node scripts/model.mjs &
+HUB_RECORD=http://localhost:8765 HUB_COOKIE='<cookie>' \
+  node scripts/record-assistant.mjs <id du serveur> "Make me a VIP menu with three ranks"
+```
+
+À faire avant `npm run render` en enregistrement : la scène lit ensuite le brouillon créé.
 
 ## Règles
 
