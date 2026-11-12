@@ -155,14 +155,22 @@ someone types `/artisan reload`.
 
 ## Own your project directory
 
-By default projects live in `plugins/Artisan/modules/<id>/`. An add-on can host
+By default projects live in `plugins/Artisan/modules/<id>/`. An add-on hosts
 its project in **its own** plugin folder instead: admins find your content where
-they expect it, and removing your plugin removes it.
+they expect it, removing your plugin folder removes it, and copying it moves it to
+another server.
 
 ```kotlin
-val projectDir = File(plugin.dataFolder, "editor")
-api.projectRoots.register("homes", projectDir, id)   // projectId, directory, owning module id
+// folder (the project id), owning module id, a dedicated sub-folder of your plugin
+val projectDir = api.projectRoots.pluginFolder("homes", id, File(plugin.dataFolder, "project"))
+// read and write your files in projectDir
 ```
+
+`pluginFolder` (API 1.1.0) creates the folder and registers it. An add-on that
+called `moduleFolder` before keeps the same first argument: Artisan moves
+`plugins/Artisan/modules/homes/` into your folder once, with its versions and
+drafts. If both hold files, the old one stays in use and the console says so.
+`register(projectId, dir, moduleId)` remains for a folder you manage yourself.
 
 - Call it **once per boot, from `onEnable(api)`.** Artisan then reads, hashes,
   publishes, trashes and hot-reloads that project from your directory.
@@ -180,8 +188,8 @@ api.projectRoots.register("homes", projectDir, id)   // projectId, directory, ow
 :::danger[Use a dedicated directory]
 Never pass your plugin's data folder itself. When content is published, files
 under a project directory that are not part of the project are deleted. Point
-it at a subdirectory that holds nothing else (`plugins/Homes/editor/`, not
-`plugins/Homes/`).
+it at a subdirectory that holds nothing else (`plugins/Homes/project/`, not
+`plugins/Homes/`). `pluginFolder` refuses the data folder itself.
 :::
 
 ### Ship default content
@@ -190,7 +198,7 @@ On first boot, write a starter project so admins open the editor to something
 real: a module file, a menu, your data files, translations.
 
 ```
-plugins/Homes/editor/
+plugins/Homes/project/
   artisan-module.yml
   menus/homes.yml
   data/settings.yml
