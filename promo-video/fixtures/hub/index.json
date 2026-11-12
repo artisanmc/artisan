@@ -27,7 +27,7 @@
  "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/files": {
   "status": 200,
   "type": "application/json",
-  "body": "57d2ef3d0eedea817704"
+  "body": "70a6213844509a131867"
  },
  "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/versions": {
   "status": 200,
@@ -37,12 +37,12 @@
  "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/versions/2": {
   "status": 200,
   "type": "application/json",
-  "body": "a9ea259ace49d13063c5"
+  "body": "a87a4b1bdcd19643790a"
  },
  "GET /api/v1/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/versions/3": {
   "status": 200,
   "type": "application/json",
-  "body": "c738518f735adc0e21d3"
+  "body": "10260fd6da627a4d9a7a"
  },
  "GET /api/v1/servers": {
   "status": 200,
@@ -97,7 +97,7 @@
  "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/projects/survival/files": {
   "status": 200,
   "type": "application/json",
-  "body": "57d2ef3d0eedea817704"
+  "body": "70a6213844509a131867"
  },
  "GET /api/v1/servers/2b14913d-0ff0-4c2c-96ed-28a322713587/screens": {
   "status": 200,
@@ -257,7 +257,7 @@
  "GET /api/v1/user/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/drafts": {
   "status": 200,
   "type": "application/json",
-  "body": "8fb294d3b8eb2f14aed8"
+  "body": "60d9706c16fe6a31f3ed"
  },
  "GET /api/v1/user/projects/2b14913d-0ff0-4c2c-96ed-28a322713587.survival/items": {
   "status": 200,

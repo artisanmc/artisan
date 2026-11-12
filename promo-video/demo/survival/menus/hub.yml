@@ -7,10 +7,6 @@ title:
     value: { en: "Survival · Main menu", fr: "<#4a2f12>Survie · Menu principal" }
     x: 8
     y: 6
-  - kind: glyph
-    asset_id: coin
-    x: 150
-    y: 2
 size: 54
 elements:
   - id: profile

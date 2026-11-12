@@ -203,7 +203,7 @@ export const Composer = scene(
     timeline: [
       { at: 22, move: node("slot:hub:1"), dy: -30 },
       { at: 34, click: true },
-      { at: 96, move: textHas("coin") },
+      { at: 96, move: sel('[data-testid="layer-list-item-row"]', 1) },
       { at: 108, click: true },
     ],
     camera: [
