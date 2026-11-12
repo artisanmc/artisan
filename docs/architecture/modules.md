@@ -256,11 +256,13 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > screen view: titles and lore stay the Project's texts, where `ItemInput` writes a literal spec.
 > A 1.19 bundle still loads.
 
-> **Module folder (since 2026-10-19)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
-> gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
-> `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the
-> module then reads its files in the returned folder. To be called in `onEnable`, before
-> writing a default file.
+> **Module folder (since 2026-11-12, API 1.1.0)** — `api.getProjectRoots().pluginFolder(folder, moduleId, dir)`
+> registers `dir`, a dedicated folder of the add-on's plugin (by convention
+> `new File(getDataFolder(), "project")`), as an add-on root (key `addon:<folder>`, not
+> renamable): deleting the plugin folder uninstalls the add-on. `plugins/Artisan/modules/<folder>/`,
+> where `moduleFolder` (2026-10-19, now `@Sunset`) kept it, is moved there once; the module
+> then reads its files in the returned folder. To be called in `onEnable`, before writing a
+> default file. ADR `addon-owned-project-roots`, amendment 2026-11-12.
 
 > **Document kinds (since 2026-10-15, lot 5)** — a module contributes its Document kinds through
 > `documents: DocumentKindContribution[]`: `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
@@ -709,7 +711,7 @@ api.getTemplates().register(TemplateDeclaration
   Each copied file is tracked in `.artisan/origins.yaml`; `GET …/projects/:project/origins` reads them.
 - **Seeding**: a template with `seed(projectId)` is copied once into a new Project of that
   name (`.artisan-seeds.yaml` at the core root), with a manifest in the server's language, never
-  recreated if the owner deletes it. If that name is the module's own folder (`moduleFolder`),
+  recreated if the owner deletes it. If that name is the module's own folder (`pluginFolder`),
   only the module file is written there: the template's files go to `originals/` like a system
   template's, optional (design `originaux-modules` §9), so they follow the module's updates and
   the owner can exclude them. An example the owner had deleted before originals existed is added

@@ -744,7 +744,7 @@ Read-only project content (`plugins/Artisan/modules/` and the registered roots),
 
 ### `net.artisanmc.modules.api.project.ProjectRootRegistry`
 
-Lets an Add-on host its Project in its **own plugin dir** instead of the core `plugins/Artisan/modules/` (ADR `addon-owned-project-roots`). Call once from `onEnable(api)`.
+Lets an Add-on host its Project in its **own plugin dir** instead of the core `plugins/Artisan/modules/` (ADR `addon-owned-project-roots`, amendment 2026-11-12). Call `pluginFolder` once from `onEnable(api)`.
 
 The explicit `projectId` is a permanent immutable add-on identity, independent of
 the directory name. Registered roots cannot be renamed in the editor;
@@ -760,10 +760,11 @@ module's declared screens to find the owner.
 | `register(projectId: String, dir: File)` | `Unit` | 1.0.0 |
 | `register(projectId: String, dir: File, moduleId: String)` | `Unit` | 1.0.0 |
 | `registerConfig(projectId: String, dir: File, moduleId: String)` (`@Beta`): a root holding the module's configuration (a singleton edited by its screens), reported with `role: config` in `project_roots`; read, published and versioned like any Project, listed under the module and not among Projects | `Unit` | 1.0.0 |
-| `moduleFolder(folder: String, moduleId: String, legacyDir: File?)` (`@Beta`): `plugins/Artisan/modules/<folder>/`, created if missing and registered like `register(folder, …, moduleId)` (key `addon:<folder>`, not renamable). `legacyDir` moves there once when the folder does not exist; while both hold files, or when the move fails, `legacyDir` stays registered and is returned (SEVERE). `folder` matches `^[a-z0-9][a-z0-9_-]*$`, else `IllegalArgumentException`. The default method (a registry other than Artisan's) registers `legacyDir` and returns it, and throws `UnsupportedOperationException` without one | `File` | 1.0.0 |
+| `pluginFolder(folder: String, moduleId: String, dir: File)` (`@Beta`): `dir`, a dedicated folder of the add-on's plugin (by convention `<dataFolder>/project/`), created if missing and registered like `register(folder, …, moduleId)` (key `addon:<folder>`, not renamable). `plugins/Artisan/modules/<folder>/` (a former `moduleFolder`) moves there once when `dir` is missing or empty; a folder holding only `.artisan*` metadata is not moved. While both hold files, or when the move fails, the old folder stays registered and is returned (SEVERE). `IllegalArgumentException` for a `folder` not matching `^[a-z0-9][a-z0-9_-]*$`, a `dir` in Artisan's folder (or containing it), or a `dir` that is a plugin's data folder itself (a direct child of `plugins/`). The default method creates `dir`, registers it and returns it | `File` | 1.1.0 |
+| `moduleFolder(folder: String, moduleId: String, legacyDir: File?)` (`@Beta`, `@Sunset` since 1.1.0, removed in 2.0.0, replacement `pluginFolder`): `plugins/Artisan/modules/<folder>/`, created if missing and registered like `register(folder, …, moduleId)` (key `addon:<folder>`, not renamable). `legacyDir` moves there once when the folder does not exist; while both hold files, or when the move fails, `legacyDir` stays registered and is returned (SEVERE). `folder` matches `^[a-z0-9][a-z0-9_-]*$`, else `IllegalArgumentException`. The default method (a registry other than Artisan's) registers `legacyDir` and returns it, and throws `UnsupportedOperationException` without one | `File` | 1.0.0 |
 | Reload deferred to the next tick | | 1.0.0 |
 
-Projects merge into modules (one folder of `plugins/Artisan/modules/` per module): a new add-on calls `moduleFolder` and reads its files from the returned directory; an add-on that registered a root passes it as `legacyDir`, with the project id it used as `folder`, so its Versions, drafts and qualified references (`<folder>:<id>`) follow.
+An add-on calls `pluginFolder` and reads its files from the returned directory: deleting its plugin folder uninstalls it, copying it moves it to another server. An add-on that called `moduleFolder` passes the same `folder`, so its Versions, drafts and qualified references (`<folder>:<id>`) follow the move. Before 1.1.0 (2026-10-19 to 2026-11-12) `moduleFolder` kept the files in `plugins/Artisan/modules/<folder>/`.
 
 Registering reloads the projects on the next server tick, once the caller's `onEnable` has returned: bootstrap content written after `register` is read, and the `onReload()` of the module owning the root runs then (it used to be every module's). That reload reads the registered roots only, and the roots registered before that tick make one. Before internal 1.8.0 the reload ran inside `register`, calling the add-on's own `onReload()` while its `onEnable` was still running, and files written afterwards stayed invisible until `project.reload()`.
 
@@ -788,7 +789,7 @@ Registering reloads the projects on the next server tick, once the caller's `onE
 | `api.gameevent`, `api.cooldown` (internal 2.16.0) | no add-on yet |
 | `CommandArgument.suggestions`, `SuggestionProvider`, `SuggestionContext` (internal 2.14.0) | one add-on (ArtisanGuilds) |
 | `MessageBundleDeclaration.inFolder`, `getFolder` (internal 2.17.0) | one version old |
-| `ProjectContentApi.documents`, `ProjectRootRegistry.registerConfig`, `moduleFolder` | members of `@Stable` types, marked `@Beta` on their own |
+| `ProjectContentApi.documents`, `ProjectRootRegistry.registerConfig`, `moduleFolder`, `pluginFolder` | members of `@Stable` types, marked `@Beta` on their own |
 
 ## Deprecated APIs
 
@@ -796,6 +797,7 @@ Registering reloads the projects on the next server tick, once the caller's `onE
 |---|---|---|---|
 | `DataSourceDeclaration.schemaHint` | internal 1.3.0 | internal 2.0.0 (done) | `schema` |
 | `ModuleMessagesApi`, `ArtisanAPI.messages` | internal 1.8.0 | internal 2.0.0 (done) | none — nothing receives the messages |
+| `ProjectRootRegistry.moduleFolder` | 1.1.0 | 2.0.0 | `pluginFolder` (the add-on's files back in its own plugin folder) |
 
 Deprecated (`@Deprecated`), kept with no removal planned (decision of 2026-10-21: Artisan bundles Adventure, so nothing forces an API 3.0 for Spigot): `MessageBundle.get(...)` (use `send`, `legacy`, or `raw` + `format`), `MenuCloseEvent.getReason()` and its constructor with `InventoryCloseEvent.Reason` (use `getCloseReason()` and the constructor with `MenuCloseReason`). `getReason()` exists only on Paper (Spigot lacks Paper's type). `get` works on Spigot too, since Artisan bundles Adventure, but a plugin cannot send its `Component` there itself: Spigot has no `sendMessage(Component)`.
 

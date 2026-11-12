@@ -5,8 +5,8 @@ sidebar:
   order: 2
 ---
 
-A **project** is a folder on a Minecraft server: `plugins/Artisan/modules/<folder>/` (or the
-folder an add-on registers). Everything you build in the editor (menus, commands, dialogs,
+A **project** is a folder on a Minecraft server: `plugins/Artisan/modules/<folder>/`, or an
+add-on's own folder in its plugin (`plugins/ArtisanConversations/project/`). Everything you build in the editor (menus, commands, dialogs,
 images) lives in one.
 
 ```
@@ -15,7 +15,9 @@ plugins/Artisan/modules/
 │   ├── menus/shop.yml
 │   ├── commands/spawn.yml
 │   └── assets/…
-└── boutique_addon/    ← the shop add-on's project
+└── …
+plugins/ArtisanConversations/
+└── project/           ← the conversations add-on's project
 ```
 
 In a network, the editor also lists each leaf server's projects as `<server>.<folder>`, for

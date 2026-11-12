@@ -135,6 +135,51 @@ class ProjectRoots(
     }
 
     /**
+     * [dir], a dedicated folder of the add-on's plugin, registered under [folder] with the
+     * `addon:<folder>` key. `<coreRoot>/<folder>` (its former [moduleFolder]) moves there once, when
+     * [dir] is missing or empty; while both hold files, or when the move fails, the former folder
+     * stays the root. Uninstalling the add-on is then deleting its plugin folder.
+     */
+    override fun pluginFolder(folder: String, moduleId: String, dir: File): File = synchronized(registryLock) {
+        require(FOLDER.matches(folder)) { "invalid module folder '$folder'" }
+        val target = dir.absoluteFile
+        val artisanDir = coreRoot.absoluteFile.parentFile
+        require(!target.canonicalFile.startsWith(artisanDir.canonicalFile) && !artisanDir.canonicalFile.startsWith(target.canonicalFile)) {
+            "module '$moduleId': ${dir.path} is in Artisan's folder; pass a folder of the add-on's own plugin"
+        }
+        val pluginsDir = artisanDir.parentFile?.canonicalFile
+        require(pluginsDir == null || target.canonicalFile.parentFile != pluginsDir) {
+            "module '$moduleId': ${dir.path} is a plugin's data folder, where every file would be project content; pass a sub-folder such as ${File(dir, "project").path}"
+        }
+        // Its metadata alone (`.artisan/project-id`, stamped by moduleFolder) is not content worth moving.
+        val former = File(coreRoot, folder).takeIf { it.isDirectory && it.list().orEmpty().any { name -> !name.startsWith(".artisan") } }
+        if (former != null) {
+            if (!target.list().isNullOrEmpty()) {
+                logger?.severe(
+                    "[Artisan] Module '$moduleId': both ${former.path} and ${target.path} hold files, ${former.path} stays " +
+                    "the module's folder. Merge them into ${target.path} and delete ${former.path}.",
+                )
+                register(folder, former, moduleId)
+                return@synchronized former
+            }
+            try {
+                target.parentFile?.mkdirs()
+                if (target.isDirectory) java.nio.file.Files.delete(target.toPath())
+                ModulesRootMigration.move(former, target)
+            } catch (e: java.io.IOException) {
+                logger?.severe("[Artisan] Module '$moduleId': could not move ${former.path} to ${target.path} (${e.message}), it keeps its old folder.")
+                register(folder, former, moduleId)
+                return@synchronized former
+            }
+            logger?.info("[Artisan] Module '$moduleId' moved from ${former.path} to ${target.path}.")
+        }
+        target.mkdirs()
+        stampModuleKey(folder, target)
+        register(folder, target, moduleId)
+        return@synchronized target
+    }
+
+    /**
      * A module's folder sits in the core root, where it is a plain folder until its module
      * registers it (seconds after the editor answers, at startup). Its key file says `addon:<folder>`
      * so that window reads the same key: else a request then gets a new UUID, and the owner's
