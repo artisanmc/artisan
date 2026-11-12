@@ -419,7 +419,9 @@ class AiAssistantTest {
         assertEquals(202, editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "un menu VIP")).status)
         val deadline = System.currentTimeMillis() + 5000
         var read = editor("GET", "${AiRoutes.CONVERSATIONS}/$id")
-        while (read.body!!["live"]?.get("tools") == null && System.currentTimeMillis() < deadline) {
+        // `tools` is there (empty) from the first text: wait for the tool's input itself.
+        while (read.body!!["live"]?.get("tools")?.get(0)?.get("input")?.asText()?.endsWith("\"title: V") != true &&
+            System.currentTimeMillis() < deadline) {
             Thread.sleep(20)
             read = editor("GET", "${AiRoutes.CONVERSATIONS}/$id")
         }
