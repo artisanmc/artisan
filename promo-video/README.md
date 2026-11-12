@@ -16,6 +16,7 @@ npm run routes                 # génère editor/src/routeTree.gen.ts (ignoré p
 npm run render                 # → out/artisan-promo.mp4 (1080p, 30 i/s)
 npm run still -- item out/item.png --frame=120    # une image d'une scène
 npm run gifs                   # les scènes de l'éditeur en GIF sans titre → out/gifs/ (800×450, 10 i/s)
+npm run clips                  # les mêmes scènes en MP4 1080p sans titre → out/clips/ (bannières de la page de vente)
 npm run typecheck
 ```
 

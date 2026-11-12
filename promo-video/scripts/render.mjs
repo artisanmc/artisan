@@ -3,6 +3,7 @@
 //   node scripts/render.mjs still item out/item.png --frame=60
 //   node scripts/render.mjs render item out/item.mp4
 //   node scripts/render.mjs gifs [scène…]        les scènes de l'éditeur en GIF, sans titre → out/gifs/
+//   node scripts/render.mjs clips [scène…]       les mêmes en MP4 1080p, sans titre → out/clips/
 // Le montage rend chaque scène de src/order.json dans son propre navigateur, à un seul onglet, puis
 // colle les fichiers : une scène modifie l'éditeur (saisie, brouillon), elle doit donc partir d'un
 // éditeur neuf et jouer ses images dans l'ordre.
@@ -59,6 +60,14 @@ if (command === "gifs") {
     "--codec=gif",
     "--every-nth-frame=3",
     "--scale=0.5",
+    `--props=${JSON.stringify({ captions: false })}`,
+  ]);
+} else if (command === "clips") {
+  // La source des bannières animées de la page de vente (website, listings/banners).
+  const ids = rest.length > 0 ? rest : scenes.filter((id) => !TITLES.includes(id));
+  mkdirSync("out/clips", { recursive: true });
+  code = await renderScenes(ids, (id) => `out/clips/${id}.mp4`, [
+    "--crf=12",
     `--props=${JSON.stringify({ captions: false })}`,
   ]);
 } else if (command) {
