@@ -21,10 +21,59 @@ editor — a single server, or the hub of a network — it listens on `web.port`
 Settings live under `web` in [environment.yml](../environment/#web)
 and apply after a restart.
 
+## Pick a setup
+
+| Your situation | Setup | What to set in `environment.yml` |
+|---|---|---|
+| Shared host, no port to open, or just trying Artisan | [Tunnel server](#through-a-tunnel-server-preview-the-default) (default) | Nothing |
+| Your own machine, a domain, HTTPS | [Reverse proxy](#https-behind-a-reverse-proxy) (Caddy, nginx, Cloudflare Tunnel) | `web.bind: "127.0.0.1"`, `web.url: "https://editor.example.com"` |
+| LAN or local test | [Plain HTTP](#plain-http-on-the-port) | `web.tunnel: ""`, then open port 8765 |
+
+## Through a tunnel server (preview, the default)
+
+For hosts that give no port to open. Unless `web.url` is set, the hub connects **out**
+to the Artisan tunnel server (`connect.artisanmc.app`), which gives the editor an
+`https://<id>.artisanmc.app` address and passes each request to the plugin unchanged.
+Nothing to configure:
+
+```yaml
+# plugins/Artisan/environment.yml (the default)
+web:
+  tunnel: "connect.artisanmc.app"
+  tunnel-access: ""          # the code, if the tunnel server is private
+```
+
+After a restart, the console shows `Editor reachable through the tunnel server at
+https://<id>.artisanmc.app`, and `/artisan editor` links use that address.
+`<id>` comes from `plugins/Artisan/tunnel-secret`: it stays the same across restarts.
+
+**A name for the address.** In the editor, **Settings → Editor address** (with
+`artisan.editor.config`) gives it a name: `https://survie.artisanmc.app` then answers like
+the `<id>` address, which keeps working. One name per server, or per network on a shared
+database; first come, first served. A name is freed after 90 days without the server
+connecting. Names of the tunnel server, of brands people sign in to and of phishing words
+(`login`, `verify`…) are refused. Taking a name gives you a link that signs you in on the new
+address; `/artisan editor` links use it from then on.
+
+What to know:
+
+- The tunnel server sees the traffic in clear text (it holds the TLS certificate),
+  including the session cookie. `tunnel: ""` turns it off: browsers then reach
+  `web.port` directly, or `web.url`.
+- The editor itself still comes from your plugin: the tunnel server only passes bytes.
+- Players do not download the resource pack through the tunnel: when Artisan sends it
+  itself, they fetch it from `web.url`, else from `http://<server-ip>:<web.port>`. Set
+  `web.url`, or delegate the pack to a [pack plugin](../resource-packs/).
+- `web.url`, when set, replaces the tunnel: no tunnel is opened.
+- Only the hub of a network opens a tunnel. A leaf with no port to its hub sets
+  `web.hub` to the hub's tunnel address, `https://<id>.artisanmc.app`: it reaches
+  `/ws/plugin` and downloads its pack through the tunnel too. On the same machine or
+  private network, the internal address (`web.hub: "hub"`) is faster.
+
 ## Plain HTTP on the port
 
-The default. Nothing to configure: open port 8765 to the people who use the editor,
-and `/artisan editor` links point to `http://<address you joined with>:8765`.
+Turn the tunnel off (`web.tunnel: ""`) and open port 8765 to the people who use the editor:
+`/artisan editor` links then point to `http://<address you joined with>:8765`.
 
 Fine on a LAN or for testing. On the internet, prefer HTTPS: the sign-in link and
 the session cookie travel in clear text over plain HTTP.
@@ -115,127 +164,6 @@ ingress:
 Then `cloudflared tunnel route dns <tunnel> editor.example.com` and set
 `web.url: "https://editor.example.com"`. Cloudflare limits request bodies to 100 MB on
 the Free and Pro plans, which matches Artisan's resource pack limit.
-
-## Through a tunnel server (preview, the default)
-
-For hosts that give no port to open. Unless `web.url` is set, the hub connects **out**
-to the Artisan tunnel server (`connect.artisanmc.app`), which gives the editor an
-`https://<id>.artisanmc.app` address and passes each request to the plugin unchanged.
-Nothing to configure:
-
-```yaml
-# plugins/Artisan/environment.yml (the default)
-web:
-  tunnel: "connect.artisanmc.app"
-  tunnel-access: ""          # the code, if the tunnel server is private
-```
-
-After a restart, the console shows `Editor reachable through the tunnel server at
-https://<id>.artisanmc.app`, and `/artisan editor` links use that address.
-`<id>` comes from `plugins/Artisan/tunnel-secret`: it stays the same across restarts.
-
-**A name for the address.** In the editor, **Settings → Editor address** (with
-`artisan.editor.config`) gives it a name: `https://survie.artisanmc.app` then answers like
-the `<id>` address, which keeps working. One name per server, or per network on a shared
-database; first come, first served. A name is freed after 90 days without the server
-connecting. Names of the tunnel server, of brands people sign in to and of phishing words
-(`login`, `verify`…) are refused. Taking a name gives you a link that signs you in on the new
-address; `/artisan editor` links use it from then on.
-
-What to know:
-
-- The tunnel server sees the traffic in clear text (it holds the TLS certificate),
-  including the session cookie. `tunnel: ""` turns it off: browsers then reach
-  `web.port` directly, or `web.url`.
-- The editor itself still comes from your plugin: the tunnel server only passes bytes.
-- Players do not download the resource pack through the tunnel: when Artisan sends it
-  itself, they fetch it from `web.url`, else from `http://<server-ip>:<web.port>`. Set
-  `web.url`, or delegate the pack to a [pack plugin](../resource-packs/).
-- `web.url`, when set, replaces the tunnel: no tunnel is opened.
-- Only the hub of a network opens a tunnel. A leaf with no port to its hub sets
-  `web.hub` to the hub's tunnel address, `https://<id>.artisanmc.app`: it reaches
-  `/ws/plugin` and downloads its pack through the tunnel too. On the same machine or
-  private network, the internal address (`web.hub: "hub"`) is faster.
-
-## AI clients (MCP, preview)
-
-With `web.mcp: true` in `environment.yml`, the editor's address also answers the
-[Model Context Protocol](https://modelcontextprotocol.io) at `/mcp`. A player adds
-`https://<editor address>/mcp` as a custom connector in Claude, ChatGPT or another MCP client
-(Settings → AI apps in the editor shows the address to copy).
-
-- **Sign-in**: the client opens the editor's consent page. The player signs in as usual
-  (`/artisan editor`), sees which client asks, and allows or denies it. The client then acts
-  as that player, with their editor permissions less `artisan.editor.config`, and less
-  `artisan.editor.publish` unless the player lets it deploy (below). It needs `artisan.editor.edit`.
-- **What it can do**: list the servers, Projects and Documents; read files; read the JSON
-  schema of a Document kind; start a draft and write files into it. Each file is checked by the
-  Project's server (path, YAML, schema, the modules' actions, engine) before it enters the draft.
-- **Deploying is off by default.** The draft shows up in the player's Drafts in the editor; the
-  player reviews the changes and clicks Deploy. A player who holds `artisan.editor.publish` can
-  let a client deploy: the box "Also let it deploy" on the consent page, or the "Can deploy"
-  switch in Settings → AI apps. The client then shows the changes and deploys only after the
-  player says yes, with the same checks as the editor's Deploy: a draft changed since, or server
-  files changed since it started, are not deployed, and a file the server would not load refuses
-  the whole deploy. Each deploy is a Version marked "<player> via <client>" in the history; the
-  client can roll a Project back to an earlier Version, as Restore does in the editor. A client allowed to deploy can also create a new, empty module when
-  you ask for one; what goes in it still waits for a deployed draft.
-- **Resource pack**: a client can read the state of a server's resource pack
-  built by the hub and, when allowed to deploy, rebuild it. For now the hub only builds and
-  compares its pack with the one the editor sends; players still get the editor's.
-- **Revoking**: Settings → AI apps lists the connected clients; Disconnect cuts one off at its
-  next call. Losing `artisan.editor.edit` in game cuts every client of that player; losing
-  `artisan.editor.view` removes them.
-
-The endpoint needs an HTTPS address the AI provider can reach: the tunnel server's (the
-default), or `web.url` behind a reverse proxy. A reverse proxy must pass `/mcp`, `/oauth/` and
-`/.well-known/` to the editor, with `X-Forwarded-Proto` and `Host`.
-
-## The editor's assistant (preview)
-
-Once the assistant has a model and a key, the editor's top bar shows an Assistant button (✦) on a
-Project. Set them in **Settings → Assistant** (needs `artisan.editor.config`): they are saved in the
-suite database, used by the whole network and applied without a restart. The key is never shown
-again, only its last four characters. An [`ai` section](../environment/#ai) in the hub's
-`environment.yml` does the same and wins over the editor. Players with `artisan.editor.edit` describe what they
-want (a menu, a command, a change to a dialog), and the assistant does it in a draft:
-
-- It runs on **your** model account: the key pays for every message of every player who
-  uses it. The key stays on the hub; the browser never sees it.
-- It uses the same tools as [AI clients](#ai-clients-mcp-preview): it reads the modules, starts
-  a draft and writes files into it, each file checked by the module's server first. Asked for a
-  new module, it creates it (empty) if you hold `artisan.editor.publish`. It never
-  deploys, even for a player who let an AI client deploy: the panel offers to open the draft in
-  Drafts, where the player reviews it and deploys.
-- The server page has an **Assistant** tab: the conversation in the middle, your conversations on
-  the left, and each file the assistant writes on the right, naming its project. A menu shows as
-  the game would (click it as in Play mode), any file as YAML with what changes against the
-  server. There the assistant works across every project of the server, one draft per project;
-  **Review and deploy** opens Deploy's review with all of them picked. **Expand** in the panel
-  opens the same conversation in the tab.
-- **Translate the missing ones**: unfold a translatable field (its translations button) and click
-  "Translate the missing languages", or open the Translations page and click "Translate the N
-  missing ones" for the whole module. The model fills the empty languages from the default one;
-  the result changes your module like typing would, so you review it and deploy as usual. A
-  translation that loses a placeholder such as `{player}` is not written.
-- The answer shows as the model writes it, and the Assistant tab shows each file while it is
-  being written, before the server checks it.
-- **Files**: the paperclip under the message box attaches up to 5 files to a message, from your
-  computer or from the server's modules (a module, then its text files and images); you can also
-  drop or paste them. The model sees images (a screenshot, a texture, up to 3.7 MB) and PDFs (up to
-  6 MB) as they are, and reads text files (another plugin's menu to convert, a config, up to
-  200,000 characters) as text. Up to 6 MB per message and 16 MB per conversation: each file is
-  sent again at every step of the conversation, so start a new one for a new batch.
-- A message runs at most "Steps per message" model calls (`ai.max-steps`); the assistant then stops and says so.
-- Conversations are saved in the suite database: after a restart or a change of the settings, the
-  assistant takes them back where they stopped (with another model, from a summary of what was said).
-  Each player keeps their last 10, for 30 days after their last message.
-
-```yaml
-ai:
-  provider: "anthropic"
-  api-key: "${ANTHROPIC_API_KEY}"
-```
 
 ## Networks and `/ws/plugin`
 

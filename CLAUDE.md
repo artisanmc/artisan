@@ -31,24 +31,23 @@ read it, do not guess it.
 
 Not updating = the next session will not know the code changed.
 
-## Reference docs
+## Where to find things
 
-| Doc | Contents |
-|---|---|
-| `CONTEXT.md` | Domain glossary — **source of truth for terms**. |
-| `docs/architecture/invariants.md` | The critical invariants in detail (disk, CAS, exclusions, threads). |
-| `docs/architecture/modules.md` | Modular monolith: module abstraction, data sources + commands, how to add one. |
-| `docs/architecture/versioning.md` | The disciplines (CHANGELOG, versioned schemas, protocol version, REST `/api/v1/`). |
-| `docs/architecture/api-surface.md` | Stable public API surface (`@Stable`/`@Beta`/`@Internal`/`@Sunset`). |
-| `docs/architecture/ws-protocol.md` | Hub ↔ server messages (`/ws/plugin`) + `/ws/editor`. |
-| `docs/architecture/rest-endpoints.md` | Index of the hub's routes (which `*Routes.kt` to open) + conventions. |
-| `docs/architecture/entities.md` | What persists where (disk, suite database, hub memory), auth, history. |
-| `docs/architecture/editor-internals.md` | Title composer, Document editing, canvas, UI shell, design system. |
-| `docs/architecture/project-files.md` | Layout of a project on disk, `lang/` codec, `title` field. |
-| `docs/architecture/plugin-commands.md` | Detail of the `/artisan` subcommands. |
-| `docs/architecture/testing.md` | Suite coverage + conformance vectors. |
-| `docs/architecture/schemas-codegen.md` | JSON schemas ↔ editor/plugin types. |
-| `docs/decisions/` | ADRs (`editor-web-server`: the hub). `docs/specs/`: product specs; `docs/archive/specs/`: past designs (see its README). |
+**`docs/README.md` is the index: one line per question** ("what is stored where?", "which REST
+route?", "what may an add-on import?") with the file to open. The ones to read before most tasks:
+
+- `CONTEXT.md`: domain glossary, **source of truth for terms**.
+- `docs/architecture/invariants.md`: what must never break.
+- `docs/decisions/`: ADRs. A proposal that contradicts one says so explicitly.
+
+`docs/site/` is the public wiki (admins, add-on developers). `docs/archive/` describes the
+pre-hub product (cloud backend, V1 roadmap): never cite it as current behavior.
+
+**Add-ons live in their own repos** and only import `net.artisanmc.modules.api.*`
+(`artisan-core-api`, Maven `repo.artisanmc.net/releases`, numbered from 1.0.0):
+`artisan-conversations`, `artisan-quests`, `artisan-store`, `artisan-auctions`,
+`artisan-daily-rewards`, `artisan-attribution`, MSGuilds. An API change here = a `Since` line in
+`docs/architecture/api-surface.md` and, if an add-on needs it, its `MIN_API_VERSION`.
 
 ## Commands
 
@@ -85,12 +84,13 @@ catalogue, the icon zips go to the CDN by hand). Detail: `tools/minecraft-assets
 
 ```
 editor/          React 19 + Vite + Konva — served by the plugin (hub)
-plugin/          Kotlin 2.0 + Paper: api · core · database · hub (Jetty 12) · paper
+plugin/          Kotlin 2.0 + Paper: api · core · database · hub (Jetty 12) · pack · runtime · paper
+                 · tunnel / tunnel-server (editor tunnel) · geyser-extension (proxy Geyser)
 docker/          Local Minecraft servers (itzg/minecraft-server), network in docker/network/
 tools/minecraft-assets/  Bun generators for vanilla MC assets (items, 3D icons, glyph widths, padded fonts)
 docs/site/       Public user docs (EN, Starlight Markdown) — assembled by artisanmc.net
 docs-site/       Astro Starlight build of docs/site/, served at artisanmc.net/wiki
-docs/            architecture/ · archive/ · decisions/ · specs/ · schema/
+docs/            README.md (index) · architecture/ · decisions/ · schema/ · site/ · archive/
 ```
 
 **No backend** — the plugin serves the editor, the `/api/v1/…` API and the WebSockets on `web.port`

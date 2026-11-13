@@ -44,7 +44,7 @@ connect to the hub. The name is a label: the server is identified by the id in
 | `web.tunnel` | `"connect.artisanmc.app"` | Preview. The Artisan tunnel server the hub connects out to when `web.url` is empty: it gives the editor an `https://<id>.artisanmc.app` address, used by `/artisan editor` links. No port to open. `""`: no tunnel. Ignored on a leaf. See [Through a tunnel server](../web-server/#through-a-tunnel-server-preview-the-default). |
 | `web.tunnel-access` | `""` | The access code a private tunnel server asks for. |
 | `web.pack-cdn` | `"cdn.artisanmc.net"` | Where the hub uploads the resource pack the editor builds; players download it from there when Artisan sends the pack itself. Public, deleted 30 days after its last use. `""`, or the host unreachable: players download it from `web.url` or `web.port`. Ignored on a leaf. See [Resource packs](../resource-packs/#direct-sending). |
-| `web.mcp` | `false` | Preview. Serves an MCP endpoint at `<editor address>/mcp`, so a player can connect an AI client (Claude, ChatGPT, an IDE) to Artisan: the client reads the Projects and writes drafts, which the player reviews and deploys in the editor. The client cannot deploy. See [AI clients](../web-server/#ai-clients-mcp-preview). |
+| `web.mcp` | `false` | Preview. Serves an MCP endpoint at `<editor address>/mcp`, so a player can connect an AI client (Claude, ChatGPT, an IDE) to Artisan: the client reads the Projects and writes drafts, which the player reviews and deploys in the editor; deploying from the client is off unless the player allows it. See [AI clients](../ai/#ai-clients-mcp). |
 
 On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no port.
 
@@ -53,16 +53,16 @@ On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no por
 Preview. The editor's assistant, on your own model account. Read by the hub only, never sent to
 the editor. You can leave it out and set the assistant from the editor instead (**Settings →
 Assistant**), once for the whole network. When this section names a `provider`, it wins: the
-editor shows its values read-only. See [The editor's assistant](../web-server/#the-editors-assistant-preview).
+editor shows its values read-only. See [The editor's assistant](../ai/#the-editors-assistant).
 
 | Key | Default | Meaning |
 |---|---|---|
-| `ai.provider` | `""` | `"anthropic"`. Empty: no assistant. |
+| `ai.provider` | `""` | `"anthropic"` (Anthropic's Messages API) or `"openai"` (any OpenAI-compatible API: OpenAI, DeepSeek, Mistral, OpenRouter, Ollama…). Empty: no assistant. |
 | `ai.api-key` | `""` | The provider's API key. Write `"${ANTHROPIC_API_KEY}"` to read it from the environment instead of the file. Every message of every player who uses the assistant is billed to it. |
 | `ai.model` | `"claude-opus-5-5"` | The model the assistant runs on. |
-| `ai.effort` | `"medium"` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the model thinks, and how many tokens it spends. |
+| `ai.effort` | `"medium"` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the model thinks, and how many tokens it spends. `anthropic` only. |
 | `ai.max-steps` | `25` | Model calls one message may make (1 to 100). The assistant stops there and says so; the next message lets it go on. |
-| `ai.base-url` | `""` | Another address for the API: a proxy, or another vendor's compatible API (DeepSeek: `https://api.deepseek.com/anthropic`). Empty: Anthropic's. |
+| `ai.base-url` | `""` | Another address for the API: a proxy, or another vendor's compatible API. With `anthropic`: DeepSeek `https://api.deepseek.com/anthropic`. With `openai`: DeepSeek `https://api.deepseek.com`, Mistral `https://api.mistral.ai/v1`, OpenRouter `https://openrouter.ai/api/v1`, Ollama `http://localhost:11434/v1`. Empty: the provider's own (Anthropic, OpenAI). |
 
 ## `database`
 

@@ -1,1 +1,0 @@
-- **Changed**: the editor's assistant calls Anthropic's Messages API over plain HTTP instead of the official Java SDK. Same requests, same stored conversations; the jar loses about 16 MB.

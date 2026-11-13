@@ -12,6 +12,368 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-12
+
+- **Added**: `ProjectRootRegistry.pluginFolder(folder, moduleId, dir)` (API 1.1.0) keeps an add-on's
+  files in its own plugin folder (`plugins/<Plugin>/artisan_module/`), so deleting that folder uninstalls
+  it. `plugins/Artisan/modules/<folder>/` moves there once, with its Versions and drafts; while both
+  hold files, the old folder stays in use and the console says so.
+- **Deprecated**: `ProjectRootRegistry.moduleFolder`, replaced by `pluginFolder` (removed in API 2.0.0).
+- **Added** (preview): the editor's assistant also runs on OpenAI-compatible APIs (OpenAI,
+  DeepSeek, Mistral, OpenRouter, a local Ollama): pick "OpenAI-compatible" in Settings →
+  Assistant, then a known address in one click. A file the model cannot read (an image for
+  DeepSeek) is refused before the message is sent.
+- **Added**: Editor SDK 1.20: `useItemTexture`, the texture of an item as the editor's item
+  fields show it, and `ItemValueInput`, the item field of the generated form. A module's own
+  Config screen view can draw and edit items with them, such as a grid of daily rewards.
+- **Fixed**: A module page opened directly (reload or link) showed only the owner's files: the
+  Documents the module ships, of a kind its view registers after the read, were left out, and
+  an autosave then recorded that partial state. They are now read when the kind arrives.
+- **Fixed**: A module's home page counted the Documents of the project as it was opened: those
+  read once the module's kinds arrived showed in the sidebar but not on the page (0 everywhere).
+- **Fixed**: The resource pack ignored what a module ships in `originals/`: a shipped HUD mode
+  asked for no image and the shipped textures were not packed, so ArtisanConversations' HUD fell
+  back to the chat. The pack now reads them, the owner's file winning.
+- **Fixed**: The editor's asset library and module previews (a HUD mode's box, its cursor) did
+  not see the images a module ships in `originals/assets/`. They are listed, read-only, under
+  the owner's.
+- **Added** (preview): the editor's assistant shows its answer as the model writes it, and the
+  Assistant tab shows each file while it is being written, before the server checks it.
+- **Added**: `resource-pack.hide-inventory-label` in `config.yml` (default `false`, also in the editor's server settings): the Java pack empties the "Inventory" label the client writes under every container window (`container.inventory`, in all 143 languages of the game), for menus with `player_inventory: hidden`. The label is client-side, so it goes for every container of players with the pack. Both builders (editor and hub) read it; saving it from the editor rebuilds the pack.
+- **Fixed**: Artisan's console lines no longer show `[Artisan] [Artisan]`.
+- **Changed**: the editor's 3D item icons no longer ship in the jar (about 15 MB): the hub downloads them once from `cdn.artisanmc.net` (or the `web.pack-cdn` host), checked against a SHA-256 the jar carries, into `cache/minecraft/icons/`. Without the CDN, items show their flat texture.
+- **Added**: 3D item icons for Minecraft 26.1.2, 26.2 and 26.3.
+- **Changed**: the editor's assistant calls Anthropic's Messages API over plain HTTP instead of the official Java SDK. Same requests, same stored conversations; the jar loses about 16 MB.
+- **Fixed**: A multi-line text layer of a menu title placed above the text fonts' top (y below 5 at
+  size 8) lost every line in game while the editor showed it. Its lines now start at that top, as a
+  single-line text layer does.
+- **Changed**: The hub now builds and applies each server's Java resource pack itself, as it already
+  did for the Bedrock one, after every reload of that server's modules. A publication made without
+  an editor tab (`/artisan reload`, an AI app through MCP) now reaches Java players too. The editor
+  no longer builds the pack in the browser: after a publication or a config change it asks the hub
+  (`POST /api/v1/servers/<id>/resource-pack/rebuild`), and falls back to its own build on a hub
+  without that route. `resource_pack_status` answers `mode: "server"` and the Java pack the server
+  has (`applied_sha1`).
+- **Added**: Anonymous usage statistics on bStats: install and player counts, plus the active
+  modules (Artisan's and the suite's; others count as `other`), the hub/leaf role, the database
+  type and the language. Turned off for every plugin by `enabled: false` in
+  `plugins/bStats/config.yml`.
+
+## [1.0.0] - 2026-11-02
+
+- **Changed**: a data file a module's screen edits (the conversations' `data/speakers.yml`) no longer has its own row in the folder's tree: the screen's row under the module opens the module's view, where the second row opened the generic form. An old `…/data/<id>` link shows the screen's form.
+- **Added**: HUD layers (`@Beta`). Artisan owns the action bar: a module shows a named layer there with `api.getOverlay().show(player, Slot.ACTION_BAR, layer, priority, text)` and `hide`s it; Artisan draws every layer together by priority and keeps them on screen, so two modules no longer erase each other. The pieces of a layer come from the same interface: `raise(text, rise)` draws text up to 128 px higher or 166 px lower, `move(px)` shifts the pen, `image(asset, rise)` draws an image of the pack at a height, `width(text)` measures text, `hasPack(player)` says whether the player's client loaded the pack. The pack always carries the rising fonts `artisan:text_up0..128` (the vanilla font textures with taller cells, `tools/minecraft-assets/gen-padded-fonts.ts`).
+- **Added**: editor SDK 1.13 also brings `DocumentKindContribution.pack.images(src)`, which lists the images a kind's files draw at a height; the pack gets one font per (asset, rise), an image wider than 256 px cut into slices the plugin joins again. A 1.12 bundle still loads.
+- **Changed**: when the resource pack cannot be rebuilt after a deploy, the editor's notice now gives the reason (the read that failed), where it was only in the browser console.
+- **Added**: Editor SDK 1.19: `PageTour`, the editor's guided tour over a module's own steps. A
+  module opens it from its own button to walk the player through one of its pages, each step
+  spotlighting an element of the page.
+- **Changed**: public numbering. The plugin and its add-on API (`net.artisanmc:artisan-core-api`)
+  start at **1.0.0**. The API surface that was numbered 2.25.0 internally is API 1.0.0: every
+  member is `Since 1.0.0`, `ArtisanAPI.getApiVersion()` returns `1.0.0`, and the `@Sunset`
+  members announced for removal in 3.0.0 now go in 2.0.0. An add-on built against an internal
+  2.x API recompiles against 1.0.0 unchanged, but must lower its own minimum (`isCompatibleWith`,
+  `MIN_API_VERSION`) to `1.0.0`: a 1.0.0 server refuses a 2.x minimum.
+- **Fixed**: The color and gradient popover keeps one height across its two tabs.
+- **Fixed**: A translation offers only what its text allows in game: no hover or click action on a lore or a menu title.
+- **Fixed**: Obfuscated text is scrambled in the text previews and marked by a moving hatch in the rich editor; its toolbar icon no longer reuses the assistant's.
+- **Added**: A text palette per server: named colors and gradients in `config.yml` (`text-palette.colors`, `text-palette.gradients`), edited from the server page's Settings tab and offered first by the MiniMessage toolbar in every module of the server.
+- **Added**: Formatting with nothing selected in the rich MiniMessage editor: bold, italic, a color, a gradient, a style, a click or hover action chosen at the caret applies to the text typed next, as in a word processor. Chosen again, a decoration is cancelled; moving the caret drops it.
+- **Changed**: The rich MiniMessage editor replaces the plain source fields wherever MiniMessage is typed: menu title, text layers of a textured title, button title and lore, action texts, translations, `minimessage` data values and module fields. Its toolbar shows while the field is edited, and `%…%` server placeholders are offered as before.
+- **Changed**: Color and gradient share one toolbar button, with a tab each.
+- **Added**: Variables (`variables/<id>.yml`, `schema: variable/v1`): a named value of type text,
+  number, true/false or place, one per player or one for the server, with an optional default and
+  lifetime. Chains write it with `set_var`, `add_var` and `clear_var`; conditions, texts and
+  arguments read it as `var.<id>`, `has_var` says whether a value is stored. Values are kept in the
+  suite database (table `artisan_vars`), survive a restart and follow a player across a network.
+  PlaceholderAPI reads them, and module Variables, as `%artisan_var_<name>%`.
+- **Added**: `chat_button`: a chat line with a button that only the player it was sent to can
+  click, a given number of times before it expires, and that runs its own actions.
+- **Added**: The Game event `variable_changed`, fired when a Variable is written or a module
+  reports a change (`VariableRegistry.changed`, `ModelFieldType.location()`,
+  `VariableType.LOCATION`).
+- **Added**: `player.location`, and `player.vanished`, which reads the vanish plugins'
+  `vanished` metadata (EssentialsX, SuperVanish, PremiumVanish).
+- **Added**: The editor's condition list offers project and module Variables (`is true`,
+  comparisons, `is set`), the `{` autocomplete lists them, and an `expression` that is a
+  placeholder alone (always true) is flagged.
+- **Changed**: A number, true/false or place argument of an action accepts a template resolved when
+  the action runs (`give_money: "{var.reward}"`). One that does not resolve skips the action with
+  a warning in the console. `teleport` takes a `location` (`teleport: "{var.last_death}"`);
+  `world/x/y/z` are still read, and a missing world no longer teleports to 0, 0, 0.
+- **Fixed**: An edit made in the editor right after the server restarted could land in a second
+  draft of a module: for the few seconds before the module registered its folder, the folder was
+  addressed by a new id. A module's folder now keeps its module id in `.artisan/project-id`, so it
+  is the same project from the first request.
+- **Changed**: A module's shipped menus, dialogs, commands and variants now live in its
+  `originals/` folder, written by the server only; the module's folder keeps only what you changed
+  or added, and your file wins over the original of the same id. Untouched copies are removed at
+  the first start, edited ones stay yours and still receive the module's updates through the
+  three-way merge (deleted when they end up identical to the shipped file). A seed into the
+  module's own folder works the same way: its examples follow the module's updates, and one you
+  delete is listed under `originals: { exclude: [...] }` in `artisan-module.yml`. The menus and
+  dialogs the module's code opens (`.system()`) are required and cannot be excluded.
+  In the editor, each document of a module shows whether it is the module's, modified or yours,
+  with **Compare with the original** and **Back to the original**; only documents that differ from the module's are
+  written. **View as > Module original** shows what the module ships, read-only, in the variant
+  viewed. AI apps (MCP) see each document's origin and cannot write into `originals/`.
+  Going back to an older Artisan after this: copy the contents of `originals/` to the module's
+  folder (without overwriting your files) first, or its shipped documents disappear.
+- **Added** (preview): files in the editor's assistant. A message can carry up to 5 files, uploaded
+  from your computer (paperclip, drop or paste) or picked among the server's module files: images
+  (screenshots, textures) and PDFs the model sees as they are, text files (another plugin's menu to
+  convert, a config) it reads as text.
+- **Added** (preview): Module variants. A module with `variants.yml` keeps other versions of its
+  menus and dialogs under `variants/<name>/` (same ids), and its display rules pick, for each
+  player and each file, the variant their path reaches, or the module's file when it has none. The rules are
+  one tree (`show:`), edited like an action chain: **If** / **Else if** / **Else** branches,
+  **Show variant** and **Show Default** steps, ending on a fixed **Otherwise: Show Default**; two new
+  conditions, `client_is` (java | bedrock) and `has_resource_pack`, serve variants and actions alike. Without `variants.yml`, nothing changes.
+  In the editor, **View as** on the canvas toolbar shows a variant: its versions in place, the
+  module's shared documents faded; editing a faded document (or **Create a version for …**) gives the variant its own copy of a menu, dialog or command, the module's left as it
+  was; **Display rules…** edits the tree; a variant is deleted from its trash icon in the **View as** list. AI apps (MCP) see the variants in
+  `list_documents` and write them like any file. The resource
+  packs (Java and Bedrock) carry the variants' menus too, each Bedrock variant styled apart. A
+  variant's command file changes only what the command runs (`actions`, `requirements`,
+  `fallback`, sub-commands found by `name`); its name, aliases, permission and arguments stay the
+  module's. The editor shows a command's version whole, those fields locked, and writes only the
+  steps that differ.
+  Going back to an older Artisan on a module that has variants: rename `variants.yml` and the
+  `variants/` folder first, or the older version refuses each menu that has a variant (both files
+  share an id there).
+- **Fixed**: The Java resource pack left out the menus of themed folders (`shop/menus/…`): their
+  image buttons, glyph title heights and transparent containers were missing. It now reads the menus
+  the plugin loads, as the Bedrock pack already did; two menus sharing an id are left out of both.
+- **Changed**: license. Artisan is now proprietary (`LICENSE`, all rights reserved; jars sold and licensed per community to the buyer, no redistribution). The public API (`plugin/api`, `net.artisanmc:artisan-core-api`) moves to MIT, so add-ons may depend on it freely. Previously GPL-3.0 for both.
+- **Added**: Module variables (`@Beta`, ADR `triggers-and-variables` §10): a module
+  declares read-only values with `api.getVariables()` (`guilds.has_guild`), computed from its own
+  state at each read. Conditions and texts read them as `var.<module>.<name>`
+  (`expression: "var.guilds.has_guild"`, `{var.guilds.rank}`); a module that is not installed
+  reads as nothing. Reported at Presence as `declared_variables` and served by
+  `GET /api/v1/servers/:server/variables`; the editor's condition list offers them under
+  "module variable" and strikes through a name the server does not declare.
+- **Added**: `PlayerCommandDeclaration.Builder.fileActions(...)` (`@Beta`): a module
+  writes the actions its command file starts with, such as an `if:` on one of its Variables, so
+  the admin sees and edits in the editor what the command does instead of a single
+  `module_command`.
+- **Changed**: Each suite module's icon shows its own emblem on the crafting table (signpost,
+  gavel, gift, banner, scroll, cart) instead of the shared arrow, and the editor carries a copy of
+  the Conversations brand for older jars.
+- **Changed**: A module's home page heads with its icon and logo only; the "Module of the …
+  plugin · en · fr" line under the logo is gone.
+- **Fixed**: Under "Installed modules", a module's row no longer shows an empty square or a
+  folder while its icon loads: it shows Artisan's crafting table until the icon is there, and
+  keeps it when the icon fails to load or the module ships none. The module's home does the same
+  for its icon.
+- **Changed**: The hub builds each server's Bedrock pack itself after the server reloads its
+  modules, and sends it to the server when it changed: a publication made
+  without an open editor tab (MCP `draft_publish`, `/artisan reload`) now reaches Bedrock players.
+  The Kotlin builder produces the editor's bytes (Bedrock cases of
+  `testdata/resource-pack-conformance.json`). MCP `resource_pack_status` gains `bedrock_sha1`.
+- **Added**: protocol 1.6. A module ships its own icon and logo in its jar: SVG files under
+  `artisan-brand/` in its resources, no code needed (or `api.getModuleBrands().register(...)`). Static SVGs announced at Presence (`installed_modules[].brand`), served by the hub at
+  `GET /api/v1/servers/:server/modules/:module/brand/:file.svg`, shown by the editor on the module's
+  home and in the sidebar. The editor's copies of the suite's logos remain as a fallback for older jars.
+- **Added**: The suite's modules show their own pixel logo. Inside a module (Auctions, Store,
+  Quests, Guilds, Daily Rewards, Attribution…), the sidebar's Artisan wordmark takes the module's
+  colours, and the module's home is headed by its crafting-table icon and its full logo
+  ("Artisan Auctions"). A module without a logo keeps the Artisan one.
+- **Changed**: The module's home uses the shared page margin (`--page-pad`).
+- **Added** (preview): Two MCP tools for the resource pack built by the hub:
+  `resource_pack_status` reads its state (its SHA-1, the editor's, whether they match, the last
+  error), and `resource_pack_rebuild`, for an AI app allowed to deploy, rebuilds it and waits for
+  the result. The hub still only builds and compares: players get the editor's pack.
+- **Added** (preview): "Translate the missing ones" on the editor's assistant model. A translatable
+  field, unfolded, translates its missing languages; the Translations page translates every missing
+  text of the module in every language. The translations are written like typed edits, to review
+  and deploy; one that loses a placeholder such as `{player}` is not written.
+- **Fixed**: The search palette missed the Documents of a module: the server's other projects were
+  read once, sometimes before the modules' views arrived, and kept without their kinds' Documents
+  until their files changed. A kind registered later now has the cached files read again.
+- **Changed**: The search palette also finds the texts of a module's Documents (a conversation's
+  pages, a shop category's articles…), from the kind's `ltextSites`, and any Document by its id.
+- **Added**: `npm run pack -- build <projects-dir>` (editor) builds a server's Java resource pack from
+  Project folders on disk, with the same bytes as the editor after a publication, without a browser.
+  `npm run pack -- vectors` checks the pack conformance vectors, which now also record each entry's
+  SHA-256 and cover module images (`pack.images`) and edge cases (PNG variants, loose YAML, key order).
+- **Added**: `plugin/pack`, the Kotlin port of the pack builder, byte for byte the editor's on every
+  conformance vector. Not wired yet: the hub will build packs itself with it.
+- **Changed**: The pack orders assets and fonts by code unit instead of the browser's locale, so two
+  editors in different languages build the same pack. A server whose asset names mix case or
+  punctuation gets a new pack hash once (players download it again once).
+- **Added** (preview): The hub builds each server's Java pack itself after that server reloads its
+  Projects, and compares it with the pack the editor uploads (a WARNING when they differ). Shadow mode:
+  nothing changes for players, the editor's pack is still the one served.
+- **Added** (beta): `DocumentKindDeclaration.withPackImages(PackImagesProvider)`, the
+  Java twin of an editor kind's `pack.images`. The server computes the images its Documents ask for
+  at each load and records them with its loaded state; the hub's pack build includes them.
+- **Changed**: The editor asks the kinds' `pack.images` file by file in path order, as the server
+  does, instead of kind by kind. A server with module images in several folders may get a new pack
+  hash once.
+- **Changed**: The pages of a module share one margin (`--page-pad`: 16 px, 24 px on a wide
+  screen). A Document's header now starts at the top edge of the panel and spans its width, its
+  title lined up with the body, instead of floating in the centred column under an empty band.
+  Collections, screens, data sources and Document editors (command, dialog, trigger, module views)
+  pad the same way; the pane beside the board keeps 12 px. A module bundle reads the margin with
+  `var(--page-pad, 12px)` and looks unchanged on an older editor.
+- **Added**: Editor SDK 1.18: a module can add its own section to its Home (`FrontendModule.home`),
+  shown above the blocks Artisan builds (canvas, lists, settings, data sources). A section that
+  fails is left out and the rest of the Home stays.
+- **Changed**: Every translatable text of the editor uses the translations button of the item
+  dialog: dialog title, texts and labels, command descriptions, action texts, data cells, item
+  values, plain titles and title text layers, image buttons. An empty language shows the default
+  text as a placeholder instead of as its value.
+- **Added**: "Use the reference" on an empty language of an unfolded field writes the default
+  language's text there as is, so a text kept the same on purpose is no longer counted missing.
+- **Changed**: A text with no word of its own (only placeholders such as `{r.name}`, tags, digits or
+  symbols) is no longer counted as a missing translation, in fields, the Translations panel and the
+  top bar.
+- **Added**: Editor SDK 1.17 exposes `LocalizedField` and `textValues(project, key)`, so that a module's
+  translatable fields behave like Artisan's.
+- **Added**: The name and lore of an item get a translations button when the project has several
+  languages. It unfolds every language of the field in place, each one editable, without changing
+  the top bar's language or the preview; its badge counts the missing translations.
+- **Fixed**: An item's name or lore with no text in the active language showed the default
+  language's text as its value, so a small edit copied that text into the active language. The
+  field is now empty, with the default text as a placeholder.
+- **Removed**: The toast "Documents of different kinds share the same id", shown each time a
+  project loaded. Two kinds sharing an id (a speaker and its conversation, a menu and its command)
+  is normal: the editor keys each Document by kind and id, and references name their kind.
+- **Added**: A module opens on its **Home**: one block for the canvas (how many menus, commands
+  and dialogs it holds), one per list the module adds (Conversations, Catalog…) with **New**, its
+  settings screens, its data sources, and what the module exposes (its commands and its plugin's
+  actions). The canvas becomes the second view tab (`?tab=board`, shortcut `2`); old links to the
+  canvas and `?doc=` links still open it. When the canvas holds more than commands (menus,
+  dialogs…), its block comes first, wide, with a thumbnail of the canvas; a module whose canvas
+  only holds its commands (Conversations…) leads with its lists. A module with a single settings
+  screen titles that block after the screen.
+- **Changed**: A Document's page has no floating back bar any more: its collection and its name
+  join the topbar's breadcrumb (server › project › collection › Document, each level a link back
+  to its page) and the YAML switch sits right after it. Escape still goes back.
+- **Removed**: The HUD composers' explanatory paragraphs (dragging, sizes, pack rebuild); what
+  is missing or out of the pack's reach is still shown.
+- **Fixed**: Ctrl+Z (and Ctrl+Shift+Z, Ctrl+Y) only worked on the board: on a Document's page, a
+  module's HUD composer or form included, the key did nothing while the top bar's buttons
+  worked. The shortcuts now follow the undo buttons, on every page of the overview; Ctrl+Shift+Z
+  redoes again (it read the key as `z` while Shift made it `Z`).
+- **Fixed**: An image without a descriptor beside it (a module's `assets/textures/<name>.png`) was
+  sized 0 × 0 in the editor: invisible in a module's previews (`useAssetImage`) and in the HUD
+  composer. Its size is now read from the image once it has loaded.
+- **Fixed**: Player, zombie, creeper, skeleton, wither skeleton and piglin heads showed in the editor
+  as an open, inside-out box (Steve's head as brown hair with the face hidden). The bundled 3D icons
+  dated from before the head renderer fix; they are rendered again from the current renderer.
+- **Added** (preview): Editor SDK 1.16: `OverlayComposer`, a HUD layout edited with the mouse on the
+  game's screen (drag a layer, resize a text or a list by its handles, nudge with the arrow keys,
+  layers listed and reordered beside, the selected one's numbers and images on the other side), and
+  `AssetInput`, the editor's image picker on a name. The layout's reading and geometry are exported
+  in TypeScript. A kind's `pack.images` can read the project's other files (one, or a folder's) and
+  ask for an image by its bottom edge. `OverlaySlotsComposer` opens only a layout's image slots: each
+  gets an image and an offset from its place, dragged on the screen (a speaker's portrait in a mode).
+  `useOpenDocument` opens another Document's page from a module's view. A 1.15 bundle still loads.
+- **Added** (preview): HUD layouts. A module keeps its HUD as a YAML list of layers
+  (`image`, `image_slot`, `text`, `list` with a cursor), read by `OverlayLayout.read` with problems
+  by path and code, and `api.getOverlay().compose(layout, content)` builds the frame from the rows
+  and images the module gives. The pack index records each HUD image's own height
+  (`OverlayApi.imageHeight`), so a portrait can sit on its bottom edge. An `image_slot` can name a
+  `default` image, drawn when the module gives none, and the module can move its image from the
+  slot's place (`OverlayContent.Builder.image(slot, asset, x, y)`).
+- **Removed**: the **Board** tab of the server page, the read-only canvas that drew every project of the server at once. With many Documents it slowed the editor down to the point of making navigation sluggish. Each project keeps its own board.
+- **Changed**: the server page's **Data** tab is now named **Data sources**.
+- **Changed** (preview): The editor's assistant saves its conversations in the suite database. A
+  restart or a change of its settings no longer ends them: the assistant takes them back where they
+  stopped (another model goes on from a summary of what was said). Each player keeps their last 10,
+  for 30 days after their last message.
+- **Added** (preview): The editor's assistant, and an AI client allowed to deploy, can create a new,
+  empty module when you ask for one (`create_module`, takes `artisan.editor.publish`). The module
+  holds nothing until a draft of it is deployed.
+- **Changed**: The assistant and AI clients now say "module", the editor's word, instead of
+  "Project"; `artisan_overview` lists a server's add-ons under `addons`.
+- **Changed**: The Play tab's journal groups actions under what caused them (a click, a command, a
+  Trigger) instead of repeating a cut-off source on every line. Actions that only get noted are badged
+  "not run", and a module's action shows its arguments by name and says it runs on the server.
+- **Added** (preview): An Assistant tab on the server page, beside Board and Play. The
+  conversation sits in the middle, your conversations on the left, and each file the assistant
+  writes shows on the right as a card naming its project: a menu as the game shows it (click it as
+  in Play mode), any file as YAML against what the server runs. The assistant works across every
+  project of the server, one draft per project; "Review and deploy" opens Deploy's review with all
+  of the conversation's drafts picked. "Expand" in the docked panel opens the same conversation in
+  the tab.
+- **Fixed**: The assistant's panel said it ran "on the server's deepseek-chat account"; it now
+  names the model and says the server's API key pays.
+- **Changed**: A trigger on the board reads as a rule: its id, a "When" band naming the event,
+  then its first three steps with their action colours and the Document each opens, and "+N
+  steps" for the rest. A link a shown step draws leaves from that step's row. A disabled
+  trigger is struck through and faded, like a command.
+- **Changed**: A trigger's header is titled by its id. The event shows underneath as a full
+  sentence, no longer cut off, with its conditions and delay as chips.
+- **Added** (preview): An AI client connected through MCP can deploy, once the player allows it: a
+  box on the consent page, or "Can deploy" in Settings → AI apps (needs `artisan.editor.publish`;
+  off by default). New tools `draft_publish` (the editor's Deploy: draft revision compare-and-swap,
+  server files unchanged since, every file checked; `dry_run` returns the diff first; the answer
+  gives the diff and the new Version), `list_versions` and `version_rollback`. Each such deploy is a
+  Version marked "<player> via <client>" in the history. The editor's assistant still never deploys.
+- **Added**: Editor SDK 1.15: a module's Document kind can set `wide`, and its Document's own
+  page then gives the view the whole width instead of a centred column (the conversations of
+  ArtisanConversations use it for the page beside its preview). A 1.14 bundle still loads.
+- **Changed**: The editor's sidebar has a search field under the logo in place of the server selector, and the project top bar loses its search button. The search (Cmd/Ctrl+K) also works on the server page, across the server's projects. On the server page, the server's name is the server switcher, as in a project's breadcrumb.
+- **Added**: The **Project** menu of the libraries and the image picker offers **All other
+  projects**: one search across every other project of the server, each image naming its
+  project and captured items grouped by project, so you no longer open them one by one to find
+  a resource.
+- **Changed**: The Play tab's sidebar now has three tabs (Launch, Test player, Journal) instead of one
+  long scrolling column, and switches to the Journal when an action lands in it. The launcher gains a
+  search field and one collapsible group per project. The hint line above the screen is gone.
+- **Changed**: The server page's header is a single row on the sidebar's surface, its content in the same inset panel as a project page (name, state, tabs,
+  versions at the end), the Overview lines up with it instead of centring, and the tab strip no longer
+  shows a scrollbar that does not scroll.
+- **Changed**: Coming back to the server's Play or Board tab is instant: the projects already loaded
+  show at once and are checked again in the background, and the item icons are no longer cleared and
+  drawn again on each visit.
+- **Fixed**: The server's Play tab and Board tab drew every item as its first letters: the item
+  icons were only loaded by a project's own page. They now load once the server's projects are in.
+- **Added**: The editor can use the images, fonts and captured items of another project of the
+  same server. **Captured items**, **Images**, **Resources** and the image picker get a
+  **Project** menu; what you drag, click or pick there is first copied into the edited project's
+  draft, then used. An identical resource is reused, a taken name becomes `name_2`, a glyph
+  gets a free character. The copy is a snapshot: it does not follow later changes to the
+  original.
+- **Changed**: The editor's server page is a frame with tabs instead of one long column: **Overview** (your modules, then the installed modules), **Board**, **Data** (the data sources, at full height) and **Settings** (the server's `config.yml`, with a group summary and a save bar that stays in view and counts the changes, which can be discarded). The header shows whether the server is online and its Minecraft and Artisan versions.
+- **Added**: Editor Play mode, a view of the whole server (`/servers/<id>/play`, or "Test in game"
+  from a project): the game's screen with every project of the server at once. Type commands in the
+  chat, open menus and click their slots, fire Triggers; messages, titles and menus show on the
+  screen, the rest (give, money, teleport…) goes to a journal with its source. An editable test
+  player (permissions, money, placeholders, forced conditions) drives the conditions.
+- **Added**: Right-clicking the board background offers a **New** submenu listing every kind the
+  project can hold on its board (menu, command, dialog and the modules' kinds), created at the
+  clicked point. It also shows when a selection is kept, instead of only Copy/Paste/Delete.
+- **Added**: Editor SDK 1.14: `McScreen`, the game's screen at a chosen window size and GUI scale
+  (Auto or 1…max, as in game), with the hotbar, hearts, food, experience, boss bars, title,
+  action bar, chat and its input, a module's layers and an open screen, placed as the 1.21 client
+  places them; `McText`; `McScreenControls`; `mcTextWidth`, `mcWrap` and `useAssetImage`, to
+  draw a module's HUD as the plugin does; and the pure geometry (`guiScale`, `mcScreenLayout`…). Shown on `/design`.
+  First step of the editor's Play mode.
+- **Added**: a `v*` tag publishes the release: `Artisan-<v>.jar` (one jar, editor included) to Voxel, after the `release` environment's approval (`release-jars.yml`, setup in `deploy/README.md`). SpigotMC and BuiltByBit stay manual: they have no upload API. No public build: the jar is sold.
+- **Fixed**: `TaskScheduler.runFor` / `runForLater` / `isOwnedByCurrentThread` called from an async
+  task threw "Asynchronous Chunk getEntities call!" on Leaf and Folia: the scheduler looked the
+  entity up again by UUID (a world scan) instead of using the entity it was given. Daily Rewards
+  hit it at every join.
+- **Fixed**: the servers of one database, which share a tunnel address and each answer the
+  editor, now follow the assistant's settings saved from any of them: each reads them again every
+  30 s. Before, a server kept what it read at startup, so the assistant could vanish or run on an
+  old key depending on which server the address reached.
+- **Added**: the editor's assistant is set up from the editor, in **Settings → Assistant**
+  (`artisan.editor.config`): API, address, model, key, effort and steps, saved in the suite
+  database (`artisan_settings`), shared by every server of the network and applied without a
+  restart. The key is write-only: only its last four characters come back, and changing the API
+  or the address asks for it again. environment.yml's `ai` section still works and wins; the
+  editor then shows it read-only. The startup log names where the assistant's requests go
+  (`anthropic API at api.deepseek.com, model deepseek-chat`).
+- **Fixed**: a draft autosaved before the previous fix still listed every file it had read as modified in the Deploy review (a module's dialog in CRLF with `{ en: …, fr: … }` maps came back LF and in block style), and publishing it from **Other drafts** rewrote them. The review of other drafts and the server's publication now treat a YAML file whose value did not change as unchanged and keep the server's bytes.
+- **Changed**: an edited YAML file is no longer rewritten in the editor's own format: only the values that changed are rewritten, and the file keeps its flow maps (`{ en: …, fr: … }`), quotes, comments, key order and CRLF line endings. The Deploy review shows the edited lines, not the whole file.
+- **Added**: The browser tab names where you are: `Artisan | <server> - <project>` (e.g.
+  `Artisan | Lobby - auctions`), `Artisan | <server>` outside a project, `Artisan` with no server.
+  It follows a project switch or rename.
+- **Added**: Bedrock players see styled menus (Geyser). The editor builds a Bedrock resource pack next to the Java one (`editor/src/lib/pack/bedrock/`): for each chest menu (1 to 6 rows) with its player inventory visible, or hidden when the menu is drawn without the vanilla texture and puts nothing in the inventory (Bedrock's own inventory then stays below it, empty), the composed background (vanilla chest top unless `vanilla_texture: false`, then the `background` and `glyph` title layers), the images of its image buttons (one per state) and `text`/`plain`/`textarea` layers placed as labels, through JSON UI modifications of Geyser's chest screen keyed on a marker in the container title. Geyser opens a chest of 1 to 3 rows on the small chest screen and 4 to 6 on the large one, padding the slots it lacks: the background then covers the whole top half (a plain band of the chest texture under the menu's rows) and the item grid shows only the menu's own rows. Texture files are named by a short hash (`textures/artisan/m/…`, `textures/artisan/b/…`), every path under the 80 characters Geyser asks for. The hub stores it (`PUT /api/v1/servers/:id/bedrock-pack`, served under `/bedrock-pack/<sha1>.mcpack`) and tells the server (`bedrock_pack_updated`, `bedrock_pack` in `hello_ack`; protocol `1.5`, an older leaf gets it at its next `hello_ack`). The server keeps it in `cache/bedrock-pack/` (`BedrockPackManager`); with `Geyser-Spigot` installed (new soft dependency), every Bedrock player receives it at connection and gets, for a styled menu, the title the pack reads instead of the composed one (`BedrockTitle`, the mirror of `bedrockTitle.ts`). Artisan writes `Geyser-Spigot/custom_mappings/artisan.json` once (the click item under an image button, drawn transparent): one restart the first time. Known limits: only the left click reaches a menu from Bedrock, text layers use the Bedrock default font without MiniMessage formatting (the color tag a value opens with becomes the label's color) and ignore `line_height`; title fields are cut in UTF-8 bytes and found whatever formatting codes the proxy chain puts before the title (Geyser's `§r` and more, up to 30 bytes), player heads show the default skin, the Bedrock chest panel (frame, slot cells, player inventory) stays under every menu, `vanilla_texture: false` included: hiding it left every chest screen blank, vanilla chests included; `player_inventory: hidden` with the vanilla texture or with buttons in the inventory, hoppers, droppers, external glyphs and custom fonts stay as Geyser translates them. With Geyser on a proxy, Bedrock players are still recognised (Floodgate here, else the UUID it gives them) and the **Artisan Geyser extension** (`artisan-geyser.jar`, module `plugin/geyser-extension`, Java only, built by `shadowJar`) dropped into that Geyser's `extensions/` follows the server's pack (`GET /api/v1/servers/:id/bedrock-pack`, public, polled every 30 s), hands it to each Bedrock session and writes the mapping; without it, the pack (`cache/bedrock-pack/`) and the mapping (`cache/geyser/custom_mappings/artisan.json`) can still be copied into that Geyser's folders by hand.
 - **Fixed**: a selected Trigger showed two headers in the Properties panel ("Triggers · welcome" above "Trigger · When a player joins…"). It now shows one: the event's sentence, with the Trigger's id beside it. Editor SDK 1.13: a `DocumentKindContribution` whose view draws its own header sets `ownHeader`, and the host leaves out its own. A 1.12 bundle still loads.
 - **Added**: Deploy publishes several Projects at once. Its review lists, under the open Project, your other drafts with changes in every Project of the online servers, each with its diff and the server's check once picked (one draft per Project). Deploy writes the open Project first, then each picked draft one after the other, and stops at the first failure: a message says which went out, which failed and which were not tried. Deploy is also enabled when only other Projects have changes. In the assistant, "Review and deploy" opens this review with the drafts of the conversation already picked.
 - **Fixed**: a Document copied from a module template no longer shows "new version" when the module ships the same content with other formatting or line endings (a jar built on Windows ships CRLF); only system elements were compared that way. A copy that differs now offers **Take the module's version** in its `···` menu, which puts it into the draft. The asterisk's tooltip shows above the row instead of covering its `···`.

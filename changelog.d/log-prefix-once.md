@@ -1,1 +1,0 @@
-- **Fixed**: Artisan's console lines no longer show `[Artisan] [Artisan]`.

@@ -4,13 +4,14 @@ import java.io.File;
 import net.artisanmc.modules.api.ArtisanModule;
 import net.artisanmc.modules.api.annotations.Beta;
 import net.artisanmc.modules.api.annotations.Stable;
+import net.artisanmc.modules.api.annotations.Sunset;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * Lets an add-on host its Project in its <b>own plugin dir</b> instead of the core
  * {@code plugins/Artisan/modules/} ({@code api.projectRoots}, ADR {@code addon-owned-project-roots}).
- * Call {@link #register} once from {@code onEnable(api)}. {@link #moduleFolder} gives
- * the module a folder under {@code plugins/Artisan/modules/} instead, where its project moves.
+ * Call {@link #pluginFolder} once from {@code onEnable(api)}: the add-on's files then live in its
+ * plugin's folder, so deleting that folder uninstalls it and copying it moves it to another server.
  */
 @Stable
 public interface ProjectRootRegistry {
@@ -71,9 +72,40 @@ public interface ProjectRootRegistry {
      * @return the directory that holds the module's files
      */
     @Beta
+    @Sunset(reason = "An add-on's files live in its own plugin folder again, so deleting that folder uninstalls it",
+            removeInVersion = "2.0.0", replacement = "pluginFolder(String, String, File)")
     default File moduleFolder(String folder, String moduleId, @Nullable File legacyDir) {
         if (legacyDir == null) throw new UnsupportedOperationException("this registry has no module folders");
         register(folder, legacyDir, moduleId);
         return legacyDir;
+    }
+
+    /**
+     * The add-on's folder, {@code dir}: a <b>dedicated</b> sub-folder of its plugin's data folder,
+     * by convention {@code new File(getDataFolder(), "artisan_module")}, created if missing and registered
+     * like {@link #register(String, File, String)} under {@code folder}: key {@code addon:<folder>},
+     * published and versioned like any project, listed under the module in the editor, never
+     * renamed or deleted from it. Read and write the module's files in the returned directory. Call
+     * it in {@code onEnable}, before writing any default file. Deleting the plugin's data folder
+     * then removes the add-on's files; Artisan keeps only its database rows (Versions, drafts).
+     *
+     * <p>{@code plugins/Artisan/modules/<folder>/}, where {@link #moduleFolder} kept it, moves to
+     * {@code dir} once, when {@code dir} is missing or empty. Its Versions and drafts follow, and
+     * qualified references ({@code <folder>:<id>}) keep resolving. While both directories hold
+     * files, or when the move fails, the old folder stays registered and is returned, with an
+     * error in the log: Artisan never picks which copy is the right one.
+     *
+     * @param folder the project id, as passed to {@link #moduleFolder} before: lowercase letters,
+     *        digits, {@code _} and {@code -}
+     * @param dir never the data folder itself (every file under it would be project content), nor
+     *        a folder of {@code plugins/Artisan/}
+     * @return the directory that holds the module's files
+     * @throws IllegalArgumentException for an invalid {@code folder} or {@code dir}
+     */
+    @Beta
+    default File pluginFolder(String folder, String moduleId, File dir) {
+        dir.mkdirs();
+        register(folder, dir, moduleId);
+        return dir;
     }
 }

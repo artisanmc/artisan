@@ -157,7 +157,7 @@ Guide: [Modules](../modules/).
 | Type | Stability | Since | Members |
 |---|---|---|---|
 | [`ProjectContentApi`][ProjectContentApi] | `@Stable` | 1.0.0 | `projectIds()`, `list(projectId, dir)`, `read(projectId, relPath)`, `hasContent(dir)`, `reload()` |
-| [`ProjectRootRegistry`][ProjectRootRegistry] | `@Stable` | 1.0.0 | `register(projectId, dir)`, `register(projectId, dir, moduleId)`, `NOOP`; the reload it triggers runs on the next tick since 1.0.0 |
+| [`ProjectRootRegistry`][ProjectRootRegistry] | `@Stable` | 1.0.0 | `register(projectId, dir)`, `register(projectId, dir, moduleId)`, `NOOP`; the reload it triggers runs on the next tick since 1.0.0. `pluginFolder(folder, moduleId, dir)` (`@Beta`, 1.1.0): your plugin's own folder for your files; `moduleFolder` is deprecated in its favour |
 | [`SchemaRegistry<T>`][SchemaRegistry] | `@Stable` | 1.0.0 | `register(migration)`, `loadToCurrent(data, currentVersion, versionOf)`, `has(from)` |
 | [`SchemaMigration<T>`][SchemaMigration] | `@Stable` | 1.0.0 | `from`, `to`, `migrate(data)` — pure, idempotent, write-once |
 | [`SchemaVersionReader<T>`][SchemaVersionReader] | `@Stable` | 1.0.0 | `versionOf(document): String` |
