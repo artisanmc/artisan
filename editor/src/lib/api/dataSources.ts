@@ -20,6 +20,17 @@ export interface ServerDataSource {
    * content joined to per-player state. null/absent = an older plugin, read as runtime.
    */
   origin?: DataSourceOrigin | null;
+  /** Former refs the source still answers to; never offered, only recognised. */
+  aliases?: string[];
+}
+
+/** The source `ref` names: by its ref, else by one of its aliases (content written before a rename). */
+export function findServerSource<S extends Pick<ServerDataSource, "ref" | "aliases">>(
+  sources: readonly S[],
+  ref: string | null | undefined,
+): S | undefined {
+  if (!ref) return undefined;
+  return sources.find((s) => s.ref === ref) ?? sources.find((s) => s.aliases?.includes(ref));
 }
 
 export type DataSourceOrigin = "runtime" | "content" | "mixed";
@@ -40,6 +51,7 @@ export async function fetchServerDataSourcesUser(serverId: string): Promise<Serv
         stability?: "static" | "dynamic" | null;
         key_field?: string | null;
         origin?: string | null;
+        aliases?: string[] | null;
       }[];
     }>(`/api/v1/servers/${serverId}/data-sources`);
     return (data.data_sources ?? []).map((d) => ({
@@ -54,6 +66,7 @@ export async function fetchServerDataSourcesUser(serverId: string): Promise<Serv
       stability: d.stability ?? null,
       keyField: d.key_field ?? null,
       origin: parseOrigin(d.origin),
+      aliases: Array.isArray(d.aliases) ? d.aliases.filter((a) => typeof a === "string") : [],
     }));
   } catch {
     return [];

@@ -26,6 +26,7 @@ describe("serverDataSourcesStore", () => {
         stability: null,
         keyField: null,
         origin: null,
+        aliases: [],
       },
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -80,6 +81,7 @@ describe("serverDataSourcesStore", () => {
         stability: null,
         keyField: null,
         origin: null,
+        aliases: [],
       },
     ]);
 
@@ -94,6 +96,7 @@ describe("serverDataSourcesStore", () => {
         stability: null,
         keyField: null,
         origin: null,
+        aliases: [],
       },
     ]);
   });
@@ -129,6 +132,7 @@ describe("serverDataSourcesStore", () => {
         stability: null,
         keyField: null,
         origin: null,
+        aliases: [],
       },
     ]);
   });

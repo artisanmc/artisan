@@ -2,6 +2,7 @@ package net.artisanmc.modules.api.datasource;
 
 import java.util.List;
 import java.util.Objects;
+import net.artisanmc.modules.api.annotations.Beta;
 import net.artisanmc.modules.api.annotations.Stable;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,6 +22,7 @@ import org.jetbrains.annotations.Nullable;
  *       {@link Origin#MIXED}; null otherwise.</li>
  *   <li>{@code origin}: whether the rows are server state, Project content or both
  *       ({@link Origin}). {@link Origin#RUNTIME} unless the source says otherwise.</li>
+ *   <li>{@code aliases}: former refs the source still answers to ({@link #withAliases}).</li>
  * </ul>
  */
 @Stable
@@ -31,6 +33,7 @@ public final class DataSourceDeclaration {
     private final Stability stability;
     private final @Nullable String keyField;
     private final Origin origin;
+    private final List<String> aliases;
 
     public DataSourceDeclaration(String ref, DataFetcher fetcher) {
         this(ref, fetcher, List.of(), Stability.DYNAMIC, null);
@@ -63,6 +66,19 @@ public final class DataSourceDeclaration {
         @Nullable String keyField,
         Origin origin
     ) {
+        this(ref, fetcher, schema, stability, keyField, origin, List.of());
+    }
+
+    private DataSourceDeclaration(
+        String ref,
+        DataFetcher fetcher,
+        List<DataSourceField> schema,
+        Stability stability,
+        @Nullable String keyField,
+        Origin origin,
+        List<String> aliases
+    ) {
+        this.aliases = List.copyOf(aliases);
         this.ref = Objects.requireNonNull(ref, "ref");
         this.fetcher = Objects.requireNonNull(fetcher, "fetcher");
         this.schema = List.copyOf(Objects.requireNonNull(schema, "schema"));
@@ -103,17 +119,42 @@ public final class DataSourceDeclaration {
         return origin;
     }
 
+    /**
+     * The same source under former refs as well: a menu written against {@code msquests:groups}
+     * keeps reading it once the source is {@code quests:groups}. An alias answers
+     * {@link DataSourceRegistry#fetch} and {@link DataSourceRegistry#has} like the ref, and is
+     * listed nowhere ({@link DataSourceRegistry#refs}, the editor's picker): new content uses the ref.
+     *
+     * @throws IllegalArgumentException for a blank alias, or one equal to the ref
+     * @since 1.2.0
+     */
+    @Beta
+    public DataSourceDeclaration withAliases(String... aliases) {
+        for (String alias : aliases) {
+            if (alias == null || alias.isBlank() || alias.equals(ref)) {
+                throw new IllegalArgumentException("Data source '" + ref + "': an alias is another, non-blank ref");
+            }
+        }
+        return new DataSourceDeclaration(ref, fetcher, schema, stability, keyField, origin, List.of(aliases));
+    }
+
+    /** The former refs this source still answers to; empty for most. @since 1.2.0 */
+    @Beta
+    public List<String> getAliases() {
+        return aliases;
+    }
+
     @Override
     public boolean equals(Object o) {
         return o instanceof DataSourceDeclaration other
             && ref.equals(other.ref) && fetcher.equals(other.fetcher) && schema.equals(other.schema)
             && stability == other.stability && Objects.equals(keyField, other.keyField)
-            && origin == other.origin;
+            && origin == other.origin && aliases.equals(other.aliases);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ref, fetcher, schema, stability, keyField, origin);
+        return Objects.hash(ref, fetcher, schema, stability, keyField, origin, aliases);
     }
 
     @Override
