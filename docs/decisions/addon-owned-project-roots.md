@@ -128,7 +128,8 @@ that have not migrated.
 The 2026-10-19 amendment is reversed: an add-on's folder lives in its own plugin
 again, as §1 decided. `pluginFolder(folder, moduleId, dir)` (API 1.1.0) registers
 `dir`, a dedicated sub-folder of the add-on's plugin (by convention
-`plugins/<Plugin>/project/`), under the same `addon:<folder>` key; `moduleFolder`
+`plugins/<Plugin>/artisan/`: the name says who reads it, where `project/` or
+`content/` said nothing, decided 2026-11-13), under the same `addon:<folder>` key; `moduleFolder`
 is `@Sunset` (removed in API 2.0.0) and keeps working until then.
 
 Why: once add-ons are distributed on their own, an admin uninstalls one by

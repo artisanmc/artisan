@@ -258,7 +258,7 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 
 > **Module folder (since 2026-11-12, API 1.1.0)** — `api.getProjectRoots().pluginFolder(folder, moduleId, dir)`
 > registers `dir`, a dedicated folder of the add-on's plugin (by convention
-> `new File(getDataFolder(), "project")`), as an add-on root (key `addon:<folder>`, not
+> `new File(getDataFolder(), "artisan")`), as an add-on root (key `addon:<folder>`, not
 > renamable): deleting the plugin folder uninstalls the add-on. `plugins/Artisan/modules/<folder>/`,
 > where `moduleFolder` (2026-10-19, now `@Sunset`) kept it, is moved there once; the module
 > then reads its files in the returned folder. To be called in `onEnable`, before writing a
