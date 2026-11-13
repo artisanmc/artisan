@@ -197,6 +197,9 @@ Exceptions: `DuplicateModuleException`.
 | `declarations()` | `List<DataSourceDeclaration>` | 1.0.0 |
 | `registered()` | `List<RegisteredDataSource>` | 1.0.0 |
 | `unregister(ref: String)` | `Boolean` | 1.0.0 |
+| `resolve(ref: String)` (`@Beta`): the ref of the source `ref` names, itself when registered, the source's when it is an alias, null when unknown | `String?` | 1.2.0 |
+
+Since 1.2.0 a source may declare **aliases** (`DataSourceDeclaration.withAliases`): former refs it still answers to. `fetch` and `has` accept an alias like the ref; `refs()`, `declarations()` and `registered()` list the ref only, so the editor's picker offers one name. `register` throws `DuplicateDataSourceException` when the ref or an alias is already a ref or an alias, and registers nothing then; `unregister(ref)` drops the aliases with the source (an alias is not a source: `unregister(alias)` is false).
 
 Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `PlayerRequiredException`.
 
@@ -212,6 +215,8 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `Playe
 | `stability` | `Stability` | `@Stable` | 1.0.0 |
 | `keyField` | `String?` | `@Stable` | 1.0.0 |
 | `origin` | `Origin` | `@Stable` | 1.0.0 |
+| `withAliases(vararg aliases: String)`: a copy that also answers to these former refs; `IllegalArgumentException` for a blank alias or one equal to `ref` | `DataSourceDeclaration` | `@Beta` | 1.2.0 |
+| `aliases` | `List<String>` | `@Beta` | 1.2.0 |
 | `schemaHint` | `String?` | removed in internal 2.0.0 | 1.0.0 |
 
 Constructing a `Stability.STATIC` declaration without a non-blank `keyField` throws (`require`) — a static source must declare its Row key.

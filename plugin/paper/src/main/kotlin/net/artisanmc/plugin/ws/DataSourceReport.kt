@@ -26,6 +26,8 @@ object DataSourceReport {
                 "stability" to r.declaration.stability.name.lowercase(),
                 "key_field" to r.declaration.keyField,
                 "origin" to r.declaration.origin.name.lowercase(),
+                // Former refs the source still answers to: the editor reads a menu written against one as this source.
+                "aliases" to r.declaration.aliases,
             )
         }
 }

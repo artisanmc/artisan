@@ -200,6 +200,22 @@ read another integration's data — never import its classes.
 `refs()`, `declarations()` and `registered()` (declarations with their owning
 module id) list what is available.
 
+## Rename one
+
+A ref is written in every menu that reads the source, so renaming it breaks them. Keep the old
+name as an **alias** (API 1.2.0):
+
+```java
+api.getDataSources().register(
+    new DataSourceDeclaration("quests:groups", fetcher, schema, Stability.STATIC, "key")
+        .withAliases("msquests:groups"));
+```
+
+A menu written against `msquests:groups` keeps working, with the same rows, parameters and
+schema. The alias is listed nowhere: the editor's picker and `refs()` show `quests:groups` only,
+so new content uses the new name. Drop the alias in a later major version, once the menus have
+moved.
+
 ## Remove one
 
 `api.dataSources.unregister("homes:list")` removes a source and

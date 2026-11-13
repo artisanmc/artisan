@@ -22,6 +22,7 @@ import type {
 import { positionCount } from "@/features/canvas/inventoryTypes";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
+import { findServerSource } from "@/lib/api/dataSources";
 import { parsePositions } from "@/lib/positions";
 import { serverSourcesDestination } from "@/lib/projectNavigation";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -545,9 +546,7 @@ function SourceRefInputRow({
       </div>
       <SourceShapingEditor
         input={input}
-        schemaFields={(serverSources.find((s) => s.ref === input.ref)?.schema ?? []).map(
-          (f) => f.name,
-        )}
+        schemaFields={(findServerSource(serverSources, input.ref)?.schema ?? []).map((f) => f.name)}
         argNames={(menu.contextInputs ?? [])
           .filter(
             (ci): ci is Extract<ContextInput, { kind: "primitive" }> => ci.kind === "primitive",
