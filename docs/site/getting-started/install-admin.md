@@ -31,7 +31,7 @@ On first start Artisan creates its folder:
 |---|---|
 | `plugins/Artisan/config.yml` | Server settings: language, resource pack. Editable from the editor. [Reference](../../configuration/config-yml/) |
 | `plugins/Artisan/environment.yml` | Where and who this server is: web editor, network, database. Never read nor written by the editor. [Reference](../../configuration/environment/) |
-| `plugins/Artisan/modules/` | Your projects (menus, dialogs, images), one folder each. Servers from before October 2026 had them in `projects/`: Artisan moves them on first start and keeps the old folder as `projects.artisan-migrated/`. An add-on keeps its own files in its plugin folder (`plugins/ArtisanConversations/artisan/`): delete that folder with the jar to uninstall it. |
+| `plugins/Artisan/modules/` | Your projects (menus, dialogs, images), one folder each. Servers from before October 2026 had them in `projects/`: Artisan moves them on first start and keeps the old folder as `projects.artisan-migrated/`. An add-on keeps its own files in its plugin folder (`plugins/ArtisanConversations/artisan_module/`): delete that folder with the jar to uninstall it. |
 | `plugins/Artisan/database/` | The embedded H2 database (`suite.mv.db`), created when a plugin first asks for the database. |
 | `plugins/Artisan/cache/` | Downloaded Minecraft assets, resource packs (Java and Bedrock), asset index. |
 | `plugins/Artisan/network-secret` | Only on a network hub with no other secret source. See [the shared secret](../../network/setup/#4-the-shared-secret). |

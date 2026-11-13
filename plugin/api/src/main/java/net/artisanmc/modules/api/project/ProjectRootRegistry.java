@@ -82,7 +82,7 @@ public interface ProjectRootRegistry {
 
     /**
      * The add-on's folder, {@code dir}: a <b>dedicated</b> sub-folder of its plugin's data folder,
-     * by convention {@code new File(getDataFolder(), "artisan")}, created if missing and registered
+     * by convention {@code new File(getDataFolder(), "artisan_module")}, created if missing and registered
      * like {@link #register(String, File, String)} under {@code folder}: key {@code addon:<folder>},
      * published and versioned like any project, listed under the module in the editor, never
      * renamed or deleted from it. Read and write the module's files in the returned directory. Call

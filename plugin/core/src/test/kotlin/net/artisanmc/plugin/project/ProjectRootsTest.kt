@@ -206,8 +206,8 @@ class ProjectRootsTest {
         val key = old.key("conversations")
 
         val fresh = ProjectRoots(modules)
-        val dir = fresh.pluginFolder("conversations", "conversations", File(data, "artisan"))
-        assertEquals(File(data, "artisan").absoluteFile, dir)
+        val dir = fresh.pluginFolder("conversations", "conversations", File(data, "artisan_module"))
+        assertEquals(File(data, "artisan_module").absoluteFile, dir)
         assertFalse(former.exists())
         assertEquals("x", File(dir, "conversations/intro.yml").readText())
         assertEquals(key, fresh.key("conversations"))
@@ -216,15 +216,15 @@ class ProjectRootsTest {
         assertEquals(dir, fresh.all()["conversations"])
         assertFalse("conversations" in ProjectRoots(modules).all(), "nothing left in Artisan's folder")
         // Next start: nothing to move, same folder.
-        assertEquals(dir, ProjectRoots(modules).pluginFolder("conversations", "conversations", File(data, "artisan")))
+        assertEquals(dir, ProjectRoots(modules).pluginFolder("conversations", "conversations", File(data, "artisan_module")))
         modules.parentFile.parentFile.deleteRecursively()
     }
 
     @Test fun `a plugin folder moves into an empty dir and creates a missing one`() {
         val (modules, data) = pluginsLayout()
         File(modules, "conversations/a.yml").apply { parentFile.mkdirs(); writeText("a") }
-        File(data, "artisan").mkdirs()
-        val dir = ProjectRoots(modules).pluginFolder("conversations", "conversations", File(data, "artisan"))
+        File(data, "artisan_module").mkdirs()
+        val dir = ProjectRoots(modules).pluginFolder("conversations", "conversations", File(data, "artisan_module"))
         assertEquals("a", File(dir, "a.yml").readText())
         val other = ProjectRoots(modules).pluginFolder("auctions", "auctions", File(data, "other/project"))
         assertTrue(other.isDirectory)
@@ -236,12 +236,12 @@ class ProjectRootsTest {
         val (modules, data) = pluginsLayout()
         val former = File(modules, "conversations").apply { mkdirs() }
         File(former, "a.yml").writeText("a")
-        File(data, "artisan/b.yml").apply { parentFile.mkdirs(); writeText("b") }
+        File(data, "artisan_module/b.yml").apply { parentFile.mkdirs(); writeText("b") }
         val roots = ProjectRoots(modules)
-        assertEquals(former, roots.pluginFolder("conversations", "conversations", File(data, "artisan")))
+        assertEquals(former, roots.pluginFolder("conversations", "conversations", File(data, "artisan_module")))
         assertEquals(former, roots.dirFor("conversations"))
         assertTrue(File(former, "a.yml").isFile)
-        assertTrue(File(data, "artisan/b.yml").isFile)
+        assertTrue(File(data, "artisan_module/b.yml").isFile)
         assertEquals("addon:conversations", roots.key("conversations"))
         modules.parentFile.parentFile.deleteRecursively()
     }
@@ -249,9 +249,9 @@ class ProjectRootsTest {
     @Test fun `a module folder holding only its key file is not moved over a plugin folder`() {
         val (modules, data) = pluginsLayout()
         ProjectRoots(modules).moduleFolder("conversations", "conversations", null)
-        File(data, "artisan/b.yml").apply { parentFile.mkdirs(); writeText("b") }
-        val dir = ProjectRoots(modules).pluginFolder("conversations", "conversations", File(data, "artisan"))
-        assertEquals(File(data, "artisan").absoluteFile, dir)
+        File(data, "artisan_module/b.yml").apply { parentFile.mkdirs(); writeText("b") }
+        val dir = ProjectRoots(modules).pluginFolder("conversations", "conversations", File(data, "artisan_module"))
+        assertEquals(File(data, "artisan_module").absoluteFile, dir)
         modules.parentFile.parentFile.deleteRecursively()
     }
 
@@ -261,7 +261,7 @@ class ProjectRootsTest {
         assertFailsWith<IllegalArgumentException> { roots.pluginFolder("conversations", "c", data) }
         assertFailsWith<IllegalArgumentException> { roots.pluginFolder("conversations", "c", File(modules, "conversations")) }
         assertFailsWith<IllegalArgumentException> { roots.pluginFolder("conversations", "c", modules.parentFile.parentFile) }
-        assertFailsWith<IllegalArgumentException> { roots.pluginFolder("Conversations", "c", File(data, "artisan")) }
+        assertFailsWith<IllegalArgumentException> { roots.pluginFolder("Conversations", "c", File(data, "artisan_module")) }
         assertFalse(data.exists())
         modules.parentFile.parentFile.deleteRecursively()
     }
