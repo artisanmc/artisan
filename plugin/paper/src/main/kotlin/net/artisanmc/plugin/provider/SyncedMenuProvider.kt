@@ -631,7 +631,7 @@ class SyncedMenuProvider(
         if (folder == null) {
             // Its commands run from memory without one (`CommandRegistrar`): nothing to say.
             if (template.id == net.artisanmc.plugin.command.ModuleCommandFiles.TEMPLATE_ID) return false
-            logger?.warning("[Artisan] Module '$moduleId' declares system elements but has no folder: call pluginFolder() in its onEnable.")
+            logger?.warning("[Artisan] Module '$moduleId' declares system elements but has no folder: call moduleFolder() in its onEnable.")
             return false
         }
         val written = net.artisanmc.plugin.project.SystemFiles.sync(folder.value, moduleId, template) { path, conflicts ->

@@ -7,11 +7,11 @@ import com.fasterxml.jackson.databind.JsonNode
  * talks to, on the admin's own key. Read by the hub only, never sent to the editor.
  */
 data class AiConfig(
-    /** `anthropic` or `openai` (any OpenAI-compatible API, at [baseUrl]); empty: no assistant. */
+    /** `anthropic`; empty: no assistant. */
     val provider: String = "",
     val apiKey: String = "",
     val model: String = DEFAULT_MODEL,
-    /** `low` … `max`; how hard the model thinks, and how many tokens it spends. Anthropic only. */
+    /** `low` … `max`; how hard the model thinks, and how many tokens it spends. */
     val effort: String = "medium",
     /** Model calls one message may make before the assistant stops and says so. */
     val maxSteps: Int = 25,
@@ -22,7 +22,7 @@ data class AiConfig(
 
     companion object {
         const val DEFAULT_MODEL = "claude-opus-5-5"
-        val PROVIDERS = setOf("anthropic", "openai")
+        val PROVIDERS = setOf("anthropic")
     }
 }
 
@@ -32,9 +32,6 @@ interface AiProvider {
 
     /** What a stored history is valid for: another provider, address or model cannot take it back. */
     val historyKey: String get() = model
-
-    /** The kinds of files it reads; another one is refused before it is sent. */
-    val attachments: Set<AiAttachment.Kind> get() = AiAttachment.Kind.entries.toSet()
 
     fun conversation(system: String, tools: List<McpTools.Tool>): AiConversation
 

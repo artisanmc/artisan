@@ -2,12 +2,34 @@
 
 Architecture spec for the "modules" pattern that lets Artisan evolve from "menu editor" to "web configuration platform for Minecraft plugins", incrementally, without a big-bang refactor.
 
-Status: **current**, trimmed on 2026-11-05. How a module is built today: the 2 layers (plugin + editor),
-data sources and commands, actions, document kinds, editor bundles, templates, versioning.
-The cloud-era passages (backend module, V1→V3 phasing, assistant engine in the backend, store
-communication plans) were removed; they live in git history (`git show ccade092:docs/architecture/modules.md`).
+Status: **target architecture** — V1 implements the menu editor as the first module following this pattern. V1.5+ adds other modules (shop, quests, kits, etc.). V3+ opens an SDK for third-party modules.
+
+> **Phase F revision (2026-10)**: no more backend. The plugin serves the editor (Gradle module `hub`, ADR `editor-web-server`); a module lives in **2 places** (plugin + editor), shipped in the same jar. The passages about the backend (§3.2, §3.3.5, §10 "Backend", §13.5, §13.8, §14) describe the cloud state, kept for history; state recoverable at commit `ccade092`.
 
 ---
+
+## 1. Vision and positioning
+
+In the long run, Artisan is not "a menu editor". It is **the unified web configuration layer for modern Minecraft plugins**. The V1 menu editor is just the **first module** of a larger platform that will progressively cover:
+
+- Menus (V1) — visual design of GUI inventories
+- Commands (V1) — configurable custom actions
+- Translations / i18n (V1) — multi-language
+- Shop (V1.5) — items, prices, categories, stock
+- Quests (V2) — objectives, rewards, quest chains
+- Kits (V2) — items, cooldowns, permissions
+- Warps / Lobbies (V2) — locations, access conditions
+- Permissions UI (V2) — LuckPerms/PEX management via web
+- Economies UI (V2) — custom Vault management
+- etc.
+
+Each module is:
+
+1. **Independent**: its own logic, its own data, its own UX in the web editor.
+2. **Composable**: communicates with other modules via **data sources** and **commands** (universal patterns), not via direct coupling.
+3. **Versioned**: its own schema (`shop/v1`, `quest/v1`, ...) with migrations.
+
+The result: an admin manages **all their Artisan-compatible plugins** from a unified UI, without touching YAML. No more configuration friction.
 
 ## 2. Architecture: modular monolith
 
@@ -31,7 +53,7 @@ shrink: a new violation fails CI, a fixed violation must be removed from it.
 
 ## 3. Module abstraction
 
-An **Artisan module** lives in 2 places: web editor (frontend) and Paper plugin. The two parts ship together (the editor build is embedded in the foundation jar) but are logically separate.
+An **Artisan module** lives in 2 places: web editor (frontend) and Paper plugin. The two parts ship together (the editor build is embedded in the foundation jar) but are logically separate. Until phase F, a third part lived in the backend (§3.2).
 
 ### 3.1 Frontend module
 
@@ -211,6 +233,19 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `useOpenDocument()` returns a function that opens a Document's page (`{projectId, kind, id}`). A
 > 1.15 bundle still loads.
 
+> **Scenes in the world (since 2026-11-04, API 1.1.0, `@Beta`)** — the overlay's counterpart in the
+> world (ADR `world-scenes`). `api.getScenes().show(player, "quests:marker", SceneAnchor.above(npc, 2.3),
+> elements, transitionTicks)` draws text, items and blocks around a point or an entity for that player
+> alone, with display entities Artisan owns (hidden from the others, never saved). Name a scene after
+> the module; show it again to update it (same element key and type: same entity, a changed transform
+> animated by the client over `transitionTicks`), `hide` to take it away. Artisan ends it alone on
+> quit, change of world, the anchor leaving the world, the module's plugin disabling and its own stop;
+> the module is not told yet. A Bedrock player gets the text elements only (`support(player)` is
+> `TEXT_ONLY`): a scene that needs items, blocks or animation checks `supports(player)` and falls
+> back to the chat or the overlay. `/artisan scene-demo` shows one above the entity you look at.
+> A `SceneElement.Hitbox` draws nothing: `aimed(player, scene)` gives the key of the one the player's
+> crosshair is on (call it on their move event to highlight, on their click to take it).
+
 > **Pack images on the server (since 2026-10-31, `@Beta`)** — the hub builds the pack
 > without the editor (`PackBuilder`), so it cannot run a kind's `pack.images`. Its Java twin goes on the
 > kind declaration: `new DocumentKindDeclaration(...).withPackImages((doc, ctx) -> ...)`, a
@@ -248,21 +283,11 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > module opens it from its own button, as often as the player wants: nothing is saved, and it never
 > opens by itself. A 1.18 bundle still loads.
 
-> **Items in a module view (since 2026-11-04, SDK 1.20)** — `useItemTexture(material)` (host hook) gives
-> the URL of the texture the editor's item fields show for a material (`DIAMOND`, any case), to
-> draw an item in a module's own view (a reward grid) with an `<img>`; undefined until the item
-> catalogue is loaded and for an item without one (custom item, typo). `ItemValueInput` (host
-> component) is the generated form's item field on a value of the module's data file, for a Config
-> screen view: titles and lore stay the Project's texts, where `ItemInput` writes a literal spec.
-> A 1.19 bundle still loads.
-
-> **Module folder (since 2026-11-12, API 1.1.0)** — `api.getProjectRoots().pluginFolder(folder, moduleId, dir)`
-> registers `dir`, a dedicated folder of the add-on's plugin (by convention
-> `new File(getDataFolder(), "artisan_module")`), as an add-on root (key `addon:<folder>`, not
-> renamable): deleting the plugin folder uninstalls the add-on. `plugins/Artisan/modules/<folder>/`,
-> where `moduleFolder` (2026-10-19, now `@Sunset`) kept it, is moved there once; the module
-> then reads its files in the returned folder. To be called in `onEnable`, before writing a
-> default file. ADR `addon-owned-project-roots`, amendment 2026-11-12.
+> **Module folder (since 2026-10-19)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
+> gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
+> `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the
+> module then reads its files in the returned folder. To be called in `onEnable`, before
+> writing a default file.
 
 > **Document kinds (since 2026-10-15, lot 5)** — a module contributes its Document kinds through
 > `documents: DocumentKindContribution[]`: `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
@@ -283,6 +308,46 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `lib/moduleDocumentKinds.test.tsx` (the "quest" kind). The plugin does not know module kinds
 > yet (W6, after a pilot): the folder is not synced until `DocumentKinds.kt` lists it.
 > Detail: `docs/architecture/editor-internals.md`, "Document kinds contributed by a module".
+
+### 3.2 Backend module (removed in phase F)
+
+> No more backend: a module no longer has routes or tables on the web server side. What the hub knows about a module comes from the `hello` (`installed_modules`, `data_sources`, `declared_models`, `editor_screens`) or from a direct call to the plugin. Section kept for history.
+
+```
+/backend/src/modules/{module_id}/
+  index.ts          ← Module registration
+  routes/           ← Fastify route handlers
+  schemas/          ← JSON schemas
+  validators/       ← Validation logic beyond JSON Schema
+  storage/          ← Drizzle schemas for the module's tables
+  sync/             ← WebSocket message handlers
+```
+
+**Registration interface**:
+
+```typescript
+export interface BackendModule {
+  id: string;
+  schemaVersion: string;
+  
+  // REST routes to mount under /api/modules/{id}/...
+  registerRoutes(fastify: FastifyInstance): void;
+  
+  // Drizzle tables owned by the module
+  tables: PgTable[];
+  
+  // WebSocket message handlers
+  wsHandlers?: Record<string, (msg: any, ctx: WsContext) => void>;
+  
+  // Data sources exposed by this module (see section 4)
+  dataSources?: DataSourceDeclaration[];
+  
+  // Commands exposed by this module (see section 4)
+  commands?: CommandDeclaration[];
+}
+```
+
+> **SDK barrel (since 2026-06-15)** — the `BackendModule` contract + the `mountModules` integrator are exposed through a single entry point `@artisan/backend-sdk` (internal tsconfig path `backend/src/sdk/index.ts`, natively resolved by Bun including under `bun test`). Modules import **only** from this barrel, never from `../modules/api/...`. In M1 it is an internal re-export (not yet a published npm package); see `docs/archive/specs/2026-06-15-modules-architecture-design.md`. The core menus/commands/assistant modules already consume the barrel (dogfooding).
 
 ### 3.3 Paper plugin: multi-plugin architecture
 
@@ -409,6 +474,27 @@ interface ArtisanModule {
 4. **Independent versioning**: ship shop 1.5 without touching the core.
 5. **Pattern familiar** to the MC market (Vault, PlaceholderAPI, WorldGuard).
 
+#### 3.3.5 Backend stays monolithic (historical)
+
+> Since phase F, it is the hub that reads `installed_modules` at the `hello` (or directly in the plugin for the `local` server) and the editor that filters its UI according to those modules.
+
+The backend (Fastify) and the web editor remain **a single deployment each**. At the WebSocket handshake, the core plugin declares the modules installed on the server:
+
+```json
+{
+  "type": "hello",
+  "server_key": "...",
+  "core_version": "1.5.2",
+  "installed_modules": [
+    { "id": "menus", "version": "1.5.2" },
+    { "id": "commands", "version": "1.5.2" },
+    { "id": "shop", "version": "1.0.3" }
+  ]
+}
+```
+
+The editor filters its UI according to these modules. Modules that are not installed are **shown greyed out with an *"Install Artisan Shop to use this module"*** + link to SpigotMC Premium / BBV.
+
 ## 4. Composition: data sources + commands
 
 Modules **do not know each other directly**. They communicate via two universal primitives: **data sources** and **commands**.
@@ -424,7 +510,7 @@ Examples:
 - `kits:available` → list of available kits
 - `essentials:warps` → list of warps (via the EssentialsX data source)
 
-**The menus module consumes** data sources through the `data_source.ref` field of its Elements (see `docs/archive/specs/main-spec.md` §14). The menus module does not know what a "shop item" is — it just knows how to iterate a list with typed fields.
+**The menus module consumes** data sources through the `data_source.ref` field of its Elements (see main-spec section 14). The menus module does not know what a "shop item" is — it just knows how to iterate a list with typed fields.
 
 **The shop module exposes** its data source via `ArtisanAPI.dataSources.register(...)`:
 
@@ -711,7 +797,7 @@ api.getTemplates().register(TemplateDeclaration
   Each copied file is tracked in `.artisan/origins.yaml`; `GET …/projects/:project/origins` reads them.
 - **Seeding**: a template with `seed(projectId)` is copied once into a new Project of that
   name (`.artisan-seeds.yaml` at the core root), with a manifest in the server's language, never
-  recreated if the owner deletes it. If that name is the module's own folder (`pluginFolder`),
+  recreated if the owner deletes it. If that name is the module's own folder (`moduleFolder`),
   only the module file is written there: the template's files go to `originals/` like a system
   template's, optional (design `originaux-modules` §9), so they follow the module's updates and
   the owner can exclude them. An example the owner had deleted before originals existed is added
@@ -926,6 +1012,111 @@ import shopItemSchema from '@/modules/shop/schemas/item.v1.json';
 
 **20% of modules** will need custom UX (the menus module with its canvas, the quest module with its graph editor, etc.). There you write custom React in `/modules/{id}/editor/`.
 
+## 9. Phasing V1 → V3
+
+### V1 (launch, weeks 3-8)
+
+Modules delivered:
+- `menus` — visual menu editor (the main focus)
+- `commands` — command editor
+- `translations` — i18n keys (integrated into menus + commands)
+
+Architecture pattern in place:
+- `ArtisanModule` interface (Java) on the plugin side
+- `BackendModule` / `FrontendModule` interfaces on the web side
+- `DataSourceRegistry` + `CommandRegistry` operational
+- 5 homemade data sources (EssentialsX, ChestShop, JobsReborn, LuckPerms, Quests) — these are already read-only modules in practice
+
+### V1.5 (M+2 to M+4)
+
+First Add-on: **boutique** (final name of the spec's `shop` module — delivered, see §15).
+- Schema `boutique/v1` with items, categories, prices
+- External plugin (separate repo, depends on the core) — no dedicated Fastify/Drizzle backend: the catalog lives in `boutique/shop.yaml`, synced like any project file
+- Form-based `@artisan/boutique-editor` frontend (presence-gated `/m/boutique`)
+- `shop_main` / `shop_category` menu templates bootstrapped
+- Data sources `boutique:categories` / `boutique:items`, command `boutique:buy`
+- This boutique module is **the delivered proof of concept** of the modular pattern besides the menu editor — with deviations from the spec, documented in §15.
+
+### V2 (M+4 to M+8)
+
+Adding the modules:
+- `quests` — quest chains, objectives, rewards
+- `kits` — items, cooldowns, permissions
+- `warps` — locations
+- `profiles` — player profile menus
+
+Each module = ~1-2 weeks of dev thanks to the well-established pattern.
+
+### V3+ (M+9+)
+
+Opening the **SDK for third-party modules**:
+- Public documentation of the `ArtisanModule` pattern
+- NPM package `@artisan/sdk` for the frontend
+- Maven artifact `net.artisanmc:sdk` for the plugin
+- Validation and publication via Artisan (review process)
+- Third-party module marketplace (15-30% commission)
+
+The SDK is only opened when you have:
+1. At least 5 modules built by you (pattern validation)
+2. Demand validated by 3rd-party developers (Discord, Reddit, direct contacts)
+3. Operational capacity to review + support third-party modules
+
+## 10. Immediate V1 implications
+
+If you validate this architecture, here are the additions to integrate in the 2-3 weeks of V1:
+
+### Plugin (Kotlin)
+
+- `ArtisanModule` interface (~30 lines)
+- `DataSourceRegistry` and `CommandRegistry` classes (~100 lines each)
+- `ArtisanPlugin` loads a module registry at `onEnable()`
+- `MenusModule` created as the first module (encapsulates what already exists)
+- `CommandsModule` created as the second module
+- 5 data sources (EssentialsX, ChestShop, etc.) become submodules of their namespace, registered in `DataSourceRegistry`
+
+**Effort: ~2-3 days** of opportunistic refactor. The menu rendering code already exists — you **wrap** it in the `MenusModule` class.
+
+### Backend (Fastify) — removed in phase F
+
+- `BackendModule` interface (~30 lines)
+- Module registry at boot
+- Refactor of existing routes into `/api/modules/menus/*` (eventually — you can keep `/api/menus/*` for V1 and migrate later if you want)
+
+**Effort: ~1-2 days** of opportunistic refactor.
+
+### Frontend (React)
+
+- `FrontendModule` interface (~30 lines)
+- Module registry loaded at boot in `App.tsx`
+- Dynamic sidebar (reads the registry for entries)
+- Dynamic routes (loads each module's routes)
+- `<SchemaForm>` component (to code or integrate rjsf) — useful from V1 for simple configs, essential V1.5+
+
+**Effort: ~3-5 days** of which 2-3 days on `<SchemaForm>` which will be reused for ALL future modules.
+
+### Total V1 add
+
+**~6-10 extra dev days** to put the architecture in place. More than compensates for the time saved on all future modules (each will gain 1-2 weeks thanks to the established pattern).
+
+## 11. What we do NOT do in V1
+
+- No dynamic module loading (modules are statically linked)
+- No public SDK for 3rd-party developers
+- No module marketplace
+- No runtime isolation (modules run in the same Java process)
+- No per-module quota / billing
+
+These features arrive **incrementally** when the need emerges.
+
+## 12. Known risks
+
+- **Over-engineering**: adding the modular pattern for 2 modules at launch (`menus`, `commands`) can seem overkill. Answer: it is ~1 week of effort that saves 4+ per future module. Investment pays off from the 2nd module added.
+- **Subtle coupling**: despite the separation, modules may end up implicitly depending on the shape of other modules' data sources. Mitigation: `DataSourceDeclaration` includes a typed JSON Schema, and the frontend validates the shape editor-side.
+- **Cross-module hot-reload**: if the shop module is reloaded, the menus that consume `shop:items` must re-fetch. Observer pattern / event bus on the core plugin side to implement (~1 day V1).
+- **Plugin version mismatch**: splitting into several plugins introduces the risk that an admin installs incompatible core 1.0 + shop 2.0. Mitigation: strict SemVer, graceful failure, communication. See section 13.
+
+---
+
 ## 13. Compatibility and multi-plugin versioning
 
 With the core + module plugins split, **compatibility between versions** becomes a critical discipline. Pattern to follow:
@@ -1004,6 +1195,58 @@ The admin sees the clear error in the logs, knows what to do, has the choice (up
 
 Documentation in `docs/architecture/api-surface.md`, which explicitly lists what is public stable vs internal.
 
+### 13.5 Communication to admins
+
+**On the store pages (SpigotMC, BuiltByBit, Voxel)**:
+- Artisan Core page: clear changelog, breaking changes flagged in bold red.
+- Premium module pages: *"Compatible with Artisan core 1.x"* shown visibly.
+
+**Discord**:
+- `#announcements` channel for major updates.
+- Notification when a major is planned 3+ months ahead.
+- Beta access to module updates before the core major release.
+
+**Backend (artisanmc.net)** (removed in phase F; the hub shows "Update required" for a different protocol major, see `versioning.md` §4):
+- Detects installed versions via WebSocket handshake.
+- Shows a warning in the web editor: *"Artisan Shop 1.0.0 is incompatible with Artisan core 2.0.0 (released 3 days ago). Update Shop to 2.0.0."*
+- Automatic email to Pro users when a module they have has an update available.
+
+### 13.6 Strategy for majors
+
+When a core major is needed (architecture refactor, Adventure breaking change, etc.):
+
+1. **3 months before**: Discord + SpigotMC announcement + public roadmap. Spec of breaking changes.
+2. **2 months before**: beta of the new premium module versions for Pro users.
+3. **1 month before**: RC (release candidate) of the core + all modules.
+4. **Release day**: core 2.0.0 + all premium modules 2.0.0 launched together. Admins update everything in one go.
+5. **3 months after**: core 1.x remains available for download. No new 1.x bug fixes except critical security.
+6. **6 months after**: core 1.x archived (download still possible but not supported).
+
+You can maintain 2 majors in parallel for 3-6 months (1.x + 2.x coexist), then sunset 1.x.
+
+### 13.7 Practical reality for V1-V2
+
+In practice for your project's stage:
+
+- **V1 launch**: `artisan-core 1.0.0`. No premium modules yet.
+- **V1.5**: `artisan-core 1.x.y` + `artisan-shop 1.0.0`. Core keeps evolving in minor/patch, shop keeps working as long as you respect SemVer.
+- **V2**: `artisan-core 1.x.y` + `shop 1.x` + `quests 1.0.0` + `kits 1.0.0`. Still on core major 1.
+- **Year 2-3**: maybe a major 2.0 if you have accumulated API debt. Otherwise you stay on 1.x indefinitely.
+
+**Ideally, you never do a major 2.0.** You accumulate in minors (`1.5`, `1.10`, `1.20`) while keeping backward compat. That is what Bukkit did for 15 years.
+
+### 13.8 Auto-update and marketplace (V3+)
+
+> Dropped along with the cloud: without a backend, updating jars stays manual (releases, marketplaces).
+
+Eventually, artisanmc.net can offer an **auto-update system**:
+
+- Backend detects compatible updates of installed modules.
+- Notification in the web editor: *"Artisan Shop 1.0.4 available (bug fix). [Update now] [Later]"*.
+- Click → backend triggers a download of the .jar into the server's `plugins/` via SFTP/RCON.
+
+V3+ feature, not critical for V1.
+
 ### 13.9 Build layout: Gradle multi-module monorepo
 
 **Decision**: each premium module ships as a separate JAR, but everything lives in the **same repo** via a Gradle multi-module setup.
@@ -1050,6 +1293,61 @@ plugin/
 **What we do NOT do**: a per-repo split monorepo (separate `artisan-core` + `artisan-shop` repos). Too much friction to develop a feature that touches both (cross PRs, coordinated version bumps). The Gradle monorepo handles that naturally.
 
 ---
+
+## 14. Assistant module (AI feature — backend-only, removed in phase F)
+
+> **Removed** with the backend (2026-10). The editor panel remains in the repository, outside the self-hosted build (`SELF_HOSTED`); the engine described below is recoverable at commit `ccade092`.
+
+> **Status**: under construction (sub-plans 2a–2d delivered; credits 3 + editor panel 4 to come). Lives for now under `backend/src/modules/assistant/` (not yet the 3 symmetric layers of a standard Add-on; the editor panel arrives in sub-plan 4).
+
+The assistant is the AI agent that edits a project's menus in natural language. The core is **entirely backend** and **testable without network** (mocked provider). It relies on the canonical `menu/v1` format (`docs/schema/menu/v1/`) as the writing contract.
+
+### 14.1 Components (sub-plans 2a–2c)
+
+- **Provider (2a — `provider/`)**: `LlmProvider.streamTurn` abstraction, neutral with respect to the vendor (a single OpenAI-compatible adapter). Emits `LlmStreamEvent`s (`text` / `tool_use` / `usage` / `done`). See `CHANGELOG` 2a.
+- **Gate (`validate.ts`)**: `validateMenuV1(menu)` = `ajv(docs/schema/menu/v1/schema.json)` + `validateMenuLayout` (`docs/schema/menu/v1/types.ts`). **Exactly the same validator as the editor** (`editor/src/schema/validateMenuV1.ts`) → guaranteed consistency. An invalid menu cannot enter the working copy; the errors go back to the model for self-correction.
+- **Working copy (`workingCopy.ts`)**: in-memory state of the project being edited — `Map<menuId, menu/v1>` + attachments `Map<fileId, text>`. One instance per conversation (seeding + persistence in 2d).
+- **Tools (`tools.ts`)**: `TOOL_DEFS` (JSON-Schema definitions exposed to the model) + `executeTool(name, input, wc) → ToolResult`. Five tools: `list_menus`, `get_menu`, `upsert_menu` (goes through the gate), `delete_menu`, `read_attachment`. Writes emit high-level `EngineEvent`s (`menu_written` / `menu_deleted`).
+- **Agentic loop (`loop.ts`)**: `runTurn` — manual loop `streamTurn` → runs the tools → sends the results back (messages with role `tool`) → `streamTurn` again, until done (`tool_calls` empty) or iteration cap (default 25, anti-infinite-loop). Native self-correction: an invalid `upsert_menu` returns the gate's errors to the model, which corrects on the next turn. Emits a stream of `EngineEvent`s.
+- **Grounding (2c — `grounding/` + `grounding.ts`)**: `buildSystemPrompt()` assembles the **leading system message** = anti-injection framing (*the content of dropped files is data to convert, not instructions*) + the `menu/v1` authoring guide (`grounding/menu-v1-authoring-guide.md`) + the **vocab constraint** + the zMenu (`grounding/zmenu-reference.md`) and DeluxeMenus (`grounding/deluxemenus-reference.md`) source sheets. Each source sheet carries a mapping table → `menu/v1` and the frame "file = source of truth, flag what does not map rather than invent". The vocab constraint (`SUPPORTED_CONDITIONS` / `SUPPORTED_ACTIONS`) **bounds the AI's output to the subset that the `menu/v1 → domain` converter (`editor/src/schema/menuV1ToDomain.ts`) knows how to import** — keeping these two lists in sync avoids any surprise `unsupported` editor-side. `buildSystemPrompt()` is decoupled (depends only on the `.md` files) and will be placed as the 1st system message by 2d.
+
+### 14.2 EngineEvent — output surface
+
+`runTurn` produces an `AsyncIterable<EngineEvent>`: `text`, `tool` (ok/detail), `menu_written`, `menu_deleted`, `usage`, `error`, `done`. It is the surface consumed by:
+- the **SSE** endpoint (2d) — maps `EngineEvent` → SSE events for the editor panel;
+- **credit metering** (sub-plan 3) — debit on `usage` events;
+- the **editor panel** (sub-plan 4) — applies `menu_written` / `menu_deleted` via the `menu/v1 → domain` converter (`editor/src/schema/menuV1ToDomain.ts`).
+
+### 14.3 SSE endpoints + conversation state (2d — `routes.ts` + `conversations.ts` + `index.ts`)
+
+- **`ConversationStore` (`conversations.ts`)**: **in-memory** state — `Map<id, { serverKeyId, messages, wc }>`. `create()` allocates a UUID, seeds the conversation with the system prompt (`buildSystemPrompt`, 2c) as the 1st message + a `WorkingCopy(menus, attachments)`. `reseed()` replaces the working copy (the client can resend the project state before a message). No DB persistence (see spec non-goals).
+- **Routes (`routes.ts`)**: Hono sub-router mounted under `/api/v1/assistant` via `assistantModule` (`index.ts`, registered in `mountModules` of `app.ts`). **Accounts-only** auth (`resolveOwnerKey`, cookie `artisan_user_session` → `user:<userId>`); 401 otherwise — see `rest-endpoints.md`.
+  - `POST /conversations` → `store.create(...)`, returns `{conversationId}`.
+  - `POST /conversations/:id/messages` → 404 if the conversation is unknown **or** belongs to another `serverKeyId`; optional re-seed (`menus` in the body); pushes the user message; 503 if no provider configured (`resolveProviderConfig` null); otherwise **SSE response** (`streamSSE`): each `EngineEvent` of `runTurn` → `event:` = `ev.type`, `data:` = JSON of the event.
+- **Injectable provider**: `__setProviderForTests(p)` bypasses `resolveProviderConfig`/`createProvider` → hermetic tests without network. In prod, the provider comes from the env (`ASSISTANT_PROVIDER` / `ASSISTANT_API_KEY` / `ASSISTANT_MODEL`).
+
+#### Real test with curl
+
+> ⚠️ Historical (sub-plan 2d): the example below predates the accounts-only cutover and uses the `editor-session` Bearer, which was **removed** (Task 7). The current real auth is the `artisan_user_session` cookie (`-b "artisan_user_session=$SID"` after login) — see `rest-endpoints.md`.
+
+With a configured provider (`.env`: `ASSISTANT_PROVIDER`, `ASSISTANT_API_KEY`, `ASSISTANT_MODEL`) and a valid editor-session access token (`$ACCESS`):
+
+```bash
+curl -sN -X POST localhost:3001/api/v1/assistant/conversations \
+  -H "Authorization: Bearer $ACCESS" -H 'Content-Type: application/json' \
+  -d '{"menus":[],"attachments":{}}'
+# -> {"conversationId":"..."}
+
+curl -sN -X POST localhost:3001/api/v1/assistant/conversations/$CID/messages \
+  -H "Authorization: Bearer $ACCESS" -H 'Content-Type: application/json' \
+  -d '{"text":"Create a 3-row shop menu with a diamond button that opens the spawn menu"}'
+# -> SSE stream: text..., menu_written, done
+```
+
+### 14.4 Coming up
+
+- **3 — credits**: ledger + debit on `usage` events (pre-check before the turn, block at zero) + admin grant.
+- **4 — editor panel**: chat + file-drop + SSE client → applies `menu_written` / `menu_deleted` via `menuV1ToDomain` + checkpoint/undo.
 
 ## 15. Boutique module (V1.5 — shipped)
 

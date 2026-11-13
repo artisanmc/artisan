@@ -220,13 +220,12 @@ export function Composer({
   const [dragging, setDragging] = useState(false);
   const [picking, setPicking] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const kinds = useAiStatus()?.attachments;
   // The picker adds several in a row: each checks against the list as it is now.
   const current = useRef(attachments);
   current.current = attachments;
 
   const add = (attachment: PendingAttachment): AttachmentRefusal | null => {
-    const refused = fits(current.current, attachment, kinds);
+    const refused = fits(current.current, attachment);
     if (refused) return refused;
     current.current = [...current.current, attachment];
     setAttachments(current.current);

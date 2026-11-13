@@ -119,11 +119,10 @@ class AiSetup(
     companion object {
         fun defaultProvider(config: AiConfig): AiProvider? = when (config.provider) {
             "anthropic" -> AnthropicProvider(config)
-            "openai" -> OpenAiProvider(config)
             else -> null
         }
 
-        /** The protocol, where it is sent and the model: either with a base URL is another vendor's compatible API. */
+        /** The protocol, where it is sent and the model: `anthropic` with a base URL is another vendor's compatible API. */
         fun describe(config: AiConfig): String {
             val host = config.baseUrl.takeIf { it.isNotBlank() }?.let { runCatching { URI(it).host }.getOrNull() ?: it }
             return "${config.provider} API" + (host?.let { " at $it" } ?: "") + ", model ${config.model}"

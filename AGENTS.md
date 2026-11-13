@@ -31,49 +31,48 @@ read it, do not guess it.
 
 Not updating = the next session will not know the code changed.
 
-## Where to find things
+## Reference docs
 
-**`docs/README.md` is the index: one line per question** ("what is stored where?", "which REST
-route?", "what may an add-on import?") with the file to open. The ones to read before most tasks:
-
-- `CONTEXT.md`: domain glossary, **source of truth for terms**.
-- `docs/architecture/invariants.md`: what must never break.
-- `docs/decisions/`: ADRs. A proposal that contradicts one says so explicitly.
-
-`docs/site/` is the public wiki (admins, add-on developers). `docs/archive/` describes the
-pre-hub product (cloud backend, V1 roadmap): never cite it as current behavior.
-
-**Add-ons live in their own repos** and only import `net.artisanmc.modules.api.*`
-(`artisan-core-api`, Maven `repo.artisanmc.net/releases`, numbered from 1.0.0):
-`artisan-conversations`, `artisan-quests`, `artisan-store`, `artisan-auctions`,
-`artisan-daily-rewards`, `artisan-attribution`, MSGuilds. An API change here = a `Since` line in
-`docs/architecture/api-surface.md` and, if an add-on needs it, its `MIN_API_VERSION`.
+| Doc | Contents |
+|---|---|
+| `CONTEXT.md` | Domain glossary — **source of truth for terms**. |
+| `docs/architecture/invariants.md` | The critical invariants in detail (disk, CAS, exclusions, threads). |
+| `docs/architecture/modules.md` | Modular monolith: module abstraction, data sources + commands, how to add one. |
+| `docs/architecture/versioning.md` | The disciplines (CHANGELOG, versioned schemas, protocol version, REST `/api/v1/`). |
+| `docs/architecture/api-surface.md` | Stable public API surface (`@Stable`/`@Beta`/`@Internal`/`@Sunset`). |
+| `docs/architecture/ws-protocol.md` | Hub ↔ server messages (`/ws/plugin`) + `/ws/editor`. |
+| `docs/architecture/rest-endpoints.md` | Index of the hub's routes (which `*Routes.kt` to open) + conventions. |
+| `docs/architecture/entities.md` | What persists where (disk, suite database, hub memory), auth, history. |
+| `docs/architecture/editor-internals.md` | Title composer, Document editing, canvas, UI shell, design system. |
+| `docs/architecture/project-files.md` | Layout of a project on disk, `lang/` codec, `title` field. |
+| `docs/architecture/plugin-commands.md` | Detail of the `/artisan` subcommands. |
+| `docs/architecture/testing.md` | Suite coverage + conformance vectors. |
+| `docs/architecture/schemas-codegen.md` | JSON schemas ↔ editor/plugin types. |
+| `docs/decisions/` | ADRs (`editor-web-server`: the hub). `docs/specs/`: product specs; `docs/archive/specs/`: past designs (see its README). |
 
 ## Commands
 
 ```bash
 # Plugin (Kotlin 2.0 / Paper 1.21+, Folia, Leaf)
 cd plugin
-./gradlew test          # every module (api, core, database, hub, pack, paper)
+./gradlew test          # every module (api, core, database, hub, paper)
 ./gradlew shadowJar     # → paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
-                        #   + geyser-extension/build/libs/artisan-geyser-1.0.0-SNAPSHOT.jar (a proxy's Geyser)
 ./gradlew shadowJar -PwithEditor   # same, with the editor bundled (npm required)
 ./gradlew deploy        # build + restart the container
 
 # Editor (React 19 + Vite 6)
 cd editor
-npm run dev             # port 5173, /api and /ws proxied to the hub (ARTISAN_HUB_URL, default :8765)
 npm test
+npm run dev             # port 5173, /api and /ws proxied to the hub (ARTISAN_HUB_URL, default :8765)
 npm run build           # the build served by the hub (called by -PwithEditor)
-npm run build:site      # artisanmc.net showcase + wiki (editor/Dockerfile)
-npm run pack -- build <projects-dir>   # the server's Java pack from Project folders, without a browser (vectors: `pack -- vectors`)
+npm run build:site      # artisanmc.net showcase + wiki
 
 # Local server
 docker compose up       # Paper :25565 + plugin editor :8765 + the shop's MySQL
 docker compose -f docker/network/compose.yml up   # network: one hub + one leaf
 ```
 
-**Plugin commands** — `/artisan menu|reload|sync|editor [sessions|revoke <id>|logout]|dump-title` (+ the internal `click <token>` of `chat_button`), detail in
+**Plugin commands** — `/artisan menu|reload|sync|editor|dump-title` (+ the internal `click <token>` of `chat_button`), detail in
 `docs/architecture/plugin-commands.md`.
 
 **MC assets** — `cd tools/minecraft-assets && bun gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`
@@ -84,24 +83,21 @@ catalogue, the icon zips go to the CDN by hand). Detail: `tools/minecraft-assets
 
 ```
 editor/          React 19 + Vite + Konva — served by the plugin (hub)
-plugin/          Kotlin 2.0 + Paper: api · core · database · hub (Jetty 12) · pack · runtime · paper
-                 · tunnel / tunnel-server (editor tunnel) · geyser-extension (proxy Geyser)
+plugin/          Kotlin 2.0 + Paper: api · core · database · hub (Jetty 12) · paper
 docker/          Local Minecraft servers (itzg/minecraft-server), network in docker/network/
 tools/minecraft-assets/  Bun generators for vanilla MC assets (items, 3D icons, glyph widths, padded fonts)
 docs/site/       Public user docs (EN, Starlight Markdown) — assembled by artisanmc.net
 docs-site/       Astro Starlight build of docs/site/, served at artisanmc.net/wiki
-docs/            README.md (index) · architecture/ · decisions/ · schema/ · site/ · archive/
+docs/            architecture/ · archive/ · decisions/ · specs/ · schema/
 ```
 
 **No backend** — the plugin serves the editor, the `/api/v1/…` API and the WebSockets on `web.port`
 (8765). Sign-in through the link from `/artisan editor`. Network: one server with `web.role: hub`, the
 others `leaf`, connected to its `/ws/plugin` with a shared secret. ADR `editor-web-server`.
 
-**Plugin as Gradle modules** — `plugin/api` (add-on surface, **in Java**), `plugin/core` (domain, no Bukkit),
-`plugin/database`, `plugin/hub` (web server, no Bukkit), `plugin/pack` (resource pack builder, pure), `plugin/runtime` (action engine, conditions, items,
-translations), `plugin/paper` (menus, presence, jar). An
-`org.bukkit` import outside `paper`, `runtime` or `api` does not compile. Detail: `plugin/README.md`, ADRs `plugin-gradle-modules`,
-`runtime-library`.
+**Plugin as Gradle modules** — `plugin/api` (add-on surface), `plugin/core` (domain, no Bukkit),
+`plugin/database`, `plugin/hub` (web server, no Bukkit), `plugin/paper` (Bukkit + jar). An
+`org.bukkit` import outside `paper` or `api` does not compile. Detail: `plugin/README.md`, ADR `plugin-gradle-modules`.
 
 **Modular monolith** — each module lives in 2 symmetric layers:
 `plugin/…/modules/{id}/` (`ArtisanModule` impl) and `editor/src/modules/{id}/` (`FrontendModule`).
@@ -114,14 +110,13 @@ dependency. **An `ArtisanModule` only imports from `net.artisanmc.modules.api.*`
 The three we cannot afford to discover after the fact. The rest — and the detail of
 these — in **`docs/architecture/invariants.md`**.
 
-1. **Published content lives on the server's disk, the rest in the suite database** — only
-   the server writes its files (`project_write` or publishing a draft, compare-and-swap).
-   The database keeps what each server loaded (`artisan_servers`, Versions,
-   `artisan_server_state`) and the private drafts (`artisan_drafts`, one set per player UUID,
-   autosave): the hub reads and edits from the database, even with the server off; only writes and
-   live data go to the server (ADR `server-identity-and-versions`).
+1. **Everything lives on the server's disk** — published content **and** private drafts
+   (`<project>/.artisan/drafts/`, one set per player UUID, `ProjectDraftStore`). The editor
+   autosaves its draft; publishing stays explicit, through `project_write` or publishing
+   the draft, with compare-and-swap. Server off = editor (or leaf) offline:
+   nothing is copied elsewhere.
 2. **`.artisan*` as first segment = metadata** — outside the hash, invisible to the disk scan. The editor
-   owns `.artisan/editor.yaml` (it may write it); `.artisan/history/`, `.artisan/drafts/`, `.artisan/project-id`, `.artisan/origins.yaml`,
+   owns `.artisan/editor.yaml` (it may write it); `.artisan/history/`, `.artisan/drafts/`, `.artisan/origins.yaml`,
    `.artisan-trash/` and `.artisan-sync.yaml` stay invisible to it **and** off-limits for writing.
 3. **Threads: Paper, Folia, Leaf** — never `Bukkit.getScheduler()`: everything goes through the
    `Scheduler` port. Jetty answers on its own threads; any game access from the hub goes back through

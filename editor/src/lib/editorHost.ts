@@ -4,7 +4,6 @@ import { type DocKey, allDocuments, docKey } from "@/domain/documents";
 import type { I18nKey, Project, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useAssetSize } from "@/features/assets/measuredSize";
-import { useTextureUrl } from "@/features/canvas/textureStore";
 import { getText, newI18nKey } from "@/lib/i18n";
 import { mcLineWidth, wrapLore } from "@/lib/loreWrap";
 import { projectDestination } from "@/lib/projectNavigation";
@@ -96,7 +95,6 @@ export const editorHost: Omit<EditorHost, "components"> = {
   },
   mcTextWidth: (source) => mcLineWidth(source),
   mcWrap: (source, width) => wrapLore(source, width),
-  useItemTexture: (material) => useTextureUrl(material),
 };
 
 /** `components`: the editor widgets module views embed (`distribution/hostComponents.tsx`). */

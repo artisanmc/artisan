@@ -1,7 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import type { Project } from "@/domain/types";
 import { resolveSourceRefWithOrigin } from "@/features/canvas/menuPreviewScope";
-import { findServerSource } from "@/lib/api/dataSources";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useTranslation } from "react-i18next";
@@ -17,7 +16,7 @@ export function SourceOriginBadge({ project, sourceRef }: { project: Project; so
   const { t } = useTranslation();
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const declared = useServerDataSourcesStore(
-    (s) => findServerSource(s.sources, sourceRef)?.origin ?? null,
+    (s) => s.sources.find((x) => x.ref === sourceRef)?.origin ?? null,
   );
   if (sourceRef.startsWith("pack:")) return null;
   const { origin } = resolveSourceRefWithOrigin(sourceRef, project, snapshots);

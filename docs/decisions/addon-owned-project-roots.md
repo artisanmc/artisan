@@ -122,31 +122,3 @@ there once. As long as both folders contain files (a copy left in `projects/`,
 migrated with the rest), the original root stays read: we never choose for the
 admin which content is the right one. `register` remains available for add-ons
 that have not migrated.
-
-### Amendment 2026-11-12 — the add-on root goes back to its plugin
-
-The 2026-10-19 amendment is reversed: an add-on's folder lives in its own plugin
-again, as §1 decided. `pluginFolder(folder, moduleId, dir)` (API 1.1.0) registers
-`dir`, a dedicated sub-folder of the add-on's plugin (by convention
-`plugins/<Plugin>/artisan_module/`: the name says what it holds, an Artisan module, the
-word the editor shows too; `project/` or `content/` said nothing; decided 2026-11-13), under the same `addon:<folder>` key; `moduleFolder`
-is `@Sunset` (removed in API 2.0.0) and keeps working until then.
-
-Why: once add-ons are distributed on their own, an admin uninstalls one by
-deleting its jar and its folder, and moves it to another server by copying that
-folder. With the files under `plugins/Artisan/modules/<folder>/`, both left a
-stray folder in Artisan's, read as a project of its own once the add-on was gone.
-The merge of projects and modules that motivated 2026-10-19 holds in the editor
-(one entry per module) and needs no particular place on disk: system files,
-seeded templates, command files and messages find the folder by its owning module
-(`ProjectRoots.ownerOf`), not by where it sits. No public version had shipped, so
-only dev servers have a folder to move.
-
-The move mirrors 2026-10-19's: `plugins/Artisan/modules/<folder>/` moves to `dir`
-once, when `dir` is missing or empty, keeping its key (Versions, drafts and
-`<folder>:<id>` references follow). While both hold files, or when the move fails,
-the old folder stays read with an error in the log. A folder holding only its key
-file (`.artisan/project-id`) counts as empty. `pluginFolder` refuses a `dir` that
-is a plugin's data folder itself or sits in Artisan's folder. The `.yml` migration
-(`YmlMigration`) stays limited to Artisan's folder: a plugin folder is already in
-`.yml`.

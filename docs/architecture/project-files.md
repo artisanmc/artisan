@@ -21,7 +21,7 @@ plugins/Artisan/modules/
     models/<id>.yml                ← schema model/v1; `<id>` = the source it types (owned model), otherwise the model id, the identity remains the internal `id:`
     assets/{glyphs,textures,fonts}/ ← images and fonts (binaries, written by publication)
     .artisan/editor.yaml           ← editor board state (the only `.artisan*` the editor writes)
-    .artisan/project-id            ← project UUID, written once by the plugin (keeps Versions and drafts across a rename); `addon:<folder>` in a module's own folder (`pluginFolder`, or a former `moduleFolder` under `modules/`), so the key holds before the module registers it at startup and across its move to the plugin's folder
+    .artisan/project-id            ← project UUID, written once by the plugin (keeps Versions and drafts across a rename); `addon:<folder>` in a module's own folder, so the key holds before the module registers it at startup
     .artisan/drafts/<id>/          ← drafts from before the suite database, no longer read
     .artisan/transactions/         ← publication journal, receipts in `.receipts/`
     .artisan/history/              ← archives from before 2026-09-26, read only
@@ -56,8 +56,8 @@ without the extension (`TemplateFileState.projectPath`), and `template_copy` acc
 spelling.
 
 **Migration at startup** (`YmlMigration`, called by `ProjectRoots` when the server starts,
-once per folder and per startup): each folder of `plugins/Artisan/modules/` (a former
-`moduleFolder` included; an add-on's `pluginFolder` is not) has its `.yaml` files renamed to `.yml` and its `manifest.yaml` to
+once per folder and per startup): each folder of `plugins/Artisan/modules/` (a module's own
+folder included) has its `.yaml` files renamed to `.yml` and its `manifest.yaml` to
 `artisan-module.yml`, in one journaled commit (`ProjectPublisher`), along with the keys of
 `.artisan/origins.yaml`. Only names change: the bytes stay, a renamed `manifest.yaml`
 keeps `schema: manifest/v1` until the editor next writes it. The `.artisan*`

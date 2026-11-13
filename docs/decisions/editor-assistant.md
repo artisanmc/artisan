@@ -35,11 +35,9 @@ than the hub. One single Artisan user at this date: the admin's key first.
    Append-only history (responses go back as they are, thinking blocks included),
    tools and system prompt fixed per conversation, automatic prompt caching, configurable `effort`
    (default `medium`), server-side fallback when a classifier refuses, for the models
-   that accept it, and only towards Anthropic's API (not behind `base-url`). Second provider
-   (2026-11-08, decision 12): any OpenAI-compatible Chat Completions API.
+   that accept it, and only towards Anthropic's API (not behind `base-url`).
 4. **Configuration**, hub only, the key never sent to the editor: `provider` (`anthropic`, the
-   Messages API, which other vendors such as DeepSeek also serve behind `base-url`; or `openai`,
-   decision 12), `api-key`,
+   Messages API, which other vendors such as DeepSeek also serve behind `base-url`), `api-key`,
    `model` (default `claude-opus-5-5`), `effort`, `max-steps` (model calls per message, 25),
    `base-url`. Set from the editor (Settings → Assistant, `artisan.editor.config`), stored in
    `artisan_settings` and applied at once (`AiSetup` rebuilds the assistant; its conversations
@@ -115,21 +113,6 @@ than the hub. One single Artisan user at this date: the admin's key first.
    during a turn (no second channel through the tunnel): the text grows with a caret, a
    `write_document` shows "Writing <path>" with its line count, and the Assistant tab shows the file
    as it is written in a card of its own, replaced by the checked file's card once the call ends.
-12. **OpenAI-compatible APIs** (2026-11-08). `provider: openai` speaks Chat Completions
-   (`OpenAiProvider`, plain HTTP like the first): OpenAI with no `base-url`, otherwise DeepSeek,
-   Mistral, OpenRouter, a local Ollama or any API of that shape (`{base-url}/chat/completions`,
-   `Authorization: Bearer`). One implementation, so only what all of them read is sent: the system
-   prompt as the first message, the tools as `function`s, `stream` (with
-   `stream_options.include_usage`, except towards Mistral, which refuses it), and neither
-   `max_tokens` (each vendor its own cap) nor an effort (a model without reasoning refuses the
-   field, so `effort` is Anthropic's alone and the editor hides it). The history is the API's own
-   messages, the system prompt left out; a tool result is a `tool` message, the reasoning a model
-   shows (`reasoning_content`, DeepSeek) goes back with its answer. Tool arguments that do not
-   parse go as `{}`, and the tool says what is missing. Each provider says which files it reads
-   (`AiProvider.attachments`): all for Anthropic, OpenAI and OpenRouter (a PDF as a `file` part),
-   no PDF elsewhere, text only towards DeepSeek. `GET /api/v1/ai` lists them, the composer
-   refuses another kind at once and the hub refuses it too (`ai_attachment_model`), rather than
-   the vendor's error after the message left. The editor offers the known addresses in one click.
 
 ## Consequences
 
@@ -142,5 +125,7 @@ than the hub. One single Artisan user at this date: the admin's key first.
 ## Deferred
 
 - Artisan's cloud service and the per-server wallet, behind the same relay.
+- Other providers (OpenAI-compatible APIs: Mistral, OpenRouter, Ollama): one more implementation
+  of `AiProvider`.
 - An `artisan.editor.ai` permission and a per-player quota, if others than the admin use it.
 - The model's progress notes between two tools (`display: "updates"`).

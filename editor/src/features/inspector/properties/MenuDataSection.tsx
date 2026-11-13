@@ -7,7 +7,6 @@ import { previewItem } from "@/features/canvas/itemValuePreview";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
-import { findServerSource } from "@/lib/api/dataSources";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -99,7 +98,7 @@ export function ObjectParamLists({
     }
     // Server schemas are FLAT — but dotted field names ("meta.items") work
     // naturally: the path concatenates and the runtime resolves any depth.
-    const src = findServerSource(serverSources, ref);
+    const src = serverSources.find((s) => s.ref === ref);
     const ns = ref.split(":")[0];
     return (src?.schema ?? [])
       .filter((f) => f.type === "list")
@@ -217,7 +216,7 @@ export function MenuSetBlock({
   input: SourceRefInput;
 }) {
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
-  const serverSource = useServerDataSourcesStore((s) => findServerSource(s.sources, input.ref));
+  const serverSource = useServerDataSourcesStore((s) => s.sources.find((x) => x.ref === input.ref));
   if (!project) return null;
 
   // Schema + Row key: project: sources from the project, server sources from presence.

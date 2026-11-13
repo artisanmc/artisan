@@ -1,6 +1,6 @@
 import { sourceRootFields } from "@/domain/dataModels";
 import type { Element, Menu, ModelFieldType, Project } from "@/domain/types";
-import { type ServerDataSource, findServerSource } from "@/lib/api/dataSources";
+import type { ServerDataSource } from "@/lib/api/dataSources";
 
 export function itemBindingOptions(
   project: Project,
@@ -25,7 +25,7 @@ export function itemBindingOptions(
       const row: ModelFieldType = { kind: "object", fields: sourceRootFields(project, ds) };
       return ds.shape === "table" ? { kind: "list", of: row } : row;
     }
-    const server = findServerSource(serverSources, ref);
+    const server = serverSources.find((s) => s.ref === ref);
     if (server)
       return {
         kind: "list",

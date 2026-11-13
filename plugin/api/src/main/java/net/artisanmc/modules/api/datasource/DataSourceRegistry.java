@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.artisanmc.modules.api.ModuleRegistry;
 import net.artisanmc.modules.api.OwnedRegistry;
-import net.artisanmc.modules.api.annotations.Beta;
 import net.artisanmc.modules.api.annotations.Internal;
 import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.entity.Player;
@@ -17,8 +16,6 @@ import org.jetbrains.annotations.Nullable;
 @Stable
 public final class DataSourceRegistry implements OwnedRegistry {
     private final ConcurrentHashMap<String, RegisteredDataSource> sources = new ConcurrentHashMap<>();
-    /** Alias to the ref of the source that declared it ({@link DataSourceDeclaration#withAliases}). */
-    private final ConcurrentHashMap<String, String> aliases = new ConcurrentHashMap<>();
 
     /**
      * Owner captured for registrations happening right now. Set by
@@ -33,76 +30,46 @@ public final class DataSourceRegistry implements OwnedRegistry {
         currentOwner = moduleId;
     }
 
-    /**
-     * Registers {@code decl}; throws {@link DuplicateDataSourceException} if its ref or one of its
-     * aliases is taken, by a source or by another source's alias. Nothing is registered then.
-     */
+    /** Registers {@code decl}; throws {@link DuplicateDataSourceException} if its ref is taken. */
     @Stable
-    public synchronized void register(DataSourceDeclaration decl) {
-        if (sources.containsKey(decl.getRef()) || aliases.containsKey(decl.getRef())) {
+    public void register(DataSourceDeclaration decl) {
+        if (sources.putIfAbsent(decl.getRef(), new RegisteredDataSource(decl, currentOwner)) != null) {
             throw new DuplicateDataSourceException(decl.getRef());
         }
-        for (String alias : decl.getAliases()) {
-            if (sources.containsKey(alias) || aliases.containsKey(alias)) throw new DuplicateDataSourceException(alias);
-        }
-        sources.put(decl.getRef(), new RegisteredDataSource(decl, currentOwner));
-        for (String alias : decl.getAliases()) aliases.put(alias, decl.getRef());
     }
 
-    /** Removes the data source {@code ref} and its aliases; false if none was registered (an alias is not a source). */
+    /** Removes the data source {@code ref}; false if none was registered. */
     @Stable
-    public synchronized boolean unregister(String ref) {
-        if (sources.remove(ref) == null) return false;
-        aliases.values().removeIf(ref::equals);
-        return true;
+    public boolean unregister(String ref) {
+        return sources.remove(ref) != null;
     }
 
     @Internal
     @Override
-    public synchronized void unregisterOwnedBy(String moduleId) {
+    public void unregisterOwnedBy(String moduleId) {
         sources.values().removeIf(r -> moduleId.equals(r.getModuleId()));
-        aliases.values().removeIf(ref -> !sources.containsKey(ref));
     }
 
     @Internal
     @Override
-    public synchronized void unregisterLoadedBy(ClassLoader loader) {
+    public void unregisterLoadedBy(ClassLoader loader) {
         sources.values().removeIf(r -> r.getDeclaration().getFetcher().getClass().getClassLoader() == loader);
-        aliases.values().removeIf(ref -> !sources.containsKey(ref));
     }
 
-    /**
-     * The rows of {@code ref}, or of the source {@code ref} is an alias of, for {@code player}
-     * (null in preview); throws {@link UnknownDataSourceException}.
-     */
+    /** The rows of {@code ref} for {@code player} (null in preview); throws {@link UnknownDataSourceException}. */
     @Stable
     public List<Map<String, Object>> fetch(String ref, @Nullable Player player, Map<String, Object> params) {
-        String canonical = resolve(ref);
-        RegisteredDataSource entry = canonical == null ? null : sources.get(canonical);
+        RegisteredDataSource entry = sources.get(ref);
         if (entry == null) throw new UnknownDataSourceException(ref);
         return entry.getDeclaration().getFetcher().fetch(player, params);
     }
 
-    /** True for a registered ref and for an alias of one. */
     @Stable
     public boolean has(String ref) {
-        return resolve(ref) != null;
+        return sources.containsKey(ref);
     }
 
-    /**
-     * The ref of the source {@code ref} names: itself when registered, the source's when it is an
-     * alias, null when unknown.
-     *
-     * @since 1.2.0
-     */
-    @Beta
-    public @Nullable String resolve(String ref) {
-        if (sources.containsKey(ref)) return ref;
-        String canonical = aliases.get(ref);
-        return canonical != null && sources.containsKey(canonical) ? canonical : null;
-    }
-
-    /** A snapshot of the registered refs, aliases left out. */
+    /** A snapshot of the registered refs. */
     @Stable
     public Set<String> refs() {
         return Set.copyOf(sources.keySet());

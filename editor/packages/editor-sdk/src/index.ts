@@ -52,7 +52,6 @@ export {
   type ActionChainEditorProps,
   type MaterialInputProps,
   type ItemInputProps,
-  type ItemValueInputProps,
   type ItemSpecWire,
   type ItemComparisonWire,
   type MiniMessageInputProps,
@@ -82,7 +81,6 @@ export {
   ActionChainEditor,
   MaterialInput,
   ItemInput,
-  ItemValueInput,
   MiniMessageInput,
   SortableList,
   ConditionsEditor,
@@ -111,7 +109,6 @@ export {
   useAssetImage,
   mcTextWidth,
   mcWrap,
-  useItemTexture,
 } from "./host/host";
 export {
   type GuiScaleChoice,

@@ -153,6 +153,10 @@ At plugin startup, Artisan detects conflicts with already-registered commands (v
 - **Command from another plugin**: same, refusal + warning. No silent override.
 - **Internal conflict between two Artisan commands** (same name in two enabled packs): the pack loaded last loses, a visible warning is logged.
 
+## Pricing
+
+Commands **have no quota** — unlimited as long as the server is within the paid limit (free tier 1 server, paid tiers per plan). A command costs ~nothing in storage (1 KB JSON) and ~nothing at runtime (no rendering, no WS). Quotas are on servers and team seats (see `main-spec.md` section 3).
+
 ## Known limitations (cross-field, not expressible in JSON Schema)
 
 To be validated at load by `validateCommand` (see `types.ts`):

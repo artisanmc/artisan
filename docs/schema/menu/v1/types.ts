@@ -13,7 +13,7 @@
  *                      No partial override — each Appearance is complete and self-sufficient.
  *   - "ContextInput" : named, typed slot that the menu declares via Menu.contextInputs. Populated on open
  *                      by auto-binding by name (from the caller) or via an attached ConnectorBinding.
- *                      Exposed as {name} in the menu's fields. See docs/archive/specs/main-spec.md §14, §15.4.
+ *                      Exposed as {name} in the menu's fields. See main-spec §14, §15.4.
  *   - "ConnectorBinding" : reference (consumer side) to a data source (homemade Artisan or registered by a third-party plugin in V2)
  *                          that exposes a typed list/object. Attached to a ContextInput via `source`. Elements
  *                          iterate via `iterates: { source: <input_name>, alias }` and access the fields
@@ -39,7 +39,7 @@ export interface Menu {
   notes?: string;
   /** Default appearance of positions not covered by a visible Element (ultimate fall-through). */
   background?: Appearance;
-  /** Named slots the menu exposes. Populated on open by auto-binding by name (see docs/archive/specs/main-spec.md §15.4) or by a ConnectorBinding (see §14). Referenced via {name} in any text field of the menu. */
+  /** Named slots the menu exposes. Populated on open by auto-binding by name (see main-spec §15.4) or by a ConnectorBinding (see §14). Referenced via {name} in any text field of the menu. */
   context_inputs?: ContextInput[];
   open_requirements?: Condition[];
   /** Action chains as Action DSL strings (cf. ADR `action-dsl`). */
@@ -298,7 +298,7 @@ export interface OpenMenuAction   {
   menu_id: string;
   close_current?: boolean;
   /**
-   * Explicit override of auto-binding by name (see docs/archive/specs/main-spec.md §15.4). Each entry
+   * Explicit override of auto-binding by name (see main-spec §15.4). Each entry
    * populates a contextInput of the target menu; values support {name} to interpolate
    * the current scope (command args, the caller's contextInputs, iteration alias).
    */

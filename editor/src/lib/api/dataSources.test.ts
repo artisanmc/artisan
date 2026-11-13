@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchServerDataSourcesUser, findServerSource } from "./dataSources";
+import { fetchServerDataSourcesUser } from "./dataSources";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -26,21 +26,8 @@ describe("fetchServerDataSourcesUser", () => {
         stability: null,
         keyField: null,
         origin: null,
-        aliases: [],
       },
     ]);
-  });
-
-  it("finds a source by its ref, then by an alias", () => {
-    const sources = [
-      { ref: "quests:groups", aliases: ["msquests:groups"] },
-      { ref: "msquests:legacy" },
-    ];
-    expect(findServerSource(sources, "quests:groups")?.ref).toBe("quests:groups");
-    expect(findServerSource(sources, "msquests:groups")?.ref).toBe("quests:groups");
-    expect(findServerSource(sources, "msquests:legacy")?.ref).toBe("msquests:legacy");
-    expect(findServerSource(sources, "quests:nope")).toBeUndefined();
-    expect(findServerSource(sources, null)).toBeUndefined();
   });
 
   it("reads the declared origin, an unknown value as absent", async () => {

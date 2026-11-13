@@ -1,4 +1,3 @@
-import type { AiAttachmentKind } from "@/lib/aiAttachments";
 import { apiFetch } from "./client";
 
 /** The editor's assistant on the hub (ADR `editor-assistant`): is it there, may this player use it. */
@@ -6,8 +5,6 @@ export interface AiStatus {
   enabled: boolean;
   model: string | null;
   canUse: boolean;
-  /** The kinds of files the model reads; absent from an older hub: every kind. */
-  attachments?: AiAttachmentKind[] | null;
 }
 
 export interface AiConversationSummary {

@@ -358,18 +358,3 @@ mappings:
   - touches: "CONTEXT.md"
     updates: []
     reason: "Glossary is the source of truth for terms — nothing downstream to sync, but code should follow it"
-
-  - touches: "plugin/hub/src/main/kotlin/**/{AiAssistant,Ai*,Mcp*}.kt"
-    updates:
-      - "docs/site/configuration/ai.md"
-    reason: "What the editor's assistant and MCP clients can do, their limits and settings"
-
-  - touches: "plugin/{geyser-extension/**,paper/src/main/kotlin/**/GeyserIntegration.kt}"
-    updates:
-      - "docs/site/configuration/bedrock.md"
-    reason: "Bedrock setup steps (Geyser-Spigot, proxy extension, manual copy)"
-
-  - touches: "docs/architecture/*.md"
-    updates:
-      - "docs/README.md"
-    reason: "The index by question names each architecture doc: a new or renamed doc needs its line"

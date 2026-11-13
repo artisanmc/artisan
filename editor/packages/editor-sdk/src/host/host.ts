@@ -63,12 +63,6 @@ export interface EditorHost {
    * word never splits, a continued line reopens the tags still open (SDK 1.14).
    */
   mcWrap(source: string, width: number): string[];
-  /**
-   * The texture of an item, drawable in an `<img>` (SDK 1.20): the one the editor's item
-   * fields show for that `material` (`DIAMOND`, any case). A hook: undefined until the item
-   * catalogue is loaded, and for an item that has none (a custom item, a typo).
-   */
-  useItemTexture(material: string): string | undefined;
   /** The editor's own widgets a module view embeds (SDK 1.1). */
   components: HostComponents;
 }
@@ -121,17 +115,6 @@ export interface ItemInputProps {
   match?: ItemComparisonWire[];
   /** Shows the criteria as boxes to (un)tick; undefined goes back to the default. */
   onMatchChange?: (match: ItemComparisonWire[] | undefined) => void;
-}
-
-/**
- * An item field of a module's data file, the one of the generated form (SDK 1.20): the item as
- * the file holds it (a material name, or `{material, count, title, lore…}`), the title and lore
- * kept as the Project's texts. The value it writes goes back through the screen's `set`.
- */
-export interface ItemValueInputProps {
-  projectId: string;
-  value: unknown;
-  onChange: (value: unknown) => void;
 }
 
 export interface MiniMessageInputProps {
@@ -429,8 +412,6 @@ export interface HostComponents {
   LocalizedField: ComponentType<LocalizedFieldProps>;
   /** SDK 1.19. */
   PageTour: ComponentType<PageTourProps>;
-  /** SDK 1.20. */
-  ItemValueInput: ComponentType<ItemValueInputProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -474,8 +455,6 @@ export const useAssetImage = (projectId: string, name: string): AssetImage | und
   current().useAssetImage(projectId, name);
 export const mcTextWidth = (source: string): number => current().mcTextWidth(source);
 export const mcWrap = (source: string, width: number): string[] => current().mcWrap(source, width);
-export const useItemTexture = (material: string): string | undefined =>
-  current().useItemTexture(material);
 
 /**
  * The editor's Action chain editor (the one of commands and dialogs) on a controlled value:
@@ -507,12 +486,6 @@ export function ItemInput(props: ItemInputProps): ReactElement {
  * A text field that supports MiniMessage, the way every such field of the editor behaves:
  * rendered until clicked, then the raw text with its live rendering below (SDK 1.4).
  */
-/** The generated form's item field, on a module's data value (SDK 1.20). */
-export function ItemValueInput(props: ItemValueInputProps): ReactElement {
-  const Impl = current().components.ItemValueInput;
-  return createElement(Impl, props);
-}
-
 export function MiniMessageInput(props: MiniMessageInputProps): ReactElement {
   const Impl = current().components.MiniMessageInput;
   return createElement(Impl, props);
