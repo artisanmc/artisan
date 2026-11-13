@@ -109,6 +109,18 @@ A HUD is laid out as data instead of code: a module keeps an `OverlayLayout` in 
 
 The Java twin of an editor kind's `pack.images` (SDK 1.13): the server calls it on each file of the kind at load and records the images with its loaded state, so the hub builds the resource pack, module images included, without an editor tab. It must answer like the editor kind, in the same order. Detail: `modules.md`, "Pack images on the server".
 
+## 1.2.0 — scenes in the world
+
+| Member | Type | Since |
+|---|---|---|
+| `api.scene.ScenesApi` `@Beta` (`support`, `supports`, `Support`, `show`, `hide`, `isShown`, `aimed`, `AIM_RANGE`, `MAX_ELEMENTS`, `NONE`) | interface | 1.2.0 |
+| `api.scene.SceneAnchor` `@Beta` (`at`, `above`, `Point`, `OnEntity`) | sealed interface | 1.2.0 |
+| `api.scene.SceneElement` `@Beta` (`Text`, `Item`, `Block`, `Hitbox`, `Billboard`, `key`, `transform`) | sealed interface | 1.2.0 |
+| `api.scene.SceneTransform` `@Beta` (`offset`, `withScale`, `withYaw`, `ORIGIN`) | record | 1.2.0 |
+| `getScenes()` `@Beta` | `ScenesApi` | 1.2.0 |
+
+Interfaces drawn in the world for one player with display entities (ADR `world-scenes`). A module shows a named scene (`<module>:<name>`) to a viewer: elements (`Text` in MiniMessage, `Item`, `Block`), each with a key unique in the scene and a transform (offset in blocks, yaw, scale), around an anchor (`SceneAnchor.at(location)` or `above(entity, height)`, followed as it moves). Artisan owns the entities: hidden from everyone but the viewer, never saved with the chunk. Showing the scene again updates it in place: an element keeps its entity while its key and type stay, a changed transform is interpolated by the client over `transitionTicks` (0..200), a missing key is removed. Artisan ends a scene by itself when its viewer quits or changes world, when its anchor entity leaves the world, when its module's plugin disables and when Artisan stops. `support(player)` is `FULL` on Java and `TEXT_ONLY` for a Bedrock player (Geyser draws a text display as a floating name, no item or block display): Artisan keeps only the text elements for that viewer; `supports(player)` (`FULL`) tells a module whose scene needs more to fall back. At most `MAX_ELEMENTS` (64) per scene. Detail: `modules.md`, "Scenes in the world".
+
 ## Stable APIs
 
 ### `net.artisanmc.modules.api.ArtisanModule`
