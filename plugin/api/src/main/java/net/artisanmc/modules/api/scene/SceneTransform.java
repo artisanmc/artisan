@@ -7,7 +7,7 @@ import net.artisanmc.modules.api.annotations.Beta;
  * axis in degrees (clockwise seen from above, 0 facing south) and a uniform scale. A change between
  * two {@link ScenesApi#show} is animated by the client over the call's transition.
  *
- * @since 1.1.0
+ * @since 1.2.0
  */
 @Beta
 public record SceneTransform(double x, double y, double z, float yaw, float scale) {

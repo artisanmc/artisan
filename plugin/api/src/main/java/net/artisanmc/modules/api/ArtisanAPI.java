@@ -360,7 +360,7 @@ public final class ArtisanAPI {
      * Interfaces drawn in the world for one player with display entities: text, items and blocks
      * around a point or an entity, seen by their viewer alone.
      *
-     * @since 1.1.0
+     * @since 1.2.0
      */
     @Beta
     public ScenesApi getScenes() {

@@ -211,7 +211,7 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `useOpenDocument()` returns a function that opens a Document's page (`{projectId, kind, id}`). A
 > 1.15 bundle still loads.
 
-> **Scenes in the world (since 2026-11-04, API 1.1.0, `@Beta`)** — the overlay's counterpart in the
+> **Scenes in the world (since 2026-11-04, API 1.2.0, `@Beta`)** — the overlay's counterpart in the
 > world (ADR `world-scenes`). `api.getScenes().show(player, "quests:marker", SceneAnchor.above(npc, 2.3),
 > elements, transitionTicks)` draws text, items and blocks around a point or an entity for that player
 > alone, with display entities Artisan owns (hidden from the others, never saved). Name a scene after

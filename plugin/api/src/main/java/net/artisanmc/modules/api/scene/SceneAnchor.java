@@ -10,7 +10,7 @@ import java.util.Objects;
  * Where a scene stands: its elements' {@link SceneTransform} is measured from this point, x to the
  * east, y up, z to the south, unless the transform turns them.
  *
- * @since 1.1.0
+ * @since 1.2.0
  */
 @Beta
 public sealed interface SceneAnchor permits SceneAnchor.Point, SceneAnchor.OnEntity {

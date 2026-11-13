@@ -33,7 +33,7 @@ import java.util.List;
  * the caller. Every method may be called from any thread; the entities change on the thread that
  * owns them.
  *
- * @since 1.1.0
+ * @since 1.2.0
  */
 @Beta
 public interface ScenesApi {
@@ -120,7 +120,7 @@ public interface ScenesApi {
      * thread, typically on their move event (a turn of the head is one) to show what they aim at,
      * and on their click to take it. Blocks in between are not checked.
      *
-     * @since 1.1.0
+     * @since 1.2.0
      */
     @Nullable String aimed(Player viewer, String scene);
 }

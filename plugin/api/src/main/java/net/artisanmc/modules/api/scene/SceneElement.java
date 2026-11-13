@@ -10,7 +10,7 @@ import java.util.Objects;
  * One piece of a scene, drawn by one display entity per viewer. Its {@link #key()} names it
  * within the scene, so that the next {@link ScenesApi#show} updates it instead of respawning it.
  *
- * @since 1.1.0
+ * @since 1.2.0
  */
 @Beta
 public sealed interface SceneElement permits SceneElement.Text, SceneElement.Item, SceneElement.Block, SceneElement.Hitbox {
@@ -88,7 +88,7 @@ public sealed interface SceneElement permits SceneElement.Text, SceneElement.Ite
      * transform's yaw: the area a {@link Billboard#FIXED} text of that size covers. Seen from any
      * side.
      *
-     * @since 1.1.0
+     * @since 1.2.0
      */
     record Hitbox(String key, SceneTransform transform, double width, double height) implements SceneElement {
         public Hitbox {
