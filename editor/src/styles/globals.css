@@ -390,6 +390,28 @@ body {
 }
 
 /* ----------------------------------------------------------------
+   Pointer cursor on everything clickable. Tailwind v4's preflight leaves
+   <button> on the browser's default arrow, so a bare <button> (the project tree,
+   icon buttons, chevrons…) showed no hand. In `@layer base`: any `cursor-*`
+   utility on the element (cursor-grab, cursor-not-allowed…) still wins.
+---------------------------------------------------------------- */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([data-disabled]),
+  [role="menuitemcheckbox"]:not([data-disabled]),
+  [role="menuitemradio"]:not([data-disabled]),
+  summary,
+  select:not(:disabled),
+  label:has(> input[type="checkbox"]:not(:disabled)),
+  label:has(> input[type="radio"]:not(:disabled)) {
+    cursor: pointer;
+  }
+}
+
+/* ----------------------------------------------------------------
    Everything below sits in the `components` layer so a Tailwind utility on the
    same element wins (`<Input className="h-8 font-mono">` really gets 32px mono).
    Unlayered, these classes silently beat every utility (Tailwind v4 puts them in
