@@ -22,6 +22,9 @@ export type Entry =
   | { at: number; click: true }
   /** Survol à la position du curseur (infobulle du canvas). */
   | { at: number; hover: true }
+  /** Bouton enfoncé à la position du curseur : jusqu'à `release`, chaque image déplace ce qui est tenu. */
+  | { at: number; press: true }
+  | { at: number; release: true }
   | { at: number; run: (h: Helpers) => void | Promise<void> };
 
 /** Cadrage de la vidéo sur l'éditeur : centre visé et grossissement. */
@@ -88,7 +91,8 @@ function clickElement(el: Element | null | undefined, at?: Point) {
   if (el instanceof HTMLElement) el.focus?.();
   pointerAt(el, "pointerup", p);
   pointerAt(el, "mouseup", p);
-  pointerAt(el, "click", p);
+  // `detail` à 1 : un clic de souris. À 0, l'éditeur le prend pour une activation au clavier.
+  pointerAt(el, "click", p, { detail: 1 });
 }
 
 function typeInto(el: Element | null | undefined, value: string) {
@@ -131,7 +135,15 @@ async function resetEditor() {
 }
 
 /** Ce que l'onglet a déjà joué : les images arrivent dans l'ordre, les étapes ne sont jamais rejouées. */
-const played = { scene: "", next: 0, points: [] as (Point | null)[], targets: [] as (Element | null)[], cursor: null as Point | null };
+const played = {
+  scene: "",
+  next: 0,
+  points: [] as (Point | null)[],
+  targets: [] as (Element | null)[],
+  cursor: null as Point | null,
+  /** L'élément tenu depuis un `press`. */
+  held: null as Element | null,
+};
 let queue: Promise<void> = Promise.resolve();
 
 function resolveMove(entry: Extract<Entry, { move: Target }>, i: number): boolean {
@@ -154,6 +166,9 @@ function elementAt(p: Point): Element | null {
   return document.elementFromPoint(p.x, p.y);
 }
 
+/** Où envoyer la suite d'un appui : l'élément tenu, ou la page s'il a été redessiné entre-temps. */
+const heldTarget = (): Element => (played.held?.isConnected ? played.held : document.documentElement);
+
 async function advance(scene: Scene, frame: number) {
   if (played.scene !== scene.id) {
     played.scene = scene.id;
@@ -162,6 +177,7 @@ async function advance(scene: Scene, frame: number) {
     played.points = [];
     played.targets = [];
     played.cursor = null;
+    played.held = null;
     await resetEditor();
     await helpers.goto(scene.url);
     await wait(500);
@@ -180,6 +196,13 @@ async function advance(scene: Scene, frame: number) {
     }
   };
   lookahead();
+  // Ce qui est tenu suit le curseur, image par image (Konva écoute le déplacement sur la fenêtre).
+  const here = played.held ? cursorAt(scene, frame)?.at : null;
+  if (played.held && here) {
+    pointerAt(heldTarget(), "pointermove", here, { buttons: 1 });
+    pointerAt(heldTarget(), "mousemove", here, { buttons: 1 });
+    await frames(1);
+  }
   while (played.next < scene.timeline.length && scene.timeline[played.next]!.at <= frame) {
     const i = played.next;
     const entry = scene.timeline[i]!;
@@ -200,6 +223,21 @@ async function advance(scene: Scene, frame: number) {
         const at = now ? { x: now.x + (aimed?.dx ?? 0), y: now.y + (aimed?.dy ?? 0) } : p;
         clickElement(elementAt(at), at);
       }
+      await settle();
+    } else if ("press" in entry) {
+      const p = played.cursor;
+      const el = p && elementAt(p);
+      if (!p || !el) throw new Error(`${scene.id} : appui sans curseur`);
+      pointerAt(el, "pointerdown", p, { buttons: 1 });
+      pointerAt(el, "mousedown", p, { buttons: 1 });
+      played.held = el;
+    } else if ("release" in entry) {
+      const p = cursorAt(scene, frame)?.at ?? played.cursor;
+      if (played.held && p) {
+        pointerAt(heldTarget(), "pointerup", p);
+        pointerAt(heldTarget(), "mouseup", p);
+      }
+      played.held = null;
       await settle();
     } else if ("hover" in entry) {
       const p = played.cursor;
@@ -415,6 +453,41 @@ export function typingRich(at: number, field: () => Element | null, value: strin
       const typed = value.slice(0, i + 1);
       view.focus();
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: typed }, selection: { anchor: typed.length } });
+    },
+  }));
+}
+
+const viewOf = (field: () => Element | null) => {
+  const el = field();
+  const view = el instanceof HTMLElement ? EditorView.findFromDOM(el) : null;
+  if (!view) throw new Error(`Saisie hors d'un éditeur de texte : ${el ? el.outerHTML.slice(0, 300) : "aucun élément"}`);
+  return view;
+};
+
+/** Vide un éditeur de texte riche et y pose le curseur (`text` : ce qu'il contient ensuite). */
+export function fillRich(at: number, field: () => Element | null, text = ""): Entry {
+  return {
+    at,
+    run: () => {
+      const view = viewOf(field);
+      view.focus();
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, selection: { anchor: text.length } });
+    },
+  };
+}
+
+/**
+ * Saisie au clavier dans un éditeur de texte riche, là où est le curseur : comme une frappe, elle
+ * prend la mise en forme choisie juste avant dans la barre d'outils.
+ */
+export function typingAtCaret(at: number, field: () => Element | null, value: string, every = 3): Entry[] {
+  return [...value].map((letter, i) => ({
+    at: at + i * every,
+    run: () => {
+      const view = viewOf(field);
+      const head = view.state.selection.main.head;
+      view.focus();
+      view.dispatch({ changes: { from: head, insert: letter }, selection: { anchor: head + 1 }, userEvent: "input.type" });
     },
   }));
 }

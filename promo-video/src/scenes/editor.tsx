@@ -1,5 +1,18 @@
+import { EditorView } from "@codemirror/view";
 import { getInputProps } from "remotion";
-import { type Entry, type Scene, type Shot, node, sel, text, textHas, typing, typingRich } from "../app/engine";
+import {
+  type Entry,
+  type Scene,
+  type Shot,
+  fillRich,
+  node,
+  sel,
+  text,
+  textHas,
+  typing,
+  typingAtCaret,
+  typingRich,
+} from "../app/engine";
 import { followConversation, useConversationsStore } from "@/features/project/assistant/useAssistant";
 import talk from "../../fixtures/assistant.json";
 import { BOARD, PROJECT, SERVER } from "../demo";
@@ -59,6 +72,10 @@ export const Board = scene(
   ],
 );
 
+// L'éditeur d'item : ses deux textes riches (titre, description) et leurs barres d'outils.
+const itemField = (nth: number) => sel('[role="dialog"] .cm-editor', nth);
+const itemTool = (label: string, nth: number) => sel(`[role="dialog"] button[aria-label="${label}"]`, nth);
+
 /** Un clic sur un item : ses actions, puis l'éditeur d'item et l'aperçu en jeu. */
 export const Item = scene(
   {
@@ -73,6 +90,35 @@ export const Item = scene(
       { at: 198, click: true },
       { at: 222, move: sel("svg.lucide-pencil") },
       { at: 234, click: true },
+      // Le titre, réécrit : une couleur et du gras choisis dans la barre, puis la frappe.
+      { at: 256, move: itemField(0) },
+      { at: 266, click: true },
+      fillRich(268, itemField(0)),
+      { at: 282, move: itemTool("Color and gradient", 0) },
+      { at: 292, click: true },
+      { at: 306, move: sel('button[aria-label="Gold"]') },
+      { at: 316, click: true },
+      { at: 328, move: itemTool("Bold (Ctrl+B)", 0) },
+      { at: 338, click: true },
+      ...typingAtCaret(344, itemField(0), "Your profile"),
+      // Une ligne de plus dans la description, d'une autre couleur.
+      { at: 394, move: itemField(1) },
+      { at: 404, click: true },
+      {
+        at: 406,
+        run: () => {
+          const view = EditorView.findFromDOM(itemField(1)() as HTMLElement);
+          if (!view) return;
+          const end = view.state.doc.length;
+          view.focus();
+          view.dispatch({ changes: { from: end, insert: "\n" }, selection: { anchor: end + 1 } });
+        },
+      },
+      { at: 420, move: itemTool("Color and gradient", 1) },
+      { at: 430, click: true },
+      { at: 444, move: sel('button[aria-label="Mint"]') },
+      { at: 454, click: true },
+      ...typingAtCaret(462, itemField(1), "Rank: VIP"),
     ],
     camera: [
       [0, WIDE],
@@ -85,7 +131,7 @@ export const Item = scene(
       [300, { cx: 800, cy: 400, zoom: 1.12 }],
     ],
   },
-  360,
+  520,
   [
     {
       from: 14,
@@ -96,7 +142,7 @@ export const Item = scene(
     },
     {
       from: 240,
-      to: 355,
+      to: 515,
       title: "Edit an item, see it in game",
       accent: "see it in game",
       sub: "Title, lore, live values and expressions, with the tooltip players will see.",
@@ -195,6 +241,8 @@ export const Automate = scene(
   ],
 );
 
+const layerY = sel('[data-testid="textarea-y"]');
+
 /** Le compositeur de titre : fond, texte et icône posés dans le titre du menu. */
 export const Composer = scene(
   {
@@ -203,8 +251,21 @@ export const Composer = scene(
     timeline: [
       { at: 22, move: node("slot:hub:1"), dy: -30 },
       { at: 34, click: true },
-      { at: 96, move: sel('[data-testid="layer-list-item-row"]', 1) },
-      { at: 108, click: true },
+      // Un texte de plus : ajouté, placé plus bas, écrit, puis ajusté à la souris sur le bandeau.
+      { at: 96, move: sel('[data-testid="add-layer-text"]') },
+      { at: 106, click: true },
+      { at: 122, move: layerY },
+      { at: 132, click: true },
+      ...typing(134, layerY, "100", 4),
+      { at: 156, move: sel("textarea") },
+      { at: 166, click: true },
+      ...typing(170, sel("textarea"), "Season 2 · Week 4", 3),
+      { at: 234, move: node("slot:hub:1"), dy: 176 },
+      { at: 242, press: true },
+      { at: 272, move: node("slot:hub:1"), dy: 234 },
+      { at: 278, release: true },
+      { at: 296, move: sel('[data-testid="textarea-align-center"]') },
+      { at: 306, click: true },
     ],
     camera: [
       [0, WIDE],
@@ -212,11 +273,11 @@ export const Composer = scene(
       [76, { cx: 1100, cy: 520, zoom: 1.3 }],
     ],
   },
-  195,
+  340,
   [
     {
       from: 12,
-      to: 190,
+      to: 335,
       title: "Textured menus, pixel by pixel",
       accent: "pixel by pixel",
       sub: "Backgrounds, icons and text in a menu title. Artisan builds the resource pack.",
