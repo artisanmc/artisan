@@ -162,7 +162,7 @@ another server.
 
 ```kotlin
 // folder (the project id), owning module id, a dedicated sub-folder of your plugin
-val projectDir = api.projectRoots.pluginFolder("homes", id, File(plugin.dataFolder, "project"))
+val projectDir = api.projectRoots.pluginFolder("homes", id, File(plugin.dataFolder, "artisan_module"))
 // read and write your files in projectDir
 ```
 
@@ -188,7 +188,7 @@ drafts. If both hold files, the old one stays in use and the console says so.
 :::danger[Use a dedicated directory]
 Never pass your plugin's data folder itself. When content is published, files
 under a project directory that are not part of the project are deleted. Point
-it at a subdirectory that holds nothing else (`plugins/Homes/project/`, not
+it at a subdirectory that holds nothing else (`plugins/Homes/artisan_module/`, not
 `plugins/Homes/`). `pluginFolder` refuses the data folder itself.
 :::
 
@@ -198,7 +198,7 @@ On first boot, write a starter project so admins open the editor to something
 real: a module file, a menu, your data files, translations.
 
 ```
-plugins/Homes/project/
+plugins/Homes/artisan_module/
   artisan-module.yml
   menus/homes.yml
   data/settings.yml

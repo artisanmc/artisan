@@ -149,7 +149,7 @@ class ProjectRoots(
         }
         val pluginsDir = artisanDir.parentFile?.canonicalFile
         require(pluginsDir == null || target.canonicalFile.parentFile != pluginsDir) {
-            "module '$moduleId': ${dir.path} is a plugin's data folder, where every file would be project content; pass a sub-folder such as ${File(dir, "project").path}"
+            "module '$moduleId': ${dir.path} is a plugin's data folder, where every file would be project content; pass a sub-folder such as ${File(dir, "artisan_module").path}"
         }
         // Its metadata alone (`.artisan/project-id`, stamped by moduleFolder) is not content worth moving.
         val former = File(coreRoot, folder).takeIf { it.isDirectory && it.list().orEmpty().any { name -> !name.startsWith(".artisan") } }

@@ -1,1 +1,0 @@
-- **Added**: a `v*` tag publishes the release: `Artisan-<v>.jar` (one jar, editor included) to Voxel, after the `release` environment's approval (`release-jars.yml`, setup in `deploy/README.md`). SpigotMC and BuiltByBit stay manual: they have no upload API. No public build: the jar is sold.
