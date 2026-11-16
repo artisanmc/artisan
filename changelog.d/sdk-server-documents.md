@@ -1,0 +1,1 @@
+- **Added**: A module's editor view can read the Documents of a kind in every project of the server with `useServerDocuments` (editor SDK 1.22): the open project's as edited, the others' as published. An NPC's view lists the speakers of ArtisanConversations from any project.

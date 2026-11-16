@@ -76,8 +76,26 @@ export interface EditorHost {
    * plugin): the view then falls back on what it knows.
    */
   useOptionList(id: string): OptionChoice[] | undefined;
+  /**
+   * The Documents of a kind in every project of the server (SDK 1.22): the open project's as
+   * they are being edited, then the other projects' as published. A hook. For what a module
+   * names across projects (a speaker, an NPC): `useProject` only knows the open project.
+   */
+  useServerDocuments(kind: string): ServerDocument[];
   /** The editor's own widgets a module view embeds (SDK 1.1). */
   components: HostComponents;
+}
+
+/** A Document of the server and the project that holds it (SDK 1.22). */
+export interface ServerDocument {
+  /** The project's id, what `useOpenDocument` and `updateDocument` take. */
+  projectId: string;
+  /** The project's folder: what qualifies a reference from another project (`<namespace>:<id>`). */
+  namespace: string;
+  /** The project itself, for `textValue`. */
+  project: unknown;
+  /** The Document, in the shape its kind's `parse` gives (`id` included). */
+  document: unknown;
 }
 
 /**
@@ -489,6 +507,10 @@ export const mcTextWidth = (source: string): number => current().mcTextWidth(sou
 export const mcWrap = (source: string, width: number): string[] => current().mcWrap(source, width);
 export const useItemTexture = (material: string): string | undefined =>
   current().useItemTexture(material);
+/** A kind's Documents across the server's projects (SDK 1.22); see `EditorHost.useServerDocuments`. */
+export const useServerDocuments = (kind: string): ServerDocument[] =>
+  // A host older than 1.22 never loads a 1.22 bundle; the guard keeps a test host short.
+  current().useServerDocuments?.(kind) ?? [];
 /** A server-declared option list, or undefined (SDK 1.21); see `EditorHost.useOptionList`. */
 export const useOptionList = (id: string): OptionChoice[] | undefined =>
   // A host older than 1.21 never loads a 1.21 bundle; the guard keeps a test host short.

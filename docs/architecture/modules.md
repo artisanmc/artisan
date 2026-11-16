@@ -262,6 +262,14 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > until the lists are loaded and on a server that declares none, where the view falls back on what
 > it knows. The list is the one of the last announcement: no request goes to the server. A 1.20
 > bundle still loads.
+
+> **Documents of the other projects (since 2026-11-16, SDK 1.22)** — `useProject` only knows the open
+> project. `useServerDocuments(kind)` (host hook) gives a kind's Documents in every project of the
+> server, each with its project (`{projectId, namespace, project, document}`): the open project's as
+> they are being edited, the others' as published (the server index). For what a module names across
+> projects: an NPC's speaker, kept in the conversations folder. `project` goes to `textValue`,
+> `projectId` to `useOpenDocument`, `namespace` qualifies a reference (`<namespace>:<id>`). A 1.21
+> bundle still loads.
 > A 1.19 bundle still loads.
 
 > **Module folder (since 2026-11-12, API 1.1.0)** — `api.getProjectRoots().pluginFolder(folder, moduleId, dir)`
