@@ -106,6 +106,7 @@ internal object ArtisanApiFactory {
                 }
             })
             .database(plugin.database)
+            .stats(plugin.stats.recorder)
             .menus(net.artisanmc.plugin.provider.PaperMenuApi(
                 provider = { plugin.menuProviderOrNull },
                 sessions = { plugin.runtime.sessionsOrNull },

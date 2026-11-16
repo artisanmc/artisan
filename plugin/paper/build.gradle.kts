@@ -6,6 +6,7 @@ dependencies {
     implementation(project(":artisan-api"))
     implementation(project(":artisan-core"))
     implementation(project(":artisan-database"))
+    implementation(project(":artisan-stats"))
     implementation(project(":artisan-hub"))
     implementation(project(":artisan-runtime"))
 

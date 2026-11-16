@@ -38,23 +38,27 @@ class ActionExecutor(
 ) {
     internal val scheduler by lazy { schedulerFor(plugin) }
 
-    fun handle(handler: ClickHandler, ctx: ExecutionContext) = handle(handler, ctx) { executeSteps(handler.steps, it) }
+    /** How [handle] ended: its steps ran, or its cooldown or its requirements stopped it. */
+    enum class Outcome { RAN, COOLDOWN, REQUIREMENTS }
+
+    fun handle(handler: ClickHandler, ctx: ExecutionContext): Outcome = handle(handler, ctx) { executeSteps(handler.steps, it) }
 
     /** [handler]'s cooldown, requirements and fallback around [run] instead of its steps: a module command's code. */
-    fun handle(handler: ClickHandler, ctx: ExecutionContext, run: (ExecutionContext) -> Unit) {
+    fun handle(handler: ClickHandler, ctx: ExecutionContext, run: (ExecutionContext) -> Unit): Outcome {
         val cooldown = handler.cooldown
         if (cooldown != null && cooldowns.isOnCooldown(cooldown.id, ctx.player.uniqueId, cooldown.scope)) {
             cooldown.message?.let { Chat.send(ctx.player, LenientText.parse(it)) }
-            return
+            return Outcome.COOLDOWN
         }
         if (!evaluator.evaluateAll(handler.requirements, ctx)) {
             executeSteps(handler.fallback, ctx)
-            return
+            return Outcome.REQUIREMENTS
         }
         run(ctx)
         if (cooldown != null) {
             cooldowns.set(cooldown.id, ctx.player.uniqueId, cooldown.scope, cooldown.durationSeconds)
         }
+        return Outcome.RAN
     }
 
     /** Alias of [executeSteps] for callers that hold a flat chain. */

@@ -294,6 +294,20 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         versionWriter.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)
     }
 
+    /** `artisan_stats_*` once the suite database is open. */
+    fun statsRows(): net.artisanmc.plugin.database.StatsRows? =
+        artisanData?.let { net.artisanmc.plugin.database.StatsRows(it, database.tables) }
+
+    /** What writes this server's statistics; null until it has its row in `artisan_servers`. */
+    fun statsWriter(): net.artisanmc.plugin.stats.StatsWriter? {
+        val row = serverRow ?: return null
+        return statsWriter ?: statsRows()?.writer(row.value)?.also { statsWriter = it }
+    }
+    @Volatile private var statsWriter: net.artisanmc.plugin.stats.StatsWriter? = null
+
+    /** The `artisan_servers` row of a server id, for the hub's statistics routes. */
+    fun statsServer(serverId: String): Int? = row(serverId)?.value
+
     /** Marks this server stopped in `artisan_servers`. */
     fun unregister() {
         serverRegistry?.let { registry -> runCatching { registry.stop(serverId) } }

@@ -29,12 +29,16 @@ internal class PlayerSync(
     private val rows: () -> PlayerRows?,
     private val writer: Executor,
     private val plugin: ArtisanPlugin,
+    /** A player `artisan_players` did not know at login: their first visit on the network. */
+    private val firstJoin: (UUID) -> Unit = {},
 ) : Listener {
     private val logger get() = plugin.logger
     /** Rows read at login, waiting for the join (a login refused later leaves its row here until the next). */
     private val atLogin = ConcurrentHashMap<UUID, PlayerRow>()
     /** Per online player: the instant up to which their play time is written. */
     private val counted = ConcurrentHashMap<UUID, Long>()
+    /** Logins whose row was read and found missing. */
+    private val newcomers = ConcurrentHashMap.newKeySet<UUID>()
 
     fun start() {
         plugin.server.pluginManager.registerEvents(this, plugin)
@@ -48,7 +52,15 @@ internal class PlayerSync(
         if (event.loginResult != AsyncPlayerPreLoginEvent.Result.ALLOWED) return
         val r = rows() ?: return
         runCatching { r.get(event.uniqueId) }
-            .onSuccess { row -> if (row != null) atLogin[event.uniqueId] = row else atLogin.remove(event.uniqueId) }
+            .onSuccess { row ->
+                if (row != null) {
+                    atLogin[event.uniqueId] = row
+                    newcomers.remove(event.uniqueId)
+                } else {
+                    atLogin.remove(event.uniqueId)
+                    newcomers.add(event.uniqueId)
+                }
+            }
             .onFailure { logger.warning("[Artisan] Player ${event.name} not read: ${it.message}") }
     }
 
@@ -57,6 +69,8 @@ internal class PlayerSync(
     fun onJoin(event: PlayerJoinEvent) {
         val p = event.player
         join(p.uniqueId, p.name, p.firstPlayed, atLogin.remove(p.uniqueId))
+        // Without a database, the server's own record of the player says whether they are new.
+        if (newcomers.remove(p.uniqueId) || (rows() == null && !p.hasPlayedBefore())) firstJoin(p.uniqueId)
     }
 
     /** After the Triggers: a quit message still reads the session's play time. */

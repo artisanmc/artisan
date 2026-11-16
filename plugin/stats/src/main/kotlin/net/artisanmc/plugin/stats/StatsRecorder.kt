@@ -138,3 +138,16 @@ class StatsRecorder(
         private const val HOUR_MS = HOUR_SECONDS * 1000
     }
 }
+
+/** Drains the buffer into [writer]; a failed write puts it back and rethrows. The number of rows handed over. */
+fun StatsRecorder.flushTo(writer: StatsWriter): Int {
+    val batch = buffer.drain()
+    if (batch.isEmpty()) return 0
+    try {
+        writer.write(batch)
+    } catch (e: Exception) {
+        buffer.restore(batch)
+        throw e
+    }
+    return batch.buckets.size + batch.raws.size
+}

@@ -31,6 +31,8 @@ class PackCommand(
     private val suggestions: (String, Int) -> SuggestionProvider? = { _, _ -> null },
     /** The variants' trees: a player runs the steps of the one their rules pick. */
     private val variants: CommandVariants? = null,
+    /** A player ran the command, or was refused: sub-command path and result (`core:command`). */
+    private val ran: (Player, String, String, String) -> Unit = { _, _, _, _ -> },
 ) : Command(
     compiled.name,
     compiled.description?.forLang(lang.defaultLang, lang.defaultLang) ?: "",
@@ -48,8 +50,10 @@ class PackCommand(
         val node = path.last()
         val depth = path.size - 1
         // Every node on the way down: a sub-command's permission adds to its parent's.
+        val sub = path.drop(1).joinToString(" ") { it.name }
         if (path.any { n -> n.permission?.let { !sender.hasPermission(it) } == true }) {
             Chat.send(sender, lang.get("cmd.no_permission", sender))
+            if (sender is Player) ran(sender, compiled.name, sub, "permission")
             return true
         }
         if (node.isGroup) {
@@ -76,7 +80,12 @@ class PackCommand(
             projectId = projectId,
         )
         val handler = variants?.treeFor(sender, ctx)?.let { tree -> follow(tree, path)?.handler } ?: node.handler
-        executor.handle(handler, ctx)
+        val result = when (executor.handle(handler, ctx)) {
+            ActionExecutor.Outcome.RAN -> "ok"
+            ActionExecutor.Outcome.COOLDOWN -> "cooldown"
+            ActionExecutor.Outcome.REQUIREMENTS -> "condition"
+        }
+        ran(sender, compiled.name, sub, result)
         return true
     }
 

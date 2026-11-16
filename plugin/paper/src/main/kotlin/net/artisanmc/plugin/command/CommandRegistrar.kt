@@ -59,6 +59,8 @@ class CommandRegistrar(
     /** For the variants' rules (`client`, `has_pack`): whether a player plays on Bedrock, has the pack. */
     private val isBedrock: (org.bukkit.entity.Player) -> Boolean = { false },
     private val hasPack: (org.bukkit.entity.Player) -> Boolean = { false },
+    /** A player ran a command or was refused: root name, sub-command path, result (`core:command`). */
+    private val ran: (org.bukkit.entity.Player, String, String, String) -> Unit = { _, _, _, _ -> },
 ) {
     private val logger: Logger get() = plugin.logger
     private val namespace get() = plugin.name.lowercase()
@@ -193,7 +195,7 @@ class CommandRegistrar(
 
             val command = PackCommand(
                 compiled.copy(aliases = aliases), executor, lang, projectId, consoleRunner,
-                { id, index -> suggestions(id, index) }, variants,
+                { id, index -> suggestions(id, index) }, variants, ran,
             )
             if (nameOwner == null) {
                 commandMap.register(prefix, command)

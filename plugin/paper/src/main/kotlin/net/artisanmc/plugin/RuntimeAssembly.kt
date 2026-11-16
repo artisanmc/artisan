@@ -84,7 +84,7 @@ internal class RuntimeAssembly(
         // Every player seen on the network, read by `{player.first_seen}`, `{player.last_seen}`, `{player.playtime}`.
         PlayerSync({
             suite.artisanData?.let { net.artisanmc.plugin.database.PlayerRows(it, plugin.database.tables) }
-        }, suite.sessionWriter(), plugin).start()
+        }, suite.sessionWriter(), plugin, plugin.stats::firstJoin).start()
         sessions = MenuSessionStore()
         navigationHistory = NavigationHistoryStore()
         // Disk-cached asset index: glyph/font titles render from the last pack, even offline.
@@ -103,6 +103,7 @@ internal class RuntimeAssembly(
             consoleRunner = moduleCommand,
             isBedrock = plugin.geyser::isBedrock,
             hasPack = ::hasPack,
+            ran = plugin.stats::command,
         )
         // A module enabled or disabled after the start: its commands come and go without a reload,
         // their files follow in its folder, and the editor lists the new set (a leaf tells its hub).
