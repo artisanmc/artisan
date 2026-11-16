@@ -14,6 +14,7 @@ import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { resetDocumentCodecs } from "@/schema/documentCodecs";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useSelectionStore } from "@/state/selectionStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import type { DocumentKindContribution, FrontendModule } from "@artisan/editor-sdk";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -51,7 +52,11 @@ const categoryKind: DocumentKindContribution = {
   create: ({ id, projectId }) => ({ id, projectId, name: id }),
   parse: (src) => ({ doc: src as unknown as Category, i18nKeys: {}, unsupported: [] }),
   serialize: (doc) => ({ name: (doc as Category).name }),
-  board: { summary: () => "2 articles" },
+  board: {
+    summary: () => "2 articles",
+    items: (doc) =>
+      (doc as Category).name === "Kits" ? [{ id: "starter", label: "Starter kit" }] : [],
+  },
 };
 
 const shop: FrontendModule = {
@@ -149,6 +154,29 @@ describe("a collection kind", () => {
       to: "/servers/$serverId/projects/$projectId/$collectionDir",
       params: { serverId: "s1", projectId: "boutique_addon", collectionDir: "shop_categories" },
     });
+  });
+
+  it("lists a Document's parts under it: unfolded by its chevron, or once it is open", () => {
+    const onOpen = vi.fn();
+    const { rerender } = render(<DocumentGroups project={stored()} onOpen={onOpen} editable />);
+    expect(screen.queryByText("Starter kit")).toBeNull();
+    // Only a Document with parts gets the chevron.
+    expect(screen.getAllByRole("button", { name: /Afficher les parties de/ })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Afficher les parties de kits" }));
+    fireEvent.click(screen.getByText("Starter kit"));
+    expect(onOpen).toHaveBeenCalledWith("shop_category/kits");
+    const selection = useSelectionStore.getState();
+    expect([...selection.ids]).toEqual(["starter"]);
+    expect(selection.menuId).toBe("shop_category/kits");
+
+    rerender(
+      <DocumentGroups project={stored()} onOpen={onOpen} editable activeId="shop_category/kits" />,
+    );
+    expect(screen.getByText("Starter kit").closest("button")?.getAttribute("aria-current")).toBe(
+      "page",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Masquer les parties de kits" }));
+    expect(screen.queryByText("Starter kit")).toBeNull();
   });
 
   it("has a page: its settings screen, a card per Document, a create button", () => {
