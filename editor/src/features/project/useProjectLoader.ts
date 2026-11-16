@@ -23,8 +23,8 @@ import { useServersStore } from "@/state/serversStore";
 import { listModules } from "@artisan/editor-sdk";
 import { useEffect, useReducer, useRef } from "react";
 import { flushDraftEdits } from "./draftFlush";
-import { followDisk } from "./draftRebase";
-import { loadPersistedDrafts } from "./persistedDrafts";
+import { diskConflicts, followDisk } from "./draftRebase";
+import { loadPersistedDrafts, raiseOpenConflicts } from "./persistedDrafts";
 import {
   type ProjectLoadEvent,
   initialProjectLoadState,
@@ -483,13 +483,20 @@ function setBinaryBaseline(
     );
 }
 
-/** The draft about to be resumed, brought up to what the disk holds now (`followDisk`). */
+/**
+ * The draft about to be resumed, brought up to what the disk holds now: files only the server
+ * changed are merged in (`followDisk`), files both changed open the conflict modal
+ * (`diskConflicts`).
+ */
 function followDiskInDraft(projectId: string, disk: Record<string, string>): void {
   const store = useProjectDraftStore.getState();
   const draft = store.get(projectId);
-  const renames = store.pendingRenames[projectId] ?? draft?.renames;
-  const next = draft ? followDisk({ ...draft, ...(renames ? { renames } : {}) }, disk) : null;
+  if (!draft) return;
+  const renames = store.pendingRenames[projectId] ?? draft.renames;
+  const resumed = { ...draft, ...(renames ? { renames } : {}) };
+  const next = followDisk(resumed, disk);
   if (next) store.save(projectId, next);
+  raiseOpenConflicts(projectId, diskConflicts(next ?? resumed, disk));
 }
 
 /**

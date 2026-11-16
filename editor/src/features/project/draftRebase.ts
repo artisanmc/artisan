@@ -1,4 +1,5 @@
-import { yamlPathOnDisk } from "@/lib/yamlFiles";
+import { sameYamlValue } from "@/lib/yamlEquivalence";
+import { isYamlPath, yamlPathOnDisk } from "@/lib/yamlFiles";
 
 type Meta = { hash: string; size: number };
 
@@ -132,7 +133,14 @@ export function followDisk<S extends DraftRebaseShape & { initialTree?: Record<s
   let moved = false;
   for (const path of new Set([...Object.keys(draft.baseline), ...Object.keys(disk)])) {
     if (renamed.has(path) || draft.baseline[path] === disk[path]) continue;
-    if (draft.tree[path] !== loaded[path]) continue;
+    if (!sameText(path, draft.tree[path], loaded[path])) {
+      // Edited to what the disk now holds: nothing left to merge, the base catches up.
+      if (draft.tree[path] !== undefined && sameText(path, draft.tree[path], disk[path])) {
+        assign(baseline, path, disk[path]);
+        moved = true;
+      }
+      continue;
+    }
     // A file the draft deleted, in this session or an earlier one (in its base, not in its
     // tree), stays deleted: a category moved into a folder must not come back at the root
     // when the disk rewrites the file it was moved from.
@@ -149,6 +157,68 @@ export function followDisk<S extends DraftRebaseShape & { initialTree?: Record<s
   }
   if (!moved && draft === resumed) return null;
   return { ...draft, baseline, tree, ...(initialTree ? { initialTree } : {}) };
+}
+
+/**
+ * The files a draft (already through [followDisk]) and the disk both changed since the draft's
+ * base, each its own way: the three-way merge cannot pick, the admin does (the conflict modal,
+ * source "open"). Until then the draft keeps its version and its base, so publishing it is
+ * refused (compare-and-swap) instead of overwriting the server's change.
+ *
+ * A file the draft deleted is left to publishing, as [followDisk] leaves it: a module that
+ * rewrites a file the draft moved away would otherwise ask at every start. Renamed paths belong
+ * to the draft. A YAML file holding the same value on both sides is no conflict.
+ */
+export function diskConflicts(
+  draft: DraftRebaseShape,
+  disk: Record<string, string>,
+): { path: string; disk: string | null }[] {
+  const renamed = new Set((draft.renames ?? []).flatMap((r) => [r.from, r.to]));
+  const out: { path: string; disk: string | null }[] = [];
+  for (const path of new Set([...Object.keys(draft.baseline), ...Object.keys(disk)])) {
+    if (renamed.has(path)) continue;
+    const base = draft.baseline[path];
+    const mine = draft.tree[path];
+    const theirs = disk[path];
+    if (mine === undefined || base === theirs) continue;
+    if (sameText(path, mine, base) || sameText(path, mine, theirs)) continue;
+    out.push({ path, disk: theirs ?? null });
+  }
+  return out.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+}
+
+/**
+ * The base to save a draft's [tree] against, when the editor's base ([current], the baseline
+ * store) may have moved past the draft's own ([previous]): a file's base moves forward only if
+ * the tree already holds the new base, or the draft's base already did. Otherwise the draft keeps
+ * the base its tree was built on, and publishing reports the server's change as a conflict
+ * instead of overwriting it.
+ *
+ * Without this, a tab still showing an older tree, whose base was refreshed by a reload (another
+ * tab discarded or published, the server's files changed), saved and deployed that old tree
+ * against the new base: the compare-and-swap passed and the server's change was erased.
+ */
+export function pairedBaseline(
+  previous: Record<string, string> | undefined,
+  current: Record<string, string>,
+  tree: Record<string, string>,
+): Record<string, string> {
+  if (!previous) return current;
+  let out: Record<string, string> | null = null;
+  for (const path of new Set([...Object.keys(previous), ...Object.keys(current)])) {
+    const next = current[path];
+    const before = previous[path];
+    if (next === before || sameText(path, tree[path], next)) continue;
+    out ??= { ...current };
+    assign(out, path, before);
+  }
+  return out ?? current;
+}
+
+/** Same text, or the same YAML value: the editor writes Documents in its own format. */
+function sameText(path: string, a: string | undefined, b: string | undefined): boolean {
+  if (a === undefined || b === undefined) return a === b;
+  return a === b || (isYamlPath(path) && sameYamlValue(a, b));
 }
 
 /**

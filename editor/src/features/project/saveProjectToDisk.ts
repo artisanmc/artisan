@@ -12,6 +12,7 @@ import { projectToFiles } from "@/schema/projectToFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { applyRenames, planWrite, toRelative } from "./diskSave";
+import { pairedBaseline } from "./draftRebase";
 import { publishPersistedDraft, usePersistedDraftStore } from "./persistedDrafts";
 
 /**
@@ -92,7 +93,12 @@ export async function saveProjectToDisk(
   // No base = this Project was never read from the disk, so it is not there
   // yet: it is a create or an import, and the write must say so.
   const known = store.get(project.id);
-  const baseline = known ?? {};
+  // The base this tree was built on: a base the store refreshed past an older tree stays the
+  // draft's, so the write reports the server's change instead of erasing it.
+  const baseline =
+    known === undefined
+      ? {}
+      : pairedBaseline(useProjectDraftStore.getState().get(project.id)?.baseline, known, next);
   if (usePersistedDraftStore.getState().sessions[project.id]) {
     const previous = useProjectDraftStore.getState().get(project.id);
     useProjectDraftStore.getState().save(project.id, {

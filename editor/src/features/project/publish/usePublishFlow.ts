@@ -308,13 +308,16 @@ export function usePublishFlow(
       replaceProject(adoptDiskIntoProject(project, outcome.adoptFromDisk, outcome.removeFromTree));
     }
     dispatch({ type: "conflictsClosed" });
+    // The draft's base follows the choice: a save pairs the tree with the draft's base
+    // (`pairedBaseline`), so "keep mine" must move that one too, or the next deploy would
+    // report the same conflict again.
+    const local = useProjectDraftStore.getState().get(project.id);
+    if (local)
+      useProjectDraftStore
+        .getState()
+        .save(project.id, { ...local, baseline: outcome.nextBaseline });
     if (source === "open") {
-      // The draft's base follows the choice; autosave keeps it.
-      const local = useProjectDraftStore.getState().get(project.id);
-      if (local)
-        useProjectDraftStore
-          .getState()
-          .save(project.id, { ...local, baseline: outcome.nextBaseline });
+      // Autosave keeps it.
       markDraftPending(project.id);
       toast.info(t("save.conflictOpenResolved"));
       return;
