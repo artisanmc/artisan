@@ -7,6 +7,7 @@ import { ChartColumn } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { CommandsTab } from "./CommandsTab";
+import { JourneysTab } from "./JourneysTab";
 import { MenusTab } from "./MenusTab";
 import { OverviewTab } from "./OverviewTab";
 import { PlayerPicker } from "./PlayerPicker";
@@ -74,6 +75,7 @@ export function StatsPage({
     first,
     { id: "commands", label: t("stats.tabs.commands"), component: CommandsTab },
     { id: "menus", label: t("stats.tabs.menus"), component: MenusTab },
+    { id: "journeys", label: t("stats.tabs.journeys"), component: JourneysTab },
     ...moduleTabs,
   ];
   const tab = tabs.find((x) => x.id === search.tab) ?? first;

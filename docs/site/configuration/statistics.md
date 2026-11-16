@@ -26,6 +26,21 @@ name). The address keeps both, so a link reopens the same view.
   of the players who opened it clicked something, and the clickable elements nobody clicked.
   An element is named by its id: renaming it starts its count over.
 
+- **Journeys**: what becomes of new players. Without any setup, the share of the players who
+  arrived over the period and came back the next day, 7 days later and 30 days later. Then
+  compose a **journey**: goals in order, each an event and, if needed, a filter
+  (`quest=intro`), for example first quest done, first purchase, a rank reached. You get:
+  - the **funnel**: how many new players reach each goal, and in how long (median). A goal
+    counts within the conversion window, 7 days after the arrival by default;
+  - the same **by week of arrival**, to see what a change on the server did from one week to
+    the next;
+  - the **last action before leaving**: for the new players not seen for 7 days, what they did
+    last. "40 % left right after opening the jobs menu" points to where to look; it proves
+    nothing.
+
+  Journeys read the events kept row by row, 90 days by default (`stats.retention.raw-days`): a
+  period reaching further back shows its last 92 days.
+
 Statistics are read from the database: they stay available while the server is off.
 
 ## What is recorded

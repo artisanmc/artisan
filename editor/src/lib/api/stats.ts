@@ -150,3 +150,124 @@ export async function fetchStatsQuery(
   );
   return { rows: reply.rows ?? [], computedAt: reply.computed_at ?? 0 };
 }
+
+/** A step of a journey: the first `event` whose dimensions hold `dims`, after the step before. */
+export interface StatsJourneyGoal {
+  name: string;
+  event: string;
+  dims: Record<string, string>;
+}
+
+/** Ordered goals an admin composed, each to be reached within `windowDays` of a player's arrival. */
+export interface StatsJourney {
+  id: string;
+  name: string;
+  windowDays: number;
+  goals: StatsJourneyGoal[];
+}
+
+export interface StatsRetentionPoint {
+  day: number;
+  /** The arrivals old enough for that day to be told. */
+  eligible: number;
+  returned: number;
+}
+
+/** A journey computed for the players who arrived in a period. */
+export interface StatsJourneyResult {
+  arrivals: number;
+  steps: { name: string; players: number; medianSeconds: number | null }[];
+  retention: StatsRetentionPoint[];
+  cohorts: {
+    weekStart: number;
+    arrivals: number;
+    reached: number[];
+    retention: StatsRetentionPoint[];
+  }[];
+  /** Arrivals not seen for `awayDays` days, and what they did last. */
+  leavers: number;
+  awayDays: number;
+  lastActions: { event: string; dimensions: Record<string, string>; players: number }[];
+  computedAt: number;
+}
+
+interface JourneyWire {
+  id: string;
+  name: string;
+  window_days: number;
+  goals: StatsJourneyGoal[];
+}
+
+const journeyOf = (w: JourneyWire): StatsJourney => ({
+  id: w.id,
+  name: w.name,
+  windowDays: w.window_days,
+  goals: (w.goals ?? []).map((g) => ({ name: g.name, event: g.event, dims: g.dims ?? {} })),
+});
+
+export async function fetchStatsJourneys(serverId: string): Promise<StatsJourney[]> {
+  const reply = await apiFetch<{ journeys?: JourneyWire[] }>(`${base(serverId)}/journeys`);
+  return (reply.journeys ?? []).map(journeyOf);
+}
+
+/** Replaces the server's saved journeys with `journeys`; gives them back as saved. */
+export async function saveStatsJourneys(
+  serverId: string,
+  journeys: readonly StatsJourney[],
+): Promise<StatsJourney[]> {
+  const reply = await apiFetch<{ journeys?: JourneyWire[] }>(`${base(serverId)}/journeys`, {
+    method: "PUT",
+    json: {
+      journeys: journeys.map((j) => ({
+        id: j.id,
+        name: j.name,
+        window_days: j.windowDays,
+        goals: j.goals,
+      })),
+    },
+  });
+  return (reply.journeys ?? []).map(journeyOf);
+}
+
+export async function computeStatsJourney(
+  serverId: string,
+  ask: { from: number; to: number; windowDays: number; goals: readonly StatsJourneyGoal[] },
+): Promise<StatsJourneyResult> {
+  const r = await apiFetch<{
+    arrivals: number;
+    steps: { name: string; players: number; median_seconds: number | null }[];
+    retention: StatsRetentionPoint[];
+    cohorts: {
+      week_start: number;
+      arrivals: number;
+      reached: number[];
+      retention: StatsRetentionPoint[];
+    }[];
+    leavers: number;
+    away_days: number;
+    last_actions: { event: string; dimensions: Record<string, string>; players: number }[];
+    computed_at: number;
+  }>(`${base(serverId)}/journey`, {
+    method: "POST",
+    json: { from: ask.from, to: ask.to, window_days: ask.windowDays, goals: ask.goals },
+  });
+  return {
+    arrivals: r.arrivals,
+    steps: r.steps.map((s) => ({
+      name: s.name,
+      players: s.players,
+      medianSeconds: s.median_seconds,
+    })),
+    retention: r.retention,
+    cohorts: r.cohorts.map((c) => ({
+      weekStart: c.week_start,
+      arrivals: c.arrivals,
+      reached: c.reached,
+      retention: c.retention,
+    })),
+    leavers: r.leavers,
+    awayDays: r.away_days,
+    lastActions: r.last_actions,
+    computedAt: r.computed_at,
+  };
+}
