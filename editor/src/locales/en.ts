@@ -2142,6 +2142,7 @@ export default {
     openScreen: "Open its screen",
   },
   stats: {
+    moduleFailed: "The {{module}} tab could not be shown. Its plugin may need an update.",
     tabs: {
       label: "Statistics sections",
       overview: "Overview",

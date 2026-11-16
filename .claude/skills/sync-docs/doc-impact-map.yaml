@@ -374,6 +374,7 @@ mappings:
       - "docs/decisions/stats-foundation.md"
       - "docs/architecture/entities.md"
       - "docs/site/configuration/statistics.md"
+      - "docs/site/developers/statistics.md"
     reason: "Statistics: what is recorded, the two tables, retention and the rollup; a new core Stat event is a row of the user page"
 
   - touches: "docs/architecture/*.md"

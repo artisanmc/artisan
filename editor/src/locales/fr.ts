@@ -2181,6 +2181,8 @@ const fr: typeof en = {
     openScreen: "Ouvrir son écran",
   },
   stats: {
+    moduleFailed:
+      "L'onglet {{module}} n'a pas pu s'afficher. Son plugin a peut-être besoin d'une mise à jour.",
     tabs: {
       label: "Sections des statistiques",
       overview: "Vue d'ensemble",

@@ -1,7 +1,13 @@
 import { MiniMessageField } from "@/components/MiniMessageField";
 import { McScreen, McScreenControls, McText } from "@/components/mc-preview";
+import { BarList } from "@/components/ui/bar-list";
+import { Funnel } from "@/components/ui/funnel";
 import { LocalizedField } from "@/components/ui/localized-field";
 import { SortableList } from "@/components/ui/sortable-list";
+import { SortableTable } from "@/components/ui/sortable-table";
+import { StatCard } from "@/components/ui/stat-card";
+import { Panel } from "@/components/ui/stats-panel";
+import { TimeChart } from "@/components/ui/time-chart";
 import type { ProjectId } from "@/domain/types";
 import { AssetInput } from "@/features/assets/AssetInput";
 import { ItemValueField } from "@/features/canvas/ItemValueField";
@@ -19,7 +25,7 @@ import type { HostComponents } from "@artisan/editor-sdk";
 /**
  * The editor widgets a module view embeds through the SDK (`ActionChainEditor`,
  * `MaterialInput`, `ItemInput`, `MiniMessageInput`, `SortableList`, `ConditionsEditor`,
- * `DocumentRefInput`, `McText`, `McScreen`, `McScreenControls`, `OverlayComposer`, `OverlaySlotsComposer`, `AssetInput`, `LocalizedField`, `PageTour`, `ItemValueInput`): the same
+ * `DocumentRefInput`, `McText`, `McScreen`, `McScreenControls`, `OverlayComposer`, `OverlaySlotsComposer`, `AssetInput`, `LocalizedField`, `PageTour`, `ItemValueInput`, and the statistics components `StatCard`, `TimeChart`, `BarList`, `Funnel`, `SortableTable`, `StatsPanel`): the same
  * components as the core views, on a controlled value.
  */
 export const hostComponents: HostComponents = {
@@ -33,6 +39,12 @@ export const hostComponents: HostComponents = {
   MaterialInput: (props) => <MaterialField {...props} />,
   MiniMessageInput: (props) => <MiniMessageField {...props} />,
   SortableList: (props) => <SortableList {...props} />,
+  StatCard: (props) => <StatCard {...props} />,
+  TimeChart: (props) => <TimeChart {...props} />,
+  BarList: (props) => <BarList {...props} />,
+  Funnel: (props) => <Funnel {...props} />,
+  SortableTable: (props) => <SortableTable {...props} />,
+  StatsPanel: (props) => <Panel {...props} />,
   ConditionsEditor: ({ value, onChange, label, emptyHint }) => (
     <ConditionsField value={value} onChange={onChange} label={label} emptyHint={emptyHint} />
   ),

@@ -3,6 +3,7 @@ import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { useServerFrame } from "@/features/serverPage/serverFrame";
 import { StatsPage } from "@/features/stats/StatsPage";
+import { useModuleStatsTabs } from "@/features/stats/moduleTabs";
 import { type StatsSearch, validateStatsSearch } from "@/features/stats/period";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
@@ -24,12 +25,14 @@ function ServerStatsTab() {
     () => ({ commands: commandNames(projects), menus: menuRefs(projects) }),
     [projects],
   );
+  const moduleTabs = useModuleStatsTabs();
   if (!serverKeyId) return null;
   return (
     <StatsPage
       serverId={serverKeyId}
       search={search}
       known={known}
+      moduleTabs={moduleTabs}
       onSearch={(patch: Partial<StatsSearch>) =>
         navigate({
           to: "/servers/$serverId/stats",

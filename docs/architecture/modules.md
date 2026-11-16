@@ -270,6 +270,15 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > projects: an NPC's speaker, kept in the conversations folder. `project` goes to `textValue`,
 > `projectId` to `useOpenDocument`, `namespace` qualifies a reference (`<namespace>:<id>`). A 1.21
 > bundle still loads.
+
+> **A statistics tab (since 2026-11-16, SDK 1.23)** — `FrontendModule.stats = {label, component}` adds
+> the module's tab to the server's Statistics space, after Artisan's own. The component gets the
+> space's filters (`ModuleStatsProps`: `serverId`, `period` with its `previous`, `player`, `compare`,
+> `lang`, `focus`/`onFocus` kept in the URL). It reads with the host functions `statsSeries`,
+> `statsBreakdown`, `statsActives`, `statsEvents` and `statsQuery` (a figure the plugin declared with
+> `api.getStats().declareQuery`, asked to the running server), through `useStatsRead(key, load)`, and
+> draws with the host components `StatCard`, `TimeChart`, `BarList`, `Funnel`, `SortableTable` and
+> `StatsPanel`. A tab that throws is replaced by a notice. A 1.22 bundle still loads.
 > A 1.19 bundle still loads.
 
 > **Module folder (since 2026-11-12, API 1.1.0)** — `api.getProjectRoots().pluginFolder(folder, moduleId, dir)`

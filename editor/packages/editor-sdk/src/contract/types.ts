@@ -310,6 +310,39 @@ export interface ModuleHomeProps {
   projectId: string;
 }
 
+/**
+ * What a module's tab of the statistics space receives (`FrontendModule.stats`, SDK 1.23):
+ * the filters every tab shares. Read the numbers with `statsSeries`, `statsBreakdown`,
+ * `statsActives`, `statsEvents` and `statsQuery`, over `period` and for `player`.
+ */
+export interface ModuleStatsProps {
+  /** The server the space is open on: what the `stats*` reads take. */
+  serverId: string;
+  /** The period in epoch seconds (`to` exclusive), how charts are cut, and the period of the same length before it. */
+  period: {
+    from: number;
+    to: number;
+    by: "hour" | "day";
+    previous: { from: number; to: number };
+  };
+  /** A player's UUID when the admin filters on one; absent: every player. */
+  player?: string;
+  /** Whether the previous period is to be read and drawn beside the current one. */
+  compare: boolean;
+  /** The interface language, for numbers, dates and the tab's own labels. */
+  lang: string;
+  /** What the tab drills into (a quest, an item), kept in the URL; undefined: its overview. */
+  focus: string | undefined;
+  onFocus: (focus: string | undefined) => void;
+}
+
+/** A module's tab of the statistics space (SDK 1.23). */
+export interface ModuleStatsTab {
+  /** The tab's name: one string, or one per interface language (`{en, fr}`, English when the language is missing). */
+  label: string | Record<string, string>;
+  component: ComponentType<ModuleStatsProps>;
+}
+
 export interface ModuleRouteDecl {
   path: string;
   component: ComponentType;
@@ -379,4 +412,11 @@ export interface FrontendModule {
    * throws is left out, the rest of the Home stays.
    */
   home?: ComponentType<ModuleHomeProps>;
+  /**
+   * The module's tab of the server's statistics space (SDK 1.23), beside Artisan's own
+   * (Overview, Commands, Menus), shown to whoever has `artisan.editor.stats` while the module
+   * is installed on the server. A module without one does not appear there. A tab that throws
+   * is replaced by a notice, the other tabs stay.
+   */
+  stats?: ModuleStatsTab;
 }

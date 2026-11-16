@@ -136,3 +136,17 @@ export async function fetchStatsPlayerNames(
   const path = `${base(serverId)}/players?ids=${ids.map(encodeURIComponent).join(",")}`;
   return (await apiFetch<{ players: StatsPlayer[] }>(path)).players;
 }
+
+/** A figure a module's plugin computes on demand (`StatsApi.declareQuery`); needs the server online. */
+export async function fetchStatsQuery(
+  serverId: string,
+  id: string,
+  params: Record<string, string> = {},
+): Promise<{ rows: Record<string, unknown>[]; computedAt: number }> {
+  const p = new URLSearchParams({ id });
+  for (const [k, v] of Object.entries(params)) p.set(`p.${k}`, v);
+  const reply = await apiFetch<{ rows?: Record<string, unknown>[]; computed_at?: number }>(
+    `${base(serverId)}/query?${p}`,
+  );
+  return { rows: reply.rows ?? [], computedAt: reply.computed_at ?? 0 };
+}
