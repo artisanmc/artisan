@@ -7,7 +7,10 @@ import net.artisanmc.modules.api.annotations.Beta;
 public enum VariableScope {
     /** One value per player: the resolver answers for the player it is given. */
     PLAYER("player"),
-    /** One value for the server: the resolver ignores the player it is given. */
+    /**
+     * One value for the server: the resolver ignores the player it is given. Since 1.3.0 that
+     * player is null when the variable is read without one ({@code ConditionsApi.testWithoutPlayer}).
+     */
     SERVER("server");
 
     private final String wire;

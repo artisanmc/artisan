@@ -38,7 +38,35 @@ class ModuleConditions(
         return engine.evaluateAll(parsed.filterNotNull(), ExecutionContext(player = player, args = bound))
     }
 
+    override fun testWithoutPlayer(conditions: List<*>, args: Map<String, *>, projectId: String?): Boolean {
+        if (conditions.isEmpty()) return true
+        val problems = problemsWithoutPlayer(conditions)
+        if (problems.isNotEmpty()) {
+            problems.forEach(::warnOnce)
+            return false
+        }
+        val engine = evaluator() ?: run {
+            warnOnce("module conditions tested before the engine started: treated as false")
+            return false
+        }
+        @Suppress("UNCHECKED_CAST")
+        val bound = args.filterKeys { it != null }.filterValues { it != null } as Map<String, Any>
+        return engine.evaluateAllWithoutPlayer(conditions.map { KeyedStepParser.parseConditionStrict(it)!! }, bound, projectId)
+    }
+
     override fun validate(conditions: List<*>): List<String> = problems(conditions)
+
+    override fun validateWithoutPlayer(conditions: List<*>): List<String> = problemsWithoutPlayer(conditions)
+
+    /** [problems], then each well-formed entry that reads a player, with what in it does. */
+    private fun problemsWithoutPlayer(conditions: List<*>): List<String> =
+        conditions.mapIndexedNotNull { i, raw ->
+            val parsed = KeyedStepParser.parseConditionStrict(raw)
+                ?: return@mapIndexedNotNull "condition #$i is unknown, malformed or missing an argument: $raw"
+            val reasons = PlayerBound.reasons(parsed)
+            if (reasons.isEmpty()) null
+            else "condition #$i needs a player (${reasons.joinToString(", ")}) and is tested without one: $raw"
+        }
 
     private fun problems(conditions: List<*>): List<String> =
         conditions.mapIndexedNotNull { i, raw ->

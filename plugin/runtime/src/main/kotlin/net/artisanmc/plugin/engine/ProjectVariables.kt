@@ -45,6 +45,14 @@ class ProjectVariables(val store: VariableStore) {
     fun read(variable: ProjectVariable, player: Player): Any? =
         store.get(variable.ref, owner(variable, player)) ?: variable.default
 
+    /** A server-scoped variable's value (else its default); null for a player-scoped one: no player to read it for. */
+    fun readWithoutPlayer(variable: ProjectVariable): Any? =
+        if (variable.scope == VariableScope.SERVER) store.get(variable.ref, VariableStore.SERVER) ?: variable.default else null
+
+    /** [has] without a player: a server-scoped variable with a stored value; false for a player-scoped one. */
+    fun hasWithoutPlayer(variable: ProjectVariable): Boolean =
+        variable.scope == VariableScope.SERVER && store.get(variable.ref, VariableStore.SERVER) != null
+
     /** True when a value is stored and not expired: the default does not count. */
     fun has(variable: ProjectVariable, player: Player): Boolean = store.get(variable.ref, owner(variable, player)) != null
 
