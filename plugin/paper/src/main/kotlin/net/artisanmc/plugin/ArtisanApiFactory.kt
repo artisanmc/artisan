@@ -145,6 +145,11 @@ internal object ArtisanApiFactory {
                 r.bindWarnings { plugin.logger.warning("[Artisan] $it") }
                 net.artisanmc.plugin.engine.ModuleVariableValues.registry = r
             })
+            // The lists a module's editor view offers (`quests:actor_types`): a change reports Presence again.
+            .optionLists(net.artisanmc.modules.api.options.OptionListRegistry().also { r ->
+                r.bindWarnings { plugin.logger.warning("[Artisan] $it") }
+                r.bindChanges { (plugin.menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged() }
+            })
             .build()
         // A module reports the core plugin version: ArtisanModule has no version of its own.
         registry.bind(api) {

@@ -27,6 +27,8 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
         on(router, "GET", "document-kinds", VIEW) { call, server -> call.json(mapOf("document_kinds" to server.announcement().documentKinds)) }
         on(router, "GET", "game-events", VIEW) { call, server -> call.json(mapOf("game_events" to server.announcement().gameEvents)) }
         on(router, "GET", "variables", VIEW) { call, server -> call.json(mapOf("variables" to server.announcement().variables)) }
+        // The lists a module's editor view offers, as its server last announced them.
+        on(router, "GET", "option-lists", VIEW) { call, server -> call.json(mapOf("option_lists" to server.announcement().optionLists)) }
         // The commands modules declare, with their default dressing: the editor's System section.
         on(router, "GET", "player-commands", VIEW) { call, server -> call.json(mapOf("player_commands" to server.announcement().playerCommands)) }
 

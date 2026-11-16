@@ -451,6 +451,27 @@ api.getVariables().declare(new ModuleVariableDeclaration("has_guild", VariableTy
 
 Not yet: `changed(player, name, key)` and the core Game event `variable_changed` (§10's change notice), the `location` type, `rowRef` keys with a picker, and Project variables (§5); `has_var` does not exist yet, `var.<module>.<name> != null` tests presence.
 
+### `net.artisanmc.modules.api.options.OptionListRegistry` and the option list contract (`@Beta`)
+
+An option list is a closed list of choices a module's editor view offers and only the server knows: who may play a quest group, once other plugins registered their own actor types. The module declares it under a namespaced id with a supplier; Artisan reads the supplier at each Presence report (`declared_option_lists`), the hub keeps it with the server's announcement, and a module view reads it with the SDK's `useOptionList(id)` (SDK 1.21), without a request to the server.
+
+```java
+// From onEnable. The supplier is read at each report: it sees the types other plugins added since.
+api.getOptionLists().declare("quests:actor_types", () -> actorTypes.all().stream()
+    .map(type -> new OptionEntry(type.id(), Map.of("en", type.label())))
+    .toList());
+// Later, when another plugin registers a type:
+api.getOptionLists().changed();
+```
+
+| Member | Type | Since |
+|---|---|---|
+| `ArtisanAPI.getOptionLists()` | `OptionListRegistry` | 1.4.0 |
+| `OptionListRegistry.declare(id, options)` (`id` is `<namespace>:<name>`, lower case; not namespaced or already declared `IllegalArgumentException`; `options` is a `Supplier<List<OptionEntry>>` read at each report, in the order shown), `undeclare(id)`, `has(id)` | | 1.4.0 |
+| `OptionListRegistry.changed()`: Presence is reported again, once for the changes of a tick; from any thread | | 1.4.0 |
+| `OptionEntry(value, labels)`, `OptionEntry(value)` (a blank value `IllegalArgumentException`; `labels` by language code, none: the editor shows the value), `value()`, `labels()`, `toWire()` (`{value, labels?}`) | record | 1.4.0 |
+| `OptionListRegistry.toWire()` (the `declared_option_lists` entries by id, `{id, options, module_id?}`; a supplier that throws reports an empty list, logged), `bindWarnings(warn)`, `bindChanges(changes)` (`@Internal`) | | 1.4.0 |
+
 ### `net.artisanmc.modules.api.editor.EditorBundleRegistry` and the editor bundle contract (internal 2.3.0, `@Stable` since internal 2.18.0)
 
 A module may ship its **editor view** in its own jar (runtime module bundles, level 3; `modules.md` §4.6): one ES module script built against `@artisan/editor-sdk`, registered from `onEnable` and removed with the module. The bundle is reported at Presence on the module's `installed_modules` entry (`editor_bundle: {sdk, hash, size}`, protocol 1.2), served by the hub at `GET /api/v1/servers/:server/modules/:module/ui.js` and loaded by the editor against its SDK.

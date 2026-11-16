@@ -6,7 +6,7 @@ package net.artisanmc.plugin.protocol
  * (`{id, version, editor_bundle?, brand?}`, data sources, `model/v1` documents, Config screens, `{name, args, primary?,
  * module_id?}` actions, `{kind, dir, schema_versions, id_prefix?, module_id?}` Document kinds, `{name, group, frequency,
  * context, cancellable, effects, module_id?}` Game events, `{name, type, scope, values?, key?, description?,
- * module_id}` module Variables, and the
+ * module_id}` module Variables, `{id, options, module_id?}` option lists, and the
  * player commands modules declare, as `PlayerCommandReport` writes them).
  */
 data class ServerAnnouncement(
@@ -19,6 +19,7 @@ data class ServerAnnouncement(
     val gameEvents: List<Map<String, Any?>> = emptyList(),
     val variables: List<Map<String, Any?>> = emptyList(),
     val playerCommands: List<Map<String, Any?>> = emptyList(),
+    val optionLists: List<Map<String, Any?>> = emptyList(),
 ) {
     /** The wire fields, in the order `hello` sends them. */
     fun toMap(): Map<String, Any?> = linkedMapOf(
@@ -31,6 +32,7 @@ data class ServerAnnouncement(
         DECLARED_GAME_EVENTS to gameEvents,
         DECLARED_VARIABLES to variables,
         PLAYER_COMMANDS to playerCommands,
+        DECLARED_OPTION_LISTS to optionLists,
     )
 
     /** The `editor_bundle` ([module]) announced for [moduleId], or null: no such module, or no bundle. */
@@ -61,6 +63,7 @@ data class ServerAnnouncement(
             gameEvents = field(DECLARED_GAME_EVENTS, gameEvents),
             variables = field(DECLARED_VARIABLES, variables),
             playerCommands = field(PLAYER_COMMANDS, playerCommands),
+            optionLists = field(DECLARED_OPTION_LISTS, optionLists),
         )
     }
 
@@ -74,6 +77,7 @@ data class ServerAnnouncement(
         const val DECLARED_GAME_EVENTS = "declared_game_events"
         const val DECLARED_VARIABLES = "declared_variables"
         const val PLAYER_COMMANDS = "player_commands"
+        const val DECLARED_OPTION_LISTS = "declared_option_lists"
         const val EDITOR_BUNDLE = "editor_bundle"
         const val BRAND = "brand"
         const val TEMPLATES = "templates"

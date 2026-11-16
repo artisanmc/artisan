@@ -14,6 +14,7 @@ import net.artisanmc.modules.api.datasource.DataSourceRegistry;
 import net.artisanmc.modules.api.document.DocumentKindRegistry;
 import net.artisanmc.modules.api.cooldown.CooldownApi;
 import net.artisanmc.modules.api.gameevent.GameEventRegistry;
+import net.artisanmc.modules.api.options.OptionListRegistry;
 import net.artisanmc.modules.api.variable.VariableRegistry;
 import net.artisanmc.modules.api.editor.EditorBundleRegistry;
 import net.artisanmc.modules.api.editor.ModuleBrandRegistry;
@@ -71,6 +72,7 @@ public final class ArtisanAPI {
     private final DocumentKindRegistry documentKinds;
     private final GameEventRegistry gameEvents;
     private final VariableRegistry variables;
+    private final OptionListRegistry optionLists;
     private final CooldownApi cooldowns;
     private final EditorBundleRegistry editorBundles;
     private final ModuleBrandRegistry moduleBrands;
@@ -104,6 +106,7 @@ public final class ArtisanAPI {
         this.documentKinds = b.documentKinds;
         this.gameEvents = b.gameEvents;
         this.variables = b.variables;
+        this.optionLists = b.optionLists;
         this.cooldowns = b.cooldowns;
         this.editorBundles = b.editorBundles;
         this.moduleBrands = b.moduleBrands;
@@ -246,6 +249,15 @@ public final class ArtisanAPI {
         return variables;
     }
 
+    /**
+     * The closed lists of choices a module's editor view offers and only the server knows
+     * ({@code quests:actor_types}). Reported at Presence as {@code declared_option_lists}.
+     */
+    @Beta
+    public OptionListRegistry getOptionLists() {
+        return optionLists;
+    }
+
     /** Per-player cooldowns, kept in the suite database; see {@link CooldownApi}. */
     @Beta
     public CooldownApi getCooldowns() {
@@ -385,6 +397,7 @@ public final class ArtisanAPI {
         private DocumentKindRegistry documentKinds = new DocumentKindRegistry();
         private GameEventRegistry gameEvents = new GameEventRegistry();
         private VariableRegistry variables = new VariableRegistry();
+        private OptionListRegistry optionLists = new OptionListRegistry();
         private CooldownApi cooldowns = CooldownApi.inMemory();
         private EditorBundleRegistry editorBundles = new EditorBundleRegistry();
         private ModuleBrandRegistry moduleBrands = new ModuleBrandRegistry();
@@ -462,6 +475,11 @@ public final class ArtisanAPI {
 
         public Builder variables(VariableRegistry variables) {
             this.variables = Objects.requireNonNull(variables);
+            return this;
+        }
+
+        public Builder optionLists(OptionListRegistry optionLists) {
+            this.optionLists = Objects.requireNonNull(optionLists);
             return this;
         }
 

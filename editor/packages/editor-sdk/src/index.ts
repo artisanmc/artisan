@@ -56,6 +56,7 @@ export {
   type ItemSpecWire,
   type ItemComparisonWire,
   type MiniMessageInputProps,
+  type OptionChoice,
   type SortableListProps,
   type ConditionsWire,
   type ConditionsEditorProps,
@@ -112,6 +113,7 @@ export {
   mcTextWidth,
   mcWrap,
   useItemTexture,
+  useOptionList,
 } from "./host/host";
 export {
   type GuiScaleChoice,
