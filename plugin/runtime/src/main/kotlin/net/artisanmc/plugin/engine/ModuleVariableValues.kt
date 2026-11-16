@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.engine
 
 import net.artisanmc.modules.api.variable.VariableRegistry
+import net.artisanmc.modules.api.variable.VariableScope
 import org.bukkit.entity.Player
 
 /**
@@ -28,6 +29,41 @@ object ModuleVariableValues {
     }
 
     /**
+     * The `var` value of an evaluation without a player (`testWithoutPlayer`), or null when nothing
+     * is bound: only server-scoped variables answer, a Project variable's stored value and a module
+     * Variable declared [VariableScope.SERVER] (its resolver gets a null player, which it ignores);
+     * a player-scoped one reads as null.
+     */
+    fun withoutPlayer(projectId: String? = null): Map<String, Any?>? {
+        val registry = registry
+        val projects = projects
+        if (registry == null && projects == null) return null
+        return Root(registry, projects, null, projectId)
+    }
+
+    /** [has] without a player: a server-scoped variable holds a value. */
+    fun hasWithoutPlayer(projectId: String?, name: String): Boolean {
+        val trimmed = name.trim()
+        projects?.let { p -> p.find(projectId, trimmed)?.let { return p.hasWithoutPlayer(it) } }
+        val registry = registry ?: return false
+        val m = KEYED.matchEntire(trimmed) ?: return false
+        if (registry.find(m.groupValues[1])?.declaration?.scope != VariableScope.SERVER) return false
+        val key = m.groups[2]?.value?.replace(Regex("\\\\(.)"), "$1")
+        return read(registry, null, m.groupValues[1], key) != null
+    }
+
+    /**
+     * [VariableRegistry.read] for [player], or for no player: then only a [VariableScope.SERVER]
+     * variable is read, its resolver given null (the Java API types it non-null, a server-scoped
+     * resolver ignores it).
+     */
+    private fun read(registry: VariableRegistry, player: Player?, name: String, key: String?): Any? {
+        if (player != null) return registry.read(player, name, key)
+        if (registry.find(name)?.declaration?.scope != VariableScope.SERVER) return null
+        return registry.read(null, name, key)
+    }
+
+    /**
      * True when `has_var` holds for [name]: a Project variable with a stored value, or a module
      * Variable (`<module>.<name>`, `<module>.<name>["<key>"]`) whose module returns one.
      */
@@ -45,7 +81,8 @@ object ModuleVariableValues {
     private class Root(
         private val registry: VariableRegistry?,
         private val projects: ProjectVariables?,
-        private val player: Player,
+        /** Null: an evaluation without a player, server-scoped variables only. */
+        private val player: Player?,
         private val projectId: String?,
     ) : AbstractMap<String, Any?>() {
         private fun project(key: String) = projects?.find(projectId, key)
@@ -53,7 +90,7 @@ object ModuleVariableValues {
         private fun isModule(key: String) = registry?.registered()?.any { it.moduleId == key } == true
 
         override fun get(key: String): Any? {
-            project(key)?.let { return projects!!.read(it, player) }
+            project(key)?.let { return value(it) }
             val registry = registry ?: return null
             return if (isModule(key)) Module(registry, player, key) else null
         }
@@ -64,20 +101,23 @@ object ModuleVariableValues {
             get() {
                 val out = LinkedHashMap<String, Any?>()
                 registry?.let { r -> r.registered().map { it.moduleId }.distinct().forEach { out[it] = Module(r, player, it) } }
-                projectId?.let { id -> projects?.of(id)?.forEach { out[it.id] = projects.read(it, player) } }
+                projectId?.let { id -> projects?.of(id)?.forEach { out[it.id] = value(it) } }
                 return out.entries
             }
+
+        private fun value(variable: ProjectVariable): Any? =
+            if (player != null) projects!!.read(variable, player) else projects!!.readWithoutPlayer(variable)
     }
 
     private class Module(
         private val registry: VariableRegistry,
-        private val player: Player,
+        private val player: Player?,
         private val moduleId: String,
     ) : AbstractMap<String, Any?>() {
         override fun get(key: String): Any? {
             val variable = registry.find("$moduleId.$key") ?: return null
             return if (variable.declaration.key != null) Keyed(registry, player, variable.qualifiedName)
-            else registry.read(player, variable.qualifiedName, null)
+            else read(registry, player, variable.qualifiedName, null)
         }
 
         override fun containsKey(key: String): Boolean = registry.find("$moduleId.$key") != null
@@ -90,10 +130,10 @@ object ModuleVariableValues {
     /** A keyed variable: indexed by its key, it reads the value; it lists nothing. */
     private class Keyed(
         private val registry: VariableRegistry,
-        private val player: Player,
+        private val player: Player?,
         private val name: String,
     ) : AbstractMap<String, Any?>() {
-        override fun get(key: String): Any? = registry.read(player, name, key)
+        override fun get(key: String): Any? = read(registry, player, name, key)
 
         override fun containsKey(key: String): Boolean = get(key) != null
 

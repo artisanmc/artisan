@@ -113,4 +113,43 @@ class ModuleVariableValuesTest {
             registry.find("quests.status")!!.toWire(),
         )
     }
+
+    // --- without a player (API 1.3.0) ---
+
+    private fun holdsWithoutPlayer(expr: String, projectId: String? = null) =
+        eval.evaluateAllWithoutPlayer(listOf(Condition.Expression(expr)), emptyMap(), projectId)
+
+    @Test fun `without a player, a server-scoped module variable is read and a player-scoped one is absent`() {
+        registry.bindOwner("events")
+        registry.declare(ModuleVariableDeclaration("season", VariableType.STRING, VariableScope.SERVER) { _, _ -> "winter" })
+        registry.bindOwner(null)
+        assertTrue(holdsWithoutPlayer("var.events.season == 'winter'"))
+        assertTrue(holdsWithoutPlayer("var.guilds.level == null"), "player-scoped: no player to read it for")
+        assertTrue(ModuleVariableValues.hasWithoutPlayer(null, "events.season"))
+        assertFalse(ModuleVariableValues.hasWithoutPlayer(null, "guilds.level"))
+        assertEquals(emptyList(), warnings, "the player-scoped resolver is never called with null")
+    }
+
+    @Test fun `without a player, a server-scoped Project variable is read and a player-scoped one is absent`() {
+        val store = VariableStore { 0L }
+        val projects = ProjectVariables(store).apply {
+            definitions = listOf(
+                ProjectVariable("rpg", "event_open", VariableScope.SERVER, VariableType.BOOLEAN, false, 0),
+                ProjectVariable("rpg", "coins", VariableScope.PLAYER, VariableType.NUMBER, 10.0, 0),
+            ).associateBy { it.ref }
+        }
+        ModuleVariableValues.projects = projects
+        try {
+            assertTrue(holdsWithoutPlayer("var.event_open == false", "rpg"), "the default, nothing stored")
+            assertFalse(ModuleVariableValues.hasWithoutPlayer("rpg", "event_open"))
+            store.set("rpg/event_open", VariableStore.SERVER, true, 0)
+            assertTrue(holdsWithoutPlayer("var.event_open", "rpg"))
+            assertTrue(holdsWithoutPlayer("var[\"rpg/event_open\"]"), "another project's, by its qualified ref")
+            assertTrue(ModuleVariableValues.hasWithoutPlayer("rpg", "event_open"))
+            assertTrue(holdsWithoutPlayer("var.coins == null", "rpg"), "player-scoped, not its default")
+            assertFalse(ModuleVariableValues.hasWithoutPlayer("rpg", "coins"))
+        } finally {
+            ModuleVariableValues.projects = null
+        }
+    }
 }

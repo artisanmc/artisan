@@ -52,20 +52,48 @@ class ConditionEvaluator(
     }
 
     /**
-     * Free-comparison condition (ADR action-dsl §6): parses and evaluates the leaf
-     * expression against `ctx.resolvedArgs`, resolves `%papi%` through `deps.papi`,
-     * coerces to Boolean. Tolerant: any parse/eval error → false (+ a single WARN).
+     * [conditions] evaluated without a player (`api.getConditions().testWithoutPlayer`): an
+     * `expression` reads [args] and the server-scoped `var` of [projectId], `has_var` a server-scoped
+     * variable. False when any of them is player-bound ([PlayerBound]); the caller checks first and
+     * says why. Reads no game state: callable from any thread.
      */
+    fun evaluateAllWithoutPlayer(conditions: List<Condition>, args: Map<String, Any>, projectId: String?): Boolean {
+        if (conditions.any { PlayerBound.reasons(it).isNotEmpty() }) return false
+        val scope: Map<String, Any?> by lazy {
+            if ("var" in args) args else args + ("var" to ModuleVariableValues.withoutPlayer(projectId))
+        }
+        fun eval(c: Condition): Boolean = when (c) {
+            is Condition.Expression -> evaluateExpression(c.expr, scope, papi = null)
+            is Condition.HasVar -> ModuleVariableValues.hasWithoutPlayer(projectId, c.name)
+            is Condition.RandomChance -> Math.random() < c.probability
+            is Condition.PaginationAtFirst, is Condition.PaginationAtLast -> true
+            is Condition.Not -> !eval(c.inner)
+            is Condition.And -> c.all.all(::eval)
+            is Condition.Or -> c.any.any(::eval)
+            else -> false
+        }
+        return conditions.all(::eval)
+    }
+
     private fun evaluateExpression(condition: Condition.Expression, ctx: ExecutionContext): Boolean {
         val papi: ((String) -> String?)? = deps.papi?.let { p -> { name -> p.resolve(ctx.player, "%$name%") } }
+        return evaluateExpression(condition.expr, ctx.resolvedArgs, papi)
+    }
+
+    /**
+     * Free-comparison condition (ADR action-dsl §6): parses and evaluates the leaf
+     * expression against [scope], resolves `%papi%` through [papi],
+     * coerces to Boolean. Tolerant: any parse/eval error → false (+ a single WARN).
+     */
+    private fun evaluateExpression(expr: String, scope: Map<String, Any?>, papi: ((String) -> String?)?): Boolean {
         val value = try {
             // Live objects adapted as templates see them: `player.name`, `player.vanished` read the same in both.
-            net.artisanmc.plugin.actiondsl.evalLeafOrThrow(condition.expr, ctx.resolvedArgs.mapValues { adapt(it.value) }, papi)
+            net.artisanmc.plugin.actiondsl.evalLeafOrThrow(expr, scope.mapValues { adapt(it.value) }, papi)
         } catch (e: Exception) {
             if (expressionWarned.compareAndSet(false, true)) {
                 Bukkit.getLogger().warning(
                     "[Artisan] unparseable expression condition — treating as false. " +
-                        "First seen: '${condition.expr}' (${e.message})",
+                        "First seen: '$expr' (${e.message})",
                 )
             }
             return false

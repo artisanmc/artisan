@@ -629,6 +629,19 @@ Same evaluator as `if:`, **strict** reading: an unknown or malformed condition m
 false (single warning) instead of being ignored as in a menu. To be called on the thread that
 owns the player (`IllegalStateException` otherwise). Detail: `api-surface.md`.
 
+Without a player (a console command, a scheduled task, a guild event; API 1.3.0), the conditions
+that do not read one are evaluated on the args you bind:
+
+```java
+List<String> problems = api.getConditions().validateWithoutPlayer(rankup);   // at load: "condition #0 needs a player (has_permission)…"
+boolean ok = api.getConditions().testWithoutPlayer(rankup, Map.of("guild_level", level));
+```
+
+`expression`, `has_var` (server-scoped variables), `random_chance` and their `not`/`and`/`or`
+are evaluated; a condition that reads the player (`has_permission`, `placeholder_equals`, a
+`%placeholder%` or `player` in an `expression`…) makes the whole list false, with a warning.
+Any thread.
+
 ### 4.6 bis Translated system messages
 
 A suite plugin does not redo its lang system: it registers its files under its
