@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { followDisk, rebaseDraft } from "./draftRebase";
+import { diskConflicts, followDisk, pairedBaseline, rebaseDraft } from "./draftRebase";
 
 const current = (files: Record<string, string>) => ({ files, binaries: {} });
 
@@ -201,5 +201,106 @@ describe("followDisk", () => {
   it("returns null when the disk did not move", () => {
     const draft = { baseline: { "a.yaml": "a" }, tree: { "a.yaml": "b" } };
     expect(followDisk(draft, { "a.yaml": "a" })).toBeNull();
+  });
+});
+
+describe("followDisk, the same YAML value", () => {
+  it("takes the disk's file when the draft only reformatted it", () => {
+    // A draft saved before `initialTree` existed: its base is the disk's text, its tree the editor's format.
+    const draft = {
+      baseline: { "guild_levels.yml": "strategy: sequential\n" },
+      tree: { "guild_levels.yml": "strategy: 'sequential'\n" },
+    };
+    const next = followDisk(draft, { "guild_levels.yml": "strategy: ladder\n" });
+    expect(next?.tree["guild_levels.yml"]).toBe("strategy: ladder\n");
+    expect(next?.baseline["guild_levels.yml"]).toBe("strategy: ladder\n");
+  });
+
+  it("moves the base when the draft was edited to what the disk now holds", () => {
+    const draft = { baseline: { "a.yml": "x: 1\n" }, tree: { "a.yml": "x: 2\n" } };
+    const next = followDisk(draft, { "a.yml": "x:   2\n" });
+    expect(next?.baseline["a.yml"]).toBe("x:   2\n");
+    expect(next?.tree["a.yml"]).toBe("x: 2\n");
+    expect(diskConflicts(next!, { "a.yml": "x:   2\n" })).toEqual([]);
+  });
+});
+
+describe("diskConflicts", () => {
+  it("reports a file the draft and the disk both changed, each its own way", () => {
+    const draft = { baseline: { "a.yml": "x: 1\n" }, tree: { "a.yml": "x: 2\n" } };
+    expect(diskConflicts(draft, { "a.yml": "x: 3\n" })).toEqual([
+      { path: "a.yml", disk: "x: 3\n" },
+    ]);
+  });
+
+  it("reports a file the disk deleted and the draft edited", () => {
+    const draft = { baseline: { "a.yml": "x: 1\n" }, tree: { "a.yml": "x: 2\n" } };
+    expect(diskConflicts(draft, {})).toEqual([{ path: "a.yml", disk: null }]);
+  });
+
+  it("reports a file both sides created differently", () => {
+    const draft = { baseline: {}, tree: { "a.yml": "x: 2\n" } };
+    expect(diskConflicts(draft, { "a.yml": "x: 3\n" })).toEqual([
+      { path: "a.yml", disk: "x: 3\n" },
+    ]);
+  });
+
+  it("leaves alone a file only one side changed, a deleted file and a renamed one", () => {
+    const draft = {
+      baseline: { "mine.yml": "a", "theirs.yml": "a", "gone.yml": "a", "old.yml": "a" },
+      tree: { "mine.yml": "b", "theirs.yml": "a", "new.yml": "b" },
+      renames: [{ from: "old.yml", to: "new.yml" }],
+    };
+    const disk = {
+      "mine.yml": "a",
+      "theirs.yml": "c",
+      "gone.yml": "c",
+      "old.yml": "c",
+      "new.yml": "c",
+    };
+    expect(diskConflicts(draft, disk)).toEqual([]);
+  });
+
+  it("is empty once followDisk merged the files only the disk changed", () => {
+    const draft = {
+      baseline: { "a.yml": "a", "b.yml": "b" },
+      initialTree: { "a.yml": "a", "b.yml": "b" },
+      tree: { "a.yml": "a", "b.yml": "mine" },
+    };
+    const disk = { "a.yml": "server", "b.yml": "b" };
+    const next = followDisk(draft, disk)!;
+    expect(next.tree["a.yml"]).toBe("server");
+    expect(diskConflicts(next, disk)).toEqual([]);
+  });
+});
+
+describe("pairedBaseline", () => {
+  it("keeps the draft's base under a tree older than the refreshed one", () => {
+    // The lobby's case: a reload refreshed the base to the server's new file while the tab
+    // still held the old tree. Saving it against the new base would have erased the server's.
+    const previous = { "guild_levels.yml": "strategy: sequential\n" };
+    const store = { "guild_levels.yml": "strategy: ladder\n" };
+    const tree = { "guild_levels.yml": "flow: sequential\n" };
+    expect(pairedBaseline(previous, store, tree)).toEqual(previous);
+  });
+
+  it("moves a file's base when the tree already holds it", () => {
+    const previous = { "a.yml": "x: 1\n", "b.yml": "y: 1\n" };
+    const store = { "a.yml": "x: 2\n", "b.yml": "y: 2\n" };
+    const tree = { "a.yml": "x:  2\n", "b.yml": "y: 9\n" };
+    expect(pairedBaseline(previous, store, tree)).toEqual({ "a.yml": "x: 2\n", "b.yml": "y: 1\n" });
+  });
+
+  it("takes the store's base without a draft, or when nothing moved", () => {
+    const store = { "a.yml": "x: 2\n" };
+    expect(pairedBaseline(undefined, store, {})).toBe(store);
+    expect(pairedBaseline({ "a.yml": "x: 2\n" }, store, { "a.yml": "x: 5\n" })).toBe(store);
+  });
+
+  it("keeps a file the store forgot, and drops one it gained under another tree", () => {
+    const previous = { "gone.yml": "a" };
+    const store = { "new.yml": "server" };
+    const tree = { "gone.yml": "mine", "new.yml": "mine" };
+    expect(pairedBaseline(previous, store, tree)).toEqual({ "gone.yml": "a" });
   });
 });

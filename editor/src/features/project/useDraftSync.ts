@@ -8,6 +8,7 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect } from "react";
 import { subscribeDraftSaved } from "./draftBroadcast";
 import { registerDraftFlush } from "./draftFlush";
+import { pairedBaseline } from "./draftRebase";
 import {
   loadPersistedDrafts,
   markDraftPending,
@@ -102,7 +103,7 @@ export function useDraftSync(): void {
             useProjectBaselineStore.getState().binaryBaselines[project.id],
           binaryTree:
             previous?.binaryTree ?? useProjectBaselineStore.getState().binaryBaselines[project.id],
-          baseline,
+          baseline: pairedBaseline(previous?.baseline, baseline, tree),
           tree,
           // Frozen on the first pass after a load: it is the reference for "did you
           // change anything?".

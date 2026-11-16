@@ -657,6 +657,28 @@ rewrote it (`.yml` rename), and the same duplicate id hid both copies. A draft t
 two spellings (`.yaml` and `.yml`, left by an earlier resume) is folded onto
 the disk's (`spelledAsDisk`), with the text the draft modified: the two
 formed a `duplicate_id` that each save kept.
+**Server and draft both changed a file (2026-11-16)**: `followDisk` left such a file to
+publishing, so the editor showed the draft's old version with no warning. After
+`followDisk`, `diskConflicts` lists the files the disk and the draft changed since the
+draft's base, each its own way (a YAML file with the same value on both sides is none;
+a file the draft deleted stays left to publishing), and `raiseOpenConflicts` puts them
+in `session.openConflicts`: the modal opens on them (`conflictSource: "open"`). Only
+files both sides changed ask; the rest is merged without a word. `followDisk` compares
+YAML by value too (`sameYamlValue`): a draft without `initialTree` whose tree is only
+the editor's format of its base follows the disk.
+**A draft's base moves only with its tree (2026-11-16)**: `useDraftSync` and
+`saveProjectToDisk` paired the tree on screen with the baseline store. A tab still
+holding an older tree, whose base a reload had refreshed, saved that tree against the
+server's new files: the compare-and-swap passed and deploying erased the server's
+change (lobby, `guild_levels.yml`). Both now go through `pairedBaseline`
+(`draftRebase.ts`): a file's base moves forward only if the tree already holds the new
+base or the draft's base already did; otherwise the draft keeps the base its tree was
+built on and publishing reports the conflict. Applying the conflict modal moves the
+draft's base too, whatever its source, so "keep mine" is not refused again.
+A draft discarded or published in another tab is dropped when this tab has no work
+since the last acknowledged revision (`noWorkSince`: the working copy against
+`remote.base`, not the full fingerprint, which a reload changes): it no longer came
+back as a new draft.
 **Conflict between two sessions (2026-09-29)**: a write refused with `409
 draft_conflict` (the other session advanced the revision) no longer chains silent
 re-reads. `persistedDrafts` rebases the local tree onto the remote snapshot

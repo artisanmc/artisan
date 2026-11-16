@@ -99,7 +99,7 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
       if (
         archived.status !== "active" &&
         useProjectDraftStore.getState().get(projectId) === before &&
-        before.remote.acknowledged === fingerprint(snapshotOf(projectId, before))
+        noWorkSince(projectId, before)
       ) {
         useProjectDraftStore.getState().clear(projectId);
         setSession(projectId, { ownerId, drafts, status: "saved" });
@@ -271,6 +271,27 @@ export async function selectPersistedDraft(projectId: string, id: string): Promi
     active: draft,
     status: "saved",
     openConflicts: draft.conflicts,
+  });
+}
+
+/**
+ * Files the resumed draft and the server's disk both changed (`diskConflicts`): the conflict
+ * modal opens on them, as for a draft read with conflicts. Without a draft session (no hub
+ * database) nothing opens; publishing still refuses to overwrite them.
+ */
+export function raiseOpenConflicts(
+  projectId: string,
+  conflicts: NonNullable<api.PersistedDraft["conflicts"]>,
+): void {
+  const session = usePersistedDraftStore.getState().sessions[projectId];
+  if (!session || conflicts.length === 0) return;
+  const known = new Set(conflicts.map((c) => c.path));
+  setSession(projectId, {
+    ...session,
+    openConflicts: [
+      ...(session.openConflicts ?? []).filter((c) => !known.has(c.path)),
+      ...conflicts,
+    ],
   });
 }
 
@@ -528,6 +549,29 @@ function sameWorkingCopy(a: ProjectDraft, b: ProjectDraft): boolean {
     return JSON.stringify([sorted(draft.tree), sorted(draft.binaryTree), draft.renames ?? []]);
   };
   return normalize(a) === normalize(b);
+}
+
+/**
+ * Nothing was edited since the hub acknowledged the draft's last revision. Only the working
+ * copy counts: a reload that moved the base, the age or the load reference is no work. A draft
+ * discarded in another tab is then dropped here too, instead of coming back as a new draft.
+ */
+function noWorkSince(projectId: string, draft: ProjectDraft): boolean {
+  const remote = draft.remote;
+  if (!remote) return false;
+  if (remote.acknowledged === fingerprint(snapshotOf(projectId, draft))) return true;
+  if (!remote.base) return false;
+  const renames = useProjectDraftStore.getState().pendingRenames[projectId] ?? draft.renames ?? [];
+  return sameWorkingCopy(
+    { ...draft, renames },
+    {
+      baseline: {},
+      tree: remote.base.tree,
+      at: 0,
+      ...(remote.base.binaryTree ? { binaryTree: remote.base.binaryTree } : {}),
+      ...(draft.binaryTree && !remote.base.binaryTree ? { binaryTree: draft.binaryTree } : {}),
+    },
+  );
 }
 
 /** Common point set by an acknowledged revision (`remote.base`). */
