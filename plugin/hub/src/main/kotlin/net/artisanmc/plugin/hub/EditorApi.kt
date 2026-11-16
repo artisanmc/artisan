@@ -44,7 +44,7 @@ object EditorApi {
             ).register(router)
         }
         AddressRoutes(tunnel, sessions).register(router)
-        stats?.let { StatsRoutes(servers, it).register(router) }
+        stats?.let { StatsRoutes(servers, it, relay).register(router) }
         val tools = McpTools(McpProjects(servers, loaded, drafts, history), packs = packBuilder)
         if (mcp != null) {
             OAuthRoutes(mcp).register(router)

@@ -173,4 +173,49 @@ class StatsRoutesTest {
         assertEquals(422, get("players?ids=Iban", cookie).statusCode())
         assertEquals(403, get("players?q=al", login(setOf(EditorPermissions.VIEW))).statusCode())
     }
+
+    @Test
+    fun `a computed figure is asked to the running server, with its parameters`() {
+        val sent = mutableListOf<Map<String, Any?>>()
+        val live = object : EditorServer {
+            override val id = "hub-1"
+            override val online = true
+            override val link = net.artisanmc.plugin.protocol.ServerLink { message ->
+                sent += message
+                java.util.concurrent.CompletableFuture.completedFuture(
+                    if (message["id"] == "quests:stuck") mapOf("ok" to true, "rows" to listOf(mapOf("stage" to "s1", "players" to 3)), "computed_at" to 42L)
+                    else mapOf("ok" to false, "error" to "unknown_query"),
+                )
+            }
+            override val label = "survie"
+            override val minecraftVersion = "1.21.7"
+            override val pluginVersion = "2.0.0"
+            override fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY
+            override fun serverConfig() = null
+            override fun customItems() = emptyList<Map<String, String>>()
+            override fun applyResourcePack(hash: String, path: String) {}
+        }
+        val liveRouter = Router().also { StatsRoutes(Servers(live), access).register(it) }
+        val liveHub = HubServer(WebConfig(port = 0, bind = "127.0.0.1"), liveRouter, sessions, EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger())
+        liveHub.start()
+        try {
+            val token = (sessions.issueLink(UUID.randomUUID(), "Iban", setOf(EditorPermissions.STATS), "hub-1") as Sessions.LinkResult.Issued).token
+            val base = "http://127.0.0.1:${liveHub.port}"
+            val cookie = client.send(HttpRequest.newBuilder(URI("$base/login/$token")).GET().build(), HttpResponse.BodyHandlers.ofString())
+                .headers().firstValue("Set-Cookie").get().substringBefore(';')
+            fun ask(query: String) = client.send(
+                HttpRequest.newBuilder(URI("$base/api/v1/servers/hub-1/stats/query?$query")).header("Cookie", cookie).GET().build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+            val reply = ask("id=quests:stuck&p.group=daily")
+            assertEquals(200, reply.statusCode())
+            assertEquals(3, json(reply).path("rows")[0].path("players").asInt())
+            assertEquals(42, json(reply).path("computed_at").asLong())
+            assertEquals(mapOf("type" to "stats_query_fetch", "id" to "quests:stuck", "params" to mapOf("group" to "daily")), sent.single())
+            assertEquals(404, ask("id=quests:none").statusCode())
+            assertEquals(422, ask("id=Stuck").statusCode())
+        } finally {
+            liveHub.stop()
+        }
+    }
 }

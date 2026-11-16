@@ -264,6 +264,7 @@ internal class RuntimeAssembly(
         dataSources = api.dataSources,
         editorBundles = localEditorBundles::find,
         moduleBrands = plugin.moduleBrands::find,
+        statQuery = { id, params -> if (plugin.stats.recorder.isEnabled) plugin.stats.recorder.queries.run(id, params) else null },
         templates = { plugin.moduleTemplates },
         seedLang = { api.translations.defaultLang },
         migrateCommandOverrides = ::migrateCommandOverrides,

@@ -37,8 +37,22 @@ class StatsAccess(
  * Read from the suite database, so an offline server's statistics stay readable. Periods are
  * `from` (inclusive) and `to` (exclusive), each an epoch second or an ISO-8601 instant.
  */
-class StatsRoutes(private val servers: Servers, private val stats: StatsAccess) {
+class StatsRoutes(private val servers: Servers, private val stats: StatsAccess, private val relay: Relay = Relay(null)) {
     fun register(router: Router) {
+        // A figure a module computes on demand: asked to the running server, which caches it.
+        router.on("GET", "${ServerRoutes.SERVER}/stats/query", EditorPermissions.STATS) { call ->
+            val server = servers.of(call) ?: return@on call.error(404, "not_found")
+            if (!stats.enabled()) return@on call.error(404, "stats_disabled")
+            val id = call.query("id")?.takeIf { StatEvent.NAME.matcher(it).matches() } ?: return@on call.error(422, "invalid_input")
+            relay.send(call, server, mapOf("type" to "stats_query_fetch", "id" to id, "params" to call.queryPrefixed("p."))) { reply ->
+                if (Relay.ok(reply)) call.json(mapOf("rows" to reply["rows"], "computed_at" to reply["computed_at"]))
+                else when (Relay.errorCode(reply)) {
+                    "unknown_query" -> call.error(404, "unknown_query")
+                    "stats_disabled" -> call.error(404, "stats_disabled")
+                    else -> call.error(502, "query_failed")
+                }
+            }
+        }
         on(router, "catalog") { call, reader, row, server ->
             val declared = stats.declared(server.id).associateBy { it.name }
             call.json(mapOf("events" to reader.catalog(row).map { entry ->

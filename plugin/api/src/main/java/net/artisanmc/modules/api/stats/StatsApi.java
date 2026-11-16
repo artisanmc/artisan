@@ -58,6 +58,16 @@ public interface StatsApi {
         record(event, null, dimensions, value, Map.of());
     }
 
+    /**
+     * Declares a figure computed on demand, read by the module's statistics tab in the editor.
+     * Declaring {@code id} again replaces its query (a module reloaded).
+     *
+     * @param id {@code <namespace>:<name>}, as an event's name
+     * @param cacheSeconds how long an answer is served again for the same parameters, 0 to 3600
+     * @throws IllegalArgumentException a malformed id, Artisan's namespace, or a cache time out of range
+     */
+    void declareQuery(String id, int cacheSeconds, StatQuery query);
+
     /** False when the admin turned statistics off ({@code stats.enabled: false}): records are dropped. */
     boolean isEnabled();
 
@@ -70,6 +80,10 @@ public interface StatsApi {
         @Override
         public boolean isDeclared(String name) {
             return false;
+        }
+
+        @Override
+        public void declareQuery(String id, int cacheSeconds, StatQuery query) {
         }
 
         @Override

@@ -92,6 +92,7 @@ the message is ignored (`EditorRequest.parse` returns `null`).
 | `config_write` | `config_write_result` | `{project_id, files:[{path, content}], deletes}`: direct write of a config screen table, then reload. |
 | `server_config_write` | `server_config_write_result` | `{changes}`: each key validated (known key, default's type, paths under the root, `project:image` refs), `config.yml` rewritten, reload. Response `{server_config?, error?: "invalid_config"}`. Nothing is written if a change is refused. |
 | `online_players_fetch` | `online_players_result` | Sorted `players`. Offline or timeout: the route returns an empty list. |
+| `stats_query_fetch` `{id, params}` | `stats_query_result` | A module's figure computed on demand (`StatsApi.declareQuery`): `rows`, `computed_at` (epoch ms, the cached answer's). Run off the game threads. Errors `unknown_query`, `query_failed` (the module threw), `stats_disabled`. |
 | `papi_placeholders_fetch` | `papi_placeholders_result` | `{placeholders:[{placeholder, expansion}], truncated}`; 2,000 entries max. |
 | `head_texture_fetch` | `head_texture_result` | `{id}` (HeadDatabase id, 1–10 digits) → base64 `texture`. Errors `hdb_unavailable`, `head_not_found`, `invalid_input`, `fetch_error`. |
 | `editor_bundle_fetch` | `editor_bundle_fetch_result` | `{module_id}` → `{module_id, sdk, hash, content}`: the module's editor view script, as UTF-8 text (≤ 4 MiB, `EditorBundleDeclaration.MAX_SIZE`). `not_found` if the module has no bundle; `too_large` if the JSON would exceed 12 MiB (escaped control characters), under OkHttp's 16 MiB queue. The hub checks that the content's SHA-256 equals the advertised `hash`. Minor 2. |
@@ -176,7 +177,7 @@ without a handler does not compile.
 |---|---|---|
 | `ProjectReads` | `core` | `project_list`, `project_read`, `project_history`, `asset_read`, `config_read` |
 | `ProjectWrites` | `core` | `project_write`, `config_write`, `project_draft_publish`, `project_create`, `project_delete`, `project_rename` (disk: `ProjectFolders`) |
-| `ServerQueries` | `paper` | `online_players_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `editor_bundle_fetch`, `module_brand_fetch`, `data_source_fetch`, `server_config_write`, `nexo_glyph*` |
+| `ServerQueries` | `paper` | `online_players_fetch`, `stats_query_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `editor_bundle_fetch`, `module_brand_fetch`, `data_source_fetch`, `server_config_write`, `nexo_glyph*` |
 | `TemplateRequests` | `core` | `template_fetch`, `template_copy`, `project_origins_fetch` (disk: `TemplateCopies`, `ProjectOrigins`) |
 | `DocumentChecks` | `core` | `documents_check` (no writes: `DocumentCheck` on a temporary copy) |
 | `SyncedMenuProvider` | `paper` | `hello_ack`, `resource_pack_updated`, `bedrock_pack_updated`, `session_replaced`, `custom_items_request` |

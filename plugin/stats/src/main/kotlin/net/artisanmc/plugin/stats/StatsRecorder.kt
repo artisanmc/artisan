@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.stats
 
 import net.artisanmc.modules.api.stats.StatEvent
+import net.artisanmc.modules.api.stats.StatQuery
 import net.artisanmc.modules.api.stats.StatScope
 import net.artisanmc.modules.api.stats.StatStorage
 import net.artisanmc.modules.api.stats.StatsApi
@@ -47,6 +48,15 @@ class StatsRecorder(
     }
 
     override fun isDeclared(name: String) = catalog.containsKey(name)
+
+    /** The figures modules compute on demand. */
+    val queries = StatQueries(clock)
+
+    override fun declareQuery(id: String, cacheSeconds: Int, query: StatQuery) {
+        require(StatEvent.NAME.matcher(id).matches()) { "Stat query '$id': expected <namespace>:<name>, lower case" }
+        require(id.substringBefore(':') !in RESERVED) { "Stat query $id: the namespaces ${RESERVED.joinToString()} are Artisan's" }
+        queries.declare(id, cacheSeconds, query)
+    }
 
     override fun isEnabled() = settings().enabled
 

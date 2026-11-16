@@ -72,6 +72,16 @@ adapted to portable SQL.
     their own content with the core action `record_event` (`custom:<name>`, declared on first use,
     `BOTH`, counter, player scope).
 
+11. **A module's tab, and figures computed on demand** (batch 3). A module adds a tab to the
+    statistics space from its editor bundle (`FrontendModule.stats`, editor SDK 1.23), built with
+    the SDK's own components (key figure, chart, ranking, funnel, sorted table) so tabs look
+    alike. A present state no event records ("how many players are stopped at each stage") is a
+    query the module declares with `StatsApi.declareQuery(id, cacheSeconds, query)`: the hub asks
+    the running server (`stats_query_fetch`), the module's code runs off the game threads, and
+    the answer is kept for the declared time per set of parameters. It is the one statistics read
+    that needs the server online: the state lives in the module's tables, which the hub does not
+    know.
+
 ## Consequences
 
 - API 1.5.0 adds `api.stats` (`@Beta`); a module that calls it sets its `MIN_API_VERSION` to 1.5.0.
