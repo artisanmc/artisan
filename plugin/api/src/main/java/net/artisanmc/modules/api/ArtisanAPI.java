@@ -26,6 +26,7 @@ import net.artisanmc.modules.api.placeholder.PlaceholderRegistry;
 import net.artisanmc.modules.api.project.ProjectContentApi;
 import net.artisanmc.modules.api.project.ProjectRootRegistry;
 import net.artisanmc.modules.api.scheduler.SchedulerApi;
+import net.artisanmc.modules.api.stats.StatsApi;
 import net.artisanmc.modules.api.schemas.SchemaRegistry;
 import net.artisanmc.modules.api.screen.EditorScreenRegistry;
 import net.artisanmc.modules.api.playercommand.PlayerCommandRegistry;
@@ -87,6 +88,7 @@ public final class ArtisanAPI {
     private final TextApi text;
     private final NetworkApi network;
     private final OverlayApi overlay;
+    private final StatsApi stats;
 
     private ArtisanAPI(Builder b) {
         this.plugin = b.plugin;
@@ -121,6 +123,7 @@ public final class ArtisanAPI {
         this.text = b.text;
         this.network = b.network;
         this.overlay = b.overlay;
+        this.stats = b.stats;
     }
 
     /**
@@ -365,6 +368,17 @@ public final class ArtisanAPI {
         return overlay;
     }
 
+    /**
+     * The server's statistics: declared events, recorded without waiting, read in the editor
+     * (ADR {@code stats-foundation}).
+     *
+     * @since 1.5.0
+     */
+    @Beta
+    public StatsApi getStats() {
+        return stats;
+    }
+
     /** Version of this API (the {@code Since} numbering of the published {@code artisan-core-api}). */
     @Stable
     public String getApiVersion() {
@@ -412,6 +426,7 @@ public final class ArtisanAPI {
         private TextApi text = TextApi.NOOP;
         private NetworkApi network = NetworkApi.NOOP;
         private OverlayApi overlay = OverlayApi.NONE;
+        private StatsApi stats = StatsApi.NOOP;
 
         private Builder(
             JavaPlugin plugin,
@@ -510,6 +525,11 @@ public final class ArtisanAPI {
 
         public Builder database(DatabaseApi database) {
             this.database = Objects.requireNonNull(database);
+            return this;
+        }
+
+        public Builder stats(StatsApi stats) {
+            this.stats = Objects.requireNonNull(stats);
             return this;
         }
 
