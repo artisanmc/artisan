@@ -175,11 +175,21 @@ object CoreActions {
         field("do", ModelFieldType.actions(), required = true),
     ), primary = null)
 
+    /**
+     * Counts one occurrence of the admin's own Stat event `custom:<event>` for the player (ADR
+     * `stats-foundation` ⑩): [dimensions] are the categories it is cut by, [value] what it sums.
+     */
+    val RECORD_EVENT = ActionSchema("record_event", listOf(
+        field("event", ModelFieldType.string(), required = true),
+        field("dimensions", ModelFieldType.map(ModelFieldType.string())),
+        field("value", ModelFieldType.number()).withDefault(1.0),
+    ), primary = "event")
+
     val all: List<ActionSchema> = listOf(
         RUN_COMMAND, OPEN_MENU, CLOSE_MENU, OPEN_PREVIOUS_MENU, GIVE_ITEM, TAKE_ITEM, GIVE_MONEY, TAKE_MONEY,
         GIVE_XP, GIVE_LEVEL, SEND_MESSAGE, BROADCAST, PLAY_SOUND, TELEPORT, PAGINATION_NEXT, PAGINATION_PREV,
         SHOW_TITLE, OPEN_DIALOG, CLOSE_DIALOG, SET_ARG, SET_ARG_CYCLE_NEXT, SET_ARG_CYCLE_PREV, RUN_ACTIONS,
-        SET_VAR, ADD_VAR, CLEAR_VAR, CHAT_BUTTON,
+        SET_VAR, ADD_VAR, CLEAR_VAR, CHAT_BUTTON, RECORD_EVENT,
     )
 
     private val byName = all.associateBy { it.name }

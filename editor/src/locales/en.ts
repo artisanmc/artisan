@@ -483,6 +483,7 @@ export default {
       set_var: { var: "variable", value: "value" },
       add_var: { var: "variable", amount: "amount" },
       clear_var: { var: "variable" },
+      record_event: { event: "event name", dimensions: "categories", value: "value" },
       chat_button: {
         text: "text before the button (MiniMessage)",
         label: "button (MiniMessage)",
@@ -540,6 +541,12 @@ export default {
           "Read as the variable's type: true/false, a number, a location, or a template ({player.location}, {var.coins + 1}).",
       },
       add_var: { amount: "A number variable only. A negative amount subtracts." },
+      record_event: {
+        event: "Lower case, digits and _ (tutorial_done). Shown in Statistics as custom:<name>.",
+        dimensions:
+          'What the count is split by, a few possible values each (step: "2"). Never a player name or an id.',
+        value: "What is added up besides the count. 1 by default.",
+      },
       chat_button: {
         uses: "Only the player the line was sent to can click. A restart forgets the button.",
       },
@@ -987,6 +994,7 @@ export default {
       set_var: "variable {{var}} = {{value}} (stored on the server, not here)",
       add_var: "variable {{var}} + {{amount}} (stored on the server, not here)",
       clear_var: "variable {{var}} cleared (stored on the server, not here)",
+      record_event: "event {{event}} counted (statistics are kept by the server, not here)",
       chatButton: "chat button: {{text}}",
       chatButtonNotPlayed: "its click actions run on the server only",
       moduleAction: "a {{module}} module action: it runs on the server, not here",

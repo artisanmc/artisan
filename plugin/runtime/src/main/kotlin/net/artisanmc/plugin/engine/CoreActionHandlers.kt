@@ -9,7 +9,7 @@ private typealias CoreActionBody = (ExecutionContext, Map<String, Any>, EngineRu
 
 /**
  * Artisan's own actions as [ActionDeclaration]s: the schemas of [CoreActions] joined to
- * their game logic ([NavigationActions], [PlayerActions], [ArgActions], [VariableActions], [ChatButtons]) in one table. They are registered once in the API's
+ * their game logic ([NavigationActions], [PlayerActions], [ArgActions], [VariableActions], [ChatButtons], [StatActions]) in one table. They are registered once in the API's
  * [ActionRegistry] when the plugin builds its API, like a module's actions, and the
  * executor dispatches to them like to any module's (ADR `extensible-document-kinds`, R1).
  *
@@ -51,6 +51,7 @@ object CoreActionHandlers {
         CoreActions.ADD_VAR to VariableActions::addVar,
         CoreActions.CLEAR_VAR to VariableActions::clearVar,
         CoreActions.CHAT_BUTTON to ChatButtons::send,
+        CoreActions.RECORD_EVENT to StatActions::recordEvent,
     )
 
     fun declarations(): List<ActionDeclaration> = TABLE.map { (action, body) -> action.declare(core(body)) }

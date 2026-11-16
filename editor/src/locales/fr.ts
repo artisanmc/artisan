@@ -494,6 +494,7 @@ const fr: typeof en = {
       set_var: { var: "variable", value: "valeur" },
       add_var: { var: "variable", amount: "quantité" },
       clear_var: { var: "variable" },
+      record_event: { event: "nom de l'événement", dimensions: "catégories", value: "valeur" },
       chat_button: {
         text: "texte avant le bouton (MiniMessage)",
         label: "bouton (MiniMessage)",
@@ -552,6 +553,13 @@ const fr: typeof en = {
           "Lue selon le type de la variable : true/false, un nombre, une position, ou un template ({player.location}, {var.coins + 1}).",
       },
       add_var: { amount: "Variable nombre seulement. Une quantité négative soustrait." },
+      record_event: {
+        event:
+          "Minuscules, chiffres et _ (tutorial_done). Affiché dans Statistiques sous custom:<nom>.",
+        dimensions:
+          'Ce par quoi le compte est découpé, quelques valeurs possibles chacune (step: "2"). Jamais un nom de joueur ni un identifiant.',
+        value: "Ce qui est additionné en plus du compte. 1 par défaut.",
+      },
       chat_button: {
         uses: "Seul le joueur qui a reçu la ligne peut cliquer. Un redémarrage oublie le bouton.",
       },
@@ -1004,6 +1012,8 @@ const fr: typeof en = {
       set_var: "variable {{var}} = {{value}} (gardée par le serveur, pas ici)",
       add_var: "variable {{var}} + {{amount}} (gardée par le serveur, pas ici)",
       clear_var: "variable {{var}} effacée (gardée par le serveur, pas ici)",
+      record_event:
+        "événement {{event}} compté (les statistiques sont gardées par le serveur, pas ici)",
       chatButton: "bouton dans le chat : {{text}}",
       chatButtonNotPlayed: "ses actions au clic ne s'exécutent que sur le serveur",
       moduleAction: "action du module {{module}} : elle s'exécute sur le serveur, pas ici",

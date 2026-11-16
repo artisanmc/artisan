@@ -58,6 +58,7 @@ internal class StatsHost(private val plugin: ArtisanPlugin) : Listener {
     private fun config(): StatsConfig = plugin.loadedConfigOrNull()?.stats ?: StatsConfig()
 
     fun start() {
+        net.artisanmc.plugin.engine.StatActions.recorder = { event, player, dimensions, value -> recorder.recordCustom(event, player, dimensions, value) }
         plugin.server.pluginManager.registerEvents(this, plugin)
         val now = System.currentTimeMillis()
         plugin.server.onlinePlayers.forEach { sessions[it.uniqueId] = now }
@@ -80,6 +81,7 @@ internal class StatsHost(private val plugin: ArtisanPlugin) : Listener {
 
     /** At shutdown, before the database closes: the open sessions end here, and the buffer is written. */
     fun stop() {
+        net.artisanmc.plugin.engine.StatActions.recorder = null
         val now = System.currentTimeMillis()
         sessions.keys.toList().forEach { endSession(it, now) }
         flush()

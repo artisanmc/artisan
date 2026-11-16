@@ -1891,6 +1891,53 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
+            "record_event"
+          ],
+          "properties": {
+            "record_event": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "event"
+                  ],
+                  "properties": {
+                    "event": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "dimensions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "$ref": "#/$defs/Template"
+                        }
+                      ],
+                      "default": 1.0
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
             "chat_button"
           ],
           "properties": {
