@@ -157,7 +157,10 @@ describe("a collection kind", () => {
   });
 
   it("lists a Document's parts under it: unfolded by its chevron, or once it is open", () => {
-    const onOpen = vi.fn();
+    // The sidebar's own handler, which selects the Document it opens.
+    const onOpen = vi.fn((ref: string) =>
+      goToDocument(navigate, { serverId: "s1", project: stored(), ref }),
+    );
     const { rerender } = render(<DocumentGroups project={stored()} onOpen={onOpen} editable />);
     expect(screen.queryByText("Starter kit")).toBeNull();
     // Only a Document with parts gets the chevron.
