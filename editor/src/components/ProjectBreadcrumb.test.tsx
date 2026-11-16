@@ -63,3 +63,17 @@ it("with a Document open, leads back to the project and its collection, and ends
   const current = document.querySelector('[aria-current="page"]');
   expect(current?.textContent).toBe("HUD");
 });
+
+it("with a part of the Document selected, the Document leads back to itself and the part ends the trail", () => {
+  const close = vi.fn();
+  render(
+    <ProjectBreadcrumb
+      serverRef={null}
+      projectName="quests"
+      trail={{ toProject: vi.fn(), label: "Guild levels", part: { label: "Level 2", close } }}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Guild levels" }));
+  expect(close).toHaveBeenCalled();
+  expect(document.querySelector('[aria-current="page"]')?.textContent).toBe("Level 2");
+});

@@ -92,17 +92,41 @@ export function DocumentView({
       ? collectionLabel(documentKindContribution(backKind), backKind, uiLang)
       : undefined;
   const hasDocument = found !== undefined;
+  // A part of the Document selected (a group's quest, `board.items`): one more level, and the
+  // Document's own becomes the way back to it.
+  const partId = useSelectionStore((st) =>
+    st.menuId === key && st.ids.size === 1 ? ([...st.ids][0] ?? null) : null,
+  );
+  const partLabel =
+    partId && found && project
+      ? documentKindContribution(found.kind)
+          ?.board?.items?.(found.doc, { project, lang: activeLang })
+          .find((part) => part.id === partId)?.label
+      : undefined;
+  const closePart = useCallback(() => useSelectionStore.getState().set([key]), [key]);
   useEffect(() => {
     setTrail({
       toProject,
       collection: collection ? { label: collection, open: toCollection } : undefined,
       label,
+      part: partLabel !== undefined ? { label: partLabel, close: closePart } : undefined,
       yaml:
         relPath && hasDocument
           ? { on: yamlMode, toggle: () => setYamlMode((v) => !v), path: relPath }
           : undefined,
     });
-  }, [setTrail, toProject, toCollection, collection, label, relPath, hasDocument, yamlMode]);
+  }, [
+    setTrail,
+    toProject,
+    toCollection,
+    collection,
+    label,
+    partLabel,
+    closePart,
+    relPath,
+    hasDocument,
+    yamlMode,
+  ]);
   useEffect(() => () => setTrail(null), [setTrail]);
 
   // Escape goes back to the board. The event is ignored if focus is in an input

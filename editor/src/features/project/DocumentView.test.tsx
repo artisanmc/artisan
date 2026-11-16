@@ -3,7 +3,7 @@ import { useDocumentTrailStore } from "@/state/documentTrailStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { registerModule } from "@artisan/editor-sdk";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
 
@@ -128,6 +128,29 @@ describe("DocumentView", () => {
     );
     unmount();
     expect(useDocumentTrailStore.getState().trail).toBeNull();
+  });
+  it("adds the selected part of a module's Document to the trail, the Document leading back to itself", () => {
+    registerModule({
+      id: "quests-test",
+      documents: [
+        {
+          kind: "quest_group",
+          board: { items: () => [{ id: "q1", label: "Level 2" }] },
+        } as any,
+      ],
+    } as any);
+    try {
+      render(<DocumentView projectId={PID} documentId={"daily" as any} />);
+      expect(useDocumentTrailStore.getState().trail?.part).toBeUndefined();
+      act(() => useSelectionStore.getState().set(["q1"], null, "quest_group/daily"));
+      const part = useDocumentTrailStore.getState().trail?.part;
+      expect(part?.label).toBe("Level 2");
+      act(() => part?.close());
+      expect(useDocumentTrailStore.getState().trail?.part).toBeUndefined();
+      expect([...useSelectionStore.getState().ids]).toEqual(["quest_group/daily"]);
+    } finally {
+      clearRegistry();
+    }
   });
   it("Escape goes back to the canvas", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);

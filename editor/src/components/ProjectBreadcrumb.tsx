@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 
 /**
  * Server › project, at the head of the topbar, then the open Document's levels
- * (its collection, itself). The server opens the list of the hub's servers:
+ * (its collection, itself, its selected part). The server opens the list of the hub's servers:
  * picking one leads to its page. With a Document open, the project and the
  * collection lead back to their pages. Outside a server (demo), no server.
  */
@@ -99,10 +99,21 @@ export function ProjectBreadcrumb({
           {trail.collection.label}
         </button>
       )}
-      {trail && (
-        <BreadcrumbCurrent>
-          {/* MiniMessage (a menu's title): its style, not its tags. */}
+      {trail?.part ? (
+        <button type="button" onClick={trail.part.close} className={breadcrumbLinkClass}>
           <MiniMessageInline source={trail.label} />
+        </button>
+      ) : (
+        trail && (
+          <BreadcrumbCurrent>
+            {/* MiniMessage (a menu's title): its style, not its tags. */}
+            <MiniMessageInline source={trail.label} />
+          </BreadcrumbCurrent>
+        )
+      )}
+      {trail?.part && (
+        <BreadcrumbCurrent>
+          <MiniMessageInline source={trail.part.label} />
         </BreadcrumbCurrent>
       )}
     </Breadcrumb>
