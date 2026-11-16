@@ -538,9 +538,10 @@ function CollectionNode({
                             type="button"
                             aria-current={current ? "page" : undefined}
                             onClick={() => {
-                              // Selected before the view opens, which keeps it (DocumentView).
-                              useSelectionStore.getState().set([part.id], null, key);
+                              // Opening selects the Document itself (`goToDocument`): the part
+                              // is selected after, and the view that mounts keeps it (DocumentView).
                               onOpen(key);
+                              useSelectionStore.getState().set([part.id], null, key);
                             }}
                             className={`flex w-full min-w-0 items-center rounded-[10px] py-[5px] pr-2 text-left text-[13px] leading-5 ${
                               current
