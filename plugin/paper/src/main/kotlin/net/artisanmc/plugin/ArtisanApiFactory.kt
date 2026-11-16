@@ -119,6 +119,7 @@ internal object ArtisanApiFactory {
             .text(net.artisanmc.plugin.text.ArtisanText)
             .network(plugin.network)
             .overlay(net.artisanmc.plugin.resourcepack.PaperOverlay({ plugin.assetCatalogOrNull }, plugin.packLoads, plugin.overlaySlots))
+            .scenes(plugin.scenes)
             .conditions(net.artisanmc.plugin.engine.ModuleConditions(
                 evaluator = { plugin.runtime.evaluatorOrNull },
                 ownsPlayer = { plugin.scheduler.ownsPlayer(it.uniqueId) },

@@ -31,6 +31,7 @@ import net.artisanmc.modules.api.screen.EditorScreenRegistry;
 import net.artisanmc.modules.api.playercommand.PlayerCommandRegistry;
 import net.artisanmc.modules.api.template.TemplateRegistry;
 import net.artisanmc.modules.api.network.NetworkApi;
+import net.artisanmc.modules.api.scene.ScenesApi;
 import net.artisanmc.modules.api.text.OverlayApi;
 import net.artisanmc.modules.api.text.TextApi;
 import net.artisanmc.modules.api.translation.TranslationsApi;
@@ -87,6 +88,7 @@ public final class ArtisanAPI {
     private final TextApi text;
     private final NetworkApi network;
     private final OverlayApi overlay;
+    private final ScenesApi scenes;
 
     private ArtisanAPI(Builder b) {
         this.plugin = b.plugin;
@@ -121,6 +123,7 @@ public final class ArtisanAPI {
         this.text = b.text;
         this.network = b.network;
         this.overlay = b.overlay;
+        this.scenes = b.scenes;
     }
 
     /**
@@ -365,6 +368,17 @@ public final class ArtisanAPI {
         return overlay;
     }
 
+    /**
+     * Interfaces drawn in the world for one player with display entities: text, items and blocks
+     * around a point or an entity, seen by their viewer alone.
+     *
+     * @since 1.2.0
+     */
+    @Beta
+    public ScenesApi getScenes() {
+        return scenes;
+    }
+
     /** Version of this API (the {@code Since} numbering of the published {@code artisan-core-api}). */
     @Stable
     public String getApiVersion() {
@@ -412,6 +426,7 @@ public final class ArtisanAPI {
         private TextApi text = TextApi.NOOP;
         private NetworkApi network = NetworkApi.NOOP;
         private OverlayApi overlay = OverlayApi.NONE;
+        private ScenesApi scenes = ScenesApi.NONE;
 
         private Builder(
             JavaPlugin plugin,
@@ -550,6 +565,11 @@ public final class ArtisanAPI {
 
         public Builder overlay(OverlayApi overlay) {
             this.overlay = Objects.requireNonNull(overlay);
+            return this;
+        }
+
+        public Builder scenes(ScenesApi scenes) {
+            this.scenes = Objects.requireNonNull(scenes);
             return this;
         }
 
