@@ -12,9 +12,11 @@ import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
 import { fieldTextOf } from "@/schema/fieldText";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { optionsOf, useServerOptionListsStore } from "@/state/serverOptionListsStore";
 import { useUiStore } from "@/state/uiStore";
 import { type EditorHost, type HostComponents, installEditorHost } from "@artisan/editor-sdk";
 import { useNavigate, useParams } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { toast } from "sonner";
 
 /** The project's languages: its default, then every other one a text holds. */
@@ -97,6 +99,11 @@ export const editorHost: Omit<EditorHost, "components"> = {
   mcTextWidth: (source) => mcLineWidth(source),
   mcWrap: (source, width) => wrapLore(source, width),
   useItemTexture: (material) => useTextureUrl(material),
+  useOptionList: (id) => {
+    const lists = useServerOptionListsStore((s) => s.lists);
+    const lang = useUiStore((s) => s.editorLang);
+    return useMemo(() => optionsOf(lists, id, lang), [lists, id, lang]);
+  },
 };
 
 /** `components`: the editor widgets module views embed (`distribution/hostComponents.tsx`). */

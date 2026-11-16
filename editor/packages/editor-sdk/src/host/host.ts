@@ -69,6 +69,13 @@ export interface EditorHost {
    * catalogue is loaded, and for an item that has none (a custom item, a typo).
    */
   useItemTexture(material: string): string | undefined;
+  /**
+   * The choices of an option list a module declared on the server (`api.getOptionLists()`,
+   * `quests:actor_types`), labelled in the interface language (SDK 1.21). A hook: undefined
+   * until the server's lists are loaded, and when the server declares no such list (an older
+   * plugin): the view then falls back on what it knows.
+   */
+  useOptionList(id: string): OptionChoice[] | undefined;
   /** The editor's own widgets a module view embeds (SDK 1.1). */
   components: HostComponents;
 }
@@ -132,6 +139,12 @@ export interface ItemValueInputProps {
   projectId: string;
   value: unknown;
   onChange: (value: unknown) => void;
+}
+
+/** One choice of a server-declared option list (SDK 1.21): the value a file holds, and its label. */
+export interface OptionChoice {
+  value: string;
+  label: string;
 }
 
 export interface MiniMessageInputProps {
@@ -476,6 +489,10 @@ export const mcTextWidth = (source: string): number => current().mcTextWidth(sou
 export const mcWrap = (source: string, width: number): string[] => current().mcWrap(source, width);
 export const useItemTexture = (material: string): string | undefined =>
   current().useItemTexture(material);
+/** A server-declared option list, or undefined (SDK 1.21); see `EditorHost.useOptionList`. */
+export const useOptionList = (id: string): OptionChoice[] | undefined =>
+  // A host older than 1.21 never loads a 1.21 bundle; the guard keeps a test host short.
+  current().useOptionList?.(id);
 
 /**
  * The editor's Action chain editor (the one of commands and dialogs) on a controlled value:

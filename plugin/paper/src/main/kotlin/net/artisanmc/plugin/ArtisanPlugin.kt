@@ -337,6 +337,7 @@ open class ArtisanPlugin : JavaPlugin() {
         gameEvents = api.gameEvents.registered().map { it.toWire() },
         variables = api.variables.registered().map { it.toWire() },
         playerCommands = net.artisanmc.plugin.ws.PlayerCommandReport.build(api.playerCommands),
+        optionLists = api.optionLists.toWire(),
     )
 
     val environmentFile: File get() = File(dataFolder, "environment.yml")

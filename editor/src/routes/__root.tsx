@@ -12,6 +12,7 @@ import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useServerGameEventsStore } from "@/state/serverGameEventsStore";
+import { useServerOptionListsStore } from "@/state/serverOptionListsStore";
 import { useServerPapiPlaceholdersStore } from "@/state/serverPapiPlaceholdersStore";
 import { useServerPlayerCommandsStore } from "@/state/serverPlayerCommandsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
@@ -63,6 +64,7 @@ export function RootLayout() {
     useServerDocumentKindsStore.getState().load({ serverId: activeServerId });
     useServerGameEventsStore.getState().load({ serverId: activeServerId });
     useServerVariablesStore.getState().load({ serverId: activeServerId });
+    useServerOptionListsStore.getState().load({ serverId: activeServerId });
     useServerPlayerCommandsStore.getState().load({ serverId: activeServerId });
     // Declared actions arriving after a project was read: adopt the texts of the module
     // actions it holds, so they are i18n sites like a core action's.

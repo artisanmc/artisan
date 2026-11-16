@@ -1,0 +1,1 @@
+- **Added**: A module can declare a list of choices only the server knows (`api.getOptionLists()`, API 1.4.0), reported with its announcement and read by its editor view with `useOptionList` (editor SDK 1.21): a quest group's actor types, with the ones other plugins add.

@@ -22,6 +22,7 @@ class ServerAnnouncementTest {
          "declared_game_events":[],
          "declared_variables":[{"name":"guilds.has_guild","type":"boolean","scope":"player","module_id":"guilds"}],
          "player_commands":[{"id":"attribution:open","module_id":"attribution","name":"attribution","children":[]}],
+         "declared_option_lists":[{"id":"quests:actor_types","options":[{"value":"player"},{"value":"guild","labels":{"fr":"Chaque guilde"}}],"module_id":"quests"}],
          "server_config":{"language":"fr"}}
     """.trimIndent()
 

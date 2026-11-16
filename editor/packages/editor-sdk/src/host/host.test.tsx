@@ -20,6 +20,7 @@ import {
   mcTextWidth,
   mcWrap,
   useItemTexture,
+  useOptionList,
 } from "./host";
 
 describe("host components", () => {
@@ -141,5 +142,16 @@ describe("host components", () => {
     } as unknown as EditorHost);
     expect(useItemTexture("DIAMOND")).toBe("/api/v1/textures/1.21/diamond.png");
     expect(useItemTexture("oraxen:ruby")).toBeUndefined();
+  });
+
+  it("hand a server's option list to a module, undefined when the host has none", () => {
+    installEditorHost({
+      useOptionList: (id: string) =>
+        id === "quests:actor_types" ? [{ value: "guild", label: "Each guild" }] : undefined,
+    } as unknown as EditorHost);
+    expect(useOptionList("quests:actor_types")).toEqual([{ value: "guild", label: "Each guild" }]);
+    expect(useOptionList("quests:unknown")).toBeUndefined();
+    installEditorHost({} as unknown as EditorHost);
+    expect(useOptionList("quests:actor_types")).toBeUndefined();
   });
 });

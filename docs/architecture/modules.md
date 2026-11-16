@@ -254,6 +254,14 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > catalogue is loaded and for an item without one (custom item, typo). `ItemValueInput` (host
 > component) is the generated form's item field on a value of the module's data file, for a Config
 > screen view: titles and lore stay the Project's texts, where `ItemInput` writes a literal spec.
+
+> **Choices only the server knows (since 2026-11-16, SDK 1.21, API 1.4.0)** — a module declares a
+> list from `onEnable` (`api.getOptionLists().declare("quests:actor_types", supplier)`), Artisan
+> reports it at Presence (`declared_option_lists`) and its view reads it with
+> `useOptionList("quests:actor_types")`: `[{value, label}]` in the interface language, or undefined
+> until the lists are loaded and on a server that declares none, where the view falls back on what
+> it knows. The list is the one of the last announcement: no request goes to the server. A 1.20
+> bundle still loads.
 > A 1.19 bundle still loads.
 
 > **Module folder (since 2026-11-12, API 1.1.0)** — `api.getProjectRoots().pluginFolder(folder, moduleId, dir)`
