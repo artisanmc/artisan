@@ -30,6 +30,14 @@ class PlayerRows(
         }
     }
 
+    /** The player last seen under [name] (case-insensitive), or null: names change hands, the latest holder wins. */
+    fun findByName(name: String): UUID? = dataSource.connection.use { c ->
+        c.prepareStatement("SELECT player_uuid FROM ${t.players} WHERE LOWER(name) = ? ORDER BY last_seen DESC").use { s ->
+            s.setString(1, name.lowercase())
+            s.executeQuery().use { r -> if (r.next()) runCatching { UUID.fromString(r.getString(1).trim()) }.getOrNull() else null }
+        }
+    }
+
     /**
      * [id] is online as [name] at [now]: a new row on their first visit (first seen at [firstSeen],
      * the server's own record of them when it predates the table), else the name and last seen updated.

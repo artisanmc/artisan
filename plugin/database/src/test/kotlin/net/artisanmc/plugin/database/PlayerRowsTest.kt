@@ -10,6 +10,16 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class PlayerRowsTest {
+    @Test
+    fun `a name finds the player last seen under it, whatever its case`() {
+        val old = UUID.randomUUID()
+        val new = UUID.randomUUID()
+        rows.seen(old, "Steve", 1_000)
+        rows.seen(new, "steve", 2_000)
+        assertEquals(new, rows.findByName("STEVE"))
+        assertEquals(null, rows.findByName("Alex"))
+    }
+
     private val dir = Files.createTempDirectory("artisan_players_").toFile()
     private val pools = ConnectionPools(
         { DatabaseSettings.of("h2", "localhost", "3306", "minecraft", "root", "", DatabaseSettings.DEFAULT_POOL_SIZE, dir) },

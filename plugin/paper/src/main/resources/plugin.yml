@@ -33,6 +33,7 @@ permissions:
       artisan.editor.edit: true
       artisan.editor.publish: true
       artisan.editor.config: true
+      artisan.editor.stats: true
   artisan.editor.view:
     description: Open the editor and read projects
     default: op
@@ -44,4 +45,10 @@ permissions:
     default: op
   artisan.editor.config:
     description: Change the server configuration from the editor
+    default: op
+  artisan.editor.stats:
+    description: Read the server's statistics in the editor, a single player's included
+    default: op
+  artisan.stats.forget:
+    description: Erase a player's statistics with /artisan stats forget
     default: op

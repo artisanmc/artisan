@@ -294,6 +294,10 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         versionWriter.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)
     }
 
+    /** `artisan_players` once the suite database is open. */
+    fun playerRows(): net.artisanmc.plugin.database.PlayerRows? =
+        artisanData?.let { net.artisanmc.plugin.database.PlayerRows(it, database.tables) }
+
     /** `artisan_stats_*` once the suite database is open. */
     fun statsRows(): net.artisanmc.plugin.database.StatsRows? =
         artisanData?.let { net.artisanmc.plugin.database.StatsRows(it, database.tables) }

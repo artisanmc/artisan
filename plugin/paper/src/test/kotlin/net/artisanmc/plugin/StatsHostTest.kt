@@ -90,6 +90,18 @@ class StatsHostTest {
     }
 
     @Test
+    fun `forgetting a player drops what is buffered about them`() {
+        val server = MockBukkit.getMock()!!
+        val kept = server.addPlayer()
+        val gone = server.addPlayer()
+        plugin.stats.recorder.buffer.drain()
+        plugin.stats.command(kept, "shop", "", "ok")
+        plugin.stats.command(gone, "shop", "", "ok")
+        plugin.stats.forget(gone.uniqueId)
+        assertEquals(listOf(kept.uniqueId.toString()), plugin.stats.recorder.buffer.drain().buckets.map { it.player })
+    }
+
+    @Test
     fun `the stats section is read with its defaults and bounds`() {
         val defaults = StatsConfig.from(YamlConfiguration())
         assertEquals(StatsConfig(), defaults)

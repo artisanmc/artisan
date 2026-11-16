@@ -94,11 +94,17 @@ internal class StatsHost(private val plugin: ArtisanPlugin) : Listener {
     /** The player's first visit on the network (`artisan_players` had no row of them). */
     fun firstJoin(player: UUID) = recorder.record(CoreStats.FIRST_JOIN, player, emptyMap())
 
-    /** Erases [player]'s statistics, buffered and stored; the number of rows deleted, null without a database. */
+    /**
+     * Erases [player]'s statistics, buffered and stored, on every server of the database; the number
+     * of rows deleted, null without a database. An online player's session starts over from now.
+     */
     fun forget(player: UUID): Int? {
-        recorder.buffer.forget(player.toString())
-        val rows = plugin.suite.statsRows() ?: return null
-        return synchronized(flushLock) { rows.forget(player.toString()) }
+        sessions.computeIfPresent(player) { _, _ -> System.currentTimeMillis() }
+        val rows = plugin.suite.statsRows()
+        return synchronized(flushLock) {
+            recorder.buffer.forget(player.toString())
+            rows?.forget(player.toString())
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
