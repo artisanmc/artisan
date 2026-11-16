@@ -59,7 +59,7 @@ class StatsRoutes(private val servers: Servers, private val stats: StatsAccess) 
         on(router, "series") { call, reader, row, _ ->
             val period = period(call) ?: return@on call.error(422, "invalid_input")
             val by = granularity(call) ?: return@on call.error(422, "invalid_input")
-            val q = SeriesQuery(period.event, period.from, period.to, by, period.player, call.queryPrefixed("dim."), stats.zone())
+            val q = SeriesQuery(period.event, period.from, period.to, by, period.player, call.queryPrefixed("dim."), stats.zone(), call.query("fill") == "1")
             call.json(mapOf("points" to reader.series(row, q).map {
                 mapOf("start" to it.start, "granularity" to it.granularity.name.lowercase(), "count" to it.count, "sum" to it.sum, "min" to it.min, "max" to it.max)
             }))
@@ -67,7 +67,7 @@ class StatsRoutes(private val servers: Servers, private val stats: StatsAccess) 
         on(router, "actives") { call, reader, row, _ ->
             val period = period(call) ?: return@on call.error(422, "invalid_input")
             val by = granularity(call) ?: return@on call.error(422, "invalid_input")
-            val actives = reader.actives(row, SeriesQuery(period.event, period.from, period.to, by, period.player, call.queryPrefixed("dim."), stats.zone()))
+            val actives = reader.actives(row, SeriesQuery(period.event, period.from, period.to, by, period.player, call.queryPrefixed("dim."), stats.zone(), call.query("fill") == "1"))
             call.json(mapOf("players" to actives.players, "points" to actives.points.map { mapOf("start" to it.start, "players" to it.players) }))
         }
         on(router, "players") { call, _, _, _ ->

@@ -11,6 +11,8 @@ data class SeriesQuery(
     val player: String? = null,
     val dims: Map<String, String> = emptyMap(),
     val zone: ZoneId = ZoneId.systemDefault(),
+    /** True: a bucket of the period without a record is a point at zero, so a chart has no hole. */
+    val fill: Boolean = false,
 )
 
 /** One point of a series: hours already merged into days stay day points in a series by hour. */
@@ -68,8 +70,25 @@ object StatsQueries {
             val point = SeriesPoint(start, granularity, row.count, row.sum, row.min, row.max)
             points.merge(start to granularity, point) { a, b -> SeriesPoint(a.start, a.granularity, a.count + b.count, a.sum + b.sum, minOf(a.min, b.min), maxOf(a.max, b.max)) }
         }
+        if (q.fill && points.keys.all { it.second == q.by }) {
+            for (start in starts(q)) points.getOrPut(start to q.by) { SeriesPoint(start, q.by, 0, 0.0, 0.0, 0.0) }
+        }
         return points.values.toList()
     }
+
+    /** The start of every bucket of [q]'s period: UTC hours, or days of its zone. Empty past [MAX_FILL] buckets. */
+    fun starts(q: SeriesQuery): List<Long> {
+        val starts = ArrayList<Long>()
+        var start = if (q.by == Granularity.DAY) Rollup.dayStart(q.from, q.zone) else q.from / 3600 * 3600
+        while (start < q.to) {
+            if (starts.size == MAX_FILL) return emptyList()
+            starts += start
+            start = if (q.by == Granularity.DAY) Rollup.nextDay(start, q.zone) else start + 3600
+        }
+        return starts
+    }
+
+    const val MAX_FILL = 2_500
 
     /** The distinct players of [rows] (one per player, bucket and dimensions): server rows (`""`) are nobody. */
     fun actives(rows: List<BucketRow>, q: SeriesQuery): Actives {
@@ -81,6 +100,7 @@ object StatsQueries {
             all += row.player
             points.getOrPut(start) { HashSet() } += row.player
         }
+        if (q.fill && rows.none { it.granularity != q.by && q.by == Granularity.HOUR }) starts(q).forEach { points.getOrPut(it) { HashSet() } }
         return Actives(all.size, points.map { (start, players) -> ActivesPoint(start, players.size) })
     }
 

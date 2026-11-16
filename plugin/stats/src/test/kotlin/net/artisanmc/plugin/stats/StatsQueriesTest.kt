@@ -62,4 +62,18 @@ class StatsQueriesTest {
         assertEquals(Actives(3, listOf(ActivesPoint(0, 2), ActivesPoint(day, 2))), StatsQueries.actives(rows, q))
         assertEquals(Actives(2, listOf(ActivesPoint(0, 1), ActivesPoint(3600, 2), ActivesPoint(day, 1))), StatsQueries.actives(rows, q.copy(by = Granularity.HOUR, dims = mapOf("menu" to "shop"))))
     }
+
+    @Test
+    fun `a filled series has a point per bucket of the period, at zero where nothing was recorded`() {
+        val utc = java.time.ZoneId.of("UTC")
+        val rows = listOf(BucketRow("", "core:menu_open", "", 7200, Granularity.HOUR, 2, 2.0, 1.0, 1.0))
+        val hours = StatsQueries.series(rows, SeriesQuery("core:menu_open", 100, 4 * 3600, Granularity.HOUR, zone = utc, fill = true))
+        assertEquals(listOf(0L to 0L, 3600L to 0L, 7200L to 2L, 10800L to 0L), hours.map { it.start to it.count })
+        val days = StatsQueries.series(rows, SeriesQuery("core:menu_open", 0, 3 * 86_400, Granularity.DAY, zone = utc, fill = true))
+        assertEquals(listOf(0L to 2L, 86_400L to 0L, 172_800L to 0L), days.map { it.start to it.count })
+        val players = StatsQueries.actives(emptyList(), SeriesQuery("core:menu_open", 0, 2 * 86_400, Granularity.DAY, zone = utc, fill = true))
+        assertEquals(Actives(0, listOf(ActivesPoint(0, 0), ActivesPoint(86_400, 0))), players)
+        // Too long a period by hour is left as it is.
+        assertEquals(1, StatsQueries.series(rows, SeriesQuery("core:menu_open", 0, 3600L * 5000, Granularity.HOUR, zone = utc, fill = true)).size)
+    }
 }
