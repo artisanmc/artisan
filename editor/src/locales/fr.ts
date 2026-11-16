@@ -902,6 +902,8 @@ const fr: typeof en = {
     },
   },
   projectPanel: {
+    expandParts: "Afficher les parties de {{name}}",
+    collapseParts: "Masquer les parties de {{name}}",
     systemDocumentHint:
       "Élément interne du module {{module}} : son code l'ouvre. Tu peux le modifier ; il ne se supprime pas, Réinitialiser le remet à la version du module.",
     systemBadge: {

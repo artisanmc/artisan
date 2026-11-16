@@ -1,0 +1,1 @@
+- **Added**: In the sidebar, a collection's Document lists its parts under it (a quest group's quests): a chevron folds them, the open Document shows them, and a click opens the part.

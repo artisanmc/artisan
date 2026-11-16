@@ -35,6 +35,7 @@ import { contributionLabel, kindCreatableIn } from "@/lib/moduleDocumentKinds";
 import { collectionDestination, dataSourceDestination } from "@/lib/projectNavigation";
 import { shippedKey, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useSelectionStore } from "@/state/selectionStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
@@ -444,6 +445,13 @@ function CollectionNode({
   const uiLang = useUiStore((s) => s.editorLang);
   const [open, setOpen] = useState(true);
   const [creating, setCreating] = useState(false);
+  const activeLang = useUiStore((s) => s.activeLang);
+  // Which Documents show their parts; the open one does until folded.
+  const [unfolded, setUnfolded] = useState<Record<string, boolean>>({});
+  // The open Document's selected part, as its view reads it (`selectDocumentItem`).
+  const selectedPart = useSelectionStore((st) =>
+    activeId && st.menuId === activeId && st.ids.size === 1 ? ([...st.ids][0] ?? null) : null,
+  );
   const kind = contribution.kind;
   const label = collectionLabel(contribution, kind, uiLang);
   const look = kindAppearance(kind);
@@ -496,21 +504,64 @@ function CollectionNode({
       </div>
       {open && items.length > 0 && (
         <ul aria-label={label} className="flex flex-col">
-          {items.map((it) => (
-            <li key={it.id}>
-              <DocumentRow
-                projectId={editable ? project.id : null}
-                project={project}
-                item={it}
-                depth={1}
-                kind={kind}
-                fixed
-                onOpen={() => onOpen(docKey(kind, it.id))}
-                origin={originOf(docKey(kind, it.id))}
-                activeId={activeId}
-              />
-            </li>
-          ))}
+          {items.map((it) => {
+            const key = docKey(kind, it.id);
+            const doc = findDocumentByKey(project, key)?.doc;
+            // The Document's parts (a group's quests, `board.items`): a third level.
+            const parts = doc
+              ? (contribution.board?.items?.(doc, { project, lang: activeLang }) ?? [])
+              : [];
+            const expanded = unfolded[key] ?? activeId === key;
+            return (
+              <li key={it.id}>
+                <DocumentRow
+                  projectId={editable ? project.id : null}
+                  project={project}
+                  item={it}
+                  depth={1}
+                  kind={kind}
+                  fixed
+                  onOpen={() => onOpen(key)}
+                  origin={originOf(key)}
+                  activeId={activeId}
+                  activeDimmed={activeId === key && selectedPart !== null}
+                  expanded={parts.length > 0 ? expanded : undefined}
+                  onToggle={() => setUnfolded((u) => ({ ...u, [key]: !expanded }))}
+                />
+                {expanded && parts.length > 0 && (
+                  <ul aria-label={it.label} className="flex flex-col">
+                    {parts.map((part) => {
+                      const current = activeId === key && selectedPart === part.id;
+                      return (
+                        <li key={part.id}>
+                          <button
+                            type="button"
+                            aria-current={current ? "page" : undefined}
+                            onClick={() => {
+                              // Selected before the view opens, which keeps it (DocumentView).
+                              useSelectionStore.getState().set([part.id], null, key);
+                              onOpen(key);
+                            }}
+                            className={`flex w-full min-w-0 items-center rounded-[10px] py-[5px] pr-2 text-left text-[13px] leading-5 ${
+                              current
+                                ? "font-semibold text-[var(--text)]"
+                                : "text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                            }`}
+                            style={{
+                              paddingLeft: 6 + 2 * 14 + 28,
+                              background: current ? look.soft : undefined,
+                            }}
+                          >
+                            <span className="truncate">{part.label}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
       {creating && (
@@ -792,6 +843,9 @@ function DocumentRow({
   notSyncedHint,
   activeId,
   fixed = false,
+  activeDimmed = false,
+  expanded,
+  onToggle,
 }: {
   /** `null` = read-only: no actions menu. */
   projectId: ProjectId | null;
@@ -809,10 +863,17 @@ function DocumentRow({
   activeId?: string;
   /** A collection's Document: it stays where its module reads it, no drag, no "Move to". */
   fixed?: boolean;
+  /** One of its parts is the open one: the row stays marked as the page, without the fill. */
+  activeDimmed?: boolean;
+  /** Set when the Document lists parts under it: a chevron folds them. */
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
   const { t } = useTranslation();
   const key = docKey(kind, item.id);
   const active = activeId === key;
+  const filled = active && !activeDimmed;
+  const Chevron = expanded ? ChevronDown : ChevronRight;
   // A module's system element never leaves its place: no drag.
   const draggable = projectId !== null && !origin?.system && !fixed;
   const handle = useDraggable({ id: key, disabled: !draggable });
@@ -837,11 +898,25 @@ function DocumentRow({
       ref={handle.setNodeRef}
       {...(draggable ? handle.listeners : {})}
       data-draggable={draggable || undefined}
-      className={`group flex items-center gap-0.5 rounded-[10px] ${active ? "" : "hover:bg-[var(--surface-hover)]"} ${
+      className={`group relative flex items-center gap-0.5 rounded-[10px] ${filled ? "" : "hover:bg-[var(--surface-hover)]"} ${
         placeholder ? "opacity-40 outline-dashed outline-1 outline-[var(--border-strong)]" : ""
       }`}
-      style={active ? { background: look.soft } : undefined}
+      style={filled ? { background: look.soft } : undefined}
     >
+      {expanded !== undefined && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-label={t(expanded ? "projectPanel.collapseParts" : "projectPanel.expandParts", {
+            name: item.label,
+          })}
+          onClick={onToggle}
+          className="absolute top-0 flex h-full items-center px-0.5"
+          style={{ left: depth * 14 - 12 }}
+        >
+          <Chevron className="size-3 text-[var(--text-faint)]" aria-hidden />
+        </button>
+      )}
       <button
         type="button"
         onClick={onOpen}

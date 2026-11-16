@@ -62,8 +62,10 @@ export function DocumentView({
     const childIds = new Set<string>([key]);
     for (const layer of menu?.layers ?? [])
       for (const el of layer.elements ?? []) childIds.add(el.id);
-    const current = useSelectionStore.getState().ids;
-    const alreadyRelevant = current.size > 0 && [...current].every((id) => childIds.has(id));
+    const { ids: current, menuId } = useSelectionStore.getState();
+    // A part of this Document picked before it opened (the sidebar's rows under a group).
+    const alreadyRelevant =
+      current.size > 0 && (menuId === key || [...current].every((id) => childIds.has(id)));
     if (!alreadyRelevant) useSelectionStore.getState().set([key]);
   }, [key]);
 
