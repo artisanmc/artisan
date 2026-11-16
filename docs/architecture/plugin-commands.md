@@ -13,6 +13,7 @@ the `permissions:` block of `paper/src/main/resources/plugin.yml`.
 | `sync reject` | Permission `artisan.admin`. `menuProvider.unload()/load()` — reloads from disk and, on a leaf, reconnects to the hub. |
 | `editor` | Editor login link. See below. |
 | `dump-title <menu_id> [lang]` | Permission `artisan.admin`. **Diagnostic**, listed user-side as such. Compiles the menu title and prints each step: the exact MiniMessage emitted, the offset advances, and the MC X cursor at each layer boundary. Use it when the in-game position differs from the editor preview. |
+| `stats forget <player>` | Permission `artisan.stats.forget`. Resolves the name (online player, else `artisan_players` through `PlayerRows.findByName`) and deletes the player's rows of `artisan_stats_buckets` and `artisan_stats_events` for every server of the database, plus their buffered records (`StatsHost.forget`), off the game threads. ADR `stats-foundation`, decision 9. |
 | `click <token>` | No permission, absent from completion and help. **Internal**: the command a `chat_button` line runs when clicked (`/artisan:artisan click <token>`, `ChatButtons`). A token that is unknown, expired, used up or clicked by another player than the one it was sent to does nothing. Tokens live in memory, a restart forgets them. ADR `triggers-and-variables` §7. |
 
 Removed in phase F: `link <code>` (cloud linking), `member add <email>` (console access),

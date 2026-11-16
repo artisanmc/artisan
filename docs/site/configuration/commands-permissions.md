@@ -21,9 +21,10 @@ their own commands (see [Commands declared by projects](#commands-declared-by-pr
 | `/artisan editor logout <player>` | `artisan.admin` | Signs another player out of the editor on every device. `Console` names the console identity. |
 | `/artisan editor sessions` | `artisan.editor.config` | Lists the open editor sessions of every server: player, server, last activity, rights, and whether the editor is open right now. Click a line to close that session. |
 | `/artisan editor revoke <id>` | `artisan.editor.config` | Closes one session, by the start of its id as `sessions` shows it (8 characters at least). Its open tabs go back to sign-in. |
+| `/artisan stats forget <player>` | `artisan.stats.forget` | Deletes every statistic recorded about that player, on every server of the database. Cannot be undone. See [Statistics](../statistics/). |
 | `/artisan dump-title <id> [lang]` | `artisan.admin` | Diagnostic: prints how a menu's title is assembled, step by step, to the chat and the server log. Use it when a title sits differently in game than in the editor preview. |
 
-`menu`, `reload`, `sync` and `dump-title` are hidden from tab completion for whoever lacks their permission.
+`menu`, `reload`, `sync`, `stats` and `dump-title` are hidden from tab completion for whoever lacks their permission.
 
 In a network, `editor`, `editor logout`, `editor sessions` and `editor revoke` typed on a leaf
 go through the hub; if the hub is unreachable they say so and change nothing.
@@ -34,13 +35,15 @@ go through the hub; if the hub is unreachable they say so and change nothing.
 |---|---|---|
 | `artisan.admin` | `/artisan reload`, `/artisan sync`, `/artisan dump-title`, and `/artisan editor logout <player>`. | op |
 | `artisan.menu` | Open any menu by id with `/artisan menu`. Deny it to keep players to the menus your projects open for them. | everyone |
-| `artisan.editor` | All four editor permissions below. | op |
+| `artisan.editor` | All five editor permissions below. | op |
 | `artisan.editor.view` | Request a link with `/artisan editor`, open the editor, read projects, their versions and the server's settings. | op |
 | `artisan.editor.edit` | Change projects (private drafts); use the editor's AI assistant; connect an AI app to the editor. | op |
 | `artisan.editor.publish` | Publish projects to the server; rebuild or upload the resource pack and the Bedrock pack; let a connected AI app publish. | op |
 | `artisan.editor.config` | Change the server's settings from the editor's server page; set up the AI assistant; pick the editor's address name on the tunnel; `/artisan editor sessions` and `/artisan editor revoke`. | op |
+| `artisan.editor.stats` | Read the server's [statistics](../statistics/): the totals and a single player's detail. Gives no access to projects by itself. | op |
+| `artisan.stats.forget` | `/artisan stats forget <player>`. | op |
 
-`artisan.editor` is a parent: granting it grants the four `artisan.editor.*` permissions. To give
+`artisan.editor` is a parent: granting it grants the five `artisan.editor.*` permissions. To give
 a narrower set (for example read and edit, without publishing), grant the individual permissions
 instead.
 
