@@ -1,9 +1,10 @@
 rootProject.name = "artisan-plugin"
 
-include("api", "core", "database", "hub", "pack", "runtime", "paper", "tunnel", "tunnel-server", "geyser-extension")
+include("api", "core", "stats", "database", "hub", "pack", "runtime", "paper", "tunnel", "tunnel-server", "geyser-extension")
 
 project(":api").name = "artisan-api"
 project(":core").name = "artisan-core"
+project(":stats").name = "artisan-stats"
 project(":database").name = "artisan-database"
 project(":hub").name = "artisan-hub"
 project(":pack").name = "artisan-pack"
