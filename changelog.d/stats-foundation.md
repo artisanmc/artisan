@@ -2,11 +2,15 @@
   online, the commands run and the menus opened and clicked, in two tables of the suite database
   (`artisan_stats_buckets`, `artisan_stats_events`): counts per hour for 90 days, then per day.
   Settings under `stats` in `config.yml` (`enabled`, `flush-seconds`, `retention`, `timezone`,
-  `disabled-events`). The editor's Statistics screen comes later; the data is collected from now.
+  `disabled-events`).
+  - A **Statistics** tab on the server's page reads them: the period (compared with the one
+    before) and the player as filters, then Overview (active, new and returning players, play
+    time, players online), Commands (runs, refusals and their reasons, commands never run) and
+    Menus (openings, clicks per element, elements nobody clicked).
   - The action **Count an event** (`record_event`) counts your own events (`custom:<name>`),
     with dimensions and a value.
   - Permission `artisan.editor.stats` (included in `artisan.editor`) reads them through
-    `GET /api/v1/servers/:server/stats/{catalog,series,breakdown,events}`.
+    `GET /api/v1/servers/:server/stats/{catalog,series,breakdown,actives,events,players}`.
   - `/artisan stats forget <player>` (`artisan.stats.forget`) deletes everything recorded about a
     player.
   - API 1.5.0: `api.getStats()` (`StatsApi`, `StatEvent`, `@Beta`) lets an add-on declare and

@@ -12,8 +12,13 @@ export const SERVER_TABS = [
   { to: "/servers/$serverId/play", label: "serverDetail.tabs.play" },
   { to: "/servers/$serverId/assistant", label: "serverDetail.tabs.assistant" },
   { to: "/servers/$serverId/data", label: "serverDetail.tabs.data" },
+  {
+    to: "/servers/$serverId/stats",
+    label: "serverDetail.tabs.stats",
+    permission: "artisan.editor.stats",
+  },
   { to: "/servers/$serverId/settings", label: "serverDetail.tabs.settings" },
-] as const;
+] as const satisfies readonly { to: string; label: string; permission?: string }[];
 
 type ServerTab = (typeof SERVER_TABS)[number]["to"];
 
@@ -23,7 +28,16 @@ export function serverTabOf(childRouteId: string | undefined): ServerTab | undef
   return SERVER_TABS.find((tab) => tab.to === childRouteId)?.to;
 }
 
-export function ServerTabs({ serverId, active }: { serverId: string; active: ServerTab }) {
+export function ServerTabs({
+  serverId,
+  active,
+  permissions,
+}: {
+  serverId: string;
+  active: ServerTab;
+  /** The session's editor permissions: a tab that names one shows only with it. */
+  permissions: readonly string[];
+}) {
   const { t } = useTranslation();
   return (
     // The tabs fill the header's height, their underline on its bottom edge; nothing overflows
@@ -32,7 +46,9 @@ export function ServerTabs({ serverId, active }: { serverId: string; active: Ser
       className="tabstrip min-w-0 basis-full items-stretch overflow-x-auto overflow-y-hidden lg:basis-auto [&_.tab]:h-auto [&_.tab]:min-h-10 [&_.tab]:after:bottom-0"
       aria-label={t("serverDetail.tabs.label")}
     >
-      {SERVER_TABS.map((tab) => (
+      {SERVER_TABS.filter(
+        (tab) => !("permission" in tab) || permissions.includes(tab.permission),
+      ).map((tab) => (
         <Link
           key={tab.to}
           to={tab.to}

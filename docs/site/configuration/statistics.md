@@ -9,10 +9,24 @@ Artisan records what your content does: which menus are opened and clicked, whic
 run, how long players stay. The records are written to [your database](../database/) and sent
 nowhere else.
 
-:::note
-This version collects the statistics and serves them to the editor's API. The editor's
-Statistics screen comes in a later version.
-:::
+## Read them in the editor
+
+A server's page has a **Statistics** tab, shown to whoever has `artisan.editor.stats`. Two
+filters apply to every tab: the **period** (24 hours, 7, 30 or 90 days, or two dates), compared
+with the period of the same length before it, and the **player** (all of them, or one found by
+name). The address keeps both, so a link reopens the same view.
+
+- **Overview**: active, new and returning players, play time, and the players online. For one
+  player: their visits. A visit is counted when it ends, so a player still online appears at
+  their next disconnection.
+- **Commands**: how often each command made in Artisan is run and how often it is refused.
+  Click a command for its sub-commands and the reasons of the refusals. The commands of your
+  published projects that nobody ran are listed below.
+- **Menus**: openings and clicks per menu. Click a menu for the clicks per element, how many
+  of the players who opened it clicked something, and the clickable elements nobody clicked.
+  An element is named by its id: renaming it starts its count over.
+
+Statistics are read from the database: they stay available while the server is off.
 
 ## What is recorded
 
