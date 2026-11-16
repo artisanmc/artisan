@@ -131,4 +131,19 @@ class StatsRowsTest {
         val q = BreakdownQuery("core:menu_open", at("2026-01-01T00:00Z"), at("2027-01-01T00:00Z"), "d6")
         assertEquals(2, rows.breakdown(1, q).single().count)
     }
+
+    @Test
+    fun `actives are the distinct players of an event, per point and over the period`() {
+        lobby.write(StatsBatch(listOf(
+            hour("a", "2026-11-14T10:00Z"), hour("a", "2026-11-14T11:00Z"), hour("b", "2026-11-14T11:00Z", "menu=warps"),
+            hour("c", "2026-11-15T09:00Z"), hour("", "2026-11-15T09:00Z", "", event = "core:players_online"),
+        ), emptyList()))
+        survival.write(StatsBatch(listOf(hour("z", "2026-11-14T10:00Z")), emptyList()))
+        val q = SeriesQuery("core:menu_open", at("2026-11-01T00:00Z"), at("2026-12-01T00:00Z"), Granularity.DAY, zone = utc)
+        val actives = rows.actives(1, q)
+        assertEquals(3, actives.players)
+        assertEquals(listOf(at("2026-11-14T00:00Z") to 2, at("2026-11-15T00:00Z") to 1), actives.points.map { it.start to it.players })
+        assertEquals(2, rows.actives(1, q.copy(dims = mapOf("menu" to "shop"))).players)
+        assertEquals(1, rows.actives(1, q.copy(player = "a")).players)
+    }
 }

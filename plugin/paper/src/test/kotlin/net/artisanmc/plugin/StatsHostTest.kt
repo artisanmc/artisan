@@ -78,8 +78,8 @@ class StatsHostTest {
 
     @Test
     fun `record_event counts the admin's own event for the player`() {
-        plugin.stats.recorder.buffer.drain()
         val player = MockBukkit.getMock()!!.addPlayer()
+        plugin.stats.recorder.buffer.drain()
         val steps = listOf(
             net.artisanmc.plugin.engine.Step.ActionStep("record_event", "tutorial_done"),
             net.artisanmc.plugin.engine.Step.ActionStep("record_event", mapOf("event" to "tutorial_step", "dimensions" to mapOf("step" to "{n}"), "value" to 3)),

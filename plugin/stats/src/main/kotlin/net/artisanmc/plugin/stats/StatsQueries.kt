@@ -16,6 +16,12 @@ data class SeriesQuery(
 /** One point of a series: hours already merged into days stay day points in a series by hour. */
 data class SeriesPoint(val start: Long, val granularity: Granularity, val count: Long, val sum: Double, val min: Double, val max: Double)
 
+/** The distinct players of a point of a series. */
+data class ActivesPoint(val start: Long, val players: Int)
+
+/** The distinct players of an event over a period ([players]), and per point. */
+data class Actives(val players: Int, val points: List<ActivesPoint>)
+
 /** The totals of each value of [dimension] for [event] over `[from, to)`. */
 data class BreakdownQuery(
     val event: String,
@@ -65,6 +71,19 @@ object StatsQueries {
         return points.values.toList()
     }
 
+    /** The distinct players of [rows] (one per player, bucket and dimensions): server rows (`""`) are nobody. */
+    fun actives(rows: List<BucketRow>, q: SeriesQuery): Actives {
+        val all = HashSet<String>()
+        val points = sortedMapOf<Long, MutableSet<String>>()
+        for (row in rows) {
+            if (row.player.isEmpty() || row.event != q.event || !matches(row.dims, q.dims)) continue
+            val start = if (q.by == Granularity.DAY && row.granularity == Granularity.HOUR) Rollup.dayStart(row.start, q.zone) else row.start
+            all += row.player
+            points.getOrPut(start) { HashSet() } += row.player
+        }
+        return Actives(all.size, points.map { (start, players) -> ActivesPoint(start, players.size) })
+    }
+
     fun breakdown(rows: List<BucketRow>, q: BreakdownQuery): List<BreakdownRow> {
         val totals = LinkedHashMap<String, BreakdownRow>()
         for (row in rows) {
@@ -104,5 +123,6 @@ interface StatsReader {
     fun catalog(server: Int): List<CatalogEntry>
     fun series(server: Int, q: SeriesQuery): List<SeriesPoint>
     fun breakdown(server: Int, q: BreakdownQuery): List<BreakdownRow>
+    fun actives(server: Int, q: SeriesQuery): Actives
     fun events(server: Int, q: EventsQuery): EventsPage
 }

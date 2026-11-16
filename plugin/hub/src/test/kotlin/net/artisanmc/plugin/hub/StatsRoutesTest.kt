@@ -36,6 +36,10 @@ class StatsRoutesTest {
             asked += server to q
             return listOf(BreakdownRow("shop", 5, 5.0, 1.0, 1.0))
         }
+        override fun actives(server: Int, q: SeriesQuery): net.artisanmc.plugin.stats.Actives {
+            asked += server to q
+            return net.artisanmc.plugin.stats.Actives(3, listOf(net.artisanmc.plugin.stats.ActivesPoint(3600, 2)))
+        }
         override fun events(server: Int, q: EventsQuery): EventsPage {
             asked += server to q
             return EventsPage(listOf(EventRow(9, alice.toString(), "core:session", 1000, mapOf("a" to "b"), 12.5, """{"started_at":"1"}""")), 8)
@@ -51,6 +55,12 @@ class StatsRoutesTest {
         enabled = { enabled },
         declared = { listOf(StatEvent.builder("core:menu_open").dimensions("menu").build()) },
         zone = { ZoneId.of("UTC") },
+        players = {
+            object : StatsPlayers {
+                override fun search(prefix: String, limit: Int) = listOf(alice to "Alice").filter { it.second.startsWith(prefix, ignoreCase = true) }
+                override fun names(ids: Collection<UUID>) = listOf(alice to "Alice").filter { it.first in ids }
+            }
+        },
     )
     private val router = Router().also { StatsRoutes(servers, access).register(it) }
     private val hub = HubServer(
@@ -140,5 +150,27 @@ class StatsRoutesTest {
         enabled = true
         store = null
         assertEquals(503, get("catalog", cookie).statusCode())
+    }
+
+    @Test
+    fun `actives give the distinct players of an event, over the period and per point`() {
+        hub.start()
+        val cookie = login(setOf(EditorPermissions.STATS))
+        val reply = json(get("actives?event=core:session&from=0&to=86400&by=day&dim.menu=shop", cookie))
+        assertEquals(7 to SeriesQuery("core:session", 0, 86400, Granularity.DAY, null, mapOf("menu" to "shop"), ZoneId.of("UTC")), asked.single())
+        assertEquals(3, reply.path("players").asInt())
+        assertEquals(2, reply.path("points")[0].path("players").asInt())
+        assertEquals(422, get("actives?event=core:session&from=0", cookie).statusCode())
+    }
+
+    @Test
+    fun `players are found by the start of their name or by id`() {
+        hub.start()
+        val cookie = login(setOf(EditorPermissions.STATS))
+        assertEquals("Alice", json(get("players?q=al", cookie)).path("players")[0].path("name").asText())
+        assertEquals(0, json(get("players?q=bo", cookie)).path("players").size())
+        assertEquals(alice.toString(), json(get("players?ids=$alice,${UUID.randomUUID()}", cookie)).path("players").single().path("id").asText())
+        assertEquals(422, get("players?ids=Iban", cookie).statusCode())
+        assertEquals(403, get("players?q=al", login(setOf(EditorPermissions.VIEW))).statusCode())
     }
 }

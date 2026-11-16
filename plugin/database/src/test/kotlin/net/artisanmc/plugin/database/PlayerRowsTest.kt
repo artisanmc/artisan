@@ -48,4 +48,17 @@ class PlayerRowsTest {
         rows.addPlaytime(steve, -5, 2_000)
         assertEquals(0, rows.get(steve)?.playtimeMs)
     }
+
+    @Test
+    fun `a search finds names by their start, the latest seen first, and ids give their names`() {
+        val alex = UUID.randomUUID()
+        val under = UUID.randomUUID()
+        rows.seen(steve, "Steve", 1_000)
+        rows.seen(alex, "stella", 2_000)
+        rows.seen(under, "s_x", 3_000)
+        assertEquals(listOf(alex to "stella", steve to "Steve"), rows.search("ST", 10))
+        assertEquals(listOf(under to "s_x"), rows.search("s_", 10))
+        assertEquals(listOf(alex to "stella"), rows.search("st", 1))
+        assertEquals(setOf(steve to "Steve", under to "s_x"), rows.names(listOf(steve, under, UUID.randomUUID())).toSet())
+    }
 }

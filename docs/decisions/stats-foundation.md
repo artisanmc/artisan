@@ -58,12 +58,15 @@ adapted to portable SQL.
    editor permissions.
 8. **Read routes in the hub**, on the server of the route, read from the database (an offline
    server's statistics stay readable): `stats/catalog`, `stats/series`, `stats/breakdown`,
-   `stats/events`. No editor screen in this batch.
+   `stats/events`, then with the editor space (batch 2) `stats/actives` (the distinct players of
+   an event, which a sum of buckets cannot give) and `stats/players` (the names the player filter
+   offers, from `artisan_players`).
 9. **Personal data.** Statistics are tied to the player's UUID and never leave the server's
    database (bStats is unrelated). `/artisan stats forget <player>` deletes a player's rows in both
    tables, for every server of the database, and their buffered records.
-10. **Core instrumentation from batch 1:** `core:session` (raw, with its duration), `core:first_join`
-    (raw, from `artisan_players`), `core:players_online` (server gauge, every minute),
+10. **Core instrumentation from batch 1:** `core:session` (both: a raw row with its duration, and
+    buckets for the active players and the play time of a period), `core:first_join`
+    (both, from `artisan_players`), `core:players_online` (server gauge, every minute),
     `core:command` (by command and result) and `core:menu_open` / `core:menu_click` (by menu and
     element), bucketed. Menus opened from the editor's preview are not counted. Admins instrument
     their own content with the core action `record_event` (`custom:<name>`, declared on first use,

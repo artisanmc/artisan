@@ -27,8 +27,8 @@ internal object CoreStats {
     const val MENU_CLICK = "core:menu_click"
 
     val ALL: List<StatEvent> = listOf(
-        StatEvent.builder(SESSION).storage(StatStorage.RAW).value("duration_seconds").build(),
-        StatEvent.builder(FIRST_JOIN).storage(StatStorage.RAW).build(),
+        StatEvent.builder(SESSION).storage(StatStorage.BOTH).value("duration_seconds").build(),
+        StatEvent.builder(FIRST_JOIN).storage(StatStorage.BOTH).build(),
         StatEvent.builder(PLAYERS_ONLINE).kind(StatKind.GAUGE).scope(StatScope.SERVER).value("players").build(),
         StatEvent.builder(COMMAND).dimensions("command", "sub", "result").build(),
         StatEvent.builder(MENU_OPEN).dimensions("menu").build(),

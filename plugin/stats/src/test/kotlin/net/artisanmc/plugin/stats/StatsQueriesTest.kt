@@ -52,4 +52,14 @@ class StatsQueriesTest {
             StatsQueries.breakdown(rows, q),
         )
     }
+
+    @Test
+    fun `actives count each player once per point and once in the total`() {
+        val day = 86_400L
+        fun row(player: String, start: Long, dims: String = "menu=shop") = BucketRow(player, "core:menu_open", dims, start, Granularity.HOUR, 3, 3.0, 1.0, 1.0)
+        val rows = listOf(row("a", 0), row("a", 3600), row("b", 3600), row("a", day), row("c", day, "menu=warps"), row("", day))
+        val q = SeriesQuery("core:menu_open", 0, 2 * day, Granularity.DAY, zone = java.time.ZoneId.of("UTC"))
+        assertEquals(Actives(3, listOf(ActivesPoint(0, 2), ActivesPoint(day, 2))), StatsQueries.actives(rows, q))
+        assertEquals(Actives(2, listOf(ActivesPoint(0, 1), ActivesPoint(3600, 2), ActivesPoint(day, 1))), StatsQueries.actives(rows, q.copy(by = Granularity.HOUR, dims = mapOf("menu" to "shop"))))
+    }
 }

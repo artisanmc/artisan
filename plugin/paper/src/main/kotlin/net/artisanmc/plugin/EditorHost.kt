@@ -177,6 +177,14 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
                     enabled = { plugin.currentConfig().stats.settings.enabled },
                     declared = { id -> if (id == plugin.serverUuid) plugin.stats.recorder.declared() else emptyList() },
                     zone = { plugin.currentConfig().stats.zone },
+                    players = {
+                        suite.playerRows()?.let { rows ->
+                            object : net.artisanmc.plugin.hub.StatsPlayers {
+                                override fun search(prefix: String, limit: Int) = rows.search(prefix, limit)
+                                override fun names(ids: Collection<java.util.UUID>) = rows.names(ids)
+                            }
+                        }
+                    },
                 ),
             )
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {

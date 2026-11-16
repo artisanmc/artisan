@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.database
 
+import net.artisanmc.plugin.stats.Actives
 import net.artisanmc.plugin.stats.BreakdownQuery
 import net.artisanmc.plugin.stats.BreakdownRow
 import net.artisanmc.plugin.stats.BucketRow
@@ -180,6 +181,24 @@ class StatsRows(
 
     override fun breakdown(server: Int, q: BreakdownQuery): List<BreakdownRow> =
         StatsQueries.breakdown(grouped(server, q.event, q.from, q.to, q.player, "dims"), q)
+
+    override fun actives(server: Int, q: SeriesQuery): Actives = dataSource.connection.use { c ->
+        // One row per player and bucket (and dimensions, only when a filter reads them): the fold counts each player once.
+        val dims = if (q.dims.isEmpty()) "''" else "dims"
+        val sql = "SELECT DISTINCT player_uuid, bucket_start, granularity, $dims FROM ${t.statsBuckets} " +
+            "WHERE server_id = ? AND event = ? AND bucket_start >= ? AND bucket_start < ? AND player_uuid <> ''" +
+            (if (q.player != null) " AND player_uuid = ?" else "")
+        c.prepareStatement(sql).use { s ->
+            s.setInt(1, server); s.setString(2, q.event); s.setLong(3, q.from); s.setLong(4, q.to)
+            if (q.player != null) s.setString(5, q.player)
+            s.executeQuery().use { r ->
+                StatsQueries.actives(
+                    buildList { while (r.next()) add(BucketRow(r.getString(1), q.event, r.getString(4), r.getLong(2), Granularity.of(r.getString(3)), 0, 0.0, 0.0, 0.0)) },
+                    q,
+                )
+            }
+        }
+    }
 
     /** The buckets of [event] summed over players, grouped by [by]: what the folds of [StatsQueries] read. */
     private fun grouped(server: Int, event: String, from: Long, to: Long, player: String?, by: String): List<BucketRow> = dataSource.connection.use { c ->

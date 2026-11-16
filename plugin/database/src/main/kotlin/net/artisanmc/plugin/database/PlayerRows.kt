@@ -38,6 +38,31 @@ class PlayerRows(
         }
     }
 
+    /** The players whose name starts with [prefix] (case-insensitive), most recently seen first: id to name. */
+    fun search(prefix: String, limit: Int): List<Pair<UUID, String>> = dataSource.connection.use { c ->
+        // LIKE's own wildcards are escaped: a name may hold `_`.
+        val pattern = prefix.lowercase().replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%"
+        c.prepareStatement("SELECT player_uuid, name FROM ${t.players} WHERE LOWER(name) LIKE ? ESCAPE '!' ORDER BY last_seen DESC LIMIT ${limit.coerceIn(1, 50)}").use { s ->
+            s.setString(1, pattern)
+            s.executeQuery().use { r -> pairs(r) }
+        }
+    }
+
+    /** The names of [ids], for those the table knows. */
+    fun names(ids: Collection<UUID>): List<Pair<UUID, String>> {
+        if (ids.isEmpty()) return emptyList()
+        return dataSource.connection.use { c ->
+            c.prepareStatement("SELECT player_uuid, name FROM ${t.players} WHERE player_uuid IN (${ids.joinToString { "?" }})").use { s ->
+                ids.forEachIndexed { i, id -> s.setString(i + 1, id.toString()) }
+                s.executeQuery().use { r -> pairs(r) }
+            }
+        }
+    }
+
+    private fun pairs(r: java.sql.ResultSet): List<Pair<UUID, String>> = buildList {
+        while (r.next()) runCatching { UUID.fromString(r.getString(1).trim()) }.getOrNull()?.let { add(it to r.getString(2)) }
+    }
+
     /**
      * [id] is online as [name] at [now]: a new row on their first visit (first seen at [firstSeen],
      * the server's own record of them when it predates the table), else the name and last seen updated.
