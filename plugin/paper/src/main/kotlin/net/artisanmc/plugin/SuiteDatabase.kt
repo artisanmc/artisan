@@ -298,6 +298,15 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
     fun playerRows(): net.artisanmc.plugin.database.PlayerRows? =
         artisanData?.let { net.artisanmc.plugin.database.PlayerRows(it, database.tables) }
 
+    /** The journeys saved for a server: one `artisan_settings` value per server row (`stats.journeys.<row>`). */
+    fun statsJourneys(): net.artisanmc.plugin.hub.StatsJourneyStore? = artisanData?.let { data ->
+        val rows = net.artisanmc.plugin.database.SettingRows(data, database.tables)
+        object : net.artisanmc.plugin.hub.StatsJourneyStore {
+            override fun read(server: Int) = rows.get("stats.journeys.$server")
+            override fun write(server: Int, json: String) = rows.put("stats.journeys.$server", json, java.time.Instant.now())
+        }
+    }
+
     /** `artisan_stats_*` once the suite database is open. */
     fun statsRows(): net.artisanmc.plugin.database.StatsRows? =
         artisanData?.let { net.artisanmc.plugin.database.StatsRows(it, database.tables) }

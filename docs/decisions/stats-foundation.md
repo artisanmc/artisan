@@ -82,10 +82,31 @@ adapted to portable SQL.
     that needs the server online: the state lives in the module's tables, which the hub does not
     know.
 
+12. **Journeys of new players** (batch 5). A journey is a name, ordered goals (an event and an
+    optional filter on its dimensions) and a conversion window in days (7 by default). The saved
+    journeys of a server are one value of `artisan_settings` (`stats.journeys.<server row>`, a JSON
+    list the hub validated): no table, they are a few lines an admin edits. The hub computes a
+    journey on demand (`POST …/stats/journey`) for the **arrivals** of a period, the players whose
+    `core:first_join` falls in it, by folding the raw rows once in time order (`Journeys` in
+    `plugin/stats`, `StatsReader.scan`, a day per statement so no driver holds more):
+    - **funnel**: an arrival reaches goal n with the first matching row at or after the one that
+      reached goal n-1, within the window; the median time from the arrival is given per goal;
+    - **retention**: an arrival came back on day 1, 7 or 30 when a session overlaps that day
+      counted from the arrival; only arrivals old enough for the day to be over are counted;
+    - **cohorts**: the same per week of arrival (Monday, in `stats.timezone`);
+    - **last actions**: for the arrivals not seen for 7 days, their last row that is not a
+      session, by frequency. A lead towards a cause, never a proof.
+    The period is 92 days at most (raw rows are kept 90) and an answer is served again for a
+    minute. Reading them needs `artisan.editor.stats`; so does saving one, since a journey
+    changes nothing on the server.
+
 ## Consequences
 
 - API 1.5.0 adds `api.stats` (`@Beta`); a module that calls it sets its `MIN_API_VERSION` to 1.5.0.
 - Volume grows with active players: one bucket row per player, event, dimensions and active hour.
   The defaults are to be measured on the lobby before they are frozen.
-- The journeys (batch 5) read the raw rows: sessions and first joins are collected from batch 1 so
-  a conversion window has history when they ship.
+- The journeys read the raw rows: sessions and first joins are collected from batch 1 so a
+  conversion window has history. A goal on an event stored in buckets only can never be reached:
+  the editor offers the events that have raw rows.
+- A journey scans every raw row of the server over the period: its cost grows with the period.
+  The minute of cache and the 92 days bound keep it reasonable; to be measured on the lobby.

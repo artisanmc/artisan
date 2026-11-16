@@ -145,4 +145,10 @@ interface StatsReader {
     fun breakdown(server: Int, q: BreakdownQuery): List<BreakdownRow>
     fun actives(server: Int, q: SeriesQuery): Actives
     fun events(server: Int, q: EventsQuery): EventsPage
+
+    /**
+     * The raw rows about a player in `[fromMs, toMs)`, oldest first, of [events] or of every event
+     * when null: what [Journeys] folds. Streamed to [each], never held.
+     */
+    fun scan(server: Int, fromMs: Long, toMs: Long, events: Set<String>?, each: (RawHit) -> Unit)
 }

@@ -44,7 +44,15 @@ class StatsRoutesTest {
             asked += server to q
             return EventsPage(listOf(EventRow(9, alice.toString(), "core:session", 1000, mapOf("a" to "b"), 12.5, """{"started_at":"1"}""")), 8)
         }
+        override fun scan(server: Int, fromMs: Long, toMs: Long, events: Set<String>?, each: (net.artisanmc.plugin.stats.RawHit) -> Unit) {
+            scans++
+            raw.filter { it.at >= fromMs && it.at < toMs && (events == null || it.event in events) }.sortedBy { it.at }.forEach(each)
+        }
     }
+    private val raw = mutableListOf<net.artisanmc.plugin.stats.RawHit>()
+    private var scans = 0
+    private val savedJourneys = mutableMapOf<Int, String>()
+    private var now = 40L * 86_400
     private var enabled = true
     private var store: StatsReader? = reader
     private val sessions = Sessions()
@@ -55,6 +63,13 @@ class StatsRoutesTest {
         enabled = { enabled },
         declared = { listOf(StatEvent.builder("core:menu_open").dimensions("menu").build()) },
         zone = { ZoneId.of("UTC") },
+        journeys = {
+            object : StatsJourneyStore {
+                override fun read(server: Int) = savedJourneys[server]
+                override fun write(server: Int, json: String) { savedJourneys[server] = json }
+            }
+        },
+        now = { now },
         players = {
             object : StatsPlayers {
                 override fun search(prefix: String, limit: Int) = listOf(alice to "Alice").filter { it.second.startsWith(prefix, ignoreCase = true) }
@@ -82,6 +97,82 @@ class StatsRoutesTest {
         client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/servers/hub-1/stats/$path")).header("Cookie", cookie).GET().build(), HttpResponse.BodyHandlers.ofString())
 
     private fun json(response: HttpResponse<String>): JsonNode = Call.mapper.readTree(response.body())
+
+    private fun send(method: String, path: String, cookie: String, body: String): HttpResponse<String> =
+        client.send(
+            HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/servers/hub-1/stats/$path")).header("Cookie", cookie)
+                .header("Content-Type", "application/json").method(method, HttpRequest.BodyPublishers.ofString(body)).build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+
+    @Test
+    fun `journeys are saved per server once validated`() {
+        hub.start()
+        val cookie = login(setOf(EditorPermissions.STATS))
+        assertEquals(0, json(get("journeys", cookie)).path("journeys").size())
+        val journey = """{"id":"onboarding","name":" Onboarding ","window_days":7,"goals":[{"name":"First quest","event":"quests:completed","dims":{"quest":"intro"}},{"name":"Shop","event":"core:menu_open"}]}"""
+        assertEquals(200, send("PUT", "journeys", cookie, """{"journeys":[$journey]}""").statusCode())
+        val saved = json(get("journeys", cookie)).path("journeys")[0]
+        assertEquals("Onboarding", saved.path("name").asText())
+        assertEquals("intro", saved.path("goals")[0].path("dims").path("quest").asText())
+        assertEquals(true, savedJourneys.containsKey(7))
+        for (bad in listOf(
+            """{}""",
+            """{"journeys":[{"id":"Bad Id","name":"x","window_days":7,"goals":[]}]}""",
+            """{"journeys":[{"id":"a","name":"","window_days":7,"goals":[]}]}""",
+            """{"journeys":[{"id":"a","name":"x","window_days":0,"goals":[]}]}""",
+            """{"journeys":[{"id":"a","name":"x","window_days":7,"goals":[{"name":"g","event":"Not An Event"}]}]}""",
+            """{"journeys":[{"id":"a","name":"x","window_days":7,"goals":[{"name":"g","event":"a:b","dims":{"Bad Key":"v"}}]}]}""",
+            """{"journeys":[$journey,$journey]}""",
+        )) assertEquals(422, send("PUT", "journeys", cookie, bad).statusCode(), bad)
+        assertEquals("Onboarding", json(get("journeys", cookie)).path("journeys")[0].path("name").asText(), "a refused list replaces nothing")
+        assertEquals(403, send("PUT", "journeys", login(setOf(EditorPermissions.VIEW)), """{"journeys":[]}""").statusCode())
+    }
+
+    @Test
+    fun `a journey is computed for the arrivals of the period, and served again for a minute`() {
+        hub.start()
+        val cookie = login(setOf(EditorPermissions.STATS))
+        val day = 86_400L
+        fun hit(player: String, event: String, at: Long, dims: Map<String, String> = emptyMap(), details: String = "{}") {
+            raw += net.artisanmc.plugin.stats.RawHit(player, event, at * 1000, dims, details)
+        }
+        hit("a", "core:first_join", 10 * day); hit("b", "core:first_join", 10 * day + 5)
+        hit("a", "quests:completed", 10 * day + 120, mapOf("quest" to "intro"))
+        hit("a", "core:session", 11 * day + 600, details = """{"started_at":"${(11 * day + 60) * 1000}"}""")
+        hit("b", "core:menu_open", 10 * day + 30, mapOf("menu" to "jobs:main"))
+        val body = """{"from":${9 * day},"to":${12 * day},"goals":[{"name":"First quest","event":"quests:completed","dims":{"quest":"intro"}}]}"""
+
+        val reply = send("POST", "journey", cookie, body)
+        assertEquals(200, reply.statusCode())
+        val result = json(reply)
+        assertEquals(2, result.path("arrivals").asInt())
+        assertEquals("First quest", result.path("steps")[0].path("name").asText())
+        assertEquals(1, result.path("steps")[0].path("players").asInt())
+        assertEquals(120.0, result.path("steps")[0].path("median_seconds").asDouble())
+        assertEquals(listOf(1, 2, 1), result.path("retention")[0].let { listOf(it.path("day").asInt(), it.path("eligible").asInt(), it.path("returned").asInt()) })
+        assertEquals(1, result.path("cohorts").size())
+        assertEquals(1, result.path("cohorts")[0].path("reached")[0].asInt())
+        assertEquals(2, result.path("leavers").asInt())
+        assertEquals("jobs:main", result.path("last_actions")[0].path("dimensions").path("menu").asText())
+        assertEquals(7, result.path("away_days").asInt())
+
+        val read = scans
+        now += 30
+        assertEquals(40 * day, json(send("POST", "journey", cookie, body)).path("computed_at").asLong())
+        assertEquals(read, scans, "the same question within a minute is not read again")
+        now += 60
+        send("POST", "journey", cookie, body)
+        assertEquals(read + 2, scans)
+
+        for (bad in listOf(
+            """{"from":5,"to":5}""",
+            """{"from":0,"to":${100 * day}}""",
+            """{"from":0,"to":10,"window_days":400}""",
+            """{"from":0,"to":10,"goals":[{"name":"g"}]}""",
+            "not json",
+        )) assertEquals(422, send("POST", "journey", cookie, bad).statusCode(), bad)
+    }
 
     @Test
     fun `statistics need their own permission, which editing does not give`() {

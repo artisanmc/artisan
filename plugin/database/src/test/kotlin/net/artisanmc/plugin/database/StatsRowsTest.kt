@@ -146,4 +146,24 @@ class StatsRowsTest {
         assertEquals(2, rows.actives(1, q.copy(dims = mapOf("menu" to "shop"))).players)
         assertEquals(1, rows.actives(1, q.copy(player = "a")).players)
     }
+
+    @Test
+    fun `a scan streams a server's player rows oldest first, across days, of the asked events`() {
+        val day = 86_400_000L
+        lobby.write(StatsBatch(emptyList(), listOf(
+            raw("b", 3 * day + 5, event = "core:first_join"),
+            raw("a", 100, event = "core:first_join"),
+            raw("a", 2 * day, event = "core:session"),
+            raw("", 200, event = "core:players_online"),
+            RawRow("a", "core:menu_open", day + 1, "menu=shop:main", 1.0, "{}"),
+        )))
+        survival.write(StatsBatch(emptyList(), listOf(raw("z", 150, event = "core:first_join"))))
+
+        val all = buildList { rows.scan(1, 0, 4 * day, null) { add(it) } }
+        assertEquals(listOf("a" to 100L, "a" to day + 1, "a" to 2 * day, "b" to 3 * day + 5), all.map { it.player to it.at })
+        assertEquals(mapOf("menu" to "shop:main"), all[1].dims)
+        assertEquals(listOf("a", "b"), buildList { rows.scan(1, 0, 4 * day, setOf("core:first_join")) { add(it.player) } })
+        assertEquals(listOf("a"), buildList { rows.scan(1, 0, 3 * day, setOf("core:first_join", "core:session")) { add(it.player) } }.distinct())
+        assertEquals(emptyList(), buildList { rows.scan(1, 0, 4 * day, emptySet()) { add(it.player) } })
+    }
 }

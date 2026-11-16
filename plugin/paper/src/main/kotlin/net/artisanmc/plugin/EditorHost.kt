@@ -185,6 +185,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
                             }
                         }
                     },
+                    journeys = { suite.statsJourneys() },
                 ),
             )
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {

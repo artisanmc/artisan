@@ -886,6 +886,18 @@ Non-examples:
 - A **Game event** is what a **Trigger** listens to; it is not recorded unless a chain runs `record_event`.
 - bStats' anonymous usage report is not a Stat event: it leaves the server, Stat events never do.
 
+## Journey
+
+Ordered **goals** an admin composes in the Statistics space to follow new players: each goal is a
+**Stat event** with an optional filter on its dimensions, to be reached within a conversion window
+(7 days by default) after the player's first join. For the **arrivals** of a period it gives a
+funnel, the same by weekly **cohort** (week of arrival), and, with no goal at all, the
+**retention** (back on day 1, 7, 30) and the last action of the players who left (ADR
+`stats-foundation` ⑫).
+
+- A journey is not a quest nor a Trigger: it changes nothing in the game, it reads what happened.
+- An arrival is a first join in the period, not a player active in it.
+
 ## Trigger
 
 A **Document** kind (`triggers/<id>.yml`) that binds one **Game event** to an

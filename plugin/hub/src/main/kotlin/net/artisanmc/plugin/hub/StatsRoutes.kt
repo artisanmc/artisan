@@ -3,12 +3,25 @@ package net.artisanmc.plugin.hub
 import net.artisanmc.modules.api.stats.StatEvent
 import net.artisanmc.plugin.stats.BreakdownQuery
 import net.artisanmc.plugin.stats.EventsQuery
+import com.fasterxml.jackson.databind.JsonNode
 import net.artisanmc.plugin.stats.Granularity
+import net.artisanmc.plugin.stats.JourneyGoal
+import net.artisanmc.plugin.stats.JourneyQuery
+import net.artisanmc.plugin.stats.JourneyResult
+import net.artisanmc.plugin.stats.Journeys
+import net.artisanmc.plugin.stats.RetentionPoint
 import net.artisanmc.plugin.stats.SeriesQuery
 import net.artisanmc.plugin.stats.StatsReader
 import java.time.Instant
 import java.time.ZoneId
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+
+/** The journeys an admin saved for a server (`artisan_settings`), as the JSON list the routes validated. */
+interface StatsJourneyStore {
+    fun read(server: Int): String?
+    fun write(server: Int, json: String)
+}
 
 /** The players the statistics can be filtered by: `artisan_players`, by the start of a name or by id. */
 interface StatsPlayers {
@@ -30,10 +43,14 @@ class StatsAccess(
     val zone: () -> ZoneId = { ZoneId.systemDefault() },
     /** Null while the suite database is not open. */
     val players: () -> StatsPlayers? = { null },
+    /** Null while the suite database is not open. */
+    val journeys: () -> StatsJourneyStore? = { null },
+    /** Epoch seconds: what a journey can know of. */
+    val now: () -> Long = { System.currentTimeMillis() / 1000 },
 )
 
 /**
- * `GET /api/v1/servers/:server/stats/…` (ADR `stats-foundation` ⑧), behind `artisan.editor.stats`.
+ * `/api/v1/servers/:server/stats/…` (ADR `stats-foundation` ⑧ and ⑫), behind `artisan.editor.stats`.
  * Read from the suite database, so an offline server's statistics stay readable. Periods are
  * `from` (inclusive) and `to` (exclusive), each an epoch second or an ISO-8601 instant.
  */
@@ -105,6 +122,43 @@ class StatsRoutes(private val servers: Servers, private val stats: StatsAccess, 
                 mapOf("value" to it.value, "count" to it.count, "sum" to it.sum, "min" to it.min, "max" to it.max)
             }))
         }
+        // The saved journeys of a server: ordered goals an admin composed (ADR `stats-foundation` ⑫).
+        on(router, "journeys") { call, _, row, _ ->
+            val store = stats.journeys() ?: return@on call.error(503, "stats_unavailable")
+            val saved = store.read(row)?.let { runCatching { Call.mapper.readTree(it) }.getOrNull() }
+            call.json(mapOf("journeys" to (saved ?: Call.mapper.createArrayNode())))
+        }
+        on(router, "journeys", "PUT") { call, _, row, _ ->
+            val store = stats.journeys() ?: return@on call.error(503, "stats_unavailable")
+            val list = call.body()?.path("journeys")?.takeIf { it.isArray && it.size() <= MAX_JOURNEYS } ?: return@on call.error(422, "invalid_input")
+            val journeys = list.map { node ->
+                val id = node.path("id").asText().takeIf { JOURNEY_ID.matches(it) } ?: return@on call.error(422, "invalid_input")
+                val name = label(node.path("name")) ?: return@on call.error(422, "invalid_input")
+                val window = window(node.path("window_days")) ?: return@on call.error(422, "invalid_input")
+                val goals = goals(node.path("goals")) ?: return@on call.error(422, "invalid_input")
+                mapOf("id" to id, "name" to name, "window_days" to window, "goals" to goals.map(::goalJson))
+            }
+            if (journeys.map { it["id"] }.toSet().size != journeys.size) return@on call.error(422, "invalid_input")
+            store.write(row, Call.mapper.writeValueAsString(journeys))
+            call.json(mapOf("journeys" to journeys))
+        }
+        // A journey computed for the players who arrived in the period: funnel, cohorts, retention, last actions.
+        on(router, "journey", "POST") { call, reader, row, _ ->
+            val body = call.body() ?: return@on call.error(422, "invalid_input")
+            val from = body.path("from").takeIf { it.isIntegralNumber }?.asLong() ?: return@on call.error(422, "invalid_input")
+            val to = body.path("to").takeIf { it.isIntegralNumber }?.asLong() ?: return@on call.error(422, "invalid_input")
+            if (from < 0 || to <= from || to - from > MAX_JOURNEY_SECONDS) return@on call.error(422, "invalid_input")
+            val window = window(body.path("window_days").takeUnless { it.isMissingNode } ?: Call.mapper.nodeFactory.numberNode(DEFAULT_WINDOW_DAYS)) ?: return@on call.error(422, "invalid_input")
+            val goals = goals(body.path("goals").takeUnless { it.isMissingNode } ?: Call.mapper.createArrayNode()) ?: return@on call.error(422, "invalid_input")
+            val key = listOf(row, from, to, window, goals, stats.zone())
+            val now = stats.now()
+            val cached = journeyCache[key]?.takeIf { now - it.first < JOURNEY_CACHE_SECONDS }
+            val result = cached?.second ?: Journeys.compute({ f, t, events, each -> reader.scan(row, f, t, events, each) }, JourneyQuery(from, to, window, goals, stats.zone(), now)).also {
+                if (journeyCache.size >= MAX_CACHED_JOURNEYS) journeyCache.clear()
+                journeyCache[key] = now to it
+            }
+            call.json(journeyJson(result, cached?.first ?: now))
+        }
         on(router, "events") { call, reader, row, _ ->
             val player = call.query("player")?.let { uuid(it) ?: return@on call.error(422, "invalid_input") }
             val from = call.query("from")?.let { instant(it) ?: return@on call.error(422, "invalid_input") }
@@ -150,8 +204,48 @@ class StatsRoutes(private val servers: Servers, private val stats: StatsAccess, 
 
     private fun uuid(text: String): String? = runCatching { UUID.fromString(text).toString() }.getOrNull()
 
-    private fun on(router: Router, suffix: String, handler: (Call, StatsReader, Int, EditorServer) -> Unit) {
-        router.on("GET", "${ServerRoutes.SERVER}/stats/$suffix", EditorPermissions.STATS) { call ->
+    private val journeyCache = ConcurrentHashMap<List<Any>, Pair<Long, JourneyResult>>()
+
+    private fun label(node: JsonNode): String? = node.takeIf { it.isTextual }?.asText()?.trim()?.takeIf { it.isNotEmpty() && it.length <= MAX_LABEL }
+
+    private fun window(node: JsonNode): Int? = node.takeIf { it.isIntegralNumber }?.asInt()?.takeIf { it in 1..MAX_WINDOW_DAYS }
+
+    /** The goals of a journey as written by the editor; null when one is malformed. */
+    private fun goals(node: JsonNode): List<JourneyGoal>? {
+        if (!node.isArray || node.size() > MAX_GOALS) return null
+        return node.map { goal ->
+            val name = label(goal.path("name")) ?: return null
+            val event = goal.path("event").asText().takeIf { StatEvent.NAME.matcher(it).matches() } ?: return null
+            val dims = goal.path("dims")
+            if (!dims.isMissingNode && !dims.isObject) return null
+            if (dims.size() > StatEvent.MAX_DIMENSIONS) return null
+            val filter = buildMap {
+                for ((key, value) in dims.fields()) {
+                    if (!StatEvent.FIELD.matcher(key).matches() || !value.isTextual || value.asText().length > MAX_VALUE) return null
+                    put(key, value.asText())
+                }
+            }
+            JourneyGoal(name, event, filter)
+        }
+    }
+
+    private fun goalJson(goal: JourneyGoal) = mapOf("name" to goal.name, "event" to goal.event, "dims" to goal.dims)
+
+    private fun retentionJson(points: List<RetentionPoint>) = points.map { mapOf("day" to it.day, "eligible" to it.eligible, "returned" to it.returned) }
+
+    private fun journeyJson(r: JourneyResult, computedAt: Long) = mapOf(
+        "arrivals" to r.arrivals,
+        "steps" to r.steps.map { mapOf("name" to it.name, "players" to it.players, "median_seconds" to it.medianSeconds) },
+        "retention" to retentionJson(r.retention),
+        "cohorts" to r.cohorts.map { mapOf("week_start" to it.weekStart, "arrivals" to it.arrivals, "reached" to it.reached, "retention" to retentionJson(it.retention)) },
+        "leavers" to r.leavers,
+        "away_days" to Journeys.AWAY_DAYS,
+        "last_actions" to r.lastActions.map { mapOf("event" to it.event, "dimensions" to it.dims, "players" to it.players) },
+        "computed_at" to computedAt,
+    )
+
+    private fun on(router: Router, suffix: String, method: String = "GET", handler: (Call, StatsReader, Int, EditorServer) -> Unit) {
+        router.on(method, "${ServerRoutes.SERVER}/stats/$suffix", EditorPermissions.STATS) { call ->
             val server = servers.of(call) ?: return@on call.error(404, "not_found")
             if (!stats.enabled()) return@on call.error(404, "stats_disabled")
             val reader = stats.reader() ?: return@on call.error(503, "stats_unavailable")
@@ -166,5 +260,16 @@ class StatsRoutes(private val servers: Servers, private val stats: StatsAccess, 
 
     private companion object {
         const val MAX_PAGE = 200
+        const val MAX_JOURNEYS = 30
+        const val MAX_GOALS = 8
+        const val MAX_LABEL = 80
+        const val MAX_VALUE = 200
+        const val MAX_WINDOW_DAYS = 90
+        const val DEFAULT_WINDOW_DAYS = 7
+        /** Raw rows are kept 90 days by default: a longer period of arrivals has nothing to read. */
+        const val MAX_JOURNEY_SECONDS = 92L * 86_400
+        const val JOURNEY_CACHE_SECONDS = 60
+        const val MAX_CACHED_JOURNEYS = 50
+        val JOURNEY_ID = Regex("[a-z0-9][a-z0-9_-]{0,39}")
     }
 }

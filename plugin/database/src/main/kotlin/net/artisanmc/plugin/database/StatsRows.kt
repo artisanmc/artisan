@@ -15,6 +15,7 @@ import net.artisanmc.plugin.stats.SeriesPoint
 import net.artisanmc.plugin.stats.SeriesQuery
 import net.artisanmc.plugin.stats.StatsBatch
 import net.artisanmc.plugin.stats.StatsQueries
+import net.artisanmc.plugin.stats.RawHit
 import net.artisanmc.plugin.stats.StatsReader
 import net.artisanmc.plugin.stats.StatsWriter
 import java.sql.Connection
@@ -256,7 +257,36 @@ class StatsRows(
         }
     }
 
+    /**
+     * Read a day at a time: no driver holds more than a day of rows, whatever its fetch size means
+     * to it (MySQL's reads a whole result at once).
+     */
+    override fun scan(server: Int, fromMs: Long, toMs: Long, events: Set<String>?, each: (RawHit) -> Unit) {
+        if (events != null && events.isEmpty()) return
+        val only = events?.joinToString(",", " AND event IN (", ")") { "?" }.orEmpty()
+        dataSource.connection.use { c ->
+            c.prepareStatement(
+                "SELECT player_uuid, event, occurred_at, dims, details FROM ${t.statsEvents} " +
+                    "WHERE server_id = ? AND occurred_at >= ? AND occurred_at < ? AND player_uuid <> ''$only ORDER BY occurred_at, id",
+            ).use { s ->
+                var start = fromMs
+                while (start < toMs) {
+                    val end = minOf(toMs, start + SCAN_CHUNK_MS)
+                    s.setInt(1, server); s.setLong(2, start); s.setLong(3, end)
+                    events?.forEachIndexed { i, event -> s.setString(4 + i, event) }
+                    s.executeQuery().use { r ->
+                        while (r.next()) each(RawHit(r.getString(1), r.getString(2), r.getLong(3), Dimensions.decode(r.getString(4)), r.getString(5)))
+                    }
+                    start = end
+                }
+            }
+        }
+    }
+
     companion object {
+        /** The span [scan] reads per statement. */
+        const val SCAN_CHUNK_MS = 86_400_000L
+
         /** Days merged per run: a server that never ran the rollup catches up over a few days. */
         const val MAX_DAYS_PER_ROLLUP = 400
         const val MAX_PAGE = 200
