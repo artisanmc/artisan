@@ -20,6 +20,12 @@ import { ProjectProperties } from "./properties/ProjectProperties";
 
 interface SelectionInspectorProps {
   projectId: ProjectId;
+  /**
+   * The Document a page shows (its `docKey`). With nothing selected — the project settings
+   * opened beside it clear the selection — the page keeps showing it: the settings then live
+   * in the panel only, not twice.
+   */
+  document?: string;
 }
 
 /**
@@ -34,7 +40,7 @@ interface SelectionInspectorProps {
  * see how state-level fields (title, count, lore, conditions) and click
  * handlers belong to a specific state card.
  */
-export function SelectionInspector({ projectId }: SelectionInspectorProps) {
+export function SelectionInspector({ projectId, document }: SelectionInspectorProps) {
   const { t } = useTranslation();
   const ids = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
@@ -51,7 +57,11 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
 
   // The kind of selection is derived ONCE (`selectionContext`) and shared with
   // the panel's tab gating: two separate dispatches would end up disagreeing.
-  const ctx = selectionContext(project, ids, selectionMenuId, folder);
+  const selected = selectionContext(project, ids, selectionMenuId, folder);
+  const ctx =
+    selected.kind === "none" && document
+      ? selectionContext(project, new Set([document]), null)
+      : selected;
 
   switch (ctx.kind) {
     case "folder":

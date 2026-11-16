@@ -157,7 +157,7 @@ export function DocumentView({
           style={wide ? undefined : ({ "--page-max": "64rem" } as CSSProperties)}
           data-testid="document-body"
         >
-          <SelectionInspector projectId={pId} />
+          <SelectionInspector projectId={pId} document={key} />
         </div>
       )}
     </div>
