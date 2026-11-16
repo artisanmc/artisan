@@ -1,6 +1,7 @@
 import { assetPreviewUrl } from "@/domain/asset";
+import { projectNamespace } from "@/domain/docRef";
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
-import { type DocKey, allDocuments, docKey } from "@/domain/documents";
+import { type DocKey, allDocuments, docKey, documentsOf } from "@/domain/documents";
 import type { I18nKey, Project, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useAssetSize } from "@/features/assets/measuredSize";
@@ -104,9 +105,41 @@ export const editorHost: Omit<EditorHost, "components"> = {
     const lang = useUiStore((s) => s.editorLang);
     return useMemo(() => optionsOf(lists, id, lang), [lists, id, lang]);
   },
+  useServerDocuments: (kind) => {
+    const open = useProjectsStore((s) => s.openProjects.projects);
+    const published = sources.usePublishedProjects();
+    return useMemo(() => serverDocuments(open, published, kind), [open, published, kind]);
+  },
 };
 
+/**
+ * A kind's Documents in every project of the server: the open projects' as edited, then the
+ * published ones of the projects that are not open (the server index holds them all).
+ */
+export function serverDocuments(open: Project[], published: Project[], kind: string) {
+  const edited = new Set(open.map(projectNamespace));
+  return [...open, ...published.filter((p) => !edited.has(projectNamespace(p)))].flatMap(
+    (project) =>
+      documentsOf(project, kind).map((document) => ({
+        projectId: project.id,
+        namespace: projectNamespace(project),
+        project,
+        document,
+      })),
+  );
+}
+
+/** What the host reads from a feature, handed over by `main.tsx`: `lib` imports no feature. */
+export interface HostSources {
+  /** The server's published projects (the server index). A hook. */
+  usePublishedProjects: () => Project[];
+}
+
+const NO_PROJECTS: Project[] = [];
+let sources: HostSources = { usePublishedProjects: () => NO_PROJECTS };
+
 /** `components`: the editor widgets module views embed (`distribution/hostComponents.tsx`). */
-export function installHost(components: HostComponents): void {
+export function installHost(components: HostComponents, from?: HostSources): void {
+  if (from) sources = from;
   installEditorHost({ ...editorHost, components });
 }

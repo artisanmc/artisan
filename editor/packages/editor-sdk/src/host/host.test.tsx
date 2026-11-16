@@ -21,6 +21,7 @@ import {
   mcWrap,
   useItemTexture,
   useOptionList,
+  useServerDocuments,
 } from "./host";
 
 describe("host components", () => {
@@ -153,5 +154,21 @@ describe("host components", () => {
     expect(useOptionList("quests:unknown")).toBeUndefined();
     installEditorHost({} as unknown as EditorHost);
     expect(useOptionList("quests:actor_types")).toBeUndefined();
+  });
+
+  it("hand a kind's Documents across the server's projects to a module, none when the host has none", () => {
+    const bruno = {
+      projectId: "conversations",
+      namespace: "conversations",
+      project: {},
+      document: { id: "bruno" },
+    };
+    installEditorHost({
+      useServerDocuments: (kind: string) => (kind === "conversation_speaker" ? [bruno] : []),
+    } as unknown as EditorHost);
+    expect(useServerDocuments("conversation_speaker")).toEqual([bruno]);
+    expect(useServerDocuments("npc")).toEqual([]);
+    installEditorHost({} as unknown as EditorHost);
+    expect(useServerDocuments("conversation_speaker")).toEqual([]);
   });
 });

@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { routeTree } from "./routeTree.gen";
 import "./styles/globals.css";
 import { hostComponents } from "@/distribution/hostComponents";
+import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { installHost } from "@/lib/editorHost";
 import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { installRandomUuidFallback } from "@/lib/randomUuid";
@@ -19,7 +20,9 @@ import { variablesModule } from "./modules/variables";
 
 installRandomUuidFallback();
 // Before any module renders: the SDK's hooks reach the editor through it.
-installHost(hostComponents);
+installHost(hostComponents, {
+  usePublishedProjects: () => useServerIndexStore((s) => s.projects),
+});
 
 // Apply data-theme to <html> before React mounts — prevents FOUC on reload.
 document.documentElement.dataset.theme = detectInitialTheme();
