@@ -12,6 +12,11 @@ export interface DocumentTrail {
   collection?: { label: string; open: () => void };
   /** The Document's label, MiniMessage (a menu's title). */
   label: string;
+  /**
+   * The Document's selected part, when its kind lists parts (`board.items`: a group's quest):
+   * a last level after the Document, which then leads back to the Document itself.
+   */
+  part?: { label: string; close: () => void };
   /** The Document has a file: its YAML can be shown instead of its view. */
   yaml?: { on: boolean; toggle: () => void; path: string };
 }

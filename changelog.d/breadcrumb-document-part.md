@@ -1,0 +1,1 @@
+- **Added**: The topbar's breadcrumb shows the selected part of a module's Document (a quest of a quest group) as a last level; the Document's own level then leads back to it.
