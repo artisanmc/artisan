@@ -53,6 +53,14 @@ class StatsHostTest {
     }
 
     @Test
+    fun `commands and menu openings keep raw rows for the journeys, clicks only counts`() {
+        val storage = CoreStats.ALL.associate { it.name to it.storage }
+        assertTrue(storage.getValue(CoreStats.COMMAND).raw() && storage.getValue(CoreStats.COMMAND).bucketed())
+        assertTrue(storage.getValue(CoreStats.MENU_OPEN).raw() && storage.getValue(CoreStats.MENU_OPEN).bucketed())
+        assertEquals(false, storage.getValue(CoreStats.MENU_CLICK).raw())
+    }
+
+    @Test
     fun `a command counts by sub-command and result`() {
         val seen = mutableListOf<String>()
         val deps = SoftDepRegistry.EMPTY

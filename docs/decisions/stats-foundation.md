@@ -67,8 +67,9 @@ adapted to portable SQL.
 10. **Core instrumentation from batch 1:** `core:session` (both: a raw row with its duration, and
     buckets for the active players and the play time of a period), `core:first_join`
     (both, from `artisan_players`), `core:players_online` (server gauge, every minute),
-    `core:command` (by command and result) and `core:menu_open` / `core:menu_click` (by menu and
-    element), bucketed. Menus opened from the editor's preview are not counted. Admins instrument
+    `core:command` (by command and result) and `core:menu_open` (by menu), both, so a journey can
+    take one as a goal and name it as a last action, `core:menu_click` (by menu and element),
+    bucketed: clicks are many more and an opening says enough. Menus opened from the editor's preview are not counted. Admins instrument
     their own content with the core action `record_event` (`custom:<name>`, declared on first use,
     `BOTH`, counter, player scope).
 
@@ -104,7 +105,8 @@ adapted to portable SQL.
 ## Consequences
 
 - API 1.5.0 adds `api.stats` (`@Beta`); a module that calls it sets its `MIN_API_VERSION` to 1.5.0.
-- Volume grows with active players: one bucket row per player, event, dimensions and active hour.
+- Volume grows with active players: one bucket row per player, event, dimensions and active hour,
+  and one raw row per session, command run and menu opened, kept `stats.retention.raw-days`.
   The defaults are to be measured on the lobby before they are frozen.
 - The journeys read the raw rows: sessions and first joins are collected from batch 1 so a
   conversion window has history. A goal on an event stored in buckets only can never be reached:

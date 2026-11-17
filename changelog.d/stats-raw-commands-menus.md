@@ -1,0 +1,1 @@
+- **Changed**: Statistics: commands run and menus opened are also kept row by row (`core:command`, `core:menu_open`), so a journey can take one as a goal and the last action before leaving can name it. Counted from this version on; `stats.retention.raw-days` bounds what is kept.

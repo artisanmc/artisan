@@ -30,8 +30,10 @@ internal object CoreStats {
         StatEvent.builder(SESSION).storage(StatStorage.BOTH).value("duration_seconds").build(),
         StatEvent.builder(FIRST_JOIN).storage(StatStorage.BOTH).build(),
         StatEvent.builder(PLAYERS_ONLINE).kind(StatKind.GAUGE).scope(StatScope.SERVER).value("players").build(),
-        StatEvent.builder(COMMAND).dimensions("command", "sub", "result").build(),
-        StatEvent.builder(MENU_OPEN).dimensions("menu").build(),
+        // Both: a journey's goal ("opened the jobs menu", "ran /rtp") and the last action before
+        // leaving read raw rows. Clicks stay bucketed: many more of them, and an opening says enough.
+        StatEvent.builder(COMMAND).storage(StatStorage.BOTH).dimensions("command", "sub", "result").build(),
+        StatEvent.builder(MENU_OPEN).storage(StatStorage.BOTH).dimensions("menu").build(),
         StatEvent.builder(MENU_CLICK).dimensions("menu", "element").build(),
     )
 }
