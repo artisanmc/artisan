@@ -69,6 +69,26 @@ class JourneysTest {
     }
 
     @Test
+    fun `the curve gives every day from 1 to 30, each with the arrivals old enough for it`() {
+        join("a", monday); join("b", monday); join("late", monday + 13 * day)
+        session("a", monday + 2 * day + 100, monday + 4 * day + 50)    // days 2, 3 and 4 in one session
+        session("b", monday + 3 * day + 10, monday + 3 * day + 20)     // day 3
+        session("late", monday + 14 * day + 10, monday + 14 * day + 20) // its day 1
+
+        val curve = compute(emptyList(), now = monday + 20 * day).curve
+
+        assertEquals((1..30).toList(), curve.map { it.day })
+        assertEquals(RetentionPoint(1, 3, 1), curve[0])
+        assertEquals(RetentionPoint(2, 3, 1), curve[1])
+        assertEquals(RetentionPoint(3, 3, 2), curve[2])
+        assertEquals(RetentionPoint(4, 3, 1), curve[3])
+        assertEquals(RetentionPoint(5, 3, 0), curve[4])
+        // "late" arrived 7 days ago: from day 7 on, only the two of the first Monday can be told.
+        assertEquals(RetentionPoint(7, 2, 0), curve[6])
+        assertEquals(RetentionPoint(20, 0, 0), curve[19])
+    }
+
+    @Test
     fun `cohorts group the arrivals by week`() {
         val goal = JourneyGoal("Menu", "core:menu_open")
         join("a", monday + 3 * day); join("b", monday + 6 * day); join("c", monday + 7 * day)

@@ -40,6 +40,8 @@ data class JourneyResult(
     val arrivals: Int,
     val steps: List<JourneyStep>,
     val retention: List<RetentionPoint>,
+    /** The same for every day from 1 to [Journeys.CURVE_DAYS]: the retention curve. */
+    val curve: List<RetentionPoint>,
     val cohorts: List<JourneyCohort>,
     /** Arrivals not seen for [Journeys.AWAY_DAYS] days. */
     val leavers: Int,
@@ -64,6 +66,9 @@ object Journeys {
     const val AWAY_DAYS = 7
     const val MAX_LAST_ACTIONS = 10
     val RETENTION_DAYS = listOf(1, 7, 30)
+
+    /** The last day of the retention curve. */
+    const val CURVE_DAYS = 30
     private const val DAY_MS = 86_400_000L
 
     /** The rows [compute] needs, in time order: `[fromMs, toMs)`, of [events] or of every event when null. */
@@ -76,7 +81,8 @@ object Journeys {
         var reachedAt = LongArray(0)
         var lastSeen = at
         var lastAction: Pair<String, Map<String, String>>? = null
-        val returned = BooleanArray(RETENTION_DAYS.size)
+        /** Indexed by the day after the arrival, 0 to [CURVE_DAYS]. */
+        val returned = BooleanArray(CURVE_DAYS + 1)
     }
 
     fun compute(scan: Scan, q: JourneyQuery): JourneyResult {
@@ -103,10 +109,10 @@ object Journeys {
                 if (hit.at > a.lastSeen) a.lastSeen = hit.at
                 if (hit.event == SESSION) {
                     val start = startedAt(hit.details) ?: hit.at
-                    RETENTION_DAYS.forEachIndexed { i, day ->
-                        val open = a.at + day * DAY_MS
-                        if (start < open + DAY_MS && hit.at >= open) a.returned[i] = true
-                    }
+                    // Every day the session overlaps, from the one it started on to the one it ended on.
+                    val first = Math.floorDiv(start - a.at, DAY_MS).coerceAtLeast(0)
+                    val last = Math.floorDiv(hit.at - a.at, DAY_MS).coerceAtMost(CURVE_DAYS.toLong())
+                    for (day in first..last) a.returned[day.toInt()] = true
                 } else if (hit.event != FIRST_JOIN) {
                     a.lastAction = hit.event to hit.dims
                 }
@@ -126,13 +132,13 @@ object Journeys {
             .entries.sortedWith(compareByDescending<Map.Entry<Pair<String, Map<String, String>>, Int>> { it.value }.thenBy { it.key.first })
             .take(MAX_LAST_ACTIONS)
             .map { LastAction(it.key.first, it.key.second, it.value) }
-        return JourneyResult(all.size, steps, retention(all, nowMs), cohorts, gone.size, last)
+        return JourneyResult(all.size, steps, retention(all, nowMs), retention(all, nowMs, (1..CURVE_DAYS).toList()), cohorts, gone.size, last)
     }
 
-    private fun retention(members: Collection<Arrival>, nowMs: Long): List<RetentionPoint> =
-        RETENTION_DAYS.mapIndexed { i, day ->
+    private fun retention(members: Collection<Arrival>, nowMs: Long, days: List<Int> = RETENTION_DAYS): List<RetentionPoint> =
+        days.map { day ->
             val eligible = members.filter { it.at + (day + 1) * DAY_MS <= nowMs }
-            RetentionPoint(day, eligible.size, eligible.count { it.returned[i] })
+            RetentionPoint(day, eligible.size, eligible.count { it.returned[day] })
         }
 
     fun median(values: List<Long>): Double? {

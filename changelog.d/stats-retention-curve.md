@@ -1,0 +1,1 @@
+- **Added**: Statistics, Journeys: a retention curve, the share of the new players back on each day from 1 to 30 after they arrived (`retention_curve` in `POST …/stats/journey`).

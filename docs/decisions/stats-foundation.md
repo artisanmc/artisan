@@ -93,6 +93,7 @@ adapted to portable SQL.
       reached goal n-1, within the window; the median time from the arrival is given per goal;
     - **retention**: an arrival came back on day 1, 7 or 30 when a session overlaps that day
       counted from the arrival; only arrivals old enough for the day to be over are counted;
+      the same is given for every day from 1 to 30, which the tab draws as a curve;
     - **cohorts**: the same per week of arrival (Monday, in `stats.timezone`);
     - **last actions**: for the arrivals not seen for 7 days, their last row that is not a
       session, by frequency. A lead towards a cause, never a proof.

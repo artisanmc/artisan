@@ -178,6 +178,8 @@ export interface StatsJourneyResult {
   arrivals: number;
   steps: { name: string; players: number; medianSeconds: number | null }[];
   retention: StatsRetentionPoint[];
+  /** The same for every day from 1 to 30: the retention curve. */
+  retentionCurve: StatsRetentionPoint[];
   cohorts: {
     weekStart: number;
     arrivals: number;
@@ -237,6 +239,7 @@ export async function computeStatsJourney(
     arrivals: number;
     steps: { name: string; players: number; median_seconds: number | null }[];
     retention: StatsRetentionPoint[];
+    retention_curve?: StatsRetentionPoint[];
     cohorts: {
       week_start: number;
       arrivals: number;
@@ -259,6 +262,7 @@ export async function computeStatsJourney(
       medianSeconds: s.median_seconds,
     })),
     retention: r.retention,
+    retentionCurve: r.retention_curve ?? [],
     cohorts: r.cohorts.map((c) => ({
       weekStart: c.week_start,
       arrivals: c.arrivals,
