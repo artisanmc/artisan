@@ -211,6 +211,48 @@ object ArtisanSchema {
                 PRIMARY KEY (owner, name)
             )""",
         ),
+        // Statistics (`StatsRows`, ADR `stats-foundation` ⑤): buckets of an hour (`H`, UTC) or a day
+        // (`D`, in `stats.timezone`), keyed by their server row, event, start (epoch seconds), player
+        // (`''` for a server event: VARCHAR, a CHAR would pad it) and dimensions; `dims` is the canonical text, `dims_hash` its
+        // SHA-256 (the text is too long for a MySQL index).
+        Migration(
+            40,
+            """CREATE TABLE IF NOT EXISTS ${t.statsBuckets} (
+                server_id INT NOT NULL,
+                event VARCHAR(64) NOT NULL,
+                bucket_start BIGINT NOT NULL,
+                granularity CHAR(1) NOT NULL,
+                player_uuid VARCHAR(36) NOT NULL,
+                dims_hash CHAR(64) NOT NULL,
+                dims VARCHAR(2048) NOT NULL,
+                cnt BIGINT NOT NULL,
+                total DOUBLE NOT NULL,
+                min_v DOUBLE NOT NULL,
+                max_v DOUBLE NOT NULL
+            )""",
+        ),
+        Migration(
+            41,
+            "CREATE UNIQUE INDEX ${t.statsBucketsKey} ON ${t.statsBuckets} (server_id, event, bucket_start, granularity, player_uuid, dims_hash)",
+        ) { hasIndex(it, t.statsBuckets, t.statsBucketsKey) },
+        Migration(42, "CREATE INDEX ${t.statsBucketsPlayerIndex} ON ${t.statsBuckets} (player_uuid, bucket_start)") { hasIndex(it, t.statsBuckets, t.statsBucketsPlayerIndex) },
+        // One row per occurrence of a raw Stat event: `occurred_at` in epoch milliseconds, `details` a JSON object.
+        Migration(
+            43,
+            """CREATE TABLE IF NOT EXISTS ${t.statsEvents} (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                server_id INT NOT NULL,
+                player_uuid VARCHAR(36) NOT NULL,
+                event VARCHAR(64) NOT NULL,
+                occurred_at BIGINT NOT NULL,
+                dims VARCHAR(2048) NOT NULL,
+                val DOUBLE NOT NULL,
+                details LONGTEXT NOT NULL
+            )""",
+        ),
+        Migration(44, "CREATE INDEX ${t.statsEventsTimeIndex} ON ${t.statsEvents} (server_id, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsTimeIndex) },
+        Migration(45, "CREATE INDEX ${t.statsEventsEventIndex} ON ${t.statsEvents} (server_id, event, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsEventIndex) },
+        Migration(46, "CREATE INDEX ${t.statsEventsPlayerIndex} ON ${t.statsEvents} (player_uuid, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsPlayerIndex) },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

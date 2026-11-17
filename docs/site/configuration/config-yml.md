@@ -36,6 +36,13 @@ Edit it in either place:
 | `resource-pack.container-textures.dispenser` | `""` | Same, for dispensers. |
 | `text-palette.colors` | `[]` | The server's named colors, `"<name> #rrggbb"` each. The editor's formatting toolbar offers them in every module, beside the built-in palettes. |
 | `text-palette.gradients` | `[]` | The server's named gradients, `"<name> #rrggbb #rrggbb [...]"` each (two colors or more). |
+| `stats.enabled` | `true` | `false`: nothing is recorded and no statistic is served. See [Statistics](../statistics/). |
+| `stats.flush-seconds` | `30` | How often the records waiting in memory are written to the database (5 to 600). |
+| `stats.retention.hourly-days` | `90` | Counts are kept per hour this many days, then merged per day. |
+| `stats.retention.daily-days` | `0` | Days the daily counts are kept; `0` keeps them forever. |
+| `stats.retention.raw-days` | `90` | Days the events kept one by one (sessions, first joins) are kept. |
+| `stats.timezone` | `""` | Where a day starts (`Europe/Paris`). Empty: the machine's zone. |
+| `stats.disabled-events` | `[]` | Events to stop recording, by name: `["core:menu_click", "custom:my_event"]`. |
 
 The text palette is editor-only: applying a color writes its value into the text, so changing
 the palette never changes existing texts. Edit it from the server page, **Settings**, **Text palette**.
@@ -70,4 +77,14 @@ resource-pack:
 text-palette:
   colors: []
   gradients: []
+
+stats:
+  enabled: true
+  flush-seconds: 30
+  retention:
+    hourly-days: 90
+    daily-days: 0
+    raw-days: 90
+  timezone: ""
+  disabled-events: []
 ```

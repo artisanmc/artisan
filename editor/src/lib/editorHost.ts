@@ -6,6 +6,13 @@ import type { I18nKey, Project, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useAssetSize } from "@/features/assets/measuredSize";
 import { useTextureUrl } from "@/features/canvas/textureStore";
+import {
+  fetchStatsActives,
+  fetchStatsBreakdown,
+  fetchStatsEvents,
+  fetchStatsQuery,
+  fetchStatsSeries,
+} from "@/lib/api/stats";
 import { getText, newI18nKey } from "@/lib/i18n";
 import { mcLineWidth, wrapLore } from "@/lib/loreWrap";
 import { projectDestination } from "@/lib/projectNavigation";
@@ -104,6 +111,13 @@ export const editorHost: Omit<EditorHost, "components"> = {
     const lists = useServerOptionListsStore((s) => s.lists);
     const lang = useUiStore((s) => s.editorLang);
     return useMemo(() => optionsOf(lists, id, lang), [lists, id, lang]);
+  },
+  stats: {
+    series: fetchStatsSeries,
+    breakdown: fetchStatsBreakdown,
+    actives: fetchStatsActives,
+    events: fetchStatsEvents,
+    query: fetchStatsQuery,
   },
   useServerDocuments: (kind) => {
     const open = useProjectsStore((s) => s.openProjects.projects);

@@ -85,3 +85,24 @@ resource-pack:
 text-palette:
   colors: []
   gradients: []
+
+# Statistics: what players do (sessions, commands, menus, what modules and your
+# own `record_event` actions record), kept in the database of environment.yml
+# and read in the editor with the permission artisan.editor.stats. Nothing
+# leaves this server. `/artisan stats forget <player>` erases a player's.
+stats:
+  # False: nothing is recorded and the editor shows no statistics.
+  enabled: true
+  # Records wait in memory and are written this often (5 to 600 seconds).
+  flush-seconds: 30
+  retention:
+    # Counts are kept per hour this many days, then merged per day.
+    hourly-days: 90
+    # Days are kept this many days; 0 keeps them forever.
+    daily-days: 0
+    # Events kept one by one (sessions, completions) are deleted after this many days.
+    raw-days: 90
+  # Where a day starts (Europe/Paris, America/New_York...). Empty: the machine's zone.
+  timezone: ""
+  # Events to stop recording, by name: ["core:menu_click", "custom:my_event"].
+  disabled-events: []

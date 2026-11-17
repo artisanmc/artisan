@@ -13,6 +13,8 @@ data class MenuSession(
     /** The window's contents (the Bukkit anchor stays empty). */
     val slots: net.artisanmc.plugin.session.MenuSlots = net.artisanmc.plugin.session.MenuSlots(0),
     val escapeGoesBack: Boolean = false,
+    /** The element id behind each clickable slot (`core:menu_click`). */
+    val slotElements: Map<Int, String> = emptyMap(),
 ) {
     val ref: MenuRef get() = MenuRef(ctx.projectId, menuId)
 }

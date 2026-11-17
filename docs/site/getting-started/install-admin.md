@@ -77,6 +77,9 @@ whether the server is a hub, a leaf or has the editor off, the database type and
 `language` setting. Nothing identifies the server or its players. To turn it off for every
 plugin, set `enabled: false` in `plugins/bStats/config.yml` and restart.
 
+This is unrelated to the [statistics of your own server](../../configuration/statistics/)
+(menus opened, commands run, sessions), which stay in your database and are sent nowhere.
+
 ## Updating
 
 Stop the server, replace the jar, start it again. Projects, `config.yml` and

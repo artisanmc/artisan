@@ -1,6 +1,7 @@
 import type { TFunction } from "i18next";
 import {
   Ban,
+  ChartColumn,
   ChevronsLeft,
   ChevronsRight,
   Coins,
@@ -82,6 +83,7 @@ const CORE: Record<string, { family: ActionFamily; icon: LucideIcon }> = {
   add_var: { family: "logic", icon: Plus },
   clear_var: { family: "logic", icon: Eraser },
   chat_button: { family: "message", icon: MousePointerClick },
+  record_event: { family: "logic", icon: ChartColumn },
   // The triggers module's two actions: they change the running Game event (eventActions.ts).
   cancel_event: { family: "effect", icon: Ban },
   set_event: { family: "effect", icon: PenLine },

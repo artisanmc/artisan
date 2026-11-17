@@ -159,7 +159,11 @@ export default function ServerDetailPage() {
             </h1>
             {summary && <ServerStateBadge summary={summary} />}
           </div>
-          <ServerTabs serverId={serverId} active={tab ?? "/servers/$serverId"} />
+          <ServerTabs
+            serverId={serverId}
+            active={tab ?? "/servers/$serverId"}
+            permissions={currentUser?.permissions ?? NO_PERMISSIONS}
+          />
           {summary && <ServerVersions summary={summary} />}
         </header>
         {/* The concave top-left corner and hairline of the project page: the sidebar and this
@@ -216,6 +220,8 @@ function ServerVersions({ summary }: { summary: ServerSummary }) {
     </span>
   );
 }
+
+const NO_PERMISSIONS: string[] = [];
 
 const ROW_LINK =
   "group flex items-center justify-between gap-2 rounded-[var(--r-xs)] px-2 py-1.5 text-[13px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]";

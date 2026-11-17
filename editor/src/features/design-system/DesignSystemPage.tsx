@@ -12,6 +12,7 @@ import {
 } from "@/components/mc-preview";
 import { MmTextField } from "@/components/minimessage";
 import { Badge } from "@/components/ui/badge";
+import { BarList } from "@/components/ui/bar-list";
 import {
   Breadcrumb,
   BreadcrumbCurrent,
@@ -48,6 +49,7 @@ import { FileDiff } from "@/components/ui/file-diff";
 import { FileDropzone } from "@/components/ui/file-dropzone";
 import { SaveFilledIcon } from "@/components/ui/filled-icons";
 import { FormField } from "@/components/ui/form-field";
+import { Funnel } from "@/components/ui/funnel";
 import { GuidedTour } from "@/components/ui/guided-tour";
 import { HBar } from "@/components/ui/h-bar";
 import { IconTile } from "@/components/ui/icon-tile";
@@ -68,12 +70,14 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SortableList } from "@/components/ui/sortable-list";
+import { SortableTable } from "@/components/ui/sortable-table";
 import { Spinner } from "@/components/ui/spinner";
 import { StatCard } from "@/components/ui/stat-card";
 import { Switch } from "@/components/ui/switch";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TagInput } from "@/components/ui/tag-input";
+import { TimeChart } from "@/components/ui/time-chart";
 import { Tooltip } from "@/components/ui/tooltip";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
@@ -1015,6 +1019,83 @@ export function DesignSystemPage() {
               <StatCard label="Margin" value="+$12.30" tone="positive" sub="vs cost" />
               <StatCard label="Margin" value="-$0.50" tone="negative" sub="vs cost" />
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<StatCard trend>"}</span>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <StatCard
+                label="Active players"
+                value="184"
+                trend={{ label: "▲ +12%", tone: "positive" }}
+                sub="vs previous period"
+              />
+              <StatCard label="Refused" value="31" trend={{ label: "▲ +40%", tone: "negative" }} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<TimeChart>"}</span>
+            <TimeChart
+              label="Menu openings"
+              series={[
+                {
+                  id: "current",
+                  label: "This period",
+                  color: "var(--chart-1)",
+                  points: [12, 18, 9, 24, 31, 27, 35].map((y, i) => ({
+                    label: `Nov ${i + 10}`,
+                    y,
+                  })),
+                },
+                {
+                  id: "previous",
+                  label: "Previous period",
+                  color: "var(--text-faint)",
+                  dashed: true,
+                  points: [10, 11, 14, 13, 22, 20, 19].map((y, i) => ({
+                    label: `Nov ${i + 3}`,
+                    y,
+                  })),
+                },
+              ]}
+            />
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <span className="mono text-[11px] text-[var(--text-faint)]">{"<BarList>"}</span>
+              <BarList
+                rows={[
+                  { id: "buy", label: "buy_sword", value: 64 },
+                  { id: "sell", label: "sell_all", value: 22 },
+                  { id: "close", label: "close", value: 9 },
+                ]}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="mono text-[11px] text-[var(--text-faint)]">{"<Funnel>"}</span>
+              <Funnel
+                formatShare={(r) => `${Math.round(r * 100)}%`}
+                steps={[
+                  { id: "a", label: "First join", value: 200 },
+                  { id: "b", label: "Tutorial done", value: 124 },
+                  { id: "c", label: "First purchase", value: 41 },
+                ]}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<SortableTable>"}</span>
+            <SortableTable
+              rows={[
+                { menu: "shop:main", opens: 310 },
+                { menu: "warps:list", opens: 122 },
+              ]}
+              rowId={(r) => r.menu}
+              initialSort="opens"
+              columns={[
+                { id: "menu", label: "Menu", value: (r) => r.menu },
+                { id: "opens", label: "Openings", value: (r) => r.opens, align: "right" },
+              ]}
+            />
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<HBar>"}</span>

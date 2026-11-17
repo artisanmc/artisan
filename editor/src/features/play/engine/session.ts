@@ -421,6 +421,10 @@ export class PlaySession {
           from.label,
         );
         return;
+      case "record_event":
+        // Statistics are recorded by the server: the journal says what would be counted.
+        this.log("logged", t("play.log.record_event", { event: str("event") }), from.label);
+        return;
       case "chat_button": {
         const line = `${text("text")} ${text("label")}`.trim();
         this.chat(line);

@@ -14,7 +14,9 @@ object EditorPermissions {
     const val EDIT = "artisan.editor.edit"
     const val PUBLISH = "artisan.editor.publish"
     const val CONFIG = "artisan.editor.config"
-    val ALL = listOf(VIEW, EDIT, PUBLISH, CONFIG)
+    /** Reads the server's statistics, a single player's included; neither given by nor giving the others (ADR `stats-foundation` ⑦). */
+    const val STATS = "artisan.editor.stats"
+    val ALL = listOf(VIEW, EDIT, PUBLISH, CONFIG, STATS)
 }
 
 /**

@@ -4,6 +4,7 @@
 |---|---|---|
 | `api` | Public add-on surface, **in Java**, published as `net.artisanmc:artisan-core-api`. | Depending on another module; a Kotlin class in `src/main`. |
 | `core` | Domain: projects, model, action language, expressions, parsers. | Bukkit, JDBC, HTTP. |
+| `stats` | The server's statistics without their storage: the catalogue of declared Stat events, the in-memory buffer (`StatsBuffer`), the recorder behind `api.getStats()` (`StatsRecorder`), the hour-to-day rollup and the folds of the read routes (ADR `stats-foundation`). The SQL is in `database` (`StatsRows`), the routes in `hub` (`StatsRoutes`), the wiring in `paper` (`StatsHost`). | Bukkit, JDBC, HTTP, depending on anything but `api`. |
 | `database` | Per-plugin connection pools (H2, MySQL, MariaDB). | Bukkit. |
 | `hub` | The editor's web server (Jetty): editor files, API, sessions opened by `/artisan editor`. | Bukkit. |
 | `pack` | The server's Java resource pack built from its Projects' files: Kotlin port of the editor's builder (`editor/src/lib/pack`), same bytes, locked by `testdata/resource-pack-conformance.json`. Reads YAML as the editor does (1.2). | Bukkit, Jetty, any I/O but the jar's resources. |

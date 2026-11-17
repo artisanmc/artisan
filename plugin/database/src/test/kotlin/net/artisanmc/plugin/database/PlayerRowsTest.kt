@@ -10,6 +10,16 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class PlayerRowsTest {
+    @Test
+    fun `a name finds the player last seen under it, whatever its case`() {
+        val old = UUID.randomUUID()
+        val new = UUID.randomUUID()
+        rows.seen(old, "Steve", 1_000)
+        rows.seen(new, "steve", 2_000)
+        assertEquals(new, rows.findByName("STEVE"))
+        assertEquals(null, rows.findByName("Alex"))
+    }
+
     private val dir = Files.createTempDirectory("artisan_players_").toFile()
     private val pools = ConnectionPools(
         { DatabaseSettings.of("h2", "localhost", "3306", "minecraft", "root", "", DatabaseSettings.DEFAULT_POOL_SIZE, dir) },
@@ -37,5 +47,18 @@ class PlayerRowsTest {
         rows.seen(steve, "Steve", 1_000)
         rows.addPlaytime(steve, -5, 2_000)
         assertEquals(0, rows.get(steve)?.playtimeMs)
+    }
+
+    @Test
+    fun `a search finds names by their start, the latest seen first, and ids give their names`() {
+        val alex = UUID.randomUUID()
+        val under = UUID.randomUUID()
+        rows.seen(steve, "Steve", 1_000)
+        rows.seen(alex, "stella", 2_000)
+        rows.seen(under, "s_x", 3_000)
+        assertEquals(listOf(alex to "stella", steve to "Steve"), rows.search("ST", 10))
+        assertEquals(listOf(under to "s_x"), rows.search("s_", 10))
+        assertEquals(listOf(alex to "stella"), rows.search("st", 1))
+        assertEquals(setOf(steve to "Steve", under to "s_x"), rows.names(listOf(steve, under, UUID.randomUUID())).toSet())
     }
 }

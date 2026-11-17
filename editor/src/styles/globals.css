@@ -77,6 +77,13 @@
 ---------------------------------------------------------------- */
 :root,
 :root[data-theme="dark"] {
+  /* Charts: the categorical series, in this fixed order (validated on --surface-raised,
+     both themes: tools of the dataviz method). A fifth series folds into "other". */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+
   /* Surfaces */
   --surface: var(--gray-950);
   --surface-raised: var(--gray-900);
@@ -179,6 +186,13 @@
    LAYER 2 — Semantic tokens: LIGHT theme
 ---------------------------------------------------------------- */
 :root[data-theme="light"] {
+  /* Charts: the categorical series, in this fixed order (validated on --surface-raised,
+     both themes: tools of the dataviz method). A fifth series folds into "other". */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+
   /* Surfaces — a light grey page under white panels and fields: the page never glares
      (it is not white), and a panel or a field reads by its white, not by a third tint. */
   --surface: #f3f4f6;

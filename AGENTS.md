@@ -54,7 +54,7 @@ pre-hub product (cloud backend, V1 roadmap): never cite it as current behavior.
 ```bash
 # Plugin (Kotlin 2.0 / Paper 1.21+, Folia, Leaf)
 cd plugin
-./gradlew test          # every module (api, core, database, hub, pack, paper)
+./gradlew test          # every module (api, core, stats, database, hub, pack, paper)
 ./gradlew shadowJar     # → paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
                         #   + geyser-extension/build/libs/artisan-geyser-1.0.0-SNAPSHOT.jar (a proxy's Geyser)
 ./gradlew shadowJar -PwithEditor   # same, with the editor bundled (npm required)
@@ -73,7 +73,7 @@ docker compose up       # Paper :25565 + plugin editor :8765 + the shop's MySQL
 docker compose -f docker/network/compose.yml up   # network: one hub + one leaf
 ```
 
-**Plugin commands** — `/artisan menu|reload|sync|editor [sessions|revoke <id>|logout]|dump-title` (+ the internal `click <token>` of `chat_button`), detail in
+**Plugin commands** — `/artisan menu|reload|sync|editor [sessions|revoke <id>|logout]|stats forget <player>|dump-title` (+ the internal `click <token>` of `chat_button`), detail in
 `docs/architecture/plugin-commands.md`.
 
 **MC assets** — `cd tools/minecraft-assets && bun gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`
@@ -84,7 +84,7 @@ catalogue, the icon zips go to the CDN by hand). Detail: `tools/minecraft-assets
 
 ```
 editor/          React 19 + Vite + Konva — served by the plugin (hub)
-plugin/          Kotlin 2.0 + Paper: api · core · database · hub (Jetty 12) · pack · runtime · paper
+plugin/          Kotlin 2.0 + Paper: api · core · stats · database · hub (Jetty 12) · pack · runtime · paper
                  · tunnel / tunnel-server (editor tunnel) · geyser-extension (proxy Geyser)
 docker/          Local Minecraft servers (itzg/minecraft-server), network in docker/network/
 tools/minecraft-assets/  Bun generators for vanilla MC assets (items, 3D icons, glyph widths, padded fonts)
@@ -98,6 +98,7 @@ docs/            README.md (index) · architecture/ · decisions/ · schema/ · 
 others `leaf`, connected to its `/ws/plugin` with a shared secret. ADR `editor-web-server`.
 
 **Plugin as Gradle modules** — `plugin/api` (add-on surface, **in Java**), `plugin/core` (domain, no Bukkit),
+`plugin/stats` (statistics: catalogue, buffer, rollup; no Bukkit, no JDBC),
 `plugin/database`, `plugin/hub` (web server, no Bukkit), `plugin/pack` (resource pack builder, pure), `plugin/runtime` (action engine, conditions, items,
 translations), `plugin/paper` (menus, presence, jar). An
 `org.bukkit` import outside `paper`, `runtime` or `api` does not compile. Detail: `plugin/README.md`, ADRs `plugin-gradle-modules`,

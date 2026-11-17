@@ -31,6 +31,8 @@ sealed interface EditorRequest {
     data class NexoGlyphRead(override val requestId: String, val glyphId: String?) : WithReply
     data class ServerConfigWrite(override val requestId: String, val changes: Map<String, Any?>) : WithReply
     data class OnlinePlayersFetch(override val requestId: String) : WithReply
+    /** A figure a module computes on demand for its statistics tab (`StatsApi.declareQuery`). */
+    data class StatsQueryFetch(override val requestId: String, val id: String, val params: Map<String, String>) : WithReply
     data class PapiPlaceholdersFetch(override val requestId: String) : WithReply
     data class HeadTextureFetch(override val requestId: String, val id: String) : WithReply
     data class PlayerInventoryFetch(override val requestId: String, val player: String) : WithReply
@@ -138,6 +140,10 @@ sealed interface EditorRequest {
                 "nexo_glyph_read" -> NexoGlyphRead(requestId, node.text("glyph_id"))
                 "server_config_write" -> ServerConfigWrite(requestId, objectOrNull(node["changes"]) ?: emptyMap())
                 "online_players_fetch" -> OnlinePlayersFetch(requestId)
+                "stats_query_fetch" -> StatsQueryFetch(
+                    requestId, node.text("id") ?: return null,
+                    objectOrNull(node["params"])?.mapValues { it.value?.toString().orEmpty() } ?: emptyMap(),
+                )
                 "papi_placeholders_fetch" -> PapiPlaceholdersFetch(requestId)
                 "head_texture_fetch" -> HeadTextureFetch(requestId, node.text("id") ?: "")
                 "player_inventory_fetch" -> PlayerInventoryFetch(requestId, node.text("player") ?: return null)

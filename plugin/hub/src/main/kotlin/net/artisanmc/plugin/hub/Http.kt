@@ -25,6 +25,10 @@ class Call(
 
     fun query(name: String): String? = query.getValue(name)
 
+    /** The query parameters whose name starts with [prefix], by the rest of their name. */
+    fun queryPrefixed(prefix: String): Map<String, String> =
+        query.names.filter { it.startsWith(prefix) && it.length > prefix.length }.associate { it.removePrefix(prefix) to query.getValue(it) }
+
     fun cookie(name: String): String? = Request.getCookies(request).firstOrNull { it.name == name }?.value
 
     fun header(name: String): String? = request.headers.get(name)

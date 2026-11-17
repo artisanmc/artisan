@@ -99,6 +99,8 @@ open class ArtisanPlugin : JavaPlugin() {
 
     /** The suite database: server id and row, Versions, editor sessions. */
     internal val suite = SuiteDatabase(this)
+    /** Statistics: the recorder behind `api.stats`, its flushes and Artisan's own events (ADR `stats-foundation`). */
+    internal val stats by lazy { StatsHost(this) }
     /** The editor web server (hub) or the link to the hub (leaf). */
     internal val editorHost = EditorHost(this, suite)
     /** What `/artisan reload` rebuilds: provider, engine, resource pack, commands. */
@@ -232,6 +234,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 t,
             )
         }
+        stats.start()
         metrics.start()
         logger.info("Artisan ${description.version} enabled")
     }
@@ -288,6 +291,8 @@ open class ArtisanPlugin : JavaPlugin() {
         // Modules of add-ons already went with their plugin (registerAddonRelease).
         api.modules.active().forEach { runCatching { it.onDisable() } }
         if (::network.isInitialized) network.stop()
+        // The open sessions and the buffer, while the database is still there.
+        runCatching { stats.stop() }
         suite.stopWriter()
         runtime.stopReloads()
         suite.unregister()
@@ -363,6 +368,9 @@ open class ArtisanPlugin : JavaPlugin() {
 
     /** What [loadPluginConfig] last read: the configuration the plugin runs with. */
     @Volatile private var loadedConfig: PluginConfig? = null
+
+    /** [currentConfig] without a read of the files: null before the first load. */
+    internal fun loadedConfigOrNull(): PluginConfig? = loadedConfig
 
     fun databaseSettings(): net.artisanmc.plugin.database.DatabaseSettings =
         net.artisanmc.plugin.database.readDatabaseSettings(

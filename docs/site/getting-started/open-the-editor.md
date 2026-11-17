@@ -71,7 +71,8 @@ In game or from the console, `/artisan editor sessions` prints the same list; cl
 | `artisan.editor.edit` | Change projects (your private draft). | op |
 | `artisan.editor.publish` | Publish projects to the server, upload the resource pack. | op |
 | `artisan.editor.config` | Change `config.yml` from the editor's server page. | op |
-| `artisan.editor` | All four above. | op |
+| `artisan.editor.stats` | Read the server's [statistics](../../configuration/statistics/). | op |
+| `artisan.editor` | All five above. | op |
 
 Example with LuckPerms, for builders who can edit but not publish:
 

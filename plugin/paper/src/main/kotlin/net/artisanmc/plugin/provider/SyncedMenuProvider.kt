@@ -58,6 +58,7 @@ class SyncedMenuProvider(
     private val editorBundles: (String) -> net.artisanmc.modules.api.editor.EditorBundleDeclaration? = { null },
     /** A module's icon and logo by module id, served to the hub on `module_brand_fetch`. */
     private val moduleBrands: (String) -> net.artisanmc.modules.api.editor.ModuleBrandDeclaration? = { null },
+    private val statQuery: ((id: String, params: Map<String, String>) -> net.artisanmc.plugin.stats.StatQueries.Answer?)? = null,
     /** The modules' templates, served on `template_fetch` and copied on `template_copy` or once at seed. */
     private val templates: () -> net.artisanmc.plugin.project.ModuleTemplates? = { null },
     /** The server's language, given to the projects a template seeds. */
@@ -185,7 +186,7 @@ class SyncedMenuProvider(
     private val documentChecks = net.artisanmc.plugin.protocol.DocumentChecks(workspace, replies, documentCheck)
     private val projectWrites = ProjectWrites(workspace, replies, ::send, logger, documentCheck)
     private val templateRequests = net.artisanmc.plugin.protocol.TemplateRequests(workspace, replies, templates)
-    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles, moduleBrands)
+    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles, moduleBrands, statQuery)
     @Volatile private var testSendOverride: ((String) -> Unit)? = null
 
     internal fun setSendForTesting(fn: (String) -> Unit) {
@@ -766,6 +767,7 @@ class SyncedMenuProvider(
             EditorRequest.CustomItemsRequest -> sendCustomItems()
 
             is EditorRequest.OnlinePlayersFetch -> queries.onlinePlayers(request)
+            is EditorRequest.StatsQueryFetch -> queries.statsQuery(request)
             is EditorRequest.PapiPlaceholdersFetch -> queries.papiPlaceholders(request)
             is EditorRequest.HeadTextureFetch -> queries.headTexture(request)
             is EditorRequest.PlayerInventoryFetch -> queries.playerInventory(request)

@@ -136,7 +136,7 @@ object MenuRenderer {
         windows?.open(player, inv, content, menu.yaml.vanillaTexture, title.takeUnless { ServerPlatform.paper })
         player.openInventory(inv)
         if (player.openInventory.topInventory !== inv) windows?.release(player, inv)
-        return MenuSession(menu.id, renderCtx, fill.activeClicks, fill.slotArgs, content, menu.escapeGoesBack)
+        return MenuSession(menu.id, renderCtx, fill.activeClicks, fill.slotArgs, content, menu.escapeGoesBack, fill.slotElements)
     }
 
     /**
@@ -284,6 +284,8 @@ object MenuRenderer {
     ) {
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
         val slotArgs = mutableMapOf<Int, Map<String, Any>>()
+        /** The element shown in each clickable slot: what `core:menu_click` counts a click by. */
+        val slotElements = mutableMapOf<Int, String>()
 
         /** The first appearance of [elementId] whose conditions pass in [ctx]. */
         fun choose(elementId: String, ctx: ExecutionContext): CompiledAppearance? =
@@ -292,11 +294,12 @@ object MenuRenderer {
         fun build(chosen: CompiledAppearance, ctx: ExecutionContext): ItemStack =
             buildItem(chosen.yaml, ctx, evaluator.deps, chosen.i18nBase)
 
-        fun place(slots: List<Int>, chosen: CompiledAppearance, item: ItemStack, rowArgs: Map<String, Any>? = null) {
+        fun place(elementId: String, slots: List<Int>, chosen: CompiledAppearance, item: ItemStack, rowArgs: Map<String, Any>? = null) {
             for (slot in slots) {
                 content[slot] = item
                 if (chosen.clicks.isNotEmpty()) {
                     activeClicks[slot] = chosen.clicks
+                    slotElements[slot] = elementId
                     if (rowArgs != null) slotArgs[slot] = rowArgs
                 }
             }
@@ -306,7 +309,7 @@ object MenuRenderer {
         fun placeRow(elementId: String, slot: Int, rowArgs: Map<String, Any>, ctx: ExecutionContext) {
             val itemCtx = ctx.copy(args = ctx.args + rowArgs)
             val chosen = choose(elementId, itemCtx) ?: return
-            place(listOf(slot), chosen, build(chosen, itemCtx), rowArgs)
+            place(elementId, listOf(slot), chosen, build(chosen, itemCtx), rowArgs)
         }
     }
 
@@ -321,7 +324,7 @@ object MenuRenderer {
                 if (image != null && images.layers.none { it.assetId == layout.assetKey(image) }) continue
                 val item = if (image == null) fill.build(chosen, ctx)
                     else buildImageHitItem(chosen.yaml, ctx, fill.evaluator.deps, chosen.i18nBase)
-                fill.place(layout.slots, chosen, item)
+                fill.place(element.id, layout.slots, chosen, item)
                 continue
             }
 
@@ -347,7 +350,7 @@ object MenuRenderer {
             val iter = element.iterates
             if (iter == null) {
                 val chosen = fill.choose(element.id, ctx) ?: continue
-                fill.place(slots, chosen, fill.build(chosen, ctx))
+                fill.place(element.id, slots, chosen, fill.build(chosen, ctx))
                 continue
             }
             // Iterating element: one list entry per slot, windowed by page.

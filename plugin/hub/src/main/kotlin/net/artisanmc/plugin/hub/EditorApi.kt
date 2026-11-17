@@ -25,6 +25,8 @@ object EditorApi {
         packCdn: PackCdn? = null,
         /** The hub's own pack build: the Bedrock one applied, the Java one applied or compared with the editor's (shadow mode). */
         packBuilder: PackBuilder? = null,
+        /** The statistics store (ADR `stats-foundation`); null: no `/stats` routes. */
+        stats: StatsAccess? = null,
     ): Router {
         val router = Router()
         val relay = Relay(logger)
@@ -42,6 +44,7 @@ object EditorApi {
             ).register(router)
         }
         AddressRoutes(tunnel, sessions).register(router)
+        stats?.let { StatsRoutes(servers, it, relay).register(router) }
         val tools = McpTools(McpProjects(servers, loaded, drafts, history), packs = packBuilder)
         if (mcp != null) {
             OAuthRoutes(mcp).register(router)

@@ -472,6 +472,30 @@ api.getOptionLists().changed();
 | `OptionEntry(value, labels)`, `OptionEntry(value)` (a blank value `IllegalArgumentException`; `labels` by language code, none: the editor shows the value), `value()`, `labels()`, `toWire()` (`{value, labels?}`) | record | 1.4.0 |
 | `OptionListRegistry.toWire()` (the `declared_option_lists` entries by id, `{id, options, module_id?}`; a supplier that throws reports an empty list, logged), `bindWarnings(warn)`, `bindChanges(changes)` (`@Internal`) | | 1.4.0 |
 
+### `net.artisanmc.modules.api.stats.StatsApi` and the Stat event contract (`@Beta`)
+
+Statistics kept by the server in the suite database (ADR `stats-foundation`): a module declares its Stat events from `onEnable`, then records occurrences. A record adds to a buffer in memory and never throws; Artisan writes the buffer every 30 seconds off the main thread. The editor reads them behind `artisan.editor.stats`.
+
+```java
+StatsApi stats = api.getStats();
+stats.declare(StatEvent.builder("quests:completed")
+    .storage(StatStorage.BOTH)          // BUCKETED, RAW or BOTH
+    .dimensions("group", "quest")       // bounded categories: past 200 values, "other"
+    .value("duration_seconds")          // optional: summed in buckets
+    .build());
+stats.record("quests:completed", player.getUniqueId(), Map.of("group", "daily", "quest", "mine_stone"), 412);
+```
+
+| Member | Type | Since |
+|---|---|---|
+| `ArtisanAPI.getStats()` | `StatsApi` | 1.5.0 |
+| `StatsApi.declare(event)` (again with the same shape: nothing; namespace `core` or `custom`, or another shape under the name: `IllegalArgumentException`), `isDeclared(name)`, `isEnabled()` | | 1.5.0 |
+| `StatsApi.record(event, player, dimensions, value, details)` (`player` null for a server event; `details` kept by raw rows only), `record(event, player, dimensions)`, `record(event, player, dimensions, value)`, `recordServer(event, dimensions, value)`: undeclared event or dimension, wrong scope, statistics off: dropped, one warning per event | `void` | 1.5.0 |
+| `StatsApi.declareQuery(id, cacheSeconds, query)` with `StatQuery.rows(params)`: a figure computed on demand for the module's statistics tab (a present state no event records), run off the game threads, its answer kept `cacheSeconds` (0 to 3600) per set of parameters; declaring an id again replaces it; malformed id, namespace `core` or `custom`, cache time out of range: `IllegalArgumentException` | `void` | 1.5.0 |
+| `StatsApi.NOOP` | `StatsApi` | 1.5.0 |
+| `StatEvent.builder(name)` (`<namespace>:<name>`, `StatEvent.NAME`), `Builder.storage`, `kind`, `scope`, `dimensions(names...)` (`StatEvent.FIELD`, 6 at most), `value(name)`, `rawRetentionDays(days)`, `build()`; getters, `getNamespace()`, `equals` | `StatEvent` | 1.5.0 |
+| `StatStorage` (`BUCKETED`, `RAW`, `BOTH`; `bucketed()`, `raw()`), `StatKind` (`COUNTER`, `GAUGE`), `StatScope` (`PLAYER`, `SERVER`) | enums | 1.5.0 |
+
 ### `net.artisanmc.modules.api.editor.EditorBundleRegistry` and the editor bundle contract (internal 2.3.0, `@Stable` since internal 2.18.0)
 
 A module may ship its **editor view** in its own jar (runtime module bundles, level 3; `modules.md` §4.6): one ES module script built against `@artisan/editor-sdk`, registered from `onEnable` and removed with the module. The bundle is reported at Presence on the module's `installed_modules` entry (`editor_bundle: {sdk, hash, size}`, protocol 1.2), served by the hub at `GET /api/v1/servers/:server/modules/:module/ui.js` and loaded by the editor against its SDK.

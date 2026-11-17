@@ -82,8 +82,153 @@ export interface EditorHost {
    * names across projects (a speaker, an NPC): `useProject` only knows the open project.
    */
   useServerDocuments(kind: string): ServerDocument[];
+  /** The reads of the server's statistics (SDK 1.23), behind `artisan.editor.stats`. */
+  stats: StatsReads;
   /** The editor's own widgets a module view embeds (SDK 1.1). */
   components: HostComponents;
+}
+
+/**
+ * One read of a Stat event (SDK 1.23): `from` inclusive and `to` exclusive in epoch seconds,
+ * for one `player` (a UUID) or all, on the records whose dimensions hold `dims`.
+ */
+export interface StatsQuery {
+  event: string;
+  from: number;
+  to: number;
+  player?: string;
+  dims?: Record<string, string>;
+}
+
+/** A bucket of a series: `count` records, `sum` of their values; a gauge reads `sum / count`. */
+export interface StatsPoint {
+  start: number;
+  granularity: "hour" | "day";
+  count: number;
+  sum: number;
+  min: number;
+  max: number;
+}
+
+/** The totals of one value of a dimension. */
+export interface StatsBreakdownRow {
+  value: string;
+  count: number;
+  sum: number;
+  min: number;
+  max: number;
+}
+
+/** The distinct players of an event: over the period, and per bucket. */
+export interface StatsActives {
+  players: number;
+  points: { start: number; players: number }[];
+}
+
+/** One occurrence of an event stored row by row (`RAW` or `BOTH`); `at` in epoch milliseconds. */
+export interface StatsEventRow {
+  id: number;
+  player: string | null;
+  event: string;
+  at: number;
+  dimensions: Record<string, string>;
+  value: number;
+  details: Record<string, unknown> | null;
+}
+
+/** The answer of a figure computed on demand (`StatsApi.declareQuery`); `computedAt` in epoch ms. */
+export interface StatsComputed {
+  rows: Record<string, unknown>[];
+  computedAt: number;
+}
+
+/** What the host reads statistics with (SDK 1.23). Each rejects when the read is refused. */
+export interface StatsReads {
+  /** A point per bucket of the period, at zero where nothing was recorded. */
+  series(serverId: string, query: StatsQuery, by: "hour" | "day"): Promise<StatsPoint[]>;
+  /** The totals per value of `dimension`, the largest count first. */
+  breakdown(serverId: string, query: StatsQuery, dimension: string): Promise<StatsBreakdownRow[]>;
+  actives(serverId: string, query: StatsQuery, by: "hour" | "day"): Promise<StatsActives>;
+  /** Raw rows, newest first; `next` is the `cursor` of the following page. */
+  events(
+    serverId: string,
+    query: Partial<StatsQuery> & { limit?: number; cursor?: number },
+  ): Promise<{ events: StatsEventRow[]; next: number | null }>;
+  /** A figure the module's plugin computes on demand; needs the server online. */
+  query(serverId: string, id: string, params?: Record<string, string>): Promise<StatsComputed>;
+}
+
+/** A key figure (SDK 1.23): its label, its value, and how it moved against a reference. */
+export interface StatCardProps {
+  label: ReactNode;
+  value: ReactNode;
+  sub?: ReactNode;
+  tone?: "default" | "positive" | "negative";
+  trend?: { label: ReactNode; tone?: "default" | "positive" | "negative" };
+}
+
+/** One line of a `TimeChart`: its points follow the chart's buckets, index by index. */
+export interface ChartSeries {
+  id: string;
+  label: string;
+  /** A CSS colour: the series tokens `var(--chart-1)` to `var(--chart-4)`, in that order. */
+  color: string;
+  points: readonly { label: string; y: number }[];
+  /** A reference line (the previous period): dashed. */
+  dashed?: boolean;
+}
+
+export interface TimeChartProps {
+  series: readonly ChartSeries[];
+  /** The chart's accessible name: what it measures. */
+  label: string;
+  formatY?: (value: number) => string;
+  height?: number;
+  className?: string;
+}
+
+export interface BarListProps {
+  rows: readonly { id: string; label: ReactNode; value: number; caption?: ReactNode }[];
+  /** Makes each row a button (drill into it). */
+  onSelect?: (id: string) => void;
+  selectedId?: string | null;
+  className?: string;
+}
+
+export interface FunnelProps {
+  /** Ordered steps and how many reached each. */
+  steps: readonly { id: string; label: ReactNode; value: number }[];
+  formatValue?: (value: number) => string;
+  /** Writes a share (0 to 1): `62 %`. */
+  formatShare: (ratio: number) => string;
+}
+
+export interface SortableColumn<T> {
+  id: string;
+  label: ReactNode;
+  /** What the column sorts by. */
+  value: (row: T) => number | string;
+  /** What the cell shows; the value itself when absent. */
+  render?: (row: T) => ReactNode;
+  align?: "left" | "right";
+}
+
+export interface SortableTableProps<T> {
+  rows: readonly T[];
+  columns: readonly SortableColumn<T>[];
+  rowId: (row: T) => string;
+  /** The column sorted at first. */
+  initialSort: string;
+  onSelect?: (id: string) => void;
+  selectedId?: string | null;
+}
+
+/** A titled block of a statistics tab (SDK 1.23). */
+export interface StatsPanelProps {
+  title: ReactNode;
+  hint?: ReactNode;
+  actions?: ReactNode;
+  children: ReactNode;
 }
 
 /** A Document of the server and the project that holds it (SDK 1.22). */
@@ -462,6 +607,13 @@ export interface HostComponents {
   PageTour: ComponentType<PageTourProps>;
   /** SDK 1.20. */
   ItemValueInput: ComponentType<ItemValueInputProps>;
+  /** SDK 1.23: the statistics components. */
+  StatCard: ComponentType<StatCardProps>;
+  TimeChart: ComponentType<TimeChartProps>;
+  BarList: ComponentType<BarListProps>;
+  Funnel: ComponentType<FunnelProps>;
+  SortableTable: <T>(props: SortableTableProps<T>) => ReactElement;
+  StatsPanel: ComponentType<StatsPanelProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -511,6 +663,47 @@ export const useItemTexture = (material: string): string | undefined =>
 export const useServerDocuments = (kind: string): ServerDocument[] =>
   // A host older than 1.22 never loads a 1.22 bundle; the guard keeps a test host short.
   current().useServerDocuments?.(kind) ?? [];
+/** A series of a Stat event, a point per bucket (SDK 1.23); see `StatsReads`. */
+export const statsSeries: StatsReads["series"] = (serverId, query, by) =>
+  current().stats.series(serverId, query, by);
+/** The totals per value of a dimension (SDK 1.23). */
+export const statsBreakdown: StatsReads["breakdown"] = (serverId, query, dimension) =>
+  current().stats.breakdown(serverId, query, dimension);
+/** The distinct players of a Stat event (SDK 1.23). */
+export const statsActives: StatsReads["actives"] = (serverId, query, by) =>
+  current().stats.actives(serverId, query, by);
+/** The raw rows of a Stat event, newest first (SDK 1.23). */
+export const statsEvents: StatsReads["events"] = (serverId, query) =>
+  current().stats.events(serverId, query);
+/** A figure the module's plugin computes on demand, `StatsApi.declareQuery` (SDK 1.23). */
+export const statsQuery: StatsReads["query"] = (serverId, id, params) =>
+  current().stats.query(serverId, id, params);
+
+/** A key figure of a statistics tab (SDK 1.23). */
+export function StatCard(props: StatCardProps): ReactElement {
+  return createElement(current().components.StatCard, props);
+}
+/** Values over time, one to four lines on one axis from zero, read by pointer or arrow keys (SDK 1.23). */
+export function TimeChart(props: TimeChartProps): ReactElement {
+  return createElement(current().components.TimeChart, props);
+}
+/** A ranking, each bar on the scale of the largest row (SDK 1.23). */
+export function BarList(props: BarListProps): ReactElement {
+  return createElement(current().components.BarList, props);
+}
+/** Ordered steps with their share of the first and the loss since the step before (SDK 1.23). */
+export function Funnel(props: FunnelProps): ReactElement {
+  return createElement(current().components.Funnel, props);
+}
+/** A table sorted by its column headers, a row optionally opening its detail (SDK 1.23). */
+export function SortableTable<T>(props: SortableTableProps<T>): ReactElement {
+  return current().components.SortableTable(props);
+}
+/** A titled block of a statistics tab: a chart, a ranking, a table (SDK 1.23). */
+export function StatsPanel(props: StatsPanelProps): ReactElement {
+  return createElement(current().components.StatsPanel, props);
+}
+
 /** A server-declared option list, or undefined (SDK 1.21); see `EditorHost.useOptionList`. */
 export const useOptionList = (id: string): OptionChoice[] | undefined =>
   // A host older than 1.21 never loads a 1.21 bundle; the guard keeps a test host short.

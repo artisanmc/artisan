@@ -55,6 +55,32 @@ data class ResourcePackConfig(
     val sendDelayTicks: Long = 20L,
 )
 
+/** The `stats` section of `config.yml` (ADR `stats-foundation`). */
+data class StatsConfig(
+    val settings: net.artisanmc.plugin.stats.StatsSettings = net.artisanmc.plugin.stats.StatsSettings(),
+    val flushSeconds: Int = 30,
+    val retention: net.artisanmc.plugin.stats.StatsRetention = net.artisanmc.plugin.stats.StatsRetention(),
+    /** Where a day is cut; the server's zone when `stats.timezone` is empty or unknown. */
+    val zone: java.time.ZoneId = java.time.ZoneId.systemDefault(),
+) {
+    companion object {
+        fun from(cfg: org.bukkit.configuration.ConfigurationSection): StatsConfig = StatsConfig(
+            settings = net.artisanmc.plugin.stats.StatsSettings(
+                enabled = cfg.getBoolean("stats.enabled", true),
+                disabledEvents = cfg.getStringList("stats.disabled-events").toSet(),
+            ),
+            flushSeconds = cfg.getInt("stats.flush-seconds", 30).coerceIn(5, 600),
+            retention = net.artisanmc.plugin.stats.StatsRetention(
+                hourlyDays = cfg.getInt("stats.retention.hourly-days", 90).coerceAtLeast(1),
+                dailyDays = cfg.getInt("stats.retention.daily-days", 0).coerceAtLeast(0),
+                rawDays = cfg.getInt("stats.retention.raw-days", 90).coerceAtLeast(1),
+            ),
+            zone = cfg.getString("stats.timezone").orEmpty().trim().takeIf { it.isNotEmpty() }
+                ?.let { runCatching { java.time.ZoneId.of(it) }.getOrNull() } ?: java.time.ZoneId.systemDefault(),
+        )
+    }
+}
+
 data class PluginConfig(
     val language: String,
     val perPlayerLanguage: Boolean,
@@ -62,6 +88,7 @@ data class PluginConfig(
     val web: WebConfig = WebConfig(),
     /** `dev.editor-bundles` (environment.yml): module id → the file its editor view is read from. */
     val devEditorBundles: Map<String, String> = emptyMap(),
+    val stats: StatsConfig = StatsConfig(),
 ) {
     companion object {
         fun from(cfg: FileConfiguration, environment: FileConfiguration = cfg): PluginConfig {
@@ -104,6 +131,7 @@ data class PluginConfig(
                         .associateWith { EnvironmentFile.string(section, it, "").trim() }
                         .filterValues { it.isNotEmpty() }
                 }.orEmpty(),
+                stats = StatsConfig.from(cfg),
             )
         }
     }

@@ -24,7 +24,7 @@ class ArtisanCommand(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> listOf("menu", "reload", "sync", "editor", "dump-title")
+            args.size == 1 -> listOf("menu", "reload", "sync", "editor", "stats", "dump-title")
                 .filter { it.startsWith(args[0].lowercase()) && PERMISSIONS[it]?.let(sender::hasPermission) != false }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
@@ -32,6 +32,10 @@ class ArtisanCommand(
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
             args.size == 2 && args[0].equals("sync", ignoreCase = true) ->
                 listOf("status", "reject").filter { it.startsWith(args[1].lowercase()) }
+            args.size == 2 && args[0].equals("stats", ignoreCase = true) ->
+                listOf("forget").filter { it.startsWith(args[1].lowercase()) }
+            args.size == 3 && args[0].equals("stats", ignoreCase = true) && args[1].equals("forget", ignoreCase = true) ->
+                plugin.server.onlinePlayers.map { it.name }.filter { it.startsWith(args[2], ignoreCase = true) }
             args.size == 2 && args[0].equals("editor", ignoreCase = true) ->
                 listOf("logout", "sessions", "revoke").filter { it.startsWith(args[1].lowercase()) }
             args.size == 3 && args[0].equals("editor", ignoreCase = true) && args[1].equals("logout", ignoreCase = true) && sender.hasPermission("artisan.admin") ->
@@ -83,6 +87,11 @@ class ArtisanCommand(
                 "revoke" -> args.getOrNull(2)?.let { revoke(sender, it) } ?: Chat.send(sender, lang.get("artisan.usage_editor", sender))
                 else -> Chat.send(sender, lang.get("artisan.usage_editor", sender))
             }
+            "stats" -> {
+                val who = args.getOrNull(2)?.takeIf { args[1].equals("forget", ignoreCase = true) }
+                    ?: run { Chat.send(sender, lang.get("artisan.usage_stats", sender)); return true }
+                forgetStats(sender, who)
+            }
             "dump-title" -> {
                 val menuId = args.getOrNull(1) ?: run {
                     sender.sendMessage("Usage: /artisan dump-title <menu_id> [lang]")
@@ -93,6 +102,26 @@ class ArtisanCommand(
             else -> Chat.send(sender, lang.get("artisan.usage_main", sender))
         }
         return true
+    }
+
+    /**
+     * `/artisan stats forget <player>` (ADR `stats-foundation` ⑨): erases the statistics of an
+     * online player, a UUID, or the last player `artisan_players` saw under that name. The
+     * database work runs off the game threads; the answer comes back on the global one.
+     */
+    private fun forgetStats(sender: CommandSender, who: String) {
+        val known = plugin.server.getPlayerExact(who)?.uniqueId ?: runCatching { java.util.UUID.fromString(who) }.getOrNull()
+        plugin.scheduler.async {
+            val id = known ?: runCatching { plugin.suite.playerRows()?.findByName(who) }.getOrNull()
+            val message = if (id == null) lang.get("artisan.editor_unknown_player", sender, "player" to who) else {
+                val rows = runCatching { plugin.stats.forget(id) }
+                when {
+                    rows.isFailure -> lang.get("artisan.stats_forget_failed", sender, "player" to who)
+                    else -> lang.get("artisan.stats_forgotten", sender, "player" to who, "count" to (rows.getOrNull() ?: 0).toString())
+                }
+            }
+            plugin.scheduler.global { Chat.send(sender, message) }
+        }
     }
 
     /**
@@ -362,6 +391,7 @@ class ArtisanCommand(
             "menu" to "artisan.menu",
             "reload" to "artisan.admin",
             "sync" to "artisan.admin",
+            "stats" to "artisan.stats.forget",
             "dump-title" to "artisan.admin",
         )
     }

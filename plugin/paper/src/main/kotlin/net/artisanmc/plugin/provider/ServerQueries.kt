@@ -41,6 +41,8 @@ class ServerQueries(
     private val serverConfig: ServerConfigAccess?,
     private val editorBundles: (String) -> EditorBundleDeclaration? = { null },
     private val moduleBrands: (String) -> net.artisanmc.modules.api.editor.ModuleBrandDeclaration? = { null },
+    /** A module's figure computed on demand (`StatsApi.declareQuery`); null: statistics not wired. */
+    private val statQuery: ((id: String, params: Map<String, String>) -> net.artisanmc.plugin.stats.StatQueries.Answer?)? = null,
 ) {
     private val mapper = ObjectMapper()
 
@@ -49,6 +51,24 @@ class ServerQueries(
         val reply = replies.to(request, "online_players_result")
         onGlobal(reply, "online players listing") {
             reply.ok("players" to Bukkit.getOnlinePlayers().map { it.name }.sortedBy { it.lowercase() })
+        }
+    }
+
+    /** A module's own code reading its tables: off the game threads, its failure the reply's. */
+    fun statsQuery(request: net.artisanmc.plugin.protocol.EditorRequest.StatsQueryFetch) {
+        val reply = replies.to(request, "stats_query_result")
+        val run = statQuery ?: return reply.error("stats_disabled")
+        try {
+            scheduler.async {
+                try {
+                    val answer = run(request.id, request.params) ?: return@async reply.error("unknown_query")
+                    reply.ok("rows" to answer.rows, "computed_at" to answer.computedAt)
+                } catch (e: Throwable) {
+                    reply.failure("query_failed", "stat query ${request.id}", e)
+                }
+            }
+        } catch (e: Throwable) {
+            reply.failure("query_failed", "stat query scheduling", e)
         }
     }
 

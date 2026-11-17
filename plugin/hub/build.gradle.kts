@@ -8,6 +8,7 @@ val jetty = "12.1.12"
 
 dependencies {
     implementation(project(":artisan-core"))
+    implementation(project(":artisan-stats"))
     implementation(project(":artisan-tunnel"))
     // The resource pack builder (PackBuilder), byte for byte the editor's.
     implementation(project(":artisan-pack"))
