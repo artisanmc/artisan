@@ -39,6 +39,10 @@ name). The address keeps both, so a link reopens the same view.
     last. "40 % left right after opening the jobs menu" points to where to look; it proves
     nothing.
 
+  A goal can be a quest event, a command run (`core:command`, filter `command=rtp`), a menu
+  opened (`core:menu_open`, filter `menu=jobs:main`), a session or one of your own
+  `custom:` events. Clicks inside a menu are only counted, they cannot be a goal.
+
   Journeys read the events kept row by row, 90 days by default (`stats.retention.raw-days`): a
   period reaching further back shows its last 92 days.
 
@@ -51,9 +55,9 @@ Statistics are read from the database: they stay available while the server is o
 | `core:session` | A player leaves: one row per visit, with its length in seconds. | — |
 | `core:first_join` | A player joins for the first time. | — |
 | `core:players_online` | Every minute: the number of players online. | — |
-| `core:command` | A command made in Artisan is run. | `command`, `result` (`ok`, `permission`, `cooldown`, `condition`) |
-| `core:menu_open` | A menu is opened. Menus opened from the editor's preview are not counted. | `menu` |
-| `core:menu_click` | An element of a menu is clicked. | `menu`, `element` |
+| `core:command` | A command made in Artisan is run: counted, and one row per run. | `command`, `result` (`ok`, `permission`, `cooldown`, `condition`) |
+| `core:menu_open` | A menu is opened: counted, and one row per opening. Menus opened from the editor's preview are not counted. | `menu` |
+| `core:menu_click` | An element of a menu is clicked: counted only. | `menu`, `element` |
 
 Add-ons record their own events (`<module>:<name>`).
 
