@@ -1,0 +1,1 @@
+- **Fixed**: Statistics, Journeys: the list of events to pick a goal from also offers the events the server declares before anything was recorded for them, instead of staying empty on a server that just started collecting.
