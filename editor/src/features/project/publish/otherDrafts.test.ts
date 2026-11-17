@@ -59,7 +59,8 @@ describe("other Projects' drafts", () => {
     ]);
     api.listServerProjects.mockResolvedValue({
       ok: true,
-      projectIds: ["s1.shop", "s1.guilds"],
+      // Folder names, as the hub lists them.
+      projectIds: ["shop", "guilds"],
       projects: [
         { id: "s1.shop", name: "shop", hash: "", serverKeyId: "s1" },
         { id: "s1.guilds", name: "guilds", hash: "", serverKeyId: "s1" },
