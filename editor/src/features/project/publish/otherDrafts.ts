@@ -80,13 +80,16 @@ export async function loadOtherDrafts(skipDraftId: string | undefined): Promise<
     const listed = await listServerProjects(server.id);
     if (!listed.ok) return;
     const names = new Map((listed.projects ?? []).map((p) => [p.id, p.name]));
-    for (const id of listed.projectIds)
+    // `projectIds` are folder names: the drafts routes take the Project id, `<server>.<folder>`.
+    for (const folder of listed.projectIds) {
+      const id = folder.startsWith(`${server.id}.`) ? folder : `${server.id}.${folder}`;
       projects.push({
         id,
-        name: names.get(id) ?? id,
+        name: names.get(id) ?? folder,
         serverId: server.id,
         serverLabel: server.label,
       });
+    }
   });
   const local = useProjectDraftStore.getState().drafts;
   const found: OtherDraft[] = [];

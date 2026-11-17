@@ -80,7 +80,9 @@ export function AssistantDock({
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on each new line.
   useEffect(() => {
-    end.current?.scrollIntoView?.({ block: "end" });
+    // The log alone scrolls: `scrollIntoView` would also scroll the page around it, leaving it cut.
+    const log = end.current?.parentElement;
+    if (log) log.scrollTop = log.scrollHeight;
   }, [events.length, running, open, live?.text?.length, live?.tools?.length]);
 
   if (!status?.enabled || !status.canUse) return null;
