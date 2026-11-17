@@ -1676,6 +1676,8 @@ const fr: typeof en = {
     settings: "Paramètres",
     myModules: "Mes modules",
     loadingProjects: "Lecture en cours…",
+    loadingDocuments: "Lecture des documents…",
+    documentsUnavailable: "Documents indisponibles",
     projectsUnavailable: "Serveur injoignable",
     installedModules: "Modules installés",
     configuration: "Configuration",

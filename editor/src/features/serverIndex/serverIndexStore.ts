@@ -10,6 +10,12 @@ interface ServerIndexState {
   failed: string[];
   /** The raw reads behind `projects`, for the open-cache (`seedProjectCache`). */
   reads: NonNullable<ServerProjectsResult["reads"]>;
+  /**
+   * A folder of the sidebar was unfolded while nothing read the index (a server
+   * page reads it only for its search): the sidebar's own loader reads it then.
+   */
+  requested: boolean;
+  request: () => void;
   begin: (scope: string) => void;
   finish: (scope: string, result: ServerProjectsResult) => void;
   reset: () => void;
@@ -27,6 +33,10 @@ export const useServerIndexStore = create<ServerIndexState>((set, get) => ({
   projects: [],
   failed: [],
   reads: [],
+  requested: false,
+  request: () => {
+    if (!get().requested) set({ requested: true });
+  },
   // Another server must never show the previous one's projects.
   begin: (scope) =>
     set(
@@ -43,5 +53,6 @@ export const useServerIndexStore = create<ServerIndexState>((set, get) => ({
       reads: result.reads ?? [],
     });
   },
-  reset: () => set({ scope: null, status: "idle", projects: [], failed: [], reads: [] }),
+  reset: () =>
+    set({ scope: null, status: "idle", projects: [], failed: [], reads: [], requested: false }),
 }));

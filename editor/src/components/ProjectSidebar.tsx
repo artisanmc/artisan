@@ -5,6 +5,7 @@ import {
   useModuleBrand,
 } from "@/components/ArtisanWordmark";
 import { IconTile } from "@/components/ui/icon-tile";
+import { Spinner } from "@/components/ui/spinner";
 import { projectNamespace } from "@/domain/docRef";
 import { listedDataSources } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
@@ -16,6 +17,7 @@ import {
 import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
+import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { projectDestination, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
 import {
@@ -99,6 +101,7 @@ export function ProjectSidebar() {
   useEffect(() => {
     useServersStore.getState().setServers(allServerEntries);
   }, [allServerEntries]);
+  const indexRequested = useServerIndexStore((s) => s.requested);
   const [refetchToken, setRefetchToken] = useState(0);
   useEffect(() => {
     const reread = () => setRefetchToken((token) => token + 1);
@@ -130,6 +133,9 @@ export function ProjectSidebar() {
         (e) => e.serverId === rawServerParam || e.serverSlug === rawServerParam,
       )?.serverId ?? rawServerParam)
     : null;
+
+  // A folder unfolded where no page reads the index (a server page, settings): read it here.
+  useServerIndexLoader(activeServerId ?? undefined, indexRequested);
 
   // URL-facing form: links carry slugs, everything else stays id-based.
   const srvParam = urlServerId(allServerEntries, activeServerId);
@@ -606,9 +612,16 @@ function ProjectItem({
   const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
   const indexed = useIndexedProject(urlId, id);
   // A module's screens and commands fold with it: shown once the row is open, or when one of them is.
-  const hasChildren = children != null && children !== false;
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const canExpand = !isActiveProject && (!!indexed || hasChildren);
+  // Every listed folder unfolds, whether or not the index has read it yet: a chevron
+  // waiting for the slowest folder of the server read as "this module is empty".
+  const toggle = () => {
+    // Nothing reads the index on this page (a server page reads it for its search only): ask for it.
+    if (!expanded && !indexed && useServerIndexStore.getState().status === "idle") {
+      useServerIndexStore.getState().request();
+    }
+    setExpanded((v) => !v);
+  };
   const [collapsed, setCollapsed] = useState(false);
   const open = isActiveProject ? !collapsed : expanded;
 
@@ -633,9 +646,7 @@ function ProjectItem({
             onToggle={() => setCollapsed((v) => !v)}
           />
         ) : (
-          canExpand && (
-            <ExpandToggle name={name} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
-          )
+          <ExpandToggle name={name} expanded={expanded} onToggle={toggle} />
         )}
         <ProjectLink
           projectId={urlId ?? id}
@@ -662,12 +673,38 @@ function ProjectItem({
       {isActiveProject && !collapsed && (
         <ActiveProjectDocuments id={id} urlId={urlId} serverId={serverId} />
       )}
-      {canExpand && expanded && indexed && (
-        <OtherProjectDocuments project={indexed} serverId={serverId} />
-      )}
+      {!isActiveProject &&
+        expanded &&
+        (indexed ? (
+          <OtherProjectDocuments project={indexed} serverId={serverId} />
+        ) : (
+          <IndexPending />
+        ))}
       {/* Inside the open project's block, aligned with its Documents. */}
       {open && children && (isActiveProject ? <div className="px-1.5">{children}</div> : children)}
     </li>
+  );
+}
+
+/**
+ * An unfolded folder the index has not read: being read, or unreadable. A folder
+ * read without Documents has its (empty) tree instead.
+ */
+function IndexPending() {
+  const { t } = useTranslation();
+  // A finished read without this folder: unreadable, or listed since (the next read has it).
+  const done = useServerIndexStore((s) => s.status === "unavailable" || s.status === "ready");
+  return (
+    <div className="ml-3 flex items-center gap-2 border-l border-[var(--border)] py-1 pl-3 text-[11.5px] text-[var(--text-faint)]">
+      {done ? (
+        t("sidebar.documentsUnavailable")
+      ) : (
+        <>
+          <Spinner className="size-3" />
+          {t("sidebar.loadingDocuments")}
+        </>
+      )}
+    </div>
   );
 }
 
