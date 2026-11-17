@@ -11,6 +11,7 @@ import net.artisanmc.plugin.stats.JourneyResult
 import net.artisanmc.plugin.stats.Journeys
 import net.artisanmc.plugin.stats.RetentionPoint
 import net.artisanmc.plugin.stats.SeriesQuery
+import net.artisanmc.plugin.stats.CatalogEntry
 import net.artisanmc.plugin.stats.StatsReader
 import java.time.Instant
 import java.time.ZoneId
@@ -72,7 +73,12 @@ class StatsRoutes(private val servers: Servers, private val stats: StatsAccess, 
         }
         on(router, "catalog") { call, reader, row, server ->
             val declared = stats.declared(server.id).associateBy { it.name }
-            call.json(mapOf("events" to reader.catalog(row).map { entry ->
+            // A declared event nothing recorded yet is listed too, as its declaration stores it: a
+            // journey is composed before its goals ever happened.
+            val stored = reader.catalog(row)
+            val unseen = (declared.keys - stored.map { it.event }.toSet())
+                .map { CatalogEntry(it, declared.getValue(it).storage.bucketed(), declared.getValue(it).storage.raw()) }
+            call.json(mapOf("events" to (stored + unseen).sortedBy { it.event }.map { entry ->
                 val shape = declared[entry.event]
                 buildMap<String, Any?> {
                     put("event", entry.event)
@@ -237,6 +243,7 @@ class StatsRoutes(private val servers: Servers, private val stats: StatsAccess, 
         "arrivals" to r.arrivals,
         "steps" to r.steps.map { mapOf("name" to it.name, "players" to it.players, "median_seconds" to it.medianSeconds) },
         "retention" to retentionJson(r.retention),
+        "retention_curve" to retentionJson(r.curve),
         "cohorts" to r.cohorts.map { mapOf("week_start" to it.weekStart, "arrivals" to it.arrivals, "reached" to it.reached, "retention" to retentionJson(it.retention)) },
         "leavers" to r.leavers,
         "away_days" to Journeys.AWAY_DAYS,

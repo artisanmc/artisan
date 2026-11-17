@@ -2,6 +2,7 @@ package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.JsonNode
 import net.artisanmc.modules.api.stats.StatEvent
+import net.artisanmc.modules.api.stats.StatStorage
 import net.artisanmc.plugin.stats.BreakdownQuery
 import net.artisanmc.plugin.stats.BreakdownRow
 import net.artisanmc.plugin.stats.CatalogEntry
@@ -61,7 +62,12 @@ class StatsRoutesTest {
         reader = { store },
         rowOf = { if (it == "hub-1") 7 else null },
         enabled = { enabled },
-        declared = { listOf(StatEvent.builder("core:menu_open").dimensions("menu").build()) },
+        declared = {
+            listOf(
+                StatEvent.builder("core:menu_open").dimensions("menu").build(),
+                StatEvent.builder("core:first_join").storage(StatStorage.BOTH).build(),
+            )
+        },
         zone = { ZoneId.of("UTC") },
         journeys = {
             object : StatsJourneyStore {
@@ -184,14 +190,17 @@ class StatsRoutesTest {
     }
 
     @Test
-    fun `the catalog lists stored events with the shape their server declared`() {
+    fun `the catalog lists stored and declared events with the shape their server declared`() {
         hub.start()
         val events = json(get("catalog", login(setOf(EditorPermissions.STATS)))).path("events")
-        assertEquals(listOf("core:menu_open", "quests:old"), events.map { it.path("event").asText() })
-        assertEquals(listOf("menu"), events[0].path("dimensions").map { it.asText() })
-        assertEquals("counter", events[0].path("kind").asText())
-        assertEquals(true, events[1].path("raw").asBoolean())
-        assertEquals(true, events[1].path("kind").isMissingNode)
+        assertEquals(listOf("core:first_join", "core:menu_open", "quests:old"), events.map { it.path("event").asText() })
+        // Declared, never recorded: listed as its declaration stores it.
+        assertEquals(true, events[0].path("raw").asBoolean())
+        assertEquals(true, events[0].path("bucketed").asBoolean())
+        assertEquals(listOf("menu"), events[1].path("dimensions").map { it.asText() })
+        assertEquals("counter", events[1].path("kind").asText())
+        assertEquals(true, events[2].path("raw").asBoolean())
+        assertEquals(true, events[2].path("kind").isMissingNode)
     }
 
     @Test

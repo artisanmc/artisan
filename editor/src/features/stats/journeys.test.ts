@@ -6,6 +6,7 @@ import {
   journeyPeriod,
   journeyProblems,
   parseFilter,
+  retentionCurve,
   retentionShare,
 } from "./journeys";
 
@@ -39,6 +40,21 @@ describe("journeys", () => {
     expect(
       journeyProblems({ id: "a", name: "A", windowDays: 7, goals: Array(9).fill(goal) }),
     ).toEqual(["tooManyGoals"]);
+  });
+
+  it("draws the retention curve from day 0 over the days that can be told", () => {
+    expect(
+      retentionCurve([
+        { day: 1, eligible: 40, returned: 10 },
+        { day: 2, eligible: 20, returned: 2 },
+        { day: 3, eligible: 0, returned: 0 },
+      ]),
+    ).toEqual([
+      { day: 0, share: 1 },
+      { day: 1, share: 0.25 },
+      { day: 2, share: 0.1 },
+    ]);
+    expect(retentionCurve([{ day: 1, eligible: 0, returned: 0 }])).toEqual([]);
   });
 
   it("gives a retention share only when someone is old enough to tell", () => {

@@ -69,6 +69,20 @@ export function retentionShare(point: StatsRetentionPoint | undefined): number |
   return point && point.eligible > 0 ? point.returned / point.eligible : null;
 }
 
+/**
+ * The retention curve to draw: day 0 (everyone was there), then each day some arrival is old
+ * enough for, in order. Empty when no day can be told yet.
+ */
+export function retentionCurve(
+  points: readonly StatsRetentionPoint[],
+): { day: number; share: number }[] {
+  const told = points
+    .filter((p) => p.eligible > 0)
+    .map((p) => ({ day: p.day, share: p.returned / p.eligible }))
+    .sort((a, b) => a.day - b.day);
+  return told.length === 0 ? [] : [{ day: 0, share: 1 }, ...told];
+}
+
 /** An event and its dimensions on one line: `core:menu_open · jobs:main`. */
 export function actionLabel(event: string, dims: Record<string, string>): string {
   const values = Object.values(dims).filter((v) => v !== "");

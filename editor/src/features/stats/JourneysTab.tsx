@@ -5,6 +5,7 @@ import { Funnel } from "@/components/ui/funnel";
 import { Input } from "@/components/ui/input";
 import { type SortableColumn, SortableTable } from "@/components/ui/sortable-table";
 import { StatCard } from "@/components/ui/stat-card";
+import { TimeChart } from "@/components/ui/time-chart";
 import {
   type StatsCatalogEntry,
   type StatsJourney,
@@ -28,6 +29,7 @@ import {
   journeyPeriod,
   journeyProblems,
   parseFilter,
+  retentionCurve,
   retentionShare,
 } from "./journeys";
 import { Panel, PanelEmpty, PanelLoading } from "./parts";
@@ -371,6 +373,7 @@ function JourneyResults({
     seconds >= 2 * 86_400
       ? t("stats.journeys.days", { count: Math.round(seconds / 86_400) })
       : formatDuration(seconds);
+  const curve = retentionCurve(data.retentionCurve);
   const retained = (points: Cohort["retention"], day: number) =>
     retentionShare(points.find((p) => p.day === day));
 
@@ -446,6 +449,27 @@ function JourneyResults({
         <PanelEmpty>{t("stats.journeys.nobody")}</PanelEmpty>
       ) : (
         <>
+          <Panel title={t("stats.journeys.curve")} hint={t("stats.journeys.curveHint")}>
+            {curve.length > 0 ? (
+              <TimeChart
+                label={t("stats.journeys.curve")}
+                formatY={share}
+                series={[
+                  {
+                    id: "retention",
+                    label: t("stats.journeys.curveSeries"),
+                    color: "var(--chart-1)",
+                    points: curve.map((p) => ({
+                      label: t("stats.journeys.dayN", { day: p.day }),
+                      y: p.share,
+                    })),
+                  },
+                ]}
+              />
+            ) : (
+              <PanelEmpty>{t("stats.journeys.curveTooEarly")}</PanelEmpty>
+            )}
+          </Panel>
           {data.steps.length > 0 && (
             <Panel
               title={journey?.name ?? t("stats.journeys.funnel")}

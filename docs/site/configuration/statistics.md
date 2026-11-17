@@ -27,7 +27,8 @@ name). The address keeps both, so a link reopens the same view.
   An element is named by its id: renaming it starts its count over.
 
 - **Journeys**: what becomes of new players. Without any setup, the share of the players who
-  arrived over the period and came back the next day, 7 days later and 30 days later. Then
+  arrived over the period and came back the next day, 7 days later and 30 days later, and a
+  **retention curve**: that share for each day up to the 30th. Then
   compose a **journey**: goals in order, each an event and, if needed, a filter
   (`quest=intro`), for example first quest done, first purchase, a rank reached. You get:
   - the **funnel**: how many new players reach each goal, and in how long (median). A goal
