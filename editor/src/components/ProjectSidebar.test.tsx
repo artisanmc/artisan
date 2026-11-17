@@ -172,6 +172,17 @@ describe("ProjectSidebar", () => {
       expect(toggle).toHaveAttribute("aria-expanded", "true");
     });
 
+    it("offers the chevron before the index is read, and asks for it on unfold", async () => {
+      mockParams.current = { serverId: "sk_1" };
+      render(<ProjectSidebar />);
+      const toggle = await screen.findByRole("button", { name: /pack_b/, expanded: false });
+      expect(useServerIndexStore.getState().requested).toBe(false);
+      fireEvent.click(toggle);
+      expect(useServerIndexStore.getState().requested).toBe(true);
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByText("Lecture des documents…")).toBeInTheDocument();
+    });
+
     it("shows the open project even when it is not listed (demo, no server)", async () => {
       mockParams.current = { projectId: "pack_a" };
       render(<ProjectSidebar />);

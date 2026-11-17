@@ -1646,6 +1646,8 @@ export default {
     settings: "Settings",
     myModules: "My modules",
     loadingProjects: "Reading…",
+    loadingDocuments: "Reading the documents…",
+    documentsUnavailable: "Documents unavailable",
     projectsUnavailable: "Server unreachable",
     installedModules: "Installed modules",
     configuration: "Configuration",
