@@ -1,4 +1,5 @@
 import type { I18nKey, Project } from "@/domain/types";
+import { produce } from "immer";
 import { describe, expect, it } from "vitest";
 import {
   buildTranslationRows,
@@ -8,6 +9,7 @@ import {
   findUnusedI18nKeys,
   isLanguageNeutral,
   isTranslationMissing,
+  translationRowsBuilder,
   validActiveLang,
 } from "./i18nUsages";
 
@@ -378,6 +380,46 @@ describe("findUnusedI18nKeys — keys read outside the documents", () => {
       { id: "rewards", shape: "table", modelId: "unknown_yet", rows: [{ id: "vip" }] },
     ] as unknown as Project["dataSources"];
     expect(findUnusedI18nKeys(p)).toEqual([k("sources.removed.vip.name")]);
+  });
+});
+
+describe("translationRowsBuilder", () => {
+  const base = () => {
+    const p = project({
+      i18nKeys: {
+        [k("menus.gone.title")]: { en: "Shared title" },
+        [k("lt_alone")]: { en: "Orphan", fr: "" },
+        [k("artisan.other")]: { en: "Other" },
+      } as Project["i18nKeys"],
+    });
+    p.dataSources = [
+      { id: "rewards", shape: "object", fields: [], value: { action: "send @lt_alone" } },
+    ] as unknown as Project["dataSources"];
+    return p;
+  };
+
+  it("gives the same rows as buildTranslationRows, edit after edit", () => {
+    const build = translationRowsBuilder();
+    let p = base();
+    expect(build(p, "fr")).toEqual(buildTranslationRows(p, "fr"));
+    // A translation typed: only `i18nKeys` changes, the walk is reused.
+    p = produce(p, (d) => {
+      d.i18nKeys[k("lt_alone")]!.fr = "Orphelin";
+      d.updatedAt = "2026-02-01T00:00:00Z";
+    });
+    expect(build(p, "fr")).toEqual(buildTranslationRows(p, "fr"));
+    // A text now points to a key: no longer unused, though the tree did not move.
+    p = produce(p, (d) => {
+      d.i18nKeys[k("artisan.other")]!.en = "see {i18n:menus.gone.title}";
+    });
+    expect(build(p, "fr")).toEqual(buildTranslationRows(p, "fr"));
+    expect(build(p, "fr").find((r) => r.key === "menus.gone.title")?.context).toBe("(lang/ only)");
+    // The tree changes: the data source no longer references lt_alone.
+    p = produce(p, (d) => {
+      d.dataSources = [];
+    });
+    expect(build(p, "fr")).toEqual(buildTranslationRows(p, "fr"));
+    expect(build(p, "fr").find((r) => r.key === "lt_alone")?.context).toBe("(unused)");
   });
 });
 

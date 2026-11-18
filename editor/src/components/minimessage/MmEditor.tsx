@@ -52,6 +52,8 @@ export interface MmEditorProps {
   toolbar?: "always" | "focus";
   /** Called when the editor, toolbar included, takes the focus. */
   onFocus?: () => void;
+  /** Take the focus once mounted, the caret at the end: a field opened from a read-only facade. */
+  autoFocus?: boolean;
   "aria-label"?: string;
   className?: string;
 }
@@ -79,6 +81,7 @@ export function MmEditor({
   simulation,
   toolbar = "always",
   onFocus,
+  autoFocus = false,
   "aria-label": ariaLabel,
   className,
 }: MmEditorProps) {
@@ -317,6 +320,10 @@ export function MmEditor({
           }}
           onCreateEditor={(view) => {
             viewRef.current = view;
+            if (autoFocus) {
+              view.dispatch({ selection: { anchor: view.state.doc.length } });
+              view.focus();
+            }
           }}
           onUpdate={(update) => {
             if (update.focusChanged && update.view.hasFocus) focused.current = true;

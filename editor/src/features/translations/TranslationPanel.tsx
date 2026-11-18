@@ -8,10 +8,10 @@ import { ApiError } from "@/lib/api/client";
 import { copyText } from "@/lib/clipboard";
 import {
   type TranslationRow,
-  buildTranslationRows,
   countMissingPerLang,
   isTranslationMissing,
   listLanguages,
+  translationRowsBuilder,
 } from "@/lib/i18nUsages";
 import { flattenLangTree } from "@/lib/langTree";
 import { profileForTextKey } from "@/lib/mm/profiles";
@@ -27,7 +27,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { parse as parseYaml } from "yaml";
@@ -88,9 +88,11 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
   const removeUnusedI18nKeys = useProjectsStore((s) => s.removeUnusedI18nKeys);
   const { t } = useTranslation();
 
+  // Rebuilt on every edit; the walk of the documents only when they changed.
+  const [buildRows] = useState(translationRowsBuilder);
   const rows = useMemo(
-    () => (project ? buildTranslationRows(project, activeLang) : []),
-    [project, activeLang],
+    () => (project ? buildRows(project, activeLang) : []),
+    [buildRows, project, activeLang],
   );
   const langs = useMemo(() => (project ? listLanguages(project) : []), [project]);
   // Per-language missing counts power both the in-panel tabs and the
@@ -407,6 +409,8 @@ function matchesFilter(
   return filter === "missing" ? !isTranslated : isTranslated;
 }
 
+const NO_KEYS: ReadonlySet<I18nKey> = new Set();
+
 function VisualBody({
   activeLang,
   defaultLang,
@@ -421,33 +425,41 @@ function VisualBody({
   onChange: (key: I18nKey, value: string) => void;
 }) {
   const { t } = useTranslation();
-  // Snapshot of which keys are rendered. Recomputed only on filter /
-  // language change — never on row.target keystrokes — otherwise typing
-  // into a "missing" entry would immediately filter the row out and
-  // steal focus mid-edit. The badge / border still update live because
-  // each row reads its own row data on every render.
-  const [visibleKeys, setVisibleKeys] = useState<I18nKey[]>(() =>
-    allRows.filter((r) => matchesFilter(r, filter, activeLang, defaultLang)).map((r) => r.key),
+  // A row edited under the current filter stays listed even once it no longer
+  // matches: typing into a "missing" entry must not filter it out and steal the
+  // focus mid-edit. Everything else follows the live rows, so keys that arrive
+  // after the panel opened (a project still loading, another project) show up.
+  const scope = `${filter}::${activeLang}::${defaultLang}`;
+  const [pinned, setPinned] = useState<{ scope: string; keys: ReadonlySet<I18nKey> }>({
+    scope,
+    keys: NO_KEYS,
+  });
+  const pinnedKeys = pinned.scope === scope ? pinned.keys : NO_KEYS;
+  const rows = useMemo(
+    () =>
+      allRows.filter(
+        (r) => pinnedKeys.has(r.key) || matchesFilter(r, filter, activeLang, defaultLang),
+      ),
+    [allRows, pinnedKeys, filter, activeLang, defaultLang],
   );
-  // Track filter+lang together so we re-snapshot when either changes
-  // but stay stable while the user types.
-  const lastSnapKey = useRef(`${filter}::${activeLang}::${defaultLang}`);
-  // Snapshot semantics intentionally exclude the live row array from deps.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: snapshot is intentional, see comment
-  useEffect(() => {
-    const next = `${filter}::${activeLang}::${defaultLang}`;
-    if (lastSnapKey.current === next) return;
-    lastSnapKey.current = next;
-    setVisibleKeys(
-      allRows.filter((r) => matchesFilter(r, filter, activeLang, defaultLang)).map((r) => r.key),
-    );
-  }, [filter, activeLang, defaultLang]);
 
-  // Map keys to live rows. If a key disappears from `allRows` (rare —
-  // only on key deletion), drop it from the visible list silently.
-  const rows = visibleKeys
-    .map((k) => allRows.find((r) => r.key === k))
-    .filter((r): r is TranslationRow => r !== undefined);
+  // One live editor at a time: a CodeMirror per row made a module of a few
+  // hundred keys take seconds to open and every keystroke re-render them all.
+  const [editing, setEditing] = useState<I18nKey | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const onRowChange = useCallback(
+    (key: I18nKey, value: string) => {
+      setPinned((prev) => {
+        const keys = prev.scope === scope ? prev.keys : NO_KEYS;
+        return keys.has(key) && prev.scope === scope
+          ? prev
+          : { scope, keys: new Set([...keys, key]) };
+      });
+      onChangeRef.current(key, value);
+    },
+    [scope],
+  );
 
   if (rows.length === 0) {
     return (
@@ -465,7 +477,9 @@ function VisualBody({
             row={row}
             defaultLang={defaultLang}
             activeLang={activeLang}
-            onChange={(value) => onChange(row.key, value)}
+            editing={editing === row.key}
+            onEdit={setEditing}
+            onChange={onRowChange}
           />
         ))}
       </ul>
@@ -473,25 +487,52 @@ function VisualBody({
   );
 }
 
-function VisualRow({
-  row,
-  defaultLang,
-  activeLang,
-  onChange,
-}: {
+interface VisualRowProps {
   row: TranslationRow;
   defaultLang: string;
   activeLang: string;
-  onChange: (value: string) => void;
-}) {
+  /** Whether this row holds the panel's one live editor; the others show their text. */
+  editing: boolean;
+  onEdit: (key: I18nKey) => void;
+  onChange: (key: I18nKey, value: string) => void;
+}
+
+/** The rows are rebuilt on every edit: a row re-renders only when its own text changed. */
+const VisualRow = memo(VisualRowView, (a, b) => {
+  const { row: ra, ...restA } = a;
+  const { row: rb, ...restB } = b;
+  return (
+    ra.key === rb.key &&
+    ra.context === rb.context &&
+    ra.source === rb.source &&
+    ra.target === rb.target &&
+    restA.defaultLang === restB.defaultLang &&
+    restA.activeLang === restB.activeLang &&
+    restA.editing === restB.editing &&
+    restA.onEdit === restB.onEdit &&
+    restA.onChange === restB.onChange
+  );
+});
+
+function VisualRowView({
+  row,
+  defaultLang,
+  activeLang,
+  editing,
+  onEdit,
+  onChange,
+}: VisualRowProps) {
   const { t } = useTranslation();
   const sameLang = defaultLang === activeLang;
   const isMissing = isTranslationMissing(defaultLang, activeLang, row.source, row.target);
   // Multi-line lores get a textarea; everything else stays single-line.
   const isMultiline = row.source.includes("\n") || row.target.includes("\n");
-
+  const profile = profileForTextKey(row.key, isMultiline);
+  const minHeight = isMultiline ? "64px" : "0";
   return (
     <li
+      // Rows out of view are neither laid out nor painted: a thousand keys open at once.
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 96px" }}
       className={
         isMissing
           ? "rounded-[10px] border border-[var(--warning-soft)] border-l-4 border-l-[var(--warning)] bg-[var(--warning-soft)]"
@@ -538,7 +579,10 @@ function VisualRow({
               type="button"
               data-testid="copy-default-value"
               title={t("translations.copyDefault", { lang: defaultLang })}
-              onClick={() => onChange(row.source)}
+              onClick={() => {
+                onEdit(row.key);
+                onChange(row.key, row.source);
+              }}
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
             >
               <ArrowDown className="h-3.5 w-3.5" />
@@ -554,15 +598,47 @@ function VisualRow({
           {activeLang}
         </span>
         <div className="min-w-0 flex-1">
-          <MmEditor
-            value={row.target}
-            onChange={onChange}
-            profile={profileForTextKey(row.key, isMultiline)}
-            placeholder={t("translations.translationPlaceholder")}
-            aria-label={t("translations.translationPlaceholder")}
-            toolbar="focus"
-            minHeight={isMultiline ? "64px" : "0"}
-          />
+          {editing ? (
+            <MmEditor
+              value={row.target}
+              onChange={(value) => onChange(row.key, value)}
+              profile={profile}
+              placeholder={t("translations.translationPlaceholder")}
+              aria-label={t("translations.translationPlaceholder")}
+              toolbar="focus"
+              minHeight={minHeight}
+              autoFocus
+            />
+          ) : (
+            // The field at rest, drawn as the rich editor draws it; a click or Tab
+            // opens the editor in its place.
+            <button
+              type="button"
+              data-mm-facade
+              onClick={() => onEdit(row.key)}
+              onFocus={() => onEdit(row.key)}
+              aria-label={t("translations.translationPlaceholder")}
+              className="block w-full overflow-hidden rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface-inset)] text-left hover:border-[var(--border-strong)]"
+            >
+              <span
+                className="block px-[10px] py-2 font-mono text-[13px] leading-[1.4]"
+                style={{
+                  background: "var(--mc-chat-bg)",
+                  color: profile.defaults.color,
+                  fontStyle: profile.defaults.italic ? "italic" : undefined,
+                  minHeight,
+                }}
+              >
+                {row.target ? (
+                  <MMLines text={row.target} className="" />
+                ) : (
+                  <span className="text-[var(--text-faint)]">
+                    {t("translations.translationPlaceholder")}
+                  </span>
+                )}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </li>
