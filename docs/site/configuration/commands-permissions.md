@@ -22,6 +22,10 @@ their own commands (see [Commands declared by projects](#commands-declared-by-pr
 | `/artisan editor sessions` | `artisan.editor.config` | Lists the open editor sessions of every server: player, server, last activity, rights, and whether the editor is open right now. Click a line to close that session. |
 | `/artisan editor revoke <id>` | `artisan.editor.config` | Closes one session, by the start of its id as `sessions` shows it (8 characters at least). Its open tabs go back to sign-in. |
 | `/artisan stats forget <player>` | `artisan.stats.forget` | Deletes every statistic recorded about that player, on every server of the database. Cannot be undone. See [Statistics](../statistics/). |
+| `artisan.admin.import` | `/artisan import`. | op |
+| `/artisan import list` | `artisan.admin.import` | Lists the data the installed modules can import from another plugin (for example Auctions from zAuctionHouse). |
+| `/artisan import <source> [file] [confirm]` | `artisan.admin.import` | Without `confirm`, a dry run: reads the other plugin's data and reports what would be imported and what would be left aside, writing nothing. With `confirm`, imports. Running it again skips what is already imported. A file is read from `plugins/Artisan/imports/`. |
+| `/artisan import rollback <batch> [confirm]` | `artisan.admin.import` | Undoes an import, keeping what players changed since (a listing bought, an item claimed). `/artisan import history` lists the batches. |
 | `/artisan dump-title <id> [lang]` | `artisan.admin` | Diagnostic: prints how a menu's title is assembled, step by step, to the chat and the server log. Use it when a title sits differently in game than in the editor preview. |
 
 `menu`, `reload`, `sync`, `stats` and `dump-title` are hidden from tab completion for whoever lacks their permission.

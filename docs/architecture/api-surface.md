@@ -496,6 +496,24 @@ stats.record("quests:completed", player.getUniqueId(), Map.of("group", "daily", 
 | `StatEvent.builder(name)` (`<namespace>:<name>`, `StatEvent.NAME`), `Builder.storage`, `kind`, `scope`, `dimensions(names...)` (`StatEvent.FIELD`, 6 at most), `value(name)`, `rawRetentionDays(days)`, `build()`; getters, `getNamespace()`, `equals` | `StatEvent` | 1.5.0 |
 | `StatStorage` (`BUCKETED`, `RAW`, `BOTH`; `bucketed()`, `raw()`), `StatKind` (`COUNTER`, `GAUGE`), `StatScope` (`PLAYER`, `SERVER`) | enums | 1.5.0 |
 
+### `net.artisanmc.modules.api.importing.ImportRegistry` and the import contract (`@Beta`)
+
+A module's importers of a competitor's data (ADR `data-imports`), run by `/artisan import`: a dry run (`plan`), the write on `confirm` (`apply`), and `rollback` of a batch. Artisan calls them off the game threads, one run at a time per module, refuses `apply` while a `conflicts` plugin is enabled, and logs each run with its report (`artisan_import_runs`). Idempotence is the module's: each record is written with its ledger row in one transaction.
+
+```java
+api.getImports().register(new ImporterDeclaration(
+    "auctions:zauctionhouse", "zAuctionHouse v4", List.of("zAuctionHouse"), false, importer));
+```
+
+| Member | Type | Since |
+|---|---|---|
+| `ArtisanAPI.getImports()` | `ImportRegistry` | 1.6.0 |
+| `ImportRegistry.register(declaration)` (from a module's `onEnable`, the id's namespace must be that module; a taken id: `IllegalStateException`), `unregister(id)`, `find(id)`, `registered()`; a module's sources leave with it | | 1.6.0 |
+| `ImporterDeclaration(id, label, conflicts, readsFile, importer)` (`id` is `<module>:<source>`, else `IllegalArgumentException`), `module()` | record | 1.6.0 |
+| `Importer.plan(request)`, `apply(request)`, `rollback(batch, dryRun)`: blocking, never write to the source; `apply` with blockers writes nothing | `ImportReport` | 1.6.0 |
+| `ImportRequest(batch, file, options, lang)` and its getters (`file` resolved inside `plugins/Artisan/imports/`, or null) | | 1.6.0 |
+| `ImportReport.builder(dryRun, batch)` (`count(kind, label, n)`, `alreadyImported(n)`, `reject(sourceId, code, message)`, `blocker(message)`, `note(message)`, `build()`), `isDryRun()` (true with a blocker), `getBatch()` (null when nothing was written), `getCounts()`, `getAlreadyImported()`, `getRejected()`, `getBlockers()`, `getNotes()`, `total()`; records `Count`, `Rejection` | | 1.6.0 |
+
 ### `net.artisanmc.modules.api.editor.EditorBundleRegistry` and the editor bundle contract (internal 2.3.0, `@Stable` since internal 2.18.0)
 
 A module may ship its **editor view** in its own jar (runtime module bundles, level 3; `modules.md` §4.6): one ES module script built against `@artisan/editor-sdk`, registered from `onEnable` and removed with the module. The bundle is reported at Presence on the module's `installed_modules` entry (`editor_bundle: {sdk, hash, size}`, protocol 1.2), served by the hub at `GET /api/v1/servers/:server/modules/:module/ui.js` and loaded by the editor against its SDK.

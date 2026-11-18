@@ -52,3 +52,6 @@ permissions:
   artisan.stats.forget:
     description: Erase a player's statistics with /artisan stats forget
     default: op
+  artisan.admin.import:
+    description: Import another plugin's data with /artisan import (dry run, confirm, rollback)
+    default: op

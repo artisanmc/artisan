@@ -31,6 +31,7 @@ import net.artisanmc.modules.api.schemas.SchemaRegistry;
 import net.artisanmc.modules.api.screen.EditorScreenRegistry;
 import net.artisanmc.modules.api.playercommand.PlayerCommandRegistry;
 import net.artisanmc.modules.api.template.TemplateRegistry;
+import net.artisanmc.modules.api.importing.ImportRegistry;
 import net.artisanmc.modules.api.network.NetworkApi;
 import net.artisanmc.modules.api.text.OverlayApi;
 import net.artisanmc.modules.api.text.TextApi;
@@ -78,6 +79,7 @@ public final class ArtisanAPI {
     private final EditorBundleRegistry editorBundles;
     private final ModuleBrandRegistry moduleBrands;
     private final TemplateRegistry templates;
+    private final ImportRegistry imports;
     private final PlayerCommandRegistry playerCommands;
     private final DatabaseApi database;
     private final MenuApi menus;
@@ -113,6 +115,7 @@ public final class ArtisanAPI {
         this.editorBundles = b.editorBundles;
         this.moduleBrands = b.moduleBrands;
         this.templates = b.templates;
+        this.imports = b.imports;
         this.playerCommands = b.playerCommands;
         this.database = b.database;
         this.menus = b.menus;
@@ -379,6 +382,17 @@ public final class ArtisanAPI {
         return stats;
     }
 
+    /**
+     * The sources the modules import a competitor's data from, run by {@code /artisan import}:
+     * dry run, write, rollback (ADR {@code data-imports}).
+     *
+     * @since 1.6.0
+     */
+    @Beta
+    public ImportRegistry getImports() {
+        return imports;
+    }
+
     /** Version of this API (the {@code Since} numbering of the published {@code artisan-core-api}). */
     @Stable
     public String getApiVersion() {
@@ -416,6 +430,7 @@ public final class ArtisanAPI {
         private EditorBundleRegistry editorBundles = new EditorBundleRegistry();
         private ModuleBrandRegistry moduleBrands = new ModuleBrandRegistry();
         private TemplateRegistry templates = new TemplateRegistry();
+        private ImportRegistry imports = new ImportRegistry();
         private PlayerCommandRegistry playerCommands = new PlayerCommandRegistry();
         private DatabaseApi database = DatabaseApi.NONE;
         private MenuApi menus = MenuApi.NOOP;
@@ -520,6 +535,11 @@ public final class ArtisanAPI {
 
         public Builder templates(TemplateRegistry templates) {
             this.templates = Objects.requireNonNull(templates);
+            return this;
+        }
+
+        public Builder imports(ImportRegistry imports) {
+            this.imports = Objects.requireNonNull(imports);
             return this;
         }
 

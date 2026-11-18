@@ -307,6 +307,10 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         }
     }
 
+    /** `artisan_import_runs` once the suite database is open (ADR `data-imports` §7). */
+    fun importRunRows(): net.artisanmc.plugin.database.ImportRunRows? =
+        artisanData?.let { net.artisanmc.plugin.database.ImportRunRows(it, database.tables) }
+
     /** `artisan_stats_*` once the suite database is open. */
     fun statsRows(): net.artisanmc.plugin.database.StatsRows? =
         artisanData?.let { net.artisanmc.plugin.database.StatsRows(it, database.tables) }
