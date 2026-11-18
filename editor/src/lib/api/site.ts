@@ -40,8 +40,11 @@ export interface SiteModule {
   page: string | null;
   /** The version the server runs, null when it does not run it. */
   installed: string | null;
-  /** `licence`: the account has not bought it. */
-  access: "ok" | "licence";
+  /**
+   * `licence`: the account has not bought it. `supporter`: development builds of a free module,
+   * for accounts with the site's Supporter plan (`page` is then the plan's page).
+   */
+  access: "ok" | "licence" | "supporter";
   latest: { version: string; changelog: string; size: number; published: string | null } | null;
   update: boolean;
   staged: StagedModule | null;

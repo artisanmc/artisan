@@ -151,6 +151,29 @@ describe("server updates tab", () => {
     expect(store.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 
+  it("sends to the Supporter plan for a development build kept for Supporters", async () => {
+    api.getSiteLink.mockResolvedValue(link({ linked: true, name: "survie" }));
+    api.listSiteModules.mockResolvedValue([
+      module({
+        id: "store",
+        name: "Store",
+        installed: "1.9.0",
+        update: true,
+        access: "supporter",
+        latest: { version: "2.0.0-dev.3", changelog: "", size: 10, published: null },
+        page: "https://artisanmc.net/supporter/",
+      }),
+    ]);
+    render(<ServerModulesTab serverId="srv" />);
+    const store = within(await screen.findByTestId("module-store"));
+    expect(store.getByText("Supporters only")).toBeInTheDocument();
+    expect(store.queryByRole("button", { name: /Update|Install/ })).toBeNull();
+    expect(store.getByRole("link", { name: "See the Supporter plan" })).toHaveAttribute(
+      "href",
+      "https://artisanmc.net/supporter/",
+    );
+  });
+
   it("offers nothing to install without the right to configure", async () => {
     api.getSiteLink.mockResolvedValue(link({ linked: true, name: "survie", canManage: false }));
     api.listSiteModules.mockResolvedValue([module()]);

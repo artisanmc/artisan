@@ -76,7 +76,9 @@ class SiteRoutes(private val servers: Servers, private val relay: Relay, private
                 site(call) {
                     val entry = account.updates(channel, emptyMap()).path("modules").firstOrNull { it.path("id").asText() == module }
                         ?: return@site call.error(404, "unknown_module")
-                    if (entry.path("access").asText() != "ok") return@site call.error(403, "licence_required")
+                    // `supporter`: a free module's development builds, kept for the site's Supporter plan.
+                    val access = entry.path("access").asText()
+                    if (access != "ok") return@site call.error(403, if (access == "supporter") "supporter_required" else "licence_required")
                     val latest = entry.path("latest").takeIf { it.isObject } ?: return@site call.error(404, "no_release")
                     val message = mapOf(
                         "type" to "module_install",

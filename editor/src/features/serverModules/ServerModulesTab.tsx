@@ -391,6 +391,9 @@ function ModuleRow({
             {module.access === "licence" && (
               <Badge variant="terra">{t("siteModules.row.licence")}</Badge>
             )}
+            {module.access === "supporter" && (
+              <Badge variant="terra">{t("siteModules.row.supporter")}</Badge>
+            )}
           </div>
           {tagline && <p className="text-[13px] text-[var(--text-mut)]">{tagline}</p>}
           <p className="text-[12px] text-[var(--text-faint)]">
@@ -410,7 +413,7 @@ function ModuleRow({
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {module.access === "licence"
+          {module.access !== "ok"
             ? module.page && (
                 <a
                   className="btn btn-ghost btn-sm"
@@ -418,7 +421,9 @@ function ModuleRow({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  {t("siteModules.row.buy")}
+                  {t(
+                    module.access === "supporter" ? "siteModules.row.plan" : "siteModules.row.buy",
+                  )}
                 </a>
               )
             : canManage &&

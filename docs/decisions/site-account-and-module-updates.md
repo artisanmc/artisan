@@ -32,7 +32,8 @@ Three constraints:
    memory; a restart ends it.
 3. **The site decides what is offered.** `GET /api/updates/` on the site returns, for the
    account, every module of the catalogue with its latest version on the asked channel, whether
-   the account may have it (`access`) and whether it is newer than what the server reports. The
+   the account may have it (`access`: `ok`, `licence` for a paid module not bought, `supporter`
+   for a free module's development build without the site's Supporter plan) and whether it is newer than what the server reports. The
    hub adds what the server runs (`plugins_fetch`: Bukkit plugin name → version) and what it
    staged. Version comparison stays on the site; a version it cannot read (a local build) is
    simply offered the published one.
