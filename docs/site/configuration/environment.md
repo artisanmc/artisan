@@ -64,6 +64,27 @@ editor shows its values read-only. See [The editor's assistant](../ai/#the-edito
 | `ai.max-steps` | `25` | Model calls one message may make (1 to 100). The assistant stops there and says so; the next message lets it go on. |
 | `ai.base-url` | `""` | Another address for the API: a proxy, or another vendor's compatible API. With `anthropic`: DeepSeek `https://api.deepseek.com/anthropic`. With `openai`: DeepSeek `https://api.deepseek.com`, Mistral `https://api.mistral.ai/v1`, OpenRouter `https://openrouter.ai/api/v1`, Ollama `http://localhost:11434/v1`. Empty: the provider's own (Anthropic, OpenAI). |
 
+## `stats-export`
+
+Rankings and player profiles on your website, absent from the default file. The server pushes
+the player metrics that changed (play time, money, the add-ons' own) to an address of your
+website, over HTTPS: no port to open, and the website keeps showing them while the server is
+off. Set it on one server of the network: the servers share the database. See
+[Statistics](../statistics/#rankings-and-profiles-on-your-website).
+
+| Key | Default | Meaning |
+|---|---|---|
+| `stats-export.url` | `""` | The website's address for it, shown by its plugin (Azuriom: `https://example.com/api/artisan/stats`). Empty: nothing leaves the server. Plain `http` is accepted but logged: the token would travel in clear. |
+| `stats-export.token` | `""` | The token the website's plugin shows. Write `"${ARTISAN_EXPORT_TOKEN}"` to read it from the environment. |
+| `stats-export.interval-seconds` | `120` | How often the changes are pushed (30 to 3600). |
+
+```yaml
+stats-export:
+  url: "https://example.com/api/artisan/stats"
+  token: "${ARTISAN_EXPORT_TOKEN}"
+  interval-seconds: 120
+```
+
 ## `database`
 
 The database Artisan lends to the plugins of its suite (add-ons that ask for it).

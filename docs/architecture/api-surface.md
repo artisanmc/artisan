@@ -495,6 +495,9 @@ stats.record("quests:completed", player.getUniqueId(), Map.of("group", "daily", 
 | `StatsApi.NOOP` | `StatsApi` | 1.5.0 |
 | `StatEvent.builder(name)` (`<namespace>:<name>`, `StatEvent.NAME`), `Builder.storage`, `kind`, `scope`, `dimensions(names...)` (`StatEvent.FIELD`, 6 at most), `value(name)`, `rawRetentionDays(days)`, `build()`; getters, `getNamespace()`, `equals` | `StatEvent` | 1.5.0 |
 | `StatStorage` (`BUCKETED`, `RAW`, `BOTH`; `bucketed()`, `raw()`), `StatKind` (`COUNTER`, `GAUGE`), `StatScope` (`PLAYER`, `SERVER`) | enums | 1.5.0 |
+| `StatsApi.declareMetric(metric)` (a player's current value shown outside the game, ADR `stats-export`; again with the same shape: nothing; namespace `core` or `custom`, or another shape under the id: `IllegalArgumentException`), `setMetric(metric, player, value)` (absolute `long`, latest kept in memory and written with the statistics flush, unchanged values write nothing; undeclared: dropped, one warning). Default methods that do nothing | `void` | 1.6.0 |
+| `PlayerMetric.builder(id)` (as `StatEvent.NAME`), `Builder.label(locale, label)` (`PlayerMetric.LOCALE` two lower-case letters, 1 to `MAX_LABEL` = 64 characters), `unit`, `ranked(boolean)` (default true), `ascending()`, `build()` (no label: `IllegalStateException`); getters, `getNamespace()`, `equals` | `PlayerMetric` | 1.6.0 |
+| `MetricUnit` (`COUNT`, `SECONDS`, `DAYS`, `CENTS`) | enum | 1.6.0 |
 
 ### `net.artisanmc.modules.api.editor.EditorBundleRegistry` and the editor bundle contract (internal 2.3.0, `@Stable` since internal 2.18.0)
 

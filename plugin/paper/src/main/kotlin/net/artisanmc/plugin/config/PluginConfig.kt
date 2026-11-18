@@ -81,6 +81,21 @@ data class StatsConfig(
     }
 }
 
+/**
+ * `stats-export` of `environment.yml` (ADR `stats-export`): where player metrics are pushed. Off
+ * while [url] or [token] is empty.
+ */
+data class StatsExportConfig(
+    val url: String = "",
+    val token: String = "",
+    val intervalSeconds: Int = 120,
+) {
+    val enabled: Boolean get() = url.isNotEmpty() && token.isNotEmpty()
+
+    /** The token never reaches a log or a dump. */
+    override fun toString() = "StatsExportConfig(url=$url, token=${if (token.isEmpty()) "" else "***"}, intervalSeconds=$intervalSeconds)"
+}
+
 data class PluginConfig(
     val language: String,
     val perPlayerLanguage: Boolean,
@@ -89,6 +104,7 @@ data class PluginConfig(
     /** `dev.editor-bundles` (environment.yml): module id → the file its editor view is read from. */
     val devEditorBundles: Map<String, String> = emptyMap(),
     val stats: StatsConfig = StatsConfig(),
+    val statsExport: StatsExportConfig = StatsExportConfig(),
 ) {
     companion object {
         fun from(cfg: FileConfiguration, environment: FileConfiguration = cfg): PluginConfig {
@@ -132,6 +148,11 @@ data class PluginConfig(
                         .filterValues { it.isNotEmpty() }
                 }.orEmpty(),
                 stats = StatsConfig.from(cfg),
+                statsExport = StatsExportConfig(
+                    url = EnvironmentFile.string(environment, "stats-export.url", "").trim(),
+                    token = EnvironmentFile.string(environment, "stats-export.token", "").trim(),
+                    intervalSeconds = environment.getInt("stats-export.interval-seconds", 120).coerceIn(30, 3600),
+                ),
             )
         }
     }

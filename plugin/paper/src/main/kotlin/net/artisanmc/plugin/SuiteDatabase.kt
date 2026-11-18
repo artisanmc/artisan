@@ -311,6 +311,10 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
     fun statsRows(): net.artisanmc.plugin.database.StatsRows? =
         artisanData?.let { net.artisanmc.plugin.database.StatsRows(it, database.tables) }
 
+    /** `artisan_metric_values` once the suite database is open (ADR `stats-export`). */
+    fun metricRows(): net.artisanmc.plugin.database.MetricRows? =
+        artisanData?.let { net.artisanmc.plugin.database.MetricRows(it, database.tables) }
+
     /** What writes this server's statistics; null until it has its row in `artisan_servers`. */
     fun statsWriter(): net.artisanmc.plugin.stats.StatsWriter? {
         val row = serverRow ?: return null

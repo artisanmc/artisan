@@ -253,6 +253,23 @@ object ArtisanSchema {
         Migration(44, "CREATE INDEX ${t.statsEventsTimeIndex} ON ${t.statsEvents} (server_id, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsTimeIndex) },
         Migration(45, "CREATE INDEX ${t.statsEventsEventIndex} ON ${t.statsEvents} (server_id, event, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsEventIndex) },
         Migration(46, "CREATE INDEX ${t.statsEventsPlayerIndex} ON ${t.statsEvents} (player_uuid, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsPlayerIndex) },
+        // Player metrics (`MetricRows`, ADR `stats-export`): each player's latest value of each declared
+        // metric, network-wide; `updated_at` (epoch milliseconds) moves only when the value changes,
+        // which is what the export reads. `core:forgotten` rows mark the players `/artisan stats forget` erased.
+        Migration(
+            47,
+            """CREATE TABLE IF NOT EXISTS ${t.metricValues} (
+                metric VARCHAR(64) NOT NULL,
+                player_uuid VARCHAR(36) NOT NULL,
+                val BIGINT NOT NULL,
+                updated_at BIGINT NOT NULL,
+                PRIMARY KEY (metric, player_uuid)
+            )""",
+        ),
+        Migration(48, "CREATE INDEX ${t.metricValuesTimeIndex} ON ${t.metricValues} (updated_at)") { hasIndex(it, t.metricValues, t.metricValuesTimeIndex) },
+        Migration(49, "CREATE INDEX ${t.metricValuesPlayerIndex} ON ${t.metricValues} (player_uuid)") { hasIndex(it, t.metricValues, t.metricValuesPlayerIndex) },
+        // The export reads the players seen since its cursor (names, play time).
+        Migration(50, "CREATE INDEX ${t.playersSeenIndex} ON ${t.players} (last_seen)") { hasIndex(it, t.players, t.playersSeenIndex) },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

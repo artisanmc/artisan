@@ -68,6 +68,30 @@ public interface StatsApi {
      */
     void declareQuery(String id, int cacheSeconds, StatQuery query);
 
+    /**
+     * Declares {@code metric}, a player's current value shown outside the game (rankings, profiles).
+     * Declaring it again with the same shape does nothing (a module reloaded). Artisan's default
+     * implementation does nothing: the server's overrides it.
+     *
+     * @throws IllegalArgumentException its namespace is Artisan's ({@code core}, {@code custom}),
+     *     or it is already declared with another shape
+     * @since 1.6.0
+     */
+    default void declareMetric(PlayerMetric metric) {
+    }
+
+    /**
+     * Sets {@code player}'s value of {@code metric}, replacing the previous one. Never waits and
+     * never throws: the latest value per player is kept in memory and written with the next
+     * statistics write; an unchanged value writes nothing, so calling it on every change, or
+     * every few minutes for the online players, costs the same. An undeclared metric is dropped
+     * with one warning.
+     *
+     * @since 1.6.0
+     */
+    default void setMetric(String metric, UUID player, long value) {
+    }
+
     /** False when the admin turned statistics off ({@code stats.enabled: false}): records are dropped. */
     boolean isEnabled();
 

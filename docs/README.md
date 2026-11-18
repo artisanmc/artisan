@@ -24,6 +24,7 @@ The code wins over any doc. A doc that contradicts the code is a bug: fix the do
 | How an editor screen is put together | `architecture/editor-internals.md` |
 | The `/artisan` subcommands | `architecture/plugin-commands.md` |
 | How statistics are declared, buffered, stored and read | `decisions/stats-foundation.md` (then `plugin/stats`, `StatsRows`, `StatsRoutes`) |
+| How player metrics reach a website (rankings, profiles), and the push protocol a website implements | `decisions/stats-export.md` (then `StatsExport`, `MetricRows`, `StatsExportHost`) |
 | Schema versions, protocol version, changelog rules | `architecture/versioning.md`, `changelog.d/README.md` |
 | The JSON schema of a Document kind | `schema/<kind>/v1/` (+ `architecture/schemas-codegen.md`) |
 | What the tests cover, conformance vectors | `architecture/testing.md` |

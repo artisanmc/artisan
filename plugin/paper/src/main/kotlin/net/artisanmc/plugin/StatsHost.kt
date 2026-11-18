@@ -1,5 +1,7 @@
 package net.artisanmc.plugin
 
+import net.artisanmc.modules.api.stats.MetricUnit
+import net.artisanmc.modules.api.stats.PlayerMetric
 import net.artisanmc.modules.api.stats.StatEvent
 import net.artisanmc.modules.api.stats.StatKind
 import net.artisanmc.modules.api.stats.StatScope
@@ -7,7 +9,10 @@ import net.artisanmc.modules.api.stats.StatStorage
 import net.artisanmc.plugin.config.StatsConfig
 import net.artisanmc.plugin.stats.StatsMaintenance
 import net.artisanmc.plugin.stats.StatsRecorder
+import net.artisanmc.plugin.stats.flushMetricsTo
 import net.artisanmc.plugin.stats.flushTo
+import net.artisanmc.plugin.stats.StatsExport
+import net.artisanmc.plugin.integrations.VaultProvider
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -38,6 +43,16 @@ internal object CoreStats {
     )
 }
 
+/** Artisan's own player metrics (ADR `stats-export` ④). */
+internal object CoreMetrics {
+    /** Read from `artisan_players` by the export: never set. */
+    val PLAYTIME: PlayerMetric = PlayerMetric.builder(StatsExport.PLAYTIME)
+        .label("en", "Play time").label("fr", "Temps de jeu").unit(MetricUnit.SECONDS).build()
+    /** The Vault balance of the online players, sampled every 5 minutes and at quit; declared when an economy is found. */
+    val MONEY: PlayerMetric = PlayerMetric.builder("core:money")
+        .label("en", "Money").label("fr", "Argent").unit(MetricUnit.CENTS).build()
+}
+
 /**
  * Statistics on this server (ADR `stats-foundation`): the recorder behind `api.getStats()`, its
  * flush every `stats.flush-seconds` off the game threads and at shutdown, the daily rollup and
@@ -50,7 +65,16 @@ internal class StatsHost(private val plugin: ArtisanPlugin) : Listener {
     val recorder = StatsRecorder(
         warn = { logger.warning("[Artisan] $it") },
         settings = { config().settings },
-    ).also { r -> CoreStats.ALL.forEach(r::declareCore) }
+    ).also { r ->
+        CoreStats.ALL.forEach(r::declareCore)
+        r.declareCoreMetric(CoreMetrics.PLAYTIME)
+    }
+
+    /** The push of the metrics to the admin's website, when `stats-export` is set. */
+    private val export = StatsExportHost(plugin, recorder)
+    /** Found on the first sample: economy plugins register after Artisan starts. */
+    @Volatile private var vault: VaultProvider? = null
+    @Volatile private var vaultLooked = false
 
     /** Per online player: when their session started on this server. */
     private val sessions = ConcurrentHashMap<UUID, Long>()
@@ -79,6 +103,8 @@ internal class StatsHost(private val plugin: ArtisanPlugin) : Listener {
         plugin.scheduler.asyncLater(config().flushSeconds * 20L) { flushLoop() }
         plugin.scheduler.asyncLater(ONLINE_TICKS) { onlineLoop() }
         plugin.scheduler.asyncLater(FIRST_MAINTENANCE_TICKS) { maintenanceLoop() }
+        plugin.scheduler.globalLater(MONEY_TICKS) { moneyLoop() }
+        export.start()
     }
 
     /** At shutdown, before the database closes: the open sessions end here, and the buffer is written. */
@@ -86,6 +112,7 @@ internal class StatsHost(private val plugin: ArtisanPlugin) : Listener {
         net.artisanmc.plugin.engine.StatActions.recorder = null
         val now = System.currentTimeMillis()
         sessions.keys.toList().forEach { endSession(it, now) }
+        export.stop()
         flush()
     }
 
@@ -103,9 +130,12 @@ internal class StatsHost(private val plugin: ArtisanPlugin) : Listener {
     fun forget(player: UUID): Int? {
         sessions.computeIfPresent(player) { _, _ -> System.currentTimeMillis() }
         val rows = plugin.suite.statsRows()
+        val metrics = plugin.suite.metricRows()
         return synchronized(flushLock) {
             recorder.buffer.forget(player.toString())
-            rows?.forget(player.toString())
+            recorder.metricBuffer.forget(player.toString())
+            val stats = rows?.forget(player.toString()) ?: return@synchronized null
+            stats + (metrics?.forget(player.toString(), System.currentTimeMillis()) ?: 0)
         }
     }
 
@@ -115,7 +145,10 @@ internal class StatsHost(private val plugin: ArtisanPlugin) : Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
-    fun onQuit(event: PlayerQuitEvent) = endSession(event.player.uniqueId, System.currentTimeMillis())
+    fun onQuit(event: PlayerQuitEvent) {
+        endSession(event.player.uniqueId, System.currentTimeMillis())
+        sampleMoney(event.player)
+    }
 
     private fun endSession(player: UUID, now: Long) {
         val since = sessions.remove(player) ?: return
@@ -128,6 +161,7 @@ internal class StatsHost(private val plugin: ArtisanPlugin) : Listener {
         synchronized(flushLock) {
             try {
                 recorder.flushTo(writer)
+                plugin.suite.metricRows()?.let { recorder.flushMetricsTo(it) }
             } catch (e: Exception) {
                 val now = System.currentTimeMillis()
                 if (now - lastFailure > 60_000) {
@@ -152,6 +186,23 @@ internal class StatsHost(private val plugin: ArtisanPlugin) : Listener {
         plugin.scheduler.asyncLater(ONLINE_TICKS) { onlineLoop() }
     }
 
+    /** [player]'s Vault balance as `core:money`, in hundredths; nothing without an economy. On [player]'s thread. */
+    private fun sampleMoney(player: Player) {
+        if (!vaultLooked) {
+            vaultLooked = true
+            vault = VaultProvider.tryInit(plugin)?.also { recorder.declareCoreMetric(CoreMetrics.MONEY) }
+        }
+        val economy = vault ?: return
+        runCatching { economy.balance(player) }
+            .onSuccess { if (it.isFinite()) recorder.setMetric(CoreMetrics.MONEY.id, player.uniqueId, Math.round(it * 100)) }
+    }
+
+    private fun moneyLoop() {
+        if (!plugin.isEnabled) return
+        plugin.server.onlinePlayers.forEach { p -> plugin.scheduler.player(p.uniqueId) { sampleMoney(p) } }
+        plugin.scheduler.globalLater(MONEY_TICKS) { moneyLoop() }
+    }
+
     private fun maintenanceLoop() {
         if (!plugin.isEnabled) return
         val writer = plugin.suite.statsWriter()
@@ -169,5 +220,6 @@ internal class StatsHost(private val plugin: ArtisanPlugin) : Listener {
         const val ONLINE_TICKS = 20L * 60
         const val FIRST_MAINTENANCE_TICKS = 20L * 60 * 10
         const val MAINTENANCE_TICKS = 20L * 60 * 60 * 24
+        const val MONEY_TICKS = 20L * 60 * 5
     }
 }

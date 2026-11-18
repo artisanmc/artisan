@@ -62,7 +62,8 @@ adapted to portable SQL.
    an event, which a sum of buckets cannot give) and `stats/players` (the names the player filter
    offers, from `artisan_players`).
 9. **Personal data.** Statistics are tied to the player's UUID and never leave the server's
-   database (bStats is unrelated). `/artisan stats forget <player>` deletes a player's rows in both
+   database (bStats is unrelated). The player metrics of ADR `stats-export` are the exception, to
+   the admin's own website and only once they set `stats-export`. `/artisan stats forget <player>` deletes a player's rows in both
    tables, for every server of the database, and their buffered records.
 10. **Core instrumentation from batch 1:** `core:session` (both: a raw row with its duration, and
     buckets for the active players and the play time of a period), `core:first_join`
