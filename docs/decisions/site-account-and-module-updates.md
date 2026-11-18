@@ -57,8 +57,10 @@ Three constraints:
    hash, from one fixed origin, adds less than that.
 8. **`site.url` lives in environment.yml** (default `https://artisanmc.net`), never editable
    from the editor: it is where the token is sent. Each server reads its own.
-9. **Channel is the viewer's choice**, `release` by default, kept per server in the browser.
-   `dev` is one click away with a warning; nothing installs by itself on either channel.
+9. **Channel is the viewer's choice, module by module**, kept per server in the browser. A
+   module follows `release` unless the version it runs is a development build, or `dev` was
+   picked for it; a warning shows as soon as one follows `dev`. The editor asks the hub for the
+   `dev` list only then. Nothing installs by itself on either channel.
 
 ## Consequences
 

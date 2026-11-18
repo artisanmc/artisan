@@ -93,7 +93,7 @@ editor never restarts it for you. Paid modules install once your account owns th
 updating and installing need `artisan.editor.config`. In a network sharing one database, the
 link is made once for every server.
 
-Releases are offered by default; development builds are one click away and may break.
+Releases are offered by default; each module can follow development builds instead, which may break.
 
 **By hand.** Stop the server, replace the jar, start it again. Projects, `config.yml` and
 `environment.yml` are kept. In a network, update every server together: a server

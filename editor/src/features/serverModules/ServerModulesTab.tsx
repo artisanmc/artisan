@@ -20,14 +20,30 @@ import { useTranslation } from "react-i18next";
 const LINK_POLL_MS = 5000;
 const INSTALL_POLL_MS = 3000;
 
-const channelKey = (serverId: string) => `artisan.updates.channel.${serverId}`;
+const channelsKey = (serverId: string) => `artisan.updates.channels.${serverId}`;
 
-function savedChannel(serverId: string): UpdateChannel {
+/** The channel picked for each module of a server, by module id. */
+function savedChannels(serverId: string): Record<string, UpdateChannel> {
   try {
-    return localStorage.getItem(channelKey(serverId)) === "dev" ? "dev" : "release";
+    const saved: unknown = JSON.parse(localStorage.getItem(channelsKey(serverId)) ?? "{}");
+    if (!saved || typeof saved !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(saved).filter(([, value]) => value === "dev" || value === "release"),
+    ) as Record<string, UpdateChannel>;
   } catch {
-    return "release";
+    return {};
   }
+}
+
+/**
+ * The channel a module follows: the one picked for it, else the one its running version comes
+ * from (a server already on `1.2.0-dev.4` keeps getting development builds).
+ */
+export function channelOf(
+  picked: Record<string, UpdateChannel>,
+  module: { id: string; installed: string | null },
+): UpdateChannel {
+  return picked[module.id] ?? (module.installed?.includes("-") ? "dev" : "release");
 }
 
 const hostOf = (url: string) => {
@@ -226,28 +242,41 @@ function ModuleList({
   onUnlinked: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const [channel, setChannel] = useState<UpdateChannel>(() => savedChannel(serverId));
-  const [modules, setModules] = useState<SiteModule[] | null>(null);
+  const [picked, setPicked] = useState(() => savedChannels(serverId));
+  /** The site's list on each channel; the development one is asked once a module follows it. */
+  const [stable, setStable] = useState<SiteModule[] | null>(null);
+  const [dev, setDev] = useState<SiteModule[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [asking, setAsking] = useState<string | null>(null);
   const unlinked = useRef(onUnlinked);
   unlinked.current = onUnlinked;
 
+  const wantsDev = stable?.some((m) => channelOf(picked, m) === "dev") ?? false;
   const load = useCallback(async () => {
     try {
-      setModules(await listSiteModules(serverId, channel));
+      const [release, development] = await Promise.all([
+        listSiteModules(serverId, "release"),
+        wantsDev ? listSiteModules(serverId, "dev") : null,
+      ]);
+      setStable(release);
+      if (development) setDev(development);
       setError(null);
     } catch (e) {
       const code = codeOf(e);
       if (code === "site_not_linked") unlinked.current();
       setError(message(code));
     }
-  }, [serverId, channel, message]);
+  }, [serverId, wantsDev, message]);
 
   useEffect(() => {
-    setModules(null);
     void load();
   }, [load]);
+
+  /** Each module as its own channel lists it; the stable row while the other list loads. */
+  const modules =
+    stable?.map((m) =>
+      channelOf(picked, m) === "dev" ? (dev?.find((d) => d.id === m.id) ?? m) : m,
+    ) ?? null;
 
   const downloading = modules?.some((m) => m.staged?.state === "downloading") ?? false;
   useEffect(() => {
@@ -256,10 +285,11 @@ function ModuleList({
     return () => clearInterval(timer);
   }, [downloading, load]);
 
-  const pick = (next: UpdateChannel) => {
-    setChannel(next);
+  const pick = (module: string, next: UpdateChannel) => {
+    const choice = { ...picked, [module]: next };
+    setPicked(choice);
     try {
-      localStorage.setItem(channelKey(serverId), next);
+      localStorage.setItem(channelsKey(serverId), JSON.stringify(choice));
     } catch {
       // A private window: the choice lasts as long as the page.
     }
@@ -269,7 +299,7 @@ function ModuleList({
     setAsking(module.id);
     setError(null);
     try {
-      await installSiteModule(serverId, module.id, channel);
+      await installSiteModule(serverId, module.id, channelOf(picked, module));
       await load();
     } catch (e) {
       setError(message(codeOf(e)));
@@ -294,6 +324,8 @@ function ModuleList({
       module={module}
       lang={i18n.language}
       href={sitePage(site, i18n.language, `/modules/${module.id}/`)}
+      channel={channelOf(picked, module)}
+      onChannel={(next) => pick(module.id, next)}
       canManage={canManage}
       busy={asking === module.id}
       missing={module.requires.filter((id) => !present(id)).map(nameOf)}
@@ -303,21 +335,9 @@ function ModuleList({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1.5">
-        <Segmented
-          label={t("siteModules.channel.label")}
-          options={[
-            { value: "release", label: t("siteModules.channel.release") },
-            { value: "dev", label: t("siteModules.channel.dev") },
-          ]}
-          value={channel}
-          onChange={pick}
-          className="self-start"
-        />
-        {channel === "dev" && (
-          <p className="text-[12px] text-[var(--text-mut)]">{t("siteModules.channel.devHint")}</p>
-        )}
-      </div>
+      {wantsDev && (
+        <p className="text-[12px] text-[var(--text-mut)]">{t("siteModules.channel.devHint")}</p>
+      )}
 
       {ready.length > 0 && (
         <output className="card block border-[var(--accent)] p-3 text-[13px] text-[var(--text)]">
@@ -376,6 +396,8 @@ function ModuleRow({
   module,
   lang,
   href,
+  channel,
+  onChannel,
   canManage,
   busy,
   missing,
@@ -385,6 +407,9 @@ function ModuleRow({
   lang: string;
   /** Its page on the site: what it does, with screenshots, and where it is bought. */
   href: string;
+  /** The versions this module follows on this server. */
+  channel: UpdateChannel;
+  onChannel: (next: UpdateChannel) => void;
   canManage: boolean;
   busy: boolean;
   /** Names of the modules it needs that this server does not have. */
@@ -451,7 +476,20 @@ function ModuleRow({
           </p>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {canManage && (
+            <Segmented
+              label={t("siteModules.channel.label", { name: module.name })}
+              options={[
+                { value: "release", label: t("siteModules.channel.release") },
+                { value: "dev", label: t("siteModules.channel.dev") },
+              ]}
+              value={channel}
+              onChange={onChannel}
+              className="order-last"
+            />
+          )}
+
           {module.access !== "ok"
             ? (module.access === "licence" || module.page) && (
                 <a

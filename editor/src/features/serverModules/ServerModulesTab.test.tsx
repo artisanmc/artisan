@@ -3,7 +3,7 @@ import type { SiteLinkStatus, SiteModule } from "@/lib/api/site";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import i18n from "i18next";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ServerModulesTab } from "./ServerModulesTab";
+import { ServerModulesTab, channelOf } from "./ServerModulesTab";
 
 const api = vi.hoisted(() => ({
   getSiteLink: vi.fn(),
@@ -116,7 +116,7 @@ describe("server updates tab", () => {
 
     // Not owned: a way to the site, no install.
     const quests = within(screen.getByTestId("module-quests"));
-    expect(quests.queryByRole("button")).toBeNull();
+    expect(quests.queryByRole("button", { name: /Update|Install|Try again/ })).toBeNull();
     expect(quests.getByRole("link", { name: "See on the site" })).toHaveAttribute(
       "href",
       "https://artisanmc.net/modules/quests/",
@@ -130,9 +130,28 @@ describe("server updates tab", () => {
       screen.getByRole("link", { name: "The whole catalogue on artisanmc.net" }),
     ).toHaveAttribute("href", "https://artisanmc.net/modules/");
 
-    fireEvent.click(screen.getByRole("button", { name: "Development builds" }));
-    await waitFor(() => expect(api.listSiteModules).toHaveBeenLastCalledWith("srv", "dev"));
-    expect(localStorage.getItem("artisan.updates.channel.srv")).toBe("dev");
+    // The channel is picked module by module: Store follows development builds, Artisan does not.
+    expect(api.listSiteModules).not.toHaveBeenCalledWith("srv", "dev");
+    fireEvent.click(store.getByRole("button", { name: "Dev" }));
+    await waitFor(() => expect(api.listSiteModules).toHaveBeenCalledWith("srv", "dev"));
+    expect(localStorage.getItem("artisan.updates.channels.srv")).toBe('{"store":"dev"}');
+    fireEvent.click(store.getByRole("button", { name: "Install 2.0.0" }));
+    await waitFor(() =>
+      expect(api.installSiteModule).toHaveBeenLastCalledWith("srv", "store", "dev"),
+    );
+    fireEvent.click(artisan.getByRole("button", { name: "Update to 1.0.1" }));
+    await waitFor(() =>
+      expect(api.installSiteModule).toHaveBeenLastCalledWith("srv", "artisan", "release"),
+    );
+  });
+
+  it("keeps a server on the channel its version comes from, until one is picked", () => {
+    expect(channelOf({}, { id: "store", installed: "1.0.0" })).toBe("release");
+    expect(channelOf({}, { id: "store", installed: "1.0.1-dev.4" })).toBe("dev");
+    expect(channelOf({}, { id: "store", installed: null })).toBe("release");
+    expect(channelOf({ store: "release" }, { id: "store", installed: "1.0.1-dev.4" })).toBe(
+      "release",
+    );
   });
 
   it("says what waits for a restart and why a download failed", async () => {
@@ -153,7 +172,7 @@ describe("server updates tab", () => {
       "Restart the server to load Artisan 1.0.1.",
     );
     const artisan = within(screen.getByTestId("module-artisan"));
-    expect(artisan.queryByRole("button")).toBeNull();
+    expect(artisan.queryByRole("button", { name: /Update|Install|Try again/ })).toBeNull();
     const store = within(screen.getByTestId("module-store"));
     expect(store.getByText(/2.0.0 was not installed: the file did not match/)).toBeInTheDocument();
     expect(store.getByRole("button", { name: "Try again" })).toBeInTheDocument();
@@ -187,7 +206,7 @@ describe("server updates tab", () => {
     api.listSiteModules.mockResolvedValue([module()]);
     render(<ServerModulesTab serverId="srv" />);
     const artisan = within(await screen.findByTestId("module-artisan"));
-    expect(artisan.queryByRole("button")).toBeNull();
+    expect(artisan.queryByRole("button", { name: /Update|Install|Try again/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Unlink" })).toBeNull();
   });
 
