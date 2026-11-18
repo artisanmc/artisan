@@ -70,6 +70,8 @@ import:
   confirm_hint: "<gray>Add <white>confirm</white> to write: /artisan import {source} confirm</gray>"
   applied_done: "<green>Done, batch <white>{batch}</white>. Undo what is untouched with /artisan import rollback {batch}</green>"
   rollback_confirm_hint: "<gray>Add <white>confirm</white> to undo: /artisan import rollback {batch} confirm</gray>"
+  nothing_new: "<green>Nothing new: everything was already imported.</green>"
+  rollback_nothing: "<gray>Nothing to undo in this batch.</gray>"
   rollback_done: "<green>Rollback done. What players changed since the import was kept.</green>"
   history_empty: "<aqua>[Artisan] </aqua><gray>No import run yet.</gray>"
   history_header: "<aqua>[Artisan] </aqua><green>Last import runs:</green>"

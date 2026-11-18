@@ -105,6 +105,7 @@ internal class ImportCommand(private val plugin: ArtisanPlugin, private val lang
         r.notes.take(10).forEach { lines += msg(sender, "import.note", "message" to esc(it)) }
         lines += when {
             r.blockers.isNotEmpty() -> msg(sender, "import.nothing_written")
+            r.total() == 0 -> msg(sender, if (rollback) "import.rollback_nothing" else "import.nothing_new")
             rollback && r.isDryRun -> msg(sender, "import.rollback_confirm_hint", "batch" to done.batch)
             r.isDryRun -> msg(sender, "import.confirm_hint", "source" to id)
             rollback -> msg(sender, "import.rollback_done")

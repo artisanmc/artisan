@@ -79,7 +79,7 @@ class ImportRunsTest {
         assertEquals(0, again.report.total())
         assertEquals(2, again.report.alreadyImported)
         assertEquals(listOf("plan", "apply", "apply"), log.runs.map { it.action })
-        assertEquals(listOf(false, true, true), log.runs.map { it.applied })
+        assertEquals(listOf(false, true, false), log.runs.map { it.applied }, "the second confirm wrote nothing")
         assertTrue(log.runs[1].reportJson.contains("\"already_imported\":0"))
     }
 

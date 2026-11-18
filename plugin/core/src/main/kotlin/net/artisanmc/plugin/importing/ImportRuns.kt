@@ -81,7 +81,7 @@ class ImportRuns(
             val batch = newBatch()
             val request = ImportRequest(batch, file, options, lang)
             val report = if (confirm) source.importer().apply(request) else source.importer().plan(request)
-            log.record(ImportRun(batch, source.id, source.module(), if (confirm) "apply" else "plan", !report.isDryRun, actor, clock(), null, json(report)))
+            log.record(ImportRun(batch, source.id, source.module(), if (confirm) "apply" else "plan", wrote(report), actor, clock(), null, json(report)))
             Outcome.Done(source, batch, report)
         }
     }
@@ -92,12 +92,15 @@ class ImportRuns(
         val source = registry.find(run.source) ?: return Outcome.Refused(Refusal.UnknownSource(run.source))
         return locked(source.module()) {
             val report = source.importer().rollback(batch, !confirm)
-            log.record(ImportRun(newBatch(), source.id, source.module(), "rollback", !report.isDryRun, actor, clock(), batch, json(report)))
+            log.record(ImportRun(newBatch(), source.id, source.module(), "rollback", wrote(report), actor, clock(), batch, json(report)))
             Outcome.Done(source, batch, report)
         }
     }
 
     fun history(limit: Int = 10): List<ImportRun> = log.recent(limit)
+
+    /** Something was written: a run that only skipped what was already imported has no batch to roll back. */
+    private fun wrote(report: ImportReport) = !report.isDryRun && report.total() > 0
 
     private fun locked(module: String, block: () -> Outcome): Outcome {
         if (!busy.add(module)) return Outcome.Refused(Refusal.Busy(module))
