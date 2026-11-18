@@ -61,10 +61,39 @@ class ModuleInstaller(
         // Only the site named in this server's own environment.yml: the token goes nowhere else.
         !request.url.startsWith("${siteUrl().trimEnd('/')}/") -> "invalid_input"
         // The update folder only replaces a jar that sits in the plugins folder.
-        currentJar != null && currentJar.toAbsolutePath().normalize().parent != pluginsDir.toAbsolutePath().normalize() -> "not_updatable"
+        currentJar != null && !inPluginsDir(currentJar) -> "not_updatable"
         staged[request.plugin]?.state == DOWNLOADING -> "install_in_progress"
         else -> null
     }
+
+    /**
+     * The jar of the plugins folder that [plugin] was loaded from, given the file its classes come
+     * from ([loadedFrom]). They differ on Paper for a plugin that does not declare Mojang mappings:
+     * Paper runs a remapped copy kept in `plugins/.paper-remapped/`, and the update folder replaces
+     * the original. That one is the file of the same name in the plugins folder, else the jar there
+     * whose descriptor names [plugin]. [loadedFrom] itself when none is found: [refusal] then says so.
+     */
+    fun sourceJar(plugin: String, loadedFrom: Path): Path {
+        if (inPluginsDir(loadedFrom)) return loadedFrom
+        val sameName = pluginsDir.resolve(loadedFrom.fileName.toString())
+        if (Files.isRegularFile(sameName) && declares(sameName, plugin)) return sameName
+        val jars = runCatching { Files.newDirectoryStream(pluginsDir, "*.jar").use { it.toList() } }.getOrDefault(emptyList())
+        return jars.singleOrNull { Files.isRegularFile(it) && declares(it, plugin) } ?: loadedFrom
+    }
+
+    private fun real(path: Path): Path = runCatching { path.toRealPath() }.getOrElse { path.toAbsolutePath().normalize() }
+
+    private fun inPluginsDir(jar: Path): Boolean = jar.toAbsolutePath().normalize().parent?.let(::real) == real(pluginsDir)
+
+    /** Whether [jar]'s `paper-plugin.yml` or `plugin.yml` gives [plugin] as its name. */
+    private fun declares(jar: Path, plugin: String): Boolean = runCatching {
+        java.util.zip.ZipFile(jar.toFile()).use { zip ->
+            val entry = zip.getEntry("paper-plugin.yml") ?: zip.getEntry("plugin.yml") ?: return@use false
+            zip.getInputStream(entry).bufferedReader().useLines { lines ->
+                lines.any { line -> NAME.matchEntire(line)?.groupValues?.get(1) == plugin }
+            }
+        }
+    }.getOrDefault(false)
 
     /** Marks [request] as downloading; false when its plugin already is. Call before [install]. */
     fun begin(request: Request): Boolean {
@@ -130,6 +159,7 @@ class ModuleInstaller(
         private val PLUGIN = Regex("[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}")
         private val VERSION = Regex("""\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.-]+)?""")
         private val SHA256 = Regex("[0-9a-fA-F]{64}")
+        private val NAME = Regex("""name:\s*['"]?([A-Za-z0-9_.-]+)['"]?\s*(?:#.*)?""")
 
         private val http by lazy { HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build() }
 

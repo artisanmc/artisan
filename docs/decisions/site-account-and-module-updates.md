@@ -47,7 +47,10 @@ Three constraints:
    folder (`plugins/update/`) under the running jar's own file name, which the server swaps in
    at its next start; a new plugin's jar goes to `plugins/<Plugin>-<version>.jar`. The editor
    says a restart is needed and never triggers one. A plugin whose jar is not directly in
-   `plugins/` is refused (`not_updatable`).
+   `plugins/` is refused (`not_updatable`). The jar is the one of `plugins/`, not the file the
+   classes load from: Paper runs a plugin without Mojang mappings from a remapped copy in
+   `plugins/.paper-remapped/`, so the original is found by that copy's file name, else by the
+   plugin name its `plugin.yml` or `paper-plugin.yml` declares (`ModuleInstaller.sourceJar`).
 6. **`module_install` answers at once.** The download runs in the background and its state
    (`downloading`, `ready`, `failed` + reason) is the `staged` of the next `plugins_fetch`,
    kept in memory until the restart. The editor polls while something downloads.

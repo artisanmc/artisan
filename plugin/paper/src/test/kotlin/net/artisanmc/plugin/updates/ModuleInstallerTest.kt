@@ -86,6 +86,42 @@ class ModuleInstallerTest {
         assertTrue(fetched.isEmpty())
     }
 
+    private fun pluginJar(path: Path, name: String, descriptor: String = "plugin.yml"): Path {
+        Files.createDirectories(path.parent)
+        java.util.zip.ZipOutputStream(Files.newOutputStream(path)).use { zip ->
+            zip.putNextEntry(java.util.zip.ZipEntry(descriptor))
+            zip.write("name: $name\nversion: 1.0.0\nmain: x.Main\n".toByteArray())
+            zip.closeEntry()
+        }
+        return path
+    }
+
+    @Test
+    fun `a plugin Paper runs from its remapped copy is updated through its jar of the plugins folder`() {
+        val original = pluginJar(plugins.resolve("ArtisanQuests-1.0.0.jar"), "ArtisanQuests")
+        val remapped = pluginJar(plugins.resolve(".paper-remapped/ArtisanQuests-1.0.0.jar"), "ArtisanQuests")
+        assertEquals("not_updatable", installer.refusal(request(), remapped))
+
+        val jar = installer.sourceJar("ArtisanQuests", remapped)
+        assertEquals(original, jar)
+        assertNull(installer.refusal(request(), jar))
+        installer.install(request(), jar)
+        assertTrue(update.resolve("ArtisanQuests-1.0.0.jar").exists())
+    }
+
+    @Test
+    fun `the jar of the plugins folder is found by the name it declares when its copy is named otherwise`() {
+        pluginJar(plugins.resolve("Other.jar"), "Other")
+        val original = pluginJar(plugins.resolve("quests.jar"), "ArtisanQuests", "paper-plugin.yml")
+        val remapped = pluginJar(plugins.resolve(".paper-remapped/quests-1.jar"), "ArtisanQuests", "paper-plugin.yml")
+        assertEquals(original, installer.sourceJar("ArtisanQuests", remapped))
+        // A jar already in the plugins folder is the one.
+        assertEquals(original, installer.sourceJar("ArtisanQuests", original))
+        // Nothing declares it: the caller's path comes back, and is refused.
+        val stray = root.resolve("elsewhere/ArtisanGuilds.jar")
+        assertEquals(stray, installer.sourceJar("ArtisanGuilds", stray))
+    }
+
     @Test
     fun `one download per plugin at a time`() {
         val wanted = request()
