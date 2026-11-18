@@ -37,6 +37,16 @@ export function diskProjectsToSummaries(
   ];
 }
 
+/**
+ * The name of a module that declares none (its editor view not loaded, or none at all), from
+ * its id: `daily-rewards` reads "Daily rewards", as the modules that declare a name do, rather
+ * than a lowercase id between capitalised names.
+ */
+export function moduleLabelFromId(id: string): string {
+  const words = id.replace(/[-_]+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : id;
+}
+
 /** A project of the list. `ownerModule`: the module that ships it (ADR
  *  `addon-owned-project-roots`), null for an ordinary project; `ownerLabel`: that
  *  module's name, for the badge. */
@@ -91,7 +101,9 @@ export function buildProjectGroups({
   // moduleNav only lists modules WITH a screen — fall back to the registered
   // module's displayName for the others (shop).
   const labelOf = (id: string) =>
-    nav.find((m) => m.id === id)?.sidebar.label ?? getModule(id)?.displayName ?? id;
+    nav.find((m) => m.id === id)?.sidebar.label ??
+    getModule(id)?.displayName ??
+    moduleLabelFromId(id);
 
   const rows: ProjectRow[] = projects.map((p) => {
     const owner = ownerModuleOf(p, screens) ?? null;
@@ -168,7 +180,7 @@ export function buildModuleList(input: ProjectGroupsInput): {
     }
     const module = byId.get(row.ownerModule) ?? {
       id: row.ownerModule,
-      label: row.ownerLabel ?? row.ownerModule,
+      label: row.ownerLabel ?? moduleLabelFromId(row.ownerModule),
       projects: [],
       entries: [],
     };
