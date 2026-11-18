@@ -18,10 +18,11 @@ export const siteModulesEn = {
       "Unlink this network from the site? Nothing installed is removed. The server stays listed on your account until you unlink it there too.",
   },
   channel: {
-    label: "Versions offered",
-    release: "Releases",
-    dev: "Development builds",
-    devHint: "Development builds come out at every change and may break. Not for a live server.",
+    label: "Versions of {{name}}",
+    release: "Stable",
+    dev: "Dev",
+    devHint:
+      "Development builds come out at every change and may break. Keep them off a live server.",
   },
   sections: {
     installed: "On this server",
@@ -30,6 +31,7 @@ export const siteModulesEn = {
   restart_one: "Restart the server to load {{list}}.",
   restart_other: "Restart the server to load {{list}}.",
   empty: "The site lists no module for this account.",
+  catalogue: "The whole catalogue on {{site}}",
   row: {
     installed: "Installed: {{version}}",
     upToDate: "Up to date",
@@ -102,11 +104,11 @@ export const siteModulesFr: typeof siteModulesEn = {
       "Délier ce réseau du site ? Rien de ce qui est installé n'est retiré. Le serveur reste listé sur ton compte tant que tu ne le délies pas là-bas aussi.",
   },
   channel: {
-    label: "Versions proposées",
-    release: "Versions stables",
-    dev: "Builds de développement",
+    label: "Versions de {{name}}",
+    release: "Stable",
+    dev: "Dev",
     devHint:
-      "Les builds de développement sortent à chaque changement et peuvent casser. Pas pour un serveur en production.",
+      "Les builds de développement sortent à chaque changement et peuvent casser. À éviter sur un serveur en production.",
   },
   sections: {
     installed: "Sur ce serveur",
@@ -115,6 +117,7 @@ export const siteModulesFr: typeof siteModulesEn = {
   restart_one: "Redémarre le serveur pour charger {{list}}.",
   restart_other: "Redémarre le serveur pour charger {{list}}.",
   empty: "Le site ne liste aucun module pour ce compte.",
+  catalogue: "Tout le catalogue sur {{site}}",
   row: {
     installed: "Installé : {{version}}",
     upToDate: "À jour",

@@ -20,14 +20,30 @@ import { useTranslation } from "react-i18next";
 const LINK_POLL_MS = 5000;
 const INSTALL_POLL_MS = 3000;
 
-const channelKey = (serverId: string) => `artisan.updates.channel.${serverId}`;
+const channelsKey = (serverId: string) => `artisan.updates.channels.${serverId}`;
 
-function savedChannel(serverId: string): UpdateChannel {
+/** The channel picked for each module of a server, by module id. */
+function savedChannels(serverId: string): Record<string, UpdateChannel> {
   try {
-    return localStorage.getItem(channelKey(serverId)) === "dev" ? "dev" : "release";
+    const saved: unknown = JSON.parse(localStorage.getItem(channelsKey(serverId)) ?? "{}");
+    if (!saved || typeof saved !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(saved).filter(([, value]) => value === "dev" || value === "release"),
+    ) as Record<string, UpdateChannel>;
   } catch {
-    return "release";
+    return {};
   }
+}
+
+/**
+ * The channel a module follows: the one picked for it, else the one its running version comes
+ * from (a server already on `1.2.0-dev.4` keeps getting development builds).
+ */
+export function channelOf(
+  picked: Record<string, UpdateChannel>,
+  module: { id: string; installed: string | null },
+): UpdateChannel {
+  return picked[module.id] ?? (module.installed?.includes("-") ? "dev" : "release");
 }
 
 const hostOf = (url: string) => {
@@ -37,6 +53,19 @@ const hostOf = (url: string) => {
     return url;
   }
 };
+
+/** A page of the site in the editor's language: the site keeps English at its root. */
+const sitePage = (site: string, lang: string, path: string) =>
+  `${site.replace(/\/$/, "")}${lang.startsWith("fr") ? "/fr" : ""}${path}`;
+
+/** The letters of a module's tile: "Artisan Daily Rewards" → "DR". */
+const initialsOf = (name: string) =>
+  (name.replace(/^Artisan\s+/, "") || name)
+    .split(/\s+/)
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
 const codeOf = (error: unknown) => (error instanceof ApiError ? error.code : "network_error");
 
@@ -188,6 +217,7 @@ export function ServerModulesTab({ serverId }: { serverId: string }) {
       {error && <p className="text-[12px] text-[var(--danger)]">{error}</p>}
       <ModuleList
         serverId={serverId}
+        site={link.site}
         canManage={link.canManage}
         message={message}
         onUnlinked={() => void getSiteLink().then(setLink)}
@@ -198,39 +228,55 @@ export function ServerModulesTab({ serverId }: { serverId: string }) {
 
 function ModuleList({
   serverId,
+  site,
   canManage,
   message,
   onUnlinked,
 }: {
   serverId: string;
+  /** The site's address: where a module's page and the catalogue are. */
+  site: string;
   canManage: boolean;
   message: (code: string) => string;
   /** The site refused the token: the link is gone. */
   onUnlinked: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const [channel, setChannel] = useState<UpdateChannel>(() => savedChannel(serverId));
-  const [modules, setModules] = useState<SiteModule[] | null>(null);
+  const [picked, setPicked] = useState(() => savedChannels(serverId));
+  /** The site's list on each channel; the development one is asked once a module follows it. */
+  const [stable, setStable] = useState<SiteModule[] | null>(null);
+  const [dev, setDev] = useState<SiteModule[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [asking, setAsking] = useState<string | null>(null);
   const unlinked = useRef(onUnlinked);
   unlinked.current = onUnlinked;
 
+  const wantsDev = stable?.some((m) => channelOf(picked, m) === "dev") ?? false;
   const load = useCallback(async () => {
     try {
-      setModules(await listSiteModules(serverId, channel));
+      const [release, development] = await Promise.all([
+        listSiteModules(serverId, "release"),
+        wantsDev ? listSiteModules(serverId, "dev") : null,
+      ]);
+      setStable(release);
+      if (development) setDev(development);
       setError(null);
     } catch (e) {
       const code = codeOf(e);
       if (code === "site_not_linked") unlinked.current();
       setError(message(code));
     }
-  }, [serverId, channel, message]);
+  }, [serverId, wantsDev, message]);
 
   useEffect(() => {
-    setModules(null);
     void load();
   }, [load]);
+
+  /** Each module as its own channel lists it; the stable row while the other list loads. */
+  const modules =
+    stable?.map((m) =>
+      channelOf(picked, m) === "dev" ? (dev?.find((d) => d.id === m.id) ?? m) : m,
+    ) ?? null;
 
   const downloading = modules?.some((m) => m.staged?.state === "downloading") ?? false;
   useEffect(() => {
@@ -239,10 +285,11 @@ function ModuleList({
     return () => clearInterval(timer);
   }, [downloading, load]);
 
-  const pick = (next: UpdateChannel) => {
-    setChannel(next);
+  const pick = (module: string, next: UpdateChannel) => {
+    const choice = { ...picked, [module]: next };
+    setPicked(choice);
     try {
-      localStorage.setItem(channelKey(serverId), next);
+      localStorage.setItem(channelsKey(serverId), JSON.stringify(choice));
     } catch {
       // A private window: the choice lasts as long as the page.
     }
@@ -252,7 +299,7 @@ function ModuleList({
     setAsking(module.id);
     setError(null);
     try {
-      await installSiteModule(serverId, module.id, channel);
+      await installSiteModule(serverId, module.id, channelOf(picked, module));
       await load();
     } catch (e) {
       setError(message(codeOf(e)));
@@ -276,6 +323,9 @@ function ModuleList({
       key={module.id}
       module={module}
       lang={i18n.language}
+      href={sitePage(site, i18n.language, `/modules/${module.id}/`)}
+      channel={channelOf(picked, module)}
+      onChannel={(next) => pick(module.id, next)}
       canManage={canManage}
       busy={asking === module.id}
       missing={module.requires.filter((id) => !present(id)).map(nameOf)}
@@ -285,21 +335,9 @@ function ModuleList({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1.5">
-        <Segmented
-          label={t("siteModules.channel.label")}
-          options={[
-            { value: "release", label: t("siteModules.channel.release") },
-            { value: "dev", label: t("siteModules.channel.dev") },
-          ]}
-          value={channel}
-          onChange={pick}
-          className="self-start"
-        />
-        {channel === "dev" && (
-          <p className="text-[12px] text-[var(--text-mut)]">{t("siteModules.channel.devHint")}</p>
-        )}
-      </div>
+      {wantsDev && (
+        <p className="text-[12px] text-[var(--text-mut)]">{t("siteModules.channel.devHint")}</p>
+      )}
 
       {ready.length > 0 && (
         <output className="card block border-[var(--accent)] p-3 text-[13px] text-[var(--text)]">
@@ -329,6 +367,14 @@ function ModuleList({
               {available.map(row)}
             </section>
           )}
+          <a
+            className="self-start text-[13px] text-[var(--text-mut)] underline underline-offset-2 hover:text-[var(--text)]"
+            href={sitePage(site, i18n.language, "/modules/")}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t("siteModules.catalogue", { site: hostOf(site) })}
+          </a>
         </>
       )}
     </div>
@@ -349,6 +395,9 @@ function formatPrice(price: { amount: number; currency: string }, lang: string):
 function ModuleRow({
   module,
   lang,
+  href,
+  channel,
+  onChannel,
   canManage,
   busy,
   missing,
@@ -356,6 +405,11 @@ function ModuleRow({
 }: {
   module: SiteModule;
   lang: string;
+  /** Its page on the site: what it does, with screenshots, and where it is bought. */
+  href: string;
+  /** The versions this module follows on this server. */
+  channel: UpdateChannel;
+  onChannel: (next: UpdateChannel) => void;
   canManage: boolean;
   busy: boolean;
   /** Names of the modules it needs that this server does not have. */
@@ -376,10 +430,20 @@ function ModuleRow({
 
   return (
     <article className="card flex flex-col gap-3 p-4" data-testid={`module-${module.id}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
+        <span
+          aria-hidden="true"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] border border-[var(--brand-line)] bg-[var(--brand-soft)] text-[13px] font-bold text-[var(--brand)]"
+        >
+          {initialsOf(module.name)}
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-[14px] font-semibold text-[var(--text)]">{module.name}</h3>
+            <h3 className="text-[14px] font-semibold text-[var(--text)]">
+              <a className="hover:underline" href={href} target="_blank" rel="noreferrer">
+                {module.name}
+              </a>
+            </h3>
             {isInstalled &&
               (module.update ? (
                 <Badge variant="amber">
@@ -412,12 +476,26 @@ function ModuleRow({
           </p>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {canManage && (
+            <Segmented
+              label={t("siteModules.channel.label", { name: module.name })}
+              options={[
+                { value: "release", label: t("siteModules.channel.release") },
+                { value: "dev", label: t("siteModules.channel.dev") },
+              ]}
+              value={channel}
+              onChange={onChannel}
+              className="order-last"
+            />
+          )}
+
           {module.access !== "ok"
-            ? module.page && (
+            ? (module.access === "licence" || module.page) && (
                 <a
                   className="btn btn-ghost btn-sm"
-                  href={module.page}
+                  // A module to buy: its own page, which presents it; the plan: the site's `page`.
+                  href={module.access === "licence" ? href : (module.page ?? href)}
                   target="_blank"
                   rel="noreferrer"
                 >
