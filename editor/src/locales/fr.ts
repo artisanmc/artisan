@@ -3,6 +3,7 @@ import { aiFr } from "./ai";
 import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
 import { editorSessionsFr } from "./editorSessions";
+import { siteModulesFr } from "./siteModules";
 import type en from "./en";
 import { mcpFr } from "./mcp";
 import { mmEditorFr, textToolFr } from "./mmEditor";
@@ -1966,6 +1967,7 @@ const fr: typeof en = {
   mcp: mcpFr,
   editorSessions: editorSessionsFr,
   ai: aiFr,
+  siteModules: siteModulesFr,
   editorAddress: {
     title: "Adresse de l'éditeur",
     help: "Donne un nom à l'adresse de l'éditeur sur le tunnel. L'adresse actuelle continue de marcher.",
@@ -2099,6 +2101,7 @@ const fr: typeof en = {
       assistant: "Assistant",
       data: "Sources de données",
       stats: "Statistiques",
+      updates: "Mises à jour",
       settings: "Réglages",
     },
     stateOnline: "En ligne",

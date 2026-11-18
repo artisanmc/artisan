@@ -36,6 +36,11 @@ data class WebConfig(
     val mcp: Boolean = false,
     /** The editor's assistant on the admin's model and key (ADR `editor-assistant`): the `ai` section. */
     val ai: AiConfig = AiConfig(),
+    /**
+     * The site modules are downloaded from (ADR `site-account-and-module-updates`): `site.url`.
+     * Never set from the editor: it is where the network's site token is sent.
+     */
+    val site: String = SiteAccount.DEFAULT_URL,
 ) {
     val leaf: Boolean get() = hubUrl.isNotBlank()
 

@@ -43,6 +43,8 @@ class ServerQueries(
     private val moduleBrands: (String) -> net.artisanmc.modules.api.editor.ModuleBrandDeclaration? = { null },
     /** A module's figure computed on demand (`StatsApi.declareQuery`); null: statistics not wired. */
     private val statQuery: ((id: String, params: Map<String, String>) -> net.artisanmc.plugin.stats.StatQueries.Answer?)? = null,
+    /** Stages the jars the editor asks for (ADR `site-account-and-module-updates`); null: this server installs nothing. */
+    private val installer: net.artisanmc.plugin.updates.ModuleInstaller? = null,
 ) {
     private val mapper = ObjectMapper()
 
@@ -69,6 +71,39 @@ class ServerQueries(
             }
         } catch (e: Throwable) {
             reply.failure("query_failed", "stat query scheduling", e)
+        }
+    }
+
+    /** The plugins this server runs, by name, and the jars staged since it started. */
+    fun plugins(request: net.artisanmc.plugin.protocol.EditorRequest.PluginsFetch) {
+        val reply = replies.to(request, "plugins_result")
+        onGlobal(reply, "plugins listing") {
+            @Suppress("DEPRECATION")
+            val plugins = Bukkit.getPluginManager().plugins.associate { it.name to it.description.version }
+            reply.ok("plugins" to plugins, "staged" to installer?.staged().orEmpty())
+        }
+    }
+
+    /**
+     * Accepted at once, done in the background: a jar can take longer than a request may wait.
+     * Its progress is the `staged` of the next `plugins_fetch`.
+     */
+    fun moduleInstall(request: net.artisanmc.plugin.protocol.EditorRequest.ModuleInstall) {
+        val reply = replies.to(request, "module_install_result")
+        val installer = installer ?: return reply.error("install_unavailable")
+        val wanted = net.artisanmc.plugin.updates.ModuleInstaller.Request(
+            request.plugin, request.version, request.url, request.sha256, request.size, request.token,
+        )
+        onGlobal(reply, "module install") {
+            val running = Bukkit.getPluginManager().getPlugin(request.plugin)
+            val jar = running?.let { plugin ->
+                runCatching { java.nio.file.Path.of(plugin.javaClass.protectionDomain.codeSource.location.toURI()) }.getOrNull()
+                    ?: return@onGlobal reply.error("not_updatable")
+            }
+            installer.refusal(wanted, jar)?.let { return@onGlobal reply.error(it) }
+            if (!installer.begin(wanted)) return@onGlobal reply.error("install_in_progress")
+            scheduler.async { installer.install(wanted, jar) }
+            reply.ok("plugin" to request.plugin, "version" to request.version, "state" to "downloading")
         }
     }
 

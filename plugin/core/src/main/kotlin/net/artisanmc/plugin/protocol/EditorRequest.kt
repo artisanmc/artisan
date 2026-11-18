@@ -40,6 +40,24 @@ sealed interface EditorRequest {
     data class EditorBundleFetch(override val requestId: String, val moduleId: String) : WithReply
     /** A module's icon and logo files (protocol 1.5, [ProtocolVersion.MODULE_BRANDS]). */
     data class ModuleBrandFetch(override val requestId: String, val moduleId: String) : WithReply
+    /** The plugins this server runs and the jars waiting for its restart (protocol 1.7, [ProtocolVersion.MODULE_INSTALL]). */
+    data class PluginsFetch(override val requestId: String) : WithReply
+    /**
+     * Downloads a module's jar from the site and stages it for the next restart (protocol 1.7).
+     * [token] is the network's site token: it only ever goes to the site.
+     */
+    data class ModuleInstall(
+        override val requestId: String,
+        val plugin: String,
+        val version: String,
+        val url: String,
+        val sha256: String,
+        val size: Long,
+        val token: String,
+    ) : WithReply {
+        /** Never the token in a log. */
+        override fun toString() = "ModuleInstall(plugin=$plugin, version=$version)"
+    }
     /** A module template's files (protocol 1.3, [ProtocolVersion.TEMPLATES]). */
     data class TemplateFetch(override val requestId: String, val moduleId: String, val templateId: String) : WithReply
     /** Copies a module template into a Project; [paths] null: all its files (protocol 1.3). */
@@ -149,6 +167,16 @@ sealed interface EditorRequest {
                 "player_inventory_fetch" -> PlayerInventoryFetch(requestId, node.text("player") ?: return null)
                 "editor_bundle_fetch" -> EditorBundleFetch(requestId, node.text("module_id") ?: return null)
                 "module_brand_fetch" -> ModuleBrandFetch(requestId, node.text("module_id") ?: return null)
+                "plugins_fetch" -> PluginsFetch(requestId)
+                "module_install" -> ModuleInstall(
+                    requestId = requestId,
+                    plugin = node.text("plugin") ?: return null,
+                    version = node.text("version") ?: return null,
+                    url = node.text("url") ?: return null,
+                    sha256 = node.text("sha256") ?: return null,
+                    size = node["size"]?.takeIf { it.isNumber }?.asLong() ?: 0L,
+                    token = node.text("token") ?: return null,
+                )
                 "template_fetch" -> TemplateFetch(
                     requestId, node.text("module_id") ?: return null, node.text("template_id") ?: return null,
                 )

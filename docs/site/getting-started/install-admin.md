@@ -82,7 +82,20 @@ This is unrelated to the [statistics of your own server](../../configuration/sta
 
 ## Updating
 
-Stop the server, replace the jar, start it again. Projects, `config.yml` and
+**From the editor.** Open a server's **Updates** tab and click **Link to my account**: the
+editor shows a code, you approve it on artisanmc.net while signed in, and the network is linked
+(no key to copy; the link shows under *Linked servers* on your account page, where you can
+remove it). The tab then lists Artisan and its modules with the version this server runs and
+the latest one. **Update** or **Install** makes the server download the jar, check it against
+the hash the site announces and keep it for its next restart: an update waits in
+`plugins/update/`, a new module in `plugins/`. Nothing changes while the server runs, and the
+editor never restarts it for you. Paid modules install once your account owns them. Linking,
+updating and installing need `artisan.editor.config`. In a network sharing one database, the
+link is made once for every server.
+
+Releases are offered by default; development builds are one click away and may break.
+
+**By hand.** Stop the server, replace the jar, start it again. Projects, `config.yml` and
 `environment.yml` are kept. In a network, update every server together: a server
 whose protocol differs from the hub's cannot be edited (see
 [Protocol versions](../../network/concepts/#protocol-versions)).

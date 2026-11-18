@@ -80,6 +80,15 @@ open class ArtisanPlugin : JavaPlugin() {
     lateinit var api: ArtisanAPI
         private set
     /** The modules' templates, with the files of their commands (`ModuleCommandFiles`). */
+    /** One for the plugin's life: what it staged outlives `/artisan reload`. */
+    internal val moduleInstaller by lazy {
+        net.artisanmc.plugin.updates.ModuleInstaller(
+            pluginsDir = dataFolder.parentFile.toPath(),
+            updateDir = server.updateFolderFile.toPath(),
+            siteUrl = { currentConfig().web.site },
+            logger = logger,
+        )
+    }
     internal val moduleTemplates by lazy { net.artisanmc.plugin.project.ModuleTemplates(api.templates) }
     /** Editor sign-ins, kept in the suite database when it opens: they survive a restart. */
     lateinit var editorSessions: net.artisanmc.plugin.hub.Sessions

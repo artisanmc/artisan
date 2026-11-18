@@ -3,6 +3,7 @@ import { aiEn } from "./ai";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
 import { editorSessionsEn } from "./editorSessions";
+import { siteModulesEn } from "./siteModules";
 import { mcpEn } from "./mcp";
 import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
@@ -1930,6 +1931,7 @@ export default {
   mcp: mcpEn,
   editorSessions: editorSessionsEn,
   ai: aiEn,
+  siteModules: siteModulesEn,
   editorAddress: {
     title: "Editor address",
     help: "Give the editor's tunnel address a name. The current address keeps working.",
@@ -2061,6 +2063,7 @@ export default {
       assistant: "Assistant",
       data: "Data sources",
       stats: "Statistics",
+      updates: "Updates",
       settings: "Settings",
     },
     stateOnline: "Online",
