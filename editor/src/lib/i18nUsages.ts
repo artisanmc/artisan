@@ -31,14 +31,18 @@ const OUTSIDE_CONTEXT = "(lang/ only)";
 const SITE_ROOTS = new Set(["menus", "commands", "dialogs", "sources"]);
 const MINTED_KEY = /^lt_[a-z0-9_]+$/;
 
-/** Every `{i18n:key}` and `@key` written anywhere in the project: in a text, a data row, a module's state. */
-function textReferencedKeys(project: Project): Set<string> {
-  const out = new Set<string>();
-  const json = JSON.stringify(project);
+/** Every `{i18n:key}` and `@key` written in `value`, once serialized. */
+function referencedKeysIn(value: unknown, out = new Set<string>()): Set<string> {
+  const json = JSON.stringify(value);
   for (const m of json.matchAll(/\{i18n:([^}"]+)\}/g)) out.add(m[1]!.trim());
   for (const m of json.matchAll(/@([A-Za-z0-9_][A-Za-z0-9_.-]*)/g))
     out.add(m[1]!.replace(/\.+$/, ""));
   return out;
+}
+
+/** Every `{i18n:key}` and `@key` written anywhere in the project: in a text, a data row, a module's state. */
+function textReferencedKeys(project: Project): Set<string> {
+  return referencedKeysIn(project);
 }
 
 /**
@@ -196,29 +200,83 @@ export function countMissingForLang(project: Project, lang: string): number {
 }
 
 export function buildTranslationRows(project: Project, activeLang: string): TranslationRow[] {
-  const usages = findKeyUsages(project);
-  const unused = new Set<string>(findUnusedI18nKeys(project));
-  const rows: TranslationRow[] = [];
-  for (const [key, entry] of Object.entries(project.i18nKeys)) {
-    if (!entry) continue;
-    rows.push({
-      key: key as I18nKey,
-      context: usages.get(key as I18nKey) ?? (unused.has(key) ? UNUSED_CONTEXT : OUTSIDE_CONTEXT),
-      source: entry[project.defaultLang] ?? "",
-      target: entry[activeLang] ?? "",
+  return translationRowsBuilder()(project, activeLang);
+}
+
+/** `localeCompare`'s order, without building a collator for each comparison. */
+const COLLATOR = new Intl.Collator();
+
+/** What the rows take from the project apart from its texts: who holds each key, what the tree references. */
+interface ProjectSites {
+  /** The project's fields, `i18nKeys` and `updatedAt` aside, as last read. */
+  fields: Record<string, unknown>;
+  usages: Map<I18nKey, string>;
+  /** Keys referenced by `{i18n:key}` / `@key` outside `i18nKeys`. */
+  referenced: Set<string>;
+}
+
+/** The project's fields that place its keys: every one but the texts and the save stamp. */
+function siteFields(project: Project): Record<string, unknown> {
+  const { i18nKeys: _texts, updatedAt: _stamp, ...rest } = project;
+  return rest;
+}
+
+function sameFields(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((k) => Object.is(a[k], b[k]));
+}
+
+/**
+ * {@link buildTranslationRows} for a view that rebuilds the rows on every edit: the
+ * walk of the project's documents (which key sits where, which texts reference which
+ * key) is redone only when something other than the texts changed. Typing a
+ * translation changes `i18nKeys` alone (immer keeps every other field's reference),
+ * so each keystroke costs one pass over the texts, not one over the whole project.
+ */
+export function translationRowsBuilder(): (
+  project: Project,
+  activeLang: string,
+) => TranslationRow[] {
+  let sites: ProjectSites | null = null;
+  return (project, activeLang) => {
+    const fields = siteFields(project);
+    if (!sites || !sameFields(sites.fields, fields)) {
+      sites = { fields, usages: findKeyUsages(project), referenced: referencedKeysIn(fields) };
+    }
+    const { usages, referenced } = sites;
+    let textRefs: Set<string> | null = null;
+    // Same rule as findUnusedI18nKeys, the references split between tree and texts.
+    const isUnused = (key: I18nKey): boolean => {
+      if (usages.has(key) || !isEditorAddress(project, key) || referenced.has(key)) return false;
+      textRefs ??= referencedKeysIn(project.i18nKeys);
+      return !textRefs.has(key);
+    };
+    const rows: TranslationRow[] = [];
+    for (const [key, entry] of Object.entries(project.i18nKeys)) {
+      if (!entry) continue;
+      const k = key as I18nKey;
+      rows.push({
+        key: k,
+        context: usages.get(k) ?? (isUnused(k) ? UNUSED_CONTEXT : OUTSIDE_CONTEXT),
+        source: entry[project.defaultLang] ?? "",
+        target: entry[activeLang] ?? "",
+      });
+    }
+    // Sort by context so related strings sit together — much easier to skim and
+    // to translate consistently (titles next to their lore, etc.). Keys without
+    // a site go after them, by key so a module's messages stay together, and
+    // orphaned "(unused)" keys last: otherwise "(" sorts before letters and
+    // stale entries dominate the top of the list.
+    const rank = (r: TranslationRow) =>
+      r.context === UNUSED_CONTEXT ? 2 : r.context === OUTSIDE_CONTEXT ? 1 : 0;
+    rows.sort((a, b) => {
+      const byRank = rank(a) - rank(b);
+      if (byRank !== 0) return byRank;
+      return rank(a) === 0
+        ? COLLATOR.compare(a.context, b.context)
+        : COLLATOR.compare(a.key, b.key);
     });
-  }
-  // Sort by context so related strings sit together — much easier to skim and
-  // to translate consistently (titles next to their lore, etc.). Keys without
-  // a site go after them, by key so a module's messages stay together, and
-  // orphaned "(unused)" keys last: otherwise "(" sorts before letters and
-  // stale entries dominate the top of the list.
-  const rank = (r: TranslationRow) =>
-    r.context === UNUSED_CONTEXT ? 2 : r.context === OUTSIDE_CONTEXT ? 1 : 0;
-  rows.sort((a, b) => {
-    const byRank = rank(a) - rank(b);
-    if (byRank !== 0) return byRank;
-    return rank(a) === 0 ? a.context.localeCompare(b.context) : a.key.localeCompare(b.key);
-  });
-  return rows;
+    return rows;
+  };
 }
