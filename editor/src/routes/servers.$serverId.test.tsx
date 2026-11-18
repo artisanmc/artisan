@@ -258,6 +258,7 @@ describe("ServerDetailPage", () => {
       "serverDetail.tabs.play",
       "serverDetail.tabs.assistant",
       "serverDetail.tabs.data",
+      "serverDetail.tabs.updates",
       "serverDetail.tabs.settings",
     ]);
     expect(tabs[0]).toHaveAttribute("aria-current", "page");

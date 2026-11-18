@@ -97,7 +97,9 @@ same on every store. Modrinth and Hangar take no paid plugin, so it goes to none
    Release carrying it (the workflow artifact is kept one day);
 2. job `publish` (environment `release`): the exact jar of job `jars` to Voxel
    (`api.voxel.shop/v1/postUpdate`), nothing is rebuilt. A version with a suffix goes out as a beta.
-   Skipped while its key is not set.
+   Skipped while its key is not set. The same jar goes to the Artisan site as the release
+   `<version>` (`.github/publish-on-site.sh`), downloadable by licence holders from
+   `artisanmc.net/modules/artisan/versions/`.
 
 Notes are the annotated tag's message, refused when empty:
 `git tag -a v2.0.0 -m "…" && git push origin v2.0.0`. Write them for server owners; the
@@ -105,7 +107,10 @@ Notes are the annotated tag's message, refused when empty:
 
 By hand after `publish`: SpigotMC and BuiltByBit have no upload API; take the jar from the draft
 Release. **Never publish the GitHub Release**: the repository is public, a published Release hands
-the paid jar to anyone. Pushes to `main` build a dev version as a check and upload nothing.
+the paid jar to anyone. A push to `main` sends its jar to the Artisan site as the
+development build `<last tag>-dev.<run>` (`1.0.0-dev.<run>` before the first tag; notes: the pushed
+commits; the site keeps the last 20), and nowhere else. The site needs the repository secret
+`RELEASE_TOKEN`, the same value as the secret of that name on the site's Worker.
 
 GitHub `release` environment (restrict it to tags `v*`; a required reviewer lets you check the
 draft Release before anything goes out):

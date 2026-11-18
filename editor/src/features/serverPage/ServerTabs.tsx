@@ -17,6 +17,7 @@ export const SERVER_TABS = [
     label: "serverDetail.tabs.stats",
     permission: "artisan.editor.stats",
   },
+  { to: "/servers/$serverId/updates", label: "serverDetail.tabs.updates" },
   { to: "/servers/$serverId/settings", label: "serverDetail.tabs.settings" },
 ] as const satisfies readonly { to: string; label: string; permission?: string }[];
 

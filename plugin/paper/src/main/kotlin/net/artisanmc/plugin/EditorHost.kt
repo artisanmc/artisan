@@ -171,6 +171,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
                 servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts, bedrockPacks, { tunnel },
                 mcp = mcp, ai = web.ai, aiSettings = suite.aiSettingsStore(), aiConversations = suite.aiConversationStore(), version = description.version, online = editorChannel::online, packCdn = packCdn,
                 packBuilder = packBuilder,
+                site = net.artisanmc.plugin.hub.SiteAccount(web.site, suite.siteLinkStore(), net.artisanmc.plugin.hub.HttpSiteApi(web.site, description.version)),
                 stats = net.artisanmc.plugin.hub.StatsAccess(
                     reader = suite::statsRows,
                     rowOf = suite::statsServer,

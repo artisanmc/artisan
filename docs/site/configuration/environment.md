@@ -64,6 +64,12 @@ editor shows its values read-only. See [The editor's assistant](../ai/#the-edito
 | `ai.max-steps` | `25` | Model calls one message may make (1 to 100). The assistant stops there and says so; the next message lets it go on. |
 | `ai.base-url` | `""` | Another address for the API: a proxy, or another vendor's compatible API. With `anthropic`: DeepSeek `https://api.deepseek.com/anthropic`. With `openai`: DeepSeek `https://api.deepseek.com`, Mistral `https://api.mistral.ai/v1`, OpenRouter `https://openrouter.ai/api/v1`, Ollama `http://localhost:11434/v1`. Empty: the provider's own (Anthropic, OpenAI). |
 
+## `site`
+
+| Key | Default | What it does |
+|---|---|---|
+| `site.url` | `"https://artisanmc.net"` | The site a server's **Updates** tab reads versions from and downloads jars from, once the network is linked to an account there (see [Updating](../../getting-started/install-admin/#updating)). The link's token is only ever sent to this address. Leave it alone unless you run a copy of the site. |
+
 ## `database`
 
 The database Artisan lends to the plugins of its suite (add-ons that ask for it).

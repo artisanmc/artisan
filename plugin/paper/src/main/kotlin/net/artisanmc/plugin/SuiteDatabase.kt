@@ -9,6 +9,7 @@ private const val PURGE_TICKS = 20L * 60 * 60 * 24
 
 /** The `artisan_settings` row of the assistant's settings (ADR `editor-assistant`). */
 private const val AI_SETTING = "ai"
+private const val SITE_SETTING = "site_link"
 
 /** A peer that missed this many presence beats is left alone until it is seen again. */
 private val PEER_WINDOW = java.time.Duration.ofMinutes(3)
@@ -260,6 +261,28 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
                 ),
             )
             rows().put(AI_SETTING, json, java.time.Instant.now())
+        }
+    }
+
+    /**
+     * The network's link to a site account (ADR `site-account-and-module-updates`): `artisan_settings`,
+     * read by every server of the database. Unreadable until the database is open.
+     */
+    fun siteLinkStore(): net.artisanmc.plugin.hub.SiteLinkStore = object : net.artisanmc.plugin.hub.SiteLinkStore {
+        private val mapper = com.fasterxml.jackson.databind.ObjectMapper()
+        private fun rows() = net.artisanmc.plugin.database.SettingRows(artisanData ?: throw IllegalStateException("suite database not open"), database.tables)
+
+        override fun read(): net.artisanmc.plugin.hub.SiteLink? {
+            val node = rows().get(SITE_SETTING)?.let(mapper::readTree) ?: return null
+            val token = node.path("token").asText("").takeIf { it.isNotEmpty() } ?: return null
+            val linkedAt = runCatching { java.time.Instant.parse(node.path("linkedAt").asText("")) }.getOrDefault(java.time.Instant.EPOCH)
+            return net.artisanmc.plugin.hub.SiteLink(token, node.path("name").asText(""), linkedAt)
+        }
+
+        override fun write(link: net.artisanmc.plugin.hub.SiteLink?) {
+            if (link == null) return rows().delete(SITE_SETTING).let {}
+            val json = mapper.writeValueAsString(mapOf("token" to link.token, "name" to link.name, "linkedAt" to link.linkedAt.toString()))
+            rows().put(SITE_SETTING, json, java.time.Instant.now())
         }
     }
 

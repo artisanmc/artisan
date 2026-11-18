@@ -265,6 +265,7 @@ internal class RuntimeAssembly(
         editorBundles = localEditorBundles::find,
         moduleBrands = plugin.moduleBrands::find,
         statQuery = { id, params -> if (plugin.stats.recorder.isEnabled) plugin.stats.recorder.queries.run(id, params) else null },
+        installer = plugin.moduleInstaller,
         templates = { plugin.moduleTemplates },
         seedLang = { api.translations.defaultLang },
         migrateCommandOverrides = ::migrateCommandOverrides,
