@@ -38,7 +38,12 @@ const BUILTIN_PLAYER = [
   { path: "player.location", type: "string", sample: "world 12 64 -30", origin: "context" },
   { path: "player.name", type: "string", sample: "Steve", origin: "context" },
   { path: "player.playtime.duration()", type: "string", sample: "12h 30m", origin: "context" },
-  { path: "player.server_playtime.duration()", type: "string", sample: "4h 10m", origin: "context" },
+  {
+    path: "player.server_playtime.duration()",
+    type: "string",
+    sample: "4h 10m",
+    origin: "context",
+  },
   {
     path: "player.uuid",
     type: "string",
