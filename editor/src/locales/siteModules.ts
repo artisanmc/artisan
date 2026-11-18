@@ -30,6 +30,7 @@ export const siteModulesEn = {
   restart_one: "Restart the server to load {{list}}.",
   restart_other: "Restart the server to load {{list}}.",
   empty: "The site lists no module for this account.",
+  catalogue: "The whole catalogue on {{site}}",
   row: {
     installed: "Installed: {{version}}",
     upToDate: "Up to date",
@@ -115,6 +116,7 @@ export const siteModulesFr: typeof siteModulesEn = {
   restart_one: "Redémarre le serveur pour charger {{list}}.",
   restart_other: "Redémarre le serveur pour charger {{list}}.",
   empty: "Le site ne liste aucun module pour ce compte.",
+  catalogue: "Tout le catalogue sur {{site}}",
   row: {
     installed: "Installé : {{version}}",
     upToDate: "À jour",

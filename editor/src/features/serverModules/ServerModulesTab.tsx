@@ -38,6 +38,19 @@ const hostOf = (url: string) => {
   }
 };
 
+/** A page of the site in the editor's language: the site keeps English at its root. */
+const sitePage = (site: string, lang: string, path: string) =>
+  `${site.replace(/\/$/, "")}${lang.startsWith("fr") ? "/fr" : ""}${path}`;
+
+/** The letters of a module's tile: "Artisan Daily Rewards" → "DR". */
+const initialsOf = (name: string) =>
+  (name.replace(/^Artisan\s+/, "") || name)
+    .split(/\s+/)
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
 const codeOf = (error: unknown) => (error instanceof ApiError ? error.code : "network_error");
 
 /**
@@ -188,6 +201,7 @@ export function ServerModulesTab({ serverId }: { serverId: string }) {
       {error && <p className="text-[12px] text-[var(--danger)]">{error}</p>}
       <ModuleList
         serverId={serverId}
+        site={link.site}
         canManage={link.canManage}
         message={message}
         onUnlinked={() => void getSiteLink().then(setLink)}
@@ -198,11 +212,14 @@ export function ServerModulesTab({ serverId }: { serverId: string }) {
 
 function ModuleList({
   serverId,
+  site,
   canManage,
   message,
   onUnlinked,
 }: {
   serverId: string;
+  /** The site's address: where a module's page and the catalogue are. */
+  site: string;
   canManage: boolean;
   message: (code: string) => string;
   /** The site refused the token: the link is gone. */
@@ -276,6 +293,7 @@ function ModuleList({
       key={module.id}
       module={module}
       lang={i18n.language}
+      href={sitePage(site, i18n.language, `/modules/${module.id}/`)}
       canManage={canManage}
       busy={asking === module.id}
       missing={module.requires.filter((id) => !present(id)).map(nameOf)}
@@ -329,6 +347,14 @@ function ModuleList({
               {available.map(row)}
             </section>
           )}
+          <a
+            className="self-start text-[13px] text-[var(--text-mut)] underline underline-offset-2 hover:text-[var(--text)]"
+            href={sitePage(site, i18n.language, "/modules/")}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t("siteModules.catalogue", { site: hostOf(site) })}
+          </a>
         </>
       )}
     </div>
@@ -349,6 +375,7 @@ function formatPrice(price: { amount: number; currency: string }, lang: string):
 function ModuleRow({
   module,
   lang,
+  href,
   canManage,
   busy,
   missing,
@@ -356,6 +383,8 @@ function ModuleRow({
 }: {
   module: SiteModule;
   lang: string;
+  /** Its page on the site: what it does, with screenshots, and where it is bought. */
+  href: string;
   canManage: boolean;
   busy: boolean;
   /** Names of the modules it needs that this server does not have. */
@@ -376,10 +405,20 @@ function ModuleRow({
 
   return (
     <article className="card flex flex-col gap-3 p-4" data-testid={`module-${module.id}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
+        <span
+          aria-hidden="true"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] border border-[var(--brand-line)] bg-[var(--brand-soft)] text-[13px] font-bold text-[var(--brand)]"
+        >
+          {initialsOf(module.name)}
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-[14px] font-semibold text-[var(--text)]">{module.name}</h3>
+            <h3 className="text-[14px] font-semibold text-[var(--text)]">
+              <a className="hover:underline" href={href} target="_blank" rel="noreferrer">
+                {module.name}
+              </a>
+            </h3>
             {isInstalled &&
               (module.update ? (
                 <Badge variant="amber">
@@ -414,10 +453,11 @@ function ModuleRow({
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {module.access !== "ok"
-            ? module.page && (
+            ? (module.access === "licence" || module.page) && (
                 <a
                   className="btn btn-ghost btn-sm"
-                  href={module.page}
+                  // A module to buy: its own page, which presents it; the plan: the site's `page`.
+                  href={module.access === "licence" ? href : (module.page ?? href)}
                   target="_blank"
                   rel="noreferrer"
                 >

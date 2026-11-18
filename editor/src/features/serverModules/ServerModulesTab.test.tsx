@@ -119,8 +119,16 @@ describe("server updates tab", () => {
     expect(quests.queryByRole("button")).toBeNull();
     expect(quests.getByRole("link", { name: "See on the site" })).toHaveAttribute(
       "href",
-      "https://artisanmc.net/modules/quests/versions/",
+      "https://artisanmc.net/modules/quests/",
     );
+    // Every module's name leads to its page, and the list to the whole catalogue.
+    expect(store.getByRole("link", { name: "Store" })).toHaveAttribute(
+      "href",
+      "https://artisanmc.net/modules/store/",
+    );
+    expect(
+      screen.getByRole("link", { name: "The whole catalogue on artisanmc.net" }),
+    ).toHaveAttribute("href", "https://artisanmc.net/modules/");
 
     fireEvent.click(screen.getByRole("button", { name: "Development builds" }));
     await waitFor(() => expect(api.listSiteModules).toHaveBeenLastCalledWith("srv", "dev"));
