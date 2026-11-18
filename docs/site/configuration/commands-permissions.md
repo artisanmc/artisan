@@ -43,7 +43,7 @@ go through the hub; if the hub is unreachable they say so and change nothing.
 | `artisan.editor.view` | Request a link with `/artisan editor`, open the editor, read projects, their versions and the server's settings. | op |
 | `artisan.editor.edit` | Change projects (private drafts); use the editor's AI assistant; connect an AI app to the editor. | op |
 | `artisan.editor.publish` | Publish projects to the server; rebuild or upload the resource pack and the Bedrock pack; let a connected AI app publish. | op |
-| `artisan.editor.config` | Change the server's settings from the editor's server page; set up the AI assistant; link the network to an artisanmc.net account, and update or install modules from a server's Updates tab; pick the editor's address name on the tunnel; `/artisan editor sessions` and `/artisan editor revoke`. | op |
+| `artisan.editor.config` | Change the server's settings from the editor's server page; set up the AI assistant; link the network to an artisanmc.net account, and update or install modules from a server's Updates tab; import another plugin's data from a server's [Imports tab](../../editor/imports/); pick the editor's address name on the tunnel; `/artisan editor sessions` and `/artisan editor revoke`. | op |
 | `artisan.editor.stats` | Read the server's [statistics](../statistics/): the totals and a single player's detail. Gives no access to projects by itself. | op |
 | `artisan.stats.forget` | `/artisan stats forget <player>`. | op |
 

@@ -42,13 +42,24 @@ sealed class Refusal(val code: String, val args: Map<String, String> = emptyMap(
     class FileRequired(id: String) : Refusal("file_required", mapOf("source" to id))
     class BadFile(name: String) : Refusal("bad_file", mapOf("file" to name))
     class UnknownBatch(batch: String) : Refusal("unknown_batch", mapOf("batch" to batch))
-    class Failed(message: String) : Refusal("failed", mapOf("error" to message))
+    /** [batch]: the batch of an `apply` that stopped midway, to roll back what it wrote. */
+    class Failed(message: String, val batch: String? = null) : Refusal("failed", mapOf("error" to message))
 }
 
 sealed interface Outcome {
     data class Done(val source: ImporterDeclaration, val batch: String, val report: ImportReport) : Outcome
     data class Refused(val refusal: Refusal) : Outcome
 }
+
+/** A run accepted and not started yet: [run] does it (blocking) and frees the module. */
+sealed interface Start {
+    /** [batch]: the id the run is logged under, known before it ends. */
+    class Ready(val batch: String, val run: () -> Outcome) : Start
+    data class Refused(val refusal: Refusal) : Start
+}
+
+/** A run in progress. [target]: for a rollback, the batch it undoes. */
+data class ActiveRun(val batch: String, val source: String, val module: String, val action: String, val startedAt: Long, val target: String?)
 
 /**
  * Runs the modules' importers (ADR `data-imports` §2, §6, §7): one run at a time per module,
@@ -63,36 +74,66 @@ class ImportRuns(
     private val runningPlugin: (List<String>) -> String?,
     private val clock: () -> Long = System::currentTimeMillis,
     private val newBatch: () -> String = { UUID.randomUUID().toString().replace("-", "").take(12) },
+    /** A run that threw: what was running, and why. */
+    private val onFailure: (String, Throwable) -> Unit = { _, _ -> },
 ) {
-    private val busy = ConcurrentHashMap.newKeySet<String>()
+    private val busy = ConcurrentHashMap<String, ActiveRun>()
 
     fun sources(): List<ImporterDeclaration> = registry.registered()
 
+    /** The runs in progress, one per module at most. */
+    fun active(): List<ActiveRun> = busy.values.sortedBy { it.startedAt }
+
+    /** The enabled plugin that stops [source] from being applied, or null. */
+    fun conflict(source: ImporterDeclaration): String? = runningPlugin(source.conflicts)
+
+    /** The files an admin can name: plain files directly inside the imports folder. */
+    fun files(): List<String> = try {
+        Files.list(importsDir).use { s -> s.filter { Files.isRegularFile(it) }.map { it.fileName.toString() }.filter { !it.startsWith(".") }.sorted().toList() }
+    } catch (_: java.io.IOException) {
+        emptyList()
+    }
+
     /** Dry run, or the write when [confirm]. */
-    fun run(sourceId: String, fileName: String?, confirm: Boolean, actor: String, lang: String, options: Map<String, String> = emptyMap()): Outcome {
-        val source = registry.find(sourceId) ?: return Outcome.Refused(Refusal.UnknownSource(sourceId))
+    fun run(sourceId: String, fileName: String?, confirm: Boolean, actor: String, lang: String, options: Map<String, String> = emptyMap()): Outcome =
+        finish(prepare(sourceId, fileName, confirm, actor, lang, options))
+
+    /** Undoes an applied [batch]: a dry run, or the write when [confirm]. */
+    fun rollback(batch: String, confirm: Boolean, actor: String): Outcome = finish(prepareRollback(batch, confirm, actor))
+
+    private fun finish(start: Start): Outcome = when (start) {
+        is Start.Ready -> start.run()
+        is Start.Refused -> Outcome.Refused(start.refusal)
+    }
+
+    /**
+     * Checks a run and takes its module; the caller then calls [Start.Ready.run], on any thread
+     * that may block. For a caller that answers before the run ends (the editor).
+     */
+    fun prepare(sourceId: String, fileName: String?, confirm: Boolean, actor: String, lang: String, options: Map<String, String> = emptyMap()): Start {
+        val source = registry.find(sourceId) ?: return Start.Refused(Refusal.UnknownSource(sourceId))
         val file = when {
-            fileName != null -> resolve(fileName) ?: return Outcome.Refused(Refusal.BadFile(fileName))
-            source.readsFile -> return Outcome.Refused(Refusal.FileRequired(sourceId))
+            fileName != null -> resolve(fileName) ?: return Start.Refused(Refusal.BadFile(fileName))
+            source.readsFile -> return Start.Refused(Refusal.FileRequired(sourceId))
             else -> null
         }
-        if (confirm) runningPlugin(source.conflicts)?.let { return Outcome.Refused(Refusal.ConflictRunning(it)) }
-        return locked(source.module()) {
-            val batch = newBatch()
+        if (confirm) runningPlugin(source.conflicts)?.let { return Start.Refused(Refusal.ConflictRunning(it)) }
+        val action = if (confirm) "apply" else "plan"
+        return locked(source, action, null, actor) { batch ->
             val request = ImportRequest(batch, file, options, lang)
             val report = if (confirm) source.importer().apply(request) else source.importer().plan(request)
-            log.record(ImportRun(batch, source.id, source.module(), if (confirm) "apply" else "plan", wrote(report), actor, clock(), null, json(report)))
+            log.record(ImportRun(batch, source.id, source.module(), action, wrote(report), actor, clock(), null, json(report)))
             Outcome.Done(source, batch, report)
         }
     }
 
-    /** Undoes an applied [batch]: a dry run, or the write when [confirm]. */
-    fun rollback(batch: String, confirm: Boolean, actor: String): Outcome {
-        val run = log.findApplied(batch) ?: return Outcome.Refused(Refusal.UnknownBatch(batch))
-        val source = registry.find(run.source) ?: return Outcome.Refused(Refusal.UnknownSource(run.source))
-        return locked(source.module()) {
+    /** As [prepare], for the rollback of an applied [batch]. */
+    fun prepareRollback(batch: String, confirm: Boolean, actor: String): Start {
+        val run = log.findApplied(batch) ?: return Start.Refused(Refusal.UnknownBatch(batch))
+        val source = registry.find(run.source) ?: return Start.Refused(Refusal.UnknownSource(run.source))
+        return locked(source, "rollback", batch, actor) { id ->
             val report = source.importer().rollback(batch, !confirm)
-            log.record(ImportRun(newBatch(), source.id, source.module(), "rollback", wrote(report), actor, clock(), batch, json(report)))
+            log.record(ImportRun(id, source.id, source.module(), "rollback", wrote(report), actor, clock(), batch, json(report)))
             Outcome.Done(source, batch, report)
         }
     }
@@ -102,14 +143,30 @@ class ImportRuns(
     /** Something was written: a run that only skipped what was already imported has no batch to roll back. */
     private fun wrote(report: ImportReport) = !report.isDryRun && report.total() > 0
 
-    private fun locked(module: String, block: () -> Outcome): Outcome {
-        if (!busy.add(module)) return Outcome.Refused(Refusal.Busy(module))
-        return try {
-            block()
-        } catch (e: Exception) {
-            Outcome.Refused(Refusal.Failed(e.message ?: e.javaClass.simpleName))
-        } finally {
-            busy.remove(module)
+    /**
+     * A run that threw is logged too. A failed `apply` may have written records before it stopped
+     * (each in its own transaction): it is logged as applied, so its batch can be rolled back.
+     */
+    private fun locked(source: ImporterDeclaration, action: String, target: String?, actor: String, block: (String) -> Outcome): Start {
+        val batch = newBatch()
+        val module = source.module()
+        if (busy.putIfAbsent(module, ActiveRun(batch, source.id, module, action, clock(), target)) != null) return Start.Refused(Refusal.Busy(module))
+        return Start.Ready(batch) {
+            try {
+                block(batch)
+            } catch (e: Throwable) {
+                if (e is VirtualMachineError) throw e
+                val message = e.message ?: e.javaClass.simpleName
+                onFailure("${source.id} $action", e)
+                try {
+                    log.record(ImportRun(batch, source.id, module, action, action == "apply", actor, clock(), target, mapper.writeValueAsString(mapOf("failed" to message))))
+                } catch (logging: Exception) {
+                    onFailure("${source.id} $action (logging its failure)", logging)
+                }
+                Outcome.Refused(Refusal.Failed(message, batch.takeIf { action == "apply" }))
+            } finally {
+                busy.remove(module)
+            }
         }
     }
 

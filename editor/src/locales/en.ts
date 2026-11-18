@@ -3,12 +3,13 @@ import { aiEn } from "./ai";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
 import { editorSessionsEn } from "./editorSessions";
-import { siteModulesEn } from "./siteModules";
 import { mcpEn } from "./mcp";
 import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
 import { projectIdentityEn } from "./projectIdentity";
 import { selfHostedEn } from "./selfHosted";
+import { serverImportsEn } from "./serverImports";
+import { siteModulesEn } from "./siteModules";
 import { triggersEn } from "./triggers";
 import { variablesEn } from "./variables";
 export default {
@@ -1932,6 +1933,7 @@ export default {
   mcp: mcpEn,
   editorSessions: editorSessionsEn,
   ai: aiEn,
+  serverImports: serverImportsEn,
   siteModules: siteModulesEn,
   editorAddress: {
     title: "Editor address",
@@ -2065,6 +2067,7 @@ export default {
       data: "Data sources",
       stats: "Statistics",
       updates: "Updates",
+      imports: "Imports",
       settings: "Settings",
     },
     stateOnline: "Online",

@@ -2,9 +2,6 @@ package net.artisanmc.plugin.command
 
 import net.artisanmc.modules.api.importing.ImportReport
 import net.artisanmc.plugin.ArtisanPlugin
-import net.artisanmc.plugin.database.ImportRunRow
-import net.artisanmc.plugin.importing.ImportRun
-import net.artisanmc.plugin.importing.ImportRunLog
 import net.artisanmc.plugin.importing.ImportRuns
 import net.artisanmc.plugin.importing.Outcome
 import net.artisanmc.plugin.lang.LangManager
@@ -12,7 +9,6 @@ import net.artisanmc.plugin.platform.Chat
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.command.CommandSender
-import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -23,12 +19,8 @@ import java.time.format.DateTimeFormatter
  * back on the global one. Texts from the source (labels, messages) are escaped.
  */
 internal class ImportCommand(private val plugin: ArtisanPlugin, private val lang: LangManager) {
-    private val importsDir = File(plugin.dataFolder, "imports")
-
-    private val runs: ImportRuns by lazy {
-        importsDir.mkdirs()
-        ImportRuns(plugin.api.getImports(), log(), importsDir.toPath(), ::runningPlugin)
-    }
+    private val importsDir = net.artisanmc.plugin.importing.ImportWiring.importsDir(plugin)
+    private val runs: ImportRuns get() = plugin.importRuns
 
     fun complete(args: List<String>): List<String> = when (args.size) {
         1 -> (listOf("list", "history", "rollback") + plugin.api.getImports().registered().map { it.id() })
@@ -78,7 +70,11 @@ internal class ImportCommand(private val plugin: ArtisanPlugin, private val lang
     }
 
     private fun render(sender: CommandSender, outcome: Outcome, rollback: Boolean, confirm: Boolean): List<Component> = when (outcome) {
-        is Outcome.Refused -> listOf(msg(sender, "import.refused.${outcome.refusal.code}", *outcome.refusal.args.map { (k, v) -> k to esc(v) }.toTypedArray()))
+        is Outcome.Refused -> buildList {
+            add(msg(sender, "import.refused.${outcome.refusal.code}", *outcome.refusal.args.map { (k, v) -> k to esc(v) }.toTypedArray()))
+            // An apply that stopped midway: what it wrote can be undone under its batch.
+            (outcome.refusal as? net.artisanmc.plugin.importing.Refusal.Failed)?.batch?.let { add(msg(sender, "import.failed_batch", "batch" to it)) }
+        }
         is Outcome.Done -> report(sender, outcome, rollback, confirm)
     }
 
@@ -123,27 +119,6 @@ internal class ImportCommand(private val plugin: ArtisanPlugin, private val lang
         }
         plugin.scheduler.global { lines.forEach { Chat.send(sender, it) } }
     }
-
-    private fun runningPlugin(names: List<String>): String? = plugin.server.pluginManager.plugins
-        .firstOrNull { p -> p.isEnabled && p != plugin && names.any { p.name.startsWith(it, ignoreCase = true) } }?.name
-
-    /** The suite database's log; without it (no database yet), runs are kept in memory until restart. */
-    private fun log(): ImportRunLog {
-        val rows = plugin.suite.importRunRows()
-        if (rows == null) plugin.logger.warning("[Artisan] the suite database is not open: /artisan import keeps its history in memory until restart")
-        return if (rows != null) object : ImportRunLog {
-            override fun record(run: ImportRun) { rows.insert(ImportRunRow(run.batch, run.source, run.module, run.action, run.applied, run.actor, run.at, run.target, run.reportJson)) }
-            override fun findApplied(batch: String) = rows.findApplied(batch)?.let(::toRun)
-            override fun recent(limit: Int) = rows.recent(limit).map(::toRun)
-        } else object : ImportRunLog {
-            private val runs = java.util.concurrent.CopyOnWriteArrayList<ImportRun>()
-            override fun record(run: ImportRun) { runs += run }
-            override fun findApplied(batch: String) = runs.firstOrNull { it.batch == batch && it.action == "apply" && it.applied }
-            override fun recent(limit: Int) = runs.reversed().take(limit)
-        }
-    }
-
-    private fun toRun(r: ImportRunRow) = ImportRun(r.batch, r.source, r.module, r.action, r.applied, r.actor, r.at, r.target, r.report)
 
     private fun msg(sender: CommandSender, key: String, vararg args: Pair<String, Any>) = lang.get(key, sender, *args)
     private fun say(sender: CommandSender, key: String, vararg args: Pair<String, Any>) = Chat.send(sender, msg(sender, key, *args))

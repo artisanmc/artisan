@@ -60,6 +60,22 @@ sealed interface EditorRequest {
     }
     /** Restarts the server after a countdown its players are told of (protocol 1.8, [ProtocolVersion.SERVER_RESTART]). */
     data class ServerRestart(override val requestId: String) : WithReply
+    /** The import sources of the modules, the files to name, the runs in progress and the last ones (protocol 1.9, [ProtocolVersion.IMPORTS]). */
+    data class ImportsFetch(override val requestId: String) : WithReply
+    /**
+     * Starts a run and answers before it ends (protocol 1.9): [action] `run` (of [source], with [file])
+     * or `rollback` (of [batch]); without [confirm], a dry run. [actor] is logged with it.
+     */
+    data class ImportStart(
+        override val requestId: String,
+        val action: String,
+        val source: String?,
+        val file: String?,
+        val batch: String?,
+        val confirm: Boolean,
+        val actor: String,
+        val lang: String,
+    ) : WithReply
     /** A module template's files (protocol 1.3, [ProtocolVersion.TEMPLATES]). */
     data class TemplateFetch(override val requestId: String, val moduleId: String, val templateId: String) : WithReply
     /** Copies a module template into a Project; [paths] null: all its files (protocol 1.3). */
@@ -170,6 +186,17 @@ sealed interface EditorRequest {
                 "editor_bundle_fetch" -> EditorBundleFetch(requestId, node.text("module_id") ?: return null)
                 "module_brand_fetch" -> ModuleBrandFetch(requestId, node.text("module_id") ?: return null)
                 "plugins_fetch" -> PluginsFetch(requestId)
+                "imports_fetch" -> ImportsFetch(requestId)
+                "import_start" -> ImportStart(
+                    requestId = requestId,
+                    action = node.text("action") ?: return null,
+                    source = node.nullableText("source"),
+                    file = node.nullableText("file"),
+                    batch = node.nullableText("batch"),
+                    confirm = node["confirm"]?.asBoolean(false) ?: false,
+                    actor = node.text("actor") ?: "editor",
+                    lang = node.text("lang") ?: "en",
+                )
                 "server_restart" -> ServerRestart(requestId)
                 "module_install" -> ModuleInstall(
                     requestId = requestId,

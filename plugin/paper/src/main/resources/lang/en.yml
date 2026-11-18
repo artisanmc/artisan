@@ -77,6 +77,7 @@ import:
   history_empty: "<aqua>[Artisan] </aqua><gray>No import run yet.</gray>"
   history_header: "<aqua>[Artisan] </aqua><green>Last import runs:</green>"
   history_line: "<gray>{at}</gray> <white>{action}</white> <gray>{source}</gray> <white>{batch}</white> <gray>{applied} {actor}</gray>"
+  failed_batch: "<gray>What it wrote before stopping is batch <white>{batch}</white>: /artisan import rollback {batch}</gray>"
   refused:
     unknown_source: "<red>[Artisan] Unknown import source: {source}. See /artisan import list</red>"
     busy: "<red>[Artisan] An import of {module} is already running.</red>"

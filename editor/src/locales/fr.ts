@@ -3,13 +3,14 @@ import { aiFr } from "./ai";
 import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
 import { editorSessionsFr } from "./editorSessions";
-import { siteModulesFr } from "./siteModules";
 import type en from "./en";
 import { mcpFr } from "./mcp";
 import { mmEditorFr, textToolFr } from "./mmEditor";
 import { onboardingFr } from "./onboarding";
 import { projectIdentityFr } from "./projectIdentity";
 import { selfHostedFr } from "./selfHosted";
+import { serverImportsFr } from "./serverImports";
+import { siteModulesFr } from "./siteModules";
 import { triggersFr } from "./triggers";
 import { variablesFr } from "./variables";
 
@@ -1969,6 +1970,7 @@ const fr: typeof en = {
   mcp: mcpFr,
   editorSessions: editorSessionsFr,
   ai: aiFr,
+  serverImports: serverImportsFr,
   siteModules: siteModulesFr,
   editorAddress: {
     title: "Adresse de l'éditeur",
@@ -2104,6 +2106,7 @@ const fr: typeof en = {
       data: "Sources de données",
       stats: "Statistiques",
       updates: "Mises à jour",
+      imports: "Imports",
       settings: "Réglages",
     },
     stateOnline: "En ligne",

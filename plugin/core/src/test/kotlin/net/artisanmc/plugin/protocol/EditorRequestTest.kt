@@ -70,4 +70,12 @@ class EditorRequestTest {
             assertNull(parse("""{"type":"$type","request_id":"r","project_id":"p","menu_id":"m","menu_yaml":"x"}"""), type)
         }
     }
+
+    @Test
+    fun `an import start reads a null file, source or batch as absent`() {
+        val start = parse("""{"type":"import_start","request_id":"r","action":"run","source":"a:b","file":null,"batch":null}""") as EditorRequest.ImportStart
+        assertEquals("a:b", start.source)
+        assertNull(start.file)
+        assertNull(start.batch)
+    }
 }

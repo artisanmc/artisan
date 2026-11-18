@@ -267,6 +267,7 @@ internal class RuntimeAssembly(
         statQuery = { id, params -> if (plugin.stats.recorder.isEnabled) plugin.stats.recorder.queries.run(id, params) else null },
         installer = plugin.moduleInstaller,
         restart = plugin.serverRestart,
+        imports = { plugin.importRuns },
         templates = { plugin.moduleTemplates },
         seedLang = { api.translations.defaultLang },
         migrateCommandOverrides = ::migrateCommandOverrides,

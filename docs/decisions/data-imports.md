@@ -30,9 +30,16 @@ The facts that constrain the design:
 
 ## Decisions
 
-1. **Content imports into a draft, data through an importer.** A converter of content (BeautyQuests →
-   `quest_group`) writes Documents into the admin's draft, reviewed and deployed like any other
-   change; it does not use this contract. Everything below is about data.
+1. **Content imports into a draft, data through an importer.** A converter of content alone
+   writes Documents into the admin's draft, reviewed and deployed like any other change; it does
+   not use this contract. Everything below is about data. **Exception: content the imported data
+   points to.** Players' quest progress is rows keyed by the uid of a quest: an importer that
+   writes them needs the quests loaded when it does. Such an importer (`msquests:beautyquests`)
+   writes the Documents itself, in its module's own folder, as new files only (an existing file it
+   did not write blocks the run), records each with its hash in its ledger, and calls
+   `api.project.reload()`; its rollback removes a file only while the hash still matches and no
+   imported row still uses it. The admin reviews them in the editor after the fact, and the dry run's
+   report lists what was converted, set aside and not carried.
 2. **The run is Artisan's contract, the records stay the module's.** `modules.api.importing`:
    `api.getImports()` (`ImportRegistry`) takes an `ImporterDeclaration` per source
    (`<module>:<source>`, e.g. `auctions:zauctionhouse`, `auctions:json`): a label, the names of
@@ -59,8 +66,8 @@ The facts that constrain the design:
    support boundary. An admin whose import misbehaves sends the file; we replay it.
    A format version is never changed, only added (`auctions/2` next to `auctions/1`).
 5. **Built-in converters for the competitors that cover most servers, written by hand and tested
-   on real exports.** Auctions: zAuctionHouse v3 and v4 (done), then one more. Quests: BeautyQuests
-   (content through decision 1, progress through this contract).
+   on real exports.** Auctions: zAuctionHouse v3 and v4, AuctionHouse (Kiranhart). Quests:
+   BeautyQuests (content and progress in one importer, the exception of decision 1).
 6. **Every applied run is a batch, and a batch can be rolled back while its records are untouched.**
    Rollback removes what the batch created **and is still as the import left it** (a listing still
    active at its imported version, a claim not taken, a sale row). What has lived since (bought,
@@ -70,8 +77,13 @@ The facts that constrain the design:
    `list`, `<source> [file] [confirm]`, `rollback <module> <batch> [confirm]`, `history`.
    Without `confirm`, a dry run. Artisan logs each run with its report in `artisan_import_runs`
    (who, when, source, dry or applied, batch, report as JSON). A module's own command
-   (`/ah admin import`) stays and calls the same importer. Later, an editor screen and MCP tools use
-   the same registry.
+   (`/ah admin import`) stays and calls the same importer. The editor's **Imports** tab of a server
+   (`artisan.editor.config`) uses the same `ImportRuns`: the sources, a dry run and its report, the
+   write on a second click, the history and its rollback (a dry run first). The run happens on the
+   server that holds the data: the hub relays `imports_fetch` and `import_start`, which answers
+   with the batch before the run ends, and the editor reads the report back from the log. A run
+   that throws is logged like any other, and a failed `apply` as applied: what it wrote before
+   stopping can be rolled back. MCP tools may use the same registry later.
 8. **The AI writes a mapping, never data, and never code that runs on the server.** For a plugin
    with no built-in converter, the AI reads a sample the admin gives (a few rows or files, read
    only) and writes a **declarative mapping**: a `SELECT` on a read-only connection or field paths
