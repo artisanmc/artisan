@@ -145,6 +145,8 @@ function builtinPlayerEntries(): PlaceholderEntry[] {
     { path: "player.first_seen.ago()", type: "string", sample: "40d", origin: "context" },
     { path: "player.last_seen.ago()", type: "string", sample: "3d 4h", origin: "context" },
     { path: "player.playtime.duration()", type: "string", sample: "12h 30m", origin: "context" },
+    // `artisan_server_playtime`: this server's share of the play time.
+    { path: "player.server_playtime.duration()", type: "string", sample: "4h 10m", origin: "context" },
   ];
 }
 

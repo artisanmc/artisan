@@ -26,6 +26,17 @@ class StatsExportTest {
                 .sortedWith(compareBy({ it.lastSeen }, { it.player }))
                 .dropWhile { a -> after != null && compareValuesBy(a, after, { it.lastSeen }, { it.player }) <= 0 }
                 .take(limit)
+
+        val times = mutableListOf<ExportedServerTime>()
+        val servers = mutableMapOf<Int, String>()
+
+        override fun serverTimes(since: Long, until: Long, after: ExportedServerTime?, limit: Int) =
+            times.filter { it.lastSeen in (since + 1)..until }
+                .sortedWith(compareBy({ it.lastSeen }, { it.server }, { it.player }))
+                .dropWhile { a -> after != null && compareValuesBy(a, after, { it.lastSeen }, { it.server }, { it.player }) <= 0 }
+                .take(limit)
+
+        override fun servers() = servers
     }
 
     /** A website that keeps its cursor and every payload it got. */
@@ -138,5 +149,34 @@ class StatsExportTest {
         assertFailsWith<IllegalStateException> { StatsExport.parseCursor("<html>login</html>") }
         assertEquals(42, StatsExport.parseCursor("""{ "cursor" : 42 }"""))
         assertNull(StatsExport(table, { """{"cursor":0}""" }, { emptyList() }, "x").cursor)
+    }
+
+    @Test
+    fun `play time per server travels as one metric per server, a tab of the network total`() {
+        table.servers += mapOf(3 to "survie")
+        table.players += ExportedPlayer("a", "Alice", 1_000, 5_000_000, 7_200_000)
+        table.times += ExportedServerTime(3, "a", 3_600_500, 5_000_000)
+        export().run()
+        val page = site.payloads[1]
+        assertTrue(
+            page.contains(
+                """{"id":"core:playtime.s3","unit":"seconds","ranked":true,"ascending":false,"parent":"core:playtime","scope":"survie",""" +
+                    """"labels":{"en":"Play time on survie","fr":"Temps de jeu sur survie"}}""",
+            ),
+            page,
+        )
+        assertTrue(page.contains("""{"metric":"core:playtime.s3","uuid":"a","value":3600}"""), page)
+    }
+
+    @Test
+    fun `play time per server is paged after the values, and the cursor waits for its last page`() {
+        repeat(3) { table.values += ExportedValue("daily:streak", "p$it", 1, 6_000_000) }
+        repeat(4) { table.times += ExportedServerTime(1, "p$it", 1_000, 6_000_000L + it) }
+        val run = export(pageSize = 2).run()
+        val pages = site.payloads.drop(1)
+        assertEquals(4, pages.size)
+        assertEquals(listOf(true, true, true, false), pages.map { it.contains("\"cursor\":null") })
+        assertEquals(7, run.values)
+        (0 until 4).forEach { i -> assertTrue(pages.any { it.contains(""""metric":"core:playtime.s1","uuid":"p$i"""") }, "p$i") }
     }
 }

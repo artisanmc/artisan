@@ -80,11 +80,35 @@ class PlayerRows(
         }
     }
 
-    /** Adds [ms] of play to [id] (a server counts its own share of the session) and marks them seen at [now]. */
-    fun addPlaytime(id: UUID, ms: Long, now: Long) = dataSource.connection.use { c ->
+    /** [id]'s play time on the server of [server] (its row in `artisan_servers`), in milliseconds: 0 before their first visit there. */
+    fun serverPlaytime(id: UUID, server: ServerRow): Long = dataSource.connection.use { c ->
+        c.prepareStatement("SELECT playtime_ms FROM ${t.serverPlaytime} WHERE server_id = ? AND player_uuid = ?").use { s ->
+            s.setInt(1, server.value); s.setString(2, id.toString())
+            s.executeQuery().use { r -> if (r.next()) r.getLong(1) else 0 }
+        }
+    }
+
+    /**
+     * Adds [ms] of play to [id] (a server counts its own share of the session) and marks them seen at
+     * [now]: to the network total, and to the total on [server] when this server has its row. Only
+     * that server writes its rows, so its insert never races another.
+     */
+    fun addPlaytime(id: UUID, ms: Long, now: Long, server: ServerRow? = null) = dataSource.connection.use { c ->
+        val add = ms.coerceAtLeast(0)
         c.prepareStatement("UPDATE ${t.players} SET playtime_ms = playtime_ms + ?, last_seen = ? WHERE player_uuid = ?").use {
-            it.setLong(1, ms.coerceAtLeast(0)); it.setLong(2, now); it.setString(3, id.toString())
+            it.setLong(1, add); it.setLong(2, now); it.setString(3, id.toString())
             it.executeUpdate()
+        }
+        if (server == null) return@use
+        val updated = c.prepareStatement("UPDATE ${t.serverPlaytime} SET playtime_ms = playtime_ms + ?, last_seen = ? WHERE server_id = ? AND player_uuid = ?").use {
+            it.setLong(1, add); it.setLong(2, now); it.setInt(3, server.value); it.setString(4, id.toString())
+            it.executeUpdate()
+        }
+        if (updated == 0) {
+            c.prepareStatement("INSERT INTO ${t.serverPlaytime} (server_id, player_uuid, playtime_ms, last_seen) VALUES (?, ?, ?, ?)").use {
+                it.setInt(1, server.value); it.setString(2, id.toString()); it.setLong(3, add); it.setLong(4, now)
+                it.executeUpdate()
+            }
         }
     }
 }

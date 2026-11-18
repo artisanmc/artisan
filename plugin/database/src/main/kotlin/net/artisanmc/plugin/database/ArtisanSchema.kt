@@ -270,6 +270,20 @@ object ArtisanSchema {
         Migration(49, "CREATE INDEX ${t.metricValuesPlayerIndex} ON ${t.metricValues} (player_uuid)") { hasIndex(it, t.metricValues, t.metricValuesPlayerIndex) },
         // The export reads the players seen since its cursor (names, play time).
         Migration(50, "CREATE INDEX ${t.playersSeenIndex} ON ${t.players} (last_seen)") { hasIndex(it, t.players, t.playersSeenIndex) },
+        // Each player's play time on each server (`server_id` = the row in `artisan_servers`), beside
+        // the network total of `artisan_players`; only that server writes its rows. Counted from the
+        // version that added it: the time played before stays in the network total only.
+        Migration(
+            51,
+            """CREATE TABLE IF NOT EXISTS ${t.serverPlaytime} (
+                server_id INT NOT NULL,
+                player_uuid VARCHAR(36) NOT NULL,
+                playtime_ms BIGINT NOT NULL,
+                last_seen BIGINT NOT NULL,
+                PRIMARY KEY (server_id, player_uuid)
+            )""",
+        ),
+        Migration(52, "CREATE INDEX ${t.serverPlaytimeSeenIndex} ON ${t.serverPlaytime} (last_seen)") { hasIndex(it, t.serverPlaytime, t.serverPlaytimeSeenIndex) },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

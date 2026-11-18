@@ -14,11 +14,13 @@ data class PlayerRecord(
     val previousSeen: Long?,
     val playtimeBefore: Long,
     val sessionStart: Long,
+    /** Their play time on this server before this session (0 without a database). */
+    val serverPlaytimeBefore: Long = 0,
 )
 
 /**
  * The online players' records, read in memory by the templates (`{player.first_seen}`,
- * `{player.last_seen}`, `{player.playtime}`): a text never waits for the database. Filled at login
+ * `{player.last_seen}`, `{player.playtime}`, `{player.server_playtime}`): a text never waits for the database. Filled at login
  * by `PlayerSync` (paper), dropped at quit. Without a database, a player's record starts at their
  * first join on this server since the start.
  */
@@ -39,7 +41,8 @@ object PlayerRecords {
 
     /**
      * The template fields of [id] at [now], merged into `{player}`: instants and the play time in
-     * epoch milliseconds (`{player.last_seen.ago()}`, `{player.playtime.duration()}`). Empty when
+     * epoch milliseconds (`{player.last_seen.ago()}`, `{player.playtime.duration()}`, the network
+     * total, and `{player.server_playtime}`, this server's share). Empty when
      * nothing is known; `last_seen` absent on a first visit.
      */
     fun fields(id: UUID, now: Long = System.currentTimeMillis()): Map<String, Any?> {
@@ -47,7 +50,9 @@ object PlayerRecords {
         return buildMap {
             put("first_seen", r.firstSeen)
             r.previousSeen?.let { put("last_seen", it) }
-            put("playtime", r.playtimeBefore + (now - r.sessionStart).coerceAtLeast(0))
+            val session = (now - r.sessionStart).coerceAtLeast(0)
+            put("playtime", r.playtimeBefore + session)
+            put("server_playtime", r.serverPlaytimeBefore + session)
         }
     }
 }

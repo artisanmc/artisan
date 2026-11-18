@@ -87,18 +87,18 @@ or a free text. `value` (1 by default) is added up, for an amount or a duration.
 ## Rankings and profiles on your website
 
 A **player metric** is a player's current value of something you may want to rank: play time
-(`core:playtime`), money (`core:money`, the Vault balance, when an economy plugin is installed)
+(`core:playtime` for the whole network, `core:playtime.s<n>` for each server), money (`core:money`, the Vault balance, when an economy plugin is installed)
 and what add-ons declare (a login streak, quests completed). Artisan keeps the latest value of
 each player in the database and can push the values that changed to your website, which shows
 **rankings** and a **profile** per player:
 
-1. Install the website's plugin (Azuriom: **Artisan**), and copy the address and the token it
-   shows.
+1. Install the website's plugin (Azuriom: **Artisan Leaderboards**), and copy the address and
+   the token its admin page shows.
 2. On one server of the network, in [`environment.yml`](../environment/#stats-export):
 
    ```yaml
    stats-export:
-     url: "https://example.com/api/artisan/stats"
+     url: "https://example.com/api/leaderboards/push"
      token: "${ARTISAN_EXPORT_TOKEN}"
    ```
 
@@ -109,6 +109,10 @@ The server opens no port: it calls the website. The website keeps its copy, so r
 online while the server is off, and a website down for a while catches up on its return. What
 leaves the server: UUIDs, names, first and last connection, play time and the metrics. No IP,
 no other statistics.
+
+Each server counts its own share of a player's play time beside the network total, from the
+version that added it on: the time played before stays in the network total only. A website
+shows each server as a tab of the play-time ranking.
 
 Play time and money of the online players are refreshed every 5 minutes and when they leave: a
 ranking can be up to about 7 minutes late.

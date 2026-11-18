@@ -62,7 +62,14 @@ few minutes.
    website is down: the cursor did not move.
 4. **Artisan's own metrics.** `core:playtime` (seconds) is read from `artisan_players` (its
    `last_seen` moves every 5 minutes while online, at the same time as the play time); it travels
-   in `values` beside each player row and is never set. `core:money` (cents) is the Vault balance
+   in `values` beside each player row and is never set. Each server also adds its share to
+   `artisan_server_playtime` (`server_id`, `player_uuid`, `playtime_ms`, `last_seen`), only it
+   writing its rows; the export reads it after the values, in the same pages, as
+   `core:playtime.s<row>` (the server's row in `artisan_servers`: the id outlives a rename). Those
+   metrics are declared by the export, one per server with rows, with two optional fields a
+   website may ignore: `parent: "core:playtime"` and `scope: "<server name>"`, so it shows them
+   as tabs of the network ranking. Counted from the version that added the table: the time played
+   before stays in the network total only. `core:money` (cents) is the Vault balance
    of the online players, sampled every 5 minutes and at quit, declared once an economy is found.
    Login streaks belong to `artisan-daily-rewards`, which declares `daily:*` metrics.
 5. **Forgetting.** `/artisan stats forget` also deletes the player's metric values and leaves a

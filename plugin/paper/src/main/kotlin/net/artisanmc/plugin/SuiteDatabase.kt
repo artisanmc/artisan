@@ -58,6 +58,9 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
     /** Where the editor sessions' rows are written, after the database opened: `/artisan editor` never waits for a connection. */
     fun sessionWriter(): java.util.concurrent.Executor = versionWriter
 
+    /** This server's row in `artisan_servers` once the suite database is open: the `server_id` of its own rows. */
+    fun ownRow(): net.artisanmc.plugin.database.ServerRow? = serverRow
+
     /** Queues [openSuiteDatabase] on [versionWriter]: nothing in `onEnable` waits for it. */
     fun open(web: net.artisanmc.plugin.hub.WebConfig, editorChannel: net.artisanmc.plugin.hub.EditorChannel) {
         versionWriter.execute { openSuiteDatabase(web, editorChannel) }

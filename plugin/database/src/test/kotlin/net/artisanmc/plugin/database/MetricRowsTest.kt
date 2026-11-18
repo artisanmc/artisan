@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.database
 
+import net.artisanmc.plugin.stats.ExportedServerTime
 import net.artisanmc.modules.api.database.DatabaseDialect
 import net.artisanmc.plugin.stats.ExportedValue
 import net.artisanmc.plugin.stats.MetricValue
@@ -65,5 +66,24 @@ class MetricRowsTest {
         assertNull(rows.get("daily:streak", a))
         assertEquals(1, rows.get("daily:streak", b))
         assertEquals(listOf(ExportedValue(StatsExport.FORGOTTEN, a, 0, 300)), rows.values(150, 1_000, null, 10))
+    }
+
+    @Test
+    fun `play time per server is read in time, server, player order, with the names of its servers`() {
+        val registry = ServerRegistry(ds, DatabaseDialect.H2, Logger.getAnonymousLogger())
+        val (lobby, survie) = listOf("lobby", "survie").map { name ->
+            UUID.randomUUID().also { registry.register(it, name, java.time.Instant.EPOCH) }.let { registry.rowId(it)!! }
+        }
+        UUID.randomUUID().also { registry.register(it, "empty", java.time.Instant.EPOCH) }
+        val players = PlayerRows(ds)
+        players.addPlaytime(UUID.fromString(b), 4_000, 100, survie)
+        players.addPlaytime(UUID.fromString(a), 2_000, 100, survie)
+        players.addPlaytime(UUID.fromString(a), 1_000, 100, lobby)
+        players.addPlaytime(UUID.fromString(a), 9_000, 200, lobby)
+        val first = rows.serverTimes(Long.MIN_VALUE, 1_000, null, 2)
+        assertEquals(listOf(ExportedServerTime(survie.value, a, 2_000, 100), ExportedServerTime(survie.value, b, 4_000, 100)), first)
+        assertEquals(listOf(ExportedServerTime(lobby.value, a, 10_000, 200)), rows.serverTimes(Long.MIN_VALUE, 1_000, first.last(), 2))
+        assertEquals(listOf(ExportedServerTime(lobby.value, a, 10_000, 200)), rows.serverTimes(150, 1_000, null, 10))
+        assertEquals(mapOf(lobby.value to "lobby", survie.value to "survie"), rows.servers())
     }
 }

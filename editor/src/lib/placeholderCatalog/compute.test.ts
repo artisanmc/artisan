@@ -38,6 +38,7 @@ const BUILTIN_PLAYER = [
   { path: "player.location", type: "string", sample: "world 12 64 -30", origin: "context" },
   { path: "player.name", type: "string", sample: "Steve", origin: "context" },
   { path: "player.playtime.duration()", type: "string", sample: "12h 30m", origin: "context" },
+  { path: "player.server_playtime.duration()", type: "string", sample: "4h 10m", origin: "context" },
   {
     path: "player.uuid",
     type: "string",
@@ -409,6 +410,7 @@ describe("PlaceholderCatalog.compute", () => {
       ["player.location", "string"],
       ["player.name", "string"],
       ["player.playtime.duration()", "string"],
+      ["player.server_playtime.duration()", "string"],
       ["player.uuid", "string"],
       ["player.vanished", "boolean"],
       ["player.world", "string"],
@@ -593,6 +595,7 @@ describe("PlaceholderCatalog.compute", () => {
       "context:player.location",
       "context:player.name",
       "context:player.playtime.duration()",
+      "context:player.server_playtime.duration()",
       "context:player.uuid",
       "context:player.vanished",
       "context:player.world",

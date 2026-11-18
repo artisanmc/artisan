@@ -4,6 +4,7 @@ import net.artisanmc.plugin.config.StatsExportConfig
 import net.artisanmc.plugin.stats.ExportSource
 import net.artisanmc.plugin.stats.ExportTransport
 import net.artisanmc.plugin.stats.ExportedPlayer
+import net.artisanmc.plugin.stats.ExportedServerTime
 import net.artisanmc.plugin.stats.ExportedValue
 import net.artisanmc.plugin.stats.StatsExport
 import net.artisanmc.plugin.stats.StatsRecorder
@@ -43,6 +44,8 @@ internal class StatsExportHost(private val plugin: ArtisanPlugin, private val re
             private fun rows() = plugin.suite.metricRows() ?: throw IllegalStateException("the suite database is not open")
             override fun values(since: Long, until: Long, after: ExportedValue?, limit: Int) = rows().values(since, until, after, limit)
             override fun players(since: Long, until: Long, after: ExportedPlayer?, limit: Int) = rows().players(since, until, after, limit)
+            override fun serverTimes(since: Long, until: Long, after: ExportedServerTime?, limit: Int) = rows().serverTimes(since, until, after, limit)
+            override fun servers() = rows().servers()
         }
         val name = plugin.networkName(cfg.web) ?: plugin.serverUuid
         export = StatsExport(source, transport(uri, settings), { recorder.declaredMetrics() }, name)

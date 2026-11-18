@@ -2,6 +2,7 @@ package net.artisanmc.plugin.database
 
 import net.artisanmc.plugin.stats.ExportSource
 import net.artisanmc.plugin.stats.ExportedPlayer
+import net.artisanmc.plugin.stats.ExportedServerTime
 import net.artisanmc.plugin.stats.ExportedValue
 import net.artisanmc.plugin.stats.MetricValue
 import net.artisanmc.plugin.stats.MetricWriter
@@ -12,8 +13,8 @@ import javax.sql.DataSource
 
 /**
  * `artisan_metric_values` (ADR `stats-export`): each player's latest value of each declared
- * metric, shared by the servers of the network, and what the export reads of it and of
- * `artisan_players`. `updated_at` moves only when a value changes, so the export sends only what
+ * metric, shared by the servers of the network, and what the export reads of it, of
+ * `artisan_players` and of `artisan_server_playtime`. `updated_at` moves only when a value changes, so the export sends only what
  * changed. Plain SQL that H2, MySQL and MariaDB all run.
  */
 class MetricRows(
@@ -93,6 +94,28 @@ class MetricRows(
             s.executeQuery().use { r ->
                 buildList { while (r.next()) add(ExportedPlayer(r.getString(1).trim(), r.getString(2), r.getLong(3), r.getLong(4), r.getLong(5))) }
             }
+        }
+    }
+
+    override fun serverTimes(since: Long, until: Long, after: ExportedServerTime?, limit: Int): List<ExportedServerTime> = dataSource.connection.use { c ->
+        val page = if (after == null) "" else " AND (last_seen > ? OR (last_seen = ? AND (server_id > ? OR (server_id = ? AND player_uuid > ?))))"
+        c.prepareStatement(
+            "SELECT server_id, player_uuid, playtime_ms, last_seen FROM ${t.serverPlaytime} WHERE last_seen > ? AND last_seen <= ?$page " +
+                "ORDER BY last_seen, server_id, player_uuid LIMIT ${limit.coerceIn(1, MAX_PAGE)}",
+        ).use { s ->
+            s.setLong(1, since); s.setLong(2, until)
+            if (after != null) {
+                s.setLong(3, after.lastSeen); s.setLong(4, after.lastSeen); s.setInt(5, after.server); s.setInt(6, after.server); s.setString(7, after.player)
+            }
+            s.executeQuery().use { r ->
+                buildList { while (r.next()) add(ExportedServerTime(r.getInt(1), r.getString(2).trim(), r.getLong(3), r.getLong(4))) }
+            }
+        }
+    }
+
+    override fun servers(): Map<Int, String> = dataSource.connection.use { c ->
+        c.prepareStatement("SELECT id, name FROM ${t.servers} WHERE id IN (SELECT DISTINCT server_id FROM ${t.serverPlaytime})").use { s ->
+            s.executeQuery().use { r -> buildMap { while (r.next()) put(r.getInt(1), r.getString(2)) } }
         }
     }
 

@@ -81,10 +81,10 @@ internal class RuntimeAssembly(
         VariableSync(variables.store, {
             suite.artisanData?.let { net.artisanmc.plugin.database.VariableRows(it, plugin.database.dialect, plugin.database.tables) }
         }, suite.sessionWriter(), plugin).start()
-        // Every player seen on the network, read by `{player.first_seen}`, `{player.last_seen}`, `{player.playtime}`.
+        // Every player seen on the network, read by `{player.first_seen}`, `{player.last_seen}`, `{player.playtime}`, `{player.server_playtime}`.
         PlayerSync({
             suite.artisanData?.let { net.artisanmc.plugin.database.PlayerRows(it, plugin.database.tables) }
-        }, suite.sessionWriter(), plugin, plugin.stats::firstJoin).start()
+        }, suite::ownRow, suite.sessionWriter(), plugin, plugin.stats::firstJoin).start()
         sessions = MenuSessionStore()
         navigationHistory = NavigationHistoryStore()
         // Disk-cached asset index: glyph/font titles render from the last pack, even offline.

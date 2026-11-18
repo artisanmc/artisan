@@ -8,6 +8,9 @@ data class ExportedValue(val metric: String, val player: String, val value: Long
 /** A player as exported, from `artisan_players`: instants in epoch milliseconds. */
 data class ExportedPlayer(val player: String, val name: String, val firstSeen: Long, val lastSeen: Long, val playtimeMs: Long)
 
+/** A player's play time on one server, from `artisan_server_playtime`: [server] is its row in `artisan_servers`. */
+data class ExportedServerTime(val server: Int, val player: String, val playtimeMs: Long, val lastSeen: Long)
+
 /**
  * What the export reads (ADR `stats-export` ③): the values and the players that changed in
  * `(since, until]`, in a stable order, a page after the last row of the previous one.
@@ -18,6 +21,12 @@ interface ExportSource {
 
     /** Ordered by last seen, player; [after] is the previous page's last row, null for the first. */
     fun players(since: Long, until: Long, after: ExportedPlayer?, limit: Int): List<ExportedPlayer>
+
+    /** Play time per server, ordered by last seen, server, player; [after] is the previous page's last row. */
+    fun serverTimes(since: Long, until: Long, after: ExportedServerTime?, limit: Int): List<ExportedServerTime> = emptyList()
+
+    /** The servers that have play time, by row: their names label their `core:playtime.s<row>` metrics. */
+    fun servers(): Map<Int, String> = emptyMap()
 }
 
 /** Sends one JSON payload to the website and returns the body of its answer; throws on a refusal or a network error. */
@@ -63,8 +72,10 @@ class StatsExport(
         var forgotten = 0
         var lastPlayer: ExportedPlayer? = null
         var lastValue: ExportedValue? = null
+        var lastTime: ExportedServerTime? = null
         var playersDone = false
         var valuesDone = false
+        var timesDone = false
         while (true) {
             val playerPage = if (playersDone) emptyList() else source.players(since, until, lastPlayer, pageSize)
             if (playerPage.size < pageSize) playersDone = true
@@ -73,12 +84,17 @@ class StatsExport(
             val valuePage = if (valuesDone || room == 0) emptyList() else source.values(since, until, lastValue, room)
             if (!valuesDone && room > 0 && valuePage.size < room) valuesDone = true
             lastValue = valuePage.lastOrNull() ?: lastValue
-            val last = playersDone && valuesDone
-            val payload = Payload(playerPage, valuePage, if (pages == 0) metrics() else emptyList(), remote, if (last) until else null)
+            val left = room - valuePage.size
+            val timePage = if (timesDone || !valuesDone || left == 0) emptyList() else source.serverTimes(since, until, lastTime, left)
+            if (valuesDone && !timesDone && left > 0 && timePage.size < left) timesDone = true
+            lastTime = timePage.lastOrNull() ?: lastTime
+            val last = playersDone && valuesDone && timesDone
+            val times = timePage.map { ExportedValue(serverPlaytime(it.server), it.player, it.playtimeMs / 1000, it.lastSeen) }
+            val payload = Payload(playerPage, valuePage + times, if (pages == 0) declarations() else emptyList(), remote, if (last) until else null)
             val answered = parseCursor(transport.post(payload.json(server)))
             pages++
             players += playerPage.size
-            values += valuePage.count { it.metric != FORGOTTEN }
+            values += valuePage.count { it.metric != FORGOTTEN } + times.size
             forgotten += valuePage.count { it.metric == FORGOTTEN }
             if (answered < remote) {
                 // The website lost what it held: everything again, from the start, next run.
@@ -94,19 +110,44 @@ class StatsExport(
 
     /** The website's cursor, asked with an empty payload that also declares the metrics. */
     private fun hello(): Long {
-        val answered = parseCursor(transport.post(Payload(emptyList(), emptyList(), metrics(), null, null).json(server)))
+        val answered = parseCursor(transport.post(Payload(emptyList(), emptyList(), declarations(), null, null).json(server)))
         cursor = answered
         return answered
     }
+
+    /**
+     * The declared metrics, then one `core:playtime.s<row>` per server with play time: `parent`
+     * `core:playtime` and `scope` the server's name, so a website shows them as tabs of the network
+     * total. Keyed by the server's row, the id outlives a rename; the labels follow it.
+     */
+    private fun declarations(): List<ExportedMetric> {
+        val declared = metrics().map { ExportedMetric(it.id, it.unit.name.lowercase(), it.isRanked, it.isAscending, it.labels) }
+        val playtime = declared.firstOrNull { it.id == PLAYTIME }
+        val servers = source.servers().entries.sortedBy { it.key }.map { (row, name) ->
+            ExportedMetric(
+                serverPlaytime(row), "seconds", playtime?.ranked ?: true, false,
+                mapOf("en" to "Play time on $name".take(MAX_LABEL), "fr" to "Temps de jeu sur $name".take(MAX_LABEL)),
+                parent = PLAYTIME, scope = name.take(MAX_LABEL),
+            )
+        }
+        return declared + servers
+    }
+
+    /** A metric as the website receives it. */
+    private class ExportedMetric(
+        val id: String, val unit: String, val ranked: Boolean, val ascending: Boolean, val labels: Map<String, String>,
+        val parent: String? = null, val scope: String? = null,
+    )
 
     /**
      * One page. The website applies `forget` before the rest: a player seen again after being
      * forgotten comes back. A player row older than its player's forgetting in the same page is
      * left out, else it would bring them back.
      */
-    private class Payload(players: List<ExportedPlayer>, val values: List<ExportedValue>, val metrics: List<PlayerMetric>, val since: Long?, val cursor: Long?) {
+    private class Payload(players: List<ExportedPlayer>, values: List<ExportedValue>, val metrics: List<ExportedMetric>, val since: Long?, val cursor: Long?) {
         private val forgotten = values.filter { it.metric == FORGOTTEN }.associate { it.player to it.at }
         val players = players.filter { p -> forgotten[p.player]?.let { p.lastSeen > it } ?: true }
+        val values = values.filter { v -> v.metric == FORGOTTEN || (forgotten[v.player]?.let { v.at > it } ?: true) }
 
         fun json(server: String): String = buildString {
             append("{\"protocol\":").append(PROTOCOL)
@@ -117,9 +158,11 @@ class StatsExport(
             metrics.forEachIndexed { i, m ->
                 if (i > 0) append(',')
                 append("{\"id\":").append(quote(m.id))
-                append(",\"unit\":").append(quote(m.unit.name.lowercase()))
-                append(",\"ranked\":").append(m.isRanked)
-                append(",\"ascending\":").append(m.isAscending)
+                append(",\"unit\":").append(quote(m.unit))
+                append(",\"ranked\":").append(m.ranked)
+                append(",\"ascending\":").append(m.ascending)
+                if (m.parent != null) append(",\"parent\":").append(quote(m.parent))
+                if (m.scope != null) append(",\"scope\":").append(quote(m.scope))
                 append(",\"labels\":{")
                 m.labels.entries.sortedBy { it.key }.forEachIndexed { j, (k, v) ->
                     if (j > 0) append(',')
@@ -162,6 +205,10 @@ class StatsExport(
         const val PLAYTIME = "core:playtime"
         /** The row `/artisan stats forget` leaves in `artisan_metric_values`: the website deletes the player. */
         const val FORGOTTEN = "core:forgotten"
+        private const val MAX_LABEL = 64
+
+        /** The metric of the play time on the server of row [row] in `artisan_servers`. */
+        fun serverPlaytime(row: Int) = "$PLAYTIME.s$row"
         const val PAGE_SIZE = 2000
         /** How far back each run looks again: the servers' clocks may differ by this much. */
         const val OVERLAP_MS = 120_000L

@@ -97,6 +97,8 @@ class ArtisanTables(prefix: String) {
     val metricValuesTimeIndex = "${prefix}metric_values_time"
     val metricValuesPlayerIndex = "${prefix}metric_values_player"
     val playersSeenIndex = "${prefix}players_seen"
+    val serverPlaytime = "${prefix}server_playtime"
+    val serverPlaytimeSeenIndex = "${prefix}server_playtime_seen"
 
     companion object {
         val DEFAULT = ArtisanTables(TablePrefix.DEFAULT)
