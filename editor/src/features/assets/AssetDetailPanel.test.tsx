@@ -66,7 +66,7 @@ describe("AssetDetailPanel", () => {
     const spy = vi.spyOn(userAssetsApi, "deleteAsset").mockResolvedValue();
     vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<AssetDetailPanel projectId={"p1" as never} />);
-    fireEvent.click(screen.getByRole("button", { name: /Supprimer du projet/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Supprimer du module/i }));
     await waitFor(() => expect(spy).toHaveBeenCalledWith("p1", "asset_a"));
     expect(useAssetStore.getState().assets).toHaveLength(0);
   });

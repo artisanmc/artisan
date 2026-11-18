@@ -5,7 +5,8 @@ import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isDirty } from "./draft";
+import { hasDraftChanges, isDirty } from "./draft";
+import { asLoadNormalization } from "./loadNormalization";
 import { projectTree } from "./saveProjectToDisk";
 import { useDraftSync } from "./useDraftSync";
 
@@ -138,5 +139,32 @@ describe("browser draft retention", () => {
     const draft = useProjectDraftStore.getState().get(project.id)!;
     expect(draft.initialTree).toEqual(savedTree);
     expect(isDirty(draft.initialTree, draft.tree)).toBe(false);
+  });
+
+  it("does not count a late load-time transformation as an edit, and keeps real edits", () => {
+    // Opened before the module's kinds arrived: the first pass froze the tree as read.
+    const { openProjects, project } = setup();
+    renderHook(() => useDraftSync());
+    act(() => {
+      useProjectsStore.getState().setOpenProjects(openProjects);
+      vi.advanceTimersByTime(250);
+    });
+    expect(hasDraftChanges(useProjectDraftStore.getState().get(project.id)!)).toBe(false);
+    // The kinds arrive: the Project is read again on its own (`adoptLateDocuments`).
+    act(() => {
+      asLoadNormalization(project.id, () =>
+        useProjectsStore.getState().setProjectDefaultLang({ projectId: project.id, lang: "es" }),
+      );
+      vi.advanceTimersByTime(250);
+    });
+    const opened = useProjectDraftStore.getState().get(project.id)!;
+    expect(opened.tree).not.toEqual(projectTree(project));
+    expect(hasDraftChanges(opened)).toBe(false);
+    // A real edit afterwards is one.
+    act(() => {
+      useProjectsStore.getState().setProjectDefaultLang({ projectId: project.id, lang: "de" });
+      vi.advanceTimersByTime(250);
+    });
+    expect(hasDraftChanges(useProjectDraftStore.getState().get(project.id)!)).toBe(true);
   });
 });

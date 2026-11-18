@@ -80,6 +80,30 @@ open class ArtisanPlugin : JavaPlugin() {
     lateinit var api: ArtisanAPI
         private set
     /** The modules' templates, with the files of their commands (`ModuleCommandFiles`). */
+    /** One for the plugin's life: what it staged outlives `/artisan reload`. */
+    internal val moduleInstaller by lazy {
+        net.artisanmc.plugin.updates.ModuleInstaller(
+            pluginsDir = dataFolder.parentFile.toPath(),
+            updateDir = server.updateFolderFile.toPath(),
+            siteUrl = { currentConfig().web.site },
+            logger = logger,
+        )
+    }
+    /** One for the plugin's life: a restart on its way stays on its way through `/artisan reload`. */
+    internal val serverRestart by lazy {
+        net.artisanmc.plugin.updates.ServerRestart(
+            announce = { seconds ->
+                logger.info("[Artisan] The editor asked for a restart: the server restarts in $seconds seconds")
+                langManagerOrNull?.let { lang ->
+                    org.bukkit.Bukkit.getOnlinePlayers().forEach { player ->
+                        net.artisanmc.plugin.platform.Chat.send(player, lang.get("artisan.restarting", player, "seconds" to seconds.toString()))
+                    }
+                }
+            },
+            later = { ticks, task -> scheduler.globalLater(ticks, task) },
+            restart = { org.bukkit.Bukkit.spigot().restart() },
+        )
+    }
     internal val moduleTemplates by lazy { net.artisanmc.plugin.project.ModuleTemplates(api.templates) }
     /** Editor sign-ins, kept in the suite database when it opens: they survive a restart. */
     lateinit var editorSessions: net.artisanmc.plugin.hub.Sessions

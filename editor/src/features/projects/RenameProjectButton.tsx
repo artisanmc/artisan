@@ -113,12 +113,12 @@ export function RenameProjectButton({
       >
         <DialogContent>
           <DialogTitle>
-            {t("projectIdentity.renameTitle", { defaultValue: "Change project ID" })}
+            {t("projectIdentity.renameTitle", { defaultValue: "Change module ID" })}
           </DialogTitle>
           <DialogDescription>
             {t("projectIdentity.renameDescription", {
               defaultValue:
-                "Change the project ID (its folder on the server) while keeping its drafts and links.",
+                "Change the module ID (its folder on the server) while keeping its drafts and links.",
             })}
           </DialogDescription>
           <form
@@ -129,7 +129,7 @@ export function RenameProjectButton({
             }}
           >
             <label htmlFor={fieldId} className="field-label flex flex-col gap-2">
-              {t("projectIdentity.folder", { defaultValue: "Project folder" })}
+              {t("projectIdentity.folder", { defaultValue: "Module folder" })}
               <Input
                 id={fieldId}
                 value={targetId}

@@ -104,7 +104,7 @@ describe("buildProjectGroups", () => {
       mountedModuleIds: [],
       localProjects: [],
     });
-    expect(projects[0]).toMatchObject({ ownerModule: "msguilds", ownerLabel: "msguilds" });
+    expect(projects[0]).toMatchObject({ ownerModule: "msguilds", ownerLabel: "Msguilds" });
     expect(moduleGroups).toEqual([]);
   });
 

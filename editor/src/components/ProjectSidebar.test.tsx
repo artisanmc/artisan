@@ -237,7 +237,7 @@ describe("ProjectSidebar", () => {
       ],
     } as never);
     render(<ProjectSidebar />);
-    const moduleLink = await screen.findByRole("link", { name: "boutique" });
+    const moduleLink = await screen.findByRole("link", { name: "Boutique" });
     expect(moduleLink).toHaveAttribute("href", "/servers/$serverId/projects/$projectId");
     expect(screen.queryByRole("link", { name: /boutique_shop/ })).toBeNull();
     const installed = screen.getByText("Modules installés");
@@ -277,8 +277,8 @@ describe("ProjectSidebar", () => {
     } as never);
     render(<ProjectSidebar />);
     // The module's row is its folder once the disk listing arrives.
-    await screen.findByRole("link", { name: "boutique" });
-    const toggle = screen.getByRole("button", { name: "Afficher les documents de boutique" });
+    await screen.findByRole("link", { name: "Boutique" });
+    const toggle = screen.getByRole("button", { name: "Afficher les documents de Boutique" });
     expect(screen.queryByRole("link", { name: "Catalogue" })).toBeNull();
     fireEvent.click(toggle);
     expect(await screen.findByRole("link", { name: "Catalogue" })).toBeInTheDocument();
@@ -326,7 +326,7 @@ describe("ProjectSidebar", () => {
     );
     // Shown without unfolding anything: the folder is open on its screen.
     expect(
-      screen.getByRole("button", { name: "Afficher les documents de boutique" }),
+      screen.getByRole("button", { name: "Afficher les documents de Boutique" }),
     ).toHaveAttribute("aria-expanded", "true");
   });
 
@@ -453,8 +453,8 @@ describe("ProjectSidebar", () => {
         },
       });
       render(<ProjectSidebar />);
-      await screen.findByRole("link", { name: "quests" });
-      expect(names("Modules installés")).toEqual(["quests", "boutique"]);
+      await screen.findByRole("link", { name: "Quests" });
+      expect(names("Modules installés")).toEqual(["Quests", "Boutique"]);
       expect(names("Mes modules")).toEqual(["pack_b", "pack_a"]);
     });
 

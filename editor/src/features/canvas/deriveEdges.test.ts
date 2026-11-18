@@ -48,4 +48,21 @@ describe("deriveEdges", () => {
       "menu/spawn:m_shop_root",
     );
   });
+
+  it("links nothing for a ref filled in game", () => {
+    const shop = mockOpenProjects().projects.find((p) => p.id === projectId("p_shop_system"))!;
+    const command = shop.documents.command!.find((c) => c.id === "c_shop")!;
+    for (const ref of ["{q.group}", "%player_menu%"]) {
+      const dynamic = {
+        ...shop,
+        documents: {
+          ...shop.documents,
+          command: [
+            JSON.parse(JSON.stringify(command).replaceAll('"m_shop_root"', JSON.stringify(ref))),
+          ],
+        },
+      } as typeof shop;
+      expect(deriveEdges(dynamic).filter((e) => e.source === `command/${command.id}`)).toEqual([]);
+    }
+  });
 });
