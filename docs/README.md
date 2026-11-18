@@ -23,6 +23,7 @@ The code wins over any doc. A doc that contradicts the code is a bug: fix the do
 | A WebSocket message (hub ↔ server, editor) | `architecture/ws-protocol.md` |
 | How an editor screen is put together | `architecture/editor-internals.md` |
 | The `/artisan` subcommands | `architecture/plugin-commands.md` |
+| How a server is linked to a site account, updated and given new modules from the editor | `decisions/site-account-and-module-updates.md` (then `SiteAccount`, `SiteRoutes`, `updates/ModuleInstaller`) |
 | How statistics are declared, buffered, stored and read | `decisions/stats-foundation.md` (then `plugin/stats`, `StatsRows`, `StatsRoutes`) |
 | How a module imports another plugin's data (dry run, batches, rollback, `/artisan import`) | `decisions/data-imports.md` (then `ImportRegistry`, `ImportRuns`, `ImportRunRows`) |
 | Schema versions, protocol version, changelog rules | `architecture/versioning.md`, `changelog.d/README.md` |

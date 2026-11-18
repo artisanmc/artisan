@@ -68,7 +68,7 @@ vi.mock("@/state/projectsStore", () => ({
   useProjectsStore: (sel: (s: typeof accountState) => unknown) => sel(accountState),
 }));
 
-const modulesState = vi.hoisted(() => ({ mountedIds: [] as string[] }));
+const modulesState = vi.hoisted(() => ({ mountedIds: [] as string[], active: [] as unknown[] }));
 vi.mock("@/state/modulesStore", () => ({
   useModulesStore: (sel: (s: typeof modulesState) => unknown) => sel(modulesState),
 }));
@@ -79,10 +79,25 @@ vi.mock("@artisan/editor-sdk", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (k: string) => k }),
+  useTranslation: () => ({ t: (k: string) => k, i18n: { language: "en" } }),
+  Trans: ({ i18nKey }: { i18nKey: string }) => i18nKey,
 }));
 
+vi.mock("@/lib/api/projectVersions", () => ({
+  listProjectVersions: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/api/onlinePlayers", () => ({
+  listOnlinePlayers: vi.fn().mockResolvedValue(["Steve", "Alex"]),
+}));
+
+vi.mock("@/features/project/publish/otherDrafts", () => ({
+  loadOtherDrafts: vi.fn().mockResolvedValue([]),
+}));
+
+import { loadOtherDrafts } from "@/features/project/publish/otherDrafts";
 import { listServerProjects } from "@/lib/api/projectFiles";
+import { listProjectVersions } from "@/lib/api/projectVersions";
 import { listServers } from "@/lib/api/servers";
 import ServerDetailPage from "./servers.$serverId";
 
@@ -153,9 +168,9 @@ describe("ServerDetailPage", () => {
     expect(link).toHaveAttribute("href", "/servers/$serverId/projects/$projectId");
   });
 
-  /** Same split as the sidebar: a folder shipped by an Add-on opens from its
-   *  module's card, beside its screens; the admin's folders stay in their list. */
-  it("opens an owned folder from its module's card, apart from the admin's folders", async () => {
+  /** Same split as the sidebar: a folder shipped by an Add-on is one row under its module's
+   *  name; its screens stay in the sidebar. */
+  it("lists an owned folder once, under its module's name, beside the admin's folders", async () => {
     screensState.screens = [
       {
         id: "catalogue",
@@ -166,31 +181,61 @@ describe("ServerDetailPage", () => {
       },
     ];
     render(<ServerDetailPage />);
-    const card = (await screen.findByText("Boutique")).closest("li")!;
-    expect(within(card).getByRole("link", { name: "serverDetail.openModule" })).toHaveAttribute(
-      "href",
-      "/servers/$serverId/projects/$projectId",
-    );
-    expect(within(card).getByRole("link", { name: "Catalogue" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /boutique_shop/ })).toBeNull();
-    expect(screen.getByText("Hub")).toBeInTheDocument();
+    const rows = await screen.findByTestId("overview-modules");
+    const row = (await within(rows).findByText("Boutique")).closest("a")!;
+    expect(row).toHaveAttribute("href", "/servers/$serverId/projects/$projectId");
+    expect(within(row).getByText("serverDetail.overview.addon")).toBeInTheDocument();
+    expect(within(rows).queryByText(/boutique_shop/)).toBeNull();
+    expect(within(rows).getByText("Hub")).toBeInTheDocument();
+    // Navigation is the sidebar's: no screen links here.
+    expect(screen.queryByRole("link", { name: "Catalogue" })).toBeNull();
   });
 
-  it("shows only the module's screens under it, no editor entry", async () => {
-    screensState.screens = [
-      {
-        id: "catalogue",
-        moduleId: "boutique",
-        label: "Catalogue",
-        table: "data/catalogue",
-        projectId: "boutique_shop",
-      },
-    ];
+  it("shows each module's last deployment and the latest ones of the server", async () => {
+    vi.mocked(listProjectVersions).mockImplementation(async (id: string) =>
+      id === "sk_1.Hub"
+        ? [
+            {
+              id: "1",
+              hash: "h",
+              createdAt: new Date().toISOString(),
+              author: { id: "u", name: "Kaelis" },
+              changed: ["menus/main.yml"],
+            },
+          ]
+        : [],
+    );
     render(<ServerDetailPage />);
-    const link = await screen.findByRole("link", { name: "Catalogue" });
-    // The screen's file lives in the module's folder: it opens there, on its draft.
-    expect(link).toHaveAttribute("href", "/servers/$serverId/projects/$projectId/screen/$screenId");
-    expect(screen.queryByText("screens.editorEntry")).not.toBeInTheDocument();
+    const rows = await screen.findByTestId("overview-modules");
+    await waitFor(() =>
+      expect(within(rows).getByText("serverDetail.overview.by")).toBeInTheDocument(),
+    );
+    expect(within(rows).getByText("serverDetail.overview.neverDeployed")).toBeInTheDocument();
+    const activity = await screen.findByTestId("overview-activity");
+    expect(within(activity).getByText("menus/main.yml")).toBeInTheDocument();
+    vi.mocked(listProjectVersions).mockResolvedValue([]);
+  });
+
+  it("lists the player's changes waiting on this server, and reviews them on demand", async () => {
+    vi.mocked(loadOtherDrafts).mockResolvedValue([
+      {
+        projectId: "sk_1.Hub",
+        projectName: "Hub",
+        serverId: "sk_1",
+        serverLabel: "Survival",
+        draftId: "d1",
+        draftName: "Draft",
+        revision: 1,
+        changes: { before: { "a.yml": "a: 1" }, after: { "a.yml": "a: 2", "b.yml": "b: 1" } },
+        unsynced: false,
+      },
+    ]);
+    render(<ServerDetailPage />);
+    expect(await screen.findByText("serverDetail.overview.pendingTitle")).toBeInTheDocument();
+    expect(vi.mocked(loadOtherDrafts)).toHaveBeenCalledWith(undefined, "sk_1");
+    expect(screen.getByText("serverDetail.overview.files")).toBeInTheDocument();
+    expect(screen.getByText("serverDetail.overview.pending")).toBeInTheDocument();
+    vi.mocked(loadOtherDrafts).mockResolvedValue([]);
   });
 
   /**
@@ -225,7 +270,8 @@ describe("ServerDetailPage", () => {
     });
     render(<ServerDetailPage />);
     await screen.findByText("serverDetail.updateRequired");
-    expect(screen.getByText("topbar.import")).toBeDisabled();
+    expect(screen.getByText("serverDetail.overview.importModule")).toBeDisabled();
+    expect(screen.queryByText("serverDetail.overview.newModule")).toBeNull();
     expect(screen.queryByText("serverConfig.title")).not.toBeInTheDocument();
   });
 
@@ -258,6 +304,7 @@ describe("ServerDetailPage", () => {
       "serverDetail.tabs.play",
       "serverDetail.tabs.assistant",
       "serverDetail.tabs.data",
+      "serverDetail.tabs.updates",
       "serverDetail.tabs.settings",
     ]);
     expect(tabs[0]).toHaveAttribute("aria-current", "page");

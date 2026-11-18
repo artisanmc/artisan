@@ -27,6 +27,8 @@ object EditorApi {
         packBuilder: PackBuilder? = null,
         /** The statistics store (ADR `stats-foundation`); null: no `/stats` routes. */
         stats: StatsAccess? = null,
+        /** The network's link to a site account (ADR `site-account-and-module-updates`); null: no `/site` routes. */
+        site: SiteAccount? = null,
     ): Router {
         val router = Router()
         val relay = Relay(logger)
@@ -50,6 +52,7 @@ object EditorApi {
             OAuthRoutes(mcp).register(router)
             McpRoutes(tools, mcp, version, logger).register(router)
         }
+        site?.let { SiteRoutes(servers, relay, it, logger).register(router) }
         AiRoutes(aiSetup(ai, aiSettings, aiProvider, tools, logger, aiConversations)).register(router)
         return router
     }

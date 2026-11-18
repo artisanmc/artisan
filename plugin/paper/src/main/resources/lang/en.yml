@@ -19,6 +19,7 @@ cmd:
 artisan:
   in_game_only: "<red>In-game only.</red>"
   reloaded: "<green>Artisan reloaded.</green>"
+  restarting: "<aqua>[Artisan] </aqua><yellow>The server restarts in {seconds} seconds.</yellow>"
   sync_status: "<gray>Check server logs for sync status details.</gray>"
   sync_reconnecting: "<gray>Reloading projects from disk.</gray>"
   usage_menu: "<red>Usage: /artisan menu <id></red>"

@@ -55,6 +55,12 @@ object EnvironmentFile {
         |#            it from there, with no port to open. Artisan's host by default (packs are
         |#            public, kept 30 days after their last use); "" for none: players then
         |#            download it from url, or from this server's port
+        |# mcp : true lets AI apps (Claude, ChatGPT, an IDE…) edit the modules as the player who
+        |#       connects them: in the editor, Settings → AI apps gives the address to add as a
+        |#       custom connector (<editor address>/mcp); the app signs in like /artisan editor and
+        |#       asks the player's consent. It writes drafts the player reviews and deploys; it
+        |#       deploys itself only if the player allows it. Needs an https address (the tunnel
+        |#       works); behind a reverse proxy, pass /mcp, /oauth/ and /.well-known/ too
         |web:
         |  enabled: true
         |  port: 8765
@@ -66,15 +72,20 @@ object EnvironmentFile {
         |  tunnel: "connect.artisanmc.app"
         |  tunnel-access: ""
         |  pack-cdn: "cdn.artisanmc.net"
+        |  mcp: false
         |
         |# The editor's assistant, on your own model account (hub only). Players with
-        |# artisan.editor.edit chat with it in the editor; it reads the Projects and writes
+        |# artisan.editor.edit chat with it in the editor; it reads the modules and writes
         |# drafts, which they review and deploy. Its calls are billed to this key.
         |# Changes apply after a restart.
-        |#   provider  : "anthropic"; empty turns the assistant off
+        |#   provider  : "anthropic", or "openai" for any OpenAI-compatible API (OpenAI, DeepSeek,
+        |#               Mistral, OpenRouter, Ollama…); empty turns the assistant off
         |#   api-key   : e.g. "${'$'}{ANTHROPIC_API_KEY}", to keep the key out of this file
-        |#   model     : empty is claude-opus-5-5
-        |#   effort    : low, medium, high, xhigh or max: how hard the model thinks, and what it costs
+        |#   model     : as the vendor names it; empty is claude-opus-5-5
+        |#   base-url  : another vendor's compatible API, e.g. "https://api.deepseek.com" with
+        |#               openai; empty is the provider's own
+        |#   effort    : low, medium, high, xhigh or max: how hard the model thinks, and what it
+        |#               costs (anthropic only)
         |#   max-steps : model calls one message may make (1 to 100)
         |# ai:
         |#   provider: "anthropic"

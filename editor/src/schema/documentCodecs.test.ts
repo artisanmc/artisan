@@ -1,5 +1,7 @@
+import { registerDocumentKindVisitors } from "@/domain/documentKindVisitors";
 import { registerDocumentKind, resetDocumentKinds } from "@/domain/documentKinds";
 import { documentsOf } from "@/domain/documents";
+import { rekeyProject } from "@/domain/i18nSites";
 import type { Document, ProjectId } from "@/domain/types";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -149,5 +151,52 @@ describe("document codecs", () => {
       exclude: ["notes/gone.yml"],
     });
     expect(adoptLateDocuments(project)).toBe(0);
+  });
+});
+
+describe("late originals", () => {
+  it("leaves an untouched original unwritten once its texts are canonicalized", () => {
+    const project = projectFromFiles(PID, {
+      [`${base}/artisan-module.yml`]: "schema: module/v1\nmodule: notes\n",
+      [`${base}/originals/originals.yml`]: "module: notes\nrequired: []\n",
+      [`${base}/originals/notes/hello.yml`]: "schema: note/v1\ntext: { en: Hi, fr: Salut }\n",
+    });
+    // A kind like a module's: each read mints its own text key, canonicalized later.
+    let minted = 0;
+    registerDocumentKind({ kind: "note", dir: "notes", schemaVersion: "note/v1", rank: 9 });
+    registerDocumentCodec({
+      kind: "note",
+      parse: (src) => {
+        const key = `minted_${++minted}`;
+        return {
+          doc: { id: src.id, text: { key } } as unknown as Document,
+          i18nKeys: { [key]: { ...(src.text as Record<string, string>) } },
+          unsupported: [],
+        };
+      },
+      serialize: (doc, p) => ({
+        schema: "note/v1",
+        text: p.i18nKeys[(doc as unknown as { text: { key: never } }).text.key],
+      }),
+    });
+    registerDocumentKindVisitors("note", {
+      ltextSites: function* (doc: Document) {
+        yield {
+          lText: (doc as unknown as { text: { key: never } }).text,
+          key: `notes.${doc.id}.text`,
+          path: "text",
+          kind: "note.text",
+        } as never;
+      },
+    } as never);
+
+    try {
+      expect(adoptLateDocuments(project)).toBe(1);
+      // What every save and every draft tree does first (`projectTree`).
+      rekeyProject(project);
+      expect(projectToFiles(project)[`${base}/notes/hello.yml`]).toBeUndefined();
+    } finally {
+      registerDocumentKindVisitors("note", {});
+    }
   });
 });

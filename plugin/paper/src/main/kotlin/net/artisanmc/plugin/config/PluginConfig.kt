@@ -125,6 +125,7 @@ data class PluginConfig(
                         maxSteps = environment.getInt("ai.max-steps", 25).coerceIn(1, 100),
                         baseUrl = EnvironmentFile.string(environment, "ai.base-url", "").trim().trimEnd('/'),
                     ),
+                    site = EnvironmentFile.string(environment, "site.url", "").trim().trimEnd('/').ifEmpty { net.artisanmc.plugin.hub.SiteAccount.DEFAULT_URL },
                 ),
                 devEditorBundles = environment.getConfigurationSection("dev.editor-bundles")?.let { section ->
                     section.getKeys(false)

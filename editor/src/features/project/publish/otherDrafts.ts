@@ -73,8 +73,14 @@ async function eachLimited<T>(items: T[], limit: number, work: (item: T) => Prom
  * Deploy already shows ([skipDraftId], its working copy). A server or Project that fails to answer
  * is left out: the review still opens with what did.
  */
-export async function loadOtherDrafts(skipDraftId: string | undefined): Promise<OtherDraft[]> {
-  const servers = (await listServers()).filter((s) => s.online && !s.updateRequired);
+export async function loadOtherDrafts(
+  skipDraftId: string | undefined,
+  /** Only this server's Projects (a server's overview); all the online servers otherwise. */
+  onlyServerId?: string,
+): Promise<OtherDraft[]> {
+  const servers = (await listServers()).filter(
+    (s) => s.online && !s.updateRequired && (!onlyServerId || s.id === onlyServerId),
+  );
   const projects: { id: string; name: string; serverId: string; serverLabel: string | null }[] = [];
   await eachLimited(servers, 4, async (server) => {
     const listed = await listServerProjects(server.id);

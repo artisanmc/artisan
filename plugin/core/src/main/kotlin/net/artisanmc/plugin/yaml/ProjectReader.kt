@@ -210,17 +210,17 @@ class ProjectReader(
     /** One project, in named steps: manifest → lang → legacy templates → Documents → variants → sources. */
     private fun readProject(projectId: String, projectDir: File): RuntimeProject? {
         val manifest = readManifest(projectId, projectDir) ?: return null
-        val langMaps = readLangMaps(projectDir, manifest)
+        val resources = Resources(projectDir, excludedOriginals(projectDir, manifest))
+        val langMaps = readLangMaps(resources, manifest)
         val templates = readLegacyTemplates(projectDir)
         val ctx = ReadContext(projectId, manifest, langMaps, templates)
         val layout = documentLayout(projectId, projectDir, manifest)
         val documents = readDocuments(projectDir, layout.documents, ctx)
         val variants = readVariants(projectDir, layout.variants, documents, ctx)
         val variantRules = readVariantRules(projectId, projectDir, variants.keys)
-        val dataDir = File(projectDir, "data")
-        val projectModels = readProjectModels(projectDir)
-        val dataSources = readSingleFileSources(dataDir, projectModels, langMaps, manifest.defaultLang) +
-            readPerRowSources(dataDir, projectModels, langMaps, manifest.defaultLang)
+        val projectModels = readProjectModels(resources)
+        val dataSources = readSingleFileSources(resources, projectModels, langMaps, manifest.defaultLang) +
+            readPerRowSources(resources, projectModels, langMaps, manifest.defaultLang)
         return RuntimeProject(
             projectId, manifest.defaultLang, manifest.languages,
             documents, dataSources, langMaps, variants, variantRules,
@@ -241,6 +241,34 @@ class ProjectReader(
     }
 
     /**
+     * The resource folders of a module (`lang/`, `data/`, `models/`), which [DocumentLayout] does not
+     * scan: the owner's file over the module's `originals/<dir>/` one of the same stem, an excluded
+     * original left out. Without it a module whose files Artisan keeps under `originals/` showed
+     * raw `{i18n:…}` keys and lost its data sources and models.
+     */
+    private inner class Resources(val projectDir: File, private val excluded: Set<String>) {
+        /** `<dir>/<stem>.yml` files by stem, sorted by stem. */
+        fun files(dir: String): Map<String, File> {
+            val originals = YamlFiles.list(File(projectDir, "${Originals.DIR}/$dir"), ::ignored)
+                .filterKeys { stem -> DocumentLayout.sameFile("$dir/$stem.yml") !in excluded }
+            return (originals + YamlFiles.list(File(projectDir, dir), ::ignored)).toSortedMap()
+        }
+
+        /** Sub-folders of [dir] (per-row data sources), the owner's whole folder over the original. */
+        fun dirs(dir: String): List<File> {
+            fun under(root: File) = root.listFiles { f -> f.isDirectory }.orEmpty().associateBy { it.name }
+            val originals = under(File(projectDir, "${Originals.DIR}/$dir")).filterKeys { "$dir/$it" !in excluded }
+            return (originals + under(File(projectDir, dir))).toSortedMap().values.toList()
+        }
+    }
+
+    /** The owner's exclusions of originals, as [DocumentLayout.sameFile] keys; reported by [documentLayout]. */
+    private fun excludedOriginals(projectDir: File, manifest: ManifestYaml): Set<String> {
+        val index = Originals.parseIndex(File(projectDir, Originals.INDEX_PATH).takeIf { it.isFile }?.readText())
+        return Originals.exclusions(manifest, index).excluded.mapTo(HashSet(), DocumentLayout::sameFile)
+    }
+
+    /**
      * Lang files are YAML trees; `LangFlattener` folds them back to the dotted
      * keys the runtime looks up (and still reads the legacy flat form).
      * Tolerant PER FILE, like menus/dialogs/data sources: an unreadable lang
@@ -248,10 +276,10 @@ class ProjectReader(
      * in game) instead of dropping the whole project, since this read sits
      * above every menu, command and dialog.
      */
-    private fun readLangMaps(projectDir: File, manifest: ManifestYaml): Map<String, Map<String, String>> =
+    private fun readLangMaps(resources: Resources, manifest: ManifestYaml): Map<String, Map<String, String>> =
         manifest.languages.associateWith { lang ->
-            val langFile = YamlFiles.find(File(projectDir, "lang"), lang, ::ignored) ?: return@associateWith emptyMap()
-            tolerant("lang/${langFile.name} of project ${projectDir.name}") {
+            val langFile = resources.files("lang")[lang] ?: return@associateWith emptyMap()
+            tolerant("lang/${langFile.name} of project ${resources.projectDir.name}") {
                 LangFlattener.flatten(mapper.readValue(langFile, object : TypeReference<Map<String, Any?>>() {}))
             } ?: emptyMap()
         }
@@ -398,11 +426,11 @@ class ProjectReader(
 
     /** `data/<id>.yaml`: one file per source. */
     private fun readSingleFileSources(
-        dataDir: File,
+        resources: Resources,
         projectModels: Map<String, Map<String, Any?>>,
         langMaps: Map<String, Map<String, String>>,
         defaultLang: String,
-    ): List<RuntimeDataSource> = YamlFiles.list(dataDir, ::ignored)
+    ): List<RuntimeDataSource> = resources.files("data")
         .mapNotNull { (sourceId, f) ->
             tolerant("data source ${f.name}") {
                 val dsYaml = readSourceDocument(f, sourceId, projectModels)
@@ -417,18 +445,16 @@ class ProjectReader(
      * `model:` + `order:`).
      */
     private fun readPerRowSources(
-        dataDir: File,
+        resources: Resources,
         projectModels: Map<String, Map<String, Any?>>,
         langMaps: Map<String, Map<String, String>>,
         defaultLang: String,
-    ): List<RuntimeDataSource> = dataDir
-        .listFiles { f -> f.isDirectory }
-        ?.sortedBy { it.name }
-        ?.mapNotNull { dir ->
+    ): List<RuntimeDataSource> = resources.dirs("data")
+        .mapNotNull { dir ->
             tolerant("data source dir ${dir.name}") {
                 RuntimeDataSource(readPerRowSource(dir, projectModels), langMaps, defaultLang)
             }
-        } ?: emptyList()
+        }
 
     private fun readPerRowSource(dir: File, projectModels: Map<String, Map<String, Any?>>): DataSourceYaml {
         val sourceId = dir.name
@@ -558,9 +584,9 @@ class ProjectReader(
     }
 
     /** models/<id>.yaml docs, keyed by BOTH the file id and the doc's `id:` (ns refs). */
-    private fun readProjectModels(projectDir: File): Map<String, Map<String, Any?>> {
+    private fun readProjectModels(resources: Resources): Map<String, Map<String, Any?>> {
         val out = mutableMapOf<String, Map<String, Any?>>()
-        YamlFiles.list(File(projectDir, "models"), ::ignored)
+        resources.files("models")
             .forEach { (stem, f) ->
                 runCatching {
                     @Suppress("UNCHECKED_CAST")

@@ -44,7 +44,7 @@ connect to the hub. The name is a label: the server is identified by the id in
 | `web.tunnel` | `"connect.artisanmc.app"` | Preview. The Artisan tunnel server the hub connects out to when `web.url` is empty: it gives the editor an `https://<id>.artisanmc.app` address, used by `/artisan editor` links. No port to open. `""`: no tunnel. Ignored on a leaf. See [Through a tunnel server](../web-server/#through-a-tunnel-server-preview-the-default). |
 | `web.tunnel-access` | `""` | The access code a private tunnel server asks for. |
 | `web.pack-cdn` | `"cdn.artisanmc.net"` | Where the hub uploads the resource pack the editor builds; players download it from there when Artisan sends the pack itself. Public, deleted 30 days after its last use. `""`, or the host unreachable: players download it from `web.url` or `web.port`. Ignored on a leaf. See [Resource packs](../resource-packs/#direct-sending). |
-| `web.mcp` | `false` | Preview. Serves an MCP endpoint at `<editor address>/mcp`, so a player can connect an AI client (Claude, ChatGPT, an IDE) to Artisan: the client reads the Projects and writes drafts, which the player reviews and deploys in the editor; deploying from the client is off unless the player allows it. See [AI clients](../ai/#ai-clients-mcp). |
+| `web.mcp` | `false` | Preview. Serves an MCP endpoint at `<editor address>/mcp`, so a player can connect an AI client (Claude, ChatGPT, an IDE) to Artisan: the client reads the modules and writes drafts, which the player reviews and deploys in the editor; deploying from the client is off unless the player allows it. See [AI clients](../ai/#ai-clients-mcp). |
 
 On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no port.
 
@@ -63,6 +63,12 @@ editor shows its values read-only. See [The editor's assistant](../ai/#the-edito
 | `ai.effort` | `"medium"` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the model thinks, and how many tokens it spends. `anthropic` only. |
 | `ai.max-steps` | `25` | Model calls one message may make (1 to 100). The assistant stops there and says so; the next message lets it go on. |
 | `ai.base-url` | `""` | Another address for the API: a proxy, or another vendor's compatible API. With `anthropic`: DeepSeek `https://api.deepseek.com/anthropic`. With `openai`: DeepSeek `https://api.deepseek.com`, Mistral `https://api.mistral.ai/v1`, OpenRouter `https://openrouter.ai/api/v1`, Ollama `http://localhost:11434/v1`. Empty: the provider's own (Anthropic, OpenAI). |
+
+## `site`
+
+| Key | Default | What it does |
+|---|---|---|
+| `site.url` | `"https://artisanmc.net"` | The site a server's **Updates** tab reads versions from and downloads jars from, once the network is linked to an account there (see [Updating](../../getting-started/install-admin/#updating)). The link's token is only ever sent to this address. Leave it alone unless you run a copy of the site. |
 
 ## `database`
 

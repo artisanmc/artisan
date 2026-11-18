@@ -1,0 +1,2 @@
+- **Fixed**: The Translations panel froze on a module with a few hundred keys (300 keys: about 20 s before it answered, 3 s per keystroke). It now mounts one rich editor at a time, the other rows showing their text, and re-walks the documents only when they change: 0.1 s to open, no visible lag while typing, also at 1,000 keys.
+- **Fixed**: The Translations panel could say "Nothing to translate" under "Missing (289)": its list was frozen on the keys present when it first opened. It now follows the live keys, keeping only the row being typed into.

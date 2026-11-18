@@ -18,7 +18,7 @@ describe("NewProjectDialog", () => {
     vi.stubGlobal("fetch", fetch);
     const onCreated = vi.fn();
     render(<NewProjectDialog serverKeyId="server" onCreated={onCreated} />);
-    await user.click(screen.getByRole("button", { name: /nouveau projet/i }));
+    await user.click(screen.getByRole("button", { name: /nouveau module/i }));
     await user.type(screen.getByPlaceholderText("mon_module"), "mon_projet{Enter}{Enter}");
     expect(fetch).toHaveBeenCalledTimes(1);
     // The server is the URL, the body only names the folder (issue #44).
@@ -39,7 +39,7 @@ describe("NewProjectDialog", () => {
       vi.fn(async () => new Response(JSON.stringify({ error: "server_offline" }), { status: 503 })),
     );
     render(<NewProjectDialog serverKeyId="server" />);
-    await user.click(screen.getByRole("button", { name: /nouveau projet/i }));
+    await user.click(screen.getByRole("button", { name: /nouveau module/i }));
     await user.type(screen.getByRole("textbox"), "mon_projet{Enter}");
     expect(await screen.findByRole("alert")).toHaveTextContent(/serveur.*hors ligne/i);
     expect(screen.getByRole("textbox")).toHaveValue("mon_projet");

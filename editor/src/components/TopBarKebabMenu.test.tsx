@@ -31,10 +31,10 @@ describe("TopBarKebabMenu", () => {
     render(<TopBarKebabMenu {...baseProps} />);
     await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
     expect(
-      screen.getByText(/Exporter le projet|Export project|topbar\.exportZip/i),
+      screen.getByText(/Exporter le module|Export module|topbar\.exportZip/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Importer un projet|Import a project|topbar\.import/i),
+      screen.getByText(/Importer un module|Import a module|topbar\.import/i),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Patterns|Aide-mémoire|Cheat sheet|patterns\.title/i),
@@ -51,7 +51,7 @@ describe("TopBarKebabMenu", () => {
     const onOpenProjectSettings = vi.fn();
     render(<TopBarKebabMenu {...baseProps} onOpenProjectSettings={onOpenProjectSettings} />);
     await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
-    await user.click(screen.getByText(/Paramètres du projet|Project settings/i));
+    await user.click(screen.getByText(/Paramètres du module|Module settings/i));
     expect(onOpenProjectSettings).toHaveBeenCalled();
   });
 
