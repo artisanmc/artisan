@@ -10,7 +10,7 @@ and AuctionHouse, Artisan Quests reads BeautyQuests. You run these imports from 
 tab of a server's page in the editor. The tab shows with the permission `artisan.editor.config`.
 
 The import runs on the server that holds the data, so that server must be online. The same imports
-exist in game as [`/artisan import`](../configuration/commands-permissions/).
+exist in game as [`/artisan import`](../../configuration/commands-permissions/).
 
 ## Import
 
