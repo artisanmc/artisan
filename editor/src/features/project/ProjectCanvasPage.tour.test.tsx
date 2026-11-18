@@ -108,7 +108,7 @@ it("starts only after a resolved workspace, then resumes from its real project m
   await user.click(screen.getByRole("menuitem", { name: /Reprendre la visite|Resume the tour/ }));
   expect(
     await screen.findByRole("dialog", {
-      name: /Vos projets au même endroit|Your projects, in one place/,
+      name: /Vos modules au même endroit|Your modules, in one place/,
     }),
   ).toBeInTheDocument();
   // Paced by the tour's real delays (~2.3 s alone): 5 s is not enough under load.

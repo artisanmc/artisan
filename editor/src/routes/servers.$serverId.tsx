@@ -1,42 +1,54 @@
+import { NewProjectDialog } from "@/components/NewProjectDialog";
 import { Badge } from "@/components/ui/badge";
 import { BreadcrumbSwitcher } from "@/components/ui/breadcrumb";
-import { IconTile } from "@/components/ui/icon-tile";
+import { listChanges } from "@/components/ui/change-list";
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
+import { DeployReviewDialog } from "@/features/project/DeployReviewDialog";
 import { type ProjectRenamed, onProjectRenamed } from "@/features/project/onProjectRenamed";
 import {
   PROJECTS_RELOADED_EVENT,
   type ProjectsReloaded,
 } from "@/features/project/onProjectsReloaded";
+import { deployDraftsAndReport } from "@/features/project/publish/deployDrafts";
+import { loadOtherDrafts } from "@/features/project/publish/otherDrafts";
+import { selectedDrafts, useOtherDrafts } from "@/features/project/publish/useOtherDrafts";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
+import { ServerOverviewView } from "@/features/projects/ServerOverviewView";
 import { buildModuleList, diskProjectsToSummaries } from "@/features/projects/projectGroups";
+import {
+  type DeployedVersion,
+  type VersionsByProject,
+  lastDeployOfServer,
+  moduleLines,
+  recentActivity,
+} from "@/features/projects/serverOverview";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { ServerTabs, serverTabOf } from "@/features/serverPage/ServerTabs";
 import { ServerFrameContext, useServerFrame } from "@/features/serverPage/serverFrame";
 import { EditorAddressBanner } from "@/features/settings/EditorAddressBanner";
+import { listOnlinePlayers } from "@/lib/api/onlinePlayers";
 import { listServerProjects } from "@/lib/api/projectFiles";
+import { listProjectVersions } from "@/lib/api/projectVersions";
 import { type ProjectSummary, type ServerSummary, listServers } from "@/lib/api/servers";
 import { cx } from "@/lib/cx";
-import { screenDestination } from "@/lib/projectNavigation";
-import { projectUrlId } from "@/lib/projectUrlId";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useAuthStore } from "@/state/authStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
+import { applyOrder, sidebarOrderOf, useSidebarOrderStore } from "@/state/sidebarOrderStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useUiStore } from "@/state/uiStore";
 import {
-  Link,
   Outlet,
   createFileRoute,
   useChildMatches,
   useNavigate,
   useParams,
 } from "@tanstack/react-router";
-import { ChevronRight, Folder, Puzzle } from "lucide-react";
-import type * as React from "react";
+import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -223,15 +235,13 @@ function ServerVersions({ summary }: { summary: ServerSummary }) {
 
 const NO_PERMISSIONS: string[] = [];
 
-const ROW_LINK =
-  "group flex items-center justify-between gap-2 rounded-[var(--r-xs)] px-2 py-1.5 text-[13px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]";
-
 /**
- * The overview tab: the admin's own modules first (what they came to edit),
- * then the installed modules with their projects and screens.
+ * The overview tab: what the sidebar does not say about the server's modules (where they
+ * come from, when they last went out, the player's changes waiting), and the latest
+ * deployments. The view is `ServerOverviewView`; this reads the server for it.
  */
 function ServerOverview() {
-  const { serverId, serverKeyId } = useServerFrame();
+  const { serverId, serverKeyId, summary } = useServerFrame();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { projects, status, unavailableReason } = useServerProjectList(serverKeyId);
@@ -239,7 +249,10 @@ function ServerOverview() {
   const serverScreens = useServerScreensStore((s) => s.screens);
   const localProjects = useProjectsStore((s) => s.openProjects.projects);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
+  const activeModules = useModulesStore((s) => s.active);
+  const sidebarOrders = useSidebarOrderStore((s) => s.orders);
   const navigationPinned = useSidebarStore((s) => s.pinned);
+  const others = useOtherDrafts();
 
   // Config screens decide the grouping: the page loads them for ITS server
   // instead of waiting for the sidebar to do it — otherwise an owned project
@@ -252,152 +265,151 @@ function ServerOverview() {
 
   const updateRequired = status === "unavailable" && unavailableReason === "plugin_update_required";
 
-  // Same split as the sidebar: the plugins' modules with their folders and screens,
-  // then the admin's own folders.
-  const { pluginModules, contentModules: projectRows } = buildModuleList({
+  // Same split and same order as the sidebar: the plugins' modules, then the admin's folders.
+  const built = buildModuleList({
     projects,
     screens: serverScreens,
     mountedModuleIds,
     localProjects,
   });
+  const pluginModules = applyOrder(
+    built.pluginModules,
+    sidebarOrderOf(sidebarOrders, serverKeyId, "installed"),
+    (m) => m.id,
+  );
+  const contentModules = applyOrder(
+    built.contentModules,
+    sidebarOrderOf(sidebarOrders, serverKeyId, "mine"),
+    (p) => p.id,
+  );
+  const folders = useMemo(
+    () => [...pluginModules.flatMap((m) => m.projects), ...contentModules],
+    [pluginModules, contentModules],
+  );
+  const folderKey = folders.map((p) => p.id).join("\n");
+
+  const [refresh, setRefresh] = useState(0);
+  const versions = useFolderVersions(
+    serverKeyId,
+    status === "ready" ? folders : null,
+    folderKey,
+    refresh,
+  );
+  const pending = usePendingDrafts(
+    serverKeyId,
+    status === "ready" ? folders : null,
+    folderKey,
+    refresh,
+  );
+  const players = useOnlinePlayerCount(serverKeyId, summary?.online === true);
+
+  const lines = moduleLines({
+    pluginModules,
+    contentModules,
+    versions,
+    pending: pending.files,
+  });
+  const read = folders.every((p) => versions[p.id] !== undefined);
+  const activity = status !== "ready" || !read ? null : recentActivity(lines, versions);
+  const versionOf = (moduleId: string) =>
+    activeModules.find((m) => m.id === moduleId)?.version ?? null;
+
+  const listing =
+    status === "loading" ? (
+      <p className="text-[13px] text-[var(--text-mut)]">{t("serverDetail.loadingProjects")}</p>
+    ) : status === "unavailable" ? (
+      <p className="text-[13px] text-[var(--text-mut)]">
+        {t(
+          updateRequired
+            ? "serverDetail.updateRequired"
+            : unavailableReason === "server_offline"
+              ? "serverDetail.serverOffline"
+              : "serverDetail.projectsUnavailable",
+        )}
+      </p>
+    ) : lines.length === 0 ? (
+      <p className="text-[13px] text-[var(--text-mut)]">{t("serverDetail.noProjects")}</p>
+    ) : null;
+
+  const reloadList = () => {
+    if (serverKeyId)
+      window.dispatchEvent(
+        new CustomEvent<ProjectsReloaded>(PROJECTS_RELOADED_EVENT, { detail: { serverKeyId } }),
+      );
+  };
+
+  const confirm = async () => {
+    const queue = selectedDrafts(others.state);
+    others.close();
+    if (queue.length > 0) await deployDraftsAndReport(t, queue);
+    setRefresh((n) => n + 1);
+  };
 
   return (
     <div className="h-full overflow-auto">
       {/* Lined up with the header's title, not centred: the page reads from the sidebar's edge. */}
       <div
         className={cx(
-          "flex max-w-6xl flex-col gap-8 py-8 pr-6 pl-16 lg:pl-24",
+          "flex max-w-[1240px] flex-col gap-6 py-7 pr-6 pl-16 lg:pl-24",
           navigationPinned && "lg:pl-6",
         )}
       >
         <EditorAddressBanner />
 
-        <Section
-          title={t("serverDetail.myModules")}
-          count={status === "ready" ? projectRows.length : undefined}
+        <ServerOverviewView
+          serverId={serverId}
+          lines={lines}
+          activity={activity}
+          players={players}
+          lastDeploy={lastDeployOfServer(lines)}
+          versionOf={versionOf}
+          listing={listing}
+          onReview={() => others.load(undefined, pending.draftIds)}
           actions={
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              disabled={!serverKeyId || updateRequired}
-              onClick={() => setImportOpen(true)}
-            >
-              {t("topbar.import")}
-            </button>
-          }
-        >
-          {status === "loading" ? (
-            <p className="text-[13px] text-[var(--text-mut)]">
-              {t("serverDetail.loadingProjects")}
-            </p>
-          ) : status === "unavailable" ? (
-            <p className="text-[13px] text-[var(--text-mut)]">
-              {t(
-                updateRequired
-                  ? "serverDetail.updateRequired"
-                  : unavailableReason === "server_offline"
-                    ? "serverDetail.serverOffline"
-                    : "serverDetail.projectsUnavailable",
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={!serverKeyId || updateRequired}
+                onClick={() => setImportOpen(true)}
+              >
+                {t("serverDetail.overview.importModule")}
+              </button>
+              {serverKeyId && !updateRequired && (
+                <NewProjectDialog
+                  serverKeyId={serverKeyId}
+                  onCreated={reloadList}
+                  trigger={
+                    <button type="button" className="btn btn-outline btn-sm">
+                      <Plus className="size-3.5" />
+                      {t("serverDetail.overview.newModule")}
+                    </button>
+                  }
+                />
               )}
-            </p>
-          ) : projectRows.length === 0 ? (
-            <p className="text-[13px] text-[var(--text-mut)]">{t("serverDetail.noProjects")}</p>
-          ) : (
-            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {projectRows.map((w) => (
-                <li key={w.id} className="flex min-w-0 flex-col gap-1.5">
-                  <Link
-                    to="/servers/$serverId/projects/$projectId"
-                    params={{ serverId, projectId: projectUrlId(w) }}
-                    className="card group flex items-center gap-3 p-3.5 transition-colors hover:border-[var(--brand-line)] hover:bg-[var(--surface-hover)]"
-                  >
-                    {/* No Document counter: the hub does not hold the files, so it
-                        cannot know it without querying the server's disk. */}
-                    <IconTile icon={Folder} fg="var(--brand)" soft="var(--brand-soft)" size="md" />
-                    <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[var(--text)]">
-                      {w.name}
-                    </span>
-                    <ChevronRight className="size-4 shrink-0 text-[var(--text-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--brand)]" />
-                  </Link>
-                  {/* The ID is changed in the project Properties; only resuming a pending change remains here. */}
-                  {w.pendingRename && (
-                    <RenameProjectButton
-                      project={w}
-                      onRenamed={(diskId) => {
-                        if (serverKeyId)
-                          onProjectRenamed({
-                            projectId: w.id,
-                            serverKeyId,
-                            previousDiskId: w.externalId ?? w.id,
-                            diskId,
-                          });
-                      }}
-                    />
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Section>
+            </>
+          }
+        />
 
-        {status === "ready" && pluginModules.length > 0 && (
-          <Section title={t("sidebar.installedModules")} count={pluginModules.length}>
-            <ul className="grid items-start gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {pluginModules.map((m) => (
-                <li key={m.id} className="card flex flex-col gap-2 p-3">
-                  {/* TODO: render the module's icon once modules ship real icons */}
-                  <span className="flex items-center gap-2.5 px-1 text-[14px] font-semibold text-[var(--text)]">
-                    <IconTile
-                      icon={Puzzle}
-                      fg="var(--kind-module)"
-                      soft="var(--kind-module-soft)"
-                      size="sm"
-                    />
-                    {m.label}
-                  </span>
-                  <ul className="flex flex-col border-t border-[var(--border-soft)] pt-1.5">
-                    {m.projects.map((p) => (
-                      <li key={`p:${p.id}`}>
-                        <Link
-                          to="/servers/$serverId/projects/$projectId"
-                          params={{ serverId, projectId: projectUrlId(p) }}
-                          className={ROW_LINK}
-                        >
-                          {m.projects.length === 1 ? t("serverDetail.openModule") : p.name}
-                          <RowChevron />
-                        </Link>
-                      </li>
-                    ))}
-                    {m.entries.map((e) =>
-                      e.kind === "screen" ? (
-                        <li key={`s:${e.screen.id}`}>
-                          <Link
-                            {...screenDestination(e.screen, serverId, m.projects)}
-                            className={ROW_LINK}
-                          >
-                            {e.screen.label}
-                            <RowChevron />
-                          </Link>
-                        </li>
-                      ) : (
-                        <li key={`c:${e.moduleId}`}>
-                          <Link
-                            to="/m/$moduleId"
-                            params={{ moduleId: e.moduleId }}
-                            className={ROW_LINK}
-                          >
-                            {t("sidebar.configuration")}
-                            <RowChevron />
-                          </Link>
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-          </Section>
-        )}
+        {/* A rename the server has not confirmed yet: resumed here, the ID being changed in
+            the module's settings. */}
+        {contentModules
+          .filter((p) => p.pendingRename)
+          .map((p) => (
+            <RenameProjectButton
+              key={p.id}
+              project={p}
+              onRenamed={(diskId) => {
+                if (serverKeyId)
+                  onProjectRenamed({
+                    projectId: p.id,
+                    serverKeyId,
+                    previousDiskId: p.externalId ?? p.id,
+                    diskId,
+                  });
+              }}
+            />
+          ))}
 
         {serverKeyId && (
           <ImportProjectDialog
@@ -414,41 +426,120 @@ function ServerOverview() {
           />
         )}
       </div>
+
+      <DeployReviewDialog
+        changes={null}
+        othersOnly
+        others={others.state}
+        onToggleOther={others.toggle}
+        onCancel={others.close}
+        onConfirm={() => void confirm()}
+      />
     </div>
   );
 }
 
-function RowChevron() {
-  return (
-    <ChevronRight className="size-3.5 shrink-0 text-[var(--text-faint)] transition-transform group-hover:translate-x-0.5" />
-  );
+/** The id the hub's Project routes take, `<server>.<folder>`, of a folder of [serverKeyId]. */
+function apiProjectId(serverKeyId: string, project: ProjectSummary): string {
+  return project.id.startsWith(`${serverKeyId}.`)
+    ? project.id
+    : `${serverKeyId}.${project.externalId ?? project.id}`;
 }
 
-/** An overview section: eyebrow title, its count, a rule, then its actions. */
-function Section({
-  title,
-  count,
-  actions,
-  children,
-}: {
-  title: string;
-  count?: number;
-  actions?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <h2 className="eyebrow">{title}</h2>
-        {count !== undefined && (
-          <span className="text-[12px] tabular-nums text-[var(--text-faint)]">{count}</span>
-        )}
-        <span className="h-px flex-1 bg-[var(--border-soft)]" />
-        {actions}
-      </div>
-      {children}
-    </section>
-  );
+/**
+ * The Versions of each folder, newest first, read again on [refresh]. A folder whose Versions
+ * cannot be read counts as never deployed, rather than holding the page in "reading".
+ */
+function useFolderVersions(
+  serverKeyId: string | null,
+  folders: ProjectSummary[] | null,
+  folderKey: string,
+  refresh: number,
+): VersionsByProject {
+  const [versions, setVersions] = useState<Record<string, DeployedVersion[] | null>>({});
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `folderKey` stands for `folders`.
+  useEffect(() => {
+    if (!serverKeyId || !folders) return;
+    let cancelled = false;
+    for (const project of folders)
+      listProjectVersions(apiProjectId(serverKeyId, project)).then(
+        (list) => {
+          if (!cancelled) setVersions((v) => ({ ...v, [project.id]: list }));
+        },
+        () => {
+          if (!cancelled) setVersions((v) => ({ ...v, [project.id]: null }));
+        },
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, [serverKeyId, folderKey, refresh]);
+  return versions;
+}
+
+/** The player's drafts with changes on this server: changed files per folder, and their ids. */
+function usePendingDrafts(
+  serverKeyId: string | null,
+  folders: ProjectSummary[] | null,
+  folderKey: string,
+  refresh: number,
+): { files: Record<string, number>; draftIds: string[] } {
+  const [pending, setPending] = useState<{ files: Record<string, number>; draftIds: string[] }>({
+    files: {},
+    draftIds: [],
+  });
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `folderKey` stands for `folders`.
+  useEffect(() => {
+    if (!serverKeyId || !folders) return;
+    let cancelled = false;
+    const rowOf = new Map(folders.map((p) => [apiProjectId(serverKeyId, p), p.id]));
+    loadOtherDrafts(undefined, serverKeyId).then(
+      (drafts) => {
+        if (cancelled) return;
+        const files: Record<string, number> = {};
+        const draftIds: string[] = [];
+        for (const draft of drafts) {
+          const row = rowOf.get(draft.projectId);
+          if (!row) continue;
+          // One draft per folder goes out with a deployment: the one with the most changes.
+          const count = listChanges(draft.changes).length;
+          if (count > (files[row] ?? 0)) files[row] = count;
+          draftIds.push(draft.draftId);
+        }
+        setPending({ files, draftIds });
+      },
+      () => {
+        if (!cancelled) setPending({ files: {}, draftIds: [] });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [serverKeyId, folderKey, refresh]);
+  return pending;
+}
+
+/** Players connected right now; null while the server is offline. */
+function useOnlinePlayerCount(serverKeyId: string | null, online: boolean): number | null {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!serverKeyId || !online) {
+      setCount(null);
+      return;
+    }
+    let cancelled = false;
+    const read = () =>
+      listOnlinePlayers(serverKeyId).then((players) => {
+        if (!cancelled) setCount(players.length);
+      });
+    void read();
+    const timer = window.setInterval(read, 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [serverKeyId, online]);
+  return count;
 }
 
 export interface ServerProjectList {

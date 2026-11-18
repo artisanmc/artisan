@@ -88,7 +88,7 @@ it("walks through six stops, explains saving, and cleans up presentation when de
   await user.click(await screen.findByRole("button", { name: /Commencer|Let's go/ }));
   expect(
     await screen.findByRole("dialog", {
-      name: /Vos projets au même endroit|Your projects, in one place/,
+      name: /Vos modules au même endroit|Your modules, in one place/,
     }),
   ).toBeInTheDocument();
   for (let step = 1; step < 6; step++)
