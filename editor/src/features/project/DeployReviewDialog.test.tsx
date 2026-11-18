@@ -25,7 +25,7 @@ describe("DeployReviewDialog — cross-project checks", () => {
 
   it("confirms explicitly when the checks ran and found nothing", () => {
     open({ status: "ready", issues: [], unreadable: [] });
-    expect(screen.getByText("Aucun conflit avec les autres projets.")).toBeInTheDocument();
+    expect(screen.getByText("Aucun conflit avec les autres modules.")).toBeInTheDocument();
   });
 
   it("lists a command conflict with the documents involved", () => {
@@ -84,7 +84,7 @@ describe("DeployReviewDialog — cross-project checks", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Commande cmd : lien vers doublon ambigu, plusieurs projets le définissent.",
+        "Commande cmd : lien vers doublon ambigu, plusieurs modules le définissent.",
       ),
     ).toBeInTheDocument();
   });
@@ -92,7 +92,7 @@ describe("DeployReviewDialog — cross-project checks", () => {
   it("never reads as a pass while the other projects are still loading", () => {
     open({ status: "pending", issues: [], unreadable: [] });
     expect(screen.getByText(/pas encore faits/)).toBeInTheDocument();
-    expect(screen.queryByText("Aucun conflit avec les autres projets.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Aucun conflit avec les autres modules.")).not.toBeInTheDocument();
   });
 
   it("says the checks were skipped when the other projects cannot be read", () => {
@@ -103,7 +103,7 @@ describe("DeployReviewDialog — cross-project checks", () => {
   it("warns that the checks are incomplete when some project was unreadable", () => {
     open({ status: "ready", issues: [], unreadable: ["cassé"] });
     expect(screen.getByText(/contrôles incomplets : cassé/)).toBeInTheDocument();
-    expect(screen.queryByText("Aucun conflit avec les autres projets.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Aucun conflit avec les autres modules.")).not.toBeInTheDocument();
   });
 
   it("does not block deploying: the confirm button stays available", () => {
@@ -208,10 +208,10 @@ describe("DeployReviewDialog — other Projects' drafts", () => {
     );
     const { rerender } = render(view({ d1: { status: "ready", problems: [] } }));
     expect(screen.getByText("Autres brouillons")).toBeInTheDocument();
-    const deploy = screen.getByRole("button", { name: "Déployer 2 projets" });
+    const deploy = screen.getByRole("button", { name: "Déployer 2 modules" });
     expect(deploy).toBeEnabled();
     expect(
-      screen.getByText("ouvre le projet pour enregistrer d’abord ses dernières modifications"),
+      screen.getByText("ouvre le module pour enregistrer d’abord ses dernières modifications"),
     ).toBeInTheDocument();
     const boxes = screen.getAllByRole("checkbox");
     expect(boxes[2]).toBeDisabled();
@@ -223,7 +223,7 @@ describe("DeployReviewDialog — other Projects' drafts", () => {
         d1: { status: "ready", problems: [{ path: "a.yml", stage: "yaml", message: "bad" }] },
       }),
     );
-    expect(screen.getByRole("button", { name: "Déployer 2 projets" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Déployer 2 modules" })).toBeDisabled();
     expect(screen.getByText("yaml: bad")).toBeInTheDocument();
   });
 
@@ -253,7 +253,7 @@ describe("DeployReviewDialog — other Projects' drafts", () => {
       />,
     );
     expect(
-      screen.getByText("Recherche de tes brouillons dans les autres projets…"),
+      screen.getByText("Recherche de tes brouillons dans les autres modules…"),
     ).toBeInTheDocument();
     rerender(
       <DeployReviewDialog

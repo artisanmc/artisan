@@ -39,9 +39,9 @@ are picked up at `/artisan reload`.
 
 | To… | Do | Note |
 |---|---|---|
-| Create | Pick a server, **New project**, type a folder name (`my_project`), **Enter** | The name becomes the folder: no `/`. Done only once the server has written it. |
-| Rename | Project settings → **Edit** next to the ID | Drafts follow. A taken name is refused. Add-on projects cannot be renamed. |
-| Delete | Project settings → **Delete project** | The folder moves to `.artisan-trash/`, drafts included. Move it back and `/artisan reload` to restore. |
+| Create | Pick a server, **New module**, type a folder name (`my_project`), **Enter** | The name becomes the folder: no `/`. Done only once the server has written it. |
+| Rename | Module settings → **Edit** next to the ID | Drafts follow. A taken name is refused. Add-on projects cannot be renamed. |
+| Delete | Module settings → **Delete module** | The folder moves to `.artisan-trash/`, drafts included. Move it back and `/artisan reload` to restore. |
 
 The folder name is the project's ID, used as is in URLs (`boutique_addon`, not `Boutique Addon`).
 The display name shown in the header is separate and can be changed in the settings. A leaf
@@ -71,7 +71,7 @@ again confirms the earlier attempt and publishes your newer changes with it.
 
 ## Import a project from a ZIP
 
-On a server page, **Import a project (.zip)**. The archive is a project export or the project
+On a server page, **Import a module (.zip)**. The archive is a project export or the project
 folder zipped as is; its folder name decides which project it targets. The import lands in a
 private draft, so nothing changes until you deploy.
 

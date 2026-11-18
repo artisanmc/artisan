@@ -72,7 +72,7 @@ describe("ModuleTemplatesDialog", () => {
       .mockResolvedValueOnce({ ok: true, written: ["menus/daily.yml"], unchanged: [] });
     const user = userEvent.setup();
     render(<ModuleTemplatesDialog projectId={PID} open onOpenChange={vi.fn()} />);
-    await user.click(await screen.findByRole("button", { name: "Ajouter au projet" }));
+    await user.click(await screen.findByRole("button", { name: "Ajouter au module" }));
     expect(api.copyTemplate).toHaveBeenLastCalledWith(
       { serverId: "srv", diskId: "shop" },
       { module: "quests", template: "daily", replace: false },

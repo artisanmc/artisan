@@ -4,7 +4,7 @@ export const mcpEn = {
     titleGeneric: "Connect an AI client",
     intro: "{{client}} asks to work in Artisan as {{player}}.",
     can: "It will be able to",
-    canRead: "read the Projects and documents of your servers",
+    canRead: "read the modules and documents of your servers",
     canDraft: "create drafts and write documents in them, each file checked by the server first",
     cannot:
       "It will not be able to deploy: you review each draft in the editor and deploy it yourself.",
@@ -45,7 +45,7 @@ export const mcpFr: typeof mcpEn = {
     titleGeneric: "Connecter un client IA",
     intro: "{{client}} demande à travailler dans Artisan en tant que {{player}}.",
     can: "Il pourra",
-    canRead: "lire les Projects et les documents de vos serveurs",
+    canRead: "lire les modules et les documents de vos serveurs",
     canDraft:
       "créer des brouillons et y écrire des documents, chaque fichier vérifié d'abord par le serveur",
     cannot:

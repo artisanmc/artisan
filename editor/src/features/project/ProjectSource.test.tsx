@@ -93,13 +93,13 @@ describe("using another project's resources", () => {
     // Read from the source's published disk, never a draft.
     expect(listed).toHaveBeenCalledWith("p_shop_system", {});
     await userEvent.click(await screen.findByTitle("coin"));
-    await userEvent.click(screen.getByRole("button", { name: /copier dans ce projet|copy into/i }));
+    await userEvent.click(screen.getByRole("button", { name: /copier dans ce module|copy into/i }));
 
     expect(copy).toHaveBeenCalledWith(EDITED, coin);
     expect(useAssetStore.getState().assets).toContainEqual(copied);
     // Back on this project, with the copy selected.
     expect(useAssetStore.getState().selectedId).toBe("coin_2");
-    expect(screen.getByTestId("project-source")).toHaveTextContent(/ce projet|this project/i);
+    expect(screen.getByTestId("project-source")).toHaveTextContent(/ce module|this module/i);
   });
 
   it("copies another project's captured item when it is used", async () => {
