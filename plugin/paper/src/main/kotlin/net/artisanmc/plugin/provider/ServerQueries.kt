@@ -98,6 +98,7 @@ class ServerQueries(
             val running = Bukkit.getPluginManager().getPlugin(request.plugin)
             val jar = running?.let { plugin ->
                 runCatching { java.nio.file.Path.of(plugin.javaClass.protectionDomain.codeSource.location.toURI()) }.getOrNull()
+                    ?.let { installer.sourceJar(request.plugin, it) }
                     ?: return@onGlobal reply.error("not_updatable")
             }
             installer.refusal(wanted, jar)?.let { return@onGlobal reply.error(it) }
