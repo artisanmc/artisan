@@ -42,6 +42,11 @@ export function localDocRef(project: Project, ref: string): string {
   return namespace === projectNamespace(project) ? id : ref;
 }
 
+/** A Document id is plain: a `{…}` or `%…%` placeholder is filled in game, per player. */
+export function isDynamicRef(id: string): boolean {
+  return /[{}%]/.test(id);
+}
+
 /**
  * The board's edges: one per (source Document, target Document) pair, carrying the
  * triggers that open the target. A trigger is any action with a `document_ref` argument
@@ -58,6 +63,8 @@ export function deriveEdges(project: Project): Edge[] {
     ref: { document: string; id: string },
     trigger: EdgeTrigger,
   ) => {
+    // Resolved in game (`{q.group}`, `%player%`): no fixed Document to link, nor to report missing.
+    if (isDynamicRef(ref.id)) return;
     const target = docKey(ref.document, local(ref.id));
     const id = `${source}->${target}`;
     const triggerKey =

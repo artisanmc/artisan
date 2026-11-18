@@ -1162,8 +1162,8 @@ export function projectFromFiles(
  * many Documents were adopted. Mutates `project` (an immer draft in the store).
  */
 export function adoptLateDocuments(project: Project): number {
-  const moduleData = project.moduleData as Record<string, unknown> | undefined;
-  if (!moduleData) return 0;
+  // No owner's file of the late kind does not mean no shipped one: the originals still count.
+  const moduleData = (project.moduleData ?? {}) as Record<string, unknown>;
   const raw = new Map<string, { files: Record<string, string>; ns: string; rel: string }>();
   for (const [ns, data] of Object.entries(moduleData)) {
     const files = (data as { __files?: Record<string, string> } | undefined)?.__files;
@@ -1218,23 +1218,29 @@ function adoptLateOriginals(project: Project): number {
     for (const entry of entries) {
       const y = tryParse<Json>(pending[entry.path] ?? null);
       if (!y || typeof y !== "object") continue;
-      const r = codec.parse(
-        { ...y, id: entry.id },
-        { projectId: project.id, lang: project.defaultLang, translations: project.i18nKeys },
-      );
-      for (const [key, langs] of Object.entries(r.i18nKeys)) {
-        project.i18nKeys[key as I18nKey] ??= langs;
-      }
-      const doc = entry.folder ? ({ ...r.doc, folder: entry.folder } as Document) : r.doc;
+      // Each read mints its own text keys: the twin and the Project's Document must not
+      // share one, or canonicalizing the Document's keys (`rekeyProject`, on every save and
+      // every draft tree) moves the twin's texts away, the twin reads empty, and the
+      // untouched original is written as the owner's version.
+      const read = () => {
+        const r = codec.parse(
+          { ...y, id: entry.id },
+          { projectId: project.id, lang: project.defaultLang, translations: project.i18nKeys },
+        );
+        for (const [key, langs] of Object.entries(r.i18nKeys)) {
+          project.i18nKeys[key as I18nKey] ??= langs;
+        }
+        return entry.folder ? ({ ...r.doc, folder: entry.folder } as Document) : r.doc;
+      };
       const shipped = originals.documents[""] ?? {};
       originals.documents[""] = shipped;
       const twins = shipped[def.kind] ?? [];
       shipped[def.kind] = twins;
-      if (!twins.some((d) => d.id === entry.id)) twins.push(doc);
+      if (!twins.some((d) => d.id === entry.id)) twins.push(read());
       delete pending[entry.path];
       const docs = mutableDocuments(project, def.kind);
       if (off.has(sameFile(entry.path)) || docs.some((d) => d.id === entry.id)) continue;
-      docs.push(structuredClone(doc));
+      docs.push(read());
       adopted++;
     }
   }

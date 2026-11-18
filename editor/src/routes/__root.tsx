@@ -2,6 +2,7 @@ import { LocalBundlesNotice } from "@/components/LocalBundlesNotice";
 import { NavigationSidebar } from "@/components/NavigationSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import { AssistantDock } from "@/features/project/assistant/AssistantPanel";
+import { asLoadNormalization } from "@/features/project/loadNormalization";
 import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
 import { useDraftSync } from "@/features/project/useDraftSync";
 import { EditorWs } from "@/lib/editorWs";
@@ -72,17 +73,19 @@ export function RootLayout() {
       if (s.status !== "ready" || prev.status === "ready") return;
       const { openProjects, adoptActionTexts } = useProjectsStore.getState();
       for (const p of openProjects.projects) {
-        if (p.serverKeyId === activeServerId) adoptActionTexts({ projectId: p.id });
+        if (p.serverKeyId === activeServerId)
+          asLoadNormalization(p.id, () => adoptActionTexts({ projectId: p.id }));
       }
     });
 
     // A module view arriving after a project was read: its Documents were kept as raw
-    // files until its kind existed; read them now.
+    // files until its kind existed; read them now. Part of opening it: no draft for that.
     const unsubscribeModules = useModulesStore.subscribe((s, prev) => {
       if (s.status !== "ready" || prev.status === "ready") return;
       const { openProjects, adoptLateDocuments } = useProjectsStore.getState();
       for (const p of openProjects.projects) {
-        if (p.serverKeyId === activeServerId) adoptLateDocuments({ projectId: p.id });
+        if (p.serverKeyId === activeServerId)
+          asLoadNormalization(p.id, () => adoptLateDocuments({ projectId: p.id }));
       }
     });
 
