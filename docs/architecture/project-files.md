@@ -239,6 +239,9 @@ guilds/
   Same in the three copies (core, `plugin/pack`, editor `domain/documentLayout.ts`); vectors in
   `document-layout-conformance.json` (`excluded`, `original`) and
   `resource-pack-conformance.json` (case "originals: …"; packs ignore exclusions).
+- `lang/`, `data/` (files and per-row folders) and `models/`, which `DocumentLayout` does not
+  scan: the owner's file over `originals/<dir>/` of the same stem, an excluded original left
+  out (`ProjectReader.Resources`).
 - `variants.yml`: the owner's if present, else `originals/variants.yml` (`variantsPath`). The
   owner who changes one rule takes the whole file.
 - Exclusions: `originals.exclude` in the module file (`ManifestYaml.originals`), paths relative
