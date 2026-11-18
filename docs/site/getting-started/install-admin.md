@@ -89,7 +89,11 @@ remove it). The tab then lists Artisan and its modules with the version this ser
 the latest one. **Update** or **Install** makes the server download the jar, check it against
 the hash the site announces and keep it for its next restart: an update waits in
 `plugins/update/`, a new module in `plugins/`. Nothing changes while the server runs, and the
-editor never restarts it for you. Paid modules install once your account owns them. Linking,
+editor never restarts it by itself: **Restart the server**, on the same tab, asks you to
+confirm, tells the players and restarts it ten seconds later. The server only comes back up if
+your host starts it again (a `restart-script` in `spigot.yml`, a container set to restart, a
+panel that treats a stop as a crash); otherwise it stays off, and the editor with it, until you
+start it from your panel. Paid modules install once your account owns them. Linking,
 updating and installing need `artisan.editor.config`. In a network sharing one database, the
 link is made once for every server.
 

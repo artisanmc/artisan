@@ -60,7 +60,14 @@ class SiteRoutes(private val servers: Servers, private val relay: Relay, private
                 call.offload {
                     site(call) {
                         val catalogue = account.updates(channel, ModuleUpdates.installed(catalogueIds(channel), plugins))
-                        call.json(mapOf("channel" to channel, "modules" to ModuleUpdates.rows(catalogue, plugins, reply["staged"])))
+                        call.json(
+                            mapOf(
+                                "channel" to channel,
+                                "modules" to ModuleUpdates.rows(catalogue, plugins, reply["staged"]),
+                                // A server on an older release has no restart to ask for.
+                                "canRestart" to (ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.SERVER_RESTART),
+                            ),
+                        )
                     }
                 }
             }
@@ -95,6 +102,16 @@ class SiteRoutes(private val servers: Servers, private val relay: Relay, private
                         call.json(mapOf("ok" to true, "plugin" to message["plugin"], "version" to message["version"]), 202)
                     }
                 }
+            }
+        }
+        // Restarts the server so the jars it staged load. Whether it comes back up is its host's doing.
+        router.on("POST", "$SERVER/updates/restart", CONFIG) { call ->
+            val server = servers.of(call) ?: return@on call.error(404, "not_found")
+            if (ProtocolVersion.minor(server.protocolVersion) < ProtocolVersion.SERVER_RESTART) return@on call.error(501, "plugin_update_required")
+            relay.send(call, server, mapOf("type" to "server_restart")) { reply ->
+                if (!ok(reply)) return@send readError(call, reply)
+                logger?.info("[Artisan] ${call.session?.playerName ?: "an editor"} asked ${server.label} to restart")
+                call.json(mapOf("ok" to true, "seconds" to ((reply["seconds"] as? Number)?.toInt() ?: 0)), 202)
             }
         }
     }

@@ -11,6 +11,7 @@ import {
   installSiteModule,
   listSiteModules,
   removeSiteLink,
+  restartServer,
   startSiteLink,
 } from "@/lib/api/site";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -248,6 +249,9 @@ function ModuleList({
   const [dev, setDev] = useState<SiteModule[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [asking, setAsking] = useState<string | null>(null);
+  const [canRestart, setCanRestart] = useState(false);
+  /** Seconds before the server goes, once a restart was asked. */
+  const [restarting, setRestarting] = useState<number | null>(null);
   const unlinked = useRef(onUnlinked);
   unlinked.current = onUnlinked;
 
@@ -258,8 +262,9 @@ function ModuleList({
         listSiteModules(serverId, "release"),
         wantsDev ? listSiteModules(serverId, "dev") : null,
       ]);
-      setStable(release);
-      if (development) setDev(development);
+      setStable(release.modules);
+      setCanRestart(release.canRestart);
+      if (development) setDev(development.modules);
       setError(null);
     } catch (e) {
       const code = codeOf(e);
@@ -308,6 +313,21 @@ function ModuleList({
     }
   };
 
+  const restart = async () => {
+    if (!window.confirm(t("siteModules.restartButton.confirm"))) return;
+    setError(null);
+    try {
+      setRestarting(await restartServer(serverId));
+    } catch (e) {
+      setError(message(codeOf(e)));
+    }
+  };
+  const restartButton = canManage && canRestart && restarting === null && (
+    <button type="button" className="btn btn-sm shrink-0" onClick={() => void restart()}>
+      {t("siteModules.restartButton.label")}
+    </button>
+  );
+
   const ready = (modules ?? []).filter((m) => m.staged?.state === "ready");
   const installed = (modules ?? []).filter((m) => m.installed !== null);
   const available = (modules ?? []).filter((m) => m.installed === null);
@@ -339,13 +359,22 @@ function ModuleList({
         <p className="text-[12px] text-[var(--text-mut)]">{t("siteModules.channel.devHint")}</p>
       )}
 
-      {ready.length > 0 && (
+      {restarting !== null ? (
         <output className="card block border-[var(--accent)] p-3 text-[13px] text-[var(--text)]">
-          {t("siteModules.restart", {
-            count: ready.length,
-            list: ready.map((m) => `${m.name} ${m.staged?.version ?? ""}`.trim()).join(", "),
-          })}
+          {t("siteModules.restartButton.asked", { count: restarting })}
         </output>
+      ) : (
+        ready.length > 0 && (
+          <output className="card flex items-center justify-between gap-3 border-[var(--accent)] p-3 text-[13px] text-[var(--text)]">
+            <span>
+              {t("siteModules.restart", {
+                count: ready.length,
+                list: ready.map((m) => `${m.name} ${m.staged?.version ?? ""}`.trim()).join(", "),
+              })}
+            </span>
+            {restartButton}
+          </output>
+        )
       )}
       {error && <p className="text-[12px] text-[var(--danger)]">{error}</p>}
 
@@ -367,14 +396,17 @@ function ModuleList({
               {available.map(row)}
             </section>
           )}
-          <a
-            className="self-start text-[13px] text-[var(--text-mut)] underline underline-offset-2 hover:text-[var(--text)]"
-            href={sitePage(site, i18n.language, "/modules/")}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t("siteModules.catalogue", { site: hostOf(site) })}
-          </a>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <a
+              className="text-[13px] text-[var(--text-mut)] underline underline-offset-2 hover:text-[var(--text)]"
+              href={sitePage(site, i18n.language, "/modules/")}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {t("siteModules.catalogue", { site: hostOf(site) })}
+            </a>
+            {ready.length === 0 && restartButton}
+          </div>
         </>
       )}
     </div>

@@ -45,6 +45,8 @@ class ServerQueries(
     private val statQuery: ((id: String, params: Map<String, String>) -> net.artisanmc.plugin.stats.StatQueries.Answer?)? = null,
     /** Stages the jars the editor asks for (ADR `site-account-and-module-updates`); null: this server installs nothing. */
     private val installer: net.artisanmc.plugin.updates.ModuleInstaller? = null,
+    /** The restart the editor may ask for; null: this server never restarts on its own. */
+    private val restart: net.artisanmc.plugin.updates.ServerRestart? = null,
 ) {
     private val mapper = ObjectMapper()
 
@@ -105,6 +107,16 @@ class ServerQueries(
             if (!installer.begin(wanted)) return@onGlobal reply.error("install_in_progress")
             scheduler.async { installer.install(wanted, jar) }
             reply.ok("plugin" to request.plugin, "version" to request.version, "state" to "downloading")
+        }
+    }
+
+    /** Answers before the server goes: the restart itself comes after the countdown. */
+    fun serverRestart(request: net.artisanmc.plugin.protocol.EditorRequest.ServerRestart) {
+        val reply = replies.to(request, "server_restart_result")
+        val restart = restart ?: return reply.error("restart_unavailable")
+        onGlobal(reply, "server restart") {
+            restart.request()?.let { return@onGlobal reply.error(it) }
+            reply.ok("seconds" to net.artisanmc.plugin.updates.ServerRestart.DELAY_SECONDS)
         }
     }
 

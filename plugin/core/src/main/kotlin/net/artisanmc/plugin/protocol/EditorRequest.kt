@@ -58,6 +58,8 @@ sealed interface EditorRequest {
         /** Never the token in a log. */
         override fun toString() = "ModuleInstall(plugin=$plugin, version=$version)"
     }
+    /** Restarts the server after a countdown its players are told of (protocol 1.8, [ProtocolVersion.SERVER_RESTART]). */
+    data class ServerRestart(override val requestId: String) : WithReply
     /** A module template's files (protocol 1.3, [ProtocolVersion.TEMPLATES]). */
     data class TemplateFetch(override val requestId: String, val moduleId: String, val templateId: String) : WithReply
     /** Copies a module template into a Project; [paths] null: all its files (protocol 1.3). */
@@ -168,6 +170,7 @@ sealed interface EditorRequest {
                 "editor_bundle_fetch" -> EditorBundleFetch(requestId, node.text("module_id") ?: return null)
                 "module_brand_fetch" -> ModuleBrandFetch(requestId, node.text("module_id") ?: return null)
                 "plugins_fetch" -> PluginsFetch(requestId)
+                "server_restart" -> ServerRestart(requestId)
                 "module_install" -> ModuleInstall(
                     requestId = requestId,
                     plugin = node.text("plugin") ?: return null,

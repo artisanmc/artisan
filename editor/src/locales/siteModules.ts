@@ -30,6 +30,13 @@ export const siteModulesEn = {
   },
   restart_one: "Restart the server to load {{list}}.",
   restart_other: "Restart the server to load {{list}}.",
+  restartButton: {
+    label: "Restart the server",
+    confirm:
+      "Restart this server now? Its players are told, then disconnected after a few seconds. The server only comes back up if its host starts it again: where it does not, it stays off, and so does this editor, until you start it from your panel.",
+    asked_one: "The server restarts in {{count}} second. Reload this page once it is back up.",
+    asked_other: "The server restarts in {{count}} seconds. Reload this page once it is back up.",
+  },
   empty: "The site lists no module for this account.",
   catalogue: "The whole catalogue on {{site}}",
   row: {
@@ -76,6 +83,8 @@ export const siteModulesEn = {
       "This plugin's jar is not in the plugins folder: the server cannot replace it. Update it by hand.",
     install_in_progress: "This module is already downloading.",
     install_unavailable: "This server cannot install modules.",
+    restart_in_progress: "This server is already restarting.",
+    restart_unavailable: "This server cannot be restarted from the editor.",
     no_release: "No version to install on this channel.",
     unknown_module: "The site no longer lists this module.",
     forbidden: "You may not configure this server.",
@@ -116,6 +125,15 @@ export const siteModulesFr: typeof siteModulesEn = {
   },
   restart_one: "Redémarre le serveur pour charger {{list}}.",
   restart_other: "Redémarre le serveur pour charger {{list}}.",
+  restartButton: {
+    label: "Redémarrer le serveur",
+    confirm:
+      "Redémarrer ce serveur maintenant ? Ses joueurs sont prévenus, puis déconnectés après quelques secondes. Le serveur ne revient que si son hébergeur le relance : sinon il reste éteint, et cet éditeur avec lui, jusqu'à ce que tu le démarres depuis ton panel.",
+    asked_one:
+      "Le serveur redémarre dans {{count}} seconde. Recharge cette page une fois qu'il est relancé.",
+    asked_other:
+      "Le serveur redémarre dans {{count}} secondes. Recharge cette page une fois qu'il est relancé.",
+  },
   empty: "Le site ne liste aucun module pour ce compte.",
   catalogue: "Tout le catalogue sur {{site}}",
   row: {
@@ -163,6 +181,8 @@ export const siteModulesFr: typeof siteModulesEn = {
       "Le jar de ce plugin n'est pas dans le dossier plugins : le serveur ne peut pas le remplacer. Mets-le à jour à la main.",
     install_in_progress: "Ce module est déjà en cours de téléchargement.",
     install_unavailable: "Ce serveur ne peut pas installer de modules.",
+    restart_in_progress: "Ce serveur redémarre déjà.",
+    restart_unavailable: "Ce serveur ne peut pas être redémarré depuis l'éditeur.",
     no_release: "Aucune version à installer sur ce canal.",
     unknown_module: "Le site ne liste plus ce module.",
     forbidden: "Tu ne peux pas configurer ce serveur.",

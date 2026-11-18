@@ -65,12 +65,25 @@ export function removeSiteLink(): Promise<SiteLinkStatus> {
   return apiFetch(LINK, { method: "DELETE" });
 }
 
+/** A server's modules on one channel; `canRestart`: its plugin knows how to restart it. */
+export interface SiteModuleList {
+  modules: SiteModule[];
+  canRestart: boolean;
+}
+
 export async function listSiteModules(
   serverId: string,
   channel: UpdateChannel,
-): Promise<SiteModule[]> {
+): Promise<SiteModuleList> {
   const path = `/api/v1/servers/${encodeURIComponent(serverId)}/updates?channel=${channel}`;
-  return (await apiFetch<{ modules: SiteModule[] }>(path)).modules;
+  const { modules, canRestart } = await apiFetch<Partial<SiteModuleList>>(path);
+  return { modules: modules ?? [], canRestart: canRestart === true };
+}
+
+/** Asks the server to restart; it tells its players and goes after that many seconds. */
+export async function restartServer(serverId: string): Promise<number> {
+  const path = `/api/v1/servers/${encodeURIComponent(serverId)}/updates/restart`;
+  return (await apiFetch<{ seconds?: number }>(path, { method: "POST", json: {} })).seconds ?? 0;
 }
 
 /** Starts the download on the server; its progress is the module's `staged`. */

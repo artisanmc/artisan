@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
   removeSiteLink: vi.fn(),
   listSiteModules: vi.fn(),
   installSiteModule: vi.fn(),
+  restartServer: vi.fn(),
 }));
 vi.mock("@/lib/api/site", () => api);
 
@@ -23,6 +24,9 @@ const link = (over: Partial<SiteLinkStatus> = {}): SiteLinkStatus => ({
   pending: null,
   ...over,
 });
+
+/** What the hub answers for a channel; the server knows how to restart. */
+const listing = (modules: SiteModule[], canRestart = true) => ({ modules, canRestart });
 
 const module = (over: Partial<SiteModule> = {}): SiteModule => ({
   id: "artisan",
@@ -80,28 +84,30 @@ describe("server updates tab", () => {
 
   it("updates an installed module and installs an owned one, on the chosen channel", async () => {
     api.getSiteLink.mockResolvedValue(link({ linked: true, name: "survie" }));
-    api.listSiteModules.mockResolvedValue([
-      module(),
-      module({
-        id: "store",
-        name: "Store",
-        plugin: "ArtisanStore",
-        installed: null,
-        update: false,
-        requires: ["artisan"],
-        latest: { version: "2.0.0", changelog: "", size: 10, published: null },
-      }),
-      module({
-        id: "quests",
-        name: "Quests",
-        plugin: "ArtisanQuests",
-        installed: null,
-        update: false,
-        access: "licence",
-        price: { amount: 1000, currency: "eur" },
-        page: "https://artisanmc.net/modules/quests/versions/",
-      }),
-    ]);
+    api.listSiteModules.mockResolvedValue(
+      listing([
+        module(),
+        module({
+          id: "store",
+          name: "Store",
+          plugin: "ArtisanStore",
+          installed: null,
+          update: false,
+          requires: ["artisan"],
+          latest: { version: "2.0.0", changelog: "", size: 10, published: null },
+        }),
+        module({
+          id: "quests",
+          name: "Quests",
+          plugin: "ArtisanQuests",
+          installed: null,
+          update: false,
+          access: "licence",
+          price: { amount: 1000, currency: "eur" },
+          page: "https://artisanmc.net/modules/quests/versions/",
+        }),
+      ]),
+    );
     api.installSiteModule.mockResolvedValue(undefined);
     render(<ServerModulesTab serverId="srv" />);
 
@@ -156,16 +162,18 @@ describe("server updates tab", () => {
 
   it("says what waits for a restart and why a download failed", async () => {
     api.getSiteLink.mockResolvedValue(link({ linked: true, name: "survie" }));
-    api.listSiteModules.mockResolvedValue([
-      module({ staged: { version: "1.0.1", state: "ready" } }),
-      module({
-        id: "store",
-        name: "Store",
-        installed: "1.9.0",
-        latest: { version: "2.0.0", changelog: "", size: 10, published: null },
-        staged: { version: "2.0.0", state: "failed", error: "hash_mismatch" },
-      }),
-    ]);
+    api.listSiteModules.mockResolvedValue(
+      listing([
+        module({ staged: { version: "1.0.1", state: "ready" } }),
+        module({
+          id: "store",
+          name: "Store",
+          installed: "1.9.0",
+          latest: { version: "2.0.0", changelog: "", size: 10, published: null },
+          staged: { version: "2.0.0", state: "failed", error: "hash_mismatch" },
+        }),
+      ]),
+    );
     render(<ServerModulesTab serverId="srv" />);
 
     expect(await screen.findByRole("status")).toHaveTextContent(
@@ -180,17 +188,19 @@ describe("server updates tab", () => {
 
   it("sends to the Supporter plan for a development build kept for Supporters", async () => {
     api.getSiteLink.mockResolvedValue(link({ linked: true, name: "survie" }));
-    api.listSiteModules.mockResolvedValue([
-      module({
-        id: "store",
-        name: "Store",
-        installed: "1.9.0",
-        update: true,
-        access: "supporter",
-        latest: { version: "2.0.0-dev.3", changelog: "", size: 10, published: null },
-        page: "https://artisanmc.net/supporter/",
-      }),
-    ]);
+    api.listSiteModules.mockResolvedValue(
+      listing([
+        module({
+          id: "store",
+          name: "Store",
+          installed: "1.9.0",
+          update: true,
+          access: "supporter",
+          latest: { version: "2.0.0-dev.3", changelog: "", size: 10, published: null },
+          page: "https://artisanmc.net/supporter/",
+        }),
+      ]),
+    );
     render(<ServerModulesTab serverId="srv" />);
     const store = within(await screen.findByTestId("module-store"));
     expect(store.getByText("Supporters only")).toBeInTheDocument();
@@ -201,9 +211,35 @@ describe("server updates tab", () => {
     );
   });
 
+  it("restarts the server once confirmed, and only where its plugin can", async () => {
+    api.getSiteLink.mockResolvedValue(link({ linked: true, name: "survie" }));
+    api.listSiteModules.mockResolvedValue(
+      listing([module({ staged: { version: "1.0.1", state: "ready" } })]),
+    );
+    api.restartServer.mockResolvedValue(10);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValue(true);
+    const { unmount } = render(<ServerModulesTab serverId="srv" />);
+
+    const button = await screen.findByRole("button", { name: "Restart the server" });
+    fireEvent.click(button);
+    expect(api.restartServer).not.toHaveBeenCalled();
+    fireEvent.click(button);
+    await waitFor(() => expect(api.restartServer).toHaveBeenCalledWith("srv"));
+    expect(await screen.findByText(/restarts in 10 seconds/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Restart the server" })).toBeNull();
+    unmount();
+    confirm.mockRestore();
+
+    // A plugin on an older release has no restart to ask for.
+    api.listSiteModules.mockResolvedValue(listing([module()], false));
+    render(<ServerModulesTab serverId="srv" />);
+    await screen.findByText("Artisan");
+    expect(screen.queryByRole("button", { name: "Restart the server" })).toBeNull();
+  });
+
   it("offers nothing to install without the right to configure", async () => {
     api.getSiteLink.mockResolvedValue(link({ linked: true, name: "survie", canManage: false }));
-    api.listSiteModules.mockResolvedValue([module()]);
+    api.listSiteModules.mockResolvedValue(listing([module()]));
     render(<ServerModulesTab serverId="srv" />);
     const artisan = within(await screen.findByTestId("module-artisan"));
     expect(artisan.queryByRole("button", { name: /Update|Install|Try again/ })).toBeNull();

@@ -46,7 +46,11 @@ Three constraints:
 5. **Nothing changes until the restart.** An installed plugin's new jar goes to Bukkit's update
    folder (`plugins/update/`) under the running jar's own file name, which the server swaps in
    at its next start; a new plugin's jar goes to `plugins/<Plugin>-<version>.jar`. The editor
-   says a restart is needed and never triggers one. A plugin whose jar is not directly in
+   says a restart is needed and never triggers one by itself: it offers a **Restart the
+   server** button (`config`, protocol 1.8 `server_restart`), which asks for a confirmation,
+   tells the players and restarts after ten seconds (`Bukkit.spigot().restart()`). Whether the
+   server comes back up is its host's doing, which the confirmation says: revised on
+   2026-11-18, the button was first ruled out for that reason. A plugin whose jar is not directly in
    `plugins/` is refused (`not_updatable`). The jar is the one of `plugins/`, not the file the
    classes load from: Paper runs a plugin without Mojang mappings from a remapped copy in
    `plugins/.paper-remapped/`, so the original is found by that copy's file name, else by the
