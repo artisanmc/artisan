@@ -3,4 +3,4 @@
   what would be left aside, and why; `confirm` imports, and running it again skips what is
   already there; `rollback <batch>` undoes an import while keeping what players changed since.
   Each run is logged (`/artisan import history`). Modules register their sources through
-  `api.getImports()` (API 1.6.0). Permission `artisan.admin.import`.
+  `api.getImports()` (API 1.7.0). Permission `artisan.admin.import`.

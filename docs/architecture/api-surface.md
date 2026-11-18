@@ -507,12 +507,12 @@ api.getImports().register(new ImporterDeclaration(
 
 | Member | Type | Since |
 |---|---|---|
-| `ArtisanAPI.getImports()` | `ImportRegistry` | 1.6.0 |
-| `ImportRegistry.register(declaration)` (from a module's `onEnable`, the id's namespace must be that module; a taken id: `IllegalStateException`), `unregister(id)`, `find(id)`, `registered()`; a module's sources leave with it | | 1.6.0 |
-| `ImporterDeclaration(id, label, conflicts, readsFile, importer)` (`id` is `<module>:<source>`, else `IllegalArgumentException`), `module()` | record | 1.6.0 |
-| `Importer.plan(request)`, `apply(request)`, `rollback(batch, dryRun)`: blocking, never write to the source; `apply` with blockers writes nothing | `ImportReport` | 1.6.0 |
-| `ImportRequest(batch, file, options, lang)` and its getters (`file` resolved inside `plugins/Artisan/imports/`, or null) | | 1.6.0 |
-| `ImportReport.builder(dryRun, batch)` (`count(kind, label, n)`, `alreadyImported(n)`, `reject(sourceId, code, message)`, `blocker(message)`, `note(message)`, `build()`), `isDryRun()` (true with a blocker), `getBatch()` (null when nothing was written), `getCounts()`, `getAlreadyImported()`, `getRejected()`, `getBlockers()`, `getNotes()`, `total()`; records `Count`, `Rejection` | | 1.6.0 |
+| `ArtisanAPI.getImports()` | `ImportRegistry` | 1.7.0 |
+| `ImportRegistry.register(declaration)` (from a module's `onEnable`, the id's namespace must be that module; a taken id: `IllegalStateException`), `unregister(id)`, `find(id)`, `registered()`; a module's sources leave with it | | 1.7.0 |
+| `ImporterDeclaration(id, label, conflicts, readsFile, importer)` (`id` is `<module>:<source>`, else `IllegalArgumentException`), `module()` | record | 1.7.0 |
+| `Importer.plan(request)`, `apply(request)`, `rollback(batch, dryRun)`: blocking, never write to the source; `apply` with blockers writes nothing | `ImportReport` | 1.7.0 |
+| `ImportRequest(batch, file, options, lang)` and its getters (`file` resolved inside `plugins/Artisan/imports/`, or null) | | 1.7.0 |
+| `ImportReport.builder(dryRun, batch)` (`count(kind, label, n)`, `alreadyImported(n)`, `reject(sourceId, code, message)`, `blocker(message)`, `note(message)`, `build()`), `isDryRun()` (true with a blocker), `getBatch()` (null when nothing was written), `getCounts()`, `getAlreadyImported()`, `getRejected()`, `getBlockers()`, `getNotes()`, `total()`; records `Count`, `Rejection` | | 1.7.0 |
 
 ### `net.artisanmc.modules.api.editor.EditorBundleRegistry` and the editor bundle contract (internal 2.3.0, `@Stable` since internal 2.18.0)
 

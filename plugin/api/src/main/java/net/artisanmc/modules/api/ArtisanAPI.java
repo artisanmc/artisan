@@ -386,7 +386,7 @@ public final class ArtisanAPI {
      * The sources the modules import a competitor's data from, run by {@code /artisan import}:
      * dry run, write, rollback (ADR {@code data-imports}).
      *
-     * @since 1.6.0
+     * @since 1.7.0
      */
     @Beta
     public ImportRegistry getImports() {
