@@ -72,6 +72,23 @@ class OriginalsTest {
     }
 
     @Test
+    fun `lang, data and models come from originals too, the owner's file wins`(@TempDir tmp: Path) {
+        val m = module(tmp)
+        write(m, "artisan-module.yml", "schema: module/v1\ndefault_lang: en\nlanguages: [en, fr]\n")
+        write(m, "originals/lang/en.yml", "shop:\n  hello: Hello\n")
+        write(m, "originals/lang/fr.yml", "shop:\n  hello: Bonjour\n")
+        write(m, "originals/models/prices.yml", "fields:\n  - { name: amount, kind: integer }\n")
+        write(m, "originals/data/prices.yml", "amount: 5\n")
+        write(m, "originals/data/ranks/a.yml", "name: A\n")
+        write(m, "lang/fr.yml", "shop:\n  hello: Salut\n")
+        val p = read(m)
+        assertEquals("Hello", p.langMapWithFallback("en")["shop.hello"])
+        assertEquals("Salut", p.langMapWithFallback("fr")["shop.hello"])
+        assertEquals(listOf("prices", "ranks"), p.dataSources.map { it.yaml.id }.sorted())
+        assertEquals(listOf("amount"), p.dataSources.first { it.yaml.id == "prices" }.yaml.fields.map { it.name })
+    }
+
+    @Test
     fun `the editor reads originals but never writes them`() {
         assertFalse(EditorPaths.isWritable("originals/menus/main.yml"))
         assertTrue(EditorPaths.isReadable("originals/menus/main.yml"))
