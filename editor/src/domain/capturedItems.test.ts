@@ -90,10 +90,13 @@ describe("capturedPresentation", () => {
     display: {},
   };
 
-  it("reads the name and lore the captured stack carries", () => {
+  it("reads the name and lore the captured stack carries, styled as the game draws them", () => {
     expect(capturedPresentation(project([NAMED]), "item:ci_sword")).toEqual({
-      name: "Épée du VIP",
-      lore: ["Tranchante", "Rare"],
+      name: "<i>Épée du VIP</i>",
+      lore: [
+        "<dark_purple><i>Tranchante</i></dark_purple>",
+        "<dark_purple><i>Rare</i></dark_purple>",
+      ],
     });
   });
 

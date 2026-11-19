@@ -21,6 +21,7 @@ export interface DisplayRef {
  */
 /** What a referenced item says about itself, as the runtime will render it. */
 export interface CapturedPresentation {
+  /** MiniMessage, like an element's own title and lore. */
   name?: string;
   lore: string[];
 }
@@ -46,8 +47,9 @@ export function capturedPresentation(
   const stack = capturedStackDetails(item.stackYaml);
   // The descriptor is what the plugin derived at capture time; the serialized
   // stack is the ground truth and fills what the descriptor didn't carry.
-  const name = item.display.name ?? stack.name;
-  return { ...(name ? { name } : {}), lore: stack.lore ?? [] };
+  // Styled as the game draws them when the stack says how; plain otherwise.
+  const name = stack.nameMini ?? item.display.name ?? stack.name;
+  return { ...(name ? { name } : {}), lore: stack.loreMini ?? stack.lore ?? [] };
 }
 
 export function resolveDisplayRef(project: Project, ref: string): DisplayRef {

@@ -479,6 +479,14 @@ export function* visitProjectLTexts(project: Project): Generator<LTextSite> {
   for (const ds of project.dataSources ?? []) yield* visitDataSourceLTexts(project, ds);
 }
 
+/** A text written as a map by language (`{ en: …, fr: … }`), or undefined for anything else. */
+export function langMap(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const entries = Object.entries(value);
+  if (entries.length === 0 || entries.some(([, v]) => typeof v !== "string")) return undefined;
+  return Object.fromEntries(entries) as Record<string, string>;
+}
+
 /**
  * Adopt BARE values into LText nodes (ADR bare-data-files ④) — used when a
  * source's model becomes known AFTER its rows were imported untyped (declared
@@ -507,9 +515,15 @@ export function adoptBareLTexts(project: Project, ds: DataSource): void {
       }
       case "ltext": {
         if (isLTextNode(value)) return value;
+        const a = base as I18nKey;
+        // A map by language, as a module's starter file writes it: every language is kept.
+        const byLang = langMap(value);
+        if (byLang) {
+          project.i18nKeys[a] = { ...(project.i18nKeys[a] ?? {}), ...byLang };
+          return { key: a };
+        }
         const s = typeof value === "string" ? value : "";
         if (s !== "" && project.i18nKeys[s as I18nKey]) return { key: s as I18nKey };
-        const a = base as I18nKey;
         project.i18nKeys[a] = { ...(project.i18nKeys[a] ?? {}), [project.defaultLang]: s };
         return { key: a };
       }

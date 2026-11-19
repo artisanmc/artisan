@@ -276,6 +276,26 @@ describe("parseCapturedStack — JSON/SNBT-encoded components", () => {
     expect(d.material).toBe("nexo:plny_eternal_bones_set_key");
     expect(d.enchants).toEqual([{ id: "unbreaking", level: 10 }]);
     expect(d.customModelData).toBe("10180");
+    // As the game draws them: the colours of each run, a lore italic unless it says otherwise,
+    // the empty line kept.
+    expect(d.nameMini).toBe("<color:#E55039><b>Clé Legendary</b></color>");
+    expect(d.loreMini).toEqual([
+      "",
+      "<yellow><i>Cette clé permet d'ouvrir</i></yellow>",
+      "<yellow><i>la </i></yellow><color:#E55039><b>Caisse Legendary</b></color>",
+    ]);
+  });
+
+  it("styles an unstyled name and lore with the game's defaults", () => {
+    const d = parseCapturedStack(`item:
+  ==: org.bukkit.inventory.ItemStack
+  id: minecraft:paper
+  components:
+    minecraft:item_name: '{color:"white",text:"Key <1>"}'
+    minecraft:lore: '[{text:"Rare"}]'
+`);
+    expect(d.nameMini).toBe("<white>Key \\<1></white>");
+    expect(d.loreMini).toEqual(["<dark_purple><i>Rare</i></dark_purple>"]);
   });
 
   it("falls back to the item name, a quoted string or an SNBT map", () => {
