@@ -49,6 +49,9 @@ stats.setMetric("daily:streak", player.getUniqueId(), streak);
 - Values are whole numbers (`long`): money in hundredths (`CENTS`), durations in seconds.
 - `ranked(false)` keeps a metric on the profile only; `ascending()` ranks the lowest first (a
   best time).
+- `cumulative()` says the value only adds up (play time, quests completed, blocks mined): the
+  website can then also rank what each player gained this week, month or quarter. Leave it out
+  for a state (a balance, a streak, a level).
 - `setMetric` never waits: the latest value per player is written with the next statistics
   write, and an unchanged value sends nothing. Setting it every few minutes costs the same as
   on each change.

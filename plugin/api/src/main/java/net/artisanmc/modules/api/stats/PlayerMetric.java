@@ -35,6 +35,7 @@ public final class PlayerMetric {
     private final MetricUnit unit;
     private final boolean ranked;
     private final boolean ascending;
+    private final boolean cumulative;
 
     private PlayerMetric(Builder b) {
         this.id = b.id;
@@ -42,6 +43,7 @@ public final class PlayerMetric {
         this.unit = b.unit;
         this.ranked = b.ranked;
         this.ascending = b.ascending;
+        this.cumulative = b.cumulative;
     }
 
     /**
@@ -82,22 +84,31 @@ public final class PlayerMetric {
         return ascending;
     }
 
+    /**
+     * Whether the value only adds up over time (play time, quests completed), as opposed to a
+     * state (a balance, a streak): a website can then also rank what was gained over a week, a
+     * month or a quarter.
+     */
+    public boolean isCumulative() {
+        return cumulative;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof PlayerMetric other)) return false;
         return id.equals(other.id) && labels.equals(other.labels) && unit == other.unit
-            && ranked == other.ranked && ascending == other.ascending;
+            && ranked == other.ranked && ascending == other.ascending && cumulative == other.cumulative;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, labels, unit, ranked, ascending);
+        return Objects.hash(id, labels, unit, ranked, ascending, cumulative);
     }
 
     @Override
     public String toString() {
-        return "PlayerMetric(" + id + ", " + unit + (ranked ? ", ranked" : "") + (ascending ? ", ascending" : "") + ", " + labels + ")";
+        return "PlayerMetric(" + id + ", " + unit + (ranked ? ", ranked" : "") + (ascending ? ", ascending" : "") + (cumulative ? ", cumulative" : "") + ", " + labels + ")";
     }
 
     /** Builds a {@link PlayerMetric}; every setter checks its argument. */
@@ -108,6 +119,7 @@ public final class PlayerMetric {
         private MetricUnit unit = MetricUnit.COUNT;
         private boolean ranked = true;
         private boolean ascending;
+        private boolean cumulative;
 
         private Builder(String id) {
             Objects.requireNonNull(id, "id");
@@ -146,6 +158,15 @@ public final class PlayerMetric {
         /** The lowest value ranks first (a best time). */
         public Builder ascending() {
             this.ascending = true;
+            return this;
+        }
+
+        /**
+         * The value only adds up (play time, quests completed): a website may also rank what was
+         * gained over a week, a month or a quarter. Not for a state such as a balance or a streak.
+         */
+        public Builder cumulative() {
+            this.cumulative = true;
             return this;
         }
 

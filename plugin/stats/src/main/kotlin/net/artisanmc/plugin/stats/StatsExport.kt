@@ -121,13 +121,13 @@ class StatsExport(
      * total. Keyed by the server's row, the id outlives a rename; the labels follow it.
      */
     private fun declarations(): List<ExportedMetric> {
-        val declared = metrics().map { ExportedMetric(it.id, it.unit.name.lowercase(), it.isRanked, it.isAscending, it.labels) }
+        val declared = metrics().map { ExportedMetric(it.id, it.unit.name.lowercase(), it.isRanked, it.isAscending, it.labels, cumulative = it.isCumulative) }
         val playtime = declared.firstOrNull { it.id == PLAYTIME }
         val servers = source.servers().entries.sortedBy { it.key }.map { (row, name) ->
             ExportedMetric(
                 serverPlaytime(row), "seconds", playtime?.ranked ?: true, false,
                 mapOf("en" to "Play time on $name".take(MAX_LABEL), "fr" to "Temps de jeu sur $name".take(MAX_LABEL)),
-                parent = PLAYTIME, scope = name.take(MAX_LABEL),
+                cumulative = true, parent = PLAYTIME, scope = name.take(MAX_LABEL),
             )
         }
         return declared + servers
@@ -136,7 +136,7 @@ class StatsExport(
     /** A metric as the website receives it. */
     private class ExportedMetric(
         val id: String, val unit: String, val ranked: Boolean, val ascending: Boolean, val labels: Map<String, String>,
-        val parent: String? = null, val scope: String? = null,
+        val cumulative: Boolean = false, val parent: String? = null, val scope: String? = null,
     )
 
     /**
@@ -161,6 +161,7 @@ class StatsExport(
                 append(",\"unit\":").append(quote(m.unit))
                 append(",\"ranked\":").append(m.ranked)
                 append(",\"ascending\":").append(m.ascending)
+                if (m.cumulative) append(",\"cumulative\":true")
                 if (m.parent != null) append(",\"parent\":").append(quote(m.parent))
                 if (m.scope != null) append(",\"scope\":").append(quote(m.scope))
                 append(",\"labels\":{")

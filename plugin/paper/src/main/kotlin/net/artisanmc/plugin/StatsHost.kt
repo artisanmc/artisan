@@ -47,7 +47,7 @@ internal object CoreStats {
 internal object CoreMetrics {
     /** Read from `artisan_players` by the export: never set. */
     val PLAYTIME: PlayerMetric = PlayerMetric.builder(StatsExport.PLAYTIME)
-        .label("en", "Play time").label("fr", "Temps de jeu").unit(MetricUnit.SECONDS).build()
+        .label("en", "Play time").label("fr", "Temps de jeu").unit(MetricUnit.SECONDS).cumulative().build()
     /** The Vault balance of the online players, sampled every 5 minutes and at quit; declared when an economy is found. */
     val MONEY: PlayerMetric = PlayerMetric.builder("core:money")
         .label("en", "Money").label("fr", "Argent").unit(MetricUnit.CENTS).build()

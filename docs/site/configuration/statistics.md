@@ -114,6 +114,10 @@ Each server counts its own share of a player's play time beside the network tota
 version that added it on: the time played before stays in the network total only. A website
 shows each server as a tab of the play-time ranking.
 
+A metric that only adds up (play time, quests completed) can also be ranked **per week, month
+and quarter**: the website remembers each player's value at the start of the period and ranks
+what was gained since. It starts counting when the website first receives the metric.
+
 Play time and money of the online players are refreshed every 5 minutes and when they leave: a
 ranking can be up to about 7 minutes late.
 

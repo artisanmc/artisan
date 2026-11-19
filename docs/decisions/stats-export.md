@@ -72,6 +72,11 @@ few minutes.
    before stays in the network total only. `core:money` (cents) is the Vault balance
    of the online players, sampled every 5 minutes and at quit, declared once an economy is found.
    Login streaks belong to `artisan-daily-rewards`, which declares `daily:*` metrics.
+   A metric declared `cumulative()` (it only adds up: play time, quests completed) carries
+   `"cumulative": true`. **Rankings per period are the website's**: it keeps each player's value
+   at the start of the week, month and quarter and ranks the gain. Artisan keeps the current
+   value only: a history per period on the game side would be a second source of truth for
+   something only the website shows, and the website already sees every change within minutes.
 5. **Forgetting.** `/artisan stats forget` also deletes the player's metric values and leaves a
    `core:forgotten` row at that instant; the export sends it in `forget`. A player who plays again
    afterwards reappears. A page holding the forgetting leaves out that player's older player row.

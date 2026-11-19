@@ -160,7 +160,7 @@ class StatsExportTest {
         val page = site.payloads[1]
         assertTrue(
             page.contains(
-                """{"id":"core:playtime.s3","unit":"seconds","ranked":true,"ascending":false,"parent":"core:playtime","scope":"survie",""" +
+                """{"id":"core:playtime.s3","unit":"seconds","ranked":true,"ascending":false,"cumulative":true,"parent":"core:playtime","scope":"survie",""" +
                     """"labels":{"en":"Play time on survie","fr":"Temps de jeu sur survie"}}""",
             ),
             page,
@@ -178,5 +178,13 @@ class StatsExportTest {
         assertEquals(listOf(true, true, true, false), pages.map { it.contains("\"cursor\":null") })
         assertEquals(7, run.values)
         (0 until 4).forEach { i -> assertTrue(pages.any { it.contains(""""metric":"core:playtime.s1","uuid":"p$i"""") }, "p$i") }
+    }
+
+    @Test
+    fun `a cumulative metric says so, a state does not`() {
+        val quests = PlayerMetric.builder("quests:completed").label("en", "Quests").cumulative().build()
+        StatsExport(table, site::post, { listOf(streak, quests) }, "lobby", clock = { now }).run()
+        assertTrue(site.payloads[0].contains(""""id":"quests:completed","unit":"count","ranked":true,"ascending":false,"cumulative":true,"""), site.payloads[0])
+        assertTrue(site.payloads[0].contains(""""id":"daily:streak","unit":"days","ranked":true,"ascending":false,"labels""""), site.payloads[0])
     }
 }

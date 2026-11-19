@@ -45,4 +45,11 @@ class PlayerMetricTest {
         StatsApi.NOOP.declareMetric(PlayerMetric.builder("daily:streak").label("en", "Streak").build())
         StatsApi.NOOP.setMetric("daily:streak", UUID.randomUUID(), 3)
     }
+
+    @Test
+    fun `a metric is a state unless declared cumulative`() {
+        val streak = PlayerMetric.builder("daily:streak").label("en", "Streak")
+        assertEquals(false, streak.build().isCumulative)
+        assertEquals(true, PlayerMetric.builder("quests:completed").label("en", "Quests").cumulative().build().isCumulative)
+    }
 }
