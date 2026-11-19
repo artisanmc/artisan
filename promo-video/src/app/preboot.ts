@@ -4,6 +4,9 @@ import { H, W } from "../size";
 try {
   localStorage.setItem("artisan.editor-address-banner.dismissed", "1");
   localStorage.setItem("i18nextLng", "en");
+  // Le magasin de thème lit cette clé, sinon prefers-color-scheme : le navigateur sans tête dit
+  // « clair », et le logo de l'en-tête sortait dans ses couleurs claires sur l'éditeur sombre.
+  localStorage.setItem("artisan.theme", JSON.stringify({ state: { theme: "dark" }, version: 0 }));
 } catch {}
 document.documentElement.dataset.theme = "dark";
 
