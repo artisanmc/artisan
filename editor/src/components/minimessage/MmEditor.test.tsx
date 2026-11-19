@@ -23,6 +23,20 @@ function Controlled({
   );
 }
 
+/** A clipboard as a copy, cut or paste event carries it. */
+function fakeClipboard(initial: Record<string, string> = {}) {
+  const data = new Map(Object.entries(initial));
+  return {
+    data,
+    clipboardData: {
+      getData: (type: string) => data.get(type) ?? "",
+      setData: (type: string, value: string) => void data.set(type, value),
+      clearData: () => data.clear(),
+      types: [...data.keys()],
+    },
+  };
+}
+
 describe("MmEditor", () => {
   it("marks where a lore line will wrap without writing in the text", () => {
     const line = "word ".repeat(20).trim();
@@ -280,5 +294,46 @@ describe("MmTextField", () => {
   it("leaves the preview to the screen with layout none", () => {
     render(<MmTextField value="x" onChange={() => {}} profile={LORE} layout="none" />);
     expect(screen.queryByTestId("mc-tooltip")).toBeNull();
+  });
+
+  it("copies the selection as MiniMessage, its colours and styles kept", () => {
+    render(<Controlled initial="<gold><b>3 clés Events</b></gold>" />);
+    const view = EditorView.findFromDOM(document.querySelector(".cm-editor") as HTMLElement)!;
+    const src = view.state.doc.toString();
+    act(() => {
+      view.dispatch({ selection: { anchor: src.indexOf("clés"), head: src.indexOf(" Events") } });
+    });
+    const clip = fakeClipboard();
+    fireEvent.copy(view.contentDOM, { clipboardData: clip.clipboardData });
+    expect(clip.data.get("text/plain")).toBe("<gold><b>clés</b></gold>");
+    expect(clip.data.get("text/html")).toMatch(
+      /<span style="color:#[0-9A-Fa-f]{6};font-weight:700">clés<\/span>/,
+    );
+    expect(screen.getByTestId("value").textContent).toBe("<gold><b>3 clés Events</b></gold>");
+  });
+
+  it("cuts the selection as MiniMessage and leaves the tags around it balanced", () => {
+    render(<Controlled initial="<gold><b>3 clés Events</b></gold>" />);
+    const view = EditorView.findFromDOM(document.querySelector(".cm-editor") as HTMLElement)!;
+    const src = view.state.doc.toString();
+    act(() => {
+      view.dispatch({ selection: { anchor: src.indexOf(" Events"), head: src.indexOf("</b>") } });
+    });
+    const clip = fakeClipboard();
+    fireEvent.cut(view.contentDOM, { clipboardData: clip.clipboardData });
+    expect(clip.data.get("text/plain")).toBe("<gold><b> Events</b></gold>");
+    expect(screen.getByTestId("value").textContent).toBe("<gold><b>3 clés</b></gold>");
+  });
+
+  it("reads pasted MiniMessage as styles in the rich view", () => {
+    render(<Controlled initial="Coffre : " />);
+    const view = EditorView.findFromDOM(document.querySelector(".cm-editor") as HTMLElement)!;
+    act(() => {
+      view.dispatch({ selection: { anchor: view.state.doc.length } });
+    });
+    const clip = fakeClipboard({ "text/plain": "<gold><b>clés</b></gold>" });
+    fireEvent.paste(view.contentDOM, { clipboardData: clip.clipboardData });
+    expect(screen.getByTestId("value").textContent).toBe("Coffre : <gold><b>clés</b></gold>");
+    expect(document.querySelector(".cm-content")!.textContent).toBe("Coffre : clés");
   });
 });

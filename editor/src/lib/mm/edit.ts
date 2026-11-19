@@ -1,8 +1,9 @@
 import { NAMED_COLORS, type Style, plainTextFromMiniMessage } from "../miniMessage";
-import { type VisibleUnit, richLayout, unitsBefore } from "./layout";
+import { type VisibleUnit, opaqueExpressions, richLayout, unitsBefore } from "./layout";
 import {
   type MmElement,
   type MmNode,
+  closeFor,
   hasContent,
   nodeLength,
   parseTree,
@@ -379,4 +380,75 @@ export function styleAt(src: string, pos: number, perLine = false): Style | unde
     else if (!after) after = u;
   }
   return (before ?? after)?.style;
+}
+
+/** Fillers standing in for a `{…}` while the markup is parsed: two, so neighbours stay apart. */
+const FILLERS = ["\uE000", "\uE001"];
+
+/** Closes every element the source left open: a pasted piece never styles what follows it. */
+const closeAll = (nodes: MmNode[]): MmNode[] =>
+  nodes.map((n) =>
+    n.kind === "el" ? { ...n, children: closeAll(n.children), close: closeFor(n) } : n,
+  );
+
+/**
+ * What `[from, to)` of `src` shows, unstyled, as MiniMessage: each character (`<` and `\\`
+ * escaped), each tag that shows text and each `{…}` by its source.
+ */
+function visibleText(src: string, from = 0, to = src.length): string {
+  return richLayout(src)
+    .units.filter((u) => u.from >= from && u.to <= to)
+    .map((u) => {
+      if (u.gen) return src.slice(u.from, u.to);
+      const ch = src[u.to - 1]!;
+      return ch === "<" || ch === "\\" ? `\\${ch}` : ch;
+    })
+    .join("");
+}
+
+/** {@link sliceSource} on one fragment (one lore line). */
+function sliceFragment(src: string, from: number, to: number): string {
+  const range = trim(richLayout(src).units, from, to);
+  if (!range) return "";
+  const shown = visibleText(src, range[0], range[1]);
+  // A `{…}` is evaluated before MiniMessage: the tags in its strings are not the text's.
+  // Masked while the tree is cut, then put back whole.
+  const exprs = opaqueExpressions(src);
+  if (exprs.length > 0 && FILLERS.some((f) => src.includes(f))) return shown;
+  let masked = src;
+  exprs.forEach((e, k) => {
+    masked = masked.slice(0, e.from) + FILLERS[k % 2]!.repeat(e.to - e.from) + masked.slice(e.to);
+  });
+  const [left] = splitNodes(parseTree(masked), range[1]);
+  const [, middle] = splitNodes(left, range[0]);
+  let out = serialize(closeAll(middle));
+  for (const [k, e] of exprs.entries()) {
+    if (e.to <= range[0] || e.from >= range[1]) continue;
+    const filler = FILLERS[k % 2]!.repeat(e.to - e.from);
+    const at = out.indexOf(filler);
+    if (at === -1) return shown;
+    out = out.slice(0, at) + src.slice(e.from, e.to) + out.slice(at + filler.length);
+  }
+  // A source the parser reads oddly (crossed or stray tags): the text, without its styles.
+  return FILLERS.some((f) => out.includes(f)) || visibleText(out) !== shown ? shown : out;
+}
+
+/**
+ * The MiniMessage of what `[from, to)` shows, as the rich view copies it: the visible
+ * characters with every tag that styles them, the ones opened before the range
+ * included, each closed. Pasted anywhere (another field, the code view, the game), it
+ * reads as it looked. With `perLine` (a lore), each line is cut alone.
+ */
+export function sliceSource(src: string, from: number, to: number, perLine = false): string {
+  if (!perLine || !src.includes("\n")) return sliceFragment(src, from, to);
+  const out: string[] = [];
+  let start = 0;
+  for (const line of src.split("\n")) {
+    const end = start + line.length;
+    if (end >= from && start <= to) {
+      out.push(sliceFragment(line, Math.max(0, from - start), Math.min(line.length, to - start)));
+    }
+    start = end + 1;
+  }
+  return out.join("\n");
 }
