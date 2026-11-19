@@ -318,6 +318,7 @@ class EditorApiTest {
         val shop = call("GET", "/api/v1/user/projects/u-local.shop").second!!["capabilities"]
         assertEquals(true, shop["canRename"].asBoolean())
         assertEquals(true, shop["canDelete"].asBoolean())
+        assertEquals(true, shop["captureInGame"].asBoolean())
         assertEquals(false, call("GET", "/api/v1/user/projects/u-local.quests").second!!["capabilities"]["canDelete"].asBoolean())
     }
 

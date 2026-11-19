@@ -1158,6 +1158,9 @@ const fr: typeof en = {
     sectionTitle: "Items capturés",
     emptyHint:
       "Aucun item capturé — charge l'inventaire d'un joueur ci-dessous et clique un item pour le capturer.",
+    empty: "Aucun item capturé.",
+    offlineHint:
+      "La capture lit l'inventaire d'un joueur connecté : elle revient quand le serveur de ce module est en ligne.",
     playerPlaceholder: "Pseudo du joueur",
     load: "Charger l'inventaire",
     loading: "Chargement…",
