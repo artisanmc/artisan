@@ -23,6 +23,7 @@ import {
 import { normalizeFolderMeta } from "@/domain/folders";
 import {
   adoptAddressedTranslations,
+  langMap,
   visitDataSourceLTexts,
   visitElementLTexts,
 } from "@/domain/i18nSites";
@@ -381,7 +382,7 @@ function importDataValue(
   type: ModelFieldType,
   models: DataModel[],
   visited: Set<DataModelId>,
-  ref: (key: string) => LText,
+  ref: (raw: string | Record<string, string>) => LText,
 ): unknown {
   switch (type.kind) {
     case "item": {
@@ -392,7 +393,7 @@ function importDataValue(
       return out;
     }
     case "ltext":
-      return ref(typeof value === "string" ? value : "");
+      return ref(typeof value === "string" ? value : (langMap(value) ?? ""));
     case "list":
       return Array.isArray(value)
         ? value.map((el) => importDataValue(el, type.of, models, visited, ref))
@@ -757,8 +758,8 @@ export function projectFromFiles(
   // Tolerant ltext import for data sources (ADR bare-data-files ④): a value
   // matching a known translation key resolves as that key; anything else is
   // the DEFAULT LANGUAGE'S literal text (minted key).
-  function ltData(raw: string): LText {
-    return translations[raw] ? ref(raw) : text(raw);
+  function ltData(raw: string | Record<string, string>): LText {
+    return typeof raw === "string" && translations[raw] ? ref(raw) : text(raw);
   }
   const { appearance } = makeAppearanceConverter({
     text,

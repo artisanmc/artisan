@@ -34,6 +34,7 @@ function ItemTile({ item, textureBase, version, bundleReady, tints }: ItemTilePr
   const setRendered = useTextureStore((s) => s.setRendered);
   // A 3D render of a vanilla model, or a Nexo item's texture sent by the server.
   const renderedSrc = useTextureStore((s) => s.renderedByMaterial[item.id.toLowerCase()] ?? null);
+  const smooth = useTextureStore((s) => s.smoothByMaterial[item.id.toLowerCase()] === true);
   const sprite = useAtlasStyle(item.id);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `tints` comes from `item` (tile keyed by item.id); a new object reference must not rerun a 3D render already cached per material
@@ -87,7 +88,7 @@ function ItemTile({ item, textureBase, version, bundleReady, tints }: ItemTilePr
           loading="lazy"
           draggable={false}
           className="h-full w-full object-contain p-1"
-          style={{ imageRendering: renderedSrc && item.model ? "auto" : "pixelated" }}
+          style={{ imageRendering: renderedSrc && (item.model || smooth) ? "auto" : "pixelated" }}
           onError={(e) => {
             (e.target as HTMLImageElement).style.visibility = "hidden";
           }}

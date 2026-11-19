@@ -26,6 +26,13 @@ export interface CapturedStackDetails {
   count?: number;
   name?: string;
   lore?: string[];
+  /**
+   * The name and the lore as the game draws them, in MiniMessage: colours and decorations of
+   * the text components, vanilla defaults included (an italic custom name, a purple italic
+   * lore). Lore lines left empty are kept: they space the tooltip.
+   */
+  nameMini?: string;
+  loreMini?: string[];
   enchants?: ItemEnchant[];
   /** Glint override carried by the stack itself, independent of `enchants`. */
   enchanted?: boolean;
@@ -181,6 +188,89 @@ function plainText(raw: unknown): string | undefined {
   return walk(decoded) || (typeof decoded === "string" ? undefined : trimmed);
 }
 
+/** What a text component inherits from its parent. */
+interface TextStyle {
+  color?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underlined?: boolean;
+  strikethrough?: boolean;
+  obfuscated?: boolean;
+}
+
+/** The game's own style where a component says nothing. */
+const CUSTOM_NAME_STYLE: TextStyle = { italic: true };
+const ITEM_NAME_STYLE: TextStyle = {};
+const LORE_STYLE: TextStyle = { color: "dark_purple", italic: true };
+
+const DECORATIONS = ["bold", "italic", "underlined", "strikethrough", "obfuscated"] as const;
+const DECORATION_TAG: Record<(typeof DECORATIONS)[number], string> = {
+  bold: "b",
+  italic: "i",
+  underlined: "u",
+  strikethrough: "st",
+  obfuscated: "obf",
+};
+
+/** `1b`, `true`, `"true"`: on. Absent: inherited. */
+function flag(raw: unknown): boolean | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  return raw === true || raw === 1 || raw === "true" || raw === "1";
+}
+
+/**
+ * A text component (decoded map, list or string, or its JSON/SNBT encoding) as MiniMessage:
+ * each run of text wrapped in its own colour and decorations, so nothing leaks from one run
+ * to the next. `base` is what the game applies where the component says nothing.
+ */
+function miniText(raw: unknown, base: TextStyle): string | undefined {
+  let node = raw;
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) return undefined;
+    node = /^[{["']/.test(trimmed) ? (decodeText(trimmed) ?? trimmed) : trimmed;
+  } else if (!raw || typeof raw !== "object") return undefined;
+
+  const run = (text: string, style: TextStyle): string => {
+    if (!text) return "";
+    let out = text.replace(/\\/g, "\\\\").replace(/</g, "\\<");
+    for (const decoration of DECORATIONS) {
+      if (style[decoration])
+        out = `<${DECORATION_TAG[decoration]}>${out}</${DECORATION_TAG[decoration]}>`;
+    }
+    if (!style.color) return out;
+    const color = style.color.replace(/^minecraft:/, "");
+    return color.startsWith("#") ? `<color:${color}>${out}</color>` : `<${color}>${out}</${color}>`;
+  };
+  const walk = (part: unknown, inherited: TextStyle): string => {
+    if (typeof part === "string") return run(part, inherited);
+    if (typeof part === "number" || typeof part === "boolean") return run(String(part), inherited);
+    // A list is its first component with the others as children.
+    if (Array.isArray(part)) {
+      const first = asDict(part[0]);
+      const style = first ? styleOf(first, inherited) : inherited;
+      return part.map((child, i) => walk(child, i === 0 ? inherited : style)).join("");
+    }
+    const d = asDict(part);
+    if (!d) return "";
+    const style = styleOf(d, inherited);
+    const self = typeof d.text === "string" ? run(d.text, style) : "";
+    const extra = Array.isArray(d.extra) ? d.extra.map((child) => walk(child, style)).join("") : "";
+    return self + extra;
+  };
+  return walk(node, base);
+}
+
+function styleOf(component: Dict, inherited: TextStyle): TextStyle {
+  const style: TextStyle = { ...inherited };
+  if (typeof component.color === "string" && component.color) style.color = component.color;
+  for (const decoration of DECORATIONS) {
+    const on = flag(component[decoration]);
+    if (on !== undefined) style[decoration] = on;
+  }
+  return style;
+}
+
 function toCount(raw: unknown): number | undefined {
   const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : Number.NaN;
   // 1 is the default — stating it would add noise to the extracted form.
@@ -213,12 +303,22 @@ function materialFromId(raw: unknown): string | undefined {
 function readComponents(components: Dict, out: CapturedStackDetails): void {
   const name =
     plainText(components["minecraft:custom_name"]) ?? plainText(components["minecraft:item_name"]);
-  if (name) out.name = name;
+  if (name) {
+    out.name = name;
+    const custom = plainText(components["minecraft:custom_name"]) !== undefined;
+    const mini = custom
+      ? miniText(components["minecraft:custom_name"], CUSTOM_NAME_STYLE)
+      : miniText(components["minecraft:item_name"], ITEM_NAME_STYLE);
+    if (mini) out.nameMini = mini;
+  }
 
   const lore = decodeComponent(components["minecraft:lore"]);
   if (Array.isArray(lore)) {
     const lines = lore.map((l) => plainText(l) ?? "").filter((l) => l !== "");
-    if (lines.length > 0) out.lore = lines;
+    if (lines.length > 0) {
+      out.lore = lines;
+      out.loreMini = lore.map((l) => miniText(l, LORE_STYLE) ?? "");
+    }
   }
 
   // 1.21.5 dropped the `levels` wrapper; both spellings are in the wild.
@@ -286,12 +386,19 @@ function readComponents(components: Dict, out: CapturedStackDetails): void {
 
 function readLegacyMeta(meta: Dict, out: CapturedStackDetails): void {
   const name = plainText(meta["display-name"]);
-  if (name) out.name = name;
+  if (name) {
+    out.name = name;
+    const mini = miniText(meta["display-name"], CUSTOM_NAME_STYLE);
+    if (mini) out.nameMini = mini;
+  }
 
   const lore = meta.lore;
   if (Array.isArray(lore)) {
     const lines = lore.map((l) => plainText(l) ?? "").filter((l) => l !== "");
-    if (lines.length > 0) out.lore = lines;
+    if (lines.length > 0) {
+      out.lore = lines;
+      out.loreMini = lore.map((l) => miniText(l, LORE_STYLE) ?? "");
+    }
   }
 
   const enchants = enchantList(meta.enchants);
