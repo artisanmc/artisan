@@ -1,5 +1,5 @@
 import type { CustomItemsData, LibraryData } from "@/domain/library";
-import { apiFetch } from "./client";
+import { apiFetch, apiRequest } from "./client";
 
 export interface UserProjectLoadResult {
   project: {
@@ -57,5 +57,20 @@ export async function fetchUserCustomItems(projectId: string): Promise<CustomIte
     return await apiFetch<CustomItemsData>(`${base(projectId)}/custom-items`);
   } catch {
     return { serverKeyId: "", items: [] };
+  }
+}
+
+/**
+ * The icons of the server's Nexo items, by item id (no `nexo:`), as base64 PNGs: one answer the
+ * browser revalidates by ETag, so a set it already holds is not sent again. Empty when there are
+ * none (Nexo absent, an older plugin) or the server is unreachable.
+ */
+export async function fetchNexoItemIcons(projectId: string): Promise<Record<string, string>> {
+  try {
+    const response = await apiRequest(`${base(projectId)}/nexo-item-icons`);
+    if (!response.ok) return {};
+    return ((await response.json()) as { icons?: Record<string, string> }).icons ?? {};
+  } catch {
+    return {};
   }
 }

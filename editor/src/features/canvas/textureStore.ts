@@ -14,6 +14,8 @@ interface TextureState {
   libraryError: boolean;
   setData: (version: string, items: Array<{ id: string; texture?: string }>) => void;
   setRendered: (materialId: string, dataUrl: string) => void;
+  /** Many icons in one update (the Nexo items' textures): every icon on screen redraws once. */
+  setRenderedMany: (byMaterial: Record<string, string>) => void;
   setLibraryItems: (items: LibraryItem[]) => void;
   setLibraryCustomData: (data: CustomItemsData) => void;
   setLibraryBundleReady: (ready: boolean) => void;
@@ -40,6 +42,13 @@ export const useTextureStore = create<TextureState>()((set) => ({
     set((s) => ({
       renderedByMaterial: { ...s.renderedByMaterial, [materialId.toLowerCase()]: dataUrl },
     })),
+  setRenderedMany: (byMaterial) =>
+    set((s) => {
+      const renderedByMaterial = { ...s.renderedByMaterial };
+      for (const [id, url] of Object.entries(byMaterial))
+        renderedByMaterial[id.toLowerCase()] = url;
+      return { renderedByMaterial };
+    }),
   setLibraryItems: (items) => set({ libraryItems: items }),
   setLibraryCustomData: (data) => set({ libraryCustomData: data }),
   setLibraryBundleReady: (ready) => set({ libraryBundleReady: ready }),
@@ -48,7 +57,8 @@ export const useTextureStore = create<TextureState>()((set) => ({
 
 /**
  * Reactive hook: returns the texture URL for a material id, or undefined.
- * Custom items (Nexo, Oraxen, ItemsAdder) are names only: they have none.
+ * A Nexo item has its texture once the server sent it (`renderedByMaterial`);
+ * Oraxen and ItemsAdder items are names only: they have none.
  */
 export function useTextureUrl(material: string): string | undefined {
   const version = useTextureStore((s) => s.version);

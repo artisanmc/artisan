@@ -278,6 +278,7 @@ internal class RuntimeAssembly(
         menuWindows = menuWindows,
         pluginVersion = description.version,
         nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(dataFolder.parentFile, "Nexo")),
+        nexoItemIcons = net.artisanmc.plugin.customitems.NexoItemIcons(java.io.File(dataFolder.parentFile, "Nexo")),
         serverConfig = serverConfigAccess,
         editorEvents = { editorChannel.relay(it, serverId.toString()) },
         hub = editorHost.hubLink(cfg.web),

@@ -31,9 +31,8 @@ function ItemTile({ item, textureBase, version, bundleReady, tints }: ItemTilePr
   );
   const tileRef = useRef<HTMLButtonElement>(null);
   const setRendered = useTextureStore((s) => s.setRendered);
-  const renderedSrc = useTextureStore((s) =>
-    item.model ? (s.renderedByMaterial[item.id.toLowerCase()] ?? null) : null,
-  );
+  // A 3D render of a vanilla model, or a Nexo item's texture sent by the server.
+  const renderedSrc = useTextureStore((s) => s.renderedByMaterial[item.id.toLowerCase()] ?? null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `tints` comes from `item` (tile keyed by item.id); a new object reference must not rerun a 3D render already cached per material
   useEffect(() => {
@@ -84,7 +83,7 @@ function ItemTile({ item, textureBase, version, bundleReady, tints }: ItemTilePr
           loading="lazy"
           draggable={false}
           className="h-full w-full object-contain p-1"
-          style={{ imageRendering: renderedSrc ? "auto" : "pixelated" }}
+          style={{ imageRendering: renderedSrc && item.model ? "auto" : "pixelated" }}
           onError={(e) => {
             (e.target as HTMLImageElement).style.visibility = "hidden";
           }}
