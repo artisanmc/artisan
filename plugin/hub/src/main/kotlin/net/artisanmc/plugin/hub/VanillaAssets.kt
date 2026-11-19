@@ -2,6 +2,9 @@ package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import java.awt.RenderingHints
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.URI
 import java.net.http.HttpClient
@@ -11,6 +14,7 @@ import java.security.MessageDigest
 import java.util.logging.Level
 import java.util.logging.Logger
 import java.util.zip.ZipFile
+import javax.imageio.ImageIO
 
 /**
  * Vanilla items and textures.
@@ -63,6 +67,43 @@ class VanillaAssets(
         File(textures, "$path.png").takeIf { it.isFile }?.let { return it.readBytes() }
         if (!done.isFile) texturesFetch.start()
         return null
+    }
+
+    @Volatile private var atlas: ByteArray? = null
+
+    /**
+     * Every catalogue item's picture in one PNG, so a grid of items costs the editor one request
+     * instead of one per item (about 1,650, too many for the editor tunnel's limits). Item `i` of
+     * [items] is the [ATLAS_CELL] px square at column `i % ATLAS_COLUMNS`, row `i / ATLAS_COLUMNS`;
+     * an item without a picture leaves its square empty. Null, and the downloads started, until
+     * the textures and the icons are here: an atlas is built once, from complete files.
+     */
+    fun atlas(): ByteArray? {
+        atlas?.let { return it }
+        val list = items ?: return null
+        if (!done.isFile) { texturesFetch.start(); return null }
+        val v = catalogVersion
+        if (v != null && iconsUrl != null && iconsHash(v) != null && !File(icons(v), ".done").isFile) {
+            iconsFetch.start()
+            return null
+        }
+        return synchronized(this) { atlas ?: buildAtlas(list).also { atlas = it } }
+    }
+
+    private fun buildAtlas(list: JsonNode): ByteArray {
+        val rows = (list.size() + ATLAS_COLUMNS - 1) / ATLAS_COLUMNS
+        val sheet = BufferedImage(ATLAS_COLUMNS * ATLAS_CELL, maxOf(rows, 1) * ATLAS_CELL, BufferedImage.TYPE_INT_ARGB)
+        val g = sheet.createGraphics()
+        try {
+            list.forEachIndexed { i, item ->
+                val path = item["texture"]?.asText()?.takeIf { it.isNotEmpty() } ?: return@forEachIndexed
+                val image = texture(path)?.let { runCatching { ImageIO.read(it.inputStream()) }.getOrNull() } ?: return@forEachIndexed
+                g.drawImage(cell(image), (i % ATLAS_COLUMNS) * ATLAS_CELL, (i / ATLAS_COLUMNS) * ATLAS_CELL, null)
+            }
+        } finally {
+            g.dispose()
+        }
+        return ByteArrayOutputStream().also { ImageIO.write(sheet, "png", it) }.toByteArray()
     }
 
     private fun icons(v: String) = File(cache, "icons/$v")
@@ -148,6 +189,35 @@ class VanillaAssets(
         }
     }
 
+    /**
+     * One picture at [ATLAS_CELL] px: its top square (an animated texture is a strip of frames),
+     * pixel art enlarged without smoothing, a rendered icon reduced by halves so it stays sharp.
+     */
+    private fun cell(image: BufferedImage): BufferedImage {
+        var current = image.getSubimage(0, 0, minOf(image.width, image.height), minOf(image.width, image.height))
+        val smooth = current.width > ATLAS_CELL
+        while (current.width > ATLAS_CELL) {
+            val size = maxOf(current.width / 2, ATLAS_CELL)
+            current = scaled(current, size, smooth = true)
+        }
+        return if (current.width == ATLAS_CELL) current else scaled(current, ATLAS_CELL, smooth)
+    }
+
+    private fun scaled(image: BufferedImage, size: Int, smooth: Boolean): BufferedImage {
+        val out = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
+        val g = out.createGraphics()
+        try {
+            g.setRenderingHint(
+                RenderingHints.KEY_INTERPOLATION,
+                if (smooth) RenderingHints.VALUE_INTERPOLATION_BILINEAR else RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR,
+            )
+            g.drawImage(image, 0, 0, size, size, null)
+        } finally {
+            g.dispose()
+        }
+        return out
+    }
+
     private fun digest(algorithm: String, file: File): String {
         val digest = MessageDigest.getInstance(algorithm)
         file.inputStream().use { input ->
@@ -158,6 +228,9 @@ class VanillaAssets(
     }
 
     companion object {
+        /** Side of one item in [atlas], in px: sharp at the editor's 36 px tiles on a 2x screen. */
+        const val ATLAS_CELL = 64
+        const val ATLAS_COLUMNS = 32
         const val MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
         private const val ROOT = "vanilla"
         private const val ICONS = "icons/"

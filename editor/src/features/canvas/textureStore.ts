@@ -3,6 +3,14 @@ import { create } from "zustand";
 
 import { API_URL } from "@/lib/api/client";
 
+/** The catalogue's pictures in one image (`itemAtlas.ts`): its object URL and each item's square. */
+export interface ItemAtlas {
+  url: string;
+  rows: number;
+  /** Lowercase material id → its place in the catalogue, hence in the atlas. */
+  index: Record<string, number>;
+}
+
 interface TextureState {
   version: string;
   byMaterial: Record<string, string>; // vanilla: lowercase material id → texture path
@@ -12,6 +20,7 @@ interface TextureState {
   libraryCustomData: CustomItemsData;
   libraryBundleReady: boolean;
   libraryError: boolean;
+  atlas: ItemAtlas | null;
   setData: (version: string, items: Array<{ id: string; texture?: string }>) => void;
   setRendered: (materialId: string, dataUrl: string) => void;
   /** Many icons in one update (the Nexo items' textures): every icon on screen redraws once. */
@@ -20,6 +29,8 @@ interface TextureState {
   setLibraryCustomData: (data: CustomItemsData) => void;
   setLibraryBundleReady: (ready: boolean) => void;
   setLibraryError: (error: boolean) => void;
+  /** Replaces the atlas, releasing the previous one's object URL; null drops it. */
+  setAtlas: (atlas: ItemAtlas | null) => void;
 }
 
 export const useTextureStore = create<TextureState>()((set) => ({
@@ -30,6 +41,7 @@ export const useTextureStore = create<TextureState>()((set) => ({
   libraryCustomData: { serverKeyId: "", items: [] },
   libraryBundleReady: false,
   libraryError: false,
+  atlas: null,
   setData: (version, items) => {
     const byMaterial: Record<string, string> = {};
     for (const item of items) {
@@ -53,6 +65,11 @@ export const useTextureStore = create<TextureState>()((set) => ({
   setLibraryCustomData: (data) => set({ libraryCustomData: data }),
   setLibraryBundleReady: (ready) => set({ libraryBundleReady: ready }),
   setLibraryError: (error) => set({ libraryError: error }),
+  setAtlas: (atlas) =>
+    set((s) => {
+      if (s.atlas && s.atlas.url !== atlas?.url) URL.revokeObjectURL(s.atlas.url);
+      return { atlas };
+    }),
 }));
 
 /**
