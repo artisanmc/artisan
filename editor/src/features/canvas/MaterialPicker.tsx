@@ -6,9 +6,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import type { LibraryItem } from "@/domain/library";
 import { cx } from "@/lib/cx";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Search } from "lucide-react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CapturedItemsSection } from "./CapturedItemsSection";
 import { getTextureUrl, useTextureStore } from "./textureStore";
@@ -119,25 +121,89 @@ export function MaterialPicker({
                 className="pl-9!"
               />
             </div>
-            <div className="grid min-h-0 flex-1 content-start grid-cols-6 gap-1.5 overflow-y-auto pb-2 sm:grid-cols-8">
-              {filtered.map((item) => (
-                <Tile
-                  key={item.id}
-                  name={item.id}
-                  label={item.label}
-                  onClick={() => pick(item.id)}
-                />
-              ))}
-              {filtered.length === 0 && (
-                <div className="col-span-6 py-4 text-center text-xs text-[var(--text-faint)] sm:col-span-8">
-                  {t("library.noMatch")}
-                </div>
-              )}
-            </div>
+            <ItemGrid items={filtered} onPick={pick} />
           </>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+const GAP = 6;
+
+/**
+ * The catalogue as a virtualized grid: only the rows in view (and a few around) are mounted,
+ * so opening the picker loads a screenful of icons, not the ~1,600 of the catalogue. Each icon
+ * is a request to the hub; through the editor tunnel, all of them at once went over its
+ * per-minute limit and locked the whole editor out for a minute.
+ */
+function ItemGrid({ items, onPick }: { items: LibraryItem[]; onPick: (id: string) => void }) {
+  const { t } = useTranslation();
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = parentRef.current;
+    if (!el) return;
+    setWidth(el.clientWidth);
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const columns = width >= 560 ? 8 : 6;
+  const tile = width > 0 ? (width - GAP * (columns - 1)) / columns : 56;
+  const rows: LibraryItem[][] = [];
+  for (let i = 0; i < items.length; i += columns) rows.push(items.slice(i, i + columns));
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => tile + GAP,
+    overscan: 3,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      className="min-h-0 flex-1 overflow-y-auto pb-2"
+      data-testid="material-grid"
+    >
+      {items.length === 0 ? (
+        <div className="py-4 text-center text-xs text-[var(--text-faint)]">
+          {t("library.noMatch")}
+        </div>
+      ) : (
+        <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+          {virtualizer.getVirtualItems().map((row) => (
+            <div
+              key={row.index}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${row.start}px)`,
+                display: "grid",
+                gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                gap: GAP,
+              }}
+            >
+              {(rows[row.index] ?? []).map((item) => (
+                <Tile
+                  key={item.id}
+                  name={item.id}
+                  label={item.label}
+                  onClick={() => onPick(item.id)}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
