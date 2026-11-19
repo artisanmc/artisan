@@ -30,6 +30,10 @@ describe("resolveModule", () => {
     expect(resolveModule("quests", "ready")).toEqual({ kind: "missing" });
   });
 
+  it("returns missing when the modules failed to load", () => {
+    expect(resolveModule("quests", "failed")).toEqual({ kind: "missing" });
+  });
+
   it("returns loading when the module is absent and status is idle", () => {
     expect(resolveModule("quests", "idle")).toEqual({ kind: "loading" });
   });
