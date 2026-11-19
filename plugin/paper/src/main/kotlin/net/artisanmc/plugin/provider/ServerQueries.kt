@@ -6,6 +6,7 @@ import net.artisanmc.modules.api.datasource.PlayerRequiredException
 import net.artisanmc.modules.api.editor.EditorBundleDeclaration
 import net.artisanmc.plugin.config.ServerConfigAccess
 import net.artisanmc.plugin.customitems.NexoGlyphReader
+import net.artisanmc.plugin.customitems.NexoItemIcons
 import net.artisanmc.plugin.engine.ConditionEvaluator
 import net.artisanmc.plugin.engine.ContextBinder
 import net.artisanmc.plugin.engine.PapiPlaceholderCatalog
@@ -15,6 +16,7 @@ import net.artisanmc.plugin.protocol.EditorRequest.EditorBundleFetch
 import net.artisanmc.plugin.protocol.EditorRequest.HeadTextureFetch
 import net.artisanmc.plugin.protocol.EditorRequest.NexoGlyphRead
 import net.artisanmc.plugin.protocol.EditorRequest.NexoGlyphsList
+import net.artisanmc.plugin.protocol.EditorRequest.NexoItemIconsFetch
 import net.artisanmc.plugin.protocol.EditorRequest.OnlinePlayersFetch
 import net.artisanmc.plugin.protocol.EditorRequest.PapiPlaceholdersFetch
 import net.artisanmc.plugin.protocol.EditorRequest.PlayerInventoryFetch
@@ -47,6 +49,8 @@ class ServerQueries(
     private val installer: net.artisanmc.plugin.updates.ModuleInstaller? = null,
     /** The restart the editor may ask for; null: this server never restarts on its own. */
     private val restart: net.artisanmc.plugin.updates.ServerRestart? = null,
+    /** Nexo items' icons for the editor's item pickers; null: none. */
+    private val nexoItemIcons: NexoItemIcons? = null,
 ) {
     private val mapper = ObjectMapper()
 
@@ -290,6 +294,24 @@ class ServerQueries(
                 reply.ok("content_base64" to Base64.getEncoder().encodeToString(bytes))
             } catch (e: Throwable) {
                 reply.failure("read_error", "nexo_glyph_read", e)
+            }
+        }
+    }
+
+    /**
+     * The Nexo items' icons (their textures in Nexo's pack), all in one reply: disk read, off the
+     * world thread. An asker that already holds this set gets its hash alone.
+     */
+    fun nexoItemIcons(request: NexoItemIconsFetch) {
+        val reply = replies.to(request, "nexo_item_icons_fetch_result")
+        replies.offThread("nexo_item_icons_fetch") {
+            try {
+                val sheet = nexoItemIcons?.sheet() ?: return@offThread reply.ok("hash" to "", "icons" to emptyMap<String, String>())
+                if (sheet.hash == request.knownHash) return@offThread reply.ok("hash" to sheet.hash, "unchanged" to true)
+                val encoder = Base64.getEncoder()
+                reply.ok("hash" to sheet.hash, "icons" to sheet.icons.mapValues { encoder.encodeToString(it.value) })
+            } catch (e: Throwable) {
+                reply.failure("read_error", "nexo_item_icons_fetch", e)
             }
         }
     }

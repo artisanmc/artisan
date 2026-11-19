@@ -11,7 +11,7 @@ import { Search } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CapturedItemsSection } from "./CapturedItemsSection";
-import { getTextureUrl, useTextureStore } from "./textureStore";
+import { useTextureStore, useTextureUrl } from "./textureStore";
 
 interface MaterialPickerProps {
   dataItems?: { value: string; label: string }[];
@@ -142,7 +142,8 @@ export function MaterialPicker({
 }
 
 function Tile({ name, label, onClick }: { name: string; label: string; onClick: () => void }) {
-  const url = getTextureUrl(name);
+  // Reactive: a Nexo item's icon may arrive while the picker is open.
+  const url = useTextureUrl(name);
   return (
     <button
       type="button"

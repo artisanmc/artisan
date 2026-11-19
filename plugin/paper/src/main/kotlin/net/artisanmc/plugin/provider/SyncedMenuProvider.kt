@@ -82,6 +82,7 @@ class SyncedMenuProvider(
     private val menuWindows: net.artisanmc.plugin.render.packets.MenuWindows? = null,
     private val pluginVersion: String = "1.0.0",
     private val nexoGlyphs: net.artisanmc.plugin.customitems.NexoGlyphReader? = null,
+    private val nexoItemIcons: net.artisanmc.plugin.customitems.NexoItemIcons? = null,
     private val serverConfig: net.artisanmc.plugin.config.ServerConfigAccess? = null,
     /** Unrequested announcements (`projects_reloaded`…): the editor served by the plugin relays them. */
     private val editorEvents: (Map<String, Any?>) -> Unit = {},
@@ -193,7 +194,7 @@ class SyncedMenuProvider(
     private val projectWrites = ProjectWrites(workspace, replies, ::send, logger, documentCheck)
     private val templateRequests = net.artisanmc.plugin.protocol.TemplateRequests(workspace, replies, templates)
     private val importRequests = net.artisanmc.plugin.importing.ImportRequests(replies, imports) { task -> scheduler.async(task) }
-    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles, moduleBrands, statQuery, installer, restart)
+    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles, moduleBrands, statQuery, installer, restart, nexoItemIcons)
     @Volatile private var testSendOverride: ((String) -> Unit)? = null
 
     internal fun setSendForTesting(fn: (String) -> Unit) {
@@ -792,6 +793,7 @@ class SyncedMenuProvider(
             is EditorRequest.ServerConfigWrite -> queries.serverConfigWrite(request)
             is EditorRequest.NexoGlyphsList -> queries.nexoGlyphs(request)
             is EditorRequest.NexoGlyphRead -> queries.nexoGlyph(request)
+            is EditorRequest.NexoItemIconsFetch -> queries.nexoItemIcons(request)
 
             is EditorRequest.ProjectList -> projectReads.list(request)
             is EditorRequest.ProjectRead -> projectReads.read(request)

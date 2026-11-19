@@ -387,6 +387,32 @@ class EditorApiTest {
     }
 
     @Test
+    fun `nexo item icons come in one answer, and not again to an editor that holds them`() {
+        val asked = mutableListOf<Any?>()
+        answer = { message ->
+            asked += message["known_hash"]
+            when {
+                message["type"] != "nexo_item_icons_fetch" -> mapOf("ok" to false, "error" to "unknown")
+                message["known_hash"] == "h1" -> mapOf("ok" to true, "hash" to "h1", "unchanged" to true)
+                else -> mapOf("ok" to true, "hash" to "h1", "icons" to mapOf("ruby" to "cG5n"))
+            }
+        }
+        val uri = URI("http://127.0.0.1:${hub.port}/api/v1/user/projects/u-local.shop/nexo-item-icons")
+        val first = client.send(HttpRequest.newBuilder(uri).header("Cookie", cookie).build(), HttpResponse.BodyHandlers.ofString())
+        assertEquals(200, first.statusCode())
+        assertEquals("\"h1\"", first.headers().firstValue("ETag").get())
+        assertEquals("cG5n", mapper.readTree(first.body())["icons"]["ruby"].asText())
+
+        val again = client.send(
+            HttpRequest.newBuilder(uri).header("Cookie", cookie).header("If-None-Match", "\"h1\"").build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        assertEquals(304, again.statusCode())
+        assertEquals("", again.body())
+        assertEquals(listOf<Any?>(null, "h1"), asked)
+    }
+
+    @Test
     fun `a pack built by the editor is served and applied`() {
         val zip = "PK\u0003\u0004pack".toByteArray()
         val put = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/servers/u-local/resource-pack"))
