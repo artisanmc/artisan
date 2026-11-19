@@ -135,9 +135,9 @@ class NexoItemIconsTest {
 
     @Test
     fun `no Nexo folder and escaping refs give nothing`() {
-        assertNull(NexoItemIcons(File(nexo, "absent")).read("ruby"])
+        assertEquals(emptyMap<String, ByteArray>(), NexoItemIcons(File(nexo, "absent")).sheet().icons)
         file("items/evil.yml", "evil:\n  Pack:\n    texture: ../../../secret\n")
         png("secret.png", byteArrayOf(9))
-        assertNull(NexoItemIcons(nexo).read("evil"])
+        assertNull(NexoItemIcons(nexo).sheet().icons["evil"])
     }
 }

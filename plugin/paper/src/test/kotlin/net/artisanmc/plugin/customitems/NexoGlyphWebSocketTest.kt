@@ -19,7 +19,7 @@ class NexoGlyphWebSocketTest {
     private fun exchange(raw: String): com.fasterxml.jackson.databind.JsonNode {
         File(nexo, "glyphs/a.yml").apply { parentFile.mkdirs() }.writeText("bg:\n  texture: gui/bg\n")
         File(nexo, "pack/assets/minecraft/textures/gui/bg.png").apply { parentFile.mkdirs() }.writeBytes(byteArrayOf(7, 8))
-        File(nexo, "items/a.yml").writeText("ruby:\n  material: PAPER\n  Pack:\n    texture: gui/bg\n")
+        File(nexo, "items/a.yml").apply { parentFile.mkdirs() }.writeText("ruby:\n  material: PAPER\n  Pack:\n    texture: gui/bg\n")
         val sent = LinkedBlockingQueue<String>()
         val provider = SyncedMenuProvider(
             roots = ProjectRoots(Files.createTempDirectory("artisan-projects-").toFile()),
