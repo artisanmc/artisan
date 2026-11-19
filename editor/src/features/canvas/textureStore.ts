@@ -24,7 +24,9 @@ interface TextureState {
   setData: (version: string, items: Array<{ id: string; texture?: string }>) => void;
   setRendered: (materialId: string, dataUrl: string) => void;
   /** Many icons in one update (the Nexo items' textures): every icon on screen redraws once. */
-  setRenderedMany: (byMaterial: Record<string, string>) => void;
+  setRenderedMany: (byMaterial: Record<string, string>, smooth?: boolean) => void;
+  /** Rendered icons that are 3D renders scaled down (a Nexo model): drawn smoothed, not pixelated. */
+  smoothByMaterial: Record<string, true>;
   setLibraryItems: (items: LibraryItem[]) => void;
   setLibraryCustomData: (data: CustomItemsData) => void;
   setLibraryBundleReady: (ready: boolean) => void;
@@ -37,6 +39,7 @@ export const useTextureStore = create<TextureState>()((set) => ({
   version: "",
   byMaterial: {},
   renderedByMaterial: {},
+  smoothByMaterial: {},
   libraryItems: [],
   libraryCustomData: { serverKeyId: "", items: [] },
   libraryBundleReady: false,
@@ -54,12 +57,15 @@ export const useTextureStore = create<TextureState>()((set) => ({
     set((s) => ({
       renderedByMaterial: { ...s.renderedByMaterial, [materialId.toLowerCase()]: dataUrl },
     })),
-  setRenderedMany: (byMaterial) =>
+  setRenderedMany: (byMaterial, smooth = false) =>
     set((s) => {
       const renderedByMaterial = { ...s.renderedByMaterial };
-      for (const [id, url] of Object.entries(byMaterial))
+      const smoothByMaterial = smooth ? { ...s.smoothByMaterial } : s.smoothByMaterial;
+      for (const [id, url] of Object.entries(byMaterial)) {
         renderedByMaterial[id.toLowerCase()] = url;
-      return { renderedByMaterial };
+        if (smooth) smoothByMaterial[id.toLowerCase()] = true;
+      }
+      return { renderedByMaterial, smoothByMaterial };
     }),
   setLibraryItems: (items) => set({ libraryItems: items }),
   setLibraryCustomData: (data) => set({ libraryCustomData: data }),

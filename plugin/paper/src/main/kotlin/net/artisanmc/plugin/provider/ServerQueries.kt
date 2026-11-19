@@ -17,6 +17,7 @@ import net.artisanmc.plugin.protocol.EditorRequest.HeadTextureFetch
 import net.artisanmc.plugin.protocol.EditorRequest.NexoGlyphRead
 import net.artisanmc.plugin.protocol.EditorRequest.NexoGlyphsList
 import net.artisanmc.plugin.protocol.EditorRequest.NexoItemIconsFetch
+import net.artisanmc.plugin.protocol.EditorRequest.NexoItemModelsFetch
 import net.artisanmc.plugin.protocol.EditorRequest.OnlinePlayersFetch
 import net.artisanmc.plugin.protocol.EditorRequest.PapiPlaceholdersFetch
 import net.artisanmc.plugin.protocol.EditorRequest.PlayerInventoryFetch
@@ -312,6 +313,30 @@ class ServerQueries(
                 reply.ok("hash" to sheet.hash, "icons" to sheet.icons.mapValues { encoder.encodeToString(it.value) })
             } catch (e: Throwable) {
                 reply.failure("read_error", "nexo_item_icons_fetch", e)
+            }
+        }
+    }
+
+    /**
+     * The 3D models of the Nexo items that have one, for the editor to draw: each model and each
+     * texture once. Same disk pass as the icons, same hash shortcut.
+     */
+    fun nexoItemModels(request: NexoItemModelsFetch) {
+        val reply = replies.to(request, "nexo_item_models_fetch_result")
+        replies.offThread("nexo_item_models_fetch") {
+            try {
+                val models = nexoItemIcons?.sheet()?.models
+                    ?: return@offThread reply.ok("hash" to "", "items" to emptyMap<String, String>(), "models" to emptyMap<String, Any>(), "textures" to emptyMap<String, String>())
+                if (models.hash == request.knownHash) return@offThread reply.ok("hash" to models.hash, "unchanged" to true)
+                val encoder = Base64.getEncoder()
+                reply.ok(
+                    "hash" to models.hash,
+                    "items" to models.items,
+                    "models" to models.models,
+                    "textures" to models.textures.mapValues { encoder.encodeToString(it.value) },
+                )
+            } catch (e: Throwable) {
+                reply.failure("read_error", "nexo_item_models_fetch", e)
             }
         }
     }

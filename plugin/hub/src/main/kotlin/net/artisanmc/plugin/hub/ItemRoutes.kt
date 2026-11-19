@@ -6,7 +6,7 @@ import net.artisanmc.plugin.hub.Relay.Companion.ok
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.util.Base64
 
-/** Item catalog (vanilla, then Nexo, Oraxen, ItemsAdder), vanilla textures, Nexo glyphs and Nexo item icons. */
+/** Item catalog (vanilla, then Nexo, Oraxen, ItemsAdder), vanilla textures, Nexo glyphs, Nexo item icons and 3D models. */
 class ItemRoutes(private val servers: Servers, private val relay: Relay, private val vanilla: VanillaAssets?) {
     private val mapper = ObjectMapper()
 
@@ -44,20 +44,31 @@ class ItemRoutes(private val servers: Servers, private val relay: Relay, private
             }
         }
         // Every Nexo item's icon in one answer, read by its server from Nexo's pack (no Nexo API).
-        // The ETag is the set's hash: an editor that holds it gets a 304, and its server sends nothing.
         router.on("GET", "/api/v1/user/projects/:project/nexo-item-icons", VIEW) { call ->
-            val project = servers.projectOf(call) ?: return@on call.error(404, "not_found")
-            val known = call.header("If-None-Match")?.removePrefix("W/")?.trim('"')?.takeIf { it.isNotEmpty() }
-            relay.send(call, project.server, mapOf("type" to "nexo_item_icons_fetch", "known_hash" to known)) { reply ->
-                if (!ok(reply)) return@send glyphError(call, reply)
-                val etag = mapOf("ETag" to "\"${reply["hash"] ?: ""}\"")
-                if (reply["unchanged"] == true) return@send call.send(304, "application/json", ByteArray(0), "private, no-cache", etag)
-                call.send(
-                    200, "application/json",
-                    mapper.writeValueAsBytes(mapOf("icons" to (reply["icons"] ?: emptyMap<String, String>()))),
-                    "private, no-cache", etag,
-                )
-            }
+            hashed(call, "nexo_item_icons_fetch", listOf("icons"))
+        }
+        // The 3D models of the Nexo items that have one, each model and each texture once: the editor draws them.
+        router.on("GET", "/api/v1/user/projects/:project/nexo-item-models", VIEW) { call ->
+            hashed(call, "nexo_item_models_fetch", listOf("items", "models", "textures"))
+        }
+    }
+
+    /**
+     * A set the server answers with its hash. The hash is the ETag: an editor that holds the set
+     * gets a 304, and its server, told the hash, sends nothing.
+     */
+    private fun hashed(call: Call, type: String, fields: List<String>) {
+        val project = servers.projectOf(call) ?: return call.error(404, "not_found")
+        val known = call.header("If-None-Match")?.removePrefix("W/")?.trim('"')?.takeIf { it.isNotEmpty() }
+        relay.send(call, project.server, mapOf("type" to type, "known_hash" to known)) { reply ->
+            if (!ok(reply)) return@send glyphError(call, reply)
+            val etag = mapOf("ETag" to "\"${reply["hash"] ?: ""}\"")
+            if (reply["unchanged"] == true) return@send call.send(304, "application/json", ByteArray(0), "private, no-cache", etag)
+            call.send(
+                200, "application/json",
+                mapper.writeValueAsBytes(fields.associateWith { reply[it] ?: emptyMap<String, Any>() }),
+                "private, no-cache", etag,
+            )
         }
     }
 

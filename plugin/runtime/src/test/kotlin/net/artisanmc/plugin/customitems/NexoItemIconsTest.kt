@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.customitems
 
+import com.fasterxml.jackson.databind.JsonNode
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -92,6 +93,71 @@ class NexoItemIconsTest {
         assertArrayEquals(byteArrayOf(3), icons.sheet().icons["sword"])
         assertArrayEquals(byteArrayOf(4), icons.sheet().icons["crate"])
         assertArrayEquals(byteArrayOf(5), icons.sheet().icons["modern"])
+    }
+
+    @Test
+    fun `a model with elements is given whole, each model and texture once`() {
+        file("items/blocks.yml", """
+            throne:
+              Pack:
+                model: shop:furniture/throne
+            throne_gold:
+              Pack:
+                model: shop:furniture/throne
+            ore:
+              Pack:
+                parent_model: block/cube_all
+                textures: [ shop:block/ore ]
+            pillar:
+              Pack:
+                model: shop:block/pillar
+            flat:
+              Pack:
+                model: shop:item/flat
+            untextured:
+              Pack:
+                model: shop:furniture/ghost
+        """.trimIndent())
+        // Elements and display in a parent, textures in the child, a variable pointing to another.
+        file("pack/assets/shop/models/furniture/throne.json",
+            """{"parent":"shop:furniture/throne_base","textures":{"0":"shop:furniture/throne","particle":"#0"}}""")
+        file("pack/assets/shop/models/furniture/throne_base.json", """{"gui_light":"front",
+            "elements":[{"from":[2,0,2],"to":[14,12,14],"rotation":{"origin":[8,8,8],"axis":"y","angle":22.5},
+              "faces":{"north":{"uv":[0,0,8,8],"texture":"#0"}}}],
+            "display":{"gui":{"rotation":[30,225,0],"scale":[0.5,0.5,0.5]},"head":{"scale":[2,2,2]}}}""")
+        png("pack/assets/shop/textures/furniture/throne.png", byteArrayOf(1))
+        // A vanilla full block as parent: its shape is known, not read.
+        file("pack/assets/shop/models/block/pillar.json",
+            """{"parent":"minecraft:block/cube_column","textures":{"end":"shop:block/pillar_top","side":"shop:block/pillar"}}""")
+        png("pack/assets/shop/textures/block/pillar.png", byteArrayOf(2))
+        png("pack/assets/shop/textures/block/pillar_top.png", byteArrayOf(3))
+        png("pack/assets/shop/textures/block/ore.png", byteArrayOf(4))
+        file("pack/assets/shop/models/item/flat.json", """{"parent":"item/generated","textures":{"layer0":"shop:block/ore"}}""")
+        file("pack/assets/shop/models/furniture/ghost.json",
+            """{"textures":{"0":"shop:nowhere"},"elements":[{"from":[0,0,0],"to":[1,1,1],"faces":{"up":{"texture":"#0"}}}]}""")
+
+        val sheet = NexoItemIcons(nexo).sheet()
+        val models = sheet.models
+        assertEquals(setOf("throne", "throne_gold", "ore", "pillar"), models.items.keys)
+        assertEquals(models.items["throne"], models.items["throne_gold"])
+        assertEquals(3, models.models.size)
+
+        val throne = models.models.getValue("shop:furniture/throne")
+        assertEquals(mapOf("0" to "shop:furniture/throne", "particle" to "shop:furniture/throne"), throne["textures"])
+        assertEquals("front", throne["gui_light"])
+        assertEquals(0.5, (throne["display"] as JsonNode)["scale"][0].asDouble())
+        assertEquals(22.5, (throne["elements"] as JsonNode)[0]["rotation"]["angle"].asDouble())
+
+        val pillar = models.models.getValue("shop:block/pillar")
+        assertEquals("#end", (pillar["elements"] as JsonNode)[0]["faces"]["up"]["texture"].asText())
+        assertEquals("#side", (pillar["elements"] as JsonNode)[0]["faces"]["west"]["texture"].asText())
+        assertEquals(mapOf("all" to "shop:block/ore"), models.models.getValue(models.items.getValue("ore"))["textures"])
+
+        assertEquals(setOf("shop:furniture/throne", "shop:block/pillar", "shop:block/pillar_top", "shop:block/ore"), models.textures.keys)
+        // The flat icon stays, as the fallback and the first thing shown.
+        assertArrayEquals(byteArrayOf(1), sheet.icons["throne"])
+        assertArrayEquals(byteArrayOf(4), sheet.icons["ore"])
+        assertArrayEquals(byteArrayOf(4), sheet.icons["flat"])
     }
 
     @Test
