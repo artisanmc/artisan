@@ -274,6 +274,14 @@ guilds/
   panel in a disabled `fieldset`.
 - MCP: `list_documents` gives each Document's `origin` and an `originals` section; `read_document`
   reads `originals/…`.
+- Shipped data (`domain/shippedData.ts`): `originals/data/<id>.yml` and `originals/models/<id>.yml`
+  (top-level files) serve at `data/<id>.yml` / `models/<id>.yml` while the owner has neither
+  extension nor a per-row `data/<id>/` folder: `projectFromFiles` reads them as Project sources
+  (a module's Config screen edits them), and `projectTree` drops a `data/` or `models/` file the
+  disk lacks that still says what `originals/` says (`sameYamlValue`), so the owner's copy appears
+  on the first edit. A server Config screen (`ProjectReads.config`) answers the same: a table file
+  the owner lacks is read from `originals/`, under the owner's path. The server's `ProjectReader`
+  still does not read `originals/data/` as `pack:` sources.
 
 ## Module file — `lore_max_width`
 

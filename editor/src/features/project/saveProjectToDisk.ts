@@ -1,5 +1,6 @@
 import { isOriginalPath } from "@/domain/documentLayout";
 import { rekeyProject } from "@/domain/i18nSites";
+import { dropShippedData } from "@/domain/shippedData";
 import type { Project } from "@/domain/types";
 import { showOriginal, showVariant, viewedVariant } from "@/domain/variants";
 import { DraftApiError } from "@/lib/api/projectDrafts";
@@ -27,8 +28,11 @@ export function projectTree(project: Project): Record<string, string> {
   showVariant(cloned, undefined);
   rekeyProject(cloned);
   const disk = useProjectBaselineStore.getState().get(project.id);
-  const tree = keepEquivalentText(
-    keepYamlExtensions(toRelative(projectToFiles(cloned), project.diskId ?? project.id), disk),
+  const tree = dropShippedData(
+    keepEquivalentText(
+      keepYamlExtensions(toRelative(projectToFiles(cloned), project.diskId ?? project.id), disk),
+      disk,
+    ),
     disk,
   );
   // The module's originals are the server's: carried as they are on disk, never written.
