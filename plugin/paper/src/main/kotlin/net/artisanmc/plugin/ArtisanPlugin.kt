@@ -89,6 +89,8 @@ open class ArtisanPlugin : JavaPlugin() {
             logger = logger,
         )
     }
+    /** One for the plugin's life: `/artisan import` and the editor share its locks and its history. */
+    internal val importRuns by lazy { net.artisanmc.plugin.importing.ImportWiring.runs(this) }
     /** One for the plugin's life: a restart on its way stays on its way through `/artisan reload`. */
     internal val serverRestart by lazy {
         net.artisanmc.plugin.updates.ServerRestart(

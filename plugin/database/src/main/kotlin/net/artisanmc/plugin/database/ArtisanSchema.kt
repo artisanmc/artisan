@@ -253,6 +253,23 @@ object ArtisanSchema {
         Migration(44, "CREATE INDEX ${t.statsEventsTimeIndex} ON ${t.statsEvents} (server_id, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsTimeIndex) },
         Migration(45, "CREATE INDEX ${t.statsEventsEventIndex} ON ${t.statsEvents} (server_id, event, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsEventIndex) },
         Migration(46, "CREATE INDEX ${t.statsEventsPlayerIndex} ON ${t.statsEvents} (player_uuid, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsPlayerIndex) },
+        // One row per run of `/artisan import` (ADR `data-imports` §7, `ImportRunRows`): `run_action` plan, apply or rollback,
+        // `applied` 1 when something was written, `target` the batch a rollback undid, `report` the report as JSON.
+        Migration(
+            47,
+            """CREATE TABLE IF NOT EXISTS ${t.importRuns} (
+                batch VARCHAR(32) NOT NULL PRIMARY KEY,
+                source VARCHAR(96) NOT NULL,
+                module VARCHAR(32) NOT NULL,
+                run_action VARCHAR(16) NOT NULL,
+                applied INT NOT NULL,
+                actor VARCHAR(64) NOT NULL,
+                run_at BIGINT NOT NULL,
+                target VARCHAR(32),
+                report LONGTEXT NOT NULL
+            )""",
+        ),
+        Migration(48, "CREATE INDEX ${t.importRunsTimeIndex} ON ${t.importRuns} (run_at)") { hasIndex(it, t.importRuns, t.importRunsTimeIndex) },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

@@ -53,6 +53,7 @@ object EditorApi {
             McpRoutes(tools, mcp, version, logger).register(router)
         }
         site?.let { SiteRoutes(servers, relay, it, logger).register(router) }
+        ImportRoutes(servers, relay, logger).register(router)
         AiRoutes(aiSetup(ai, aiSettings, aiProvider, tools, logger, aiConversations)).register(router)
         return router
     }
