@@ -42,6 +42,16 @@ describe("MaterialPicker", () => {
     expect(icons.length).toBeLessThanOrEqual(VISIBLE_ROWS * 8);
   });
 
+  it("draws the icons from the atlas once it is loaded", () => {
+    useTextureStore.getState().setAtlas({ url: "blob:atlas", rows: 50, index: { item_0: 0 } });
+    render(<MaterialPicker trigger={<button type="button">open</button>} onPick={() => {}} />);
+    fireEvent.click(screen.getByText("open"));
+    const first = screen.getByTitle("Item 0");
+    expect(first.querySelector("img")).toBeNull();
+    expect(first.querySelector("[role=img]")?.getAttribute("style")).toContain("blob:atlas");
+    useTextureStore.getState().setAtlas(null);
+  });
+
   it("still finds and picks an item past the first rows through the search", () => {
     const onPick = vi.fn();
     render(<MaterialPicker trigger={<button type="button">open</button>} onPick={onPick} />);

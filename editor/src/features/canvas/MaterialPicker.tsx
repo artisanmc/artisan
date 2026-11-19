@@ -13,7 +13,8 @@ import { Search } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CapturedItemsSection } from "./CapturedItemsSection";
-import { getTextureUrl, useTextureStore } from "./textureStore";
+import { useAtlasStyle } from "./itemAtlas";
+import { useTextureStore, useTextureUrl } from "./textureStore";
 
 interface MaterialPickerProps {
   dataItems?: { value: string; label: string }[];
@@ -208,7 +209,8 @@ function ItemGrid({ items, onPick }: { items: LibraryItem[]; onPick: (id: string
 }
 
 function Tile({ name, label, onClick }: { name: string; label: string; onClick: () => void }) {
-  const url = getTextureUrl(name);
+  const url = useTextureUrl(name);
+  const sprite = useAtlasStyle(name);
   return (
     <button
       type="button"
@@ -219,7 +221,9 @@ function Tile({ name, label, onClick }: { name: string; label: string; onClick: 
         "rounded-[8px] border border-[var(--border)] bg-[var(--surface-inset)] hover:border-[var(--brand-line)] hover:bg-[var(--brand-soft)]",
       )}
     >
-      {url ? (
+      {sprite ? (
+        <span role="img" aria-label={name} className="h-3/4 w-3/4" style={sprite} />
+      ) : url ? (
         <img
           src={url}
           alt={name}

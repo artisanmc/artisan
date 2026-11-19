@@ -8,6 +8,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { draggableProps } from "./dragPayload";
+import { useAtlasStyle } from "./itemAtlas";
 import { useTextureStore } from "./textureStore";
 
 import { API_URL } from "@/lib/api/client";
@@ -34,6 +35,7 @@ function ItemTile({ item, textureBase, version, bundleReady, tints }: ItemTilePr
   const renderedSrc = useTextureStore((s) =>
     item.model ? (s.renderedByMaterial[item.id.toLowerCase()] ?? null) : null,
   );
+  const sprite = useAtlasStyle(item.id);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `tints` comes from `item` (tile keyed by item.id); a new object reference must not rerun a 3D render already cached per material
   useEffect(() => {
@@ -77,7 +79,9 @@ function ItemTile({ item, textureBase, version, bundleReady, tints }: ItemTilePr
       )}
       style={{ opacity: isDragging ? 0.4 : 1, width: TILE_SIZE, height: TILE_SIZE }}
     >
-      {renderedSrc || item.texture ? (
+      {!renderedSrc && sprite ? (
+        <span role="img" aria-label={item.label} className="absolute inset-1" style={sprite} />
+      ) : renderedSrc || item.texture ? (
         <img
           src={renderedSrc ?? `${textureBase}/${item.texture}`}
           alt={item.label}

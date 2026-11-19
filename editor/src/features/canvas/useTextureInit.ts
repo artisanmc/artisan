@@ -3,6 +3,7 @@ import { renderToCanvas } from "@/lib/mcModelRenderer";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect } from "react";
+import { loadItemAtlas } from "./itemAtlas";
 import { useTextureStore } from "./textureStore";
 
 /**
@@ -45,6 +46,7 @@ export function useTextureInit(projectId?: string) {
       !held.libraryError
     )
       return;
+    useTextureStore.getState().setAtlas(null);
     useTextureStore.setState({
       version: "",
       byMaterial: {},
@@ -73,6 +75,8 @@ export function useTextureInit(projectId?: string) {
         // The embedded catalog ships pre-rendered icons (no model bundle to
         // preload), and custom items are names only: they keep a placeholder.
         setLibraryBundleReady(true);
+        // One request for every grid icon, instead of one per item through the editor tunnel.
+        void loadItemAtlas(vanilla.version, vanilla.items, isCurrent);
         for (const item of vanilla.items) {
           if (!item.model) continue;
           renderToCanvas(item.model, vanilla.version, item.tints).then((src) => {

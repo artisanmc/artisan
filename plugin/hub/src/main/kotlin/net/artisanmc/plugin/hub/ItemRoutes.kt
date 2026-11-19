@@ -21,6 +21,11 @@ class ItemRoutes(private val servers: Servers, private val relay: Relay, private
             val png = vanilla?.texture(call.params.getValue("*")) ?: return@on call.error(404, "not_found")
             call.send(200, "image/png", png, "private, max-age=86400")
         }
+        // Every item of the catalogue above in one PNG (VanillaAssets.atlas); 503 while its files download.
+        router.on("GET", "/api/v1/item-atlas/:version", VIEW) { call ->
+            val png = vanilla?.atlas() ?: return@on call.error(if (vanilla?.items == null) 404 else 503, "not_ready")
+            call.send(200, "image/png", png, "private, max-age=86400")
+        }
         router.on("GET", "/api/v1/user/projects/:project/nexo-glyphs", VIEW) { call ->
             val project = servers.projectOf(call) ?: return@on call.error(404, "not_found")
             relay.send(call, project.server, mapOf("type" to "nexo_glyphs_list")) { reply ->
