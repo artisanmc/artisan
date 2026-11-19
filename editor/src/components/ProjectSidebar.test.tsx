@@ -6,6 +6,7 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarOrderStore } from "@/state/sidebarOrderStore";
+import { useUpdatesStore } from "@/state/updatesAvailableStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSidebar } from "./ProjectSidebar";
@@ -73,6 +74,21 @@ describe("ProjectSidebar", () => {
     // label is the folder name, which is the identity.
     expect(items[0]).toHaveTextContent("pack_a");
     expect(items[1]).toHaveTextContent("pack_b");
+  });
+
+  it("links to the updates tab only while the server has updates to take", async () => {
+    // A count still holding: read as is, the hub is not asked.
+    useUpdatesStore.setState({ byServer: { sk_1: { count: 2, until: Date.now() + 60_000 } } });
+    const { unmount } = render(<ProjectSidebar />);
+    const link = await screen.findByTestId("sidebar-updates");
+    expect(link).toHaveTextContent("2");
+    expect(link).toHaveAttribute("href", "/servers/$serverId/updates");
+    unmount();
+
+    useUpdatesStore.setState({ byServer: { sk_1: { count: 0, until: Date.now() + 60_000 } } });
+    render(<ProjectSidebar />);
+    await screen.findByRole("link", { name: /pack_b/ });
+    expect(screen.queryByTestId("sidebar-updates")).toBeNull();
   });
 
   it("re-reads the list when the server announces a reload", async () => {
