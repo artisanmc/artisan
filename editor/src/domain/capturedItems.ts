@@ -69,3 +69,17 @@ export function resolveDisplayRef(project: Project, ref: string): DisplayRef {
   }
   return out;
 }
+
+/**
+ * What an item ref shows, among the open projects: its material, then its head after a line
+ * break when it has one. A string, so a store selector returning it stays stable. A ref that
+ * names no captured item is its own material.
+ */
+export function capturedDisplay(projects: readonly Project[], ref: string): string {
+  if (!ref.startsWith(CAPTURED_ITEM_REF_PREFIX)) return ref;
+  const id = ref.slice(CAPTURED_ITEM_REF_PREFIX.length);
+  const project = projects.find((p) => (p.capturedItems ?? []).some((c) => String(c.id) === id));
+  if (!project) return ref;
+  const display = resolveDisplayRef(project, ref);
+  return display.head ? `${display.material}\n${display.head}` : (display.material ?? ref);
+}

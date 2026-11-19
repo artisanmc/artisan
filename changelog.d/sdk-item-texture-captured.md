@@ -1,0 +1,1 @@
+- **Fixed**: A module's view drew a grey placeholder for an icon set to a captured item (the days of Daily Rewards' grid, for instance), while the item's own field showed its image. The SDK's `useItemTexture` now resolves an `item:<id>` ref to the captured item's image, a player head included.
