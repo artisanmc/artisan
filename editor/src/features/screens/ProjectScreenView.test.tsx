@@ -1,6 +1,7 @@
 import "@/i18n";
 import type { Project } from "@/domain/types";
 import { projectFromFiles } from "@/schema/projectFromFiles";
+import { useDocumentTrailStore } from "@/state/documentTrailStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
@@ -50,6 +51,19 @@ describe("ProjectScreenView — a module screen opened in its folder", () => {
       .getState()
       .openProjects.projects[0]!.dataSources.find((d) => d.id === "shop_settings");
     expect((source as { value: Record<string, unknown> }).value.whole_shop_discount).toBe(25);
+  });
+
+  it("switches to its file's YAML from the topbar, like a Document", () => {
+    render(
+      <ProjectScreenView projectId={"boutique_addon" as never} screenId="boutique:settings" />,
+    );
+    const yaml = useDocumentTrailStore.getState().trail?.yaml;
+    expect(useDocumentTrailStore.getState().trail?.label).toBe("Réglages");
+    expect(yaml?.path).toBe("data/shop_settings.yml");
+    act(() => yaml!.toggle());
+    expect(screen.getByTestId("source-yaml")).toBeTruthy();
+    expect(screen.queryByTestId("config-value-form")).toBeNull();
+    expect(useDocumentTrailStore.getState().trail?.yaml?.on).toBe(true);
   });
 
   it("refuses a screen of another folder", () => {

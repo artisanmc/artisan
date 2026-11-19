@@ -1818,6 +1818,12 @@ const fr: typeof en = {
       "Ton brouillon reprend le contenu de cette version, images comprises. Tu revois les changements avant toute publication.",
     hint: "Chaque version est ce que le serveur a chargé : un déploiement depuis l'éditeur ou un rechargement après une modification à la main.",
   },
+  sourceYaml: {
+    apply: "Appliquer",
+    applied: "Appliqué au brouillon : Déployer l'envoie au serveur.",
+    invalid: "Ce texte n'est pas un YAML valide pour cette source : rien n'a été appliqué.",
+    hint: "Appliquer passe par le brouillon, comme le formulaire ; Déployer écrit les valeurs modifiées dans le fichier du serveur : ses commentaires restent, ceux ajoutés ici ne sont pas conservés. Les textes des autres langues restent dans lang/.",
+  },
   yamlView: {
     tab: "YAML",
     visual: "Éditeur",
