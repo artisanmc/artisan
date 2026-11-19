@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.protocol
 
+import net.artisanmc.plugin.model.Originals
 import net.artisanmc.plugin.project.LoadedState
 import net.artisanmc.plugin.project.ProjectListing
 import net.artisanmc.plugin.project.ProjectPathPolicy
@@ -126,10 +127,16 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
                         }
                     }
                 } else {
-                    listOf("$table.yaml", "$table.yml")
+                    val own = listOf("$table.yaml", "$table.yml")
                         .map { it to ProjectPathPolicy.resolve(projectDir, it) }
                         .firstOrNull { it.second.isFile }
-                        ?.let { (rel, f) -> files.add(mapOf("path" to rel, "content" to f.readText())) }
+                    // No copy of the owner's: the module's shipped file (design `originaux-modules`),
+                    // under the owner's path, where a save writes the owner's copy.
+                    val shipped = if (own != null) null else listOf("$table.yml", "$table.yaml")
+                        .map { it to ProjectPathPolicy.resolve(projectDir, "${Originals.DIR}/$it") }
+                        .firstOrNull { it.second.isFile }
+                        ?.let { (rel, f) -> "${rel.substringBeforeLast('.')}.yml" to f }
+                    (own ?: shipped)?.let { (rel, f) -> files.add(mapOf("path" to rel, "content" to f.readText())) }
                 }
                 if (files.sumOf { it["content"]!!.toByteArray().size } > MAX_CONFIG_BYTES) reply.error("too_large")
                 else reply.ok("files" to files)
