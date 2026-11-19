@@ -1,4 +1,4 @@
-import { fetchUserCustomItems, fetchUserItems } from "@/lib/api/userProjects";
+import { fetchNexoItemIcons, fetchUserCustomItems, fetchUserItems } from "@/lib/api/userProjects";
 import { renderToCanvas } from "@/lib/mcModelRenderer";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useUiStore } from "@/state/uiStore";
@@ -29,6 +29,7 @@ export function useTextureInit(projectId?: string) {
   const currentUser = useProjectPrincipalId(lastActiveProjectId ?? undefined);
   const setData = useTextureStore((s) => s.setData);
   const setRendered = useTextureStore((s) => s.setRendered);
+  const setRenderedMany = useTextureStore((s) => s.setRenderedMany);
   const setLibraryItems = useTextureStore((s) => s.setLibraryItems);
   const setLibraryCustomData = useTextureStore((s) => s.setLibraryCustomData);
   const setLibraryBundleReady = useTextureStore((s) => s.setLibraryBundleReady);
@@ -73,7 +74,8 @@ export function useTextureInit(projectId?: string) {
         setLibraryItems(vanilla.items);
         setLibraryCustomData(custom);
         // The embedded catalog ships pre-rendered icons (no model bundle to
-        // preload), and custom items are names only: they keep a placeholder.
+        // preload). Nexo items get their texture from the server; the other
+        // custom items are names only: they keep a placeholder.
         setLibraryBundleReady(true);
         // One request for every grid icon, instead of one per item through the editor tunnel.
         void loadItemAtlas(vanilla.version, vanilla.items, isCurrent);
@@ -81,6 +83,15 @@ export function useTextureInit(projectId?: string) {
           if (!item.model) continue;
           renderToCanvas(item.model, vanilla.version, item.tints).then((src) => {
             if (src && isCurrent()) setRendered(item.id, src);
+          });
+        }
+        if (custom.items.some((item) => item.id.startsWith("nexo:"))) {
+          fetchNexoItemIcons(lastActiveProjectId).then((icons) => {
+            if (!isCurrent()) return;
+            const rendered: Record<string, string> = {};
+            for (const [id, png] of Object.entries(icons))
+              rendered[`nexo:${id}`] = `data:image/png;base64,${png}`;
+            setRenderedMany(rendered);
           });
         }
       })
@@ -95,6 +106,7 @@ export function useTextureInit(projectId?: string) {
     lastActiveProjectId,
     setData,
     setRendered,
+    setRenderedMany,
     setLibraryItems,
     setLibraryCustomData,
     setLibraryBundleReady,

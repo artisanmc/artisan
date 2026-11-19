@@ -209,6 +209,7 @@ function ItemGrid({ items, onPick }: { items: LibraryItem[]; onPick: (id: string
 }
 
 function Tile({ name, label, onClick }: { name: string; label: string; onClick: () => void }) {
+  // Reactive: a Nexo item's icon may arrive while the picker is open.
   const url = useTextureUrl(name);
   const sprite = useAtlasStyle(name);
   return (

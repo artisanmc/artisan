@@ -44,15 +44,101 @@ function asDict(v: unknown): Dict | undefined {
 }
 
 /**
- * Best-effort SNBT → JSON. Minecraft's own notation is close to JSON but not
- * JSON: keys are bare (`{minecraft:sharpness:5}`) and numbers carry a type
- * suffix (`5s`, `1b`, `3L`, `1.0f`). Only used as a fallback once strict
- * `JSON.parse` has failed.
+ * Minecraft's own notation (SNBT), which Paper writes component values in since text
+ * components are NBT (1.21.5): `{extra:[{bold:1b,color:"#E55039",text:"Clé"}],text:""}`.
+ * Close to JSON but not JSON: bare keys, `'single'` or `"double"` quoted strings, numbers with
+ * a type suffix (`5s`, `1b`, `3L`, `1.0f`), typed arrays (`[I;1,2]`). Read character by
+ * character, so a `, word:` inside a quoted text stays text. Throws on anything else.
  */
-function snbtToJson(snbt: string): string {
-  return snbt
-    .replace(/([{[,]\s*)([A-Za-z_][\w.+-]*(?::[\w.+-]+)?)\s*:/g, '$1"$2":')
-    .replace(/(-?\d+(?:\.\d+)?)[bslfdBSLFD](?=\s*[,}\]])/g, "$1");
+export function parseSnbt(source: string): unknown {
+  let at = 0;
+  const fail = (): never => {
+    throw new Error(`Invalid SNBT at ${at}`);
+  };
+  const skip = () => {
+    while (at < source.length && /\s/.test(source[at] as string)) at++;
+  };
+  const quoted = (): string => {
+    const quote = source[at++];
+    let out = "";
+    while (at < source.length) {
+      const c = source[at++] as string;
+      if (c === quote) return out;
+      out += c === "\\" && at < source.length ? source[at++] : c;
+    }
+    return fail();
+  };
+  const bare = (): string => {
+    const start = at;
+    while (at < source.length && !/[\s,:{}[\]]/.test(source[at] as string)) at++;
+    if (at === start) fail();
+    return source.slice(start, at);
+  };
+  const scalar = (word: string): unknown => {
+    if (word === "true") return true;
+    if (word === "false") return false;
+    const number = /^([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)[bslfdBSLFD]?$/.exec(word);
+    return number ? Number(number[1]) : word;
+  };
+  const value = (): unknown => {
+    skip();
+    const c = source[at];
+    if (c === "{") {
+      at++;
+      const out: Dict = {};
+      for (skip(); source[at] !== "}"; skip()) {
+        let key = source[at] === '"' || source[at] === "'" ? quoted() : bare();
+        // Tolerated: a namespaced key left unquoted (`minecraft:sharpness:5s`).
+        const rest = /^:([A-Za-z_][\w.+-]*)\s*:/.exec(source.slice(at));
+        if (rest) {
+          key += `:${rest[1]}`;
+          at += 1 + (rest[1] as string).length;
+        }
+        skip();
+        if (source[at++] !== ":") fail();
+        out[key] = value();
+        skip();
+        if (source[at] === ",") at++;
+        else if (source[at] !== "}") fail();
+      }
+      at++;
+      return out;
+    }
+    if (c === "[") {
+      at++;
+      // `[I;1,2]`: the element type is said, the elements read the same.
+      if (/^[BIL];/.test(source.slice(at, at + 2))) at += 2;
+      const out: unknown[] = [];
+      for (skip(); source[at] !== "]"; skip()) {
+        out.push(value());
+        skip();
+        if (source[at] === ",") at++;
+        else if (source[at] !== "]") fail();
+      }
+      at++;
+      return out;
+    }
+    if (c === '"' || c === "'") return quoted();
+    return scalar(bare());
+  };
+  const out = value();
+  skip();
+  if (at !== source.length) fail();
+  return out;
+}
+
+/** An encoded value read as JSON, else as SNBT; `undefined` when it is neither. */
+function decodeText(encoded: string): unknown {
+  try {
+    return JSON.parse(encoded);
+  } catch {
+    // Not JSON: Minecraft's own notation.
+  }
+  try {
+    return parseSnbt(encoded);
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -66,33 +152,15 @@ function decodeComponent(raw: unknown): unknown {
   if (typeof raw !== "string") return raw;
   const trimmed = raw.trim();
   if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return raw;
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    // Fall through to the SNBT tolerance pass.
-  }
-  try {
-    return JSON.parse(snbtToJson(trimmed));
-  } catch {
-    return raw;
-  }
+  return decodeText(trimmed) ?? raw;
 }
 
 /**
- * Minecraft text components arrive JSON-encoded inside the YAML. Pull the
- * readable text out of `{"text":…,"extra":[…]}`, or pass a plain string through.
+ * The readable text of a Minecraft text component: a plain string, a
+ * `{"text":…,"extra":[…]}` map or a list of them, JSON- or SNBT-encoded inside
+ * the YAML (a name, a lore line) or already decoded (the lines of an encoded lore).
  */
 function plainText(raw: unknown): string | undefined {
-  if (typeof raw !== "string") return undefined;
-  const trimmed = raw.trim();
-  if (!trimmed) return undefined;
-  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return trimmed;
-  let json: unknown;
-  try {
-    json = JSON.parse(trimmed);
-  } catch {
-    return trimmed;
-  }
   const walk = (node: unknown): string => {
     if (typeof node === "string") return node;
     if (Array.isArray(node)) return node.map(walk).join("");
@@ -102,8 +170,15 @@ function plainText(raw: unknown): string | undefined {
     const extra = Array.isArray(d.extra) ? d.extra.map(walk).join("") : "";
     return self + extra;
   };
-  const text = walk(json);
-  return text || trimmed;
+  if (typeof raw !== "string")
+    return raw && typeof raw === "object" ? walk(raw) || undefined : undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  // `'"Key"'`: a text component that is a bare string, quoted by the encoding.
+  if (!/^[{["']/.test(trimmed)) return trimmed;
+  const decoded = decodeText(trimmed);
+  if (decoded === undefined) return trimmed;
+  return walk(decoded) || (typeof decoded === "string" ? undefined : trimmed);
 }
 
 function toCount(raw: unknown): number | undefined {
@@ -194,9 +269,11 @@ function readComponents(components: Dict, out: CapturedStackDetails): void {
   // ref than the vanilla base item the stack actually is.
   const customData = asDict(decodeComponent(components["minecraft:custom_data"]));
   if (customData) {
+    // A Bukkit plugin's keys (`nexo:id`) sit under `PublicBukkitValues`.
+    const bukkit = asDict(customData.PublicBukkitValues);
     for (const ns of ["nexo", "oraxen", "itemsadder"]) {
       const nested = asDict(customData[ns]);
-      const id = customData[`${ns}:id`] ?? nested?.id;
+      const id = customData[`${ns}:id`] ?? nested?.id ?? bukkit?.[`${ns}:id`];
       if (typeof id === "string" && id.trim()) {
         out.material = `${ns}:${id.trim()}`;
         break;

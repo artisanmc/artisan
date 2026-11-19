@@ -19,11 +19,13 @@ class NexoGlyphWebSocketTest {
     private fun exchange(raw: String): com.fasterxml.jackson.databind.JsonNode {
         File(nexo, "glyphs/a.yml").apply { parentFile.mkdirs() }.writeText("bg:\n  texture: gui/bg\n")
         File(nexo, "pack/assets/minecraft/textures/gui/bg.png").apply { parentFile.mkdirs() }.writeBytes(byteArrayOf(7, 8))
+        File(nexo, "items/a.yml").apply { parentFile.mkdirs() }.writeText("ruby:\n  material: PAPER\n  Pack:\n    texture: gui/bg\n")
         val sent = LinkedBlockingQueue<String>()
         val provider = SyncedMenuProvider(
             roots = ProjectRoots(Files.createTempDirectory("artisan-projects-").toFile()),
             logger = null,
             nexoGlyphs = NexoGlyphReader(nexo),
+            nexoItemIcons = NexoItemIcons(nexo),
         ).also { it.setSendForTesting(sent::add) }
         try {
             provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
@@ -51,6 +53,20 @@ class NexoGlyphWebSocketTest {
         assertEquals("nexo_glyph_read_result", json["type"].asText())
         assertEquals(true, json["ok"].asBoolean())
         assertEquals(Base64.getEncoder().encodeToString(byteArrayOf(7, 8)), json["content_base64"].asText())
+    }
+
+    @Test
+    fun `nexo_item_icons_fetch returns every icon, then the hash alone`() {
+        val json = exchange("""{"type":"nexo_item_icons_fetch","request_id":"r4"}""")
+        assertEquals("nexo_item_icons_fetch_result", json["type"].asText())
+        assertEquals(true, json["ok"].asBoolean())
+        assertEquals(Base64.getEncoder().encodeToString(byteArrayOf(7, 8)), json["icons"]["ruby"].asText())
+        val hash = json["hash"].asText()
+
+        val again = exchange("""{"type":"nexo_item_icons_fetch","request_id":"r5","known_hash":"$hash"}""")
+        assertEquals(true, again["unchanged"].asBoolean())
+        assertEquals(hash, again["hash"].asText())
+        assertEquals(null, again["icons"])
     }
 
     @Test

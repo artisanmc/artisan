@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCapturedStack } from "./capturedStack";
+import { parseCapturedStack, parseSnbt } from "./capturedStack";
 
 /**
  * The two serialization shapes that actually reach us: the legacy Bukkit
@@ -249,6 +249,57 @@ describe("parseCapturedStack — JSON/SNBT-encoded components", () => {
     minecraft:custom_name: '{"text":"Clé"}'
 `);
     expect(d.name).toBe("Clé");
+  });
+
+  // A real capture on Paper 1.21.11: text components are SNBT maps, not JSON strings.
+  it("reads the name, the lore and the Nexo id of a real Nexo capture", () => {
+    const d = parseCapturedStack(`item:
+  ==: org.bukkit.inventory.ItemStack
+  DataVersion: 4671
+  id: minecraft:paper
+  count: 1
+  components:
+    minecraft:item_model: '"nexo:plny_eternal_bones_set_key"'
+    minecraft:lore: '[{extra:[{color:"yellow",text:""}],text:""},{extra:[{color:"yellow",text:"Cette
+      clé permet d''ouvrir"}],text:""},{extra:[{color:"yellow",text:"la "},{bold:1b,color:"#E55039",italic:0b,obfuscated:0b,strikethrough:0b,text:"Caisse
+      Legendary",underlined:0b}],text:""}]'
+    minecraft:enchantments: '{"minecraft:unbreaking":10}'
+    minecraft:custom_name: '{extra:[{bold:1b,color:"#E55039",italic:0b,obfuscated:0b,strikethrough:0b,text:"Clé
+      Legendary",underlined:0b}],text:""}'
+    minecraft:custom_model_data: '{floats:[10180.0f]}'
+    minecraft:custom_data: '{PublicBukkitValues:{"excellentcrates:crate_key.id":"legendary","nexo:id":"plny_eternal_bones_set_key"}}'
+    minecraft:item_name: '{color:"white",text:"Key"}'
+  schema_version: 1
+`);
+    expect(d.name).toBe("Clé Legendary");
+    expect(d.lore).toEqual(["Cette clé permet d'ouvrir", "la Caisse Legendary"]);
+    expect(d.material).toBe("nexo:plny_eternal_bones_set_key");
+    expect(d.enchants).toEqual([{ id: "unbreaking", level: 10 }]);
+    expect(d.customModelData).toBe("10180");
+  });
+
+  it("falls back to the item name, a quoted string or an SNBT map", () => {
+    const named = (value: string) =>
+      parseCapturedStack(
+        `item:\n  id: minecraft:paper\n  components:\n    minecraft:item_name: ${value}\n`,
+      ).name;
+    expect(named(`'{color:"white",text:"Key"}'`)).toBe("Key");
+    expect(named(`'"Key"'`)).toBe("Key");
+  });
+
+  // A quoted text keeps what looks like a key or a typed number.
+  it("reads SNBT without touching its quoted texts", () => {
+    expect(
+      parseSnbt(`{text:"Prix: 5s, bonus: {x}",n:[I;1,2],'k k':-1.5f,ok:true,bare:word}`),
+    ).toEqual({
+      text: "Prix: 5s, bonus: {x}",
+      n: [1, 2],
+      "k k": -1.5,
+      ok: true,
+      bare: "word",
+    });
+    expect(parseSnbt(`"a \\"b\\""`)).toBe('a "b"');
+    expect(() => parseSnbt("{a:1")).toThrow();
   });
 
   it("leaves an undecodable component alone instead of throwing", () => {
