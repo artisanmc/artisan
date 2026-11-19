@@ -89,7 +89,9 @@ write it. The `project_read` / `project_write` rule (`EditorPaths`) is therefore
 the hash exclusion — and symmetric: **what the editor cannot see when reading, it cannot
 write**. Still invisible and forbidden: `.artisan/history/`, `.artisan/drafts/`,
 `.artisan/transactions/`, `.artisan/bases/` (merge bases of system elements, `SystemFiles`) (`ProjectPathPolicy.isPrivate`), `.artisan/origins.yaml` (provenance of template copies, written only by `template_copy`), `.artisan-trash/`, `.artisan-sync.yaml`.
-Only the canonical spelling `.artisan/editor.yaml` belongs to the editor.
+Only the canonical spelling `.artisan/editor.yaml` belongs to the editor. No `.yml` respelling ever applies to `.artisan*` metadata (`YamlFiles.onDisk`): a
+draft publication once wrote `.artisan/editor.yml`, invisible to the editor, and every Deploy
+conflicted on it; `YmlMigration` moves such a stray file back to `.artisan/editor.yaml`.
 
 ## The hash is not a cross-language invariant
 
