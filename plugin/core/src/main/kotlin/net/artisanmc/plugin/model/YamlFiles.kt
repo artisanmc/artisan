@@ -28,10 +28,14 @@ object YamlFiles {
     /**
      * Where [path] (relative to [root]) is on disk: [path] when it is there, its other YAML
      * spelling when only that one is, else [canonical] for a YAML path not there at all. The
-     * module file is the folder's ([ModuleFile.find]), else [ModuleFile.NAME].
+     * module file is the folder's ([ModuleFile.find]), else [ModuleFile.NAME]. A `.artisan*`
+     * metadata path is never respelled.
      */
     fun onDisk(root: File, path: String): String {
         val stem = stem(path) ?: return path
+        // `.artisan*` metadata keeps its exact name: the editor owns `.artisan/editor.yaml` only
+        // (ProjectMetadataPaths.EDITOR_FILE), and an `.artisan/editor.yml` is invisible to it.
+        if (net.artisanmc.plugin.project.ProjectMetadataPaths.isMeta(path)) return path
         if (File(root, path).exists()) return path
         if (ModuleFile.isModuleFile(path)) return ModuleFile.find(root)?.name ?: ModuleFile.NAME
         return EXTENSIONS.map { stem + it }.firstOrNull { File(root, it).exists() } ?: (stem + EXT)
