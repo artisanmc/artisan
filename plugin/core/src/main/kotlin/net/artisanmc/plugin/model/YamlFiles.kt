@@ -35,7 +35,8 @@ object YamlFiles {
         val stem = stem(path) ?: return path
         // `.artisan*` metadata keeps its exact name: the editor owns `.artisan/editor.yaml` only
         // (ProjectMetadataPaths.EDITOR_FILE), and an `.artisan/editor.yml` is invisible to it.
-        if (net.artisanmc.plugin.project.ProjectMetadataPaths.isMeta(path)) return path
+        // Same rule as ProjectMetadataPaths.isMeta, which this package may not import.
+        if (path.replace('\\', '/').substringBefore('/').startsWith(".artisan", ignoreCase = true)) return path
         if (File(root, path).exists()) return path
         if (ModuleFile.isModuleFile(path)) return ModuleFile.find(root)?.name ?: ModuleFile.NAME
         return EXTENSIONS.map { stem + it }.firstOrNull { File(root, it).exists() } ?: (stem + EXT)
