@@ -1136,6 +1136,9 @@ export default {
     sectionTitle: "Captured items",
     emptyHint:
       "No captured item — load a player's inventory below and click an item to capture it.",
+    empty: "No captured item.",
+    offlineHint:
+      "Capture reads a connected player's inventory: it comes back when this module's server is online.",
     playerPlaceholder: "Player name",
     load: "Load inventory",
     loading: "Loading…",

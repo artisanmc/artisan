@@ -53,8 +53,9 @@ class ProjectRoutes(
                 call.json(mapOf(
                     "project" to summary(server, root),
                     "serverKeyId" to server.id,
+                    // Capture relays `player-inventory` to this server; `connection.available` turns it off when offline.
                     "capabilities" to mapOf(
-                        "liveData" to true, "captureInGame" to false, "preview" to true,
+                        "liveData" to true, "captureInGame" to true, "preview" to true,
                         "canRename" to movable, "canDelete" to movable,
                     ),
                     "minecraftVersion" to server.minecraftVersion,
