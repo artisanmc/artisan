@@ -29,6 +29,7 @@ import {
   diffScratchForWrite,
   screenScratchId,
 } from "./screenScratch";
+import { useModuleScreenView } from "./useModuleScreenView";
 
 type Phase = "loading" | "offline" | "error" | "ready";
 
@@ -58,6 +59,8 @@ export function ConfigScreenPage({
   const scratch = useProjectsStore((s) =>
     scratchId ? s.openProjects.projects.find((p) => p.id === scratchId) : undefined,
   );
+  // The module's own view when it ships one for this screen; otherwise the generated form.
+  const { view: moduleView, pending } = useModuleScreenView(screen);
 
   // The screen edits a module-owned project without opening its canvas — load
   // its item library so the `item` field pickers resolve (they read the
@@ -250,11 +253,6 @@ export function ConfigScreenPage({
   const source = scratch?.dataSources.find(
     (d) => (d.id as string) === screen.table.split("/").pop(),
   );
-  // The module's own view when it ships one for this screen; otherwise the generated form.
-  const moduleView =
-    screen.component && screen.moduleId
-      ? getModule(screen.moduleId)?.screens?.[screen.component]
-      : undefined;
 
   return (
     <main
@@ -315,7 +313,7 @@ export function ConfigScreenPage({
         </div>
       )}
 
-      {phase === "loading" && (
+      {(phase === "loading" || (phase === "ready" && mode === "form" && pending)) && (
         <div className="mt-8 text-center text-sm text-[var(--text-faint)]">
           {t("screens.loading")}
         </div>
@@ -353,6 +351,7 @@ export function ConfigScreenPage({
 
       {phase === "ready" &&
         mode === "form" &&
+        !pending &&
         scratch &&
         (source ? (
           moduleView ? (

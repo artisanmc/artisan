@@ -5,12 +5,12 @@ import { ConfigValueForm, SourceRowsTable } from "@/features/data/SourceValueEdi
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
-import { getModule } from "@artisan/editor-sdk";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ResolvedProjectContext } from "../project/ResolvedProjectContext";
 import { ModuleScreenView } from "./ModuleScreenView";
 import { resolveScreen } from "./screenList";
+import { useModuleScreenView } from "./useModuleScreenView";
 
 /**
  * The Config screen of a module whose table lives in one of the server's Projects (its
@@ -70,11 +70,14 @@ export function ProjectScreenForm({
 }) {
   const { t } = useTranslation();
   const source = screenSource(project, screen);
-  const moduleView =
-    screen.component && screen.moduleId
-      ? getModule(screen.moduleId)?.screens?.[screen.component]
-      : undefined;
+  const { view: moduleView, pending } = useModuleScreenView(screen);
   if (!source) return <EmptyState title={t("screens.emptyTable")} hint={screen.table} />;
+  if (pending)
+    return (
+      <div className="mt-8 text-center text-sm text-[var(--text-faint)]">
+        {t("screens.loading")}
+      </div>
+    );
   if (moduleView)
     return (
       <ModuleScreenView view={moduleView} projectId={project.id} source={source} readOnly={false} />
