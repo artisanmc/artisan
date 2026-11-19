@@ -100,3 +100,11 @@ HUB_RECORD=http://localhost:8765 HUB_COOKIE='<cookie>' \
 - Une scène ne dépend pas de la précédente : tout ce qu'elle montre vient de son adresse et de son
   déroulé.
 - Les textes de la vidéo suivent la page de vente (`artisanmc/website`, `listings/artisan.md`).
+
+## Musique
+
+Le rendu est muet. La vidéo publiée sur le site (website, `public/video/artisan.mp4`) mixe
+*Hypnosis* de meloddict, crédité sur l'écran de fin : la piste démarre à 6,35 s pour que sa montée
+tombe à la fin de la planche (8,7 s), son drop sur l'assistant (38,7 s) et sa pause sur les
+déclencheurs (68,7 s). L'ordre et les durées des scènes (`src/order.json`, `frames`) tiennent compte
+de cette structure.

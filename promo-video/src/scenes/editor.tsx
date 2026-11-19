@@ -131,7 +131,7 @@ export const Item = scene(
       [300, { cx: 800, cy: 400, zoom: 1.12 }],
     ],
   },
-  520,
+  540,
   [
     {
       from: 14,
@@ -181,7 +181,7 @@ export const Publish = scene(
       [300, { cx: 800, cy: 420, zoom: 1.15 }],
     ],
   },
-  345,
+  368,
   [
     {
       from: 12,
@@ -273,7 +273,7 @@ export const Composer = scene(
       [76, { cx: 1100, cy: 520, zoom: 1.3 }],
     ],
   },
-  340,
+  360,
   [
     {
       from: 12,
@@ -396,7 +396,7 @@ export const Assistant = scene(
       [500, { cx: 1150, cy: 400, zoom: 1.3 }],
     ],
   },
-  510,
+  532,
   [
     {
       from: 6,

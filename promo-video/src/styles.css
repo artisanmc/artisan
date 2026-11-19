@@ -21,3 +21,16 @@
 [data-testid="navigation-edge"] {
   pointer-events: none;
 }
+
+/* Le logo est un pixel art (grilles 9×8 et 39×8, cellules de 3 px) rendu « pixelated » à sa taille
+   CSS puis agrandi ×1,2 par la vidéo : les cellules deviennent inégales. À 20 px de haut, ×1,2 donne
+   24 px, soit des cellules entières de 3 px ; et le SVG se retrace en vectoriel sous le zoom caméra. */
+img[src^="/symbol-"],
+img[src^="/wordmark-"] {
+  image-rendering: auto !important;
+}
+img.shrink-0[src^="/symbol-"],
+img.shrink-0[src^="/wordmark-"] {
+  height: 20px !important;
+  width: auto !important;
+}

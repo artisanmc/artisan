@@ -66,7 +66,7 @@ function IntroScreen() {
       {(frame) => (
         <>
           <div style={enter(frame, 4)}>
-            <Wordmark height={44} />
+            <Wordmark height={40} />
           </div>
           <div style={{ ...headline, fontSize: 88, marginTop: 56, ...enter(frame, 16) }}>
             One editor for your <span style={brand}>whole server</span>.
@@ -232,7 +232,7 @@ function OutroScreen() {
       {(frame) => (
         <>
           <div style={enter(frame, 4)}>
-            <Wordmark height={56} />
+            <Wordmark height={60} />
           </div>
           <div style={{ ...headline, fontSize: 76, marginTop: 52, ...enter(frame, 14) }}>
             Your server, <span style={brand}>one editor away</span>.
@@ -254,6 +254,18 @@ function OutroScreen() {
             }}
           >
             artisanmc.net
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              right: 54,
+              bottom: 46,
+              fontSize: 22,
+              color: "var(--text-mut)",
+              ...enter(frame, 48),
+            }}
+          >
+            Music: Hypnosis · meloddict
           </div>
         </>
       )}
