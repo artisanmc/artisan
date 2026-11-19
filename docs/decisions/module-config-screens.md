@@ -164,6 +164,21 @@ screen's row under the module is its one entry; a second row opened the
 generated form beside the module's view. An old `…/data/<id>` link shows the
 screen's form.
 
+### Amendment 2026-11-19 — the YAML switch, through the draft
+
+Finding (Daily rewards): the Settings and Rewards screens, opened in their folder, had no YAML
+switch where a Document has one; the amendment of 2026-10-24 had left it out because the YAML
+Document writes live. The switch comes back on the topbar, like a Document's, without a second
+write path: `SourceYamlView` parses the edited file against the working copy and replaces the
+source (value or rows, and its texts) in it (`replaceSourceFromFile`). Apply goes to the draft,
+Deploy takes it, like the form. The texts are keyed by address, so the other languages
+(`lang/<lang>.yml`, ADR `field-local-translations`) stay on the addresses the text keeps. The
+view starts from what the next Deploy writes, or from the file the module ships
+(`originals/data/`) while the owner has no copy. Deploy patches the changed values into the
+server's file: its comments stay, a comment typed in the YAML view does not. A per-row source
+(`data/<id>/`) has no single file and no switch. A Project's own source page
+(`…/data/<id>`) gets the same switch.
+
 ## Accepted debt / open questions
 
 - **Source schema ↔ model dedup**: `DataSourceDeclaration.schema` (hand-written

@@ -2,6 +2,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { projectNamespace } from "@/domain/docRef";
 import type { DataSource, Project, ProjectId } from "@/domain/types";
 import { ConfigValueForm, SourceRowsTable } from "@/features/data/SourceValueEditor";
+import { SourceYamlView, dataSourceRelPath } from "@/features/data/SourceYamlView";
+import { useSourceYamlTrail } from "@/features/data/useSourceYamlTrail";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
@@ -23,9 +25,12 @@ import { useModuleScreenView } from "./useModuleScreenView";
 export function ProjectScreenView({
   projectId,
   screenId,
+  toProject,
 }: {
   projectId: ProjectId;
   screenId: string;
+  /** Back to the project's board: the topbar's project level (the route gives it). */
+  toProject?: () => void;
 }) {
   const { t } = useTranslation();
   const resolvedId = useContext(ResolvedProjectContext) ?? projectId;
@@ -36,14 +41,30 @@ export function ProjectScreenView({
     () => resolveScreen(screenId, declared, localProjects),
     [screenId, declared, localProjects],
   );
+  const edits = !!project && !!screen && screenEditsProject(screen, project);
+  const source = edits ? screenSource(project, screen) : undefined;
+  // The screen's file, editable as YAML from the topbar like a Document's (the Settings and
+  // Rewards of Daily rewards: one file each, the module's own view or not).
+  const relPath = project && source ? dataSourceRelPath(project, source) : null;
+  const yamlMode = useSourceYamlTrail({
+    label: edits ? screen.label : undefined,
+    relPath,
+    toProject: toProject ?? noop,
+  });
 
-  if (!project || !screen || !screenEditsProject(screen, project)) {
+  if (!project || !screen || !edits) {
     return (
       <div className="absolute inset-0 flex items-center justify-center">
         <EmptyState title={t("screens.notFound")} />
       </div>
     );
   }
+  if (yamlMode && relPath && source)
+    return (
+      <div className="absolute inset-0 flex flex-col" data-testid="project-screen-yaml">
+        <SourceYamlView key={relPath} project={project} source={source} relPath={relPath} />
+      </div>
+    );
   return (
     <div className="absolute inset-0 overflow-auto" data-testid="project-screen">
       <div className="mx-auto flex max-w-5xl flex-col gap-4 p-[var(--page-pad)]">
@@ -105,3 +126,5 @@ export function screenSource(
   const id = screen.table.replace(/^data\//, "");
   return project.dataSources?.find((d) => (d.id as string) === id);
 }
+
+function noop() {}

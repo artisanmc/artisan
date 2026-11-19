@@ -1786,6 +1786,12 @@ export default {
       "Your draft takes this version's content, images included. You review the changes before anything is published.",
     hint: "Each version is what the server loaded: an editor deployment or a reload after a hand edit.",
   },
+  sourceYaml: {
+    apply: "Apply",
+    applied: "Applied to the draft: Deploy sends it to the server.",
+    invalid: "This text is not valid YAML for this source: nothing was applied.",
+    hint: "Applying goes to the draft, like the form; Deploy writes the changed values into the file on the server: its comments stay, comments added here are not kept. The other languages' texts stay in lang/.",
+  },
   yamlView: {
     tab: "YAML",
     visual: "Editor",
