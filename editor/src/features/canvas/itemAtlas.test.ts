@@ -39,7 +39,7 @@ describe("item atlas", () => {
     const wait = vi.fn(async () => {});
     await loadItemAtlas("1.21.4", items, () => true, wait);
     expect(apiRequest).toHaveBeenCalledTimes(2);
-    expect(apiRequest.mock.calls[0][0]).toBe("/api/v1/item-atlas/1.21.4");
+    expect(apiRequest.mock.calls[0]?.[0]).toBe("/api/v1/item-atlas/1.21.4");
     const atlas = useTextureStore.getState().atlas;
     expect(atlas).toMatchObject({ url: "blob:atlas", rows: 3 });
     expect(atlas?.index.item_69).toBe(69);
