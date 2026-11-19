@@ -1687,6 +1687,8 @@ const fr: typeof en = {
     installedModules: "Modules installés",
     configuration: "Configuration",
     newModule: "+ Nouveau module",
+    updatesAvailable_one: "{{count}} mise à jour disponible",
+    updatesAvailable_other: "{{count}} mises à jour disponibles",
   },
   adminDesign: {
     specimens: {

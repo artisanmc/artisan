@@ -1656,6 +1656,8 @@ export default {
     installedModules: "Installed modules",
     configuration: "Configuration",
     newModule: "+ New module",
+    updatesAvailable_one: "{{count}} update available",
+    updatesAvailable_other: "{{count}} updates available",
   },
   adminDesign: {
     specimens: {

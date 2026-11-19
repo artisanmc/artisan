@@ -20,6 +20,7 @@ import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { projectDestination, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
+import { useUpdatesAvailable } from "@/state/updatesAvailableStore";
 import {
   DndContext,
   type DragEndEvent,
@@ -64,6 +65,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   ChevronDown,
   ChevronRight,
+  CircleArrowUp,
   Folder,
   FolderOpen,
   Settings,
@@ -258,9 +260,13 @@ export function ProjectSidebar() {
 
   // Browser tab: the active server and, inside a project, its name — live
   // (follows a rename) when opened, else its row in the list.
-  const activeServerLabel = allServerEntries.find(
-    (e) => e.serverId === activeServerId,
-  )?.serverLabel;
+  const activeServer = allServerEntries.find((e) => e.serverId === activeServerId);
+  const activeServerLabel = activeServer?.serverLabel;
+  // Read from a count kept half an hour, shared with the updates tab: no polling of the server.
+  const updates = useUpdatesAvailable(
+    activeServerId,
+    activeServer?.online === true && !activeServer.updateRequired,
+  );
   const openProjectName = openProjectId
     ? (localProjects.find((p) => p.id === openProjectId || projectUrlId(p) === openProjectId)
         ?.name ??
@@ -352,6 +358,19 @@ export function ProjectSidebar() {
           )}
         </div>
       </div>
+
+      {updates > 0 && srvParam && (
+        <Link
+          to="/servers/$serverId/updates"
+          params={{ serverId: srvParam }}
+          onClick={() => useSidebarStore.getState().close()}
+          data-testid="sidebar-updates"
+          className="-mb-1.5 flex shrink-0 items-center gap-2 rounded-[10px] px-2.5 py-2 text-[12.5px] font-medium text-[var(--brand)] transition-colors hover:bg-[var(--surface-hover)]"
+        >
+          <CircleArrowUp className="size-4 shrink-0" aria-hidden />
+          <span className="truncate">{t("sidebar.updatesAvailable", { count: updates })}</span>
+        </Link>
+      )}
 
       <UserMenu serverLabel={activeServerLabel} />
     </nav>
