@@ -2,8 +2,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { projectNamespace } from "@/domain/docRef";
 import type { DataSource, Project, ProjectId } from "@/domain/types";
 import { ConfigValueForm, SourceRowsTable } from "@/features/data/SourceValueEditor";
-import { SourceYamlView, dataSourceRelPath } from "@/features/data/SourceYamlView";
-import { useSourceYamlTrail } from "@/features/data/useSourceYamlTrail";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
@@ -11,8 +9,10 @@ import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ResolvedProjectContext } from "../project/ResolvedProjectContext";
 import { ModuleScreenView } from "./ModuleScreenView";
+import { SourceYamlView, dataSourceRelPath } from "./SourceYamlView";
 import { resolveScreen } from "./screenList";
 import { useModuleScreenView } from "./useModuleScreenView";
+import { useSourceYamlTrail } from "./useSourceYamlTrail";
 
 /**
  * The Config screen of a module whose table lives in one of the server's Projects (its

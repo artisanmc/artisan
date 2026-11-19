@@ -11,9 +11,9 @@ import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ProjectScreenForm } from "../screens/ProjectScreenView";
+import { SourceYamlView, dataSourceRelPath } from "../screens/SourceYamlView";
+import { useSourceYamlTrail } from "../screens/useSourceYamlTrail";
 import { DataSourceEditor } from "./DataSourceEditor";
-import { SourceYamlView, dataSourceRelPath } from "./SourceYamlView";
-import { useSourceYamlTrail } from "./useSourceYamlTrail";
 
 /**
  * The page of one of a Project's own data sources (`…/data/$dataSourceId`), opened from
