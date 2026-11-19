@@ -1,9 +1,11 @@
 import "@/i18n";
 import type { Project } from "@/domain/types";
 import { projectFromFiles } from "@/schema/projectFromFiles";
+import { useModulesStore } from "@/state/modulesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { registerModule } from "@artisan/editor-sdk";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ProjectScreenView } from "./ProjectScreenView";
 
@@ -17,6 +19,7 @@ function folder(): Project {
 }
 
 beforeEach(() => {
+  useModulesStore.setState({ status: "ready", mountedIds: [] });
   useProjectsStore.setState({
     openProjects: { projects: [folder()], projectOrder: [] },
   } as never);
@@ -63,5 +66,60 @@ describe("ProjectScreenView — a module screen opened in its folder", () => {
     } as never);
     render(<ProjectScreenView projectId={"boutique_addon" as never} screenId="daily:rewards" />);
     expect(screen.queryByTestId("config-value-form")).toBeNull();
+  });
+
+  it("waits for an add-on's view that is still loading, then shows it, never the generated form", () => {
+    useServerScreensStore.setState({
+      screens: [
+        {
+          id: "boutique:settings",
+          moduleId: "late_addon",
+          label: "Réglages",
+          table: "data/shop_settings",
+          projectId: "boutique_addon",
+          component: "grid",
+        },
+      ],
+    } as never);
+    useModulesStore.setState({ status: "loading", mountedIds: [] });
+    render(
+      <ProjectScreenView projectId={"boutique_addon" as never} screenId="boutique:settings" />,
+    );
+    expect(screen.queryByTestId("config-value-form")).toBeNull();
+
+    // The server's bundle mounts after the first render (a reload straight on the screen).
+    act(() => {
+      registerModule({
+        id: "late_addon",
+        displayName: "Late",
+        schemaVersion: "late/v1",
+        sidebar: { icon: () => null, label: "Late", to: "/m/late_addon" },
+        routes: [],
+        screens: { grid: () => <div data-testid="addon-grid" /> },
+      } as never);
+      useModulesStore.setState({ status: "ready", mountedIds: ["late_addon"] });
+    });
+    expect(screen.getByTestId("addon-grid")).toBeTruthy();
+    expect(screen.queryByTestId("config-value-form")).toBeNull();
+  });
+
+  it("falls back to the generated form once the modules failed to load", () => {
+    useServerScreensStore.setState({
+      screens: [
+        {
+          id: "boutique:settings",
+          moduleId: "missing_addon",
+          label: "Réglages",
+          table: "data/shop_settings",
+          projectId: "boutique_addon",
+          component: "grid",
+        },
+      ],
+    } as never);
+    useModulesStore.setState({ status: "failed", mountedIds: [] });
+    render(
+      <ProjectScreenView projectId={"boutique_addon" as never} screenId="boutique:settings" />,
+    );
+    expect(screen.getByTestId("config-value-form")).toBeTruthy();
   });
 });
