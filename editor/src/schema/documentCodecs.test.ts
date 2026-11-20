@@ -117,6 +117,19 @@ describe("document codecs", () => {
     expect(adoptLateDocuments(project)).toBe(0);
   });
 
+  it("reads the shipping module from the originals' index when the module file names none", () => {
+    registerNote();
+    const project = projectFromFiles(PID, {
+      [`${base}/artisan-module.yml`]: "schema: module/v1\n",
+      [`${base}/originals/originals.yml`]: "module: notes\nrequired: []\n",
+      [`${base}/originals/notes/hello.yml`]: "schema: note/v1\ntext: shipped\n",
+    });
+    expect(project.ownerModule).toBeUndefined();
+    expect(project.originals?.module).toBe("notes");
+    // The index is the plugin's: an editor save never writes it.
+    expect(projectToFiles(project)[`${base}/originals/originals.yml`]).toBeUndefined();
+  });
+
   it("adopts the shipped Documents of a kind registered after the project was read", () => {
     const project = projectFromFiles(PID, {
       [`${base}/artisan-module.yml`]:

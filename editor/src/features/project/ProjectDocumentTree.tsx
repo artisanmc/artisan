@@ -754,7 +754,9 @@ function originalsOrigin(project: Project, key: string, t: TFunction): DocumentO
       : undefined;
   return {
     tone: status === "modified" ? "modified" : "identical",
-    module: project.ownerModule ?? "",
+    // The module file rarely names its module (the plugin does not write it there): the
+    // originals' index does.
+    module: project.ownerModule || project.originals?.module || "",
     system,
     ...(reset ? { reset } : {}),
   };
@@ -886,9 +888,7 @@ function DocumentRow({
         origin.system
           ? `projectPanel.systemBadge.${origin.tone}`
           : `moduleTemplates.badge.${origin.tone}`,
-        {
-          module: origin.module,
-        },
+        { module: origin.module },
       )
     : undefined;
   const systemHint = origin?.system
