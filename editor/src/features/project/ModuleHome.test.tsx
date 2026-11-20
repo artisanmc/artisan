@@ -153,6 +153,43 @@ describe("ModuleHome", () => {
     expect(within(settings).getByRole("link")).toHaveTextContent(/^Open$|^Ouvrir$/);
   });
 
+  it("shows each of several settings screens as a row with its first values", () => {
+    const withData = projectFromFiles(PID, {
+      [`${base}/manifest.yaml`]: "schema: manifest/v1\ndefault_lang: fr\nlanguages: [fr, en]\n",
+      [`${base}/data/settings.yaml`]: 'reset_time: "06:00"\njoin_reminder: false\n',
+      [`${base}/data/rewards.yaml`]: "days:\n  7: { icon: { material: BREAD } }\n",
+    });
+    useProjectsStore.setState({
+      openProjects: { projects: [withData], projectOrder: [PID] },
+    } as never);
+    useServerScreensStore.setState({
+      screens: [
+        {
+          id: "c:settings",
+          moduleId: "conversations",
+          label: "Settings",
+          table: "data/settings",
+          projectId: "conversations",
+        },
+        {
+          id: "c:rewards",
+          moduleId: "conversations",
+          label: "Rewards",
+          table: "data/rewards",
+          projectId: "conversations",
+        },
+      ],
+    } as never);
+    render(<ModuleHome project={withData} onOpenBoard={() => {}} />);
+    const settings = screen.getByTestId("module-home-settings");
+    expect(within(settings).getByRole("heading")).toHaveTextContent(/^Settings$|^Réglages$/);
+    const rows = within(settings).getAllByRole("link");
+    expect(rows.map((r) => r.textContent)).toEqual([
+      expect.stringMatching(/^SettingsReset time06:00Join reminder(No|Non)$/),
+      "RewardsDays1",
+    ]);
+  });
+
   it("opens the board from its block", () => {
     const onOpenBoard = vi.fn();
     render(<ModuleHome project={project()} onOpenBoard={onOpenBoard} />);
