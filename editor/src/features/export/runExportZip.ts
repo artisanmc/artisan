@@ -6,6 +6,18 @@ import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { buildZip } from "./buildZip";
 
+/**
+ * Where a project file sits in the archive: `<folder>/<path>`, the module's
+ * root under its folder name. Never a server path (`plugins/Artisan/...`): an
+ * Add-on's module lives in its own plugin folder
+ * (`plugins/ArtisanDailyRewards/artisan_module/`), so no prefix would be right
+ * for every module. The folder name is what the import reads to know which
+ * module the archive targets.
+ */
+export function archivePath(diskId: string, path: string): string {
+  return `${diskId}/${path}`;
+}
+
 export interface ExportZipResult {
   ok: boolean;
   /** Set when the export could not be produced. */
@@ -40,15 +52,12 @@ export async function runExportZip(project: Project, hasUser: boolean): Promise<
       // openly — an empty zip would be worse than a refused export.
       return { ok: false, error: "transport" };
     }
-    // buildZip expects the canonical project paths.
     const canonical: Record<string, string | Uint8Array> = {};
     for (const [rel, content] of Object.entries(disk.files)) {
-      canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
+      canonical[archivePath(diskId, rel)] = content;
     }
     for (const binary of disk.binaries ?? []) {
-      canonical[`plugins/Artisan/projects/${diskId}/${binary.path}`] = await client.binary(
-        binary.path,
-      );
+      canonical[archivePath(diskId, binary.path)] = await client.binary(binary.path);
     }
     await download(canonical, project.id);
     return { ok: true };
@@ -72,12 +81,12 @@ export async function runExportDraftZip(project: Project): Promise<ExportZipResu
     const client = projectClient(project.id);
     const canonical: Record<string, string | Uint8Array> = {};
     for (const [rel, content] of Object.entries(projectTree(project))) {
-      canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
+      canonical[archivePath(diskId, rel)] = content;
     }
     for (const [path, meta] of Object.entries(images)) {
       const unchanged = base[path]?.hash === meta.hash;
       if (!unchanged && !draft?.remote) return { ok: false, error: "transport" };
-      canonical[`plugins/Artisan/projects/${diskId}/${path}`] = unchanged
+      canonical[archivePath(diskId, path)] = unchanged
         ? await client.binary(path)
         : await readDraftBlob(project.id, draft!.remote!.id, meta.hash);
     }

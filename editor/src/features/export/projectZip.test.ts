@@ -20,7 +20,7 @@ describe("normalizeProjectFiles", () => {
       "plugins/Artisan/projects/shop/.artisan/editor.yaml",
     ]);
   });
-  it("keeps the canonical server layout as-is", () => {
+  it("still reads an archive exported before the module root (`plugins/Artisan/projects/<id>/`)", () => {
     const { projectId, files } = normalizeProjectFiles({
       "plugins/Artisan/projects/shop/manifest.yaml": MANIFEST,
       "plugins/Artisan/projects/shop/menus/m.yaml": MENU,
@@ -33,7 +33,7 @@ describe("normalizeProjectFiles", () => {
   });
 
   it("re-roots a zip of the project directory itself", () => {
-    // What an admin gets by zipping `plugins/Artisan/projects/shop/` on their server.
+    // What an export holds, and what an admin gets by zipping the module's folder on their server.
     const { projectId, files } = normalizeProjectFiles({
       "shop/manifest.yaml": MANIFEST,
       "shop/menus/m.yaml": MENU,
@@ -129,11 +129,12 @@ describe("readProjectZip", () => {
   });
   it("round-trips a zip built by the exporter", async () => {
     const blob = await buildZip({
-      "plugins/Artisan/projects/shop/manifest.yaml": MANIFEST,
-      "plugins/Artisan/projects/shop/menus/m.yaml": MENU,
+      "shop/manifest.yaml": MANIFEST,
+      "shop/menus/m.yaml": MENU,
     });
     const entries = await readProjectZip(blob);
-    expect(entries["plugins/Artisan/projects/shop/menus/m.yaml"]).toBe(MENU);
+    expect(entries["shop/menus/m.yaml"]).toBe(MENU);
+    expect(normalizeProjectFiles(entries).projectId).toBe("shop");
   });
 
   it("rejects a file that is not a zip", async () => {

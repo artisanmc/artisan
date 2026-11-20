@@ -41,7 +41,7 @@ it("exports the current draft: unchanged images from the server, changed ones fr
   });
 
   expect(await runExportDraftZip(project)).toEqual({ ok: true });
-  const root = `plugins/Artisan/projects/${project.diskId ?? project.id}`;
+  const root = project.diskId ?? project.id;
   expect(new TextDecoder().decode(files[`${root}/assets/textures/kept.png`] as Uint8Array)).toBe(
     "published:assets/textures/kept.png",
   );

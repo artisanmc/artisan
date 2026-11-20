@@ -71,8 +71,13 @@ again confirms the earlier attempt and publishes your newer changes with it.
 
 ## Import a project from a ZIP
 
+In a project, `···` then **Export module (.zip)** downloads its published files under one folder,
+the project's folder name (`daily/…` for Daily Rewards), whatever plugin folder it lives in.
+
 On a server page, **Import a module (.zip)**. The archive is a project export or the project
-folder zipped as is; its folder name decides which project it targets. The import lands in a
+folder zipped as is; its folder name decides which project it targets. To copy a module from a
+test server to production, export it on one and import it on the other: the same folder name
+updates the existing project. Player data (stored in the database) does not travel with it. The import lands in a
 private draft, so nothing changes until you deploy.
 
 | Mode | Server files not in the archive | Files on both sides that differ |

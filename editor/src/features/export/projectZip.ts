@@ -21,9 +21,10 @@ function isJunk(path: string): boolean {
 }
 
 /**
- * Re-root an archive's entries onto the canonical
- * `plugins/Artisan/projects/<id>/` layout, whatever shape they arrived in:
- * our own export, a project directory zipped straight off the server, a
+ * Re-root an archive's entries onto one internal prefix
+ * (`plugins/Artisan/projects/<id>/`, a key format only, not where the module
+ * lives on disk), whatever shape they arrived in: our own export
+ * (`<id>/…`, formerly `plugins/Artisan/projects/<id>/…`), a project directory zipped straight off the server, a
  * manifest at the archive root, or any of those wrapped in an extra folder.
  *
  * The project root is the directory holding the **shallowest** module file
