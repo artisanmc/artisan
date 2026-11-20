@@ -1090,20 +1090,24 @@ the player's language or the configured one if `per_player_language` is disabled
 **Export** (`features/export/runExportZip.ts`) — the archive is the file tree
 **as the server stores it**, not a regeneration from the domain: flush of
 the auto-save (`persistProject`), `GET /api/v1/user/projects/:id` → `files`, `buildZip`
-verbatim. Two intended consequences: the archive carries what the domain does not
+verbatim, the module's files at the archive's root, named `<folder>.zip` (`archiveName`): unzipped in
+the module's folder, wherever it lives (`plugins/Artisan/modules/<folder>/`, or an Add-on's own, like
+`plugins/ArtisanDailyRewards/artisan_module/`), it is the module again. Two intended consequences: the archive carries what the domain does not
 model (`.artisan/editor.yaml`, the own files of an Add-on root), and **no
 validation can block the output of the files** — recovering your config does not depend
 on its validity (anti-lock-in promise, ADR `files-first-source-of-truth`).
 Network required: with no reachable server the export fails, there is no fallback to
 `projectToFiles()` (a fallback would produce an *almost* faithful archive without saying so).
 
-**Import** (`features/export/runImportZip.ts`) — `zip → files → projectFromFiles`,
+**Import** (`features/import/runImportZip.ts`) — `zip → files → projectFromFiles`,
 with no intermediate format. `normalizeProjectFiles` (`projectZip.ts`) re-routes
-the entries onto `plugins/Artisan/projects/<id>/` whatever the received shape:
-our export, a project folder zipped directly from the server, a module file
+the entries onto one internal prefix whatever the received shape:
+our export (files at the root; before November 2026 `plugins/Artisan/projects/<folder>/…`), a project folder zipped directly from the server, a module file
 (`artisan-module.yml`, `manifest.yaml`) at the root, or one of the three wrapped in an
-extra folder. The root is the folder of the **shallowest** module file; the id comes from the manifest's `project_id`,
-otherwise from the folder name. Typed errors `not_a_zip` / `no_manifest`.
+extra folder. The root is the folder of the **shallowest** module file; the id is that folder's name (a legacy
+`project_id` in the manifest is ignored), or, when the module file is at the archive's root, the zip's
+file name (`folderFromZipName`: `daily.zip`, `daily (1).zip` → `daily`; `project_id_required` when it
+is not a valid folder name). That is how an import finds the module it updates on another server. Typed errors `not_a_zip` / `no_manifest`.
 
 > The JSON export/import (`projectFileIo.ts`, `.artisan.json`) was removed on
 > 2026-07-30: it serialized the in-memory domain, a second representation of the

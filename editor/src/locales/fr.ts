@@ -192,6 +192,8 @@ const fr: typeof en = {
       no_manifest:
         "Aucun artisan-module.yml ni manifest.yaml trouvé — ce n'est pas une archive de module.",
       invalid_project_id: "Le nom du module dans l'archive est invalide.",
+      project_id_required:
+        "L'archive a ses fichiers à sa racine : nomme-la comme le dossier du module (daily.zip pour le module daily).",
       empty: "L'archive ne contient aucun fichier de module exploitable.",
       server_offline: "Le serveur est éteint : son instantané actuel ne peut pas être lu.",
       fetch_timeout: "Le serveur n'a pas répondu à temps.",

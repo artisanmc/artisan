@@ -5,18 +5,18 @@ import { buildZip } from "./buildZip";
 describe("buildZip", () => {
   it("produces a Blob containing the given files", async () => {
     const files = {
-      "plugins/Artisan/manifest.yaml": "schema: manifest/v1\n",
-      "plugins/Artisan/translations.yaml": "schema: translations/v1\n",
+      "main/artisan-module.yml": "schema: module/v1\n",
+      "main/translations.yml": "schema: translations/v1\n",
     };
     const blob = await buildZip(files);
     expect(blob).toBeInstanceOf(Blob);
 
     const zip = await JSZip.loadAsync(blob);
     const names = Object.keys(zip.files);
-    expect(names).toContain("plugins/Artisan/manifest.yaml");
-    expect(names).toContain("plugins/Artisan/translations.yaml");
+    expect(names).toContain("main/artisan-module.yml");
+    expect(names).toContain("main/translations.yml");
 
-    const content = await zip.file("plugins/Artisan/manifest.yaml")!.async("string");
-    expect(content).toBe("schema: manifest/v1\n");
+    const content = await zip.file("main/artisan-module.yml")!.async("string");
+    expect(content).toBe("schema: module/v1\n");
   });
 });

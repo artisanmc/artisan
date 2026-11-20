@@ -6,6 +6,17 @@ import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { buildZip } from "./buildZip";
 
+/**
+ * The archive is the module's root as is: its files at the top, no folder and
+ * no server path. Unzipped into the module's folder (`plugins/Artisan/modules/<folder>/`,
+ * or an add-on's own, like `plugins/ArtisanDailyRewards/artisan_module/`), it is
+ * the module again. Its name is the module's folder (`daily.zip`): that is what
+ * the import of another server reads to find the module it updates.
+ */
+export function archiveName(diskId: string): string {
+  return `${diskId}.zip`;
+}
+
 export interface ExportZipResult {
   ok: boolean;
   /** Set when the export could not be produced. */
@@ -40,17 +51,14 @@ export async function runExportZip(project: Project, hasUser: boolean): Promise<
       // openly — an empty zip would be worse than a refused export.
       return { ok: false, error: "transport" };
     }
-    // buildZip expects the canonical project paths.
     const canonical: Record<string, string | Uint8Array> = {};
     for (const [rel, content] of Object.entries(disk.files)) {
-      canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
+      canonical[rel] = content;
     }
     for (const binary of disk.binaries ?? []) {
-      canonical[`plugins/Artisan/projects/${diskId}/${binary.path}`] = await client.binary(
-        binary.path,
-      );
+      canonical[binary.path] = await client.binary(binary.path);
     }
-    await download(canonical, project.id);
+    await download(canonical, archiveName(diskId));
     return { ok: true };
   } catch {
     return { ok: false, error: "transport" };
@@ -72,28 +80,28 @@ export async function runExportDraftZip(project: Project): Promise<ExportZipResu
     const client = projectClient(project.id);
     const canonical: Record<string, string | Uint8Array> = {};
     for (const [rel, content] of Object.entries(projectTree(project))) {
-      canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
+      canonical[rel] = content;
     }
     for (const [path, meta] of Object.entries(images)) {
       const unchanged = base[path]?.hash === meta.hash;
       if (!unchanged && !draft?.remote) return { ok: false, error: "transport" };
-      canonical[`plugins/Artisan/projects/${diskId}/${path}`] = unchanged
+      canonical[path] = unchanged
         ? await client.binary(path)
         : await readDraftBlob(project.id, draft!.remote!.id, meta.hash);
     }
-    await download(canonical, project.id);
+    await download(canonical, archiveName(diskId));
     return { ok: true };
   } catch {
     return { ok: false, error: "transport" };
   }
 }
 
-async function download(files: Record<string, string | Uint8Array>, name: string) {
+async function download(files: Record<string, string | Uint8Array>, fileName: string) {
   const blob = await buildZip(files);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${name}.zip`;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

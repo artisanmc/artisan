@@ -187,6 +187,8 @@ export default {
       not_a_zip: "That file is not a readable .zip.",
       no_manifest: "No artisan-module.yml or manifest.yaml found — this is not a module archive.",
       invalid_project_id: "The archive's module name is invalid.",
+      project_id_required:
+        "The archive holds its files at its root: name it after the module's folder (daily.zip for the daily module).",
       empty: "The archive holds no usable module files.",
       server_offline: "The server is offline: its current snapshot cannot be read.",
       fetch_timeout: "The server did not answer in time.",

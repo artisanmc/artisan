@@ -41,13 +41,10 @@ it("exports the current draft: unchanged images from the server, changed ones fr
   });
 
   expect(await runExportDraftZip(project)).toEqual({ ok: true });
-  const root = `plugins/Artisan/projects/${project.diskId ?? project.id}`;
-  expect(new TextDecoder().decode(files[`${root}/assets/textures/kept.png`] as Uint8Array)).toBe(
+  expect(new TextDecoder().decode(files["assets/textures/kept.png"] as Uint8Array)).toBe(
     "published:assets/textures/kept.png",
   );
-  expect(new TextDecoder().decode(files[`${root}/assets/textures/logo.png`] as Uint8Array)).toBe(
-    "private",
-  );
+  expect(new TextDecoder().decode(files["assets/textures/logo.png"] as Uint8Array)).toBe("private");
   expect(drafts.readDraftBlob).toHaveBeenCalledWith(project.id, "d1", "new");
-  expect(files[`${root}/artisan-module.yml`]).toBeTypeOf("string");
+  expect(files["artisan-module.yml"]).toBeTypeOf("string");
 });

@@ -1,4 +1,8 @@
-import { normalizeProjectFiles, readProjectZip } from "@/features/export/projectZip";
+import {
+  folderFromZipName,
+  normalizeProjectFiles,
+  readProjectZip,
+} from "@/features/export/projectZip";
 import { createDraft, updateDraft, uploadDraftBlob } from "@/lib/api/projectDrafts";
 import {
   type ProjectFilesError,
@@ -28,6 +32,7 @@ export type ImportError =
   | "not_a_zip"
   | "no_manifest"
   | "invalid_project_id"
+  | "project_id_required"
   | "empty"
   | "server_offline"
   | "fetch_timeout"
@@ -130,13 +135,18 @@ export async function prepareImportZip(
   let normalized: { projectId: string; files: Record<string, string | Uint8Array> };
   try {
     raw = await readProjectZip(file);
-    normalized = normalizeProjectFiles(raw);
+    // An export holds the module's files at its root: its file name names the module.
+    const rootName = file instanceof File ? folderFromZipName(file.name) : undefined;
+    normalized = normalizeProjectFiles(raw, undefined, rootName);
   } catch (error) {
     const code = error instanceof Error ? error.message : "unknown";
     return {
       ok: false,
       error:
-        code === "no_manifest" || code === "invalid_project_id" || code === "not_a_zip"
+        code === "no_manifest" ||
+        code === "invalid_project_id" ||
+        code === "project_id_required" ||
+        code === "not_a_zip"
           ? code
           : "unknown",
     };
