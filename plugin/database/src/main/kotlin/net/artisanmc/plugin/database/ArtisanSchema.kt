@@ -270,6 +270,37 @@ object ArtisanSchema {
             )""",
         ),
         Migration(48, "CREATE INDEX ${t.importRunsTimeIndex} ON ${t.importRuns} (run_at)") { hasIndex(it, t.importRuns, t.importRunsTimeIndex) },
+        // Player metrics (`MetricRows`, ADR `stats-export`): each player's latest value of each declared
+        // metric, network-wide; `updated_at` (epoch milliseconds) moves only when the value changes,
+        // which is what the export reads. `core:forgotten` rows mark the players `/artisan stats forget` erased.
+        Migration(
+            49,
+            """CREATE TABLE IF NOT EXISTS ${t.metricValues} (
+                metric VARCHAR(64) NOT NULL,
+                player_uuid VARCHAR(36) NOT NULL,
+                val BIGINT NOT NULL,
+                updated_at BIGINT NOT NULL,
+                PRIMARY KEY (metric, player_uuid)
+            )""",
+        ),
+        Migration(50, "CREATE INDEX ${t.metricValuesTimeIndex} ON ${t.metricValues} (updated_at)") { hasIndex(it, t.metricValues, t.metricValuesTimeIndex) },
+        Migration(51, "CREATE INDEX ${t.metricValuesPlayerIndex} ON ${t.metricValues} (player_uuid)") { hasIndex(it, t.metricValues, t.metricValuesPlayerIndex) },
+        // The export reads the players seen since its cursor (names, play time).
+        Migration(52, "CREATE INDEX ${t.playersSeenIndex} ON ${t.players} (last_seen)") { hasIndex(it, t.players, t.playersSeenIndex) },
+        // Each player's play time on each server (`server_id` = the row in `artisan_servers`), beside
+        // the network total of `artisan_players`; only that server writes its rows. Counted from the
+        // version that added it: the time played before stays in the network total only.
+        Migration(
+            53,
+            """CREATE TABLE IF NOT EXISTS ${t.serverPlaytime} (
+                server_id INT NOT NULL,
+                player_uuid VARCHAR(36) NOT NULL,
+                playtime_ms BIGINT NOT NULL,
+                last_seen BIGINT NOT NULL,
+                PRIMARY KEY (server_id, player_uuid)
+            )""",
+        ),
+        Migration(54, "CREATE INDEX ${t.serverPlaytimeSeenIndex} ON ${t.serverPlaytime} (last_seen)") { hasIndex(it, t.serverPlaytime, t.serverPlaytimeSeenIndex) },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

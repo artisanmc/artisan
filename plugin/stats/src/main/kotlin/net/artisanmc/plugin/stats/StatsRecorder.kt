@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.stats
 
+import net.artisanmc.modules.api.stats.PlayerMetric
 import net.artisanmc.modules.api.stats.StatEvent
 import net.artisanmc.modules.api.stats.StatQuery
 import net.artisanmc.modules.api.stats.StatScope
@@ -57,6 +58,32 @@ class StatsRecorder(
         require(id.substringBefore(':') !in RESERVED) { "Stat query $id: the namespaces ${RESERVED.joinToString()} are Artisan's" }
         queries.declare(id, cacheSeconds, query)
     }
+
+    /** Metric values waiting for the database (ADR `stats-export`). */
+    val metricBuffer = MetricBuffer()
+    private val metrics = ConcurrentHashMap<String, PlayerMetric>()
+
+    override fun declareMetric(metric: PlayerMetric) {
+        require(metric.namespace !in RESERVED) { "Metric ${metric.id}: the namespaces ${RESERVED.joinToString()} are Artisan's" }
+        putMetric(metric)
+    }
+
+    /** Artisan's own `core:*` metrics. */
+    fun declareCoreMetric(metric: PlayerMetric) = putMetric(metric)
+
+    private fun putMetric(metric: PlayerMetric) {
+        val previous = metrics.putIfAbsent(metric.id, metric) ?: return
+        require(previous == metric) { "Metric ${metric.id} is already declared as $previous" }
+    }
+
+    override fun setMetric(metric: String, player: UUID, value: Long) {
+        if (!settings().enabled) return
+        if (!metrics.containsKey(metric)) return warnOnce("metric|$metric", "Metric $metric is not declared: its values are dropped")
+        metricBuffer.set(metric, player.toString(), value)
+    }
+
+    /** The declared metrics, by id. */
+    fun declaredMetrics(): List<PlayerMetric> = metrics.values.sortedBy { it.id }
 
     override fun isEnabled() = settings().enabled
 
@@ -160,4 +187,17 @@ fun StatsRecorder.flushTo(writer: StatsWriter): Int {
         throw e
     }
     return batch.buckets.size + batch.raws.size
+}
+
+/** Drains the metric values into [writer] at [now]; a failed write puts them back and rethrows. The number of values handed over. */
+fun StatsRecorder.flushMetricsTo(writer: MetricWriter, now: Long = System.currentTimeMillis()): Int {
+    val batch = metricBuffer.drain()
+    if (batch.isEmpty()) return 0
+    try {
+        writer.write(batch, now)
+    } catch (e: Exception) {
+        metricBuffer.restore(batch)
+        throw e
+    }
+    return batch.size
 }

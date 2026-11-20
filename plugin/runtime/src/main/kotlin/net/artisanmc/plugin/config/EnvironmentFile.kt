@@ -94,6 +94,19 @@ object EnvironmentFile {
         |#   effort: "medium"
         |#   max-steps: 25
         |
+        |# Rankings and player profiles on your website (Azuriom's Artisan plugin, or any site
+        |# that speaks the same protocol). This server pushes the player metrics that changed
+        |# (play time, money, the modules' own) over HTTPS: no port to open, and the website
+        |# keeps showing them while the server is off. Set it on one server of the network:
+        |# they share the database. Changes apply after a restart.
+        |#   url              : the website's address for it, e.g. "https://example.com/api/leaderboards/push"
+        |#   token            : the token the website shows, e.g. "${'$'}{ARTISAN_EXPORT_TOKEN}"
+        |#   interval-seconds : how often (30 to 3600)
+        |# stats-export:
+        |#   url: ""
+        |#   token: ""
+        |#   interval-seconds: 120
+        |
         |# Database shared by the plugins of the suite. Changes apply after a restart.
         |#   type      : h2      a single file, plugins/Artisan/database/suite.mv.db, nothing to set up
         |#               mysql   MySQL 8+

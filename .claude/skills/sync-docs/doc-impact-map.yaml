@@ -369,6 +369,13 @@ mappings:
       - "docs/site/configuration/bedrock.md"
     reason: "Bedrock setup steps (Geyser-Spigot, proxy extension, manual copy)"
 
+  - touches: "plugin/{stats/src/main/kotlin/**/{Metrics,StatsExport}.kt,database/src/main/kotlin/**/MetricRows.kt,paper/src/main/kotlin/**/StatsExportHost.kt}"
+    updates:
+      - "docs/decisions/stats-export.md"
+      - "docs/site/configuration/statistics.md"
+      - "docs/site/configuration/environment.md"
+    reason: "Player metrics and their export: the push protocol websites implement, the stats-export settings"
+
   - touches: "plugin/{stats/src/main/kotlin/**,database/src/main/kotlin/**/StatsRows.kt,paper/src/main/kotlin/**/StatsHost.kt}"
     updates:
       - "docs/decisions/stats-foundation.md"

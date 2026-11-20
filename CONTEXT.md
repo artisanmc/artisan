@@ -884,7 +884,20 @@ _Avoid_: metric, analytics event, tracking
 
 Non-examples:
 - A **Game event** is what a **Trigger** listens to; it is not recorded unless a chain runs `record_event`.
-- bStats' anonymous usage report is not a Stat event: it leaves the server, Stat events never do.
+- bStats' anonymous usage report is not a Stat event: it leaves the server, Stat events never do (only **Player metrics** do, to the admin's own website).
+
+## Player metric
+
+A player's **current value** of something worth showing outside the game, declared by a module
+(`api.getStats().declareMetric`) and set whole (`setMetric`): `core:playtime`, `core:money`,
+`daily:streak`. One value per player, the latest; labels per language and a unit so a website
+shows it without knowing the module. Exported to the admin's website when `stats-export` is set
+(ADR `stats-export`).
+_Avoid_: leaderboard entry, score, stat
+
+Non-examples:
+- A **Stat event** counts what happened (a session, a quest completed); a player metric is what is.
+- A Variable is read by the game's content; a player metric is written for the outside.
 
 ## Journey
 

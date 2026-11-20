@@ -7,7 +7,8 @@ sidebar:
 
 Artisan records what your content does: which menus are opened and clicked, which commands are
 run, how long players stay. The records are written to [your database](../database/) and sent
-nowhere else.
+nowhere else. Only the player metrics (play time, money, the add-ons' rankings) can be pushed to
+your own website, once you ask for it ([below](#rankings-and-profiles-on-your-website)).
 
 ## Read them in the editor
 
@@ -83,6 +84,43 @@ six per event at most, 64 characters per value. Past 200 different values of one
 the new ones are counted together as `other`: a dimension is not the place for a player name
 or a free text. `value` (1 by default) is added up, for an amount or a duration.
 
+## Rankings and profiles on your website
+
+A **player metric** is a player's current value of something you may want to rank: play time
+(`core:playtime` for the whole network, `core:playtime.s<n>` for each server), money (`core:money`, the Vault balance, when an economy plugin is installed)
+and what add-ons declare (a login streak, quests completed). Artisan keeps the latest value of
+each player in the database and can push the values that changed to your website, which shows
+**rankings** and a **profile** per player:
+
+1. Install the website's plugin (Azuriom: **Artisan Leaderboards**), and copy the address and
+   the token its admin page shows.
+2. On one server of the network, in [`environment.yml`](../environment/#stats-export):
+
+   ```yaml
+   stats-export:
+     url: "https://example.com/api/leaderboards/push"
+     token: "${ARTISAN_EXPORT_TOKEN}"
+   ```
+
+3. Restart. The first push sends every player; the next ones, every 2 minutes, only the players
+   whose values changed. The console says `Player metrics exported to example.com`.
+
+The server opens no port: it calls the website. The website keeps its copy, so rankings stay
+online while the server is off, and a website down for a while catches up on its return. What
+leaves the server: UUIDs, names, first and last connection, play time and the metrics. No IP,
+no other statistics.
+
+Each server counts its own share of a player's play time beside the network total, from the
+version that added it on: the time played before stays in the network total only. A website
+shows each server as a tab of the play-time ranking.
+
+A metric that only adds up (play time, quests completed) can also be ranked **per week, month
+and quarter**: the website remembers each player's value at the start of the period and ranks
+what was gained since. It starts counting when the website first receives the metric.
+
+Play time and money of the online players are refreshed every 5 minutes and when they leave: a
+ranking can be up to about 7 minutes late.
+
 ## How long it is kept
 
 Counts are kept **per hour for 90 days**, then merged **per day** and kept without limit.
@@ -105,5 +143,7 @@ Statistics are tied to the player's UUID. To delete everything recorded about a 
 /artisan stats forget <player>
 ```
 
-It deletes their rows on every server of the database and cannot be undone. Permission
+It deletes their rows on every server of the database and cannot be undone. With
+`stats-export` set, the website deletes them too at the next push; if they play again, they
+reappear. Permission
 `artisan.stats.forget` (op by default). The player must have joined the server once.

@@ -61,4 +61,21 @@ class PlayerRowsTest {
         assertEquals(listOf(alex to "stella"), rows.search("st", 1))
         assertEquals(setOf(steve to "Steve", under to "s_x"), rows.names(listOf(steve, under, UUID.randomUUID())).toSet())
     }
+
+    @Test
+    fun `each server keeps its own share of the play time beside the network total`() {
+        val registry = ServerRegistry(ds, DatabaseDialect.H2, Logger.getAnonymousLogger())
+        val (lobby, survie) = listOf("lobby", "survie").map { name ->
+            UUID.randomUUID().also { registry.register(it, name, java.time.Instant.EPOCH) }.let { registry.rowId(it)!! }
+        }
+        rows.seen(steve, "Steve", 1_000)
+        assertEquals(0, rows.serverPlaytime(steve, lobby))
+        rows.addPlaytime(steve, 60_000, 61_000, lobby)
+        rows.addPlaytime(steve, 30_000, 91_000, lobby)
+        rows.addPlaytime(steve, 10_000, 101_000, survie)
+        rows.addPlaytime(steve, 5_000, 106_000)
+        assertEquals(90_000, rows.serverPlaytime(steve, lobby))
+        assertEquals(10_000, rows.serverPlaytime(steve, survie))
+        assertEquals(105_000, rows.get(steve)!!.playtimeMs)
+    }
 }

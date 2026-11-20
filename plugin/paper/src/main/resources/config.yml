@@ -89,7 +89,9 @@ text-palette:
 # Statistics: what players do (sessions, commands, menus, what modules and your
 # own `record_event` actions record), kept in the database of environment.yml
 # and read in the editor with the permission artisan.editor.stats. Nothing
-# leaves this server. `/artisan stats forget <player>` erases a player's.
+# leaves this server, except the player metrics (play time, money...) pushed to
+# your website when `stats-export` is set in environment.yml.
+# `/artisan stats forget <player>` erases a player's.
 stats:
   # False: nothing is recorded and the editor shows no statistics.
   enabled: true
