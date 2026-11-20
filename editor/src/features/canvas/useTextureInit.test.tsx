@@ -3,15 +3,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchUserItems = vi.fn();
 const fetchUserCustomItems = vi.fn();
+const fetchNexoItemIcons = vi.fn();
+const fetchNexoItemModels = vi.fn();
 vi.mock("@/lib/api/userProjects", () => ({
   fetchUserItems: (...a: unknown[]) => fetchUserItems(...a),
   fetchUserCustomItems: (...a: unknown[]) => fetchUserCustomItems(...a),
+  fetchNexoItemIcons: (...a: unknown[]) => fetchNexoItemIcons(...a),
+  fetchNexoItemModels: (...a: unknown[]) => fetchNexoItemModels(...a),
 }));
 const preloadModels = vi.fn();
 const renderToCanvas = vi.fn();
+const renderGivenModels = vi.fn();
 vi.mock("@/lib/mcModelRenderer", () => ({
   preloadModels: (...a: unknown[]) => preloadModels(...a),
   renderToCanvas: (...a: unknown[]) => renderToCanvas(...a),
+  renderGivenModels: (...a: unknown[]) => renderGivenModels(...a),
 }));
 
 import { useAuthStore } from "@/state/authStore";
@@ -24,6 +30,9 @@ const ITEMS = [{ id: "stone", label: "Stone" }];
 beforeEach(() => {
   vi.clearAllMocks();
   renderToCanvas.mockResolvedValue(null);
+  fetchNexoItemIcons.mockResolvedValue({});
+  fetchNexoItemModels.mockResolvedValue({ items: {}, models: {}, textures: {} });
+  renderGivenModels.mockResolvedValue(undefined);
   fetchUserItems.mockResolvedValue({ version: "1.21.4", items: ITEMS });
   fetchUserCustomItems.mockResolvedValue({ items: [], serverKeyId: null });
   useTextureStore.setState({ libraryItems: [], libraryError: false });
@@ -78,6 +87,76 @@ describe("useTextureInit", () => {
     expect(preloadModels).not.toHaveBeenCalled();
     expect(renderToCanvas).toHaveBeenCalledTimes(1);
     expect(renderToCanvas).toHaveBeenCalledWith("item/chest", "1.21.4", undefined);
+  });
+
+  // Nexo items get the textures their server reads from Nexo's pack, all in one request and
+  // one store update; an item without one keeps its placeholder.
+  it("fetches the Nexo items' icons once, only when the server has Nexo items", async () => {
+    renderHook(() => useTextureInit("no_nexo" as never));
+    await waitFor(() => expect(useTextureStore.getState().libraryBundleReady).toBe(true));
+    expect(fetchNexoItemIcons).not.toHaveBeenCalled();
+
+    fetchUserCustomItems.mockResolvedValue({
+      serverKeyId: "local",
+      items: [
+        { id: "nexo:ruby", label: "ruby", category: "nexo" },
+        { id: "nexo:plain", label: "plain", category: "nexo" },
+      ],
+    });
+    fetchNexoItemIcons.mockResolvedValue({ ruby: "cG5n" });
+    renderHook(() => useTextureInit("nexo_shop" as never));
+    await waitFor(() =>
+      expect(useTextureStore.getState().renderedByMaterial["nexo:ruby"]).toBe(
+        "data:image/png;base64,cG5n",
+      ),
+    );
+    expect(fetchNexoItemIcons).toHaveBeenCalledTimes(1);
+    expect(fetchNexoItemIcons).toHaveBeenCalledWith("nexo_shop");
+    expect(useTextureStore.getState().renderedByMaterial["nexo:plain"]).toBeUndefined();
+  });
+
+  // A Nexo item with a 3D model: its flat icon first, then the render of its model over it,
+  // one render for every item that shares the model, a model no item uses left alone.
+  it("draws the Nexo 3D models once each and gives every item of a model its icon", async () => {
+    fetchUserCustomItems.mockResolvedValue({
+      serverKeyId: "local",
+      items: [
+        { id: "nexo:throne", label: "throne", category: "nexo" },
+        { id: "nexo:throne_gold", label: "throne_gold", category: "nexo" },
+        { id: "nexo:ruby", label: "ruby", category: "nexo" },
+      ],
+    });
+    fetchNexoItemIcons.mockResolvedValue({ throne: "ZmxhdA==", ruby: "cG5n" });
+    const model = { elements: [], textures: { all: "shop:throne" } };
+    fetchNexoItemModels.mockResolvedValue({
+      items: { throne: "shop:throne", throne_gold: "shop:throne" },
+      models: { "shop:throne": model, "shop:unused": model },
+      textures: { "shop:throne": "dGV4" },
+    });
+    renderGivenModels.mockImplementation(
+      async (
+        models: Record<string, unknown>,
+        urls: Record<string, string>,
+        onRendered: (key: string, src: string) => void,
+      ) => {
+        expect(Object.keys(models)).toEqual(["shop:throne"]);
+        expect(urls["shop:throne"]).toBe("data:image/png;base64,dGV4");
+        // The flat icon is already there when the 3D one arrives.
+        expect(useTextureStore.getState().renderedByMaterial["nexo:throne"]).toBe(
+          "data:image/png;base64,ZmxhdA==",
+        );
+        onRendered("shop:throne", "data:3d");
+      },
+    );
+    renderHook(() => useTextureInit("nexo_3d" as never));
+    await waitFor(() =>
+      expect(useTextureStore.getState().renderedByMaterial["nexo:throne"]).toBe("data:3d"),
+    );
+    const state = useTextureStore.getState();
+    expect(state.renderedByMaterial["nexo:throne_gold"]).toBe("data:3d");
+    expect(state.renderedByMaterial["nexo:ruby"]).toBe("data:image/png;base64,cG5n");
+    expect(state.smoothByMaterial).toEqual({ "nexo:throne": true, "nexo:throne_gold": true });
+    expect(renderGivenModels).toHaveBeenCalledTimes(1);
   });
 
   it("does nothing without a project id", () => {

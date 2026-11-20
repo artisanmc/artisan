@@ -3,10 +3,13 @@ package net.artisanmc.plugin.hub
 import net.artisanmc.plugin.hub.EditorPermissions.VIEW
 import net.artisanmc.plugin.hub.Relay.Companion.errorCode
 import net.artisanmc.plugin.hub.Relay.Companion.ok
+import com.fasterxml.jackson.databind.ObjectMapper
 import java.util.Base64
 
-/** Item catalog (vanilla, then Nexo, Oraxen, ItemsAdder), vanilla textures and Nexo glyphs. */
+/** Item catalog (vanilla, then Nexo, Oraxen, ItemsAdder), vanilla textures, Nexo glyphs, Nexo item icons and 3D models. */
 class ItemRoutes(private val servers: Servers, private val relay: Relay, private val vanilla: VanillaAssets?) {
+    private val mapper = ObjectMapper()
+
     fun register(router: Router) {
         router.on("GET", "/api/v1/user/projects/:project/items", VIEW) { call ->
             val items = vanilla?.items ?: return@on call.error(404, "unknown_version")
@@ -19,6 +22,11 @@ class ItemRoutes(private val servers: Servers, private val relay: Relay, private
         // The requested version is ignored: one server, one texture version.
         router.on("GET", "/api/v1/textures/:version/*", VIEW) { call ->
             val png = vanilla?.texture(call.params.getValue("*")) ?: return@on call.error(404, "not_found")
+            call.send(200, "image/png", png, "private, max-age=86400")
+        }
+        // Every item of the catalogue above in one PNG (VanillaAssets.atlas); 503 while its files download.
+        router.on("GET", "/api/v1/item-atlas/:version", VIEW) { call ->
+            val png = vanilla?.atlas() ?: return@on call.error(if (vanilla?.items == null) 404 else 503, "not_ready")
             call.send(200, "image/png", png, "private, max-age=86400")
         }
         router.on("GET", "/api/v1/user/projects/:project/nexo-glyphs", VIEW) { call ->
@@ -34,6 +42,33 @@ class ItemRoutes(private val servers: Servers, private val relay: Relay, private
                 if (!ok(reply) || content == null) return@send glyphError(call, reply)
                 call.send(200, "image/png", Base64.getDecoder().decode(content), "private, no-cache")
             }
+        }
+        // Every Nexo item's icon in one answer, read by its server from Nexo's pack (no Nexo API).
+        router.on("GET", "/api/v1/user/projects/:project/nexo-item-icons", VIEW) { call ->
+            hashed(call, "nexo_item_icons_fetch", listOf("icons"))
+        }
+        // The 3D models of the Nexo items that have one, each model and each texture once: the editor draws them.
+        router.on("GET", "/api/v1/user/projects/:project/nexo-item-models", VIEW) { call ->
+            hashed(call, "nexo_item_models_fetch", listOf("items", "models", "textures"))
+        }
+    }
+
+    /**
+     * A set the server answers with its hash. The hash is the ETag: an editor that holds the set
+     * gets a 304, and its server, told the hash, sends nothing.
+     */
+    private fun hashed(call: Call, type: String, fields: List<String>) {
+        val project = servers.projectOf(call) ?: return call.error(404, "not_found")
+        val known = call.header("If-None-Match")?.removePrefix("W/")?.trim('"')?.takeIf { it.isNotEmpty() }
+        relay.send(call, project.server, mapOf("type" to type, "known_hash" to known)) { reply ->
+            if (!ok(reply)) return@send glyphError(call, reply)
+            val etag = mapOf("ETag" to "\"${reply["hash"] ?: ""}\"")
+            if (reply["unchanged"] == true) return@send call.send(304, "application/json", ByteArray(0), "private, no-cache", etag)
+            call.send(
+                200, "application/json",
+                mapper.writeValueAsBytes(fields.associateWith { reply[it] ?: emptyMap<String, Any>() }),
+                "private, no-cache", etag,
+            )
         }
     }
 

@@ -19,12 +19,13 @@ class ArtisanCommand(
     private val plugin: ArtisanPlugin,
     private val lang: LangManager,
 ) : CommandExecutor, TabCompleter {
+    private val imports = ImportCommand(plugin, lang)
 
     override fun onTabComplete(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> listOf("menu", "reload", "sync", "editor", "stats", "dump-title")
+            args.size == 1 -> listOf("menu", "reload", "sync", "editor", "stats", "import", "dump-title")
                 .filter { it.startsWith(args[0].lowercase()) && PERMISSIONS[it]?.let(sender::hasPermission) != false }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
@@ -36,6 +37,8 @@ class ArtisanCommand(
                 listOf("forget").filter { it.startsWith(args[1].lowercase()) }
             args.size == 3 && args[0].equals("stats", ignoreCase = true) && args[1].equals("forget", ignoreCase = true) ->
                 plugin.server.onlinePlayers.map { it.name }.filter { it.startsWith(args[2], ignoreCase = true) }
+            args.size >= 2 && args[0].equals("import", ignoreCase = true) && sender.hasPermission(IMPORT_PERMISSION) ->
+                imports.complete(args.drop(1))
             args.size == 2 && args[0].equals("editor", ignoreCase = true) ->
                 listOf("logout", "sessions", "revoke").filter { it.startsWith(args[1].lowercase()) }
             args.size == 3 && args[0].equals("editor", ignoreCase = true) && args[1].equals("logout", ignoreCase = true) && sender.hasPermission("artisan.admin") ->
@@ -92,6 +95,7 @@ class ArtisanCommand(
                     ?: run { Chat.send(sender, lang.get("artisan.usage_stats", sender)); return true }
                 forgetStats(sender, who)
             }
+            "import" -> imports.run(sender, args.drop(1))
             "dump-title" -> {
                 val menuId = args.getOrNull(1) ?: run {
                     sender.sendMessage("Usage: /artisan dump-title <menu_id> [lang]")
@@ -385,6 +389,7 @@ class ArtisanCommand(
         /** How much of a session id `/artisan editor sessions` shows, and its click types back. */
         private const val SHOWN_ID = 12
         const val CONSOLE_NAME = "Console"
+        const val IMPORT_PERMISSION = "artisan.admin.import"
 
         /** `editor` checks its own rights, finer grained. */
         private val PERMISSIONS = mapOf(
@@ -392,6 +397,7 @@ class ArtisanCommand(
             "reload" to "artisan.admin",
             "sync" to "artisan.admin",
             "stats" to "artisan.stats.forget",
+            "import" to IMPORT_PERMISSION,
             "dump-title" to "artisan.admin",
         )
     }

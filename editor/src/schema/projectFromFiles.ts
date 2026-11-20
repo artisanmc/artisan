@@ -23,10 +23,12 @@ import {
 import { normalizeFolderMeta } from "@/domain/folders";
 import {
   adoptAddressedTranslations,
+  langMap,
   visitDataSourceLTexts,
   visitElementLTexts,
 } from "@/domain/i18nSites";
 import { itemTextFields } from "@/domain/itemTextFields";
+import { withShippedData } from "@/domain/shippedData";
 // Full-project files → domain importer — the exact inverse of
 // `projectToFiles.ts` (ADR files-first-source-of-truth: the file
 // tree is the canonical, lossless Project representation; the editor parses it
@@ -380,7 +382,7 @@ function importDataValue(
   type: ModelFieldType,
   models: DataModel[],
   visited: Set<DataModelId>,
-  ref: (key: string) => LText,
+  ref: (raw: string | Record<string, string>) => LText,
 ): unknown {
   switch (type.kind) {
     case "item": {
@@ -391,7 +393,7 @@ function importDataValue(
       return out;
     }
     case "ltext":
-      return ref(typeof value === "string" ? value : "");
+      return ref(typeof value === "string" ? value : (langMap(value) ?? ""));
     case "list":
       return Array.isArray(value)
         ? value.map((el) => importDataValue(el, type.of, models, visited, ref))
@@ -547,7 +549,8 @@ export function projectFromFiles(
   // necessarily the internal id (cf. `Project.diskId`). The prefix is rewritten
   // to the internal id once and for all: everything downstream addresses by
   // `baseOf(projectId)` and need not know the distinction.
-  const files = normalizeProjectPrefix(rawFiles, projectId);
+  // The data and models the module ships serve where the owner has no copy (`shippedData.ts`).
+  const files = withShippedData(normalizeProjectPrefix(rawFiles, projectId), baseOf(projectId));
   const moduleFile = MODULE_FILE_NAMES.find((n) => getFile(files, projectId, n) !== null);
   const manifest =
     (moduleFile && tryParse<ManifestYaml>(getFile(files, projectId, moduleFile))) || {};
@@ -755,8 +758,8 @@ export function projectFromFiles(
   // Tolerant ltext import for data sources (ADR bare-data-files ④): a value
   // matching a known translation key resolves as that key; anything else is
   // the DEFAULT LANGUAGE'S literal text (minted key).
-  function ltData(raw: string): LText {
-    return translations[raw] ? ref(raw) : text(raw);
+  function ltData(raw: string | Record<string, string>): LText {
+    return typeof raw === "string" && translations[raw] ? ref(raw) : text(raw);
   }
   const { appearance } = makeAppearanceConverter({
     text,

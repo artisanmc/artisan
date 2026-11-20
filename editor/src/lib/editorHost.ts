@@ -1,4 +1,5 @@
 import { assetPreviewUrl } from "@/domain/asset";
+import { capturedDisplay } from "@/domain/capturedItems";
 import { projectNamespace } from "@/domain/docRef";
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
 import { type DocKey, allDocuments, docKey, documentsOf } from "@/domain/documents";
@@ -6,6 +7,7 @@ import type { I18nKey, Project, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useAssetSize } from "@/features/assets/measuredSize";
 import { useTextureUrl } from "@/features/canvas/textureStore";
+import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import {
   fetchStatsActives,
   fetchStatsBreakdown,
@@ -106,7 +108,13 @@ export const editorHost: Omit<EditorHost, "components"> = {
   },
   mcTextWidth: (source) => mcLineWidth(source),
   mcWrap: (source, width) => wrapLore(source, width),
-  useItemTexture: (material) => useTextureUrl(material),
+  useItemTexture: (material) => {
+    // A captured item (`item:<id>`) shows the item it was captured from, as the item fields do.
+    const shown = useProjectsStore((s) => capturedDisplay(s.openProjects.projects, material));
+    const [shownMaterial = material, head] = shown.split("\n");
+    const texture = useTextureUrl(shownMaterial);
+    return useHeadPreviewUrl(head || undefined) ?? texture;
+  },
   useOptionList: (id) => {
     const lists = useServerOptionListsStore((s) => s.lists);
     const lang = useUiStore((s) => s.editorLang);

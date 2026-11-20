@@ -63,6 +63,8 @@ class SyncedMenuProvider(
     private val installer: net.artisanmc.plugin.updates.ModuleInstaller? = null,
     /** The restart the editor may ask for. */
     private val restart: net.artisanmc.plugin.updates.ServerRestart? = null,
+    /** The modules' imports, run from the editor (ADR `data-imports`). */
+    private val imports: () -> net.artisanmc.plugin.importing.ImportRuns? = { null },
     /** The modules' templates, served on `template_fetch` and copied on `template_copy` or once at seed. */
     private val templates: () -> net.artisanmc.plugin.project.ModuleTemplates? = { null },
     /** The server's language, given to the projects a template seeds. */
@@ -80,6 +82,7 @@ class SyncedMenuProvider(
     private val menuWindows: net.artisanmc.plugin.render.packets.MenuWindows? = null,
     private val pluginVersion: String = "1.0.0",
     private val nexoGlyphs: net.artisanmc.plugin.customitems.NexoGlyphReader? = null,
+    private val nexoItemIcons: net.artisanmc.plugin.customitems.NexoItemIcons? = null,
     private val serverConfig: net.artisanmc.plugin.config.ServerConfigAccess? = null,
     /** Unrequested announcements (`projects_reloaded`…): the editor served by the plugin relays them. */
     private val editorEvents: (Map<String, Any?>) -> Unit = {},
@@ -190,7 +193,8 @@ class SyncedMenuProvider(
     private val documentChecks = net.artisanmc.plugin.protocol.DocumentChecks(workspace, replies, documentCheck)
     private val projectWrites = ProjectWrites(workspace, replies, ::send, logger, documentCheck)
     private val templateRequests = net.artisanmc.plugin.protocol.TemplateRequests(workspace, replies, templates)
-    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles, moduleBrands, statQuery, installer, restart)
+    private val importRequests = net.artisanmc.plugin.importing.ImportRequests(replies, imports) { task -> scheduler.async(task) }
+    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles, moduleBrands, statQuery, installer, restart, nexoItemIcons)
     @Volatile private var testSendOverride: ((String) -> Unit)? = null
 
     internal fun setSendForTesting(fn: (String) -> Unit) {
@@ -774,6 +778,8 @@ class SyncedMenuProvider(
             is EditorRequest.StatsQueryFetch -> queries.statsQuery(request)
             is EditorRequest.PapiPlaceholdersFetch -> queries.papiPlaceholders(request)
             is EditorRequest.PluginsFetch -> queries.plugins(request)
+            is EditorRequest.ImportsFetch -> importRequests.fetch(request)
+            is EditorRequest.ImportStart -> importRequests.start(request)
             is EditorRequest.ModuleInstall -> queries.moduleInstall(request)
             is EditorRequest.ServerRestart -> queries.serverRestart(request)
             is EditorRequest.HeadTextureFetch -> queries.headTexture(request)
@@ -787,6 +793,8 @@ class SyncedMenuProvider(
             is EditorRequest.ServerConfigWrite -> queries.serverConfigWrite(request)
             is EditorRequest.NexoGlyphsList -> queries.nexoGlyphs(request)
             is EditorRequest.NexoGlyphRead -> queries.nexoGlyph(request)
+            is EditorRequest.NexoItemIconsFetch -> queries.nexoItemIcons(request)
+            is EditorRequest.NexoItemModelsFetch -> queries.nexoItemModels(request)
 
             is EditorRequest.ProjectList -> projectReads.list(request)
             is EditorRequest.ProjectRead -> projectReads.read(request)

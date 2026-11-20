@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capturedPresentation, resolveDisplayRef } from "./capturedItems";
+import { capturedDisplay, capturedPresentation, resolveDisplayRef } from "./capturedItems";
 import type { CapturedItem, Project } from "./types";
 
 const CAPTURED: CapturedItem = {
@@ -90,10 +90,13 @@ describe("capturedPresentation", () => {
     display: {},
   };
 
-  it("reads the name and lore the captured stack carries", () => {
+  it("reads the name and lore the captured stack carries, styled as the game draws them", () => {
     expect(capturedPresentation(project([NAMED]), "item:ci_sword")).toEqual({
-      name: "Épée du VIP",
-      lore: ["Tranchante", "Rare"],
+      name: "<i>Épée du VIP</i>",
+      lore: [
+        "<dark_purple><i>Tranchante</i></dark_purple>",
+        "<dark_purple><i>Rare</i></dark_purple>",
+      ],
     });
   });
 
@@ -107,5 +110,25 @@ describe("capturedPresentation", () => {
     expect(capturedPresentation(p, "item:ghost")).toEqual({ lore: [] });
     expect(capturedPresentation(p, "{item.icon}")).toEqual({ lore: [] });
     expect(capturedPresentation(p, undefined)).toEqual({ lore: [] });
+  });
+});
+
+describe("capturedDisplay", () => {
+  it("gives the material a captured item shows, among the open projects", () => {
+    const projects = [project([]), project([CAPTURED])];
+    const shown = capturedDisplay(projects, "item:ci_key");
+    expect(shown).toBe("nexo:arcanist_key");
+  });
+
+  it("adds the head of a captured player head", () => {
+    const [material, head] = capturedDisplay([project([HEAD])], "item:ci_grade").split("\n");
+    expect(material).toBe(resolveDisplayRef(project([HEAD]), "item:ci_grade").material);
+    expect(head).toMatch(/^basehead:/);
+  });
+
+  it("leaves a plain material and a dangling ref as they are", () => {
+    const projects = [project([CAPTURED])];
+    expect(capturedDisplay(projects, "DIAMOND")).toBe("DIAMOND");
+    expect(capturedDisplay(projects, "item:ghost")).toBe("item:ghost");
   });
 });

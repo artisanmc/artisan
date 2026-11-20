@@ -20,6 +20,8 @@ import java.util.logging.Logger
  * alone, and named in the log: both copies are read ([YamlFiles]), the owner merges them.
  */
 object YmlMigration {
+    private const val STRAY_EDITOR_FILE = ".artisan/editor.yml"
+
     /** The renames done, old path to new; empty when the folder had nothing to move. */
     fun run(dir: File, logger: Logger? = null): Map<String, String> {
         val renames = linkedMapOf<String, String>()
@@ -28,6 +30,13 @@ object YmlMigration {
             val to = if (ModuleFile.isModuleFile(path)) ModuleFile.NAME else YamlFiles.canonical(path)
             if (to == path) continue
             if (File(dir, to).exists() || to in renames.values) twins += path else renames[path] = to
+        }
+        // Recovery: a draft publication once respelled the editor's `.artisan/editor.yaml` as
+        // `.artisan/editor.yml`, which the editor neither reads nor writes (its captured items'
+        // names were lost to it, and every Deploy conflicted on it). Back under its own name.
+        val strayEditor = File(dir, STRAY_EDITOR_FILE)
+        if (strayEditor.isFile && !File(dir, ProjectMetadataPaths.EDITOR_FILE).exists()) {
+            renames[STRAY_EDITOR_FILE] = ProjectMetadataPaths.EDITOR_FILE
         }
         if (twins.isNotEmpty()) {
             logger?.warning("[Artisan] ${dir.name}: ${twins.joinToString()} kept as is, a .yml copy is already there. Merge each into its copy, then delete it.")

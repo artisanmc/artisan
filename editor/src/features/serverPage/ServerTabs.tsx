@@ -18,6 +18,11 @@ export const SERVER_TABS = [
     permission: "artisan.editor.stats",
   },
   { to: "/servers/$serverId/updates", label: "serverDetail.tabs.updates" },
+  {
+    to: "/servers/$serverId/imports",
+    label: "serverDetail.tabs.imports",
+    permission: "artisan.editor.config",
+  },
   { to: "/servers/$serverId/settings", label: "serverDetail.tabs.settings" },
 ] as const satisfies readonly { to: string; label: string; permission?: string }[];
 

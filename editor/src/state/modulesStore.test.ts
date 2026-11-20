@@ -85,12 +85,12 @@ describe("useModulesStore.integrate", () => {
     expect(fetchActiveModulesUser).toHaveBeenCalledTimes(1);
   });
 
-  it("resets to idle and clears mountedIds when fetchActiveModulesUser rejects", async () => {
+  it("marks the load failed and clears mountedIds when fetchActiveModulesUser rejects", async () => {
     vi.mocked(fetchActiveModulesUser).mockRejectedValue(new Error("network"));
 
     await useModulesStore.getState().integrate({ serverId: "srv1" });
 
-    expect(useModulesStore.getState().status).toBe("idle");
+    expect(useModulesStore.getState().status).toBe("failed");
     expect(useModulesStore.getState().mountedIds).toEqual([]);
   });
 

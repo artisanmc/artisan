@@ -11,6 +11,8 @@ import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ProjectScreenForm } from "../screens/ProjectScreenView";
+import { SourceYamlView, dataSourceRelPath } from "../screens/SourceYamlView";
+import { useSourceYamlTrail } from "../screens/useSourceYamlTrail";
 import { DataSourceEditor } from "./DataSourceEditor";
 
 /**
@@ -41,6 +43,14 @@ export function DataSourceView({
     () => navigate(projectDestination(project ?? projectId, serverId)),
     [navigate, project, projectId, serverId],
   );
+  // Its file, editable as YAML from the topbar like a Document's.
+  const relPath =
+    project && source && (screen || editable) ? dataSourceRelPath(project, source) : null;
+  const yamlMode = useSourceYamlTrail({
+    label: project && source && (screen || editable) ? (screen?.label ?? source.name) : undefined,
+    relPath,
+    toProject: back,
+  });
 
   // Escape goes back to the board, like a Document's view — unless an input or an open
   // menu/dialog owns it.
@@ -70,7 +80,9 @@ export function DataSourceView({
         </button>
       </div>
       <main className="card flex min-h-0 flex-1 flex-col overflow-auto p-[var(--page-pad)]">
-        {project && screen ? (
+        {yamlMode && project && source && relPath ? (
+          <SourceYamlView key={relPath} project={project} source={source} relPath={relPath} />
+        ) : project && screen ? (
           <ProjectScreenForm project={project} screen={screen} />
         ) : project && source && editable ? (
           <DataSourceEditor projectId={project.id} source={source} onRemoved={back} />

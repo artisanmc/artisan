@@ -29,6 +29,10 @@ sealed interface EditorRequest {
 
     data class NexoGlyphsList(override val requestId: String) : WithReply
     data class NexoGlyphRead(override val requestId: String, val glyphId: String?) : WithReply
+    /** The icons of every Nexo item at once; [knownHash]: the set the asker already holds, not sent again. */
+    data class NexoItemIconsFetch(override val requestId: String, val knownHash: String?) : WithReply
+    /** The 3D models of the Nexo items that have one, with their textures; [knownHash] as for the icons. */
+    data class NexoItemModelsFetch(override val requestId: String, val knownHash: String?) : WithReply
     data class ServerConfigWrite(override val requestId: String, val changes: Map<String, Any?>) : WithReply
     data class OnlinePlayersFetch(override val requestId: String) : WithReply
     /** A figure a module computes on demand for its statistics tab (`StatsApi.declareQuery`). */
@@ -60,6 +64,22 @@ sealed interface EditorRequest {
     }
     /** Restarts the server after a countdown its players are told of (protocol 1.8, [ProtocolVersion.SERVER_RESTART]). */
     data class ServerRestart(override val requestId: String) : WithReply
+    /** The import sources of the modules, the files to name, the runs in progress and the last ones (protocol 1.9, [ProtocolVersion.IMPORTS]). */
+    data class ImportsFetch(override val requestId: String) : WithReply
+    /**
+     * Starts a run and answers before it ends (protocol 1.9): [action] `run` (of [source], with [file])
+     * or `rollback` (of [batch]); without [confirm], a dry run. [actor] is logged with it.
+     */
+    data class ImportStart(
+        override val requestId: String,
+        val action: String,
+        val source: String?,
+        val file: String?,
+        val batch: String?,
+        val confirm: Boolean,
+        val actor: String,
+        val lang: String,
+    ) : WithReply
     /** A module template's files (protocol 1.3, [ProtocolVersion.TEMPLATES]). */
     data class TemplateFetch(override val requestId: String, val moduleId: String, val templateId: String) : WithReply
     /** Copies a module template into a Project; [paths] null: all its files (protocol 1.3). */
@@ -158,6 +178,8 @@ sealed interface EditorRequest {
             return when (type) {
                 "nexo_glyphs_list" -> NexoGlyphsList(requestId)
                 "nexo_glyph_read" -> NexoGlyphRead(requestId, node.text("glyph_id"))
+                "nexo_item_icons_fetch" -> NexoItemIconsFetch(requestId, node.nullableText("known_hash"))
+                "nexo_item_models_fetch" -> NexoItemModelsFetch(requestId, node.nullableText("known_hash"))
                 "server_config_write" -> ServerConfigWrite(requestId, objectOrNull(node["changes"]) ?: emptyMap())
                 "online_players_fetch" -> OnlinePlayersFetch(requestId)
                 "stats_query_fetch" -> StatsQueryFetch(
@@ -170,6 +192,17 @@ sealed interface EditorRequest {
                 "editor_bundle_fetch" -> EditorBundleFetch(requestId, node.text("module_id") ?: return null)
                 "module_brand_fetch" -> ModuleBrandFetch(requestId, node.text("module_id") ?: return null)
                 "plugins_fetch" -> PluginsFetch(requestId)
+                "imports_fetch" -> ImportsFetch(requestId)
+                "import_start" -> ImportStart(
+                    requestId = requestId,
+                    action = node.text("action") ?: return null,
+                    source = node.nullableText("source"),
+                    file = node.nullableText("file"),
+                    batch = node.nullableText("batch"),
+                    confirm = node["confirm"]?.asBoolean(false) ?: false,
+                    actor = node.text("actor") ?: "editor",
+                    lang = node.text("lang") ?: "en",
+                )
                 "server_restart" -> ServerRestart(requestId)
                 "module_install" -> ModuleInstall(
                     requestId = requestId,

@@ -40,7 +40,9 @@ object ItemDescriptor {
         if (meta != null) {
             if (runCatching { meta.hasEnchants() }.getOrDefault(false)) out["enchanted"] = true
             runCatching {
-                ItemTexts.name(meta)?.let {
+                // The name a player reads: the custom name, else the item name a plugin gave it
+                // (Nexo's `itemname`); a server without the item name API keeps the first alone.
+                (ItemTexts.name(meta) ?: runCatching { if (meta.hasItemName()) meta.itemName() else null }.getOrNull())?.let {
                     out["name"] = PlainTextComponentSerializer.plainText().serialize(it)
                 }
             }

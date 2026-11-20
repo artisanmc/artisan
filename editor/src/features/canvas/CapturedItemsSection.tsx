@@ -145,8 +145,9 @@ function OwnCapturedItems({
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const addCapturedItem = useProjectsStore((s) => s.addCapturedItem);
   const removeCapturedItem = useProjectsStore((s) => s.removeCapturedItem);
-  const serverId = useServersStore((s) => s.activeServerId);
+  const activeServerId = useServersStore((s) => s.activeServerId);
   const runtime = useProjectRuntime(projectId);
+  const serverId = runtime?.serverId ?? activeServerId;
   const canCapture = runtime
     ? runtime.capabilities.captureInGame && runtime.connection.available
     : Boolean(serverId);
@@ -206,7 +207,14 @@ function OwnCapturedItems({
           ))}
         </div>
       ) : (
-        <p className="text-[11px] text-[var(--text-faint)]">{t("capturedItems.emptyHint")}</p>
+        <p className="text-[11px] text-[var(--text-faint)]">
+          {t(canCapture && !readOnly ? "capturedItems.emptyHint" : "capturedItems.empty")}
+        </p>
+      )}
+      {!readOnly && !canCapture && (
+        <p className="text-[11px] text-[var(--text-faint)]" data-testid="capture-offline">
+          {t("capturedItems.offlineHint")}
+        </p>
       )}
 
       {/* Inventory mirror */}

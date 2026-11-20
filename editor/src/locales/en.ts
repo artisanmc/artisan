@@ -3,12 +3,13 @@ import { aiEn } from "./ai";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
 import { editorSessionsEn } from "./editorSessions";
-import { siteModulesEn } from "./siteModules";
 import { mcpEn } from "./mcp";
 import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
 import { projectIdentityEn } from "./projectIdentity";
 import { selfHostedEn } from "./selfHosted";
+import { serverImportsEn } from "./serverImports";
+import { siteModulesEn } from "./siteModules";
 import { triggersEn } from "./triggers";
 import { variablesEn } from "./variables";
 export default {
@@ -1135,6 +1136,9 @@ export default {
     sectionTitle: "Captured items",
     emptyHint:
       "No captured item — load a player's inventory below and click an item to capture it.",
+    empty: "No captured item.",
+    offlineHint:
+      "Capture reads a connected player's inventory: it comes back when this module's server is online.",
     playerPlaceholder: "Player name",
     load: "Load inventory",
     loading: "Loading…",
@@ -1652,6 +1656,8 @@ export default {
     installedModules: "Installed modules",
     configuration: "Configuration",
     newModule: "+ New module",
+    updatesAvailable_one: "{{count}} update available",
+    updatesAvailable_other: "{{count}} updates available",
   },
   adminDesign: {
     specimens: {
@@ -1781,6 +1787,12 @@ export default {
     restoreHint:
       "Your draft takes this version's content, images included. You review the changes before anything is published.",
     hint: "Each version is what the server loaded: an editor deployment or a reload after a hand edit.",
+  },
+  sourceYaml: {
+    apply: "Apply",
+    applied: "Applied to the draft: Deploy sends it to the server.",
+    invalid: "This text is not valid YAML for this source: nothing was applied.",
+    hint: "Applying goes to the draft, like the form; Deploy writes the changed values into the file on the server: its comments stay, comments added here are not kept. The other languages' texts stay in lang/.",
   },
   yamlView: {
     tab: "YAML",
@@ -1932,6 +1944,7 @@ export default {
   mcp: mcpEn,
   editorSessions: editorSessionsEn,
   ai: aiEn,
+  serverImports: serverImportsEn,
   siteModules: siteModulesEn,
   editorAddress: {
     title: "Editor address",
@@ -2065,6 +2078,7 @@ export default {
       data: "Data sources",
       stats: "Statistics",
       updates: "Updates",
+      imports: "Imports",
       settings: "Settings",
     },
     stateOnline: "Online",

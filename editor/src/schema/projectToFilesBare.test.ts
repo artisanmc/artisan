@@ -253,6 +253,59 @@ describe("bare export (ADR bare-data-files T2)", () => {
   });
 });
 
+// A module's starter file writes an item's title as a map by language. Read as "no text", every
+// icon of the file lost its name the first time the editor saved it.
+describe("an item title written as a map by language", () => {
+  const rewards = () => ({
+    id: "rewards" as DataSourceId,
+    name: "Rewards",
+    shape: "config" as const,
+    fields: [{ name: "icon", type: { kind: "item" as const } }],
+    value: {
+      icon: { material: "BREAD", title: { en: "<white>8 bread", fr: "<white>8 pains" } },
+    } as Record<string, unknown>,
+  });
+
+  it("keeps every language when the source's model arrives after its values", () => {
+    const project = { ...baseProject(), dataSources: [rewards()] } as never as Parameters<
+      typeof adoptBareLTexts
+    >[0];
+    const source = project.dataSources[0]!;
+    adoptBareLTexts(project, source);
+    if (source.shape !== "config") throw new Error("expected config");
+    const key = "sources.rewards.icon.title";
+    expect((source.value.icon as Record<string, unknown>).title).toEqual({ key });
+    expect(project.i18nKeys[key as keyof typeof project.i18nKeys]).toEqual({
+      en: "<white>8 bread",
+      fr: "<white>8 pains",
+    });
+    const files = projectToFiles(project);
+    expect(parse(files[`${base}/data/rewards.yml`]!).icon.title).toBe("<white>8 pains");
+    expect(flattenLangTree(parse(files[`${base}/lang/en.yml`]!))[key]).toBe("<white>8 bread");
+  });
+
+  it("keeps every language when the file is read with its fields", () => {
+    const files = projectToFiles({ ...baseProject(), dataSources: [rewards()] } as never);
+    const path = `${base}/data/rewards.yml`;
+    files[path] = files[path]!.replace(
+      /title: .*/,
+      'title: { en: "<white>8 bread", fr: "<white>8 pains" }',
+    );
+    expect(files[path]).toContain("8 bread");
+    const read = projectFromFiles(PID, files, { name: "Bare Out" });
+    const source = read.dataSources.find((d) => d.id === ("rewards" as DataSourceId));
+    if (source?.shape !== "config") throw new Error("expected config");
+    const title = (source.value.icon as Record<string, unknown> | undefined)?.title as
+      | { key: string }
+      | undefined;
+    expect(source.fields.map((f) => f.name)).toEqual(["icon"]);
+    expect(read.i18nKeys[title?.key as keyof typeof read.i18nKeys]).toEqual({
+      en: "<white>8 bread",
+      fr: "<white>8 pains",
+    });
+  });
+});
+
 // A schemaless source (bare file with no model beside it — ADR bare-data-files
 // ③ "untyped = literal values, never an error") must round-trip verbatim.
 // Field-driven serialization used to drop every key, emptying the file to `{}`.

@@ -65,8 +65,9 @@ export interface EditorHost {
   mcWrap(source: string, width: number): string[];
   /**
    * The texture of an item, drawable in an `<img>` (SDK 1.20): the one the editor's item
-   * fields show for that `material` (`DIAMOND`, any case). A hook: undefined until the item
-   * catalogue is loaded, and for an item that has none (a custom item, a typo).
+   * fields show for that `material` (`DIAMOND`, any case), or for the captured item an
+   * `item:<id>` ref names. A hook: undefined until the item catalogue is loaded, and for an
+   * item that has none (a custom item without an icon, a typo).
    */
   useItemTexture(material: string): string | undefined;
   /**

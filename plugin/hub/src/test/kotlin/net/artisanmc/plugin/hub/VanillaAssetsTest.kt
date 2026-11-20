@@ -81,11 +81,44 @@ class VanillaAssetsTest {
         assertNull(assets.texture("icons/oak_log"))
     }
 
+    @Test fun `the atlas puts every catalogue item in its own square, in catalogue order`() {
+        File(cache, "1.21.4/textures/item").mkdirs()
+        png(16, 0xFF00FF00.toInt()).let { File(cache, "1.21.4/textures/item/emerald.png").writeBytes(it) }
+        File(cache, "1.21.4/.done").writeText("1.21.4")
+        File(cache, "icons/1.21.4").mkdirs()
+        png(256, 0xFFFF0000.toInt()).let { File(cache, "icons/1.21.4/oak_log.png").writeBytes(it) }
+        File(cache, "icons/1.21.4/.done").writeText("x")
+        val catalogue = """[{"id":"emerald","texture":"item/emerald"},{"id":"air","label":"Air"},{"id":"oak_log","texture":"icons/oak_log"}]"""
+        val assets = VanillaAssets(cache, "1.21.4", null, loader = jarWithIconHash("00", catalogue), manifestUrl = OFFLINE, iconsUrl = url("/vanilla"))
+
+        val atlas = javax.imageio.ImageIO.read(assets.atlas()!!.inputStream())
+        val cell = VanillaAssets.ATLAS_CELL
+        assertEquals(VanillaAssets.ATLAS_COLUMNS * cell, atlas.width)
+        assertEquals(cell, atlas.height)
+        assertEquals(0xFF00FF00.toInt(), atlas.getRGB(cell / 2, cell / 2))
+        assertEquals(0, atlas.getRGB(cell + cell / 2, cell / 2) ushr 24)
+        assertEquals(0xFFFF0000.toInt(), atlas.getRGB(2 * cell + cell / 2, cell / 2))
+    }
+
+    @Test fun `no atlas before the textures and icons are downloaded`() {
+        val assets = VanillaAssets(cache, "1.21.4", null, loader = jarWithIconHash("00"), manifestUrl = OFFLINE, iconsUrl = url("/vanilla"))
+        assertNull(assets.atlas())
+        File(cache, "1.21.4").mkdirs()
+        File(cache, "1.21.4/.done").writeText("1.21.4")
+        assertNull(assets.atlas())
+    }
+
+    private fun png(size: Int, argb: Int): ByteArray {
+        val image = java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        for (x in 0 until size) for (y in 0 until size) image.setRGB(x, y, argb)
+        return ByteArrayOutputStream().also { javax.imageio.ImageIO.write(image, "png", it) }.toByteArray()
+    }
+
     /** A jar holding the 1.21.4 catalogue and the checksum of its icons. */
-    private fun jarWithIconHash(hash: String): ClassLoader {
+    private fun jarWithIconHash(hash: String, catalogue: String = "[]"): ClassLoader {
         val root = Files.createTempDirectory("jar").toFile().also { jarRoots += it }
         File(root, "vanilla/items").apply { mkdirs() }.resolve("versions.txt").writeText("1.21.4")
-        File(root, "vanilla/items/1.21.4.json").writeText("[]")
+        File(root, "vanilla/items/1.21.4.json").writeText(catalogue)
         File(root, "vanilla/icons").apply { mkdirs() }.resolve("1.21.4.sha256").writeText(hash)
         return java.net.URLClassLoader(arrayOf(root.toURI().toURL()), null)
     }

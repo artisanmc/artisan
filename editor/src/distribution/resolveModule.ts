@@ -9,12 +9,13 @@ export type ModuleResolution =
 /** Resolve the host catch-all route to the active module's root component. */
 export function resolveModule(
   moduleId: string,
-  status: "idle" | "loading" | "ready",
+  status: "idle" | "loading" | "ready" | "failed",
 ): ModuleResolution {
   const mod = getModule(moduleId);
   const rootRoute = mod?.routes[0];
   if (mod && rootRoute) {
     return { kind: "component", component: rootRoute.component };
   }
-  return status === "ready" ? { kind: "missing" } : { kind: "loading" };
+  // A failed load will not bring it: missing, not loading for good.
+  return status === "ready" || status === "failed" ? { kind: "missing" } : { kind: "loading" };
 }

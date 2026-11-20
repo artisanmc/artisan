@@ -1,8 +1,8 @@
 import type { PapiPlaceholder } from "@/components/PlaceholderInput";
 import { loreWrapPoints } from "@/lib/loreWrap";
 import type { Segment, Style } from "@/lib/miniMessage";
-import { parseMiniMessageSource } from "@/lib/miniMessage";
-import { deleteVisible, diffText, splitLine } from "@/lib/mm/edit";
+import { parseMiniMessage, parseMiniMessageSource } from "@/lib/miniMessage";
+import { deleteVisible, diffText, sliceSource, splitLine } from "@/lib/mm/edit";
 import { type RichLayout, insertionPoint, richLayout } from "@/lib/mm/layout";
 import { type MmProfile, diagnose, lineCap, lineCount } from "@/lib/mm/profiles";
 import { markupTokens } from "@/lib/mm/tree";
@@ -275,6 +275,58 @@ function richKeymap(field: StateField<RichState>) {
   );
 }
 
+const escapeHtml = (text: string) =>
+  text.replace(/[&<>"]/g, (c) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[c]};`);
+
+/**
+ * What a copied MiniMessage looks like, for an app that pastes rich text (a document, a
+ * mail): each run in its colour and decorations. A lore is drawn line by line, as in game.
+ */
+export function clipboardHtml(source: string, perLine: boolean): string {
+  const lines = perLine ? source.split("\n") : [source];
+  const body = lines
+    .map((line) =>
+      parseMiniMessage(line)
+        .map((seg) => {
+          const text = escapeHtml(seg.text).replace(/\n/g, "<br>");
+          const css = styleCss({ ...seg.style, interactive: undefined });
+          return css ? `<span style="${escapeHtml(css)}">${text}</span>` : text;
+        })
+        .join(""),
+    )
+    .join("<br>");
+  return `<span style="white-space:pre-wrap">${body}</span>`;
+}
+
+/**
+ * Copy and cut in the rich view: the selection as MiniMessage (its tags, those opened
+ * before it included) in `text/plain`, so a paste anywhere — another field, the code
+ * view, the game's chat — keeps its colours; the same drawn in `text/html` for apps that
+ * paste rich text. A paste goes through the input filter: its tags are read as markup.
+ */
+function richClipboard(profile: MmProfile) {
+  const write = (view: EditorView, event: ClipboardEvent, cut: boolean) => {
+    const ranges = view.state.selection.ranges.filter((r) => !r.empty);
+    if (ranges.length !== 1 || !event.clipboardData) return false;
+    const { from, to } = ranges[0]!;
+    const perLine = perLineOf(profile);
+    const source = sliceSource(view.state.doc.toString(), from, to, perLine);
+    if (!source) return false;
+    event.preventDefault();
+    event.clipboardData.clearData();
+    event.clipboardData.setData("text/plain", source);
+    event.clipboardData.setData("text/html", clipboardHtml(source, perLine));
+    if (cut && !view.state.readOnly) {
+      view.dispatch({ changes: { from, to }, userEvent: "delete.cut", scrollIntoView: true });
+    }
+    return true;
+  };
+  return EditorView.domEventHandlers({
+    copy: (event, view) => write(view, event, false),
+    cut: (event, view) => write(view, event, true),
+  });
+}
+
 function codeField(profile: MmProfile) {
   const build = (state: EditorState): DecorationSet => {
     const src = state.doc.toString();
@@ -533,7 +585,7 @@ export function mmExtensions({
     );
   if (mode === "rich") {
     const field = richField(profile, expressions);
-    exts.push(field, richInputFilter(profile), richKeymap(field));
+    exts.push(field, richInputFilter(profile), richKeymap(field), richClipboard(profile));
   } else exts.push(codeField(profile));
   return exts;
 }

@@ -3,13 +3,14 @@ import { aiFr } from "./ai";
 import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
 import { editorSessionsFr } from "./editorSessions";
-import { siteModulesFr } from "./siteModules";
 import type en from "./en";
 import { mcpFr } from "./mcp";
 import { mmEditorFr, textToolFr } from "./mmEditor";
 import { onboardingFr } from "./onboarding";
 import { projectIdentityFr } from "./projectIdentity";
 import { selfHostedFr } from "./selfHosted";
+import { serverImportsFr } from "./serverImports";
+import { siteModulesFr } from "./siteModules";
 import { triggersFr } from "./triggers";
 import { variablesFr } from "./variables";
 
@@ -1157,6 +1158,9 @@ const fr: typeof en = {
     sectionTitle: "Items capturés",
     emptyHint:
       "Aucun item capturé — charge l'inventaire d'un joueur ci-dessous et clique un item pour le capturer.",
+    empty: "Aucun item capturé.",
+    offlineHint:
+      "La capture lit l'inventaire d'un joueur connecté : elle revient quand le serveur de ce module est en ligne.",
     playerPlaceholder: "Pseudo du joueur",
     load: "Charger l'inventaire",
     loading: "Chargement…",
@@ -1683,6 +1687,8 @@ const fr: typeof en = {
     installedModules: "Modules installés",
     configuration: "Configuration",
     newModule: "+ Nouveau module",
+    updatesAvailable_one: "{{count}} mise à jour disponible",
+    updatesAvailable_other: "{{count}} mises à jour disponibles",
   },
   adminDesign: {
     specimens: {
@@ -1813,6 +1819,12 @@ const fr: typeof en = {
     restoreHint:
       "Ton brouillon reprend le contenu de cette version, images comprises. Tu revois les changements avant toute publication.",
     hint: "Chaque version est ce que le serveur a chargé : un déploiement depuis l'éditeur ou un rechargement après une modification à la main.",
+  },
+  sourceYaml: {
+    apply: "Appliquer",
+    applied: "Appliqué au brouillon : Déployer l'envoie au serveur.",
+    invalid: "Ce texte n'est pas un YAML valide pour cette source : rien n'a été appliqué.",
+    hint: "Appliquer passe par le brouillon, comme le formulaire ; Déployer écrit les valeurs modifiées dans le fichier du serveur : ses commentaires restent, ceux ajoutés ici ne sont pas conservés. Les textes des autres langues restent dans lang/.",
   },
   yamlView: {
     tab: "YAML",
@@ -1969,6 +1981,7 @@ const fr: typeof en = {
   mcp: mcpFr,
   editorSessions: editorSessionsFr,
   ai: aiFr,
+  serverImports: serverImportsFr,
   siteModules: siteModulesFr,
   editorAddress: {
     title: "Adresse de l'éditeur",
@@ -2104,6 +2117,7 @@ const fr: typeof en = {
       data: "Sources de données",
       stats: "Statistiques",
       updates: "Mises à jour",
+      imports: "Imports",
       settings: "Réglages",
     },
     stateOnline: "En ligne",

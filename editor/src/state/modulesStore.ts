@@ -28,7 +28,8 @@ interface ModulesState {
   origins: Record<string, ModuleOrigin>;
   /** Bundles the editor refused, by module id: the view shown is the built-in copy, or none. */
   refused: Record<string, BundleRefusal>;
-  status: "idle" | "loading" | "ready";
+  /** `failed`: presence could not be read; the next `integrate` tries again. */
+  status: "idle" | "loading" | "ready" | "failed";
   /** Key of the source last (or currently) integrated; null once cleared by an error. */
   loadedKey: string | null;
   /** Fetch presence for the source, then load + register the active externals' views. */
@@ -108,7 +109,7 @@ export const useModulesStore = create<ModulesState>((set, get) => ({
     } catch {
       if (get().loadedKey !== key) return;
       // Clear loadedKey so a later call with the same source can retry.
-      set({ status: "idle", loadedKey: null });
+      set({ status: "failed", loadedKey: null });
     }
   },
 }));

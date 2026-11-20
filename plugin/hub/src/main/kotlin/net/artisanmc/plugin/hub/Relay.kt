@@ -51,16 +51,16 @@ class Relay(private val logger: Logger?) {
  */
 object ErrorStatus {
     fun of(code: String): Int = when (code) {
-        "not_found", "unknown_project", "draft_not_found", "head_not_found", "player_not_found", "unknown_source", "unknown_version" -> 404
+        "not_found", "unknown_project", "draft_not_found", "head_not_found", "player_not_found", "unknown_source", "unknown_version", "unknown_batch" -> 404
         "unauthorized" -> 401
         "forbidden", "cross_origin", "owner_revoked" -> 403
         "too_large" -> 413
         "invalid_input", "invalid_path", "invalid_name", "invalid_draft", "invalid_blob", "invalid_action", "invalid_owner",
-        "invalid_operation", "invalid_body", "invalid_config", "invalid_zip", "invalid_documents", "missing_blob", "player_required", "unknown_path" -> 422
+        "invalid_operation", "invalid_body", "invalid_config", "invalid_zip", "invalid_documents", "missing_blob", "player_required", "unknown_path", "file_required", "bad_file" -> 422
         "conflict", "draft_conflict", "draft_exists", "draft_closed", "project_exists", "destination_exists", "addon_immutable",
-        "operation_mismatch", "operation_conflict", "operation_expired", "too_soon", "restart_in_progress" -> 409
+        "operation_mismatch", "operation_conflict", "operation_expired", "too_soon", "restart_in_progress", "busy", "conflict_running" -> 409
         "plugin_update_required", "write_error", "storage_error", "server_offline", "database_unavailable", "hdb_unavailable",
-        "draft_migration_pending", "rename_in_progress", "rename_pending", "inventory_unavailable" -> 503
+        "draft_migration_pending", "rename_in_progress", "rename_pending", "inventory_unavailable", "imports_unavailable" -> 503
         "fetch_timeout" -> 504
         "internal_error" -> 500
         else -> 502

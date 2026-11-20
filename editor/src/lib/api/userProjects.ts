@@ -1,5 +1,6 @@
 import type { CustomItemsData, LibraryData } from "@/domain/library";
-import { apiFetch } from "./client";
+import type { GivenModel } from "@/lib/mcModelRenderer";
+import { apiFetch, apiRequest } from "./client";
 
 export interface UserProjectLoadResult {
   project: {
@@ -57,5 +58,42 @@ export async function fetchUserCustomItems(projectId: string): Promise<CustomIte
     return await apiFetch<CustomItemsData>(`${base(projectId)}/custom-items`);
   } catch {
     return { serverKeyId: "", items: [] };
+  }
+}
+
+/**
+ * The icons of the server's Nexo items, by item id (no `nexo:`), as base64 PNGs: one answer the
+ * browser revalidates by ETag, so a set it already holds is not sent again. Empty when there are
+ * none (Nexo absent, an older plugin) or the server is unreachable.
+ */
+export async function fetchNexoItemIcons(projectId: string): Promise<Record<string, string>> {
+  try {
+    const response = await apiRequest(`${base(projectId)}/nexo-item-icons`);
+    if (!response.ok) return {};
+    return ((await response.json()) as { icons?: Record<string, string> }).icons ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/** The 3D models of the server's Nexo items: an item's model key, each model and each texture (base64 PNG) once. */
+export interface NexoItemModels {
+  items: Record<string, string>;
+  models: Record<string, GivenModel>;
+  textures: Record<string, string>;
+}
+
+/**
+ * The Nexo items drawn in 3D, for the editor to render (`renderGivenModels`); revalidated by ETag
+ * like the icons. Empty when there are none, on an older plugin or an unreachable server.
+ */
+export async function fetchNexoItemModels(projectId: string): Promise<NexoItemModels> {
+  const none: NexoItemModels = { items: {}, models: {}, textures: {} };
+  try {
+    const response = await apiRequest(`${base(projectId)}/nexo-item-models`);
+    if (!response.ok) return none;
+    return { ...none, ...((await response.json()) as Partial<NexoItemModels>) };
+  } catch {
+    return none;
   }
 }

@@ -1,0 +1,1 @@
+- **Fixed**: The editor's preview of a captured item drew its name and lore without their colours and styles. They are now drawn as in game: the colour and the bold, italic, underlined, strikethrough or obfuscated style of each part of the text, the game's own defaults where the item says nothing (an italic custom name, a purple italic lore), and the empty lines of the lore.

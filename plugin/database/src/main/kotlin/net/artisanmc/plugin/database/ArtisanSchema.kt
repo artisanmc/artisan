@@ -253,11 +253,28 @@ object ArtisanSchema {
         Migration(44, "CREATE INDEX ${t.statsEventsTimeIndex} ON ${t.statsEvents} (server_id, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsTimeIndex) },
         Migration(45, "CREATE INDEX ${t.statsEventsEventIndex} ON ${t.statsEvents} (server_id, event, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsEventIndex) },
         Migration(46, "CREATE INDEX ${t.statsEventsPlayerIndex} ON ${t.statsEvents} (player_uuid, occurred_at)") { hasIndex(it, t.statsEvents, t.statsEventsPlayerIndex) },
+        // One row per run of `/artisan import` (ADR `data-imports` §7, `ImportRunRows`): `run_action` plan, apply or rollback,
+        // `applied` 1 when something was written, `target` the batch a rollback undid, `report` the report as JSON.
+        Migration(
+            47,
+            """CREATE TABLE IF NOT EXISTS ${t.importRuns} (
+                batch VARCHAR(32) NOT NULL PRIMARY KEY,
+                source VARCHAR(96) NOT NULL,
+                module VARCHAR(32) NOT NULL,
+                run_action VARCHAR(16) NOT NULL,
+                applied INT NOT NULL,
+                actor VARCHAR(64) NOT NULL,
+                run_at BIGINT NOT NULL,
+                target VARCHAR(32),
+                report LONGTEXT NOT NULL
+            )""",
+        ),
+        Migration(48, "CREATE INDEX ${t.importRunsTimeIndex} ON ${t.importRuns} (run_at)") { hasIndex(it, t.importRuns, t.importRunsTimeIndex) },
         // Player metrics (`MetricRows`, ADR `stats-export`): each player's latest value of each declared
         // metric, network-wide; `updated_at` (epoch milliseconds) moves only when the value changes,
         // which is what the export reads. `core:forgotten` rows mark the players `/artisan stats forget` erased.
         Migration(
-            47,
+            49,
             """CREATE TABLE IF NOT EXISTS ${t.metricValues} (
                 metric VARCHAR(64) NOT NULL,
                 player_uuid VARCHAR(36) NOT NULL,
@@ -266,15 +283,15 @@ object ArtisanSchema {
                 PRIMARY KEY (metric, player_uuid)
             )""",
         ),
-        Migration(48, "CREATE INDEX ${t.metricValuesTimeIndex} ON ${t.metricValues} (updated_at)") { hasIndex(it, t.metricValues, t.metricValuesTimeIndex) },
-        Migration(49, "CREATE INDEX ${t.metricValuesPlayerIndex} ON ${t.metricValues} (player_uuid)") { hasIndex(it, t.metricValues, t.metricValuesPlayerIndex) },
+        Migration(50, "CREATE INDEX ${t.metricValuesTimeIndex} ON ${t.metricValues} (updated_at)") { hasIndex(it, t.metricValues, t.metricValuesTimeIndex) },
+        Migration(51, "CREATE INDEX ${t.metricValuesPlayerIndex} ON ${t.metricValues} (player_uuid)") { hasIndex(it, t.metricValues, t.metricValuesPlayerIndex) },
         // The export reads the players seen since its cursor (names, play time).
-        Migration(50, "CREATE INDEX ${t.playersSeenIndex} ON ${t.players} (last_seen)") { hasIndex(it, t.players, t.playersSeenIndex) },
+        Migration(52, "CREATE INDEX ${t.playersSeenIndex} ON ${t.players} (last_seen)") { hasIndex(it, t.players, t.playersSeenIndex) },
         // Each player's play time on each server (`server_id` = the row in `artisan_servers`), beside
         // the network total of `artisan_players`; only that server writes its rows. Counted from the
         // version that added it: the time played before stays in the network total only.
         Migration(
-            51,
+            53,
             """CREATE TABLE IF NOT EXISTS ${t.serverPlaytime} (
                 server_id INT NOT NULL,
                 player_uuid VARCHAR(36) NOT NULL,
@@ -283,7 +300,7 @@ object ArtisanSchema {
                 PRIMARY KEY (server_id, player_uuid)
             )""",
         ),
-        Migration(52, "CREATE INDEX ${t.serverPlaytimeSeenIndex} ON ${t.serverPlaytime} (last_seen)") { hasIndex(it, t.serverPlaytime, t.serverPlaytimeSeenIndex) },
+        Migration(54, "CREATE INDEX ${t.serverPlaytimeSeenIndex} ON ${t.serverPlaytime} (last_seen)") { hasIndex(it, t.serverPlaytime, t.serverPlaytimeSeenIndex) },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

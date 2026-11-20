@@ -282,7 +282,8 @@ The risk remains: hub and leaves are distinct jars, updated at different times.
   `hello_ack` of an older leaf. `1.6` (`MODULE_BRANDS`) adds `brand` to `installed_modules` and
   `module_brand_fetch`. `1.7` (`MODULE_INSTALL`) adds `plugins_fetch` and `module_install` (ADR
   `site-account-and-module-updates`); an older leaf gets 501 on the two updates routes. `1.8` (`SERVER_RESTART`) adds `server_restart`;
-  an older leaf gets 501 on the restart route and `canRestart: false`.
+  an older leaf gets 501 on the restart route and `canRestart: false`. `1.9` (`IMPORTS`) adds
+  `imports_fetch` and `import_start` (ADR `data-imports`); an older leaf gets 501 on the imports routes.
 - **One release = one number** for all jars; update hub and leaves together.
 
 The server that hosts the hub talks to it in process (`LocalServerLink`): never a version gap.

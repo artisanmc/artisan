@@ -8,6 +8,7 @@ import {
   setClick,
   setColor,
   setGradient,
+  sliceSource,
   splitLine,
   toggleDecoration,
 } from "./edit";
@@ -299,6 +300,68 @@ describe("every operation keeps the displayed text", () => {
         const del = deleteVisible(src, f, t);
         expect(serialize(parseTree(del.text))).toBe(del.text);
       }
+    }
+  });
+});
+
+describe("sliceSource", () => {
+  const between = (src: string, a: string, perLine = false) => {
+    const from = src.indexOf(a);
+    return sliceSource(src, from, from + a.length, perLine);
+  };
+
+  it("keeps the tags opened before the selection, each closed", () => {
+    expect(sliceSource("<gold><b>3 clés Events</b></gold>", 0, 33)).toBe(
+      "<gold><b>3 clés Events</b></gold>",
+    );
+    expect(between("<gold><b>3 clés Events</b></gold>", "clés")).toBe("<gold><b>clés</b></gold>");
+    const src = "<red>warn <bold>danger</bold> sortie</red>";
+    expect(sliceSource(src, src.indexOf("n <"), src.indexOf("ger"))).toBe(
+      "<red>n <bold>dan</bold></red>",
+    );
+  });
+
+  it("closes what the source left open, after a reset too", () => {
+    const src = "<b>unclosed <i>both";
+    expect(sliceSource(src, src.indexOf("closed"), src.indexOf("oth"))).toBe(
+      "<b>closed <i>b</i></b>",
+    );
+    expect(between("<gold><bold>x</bold><reset>plain", "pla")).toBe("pla");
+  });
+
+  it("copies plain text as it is, escapes kept", () => {
+    expect(between("plain text", "ain t")).toBe("ain t");
+    expect(between("a \\< b", "\\< b")).toBe("\\< b");
+  });
+
+  it("keeps a placeholder and a computed text whole, their tags not the text's", () => {
+    const src = 'Statut : {m.online ? "<green>En ligne" : "<gray>Hors"} <red>ok</red>';
+    expect(sliceSource(src, 0, src.length)).toBe(src);
+    expect(between(src, 'Statut : {m.online ? "<green>En ligne" : "<gray>Hors"} <red>o')).toBe(
+      'Statut : {m.online ? "<green>En ligne" : "<gray>Hors"} <red>o</red>',
+    );
+    expect(between("<aqua>Salut {player.name} !</aqua>", "{player.name} !")).toBe(
+      "<aqua>{player.name} !</aqua>",
+    );
+  });
+
+  it("cuts a lore line by line", () => {
+    const lore = "<gray>first line</gray>\n<gold>second</gold>";
+    expect(sliceSource(lore, lore.indexOf("line"), lore.indexOf("sec") + 3, true)).toBe(
+      "<gray>line</gray>\n<gold>sec</gold>",
+    );
+  });
+
+  it("shows the same text as the selection, for every text of the corpus", () => {
+    for (const src of CORPUS) {
+      const units = richLayout(src).units;
+      if (units.length < 2) continue;
+      const from = units[1]!.from;
+      const to = units[units.length - 1]!.from;
+      if (to <= from) continue;
+      const out = sliceSource(src, from, to);
+      expect(richLayout(out).units.length, src).toBe(units.length - 2);
+      expect(plainTextFromMiniMessage(src).includes(plainTextFromMiniMessage(out)), src).toBe(true);
     }
   });
 });
