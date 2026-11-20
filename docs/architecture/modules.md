@@ -211,6 +211,15 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `useOpenDocument()` returns a function that opens a Document's page (`{projectId, kind, id}`). A
 > 1.15 bundle still loads.
 
+> **What a change does in the game (API 1.9.0, `@Beta`)** — a kind whose Documents carry player
+> state (a quest's progress) declares `withChangeCheck(change -> ...)`, a `DocumentChangeCheck`. For
+> each file of the kind a deployment writes or deletes, it receives the file as the server loaded
+> it and as it would be, and returns findings: `PROBLEM` (the module would not load it: the
+> deployment is refused, like a YAML error), `LOSS` (players lose something: the author ticks a
+> confirmation in the Deploy review) or `NOTICE`. The message is one sentence in `change.lang()`,
+> with the number of players when the module can count them (the call is off the main thread and
+> may read the database). The module still applies the change as before: this only says it ahead.
+
 > **Pack images on the server (since 2026-10-31, `@Beta`)** — the hub builds the pack
 > without the editor (`PackBuilder`), so it cannot run a kind's `pack.images`. Its Java twin goes on the
 > kind declaration: `new DocumentKindDeclaration(...).withPackImages((doc, ctx) -> ...)`, a

@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.model
 
+import net.artisanmc.modules.api.document.DocumentChangeCheck
 import net.artisanmc.modules.api.document.DocumentKindDeclaration
 import net.artisanmc.modules.api.document.DocumentKindRegistry
 import net.artisanmc.modules.api.document.PackImagesProvider
@@ -80,6 +81,10 @@ object DocumentKinds {
     /** The registered kinds whose files ask the pack for images, by folder, in registration order. */
     fun packImages(): Map<String, PackImagesProvider> =
         registry.declarations().mapNotNull { d -> d.packImages?.let { d.dir to it } }.toMap()
+
+    /** The registered kinds whose module says what a changed file does ([DocumentChangeCheck]), by folder. */
+    fun changeChecks(): Map<String, DocumentChangeCheck> =
+        registry.declarations().mapNotNull { d -> d.changeCheck?.let { d.dir to it } }.toMap()
 
     /** Test-only: back to a private registry holding the core kinds. */
     fun reset() {

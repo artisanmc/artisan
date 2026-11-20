@@ -1948,6 +1948,17 @@ const fr: typeof en = {
         "Le serveur n’a pas pu vérifier les fichiers ({{code}}) : il les vérifiera au déploiement.",
       blocked: "Corrigez d’abord les problèmes trouvés par le serveur.",
     },
+    impacts: {
+      title: "En jeu",
+      body: "Ce que ces changements font aux joueurs déjà en jeu, d’après chaque module.",
+      loss: "Perte",
+      notice: "À noter",
+      unassessed:
+        "Le module n’a pas pu dire ce que ce fichier change pour les joueurs ({{detail}}).",
+      confirm_one: "J’ai lu : les joueurs perdent ce qui est indiqué ci-dessus.",
+      confirm_other: "J’ai lu : les joueurs perdent ce qui est indiqué ci-dessus.",
+      blocked: "Confirmez d’abord ce que les joueurs perdent.",
+    },
     checks: {
       title: "Contrôles entre modules",
       none: "Aucun conflit avec les autres modules.",

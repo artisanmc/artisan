@@ -107,6 +107,19 @@ A HUD is laid out as data instead of code: a module keeps an `OverlayLayout` in 
 | `DocumentKindDeclaration.withPackImages(provider)` `@Beta` | `DocumentKindDeclaration` | 1.0.0 |
 | `DocumentKindDeclaration.getPackImages()` `@Beta` | `PackImagesProvider` (nullable) | 1.0.0 |
 
+## 1.9.0 — what a changed Document does once deployed
+
+The module that owns a kind says, for each file of that kind a deployment writes or deletes, whether it would load it and what the change does to the players already in the game. Artisan calls it in `documents_check` (the editor's Deploy review) and before `project_write` writes, off the main thread, with no game access; the check may read the module's database. A `PROBLEM` refuses the deployment (stage `module` of `DocumentCheck`), a `LOSS` or a `NOTICE` is listed in the review above the diff, and a `LOSS` is confirmed by the author before Deploy. A check that throws refuses nothing (the review says the file could not be assessed). A file refused by an earlier stage is not shown to the module.
+
+| Member | Type | Since |
+|---|---|---|
+| `api.document.DocumentChangeCheck` `@Beta` (`check(change)` → `List<Finding>`, null or empty: nothing to say) | interface | 1.9.0 |
+| `DocumentChangeCheck.Change(project, id, before, after, others, lang)`: the file's YAML mapping as the server loaded it (`before`, null for a new file) and once deployed (`after`, null for a deleted one), each with `id` set; `others`: the other Documents of the kind in the Project once deployed, by id; `lang`: the author's language | record | 1.9.0 |
+| `DocumentChangeCheck.Finding(level, message)`, `Finding.problem(message)`, `loss(message)`, `notice(message)` | record | 1.9.0 |
+| `DocumentChangeCheck.Level` (`PROBLEM`, `LOSS`, `NOTICE`) | enum | 1.9.0 |
+| `DocumentKindDeclaration.withChangeCheck(check)` `@Beta` | `DocumentKindDeclaration` | 1.9.0 |
+| `DocumentKindDeclaration.getChangeCheck()` `@Beta` | `DocumentChangeCheck` (nullable) | 1.9.0 |
+
 The Java twin of an editor kind's `pack.images` (SDK 1.13): the server calls it on each file of the kind at load and records the images with its loaded state, so the hub builds the resource pack, module images included, without an editor tab. It must answer like the editor kind, in the same order. Detail: `modules.md`, "Pack images on the server".
 
 ## Stable APIs

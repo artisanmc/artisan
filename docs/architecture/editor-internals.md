@@ -169,7 +169,11 @@ Opening the review also asks the server whether the changed files would load
 review's `documents` is `pending`, then `ready` with its problems or `unavailable` (never read
 as a green light). `DeployReviewDialog` lists each problem on its file in the `ChangeList`
 (`problems` prop: a count on the header, the lines above the diff, the file opened) and
-disables Deploy while there are any. A reply is kept only for the review it was asked for.
+disables Deploy while there are any. The same reply carries `impacts`: what the module of each
+file's kind says the change does to the players already in the game (`DocumentChangeCheck`).
+The review lists them in an "In the game" card above the diff, losses first; with a `loss`,
+Deploy stays disabled until the author ticks the confirmation, asked again when the losses
+change (another draft picked). A reply is kept only for the review it was asked for.
 
 **Several Projects in one Deploy.** The review also lists the player's other drafts with
 changes (`otherDrafts.ts`: `listServers` → `listServerProjects` of each online server →

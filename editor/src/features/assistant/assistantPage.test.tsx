@@ -31,7 +31,7 @@ vi.mock("@/lib/api/projectDrafts", async (importOriginal) => ({
 vi.mock("@/features/project/publish/otherDrafts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/project/publish/otherDrafts")>()),
   loadOtherDrafts: api.loadOtherDrafts,
-  checkOtherDraft: () => Promise.resolve([]),
+  checkOtherDraft: () => Promise.resolve({ problems: [], impacts: [] }),
 }));
 vi.mock("@/features/project/useServerProjects", () => ({
   useServerProjects: () => ({

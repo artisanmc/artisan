@@ -115,6 +115,8 @@ sealed interface EditorRequest {
         val projectId: String,
         val files: Map<String, String>,
         val deletes: List<String>,
+        /** The author's language, for what the modules say of the change. */
+        val lang: String = "en",
     ) : WithReply
 
     data class ProjectWrite(
@@ -161,6 +163,7 @@ sealed interface EditorRequest {
 
     companion object {
         private val mapper = ObjectMapper()
+        private val LANG = Regex("[a-z]{2}")
 
         fun parse(node: JsonNode): EditorRequest? {
             val type = node["type"]?.asText() ?: return null
@@ -247,6 +250,7 @@ sealed interface EditorRequest {
                         (f.text("path") ?: return null) to (f.text("content") ?: return null)
                     },
                     deletes = node.array("deletes").mapNotNull { it.takeIf { d -> d.isTextual }?.asText() },
+                    lang = node.text("lang")?.takeIf { LANG.matches(it) } ?: "en",
                 )
                 "config_read" -> ConfigRead(requestId, node.text("project_id") ?: return null, node.text("table") ?: return null)
                 "project_write" -> projectWrite(requestId, node.text("project_id") ?: return null, node)

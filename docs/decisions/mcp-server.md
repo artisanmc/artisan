@@ -34,7 +34,7 @@ deployed.
 3. **Each file is checked by the Project's server before it enters the draft.** New message
    `documents_check` (protocol 1.4, `DocumentCheck`, `core` module): path (a Document's place), YAML,
    **JSON schema** of the `schema:` (`docs/schema`, embedded in the jar, `$id`s resolved from the
-   classpath, never downloaded), then the server's `ProjectReader` on a temporary copy. The schema
+   classpath, never downloaded), then the server's `ProjectReader` on a temporary copy, then (API 1.9.0) the module that owns the file's kind (`DocumentChangeCheck`). The schema
    catches what the reader silently tolerates (`tittle:`). The check runs on the Project's server,
    not the hub: its Document types (modules included) and its version. The whole draft is checked as
    a Project (a command written before a menu that opens it). Failure → the tool returns `isError`
