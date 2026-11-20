@@ -362,6 +362,22 @@ A module can serve its view from its jar instead of the copy compiled into the e
 - **Late-arriving kind** — `adoptLateDocuments` (`schema/projectFromFiles.ts`, store action `adoptLateDocuments`) reads the `<dir>/<id>.yaml` files left in `moduleData[<dir>].__files` when a kind is registered after the Project was read; `__root.tsx` calls it on every open Project when `modulesStore` goes to `ready`, and `useProjectLoader` when a Project is installed (the kind may have arrived during its construction, after its files were read: typical case of a Project reopened from cache).
 - **Building** — `@artisan/editor-sdk/bundle` (`artisanModuleBundle`) gives the Vite config of a bundle. A module outside the repo takes the SDK via `npm pack` of `packages/editor-sdk`; example: the quests view, in the MSQuests repo (`editor/`), not in the editor.
 
+### Short server ids in the URL (2026-11-20)
+
+The address bar names a server by the shortest prefix of its UUID that is at least 8
+characters long and unique among the hub's servers (`/servers/22206191/…`), like
+Pterodactyl. Only the URL changes: the router's `rewrite` (`lib/shortServerIds.ts`,
+installed in `main.tsx`) turns the prefix back into the full id before matching and
+shortens it on the way out, so route params, stores and API calls keep the full id.
+The known ids are those `listServers` returned. A prefix opened before that list
+(fresh tab, shared link) is resolved by the `beforeLoad` of `/servers/$serverId`
+(`redirectToFullServerId`), which reads the list and redirects to the same place under
+the full id; an unknown or ambiguous prefix falls through to the page's "no such
+server" path. A full id in the URL (old bookmark) still opens and is shortened in place
+once the list is known. A prefix stays valid while no newer server shares it. The
+router also leaves `:` unencoded in path params (`pathParamsAllowedCharacters`):
+`screen/daily:rewards`, and the old `daily%3Arewards` still opens.
+
 ### Project URLs and identity (2026-09-14)
 
 `projectUrlId` chooses exactly `externalId ?? diskId ?? id`;
