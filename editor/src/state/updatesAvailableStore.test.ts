@@ -59,6 +59,12 @@ describe("updates available", () => {
     expect(api.listSiteModules).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps nothing across loads: each load of the editor asks again", async () => {
+    api.listSiteModules.mockResolvedValue(listing([module()]));
+    await checkUpdates("srv");
+    expect(localStorage.length).toBe(0);
+  });
+
   it("reads a module on the channel it follows", async () => {
     api.listSiteModules.mockImplementation(async (_: string, channel: string) =>
       channel === "dev"
