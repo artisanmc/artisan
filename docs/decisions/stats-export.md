@@ -88,9 +88,9 @@ few minutes.
 
 ## Consequences
 
-- API 1.6.0 adds `PlayerMetric`, `MetricUnit`, `StatsApi.declareMetric` and `setMetric` (default
+- API 1.8.0 adds `PlayerMetric`, `MetricUnit`, `StatsApi.declareMetric` and `setMetric` (default
   methods: a fake `StatsApi` keeps compiling). An add-on that calls them sets `MIN_API_VERSION` to
-  1.6.0.
+  1.8.0.
 - The website side lives outside this repository: Azuriom's plugin stores
   `metrics`, `players` and `values` in three tables and computes ranks with `ORDER BY … LIMIT`
   and `COUNT(*)` on an index `(metric, value)`.

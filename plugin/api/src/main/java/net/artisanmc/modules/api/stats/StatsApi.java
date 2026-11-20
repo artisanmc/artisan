@@ -75,7 +75,7 @@ public interface StatsApi {
      *
      * @throws IllegalArgumentException its namespace is Artisan's ({@code core}, {@code custom}),
      *     or it is already declared with another shape
-     * @since 1.6.0
+     * @since 1.8.0
      */
     default void declareMetric(PlayerMetric metric) {
     }
@@ -87,7 +87,7 @@ public interface StatsApi {
      * every few minutes for the online players, costs the same. An undeclared metric is dropped
      * with one warning.
      *
-     * @since 1.6.0
+     * @since 1.8.0
      */
     default void setMetric(String metric, UUID player, long value) {
     }

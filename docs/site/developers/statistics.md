@@ -32,7 +32,7 @@ stats.record("quests:completed", player.getUniqueId(),
 ## Player metrics
 
 A ranking or a profile needs what a player **has**, not what happened: a streak, a balance, a
-best time. Declare a **player metric** once (API 1.6.0), then set the player's whole value
+best time. Declare a **player metric** once (API 1.8.0), then set the player's whole value
 whenever it changes. Artisan pushes the changes to the admin's website when they configured it
 (see [Rankings and profiles](../../configuration/statistics/#rankings-and-profiles-on-your-website)).
 
