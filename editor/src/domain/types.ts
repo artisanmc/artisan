@@ -625,6 +625,11 @@ export interface CapturedItem {
     /** The stack's own display name (item_name/custom_name), plain text. */
     name?: string;
   };
+  /**
+   * Read from an `.artisan/editor.yaml` entry: written back as is. Without it, an entry is only
+   * written when it says more than the stack file (`capturedItemNeedsDescriptor`).
+   */
+  describedOnDisk?: boolean;
 }
 
 export interface Asset {

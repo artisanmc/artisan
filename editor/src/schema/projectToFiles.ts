@@ -3,6 +3,7 @@
 // representation; the editor parses it on open and serializes it back on every
 // save). Each Document kind is written by its codec (`documentCodecs.ts`), data
 // sources by `dataV1FromDomain.ts`, translations by `langV1FromDomain.ts`.
+import { capturedItemNeedsDescriptor, withDescriptor } from "@/domain/capturedItems";
 import { listDocumentKinds } from "@/domain/documentKinds";
 import { VARIANTS_DIR, VARIANTS_FILE, documentPath, sameFile } from "@/domain/documentLayout";
 import { documentKeys, documentsOf } from "@/domain/documents";
@@ -118,8 +119,18 @@ export function projectToFiles(shown: Project): Record<string, string> {
   // Captured items: the opaque serialized stack is the runtime truth — emit it
   // VERBATIM (never parse/re-stringify), one file per item. The plugin
   // deserializes these to resolve `item:<id>` material refs with exact NBT.
+  // A descriptor the stack does not express goes beside it, as a root `display:`
+  // block the plugin ignores; an entry read from `.artisan/editor.yaml` stays there.
+  const describedInEditorState: typeof project.capturedItems = [];
   for (const item of project.capturedItems ?? []) {
-    files[`${base}/items/${item.id}.yml`] = item.stackYaml;
+    let content = item.stackYaml;
+    if (item.describedOnDisk) describedInEditorState.push(item);
+    else if (capturedItemNeedsDescriptor(item)) {
+      const described = withDescriptor(item);
+      if (described) content = described;
+      else describedInEditorState.push(item);
+    }
+    files[`${base}/items/${item.id}.yml`] = content;
   }
 
   const claimedModelIds = emitDataSources(project, base, files, yamlOpts);
@@ -191,15 +202,13 @@ export function projectToFiles(shown: Project): Record<string, string> {
   if (Object.keys(folders).length) editorState.folders = folders;
   if (Object.keys(editorLayout).length > 0) editorState.layout = editorLayout;
   if (Object.keys(editorEdges).length > 0) editorState.edges = editorEdges;
-  // Captured item label + display descriptor: editor-only metadata, persisted
-  // here and hash-excluded. The descriptor IS derivable from the stack now
-  // (projectFromFiles falls back to parseCapturedStack), but it is still
-  // written: it records what the capture panel showed, including a material
-  // enriched by the plugin's custom-item reverse lookup. The user-given `name`
-  // has no equivalent in the stack at all.
-  if ((project.capturedItems ?? []).length > 0) {
+  // Captured item label + display descriptor: the legacy channel (hash-excluded),
+  // read and written back as is so that nothing changes on open; a new descriptor
+  // goes in the item's own file. A non-canonical item file (a bare stack) keeps it
+  // here, where the plugin cannot misread it.
+  if (describedInEditorState.length > 0) {
     editorState.items = Object.fromEntries(
-      (project.capturedItems ?? []).map((ci) => [ci.id, { name: ci.name, display: ci.display }]),
+      describedInEditorState.map((ci) => [ci.id, { name: ci.name, display: ci.display }]),
     );
   }
   if (Object.keys(editorState).length > 1) {

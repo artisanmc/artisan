@@ -1,5 +1,6 @@
-import { capturedStackDetails } from "./capturedStack";
-import type { Project } from "./types";
+import { parse, stringify } from "yaml";
+import { capturedStackDetails, parseCapturedStack } from "./capturedStack";
+import type { CapturedItem, Project } from "./types";
 
 /** Material-ref prefix for captured items (`item:<capturedItemId>`). */
 export const CAPTURED_ITEM_REF_PREFIX = "item:";
@@ -82,4 +83,80 @@ export function capturedDisplay(projects: readonly Project[], ref: string): stri
   if (!project) return ref;
   const display = resolveDisplayRef(project, ref);
   return display.head ? `${display.material}\n${display.head}` : (display.material ?? ref);
+}
+
+/**
+ * The label and display descriptor an `items/<id>.yml` file yields on its own, with no
+ * `.artisan/editor.yaml` entry: derived from the serialized stack (`parseCapturedStack`), then
+ * the file's root `display:` block, beside `item:`, laid over it. The plugin reads only `item:`;
+ * `display:` is where a descriptor the stack does not express lives (`withDescriptor`).
+ */
+export function derivedCapturedItem(
+  id: string,
+  stackYaml: string,
+): Pick<CapturedItem, "name" | "display"> | null {
+  const root = parseRoot(stackYaml);
+  if (!root) return null;
+  const stack = parseCapturedStack(stackYaml);
+  const display: CapturedItem["display"] = {};
+  if (stack.material) display.material = stack.material;
+  if (stack.count !== undefined) display.count = stack.count;
+  if (stack.name) display.name = stack.name;
+  if (stack.headTexture) display.headTexture = stack.headTexture;
+  // Real enchantments glint just as the explicit override does.
+  if (stack.enchanted || (stack.enchants?.length ?? 0) > 0) display.enchanted = true;
+  const own = root.display;
+  if (own && typeof own === "object") Object.assign(display, own);
+  // The capture panel's label, for an item the game names: its name, else its material.
+  const name =
+    typeof display.name === "string"
+      ? display.name
+      : typeof display.material === "string"
+        ? display.material
+        : id;
+  return { name, display };
+}
+
+/**
+ * Whether [item]'s descriptor says more than its file: a capture the plugin enriched (a custom
+ * material the stack does not express). Those are written beside the stack (`withDescriptor`);
+ * the rest is derived again on read. The label is never stored: it follows the descriptor.
+ */
+export function capturedItemNeedsDescriptor(item: CapturedItem): boolean {
+  const derived = derivedCapturedItem(item.id, item.stackYaml);
+  if (!derived) return true;
+  return canonical(item.display) !== canonical(derived.display);
+}
+
+/**
+ * [item]'s file with its descriptor as a root `display:` block after the stack, the stack's
+ * bytes untouched (never re-serialized). Null when the file is not the canonical `item:` form:
+ * the plugin reads a bare stack as a whole, a `display:` key would land inside it.
+ */
+export function withDescriptor(item: CapturedItem): string | null {
+  const root = parseRoot(item.stackYaml);
+  if (!root || !("item" in root) || "display" in root) return null;
+  const display = Object.fromEntries(
+    Object.entries(item.display).filter(([, v]) => v !== undefined),
+  );
+  return `${item.stackYaml.replace(/\n*$/, "\n")}${stringify({ display }, { lineWidth: 0 })}`;
+}
+
+function parseRoot(text: string): Record<string, unknown> | null {
+  try {
+    const root = parse(text);
+    return root && typeof root === "object" && !Array.isArray(root)
+      ? (root as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function canonical(display: CapturedItem["display"]): string {
+  return JSON.stringify(
+    Object.entries(display)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  );
 }
