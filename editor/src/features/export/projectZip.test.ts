@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import { buildZip } from "./buildZip";
-import { normalizeProjectFiles, readProjectZip } from "./projectZip";
+import { folderFromZipName, normalizeProjectFiles, readProjectZip } from "./projectZip";
 
 const MANIFEST = "schema: manifest/v1\nproject_id: shop\ndefault_lang: en\nlanguages: [en]\n";
 const MENU = 'schema: menu/v1\nid: m\ntitle: "Shop"\nsize: 27\nelements: []\n';
@@ -118,6 +118,27 @@ describe("normalizeProjectFiles", () => {
   });
 });
 
+describe("folderFromZipName", () => {
+  it("reads the module folder of an export and of the copies a browser makes of it", () => {
+    expect(folderFromZipName("daily.zip")).toBe("daily");
+    expect(folderFromZipName("daily (1).zip")).toBe("daily");
+    expect(folderFromZipName("daily(2).ZIP")).toBe("daily");
+    expect(folderFromZipName("C:\\Users\\me\\Downloads\\shop_v2.zip")).toBe("shop_v2");
+  });
+  it("names nothing the server would refuse", () => {
+    expect(folderFromZipName("my module.zip")).toBeUndefined();
+    expect(folderFromZipName(".zip")).toBeUndefined();
+  });
+  it("is only a fallback: a folder in the archive names the module", () => {
+    const { projectId } = normalizeProjectFiles(
+      { "shop/manifest.yaml": MANIFEST },
+      undefined,
+      "daily",
+    );
+    expect(projectId).toBe("shop");
+  });
+});
+
 describe("readProjectZip", () => {
   it("preserves binary archives without decoding image bytes", async () => {
     const zip = new JSZip();
@@ -129,12 +150,17 @@ describe("readProjectZip", () => {
   });
   it("round-trips a zip built by the exporter", async () => {
     const blob = await buildZip({
-      "shop/manifest.yaml": MANIFEST,
-      "shop/menus/m.yaml": MENU,
+      "manifest.yaml": MANIFEST,
+      "menus/m.yaml": MENU,
     });
     const entries = await readProjectZip(blob);
-    expect(entries["shop/menus/m.yaml"]).toBe(MENU);
-    expect(normalizeProjectFiles(entries).projectId).toBe("shop");
+    expect(entries["menus/m.yaml"]).toBe(MENU);
+    const { projectId, files } = normalizeProjectFiles(entries, undefined, "shop");
+    expect(projectId).toBe("shop");
+    expect(Object.keys(files).sort()).toEqual([
+      "plugins/Artisan/projects/shop/manifest.yaml",
+      "plugins/Artisan/projects/shop/menus/m.yaml",
+    ]);
   });
 
   it("rejects a file that is not a zip", async () => {

@@ -12,7 +12,9 @@ const mocks = vi.hoisted(() => ({
   loadUserProject: vi.fn(),
 }));
 
-vi.mock("@/features/export/projectZip", () => ({
+vi.mock("@/features/export/projectZip", async (importOriginal) => ({
+  folderFromZipName: (await importOriginal<typeof import("@/features/export/projectZip")>())
+    .folderFromZipName,
   readProjectZip: mocks.readProjectZip,
   normalizeProjectFiles: mocks.normalizeProjectFiles,
 }));
@@ -58,6 +60,19 @@ describe("prepareImportZip", () => {
     mocks.readProjectZip.mockRejectedValue(new Error("no_manifest"));
     const result = await prepareImportZip(file, target, "merge");
     expect(result).toEqual({ ok: false, error: "no_manifest" });
+  });
+
+  it("names the module after the archive when its files sit at the root (an export)", async () => {
+    mocks.readProjectZip.mockResolvedValue({ "artisan-module.yml": "schema: module/v1\n" });
+    mocks.normalizeProjectFiles.mockImplementation(() => {
+      throw new Error("stop");
+    });
+    await prepareImportZip(new File(["zip"], "daily (1).zip"), target, "merge");
+    expect(mocks.normalizeProjectFiles).toHaveBeenCalledWith(
+      { "artisan-module.yml": "schema: module/v1\n" },
+      undefined,
+      "daily",
+    );
   });
 
   it("reads the server snapshot for an existing project", async () => {
