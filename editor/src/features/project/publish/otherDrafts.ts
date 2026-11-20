@@ -1,7 +1,7 @@
 import type { ChangeSet } from "@/components/ui/change-list";
 import { type ProjectDraft, isDirty } from "@/features/project/draft";
 import { ApiError } from "@/lib/api/client";
-import { type DocumentProblem, checkDocuments, deploymentDelta } from "@/lib/api/documentChecks";
+import { type DocumentVerdict, checkDocuments, deploymentDelta } from "@/lib/api/documentChecks";
 import { type PersistedDraft, listDrafts, publishDraft } from "@/lib/api/projectDrafts";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { listServers } from "@/lib/api/servers";
@@ -130,9 +130,9 @@ export async function loadOtherDrafts(
 }
 
 /** The server's verdict on a draft's files: the check its publication runs before writing. */
-export function checkOtherDraft(draft: OtherDraft): Promise<DocumentProblem[]> {
+export function checkOtherDraft(draft: OtherDraft, lang?: string): Promise<DocumentVerdict> {
   const { files, deletes } = deploymentDelta(draft.changes.before, draft.changes.after);
-  return checkDocuments(draft.projectId, files, deletes);
+  return checkDocuments(draft.projectId, files, deletes, lang);
 }
 
 export type OtherDeployResult = { ok: true; wrote: number } | { ok: false; code: string };

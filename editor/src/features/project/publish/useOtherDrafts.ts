@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api/client";
+import i18n from "i18next";
 import { useCallback, useRef, useState } from "react";
 import {
   type OtherDeployResult,
@@ -43,8 +44,8 @@ export function useOtherDrafts() {
           : { ...s, checks: { ...s.checks, [draft.draftId]: documents } },
       );
     settle({ status: "pending" });
-    void checkOtherDraft(draft).then(
-      (problems) => settle({ status: "ready", problems }),
+    void checkOtherDraft(draft, i18n.language).then(
+      (verdict) => settle({ status: "ready", ...verdict }),
       (error) =>
         settle({
           status: "unavailable",

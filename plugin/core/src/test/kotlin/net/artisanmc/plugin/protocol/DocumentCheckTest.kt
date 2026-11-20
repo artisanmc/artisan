@@ -1,5 +1,7 @@
 package net.artisanmc.plugin.protocol
 
+import net.artisanmc.modules.api.document.DocumentChangeCheck
+import net.artisanmc.plugin.model.DocumentKinds
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -140,5 +142,77 @@ class DocumentCheckTest {
     fun `a namespaced condition is not taken for an action`() {
         val file = clicked("if: [{quests:done: x}]\n              do: [{guilds:rank_delete: officer}]")
         assertEquals(emptyList(), withActions.check("shop", tree, mapOf("menus/boutique.yml" to file)).filter { it.stage == "actions" })
+    }
+
+    private fun withModule(check: DocumentChangeCheck): DocumentCheck {
+        DocumentKinds.register(net.artisanmc.plugin.model.DocumentKind("quest_group", "quest_groups", listOf("quest_group/v1")))
+        return DocumentCheck(changeChecks = { mapOf("quest_groups" to check) })
+    }
+
+    @kotlin.test.AfterTest
+    fun resetKinds() = DocumentKinds.reset()
+
+    @Test
+    fun `the module of a kind refuses a file and says what a change does in the game`() {
+        val seen = mutableListOf<DocumentChangeCheck.Change>()
+        val module = withModule { change ->
+            seen += change
+            when (change.id()) {
+                "daily" -> listOf(
+                    DocumentChangeCheck.Finding.loss("quest mine: 12 players start over"),
+                    DocumentChangeCheck.Finding.notice("quest fish: 3 players advance"),
+                )
+                "broken" -> listOf(DocumentChangeCheck.Finding.problem("old_key 'mine' is still a quest"))
+                else -> null
+            }
+        }
+        val loaded = tree + mapOf(
+            "quest_groups/daily.yml" to "schema: quest_group/v1\nquests: [{key: mine}]\n",
+            "quest_groups/weekly.yml" to "schema: quest_group/v1\n",
+            "quest_groups/gone.yml" to "schema: quest_group/v1\n",
+        )
+
+        val result = module.inspect(
+            "quests", loaded,
+            mapOf(
+                "quest_groups/daily.yml" to "schema: quest_group/v1\nquests: [{key: dig}]\n",
+                "quest_groups/broken.yml" to "schema: quest_group/v1\n",
+            ),
+            deletes = listOf("quest_groups/gone.yml"),
+            lang = "fr",
+        )
+
+        assertEquals(listOf(DocumentCheck.Problem("quest_groups/broken.yml", "module", "old_key 'mine' is still a quest")), result.problems)
+        assertEquals(
+            listOf(
+                DocumentCheck.Impact("quest_groups/daily.yml", "loss", "quest mine: 12 players start over"),
+                DocumentCheck.Impact("quest_groups/daily.yml", "notice", "quest fish: 3 players advance"),
+            ),
+            result.impacts,
+        )
+        val daily = seen.single { it.id() == "daily" }
+        assertEquals("fr", daily.lang())
+        assertEquals(listOf(mapOf("key" to "mine")), daily.before()!!["quests"])
+        assertEquals(listOf(mapOf("key" to "dig")), daily.after()!!["quests"])
+        assertEquals("daily", daily.after()!!["id"])
+        assertEquals(setOf("broken", "weekly"), daily.others().keys, "the Project once deployed, without the deleted file")
+        val gone = seen.single { it.id() == "gone" }
+        assertEquals(null, gone.after())
+        assertEquals("gone", gone.before()!!["id"])
+        assertEquals(null, seen.single { it.id() == "broken" }.before())
+    }
+
+    @Test
+    fun `a file refused by an earlier stage is not shown to the module, and a check that throws refuses nothing`() {
+        var calls = 0
+        val module = withModule { calls++; throw IllegalStateException("database down") }
+
+        val broken = module.inspect("quests", tree, mapOf("quest_groups/daily.yml" to "schema: quest_group/v1\nquests: [x"))
+        assertEquals(listOf("yaml"), broken.problems.map { it.stage })
+        assertEquals(0, calls)
+
+        val thrown = module.inspect("quests", tree, mapOf("quest_groups/daily.yml" to "schema: quest_group/v1\n"))
+        assertEquals(emptyList(), thrown.problems)
+        assertEquals(listOf(DocumentCheck.Impact("quest_groups/daily.yml", "unassessed", "IllegalStateException: database down")), thrown.impacts)
     }
 }

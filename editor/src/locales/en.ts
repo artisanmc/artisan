@@ -1913,6 +1913,16 @@ export default {
         "The server could not check the files ({{code}}): it checks them again when you deploy.",
       blocked: "Fix the problems the server found first.",
     },
+    impacts: {
+      title: "In the game",
+      body: "What these changes do to the players already in the game, as each module reports it.",
+      loss: "Loss",
+      notice: "Note",
+      unassessed: "The module could not say what this file changes for players ({{detail}}).",
+      confirm_one: "I have read it: players lose what is listed above.",
+      confirm_other: "I have read them: players lose what is listed above.",
+      blocked: "Confirm what players lose first.",
+    },
     checks: {
       title: "Cross-module checks",
       none: "No conflict with the other modules.",

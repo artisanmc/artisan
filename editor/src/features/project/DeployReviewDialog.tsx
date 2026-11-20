@@ -13,7 +13,8 @@ import type { DocumentChecks } from "@/features/project/publish/publishFlow";
 import type { OtherDrafts } from "@/features/project/publish/useOtherDrafts";
 import { ServerChecksSection } from "@/features/serverIndex/ServerChecksSection";
 import type { ServerChecks } from "@/features/serverIndex/serverChecks";
-import { type ReactNode, useId, useMemo } from "react";
+import type { DocumentImpact } from "@/lib/api/documentChecks";
+import { type ReactNode, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /** Last look at what a deployment writes to the server disk, before anything is sent. */
@@ -62,6 +63,15 @@ export function DeployReviewDialog({
       return check?.status === "ready" && check.problems.length > 0;
     });
   const count = (currentGoes ? 1 : 0) + pickedOthers.length;
+  // What players lose in everything that goes out: confirmed as a whole, again when it changes.
+  const losses = [
+    ...(currentGoes ? impactsOf(documents) : []),
+    ...pickedOthers.flatMap((d) => impactsOf(othersReady?.checks[d.draftId])),
+  ].filter((impact) => impact.level === "loss");
+  const lossKey = losses.map((impact) => `${impact.path}\n${impact.message}`).join("\n\n");
+  const [confirmedLosses, setConfirmedLosses] = useState<string | null>(null);
+  const unconfirmed = losses.length > 0 && confirmedLosses !== lossKey;
+  const confirmId = useId();
   return (
     <Dialog
       open={othersOnly ? others != null : changes !== null}
@@ -85,6 +95,7 @@ export function DeployReviewDialog({
           {!othersOnly && (!current || current.dirty) && (
             <>
               {documents && <DocumentChecksSection documents={documents} changes={changes} />}
+              <ImpactsSection impacts={impactsOf(documents)} />
               {checks && <ServerChecksSection checks={checks} />}
               {changes && (
                 <ChangeList
@@ -100,6 +111,18 @@ export function DeployReviewDialog({
             <OtherDraftsSection others={others} onToggle={onToggleOther} />
           )}
         </div>
+        {losses.length > 0 && (
+          <div className="flex items-start gap-2 text-[13px] text-[var(--text)]">
+            <Checkbox
+              id={confirmId}
+              checked={!unconfirmed}
+              onCheckedChange={(checked) => setConfirmedLosses(checked === true ? lossKey : null)}
+            />
+            <label htmlFor={confirmId} className="cursor-pointer">
+              {t("deploy.impacts.confirm", { count: losses.length })}
+            </label>
+          </div>
+        )}
         <DialogFooter>
           <button type="button" className="btn btn-sm btn-ghost" onClick={onCancel}>
             {t("save.cancel")}
@@ -108,8 +131,14 @@ export function DeployReviewDialog({
             type="button"
             className="btn btn-sm btn-primary"
             onClick={onConfirm}
-            disabled={blocked || count === 0}
-            title={blocked ? t("deploy.documents.blocked") : undefined}
+            disabled={blocked || unconfirmed || count === 0}
+            title={
+              blocked
+                ? t("deploy.documents.blocked")
+                : unconfirmed
+                  ? t("deploy.impacts.blocked")
+                  : undefined
+            }
           >
             {count > 1 ? t("deploy.others.confirm", { count }) : t("deploy.confirm")}
           </button>
@@ -167,6 +196,51 @@ function DocumentChecksSection({
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+function impactsOf(documents: DocumentChecks | undefined): DocumentImpact[] {
+  return documents?.status === "ready" ? (documents.impacts ?? []) : [];
+}
+
+/**
+ * What the changes do to the players already in the game, said by the module that owns each
+ * file's kind: the losses first, each under its file. Nothing to say: nothing shown.
+ */
+function ImpactsSection({ impacts }: { impacts: DocumentImpact[] }) {
+  const { t } = useTranslation();
+  if (impacts.length === 0) return null;
+  const rank = { loss: 0, unassessed: 1, notice: 2 } as const;
+  const sorted = [...impacts].sort((a, b) => rank[a.level] - rank[b.level]);
+  const losses = impacts.filter((impact) => impact.level === "loss").length;
+  return (
+    <section aria-label={t("deploy.impacts.title")} className="card mb-3 p-3">
+      <div className="flex items-center gap-2">
+        {losses > 0 && <span className="badge badge-brick">{losses}</span>}
+        <h3 className="text-[13px] font-semibold text-[var(--text)]">
+          {t("deploy.impacts.title")}
+        </h3>
+      </div>
+      <p className="mt-2 text-[12.5px] text-[var(--text-mut)]">{t("deploy.impacts.body")}</p>
+      <ul className="mt-2 space-y-1.5 text-[12.5px] text-[var(--text)]">
+        {sorted.map((impact) => (
+          <li key={`${impact.path}:${impact.level}:${impact.message}`} className="flex gap-2">
+            <span
+              className={`badge shrink-0 self-start ${impact.level === "loss" ? "badge-brick" : "badge-amber"}`}
+            >
+              {impact.level === "loss" ? t("deploy.impacts.loss") : t("deploy.impacts.notice")}
+            </span>
+            <span className="min-w-0">
+              <span className="font-mono text-[var(--text-mut)]">{impact.path}</span>
+              <br />
+              {impact.level === "unassessed"
+                ? t("deploy.impacts.unassessed", { detail: impact.message })
+                : impact.message}
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -273,6 +347,7 @@ function OtherDraftsSection({
                     : t("deploy.documents.unavailable", { code: check.code })}
                 </p>
               )}
+              {picked && <ImpactsSection impacts={impactsOf(check)} />}
               {picked && (
                 <ChangeList
                   {...draft.changes}

@@ -37,6 +37,7 @@ import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectsStore } from "@/state/projectsStore";
+import i18n from "i18next";
 import { useEffect, useReducer, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -213,9 +214,13 @@ export function usePublishFlow(
       return;
     }
     dispatch({ type: "documentsChecked", changes, documents: { status: "pending" } });
-    void checkDocuments(projectId, files, deletes).then(
-      (problems) =>
-        dispatch({ type: "documentsChecked", changes, documents: { status: "ready", problems } }),
+    void checkDocuments(projectId, files, deletes, i18n.language).then(
+      (verdict) =>
+        dispatch({
+          type: "documentsChecked",
+          changes,
+          documents: { status: "ready", ...verdict },
+        }),
       (error) =>
         dispatch({
           type: "documentsChecked",
