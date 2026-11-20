@@ -266,7 +266,7 @@ describe("projectToFiles", () => {
         }),
       );
       expect(files[EDITOR]).toBeUndefined();
-      const back = projectFromFiles("p_test", files, { name: "X" }).capturedItems?.[0];
+      const back = projectFromFiles(projectId("p_test"), files, { name: "X" }).capturedItems?.[0];
       expect(back?.name).toBe("ci_a");
       expect(back?.display).toEqual({ material: "PAPER", count: 3 });
     });
