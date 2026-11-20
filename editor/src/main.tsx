@@ -10,6 +10,7 @@ import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { installHost } from "@/lib/editorHost";
 import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { installRandomUuidFallback } from "@/lib/randomUuid";
+import { onServerIdsChanged, shortServerIdRewrite, toPublicPath } from "@/lib/shortServerIds";
 import { detectInitialTheme } from "@/state/themeStore";
 import { listModules } from "@artisan/editor-sdk";
 import { commandsModule } from "./modules/commands";
@@ -38,7 +39,21 @@ if (listModules().length === 0) {
   registerEditorModule(variablesModule);
 }
 
-const router = createRouter({ routeTree });
+const router = createRouter({
+  routeTree,
+  // `/servers/22206191/…`: the address bar shows a short server id, the routes see the full one.
+  rewrite: shortServerIdRewrite,
+  // `screen/daily:rewards`, not `screen/daily%3Arewards`: a colon is valid in a path segment.
+  pathParamsAllowedCharacters: [":"],
+});
+
+// A URL with a full id (an old bookmark, a shared link) is shortened in place once the
+// server list is known; the routes do not change, so nothing reloads.
+onServerIdsChanged(() => {
+  const { pathname, search, hash, state } = router.history.location;
+  const shortened = toPublicPath(pathname);
+  if (shortened !== pathname) router.history.replace(shortened + search + hash, state);
+});
 
 declare module "@tanstack/react-router" {
   interface Register {
