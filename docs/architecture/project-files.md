@@ -20,7 +20,7 @@ plugins/Artisan/modules/
     templates/<id>.yml             ← schema template/v1, resolved at plugin load
     models/<id>.yml                ← schema model/v1; `<id>` = the source it types (owned model), otherwise the model id, the identity remains the internal `id:`
     assets/{glyphs,textures,fonts}/ ← images and fonts (binaries, written by publication)
-    .artisan/editor.yaml           ← editor board state (the only `.artisan*` the editor writes)
+    .artisan/editor.yaml           ← editor board state (the only `.artisan*` the editor writes); `items:` only for a captured item whose label/descriptor its stack does not derive
     .artisan/project-id            ← project UUID, written once by the plugin (keeps Versions and drafts across a rename); `addon:<folder>` in a module's own folder (`pluginFolder`, or a former `moduleFolder` under `modules/`), so the key holds before the module registers it at startup and across its move to the plugin's folder
     .artisan/drafts/<id>/          ← drafts from before the suite database, no longer read
     .artisan/transactions/         ← publication journal, receipts in `.receipts/`

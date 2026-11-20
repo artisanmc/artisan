@@ -1,5 +1,6 @@
-import { capturedStackDetails } from "./capturedStack";
-import type { Project } from "./types";
+import { parse } from "yaml";
+import { capturedStackDetails, parseCapturedStack } from "./capturedStack";
+import type { CapturedItem, Project } from "./types";
 
 /** Material-ref prefix for captured items (`item:<capturedItemId>`). */
 export const CAPTURED_ITEM_REF_PREFIX = "item:";
@@ -82,4 +83,53 @@ export function capturedDisplay(projects: readonly Project[], ref: string): stri
   if (!project) return ref;
   const display = resolveDisplayRef(project, ref);
   return display.head ? `${display.material}\n${display.head}` : (display.material ?? ref);
+}
+
+/**
+ * The label and display descriptor an `items/<id>.yml` file yields on its own, with no
+ * `.artisan/editor.yaml` entry: derived from the serialized stack (`parseCapturedStack`), a root
+ * `display:` block overriding it (module migrators). The reader falls back to it; the writer
+ * leaves out an entry equal to it, which would only restate the file.
+ */
+export function derivedCapturedItem(
+  id: string,
+  stackYaml: string,
+): Pick<CapturedItem, "name" | "display"> | null {
+  let root: unknown;
+  try {
+    root = parse(stackYaml);
+  } catch {
+    return null;
+  }
+  if (!root || typeof root !== "object") return null;
+  const stack = parseCapturedStack(stackYaml);
+  const display: CapturedItem["display"] = {};
+  if (stack.material) display.material = stack.material;
+  if (stack.count !== undefined) display.count = stack.count;
+  if (stack.name) display.name = stack.name;
+  if (stack.headTexture) display.headTexture = stack.headTexture;
+  // Real enchantments glint just as the explicit override does.
+  if (stack.enchanted || (stack.enchants?.length ?? 0) > 0) display.enchanted = true;
+  const own = (root as Record<string, unknown>).display;
+  if (own && typeof own === "object") Object.assign(display, own);
+  return { name: typeof display.name === "string" ? display.name : id, display };
+}
+
+/**
+ * Whether [item]'s label and descriptor say more than its stack file: a capture enriched by the
+ * plugin (a custom material the stack does not express), a label the admin gave. Only those
+ * are written to `.artisan/editor.yaml`; the rest is derived again on read.
+ */
+export function capturedItemNeedsDescriptor(item: CapturedItem): boolean {
+  const derived = derivedCapturedItem(item.id, item.stackYaml);
+  if (!derived) return true;
+  return item.name !== derived.name || canonical(item.display) !== canonical(derived.display);
+}
+
+function canonical(display: CapturedItem["display"]): string {
+  return JSON.stringify(
+    Object.entries(display)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  );
 }

@@ -153,6 +153,8 @@ Kept in **`menu/v1`**: purely additive and optional, therefore non-breaking (see
 
 `readCapturedItems` (import, `projectFromFiles.ts`) has derived its display descriptor through this same parser since 2026-07-29 — previously it was regexes on the raw YAML (`"nexo:id":"…"`, `text: "…"`) that did not match the encoded form. **Precedence is unchanged**: `.artisan/editor.yaml` `items:` remains authoritative when present, because it records what the capture panel displayed — including a material enriched by the plugin's custom-item reverse lookup, which the stack alone does not always express. Derivation only serves files added by hand or written by a module.
 
+**Written only when it says more (2026-11-20).** `projectToFiles` writes an `items:` entry only when the label or the descriptor differs from what the stack derives (`capturedItemNeedsDescriptor`, `domain/capturedItems.ts`, the same `derivedCapturedItem` the reader falls back to): a label the admin gave, a material the plugin enriched. An entry read from disk is written back as is (`CapturedItem.describedOnDisk`), since dropping it would itself be a change. Before, opening a module whose items came without a descriptor (written by its own screen) wrote `.artisan/editor.yaml` into the draft: the module said "no change" (it is a load normalization, absorbed by `initialTree`) while "To deploy" counted one file.
+
 ### `inventory_type` (Chest / Hopper / Dropper)
 
 **Optional additive** field at the menu level (`menu/v1`): `inventory_type ∈ {chest, hopper, dropper}`, **default `chest`**. **Missing ⇒ chest** → full back-compat: all existing menus remain chests with no data migration.

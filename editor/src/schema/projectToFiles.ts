@@ -3,6 +3,7 @@
 // representation; the editor parses it on open and serializes it back on every
 // save). Each Document kind is written by its codec (`documentCodecs.ts`), data
 // sources by `dataV1FromDomain.ts`, translations by `langV1FromDomain.ts`.
+import { capturedItemNeedsDescriptor } from "@/domain/capturedItems";
 import { listDocumentKinds } from "@/domain/documentKinds";
 import { VARIANTS_DIR, VARIANTS_FILE, documentPath, sameFile } from "@/domain/documentLayout";
 import { documentKeys, documentsOf } from "@/domain/documents";
@@ -192,14 +193,19 @@ export function projectToFiles(shown: Project): Record<string, string> {
   if (Object.keys(editorLayout).length > 0) editorState.layout = editorLayout;
   if (Object.keys(editorEdges).length > 0) editorState.edges = editorEdges;
   // Captured item label + display descriptor: editor-only metadata, persisted
-  // here and hash-excluded. The descriptor IS derivable from the stack now
-  // (projectFromFiles falls back to parseCapturedStack), but it is still
-  // written: it records what the capture panel showed, including a material
-  // enriched by the plugin's custom-item reverse lookup. The user-given `name`
-  // has no equivalent in the stack at all.
-  if ((project.capturedItems ?? []).length > 0) {
+  // here and hash-excluded. Only an entry that says more than its stack file is
+  // written — a material enriched by the plugin's custom-item reverse lookup, a
+  // label the admin gave. One equal to what projectFromFiles derives from the
+  // stack would only restate it: written anyway, opening a module whose items
+  // came without a descriptor (a module's screen, a hand-added file) produced a
+  // change to deploy that nobody made.
+  // An entry already on disk stays: dropping it would itself be a change.
+  const described = (project.capturedItems ?? []).filter(
+    (ci) => ci.describedOnDisk || capturedItemNeedsDescriptor(ci),
+  );
+  if (described.length > 0) {
     editorState.items = Object.fromEntries(
-      (project.capturedItems ?? []).map((ci) => [ci.id, { name: ci.name, display: ci.display }]),
+      described.map((ci) => [ci.id, { name: ci.name, display: ci.display }]),
     );
   }
   if (Object.keys(editorState).length > 1) {

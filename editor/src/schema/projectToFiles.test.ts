@@ -15,6 +15,7 @@ import { parse } from "yaml";
 import { clearRegistry } from "../../packages/editor-sdk/src/contract/registry";
 import { projectToCommandV1 } from "./commandV1FromDomain";
 import { projectToDialogV1 } from "./dialogV1FromDomain";
+import { projectFromFiles } from "./projectFromFiles";
 import { projectToFiles } from "./projectToFiles";
 
 const makeProject = (overrides: Partial<Project> = {}): Project =>
@@ -244,6 +245,71 @@ describe("projectToFiles", () => {
     expect(files["plugins/Artisan/projects/p_test/items/ci_key.yml"]).toBe(
       "==: org.bukkit.inventory.ItemStack\nid: minecraft:paper\n",
     );
+  });
+
+  describe("captured item descriptors in .artisan/editor.yaml", () => {
+    const EDITOR = "plugins/Artisan/projects/p_test/.artisan/editor.yaml";
+    const stackYaml = "==: org.bukkit.inventory.ItemStack\nid: minecraft:paper\ncount: 3\n";
+
+    it("leaves out a descriptor its stack file derives on its own", () => {
+      // Items a module's screen wrote: opening the module must not make a change to deploy.
+      const files = projectToFiles(
+        makeProject({
+          capturedItems: [
+            {
+              id: "ci_a" as never,
+              name: "ci_a",
+              stackYaml,
+              display: { material: "PAPER", count: 3 },
+            },
+          ],
+        }),
+      );
+      expect(files[EDITOR]).toBeUndefined();
+      const back = projectFromFiles("p_test", files, { name: "X" }).capturedItems?.[0];
+      expect(back?.name).toBe("ci_a");
+      expect(back?.display).toEqual({ material: "PAPER", count: 3 });
+    });
+
+    it("writes a label or a material the stack does not say", () => {
+      const files = projectToFiles(
+        makeProject({
+          capturedItems: [
+            {
+              id: "ci_a" as never,
+              name: "Clé",
+              stackYaml,
+              display: { material: "PAPER", count: 3 },
+            },
+            {
+              id: "ci_b" as never,
+              name: "ci_b",
+              stackYaml,
+              display: { material: "nexo:arcanist_key", count: 3 },
+            },
+          ],
+        }),
+      );
+      expect(files[EDITOR]).toContain("ci_a:");
+      expect(files[EDITOR]).toContain("ci_b:");
+    });
+
+    it("keeps an entry read from disk, even one the stack derives", () => {
+      const files = projectToFiles(
+        makeProject({
+          capturedItems: [
+            {
+              id: "ci_a" as never,
+              name: "ci_a",
+              stackYaml,
+              display: { material: "PAPER", count: 3 },
+              describedOnDisk: true,
+            },
+          ],
+        }),
+      );
+      expect(files[EDITOR]).toContain("ci_a:");
+    });
   });
 
   describe("module-contributed export files", () => {

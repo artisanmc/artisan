@@ -1,5 +1,5 @@
 import { normalizeBaseLore } from "@/domain/baseLore";
-import { parseCapturedStack } from "@/domain/capturedStack";
+import { derivedCapturedItem } from "@/domain/capturedItems";
 import { listDocumentKinds } from "@/domain/documentKinds";
 import {
   type LayoutEntry,
@@ -311,23 +311,15 @@ function readCapturedItems(
     if (!rel.startsWith("items/") || rel.indexOf("/", "items/".length) !== -1) continue;
     const id = rel.slice("items/".length).replace(/\.ya?ml$/, "");
     if (!id) continue;
-    const root = tryParse<Record<string, unknown>>(content);
-    if (!root || typeof root !== "object") continue;
-    const stack = parseCapturedStack(content);
-    const display: CapturedItem["display"] = {};
-    if (stack.material) display.material = stack.material;
-    if (stack.count !== undefined) display.count = stack.count;
-    if (stack.name) display.name = stack.name;
-    if (stack.headTexture) display.headTexture = stack.headTexture;
-    // Real enchantments glint just as the explicit override does.
-    if (stack.enchanted || (stack.enchants?.length ?? 0) > 0) display.enchanted = true;
-    if (root.display && typeof root.display === "object") Object.assign(display, root.display);
+    const derived = derivedCapturedItem(id, content);
+    if (!derived) continue;
     const meta = itemsMeta[id];
     out.push({
       id: id as CapturedItem["id"],
-      name: meta?.name ?? (typeof display.name === "string" ? display.name : id),
+      name: meta?.name ?? derived.name,
       stackYaml: content,
-      display: (meta?.display as CapturedItem["display"]) ?? display,
+      display: (meta?.display as CapturedItem["display"]) ?? derived.display,
+      ...(meta ? { describedOnDisk: true } : {}),
     });
   }
   return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

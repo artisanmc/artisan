@@ -313,7 +313,9 @@ describe("projectFromFiles (files → domain, inverse of projectToFiles)", () =>
 
   it("preserves captured item name + display through .artisan/editor.yaml", () => {
     const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
-    expect(p2.capturedItems).toEqual(fixture().capturedItems);
+    expect(p2.capturedItems).toEqual(
+      fixture().capturedItems?.map((ci) => ({ ...ci, describedOnDisk: true })),
+    );
   });
 
   it("restores board state and the element's own iteration binding", () => {
