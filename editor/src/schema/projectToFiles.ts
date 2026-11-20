@@ -3,7 +3,7 @@
 // representation; the editor parses it on open and serializes it back on every
 // save). Each Document kind is written by its codec (`documentCodecs.ts`), data
 // sources by `dataV1FromDomain.ts`, translations by `langV1FromDomain.ts`.
-import { capturedItemNeedsDescriptor } from "@/domain/capturedItems";
+import { capturedItemNeedsDescriptor, withDescriptor } from "@/domain/capturedItems";
 import { listDocumentKinds } from "@/domain/documentKinds";
 import { VARIANTS_DIR, VARIANTS_FILE, documentPath, sameFile } from "@/domain/documentLayout";
 import { documentKeys, documentsOf } from "@/domain/documents";
@@ -119,8 +119,18 @@ export function projectToFiles(shown: Project): Record<string, string> {
   // Captured items: the opaque serialized stack is the runtime truth — emit it
   // VERBATIM (never parse/re-stringify), one file per item. The plugin
   // deserializes these to resolve `item:<id>` material refs with exact NBT.
+  // A descriptor the stack does not express goes beside it, as a root `display:`
+  // block the plugin ignores; an entry read from `.artisan/editor.yaml` stays there.
+  const describedInEditorState: typeof project.capturedItems = [];
   for (const item of project.capturedItems ?? []) {
-    files[`${base}/items/${item.id}.yml`] = item.stackYaml;
+    let content = item.stackYaml;
+    if (item.describedOnDisk) describedInEditorState.push(item);
+    else if (capturedItemNeedsDescriptor(item)) {
+      const described = withDescriptor(item);
+      if (described) content = described;
+      else describedInEditorState.push(item);
+    }
+    files[`${base}/items/${item.id}.yml`] = content;
   }
 
   const claimedModelIds = emitDataSources(project, base, files, yamlOpts);
@@ -192,20 +202,13 @@ export function projectToFiles(shown: Project): Record<string, string> {
   if (Object.keys(folders).length) editorState.folders = folders;
   if (Object.keys(editorLayout).length > 0) editorState.layout = editorLayout;
   if (Object.keys(editorEdges).length > 0) editorState.edges = editorEdges;
-  // Captured item label + display descriptor: editor-only metadata, persisted
-  // here and hash-excluded. Only an entry that says more than its stack file is
-  // written — a material enriched by the plugin's custom-item reverse lookup, a
-  // label the admin gave. One equal to what projectFromFiles derives from the
-  // stack would only restate it: written anyway, opening a module whose items
-  // came without a descriptor (a module's screen, a hand-added file) produced a
-  // change to deploy that nobody made.
-  // An entry already on disk stays: dropping it would itself be a change.
-  const described = (project.capturedItems ?? []).filter(
-    (ci) => ci.describedOnDisk || capturedItemNeedsDescriptor(ci),
-  );
-  if (described.length > 0) {
+  // Captured item label + display descriptor: the legacy channel (hash-excluded),
+  // read and written back as is so that nothing changes on open; a new descriptor
+  // goes in the item's own file. A non-canonical item file (a bare stack) keeps it
+  // here, where the plugin cannot misread it.
+  if (describedInEditorState.length > 0) {
     editorState.items = Object.fromEntries(
-      described.map((ci) => [ci.id, { name: ci.name, display: ci.display }]),
+      describedInEditorState.map((ci) => [ci.id, { name: ci.name, display: ci.display }]),
     );
   }
   if (Object.keys(editorState).length > 1) {

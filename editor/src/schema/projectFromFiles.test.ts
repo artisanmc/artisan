@@ -396,7 +396,8 @@ describe("projectFromFiles (files → domain, inverse of projectToFiles)", () =>
     expect(p2.capturedItems).toEqual([
       {
         id: "ci_hand",
-        name: "ci_hand",
+        // No name in the stack: its material, as the capture panel labels it.
+        name: "DIAMOND_SWORD",
         stackYaml: files[`${base}/items/ci_hand.yml`],
         display: { material: "DIAMOND_SWORD", count: 2 },
       },

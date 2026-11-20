@@ -247,9 +247,13 @@ describe("projectToFiles", () => {
     );
   });
 
-  describe("captured item descriptors in .artisan/editor.yaml", () => {
+  describe("captured item descriptors", () => {
     const EDITOR = "plugins/Artisan/projects/p_test/.artisan/editor.yaml";
-    const stackYaml = "==: org.bukkit.inventory.ItemStack\nid: minecraft:paper\ncount: 3\n";
+    const FILE = "plugins/Artisan/projects/p_test/items/ci_a.yml";
+    const stackYaml =
+      "item:\n  ==: org.bukkit.inventory.ItemStack\n  id: minecraft:paper\n  count: 3\n";
+    const read = (files: Record<string, string>) =>
+      projectFromFiles(projectId("p_test"), files, { name: "X" }).capturedItems?.[0];
 
     it("leaves out a descriptor its stack file derives on its own", () => {
       // Items a module's screen wrote: opening the module must not make a change to deploy.
@@ -258,7 +262,7 @@ describe("projectToFiles", () => {
           capturedItems: [
             {
               id: "ci_a" as never,
-              name: "ci_a",
+              name: "PAPER",
               stackYaml,
               display: { material: "PAPER", count: 3 },
             },
@@ -266,41 +270,51 @@ describe("projectToFiles", () => {
         }),
       );
       expect(files[EDITOR]).toBeUndefined();
-      const back = projectFromFiles(projectId("p_test"), files, { name: "X" }).capturedItems?.[0];
-      expect(back?.name).toBe("ci_a");
-      expect(back?.display).toEqual({ material: "PAPER", count: 3 });
+      expect(files[FILE]).toBe(stackYaml);
+      expect(read(files)?.display).toEqual({ material: "PAPER", count: 3 });
     });
 
-    it("writes a label or a material the stack does not say", () => {
+    it("writes a descriptor the stack does not say beside it, the stack's bytes kept", () => {
+      const item = {
+        id: "ci_a" as never,
+        name: "PAPER",
+        stackYaml,
+        display: { material: "nexo:arcanist_key", count: 3 },
+      };
+      const files = projectToFiles(makeProject({ capturedItems: [item] }));
+      expect(files[EDITOR]).toBeUndefined();
+      expect(files[FILE]!.startsWith(stackYaml)).toBe(true);
+      expect(parse(files[FILE]!).display).toEqual({ material: "nexo:arcanist_key", count: 3 });
+      // Read back, then written again: the same bytes, nothing to deploy.
+      const back = read(files)!;
+      expect(back.display).toEqual(item.display);
+      expect(projectToFiles(makeProject({ capturedItems: [back] }))[FILE]).toBe(files[FILE]);
+    });
+
+    it("keeps a bare stack's descriptor in .artisan/editor.yaml, out of the plugin's way", () => {
       const files = projectToFiles(
         makeProject({
           capturedItems: [
             {
               id: "ci_a" as never,
-              name: "Clé",
-              stackYaml,
-              display: { material: "PAPER", count: 3 },
-            },
-            {
-              id: "ci_b" as never,
-              name: "ci_b",
-              stackYaml,
-              display: { material: "nexo:arcanist_key", count: 3 },
+              name: "PAPER",
+              stackYaml: "==: org.bukkit.inventory.ItemStack\nid: minecraft:paper\n",
+              display: { material: "nexo:arcanist_key" },
             },
           ],
         }),
       );
+      expect(files[FILE]).toBe("==: org.bukkit.inventory.ItemStack\nid: minecraft:paper\n");
       expect(files[EDITOR]).toContain("ci_a:");
-      expect(files[EDITOR]).toContain("ci_b:");
     });
 
-    it("keeps an entry read from disk, even one the stack derives", () => {
+    it("keeps an entry read from .artisan/editor.yaml there, even one the stack derives", () => {
       const files = projectToFiles(
         makeProject({
           capturedItems: [
             {
               id: "ci_a" as never,
-              name: "ci_a",
+              name: "PAPER",
               stackYaml,
               display: { material: "PAPER", count: 3 },
               describedOnDisk: true,
@@ -308,6 +322,7 @@ describe("projectToFiles", () => {
           ],
         }),
       );
+      expect(files[FILE]).toBe(stackYaml);
       expect(files[EDITOR]).toContain("ci_a:");
     });
   });
