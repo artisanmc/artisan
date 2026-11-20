@@ -571,7 +571,7 @@ export function projectFromFiles(
   // (`domain/documentLayout.ts`) — each file through its kind's codec. The
   // container is the project's only store of documents (ADR decision 10).
   // Originals (design `originaux-modules`): what the module ships, the owner's files over it.
-  const originalsIndex = tryParse<{ required?: unknown }>(
+  const originalsIndex = tryParse<{ module?: unknown; required?: unknown }>(
     getFile(files, projectId, ORIGINALS_INDEX),
   );
   const required = Array.isArray(originalsIndex?.required)
@@ -704,8 +704,14 @@ export function projectFromFiles(
       if (classified.has(p) || !p.includes("/") || yamlStem(p) === null) continue;
       pending[p] = getFile(files, projectId, `${ORIGINALS_DIR}/${p}`) ?? "";
     }
+    // The plugin names the shipping module in the index; the module file usually does not.
+    const shippedBy =
+      typeof originalsIndex?.module === "string" && originalsIndex.module
+        ? originalsIndex.module
+        : undefined;
     originals = {
       documents: docs,
+      ...(shippedBy ? { module: shippedBy } : {}),
       ...(shippedRules
         ? {
             show: showFromYaml(

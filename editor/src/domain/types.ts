@@ -265,6 +265,8 @@ export interface ProjectOriginals {
   documents: Record<string, Record<string, Document[]>>;
   /** The shipped `variants.yml`'s tree, when the module ships one. */
   show?: Step[];
+  /** The module that ships them (`originals/originals.yml`, written by the plugin). */
+  module?: string;
   /** Paths relative to `originals/` the module's code needs (`originals/originals.yml`). */
   required: string[];
   /** The module file's `originals.exclude`, as read: kept for what the editor does not model. */
