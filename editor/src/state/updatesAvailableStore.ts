@@ -3,15 +3,18 @@ import { type SiteModule, listSiteModules } from "@/lib/api/site";
 import { channelOf, followedModules, pendingUpdates, savedChannels } from "@/lib/updateChannels";
 import { useEffect } from "react";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 /**
- * How long a server's count holds. The answer costs the hub a call to the site and the server a
- * round trip through its tunnel: asked once per half hour and browser, not on every page.
+ * How long a server's count holds in an open editor. The answer costs the hub a call to the site
+ * and the server a round trip through its tunnel: asked when the editor loads, then once per half
+ * hour while it stays open, not on every page.
  */
 export const UPDATES_TTL_MS = 30 * 60_000;
-/** A failure that may pass (server restarting, site down): asked again sooner. */
-export const UPDATES_RETRY_MS = 5 * 60_000;
+/**
+ * A failure that may pass (editor loading through a busy tunnel, server restarting, site down):
+ * asked again soon.
+ */
+export const UPDATES_RETRY_MS = 2 * 60_000;
 /** How often an open editor looks whether its count went stale. Asks nothing while it holds. */
 const WATCH_MS = 60_000;
 
@@ -37,24 +40,27 @@ interface State {
 
 /**
  * Whether a server has updates to take, per server, for the sidebar's link to its updates tab.
- * Kept in localStorage so a reload or another tab does not ask again.
+ * In memory only: a count kept across loads hid a release published since until the updates tab
+ * was opened, so each load of the editor asks once.
  */
-export const useUpdatesStore = create<State>()(
-  persist(
-    (set) => ({
-      byServer: {},
-      report: (serverId, modules) =>
-        set((s) => ({
-          byServer: {
-            ...s.byServer,
-            [serverId]: { count: pendingUpdates(modules), until: Date.now() + UPDATES_TTL_MS },
-          },
-        })),
-      set: (serverId, entry) => set((s) => ({ byServer: { ...s.byServer, [serverId]: entry } })),
-    }),
-    { name: "artisan.updatesAvailable", partialize: (s) => ({ byServer: s.byServer }) },
-  ),
-);
+export const useUpdatesStore = create<State>()((set) => ({
+  byServer: {},
+  report: (serverId, modules) =>
+    set((s) => ({
+      byServer: {
+        ...s.byServer,
+        [serverId]: { count: pendingUpdates(modules), until: Date.now() + UPDATES_TTL_MS },
+      },
+    })),
+  set: (serverId, entry) => set((s) => ({ byServer: { ...s.byServer, [serverId]: entry } })),
+}));
+
+// The count the first version kept in localStorage: never read again.
+try {
+  localStorage.removeItem("artisan.updatesAvailable");
+} catch {
+  // A private window: nothing was kept.
+}
 
 const asking = new Set<string>();
 
