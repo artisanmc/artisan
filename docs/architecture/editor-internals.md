@@ -216,7 +216,7 @@ the content: Translations (the count of `buildTranslationRows`, what the languag
 to `?tab=translations`) when the module has a text, and Captured items (their count, a button
 to `?tab=resources` on its captured view, `useResourcesView`) when it has one. The Resources tab
 (`AssetsTab`) has two views, switched by chips: the module's images and fonts, and its captured
-items (`CapturedItemsSection` in picker mode with a no-op pick: tiles are looked at, removed and
+items (`CapturedItemsSection`, passed by the page since `features/assets` does not import the canvas, in picker mode with a no-op pick: tiles are looked at, removed and
 captured there, never armed; the canvas's Buttons panel stays the palette that places them). The owner
 module's own section (`FrontendModule.home`, SDK 1.18) sits between the header and the blocks,
 behind an error boundary (`LeaveOutOnError`) that drops it alone. The rest is named: `WorkspaceGate` (auth hydration, login

@@ -122,7 +122,12 @@ describe("AssetsTab", () => {
         projectOrder: ["p1"],
       },
     } as never);
-    render(<AssetsTab projectId={"p1" as never} />);
+    render(
+      <AssetsTab
+        projectId={"p1" as never}
+        capturedItems={<div data-testid="captured-items-section" title="Golden key" />}
+      />,
+    );
     expect(screen.queryByTestId("captured-items-section")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: /Items capturés/ }));
     expect(screen.getByTestId("captured-items-section")).toBeTruthy();

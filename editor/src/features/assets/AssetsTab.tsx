@@ -3,12 +3,11 @@ import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
 import type { Project, ProjectId } from "@/domain/types";
-import { CapturedItemsSection } from "@/features/canvas/CapturedItemsSection";
 import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
 import { cx } from "@/lib/cx";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useProjectsStore } from "@/state/projectsStore";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { AssetDetailPanel } from "./AssetDetailPanel";
@@ -51,12 +50,16 @@ export const useResourcesView = create<{
   setView: (view: ResourcesView) => void;
 }>((set) => ({ view: "files", setView: (view) => set({ view }) }));
 
-const NO_PICK = () => {};
-
 export function AssetsTab({
   projectId,
   compact = false,
-}: { projectId: ProjectId; compact?: boolean }) {
+  capturedItems,
+}: {
+  projectId: ProjectId;
+  compact?: boolean;
+  /** The captured view's content, given by the page (the section lives with the canvas). */
+  capturedItems?: ReactNode;
+}) {
   const { t } = useTranslation();
   const [sourceId, setSourceId] = useState<ProjectSourceId>(null);
   const view = useResourcesView((s) => s.view);
@@ -64,7 +67,7 @@ export function AssetsTab({
   const captured = useProjectsStore(
     (s) => s.openProjects.projects.find((p) => p.id === projectId)?.capturedItems?.length ?? 0,
   );
-  const tabs = (
+  const tabs = capturedItems ? (
     <div className="flex shrink-0 gap-1 px-3 pt-3" role="tablist" data-testid="resources-views">
       {(["files", "captured"] as const).map((entry) => (
         <button
@@ -82,8 +85,8 @@ export function AssetsTab({
         </button>
       ))}
     </div>
-  );
-  if (view === "captured") {
+  ) : null;
+  if (view === "captured" && capturedItems) {
     return (
       <div className="flex h-full min-h-0 flex-col">
         {tabs}
@@ -91,7 +94,7 @@ export function AssetsTab({
             here, placed on a menu from the canvas's Buttons panel. */}
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           <p className="mb-2 text-xs text-[var(--text-mut)]">{t("resources.capturedHint")}</p>
-          <CapturedItemsSection projectId={projectId} onPick={NO_PICK} />
+          {capturedItems}
         </div>
       </div>
     );
