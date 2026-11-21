@@ -144,7 +144,9 @@ describe("ModuleHome", () => {
     const blocks = screen.getAllByRole("listitem").map((li) => li.getAttribute("data-testid"));
     expect(blocks[0]).toBe("module-home-board");
     expect(screen.getByTestId("module-home-board").className).toContain("md:col-span-2");
-    expect(screen.getByTestId("board-thumbnail")).toBeInTheDocument();
+    // Out of the flow, so its viewBox ratio never sets the block's height (a tall board
+    // made the block hundreds of pixels high).
+    expect(screen.getByTestId("board-thumbnail").getAttribute("class")).toContain("absolute");
   });
 
   it('names a lone settings screen after itself, not "Settings" twice', () => {
