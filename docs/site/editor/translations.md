@@ -15,9 +15,15 @@ Pick a language in the left column; the badge tells you how many texts are still
 
 The texts come in one section per menu, command, dialog or data source (`menus.calendar`, `variants.bedrock.menus.calendar` for a variant's version), then the keys only `lang/` holds, by their first segment (`artisan`, an add-on's `claim`…), then the unused ones. Each section says how many texts it still lacks. With more than three sections they start closed: open the one you want. The search box keeps the texts whose key, place, source or translation contains every word you type, and opens every section.
 
+The chips under the search box keep one type of text: menus, commands, dialogs, data, the module's messages, the other `lang/` keys, the unused ones.
+
+### A module's own messages
+
+An add-on's chat messages (a reminder at join, "reward claimed", its errors) are listed under **Module's messages**, with the text the module ships. Change one and only that message is saved, in the module's `lang/<code>.yml`; the others keep following the module's updates. A changed message is marked **changed**: click it to go back to the module's text. The module's texts themselves live in `originals/lang/<code>.yml`, which the server rewrites at each update: do not edit that file.
+
 A module's originals (the menus and commands it ships) appear once, at their readable key, like your own menus: the shipped copy the editor keeps for **Compare** and **Revert** is not listed.
 
-**Remove N unused** deletes the texts of menus, commands, dialogs and data sources that no longer exist (leftovers from a deleted button, say), unless another text still points to them with `{i18n:…}`. Texts marked `(lang/ only)` are never removed: no document holds them, but something else reads them, such as an add-on's own messages (`auctions.messages.*`) or the duration units (`artisan.duration.*`). Removing is undoable until you publish.
+**Remove N unused** deletes the texts of menus, commands, dialogs and data sources that no longer exist (leftovers from a deleted button, say), unless another text still points to them with `{i18n:…}`. Texts marked `(lang/ only)` and a module's messages are never removed: no document holds them, but something else reads them, such as an add-on's code or the duration units (`artisan.duration.*`). Removing is undoable until you publish.
 
 An empty source value is valid: it means that a title, lore, or other text should stay blank. It is not counted as a missing translation, and an empty target is only missing when the source contains text. The empty value is still written to disk so the game renders nothing instead of showing the translation key.
 

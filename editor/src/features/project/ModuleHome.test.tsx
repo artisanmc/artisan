@@ -18,6 +18,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
 import { ModuleHome } from "./ModuleHome";
+import { useProjectLibraryStore } from "./projectLibraryStore";
 
 const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
@@ -261,5 +262,45 @@ describe("ModuleHome", () => {
     });
     render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
     expect(screen.queryByTestId("module-home-settings")).toBeNull();
+  });
+
+  it("leads to the translations, and to the captured items when the module has some", () => {
+    const onOpenBoard = vi.fn();
+    const withText = (extra: Partial<Project> = {}) =>
+      useProjectsStore.setState({
+        openProjects: {
+          projects: [{ ...project(), i18nKeys: { "greeting.hello": { fr: "Salut" } }, ...extra }],
+          projectOrder: [PID],
+        },
+      } as never);
+    const { rerender } = render(<ModuleHome project={project()} onOpenBoard={onOpenBoard} />);
+    // No text, no captured item: neither block.
+    expect(screen.queryByTestId("module-home-translations")).toBeNull();
+    expect(screen.queryByTestId("module-home-captured")).toBeNull();
+    withText();
+    rerender(<ModuleHome project={project()} onOpenBoard={onOpenBoard} />);
+    fireEvent.click(
+      within(screen.getByTestId("module-home-translations")).getByRole("button", {
+        name: "Ouvrir les traductions",
+      }),
+    );
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ search: expect.any(Function) }),
+    );
+
+    withText({
+      capturedItems: [{ id: "ci_1", name: "Key", stackYaml: "", display: {} }],
+    } as never);
+    rerender(<ModuleHome project={project()} onOpenBoard={onOpenBoard} />);
+    fireEvent.click(
+      within(screen.getByTestId("module-home-captured")).getByRole("button", {
+        name: "Voir les items capturés",
+      }),
+    );
+    expect(onOpenBoard).toHaveBeenCalled();
+    expect(useProjectLibraryStore.getState()).toMatchObject({
+      projectId: PID,
+      category: "captured",
+    });
   });
 });

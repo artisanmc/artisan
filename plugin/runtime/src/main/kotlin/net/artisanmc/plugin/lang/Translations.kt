@@ -1,14 +1,19 @@
 package net.artisanmc.plugin.lang
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.modules.api.translation.MessageBundle
 import net.artisanmc.modules.api.translation.MessageBundleDeclaration
 import net.artisanmc.modules.api.translation.TranslationsApi
+import net.artisanmc.plugin.model.Originals
+import net.artisanmc.plugin.project.ProjectOrigins
+import net.artisanmc.plugin.project.ProjectPublisher
 import org.bukkit.command.CommandSender
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 import java.io.File
 import java.io.InputStreamReader
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -54,6 +59,16 @@ class Translations(
             require(NAMESPACE.matches(declaration.namespace)) { "malformed namespace '${declaration.namespace}': [a-z][a-z0-9_]*" }
             check(!bundles.containsKey(declaration.namespace)) { "translations '${declaration.namespace}' are already registered" }
             LangFolderMove.run(File(declaration.owner.dataFolder, "lang"), File(folder, "lang"), logger)
+            if (source == null) {
+                val owner = declaration.owner
+                try {
+                    ShippedLang.write(folder, declaration.bundledLangs.associateWith { lang ->
+                        owner.getResource("lang/$lang.yml")?.use { it.readBytes() }
+                    }, logger)
+                } catch (e: Exception) {
+                    logger.log(Level.WARNING, "[Artisan] The messages of '${declaration.namespace}' not written to ${folder.path}/originals/lang", e)
+                }
+            }
         }
         val load: () -> Map<String, Map<String, String>> =
             if (source != null) source::load
@@ -133,6 +148,40 @@ object FileMessageSource {
 
     fun flatten(cfg: YamlConfiguration): Map<String, String> =
         cfg.getKeys(true).filter { cfg.isString(it) }.associateWith { cfg.getString(it)!! }
+}
+
+/**
+ * [MessageBundleDeclaration.inFolder] of a `files` bundle: the jar's `lang/<code>.yml` of each
+ * bundled language, as shipped, in the module's `originals/lang/<code>.yml` (design
+ * `originaux-modules`), so the editor lists every message with its default and writes to the
+ * module's `lang/` only what the owner changed. The bundle still reads its defaults from the
+ * jar ([FileMessageSource]): this copy is what the editor sees of them. A file a template ships
+ * there (an origin in `.artisan/origins.yaml`) is the template's, left as is. Written through
+ * the module's journal, like the other originals.
+ */
+object ShippedLang {
+    fun write(folder: File, bundled: Map<String, ByteArray?>, logger: Logger): List<String> {
+        val origins = ProjectOrigins.read(folder)
+        val changes = linkedMapOf<String, ByteArray?>()
+        for ((lang, bytes) in bundled) {
+            if (bytes == null) continue
+            val path = "${Originals.DIR}/lang/$lang.yml"
+            if (origins[path] != null) {
+                logger.warning("[Artisan] ${folder.path}/$path is shipped by the template of '${origins[path]!!.module}': the messages' copy is not written there.")
+                continue
+            }
+            val file = File(folder, path)
+            if (file.isFile && file.readBytes().contentEquals(bytes)) continue
+            changes[path] = bytes
+        }
+        if (changes.isEmpty()) return emptyList()
+        folder.mkdirs()
+        ProjectPublisher(folder).commit(
+            "system-${UUID.randomUUID()}", UUID.randomUUID().toString(), changes,
+            ObjectMapper().valueToTree(mapOf("ok" to true)),
+        )
+        return changes.keys.toList()
+    }
 }
 
 /**

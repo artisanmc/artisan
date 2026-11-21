@@ -91,7 +91,10 @@ export function keptLangEntries(project: Project, lang: string): Record<string, 
   const out: Record<string, string> = {};
   for (const key of kept) {
     const value = project.i18nKeys[key as keyof Project["i18nKeys"]]?.[lang];
-    if (value !== undefined && !owned.has(key)) out[key] = value;
+    // A module's message as it ships: its original serves, nothing to override.
+    if (value === undefined || owned.has(key) || value === project.shippedLang?.[key]?.[lang])
+      continue;
+    out[key] = value;
   }
   return out;
 }

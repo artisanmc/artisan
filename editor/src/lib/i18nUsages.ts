@@ -46,6 +46,8 @@ function shippedOnlyKeysOf(project: Project): Set<I18nKey> {
 }
 
 const UNUSED_CONTEXT = "(unused)";
+/** Context of a module's own message, shipped in `originals/lang/` (`Project.shippedLang`). */
+export const MODULE_CONTEXT = "(module)";
 /** Context of a key read outside the documents: an add-on's code, a `{i18n:key}`, an admin. */
 const OUTSIDE_CONTEXT = "(lang/ only)";
 
@@ -123,6 +125,8 @@ export interface TranslationRow {
   context: string;
   source: string;
   target: string;
+  /** A module's message: its text in the active language as the module ships it (`""` if none). */
+  shipped?: string;
 }
 /**
  * Enumerate all languages present in a project's i18n map, including the
@@ -298,11 +302,15 @@ export function translationRowsBuilder(): (
       if (!entry) continue;
       const k = key as I18nKey;
       if (shipped.has(k)) continue;
+      const site = usages.get(k);
+      const shippedEntry = site === undefined ? project.shippedLang?.[k] : undefined;
       rows.push({
         key: k,
-        context: usages.get(k) ?? (isUnused(k) ? UNUSED_CONTEXT : OUTSIDE_CONTEXT),
+        context:
+          site ?? (shippedEntry ? MODULE_CONTEXT : isUnused(k) ? UNUSED_CONTEXT : OUTSIDE_CONTEXT),
         source: entry[project.defaultLang] ?? "",
         target: entry[activeLang] ?? "",
+        ...(shippedEntry ? { shipped: shippedEntry[activeLang] ?? "" } : {}),
       });
     }
     // Sort by context so related strings sit together — much easier to skim and
@@ -311,7 +319,13 @@ export function translationRowsBuilder(): (
     // orphaned "(unused)" keys last: otherwise "(" sorts before letters and
     // stale entries dominate the top of the list.
     const rank = (r: TranslationRow) =>
-      r.context === UNUSED_CONTEXT ? 2 : r.context === OUTSIDE_CONTEXT ? 1 : 0;
+      r.context === UNUSED_CONTEXT
+        ? 3
+        : r.context === OUTSIDE_CONTEXT
+          ? 2
+          : r.context === MODULE_CONTEXT
+            ? 1
+            : 0;
     rows.sort((a, b) => {
       const byRank = rank(a) - rank(b);
       if (byRank !== 0) return byRank;

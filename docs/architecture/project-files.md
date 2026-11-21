@@ -282,6 +282,13 @@ guilds/
   on the first edit. A server Config screen (`ProjectReads.config`) answers the same: a table file
   the owner lacks is read from `originals/`, under the owner's path. The server's `ProjectReader`
   still does not read `originals/data/` as `pack:` sources.
+- Shipped messages: `originals/lang/<code>.yml` holds an add-on's own messages as its jar ships
+  them (`ShippedLang`, written at `TranslationsApi.register` for a `files` bundle `inFolder`), or
+  what a template ships there. `lang/<code>.yml` overrides it **key by key**, in the server's
+  `ProjectReader` (`Resources.layers`) as in the editor: `projectFromFiles` reads both
+  (`Project.shippedLang` keeps the shipped texts, `i18nKeys` the current ones), and
+  `keptLangEntries` writes to `lang/` only the values that differ from the shipped one, so a
+  message left alone follows the module's updates.
 
 ## Module file — `lore_max_width`
 

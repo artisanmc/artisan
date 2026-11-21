@@ -7,7 +7,7 @@ import type { TranslationRow } from "@/lib/i18nUsages";
  * (`claim`, `artisan`: a plugin's messages, Artisan's durations), or the
  * leftovers.
  */
-export type TranslationGroupKind = "document" | "lang" | "langRoot" | "unused";
+export type TranslationGroupKind = "document" | "module" | "lang" | "langRoot" | "unused";
 
 export interface TranslationGroup {
   id: string;
@@ -17,6 +17,7 @@ export interface TranslationGroup {
 
 const UNUSED = "(unused)";
 const LANG_ONLY = "(lang/ only)";
+const MODULE = "(module)";
 
 /** `menus.calendar.elements.x.default.lore` → `menus.calendar`; `commands.daily claim.description` → `commands.daily`. */
 function documentOf(context: string): string {
@@ -30,6 +31,11 @@ function documentOf(context: string): string {
 
 function groupOf(row: TranslationRow): { id: string; kind: TranslationGroupKind } {
   if (row.context === UNUSED) return { id: UNUSED, kind: "unused" };
+  if (row.context === MODULE) {
+    // A module's messages, by their first segment (`claim`, `admin`), root keys together.
+    const dot = row.key.indexOf(".");
+    return { id: dot < 0 ? "" : row.key.slice(0, dot), kind: "module" };
+  }
   if (row.context === LANG_ONLY) {
     const dot = row.key.indexOf(".");
     // A key at the file's root (`reminder`, `unlocked`): a plugin's top-level messages.
@@ -56,6 +62,50 @@ export function groupRows(rows: ReadonlyArray<TranslationRow>): TranslationGroup
     group.rows.push(row);
   }
   return [...groups.values()];
+}
+
+/**
+ * What a group holds, for the panel's type filter: menus, commands, dialogs, data
+ * sources, a module's own messages, other keys of `lang/`, the leftovers. A module's
+ * Document kind (`quest_groups`) or a variant's version counts under its kind's root.
+ */
+export type TranslationCategory =
+  | "menus"
+  | "commands"
+  | "dialogs"
+  | "data"
+  | "documents"
+  | "module"
+  | "lang"
+  | "unused";
+
+export const CATEGORY_ORDER: TranslationCategory[] = [
+  "menus",
+  "commands",
+  "dialogs",
+  "data",
+  "documents",
+  "module",
+  "lang",
+  "unused",
+];
+
+export function categoryOf(group: TranslationGroup): TranslationCategory {
+  switch (group.kind) {
+    case "module":
+      return "module";
+    case "lang":
+    case "langRoot":
+      return "lang";
+    case "unused":
+      return "unused";
+    default: {
+      const segments = group.id.split(".");
+      const root = segments[0] === "variants" ? segments[2] : segments[0];
+      if (root === "menus" || root === "commands" || root === "dialogs") return root;
+      return root === "sources" ? "data" : "documents";
+    }
+  }
 }
 
 /** Whether [row] matches every word of [query], in its key, place, source or translation. */

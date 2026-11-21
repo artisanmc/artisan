@@ -1,7 +1,7 @@
 import type { I18nKey } from "@/domain/types";
 import type { TranslationRow } from "@/lib/i18nUsages";
 import { describe, expect, it } from "vitest";
-import { groupRows, rowMatches } from "./translationGroups";
+import { categoryOf, groupRows, rowMatches } from "./translationGroups";
 
 const row = (key: string, context = key, source = "", target = ""): TranslationRow => ({
   key: key as I18nKey,
@@ -31,6 +31,35 @@ describe("groupRows", () => {
       ["langRoot", "", 1],
       ["lang", "claim", 2],
       ["unused", "(unused)", 1],
+    ]);
+  });
+});
+
+describe("categoryOf", () => {
+  it("files each group under menus, commands, dialogs, data, module, lang or unused", () => {
+    const groups = groupRows([
+      row("menus.calendar.title"),
+      row("lt_y", "variants.bedrock.menus.calendar.title"),
+      row("lt_x", "commands.daily claim.description"),
+      row("dialogs.welcome.title"),
+      row("sources.rewards.default_day.title"),
+      row("quest_groups.main.title"),
+      row("claim.success", "(module)"),
+      row("reminder", "(module)"),
+      row("artisan.duration.days", "(lang/ only)"),
+      row("lt_z", "(unused)"),
+    ]);
+    expect(groups.map((g) => [g.kind, g.id, categoryOf(g)])).toEqual([
+      ["document", "menus.calendar", "menus"],
+      ["document", "variants.bedrock.menus.calendar", "menus"],
+      ["document", "commands.daily", "commands"],
+      ["document", "dialogs.welcome", "dialogs"],
+      ["document", "sources.rewards", "data"],
+      ["document", "quest_groups.main", "documents"],
+      ["module", "claim", "module"],
+      ["module", "", "module"],
+      ["lang", "artisan", "lang"],
+      ["unused", "(unused)", "unused"],
     ]);
   });
 });

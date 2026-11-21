@@ -1,8 +1,10 @@
 import { visitShippedLTexts } from "@/domain/i18nSites";
 import type { I18nKey, Project, ProjectId } from "@/domain/types";
 import { projectFromFiles } from "@/schema/projectFromFiles";
+import { projectToFiles } from "@/schema/projectToFiles";
 import { produce } from "immer";
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 import {
   buildTranslationRows,
   countMissingForLang,
@@ -493,5 +495,48 @@ describe("a module's originals and variants in Translations", () => {
     const rows = buildTranslationRows(project, "fr");
     const variant = rows.filter((r) => r.context.startsWith("variants.bedrock."));
     expect(variant.map((r) => r.source)).toContain("Calendar BE");
+  });
+});
+
+describe("a module's own messages (originals/lang)", () => {
+  const PID = "p_messages" as ProjectId;
+  const base = `plugins/Artisan/projects/${PID}`;
+  const files = {
+    [`${base}/artisan-module.yml`]: "schema: module/v1\ndefault_lang: en\nlanguages: [en, fr]\n",
+    [`${base}/originals/lang/en.yml`]: "reminder: Your reward waits\nclaim:\n  success: Claimed\n",
+    [`${base}/originals/lang/fr.yml`]:
+      "reminder: Ta récompense t'attend\nclaim:\n  success: Réclamée\n",
+    [`${base}/lang/fr.yml`]:
+      'claim:\n  success: C\'est réclamé\nartisan:\n  duration:\n    days: "{n}j"\n',
+  };
+
+  it("lists each message with the owner's text over the module's, and the module's beside it", () => {
+    const rows = buildTranslationRows(projectFromFiles(PID, files), "fr");
+    const success = rows.find((r) => r.key === "claim.success")!;
+    expect(success).toMatchObject({
+      context: "(module)",
+      source: "Claimed",
+      target: "C'est réclamé",
+      shipped: "Réclamée",
+    });
+    expect(rows.find((r) => r.key === "reminder")).toMatchObject({
+      context: "(module)",
+      target: "Ta récompense t'attend",
+    });
+    expect(rows.find((r) => r.key === "artisan.duration.days")?.context).toBe("(lang/ only)");
+  });
+
+  it("writes to lang/ only what differs from the module's text", () => {
+    let project = projectFromFiles(PID, files);
+    const fr = () => parse(projectToFiles(project)[`${base}/lang/fr.yml`] ?? "{}");
+    expect(fr().claim).toEqual({ success: "C'est réclamé" });
+    expect(fr().reminder).toBeUndefined();
+    project = produce(project, (p) => {
+      p.i18nKeys["claim.success" as I18nKey]!.fr = "Réclamée";
+      p.i18nKeys["reminder" as I18nKey]!.fr = "Reviens !";
+    });
+    expect(fr().claim).toBeUndefined();
+    expect(fr().reminder).toBe("Reviens !");
+    expect(projectToFiles(project)[`${base}/originals/lang/fr.yml`]).toBeUndefined();
   });
 });

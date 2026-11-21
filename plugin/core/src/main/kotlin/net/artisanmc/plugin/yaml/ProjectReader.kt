@@ -254,6 +254,13 @@ class ProjectReader(
             return (originals + YamlFiles.list(File(projectDir, dir), ::ignored)).toSortedMap()
         }
 
+        /** `<dir>/<stem>.yml` by stem: the module's `originals/` file, then the owner's, each when present. */
+        fun layers(dir: String, stem: String): List<File> {
+            val original = YamlFiles.list(File(projectDir, "${Originals.DIR}/$dir"), ::ignored)[stem]
+                ?.takeIf { DocumentLayout.sameFile("$dir/$stem.yml") !in excluded }
+            return listOfNotNull(original, YamlFiles.list(File(projectDir, dir), ::ignored)[stem])
+        }
+
         /** Sub-folders of [dir] (per-row data sources), the owner's whole folder over the original. */
         fun dirs(dir: String): List<File> {
             fun under(root: File) = root.listFiles { f -> f.isDirectory }.orEmpty().associateBy { it.name }
@@ -278,10 +285,12 @@ class ProjectReader(
      */
     private fun readLangMaps(resources: Resources, manifest: ManifestYaml): Map<String, Map<String, String>> =
         manifest.languages.associateWith { lang ->
-            val langFile = resources.files("lang")[lang] ?: return@associateWith emptyMap()
-            tolerant("lang/${langFile.name} of project ${resources.projectDir.name}") {
-                LangFlattener.flatten(mapper.readValue(langFile, object : TypeReference<Map<String, Any?>>() {}))
-            } ?: emptyMap()
+            // The module's `originals/lang/` (an add-on's messages as shipped), the owner's keys over it.
+            resources.layers("lang", lang).fold(emptyMap<String, String>()) { merged, langFile ->
+                merged + (tolerant("lang/${langFile.name} of project ${resources.projectDir.name}") {
+                    LangFlattener.flatten(mapper.readValue(langFile, object : TypeReference<Map<String, Any?>>() {}))
+                } ?: emptyMap())
+            }
         }
 
     /**
