@@ -794,7 +794,6 @@ class SyncedMenuProvider(
             is EditorRequest.NexoGlyphsList -> queries.nexoGlyphs(request)
             is EditorRequest.NexoGlyphRead -> queries.nexoGlyph(request)
             is EditorRequest.NexoItemIconsFetch -> queries.nexoItemIcons(request)
-            is EditorRequest.NexoItemModelsFetch -> queries.nexoItemModels(request)
 
             is EditorRequest.ProjectList -> projectReads.list(request)
             is EditorRequest.ProjectRead -> projectReads.read(request)

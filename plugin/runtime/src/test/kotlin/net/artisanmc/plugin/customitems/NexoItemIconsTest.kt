@@ -1,11 +1,11 @@
 package net.artisanmc.plugin.customitems
 
-import com.fasterxml.jackson.databind.JsonNode
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.awt.image.BufferedImage
@@ -96,7 +96,7 @@ class NexoItemIconsTest {
     }
 
     @Test
-    fun `a model with elements is given whole, each model and texture once`() {
+    fun `a model with elements is drawn in 3D, once for the items that share it`() {
         file("items/blocks.yml", """
             throne:
               Pack:
@@ -125,39 +125,67 @@ class NexoItemIconsTest {
             "elements":[{"from":[2,0,2],"to":[14,12,14],"rotation":{"origin":[8,8,8],"axis":"y","angle":22.5},
               "faces":{"north":{"uv":[0,0,8,8],"texture":"#0"}}}],
             "display":{"gui":{"rotation":[30,225,0],"scale":[0.5,0.5,0.5]},"head":{"scale":[2,2,2]}}}""")
-        png("pack/assets/shop/textures/furniture/throne.png", byteArrayOf(1))
+        png("pack/assets/shop/textures/furniture/throne.png", image(0xffff0000.toInt()))
         // A vanilla full block as parent: its shape is known, not read.
         file("pack/assets/shop/models/block/pillar.json",
             """{"parent":"minecraft:block/cube_column","textures":{"end":"shop:block/pillar_top","side":"shop:block/pillar"}}""")
-        png("pack/assets/shop/textures/block/pillar.png", byteArrayOf(2))
-        png("pack/assets/shop/textures/block/pillar_top.png", byteArrayOf(3))
-        png("pack/assets/shop/textures/block/ore.png", byteArrayOf(4))
+        png("pack/assets/shop/textures/block/pillar.png", image(0xff00ff00.toInt()))
+        png("pack/assets/shop/textures/block/pillar_top.png", image(0xff0000ff.toInt()))
+        val ore = image(0xffffff00.toInt())
+        png("pack/assets/shop/textures/block/ore.png", ore)
         file("pack/assets/shop/models/item/flat.json", """{"parent":"item/generated","textures":{"layer0":"shop:block/ore"}}""")
         file("pack/assets/shop/models/furniture/ghost.json",
             """{"textures":{"0":"shop:nowhere"},"elements":[{"from":[0,0,0],"to":[1,1,1],"faces":{"up":{"texture":"#0"}}}]}""")
 
         val sheet = NexoItemIcons(nexo).sheet()
-        val models = sheet.models
-        assertEquals(setOf("throne", "throne_gold", "ore", "pillar"), models.items.keys)
-        assertEquals(models.items["throne"], models.items["throne_gold"])
-        assertEquals(3, models.models.size)
+        assertEquals(setOf("throne", "throne_gold", "ore", "pillar"), sheet.drawn)
+        fun picture(id: String) = ImageIO.read(sheet.icons.getValue(id).inputStream())
+        val side = NexoItemIcons.RENDER_SIDE
+        for (id in sheet.drawn) assertEquals(side to side, picture(id).width to picture(id).height)
+        // Two items of one model get the same picture.
+        assertArrayEquals(sheet.icons["throne"], sheet.icons["throne_gold"])
+        // The throne: its only face, lit from the front, in its texture's colour.
+        val throne = picture("throne")
+        val solid = (0 until side).flatMap { y -> (0 until side).map { x -> throne.getRGB(x, y) } }.filter { it ushr 24 == 255 }
+        assertTrue(solid.isNotEmpty() && solid.all { it == 0xffff0000.toInt() })
+        // The pillar: its top in the top texture, a side under it in the side texture, shaded.
+        val pillar = picture("pillar")
+        assertEquals(0xff0000ff.toInt(), pillar.getRGB(side / 2, side * 5 / 16))
+        val flank = pillar.getRGB(side * 5 / 16, side * 11 / 16)
+        assertEquals(0, flank and 0xff00ff)
+        assertTrue(((flank shr 8) and 0xff) in 100..254)
+        // A model without elements, or whose texture is nowhere, keeps the flat icon or none.
+        assertArrayEquals(ore, sheet.icons["flat"])
+        assertNull(sheet.icons["untextured"])
+    }
 
-        val throne = models.models.getValue("shop:furniture/throne")
-        assertEquals(mapOf("0" to "shop:furniture/throne", "particle" to "shop:furniture/throne"), throne["textures"])
-        assertEquals("front", throne["gui_light"])
-        assertEquals(0.5, (throne["display"] as JsonNode)["scale"][0].asDouble())
-        assertEquals(22.5, (throne["elements"] as JsonNode)[0]["rotation"]["angle"].asDouble())
+    private fun image(argb: Int, width: Int = 16, height: Int = 16): ByteArray {
+        val image = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+        for (y in 0 until height) for (x in 0 until width) image.setRGB(x, y, argb)
+        return ByteArrayOutputStream().also { ImageIO.write(image, "png", it) }.toByteArray()
+    }
 
-        val pillar = models.models.getValue("shop:block/pillar")
-        assertEquals("#end", (pillar["elements"] as JsonNode)[0]["faces"]["up"]["texture"].asText())
-        assertEquals("#side", (pillar["elements"] as JsonNode)[0]["faces"]["west"]["texture"].asText())
-        assertEquals(mapOf("all" to "shop:block/ore"), models.models.getValue(models.items.getValue("ore"))["textures"])
+    @Test
+    fun `a model is drawn once, and the pack is not read again while Nexo's files stand still`() {
+        var now = 0L
+        file("items/a.yml", "crate:\n  Pack:\n    parent_model: block/cube_all\n    texture: shop:crate\n")
+        val texture = png("pack/assets/shop/textures/crate.png", image(0xffff0000.toInt()))
+        val generated = png("pack/pack.zip", byteArrayOf(1))
+        val icons = NexoItemIcons(nexo, ttlMillis = 1000, clock = { now })
+        val first = icons.sheet()
+        assertEquals(setOf("crate"), first.drawn)
 
-        assertEquals(setOf("shop:furniture/throne", "shop:block/pillar", "shop:block/pillar_top", "shop:block/ore"), models.textures.keys)
-        // The flat icon stays, as the fallback and the first thing shown.
-        assertArrayEquals(byteArrayOf(1), sheet.icons["throne"])
-        assertArrayEquals(byteArrayOf(4), sheet.icons["ore"])
-        assertArrayEquals(byteArrayOf(4), sheet.icons["flat"])
+        // Past its time, with Nexo's generated pack and configs untouched: the same sheet, nothing read.
+        texture.writeBytes(image(0xff00ff00.toInt()))
+        now = 5000
+        assertSame(first, icons.sheet())
+
+        // Nexo rebuilt its pack: read again, and the model drawn from the new texture.
+        generated.writeBytes(byteArrayOf(1, 2))
+        now = 10_000
+        val second = icons.sheet()
+        assertNotEquals(first.hash, second.hash)
+        assertEquals(0xff00ff00.toInt(), ImageIO.read(second.icons.getValue("crate").inputStream()).getRGB(32, 20))
     }
 
     @Test

@@ -17,7 +17,6 @@ import net.artisanmc.plugin.protocol.EditorRequest.HeadTextureFetch
 import net.artisanmc.plugin.protocol.EditorRequest.NexoGlyphRead
 import net.artisanmc.plugin.protocol.EditorRequest.NexoGlyphsList
 import net.artisanmc.plugin.protocol.EditorRequest.NexoItemIconsFetch
-import net.artisanmc.plugin.protocol.EditorRequest.NexoItemModelsFetch
 import net.artisanmc.plugin.protocol.EditorRequest.OnlinePlayersFetch
 import net.artisanmc.plugin.protocol.EditorRequest.PapiPlaceholdersFetch
 import net.artisanmc.plugin.protocol.EditorRequest.PlayerInventoryFetch
@@ -300,8 +299,9 @@ class ServerQueries(
     }
 
     /**
-     * The Nexo items' icons (their textures in Nexo's pack), all in one reply: disk read, off the
-     * world thread. An asker that already holds this set gets its hash alone.
+     * The Nexo items' icons (a texture of Nexo's pack, or the item's model drawn in 3D, listed in
+     * `drawn`), all in one reply: disk read, off the world thread. An asker that already holds this
+     * set gets its hash alone.
      */
     fun nexoItemIcons(request: NexoItemIconsFetch) {
         val reply = replies.to(request, "nexo_item_icons_fetch_result")
@@ -310,33 +310,9 @@ class ServerQueries(
                 val sheet = nexoItemIcons?.sheet() ?: return@offThread reply.ok("hash" to "", "icons" to emptyMap<String, String>())
                 if (sheet.hash == request.knownHash) return@offThread reply.ok("hash" to sheet.hash, "unchanged" to true)
                 val encoder = Base64.getEncoder()
-                reply.ok("hash" to sheet.hash, "icons" to sheet.icons.mapValues { encoder.encodeToString(it.value) })
+                reply.ok("hash" to sheet.hash, "icons" to sheet.icons.mapValues { encoder.encodeToString(it.value) }, "drawn" to sheet.drawn.toList())
             } catch (e: Throwable) {
                 reply.failure("read_error", "nexo_item_icons_fetch", e)
-            }
-        }
-    }
-
-    /**
-     * The 3D models of the Nexo items that have one, for the editor to draw: each model and each
-     * texture once. Same disk pass as the icons, same hash shortcut.
-     */
-    fun nexoItemModels(request: NexoItemModelsFetch) {
-        val reply = replies.to(request, "nexo_item_models_fetch_result")
-        replies.offThread("nexo_item_models_fetch") {
-            try {
-                val models = nexoItemIcons?.sheet()?.models
-                    ?: return@offThread reply.ok("hash" to "", "items" to emptyMap<String, String>(), "models" to emptyMap<String, Any>(), "textures" to emptyMap<String, String>())
-                if (models.hash == request.knownHash) return@offThread reply.ok("hash" to models.hash, "unchanged" to true)
-                val encoder = Base64.getEncoder()
-                reply.ok(
-                    "hash" to models.hash,
-                    "items" to models.items,
-                    "models" to models.models,
-                    "textures" to models.textures.mapValues { encoder.encodeToString(it.value) },
-                )
-            } catch (e: Throwable) {
-                reply.failure("read_error", "nexo_item_models_fetch", e)
             }
         }
     }

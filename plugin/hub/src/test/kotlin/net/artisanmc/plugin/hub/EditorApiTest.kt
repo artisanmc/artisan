@@ -394,7 +394,7 @@ class EditorApiTest {
             when {
                 message["type"] != "nexo_item_icons_fetch" -> mapOf("ok" to false, "error" to "unknown")
                 message["known_hash"] == "h1" -> mapOf("ok" to true, "hash" to "h1", "unchanged" to true)
-                else -> mapOf("ok" to true, "hash" to "h1", "icons" to mapOf("ruby" to "cG5n"))
+                else -> mapOf("ok" to true, "hash" to "h1", "icons" to mapOf("ruby" to "cG5n", "throne" to "M2Q="), "drawn" to listOf("throne"))
             }
         }
         val uri = URI("http://127.0.0.1:${hub.port}/api/v1/user/projects/u-local.shop/nexo-item-icons")
@@ -402,6 +402,7 @@ class EditorApiTest {
         assertEquals(200, first.statusCode())
         assertEquals("\"h1\"", first.headers().firstValue("ETag").get())
         assertEquals("cG5n", mapper.readTree(first.body())["icons"]["ruby"].asText())
+        assertEquals(listOf("throne"), mapper.readTree(first.body())["drawn"].map { it.asText() })
 
         val again = client.send(
             HttpRequest.newBuilder(uri).header("Cookie", cookie).header("If-None-Match", "\"h1\"").build(),
@@ -410,35 +411,6 @@ class EditorApiTest {
         assertEquals(304, again.statusCode())
         assertEquals("", again.body())
         assertEquals(listOf<Any?>(null, "h1"), asked)
-    }
-
-    @Test
-    fun `nexo item models come with their textures, by hash too`() {
-        answer = { message ->
-            when {
-                message["type"] != "nexo_item_models_fetch" -> mapOf("ok" to false, "error" to "unknown")
-                message["known_hash"] == "m1" -> mapOf("ok" to true, "hash" to "m1", "unchanged" to true)
-                else -> mapOf(
-                    "ok" to true, "hash" to "m1",
-                    "items" to mapOf("crate" to "shop:block/crate"),
-                    "models" to mapOf("shop:block/crate" to mapOf("elements" to listOf(mapOf("from" to listOf(0, 0, 0))), "textures" to mapOf("all" to "shop:block/crate"))),
-                    "textures" to mapOf("shop:block/crate" to "cG5n"),
-                )
-            }
-        }
-        val uri = URI("http://127.0.0.1:${hub.port}/api/v1/user/projects/u-local.shop/nexo-item-models")
-        val first = client.send(HttpRequest.newBuilder(uri).header("Cookie", cookie).build(), HttpResponse.BodyHandlers.ofString())
-        assertEquals(200, first.statusCode())
-        assertEquals("\"m1\"", first.headers().firstValue("ETag").get())
-        val body = mapper.readTree(first.body())
-        assertEquals("shop:block/crate", body["items"]["crate"].asText())
-        assertEquals("shop:block/crate", body["models"]["shop:block/crate"]["textures"]["all"].asText())
-        assertEquals("cG5n", body["textures"]["shop:block/crate"].asText())
-        val again = client.send(
-            HttpRequest.newBuilder(uri).header("Cookie", cookie).header("If-None-Match", "\"m1\"").build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
-        assertEquals(304, again.statusCode())
     }
 
     @Test

@@ -32,7 +32,6 @@ sealed interface EditorRequest {
     /** The icons of every Nexo item at once; [knownHash]: the set the asker already holds, not sent again. */
     data class NexoItemIconsFetch(override val requestId: String, val knownHash: String?) : WithReply
     /** The 3D models of the Nexo items that have one, with their textures; [knownHash] as for the icons. */
-    data class NexoItemModelsFetch(override val requestId: String, val knownHash: String?) : WithReply
     data class ServerConfigWrite(override val requestId: String, val changes: Map<String, Any?>) : WithReply
     data class OnlinePlayersFetch(override val requestId: String) : WithReply
     /** A figure a module computes on demand for its statistics tab (`StatsApi.declareQuery`). */
@@ -182,7 +181,6 @@ sealed interface EditorRequest {
                 "nexo_glyphs_list" -> NexoGlyphsList(requestId)
                 "nexo_glyph_read" -> NexoGlyphRead(requestId, node.text("glyph_id"))
                 "nexo_item_icons_fetch" -> NexoItemIconsFetch(requestId, node.nullableText("known_hash"))
-                "nexo_item_models_fetch" -> NexoItemModelsFetch(requestId, node.nullableText("known_hash"))
                 "server_config_write" -> ServerConfigWrite(requestId, objectOrNull(node["changes"]) ?: emptyMap())
                 "online_players_fetch" -> OnlinePlayersFetch(requestId)
                 "stats_query_fetch" -> StatsQueryFetch(
