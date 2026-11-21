@@ -17,6 +17,9 @@ import { variablesFr } from "./variables";
 const fr: typeof en = {
   onboarding: onboardingFr,
   resources: {
+    view: { files: "Images et polices", captured: "Items capturés" },
+    capturedHint:
+      "Items capturés en jeu. Pose-en un sur un menu depuis le panneau Boutons du canvas, ou choisis-le dans un champ item.",
     all: "Tout",
     button: "Images de boutons",
     menu: "Images du menu",
@@ -192,6 +195,8 @@ const fr: typeof en = {
       no_manifest:
         "Aucun artisan-module.yml ni manifest.yaml trouvé — ce n'est pas une archive de module.",
       invalid_project_id: "Le nom du module dans l'archive est invalide.",
+      project_id_required:
+        "L'archive a ses fichiers à sa racine : nomme-la comme le dossier du module (daily.zip pour le module daily).",
       empty: "L'archive ne contient aucun fichier de module exploitable.",
       server_offline: "Le serveur est éteint : son instantané actuel ne peut pas être lu.",
       fetch_timeout: "Le serveur n'a pas répondu à temps.",
@@ -216,6 +221,26 @@ const fr: typeof en = {
     removeLanguage: "Supprimer la langue",
   },
   translations: {
+    categoryAll: "Tout",
+    groupModule: "Messages du module",
+    resetShipped: "Revenir au texte du module",
+    modifiedShipped: "modifié",
+    category: {
+      menus: "Menus",
+      commands: "Commandes",
+      dialogs: "Dialogues",
+      data: "Données",
+      documents: "Autres documents",
+      module: "Messages du module",
+      lang: "Autres clés lang/",
+      unused: "Inutilisées",
+    },
+    search: "Chercher une clé, un menu, un texte…",
+    noSearchMatch: "Rien ne correspond à cette recherche.",
+    groupUnused: "Inutilisées",
+    groupLangRoot: "Messages à la racine de lang/",
+    groupLang: "lang/",
+    groupMissing: "{{count}} à traduire",
     statTranslated: "{{translated}} / {{total}} traduites en {{lang}}",
     statMissing: "{{count}} manquantes",
     statComplete: "complet",
@@ -1687,6 +1712,8 @@ const fr: typeof en = {
     installedModules: "Modules installés",
     configuration: "Configuration",
     newModule: "+ Nouveau module",
+    updatesAvailable_one: "{{count}} mise à jour disponible",
+    updatesAvailable_other: "{{count}} mises à jour disponibles",
   },
   adminDesign: {
     specimens: {
@@ -1818,6 +1845,12 @@ const fr: typeof en = {
       "Ton brouillon reprend le contenu de cette version, images comprises. Tu revois les changements avant toute publication.",
     hint: "Chaque version est ce que le serveur a chargé : un déploiement depuis l'éditeur ou un rechargement après une modification à la main.",
   },
+  sourceYaml: {
+    apply: "Appliquer",
+    applied: "Appliqué au brouillon : Déployer l'envoie au serveur.",
+    invalid: "Ce texte n'est pas un YAML valide pour cette source : rien n'a été appliqué.",
+    hint: "Appliquer passe par le brouillon, comme le formulaire ; Déployer écrit les valeurs modifiées dans le fichier du serveur : ses commentaires restent, ceux ajoutés ici ne sont pas conservés. Les textes des autres langues restent dans lang/.",
+  },
   yamlView: {
     tab: "YAML",
     visual: "Éditeur",
@@ -1939,6 +1972,17 @@ const fr: typeof en = {
       unavailable:
         "Le serveur n’a pas pu vérifier les fichiers ({{code}}) : il les vérifiera au déploiement.",
       blocked: "Corrigez d’abord les problèmes trouvés par le serveur.",
+    },
+    impacts: {
+      title: "En jeu",
+      body: "Ce que ces changements font aux joueurs déjà en jeu, d’après chaque module.",
+      loss: "Perte",
+      notice: "À noter",
+      unassessed:
+        "Le module n’a pas pu dire ce que ce fichier change pour les joueurs ({{detail}}).",
+      confirm_one: "J’ai lu : les joueurs perdent ce qui est indiqué ci-dessus.",
+      confirm_other: "J’ai lu : les joueurs perdent ce qui est indiqué ci-dessus.",
+      blocked: "Confirmez d’abord ce que les joueurs perdent.",
     },
     checks: {
       title: "Contrôles entre modules",
@@ -2170,6 +2214,13 @@ const fr: typeof en = {
     ctxInDocument: "dans {{owner}}",
   },
   moduleHome: {
+    translationsMissing_one: "{{count}} texte à traduire.",
+    translationsMissing_other: "{{count}} textes à traduire.",
+    translationsHint: "Menus, commandes et messages du module, dans chaque langue.",
+    openTranslations: "Ouvrir les traductions",
+    captured: "Items capturés",
+    capturedHint: "Items capturés en jeu, utilisables dans les menus, les actions et les données.",
+    openCaptured: "Voir les items capturés",
     content: "Contenu",
     boardEmpty: "Rien sur le canvas pour l'instant.",
     folders_one: "{{count}} dossier",
@@ -2178,6 +2229,11 @@ const fr: typeof en = {
     open: "Ouvrir",
     openList: "Voir la liste",
     settings: "Réglages",
+    settingsHint: "Enregistrés directement sur le serveur, sans déploiement.",
+    rows_one: "{{count}} ligne",
+    rows_other: "{{count}} lignes",
+    on: "Oui",
+    off: "Non",
     dataSources: "Sources de données",
     exposes: "Ce que le module expose",
     action: "action",

@@ -20,8 +20,12 @@ class DocumentChecks(
         replies.offThread("documents_check") {
             try {
                 val tree = workspace.snapshot.files[projectId] ?: return@offThread reply.error("unknown_project")
-                val problems = check.check(projectId, tree, request.files, request.deletes)
-                reply.ok("problems" to problems.map { mapOf("path" to it.path, "stage" to it.stage, "message" to it.message) })
+                val result = check.inspect(projectId, tree, request.files, request.deletes, lang = request.lang)
+                reply.ok(
+                    "problems" to result.problems.map { mapOf("path" to it.path, "stage" to it.stage, "message" to it.message) },
+                    // What the modules say the change does in the game: never a refusal.
+                    "impacts" to result.impacts.map { mapOf("path" to it.path, "level" to it.level, "message" to it.message) },
+                )
             } catch (e: Throwable) {
                 reply.failure("check_error", "documents_check '$projectId'", e)
             }

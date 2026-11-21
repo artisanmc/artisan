@@ -1,3 +1,4 @@
+import { rememberServerIds } from "@/lib/shortServerIds";
 import { apiFetch } from "./client";
 
 /** A server the hub serves, by its server id (the UUID of `plugins/Artisan/server-id`). */
@@ -41,7 +42,10 @@ export interface ProjectSummary {
 
 /** The hub's servers, its own first: ids, labels, presence and versions. Rejects with an `ApiError`. */
 export async function listServers(): Promise<ServerSummary[]> {
-  return (await apiFetch<{ servers: ServerSummary[] }>("/api/v1/servers")).servers;
+  const servers = (await apiFetch<{ servers: ServerSummary[] }>("/api/v1/servers")).servers;
+  // The URL names a server by a short prefix of its id, unique among these.
+  rememberServerIds(servers.map((s) => s.id));
+  return servers;
 }
 
 /** Creates a Project folder on a server's disk. Rejects with an `ApiError` carrying the hub's code. */

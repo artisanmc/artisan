@@ -243,7 +243,8 @@ class ProjectRoutes(
 
     /**
      * Would these files load on the Project's server? `documents_check` (ADR `mcp-server`), for
-     * Deploy's review: the same check `project_write` runs, before the click. Nothing is written.
+     * Deploy's review: the same check `project_write` runs, before the click, plus what the
+     * modules say the change does to the players in the game. Nothing is written.
      */
     private fun check(call: Call, project: ProjectRef) {
         val request = call.body()
@@ -255,9 +256,12 @@ class ProjectRoutes(
             "project_id" to project.folder,
             "files" to request["files"],
             "deletes" to (request["deletes"] ?: emptyList<Any>()),
+            "lang" to (request["lang"]?.takeIf { it.isTextual }?.asText() ?: "en"),
         )
         relay.send(call, project.server, message) { reply ->
-            if (ok(reply)) call.json(mapOf("problems" to (reply["problems"] ?: emptyList<Any>()))) else readError(call, reply)
+            // `impacts`: what the modules say the change does in the game (absent from an older server).
+            if (ok(reply)) call.json(mapOf("problems" to (reply["problems"] ?: emptyList<Any>()), "impacts" to (reply["impacts"] ?: emptyList<Any>())))
+            else readError(call, reply)
         }
     }
 

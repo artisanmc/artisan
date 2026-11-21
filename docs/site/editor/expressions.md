@@ -184,7 +184,8 @@ rather than going negative.
 
 The player carries three such values, kept for the whole network: `{player.first_seen}`
 (their first visit), `{player.last_seen}` (the end of their previous visit, absent on the
-first one) and `{player.playtime}` (time played, every server counted). A join message such
+first one) and `{player.playtime}` (time played, every server counted). `{player.server_playtime}`
+is the time played on this server alone, counted from the version that added it. A join message such
 as `Welcome back {player}, last seen {player.last_seen.ago()} ago` reads `3d 4h ago`.
 
 The units come from your project's translations, under the reserved `artisan.`

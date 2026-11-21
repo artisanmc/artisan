@@ -313,7 +313,9 @@ describe("projectFromFiles (files → domain, inverse of projectToFiles)", () =>
 
   it("preserves captured item name + display through .artisan/editor.yaml", () => {
     const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
-    expect(p2.capturedItems).toEqual(fixture().capturedItems);
+    expect(p2.capturedItems).toEqual(
+      fixture().capturedItems?.map((ci) => ({ ...ci, describedOnDisk: true })),
+    );
   });
 
   it("restores board state and the element's own iteration binding", () => {
@@ -394,7 +396,8 @@ describe("projectFromFiles (files → domain, inverse of projectToFiles)", () =>
     expect(p2.capturedItems).toEqual([
       {
         id: "ci_hand",
-        name: "ci_hand",
+        // No name in the stack: its material, as the capture panel labels it.
+        name: "DIAMOND_SWORD",
         stackYaml: files[`${base}/items/ci_hand.yml`],
         display: { material: "DIAMOND_SWORD", count: 2 },
       },

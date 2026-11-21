@@ -1,5 +1,5 @@
 import { normalizeBaseLore } from "@/domain/baseLore";
-import { parseCapturedStack } from "@/domain/capturedStack";
+import { derivedCapturedItem } from "@/domain/capturedItems";
 import { listDocumentKinds } from "@/domain/documentKinds";
 import {
   type LayoutEntry,
@@ -260,14 +260,23 @@ export function parseEditorEdges(
  */
 const EDITOR_LANG_NAMESPACES = ["menus.", "commands.", "dialogs.", "sources.", "artisan."];
 
+/**
+ * `lang/<code>.yml` files by key then language. `shipped`: the module's own messages,
+ * `originals/lang/<code>.yml` (written by the server from an add-on's messages,
+ * `MessageBundleDeclaration.inFolder`), which `lang/` overrides key by key.
+ */
 function readTranslations(
   files: Record<string, string>,
   projectId: string,
+  shipped = false,
 ): Record<string, Record<string, string>> {
   const out: Record<string, Record<string, string>> = {};
+  const pattern = shipped
+    ? new RegExp(`^${ORIGINALS_DIR}/lang/([A-Za-z0-9_-]+)\\.ya?ml$`)
+    : /^lang\/([A-Za-z0-9_-]+)\.ya?ml$/;
   for (const [path, content] of Object.entries(files)) {
     const rel = relativeToProject(path, projectId);
-    const m = /^lang\/([A-Za-z0-9_-]+)\.ya?ml$/.exec(rel);
+    const m = pattern.exec(rel);
     // `lang/fr.yml` and `lang/fr.yaml` both there: the `.yml` copy is read.
     if (!m || (rel.endsWith(".yaml") && `${path.slice(0, -".yaml".length)}.yml` in files)) continue;
     const lang = m[1]!;
@@ -311,23 +320,15 @@ function readCapturedItems(
     if (!rel.startsWith("items/") || rel.indexOf("/", "items/".length) !== -1) continue;
     const id = rel.slice("items/".length).replace(/\.ya?ml$/, "");
     if (!id) continue;
-    const root = tryParse<Record<string, unknown>>(content);
-    if (!root || typeof root !== "object") continue;
-    const stack = parseCapturedStack(content);
-    const display: CapturedItem["display"] = {};
-    if (stack.material) display.material = stack.material;
-    if (stack.count !== undefined) display.count = stack.count;
-    if (stack.name) display.name = stack.name;
-    if (stack.headTexture) display.headTexture = stack.headTexture;
-    // Real enchantments glint just as the explicit override does.
-    if (stack.enchanted || (stack.enchants?.length ?? 0) > 0) display.enchanted = true;
-    if (root.display && typeof root.display === "object") Object.assign(display, root.display);
+    const derived = derivedCapturedItem(id, content);
+    if (!derived) continue;
     const meta = itemsMeta[id];
     out.push({
       id: id as CapturedItem["id"],
-      name: meta?.name ?? (typeof display.name === "string" ? display.name : id),
+      name: meta?.name ?? derived.name,
       stackYaml: content,
-      display: (meta?.display as CapturedItem["display"]) ?? display,
+      display: (meta?.display as CapturedItem["display"]) ?? derived.display,
+      ...(meta ? { describedOnDisk: true } : {}),
     });
   }
   return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -557,7 +558,11 @@ export function projectFromFiles(
   const defaultLang = manifest.default_lang ?? "en";
   const now = new Date().toISOString();
 
+  // The module's messages as shipped, under the owner's overrides (`Project.shippedLang`).
+  const shippedLang = readTranslations(files, projectId, true);
   const diskTranslations = readTranslations(files, projectId);
+  for (const [key, langs] of Object.entries(shippedLang))
+    diskTranslations[key] = { ...langs, ...diskTranslations[key] };
   const i18nKeys: Record<string, Record<string, string>> = {};
   // Seed every disk translation so keys referenced via `{i18n:...}` (and any
   // extra keys the admin keeps in lang files) survive the import.
@@ -579,7 +584,7 @@ export function projectFromFiles(
   // (`domain/documentLayout.ts`) — each file through its kind's codec. The
   // container is the project's only store of documents (ADR decision 10).
   // Originals (design `originaux-modules`): what the module ships, the owner's files over it.
-  const originalsIndex = tryParse<{ required?: unknown }>(
+  const originalsIndex = tryParse<{ module?: unknown; required?: unknown }>(
     getFile(files, projectId, ORIGINALS_INDEX),
   );
   const required = Array.isArray(originalsIndex?.required)
@@ -712,8 +717,14 @@ export function projectFromFiles(
       if (classified.has(p) || !p.includes("/") || yamlStem(p) === null) continue;
       pending[p] = getFile(files, projectId, `${ORIGINALS_DIR}/${p}`) ?? "";
     }
+    // The plugin names the shipping module in the index; the module file usually does not.
+    const shippedBy =
+      typeof originalsIndex?.module === "string" && originalsIndex.module
+        ? originalsIndex.module
+        : undefined;
     originals = {
       documents: docs,
+      ...(shippedBy ? { module: shippedBy } : {}),
       ...(shippedRules
         ? {
             show: showFromYaml(
@@ -1125,6 +1136,7 @@ export function projectFromFiles(
     ...(Object.keys(unreadFiles).length > 0 ? { unreadFiles } : {}),
     ...(variants ? { variants } : {}),
     ...(originals ? { originals } : {}),
+    ...(Object.keys(shippedLang).length > 0 ? { shippedLang } : {}),
     ...(typeof manifest.module === "string" && manifest.module
       ? { ownerModule: manifest.module }
       : {}),

@@ -11,7 +11,7 @@
 import type { ChangeSet } from "@/components/ui/change-list";
 import type { ConflictChoice } from "@/features/project/resolveConflicts";
 import type { ServerChecks } from "@/features/serverIndex/serverChecks";
-import type { DocumentProblem } from "@/lib/api/documentChecks";
+import type { DocumentImpact, DocumentProblem } from "@/lib/api/documentChecks";
 import type { ProjectFileConflict } from "@/lib/api/projectFiles";
 
 /**
@@ -57,7 +57,12 @@ export interface PublishState {
  */
 export type DocumentChecks =
   | { status: "pending" }
-  | { status: "ready"; problems: DocumentProblem[] }
+  | {
+      status: "ready";
+      problems: DocumentProblem[];
+      /** What the modules say the change does to the players in the game. */
+      impacts?: DocumentImpact[];
+    }
   | { status: "unavailable"; code: string };
 
 export type PublishEvent =

@@ -206,6 +206,12 @@ export interface Project {
    */
   keptLangKeys?: string[];
   /**
+   * The module's own messages as it ships them, by key then language: `originals/lang/<code>.yml`,
+   * written by the server from an add-on's messages (`MessageBundleDeclaration.inFolder`). Their
+   * current text is in `i18nKeys` (a kept key); `lang/` gets only the values that differ.
+   */
+  shippedLang?: Record<string, Record<string, string>>;
+  /**
    * The module's variants (design `variantes-modules`): `variants.yml` and the menus and
    * dialogs of `variants/<name>/`. Absent without `variants.yml`. See `domain/variants.ts`.
    */
@@ -265,6 +271,8 @@ export interface ProjectOriginals {
   documents: Record<string, Record<string, Document[]>>;
   /** The shipped `variants.yml`'s tree, when the module ships one. */
   show?: Step[];
+  /** The module that ships them (`originals/originals.yml`, written by the plugin). */
+  module?: string;
   /** Paths relative to `originals/` the module's code needs (`originals/originals.yml`). */
   required: string[];
   /** The module file's `originals.exclude`, as read: kept for what the editor does not model. */
@@ -625,6 +633,11 @@ export interface CapturedItem {
     /** The stack's own display name (item_name/custom_name), plain text. */
     name?: string;
   };
+  /**
+   * Read from an `.artisan/editor.yaml` entry: written back as is. Without it, an entry is only
+   * written when it says more than the stack file (`capturedItemNeedsDescriptor`).
+   */
+  describedOnDisk?: boolean;
 }
 
 export interface Asset {

@@ -1,5 +1,5 @@
 import type { ServerChecks } from "@/features/serverIndex/serverChecks";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DeployReviewDialog } from "./DeployReviewDialog";
 
@@ -265,5 +265,43 @@ describe("DeployReviewDialog — other Projects' drafts", () => {
       />,
     );
     expect(screen.getByText("Aucun autre brouillon avec des changements.")).toBeInTheDocument();
+  });
+});
+
+describe("DeployReviewDialog — what the modules say of the change", () => {
+  const withImpacts = (impacts: { path: string; level: "loss" | "notice"; message: string }[]) =>
+    render(
+      <DeployReviewDialog
+        changes={changes}
+        documents={{ status: "ready", problems: [], impacts }}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    );
+
+  it("shows nothing when no module has anything to say", () => {
+    withImpacts([]);
+    expect(screen.queryByText("En jeu")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Déployer sur le serveur" })).toBeEnabled();
+  });
+
+  it("lists a note without asking for anything", () => {
+    withImpacts([
+      { path: "quest_groups/daily.yml", level: "notice", message: "3 joueurs avancent" },
+    ]);
+    expect(screen.getByText("3 joueurs avancent")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Déployer sur le serveur" })).toBeEnabled();
+  });
+
+  it("deploys a loss only once the author ticked that they read it", () => {
+    withImpacts([
+      { path: "quest_groups/daily.yml", level: "loss", message: "12 joueurs repartent de zéro" },
+    ]);
+    expect(screen.getByText("12 joueurs repartent de zéro")).toBeInTheDocument();
+    const deploy = screen.getByRole("button", { name: "Déployer sur le serveur" });
+    expect(deploy).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(deploy).toBeEnabled();
   });
 });

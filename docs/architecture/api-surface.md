@@ -107,6 +107,19 @@ A HUD is laid out as data instead of code: a module keeps an `OverlayLayout` in 
 | `DocumentKindDeclaration.withPackImages(provider)` `@Beta` | `DocumentKindDeclaration` | 1.0.0 |
 | `DocumentKindDeclaration.getPackImages()` `@Beta` | `PackImagesProvider` (nullable) | 1.0.0 |
 
+## 1.9.0 — what a changed Document does once deployed
+
+The module that owns a kind says, for each file of that kind a deployment writes or deletes, whether it would load it and what the change does to the players already in the game. Artisan calls it in `documents_check` (the editor's Deploy review) and before `project_write` writes, off the main thread, with no game access; the check may read the module's database. A `PROBLEM` refuses the deployment (stage `module` of `DocumentCheck`), a `LOSS` or a `NOTICE` is listed in the review above the diff, and a `LOSS` is confirmed by the author before Deploy. A check that throws refuses nothing (the review says the file could not be assessed). A file refused by an earlier stage is not shown to the module.
+
+| Member | Type | Since |
+|---|---|---|
+| `api.document.DocumentChangeCheck` `@Beta` (`check(change)` → `List<Finding>`, null or empty: nothing to say) | interface | 1.9.0 |
+| `DocumentChangeCheck.Change(project, id, before, after, others, lang)`: the file's YAML mapping as the server loaded it (`before`, null for a new file) and once deployed (`after`, null for a deleted one), each with `id` set; `others`: the other Documents of the kind in the Project once deployed, by id; `lang`: the author's language | record | 1.9.0 |
+| `DocumentChangeCheck.Finding(level, message)`, `Finding.problem(message)`, `loss(message)`, `notice(message)` | record | 1.9.0 |
+| `DocumentChangeCheck.Level` (`PROBLEM`, `LOSS`, `NOTICE`) | enum | 1.9.0 |
+| `DocumentKindDeclaration.withChangeCheck(check)` `@Beta` | `DocumentKindDeclaration` | 1.9.0 |
+| `DocumentKindDeclaration.getChangeCheck()` `@Beta` | `DocumentChangeCheck` (nullable) | 1.9.0 |
+
 The Java twin of an editor kind's `pack.images` (SDK 1.13): the server calls it on each file of the kind at load and records the images with its loaded state, so the hub builds the resource pack, module images included, without an editor tab. It must answer like the editor kind, in the same order. Detail: `modules.md`, "Pack images on the server".
 
 ## Stable APIs
@@ -314,7 +327,7 @@ The system messages (commands, statuses, errors) of the suite's plugins: one rul
 | `TranslationsApi.getDefaultLang()`, `langOf(sender)` | `String` | 1.0.0 |
 | `TranslationsApi.register(declaration)`, `unregister(namespace)`, `bundle(namespace)`, `namespaces()` | | 1.0.0 |
 | `MessageBundleDeclaration.files(owner, namespace, bundledLangs...)`, `of(owner, namespace, source)`, `withDefaultLang(lang)` | `MessageBundleDeclaration` | 1.0.0 |
-| `MessageBundleDeclaration.inFolder(folder)`, `getFolder()` (nullable, `@Beta`): the server's `lang/<code>.yml` of a `files` bundle are read from `folder/lang/`, the module's folder, instead of the data folder: published, versioned, shown in Translations, read again when the projects reload. The data folder's `lang/*.yml` move there once at `register`, a language the folder already has staying and logged. `IllegalStateException` on a bundle made with `of` | `MessageBundleDeclaration` | 1.0.0 |
+| `MessageBundleDeclaration.inFolder(folder)`, `getFolder()` (nullable, `@Beta`): the server's `lang/<code>.yml` of a `files` bundle are read from `folder/lang/`, the module's folder, instead of the data folder: published, versioned, shown in Translations, read again when the projects reload. The data folder's `lang/*.yml` move there once at `register`, a language the folder already has staying and logged. The jar's `lang/<code>.yml` of each bundled language is copied as shipped to `folder/originals/lang/<code>.yml` (`ShippedLang`, rewritten when it changes, through the module's journal; a file a template ships there is left alone): the editor lists every message with the module's text and writes to `folder/lang/` only the keys the owner changed (2026-11-21, no signature change). `IllegalStateException` on a bundle made with `of` | `MessageBundleDeclaration` | 1.0.0 |
 | `MessageSource.load()` (`@FunctionalInterface`) | `Map<String, Map<String, String>>` | 1.0.0 |
 | `MessageBundle.getNamespace()`, `getLanguages()`, `getDefaultLang()`, `langOf(viewer)`, `find`, `raw`, `format`, `get`, `reload()` | | 1.0.0 |
 | `TranslationsApi.NOOP`, `ArtisanAPI.Builder.translations(translations)` (`@Internal`) | | 1.0.0 |
@@ -495,6 +508,9 @@ stats.record("quests:completed", player.getUniqueId(), Map.of("group", "daily", 
 | `StatsApi.NOOP` | `StatsApi` | 1.5.0 |
 | `StatEvent.builder(name)` (`<namespace>:<name>`, `StatEvent.NAME`), `Builder.storage`, `kind`, `scope`, `dimensions(names...)` (`StatEvent.FIELD`, 6 at most), `value(name)`, `rawRetentionDays(days)`, `build()`; getters, `getNamespace()`, `equals` | `StatEvent` | 1.5.0 |
 | `StatStorage` (`BUCKETED`, `RAW`, `BOTH`; `bucketed()`, `raw()`), `StatKind` (`COUNTER`, `GAUGE`), `StatScope` (`PLAYER`, `SERVER`) | enums | 1.5.0 |
+| `StatsApi.declareMetric(metric)` (a player's current value shown outside the game, ADR `stats-export`; again with the same shape: nothing; namespace `core` or `custom`, or another shape under the id: `IllegalArgumentException`), `setMetric(metric, player, value)` (absolute `long`, latest kept in memory and written with the statistics flush, unchanged values write nothing; undeclared: dropped, one warning). Default methods that do nothing | `void` | 1.8.0 |
+| `PlayerMetric.builder(id)` (as `StatEvent.NAME`), `Builder.label(locale, label)` (`PlayerMetric.LOCALE` two lower-case letters, 1 to `MAX_LABEL` = 64 characters), `unit`, `ranked(boolean)` (default true), `ascending()`, `cumulative()` (the value only adds up: a website may rank the gain over a period), `build()` (no label: `IllegalStateException`); getters, `getNamespace()`, `equals` | `PlayerMetric` | 1.8.0 |
+| `MetricUnit` (`COUNT`, `SECONDS`, `DAYS`, `CENTS`) | enum | 1.8.0 |
 
 ### `net.artisanmc.modules.api.importing.ImportRegistry` and the import contract (`@Beta`)
 

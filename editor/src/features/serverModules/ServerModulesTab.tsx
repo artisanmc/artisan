@@ -14,38 +14,16 @@ import {
   restartServer,
   startSiteLink,
 } from "@/lib/api/site";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { channelOf, channelsKey, followedModules, savedChannels } from "@/lib/updateChannels";
+import { useUpdatesStore } from "@/state/updatesAvailableStore";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+export { channelOf } from "@/lib/updateChannels";
 
 /** How often the page asks again while something is in progress. */
 const LINK_POLL_MS = 5000;
 const INSTALL_POLL_MS = 3000;
-
-const channelsKey = (serverId: string) => `artisan.updates.channels.${serverId}`;
-
-/** The channel picked for each module of a server, by module id. */
-function savedChannels(serverId: string): Record<string, UpdateChannel> {
-  try {
-    const saved: unknown = JSON.parse(localStorage.getItem(channelsKey(serverId)) ?? "{}");
-    if (!saved || typeof saved !== "object") return {};
-    return Object.fromEntries(
-      Object.entries(saved).filter(([, value]) => value === "dev" || value === "release"),
-    ) as Record<string, UpdateChannel>;
-  } catch {
-    return {};
-  }
-}
-
-/**
- * The channel a module follows: the one picked for it, else the one its running version comes
- * from (a server already on `1.2.0-dev.4` keeps getting development builds).
- */
-export function channelOf(
-  picked: Record<string, UpdateChannel>,
-  module: { id: string; installed: string | null },
-): UpdateChannel {
-  return picked[module.id] ?? (module.installed?.includes("-") ? "dev" : "release");
-}
 
 const hostOf = (url: string) => {
   try {
@@ -278,10 +256,16 @@ function ModuleList({
   }, [load]);
 
   /** Each module as its own channel lists it; the stable row while the other list loads. */
-  const modules =
-    stable?.map((m) =>
-      channelOf(picked, m) === "dev" ? (dev?.find((d) => d.id === m.id) ?? m) : m,
-    ) ?? null;
+  const modules = useMemo(
+    () => (stable ? followedModules(stable, dev, picked) : null),
+    [stable, dev, picked],
+  );
+
+  // What this page sees is what the sidebar's link says: it goes once nothing is left to take.
+  useEffect(() => {
+    if (modules && (dev !== null || !wantsDev))
+      useUpdatesStore.getState().report(serverId, modules);
+  }, [serverId, modules, dev, wantsDev]);
 
   const downloading = modules?.some((m) => m.staged?.state === "downloading") ?? false;
   useEffect(() => {

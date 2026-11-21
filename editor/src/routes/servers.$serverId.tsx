@@ -34,6 +34,7 @@ import { listProjectVersions } from "@/lib/api/projectVersions";
 import { type ProjectSummary, type ServerSummary, listServers } from "@/lib/api/servers";
 import { cx } from "@/lib/cx";
 import { displayServerLabel } from "@/lib/serverLabel";
+import { redirectToFullServerId } from "@/lib/shortServerIds";
 import { useAuthStore } from "@/state/authStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -53,6 +54,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/servers/$serverId")({
+  // A short id in the URL becomes the full id before any route below sees it.
+  beforeLoad: ({ params, location }) =>
+    redirectToFullServerId(params.serverId, location, listServers),
   component: ServerDetailPage,
 });
 

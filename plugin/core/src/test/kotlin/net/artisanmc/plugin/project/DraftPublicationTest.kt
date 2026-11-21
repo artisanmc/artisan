@@ -80,4 +80,20 @@ class DraftPublicationTest {
         assertFalse(File(root, "manifest.yaml").exists())
         assertFalse(File(root, "menus/b.yaml").exists())
     }
+
+    @Test
+    fun `the editor's file keeps its name, never respelled yml`() {
+        val draft = mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(
+            mapOf(
+                "type" to "project_draft_publish", "request_id" to "r", "project_id" to "shop", "operation_id" to "op-editor",
+                "draft" to mapOf("snapshot" to mapOf(
+                    "baseline" to emptyMap<String, String>(),
+                    "tree" to mapOf(".artisan/editor.yaml" to "schema: editor-state/v1\n"),
+                )),
+            ),
+        )
+        assertEquals(true, DraftPublication(root).publish(draft)["ok"].asBoolean())
+        assertEquals("schema: editor-state/v1\n", File(root, ".artisan/editor.yaml").readText())
+        assertFalse(File(root, ".artisan/editor.yml").exists())
+    }
 }

@@ -81,4 +81,22 @@ class YmlMigrationTest {
             config.deleteRecursively()
         }
     }
+
+    @Test
+    fun `an editor file once respelled yml goes back to its own name`() {
+        write(shop, ".artisan/editor.yml", "schema: editor-state/v1\nitems: {}\n")
+
+        assertEquals(mapOf(".artisan/editor.yml" to ".artisan/editor.yaml"), YmlMigration.run(shop))
+        assertEquals("schema: editor-state/v1\nitems: {}\n", File(shop, ".artisan/editor.yaml").readText())
+        assertFalse(File(shop, ".artisan/editor.yml").exists())
+    }
+
+    @Test
+    fun `a stray yml editor file beside the editor's own is left alone`() {
+        write(shop, ".artisan/editor.yaml", "schema: editor-state/v1\n")
+        write(shop, ".artisan/editor.yml", "schema: editor-state/v1\nitems: {}\n")
+
+        assertEquals(emptyMap(), YmlMigration.run(shop))
+        assertTrue(File(shop, ".artisan/editor.yml").isFile)
+    }
 }

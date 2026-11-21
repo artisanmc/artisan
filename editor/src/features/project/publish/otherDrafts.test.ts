@@ -180,7 +180,7 @@ describe("other Projects' drafts", () => {
   });
 
   it("picks the preselected drafts, one per Project, and checks each picked one", async () => {
-    api.checkDocuments.mockResolvedValue([]);
+    api.checkDocuments.mockResolvedValue({ problems: [], impacts: [] });
     const { result } = renderHook(() => useOtherDrafts());
     act(() => result.current.load(undefined, ["ai", "working"]));
     await waitFor(() => expect(result.current.state?.status).toBe("ready"));

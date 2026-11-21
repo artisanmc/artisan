@@ -15,12 +15,12 @@ plugins/Artisan/modules/
       dialogs/<dialog_id>.yml
       <subfolder>/menus/…          ← up to 3 levels
     lang/<lang>.yml                ← YAML tree (see below)
-    items/<captured_item_id>.yml   ← captured ItemStacks (material refs `item:<id>`), Bukkit YAML verbatim
+    items/<captured_item_id>.yml   ← captured ItemStacks (material refs `item:<id>`), Bukkit YAML verbatim under `item:`; a root `display:` when the stack does not express the editor's descriptor (plugin ignores it)
     data/<source_id>.yml           ← Project sources (schema data/v1, refs `pack:<id>`)
     templates/<id>.yml             ← schema template/v1, resolved at plugin load
     models/<id>.yml                ← schema model/v1; `<id>` = the source it types (owned model), otherwise the model id, the identity remains the internal `id:`
     assets/{glyphs,textures,fonts}/ ← images and fonts (binaries, written by publication)
-    .artisan/editor.yaml           ← editor board state (the only `.artisan*` the editor writes)
+    .artisan/editor.yaml           ← editor board state (the only `.artisan*` the editor writes); `items:` legacy captured-item descriptors, kept as read
     .artisan/project-id            ← project UUID, written once by the plugin (keeps Versions and drafts across a rename); `addon:<folder>` in a module's own folder (`pluginFolder`, or a former `moduleFolder` under `modules/`), so the key holds before the module registers it at startup and across its move to the plugin's folder
     .artisan/drafts/<id>/          ← drafts from before the suite database, no longer read
     .artisan/transactions/         ← publication journal, receipts in `.receipts/`
@@ -282,6 +282,13 @@ guilds/
   on the first edit. A server Config screen (`ProjectReads.config`) answers the same: a table file
   the owner lacks is read from `originals/`, under the owner's path. The server's `ProjectReader`
   still does not read `originals/data/` as `pack:` sources.
+- Shipped messages: `originals/lang/<code>.yml` holds an add-on's own messages as its jar ships
+  them (`ShippedLang`, written at `TranslationsApi.register` for a `files` bundle `inFolder`), or
+  what a template ships there. `lang/<code>.yml` overrides it **key by key**, in the server's
+  `ProjectReader` (`Resources.layers`) as in the editor: `projectFromFiles` reads both
+  (`Project.shippedLang` keeps the shipped texts, `i18nKeys` the current ones), and
+  `keptLangEntries` writes to `lang/` only the values that differ from the shipped one, so a
+  message left alone follows the module's updates.
 
 ## Module file — `lore_max_width`
 

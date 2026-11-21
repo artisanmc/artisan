@@ -59,6 +59,9 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
     /** Where the editor sessions' rows are written, after the database opened: `/artisan editor` never waits for a connection. */
     fun sessionWriter(): java.util.concurrent.Executor = versionWriter
 
+    /** This server's row in `artisan_servers` once the suite database is open: the `server_id` of its own rows. */
+    fun ownRow(): net.artisanmc.plugin.database.ServerRow? = serverRow
+
     /** Queues [openSuiteDatabase] on [versionWriter]: nothing in `onEnable` waits for it. */
     fun open(web: net.artisanmc.plugin.hub.WebConfig, editorChannel: net.artisanmc.plugin.hub.EditorChannel) {
         versionWriter.execute { openSuiteDatabase(web, editorChannel) }
@@ -337,6 +340,10 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
     /** `artisan_stats_*` once the suite database is open. */
     fun statsRows(): net.artisanmc.plugin.database.StatsRows? =
         artisanData?.let { net.artisanmc.plugin.database.StatsRows(it, database.tables) }
+
+    /** `artisan_metric_values` once the suite database is open (ADR `stats-export`). */
+    fun metricRows(): net.artisanmc.plugin.database.MetricRows? =
+        artisanData?.let { net.artisanmc.plugin.database.MetricRows(it, database.tables) }
 
     /** What writes this server's statistics; null until it has its row in `artisan_servers`. */
     fun statsWriter(): net.artisanmc.plugin.stats.StatsWriter? {

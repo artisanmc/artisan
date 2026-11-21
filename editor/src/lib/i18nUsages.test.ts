@@ -1,6 +1,10 @@
-import type { I18nKey, Project } from "@/domain/types";
+import { visitShippedLTexts } from "@/domain/i18nSites";
+import type { I18nKey, Project, ProjectId } from "@/domain/types";
+import { projectFromFiles } from "@/schema/projectFromFiles";
+import { projectToFiles } from "@/schema/projectToFiles";
 import { produce } from "immer";
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 import {
   buildTranslationRows,
   countMissingForLang,
@@ -446,5 +450,93 @@ describe("isLanguageNeutral", () => {
   it("does not count a neutral source as a missing translation", () => {
     expect(isTranslationMissing("en", "fr", "{r.name}", undefined)).toBe(false);
     expect(isTranslationMissing("en", "fr", "Name: {r.name}", undefined)).toBe(true);
+  });
+});
+
+describe("a module's originals and variants in Translations", () => {
+  const PID = "p_shipped" as ProjectId;
+  const base = `plugins/Artisan/projects/${PID}`;
+  const menu = (title: string) =>
+    `schema: menu/v1\ntitle: { en: "${title}", fr: "${title} FR" }\nsize: 27\nelements:\n  - id: info\n    positions: 4\n    material: BEACON\n    lore:\n      - { en: "Line one", fr: "Ligne un" }\n      - { en: "Line two", fr: "Ligne deux" }\n`;
+  const files = {
+    [`${base}/artisan-module.yml`]: "schema: module/v1\ndefault_lang: en\nlanguages: [en, fr]\n",
+    [`${base}/originals/originals.yml`]:
+      "module: daily\nversion: 1\nrequired: [menus/calendar.yml]\n",
+    [`${base}/originals/menus/calendar.yml`]: menu("Calendar"),
+    [`${base}/variants.yml`]: "schema: variants/v1\nvariants: [bedrock]\n",
+    [`${base}/variants/bedrock/menus/calendar.yml`]: menu("Calendar BE"),
+  };
+
+  it("lists each text of an untouched original once, at its readable key", () => {
+    const project = projectFromFiles(PID, files);
+    const rows = buildTranslationRows(project, "fr");
+    const own = rows.filter((r) => !r.context.startsWith("variants."));
+    expect(own.filter((r) => r.key.startsWith("lt_"))).toEqual([]);
+    expect(rows.some((r) => r.context === "(unused)")).toBe(false);
+    expect(rows.map((r) => r.key)).toContain("menus.calendar.elements.info.default.lore");
+    expect(own.filter((r) => r.source === "Line one\nLine two")).toHaveLength(1);
+  });
+
+  it("keeps the shipped copies out of the cleanup and the missing counts", () => {
+    const project = produce(projectFromFiles(PID, files), (p) => {
+      // A shipped copy's text lacking a language must not count as missing.
+      for (const site of [...visitShippedLTexts(p)]) {
+        const entry = p.i18nKeys[site.lText.key];
+        if (entry) entry.fr = "";
+      }
+    });
+    expect(findUnusedI18nKeys(project)).toEqual([]);
+    expect(countMissingPerLang(project).fr).toBe(0);
+    expect(countMissingForLang(project, "fr")).toBe(0);
+  });
+
+  it("counts a variant off the canvas as used, under its name", () => {
+    const project = projectFromFiles(PID, files);
+    const rows = buildTranslationRows(project, "fr");
+    const variant = rows.filter((r) => r.context.startsWith("variants.bedrock."));
+    expect(variant.map((r) => r.source)).toContain("Calendar BE");
+  });
+});
+
+describe("a module's own messages (originals/lang)", () => {
+  const PID = "p_messages" as ProjectId;
+  const base = `plugins/Artisan/projects/${PID}`;
+  const files = {
+    [`${base}/artisan-module.yml`]: "schema: module/v1\ndefault_lang: en\nlanguages: [en, fr]\n",
+    [`${base}/originals/lang/en.yml`]: "reminder: Your reward waits\nclaim:\n  success: Claimed\n",
+    [`${base}/originals/lang/fr.yml`]:
+      "reminder: Ta récompense t'attend\nclaim:\n  success: Réclamée\n",
+    [`${base}/lang/fr.yml`]:
+      'claim:\n  success: C\'est réclamé\nartisan:\n  duration:\n    days: "{n}j"\n',
+  };
+
+  it("lists each message with the owner's text over the module's, and the module's beside it", () => {
+    const rows = buildTranslationRows(projectFromFiles(PID, files), "fr");
+    const success = rows.find((r) => r.key === "claim.success")!;
+    expect(success).toMatchObject({
+      context: "(module)",
+      source: "Claimed",
+      target: "C'est réclamé",
+      shipped: "Réclamée",
+    });
+    expect(rows.find((r) => r.key === "reminder")).toMatchObject({
+      context: "(module)",
+      target: "Ta récompense t'attend",
+    });
+    expect(rows.find((r) => r.key === "artisan.duration.days")?.context).toBe("(lang/ only)");
+  });
+
+  it("writes to lang/ only what differs from the module's text", () => {
+    let project = projectFromFiles(PID, files);
+    const fr = () => parse(projectToFiles(project)[`${base}/lang/fr.yml`] ?? "{}");
+    expect(fr().claim).toEqual({ success: "C'est réclamé" });
+    expect(fr().reminder).toBeUndefined();
+    project = produce(project, (p) => {
+      p.i18nKeys["claim.success" as I18nKey]!.fr = "Réclamée";
+      p.i18nKeys["reminder" as I18nKey]!.fr = "Reviens !";
+    });
+    expect(fr().claim).toBeUndefined();
+    expect(fr().reminder).toBe("Reviens !");
+    expect(projectToFiles(project)[`${base}/originals/lang/fr.yml`]).toBeUndefined();
   });
 });

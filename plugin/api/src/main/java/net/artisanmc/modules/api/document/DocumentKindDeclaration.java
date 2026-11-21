@@ -31,6 +31,7 @@ public final class DocumentKindDeclaration {
     private final List<String> schemaVersions;
     private final @Nullable String idPrefix;
     private final @Nullable PackImagesProvider packImages;
+    private final @Nullable DocumentChangeCheck changeCheck;
 
     /** A kind whose files carry one {@code schema:} label. */
     public DocumentKindDeclaration(String kind, String dir, String schemaVersion) {
@@ -45,13 +46,14 @@ public final class DocumentKindDeclaration {
      * @param idPrefix what the editor prepends to a new Document's id ({@code quest_}), or null.
      */
     public DocumentKindDeclaration(String kind, String dir, List<String> schemaVersions, @Nullable String idPrefix) {
-        this(kind, dir, schemaVersions, idPrefix, null);
+        this(kind, dir, schemaVersions, idPrefix, null, null);
     }
 
     private DocumentKindDeclaration(
             String kind, String dir, List<String> schemaVersions, @Nullable String idPrefix,
-            @Nullable PackImagesProvider packImages) {
+            @Nullable PackImagesProvider packImages, @Nullable DocumentChangeCheck changeCheck) {
         this.packImages = packImages;
+        this.changeCheck = changeCheck;
         this.kind = Objects.requireNonNull(kind, "kind");
         this.dir = Objects.requireNonNull(dir, "dir");
         this.schemaVersions = List.copyOf(Objects.requireNonNull(schemaVersions, "schemaVersions"));
@@ -96,7 +98,28 @@ public final class DocumentKindDeclaration {
      */
     @Beta
     public DocumentKindDeclaration withPackImages(PackImagesProvider provider) {
-        return new DocumentKindDeclaration(kind, dir, schemaVersions, idPrefix, Objects.requireNonNull(provider, "provider"));
+        return new DocumentKindDeclaration(kind, dir, schemaVersions, idPrefix, Objects.requireNonNull(provider, "provider"), changeCheck);
+    }
+
+    /**
+     * This kind, whose module says what a changed file does once deployed ({@link DocumentChangeCheck}):
+     * files it would refuse, and what the players already in the game lose or keep.
+     *
+     * @since 1.9.0
+     */
+    @Beta
+    public DocumentKindDeclaration withChangeCheck(DocumentChangeCheck check) {
+        return new DocumentKindDeclaration(kind, dir, schemaVersions, idPrefix, packImages, Objects.requireNonNull(check, "check"));
+    }
+
+    /**
+     * What says the effect of a changed file of the kind, or null.
+     *
+     * @since 1.9.0
+     */
+    @Beta
+    public @Nullable DocumentChangeCheck getChangeCheck() {
+        return changeCheck;
     }
 
     /**
@@ -129,7 +152,7 @@ public final class DocumentKindDeclaration {
         return o instanceof DocumentKindDeclaration other
             && kind.equals(other.kind) && dir.equals(other.dir)
             && schemaVersions.equals(other.schemaVersions) && Objects.equals(idPrefix, other.idPrefix)
-            && Objects.equals(packImages, other.packImages);
+            && Objects.equals(packImages, other.packImages) && Objects.equals(changeCheck, other.changeCheck);
     }
 
     @Override

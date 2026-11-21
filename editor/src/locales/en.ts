@@ -15,6 +15,9 @@ import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
+    view: { files: "Images and fonts", captured: "Captured items" },
+    capturedHint:
+      "Items captured in game. Place one on a menu from the Buttons panel of the canvas, or pick it in an item field.",
     all: "All",
     button: "Button images",
     menu: "Menu images",
@@ -187,6 +190,8 @@ export default {
       not_a_zip: "That file is not a readable .zip.",
       no_manifest: "No artisan-module.yml or manifest.yaml found — this is not a module archive.",
       invalid_project_id: "The archive's module name is invalid.",
+      project_id_required:
+        "The archive holds its files at its root: name it after the module's folder (daily.zip for the daily module).",
       empty: "The archive holds no usable module files.",
       server_offline: "The server is offline: its current snapshot cannot be read.",
       fetch_timeout: "The server did not answer in time.",
@@ -211,6 +216,26 @@ export default {
     removeLanguage: "Remove language",
   },
   translations: {
+    categoryAll: "All",
+    groupModule: "Module's messages",
+    resetShipped: "Back to the module's text",
+    modifiedShipped: "changed",
+    category: {
+      menus: "Menus",
+      commands: "Commands",
+      dialogs: "Dialogs",
+      data: "Data",
+      documents: "Other documents",
+      module: "Module's messages",
+      lang: "Other lang/ keys",
+      unused: "Unused",
+    },
+    search: "Search a key, a menu, a text…",
+    noSearchMatch: "Nothing matches this search.",
+    groupUnused: "Unused",
+    groupLangRoot: "Messages at the root of lang/",
+    groupLang: "lang/",
+    groupMissing: "{{count}} to translate",
     statTranslated: "{{translated}} / {{total}} translated in {{lang}}",
     statMissing: "{{count}} missing",
     statComplete: "complete",
@@ -1656,6 +1681,8 @@ export default {
     installedModules: "Installed modules",
     configuration: "Configuration",
     newModule: "+ New module",
+    updatesAvailable_one: "{{count}} update available",
+    updatesAvailable_other: "{{count}} updates available",
   },
   adminDesign: {
     specimens: {
@@ -1786,6 +1813,12 @@ export default {
       "Your draft takes this version's content, images included. You review the changes before anything is published.",
     hint: "Each version is what the server loaded: an editor deployment or a reload after a hand edit.",
   },
+  sourceYaml: {
+    apply: "Apply",
+    applied: "Applied to the draft: Deploy sends it to the server.",
+    invalid: "This text is not valid YAML for this source: nothing was applied.",
+    hint: "Applying goes to the draft, like the form; Deploy writes the changed values into the file on the server: its comments stay, comments added here are not kept. The other languages' texts stay in lang/.",
+  },
   yamlView: {
     tab: "YAML",
     visual: "Editor",
@@ -1904,6 +1937,16 @@ export default {
       unavailable:
         "The server could not check the files ({{code}}): it checks them again when you deploy.",
       blocked: "Fix the problems the server found first.",
+    },
+    impacts: {
+      title: "In the game",
+      body: "What these changes do to the players already in the game, as each module reports it.",
+      loss: "Loss",
+      notice: "Note",
+      unassessed: "The module could not say what this file changes for players ({{detail}}).",
+      confirm_one: "I have read it: players lose what is listed above.",
+      confirm_other: "I have read them: players lose what is listed above.",
+      blocked: "Confirm what players lose first.",
     },
     checks: {
       title: "Cross-module checks",
@@ -2130,6 +2173,13 @@ export default {
     ctxInDocument: "in {{owner}}",
   },
   moduleHome: {
+    translationsMissing_one: "{{count}} text to translate.",
+    translationsMissing_other: "{{count}} texts to translate.",
+    translationsHint: "Menus, commands and the module's messages, in every language.",
+    openTranslations: "Open the translations",
+    captured: "Captured items",
+    capturedHint: "Items captured in game, usable in menus, actions and data.",
+    openCaptured: "See the captured items",
     content: "Content",
     boardEmpty: "Nothing on the canvas yet.",
     folders_one: "{{count}} folder",
@@ -2138,6 +2188,11 @@ export default {
     open: "Open",
     openList: "See the list",
     settings: "Settings",
+    settingsHint: "Saved straight to the server, no deploy needed.",
+    rows_one: "{{count}} row",
+    rows_other: "{{count}} rows",
+    on: "Yes",
+    off: "No",
     dataSources: "Data sources",
     exposes: "What the module exposes",
     action: "action",

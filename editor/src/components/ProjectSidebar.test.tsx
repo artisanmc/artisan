@@ -2,10 +2,12 @@ import { onProjectsReloaded } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import * as serversApi from "@/lib/api/servers";
+import { listSiteModules } from "@/lib/api/site";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarOrderStore } from "@/state/sidebarOrderStore";
+import { useUpdatesStore } from "@/state/updatesAvailableStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSidebar } from "./ProjectSidebar";
@@ -23,6 +25,8 @@ const mockParams = vi.hoisted(() => ({
 vi.mock("@/lib/api/projectFiles", () => ({
   listServerProjects: vi.fn(async () => ({ ok: true, projectIds: ["pack_a", "pack_b"] })),
 }));
+
+vi.mock("@/lib/api/site", () => ({ listSiteModules: vi.fn() }));
 
 vi.mock("@tanstack/react-router", async () => {
   const actual =
@@ -58,6 +62,8 @@ describe("ProjectSidebar", () => {
       projectIds: ["pack_a", "pack_b"],
     });
     mockParams.current = { serverId: "sk_1" };
+    useUpdatesStore.setState({ byServer: {} });
+    vi.mocked(listSiteModules).mockResolvedValue({ modules: [], canRestart: true });
     useServerScreensStore.setState({ screens: [] } as never);
     useServersStore.setState({ activeServerId: null } as any);
     useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } } as any);
@@ -73,6 +79,46 @@ describe("ProjectSidebar", () => {
     // label is the folder name, which is the identity.
     expect(items[0]).toHaveTextContent("pack_a");
     expect(items[1]).toHaveTextContent("pack_b");
+  });
+
+  it("links to the updates tab only while the server has updates to take", async () => {
+    // A count still holding: read as is, the hub is not asked.
+    useUpdatesStore.setState({ byServer: { sk_1: { count: 2, until: Date.now() + 60_000 } } });
+    const { unmount } = render(<ProjectSidebar />);
+    const link = await screen.findByTestId("sidebar-updates");
+    expect(link).toHaveTextContent("2");
+    expect(link).toHaveAttribute("href", "/servers/$serverId/updates");
+    unmount();
+
+    useUpdatesStore.setState({ byServer: { sk_1: { count: 0, until: Date.now() + 60_000 } } });
+    render(<ProjectSidebar />);
+    await screen.findByRole("link", { name: /pack_b/ });
+    expect(screen.queryByTestId("sidebar-updates")).toBeNull();
+  });
+
+  it("asks for the server's updates as the editor loads, without opening the updates tab", async () => {
+    vi.mocked(listSiteModules).mockResolvedValue({
+      modules: [
+        {
+          id: "artisan",
+          name: "Artisan",
+          plugin: "Artisan",
+          tagline: null,
+          price: null,
+          requires: [],
+          page: null,
+          installed: "1.0.0",
+          access: "ok",
+          latest: { version: "1.0.1", changelog: "", size: 1, published: null },
+          update: true,
+          staged: null,
+        },
+      ],
+      canRestart: true,
+    });
+    render(<ProjectSidebar />);
+    expect(await screen.findByTestId("sidebar-updates")).toHaveTextContent("1");
+    expect(listSiteModules).toHaveBeenCalledWith("sk_1", "release");
   });
 
   it("re-reads the list when the server announces a reload", async () => {

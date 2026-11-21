@@ -264,3 +264,24 @@ describe("ProjectDocumentTree drag", () => {
     ]);
   });
 });
+
+describe("ProjectDocumentTree originals", () => {
+  it("names the module that ships an untouched original, from the originals' index", () => {
+    // The module file names no module (the plugin does not write it there): only the
+    // originals' index does. The tooltip used to read "Provided by " with nothing after it.
+    const shipped = project();
+    shipped.originals = {
+      module: "quests",
+      documents: { "": { menu: [structuredClone(shipped.documents.menu![0]!)] } },
+      required: [],
+      excluded: [],
+    };
+    useProjectsStore.setState({
+      openProjects: { projects: [shipped], projectOrder: [PID] },
+    } as never);
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+
+    expect(screen.getByRole("img", { name: /^(From|Fourni par) quests$/ })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /^(From|Fourni par)\s*$/ })).toBeNull();
+  });
+});

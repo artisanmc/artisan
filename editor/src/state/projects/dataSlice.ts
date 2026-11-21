@@ -18,6 +18,7 @@ import type {
   DataModelId,
   DataSource,
   DataSourceId,
+  I18nKey,
   Project,
   ProjectId,
 } from "@/domain/types";
@@ -94,6 +95,16 @@ export interface DataSlice {
     row: number | null;
     path: (string | number)[];
     value: unknown;
+  }) => void;
+  /**
+   * A source as its file reads once edited as text (`SourceYamlView`): its value or rows and its
+   * texts, every language, replace the working copy's. Its texts are keyed by their address, so
+   * the other languages (`lang/<lang>.yml`) stay on the addresses the text kept.
+   */
+  replaceSourceFromFile: (args: {
+    projectId: ProjectId;
+    source: DataSource;
+    texts: Record<string, Record<string, string>>;
   }) => void;
 }
 
@@ -297,6 +308,19 @@ export const createDataSlice = ({ get, mutateProject }: ProjectsSliceContext): D
         list.splice(index, 1);
         rekeyDataSource(project, ds);
       }),
+    replaceSourceFromFile: ({ projectId, source, texts }) =>
+      mutateProject(
+        projectId,
+        (project) => {
+          const index = project.dataSources.findIndex((d) => d.id === source.id);
+          if (index === -1) return;
+          releaseLTexts(project, visitDataSourceLTexts(project, project.dataSources[index]!));
+          project.dataSources[index] = structuredClone(source);
+          for (const [key, byLang] of Object.entries(texts))
+            project.i18nKeys[key as I18nKey] = { ...byLang };
+        },
+        SOURCES,
+      ),
     replaceSourceValueTyped: ({ projectId, sourceId, row, path, value }) =>
       mutateSource(projectId, sourceId, (ds, project) => {
         const type = sourceTypeAtPath(project, ds, path);

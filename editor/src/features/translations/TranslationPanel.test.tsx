@@ -62,4 +62,17 @@ describe("TranslationPanelContent", () => {
     fireEvent.click(within(rowOf(1)).getByRole("button", { name: "(traduction)" }));
     expect(document.querySelectorAll(".cm-editor")).toHaveLength(1);
   });
+
+  it("narrows the list to a search, every group open", () => {
+    addKeys(0, 30);
+    render(<TranslationPanelContent projectId={PERSONAL} />);
+    fireEvent.change(screen.getByTestId("translations-search"), {
+      target: { value: "number 2" },
+    });
+    // "Quest number 2", "Quest number 20" … "Quest number 29".
+    expect(screen.getAllByText(/^Quest number 2\d?$/)).toHaveLength(11);
+    expect(screen.queryByText("Quest number 1")).toBeNull();
+    fireEvent.change(screen.getByTestId("translations-search"), { target: { value: "nothing" } });
+    expect(screen.getByText(/Rien ne correspond à cette recherche/)).toBeInTheDocument();
+  });
 });

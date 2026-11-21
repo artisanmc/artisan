@@ -9,6 +9,7 @@ import com.networknt.schema.SchemaLocation
 import com.networknt.schema.SchemaValidatorsConfig
 import com.networknt.schema.SpecVersion
 import com.networknt.schema.resource.InputStreamSource
+import net.artisanmc.modules.api.document.DocumentChangeCheck
 import net.artisanmc.plugin.model.DocumentKinds
 import net.artisanmc.plugin.model.DocumentLayout
 import net.artisanmc.plugin.project.ProjectPathPolicy
@@ -29,16 +30,32 @@ import java.util.concurrent.ConcurrentHashMap
  *    (`docs/schema`, under `schema/<label>.json`);
  * 4. `actions`: each module action it names is one this server declares, with declared arguments
  *    ([ActionCheck]), when the server declares any;
- * 5. `engine`: the server's own reader loads it, on a copy of the Project with the files applied.
+ * 5. `engine`: the server's own reader loads it, on a copy of the Project with the files applied;
+ * 6. `module`: the module that owns its kind would load it (`DocumentChangeCheck`, API 1.9.0),
+ *    asked only for a file the stages above let through, and for a deleted one.
+ *
+ * The module also says what the change does to the players already in the game ([Impact]): never
+ * a refusal, shown by the editor's review above the file's diff.
  *
  * The engine's reader skips what it does not know; the schema does not. A typo in a field name
  * passes stage 4 and fails stage 3, which is why both run.
  */
 class DocumentCheck(
+    /** The kinds whose module checks a changed file, by folder. */
+    private val changeChecks: () -> Map<String, DocumentChangeCheck> = { DocumentKinds.changeChecks() },
     /** The server's `declared_actions` ([ServerAnnouncement.actions]); empty: the `actions` stage is skipped. */
     private val actions: () -> List<Map<String, Any?>> = { emptyList() },
 ) {
     data class Problem(val path: String, val stage: String, val message: String)
+
+    /**
+     * What deploying [path] does in the game, said by its kind's module. [level]: `loss` (players
+     * lose something: the author confirms), `notice`, or `unassessed` (the module's check threw;
+     * [message] is then the exception, for the log).
+     */
+    data class Impact(val path: String, val level: String, val message: String)
+
+    data class Result(val problems: List<Problem>, val impacts: List<Impact>)
 
     private val yaml = ObjectMapper(YAMLFactory())
     private val schemas = ConcurrentHashMap<String, JsonSchema?>()
@@ -65,7 +82,17 @@ class DocumentCheck(
         files: Map<String, String>,
         deletes: Collection<String> = emptyList(),
         paths: Collection<String> = files.keys,
-    ): List<Problem> {
+    ): List<Problem> = inspect(projectId, tree, files, deletes, paths).problems
+
+    /** [check], plus what the modules say the change does in the game, in [lang]. */
+    fun inspect(
+        projectId: String,
+        tree: Map<String, String>,
+        files: Map<String, String>,
+        deletes: Collection<String> = emptyList(),
+        paths: Collection<String> = files.keys,
+        lang: String = "en",
+    ): Result {
         val project = tree - deletes.toSet() + files
         val problems = mutableListOf<Problem>()
         val actionCheck = ActionCheck(actions())
@@ -106,7 +133,61 @@ class DocumentCheck(
             problems += actionCheck.problems(node).map { Problem(path, "actions", it) }
         }
         if (problems.none { it.stage == "yaml" || it.stage == "layout" }) problems += engineProblems(projectId, project, paths.toSet())
-        return problems
+        val impacts = mutableListOf<Impact>()
+        moduleStage(projectId, tree, project, paths + deletes, lang, problems, impacts)
+        return Result(problems, impacts)
+    }
+
+    /** Stage `module`: each changed or deleted file of a kind whose module checks it, unless a stage above refused it. */
+    private fun moduleStage(
+        projectId: String,
+        tree: Map<String, String>,
+        project: Map<String, String>,
+        paths: Collection<String>,
+        lang: String,
+        problems: MutableList<Problem>,
+        impacts: MutableList<Impact>,
+    ) {
+        val checks = changeChecks()
+        if (checks.isEmpty()) return
+        val refused = problems.mapTo(HashSet()) { it.path }
+        val parsed = HashMap<String, Map<String, Any?>?>()
+        fun document(text: String?, id: String): Map<String, Any?>? {
+            val value = text?.let { runCatching { yaml.readValue(it, Any::class.java) }.getOrNull() } as? Map<*, *> ?: return null
+            return LinkedHashMap<String, Any?>().apply {
+                for ((key, item) in value) put(key.toString(), item)
+                put("id", id)
+            }
+        }
+        for (path in paths.toSortedSet()) {
+            if (path in refused) continue
+            val match = KIND_FILE.matchEntire(path) ?: continue
+            val (dir, id) = match.destructured
+            val moduleCheck = checks[dir] ?: continue
+            val before = document(tree[path], id)
+            val after = document(project[path], id)
+            if (before == null && after == null) continue
+            val others = LinkedHashMap<String, Map<String, Any?>>()
+            for (other in project.keys.sorted()) {
+                if (other == path) continue
+                val sibling = KIND_FILE.matchEntire(other)?.takeIf { it.groupValues[1] == dir } ?: continue
+                parsed.getOrPut(other) { document(project[other], sibling.groupValues[2]) }?.let { others[sibling.groupValues[2]] = it }
+            }
+            val findings = try {
+                moduleCheck.check(DocumentChangeCheck.Change(projectId, id, before, after, others, lang)).orEmpty()
+            } catch (e: Throwable) {
+                impacts += Impact(path, "unassessed", "${e.javaClass.simpleName}: ${firstLine(e.message)}")
+                continue
+            }
+            for (finding in findings.take(MAX_MODULE_FINDINGS)) {
+                val message = finding?.message()?.trim()?.take(600)?.ifEmpty { null } ?: continue
+                when (finding.level()) {
+                    DocumentChangeCheck.Level.PROBLEM -> problems += Problem(path, "module", message)
+                    DocumentChangeCheck.Level.LOSS -> impacts += Impact(path, "loss", message)
+                    else -> impacts += Impact(path, "notice", message)
+                }
+            }
+        }
     }
 
     /** The schema of [label] (`menu/v1`), null when the jar ships none: a module's kind, for now. */
@@ -157,5 +238,8 @@ class DocumentCheck(
         /** What the `$id` of every schema of `docs/schema` starts with. */
         const val SCHEMA_BASE = "https://docs.artisanmc.net/schema/"
         const val MAX_SCHEMA_PROBLEMS = 15
+        const val MAX_MODULE_FINDINGS = 40
+        /** A Document's place: `<kind dir>/<id>.yml`, the only one a module's kind has. */
+        private val KIND_FILE = Regex("^([^/]+)/([^/]+)\\.ya?ml$")
     }
 }

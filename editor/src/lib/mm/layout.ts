@@ -123,7 +123,9 @@ export function richLayout(src: string, perLine = false): RichLayout {
  * The `{…}` the rich view shows whole, never as text: what they give is only known in
  * game, and the tags in their strings are not the text's.
  */
-function opaqueExpressions(src: string): { from: number; to: number; kind: "value" | "logic" }[] {
+export function opaqueExpressions(
+  src: string,
+): { from: number; to: number; kind: "value" | "logic" }[] {
   return templateSpans(src)
     .filter((s) => s.kind === "expression")
     .map((s) => ({

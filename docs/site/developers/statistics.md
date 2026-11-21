@@ -29,6 +29,34 @@ stats.record("quests:completed", player.getUniqueId(),
 - `StatStorage.BUCKETED` keeps counts per hour, `RAW` one row per occurrence, `BOTH` both.
   Counting distinct players and listing occurrences need raw rows.
 
+## Player metrics
+
+A ranking or a profile needs what a player **has**, not what happened: a streak, a balance, a
+best time. Declare a **player metric** once (API 1.8.0), then set the player's whole value
+whenever it changes. Artisan pushes the changes to the admin's website when they configured it
+(see [Rankings and profiles](../../configuration/statistics/#rankings-and-profiles-on-your-website)).
+
+```java
+StatsApi stats = api.getStats();
+stats.declareMetric(PlayerMetric.builder("daily:streak")
+    .label("en", "Login streak").label("fr", "Série de connexions")
+    .unit(MetricUnit.DAYS)        // COUNT, SECONDS, DAYS or CENTS
+    .build());
+
+stats.setMetric("daily:streak", player.getUniqueId(), streak);
+```
+
+- Values are whole numbers (`long`): money in hundredths (`CENTS`), durations in seconds.
+- `ranked(false)` keeps a metric on the profile only; `ascending()` ranks the lowest first (a
+  best time).
+- `cumulative()` says the value only adds up (play time, quests completed, blocks mined): the
+  website can then also rank what each player gained this week, month or quarter. Leave it out
+  for a state (a balance, a streak, a level).
+- `setMetric` never waits: the latest value per player is written with the next statistics
+  write, and an unchanged value sends nothing. Setting it every few minutes costs the same as
+  on each change.
+- Give a label per language your add-on speaks: the website picks the visitor's.
+
 ## Figures computed on demand
 
 What your own tables already know (how many players sit on each stage right now) is not an

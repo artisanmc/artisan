@@ -6,10 +6,13 @@ import { allDocuments, docKey, documentsOf } from "@/domain/documents";
 import { listFolders } from "@/domain/folders";
 import { listedDataSources } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
+import { useResourcesView } from "@/features/assets/AssetsTab";
 import { BoardThumbnail } from "@/features/canvas/BoardThumbnail";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
+import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
+import { buildTranslationRows, countMissingPerLang } from "@/lib/i18nUsages";
 import { kindCreatableIn } from "@/lib/moduleDocumentKinds";
 import {
   collectionDestination,
@@ -22,11 +25,23 @@ import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
 import { type DocumentKindContribution, getModule } from "@artisan/editor-sdk";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { Blocks, Database, LayoutDashboard, Plus, Settings, Zap } from "lucide-react";
-import { Component, type ReactNode, useState } from "react";
+import {
+  Blocks,
+  ChevronRight,
+  Database,
+  Languages,
+  LayoutDashboard,
+  Package,
+  Plus,
+  Settings,
+  Zap,
+} from "lucide-react";
+import { Component, type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { typeLabel } from "./ProjectDocumentTree";
 import { goToDocument } from "./goToDocument";
+import { type PreviewLine, screenPreview } from "./screenPreview";
+import { useGoToWorkspaceTab } from "./useGoToWorkspaceTab";
 import { documentLabel } from "./useProjectDocuments";
 
 /**
@@ -82,6 +97,15 @@ export function ModuleHome({
   );
   const dataSources = listedDataSources(project, screens);
 
+  const goToTab = useGoToWorkspaceTab();
+  // Every text of the module, its own messages included, and what each language lacks.
+  const texts = useMemo(() => buildTranslationRows(project, project.defaultLang).length, [project]);
+  const missingTexts = useMemo(
+    () => Object.values(countMissingPerLang(project)).reduce((a, b) => a + b, 0),
+    [project],
+  );
+  const captured = project.capturedItems ?? [];
+
   const commands = documentsOf(project, "command");
   const moduleActions = owner ? actions.filter((a) => a.moduleId === owner) : [];
 
@@ -113,9 +137,9 @@ export function ModuleHome({
             type="button"
             onClick={onOpenBoard}
             aria-label={t("moduleHome.openBoard")}
-            className="block h-44 w-full overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)] p-2 hover:border-[var(--border-strong)]"
+            className="flex min-h-44 w-full flex-1 overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)] p-2 hover:border-[var(--border-strong)]"
           >
-            <BoardThumbnail project={project} className="h-full w-full" />
+            <BoardThumbnail project={project} className="w-full" />
           </button>
         ) : undefined
       }
@@ -182,32 +206,7 @@ export function ModuleHome({
               />
             ))}
             {moduleScreens.length > 0 && (
-              <Place
-                testId="module-home-settings"
-                icon={
-                  <IconTile
-                    icon={Settings}
-                    fg="var(--text-mut)"
-                    soft="var(--surface-raised-2)"
-                    size="sm"
-                  />
-                }
-                // One screen: the block is that screen, its button only opens it.
-                title={
-                  moduleScreens.length === 1 ? moduleScreens[0]!.label : t("moduleHome.settings")
-                }
-              >
-                {serverId &&
-                  moduleScreens.map((s) => (
-                    <Link
-                      key={s.id}
-                      {...screenDestination(s, serverId, [project])}
-                      className="btn btn-outline btn-sm"
-                    >
-                      {moduleScreens.length === 1 ? t("moduleHome.open") : s.label}
-                    </Link>
-                  ))}
-              </Place>
+              <SettingsPlace project={project} screens={moduleScreens} serverId={serverId} />
             )}
             {dataSources.length > 0 && (
               <Place
@@ -236,6 +235,61 @@ export function ModuleHome({
               </Place>
             )}
             {!boardFirst && boardPlace}
+            {texts > 0 && (
+              <Place
+                testId="module-home-translations"
+                icon={
+                  <IconTile
+                    icon={Languages}
+                    fg="var(--text-mut)"
+                    soft="var(--surface-raised-2)"
+                    size="sm"
+                  />
+                }
+                title={t("project.tabs.translations")}
+                count={texts}
+                summary={
+                  missingTexts > 0
+                    ? t("moduleHome.translationsMissing", { count: missingTexts })
+                    : t("moduleHome.translationsHint")
+                }
+              >
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => goToTab("translations")}
+                >
+                  {t("moduleHome.openTranslations")}
+                </button>
+              </Place>
+            )}
+            {captured.length > 0 && (
+              <Place
+                testId="module-home-captured"
+                icon={
+                  <IconTile
+                    icon={Package}
+                    fg="var(--text-mut)"
+                    soft="var(--surface-raised-2)"
+                    size="sm"
+                  />
+                }
+                title={t("moduleHome.captured")}
+                count={captured.length}
+                summary={t("moduleHome.capturedHint")}
+              >
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    useResourcesView.getState().setView("captured");
+                    goToTab("resources");
+                  }}
+                >
+                  {t("moduleHome.openCaptured")}
+                </button>
+              </Place>
+            )}
           </ul>
         </section>
 
@@ -340,6 +394,127 @@ function Place({
       {children && <div className="mt-auto flex flex-wrap gap-1.5">{children}</div>}
     </li>
   );
+}
+
+/**
+ * The module's settings screens: what each one holds, at a glance (its first values, how
+ * many entries its lists have), read from the Project's copy of its file. Each screen is a
+ * row that opens it. One screen: the block is that screen, named after it.
+ */
+function SettingsPlace({
+  project,
+  screens,
+  serverId,
+}: {
+  project: Project;
+  screens: ServerEditorScreen[];
+  serverId: string | undefined;
+}) {
+  const { t } = useTranslation();
+  const lone = screens.length === 1 ? screens[0] : undefined;
+  return (
+    <Place
+      testId="module-home-settings"
+      icon={
+        <IconTile icon={Settings} fg="var(--text-mut)" soft="var(--surface-raised-2)" size="sm" />
+      }
+      title={lone ? lone.label : t("moduleHome.settings")}
+      count={lone ? undefined : screens.length}
+      summary={t("moduleHome.settingsHint")}
+      picture={
+        lone ? (
+          <ScreenValues project={project} screen={lone} />
+        ) : (
+          <ul className="flex flex-col gap-1.5" data-testid="module-home-screens">
+            {screens.map((s) => (
+              <li key={s.id}>
+                <ScreenRow project={project} screen={s} serverId={serverId} />
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    >
+      {lone && serverId && (
+        <Link {...screenDestination(lone, serverId, [project])} className="btn btn-outline btn-sm">
+          {t("moduleHome.open")}
+        </Link>
+      )}
+    </Place>
+  );
+}
+
+/** One screen among several: its name, its values below, the whole row opens it. */
+function ScreenRow({
+  project,
+  screen,
+  serverId,
+}: {
+  project: Project;
+  screen: ServerEditorScreen;
+  serverId: string | undefined;
+}) {
+  const body = (
+    <>
+      <span className="flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text)]">
+          {screen.label}
+        </span>
+        {serverId && (
+          <ChevronRight
+            className="size-3.5 shrink-0 text-[var(--text-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--text-mut)]"
+            aria-hidden
+          />
+        )}
+      </span>
+      <ScreenValues project={project} screen={screen} />
+    </>
+  );
+  const frame =
+    "flex flex-col gap-1.5 rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2.5 py-2";
+  return serverId ? (
+    <Link
+      {...screenDestination(screen, serverId, [project])}
+      className={`group ${frame} hover:border-[var(--border-strong)]`}
+      data-testid={`module-home-screen-${screen.id}`}
+    >
+      {body}
+    </Link>
+  ) : (
+    <div className={frame} data-testid={`module-home-screen-${screen.id}`}>
+      {body}
+    </div>
+  );
+}
+
+/** A screen's first values, label beside value; nothing when its file is not known here. */
+function ScreenValues({ project, screen }: { project: Project; screen: ServerEditorScreen }) {
+  const { t } = useTranslation();
+  const { lines, rows } = screenPreview(project, screen);
+  if (rows != null)
+    return (
+      <p className="text-[12px] text-[var(--text-mut)]">{t("moduleHome.rows", { count: rows })}</p>
+    );
+  if (lines.length === 0) return null;
+  return (
+    <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 text-[12px]">
+      {lines.map((line) => (
+        <div key={line.label} className="contents">
+          <dt className="truncate text-[var(--text-mut)]" title={line.label}>
+            {line.label}
+          </dt>
+          <dd className="max-w-40 truncate text-right font-mono tabular-nums text-[var(--text)]">
+            {valueText(line, t)}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function valueText(line: PreviewLine, t: (key: string) => string): string {
+  if (typeof line.value === "boolean") return line.value ? t("moduleHome.on") : t("moduleHome.off");
+  return String(line.value);
 }
 
 /** A collection's block: its count, its page, and "New" where the kind may be created. */
