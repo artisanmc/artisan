@@ -137,9 +137,15 @@ export function ModuleHome({
             type="button"
             onClick={onOpenBoard}
             aria-label={t("moduleHome.openBoard")}
-            className="flex min-h-44 w-full flex-1 overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)] p-2 hover:border-[var(--border-strong)]"
+            className="relative min-h-44 w-full flex-1 overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]"
           >
-            <BoardThumbnail project={project} className="w-full" />
+            {/* Out of the flow: the picture takes the block's height (at least 11rem, more
+                when its row is taller), never its own. In the flow, its viewBox ratio set
+                its height from the block's width, a tall board making the block huge. */}
+            <BoardThumbnail
+              project={project}
+              className="absolute top-2 left-2 h-[calc(100%-1rem)] w-[calc(100%-1rem)]"
+            />
           </button>
         ) : undefined
       }

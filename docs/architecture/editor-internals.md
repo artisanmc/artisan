@@ -205,7 +205,9 @@ module's screens (minus the one a collection shows on its page), its data source
 place, never a row per Document (the sidebar lists them). The order follows the content: a
 board holding anything but commands comes first, two columns wide, with `BoardThumbnail`
 (`features/canvas/`: an SVG of `projectBoard`'s arrangement, boxes in `kindAppearance` colours,
-links and folder frames; `null` when the arrangement throws); a board of commands alone goes
+links and folder frames; `null` when the arrangement throws), placed out of the flow in a
+block at least 11rem high that stretches with its row, so a tall board never sets the block's
+height through its viewBox ratio; a board of commands alone goes
 after the lists and data sources, compact; its thumbnail grows with the row. The settings block
 says its screens are saved to the server without a deploy and shows, per screen, a row that
 opens it with the first values of its file (`screenPreview`: up to 4 plain values, labelled by
