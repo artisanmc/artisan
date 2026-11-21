@@ -6,6 +6,8 @@ import net.artisanmc.plugin.text.LenientText
 import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.AppearanceYaml
+import net.artisanmc.plugin.model.ImageButtonYaml
+import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.engine.RuntimeMenu
 import net.artisanmc.plugin.model.MenuTitleLayer
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -74,8 +76,8 @@ object MenuRenderer {
     /**
      * Renders [menu] for [player] and opens it, in named steps: bind the inputs
      * ([bindArgs]), window each paginated element ([paginate]), pick the image
-     * buttons ([imageButtons]) whose glyphs join the title, create the inventory
-     * ([createInventory]), fill its slots ([layout]), then open it.
+     * buttons ([imageButtons]), fill the slots ([layout]: a row's image adds its glyph),
+     * compose the title with those glyphs, create the inventory ([createInventory]), then open it.
      */
     fun open(
         player: Player,
@@ -112,12 +114,17 @@ object MenuRenderer {
         val papi = evaluator.deps.papi
         val interpolate: (String) -> String = { raw -> renderCtx.render(raw, papi) { k -> langMap[k] } }
         val images = imageButtons(menu, renderCtx, evaluator, lookupAsset)
+        // The slots are filled before the title: a row-bound element (iterates/places)
+        // showing an image adds its glyph per slot, known only once each row is chosen.
+        val fill = SlotFill(content, menu.compiledAppearances, evaluator, menu.yaml,
+            rowImages = if (bedrock(player)) null else lookupAsset)
+        layout(menu, renderCtx, images, fill)
         val title = if (bedrock(player) && BedrockTitle.supports(menu.yaml)) {
             Component.text(BedrockTitle.compile(menu, images.choices) { value ->
                 interpolate(TitleCompiler.resolveLText(value, langMap, lang, menu.defaultLang))
             })
         } else TitleCompiler.compileTitle(
-            layers = menu.title + images.layers,
+            layers = menu.title + images.layers + fill.rowGlyphs,
             lang = lang,
             langMap = langMap,
             lookupAsset = lookupAsset,
@@ -126,8 +133,6 @@ object MenuRenderer {
             defaultLang = menu.defaultLang,
         )
         val inv = createInventory(menu, invType, title)
-        val fill = SlotFill(content, menu.compiledAppearances, evaluator)
-        layout(menu, renderCtx, images, fill)
 
         // Empty anchor: the content goes out as packets. Registered before opening,
         // whose packets must already be rewritten; released if another plugin
@@ -228,7 +233,9 @@ object MenuRenderer {
         evaluator: ConditionEvaluator,
         lookupAsset: (String) -> AssetEntry?,
     ): ImageButtons {
-        val imageElements = menu.yaml.allElements.filter { el -> (listOf(el.display) + el.states).any { it.image != null } }
+        // Row-bound elements (iterates/places) draw their images slot by slot ([SlotFill.placeRow]).
+        val imageElements = menu.yaml.allElements.filter { el ->
+            el.iterates == null && el.places == null && (listOf(el.display) + el.states).any { it.image != null } }
         val choices = imageElements.associate { el -> el.id to
             menu.compiledAppearances[el.id]?.firstOrNull { evaluator.evaluateAll(it.conditions, ctx) } }
         val layouts = imageElements.associate { it.id to ImageButtonLayout.of(menu.yaml, it) }
@@ -281,7 +288,12 @@ object MenuRenderer {
         val content: MenuSlots,
         val compiledAppearances: Map<String, List<CompiledAppearance>>,
         val evaluator: ConditionEvaluator,
+        val menu: MenuYaml,
+        /** The pack's assets, for a row's image; null: no image (a Bedrock player), the appearance's item instead. */
+        val rowImages: ((String) -> AssetEntry?)?,
     ) {
+        /** The title glyph of each row-bound slot showing an image, in slot order. */
+        val rowGlyphs = mutableListOf<MenuTitleLayer.Glyph>()
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
         val slotArgs = mutableMapOf<Int, Map<String, Any>>()
         /** The element shown in each clickable slot: what `core:menu_click` counts a click by. */
@@ -309,7 +321,31 @@ object MenuRenderer {
         fun placeRow(elementId: String, slot: Int, rowArgs: Map<String, Any>, ctx: ExecutionContext) {
             val itemCtx = ctx.copy(args = ctx.args + rowArgs)
             val chosen = choose(elementId, itemCtx) ?: return
-            place(elementId, listOf(slot), chosen, build(chosen, itemCtx), rowArgs)
+            val image = chosen.yaml.image
+            if (image == null) {
+                place(elementId, listOf(slot), chosen, build(chosen, itemCtx), rowArgs)
+                return
+            }
+            // An image fills the slot (18×18) through the title, over an invisible item
+            // that keeps the tooltip and the clicks; without it in the pack, or for a
+            // Bedrock player, the appearance's own item when it names one.
+            val glyph = rowGlyph(slot, image)
+            if (glyph != null) {
+                rowGlyphs += glyph
+                place(elementId, listOf(slot), chosen,
+                    buildImageHitItem(chosen.yaml, itemCtx, evaluator.deps, chosen.i18nBase), rowArgs)
+            } else if (chosen.yaml.material != null || chosen.yaml.item != null || chosen.yaml.extends != null) {
+                place(elementId, listOf(slot), chosen, build(chosen, itemCtx), rowArgs)
+            }
+        }
+
+        private fun rowGlyph(slot: Int, image: ImageButtonYaml): MenuTitleLayer.Glyph? {
+            val lookup = rowImages ?: return null
+            if (image.asset.isBlank() || image.fit !in listOf("contain", "stretch", "native")) return null
+            val layout = ImageButtonLayout.slot(menu, slot) ?: return null
+            val key = layout.assetKey(image)
+            if (lookup(key) == null) return null
+            return MenuTitleLayer.Glyph(assetId = key, x = layout.x, y = layout.y)
         }
     }
 

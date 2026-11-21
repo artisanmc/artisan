@@ -50,11 +50,31 @@ describe("image button documents", () => {
     { item: "{item.icon}" },
     { image: { asset: "buy", fit: "native", offset_x: 1.5 } },
     { image: { asset: "buy", offset_y: 4097 } },
-    { iterates: { source: "items", alias: "item" } },
   ])("rejects invalid image placement or a competing item source: %j", (patch) => {
     expect(validateMenuV1({ ...wire, elements: [{ ...wire.elements[0], ...patch }] }).valid).toBe(
       false,
     );
+  });
+  it("accepts an image per row, with a material for the rows without it", () => {
+    const rows = {
+      ...wire,
+      elements: [
+        {
+          id: "days",
+          positions: "0-6,9-15",
+          iterates: { source: "days", alias: "d" },
+          states: [
+            {
+              if: [{ expression: "d.is_claimed" }],
+              image: { asset: "claimed", fit: "native" },
+              material: "GRAY_DYE",
+            },
+          ],
+          item: "{d.icon}",
+        },
+      ],
+    };
+    expect(validateMenuV1(rows)).toEqual({ valid: true, errors: [] });
   });
   it("rejects another element inside an image button's area", () => {
     expect(

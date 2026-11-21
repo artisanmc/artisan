@@ -22,7 +22,11 @@ export function imageButtonErrors(menu: unknown): string[] {
   };
   for (const el of images) {
     const label = `Image button "${el.id}"`;
-    if (el.iterates || el.places) errors.push(`${label} requires a fixed rectangular area.`);
+    // A row-bound element (iterates/places) shows one 18×18 image per slot, chosen per row, and
+    // may name a material or item for the rows whose image cannot be shown.
+    if (el.iterates || el.places) continue;
+    if ([el, ...(Array.isArray(el.states) ? el.states : [])].some((app) => app?.image && (app.material || app.item)))
+      errors.push(`${label} names an image and an item in one look: its slots hold the invisible hit item.`);
     const slots = slotsOf(el.positions);
     if (!slots?.length) { errors.push(`${label} has invalid or out-of-bounds positions.`); continue; }
     const xs = slots.map((slot) => slot % cols); const ys = slots.map((slot) => Math.floor(slot / cols));

@@ -55,7 +55,23 @@ The rectangle must fit inside the menu and cannot overlap another element. When 
 menu hides the player inventory, an image button can also sit in the 3 inventory
 rows or in the hotbar — within one of them, since the gaps between these parts
 break the slot grid.
-Image buttons currently use fixed positions, without iteration or data placements.
+In the editor, image buttons use fixed positions. A menu written in YAML can also put an
+`image` on an element that iterates a list or places rows (`iterates`, `places`): each slot
+then shows its own 18×18 image, chosen per row by the element's states, with the row's title,
+lore and clicks. Give such an appearance a `material` too: players without the resource pack,
+Bedrock players, and rows whose image is not in the pack yet see that item instead.
+
+```yaml
+- id: days
+  positions: "10-16,19-25"
+  iterates: { source: days, alias: d }
+  states:
+    - if: [{ expression: d.is_claimed }]
+      image: { asset: day_claimed, fit: stretch }
+      material: GRAY_DYE        # without the image
+      title: "Claimed"
+  item: "{d.icon}"
+```
 Choose **Item** to return to a material-based appearance.
 
 Players need the updated Artisan plugin and generated resource pack to see images.

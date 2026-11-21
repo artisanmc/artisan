@@ -102,4 +102,56 @@ class MenuRendererImageButtonTest {
             assertEquals(Material.DIAMOND, session.slots[10]?.type)
         }
     }
+
+    @Test fun `an iterating element draws one image per slot, chosen per row, else its material`() {
+        val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule().readValue<MenuYaml>("""
+            schema: menu/v1
+            id: calendar
+            title: []
+            size: 27
+            inputs:
+              - { name: days, type: list }
+            elements:
+              - id: days
+                positions: "10-12"
+                iterates: { source: days, alias: d }
+                states:
+                  - if: [{ expression: d.claimed }]
+                    image: { asset: claimed, fit: stretch }
+                    material: GRAY_DYE
+                    title: Claimed
+                    click: { left: 'send_message "done"' }
+                  - if: [{ expression: "!d.claimed" }]
+                    image: { asset: ghost }
+                material: STONE
+        """.trimIndent())
+        val player = MockBukkit.getMock()!!.addPlayer()
+        val menu = MenuCompiler.compile(yaml, emptyMap())
+        val days = listOf(mapOf("claimed" to true), mapOf("claimed" to true), mapOf("claimed" to false))
+        val ctx = ExecutionContext(player, args = mapOf("days" to days))
+        val slotKey = { slot: Int, asset: String -> ImageButtonLayout.slot(yaml, slot)!!.assetKey(ImageButtonYaml(asset, "stretch")) }
+        // Slots 10 and 11 share a row: one glyph key for both (looked up per slot, and again
+        // when the title is compiled); slot 12's image
+        // has no material to fall back on, so a missing image leaves it empty.
+        val keys = mutableListOf<String>()
+        val session = MenuRenderer.open(player, menu, "en", ctx, lookupAsset = { key ->
+            keys.add(key)
+            if (key.startsWith("buttons/") && key == slotKey(10, "claimed")) AssetEntry(key, "glyph", 0xe000, -4, 18, 18, "artisan:$key") else null
+        })
+        assertEquals(slotKey(10, "claimed"), slotKey(11, "claimed"))
+        assertTrue(slotKey(10, "claimed") in keys)
+        assertEquals(setOf(10, 11), session.activeClicks.keys)
+        assertNotEquals(Material.GRAY_DYE, session.slots[10]?.type)
+        assertNull(session.slots[12])
+        // Without the pack: the claimed rows show their material, clicks kept.
+        val plain = MenuRenderer.open(player, menu, "en", ctx)
+        assertEquals(Material.GRAY_DYE, plain.slots[10]?.type)
+        assertEquals(Material.GRAY_DYE, plain.slots[11]?.type)
+        assertEquals(setOf(10, 11), plain.activeClicks.keys)
+        // A Bedrock player never gets the images, even with the asset known.
+        val bedrock = MenuRenderer.open(player, menu, "en", ctx,
+            lookupAsset = { key -> AssetEntry(key, "glyph", 0xe000, -4, 18, 18, "artisan:$key") },
+            bedrock = { true })
+        assertEquals(Material.GRAY_DYE, bedrock.slots[10]?.type)
+    }
 }

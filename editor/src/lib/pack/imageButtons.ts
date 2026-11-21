@@ -55,7 +55,16 @@ export function imageButtonsFromMenus(
           doc.layers.flatMap((layer: any) => layer?.elements ?? [])
         : [];
     for (const el of elements) {
-      if (!el || el.iterates || el.places) continue;
+      if (!el) continue;
+      // A row-bound element (iterates/places) shows one image per slot, chosen per row:
+      // each slot of it is an 18×18 area of its own.
+      if (el.iterates || el.places) {
+        for (const slot of rowSlots(el, limit)) {
+          const area = imageButtonArea([slot], type, size, hidden);
+          if (area) pushImages(out, el, area);
+        }
+        continue;
+      }
       const slots = new Set<number>();
       let valid = true;
       for (const part of String(el.positions ?? "").split(",")) {
@@ -76,28 +85,56 @@ export function imageButtonsFromMenus(
       // Same rectangle and origin as the editor and the plugin (imageButtonArea).
       const area = imageButtonArea([...slots], type, size, hidden);
       if (!area) continue;
-      for (const app of [el, ...(Array.isArray(el.states) ? el.states : [])]) {
-        if (typeof app?.image?.asset !== "string" || !app.image.asset) continue;
-        if (
-          app.image.fit !== undefined &&
-          !["contain", "stretch", "native"].includes(app.image.fit)
-        )
-          continue;
-        if (![app.image.offset_x ?? 0, app.image.offset_y ?? 0].every(Number.isSafeInteger))
-          continue;
-        out.push({
-          asset: app.image.asset,
-          fit: app.image.fit ?? "contain",
-          ...(app.image.offset_x ? { offset_x: app.image.offset_x } : {}),
-          ...(app.image.offset_y ? { offset_y: app.image.offset_y } : {}),
-          width: area.width * 18,
-          height: area.height * 18,
-          y: area.y,
-        });
-      }
+      pushImages(out, el, area);
     }
   }
   return out;
+}
+
+/** The slots a row-bound element may fill: its positions (iterates), else its placements' (places). */
+// biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
+function rowSlots(el: any, limit: number): number[] {
+  const slots = new Set<number>();
+  if (el.iterates) {
+    for (const part of String(el.positions ?? "").split(",")) {
+      const match = /^\s*(\d+)(?:\s*-\s*(\d+))?\s*$/.exec(part);
+      if (!match) return [];
+      const a = Number(match[1]);
+      const b = Number(match[2] ?? a);
+      if (a >= limit || b >= limit) return [];
+      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) slots.add(i);
+    }
+  } else if (Array.isArray(el.places?.placements)) {
+    for (const p of el.places.placements) {
+      const position = p?.position;
+      if (Number.isInteger(position) && position >= 0 && position < limit) slots.add(position);
+    }
+  }
+  return [...slots].sort((a, b) => a - b);
+}
+
+/** One placement per image appearance of [el] over [area]. */
+function pushImages(
+  out: ImageButtonPlacement[],
+  // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
+  el: any,
+  area: { width: number; height: number; y: number },
+) {
+  for (const app of [el, ...(Array.isArray(el.states) ? el.states : [])]) {
+    if (typeof app?.image?.asset !== "string" || !app.image.asset) continue;
+    if (app.image.fit !== undefined && !["contain", "stretch", "native"].includes(app.image.fit))
+      continue;
+    if (![app.image.offset_x ?? 0, app.image.offset_y ?? 0].every(Number.isSafeInteger)) continue;
+    out.push({
+      asset: app.image.asset,
+      fit: app.image.fit ?? "contain",
+      ...(app.image.offset_x ? { offset_x: app.image.offset_x } : {}),
+      ...(app.image.offset_y ? { offset_y: app.image.offset_y } : {}),
+      width: area.width * 18,
+      height: area.height * 18,
+      y: area.y,
+    });
+  }
 }
 
 /**

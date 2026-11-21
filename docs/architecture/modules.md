@@ -751,6 +751,10 @@ api.getTemplates().register(TemplateDeclaration
     .build());
 ```
 
+Since API 1.10.0, `TemplateDeclaration.fromResourceFolder(loader, "artisan-templates/daily", "daily", 1)`
+takes every file under that folder of the jar (any depth, dot segments left out), so the list
+does not need keeping; `fromResources` with an explicit list still works.
+
 - **Presence**: `installed_modules[].templates` = `[{id, title, version, seed_project?, files:[{path, hash, size}]}]`, without content.
 - **Read** (default version, read-only): `GET SERVER/modules/:module/templates/:template` (`template_fetch`).
 - **Copy**: `POST …/projects/:project/templates` `{module, template, paths?, replace}` (`template_copy`);
