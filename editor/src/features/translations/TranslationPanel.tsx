@@ -1,4 +1,6 @@
 import { MmEditor } from "@/components/minimessage/MmEditor";
+import { Collapsible } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import type { I18nKey, ProjectId } from "@/domain/types";
@@ -24,6 +26,7 @@ import {
   Check,
   Copy as CopyIcon,
   Plus,
+  Search,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -31,6 +34,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { parse as parseYaml } from "yaml";
+import { type TranslationGroup, groupRows, rowMatches } from "./translationGroups";
 import { countListLeaves, serializeRows } from "./translationsYaml";
 
 interface TranslationPanelProps {
@@ -435,13 +439,28 @@ function VisualBody({
     keys: NO_KEYS,
   });
   const pinnedKeys = pinned.scope === scope ? pinned.keys : NO_KEYS;
+  const [query, setQuery] = useState("");
   const rows = useMemo(
     () =>
       allRows.filter(
-        (r) => pinnedKeys.has(r.key) || matchesFilter(r, filter, activeLang, defaultLang),
+        (r) =>
+          (pinnedKeys.has(r.key) || matchesFilter(r, filter, activeLang, defaultLang)) &&
+          rowMatches(r, query),
       ),
-    [allRows, pinnedKeys, filter, activeLang, defaultLang],
+    [allRows, pinnedKeys, filter, activeLang, defaultLang, query],
   );
+  const groups = useMemo(() => groupRows(rows), [rows]);
+  // A few groups, or a search: all open. Otherwise the reader opens the menu they want.
+  const allOpen = query.trim() !== "" || groups.length <= 3;
+  const [toggled, setToggled] = useState<ReadonlySet<string>>(() => new Set());
+  const groupKey = (g: TranslationGroup) => `${g.kind}:${g.id}`;
+  const isOpen = (g: TranslationGroup) => allOpen !== toggled.has(groupKey(g));
+  const toggle = (g: TranslationGroup) =>
+    setToggled((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(groupKey(g))) next.add(groupKey(g));
+      return next;
+    });
 
   // One live editor at a time: a CodeMirror per row made a module of a few
   // hundred keys take seconds to open and every keystroke re-render them all.
@@ -461,30 +480,105 @@ function VisualBody({
     [scope],
   );
 
-  if (rows.length === 0) {
-    return (
-      <div className="flex flex-1 items-center justify-center px-4 py-8 text-center text-[11px] text-[var(--text-faint)]">
-        {filter === "missing" ? t("translations.nothingMissing") : t("translations.noMatch")}
-      </div>
-    );
-  }
-  return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <ul className="flex flex-col gap-2 p-3">
-        {rows.map((row) => (
-          <VisualRow
-            key={row.key}
-            row={row}
-            defaultLang={defaultLang}
-            activeLang={activeLang}
-            editing={editing === row.key}
-            onEdit={setEditing}
-            onChange={onRowChange}
-          />
-        ))}
-      </ul>
+  const search = (
+    <div className="relative shrink-0 border-[var(--border)] border-b px-3 py-2">
+      <Search className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-5.5 size-3.5 text-[var(--text-faint)]" />
+      <Input
+        type="search"
+        data-testid="translations-search"
+        aria-label={t("translations.search")}
+        placeholder={t("translations.search")}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="h-8 pl-8 text-xs"
+      />
     </div>
   );
+  if (rows.length === 0) {
+    return (
+      <>
+        {search}
+        <div className="flex flex-1 items-center justify-center px-4 py-8 text-center text-[11px] text-[var(--text-faint)]">
+          {query.trim()
+            ? t("translations.noSearchMatch")
+            : filter === "missing"
+              ? t("translations.nothingMissing")
+              : t("translations.noMatch")}
+        </div>
+      </>
+    );
+  }
+  const list = (groupRowsOf: ReadonlyArray<TranslationRow>) => (
+    <ul className="flex flex-col gap-2">
+      {groupRowsOf.map((row) => (
+        <VisualRow
+          key={row.key}
+          row={row}
+          defaultLang={defaultLang}
+          activeLang={activeLang}
+          editing={editing === row.key}
+          onEdit={setEditing}
+          onChange={onRowChange}
+        />
+      ))}
+    </ul>
+  );
+  return (
+    <>
+      {search}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex flex-col p-3">
+          {groups.map((g) => {
+            const missing = g.rows.filter((r) =>
+              isTranslationMissing(defaultLang, activeLang, r.source, r.target),
+            ).length;
+            return (
+              <Collapsible
+                key={groupKey(g)}
+                data-testid="translations-group"
+                title={<GroupTitle group={g} />}
+                meta={
+                  <>
+                    {missing > 0 ? (
+                      <span className="badge badge-amber">
+                        {t("translations.groupMissing", { count: missing })}
+                      </span>
+                    ) : null}
+                    <span className="font-mono text-[11px] text-[var(--text-faint)]">
+                      {g.rows.length}
+                    </span>
+                  </>
+                }
+                open={isOpen(g)}
+                onOpenChange={() => toggle(g)}
+              >
+                {list(g.rows)}
+              </Collapsible>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** A group's name: the Document or source it holds the texts of, else where its keys sit in `lang/`. */
+function GroupTitle({ group }: { group: TranslationGroup }) {
+  const { t } = useTranslation();
+  switch (group.kind) {
+    case "unused":
+      return <>{t("translations.groupUnused")}</>;
+    case "langRoot":
+      return <>{t("translations.groupLangRoot")}</>;
+    case "lang":
+      return (
+        <>
+          {t("translations.groupLang")} <span className="font-mono">{group.id}</span>
+        </>
+      );
+    default:
+      return <span className="font-mono">{group.id}</span>;
+  }
 }
 
 interface VisualRowProps {

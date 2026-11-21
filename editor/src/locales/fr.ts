@@ -218,6 +218,12 @@ const fr: typeof en = {
     removeLanguage: "Supprimer la langue",
   },
   translations: {
+    search: "Chercher une clé, un menu, un texte…",
+    noSearchMatch: "Rien ne correspond à cette recherche.",
+    groupUnused: "Inutilisées",
+    groupLangRoot: "Messages à la racine de lang/",
+    groupLang: "lang/",
+    groupMissing: "{{count}} à traduire",
     statTranslated: "{{translated}} / {{total}} traduites en {{lang}}",
     statMissing: "{{count}} manquantes",
     statComplete: "complet",

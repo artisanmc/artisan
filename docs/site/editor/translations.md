@@ -13,6 +13,10 @@ Pick a language in the left column; the badge tells you how many texts are still
 
 **Add a language** creates a new column — nothing else changes until you fill it in.
 
+The texts come in one section per menu, command, dialog or data source (`menus.calendar`, `variants.bedrock.menus.calendar` for a variant's version), then the keys only `lang/` holds, by their first segment (`artisan`, an add-on's `claim`…), then the unused ones. Each section says how many texts it still lacks. With more than three sections they start closed: open the one you want. The search box keeps the texts whose key, place, source or translation contains every word you type, and opens every section.
+
+A module's originals (the menus and commands it ships) appear once, at their readable key, like your own menus: the shipped copy the editor keeps for **Compare** and **Revert** is not listed.
+
 **Remove N unused** deletes the texts of menus, commands, dialogs and data sources that no longer exist (leftovers from a deleted button, say), unless another text still points to them with `{i18n:…}`. Texts marked `(lang/ only)` are never removed: no document holds them, but something else reads them, such as an add-on's own messages (`auctions.messages.*`) or the duration units (`artisan.duration.*`). Removing is undoable until you publish.
 
 An empty source value is valid: it means that a title, lore, or other text should stay blank. It is not counted as a missing translation, and an empty target is only missing when the source contains text. The empty value is still written to disk so the game renders nothing instead of showing the translation key.

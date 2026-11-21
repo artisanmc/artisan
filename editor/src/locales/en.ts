@@ -213,6 +213,12 @@ export default {
     removeLanguage: "Remove language",
   },
   translations: {
+    search: "Search a key, a menu, a text…",
+    noSearchMatch: "Nothing matches this search.",
+    groupUnused: "Unused",
+    groupLangRoot: "Messages at the root of lang/",
+    groupLang: "lang/",
+    groupMissing: "{{count}} to translate",
     statTranslated: "{{translated}} / {{total}} translated in {{lang}}",
     statMissing: "{{count}} missing",
     statComplete: "complete",

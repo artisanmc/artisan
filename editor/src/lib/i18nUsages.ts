@@ -1,4 +1,4 @@
-import { visitProjectLTexts } from "@/domain/i18nSites";
+import { visitProjectLTexts, visitShelvedLTexts, visitShippedLTexts } from "@/domain/i18nSites";
 import type { I18nKey, Project } from "@/domain/types";
 
 /**
@@ -14,6 +14,34 @@ import type { I18nKey, Project } from "@/domain/types";
 export function findKeyUsages(project: Project): Map<I18nKey, string> {
   const out = new Map<I18nKey, string>();
   for (const site of visitProjectLTexts(project)) out.set(site.lText.key, site.path);
+  // A variant off the canvas: its texts are the owner's too, never "(unused)".
+  for (const site of visitShelvedLTexts(project))
+    if (!out.has(site.lText.key)) out.set(site.lText.key, site.path);
+  return out;
+}
+
+/**
+ * Keys only the module's shipped copies hold (`Project.originals`, kept for the comparison
+ * and the way back): not texts to translate, nor stale. Listing them showed each shipped
+ * text twice, its copy as an "(unused)" `lt_…` key that the cleanup then deleted, which
+ * made the untouched original read as modified.
+ */
+function shippedOnlyKeys(project: Project, usages: Map<I18nKey, string>): Set<I18nKey> {
+  const out = new Set<I18nKey>();
+  if (!project.originals) return out;
+  for (const site of visitShippedLTexts(project))
+    if (!usages.has(site.lText.key)) out.add(site.lText.key);
+  return out;
+}
+
+/** {@link shippedOnlyKeys} for counters called with no walk at hand, once per project state. */
+const shippedOnlyCache = new WeakMap<Project, Set<I18nKey>>();
+function shippedOnlyKeysOf(project: Project): Set<I18nKey> {
+  let out = shippedOnlyCache.get(project);
+  if (!out) {
+    out = project.originals ? shippedOnlyKeys(project, findKeyUsages(project)) : new Set();
+    shippedOnlyCache.set(project, out);
+  }
   return out;
 }
 
@@ -69,8 +97,9 @@ function isEditorAddress(project: Project, key: string): boolean {
  */
 export function findUnusedI18nKeys(project: Project): I18nKey[] {
   const used = findKeyUsages(project);
+  const shipped = shippedOnlyKeys(project, used);
   const unused = (Object.keys(project.i18nKeys) as I18nKey[]).filter(
-    (key) => !used.has(key) && isEditorAddress(project, key),
+    (key) => !used.has(key) && !shipped.has(key) && isEditorAddress(project, key),
   );
   if (unused.length === 0) return unused;
   const referenced = textReferencedKeys(project);
@@ -165,7 +194,10 @@ export function isTranslationMissing(
  */
 export function countMissingPerLang(project: Project): Record<string, number> {
   const out: Record<string, number> = {};
-  const allEntries = Object.values(project.i18nKeys);
+  const shipped = shippedOnlyKeysOf(project);
+  const allEntries = Object.entries(project.i18nKeys)
+    .filter(([key]) => !shipped.has(key as I18nKey))
+    .map(([, entry]) => entry);
   for (const lang of listLanguages(project)) {
     if (lang === project.defaultLang) continue;
     let count = 0;
@@ -190,8 +222,9 @@ export function countMissingPerLang(project: Project): Record<string, number> {
  */
 export function countMissingForLang(project: Project, lang: string): number {
   let count = 0;
-  for (const entry of Object.values(project.i18nKeys)) {
-    if (!entry) continue;
+  const shipped = shippedOnlyKeysOf(project);
+  for (const [key, entry] of Object.entries(project.i18nKeys)) {
+    if (!entry || shipped.has(key as I18nKey)) continue;
     if (isTranslationMissing(project.defaultLang, lang, entry[project.defaultLang], entry[lang])) {
       count++;
     }
@@ -211,6 +244,8 @@ interface ProjectSites {
   /** The project's fields, `i18nKeys` and `updatedAt` aside, as last read. */
   fields: Record<string, unknown>;
   usages: Map<I18nKey, string>;
+  /** Keys only the module's shipped copies hold: not listed. */
+  shipped: Set<I18nKey>;
   /** Keys referenced by `{i18n:key}` / `@key` outside `i18nKeys`. */
   referenced: Set<string>;
 }
@@ -242,9 +277,15 @@ export function translationRowsBuilder(): (
   return (project, activeLang) => {
     const fields = siteFields(project);
     if (!sites || !sameFields(sites.fields, fields)) {
-      sites = { fields, usages: findKeyUsages(project), referenced: referencedKeysIn(fields) };
+      const usages = findKeyUsages(project);
+      sites = {
+        fields,
+        usages,
+        shipped: shippedOnlyKeys(project, usages),
+        referenced: referencedKeysIn(fields),
+      };
     }
-    const { usages, referenced } = sites;
+    const { usages, shipped, referenced } = sites;
     let textRefs: Set<string> | null = null;
     // Same rule as findUnusedI18nKeys, the references split between tree and texts.
     const isUnused = (key: I18nKey): boolean => {
@@ -256,6 +297,7 @@ export function translationRowsBuilder(): (
     for (const [key, entry] of Object.entries(project.i18nKeys)) {
       if (!entry) continue;
       const k = key as I18nKey;
+      if (shipped.has(k)) continue;
       rows.push({
         key: k,
         context: usages.get(k) ?? (isUnused(k) ? UNUSED_CONTEXT : OUTSIDE_CONTEXT),
