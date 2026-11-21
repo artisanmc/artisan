@@ -96,4 +96,32 @@ class TemplateRegistryTest {
             TemplateDeclaration.fromResources(loader, "artisan-templates/daily", "daily", 1, listOf("missing.yaml"))
         }
     }
+
+    @Test
+    fun `a template reads every file of a resource folder, from a directory or a jar`() {
+        val dir = java.nio.file.Files.createTempDirectory("tpl")
+        val root = dir.resolve("module")
+        java.nio.file.Files.createDirectories(root.resolve("menus"))
+        java.nio.file.Files.createDirectories(root.resolve(".hidden"))
+        java.nio.file.Files.writeString(root.resolve("menus/a.yaml"), "a: 1")
+        java.nio.file.Files.write(root.resolve("b.png"), byteArrayOf(1, 2))
+        java.nio.file.Files.writeString(root.resolve(".hidden/c.yaml"), "c: 1")
+        val jar = dir.resolve("m.jar")
+        java.util.jar.JarOutputStream(java.nio.file.Files.newOutputStream(jar)).use { out ->
+            for (name in listOf("module/", "module/menus/", "module/menus/a.yaml", "module/b.png", "module/.DS_Store")) {
+                out.putNextEntry(java.util.zip.ZipEntry(name))
+                if (!name.endsWith("/")) out.write(name.toByteArray())
+                out.closeEntry()
+            }
+        }
+        for (path in listOf(dir, jar)) {
+            java.net.URLClassLoader(arrayOf(path.toUri().toURL()), null).use { loader ->
+                val decl = TemplateDeclaration.fromResourceFolder(loader, "module", "daily", 1).build()
+                assertEquals(listOf("b.png", "menus/a.yaml"), decl.paths, path.toString())
+                assertFailsWith<IllegalArgumentException> {
+                    TemplateDeclaration.fromResourceFolder(loader, "missing", "daily", 1)
+                }
+            }
+        }
+    }
 }

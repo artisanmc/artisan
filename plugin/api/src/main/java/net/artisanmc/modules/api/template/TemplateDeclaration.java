@@ -3,6 +3,12 @@ package net.artisanmc.modules.api.template;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.net.JarURLConnection;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -13,7 +19,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import net.artisanmc.modules.api.annotations.Beta;
 import org.jetbrains.annotations.Nullable;
 
@@ -109,6 +119,70 @@ public final class TemplateDeclaration {
             }
         }
         return builder;
+    }
+
+    /**
+     * Every file under {@code root} in {@code loader}'s resources, at any depth: {@link
+     * #fromResources} with the paths listed for you, in code unit order. {@code root} is a folder
+     * of the module's jar ({@code "module"}), or of a classes directory in tests. A path with a
+     * segment starting with a dot ({@code .DS_Store}) is left out.
+     *
+     * @throws IllegalArgumentException if {@code root} is not a folder of the resources, holds no
+     *     file, or the template is invalid.
+     * @since 1.10.0
+     */
+    public static Builder fromResourceFolder(ClassLoader loader, String root, String id, int version) {
+        Objects.requireNonNull(loader, "loader");
+        Objects.requireNonNull(root, "root");
+        String dir = root.endsWith("/") ? root.substring(0, root.length() - 1) : root;
+        URL url = loader.getResource(dir);
+        if (url == null) url = loader.getResource(dir + "/");
+        if (url == null) throw new IllegalArgumentException("template folder '" + dir + "' not found");
+        List<String> paths = new ArrayList<>(listFolder(url, dir));
+        if (paths.isEmpty()) throw new IllegalArgumentException("template folder '" + dir + "' holds no file");
+        return fromResources(loader, dir, id, version, paths);
+    }
+
+    private static Set<String> listFolder(URL url, String dir) {
+        Set<String> paths = new TreeSet<>();
+        try {
+            if ("file".equals(url.getProtocol())) {
+                Path base = Path.of(url.toURI());
+                if (!Files.isDirectory(base)) throw new IllegalArgumentException("'" + dir + "' is not a folder");
+                try (Stream<Path> files = Files.walk(base)) {
+                    files.filter(Files::isRegularFile)
+                            .map(f -> base.relativize(f).toString().replace('\\', '/'))
+                            .filter(TemplateDeclaration::visible)
+                            .forEach(paths::add);
+                }
+            } else if ("jar".equals(url.getProtocol())) {
+                URLConnection connection = url.openConnection();
+                connection.setUseCaches(false);
+                try (JarFile jar = ((JarURLConnection) connection).getJarFile()) {
+                    String prefix = dir + "/";
+                    for (JarEntry entry : java.util.Collections.list(jar.entries())) {
+                        String name = entry.getName();
+                        if (entry.isDirectory() || !name.startsWith(prefix)) continue;
+                        String path = name.substring(prefix.length());
+                        if (visible(path)) paths.add(path);
+                    }
+                }
+            } else {
+                throw new IllegalArgumentException("cannot list template folder '" + dir + "' (" + url.getProtocol() + ")");
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("cannot list template folder '" + dir + "'", e);
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("cannot list template folder '" + dir + "'", e);
+        }
+        return paths;
+    }
+
+    private static boolean visible(String path) {
+        for (String segment : path.split("/")) {
+            if (segment.isEmpty() || segment.startsWith(".")) return false;
+        }
+        return true;
     }
 
     public String getId() {

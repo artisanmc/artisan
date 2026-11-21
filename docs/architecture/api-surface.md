@@ -122,6 +122,12 @@ The module that owns a kind says, for each file of that kind a deployment writes
 
 The Java twin of an editor kind's `pack.images` (SDK 1.13): the server calls it on each file of the kind at load and records the images with its loaded state, so the hub builds the resource pack, module images included, without an editor tab. It must answer like the editor kind, in the same order. Detail: `modules.md`, "Pack images on the server".
 
+## 1.10.0 — a template from a resource folder
+
+| Member | Type | Since |
+|---|---|---|
+| `TemplateDeclaration.fromResourceFolder(loader, root, id, version)`: `fromResources` with every file under `root` (any depth, code unit order, a path with a dot segment left out), read from the module's jar (`jar:` resource, the jar must hold the folder's directory entry, as Gradle and Shadow write it) or a classes directory (`file:`); `IllegalArgumentException` when the folder is missing or empty. `fromResources` with its list is unchanged | `TemplateDeclaration.Builder` | 1.10.0 |
+
 ## Stable APIs
 
 ### `net.artisanmc.modules.api.ArtisanModule`
