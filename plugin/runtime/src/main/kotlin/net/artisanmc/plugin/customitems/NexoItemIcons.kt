@@ -41,6 +41,14 @@ class NexoItemIcons(nexoDir: File, private val ttlMillis: Long = 30_000, private
     /** A model with its parents merged: every texture variable resolved to a texture ref. */
     private class Resolved(val textures: Map<String, String>, val elements: JsonNode?, val display: JsonNode?, val guiLight: String?)
 
+    /** What is kept of a model once drawn: its [picture], else the texture that stands for it flat. */
+    private class Drawn(val picture: ByteArray?, val flat: String?)
+
+    /** A texture's file, decoded when a model is drawn from it. */
+    private class Texture(val png: ByteArray?) {
+        val image: BufferedImage? by lazy { png?.let(::frame) }
+    }
+
     private var built: Sheet? = null
     private var builtAt = 0L
     private var builtFrom: String? = null
@@ -76,52 +84,64 @@ class NexoItemIcons(nexoDir: File, private val ttlMillis: Long = 30_000, private
         val items = items()
         if (items.isNotEmpty()) pack.use { lookup ->
             // Many items share a model or a texture (variants): each is resolved and read once.
-            val resolved = hashMapOf<String, Resolved?>()
+            // Nothing of a model outlives its drawing: thousands of model trees and decoded
+            // textures held together weigh hundreds of megabytes on a large pack.
+            val models = hashMapOf<String, Drawn?>()
             val images = hashMapOf<String, ByteArray?>()
-            val raw = hashMapOf<String, ByteArray?>()
-            val decoded = hashMapOf<String, BufferedImage?>()
-            val painted = hashMapOf<String, ByteArray?>()
+            val stamps = hashMapOf<String, ByteArray?>()
+            val recent = object : LinkedHashMap<String, Texture>(16, 0.75f, true) {
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Texture>) = size > RECENT_TEXTURES
+            }
+            fun texture(ref: String): Texture =
+                recent.getOrPut(ref) { Texture(runCatching { lookup.read("textures", ref, "png") }.getOrNull()) }
+            val used = hashSetOf<String>()
             for ((id, item) in items) {
-                val model = modelOf(item)?.let { (key, read) -> resolved.getOrPut(key) { read(lookup) }?.let { key to it } }
-                val picture = model?.let { (key, shape) ->
-                    painted.getOrPut(key) {
-                        val elements = shape.elements?.takeIf { it.size() in 1..MAX_ELEMENTS } ?: return@getOrPut null
-                        val bytes = shape.textures.mapValues { (_, ref) ->
-                            raw.getOrPut(ref) { runCatching { lookup.read("textures", ref, "png") }.getOrNull() }
-                        }
-                        // Drawn once for this model and these textures, however often the pack is read again.
-                        val digest = MessageDigest.getInstance("SHA-256")
-                        digest.update(json.writeValueAsBytes(listOf(elements, shape.display, shape.guiLight)))
-                        for ((variable, png) in bytes.toSortedMap()) {
-                            digest.update(variable.toByteArray(Charsets.UTF_8)); digest.update(0); png?.let(digest::update)
-                        }
-                        pictures.getOrPut(hex(digest)) {
-                            val textures = shape.textures.mapNotNull { (variable, ref) ->
-                                decoded.getOrPut(ref) { bytes[variable]?.let(::frame) }?.let { variable to it }
-                            }.toMap()
-                            if (textures.isEmpty()) return@getOrPut null
-                            runCatching {
-                                ModelPainter.paint(elements, textures, shape.display, shape.guiLight, RENDER_SIDE)?.let(::png)
-                            }.getOrNull()
-                        }
+                val model = modelOf(item)?.let { (key, read) ->
+                    models.getOrPut(key) {
+                        val shape = read(lookup) ?: return@getOrPut null
+                        Drawn(paint(shape, ::texture, stamps, used), pickTexture(shape.textures.toList()))
                     }
                 }
+                val picture = model?.picture
                 if (picture != null) {
                     icons[id] = picture
                     drawn += id
                     continue
                 }
-                val texture = flatTexture(item) ?: model?.second?.let { pickTexture(it.textures.toList()) }
+                val texture = flatTexture(item) ?: model?.flat
                 if (texture != null) images.getOrPut(texture) {
                     runCatching { lookup.read("textures", texture, "png")?.let { icon(it, MAX_SIDE) } }.getOrNull()
                 }?.let { icons[id] = it }
             }
+            // The pictures of models that left the pack go with them.
+            pictures.keys.retainAll(used)
         }
         val digest = MessageDigest.getInstance("SHA-256")
         for ((id, png) in icons) {
             digest.update(id.toByteArray(Charsets.UTF_8)); digest.update(if (id in drawn) 1 else 0); digest.update(png)
         }
         return Sheet(hex(digest), icons, drawn)
+    }
+
+    /**
+     * [shape] drawn in 3D, from [pictures] when it was already drawn from these very elements and
+     * textures; null when it has no elements, too many, or no texture that is an image.
+     */
+    private fun paint(shape: Resolved, texture: (String) -> Texture, stamps: MutableMap<String, ByteArray?>, used: MutableSet<String>): ByteArray? {
+        val elements = shape.elements?.takeIf { it.size() in 1..MAX_ELEMENTS } ?: return null
+        val digest = MessageDigest.getInstance("SHA-256")
+        digest.update(json.writeValueAsBytes(listOf(elements, shape.display, shape.guiLight)))
+        for ((variable, ref) in shape.textures.toSortedMap()) {
+            digest.update(variable.toByteArray(Charsets.UTF_8)); digest.update(0)
+            stamps.getOrPut(ref) { texture(ref).png?.let { MessageDigest.getInstance("SHA-256").digest(it) } }?.let(digest::update)
+        }
+        val key = hex(digest)
+        used += key
+        return pictures.getOrPut(key) {
+            val textures = shape.textures.mapNotNull { (variable, ref) -> texture(ref).image?.let { variable to it } }.toMap()
+            if (textures.isEmpty()) return@getOrPut null
+            runCatching { ModelPainter.paint(elements, textures, shape.display, shape.guiLight, RENDER_SIDE)?.let(::png) }.getOrNull()
+        }
     }
 
     private fun hex(digest: MessageDigest) = digest.digest().joinToString("") { "%02x".format(it) }.take(32)
@@ -216,6 +236,9 @@ class NexoItemIcons(nexoDir: File, private val ttlMillis: Long = 30_000, private
 
         /** The side of a model drawn in 3D: the editor shows an icon at 16 to 48 pixels, twice that on a dense screen. */
         const val RENDER_SIDE = 64
+
+        /** The textures kept in memory while the models are drawn, the last used first. */
+        private const val RECENT_TEXTURES = 64
 
         /** Beyond this a model is not drawn: the item keeps its flat icon. */
         const val MAX_ELEMENTS = 1024
