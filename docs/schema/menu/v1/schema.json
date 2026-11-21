@@ -503,7 +503,7 @@
               "maximum": 4096
             }
           },
-          "description": "One image covering the element's rectangular slot area; on an element that iterates or places, one image per slot (18×18), chosen per row. Shares its conditions and click actions. A row whose image is not in the resource pack (or a Bedrock player) shows the appearance's material instead, when it names one."
+          "description": "One image covering the element's rectangular slot area; on an element that iterates or places, one image per slot (18×18), chosen per row. Shares its conditions and click actions. A row whose image is not in the resource pack (or a Bedrock player) shows the appearance's material (or item) instead, when it names one. On a fixed image button, a look with an image names neither: its slots hold the invisible hit item."
         },
         "if": {
           "type": "array",
@@ -644,24 +644,6 @@
             "required": [
               "item",
               "material"
-            ]
-          }
-        },
-        {
-          "not": {
-            "anyOf": [
-              {
-                "required": [
-                  "image",
-                  "material"
-                ]
-              },
-              {
-                "required": [
-                  "image",
-                  "item"
-                ]
-              }
             ]
           }
         }
