@@ -15,6 +15,9 @@ import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
+    view: { files: "Images and fonts", captured: "Captured items" },
+    capturedHint:
+      "Items captured in game. Place one on a menu from the Buttons panel of the canvas, or pick it in an item field.",
     all: "All",
     button: "Button images",
     menu: "Menu images",

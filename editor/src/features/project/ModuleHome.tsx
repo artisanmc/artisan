@@ -6,6 +6,7 @@ import { allDocuments, docKey, documentsOf } from "@/domain/documents";
 import { listFolders } from "@/domain/folders";
 import { listedDataSources } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
+import { useResourcesView } from "@/features/assets/AssetsTab";
 import { BoardThumbnail } from "@/features/canvas/BoardThumbnail";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
@@ -39,7 +40,6 @@ import { Component, type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { typeLabel } from "./ProjectDocumentTree";
 import { goToDocument } from "./goToDocument";
-import { useProjectLibraryStore } from "./projectLibraryStore";
 import { type PreviewLine, screenPreview } from "./screenPreview";
 import { useGoToWorkspaceTab } from "./useGoToWorkspaceTab";
 import { documentLabel } from "./useProjectDocuments";
@@ -282,8 +282,8 @@ export function ModuleHome({
                   type="button"
                   className="btn btn-outline btn-sm"
                   onClick={() => {
-                    useProjectLibraryStore.getState().open(project.id, "captured");
-                    onOpenBoard();
+                    useResourcesView.getState().setView("captured");
+                    goToTab("resources");
                   }}
                 >
                   {t("moduleHome.openCaptured")}

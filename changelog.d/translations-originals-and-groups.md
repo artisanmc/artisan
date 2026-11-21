@@ -9,4 +9,5 @@
   each message with the module's text, and `lang/<code>.yml` holds only the keys the owner changed,
   read key by key over the original. A changed message can go back to the module's text.
 - **Added**: Translations filters by type (menus, commands, dialogs, data, module's messages…).
-- **Added**: A module's home has a Translations block and a Captured items block.
+- **Added**: A module's home has a Translations block and a Captured items block; the Resources
+  tab lists the module's captured items beside its images and fonts (see, remove, capture).

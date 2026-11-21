@@ -17,6 +17,9 @@ import { variablesFr } from "./variables";
 const fr: typeof en = {
   onboarding: onboardingFr,
   resources: {
+    view: { files: "Images et polices", captured: "Items capturés" },
+    capturedHint:
+      "Items capturés en jeu. Pose-en un sur un menu depuis le panneau Boutons du canvas, ou choisis-le dans un champ item.",
     all: "Tout",
     button: "Images de boutons",
     menu: "Images du menu",

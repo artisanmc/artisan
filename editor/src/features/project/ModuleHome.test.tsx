@@ -6,6 +6,7 @@
 import "@/i18n";
 import { resetDocumentKinds } from "@/domain/documentKinds";
 import type { Project, ProjectId } from "@/domain/types";
+import { useResourcesView } from "@/features/assets/AssetsTab";
 import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { resetDocumentCodecs } from "@/schema/documentCodecs";
 import { projectFromFiles } from "@/schema/projectFromFiles";
@@ -18,7 +19,6 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
 import { ModuleHome } from "./ModuleHome";
-import { useProjectLibraryStore } from "./projectLibraryStore";
 
 const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
@@ -297,10 +297,8 @@ describe("ModuleHome", () => {
         name: "Voir les items capturés",
       }),
     );
-    expect(onOpenBoard).toHaveBeenCalled();
-    expect(useProjectLibraryStore.getState()).toMatchObject({
-      projectId: PID,
-      category: "captured",
-    });
+    expect(onOpenBoard).not.toHaveBeenCalled();
+    expect(useResourcesView.getState().view).toBe("captured");
+    expect(navigate).toHaveBeenCalledTimes(2);
   });
 });

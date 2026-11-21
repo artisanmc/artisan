@@ -214,7 +214,10 @@ lists and maps counted; a table its row count), read from the Project's own `dat
 lone settings screen titles its block and shows its values above "Open". Two more blocks close
 the content: Translations (the count of `buildTranslationRows`, what the languages lack, a button
 to `?tab=translations`) when the module has a text, and Captured items (their count, a button
-that opens the board with the library on its captured tab) when it has one. The owner
+to `?tab=resources` on its captured view, `useResourcesView`) when it has one. The Resources tab
+(`AssetsTab`) has two views, switched by chips: the module's images and fonts, and its captured
+items (`CapturedItemsSection` in picker mode with a no-op pick: tiles are looked at, removed and
+captured there, never armed; the canvas's Buttons panel stays the palette that places them). The owner
 module's own section (`FrontendModule.home`, SDK 1.18) sits between the header and the blocks,
 behind an error boundary (`LeaveOutOnError`) that drops it alone. The rest is named: `WorkspaceGate` (auth hydration, login
 redirect, load failure, skeleton — via `projectLoadStatus`), `useProjectDeepLinks` (`?doc=`,
