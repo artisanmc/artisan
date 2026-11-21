@@ -2,6 +2,7 @@ import { WorkspaceView } from "@/components/ui/workspace-view";
 import { docKey, resolveDocKey } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
 import { AssetsTab } from "@/features/assets/AssetsTab";
+import { CapturedItemsSection } from "@/features/canvas/CapturedItemsSection";
 import { Stage } from "@/features/canvas/Stage";
 import { runExportZip } from "@/features/export/runExportZip";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
@@ -45,6 +46,9 @@ import { useCollectionsAtRoot } from "./useCollectionsAtRoot";
 import { useProjectDeepLinks } from "./useProjectDeepLinks";
 import { useWorkspaceDnd } from "./useWorkspaceDnd";
 import { effectiveTab } from "./workspaceTabs";
+
+/** Resources lists the captured items in picker mode with nothing to pick: seen, removed, captured, never armed. */
+const NO_PICK = () => {};
 
 export type ProjectSearch = {
   /** Absent: the module's home (the board under a child page). */
@@ -188,7 +192,10 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           onExit={exitToCanvas}
           title={t("project.tabs.resources")}
         >
-          <AssetsTab projectId={pId} />
+          <AssetsTab
+            projectId={pId}
+            capturedItems={<CapturedItemsSection projectId={pId} onPick={NO_PICK} />}
+          />
         </WorkspaceView>
         <WorkspaceView
           active={presentedTab === "translations"}

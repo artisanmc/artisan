@@ -260,14 +260,23 @@ export function parseEditorEdges(
  */
 const EDITOR_LANG_NAMESPACES = ["menus.", "commands.", "dialogs.", "sources.", "artisan."];
 
+/**
+ * `lang/<code>.yml` files by key then language. `shipped`: the module's own messages,
+ * `originals/lang/<code>.yml` (written by the server from an add-on's messages,
+ * `MessageBundleDeclaration.inFolder`), which `lang/` overrides key by key.
+ */
 function readTranslations(
   files: Record<string, string>,
   projectId: string,
+  shipped = false,
 ): Record<string, Record<string, string>> {
   const out: Record<string, Record<string, string>> = {};
+  const pattern = shipped
+    ? new RegExp(`^${ORIGINALS_DIR}/lang/([A-Za-z0-9_-]+)\\.ya?ml$`)
+    : /^lang\/([A-Za-z0-9_-]+)\.ya?ml$/;
   for (const [path, content] of Object.entries(files)) {
     const rel = relativeToProject(path, projectId);
-    const m = /^lang\/([A-Za-z0-9_-]+)\.ya?ml$/.exec(rel);
+    const m = pattern.exec(rel);
     // `lang/fr.yml` and `lang/fr.yaml` both there: the `.yml` copy is read.
     if (!m || (rel.endsWith(".yaml") && `${path.slice(0, -".yaml".length)}.yml` in files)) continue;
     const lang = m[1]!;
@@ -549,7 +558,11 @@ export function projectFromFiles(
   const defaultLang = manifest.default_lang ?? "en";
   const now = new Date().toISOString();
 
+  // The module's messages as shipped, under the owner's overrides (`Project.shippedLang`).
+  const shippedLang = readTranslations(files, projectId, true);
   const diskTranslations = readTranslations(files, projectId);
+  for (const [key, langs] of Object.entries(shippedLang))
+    diskTranslations[key] = { ...langs, ...diskTranslations[key] };
   const i18nKeys: Record<string, Record<string, string>> = {};
   // Seed every disk translation so keys referenced via `{i18n:...}` (and any
   // extra keys the admin keeps in lang files) survive the import.
@@ -1123,6 +1136,7 @@ export function projectFromFiles(
     ...(Object.keys(unreadFiles).length > 0 ? { unreadFiles } : {}),
     ...(variants ? { variants } : {}),
     ...(originals ? { originals } : {}),
+    ...(Object.keys(shippedLang).length > 0 ? { shippedLang } : {}),
     ...(typeof manifest.module === "string" && manifest.module
       ? { ownerModule: manifest.module }
       : {}),

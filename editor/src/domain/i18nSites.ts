@@ -479,6 +479,40 @@ export function* visitProjectLTexts(project: Project): Generator<LTextSite> {
   for (const ds of project.dataSources ?? []) yield* visitDataSourceLTexts(project, ds);
 }
 
+function* documentsSites(
+  byKind: Record<string, Document[]> | undefined,
+  prefix = "",
+): Generator<LTextSite> {
+  for (const [kind, docs] of Object.entries(byKind ?? {}))
+    for (const doc of docs)
+      for (const site of documentLTextSites(kind, doc))
+        yield prefix ? { ...site, path: `${prefix}${site.path}` } : site;
+}
+
+/**
+ * Yield the sites of the owner's Documents off the canvas: each variant not viewed (its path
+ * under `variants.<name>.`), the module's Documents a viewed variant covers, and the Project's
+ * own while the canvas shows the original. Their texts are the owner's, as much as the
+ * {@link visitProjectLTexts} ones.
+ */
+export function* visitShelvedLTexts(project: Project): Generator<LTextSite> {
+  const v = project.variants;
+  for (const [name, byKind] of Object.entries(v?.documents ?? {}))
+    yield* documentsSites(byKind, `variants.${name}.`);
+  yield* documentsSites(v?.view?.hidden);
+  yield* documentsSites(project.originalView?.documents);
+}
+
+/**
+ * Yield the sites of what the module ships (`Project.originals`): copies kept as shipped for
+ * the comparison and the way back, read-only. Their texts live in `i18nKeys` under keys of
+ * their own (minted when read), never written to `lang/`.
+ */
+export function* visitShippedLTexts(project: Project): Generator<LTextSite> {
+  for (const byKind of Object.values(project.originals?.documents ?? {}))
+    yield* documentsSites(byKind);
+}
+
 /** A text written as a map by language (`{ en: …, fr: … }`), or undefined for anything else. */
 export function langMap(value: unknown): Record<string, string> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;

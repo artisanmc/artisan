@@ -89,6 +89,18 @@ class OriginalsTest {
     }
 
     @Test
+    fun `the owner's lang file overrides the original key by key`(@TempDir tmp: Path) {
+        val m = module(tmp)
+        write(m, "artisan-module.yml", "schema: module/v1\ndefault_lang: en\nlanguages: [en]\n")
+        write(m, "originals/lang/en.yml", "reminder: Your reward waits\nclaim:\n  success: Claimed\n")
+        write(m, "lang/en.yml", "claim:\n  success: Got it\nartisan:\n  duration:\n    days: \"{n}d\"\n")
+        val en = read(m).langMapWithFallback("en")
+        assertEquals("Your reward waits", en["reminder"])
+        assertEquals("Got it", en["claim.success"])
+        assertEquals("{n}d", en["artisan.duration.days"])
+    }
+
+    @Test
     fun `the editor reads originals but never writes them`() {
         assertFalse(EditorPaths.isWritable("originals/menus/main.yml"))
         assertTrue(EditorPaths.isReadable("originals/menus/main.yml"))

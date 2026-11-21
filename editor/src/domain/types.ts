@@ -206,6 +206,12 @@ export interface Project {
    */
   keptLangKeys?: string[];
   /**
+   * The module's own messages as it ships them, by key then language: `originals/lang/<code>.yml`,
+   * written by the server from an add-on's messages (`MessageBundleDeclaration.inFolder`). Their
+   * current text is in `i18nKeys` (a kept key); `lang/` gets only the values that differ.
+   */
+  shippedLang?: Record<string, Record<string, string>>;
+  /**
    * The module's variants (design `variantes-modules`): `variants.yml` and the menus and
    * dialogs of `variants/<name>/`. Absent without `variants.yml`. See `domain/variants.ts`.
    */

@@ -6,11 +6,13 @@ import { allDocuments, docKey, documentsOf } from "@/domain/documents";
 import { listFolders } from "@/domain/folders";
 import { listedDataSources } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
+import { useResourcesView } from "@/features/assets/AssetsTab";
 import { BoardThumbnail } from "@/features/canvas/BoardThumbnail";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
+import { buildTranslationRows, countMissingPerLang } from "@/lib/i18nUsages";
 import { kindCreatableIn } from "@/lib/moduleDocumentKinds";
 import {
   collectionDestination,
@@ -23,12 +25,23 @@ import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
 import { type DocumentKindContribution, getModule } from "@artisan/editor-sdk";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { Blocks, ChevronRight, Database, LayoutDashboard, Plus, Settings, Zap } from "lucide-react";
-import { Component, type ReactNode, useState } from "react";
+import {
+  Blocks,
+  ChevronRight,
+  Database,
+  Languages,
+  LayoutDashboard,
+  Package,
+  Plus,
+  Settings,
+  Zap,
+} from "lucide-react";
+import { Component, type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { typeLabel } from "./ProjectDocumentTree";
 import { goToDocument } from "./goToDocument";
 import { type PreviewLine, screenPreview } from "./screenPreview";
+import { useGoToWorkspaceTab } from "./useGoToWorkspaceTab";
 import { documentLabel } from "./useProjectDocuments";
 
 /**
@@ -83,6 +96,15 @@ export function ModuleHome({
       !collectionScreens.has(s.id) && (s.projectId === ns || (!!owner && s.moduleId === owner)),
   );
   const dataSources = listedDataSources(project, screens);
+
+  const goToTab = useGoToWorkspaceTab();
+  // Every text of the module, its own messages included, and what each language lacks.
+  const texts = useMemo(() => buildTranslationRows(project, project.defaultLang).length, [project]);
+  const missingTexts = useMemo(
+    () => Object.values(countMissingPerLang(project)).reduce((a, b) => a + b, 0),
+    [project],
+  );
+  const captured = project.capturedItems ?? [];
 
   const commands = documentsOf(project, "command");
   const moduleActions = owner ? actions.filter((a) => a.moduleId === owner) : [];
@@ -213,6 +235,61 @@ export function ModuleHome({
               </Place>
             )}
             {!boardFirst && boardPlace}
+            {texts > 0 && (
+              <Place
+                testId="module-home-translations"
+                icon={
+                  <IconTile
+                    icon={Languages}
+                    fg="var(--text-mut)"
+                    soft="var(--surface-raised-2)"
+                    size="sm"
+                  />
+                }
+                title={t("project.tabs.translations")}
+                count={texts}
+                summary={
+                  missingTexts > 0
+                    ? t("moduleHome.translationsMissing", { count: missingTexts })
+                    : t("moduleHome.translationsHint")
+                }
+              >
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => goToTab("translations")}
+                >
+                  {t("moduleHome.openTranslations")}
+                </button>
+              </Place>
+            )}
+            {captured.length > 0 && (
+              <Place
+                testId="module-home-captured"
+                icon={
+                  <IconTile
+                    icon={Package}
+                    fg="var(--text-mut)"
+                    soft="var(--surface-raised-2)"
+                    size="sm"
+                  />
+                }
+                title={t("moduleHome.captured")}
+                count={captured.length}
+                summary={t("moduleHome.capturedHint")}
+              >
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    useResourcesView.getState().setView("captured");
+                    goToTab("resources");
+                  }}
+                >
+                  {t("moduleHome.openCaptured")}
+                </button>
+              </Place>
+            )}
           </ul>
         </section>
 
