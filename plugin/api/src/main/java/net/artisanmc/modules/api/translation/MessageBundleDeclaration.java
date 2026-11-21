@@ -80,11 +80,6 @@ public final class MessageBundleDeclaration {
      * each file whose name {@code folder/lang/} does not hold yet, the other ones left in place and
      * named in the log. The jar's files still answer the keys the server's lack.
      *
-     * <p>Artisan also keeps the jar's {@code lang/<code>.yml} of each bundled language, as shipped,
-     * in {@code folder/originals/lang/<code>.yml}, rewritten when the jar's changes: the editor's
-     * Translations lists every message with the module's text, and {@code folder/lang/} holds only
-     * the keys the owner changed.
-     *
      * @throws IllegalStateException for a declaration made with {@link #of}
      */
     @Beta
