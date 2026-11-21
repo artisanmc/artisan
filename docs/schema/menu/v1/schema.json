@@ -503,7 +503,7 @@
               "maximum": 4096
             }
           },
-          "description": "One image covering the element's rectangular slot area. Shares its conditions and click actions."
+          "description": "One image covering the element's rectangular slot area; on an element that iterates or places, one image per slot (18×18), chosen per row. Shares its conditions and click actions. A row whose image is not in the resource pack (or a Bedrock player) shows the appearance's material instead, when it names one."
         },
         "if": {
           "type": "array",

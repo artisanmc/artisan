@@ -167,3 +167,37 @@ elements:
     ]),
   ).toEqual([]);
 });
+
+test("a row-bound element gets one 18×18 image per slot row, for each image state", () => {
+  const placements = imageButtonsFromMenus([
+    {
+      path: "menus/calendar.yaml",
+      content: `
+size: 54
+elements:
+  - id: days
+    positions: "10-12,19"
+    iterates: { source: days, alias: d }
+    states:
+      - if: [{ expression: d.claimed }]
+        image: { asset: claimed, fit: stretch }
+    material: STONE
+  - id: pinned
+    places:
+      source: rows
+      alias: r
+      key_field: id
+      placements: [{ key: a, page: 0, position: 47 }, { key: b, page: 1, position: 47 }]
+    image: { asset: pin }
+`,
+    },
+  ]);
+  // Slots 10-12 share row 1 (one area each, same y), 19 is row 2, 47 row 5.
+  expect(placements.map((p) => [p.asset, p.width, p.height, p.y])).toEqual([
+    ["claimed", 18, 18, 35],
+    ["claimed", 18, 18, 35],
+    ["claimed", 18, 18, 35],
+    ["claimed", 18, 18, 53],
+    ["pin", 18, 18, 107],
+  ]);
+});

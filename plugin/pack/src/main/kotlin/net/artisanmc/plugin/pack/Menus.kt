@@ -96,7 +96,15 @@ internal object MenuReaders {
             for (element in elements) {
                 if (!Js.truthy(element)) continue
                 val el = element as? Map<*, *> ?: emptyMap<String, Any?>()
-                if (Js.truthy(el["iterates"]) || Js.truthy(el["places"])) continue
+                // A row-bound element (iterates/places) shows one image per slot, chosen per
+                // row: each slot of it is an 18×18 area of its own (`imageButtons.ts`).
+                if (Js.truthy(el["iterates"]) || Js.truthy(el["places"])) {
+                    for (slot in rowSlots(el, limit)) {
+                        val area = ImageButtonGeometry.area(listOf(slot), type, sizeInt, hidden) ?: continue
+                        pushImages(out, el, area)
+                    }
+                    continue
+                }
                 val slots = LinkedHashSet<Int>()
                 var valid = true
                 for (part in Js.string(el["positions"] ?: "").split(",")) {
@@ -115,28 +123,54 @@ internal object MenuReaders {
                 }
                 if (!valid || slots.isEmpty()) continue
                 val area = ImageButtonGeometry.area(slots.toList(), type, sizeInt, hidden) ?: continue
-                val appearances = listOf(el) + ((el["states"] as? List<*>) ?: emptyList())
-                for (app in appearances) {
-                    val image = (app as? Map<*, *>)?.get("image") as? Map<*, *> ?: continue
-                    val asset = image["asset"] as? String
-                    if (asset.isNullOrEmpty()) continue
-                    if (image.containsKey("fit") && image["fit"] !in listOf("contain", "stretch", "native")) continue
-                    val ox = image["offset_x"] ?: 0
-                    val oy = image["offset_y"] ?: 0
-                    if (!Js.isSafeInteger(ox) || !Js.isSafeInteger(oy)) continue
-                    out += ImageButtonPlacement(
-                        asset = asset,
-                        fit = image["fit"] as? String ?: "contain",
-                        offsetX = (image["offset_x"] as? Number)?.toDouble()?.takeIf { it != 0.0 },
-                        offsetY = (image["offset_y"] as? Number)?.toDouble()?.takeIf { it != 0.0 },
-                        width = area.width * 18,
-                        height = area.height * 18,
-                        y = area.y,
-                    )
-                }
+                pushImages(out, el, area)
             }
         }
         return out
+    }
+
+    /** The slots a row-bound element may fill: its positions (iterates), else its placements' (places). */
+    private fun rowSlots(el: Map<*, *>, limit: Int): List<Int> {
+        val slots = sortedSetOf<Int>()
+        if (Js.truthy(el["iterates"])) {
+            for (part in Js.string(el["positions"] ?: "").split(",")) {
+                val match = POSITION.find(part) ?: return emptyList()
+                val a = match.groupValues[1].toDouble()
+                val b = match.groupValues[2].ifEmpty { match.groupValues[1] }.toDouble()
+                if (a >= limit || b >= limit) return emptyList()
+                for (i in minOf(a, b).toInt()..maxOf(a, b).toInt()) slots += i
+            }
+        } else {
+            val placements = (el["places"] as? Map<*, *>)?.get("placements") as? List<*> ?: return emptyList()
+            for (p in placements) {
+                val position = (p as? Map<*, *>)?.get("position") as? Number ?: continue
+                if (Js.isInteger(position) && position.toDouble() >= 0 && position.toDouble() < limit) slots += position.toInt()
+            }
+        }
+        return slots.toList()
+    }
+
+    /** One placement per image appearance of [el] over [area]. */
+    private fun pushImages(out: MutableList<ImageButtonPlacement>, el: Map<*, *>, area: ImageButtonGeometry.Area) {
+        val appearances = listOf(el) + ((el["states"] as? List<*>) ?: emptyList())
+        for (app in appearances) {
+            val image = (app as? Map<*, *>)?.get("image") as? Map<*, *> ?: continue
+            val asset = image["asset"] as? String
+            if (asset.isNullOrEmpty()) continue
+            if (image.containsKey("fit") && image["fit"] !in listOf("contain", "stretch", "native")) continue
+            val ox = image["offset_x"] ?: 0
+            val oy = image["offset_y"] ?: 0
+            if (!Js.isSafeInteger(ox) || !Js.isSafeInteger(oy)) continue
+            out += ImageButtonPlacement(
+                asset = asset,
+                fit = image["fit"] as? String ?: "contain",
+                offsetX = (image["offset_x"] as? Number)?.toDouble()?.takeIf { it != 0.0 },
+                offsetY = (image["offset_y"] as? Number)?.toDouble()?.takeIf { it != 0.0 },
+                width = area.width * 18,
+                height = area.height * 18,
+                y = area.y,
+            )
+        }
     }
 }
 

@@ -45,6 +45,18 @@ data class ImageButtonLayout(val slots: List<Int>, val x: Int, val y: Int, val w
             return if (j < 27) Cell(1, j % 9, j / 9, 7, top) else Cell(2, j - 27, 0, 7, top + 58)
         }
 
+        /**
+         * One slot of a row-bound element (iterates/places) as an 18×18 image area: each
+         * row shows its own image there. Null for a slot outside the window.
+         */
+        fun slot(menu: MenuYaml, slot: Int): ImageButtonLayout? {
+            val hidden = PlayerInventoryMode.parse(menu.playerInventory) == PlayerInventoryMode.HIDDEN
+            val limit = menu.size + if (hidden) MenuSlots.PLAYER_SLOTS else 0
+            if (slot !in 0 until limit) return null
+            val c = cell(slot, menu.inventoryType, menu.size)
+            return ImageButtonLayout(listOf(slot), c.x + c.col * 18, c.y + c.row * 18, 18, 18)
+        }
+
         /** [rectangle], when no other element shares a slot with it. */
         fun of(menu: MenuYaml, element: ElementYaml): ImageButtonLayout? {
             val layout = rectangle(menu, element) ?: return null
