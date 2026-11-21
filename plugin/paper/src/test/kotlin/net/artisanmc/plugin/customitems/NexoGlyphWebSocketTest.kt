@@ -63,27 +63,15 @@ class NexoGlyphWebSocketTest {
         assertEquals("nexo_item_icons_fetch_result", json["type"].asText())
         assertEquals(true, json["ok"].asBoolean())
         assertEquals(Base64.getEncoder().encodeToString(byteArrayOf(7, 8)), json["icons"]["ruby"].asText())
+        // The ids whose icon is a model drawn in 3D: none here, the block's texture is not an image.
+        assertEquals(true, json["drawn"].isArray)
+        assertEquals(0, json["drawn"].size())
         val hash = json["hash"].asText()
 
         val again = exchange("""{"type":"nexo_item_icons_fetch","request_id":"r5","known_hash":"$hash"}""")
         assertEquals(true, again["unchanged"].asBoolean())
         assertEquals(hash, again["hash"].asText())
         assertEquals(null, again["icons"])
-    }
-
-    @Test
-    fun `nexo_item_models_fetch returns the models and their textures, then the hash alone`() {
-        val json = exchange("""{"type":"nexo_item_models_fetch","request_id":"r6"}""")
-        assertEquals("nexo_item_models_fetch_result", json["type"].asText())
-        val key = json["items"]["ore"].asText()
-        assertEquals(null, json["items"]["ruby"])
-        assertEquals("gui/bg", json["models"][key]["textures"]["all"].asText())
-        assertEquals("#all", json["models"][key]["elements"][0]["faces"]["up"]["texture"].asText())
-        assertEquals(Base64.getEncoder().encodeToString(byteArrayOf(7, 8)), json["textures"]["gui/bg"].asText())
-
-        val again = exchange("""{"type":"nexo_item_models_fetch","request_id":"r7","known_hash":"${json["hash"].asText()}"}""")
-        assertEquals(true, again["unchanged"].asBoolean())
-        assertEquals(null, again["models"])
     }
 
     @Test

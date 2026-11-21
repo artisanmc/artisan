@@ -70,7 +70,7 @@ const renderCache = new Map<string, Promise<string | null>>();
 // per-item HTTP round-trips for model JSON + parent chain resolution. Only the
 // offline icon generator (tools/minecraft-assets/gen-icons.ts) serves the model
 // routes: the editor's catalog ships pre-rendered icons, and a custom item's model
-// comes whole from its server (renderGivenModels).
+// is drawn by its server (the Nexo icons).
 const resolvedModelCache = new Map<string, ResolvedModel>();
 
 function cacheKey(modelPath: string, version: string): string {
@@ -917,111 +917,4 @@ export function renderToCanvas(
 
   renderCache.set(key, promise);
   return promise;
-}
-
-// Models given whole (custom items)
-
-/** A model its server resolved: parents merged, `textures` as variable → key of the textures given beside it. */
-export interface GivenModel {
-  elements: ModelElement[];
-  textures: Record<string, string>;
-  display?: DisplayTransform;
-  gui_light?: string;
-}
-
-/** The side of a given model's icon: the editor draws an item at 16 to 48 pixels. */
-const GIVEN_ICON_SIZE = 96;
-
-function loadGivenTexture(url: string): Promise<THREE.Texture | null> {
-  return new Promise((resolve) => {
-    new THREE.TextureLoader().load(
-      url,
-      (tex) => {
-        tex.magFilter = THREE.NearestFilter;
-        tex.minFilter = THREE.NearestFilter;
-        tex.colorSpace = THREE.SRGBColorSpace;
-        resolve(tex);
-      },
-      undefined,
-      () => resolve(null),
-    );
-  });
-}
-
-function disposeScene(scene: THREE.Scene) {
-  scene.traverse((node) => {
-    if (!(node instanceof THREE.Mesh)) return;
-    node.geometry.dispose();
-    (node.material as THREE.Material).dispose();
-  });
-}
-
-/**
- * Draws models that come whole from a server (a Nexo item's 3D model) instead of the vanilla
- * model routes: `textureUrls` gives each texture once, by the key the models name it with.
- * One model at a time, the page breathing between two, each icon handed to `onRendered` as a
- * small PNG data URL. A model that cannot be drawn is skipped: its item keeps its flat icon.
- * Nothing is kept on the GPU afterwards. `keepGoing` false stops before the next model.
- */
-export async function renderGivenModels(
-  models: Record<string, GivenModel>,
-  textureUrls: Record<string, string>,
-  onRendered: (key: string, dataUrl: string) => void,
-  keepGoing: () => boolean = () => true,
-): Promise<void> {
-  const loaded = new Map<string, Promise<THREE.Texture | null>>();
-  const textureOf = (ref: string) => {
-    let tex = loaded.get(ref);
-    if (!tex) {
-      const url = textureUrls[ref];
-      tex = url ? loadGivenTexture(url) : Promise.resolve(null);
-      loaded.set(ref, tex);
-    }
-    return tex;
-  };
-  let out: HTMLCanvasElement | null = null;
-  try {
-    for (const [key, given] of Object.entries(models)) {
-      if (!keepGoing()) return;
-      try {
-        const textures = new Map<string, THREE.Texture>();
-        for (const [variable, ref] of Object.entries(given.textures ?? {})) {
-          const tex = await textureOf(ref);
-          if (tex) textures.set(variable, tex);
-        }
-        if (textures.size === 0 || !Array.isArray(given.elements)) continue;
-        const scene = buildScene(
-          {
-            elements: given.elements,
-            textures: given.textures,
-            display: given.display,
-            guiLight: given.gui_light === "front" ? "front" : "side",
-          },
-          textures,
-        );
-        try {
-          const renderer = getRenderer();
-          renderer.render(scene, getCamera());
-          // Smaller than the 256 px render, smoothed: hundreds of icons stay light in memory.
-          out ??= Object.assign(document.createElement("canvas"), {
-            width: GIVEN_ICON_SIZE,
-            height: GIVEN_ICON_SIZE,
-          });
-          const ctx = out.getContext("2d");
-          if (!ctx) return;
-          ctx.clearRect(0, 0, GIVEN_ICON_SIZE, GIVEN_ICON_SIZE);
-          ctx.imageSmoothingQuality = "high";
-          ctx.drawImage(renderer.domElement, 0, 0, GIVEN_ICON_SIZE, GIVEN_ICON_SIZE);
-          onRendered(key, out.toDataURL("image/png"));
-        } finally {
-          disposeScene(scene);
-        }
-      } catch {
-        // A malformed model: its item keeps its flat icon.
-      }
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-  } finally {
-    for (const pending of loaded.values()) void pending.then((tex) => tex?.dispose());
-  }
 }

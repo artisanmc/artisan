@@ -11,19 +11,21 @@ import java.security.MessageDigest
 import javax.imageio.ImageIO
 
 /**
- * The flat icons of the Nexo items, read from disk like the glyphs ([NexoGlyphReader]): an item's
+ * The icons of the Nexo items, read from disk like the glyphs ([NexoGlyphReader]): an item's
  * config in `plugins/Nexo/items/` (recursively) names a texture or a model, and the PNG comes from
  * Nexo's pack. No Nexo API: works even when Nexo is disabled.
  *
  * In order: `Pack.texture`, `Pack.textures` (the first of the list, `layer0` of a map), then the model
  * (`Pack.model`, else the `item_model` component; an 1.21.4 item definition is followed to its model),
  * whose `layer0` texture, else a face of a block model, is taken, through 4 `parent`s at most.
- * An animated texture (a vertical strip of square frames) gives its first frame; an icon is at most
+ * An animated texture (a vertical strip of square frames) gives its first frame; a flat icon is at most
  * [MAX_SIDE] pixels a side. A model with `elements` (its own, a parent's, or a vanilla full block's)
- * is also given whole ([Models]) for the editor to draw it in 3D.
+ * is drawn here as the game draws it in a slot ([ModelPainter]), [RENDER_SIDE] pixels a side: the
+ * editor gets a picture, never the model. A server holds thousands of models, far too much to send.
  *
  * The editor asks for all of them at once ([sheet]): one pass over the configs and the pack, kept
- * [ttlMillis], and nothing sent to an editor that already holds this [Sheet.hash].
+ * [ttlMillis], then for as long as Nexo's files have not changed, and nothing sent to an editor that
+ * already holds this [Sheet.hash]. A model is drawn once for the life of the server.
  */
 class NexoItemIcons(nexoDir: File, private val ttlMillis: Long = 30_000, private val clock: () -> Long = System::currentTimeMillis) {
     private val itemsDir = File(nexoDir, "items")
@@ -32,85 +34,94 @@ class NexoItemIcons(nexoDir: File, private val ttlMillis: Long = 30_000, private
 
     /**
      * Every item with an icon, by Nexo id (no `nexo:`), as PNG bytes; [hash] changes with any of them.
-     * [models]: the items whose model is drawn in 3D, for the editor to render.
+     * [drawn]: the items whose icon is their model drawn in 3D, which the editor shows smoothed.
      */
-    class Sheet(val hash: String, val icons: Map<String, ByteArray>, val models: Models)
-
-    /**
-     * The 3D models of the items that have one: [items] gives an item's model key, [models] a model
-     * once (`elements`, `textures` as variable → key of [textures], `display` = its `display.gui`,
-     * `gui_light`), [textures] a PNG once, [MAX_TEXTURE_SIDE] pixels a side at most.
-     */
-    class Models(
-        val hash: String,
-        val items: Map<String, String>,
-        val models: Map<String, Map<String, Any?>>,
-        val textures: Map<String, ByteArray>,
-    )
+    class Sheet(val hash: String, val icons: Map<String, ByteArray>, val drawn: Set<String>)
 
     /** A model with its parents merged: every texture variable resolved to a texture ref. */
     private class Resolved(val textures: Map<String, String>, val elements: JsonNode?, val display: JsonNode?, val guiLight: String?)
 
     private var built: Sheet? = null
     private var builtAt = 0L
+    private var builtFrom: String? = null
+
+    /** A model's picture by what it was drawn from; null: nothing of it is visible. */
+    private val pictures = hashMapOf<String, ByteArray?>()
 
     @Synchronized
     fun sheet(): Sheet {
         built?.let { if (clock() - builtAt < ttlMillis) return it }
-        return build().also { built = it; builtAt = clock() }
+        // Reading every config and model again costs seconds on a large pack: not while Nexo's files stand still.
+        val state = state()
+        built?.let { if (state != null && state == builtFrom) return it.also { builtAt = clock() } }
+        return build().also { built = it; builtAt = clock(); builtFrom = state }
+    }
+
+    /**
+     * What tells that Nexo's files changed: the item configs, and the pack Nexo generates from all
+     * its sources (rewritten on every Nexo reload). Null without that pack: nothing to go by.
+     */
+    private fun state(): String? {
+        val generated = File(File(itemsDir.parentFile, "pack"), "pack.zip").takeIf { it.isFile } ?: return null
+        val digest = MessageDigest.getInstance("SHA-256")
+        fun add(file: File) = digest.update("${file.path}|${file.length()}|${file.lastModified()}\n".toByteArray(Charsets.UTF_8))
+        add(generated)
+        itemFiles().forEach(::add)
+        return hex(digest)
     }
 
     private fun build(): Sheet {
         val icons = sortedMapOf<String, ByteArray>()
-        val modelOf = sortedMapOf<String, String>()
-        val models = sortedMapOf<String, Map<String, Any?>>()
-        val textures = sortedMapOf<String, ByteArray>()
+        val drawn = sortedSetOf<String>()
         val items = items()
         if (items.isNotEmpty()) pack.use { lookup ->
             // Many items share a model or a texture (variants): each is resolved and read once.
             val resolved = hashMapOf<String, Resolved?>()
             val images = hashMapOf<String, ByteArray?>()
-            val modelImages = hashMapOf<String, ByteArray?>()
-            val drawn = hashMapOf<String, Boolean>()
+            val raw = hashMapOf<String, ByteArray?>()
+            val decoded = hashMapOf<String, BufferedImage?>()
+            val painted = hashMapOf<String, ByteArray?>()
             for ((id, item) in items) {
                 val model = modelOf(item)?.let { (key, read) -> resolved.getOrPut(key) { read(lookup) }?.let { key to it } }
+                val picture = model?.let { (key, shape) ->
+                    painted.getOrPut(key) {
+                        val elements = shape.elements?.takeIf { it.size() in 1..MAX_ELEMENTS } ?: return@getOrPut null
+                        val bytes = shape.textures.mapValues { (_, ref) ->
+                            raw.getOrPut(ref) { runCatching { lookup.read("textures", ref, "png") }.getOrNull() }
+                        }
+                        // Drawn once for this model and these textures, however often the pack is read again.
+                        val digest = MessageDigest.getInstance("SHA-256")
+                        digest.update(json.writeValueAsBytes(listOf(elements, shape.display, shape.guiLight)))
+                        for ((variable, png) in bytes.toSortedMap()) {
+                            digest.update(variable.toByteArray(Charsets.UTF_8)); digest.update(0); png?.let(digest::update)
+                        }
+                        pictures.getOrPut(hex(digest)) {
+                            val textures = shape.textures.mapNotNull { (variable, ref) ->
+                                decoded.getOrPut(ref) { bytes[variable]?.let(::frame) }?.let { variable to it }
+                            }.toMap()
+                            if (textures.isEmpty()) return@getOrPut null
+                            runCatching {
+                                ModelPainter.paint(elements, textures, shape.display, shape.guiLight, RENDER_SIDE)?.let(::png)
+                            }.getOrNull()
+                        }
+                    }
+                }
+                if (picture != null) {
+                    icons[id] = picture
+                    drawn += id
+                    continue
+                }
                 val texture = flatTexture(item) ?: model?.second?.let { pickTexture(it.textures.toList()) }
                 if (texture != null) images.getOrPut(texture) {
                     runCatching { lookup.read("textures", texture, "png")?.let { icon(it, MAX_SIDE) } }.getOrNull()
                 }?.let { icons[id] = it }
-                if (model == null) continue
-                val (key, shape) = model
-                val usable = drawn.getOrPut(key) {
-                    val elements = shape.elements?.takeIf { it.size() in 1..MAX_ELEMENTS } ?: return@getOrPut false
-                    val pngs = shape.textures.values.distinct().associateWith { ref ->
-                        modelImages.getOrPut(ref) {
-                            runCatching { lookup.read("textures", ref, "png")?.let { icon(it, MAX_TEXTURE_SIDE) } }.getOrNull()
-                        }
-                    }
-                    val present = shape.textures.filterValues { pngs[it] != null }
-                    if (present.isEmpty()) return@getOrPut false
-                    present.values.forEach { textures[it] = pngs.getValue(it)!! }
-                    models[key] = buildMap {
-                        put("elements", elements)
-                        put("textures", present)
-                        shape.display?.let { put("display", it) }
-                        shape.guiLight?.let { put("gui_light", it) }
-                    }
-                    true
-                }
-                if (usable) modelOf[id] = key
             }
         }
         val digest = MessageDigest.getInstance("SHA-256")
         for ((id, png) in icons) {
-            digest.update(id.toByteArray(Charsets.UTF_8)); digest.update(0); digest.update(png)
+            digest.update(id.toByteArray(Charsets.UTF_8)); digest.update(if (id in drawn) 1 else 0); digest.update(png)
         }
-        val shapes = MessageDigest.getInstance("SHA-256")
-        shapes.update(json.writeValueAsBytes(mapOf("items" to modelOf, "models" to models)))
-        for ((ref, png) in textures) {
-            shapes.update(ref.toByteArray(Charsets.UTF_8)); shapes.update(0); shapes.update(png)
-        }
-        return Sheet(hex(digest), icons, Models(hex(shapes), modelOf, models, textures))
+        return Sheet(hex(digest), icons, drawn)
     }
 
     private fun hex(digest: MessageDigest) = digest.digest().joinToString("") { "%02x".format(it) }.take(32)
@@ -187,23 +198,26 @@ class NexoItemIcons(nexoDir: File, private val ttlMillis: Long = 30_000, private
     )
 
     private fun items(): Map<String, Map<*, *>> {
-        if (!itemsDir.isDirectory) return emptyMap()
         val out = linkedMapOf<String, Map<*, *>>()
-        itemsDir.walkTopDown().filter { it.isFile && it.extension in setOf("yml", "yaml") }.sortedBy { it.path }.forEach { file ->
+        itemFiles().forEach { file ->
             val doc = runCatching { Yaml().load<Any?>(file.readText()) }.getOrNull() as? Map<*, *> ?: return@forEach
             for ((id, entry) in doc) if (id is String && entry is Map<*, *>) out.putIfAbsent(id, entry)
         }
         return out
     }
 
+    private fun itemFiles(): List<File> =
+        if (!itemsDir.isDirectory) emptyList()
+        else itemsDir.walkTopDown().filter { it.isFile && it.extension in setOf("yml", "yaml") }.sortedBy { it.path }.toList()
+
     companion object {
         /** The largest side of a flat icon: the editor draws one at 16 to 48 pixels. */
         const val MAX_SIDE = 64
 
-        /** The largest side of a 3D model's texture: the editor renders a model at 256 pixels. */
-        const val MAX_TEXTURE_SIDE = 128
+        /** The side of a model drawn in 3D: the editor shows an icon at 16 to 48 pixels, twice that on a dense screen. */
+        const val RENDER_SIDE = 64
 
-        /** Beyond this a model is not sent: the item keeps its flat icon. */
+        /** Beyond this a model is not drawn: the item keeps its flat icon. */
         const val MAX_ELEMENTS = 1024
 
         private val SIDES = listOf("north", "south", "west", "east")
@@ -252,6 +266,15 @@ class NexoItemIcons(nexoDir: File, private val ttlMillis: Long = 30_000, private
             }
             return ByteArrayOutputStream().also { ImageIO.write(out, "png", it) }.toByteArray()
         }
+
+        /** [png] decoded, its first frame when it is a vertical strip of frames; null when it is not an image. */
+        private fun frame(png: ByteArray): BufferedImage? {
+            val image = runCatching { ImageIO.read(png.inputStream()) }.getOrNull() ?: return null
+            val strip = image.height > image.width && image.height % image.width == 0
+            return if (strip) image.getSubimage(0, 0, image.width, image.width) else image
+        }
+
+        private fun png(image: BufferedImage): ByteArray = ByteArrayOutputStream().also { ImageIO.write(image, "png", it) }.toByteArray()
 
         /** Width and height from the IHDR chunk, null when [png] is not a PNG. */
         private fun pngSize(png: ByteArray): Pair<Int, Int>? {

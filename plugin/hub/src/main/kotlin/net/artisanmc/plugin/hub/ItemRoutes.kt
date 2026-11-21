@@ -43,13 +43,10 @@ class ItemRoutes(private val servers: Servers, private val relay: Relay, private
                 call.send(200, "image/png", Base64.getDecoder().decode(content), "private, no-cache")
             }
         }
-        // Every Nexo item's icon in one answer, read by its server from Nexo's pack (no Nexo API).
+        // Every Nexo item's icon in one answer, read by its server from Nexo's pack (no Nexo API):
+        // a texture, or the item's model drawn in 3D by the server (`drawn` lists those).
         router.on("GET", "/api/v1/user/projects/:project/nexo-item-icons", VIEW) { call ->
-            hashed(call, "nexo_item_icons_fetch", listOf("icons"))
-        }
-        // The 3D models of the Nexo items that have one, each model and each texture once: the editor draws them.
-        router.on("GET", "/api/v1/user/projects/:project/nexo-item-models", VIEW) { call ->
-            hashed(call, "nexo_item_models_fetch", listOf("items", "models", "textures"))
+            hashed(call, "nexo_item_icons_fetch", mapOf("icons" to emptyMap<String, Any>(), "drawn" to emptyList<String>()))
         }
     }
 
@@ -57,7 +54,7 @@ class ItemRoutes(private val servers: Servers, private val relay: Relay, private
      * A set the server answers with its hash. The hash is the ETag: an editor that holds the set
      * gets a 304, and its server, told the hash, sends nothing.
      */
-    private fun hashed(call: Call, type: String, fields: List<String>) {
+    private fun hashed(call: Call, type: String, fields: Map<String, Any>) {
         val project = servers.projectOf(call) ?: return call.error(404, "not_found")
         val known = call.header("If-None-Match")?.removePrefix("W/")?.trim('"')?.takeIf { it.isNotEmpty() }
         relay.send(call, project.server, mapOf("type" to type, "known_hash" to known)) { reply ->
@@ -66,7 +63,7 @@ class ItemRoutes(private val servers: Servers, private val relay: Relay, private
             if (reply["unchanged"] == true) return@send call.send(304, "application/json", ByteArray(0), "private, no-cache", etag)
             call.send(
                 200, "application/json",
-                mapper.writeValueAsBytes(fields.associateWith { reply[it] ?: emptyMap<String, Any>() }),
+                mapper.writeValueAsBytes(fields.mapValues { (field, missing) -> reply[field] ?: missing }),
                 "private, no-cache", etag,
             )
         }
