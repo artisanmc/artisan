@@ -183,8 +183,7 @@ export function VanillaMcText({
           // Blit the tinted glyph to the main canvas. MC bold: draw twice,
           // second pass shifted 1px right.
           ctx.drawImage(temp, 0, 0, cw, cellH, cursor, yOffset, cw, cellH);
-          if (bold)
-            ctx.drawImage(temp, 0, 0, cw, cellH, cursor + scale, yOffset, cw, cellH);
+          if (bold) ctx.drawImage(temp, 0, 0, cw, cellH, cursor + scale, yOffset, cw, cellH);
         }
         cursor += adv;
       }
