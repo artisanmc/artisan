@@ -710,6 +710,13 @@ in `session.openConflicts`: the modal opens on them (`conflictSource: "open"`). 
 files both sides changed ask; the rest is merged without a word. `followDisk` compares
 YAML by value too (`sameYamlValue`): a draft without `initialTree` whose tree is only
 the editor's format of its base follows the disk.
+**Images follow the disk too (2026-11-22)**: `followDisk` only moved the text files, so a
+draft opened before a module shipped new images (`originals/assets/…`, rewritten at the
+server's start) kept its old `binaryBaseline` / `binaryTree`: the editor drew the old images
+and a button whose new image was not listed showed its asset's name. `followDiskBinaries`
+(`draftRebase.ts`, after `followDisk` in `followDiskInDraft`) applies the three-way rule to the
+images with the disk's binary list: an image the draft left as its base takes the disk's
+version (changed, added or removed); one the draft changed stays its own.
 **A draft's base moves only with its tree (2026-11-16)**: `useDraftSync` and
 `saveProjectToDisk` paired the tree on screen with the baseline store. A tab still
 holding an older tree, whose base a reload had refreshed, saved that tree against the

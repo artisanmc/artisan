@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { diskConflicts, followDisk, pairedBaseline, rebaseDraft } from "./draftRebase";
+import {
+  diskConflicts,
+  followDisk,
+  followDiskBinaries,
+  pairedBaseline,
+  rebaseDraft,
+} from "./draftRebase";
 
 const current = (files: Record<string, string>) => ({ files, binaries: {} });
 
@@ -302,5 +308,44 @@ describe("pairedBaseline", () => {
     const store = { "new.yml": "server" };
     const tree = { "gone.yml": "mine", "new.yml": "mine" };
     expect(pairedBaseline(previous, store, tree)).toEqual({ "gone.yml": "a" });
+  });
+});
+
+describe("followDiskBinaries", () => {
+  const m = (hash: string) => ({ hash, size: 1 });
+  const draft = {
+    baseline: {},
+    tree: {},
+    binaryBaseline: { "originals/a.png": m("a1"), "originals/old.png": m("o"), "mine.png": m("x") },
+    binaryTree: { "originals/a.png": m("a1"), "originals/old.png": m("o"), "mine.png": m("y") },
+  };
+
+  it("takes the disk's images the draft left alone: changed, added, removed", () => {
+    const disk = { "originals/a.png": m("a2"), "originals/new.png": m("n"), "mine.png": m("x") };
+    const next = followDiskBinaries(draft, disk)!;
+    expect(next.binaryTree).toEqual({
+      "originals/a.png": m("a2"),
+      "originals/new.png": m("n"),
+      "mine.png": m("y"),
+    });
+    expect(next.binaryBaseline).toEqual({
+      "originals/a.png": m("a2"),
+      "originals/new.png": m("n"),
+      "mine.png": m("x"),
+    });
+  });
+
+  it("keeps an image the draft changed, and moves nothing when the disk did not", () => {
+    const disk = { "originals/a.png": m("a1"), "originals/old.png": m("o"), "mine.png": m("z") };
+    // Both changed mine.png: the draft keeps its own, publishing reports it.
+    expect(followDiskBinaries(draft, disk)).toBeNull();
+    expect(
+      followDiskBinaries(draft, {
+        "originals/a.png": m("a1"),
+        "originals/old.png": m("o"),
+        "mine.png": m("x"),
+      }),
+    ).toBeNull();
+    expect(followDiskBinaries({ baseline: {}, tree: {} }, { "a.png": m("a") })).toBeNull();
   });
 });
