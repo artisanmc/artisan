@@ -74,5 +74,27 @@ Bedrock players, and rows whose image is not in the pack yet see that item inste
 ```
 Choose **Item** to return to a material-based appearance.
 
+**Label.** Any button that does not repeat (no `iterates`/`places`) can carry a **Label**:
+a text drawn in the menu's title over the button's slots. It is centred in the button by
+default; **Alignment**, the text size and the offsets (in pixels) move it inside the area.
+The label follows the button when you move or resize it, and each state has its own, so a
+button can show "Claim" in white when a reward waits and in grey otherwise. It reads
+placeholders like any title text (`{status[0].freezes}/{status[0].freeze_max}`). Bedrock
+players and players without the resource pack do not see it, nor is it drawn over an image
+missing from the pack.
+
+```yaml
+- id: freezes
+  positions: "7-8"
+  image: { asset: freeze_box, fit: native }
+  label: { text: "<aqua>{status[0].freezes}/{status[0].freeze_max}" }
+  title: "Freezes"
+  lore: [ "A freeze covers one missed day." ]
+```
+
+**Hover area.** A button with neither image nor item (no `image`, `material` nor `item`) is
+invisible: its slots show nothing but keep its title, lore and clicks. Use it to explain a
+part of a background image on hover, or to put a label on the background.
+
 Players need the updated Artisan plugin and generated resource pack to see images.
 A missing image is not left as an invisible clickable button.

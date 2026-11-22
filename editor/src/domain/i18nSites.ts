@@ -62,6 +62,7 @@ import type {
 export type SiteKind =
   | "menuTitle"
   | "appearanceTitle"
+  | "elementLabel"
   | "lore"
   | "message"
   | "showTitle"
@@ -218,6 +219,14 @@ export function* visitAppearanceLTexts(appearance: Appearance, base: string): Ge
       key: `${base}.title` as I18nKey,
       path: `${base}.title`,
       kind: "appearanceTitle",
+    };
+  }
+  if (appearance.label) {
+    yield {
+      lText: appearance.label.text,
+      key: `${base}.label` as I18nKey,
+      path: `${base}.label`,
+      kind: "elementLabel",
     };
   }
   if (appearance.lore) {

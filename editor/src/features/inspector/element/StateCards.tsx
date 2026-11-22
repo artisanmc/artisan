@@ -51,6 +51,7 @@ import { conditionsSummary } from "../chain/labels";
 import { FieldLabel } from "../layout";
 import { ConditionListEditor } from "../properties/ConditionListEditor";
 import { ImageButtonEditor } from "./ImageButtonEditor";
+import { LabelEditor } from "./LabelEditor";
 
 /**
  * State cards list with drag-and-drop reordering. The order is meaningful
@@ -676,6 +677,57 @@ function StateCard({
               onCount={(value) => update("count", value)}
               onAdvanced={(patch) =>
                 setAppearanceAdvanced({ projectId, ...target, appearanceIndex: stateIndex, patch })
+              }
+            />
+          )}
+
+          {translations && !element.iterates && !element.places && (
+            <LabelEditor
+              label={appearance.label}
+              text={
+                <LocalizedField
+                  label={t("elementLabel.text")}
+                  langs={translations.langs}
+                  activeLang={translations.activeLang}
+                  defaultLang={translations.defaultLang}
+                  values={Object.fromEntries(
+                    translations.langs.map((lang) => [lang, ownText(appearance.label?.text, lang)]),
+                  )}
+                  onChange={(lang, value) =>
+                    useProjectsStore.getState().setAppearanceLabelText({
+                      projectId,
+                      ...target,
+                      appearanceIndex: stateIndex,
+                      lang,
+                      value,
+                    })
+                  }
+                  renderEditor={({ value, fallback, label, onChange }) => (
+                    <MmEditor
+                      value={value}
+                      onChange={onChange}
+                      aria-label={label}
+                      profile={ITEM_NAME}
+                      entries={placeholderEntries}
+                      placeholder={fallback || t("elementLabel.placeholder")}
+                      toolbar="focus"
+                      minHeight="0"
+                    />
+                  )}
+                />
+              }
+              onPlacement={(patch) =>
+                useProjectsStore
+                  .getState()
+                  .setAppearanceLabel({ projectId, ...target, appearanceIndex: stateIndex, patch })
+              }
+              onRemove={() =>
+                useProjectsStore.getState().setAppearanceLabel({
+                  projectId,
+                  ...target,
+                  appearanceIndex: stateIndex,
+                  patch: null,
+                })
               }
             />
           )}

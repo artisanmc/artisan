@@ -8,6 +8,7 @@ import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.AppearanceYaml
 import net.artisanmc.plugin.model.ImageButtonYaml
 import net.artisanmc.plugin.model.MenuYaml
+import net.artisanmc.plugin.model.ElementYaml
 import net.artisanmc.plugin.engine.RuntimeMenu
 import net.artisanmc.plugin.model.MenuTitleLayer
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -119,12 +120,13 @@ object MenuRenderer {
         val fill = SlotFill(content, menu.compiledAppearances, evaluator, menu.yaml,
             rowImages = if (bedrock(player)) null else lookupAsset)
         layout(menu, renderCtx, images, fill)
+        val labels = if (bedrock(player)) emptyList() else labels(menu, renderCtx, images, fill)
         val title = if (bedrock(player) && BedrockTitle.supports(menu.yaml)) {
             Component.text(BedrockTitle.compile(menu, images.choices) { value ->
                 interpolate(TitleCompiler.resolveLText(value, langMap, lang, menu.defaultLang))
             })
         } else TitleCompiler.compileTitle(
-            layers = menu.title + images.layers + fill.rowGlyphs,
+            layers = menu.title + images.layers + fill.rowGlyphs + labels,
             lang = lang,
             langMap = langMap,
             lookupAsset = lookupAsset,
@@ -250,6 +252,30 @@ object MenuRenderer {
         return ImageButtons(choices, layouts, layers)
     }
 
+    private fun labels(menu: RuntimeMenu, ctx: ExecutionContext, images: ImageButtons, fill: SlotFill): List<MenuTitleLayer> =
+        labelLayers(menu.yaml,
+            chosen = { el -> (if (el.id in images.choices) images.choices[el.id] else fill.choose(el.id, ctx))?.yaml },
+            drawn = { key -> images.layers.any { it.assetId == key } })
+
+    /**
+     * The label of each fixed element's [chosen] appearance, as a title text over its slot
+     * rectangle; none over an image button whose image is not [drawn].
+     */
+    internal fun labelLayers(
+        menu: MenuYaml,
+        chosen: (ElementYaml) -> AppearanceYaml?,
+        drawn: (String) -> Boolean,
+    ): List<MenuTitleLayer> = menu.allElements.mapNotNull { el ->
+        if (el.iterates != null || el.places != null) return@mapNotNull null
+        if ((listOf(el.display) + el.states).none { it.label != null }) return@mapNotNull null
+        val look = chosen(el) ?: return@mapNotNull null
+        val label = look.label ?: return@mapNotNull null
+        val layout = ImageButtonLayout.rectangle(menu, el) ?: return@mapNotNull null
+        val image = look.image
+        if (image != null && !drawn(layout.assetKey(image))) return@mapNotNull null
+        layout.labelLayer(label)
+    }
+
     /**
      * Spigot (and MockBukkit) lack createInventory's Component overload: a `§` title
      * there, replaced by the composed one in the open packet ([MenuWindows]), which
@@ -303,8 +329,10 @@ object MenuRenderer {
         fun choose(elementId: String, ctx: ExecutionContext): CompiledAppearance? =
             compiledAppearances[elementId].orEmpty().firstOrNull { evaluator.evaluateAll(it.conditions, ctx) }
 
+        /** An appearance naming no image, item nor material is a hover area: the invisible hit item. */
         fun build(chosen: CompiledAppearance, ctx: ExecutionContext): ItemStack =
-            buildItem(chosen.yaml, ctx, evaluator.deps, chosen.i18nBase)
+            if (chosen.yaml.namesNoLook()) buildImageHitItem(chosen.yaml, ctx, evaluator.deps, chosen.i18nBase)
+            else buildItem(chosen.yaml, ctx, evaluator.deps, chosen.i18nBase)
 
         fun place(elementId: String, slots: List<Int>, chosen: CompiledAppearance, item: ItemStack, rowArgs: Map<String, Any>? = null) {
             for (slot in slots) {
@@ -397,6 +425,9 @@ object MenuRenderer {
             }
         }
     }
+
+    private fun AppearanceYaml.namesNoLook() =
+        image == null && item == null && material == null && extends == null && head == null
 
     private fun buildImageHitItem(app: AppearanceYaml, ctx: ExecutionContext,
                                   deps: SoftDepRegistry, i18nBase: String): ItemStack {

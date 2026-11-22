@@ -114,18 +114,18 @@ object MenuTitleParser {
 
     private val ALLOWED_SIZES = setOf(8, 12, 16, 20, 24, 32)
 
-    private fun parseSize(v: Any?): Int {
+    fun parseSize(v: Any?): Int {
         val n = (v as? Number)?.toInt() ?: return 8
         return if (n in ALLOWED_SIZES) n else 8
     }
 
-    private fun parseAlignment(s: String?): MenuTitleLayer.Alignment = when (s?.lowercase()) {
+    fun parseAlignment(s: String?): MenuTitleLayer.Alignment = when (s?.lowercase()) {
         "center" -> MenuTitleLayer.Alignment.CENTER
         "right" -> MenuTitleLayer.Alignment.RIGHT
         else -> MenuTitleLayer.Alignment.LEFT
     }
 
-    private fun parseLText(v: Any?): LText = when (v) {
+    fun parseLText(v: Any?): LText = when (v) {
         // Canonical string form: "{i18n:key}" ref or inline literal.
         is String -> literalToLText(v)
         is Map<*, *> -> {

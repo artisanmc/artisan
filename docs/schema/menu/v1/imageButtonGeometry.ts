@@ -86,3 +86,48 @@ export function imageButtonArea(
   const slot = Math.min(...slots);
   return { slot, width, height, x: first.x + left * 18, y: first.y + topRow * 18 };
 }
+
+export type LabelAlign = "left" | "center" | "right";
+
+/** Text drawn in the title over an element's slot rectangle (fixed elements only). */
+export interface ElementLabel<Text = string | Record<string, string>> {
+  text: Text;
+  align?: LabelAlign;
+  size?: 8 | 12 | 16 | 20 | 24 | 32;
+  offset_x?: number;
+  offset_y?: number;
+}
+
+const LABEL_SIZES = [8, 12, 16, 20, 24, 32];
+const LABEL_INSET = 2;
+/** A line of the bitmap font is 7 px high at size 8 (its descender row stays below). */
+const LABEL_CAP_HEIGHT = 7;
+
+/**
+ * The title textarea of a label in an area (Minecraft pixels): centred vertically,
+ * then aligned and shifted by the offsets. Mirror of `ImageButtonLayout.labelLayer`.
+ */
+export function labelFrame(
+  label: Omit<ElementLabel<unknown>, "text">,
+  area: { x: number; y: number; width: number; height: number },
+) {
+  const size = (LABEL_SIZES.includes(label.size ?? 8) ? (label.size ?? 8) : 8) as NonNullable<
+    ElementLabel["size"]
+  >;
+  const alignment: LabelAlign = label.align ?? "center";
+  const x =
+    alignment === "left"
+      ? area.x + LABEL_INSET
+      : alignment === "right"
+        ? area.x + area.width - LABEL_INSET
+        : area.x + Math.floor(area.width / 2);
+  const y = area.y + Math.trunc((area.height - Math.trunc((LABEL_CAP_HEIGHT * size) / 8)) / 2);
+  return {
+    x: x + (label.offset_x ?? 0),
+    y: y + (label.offset_y ?? 0),
+    width: area.width,
+    lineHeight: size + 2,
+    alignment,
+    size,
+  };
+}

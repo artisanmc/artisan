@@ -146,6 +146,14 @@ the appearance once, appends its glyph to the title and fills the footprint with
 empty-model items carrying the shared tooltip/clicks. Missing images or invalid
 footprints produce no active image button. Plain title text renders after images.
 
+**Element labels.** An appearance's `label` (`{ text: LText, align?, size?, offset_x?, offset_y? }`)
+is a title textarea placed from the element's slot rectangle by `labelFrame`
+(`menu/v1/imageButtonGeometry.ts`, mirror of `ImageButtonLayout.labelLayer`). `labelLayers(menu)`
+(`domain/imageButton.ts`) turns the display labels of fixed elements into textareas that
+`TitleRender` draws after the menu's own layers, read-only (they are edited from the element:
+`LabelEditor` in the state card, store actions `setAppearanceLabelText` / `setAppearanceLabel`).
+Its text is a key site `…<state>.label` (`visitAppearanceLTexts`).
+
 ## Project display name
 
 `features/project/ProjectTopBarControls` subscribes to the current project's name so

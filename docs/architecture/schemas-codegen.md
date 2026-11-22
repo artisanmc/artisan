@@ -23,6 +23,8 @@ Offsets default to zero, are bounded to ±4096 pixels and move the centered imag
 inside its clipped footprint. New editor buttons explicitly use `native`.
 This additive field uses the existing v1 appearance format and requires an updated
 plugin for rendering. Editor, canonical TS and Kotlin types mirror it manually.
+`menu/v1` accepts optional appearance `label: { text: LText, align?: left | center | right, size?: 8 | 12 | 16 | 20 | 24 | 32, offset_x?, offset_y? }` (2026-11-22, additive): a title text placed from the element's slot rectangle (`labelFrame` / `ImageButtonLayout.labelLayer`), fixed elements only. An appearance with no `image`, `item`, `material`, `extends` nor `head` renders as the invisible hit item (`artisan:buttons/hit_area`), keeping its tooltip and clicks. Tests: `menuLabel.test.ts`, `MenuRendererLabelTest`.
+
 `menu/v1/imageButtons.ts` supplies shared semantic checks to the editor (pack builder included):
 fixed, in-bounds rectangular positions without overlap (including other layers).
 Comma-separated ranges and YAML position lists support vertical rectangles.

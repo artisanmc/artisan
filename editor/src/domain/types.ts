@@ -428,6 +428,8 @@ export interface Placement {
 
 export interface Appearance {
   image?: import("../../../docs/schema/menu/v1/imageButtonGeometry").ImageButtonImage;
+  /** Title text over the element's slot rectangle (fixed elements only). */
+  label?: import("../../../docs/schema/menu/v1/imageButtonGeometry").ElementLabel<LText>;
   /** Complete item from data; distinct from a literal material. */
   item?: string;
   if?: Condition[];

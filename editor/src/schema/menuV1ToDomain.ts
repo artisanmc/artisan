@@ -168,6 +168,10 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
       };
     else if (typeof a.item === "string") out.item = a.item;
     else if (a.material) out.material = a.material;
+    if (a.label && a.label.text !== undefined) {
+      const { text: raw, ...placement } = a.label;
+      out.label = { ...placement, text: text(raw) };
+    }
     if (a.head) out.head = a.head;
     if (a.count !== undefined) out.count = a.count;
     if (a.title !== undefined) out.title = text(a.title);

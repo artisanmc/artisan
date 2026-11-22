@@ -18,6 +18,7 @@
   ],
   "appearance": [
     "image",
+    "label",
     "if",
     "item",
     "extends",

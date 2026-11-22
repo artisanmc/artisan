@@ -1,6 +1,7 @@
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
 import { menusOf } from "@/domain/documents";
+import { labelLayers } from "@/domain/imageButton";
 import type { MenuId, MenuTitleLayer, Project, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
@@ -194,6 +195,7 @@ export function TitleRender({ projectId, menuId, scale, project: given }: TitleR
   );
 
   if (!project || !menu) return null;
+  const labels = labelLayers(menu);
 
   return (
     <>
@@ -252,6 +254,29 @@ export function TitleRender({ projectId, menuId, scale, project: given }: TitleR
           />
         );
       })}
+      {/* Element labels: drawn in the title like the plugin does, edited from the element. */}
+      {labels.length > 0 && (
+        <Group listening={false}>
+          {labels.map((layer, idx) => (
+            <LayerNode
+              // biome-ignore lint/suspicious/noArrayIndexKey: element order is the stable identifier
+              key={idx}
+              projectId={projectId}
+              menuId={menuId}
+              layer={layer}
+              index={-1 - idx}
+              scale={scale}
+              text={renderPreview(
+                getText(project, layer.value, activeLang),
+                previewCtx,
+                project,
+                activeLang,
+              )}
+              selected={false}
+            />
+          ))}
+        </Group>
+      )}
     </>
   );
 }

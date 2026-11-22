@@ -128,6 +128,16 @@ The Java twin of an editor kind's `pack.images` (SDK 1.13): the server calls it 
 |---|---|---|
 | `TemplateDeclaration.fromResourceFolder(loader, root, id, version)`: `fromResources` with every file under `root` (any depth, code unit order, a path with a dot segment left out), read from the module's jar (`jar:` resource, the jar must hold the folder's directory entry, as Gradle and Shadow write it) or a classes directory (`file:`); `IllegalArgumentException` when the folder is missing or empty. `fromResources` with its list is unchanged | `TemplateDeclaration.Builder` | 1.10.0 |
 
+## 1.11.0 — menu labels and hover areas
+
+No new Java member: the version marks a menu capability, so a module whose shipped menus use it
+can require it (`isCompatibleWith("1.11.0")`). An older Artisan ignores `label` and shows a stone
+in a hover area.
+
+| Member | Type | Since |
+|---|---|---|
+| `menu/v1` appearance `label: { text, align?, size?, offset_x?, offset_y? }`: a title text over the element's slot rectangle; an appearance naming no image, item nor material is an invisible hover area | menu format | 1.11.0 |
+
 ## Stable APIs
 
 ### `net.artisanmc.modules.api.ArtisanModule`
