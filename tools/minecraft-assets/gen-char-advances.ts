@@ -104,6 +104,28 @@ for (const [ch, adv] of Object.entries(spaceAdvances)) {
   merged.set(cp, adv);
 }
 
+// The symbols sheet (gen-symbols.ts), drawn by a bitmap provider at height 8 from 16 px cells:
+// MC's advance is (int)(0.5 + width × 0.5) + 1, width = rightmost lit column + 1. Vanilla keeps
+// its own glyphs (the sheet has none of them).
+const SYMBOLS_HEX = join(import.meta.dir, "../../editor/src/lib/pack/symbolGlyphs.ts");
+const symbols: number[] = [];
+const symbolAdvances = new Map<number, number>();
+for (const line of readFileSync(SYMBOLS_HEX, "utf-8").split("\n")) {
+  if (!/^[0-9A-F]{4,5}:[0-9A-F]+$/.test(line.trim())) continue;
+  const [cpHex, bits] = line.trim().split(":");
+  if (!cpHex || !bits) continue;
+  const cp = Number.parseInt(cpHex, 16);
+  const w = bits.length === 64 ? 16 : 8;
+  const digits = w / 4;
+  let right = -1;
+  for (let y = 0; y < 16; y++) {
+    const row = Number.parseInt(bits.slice(y * digits, (y + 1) * digits), 16);
+    for (let x = 0; x < w; x++) if ((row >> (w - 1 - x)) & 1) right = Math.max(right, x);
+  }
+  symbols.push(cp);
+  if (!merged.has(cp)) symbolAdvances.set(cp, Math.floor(0.5 + (right + 1) * 0.5) + 1);
+}
+
 // Drop entries that equal the consumer's default fallback (1) — keeps the
 // emitted tables compact without changing observable behavior.
 const compact = new Map([...merged].filter(([, v]) => v !== 1));
@@ -113,6 +135,7 @@ const compact = new Map([...merged].filter(([, v]) => v !== 1));
 const bmp = new Map([...compact].filter(([cp]) => cp < 0x10000));
 
 const sorted = [...bmp.entries()].sort((a, b) => a[0] - b[0]);
+const sortedWithSymbols = [...new Map([...bmp, ...symbolAdvances])].sort((a, b) => a[0] - b[0]);
 
 // --- Kotlin output ---
 const kt: string[] = [];
@@ -127,7 +150,14 @@ kt.push(" *");
 kt.push(" * Do not edit by hand. Regenerate via:");
 kt.push(" *   cd tools/minecraft-assets && bun gen-char-advances.ts [version]");
 kt.push(" */");
-kt.push("val CHAR_ADVANCES: Map<Int, Int> = mapOf(");
+kt.push("val CHAR_ADVANCES: Map<Int, Int> by lazy { SYMBOL_ADVANCES + VANILLA_CHAR_ADVANCES }");
+kt.push("");
+kt.push("/** The symbols sheet (gen-symbols.ts), as `XXXX:advance` pairs: one string, not a too large method. */");
+kt.push("private val SYMBOL_ADVANCES: Map<Int, Int> =");
+kt.push(`    "${[...symbolAdvances].sort((a, b) => a[0] - b[0]).map(([cp, a]) => `${cp.toString(16).toUpperCase()}:${a}`).join(",")}"`);
+kt.push("        .split(',').associate { it.substringBefore(':').toInt(16) to it.substringAfter(':').toInt() }");
+kt.push("");
+kt.push("private val VANILLA_CHAR_ADVANCES: Map<Int, Int> = mapOf(");
 for (const [cp, adv] of sorted) {
   const cpHex = "0x" + cp.toString(16).padStart(4, "0").toUpperCase();
   kt.push(`    ${cpHex} to ${adv},`);
@@ -149,7 +179,7 @@ ts.push(" * Do not edit by hand. Regenerate via:");
 ts.push(" *   cd tools/minecraft-assets && bun gen-char-advances.ts [version]");
 ts.push(" */");
 ts.push("export const CHAR_ADVANCES: Readonly<Record<number, number>> = {");
-for (const [cp, adv] of sorted) {
+for (const [cp, adv] of sortedWithSymbols) {
   const cpHex = "0x" + cp.toString(16).padStart(4, "0").toUpperCase();
   ts.push(`  ${cpHex}: ${adv},`);
 }
@@ -168,7 +198,7 @@ console.log(`[gen-char-advances] wrote ${EDITOR_OUT} (${sorted.length} entries)`
 // Resolution: same priority order as the advance table (highest wins) — space
 // provider has no glyph so we skip it here.
 const CELLS_OUT = join(import.meta.dir, "../../editor/src/lib/mcFont/charCells.ts");
-type Cell = { atlas: "ascii" | "accented" | "nonlatin_european"; col: number; row: number };
+type Cell = { atlas: "ascii" | "accented" | "nonlatin_european" | "symbols"; col: number; row: number };
 const cells = new Map<number, Cell>();
 // Write in reverse priority order so the higher-priority atlas overwrites.
 for (let i = bitmapProviders.length - 1; i >= 0; i--) {
@@ -184,11 +214,15 @@ for (let i = bitmapProviders.length - 1; i >= 0; i--) {
     }
   }
 }
+symbols.forEach((cp, i) => {
+  if (!cells.has(cp)) cells.set(cp, { atlas: "symbols", col: i % 16, row: Math.floor(i / 16) });
+});
 const cellsBmp = [...cells].filter(([cp]) => cp < 0x10000).sort((a, b) => a[0] - b[0]);
 const atlasShort: Record<Cell["atlas"], string> = {
   ascii: "a",
   accented: "b",
   nonlatin_european: "n",
+  symbols: "s",
 };
 const cellsTs: string[] = [];
 cellsTs.push("/**");
@@ -202,15 +236,17 @@ cellsTs.push(" * Generated alongside CHAR_ADVANCES — do not edit by hand.");
 cellsTs.push(" *   cd tools/minecraft-assets && bun gen-char-advances.ts [version]");
 cellsTs.push(" */");
 cellsTs.push("");
-cellsTs.push("export type AtlasName = 'ascii' | 'accented' | 'nonlatin_european';");
+cellsTs.push("export type AtlasName = 'ascii' | 'accented' | 'nonlatin_european' | 'symbols';");
 cellsTs.push("");
 cellsTs.push("export interface AtlasMeta {");
 cellsTs.push("  /** Cell width in source pixels. All vanilla atlases are 16 cols wide. */");
 cellsTs.push("  cellW: number;");
 cellsTs.push("  /** Cell height in source pixels. */");
 cellsTs.push("  cellH: number;");
-cellsTs.push("  /** Vanilla ascent — distance from cell top to baseline. */");
+cellsTs.push("  /** Distance from cell top to baseline, in MC pixels. */");
 cellsTs.push("  ascent: number;");
+cellsTs.push("  /** MC pixels per source pixel: 0.5 for the 16 px cells of the symbols sheet. */");
+cellsTs.push("  px: number;");
 cellsTs.push("}");
 cellsTs.push("");
 cellsTs.push("export const ATLAS_META: Readonly<Record<AtlasName, AtlasMeta>> = {");
@@ -220,12 +256,13 @@ for (const name of ["ascii", "accented", "nonlatin_european"] as const) {
   const png = PNG.sync.read(buf);
   const cellW = png.width / 16;
   const cellH = png.height / prov.chars.length;
-  cellsTs.push(`  ${name}: { cellW: ${cellW}, cellH: ${cellH}, ascent: ${prov.ascent} },`);
+  cellsTs.push(`  ${name}: { cellW: ${cellW}, cellH: ${cellH}, ascent: ${prov.ascent}, px: 1 },`);
 }
+cellsTs.push("  symbols: { cellW: 16, cellH: 16, ascent: 7, px: 0.5 },");
 cellsTs.push("};");
 cellsTs.push("");
 cellsTs.push("/** Compact char→cell map. Atlas names are 1-letter to keep the bundle small. */");
-cellsTs.push("type Packed = readonly [atlas: 'a' | 'b' | 'n', col: number, row: number];");
+cellsTs.push("type Packed = readonly [atlas: 'a' | 'b' | 'n' | 's', col: number, row: number];");
 cellsTs.push("const CELLS: Readonly<Record<number, Packed>> = {");
 for (const [cp, c] of cellsBmp) {
   const cpHex = "0x" + cp.toString(16).padStart(4, "0").toUpperCase();
@@ -233,8 +270,8 @@ for (const [cp, c] of cellsBmp) {
 }
 cellsTs.push("};");
 cellsTs.push("");
-cellsTs.push("const UNPACK: Readonly<Record<'a' | 'b' | 'n', AtlasName>> = {");
-cellsTs.push("  a: 'ascii', b: 'accented', n: 'nonlatin_european',");
+cellsTs.push("const UNPACK: Readonly<Record<'a' | 'b' | 'n' | 's', AtlasName>> = {");
+cellsTs.push("  a: 'ascii', b: 'accented', n: 'nonlatin_european', s: 'symbols',");
 cellsTs.push("};");
 cellsTs.push("");
 cellsTs.push("export interface CharCell {");

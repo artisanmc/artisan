@@ -75,9 +75,12 @@ object ResourcePackBuilder {
         val imagesByRef = ArrayList<Pair<String, ByteArray>>()
         val overlayImages = ArrayList<OverlayImageRequest>()
         val bedrockMenus = ArrayList<BedrockMenu>()
+        val texts = ArrayList<String>()
 
         for (project in projects) {
             val files = project.files
+            // Any text of the Project may reach a title (menus, lang files, data rows): its symbols ride along.
+            files.mapTo(texts) { it.content }
             glyphPlacements += MenuReaders.glyphPlacements(files)
             imageButtons += MenuReaders.imageButtons(files)
             overlayImages += project.overlayImages
@@ -121,6 +124,7 @@ object ResourcePackBuilder {
             if (input.transparentContainers) transparent else emptySet(),
             overlayImages,
             input.hideInventoryLabel,
+            Symbols.used(texts),
         )
         val serverId = input.bedrockServerId ?: return java
         // Asset names collide across Projects as the Java pack resolves them: the first Project (by id) wins.
@@ -159,6 +163,7 @@ object ResourcePackBuilder {
         transparent: Set<GuiContainer>,
         overlayImages: List<OverlayImageRequest>,
         hideInventoryLabel: Boolean,
+        symbols: List<Int>,
     ): PackResult {
         val remapped = assets.map { a ->
             if (a.type != "glyph" || a.codepoint == null) a
@@ -176,13 +181,16 @@ object ResourcePackBuilder {
         OverlayImages.build(files, index, glyphPngs, overlayImages)
         files["assets/artisan/asset-index.json"] = Js.stringifyBytes(index.json(), 2)
 
+        val rows = Symbols.rows(symbols)
+        if (rows.isNotEmpty()) files["assets/artisan/textures/font/symbols.png"] = Png.encode(Symbols.sheet(symbols))
         for (h in TEXT_SIZES) {
             for (y in Fonts.minYForSize(h)..172) {
-                files["assets/artisan/font/text_y${y}_h$h.json"] = Js.stringifyBytes(Fonts.textYFontJson(y, h), 2)
+                files["assets/artisan/font/text_y${y}_h$h.json"] = Js.stringifyBytes(Fonts.textYFontJson(y, h, rows), 2)
             }
         }
         for (name in Fonts.TEXT_UP_TEXTURES) files["assets/artisan/textures/font/${name}_up.png"] = vanillaResource("font/${name}_up.png")
-        for (rise in 0..Fonts.TEXT_UP_MAX) files["assets/artisan/font/text_up$rise.json"] = Js.stringifyBytes(Fonts.textUpFontJson(rise), 2)
+        if (rows.isNotEmpty()) files["assets/artisan/textures/font/symbols_up.png"] = Png.encode(Symbols.sheet(symbols, 2 * Fonts.TEXT_UP_PAD))
+        for (rise in 0..Fonts.TEXT_UP_MAX) files["assets/artisan/font/text_up$rise.json"] = Js.stringifyBytes(Fonts.textUpFontJson(rise, rows), 2)
 
         val glyphs = remapped.filter { it.type == "glyph" && it.codepoint != null }.sortedBy { it.codepoint }
         for (g in glyphs) files["assets/artisan/textures/font/${g.name}.png"] = glyphPngs[g.id] ?: continue

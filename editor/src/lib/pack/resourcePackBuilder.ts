@@ -4,6 +4,7 @@ import { buildAssetIndex } from "./assetIndexBuilder";
 import {
   type AssetRow,
   TEXT_UP_MAX,
+  TEXT_UP_PAD,
   TEXT_UP_TEXTURES,
   type TextUpTexture,
   buildDefaultFontJson,
@@ -18,6 +19,8 @@ import { type ImageButtonPlacement, buildImageButtons } from "./imageButtons";
 import { inventoryLabelFiles } from "./inventoryLabel";
 import type { GlyphPlacement } from "./menuGlyphPlacements";
 import { type OverlayImageRequest, buildOverlayImages } from "./overlayImages";
+import { encodePng } from "./png";
+import { symbolRows, symbolSheet } from "./symbols";
 import { type GuiContainer, buildVanillaGuiFiles } from "./vanillaGui";
 
 export type { AssetRow };
@@ -80,6 +83,8 @@ export function buildResourcePackZip(
   overlayImages: OverlayImageRequest[] = [],
   /** Empty the client's "Inventory" label (`resource-pack.hide-inventory-label`, cf. inventoryLabel.ts). */
   hideInventoryLabel = false,
+  /** The symbols the Projects' texts use (`usedSymbols`), drawn by the text fonts. */
+  symbols: readonly number[] = [],
 ): BuildResult {
   const remapped = assets.map((a) => {
     if (a.type !== "glyph" || a.codepoint === null) return a;
@@ -120,6 +125,9 @@ export function buildResourcePackZip(
   // total ~700 KB is dwarfed by texture assets. The vanilla ASCII/accented/
   // nonlatin PNGs are referenced by URL — no extra textures are bundled.
   const TEXT_SIZES = [8, 12, 16, 20, 24, 32] as const;
+  const rows = symbolRows(symbols);
+  if (rows.length > 0)
+    files["assets/artisan/textures/font/symbols.png"] = encodePng(symbolSheet(symbols));
   for (const h of TEXT_SIZES) {
     // Skip emit for (Y, H) combos that would violate MC's `ascent <= height`
     // strict constraint (Nexo + vanilla 1.21+ both reject these). Plugin
@@ -128,7 +136,7 @@ export function buildResourcePackZip(
     const yMin = minYForSize(h);
     for (let y = yMin; y <= 172; y++) {
       files[`assets/artisan/font/text_y${y}_h${h}.json`] = strToU8(
-        JSON.stringify(buildTextYFontJson(y, h), null, 2),
+        JSON.stringify(buildTextYFontJson(y, h, rows), null, 2),
       );
     }
   }
@@ -140,9 +148,13 @@ export function buildResourcePackZip(
     for (const name of TEXT_UP_TEXTURES) {
       files[`assets/artisan/textures/font/${name}_up.png`] = textUp[name];
     }
+    if (rows.length > 0)
+      files["assets/artisan/textures/font/symbols_up.png"] = encodePng(
+        symbolSheet(symbols, 2 * TEXT_UP_PAD),
+      );
     for (let rise = 0; rise <= TEXT_UP_MAX; rise++) {
       files[`assets/artisan/font/text_up${rise}.json`] = strToU8(
-        JSON.stringify(buildTextUpFontJson(rise), null, 2),
+        JSON.stringify(buildTextUpFontJson(rise, rows), null, 2),
       );
     }
   }

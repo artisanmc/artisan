@@ -14,7 +14,8 @@ The Mojang client jar is downloaded into `mc-assets/<version>/` (ignored by git)
 | `gen-items.ts [version]` | `items/<version>.json`: the item catalogue (flat texture, or a `model` path for 3D blocks). |
 | `gen-icons.ts [version]` | Renders every item with a `model` to PNG (Playwright + Three.js via `renderer-browser.ts` / `renderer-worker.mjs`) into `mc-assets/<version>/textures/icons/`, then rewrites `items/<version>.json` to point at those icons. |
 | `pack-icons.ts [version...]` | `icons/icons-<version>.zip`: the rendered icons + the final catalogue. |
-| `gen-char-advances.ts [version]` | Vanilla glyph width tables: `plugin/core/.../render/CharAdvances.kt`, `editor/src/lib/mcFont/charAdvances.ts`, `charCells.ts`, `editor/src/lib/pack/vanillaFontChars.ts`. |
+| `gen-symbols.ts [version]` | The title texts' symbols from the game's `unifont.zip` (asset index, saved as `mc-assets/<version>/unifont.zip`): `editor/src/lib/pack/symbolGlyphs.ts` (Unifont hex of 14 blocks, vanilla glyphs and invisible format characters left out) and `editor/src/assets/minecraft/font/symbols.png` (editor preview). Then `gen-char-advances.ts`, and `cd editor && npm run pack -- kotlin-data`. GNU Unifont: see `THIRD_PARTY_NOTICES.md`. |
+| `gen-char-advances.ts [version]` | Glyph width tables, vanilla fonts plus the symbols of `symbolGlyphs.ts`: `plugin/core/.../render/CharAdvances.kt`, `editor/src/lib/mcFont/charAdvances.ts`, `charCells.ts`, `editor/src/lib/pack/vanillaFontChars.ts`. |
 | `gen-padded-fonts.ts [version]` | `editor/src/assets/minecraft/font/{ascii,accented,nonlatin_european}_up.png`: the vanilla font textures with 128 transparent rows under each cell, for the rising fonts `artisan:text_up{R}` (Minecraft refuses an ascent above the height). |
 | `gen-vanilla-font-zip.ts [version]` | `test-fonts/vanilla-ascii-<version>.zip`, a test MCFonts font built from `ascii.png`. |
 
@@ -25,7 +26,8 @@ cd tools/minecraft-assets
 bun gen-items.ts 1.21.x
 bun gen-icons.ts 1.21.x
 bun pack-icons.ts 1.21.x
-bun gen-char-advances.ts 1.21.x   # if the vanilla font changed
+bun gen-symbols.ts 1.21.x         # if Unifont changed
+bun gen-char-advances.ts 1.21.x   # if the vanilla font or the symbols changed
 bun gen-padded-fonts.ts 1.21.x    # idem
 ```
 

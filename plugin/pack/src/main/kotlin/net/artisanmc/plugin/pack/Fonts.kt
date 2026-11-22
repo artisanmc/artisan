@@ -68,7 +68,8 @@ internal object Fonts {
         return mapOf("providers" to providers)
     }
 
-    fun textYFontJson(y: Int, h: Int): Map<String, Any?> {
+    /** [symbols]: the `chars` rows of the pack's symbols sheet ([Symbols]), drawn after vanilla; empty, no provider. */
+    fun textYFontJson(y: Int, h: Int, symbols: List<String> = emptyList()): Map<String, Any?> {
         val shift = 6 - y
         val scale = h / 8.0
         fun bitmap(file: String, v: VanillaFont) = mapOf(
@@ -84,11 +85,17 @@ internal object Fonts {
                 bitmap("minecraft:font/ascii.png", ASCII),
                 bitmap("minecraft:font/accented.png", ACCENTED),
                 bitmap("minecraft:font/nonlatin_european.png", NONLATIN_EUROPEAN),
-            ),
+            ) + (if (symbols.isEmpty()) emptyList() else listOf(mapOf(
+                "type" to "bitmap",
+                "file" to "artisan:font/symbols.png",
+                "ascent" to Symbols.ASCENT + shift,
+                "height" to round(Symbols.HEIGHT * scale),
+                "chars" to symbols,
+            ))),
         )
     }
 
-    fun textUpFontJson(rise: Int): Map<String, Any?> = mapOf(
+    fun textUpFontJson(rise: Int, symbols: List<String> = emptyList()): Map<String, Any?> = mapOf(
         "providers" to listOf<Any?>(mapOf("type" to "space", "advances" to mapOf(" " to 4))) +
             listOf("ascii" to ASCII, "accented" to ACCENTED, "nonlatin_european" to NONLATIN_EUROPEAN).map { (name, v) ->
                 mapOf(
@@ -98,7 +105,15 @@ internal object Fonts {
                     "height" to v.height + TEXT_UP_PAD,
                     "chars" to v.chars,
                 )
-            },
+            } +
+            // 16 px cells at half size: 2 × TEXT_UP_PAD transparent rows under each ([Symbols.sheet]).
+            (if (symbols.isEmpty()) emptyList() else listOf(mapOf(
+                "type" to "bitmap",
+                "file" to "artisan:font/symbols_up.png",
+                "ascent" to Symbols.ASCENT + rise,
+                "height" to Symbols.HEIGHT + TEXT_UP_PAD,
+                "chars" to symbols,
+            ))),
     )
 
     fun glyphYFontJson(y: Double, glyphs: Collection<AssetRow>): Map<String, Any?> = mapOf(
