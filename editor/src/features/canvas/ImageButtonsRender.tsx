@@ -7,18 +7,34 @@ import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
 import { useHoverStore } from "@/state/hoverStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isElementSelected, useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
+import type Konva from "konva";
 import { Group, Image, Rect, Text } from "react-konva";
 import { toast } from "sonner";
 import { TEX_SCALE } from "./menuLayout";
 
-export function ImageButtonsRender({ projectId, menu }: { projectId: ProjectId; menu: Menu }) {
+export function ImageButtonsRender({
+  projectId,
+  menu,
+  onDeepSelect,
+}: {
+  projectId: ProjectId;
+  menu: Menu;
+  onDeepSelect?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+}) {
   return (
     <>
       {menu.layers
         .flatMap((layer) => layer.elements)
         .filter((el) => !!el.display.image)
         .map((element) => (
-          <ImageButtonRender key={element.id} projectId={projectId} menu={menu} element={element} />
+          <ImageButtonRender
+            key={element.id}
+            projectId={projectId}
+            menu={menu}
+            element={element}
+            onDeepSelect={onDeepSelect}
+          />
         ))}
     </>
   );
@@ -28,7 +44,13 @@ function ImageButtonRender({
   projectId,
   menu,
   element,
-}: { projectId: ProjectId; menu: Menu; element: Element }) {
+  onDeepSelect,
+}: {
+  projectId: ProjectId;
+  menu: Menu;
+  element: Element;
+  onDeepSelect?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+}) {
   const appearance = element.display;
   const assets = useAssetStore((state) => state.assets);
   const asset = assets.find(
@@ -57,7 +79,10 @@ function ImageButtonRender({
     width / TEX_SCALE,
     height / TEX_SCALE,
   );
-  const select = () => useSelectionStore.getState().set([element.id], null, menu.id);
+  const select = () => {
+    useUiStore.getState().setSelectedLayerKey(null);
+    useSelectionStore.getState().set([element.id], null, menu.id);
+  };
   return (
     <Group
       x={x}
@@ -66,7 +91,8 @@ function ImageButtonRender({
       name={`image-button:${menu.id}:${element.id}`}
       onClick={(event) => {
         event.cancelBubble = true;
-        if (event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey)
+        if (onDeepSelect && (event.evt.ctrlKey || event.evt.metaKey)) onDeepSelect(event);
+        else if (event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey)
           useSelectionStore.getState().toggleElement(element.id, menu.id);
         else select();
       }}

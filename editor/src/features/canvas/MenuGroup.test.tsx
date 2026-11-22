@@ -55,6 +55,7 @@ vi.mock("use-image", () => ({ default: () => [null, "loaded"] }));
 // shell so MenuGroup's own click path stays the focus.
 vi.mock("./title/composer/TitleRender", () => ({
   TitleRender: () => <div data-testid="title-render-stub" />,
+  useTitleLayerBoxes: () => [],
 }));
 
 const PACK_ID = "p1" as ProjectId;

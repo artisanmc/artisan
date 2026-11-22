@@ -8,7 +8,8 @@ import { usePaginationStore } from "@/state/paginationStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isElementSelected, useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
-import { useMemo } from "react";
+import type Konva from "konva";
+import { useCallback, useMemo, useRef } from "react";
 import { Group, Rect } from "react-konva";
 import { ImageButtonsRender } from "./ImageButtonsRender";
 import { MenuBackground } from "./MenuBackground";
@@ -26,18 +27,20 @@ import {
   useVariantStatus,
 } from "./VariantTag";
 import { dispatchOpenElement } from "./canvasEvents";
+import { applyPick, currentPick, nextPick, picksAt } from "./canvasPick";
 import { positionCount } from "./inventoryTypes";
 import { type SlotEntry, fanoutElements } from "./menuFanout";
 import {
   TEX_SCALE,
   TEX_SLOT_INNER,
   TEX_SLOT_INNER_OFFSET,
+  TEX_SLOT_STRIDE,
   menuBoxSize,
   slotXY,
 } from "./menuLayout";
 import { buildPreviewScope } from "./menuPreviewScope";
 import { edgeTriggerPositions, resolveMenuSlots } from "./menuSlots";
-import { TitleRender } from "./title/composer/TitleRender";
+import { TitleRender, useTitleLayerBoxes } from "./title/composer/TitleRender";
 import { useMenuClick } from "./useMenuClick";
 import { useMenuDrag } from "./useMenuDrag";
 import { useMenuPreviewSnapshots } from "./useMenuPreviewSnapshots";
@@ -100,10 +103,20 @@ export function MenuGroup({
   // (including empty ones) becomes a tap target that pins the row.
   const armedPlacement = useUiStore((s) => s.armedPlacement);
   const armedForThisMenu = armedPlacement?.menuId === menu.id;
+  const groupRef = useRef<Konva.Group>(null);
+  const layerBoxes = useTitleLayerBoxes(projectId, menu.id, TEX_SCALE);
+  const deepSelectRef = useRef<() => void>(() => {});
+  // Ctrl/Cmd+click: the next thing under the pointer after the selected one — title layers
+  // topmost first (backgrounds included), then the slot's element.
+  const onDeepSelect = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    e.cancelBubble = true;
+    deepSelectRef.current();
+  }, []);
   const { onSlotClick, onSlotTap } = useSlotPointer({
     projectId,
     menuId: menu.id,
     armedPlacement: armedForThisMenu ? armedPlacement : null,
+    onDeepSelect,
   });
 
   const type = menu.inventoryType ?? "chest";
@@ -165,6 +178,30 @@ export function MenuGroup({
   });
 
   const total = positionCount(type, menu.rows, menu.playerInventory);
+  deepSelectRef.current = () => {
+    const point = groupRef.current?.getRelativePointerPosition();
+    if (!point) return;
+    let slotElement: { elementId: string; position: number } | null = null;
+    for (let i = 0; i < total; i++) {
+      const cell = slotXY(i, type, menu.rows);
+      const id = elementsByPosition.get(i)?.elementId;
+      if (
+        id &&
+        point.x >= cell.x &&
+        point.y >= cell.y &&
+        point.x < cell.x + TEX_SLOT_STRIDE &&
+        point.y < cell.y + TEX_SLOT_STRIDE
+      ) {
+        slotElement = { elementId: id as string, position: i };
+        break;
+      }
+    }
+    const pick = nextPick(
+      picksAt(layerBoxes, point.x, point.y, slotElement, true),
+      currentPick(menu.id),
+    );
+    if (pick) applyPick(menu.id, pick);
+  };
   const variantStatus = useVariantStatus(projectId, "menu", menu.id);
   const originTag = useOriginTag(projectId, "menu", menu.id);
 
@@ -183,6 +220,7 @@ export function MenuGroup({
       onTap={onClick}
       onDblClick={solo ? undefined : () => dispatchOpenElement(key)}
       onDblTap={solo ? undefined : () => dispatchOpenElement(key)}
+      ref={groupRef}
       name={`menu:${menu.id}`}
       id={key}
       opacity={variantStatus === "inherited" ? INHERITED_OPACITY : 1}
@@ -226,8 +264,8 @@ export function MenuGroup({
           text) faithfully, matching what the plugin emits in-game. Clicks on
           layers select them, clicks on the grey backdrop set this menu as the
           selected one (and clear any layer selection belonging to this menu). */}
-      <TitleRender projectId={projectId} menuId={menu.id} scale={TEX_SCALE} />
-      <ImageButtonsRender projectId={projectId} menu={menu} />
+      <TitleRender projectId={projectId} menuId={menu.id} scale={TEX_SCALE} pass="visual" />
+      <ImageButtonsRender projectId={projectId} menu={menu} onDeepSelect={onDeepSelect} />
       <PlacementTray
         menu={menu}
         project={project}
@@ -396,6 +434,15 @@ export function MenuGroup({
           </Group>
         );
       })}
+      {/* Over the slots: the selected title layer keeps the hand (dragged whatever lies
+          under it) and every pickable layer catches the clicks on its box (topmost wins). */}
+      <TitleRender
+        projectId={projectId}
+        menuId={menu.id}
+        scale={TEX_SCALE}
+        pass="interactive"
+        onDeepSelect={onDeepSelect}
+      />
       <SlotDragGhosts
         dragState={dragState}
         elementsByPosition={elementsByPosition}
