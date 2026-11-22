@@ -5,6 +5,7 @@ import { useAssetStore } from "@/features/assets/assetStore";
 import { useCssVar } from "@/lib/themeColors";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
 import { useHoverStore } from "@/state/hoverStore";
+import { useImageButtonDragStore } from "@/state/imageButtonDragStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isElementSelected, useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
@@ -104,8 +105,18 @@ function ImageButtonRender({
         event.cancelBubble = true;
         select();
       }}
+      onDragMove={(event) => {
+        // What is drawn apart from this node (the label, in the title) follows the button.
+        useImageButtonDragStore.getState().setDrag({
+          menuId: menu.id,
+          elementId: element.id,
+          dx: event.target.x() - x,
+          dy: event.target.y() - y,
+        });
+      }}
       onDragEnd={(event) => {
         event.cancelBubble = true;
+        useImageButtonDragStore.getState().setDrag(null);
         const node = event.target;
         const dCol = Math.round((node.x() - x) / (18 * TEX_SCALE));
         const dRow = Math.round((node.y() - y) / (18 * TEX_SCALE));

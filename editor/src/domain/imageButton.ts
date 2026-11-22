@@ -84,12 +84,15 @@ export function assertImageButtonPlacement(
   }
 }
 
+type LabelLayer = Extract<MenuTitleLayer, { kind: "textarea" }>;
+
 /**
  * The labels of a menu's fixed elements (their display), as the title textareas the plugin
- * draws over each element's slot rectangle. Mirror of `MenuRenderer.labelLayers`.
+ * draws over each element's slot rectangle, with the element each belongs to.
+ * Mirror of `MenuRenderer.labelLayers`.
  */
-export function labelLayers(menu: Menu): Extract<MenuTitleLayer, { kind: "textarea" }>[] {
-  const out: Extract<MenuTitleLayer, { kind: "textarea" }>[] = [];
+export function elementLabels(menu: Menu): { elementId: Element["id"]; layer: LabelLayer }[] {
+  const out: { elementId: Element["id"]; layer: LabelLayer }[] = [];
   for (const element of menu.layers.flatMap((layer) => layer.elements)) {
     const label = element.display.label;
     if (!label || element.iterates || element.places) continue;
@@ -106,7 +109,12 @@ export function labelLayers(menu: Menu): Extract<MenuTitleLayer, { kind: "textar
       width: rect.width * 18,
       height: rect.height * 18,
     });
-    out.push({ kind: "textarea", value: label.text, ...frame });
+    out.push({ elementId: element.id, layer: { kind: "textarea", value: label.text, ...frame } });
   }
   return out;
+}
+
+/** The layers of [elementLabels]. */
+export function labelLayers(menu: Menu): LabelLayer[] {
+  return elementLabels(menu).map((label) => label.layer);
 }
