@@ -10,6 +10,7 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { useImageButtonDragStore } from "@/state/imageButtonDragStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { act, fireEvent, render, screen } from "@testing-library/react";
@@ -538,6 +539,36 @@ describe("TitleRender", () => {
       <TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} pass="interactive" />,
     );
     expect(screen.queryAllByTestId("group").length).toBeGreaterThan(0);
+  });
+
+  it("the label of the image button being dragged follows it; the others stay", () => {
+    const menu = seedProject([]);
+    menu.layers = [
+      {
+        elements: [
+          { id: "claim", positions: "48-50", display: { label: { text: { key: I18N_KEY } } } },
+          { id: "other", positions: "0", display: { label: { text: { key: I18N_KEY } } } },
+        ],
+      },
+    ] as never;
+    render(
+      <TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} pass="interactive" />,
+    );
+    const offsets = () =>
+      screen
+        .getAllByTestId("group")
+        .map((g) => `${g.dataset.x},${g.dataset.y}`)
+        .filter((at) => at === "0,0" || at === "30,-12");
+    expect(offsets()).not.toContain("30,-12");
+    act(() =>
+      useImageButtonDragStore
+        .getState()
+        .setDrag({ menuId: MENU_ID, elementId: "claim" as never, dx: 30, dy: -12 }),
+    );
+    expect(offsets().filter((at) => at === "30,-12")).toHaveLength(1);
+    expect(offsets()).toContain("0,0");
+    act(() => useImageButtonDragStore.getState().setDrag(null));
+    expect(offsets()).not.toContain("30,-12");
   });
 
   it("clicking an unselected layer does not change selection (canvas is click-through when not selected)", () => {

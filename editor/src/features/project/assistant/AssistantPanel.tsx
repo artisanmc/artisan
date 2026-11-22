@@ -164,7 +164,7 @@ export function AssistantDock({
           <div className="flex flex-col gap-2 text-[13px] text-[var(--text-mut)]">
             <p>{t("ai.intro")}</p>
             <p className="text-[12px] text-[var(--text-faint)]">
-              {t("ai.billing", { model: status.model ?? "" })}
+              {t(status.cloud ? "ai.billingCloud" : "ai.billing", { model: status.model ?? "" })}
             </p>
           </div>
         )}

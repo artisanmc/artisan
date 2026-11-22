@@ -18,6 +18,7 @@ import {
 import { type ImageButtonPlacement, buildImageButtons } from "./imageButtons";
 import { inventoryLabelFiles } from "./inventoryLabel";
 import type { GlyphPlacement } from "./menuGlyphPlacements";
+import { TEXT_SIZES, TEXT_Y_MAX, type TextPlacement } from "./menuTextPlacements";
 import { type OverlayImageRequest, buildOverlayImages } from "./overlayImages";
 import { encodePng } from "./png";
 import { symbolRows, symbolSheet } from "./symbols";
@@ -85,6 +86,8 @@ export function buildResourcePackZip(
   hideInventoryLabel = false,
   /** The symbols the Projects' texts use (`usedSymbols`), drawn by the text fonts. */
   symbols: readonly number[] = [],
+  /** The (Y, size) of the menus' title texts and labels (`textPlacementsFromMenus`). */
+  textPlacements: readonly TextPlacement[] = [],
 ): BuildResult {
   const remapped = assets.map((a) => {
     if (a.type !== "glyph" || a.codepoint === null) return a;
@@ -109,34 +112,33 @@ export function buildResourcePackZip(
   buildOverlayImages(files, assetIndex, glyphPngs, overlayImages);
   files["assets/artisan/asset-index.json"] = strToU8(JSON.stringify(assetIndex, null, 2));
 
-  // Y-specific text fonts: text_y{Y}.json for Y = -32..172.
-  // TitleCompiler wraps plain text layers in <font:artisan:text_y{Y}> to
-  // achieve arbitrary vertical positioning using minecraft:font/ascii.png
-  // with a shifted ascent. Always included so the plugin can reference any
-  // Y value without needing a resource-pack rebuild when layers change.
-  //
-  // Range covers: ~32 px above the chest title bar (negative Y) for floating
-  // text effects, the title bar itself (Y=0..16), the slot area for any chest
-  // size up to 6 rows (Y=18..139), the bottom border (Y=140..149), and the
-  // top of the player inventory (Y=150..172). A user picking Y outside this
-  // range would otherwise see missing-glyph squares in-game because MC
-  // can't find the referenced font asset.
-  // Matrix: Y × size. Each (Y, H) combination is a tiny JSON (~500 B), so the
-  // total ~700 KB is dwarfed by texture assets. The vanilla ASCII/accented/
-  // nonlatin PNGs are referenced by URL — no extra textures are bundled.
-  const TEXT_SIZES = [8, 12, 16, 20, 24, 32] as const;
+  // Y-specific text fonts: TitleCompiler wraps a title text in <font:artisan:text_y{Y}_h{H}>,
+  // the vanilla font textures with a shifted ascent and a height of H, so its top lands at
+  // chest Y. A font is ~7 KB zipped and the full matrix (6 sizes × ~175 Ys) was most of a pack,
+  // so only two sets are written:
+  //  - size 8 at every Y (minYForSize(8)..172): `api.getOverlay().raise` picks any of them at
+  //    run time, and it is the size of most texts;
+  //  - the other sizes at the Ys the menus' texts and labels sit at (`textPlacements`).
+  // A text moved to another Y or size therefore needs the rebuilt pack, like an image button.
   const rows = symbolRows(symbols);
   if (rows.length > 0)
     files["assets/artisan/textures/font/symbols.png"] = encodePng(symbolSheet(symbols));
   for (const h of TEXT_SIZES) {
-    // Skip emit for (Y, H) combos that would violate MC's `ascent <= height`
-    // strict constraint (Nexo + vanilla 1.21+ both reject these). Plugin
-    // clamps Y to the same floor so render falls back to the lowest valid Y
-    // instead of a missing-font reference.
+    // Never below minYForSize: MC rejects a font whose ascent exceeds its height (the plugin
+    // clamps Y to the same floor).
     const yMin = minYForSize(h);
-    for (let y = yMin; y <= 172; y++) {
+    const ys: number[] = [];
+    if (h === 8) for (let y = yMin; y <= TEXT_Y_MAX; y++) ys.push(y);
+    else {
+      const used = new Set<number>();
+      for (const p of textPlacements)
+        if (p.size === h && Number.isInteger(p.y) && p.y >= yMin && p.y <= TEXT_Y_MAX)
+          used.add(p.y);
+      ys.push(...[...used].sort((a, b) => a - b));
+    }
+    for (const y of ys) {
       files[`assets/artisan/font/text_y${y}_h${h}.json`] = strToU8(
-        // Compact: ~1,200 text fonts are most of the pack (indented, 2 MB more).
+        // Compact: indented, each font is half as big again.
         JSON.stringify(buildTextYFontJson(y, h, rows)),
       );
     }

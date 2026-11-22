@@ -8,6 +8,7 @@ const api = vi.hoisted(() => ({
   getAiSettings: vi.fn(),
   saveAiSettings: vi.fn(),
   deleteAiSettings: vi.fn(),
+  getAiCloud: vi.fn(),
 }));
 vi.mock("@/lib/api/ai", () => api);
 vi.mock("@/state/aiStatus", () => ({ resetAiStatus: vi.fn() }));
@@ -35,6 +36,54 @@ beforeAll(async () => {
 describe("assistant settings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("picks one of artisanmc.net's models, with no key nor address", async () => {
+    api.getAiSettings.mockResolvedValue(
+      settings({ providers: ["anthropic", "artisan", "openai"] }),
+    );
+    api.getAiCloud.mockResolvedValue({
+      linked: true,
+      balance: 12.5,
+      buy: "https://artisanmc.net/account/#ai-credits",
+      models: [
+        { id: "claude", label: "Claude Sonnet", protocol: "anthropic", attachments: ["text"] },
+        { id: "deepseek", label: "DeepSeek", protocol: "openai", attachments: ["text"] },
+      ],
+    });
+    api.saveAiSettings.mockResolvedValue(
+      settings({ source: "database", enabled: true, provider: "artisan", model: "deepseek" }),
+    );
+    render(<AssistantSettingsSection />);
+    fireEvent.click(await screen.findByRole("button", { name: "artisanmc.net credits" }));
+
+    expect(await screen.findByText("Balance: 12.5 credits.")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^API key/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Address/)).not.toBeInTheDocument();
+    // Effort goes to Anthropic's protocol only.
+    fireEvent.click(screen.getByRole("button", { name: "Claude Sonnet" }));
+    expect(screen.getByRole("button", { name: "high" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "DeepSeek" }));
+    expect(screen.queryByRole("button", { name: "high" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(api.saveAiSettings).toHaveBeenCalledWith({
+        provider: "artisan",
+        model: "deepseek",
+        effort: "medium",
+        maxSteps: 25,
+        baseUrl: "",
+      }),
+    );
+  });
+
+  it("says when the network is not linked to an artisanmc.net account", async () => {
+    api.getAiSettings.mockResolvedValue(settings({ providers: ["anthropic", "artisan"] }));
+    api.getAiCloud.mockResolvedValue({ linked: false });
+    render(<AssistantSettingsSection />);
+    fireEvent.click(await screen.findByRole("button", { name: "artisanmc.net credits" }));
+    expect(await screen.findByText(/not linked to an artisanmc.net account/)).toBeInTheDocument();
   });
 
   it("saves a model, an address and a key, then shows only the key's end", async () => {

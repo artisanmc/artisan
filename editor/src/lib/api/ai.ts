@@ -8,6 +8,8 @@ export interface AiStatus {
   canUse: boolean;
   /** The kinds of files the model reads; absent from an older hub: every kind. */
   attachments?: AiAttachmentKind[] | null;
+  /** On artisanmc.net's models, paid from the linked site account's credits. */
+  cloud?: boolean;
 }
 
 export interface AiConversationSummary {
@@ -168,6 +170,24 @@ export interface AiSettingsInput {
 }
 
 const CONFIG = "/api/v1/ai/config";
+
+/** A model artisanmc.net offers to the linked account's assistant. */
+export interface AiCloudModel {
+  id: string;
+  label: string;
+  protocol: "anthropic" | "openai";
+  attachments: AiAttachmentKind[];
+}
+
+/** The linked site account's AI credits (ADR `editor-assistant`, `artisan` provider). */
+export type AiCloud =
+  | { linked: false }
+  | { linked: true; balance: number; buy: string | null; models: AiCloudModel[] };
+
+/** Asked of the site by the hub, which keeps it a minute; `fresh` asks again now. */
+export function getAiCloud(fresh = false): Promise<AiCloud> {
+  return apiFetch(`/api/v1/ai/cloud${fresh ? "?fresh=1" : ""}`);
+}
 
 export function getAiSettings(): Promise<AiSettings> {
   return apiFetch(CONFIG);

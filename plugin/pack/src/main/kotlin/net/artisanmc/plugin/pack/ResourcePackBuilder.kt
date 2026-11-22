@@ -40,7 +40,6 @@ class PackResult(val zip: ByteArray, val sha1: String, val bedrock: BedrockPackR
 object ResourcePackBuilder {
     private const val CODEPOINT_MIN = 0xe000
     private const val CODEPOINT_MAX = 0xf7ff
-    private val TEXT_SIZES = listOf(8, 12, 16, 20, 24, 32)
 
     private val PACK_MCMETA = mapOf(
         "pack" to mapOf(
@@ -71,6 +70,7 @@ object ResourcePackBuilder {
         val fontGlyphPngs = HashMap<String, Map<String, ByteArray>>()
         val glyphPlacements = ArrayList<GlyphPlacement>()
         val imageButtons = ArrayList<ImageButtonPlacement>()
+        val textPlacements = ArrayList<TextPlacement>()
         val transparent = LinkedHashSet<GuiContainer>()
         val imagesByRef = ArrayList<Pair<String, ByteArray>>()
         val overlayImages = ArrayList<OverlayImageRequest>()
@@ -83,6 +83,7 @@ object ResourcePackBuilder {
             files.mapTo(texts) { it.content }
             glyphPlacements += MenuReaders.glyphPlacements(files)
             imageButtons += MenuReaders.imageButtons(files)
+            textPlacements += MenuReaders.textPlacements(files)
             overlayImages += project.overlayImages
             transparent += MenuReaders.transparentContainers(files)
             // Keyed by the folder name: the plugin names a menu's Project that way.
@@ -125,6 +126,7 @@ object ResourcePackBuilder {
             overlayImages,
             input.hideInventoryLabel,
             Symbols.used(texts),
+            textPlacements,
         )
         val serverId = input.bedrockServerId ?: return java
         // Asset names collide across Projects as the Java pack resolves them: the first Project (by id) wins.
@@ -164,6 +166,7 @@ object ResourcePackBuilder {
         overlayImages: List<OverlayImageRequest>,
         hideInventoryLabel: Boolean,
         symbols: List<Int>,
+        textPlacements: List<TextPlacement>,
     ): PackResult {
         val remapped = assets.map { a ->
             if (a.type != "glyph" || a.codepoint == null) a
@@ -183,8 +186,13 @@ object ResourcePackBuilder {
 
         val rows = Symbols.rows(symbols)
         if (rows.isNotEmpty()) files["assets/artisan/textures/font/symbols.png"] = Png.encode(Symbols.sheet(symbols))
-        for (h in TEXT_SIZES) {
-            for (y in Fonts.minYForSize(h)..172) {
+        // Size 8 at every Y (`api.getOverlay().raise` picks any at run time), the other sizes at
+        // the Ys the menus' texts and labels sit at (`resourcePackBuilder.ts`).
+        for (h in MenuReaders.TEXT_SIZES) {
+            val range = Fonts.minYForSize(h)..MenuReaders.TEXT_Y_MAX
+            val ys = if (h == 8) range.toList()
+            else textPlacements.filter { it.size == h && it.y in range }.map { it.y }.distinct().sorted()
+            for (y in ys) {
                 files["assets/artisan/font/text_y${y}_h$h.json"] = Js.stringifyBytes(Fonts.textYFontJson(y, h, rows))
             }
         }

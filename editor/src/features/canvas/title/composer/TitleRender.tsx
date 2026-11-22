@@ -1,13 +1,14 @@
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
 import { menusOf } from "@/domain/documents";
-import { labelLayers } from "@/domain/imageButton";
+import { elementLabels } from "@/domain/imageButton";
 import type { MenuId, MenuTitleLayer, Project, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { getText } from "@/lib/i18n";
 import { plainTextFromMiniMessage } from "@/lib/miniMessage";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
+import { useImageButtonDragStore } from "@/state/imageButtonDragStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -407,6 +408,9 @@ export function TitleRender({
   const menu = menusOf(project).find((m) => m.id === menuId);
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
+  const buttonDrag = useImageButtonDragStore((s) =>
+    pass !== "visual" && s.drag?.menuId === menuId ? s.drag : null,
+  );
   const selectedLayerKey = useUiStore((s) => s.selectedLayerKey);
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
@@ -436,7 +440,7 @@ export function TitleRender({
 
   if (!project || !menu) return null;
   // Labels sit over the buttons they name: on the board the `interactive` pass draws them, above the slots and the image buttons.
-  const labels = pass === "visual" ? [] : labelLayers(menu);
+  const labels = pass === "visual" ? [] : elementLabels(menu);
   const window = { width: MC_W * scale, height: (MC_TITLE_H + menu.rows * 18) * scale };
 
   return (
@@ -518,24 +522,33 @@ export function TitleRender({
       {/* Element labels: drawn in the title like the plugin does, edited from the element. */}
       {labels.length > 0 && (
         <Group listening={false}>
-          {labels.map((layer, idx) => (
-            <LayerNode
-              // biome-ignore lint/suspicious/noArrayIndexKey: element order is the stable identifier
-              key={idx}
-              projectId={projectId}
-              menuId={menuId}
-              layer={layer}
-              index={-1 - idx}
-              scale={scale}
-              text={renderPreview(
-                getText(project, layer.value, activeLang),
-                previewCtx,
-                project,
-                activeLang,
-              )}
-              selected={false}
-            />
-          ))}
+          {labels.map(({ elementId, layer }, idx) => {
+            // The label of the image button being dragged follows it.
+            const moved = buttonDrag?.menuId === menuId && buttonDrag.elementId === elementId;
+            return (
+              <Group
+                key={elementId}
+                name={`element-label:${menuId}:${elementId}`}
+                x={moved ? buttonDrag.dx : 0}
+                y={moved ? buttonDrag.dy : 0}
+              >
+                <LayerNode
+                  projectId={projectId}
+                  menuId={menuId}
+                  layer={layer}
+                  index={-1 - idx}
+                  scale={scale}
+                  text={renderPreview(
+                    getText(project, layer.value, activeLang),
+                    previewCtx,
+                    project,
+                    activeLang,
+                  )}
+                  selected={false}
+                />
+              </Group>
+            );
+          })}
         </Group>
       )}
     </>

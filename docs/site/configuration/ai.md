@@ -11,7 +11,7 @@ deploy, as with your own edits.
 | | The editor's assistant | AI clients (MCP) |
 |---|---|---|
 | Where you type | The ✦ button in the editor | Claude, ChatGPT, an IDE… |
-| Who pays the model | You, with your API key | The player's own AI subscription |
+| Who pays the model | You, with your API key or your artisanmc.net credits | The player's own AI subscription |
 | Turn it on | **Settings → Assistant**: model + key | `web.mcp: true` in `environment.yml` |
 | Can it deploy? | Never | Off by default; the player can allow it |
 
@@ -42,6 +42,19 @@ ai:
   model: "deepseek-chat"
 ```
 
+**artisanmc.net credits.** Pick **artisanmc.net credits** and one of the models listed: no key
+to paste. The calls go through artisanmc.net and are paid from the AI credits of the account
+this network is linked to (the link of the **Updates** page). Everyone who uses this editor
+spends that one balance, shown at the bottom of the sidebar; clicking it opens your account page
+on artisanmc.net. When the balance reaches zero, the next message is refused. In
+`environment.yml`:
+
+```yaml
+ai:
+  provider: "artisan"
+  model: "the id shown in the editor"
+```
+
 Not every model reads every file: DeepSeek reads text files only, PDFs go to Anthropic, OpenAI
 and OpenRouter. The editor refuses another kind before sending.
 
@@ -67,7 +80,7 @@ server first. The panel offers to open the draft in **Drafts**, where you review
 - A message runs at most `ai.max-steps` model calls, then stops and says so.
 - Conversations survive restarts. Each player keeps their last 10, for 30 days.
 
-Every message of every player is billed to your key.
+Every message of every player is billed to your key, or to the linked account's credits.
 
 ## AI clients (MCP)
 

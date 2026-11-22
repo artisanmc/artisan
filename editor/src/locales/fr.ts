@@ -1946,6 +1946,11 @@ const fr: typeof en = {
     deployed: "Déployé sur le serveur",
     packFailed: "Le resource pack n’a pas pu être reconstruit ; les joueurs gardent le précédent.",
     packFailedReason: "Raison : {{reason}}",
+    packChanged: "Le resource pack a changé",
+    packChangedReloaded:
+      "Rechargé par « {{command}} ». Les nouvelles images et les éléments déplacés s’affichent une fois le pack rechargé par les joueurs.",
+    packChangedNoReload:
+      "Aucune commande de rechargement n’est configurée : recharge le plugin de pack (par exemple « nexo reload pack »), sinon les joueurs gardent l’ancien pack et les images nouvelles ou déplacées ne s’affichent pas. À automatiser dans Configuration du serveur, « Commande de rechargement après délégation ».",
     failed: "Échec du déploiement",
     reviewTitle: "Déployer sur le serveur ?",
     reviewBody:
