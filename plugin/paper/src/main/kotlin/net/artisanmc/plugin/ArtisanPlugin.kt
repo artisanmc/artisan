@@ -50,6 +50,8 @@ open class ArtisanPlugin : JavaPlugin() {
         private set
     /** Survives `/artisan reload`: the pack manager is swapped, the players' loaded packs are not. */
     internal val packLoads = net.artisanmc.plugin.resourcepack.PackLoadTracker()
+    /** Packs loaded before join (configuration phase), handed to [packLoads] at join. */
+    private var preJoinPackLoads: net.artisanmc.plugin.resourcepack.PreJoinPackLoads? = null
     /** The HUD layers modules show (`api.getOverlay().show`), drawn on the player's thread. */
     internal val overlaySlots by lazy {
         net.artisanmc.plugin.resourcepack.OverlaySlots(scheduler) { id, slot, line ->
@@ -202,6 +204,13 @@ open class ArtisanPlugin : JavaPlugin() {
             server.onlinePlayers.forEach(interceptor::inject)
         }
         server.pluginManager.registerEvents(packLoads, this)
+        if (codec != null) {
+            val preJoin = net.artisanmc.plugin.resourcepack.PreJoinPackLoads(packLoads, codec::channel, logger)
+            if (preJoin.install(server.javaClass.classLoader)) {
+                preJoinPackLoads = preJoin
+                server.pluginManager.registerEvents(preJoin, this)
+            }
+        }
         server.pluginManager.registerEvents(overlaySlots, this)
         server.pluginManager.registerEvents(openedContainers, this)
         geyser.start()
@@ -312,6 +321,7 @@ open class ArtisanPlugin : JavaPlugin() {
         if (unsupported) return
         metrics.stop()
         menuPackets?.uninjectAll()
+        preJoinPackLoads?.uninstall(server.javaClass.classLoader)
         localEditorBundles.stop()
         stopEditor()
         // Modules of add-ons already went with their plugin (registerAddonRelease).

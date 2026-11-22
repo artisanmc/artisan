@@ -51,7 +51,7 @@ placeholder, and two made for variants:
 | Condition | Holds when |
 |---|---|
 | Client is | The player plays on Java, or on Bedrock (through Geyser). |
-| Has the resource pack | The player loaded the server's resource pack. A Bedrock player counts as having it when the server has a Bedrock pack. Wrap it in NOT for players without it. |
+| Has the resource pack | The player loaded the server's resource pack, in game or before joining (a pack Nexo sends with `send_pre_join`). A Bedrock player counts as having it when the server has a Bedrock pack. Wrap it in NOT for players without it. |
 
 Both work in actions too.
 
