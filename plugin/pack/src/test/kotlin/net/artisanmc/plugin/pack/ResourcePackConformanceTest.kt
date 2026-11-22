@@ -65,8 +65,12 @@ class ResourcePackConformanceTest {
             val textY = Regex("^assets/artisan/font/text_y-?\\d+_h\\d+\\.json$")
             val textUp = Regex("^assets/artisan/font/text_up\\d+\\.json$")
             val extra = entries.keys.filter { it !in listed && !textY.matches(it) && !textUp.matches(it) }
-            if (drifted.isNotEmpty() || extra.isNotEmpty() || result.sha1 != case["sha1"].asText()) {
-                failures += "$name: sha1 ${result.sha1} (expected ${case["sha1"].asText()}), drifted $drifted, unexpected $extra"
+            // The text fonts of another size than 8: one per (Y, size) the menus' texts use.
+            val sized = entries.keys.filter { textY.matches(it) && !it.endsWith("_h8.json") }.sorted()
+            val expectedSized = case["textYSized"]?.map { it.asText() }?.sorted() ?: sized
+            if (drifted.isNotEmpty() || extra.isNotEmpty() || sized != expectedSized || result.sha1 != case["sha1"].asText()) {
+                failures += "$name: sha1 ${result.sha1} (expected ${case["sha1"].asText()}), drifted $drifted, unexpected $extra, " +
+                    "sized text fonts missing ${expectedSized - sized.toSet()}, unexpected ${sized - expectedSized.toSet()}"
             }
             val bedrock = case["bedrock"] ?: continue
             val built = result.bedrock

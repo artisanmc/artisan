@@ -10,6 +10,9 @@ internal enum class GuiContainer(val key: String, val textureFile: String) {
 
 internal data class GlyphPlacement(val assetId: String, val y: Double)
 
+/** A title text of [size] whose top sits at chest [y]: one `text_y{y}_h{size}` font. */
+internal data class TextPlacement(val y: Int, val size: Int)
+
 internal data class ImageButtonPlacement(
     val asset: String,
     val fit: String,
@@ -127,6 +130,124 @@ internal object MenuReaders {
             }
         }
         return out
+    }
+
+    /** Lowest chest Y a text font exists for (`TitleCompiler.TEXT_Y_MAX`). */
+    const val TEXT_Y_MAX = 172
+    val TEXT_SIZES = listOf(8, 12, 16, 20, 24, 32)
+    private const val Y_BOUND = 100000.0
+
+    /** A YAML number as the plugin's `toInt()` reads it; anything else is 0 (`int`, menuTextPlacements.ts). */
+    private fun int(v: Any?): Int {
+        val d = (v as? Number)?.toDouble() ?: return 0
+        if (d.isNaN() || d.isInfinite()) return 0
+        return d.coerceIn(-Y_BOUND, Y_BOUND).toInt()
+    }
+
+    /** `MenuTitleParser.parseSize`: a size out of the set is 8. */
+    private fun sizeOf(v: Any?): Int = int(v).takeIf { it in TEXT_SIZES } ?: 8
+
+    /**
+     * A text block: every line it may draw down to the bottom of the window, since how many it
+     * has depends on the player. Lines above the floor are drawn at it.
+     */
+    private fun pushBlock(out: MutableList<TextPlacement>, y: Int, size: Int, lineHeight: Int) {
+        if (y > TEXT_Y_MAX) return
+        val floor = Fonts.minYForSize(size)
+        var line = y
+        if (y < floor) {
+            out += TextPlacement(floor, size)
+            line = y + ((floor - y + lineHeight - 1) / lineHeight) * lineHeight
+        }
+        while (line <= TEXT_Y_MAX) {
+            out += TextPlacement(line, size)
+            line += lineHeight
+        }
+    }
+
+    /**
+     * The (Y, size) of every text the menus may draw in a title: `text` and `textarea` layers,
+     * and the labels of fixed elements (`menuTextPlacements.ts`).
+     */
+    fun textPlacements(files: List<PackFile>): List<TextPlacement> {
+        val out = ArrayList<TextPlacement>()
+        for (raw in menus(files)) {
+            val doc = raw as? Map<*, *> ?: continue
+            val title = doc["title"]
+            val layers = when (title) {
+                is List<*> -> title
+                is Map<*, *> -> listOf(title)
+                else -> emptyList()
+            }
+            for (layer in layers) {
+                if (layer !is Map<*, *>) continue
+                when (layer["kind"]) {
+                    "text" -> {
+                        val size = sizeOf(layer["size"])
+                        out += TextPlacement(int(layer["y"]).coerceIn(Fonts.minYForSize(size), TEXT_Y_MAX), size)
+                    }
+                    "textarea" -> {
+                        val lineHeight = if (layer["line_height"] is Number) int(layer["line_height"]).coerceIn(1, 32) else 10
+                        pushBlock(out, int(layer["y"]), sizeOf(layer["size"]), lineHeight)
+                    }
+                }
+            }
+            pushLabels(out, doc)
+        }
+        return out
+    }
+
+    /** Labels of fixed elements, over the same rectangle as an image button. */
+    private fun pushLabels(out: MutableList<TextPlacement>, doc: Map<*, *>) {
+        val inventoryType = doc["inventory_type"]
+        val type = if (inventoryType == "hopper" || inventoryType == "dropper") inventoryType as String else "chest"
+        val hidden = doc["player_inventory"] == "hidden"
+        val size = Js.toNumber(doc["size"])
+        if (!Js.isInteger(size) || size < 1 || size > 54) return
+        val sizeInt = size.toInt()
+        val limit = sizeInt + if (hidden) 36 else 0
+        val elements: List<Any?> = when {
+            doc["elements"] is List<*> -> doc["elements"] as List<*>
+            doc["layers"] is List<*> -> (doc["layers"] as List<*>).flatMap { layer ->
+                when (val e = (layer as? Map<*, *>)?.get("elements")) {
+                    null -> emptyList()
+                    is List<*> -> e
+                    else -> listOf(e)
+                }
+            }
+            else -> emptyList()
+        }
+        for (element in elements) {
+            val el = element as? Map<*, *> ?: continue
+            if (Js.truthy(el["iterates"]) || Js.truthy(el["places"])) continue
+            val appearances = listOf<Any?>(el) + ((el["states"] as? List<*>) ?: emptyList())
+            val labels = appearances.mapNotNull { (it as? Map<*, *>)?.get("label") as? Map<*, *> }
+            if (labels.isEmpty()) continue
+            val slots = LinkedHashSet<Int>()
+            var valid = true
+            for (part in Js.string(el["positions"] ?: "").split(",")) {
+                val match = POSITION.find(part)
+                if (match == null) {
+                    valid = false
+                    break
+                }
+                val a = match.groupValues[1].toDouble()
+                val b = match.groupValues[2].ifEmpty { match.groupValues[1] }.toDouble()
+                if (a >= limit || b >= limit) {
+                    valid = false
+                    break
+                }
+                for (i in minOf(a, b).toInt()..maxOf(a, b).toInt()) slots += i
+            }
+            if (!valid || slots.isEmpty()) continue
+            val area = ImageButtonGeometry.area(slots.toList(), type, sizeInt, hidden) ?: continue
+            for (label in labels) {
+                // `labelFrame` (imageButtonGeometry.ts): centred vertically on the 7 px cap height, then shifted.
+                val textSize = sizeOf(label["size"])
+                val top = area.y.toInt() + (area.height * 18 - 7 * textSize / 8) / 2 + int(label["offset_y"])
+                pushBlock(out, top, textSize, textSize + 2)
+            }
+        }
     }
 
     /** The slots a row-bound element may fill: its positions (iterates), else its placements' (places). */
