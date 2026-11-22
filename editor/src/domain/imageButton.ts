@@ -1,7 +1,7 @@
 import { cellToPosition, positionToCell, slotCount } from "@/features/canvas/inventoryTypes";
 import { formatPositions, parsePositions } from "@/lib/positions";
-import { imageButtonArea } from "../../../docs/schema/menu/v1/imageButtonGeometry";
-import type { Element, InventoryType, Menu, PlayerInventoryMode } from "./types";
+import { imageButtonArea, labelFrame } from "../../../docs/schema/menu/v1/imageButtonGeometry";
+import type { Element, InventoryType, Menu, MenuTitleLayer, PlayerInventoryMode } from "./types";
 export {
   imageButtonSize,
   imageButtonGeometry,
@@ -82,4 +82,31 @@ export function assertImageButtonPlacement(
       throw new Error("The image button overlaps another element.");
     }
   }
+}
+
+/**
+ * The labels of a menu's fixed elements (their display), as the title textareas the plugin
+ * draws over each element's slot rectangle. Mirror of `MenuRenderer.labelLayers`.
+ */
+export function labelLayers(menu: Menu): Extract<MenuTitleLayer, { kind: "textarea" }>[] {
+  const out: Extract<MenuTitleLayer, { kind: "textarea" }>[] = [];
+  for (const element of menu.layers.flatMap((layer) => layer.elements)) {
+    const label = element.display.label;
+    if (!label || element.iterates || element.places) continue;
+    const rect = imageButtonRect(
+      element.positions,
+      menu.inventoryType ?? "chest",
+      menu.rows,
+      menu.playerInventory,
+    );
+    if (!rect) continue;
+    const frame = labelFrame(label, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width * 18,
+      height: rect.height * 18,
+    });
+    out.push({ kind: "textarea", value: label.text, ...frame });
+  }
+  return out;
 }

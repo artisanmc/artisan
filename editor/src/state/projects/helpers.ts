@@ -27,7 +27,12 @@ import type {
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
 import { createLText } from "@/lib/i18n";
-import { clickHandlerKeyPrefix, elementLoreKey, elementTitleKey } from "@/lib/i18nKeys";
+import {
+  clickHandlerKeyPrefix,
+  elementLabelKey,
+  elementLoreKey,
+  elementTitleKey,
+} from "@/lib/i18nKeys";
 import { formatPositions, parsePositions } from "@/lib/positions";
 import type { AppearanceTarget } from "./types";
 
@@ -103,6 +108,8 @@ export function duplicateStepLTexts(project: Project, steps: Step[]): void {
 /** Canonical i18n key/prefix for an appearance site. */
 export const appearanceTitleKeyFor = (target: AppearanceTarget, appIdx: number) =>
   elementTitleKey(target.menuId as string, target.elementId as string, appIdx);
+export const appearanceLabelKeyFor = (target: AppearanceTarget, appIdx: number) =>
+  elementLabelKey(target.menuId as string, target.elementId as string, appIdx);
 export const appearanceLoreKeyFor = (target: AppearanceTarget, appIdx: number) =>
   elementLoreKey(target.menuId as string, target.elementId as string, appIdx);
 export const appearanceClickPrefixFor = (

@@ -143,6 +143,8 @@ data class ElementYaml(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AppearanceYaml(
     val image: ImageButtonYaml? = null,
+    /** Text drawn in the title over the element's slot rectangle (fixed elements only). */
+    val label: LabelYaml? = null,
     val extends: Any? = null,
     @JsonProperty("lore_mode") val loreMode: String? = null,
     val item: String? = null,
@@ -172,6 +174,18 @@ data class AppearanceYaml(
     val color: String? = null,
     /** Raw SNBT, applied last. Best-effort. */
     val nbt: String? = null,
+)
+
+/**
+ * An element's label: [text] (literal, `{i18n:key}` or `{lang: text}`) placed in the
+ * element's slot rectangle, centred vertically, then aligned and shifted by the offsets.
+ */
+data class LabelYaml(
+    val text: Any? = null,
+    val align: String = "center",
+    val size: Int = 8,
+    @JsonProperty("offset_x") val offsetX: Int = 0,
+    @JsonProperty("offset_y") val offsetY: Int = 0,
 )
 
 data class ImageButtonYaml(

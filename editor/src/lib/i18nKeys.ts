@@ -7,6 +7,9 @@ export const menuTitleKey = (menuId: string): I18nKey => `menus.${menuId}.title`
 export const elementTitleKey = (menuId: string, elementId: string, appIdx: number): I18nKey =>
   `menus.${menuId}.elements.${elementId}.${stateLabel(appIdx)}.title` as I18nKey;
 
+export const elementLabelKey = (menuId: string, elementId: string, appIdx: number): I18nKey =>
+  `menus.${menuId}.elements.${elementId}.${stateLabel(appIdx)}.label` as I18nKey;
+
 export const elementLoreKey = (menuId: string, elementId: string, appIdx: number): I18nKey =>
   `menus.${menuId}.elements.${elementId}.${stateLabel(appIdx)}.lore` as I18nKey;
 

@@ -41,6 +41,7 @@ import {
   allocStepLTexts,
   appearanceClickPrefixFor,
   appearanceLoreKeyFor,
+  appearanceLabelKeyFor,
   appearanceTitleKeyFor,
   cloneAppearanceLTextsInto,
   duplicateStepLTexts,
@@ -138,6 +139,23 @@ export interface ElementsSlice {
       appearanceIndex?: number;
       lang: string;
       value: string;
+    } & AppearanceTarget,
+  ) => void;
+  /** Set an appearance's label text for a language; allocates the label on first write. */
+  setAppearanceLabelText: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex?: number;
+      lang: string;
+      value: string;
+    } & AppearanceTarget,
+  ) => void;
+  /** Patch the label's placement (align, size, offsets), or remove the label with `null`. */
+  setAppearanceLabel: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex?: number;
+      patch: Partial<Omit<NonNullable<import("@/domain/types").Appearance["label"]>, "text">> | null;
     } & AppearanceTarget,
   ) => void;
   /** Set the lore value (multi-line string, `\n`-separated lines) for an appearance. */
@@ -563,6 +581,30 @@ export const createElementsSlice = ({
             lang,
           );
         else setLText(project, appearance.title, lang, value);
+      });
+    },
+    setAppearanceLabelText: (input) => {
+      const { projectId: pId, appearanceIndex = 0, lang, value } = input;
+      mutateAppearance(pId, input, appearanceIndex, (appearance, project) => {
+        if (!appearance.label)
+          appearance.label = {
+            text: createLTextAt(project, appearanceLabelKeyFor(input, appearanceIndex), value, lang),
+          };
+        else setLText(project, appearance.label.text, lang, value);
+      });
+    },
+    setAppearanceLabel: (input) => {
+      const { projectId: pId, appearanceIndex = 0, patch } = input;
+      mutateAppearance(pId, input, appearanceIndex, (appearance) => {
+        if (patch === null) {
+          appearance.label = undefined;
+          return;
+        }
+        if (!appearance.label) return false;
+        const next = { ...appearance.label, ...patch };
+        for (const [key, value] of Object.entries(patch))
+          if (value === undefined) Reflect.deleteProperty(next, key);
+        appearance.label = next;
       });
     },
     setElementPositions: ({ projectId: pId, menuId: mId, elementId, positions }) =>

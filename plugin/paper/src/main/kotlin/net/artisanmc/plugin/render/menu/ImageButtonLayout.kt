@@ -4,6 +4,9 @@ import net.artisanmc.plugin.session.MenuSlots
 import net.artisanmc.plugin.session.PlayerInventoryMode
 import net.artisanmc.plugin.model.ElementYaml
 import net.artisanmc.plugin.model.ImageButtonYaml
+import net.artisanmc.plugin.model.LabelYaml
+import net.artisanmc.plugin.model.MenuTitleLayer
+import net.artisanmc.plugin.engine.MenuTitleParser
 import net.artisanmc.plugin.model.MenuYaml
 import java.security.MessageDigest
 
@@ -15,7 +18,28 @@ data class ImageButtonLayout(val slots: List<Int>, val x: Int, val y: Int, val w
         return "buttons/${hash}_${width}_${height}_${image.fit}_${y}${offsets}"
     }
 
+    /** Mirror of `labelFrame` (docs/schema/menu/v1/imageButtonGeometry.ts): the title text of [label] in this rectangle. */
+    fun labelLayer(label: LabelYaml): MenuTitleLayer.Textarea {
+        val size = MenuTitleParser.parseSize(label.size)
+        val alignment = MenuTitleParser.parseAlignment(label.align.ifBlank { "center" })
+        val left = when (alignment) {
+            MenuTitleLayer.Alignment.LEFT -> x + LABEL_INSET
+            MenuTitleLayer.Alignment.CENTER -> x + width / 2
+            MenuTitleLayer.Alignment.RIGHT -> x + width - LABEL_INSET
+        }
+        // A line of the bitmap font is 7 px high at size 8 (its descender row stays below).
+        val top = y + (height - LABEL_CAP_HEIGHT * size / 8) / 2
+        return MenuTitleLayer.Textarea(
+            value = MenuTitleParser.parseLText(label.text),
+            x = left + label.offsetX, y = top + label.offsetY,
+            width = width, lineHeight = size + 2, alignment = alignment, size = size,
+        )
+    }
+
     companion object {
+        private const val LABEL_INSET = 2
+        private const val LABEL_CAP_HEIGHT = 7
+
         private fun parsePositions(spec: String, size: Int): List<Int> {
             if (spec.isBlank()) return emptyList()
             val slots = sortedSetOf<Int>()

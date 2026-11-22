@@ -15,9 +15,13 @@ function serializeAppearance(app: Appearance, project: Project): Record<string, 
   if (app.image) out.image = app.image;
   else if (app.item !== undefined) out.item = app.item;
   else if (app.material) out.material = app.material;
+  const t = fieldTextOf(project);
+  if (app.label) {
+    const { text, ...placement } = app.label;
+    out.label = { text: t(text.key), ...placement };
+  }
   if (app.head) out.head = app.head;
   if (app.count !== undefined) out.count = app.count;
-  const t = fieldTextOf(project);
   if (app.title) out.title = t(app.title.key);
   if (app.lore) out.lore = loreWire(t(app.lore.key));
   if (app.loreMode) {

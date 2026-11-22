@@ -52,6 +52,15 @@ const fr: typeof en = {
     inMenus: "Utilisée dans : {{menus}}",
     unused: "Cette image n’est utilisée dans aucun menu.",
   },
+  elementLabel: {
+    text: "Libellé",
+    placeholder: "Texte sur le bouton",
+    align: "Alignement",
+    left: "Gauche",
+    center: "Centre",
+    right: "Droite",
+    remove: "Retirer le libellé",
+  },
   imageButton: {
     search: "Rechercher une image…",
     native: "Taille naturelle",

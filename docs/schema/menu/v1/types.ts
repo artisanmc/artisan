@@ -172,6 +172,11 @@ export interface Element extends Appearance {
 
 export interface Appearance {
   image?: import("./imageButtonGeometry").ImageButtonImage;
+  /**
+   * Text drawn in the title over the element's slot rectangle, centred by default
+   * (fixed elements only; not drawn for Bedrock players nor over an image missing from the pack).
+   */
+  label?: import("./imageButtonGeometry").ElementLabel<LText>;
   /** ANDed conditions. If absent, always matches (fallback, put it last). */
   if?: Condition[];
   asset?: string;

@@ -49,6 +49,15 @@ export default {
     inMenus: "Used in: {{menus}}",
     unused: "This image is not used in a menu.",
   },
+  elementLabel: {
+    text: "Label",
+    placeholder: "Text over the button",
+    align: "Alignment",
+    left: "Left",
+    center: "Center",
+    right: "Right",
+    remove: "Remove label",
+  },
   imageButton: {
     search: "Search images…",
     native: "Natural size",

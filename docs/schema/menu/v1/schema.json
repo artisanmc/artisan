@@ -505,6 +505,50 @@
           },
           "description": "One image covering the element's rectangular slot area; on an element that iterates or places, one image per slot (18×18), chosen per row. Shares its conditions and click actions. A row whose image is not in the resource pack (or a Bedrock player) shows the appearance's material (or item) instead, when it names one. On a fixed image button, a look with an image names neither: its slots hold the invisible hit item."
         },
+        "label": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text"
+          ],
+          "properties": {
+            "text": {
+              "$ref": "#/$defs/LText"
+            },
+            "align": {
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "default": "center"
+            },
+            "size": {
+              "enum": [
+                8,
+                12,
+                16,
+                20,
+                24,
+                32
+              ],
+              "default": 8
+            },
+            "offset_x": {
+              "type": "integer",
+              "default": 0,
+              "minimum": -256,
+              "maximum": 256
+            },
+            "offset_y": {
+              "type": "integer",
+              "default": 0,
+              "minimum": -256,
+              "maximum": 256
+            }
+          },
+          "description": "Text drawn in the title over the element's slot rectangle: centred vertically, aligned in its width (centre by default), then shifted by the offsets. Follows the element when it moves; each state has its own. Only on an element that neither iterates nor places; not drawn for Bedrock players nor over an image missing from the pack."
+        },
         "if": {
           "type": "array",
           "minItems": 1,
