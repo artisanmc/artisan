@@ -5,6 +5,10 @@ export const aiEn = {
   intro:
     "Describe what you want: a menu, a command, a change to a dialog. The assistant reads this module and writes a draft, each file checked by the server. You review it in Drafts and deploy it yourself.",
   billing: "Runs on the model {{model}}, with the server's API key: each message is billed to it.",
+  billingCloud:
+    "Runs on {{model}}, paid from the AI credits of the artisanmc.net account this network is linked to.",
+  credits: "{{balance}} AI credits",
+  creditsHint: "AI credits of the linked artisanmc.net account: open the account page",
   placeholder: "Ask the assistant…",
   send: "Send",
   working: "Working…",
@@ -92,6 +96,11 @@ export const aiEn = {
     ai_rate_limited: "The model provider is limiting requests. Try again in a minute.",
     ai_unreachable: "The server could not reach the model provider.",
     ai_provider_error: "The model provider returned an error. Try again.",
+    ai_not_linked:
+      "The network is not linked to an artisanmc.net account any more. Link it again from a server's Updates page.",
+    ai_no_credits: "The linked artisanmc.net account has no AI credits left.",
+    ai_cloud_model:
+      "artisanmc.net no longer offers this model. Ask an admin to pick another in Settings → Assistant.",
     ai_busy: "The assistant is still answering.",
     ai_bad_answer: "The model did not answer as asked. Try again.",
     ai_output_limit: "The answer was too long. Try with fewer texts.",
@@ -127,7 +136,17 @@ export const aiEn = {
     providers: {
       anthropic: "Anthropic Messages API",
       openai: "OpenAI-compatible (Chat Completions)",
+      artisan: "artisanmc.net credits",
     },
+    cloudHint:
+      "artisanmc.net's models, paid from the AI credits of the account this network is linked to: no key here. Everyone who uses this editor spends that balance.",
+    cloudModel: "Model",
+    cloudModelHint: "The models artisanmc.net offers, with their price in credits.",
+    cloudLoading: "Asking artisanmc.net for its models…",
+    cloudUnlinked:
+      "The network is not linked to an artisanmc.net account. Link it from a server's Updates page, then come back here.",
+    cloudFailed: "artisanmc.net could not be reached. Try again in a minute.",
+    cloudBalance: "Balance: {{balance}} credits.",
     baseUrl: "Address",
     baseUrlHint: "Empty: the API's own vendor. Otherwise a vendor with a compatible API.",
     baseUrlHints: {
@@ -182,6 +201,10 @@ export const aiFr: typeof aiEn = {
     "Décris ce que tu veux : un menu, une commande, une modification de dialogue. L’assistant lit ce module et écrit un brouillon, chaque fichier vérifié par le serveur. Tu le relis dans Brouillons et tu le déploies toi-même.",
   billing:
     "Tourne sur le modèle {{model}}, avec la clé d’API du serveur : chaque message lui est facturé.",
+  billingCloud:
+    "Tourne sur {{model}}, payé avec les crédits IA du compte artisanmc.net auquel ce réseau est lié.",
+  credits: "{{balance}} crédits IA",
+  creditsHint: "Crédits IA du compte artisanmc.net lié : ouvrir la page du compte",
   placeholder: "Demande à l’assistant…",
   send: "Envoyer",
   working: "En cours…",
@@ -272,6 +295,11 @@ export const aiFr: typeof aiEn = {
     ai_rate_limited: "Le fournisseur du modèle limite les requêtes. Réessaie dans une minute.",
     ai_unreachable: "Le serveur n’arrive pas à joindre le fournisseur du modèle.",
     ai_provider_error: "Le fournisseur du modèle a renvoyé une erreur. Réessaie.",
+    ai_not_linked:
+      "Le réseau n’est plus lié à un compte artisanmc.net. Liez-le à nouveau depuis la page Mises à jour d’un serveur.",
+    ai_no_credits: "Le compte artisanmc.net lié n’a plus de crédits IA.",
+    ai_cloud_model:
+      "artisanmc.net ne propose plus ce modèle. Demande à un admin d’en choisir un autre dans Réglages → Assistant.",
     ai_busy: "L’assistant répond encore.",
     ai_bad_answer: "Le modèle n’a pas répondu comme demandé. Réessaie.",
     ai_output_limit: "La réponse était trop longue. Réessaie avec moins de textes.",
@@ -308,7 +336,17 @@ export const aiFr: typeof aiEn = {
     providers: {
       anthropic: "API Messages d’Anthropic",
       openai: "Compatible OpenAI (Chat Completions)",
+      artisan: "Crédits artisanmc.net",
     },
+    cloudHint:
+      "Les modèles d’artisanmc.net, payés avec les crédits IA du compte auquel ce réseau est lié : aucune clé ici. Tous ceux qui utilisent cet éditeur dépensent ce solde.",
+    cloudModel: "Modèle",
+    cloudModelHint: "Les modèles proposés par artisanmc.net, avec leur prix en crédits.",
+    cloudLoading: "Demande des modèles à artisanmc.net…",
+    cloudUnlinked:
+      "Le réseau n’est pas lié à un compte artisanmc.net. Liez-le depuis la page Mises à jour d’un serveur, puis revenez ici.",
+    cloudFailed: "artisanmc.net est injoignable. Réessaie dans une minute.",
+    cloudBalance: "Solde : {{balance}} crédits.",
     baseUrl: "Adresse",
     baseUrlHint: "Vide : le fournisseur de l’API. Sinon un fournisseur avec une API compatible.",
     baseUrlHints: {

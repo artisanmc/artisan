@@ -528,6 +528,23 @@ class AiAssistantTest {
     }
 
     @Test
+    fun `artisanmc net's models need no key nor address, and the status says the credits pay`() {
+        val store = MemoryAiSettingsStore(AiConfig("openai", "sk-old-key", "deepseek-chat", baseUrl = "https://api.deepseek.com"))
+        start(ScriptedModel(AiReply(listOf("Bonjour"), emptyList(), AiReply.END)), settings = store)
+        assertFalse(editor("GET", AiRoutes.STATUS).body!!["cloud"].asBoolean())
+
+        val saved = editor("PUT", AiRoutes.CONFIG_PATH, settings("provider" to "artisan", "model" to "claude", "baseUrl" to "https://ignored.example"))
+        assertEquals(200, saved.status, saved.body.toString())
+        assertEquals(AiConfig("artisan", "", "claude", "medium", 25, ""), store.read())
+        assertTrue("artisan" in saved.body!!["providers"].map { it.asText() })
+        val status = editor("GET", AiRoutes.STATUS).body!!
+        assertTrue(status["enabled"].asBoolean())
+        assertTrue(status["cloud"].asBoolean())
+        // No site account here: nothing to show.
+        assertFalse(editor("GET", AiRoutes.CLOUD).body!!["linked"].asBoolean())
+    }
+
+    @Test
     fun `environment yml wins and the editor shows it read-only`() {
         start(
             ScriptedModel(),

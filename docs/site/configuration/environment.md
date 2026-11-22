@@ -57,7 +57,7 @@ editor shows its values read-only. See [The editor's assistant](../ai/#the-edito
 
 | Key | Default | Meaning |
 |---|---|---|
-| `ai.provider` | `""` | `"anthropic"` (Anthropic's Messages API) or `"openai"` (any OpenAI-compatible API: OpenAI, DeepSeek, Mistral, OpenRouter, Ollama…). Empty: no assistant. |
+| `ai.provider` | `""` | `"anthropic"` (Anthropic's Messages API) or `"openai"` (any OpenAI-compatible API: OpenAI, DeepSeek, Mistral, OpenRouter, Ollama…), or `"artisan"` (artisanmc.net's models, paid from the AI credits of the linked site account: no `api-key`). Empty: no assistant. |
 | `ai.api-key` | `""` | The provider's API key. Write `"${ANTHROPIC_API_KEY}"` to read it from the environment instead of the file. Every message of every player who uses the assistant is billed to it. |
 | `ai.model` | `"claude-opus-5-5"` | The model the assistant runs on. |
 | `ai.effort` | `"medium"` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the model thinks, and how many tokens it spends. `anthropic` only. |

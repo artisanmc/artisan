@@ -28,9 +28,11 @@ class OpenAiProvider(
         // The longest silence between two pieces of a streamed answer (a reasoning model may think long first).
         .readTimeout(Duration.ofMinutes(10))
         .build(),
+    /** artisanmc.net's relay instead of the vendor's API ([CloudProvider]); null: the vendor's own, on [AiConfig.apiKey]. */
+    private val relay: AiRelay? = null,
 ) : AiProvider {
     private val base = config.baseUrl.ifBlank { DEFAULT_BASE_URL }.trimEnd('/')
-    private val endpoint = "$base/chat/completions"
+    private val endpoint = relay?.endpoint ?: "$base/chat/completions"
     private val host = runCatching { URI(base).host }.getOrNull().orEmpty().lowercase()
 
     override val model: String get() = config.model
@@ -70,6 +72,7 @@ class OpenAiProvider(
 
         @Synchronized
         override fun stream(input: List<AiInput>, live: (AiDelta) -> Unit): AiReply {
+            val key = relay?.key() ?: config.apiKey
             val answered = input.filterIsInstance<AiInput.ToolResult>().map { it.callId }.toSet()
             val interrupted = unanswered.filter { it !in answered }
                 .map { AiInput.ToolResult(it, """{"error":"interrupted","message":"The turn stopped before this result was sent; check what the call did before doing it again."}""", true) }
@@ -85,7 +88,7 @@ class OpenAiProvider(
             // The tokens spent, in a last piece. Mistral refuses the field (and counts them anyway).
             if (!host.endsWith("mistral.ai")) body.set<ObjectNode>("stream_options", json.objectNode().put("include_usage", true))
             val request = Request.Builder().url(endpoint)
-                .header("Authorization", "Bearer ${config.apiKey}")
+                .header("Authorization", "Bearer $key")
                 .post(Call.mapper.writeValueAsBytes(body).toRequestBody(JSON))
                 .build()
             val answer = try {
@@ -163,6 +166,7 @@ class OpenAiProvider(
 
     private fun failed(status: Int, text: String): Nothing {
         val message = errorMessage(runCatching { Call.mapper.readTree(text) }.getOrNull()) ?: text.take(200)
+        relay?.failure(status, message)?.let { throw it }
         throw when (status) {
             401, 403 -> AiFailure("ai_key_refused", "$host refused the API key: $message")
             // DeepSeek says 402 when the balance is spent: the key works, the account cannot pay.
