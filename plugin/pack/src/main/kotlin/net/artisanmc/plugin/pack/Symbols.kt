@@ -14,6 +14,9 @@ internal object Symbols {
     const val ASCENT = 7
     private const val CELL = 16
 
+    /** Cells per row: as many as the symbols, up to 256, so only a large set's last row pads (`symbols.ts`). */
+    private fun columns(count: Int) = count.coerceIn(1, 256)
+
     private val glyphs: Map<Int, String> by lazy {
         val text = Symbols::class.java.getResourceAsStream("symbol-glyphs.hex")?.use { it.readBytes().decodeToString() }
             ?: error("symbol-glyphs.hex missing from the jar")
@@ -28,24 +31,28 @@ internal object Symbols {
         return used.toList()
     }
 
-    /** The `chars` of the sheet's bitmap provider: rows of 16, `\u0000` for an empty cell. */
-    fun rows(symbols: List<Int>): List<String> = symbols.chunked(16).map { row ->
-        buildString {
-            for (cp in row) appendCodePoint(cp)
-            repeat(16 - row.size) { append('\u0000') }
+    /** The `chars` of the sheet's bitmap provider: rows of [columns], `\u0000` for an empty cell. */
+    fun rows(symbols: List<Int>): List<String> {
+        val cols = columns(symbols.size)
+        return symbols.chunked(cols).map { row ->
+            buildString {
+                for (cp in row) appendCodePoint(cp)
+                repeat(cols - row.size) { append('\u0000') }
+            }
         }
     }
 
-    /** The sheet: 16 cells per row, white glyphs; [pad] transparent rows under each cell. */
+    /** The sheet: [columns] cells per row, white glyphs; [pad] transparent rows under each cell. */
     fun sheet(symbols: List<Int>, pad: Int = 0): RgbaImage {
         val cellH = CELL + pad
-        val image = RgbaImage(16 * CELL, (symbols.size + 15) / 16 * cellH)
+        val cols = columns(symbols.size)
+        val image = RgbaImage(cols * CELL, (symbols.size + cols - 1) / cols * cellH)
         symbols.forEachIndexed { i, cp ->
             val hex = glyphs.getValue(cp)
             val width = if (hex.length == 64) 16 else 8
             val digits = width / 4
-            val x0 = (i % 16) * CELL
-            val y0 = (i / 16) * cellH
+            val x0 = (i % cols) * CELL
+            val y0 = (i / cols) * cellH
             for (y in 0 until CELL) {
                 val bits = hex.substring(y * digits, (y + 1) * digits).toInt(16)
                 for (x in 0 until width) {
