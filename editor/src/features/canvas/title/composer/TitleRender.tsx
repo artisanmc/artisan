@@ -393,7 +393,8 @@ export function TitleRender({
   );
 
   if (!project || !menu) return null;
-  const labels = pass === "interactive" ? [] : labelLayers(menu);
+  // Labels sit over the buttons they name: on the board the `interactive` pass draws them, above the slots and the image buttons.
+  const labels = pass === "visual" ? [] : labelLayers(menu);
   const window = { width: MC_W * scale, height: (MC_TITLE_H + menu.rows * 18) * scale };
 
   return (
