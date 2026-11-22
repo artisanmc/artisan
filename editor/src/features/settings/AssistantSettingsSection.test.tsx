@@ -39,7 +39,9 @@ describe("assistant settings", () => {
   });
 
   it("picks one of artisanmc.net's models, with no key nor address", async () => {
-    api.getAiSettings.mockResolvedValue(settings({ providers: ["anthropic", "artisan", "openai"] }));
+    api.getAiSettings.mockResolvedValue(
+      settings({ providers: ["anthropic", "artisan", "openai"] }),
+    );
     api.getAiCloud.mockResolvedValue({
       linked: true,
       balance: 12.5,
