@@ -160,6 +160,30 @@ export function followDisk<S extends DraftRebaseShape & { initialTree?: Record<s
 }
 
 /**
+ * [followDisk] for the images: an image the draft left as its base takes the disk's version,
+ * base included, and one the disk added or removed comes or goes. A module that ships new images
+ * (`originals/assets/…`) or drops some while a draft is open no longer leaves the draft pointing
+ * at the old list (a button showing its asset's name, a stale background). An image the draft
+ * changed itself stays the draft's: publishing reports it (compare-and-swap). Returns null when
+ * the draft tracks no image or nothing moved.
+ */
+export function followDiskBinaries<S extends DraftRebaseShape>(
+  draft: S,
+  disk: Record<string, Meta>,
+): S | null {
+  if (!draft.binaryBaseline && !draft.binaryTree) return null;
+  const renamed = new Set((draft.renames ?? []).flatMap((r) => [r.from, r.to]));
+  const baseline = draft.binaryBaseline ?? {};
+  const tree = draft.binaryTree ?? baseline;
+  const moved = rebaseMap(baseline, tree, disk, (a, b) => a.hash === b.hash, renamed, []);
+  const same = (a: Record<string, Meta>, b: Record<string, Meta>) =>
+    Object.keys(a).length === Object.keys(b).length &&
+    Object.entries(a).every(([path, meta]) => b[path]?.hash === meta.hash);
+  if (same(moved.baseline, baseline) && same(moved.tree, tree)) return null;
+  return { ...draft, binaryBaseline: moved.baseline, binaryTree: moved.tree };
+}
+
+/**
  * The files a draft (already through [followDisk]) and the disk both changed since the draft's
  * base, each its own way: the three-way merge cannot pick, the admin does (the conflict modal,
  * source "open"). Until then the draft keeps its version and its base, so publishing it is

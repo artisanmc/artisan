@@ -23,7 +23,7 @@ import { useServersStore } from "@/state/serversStore";
 import { listModules } from "@artisan/editor-sdk";
 import { useEffect, useReducer, useRef } from "react";
 import { flushDraftEdits } from "./draftFlush";
-import { diskConflicts, followDisk } from "./draftRebase";
+import { diskConflicts, followDisk, followDiskBinaries } from "./draftRebase";
 import { loadPersistedDrafts, raiseOpenConflicts } from "./persistedDrafts";
 import {
   type ProjectLoadEvent,
@@ -309,8 +309,8 @@ async function readAndOpen(ctx: LoadContext, outcome: ReadOutcome): Promise<void
   const declarations = await reads.declarations;
   if (ctx.isCancelled()) return;
   const diskFiles = disk.unchanged ? cached?.tree : disk.files;
-  if (diskFiles) followDiskInDraft(res.project.id, diskFiles);
   const binaries = disk.unchanged ? (cached?.binaries ?? []) : (disk.binaries ?? []);
+  if (diskFiles) followDiskInDraft(res.project.id, diskFiles, binaries);
   setBinaryBaseline(res.project.id, binaries);
   if (disk.unchanged) {
     // Revalidated: what is shown IS what the server holds. Nothing to rebuild,
@@ -362,7 +362,7 @@ async function readAndOpen(ctx: LoadContext, outcome: ReadOutcome): Promise<void
       return;
     }
     setBinaryBaseline(res.project.id, full.binaries ?? []);
-    followDiskInDraft(res.project.id, full.files);
+    followDiskInDraft(res.project.id, full.files, full.binaries ?? []);
     useProjectCacheStore.getState().put(cacheKey, {
       identity: res,
       diskId,
@@ -488,13 +488,22 @@ function setBinaryBaseline(
  * changed are merged in (`followDisk`), files both changed open the conflict modal
  * (`diskConflicts`).
  */
-function followDiskInDraft(projectId: string, disk: Record<string, string>): void {
+function followDiskInDraft(
+  projectId: string,
+  disk: Record<string, string>,
+  binaries: { path: string; hash: string; size: number }[],
+): void {
   const store = useProjectDraftStore.getState();
   const draft = store.get(projectId);
   if (!draft) return;
   const renames = store.pendingRenames[projectId] ?? draft.renames;
   const resumed = { ...draft, ...(renames ? { renames } : {}) };
-  const next = followDisk(resumed, disk);
+  const followed = followDisk(resumed, disk);
+  const images = followDiskBinaries(
+    followed ?? resumed,
+    Object.fromEntries(binaries.map(({ path, hash, size }) => [path, { hash, size }])),
+  );
+  const next = images ?? followed;
   if (next) store.save(projectId, next);
   raiseOpenConflicts(projectId, diskConflicts(next ?? resumed, disk));
 }
