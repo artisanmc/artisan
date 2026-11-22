@@ -4,6 +4,7 @@ import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
 import { type GlyphPlacement, glyphPlacementsFromMenus } from "./menuGlyphPlacements";
+import { type TextPlacement, textPlacementsFromMenus } from "./menuTextPlacements";
 import type { OverlayImageRequest } from "./overlayImages";
 import { type AssetRow, type BuildResult, buildResourcePackZip } from "./resourcePackBuilder";
 import { type GlyphContribution, mergeCodepoints } from "./rpCodepointMerger";
@@ -66,6 +67,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   const fontGlyphPngs = new Map<string, Map<string, Uint8Array>>();
   const glyphPlacements: GlyphPlacement[] = [];
   const imageButtons: ImageButtonPlacement[] = [];
+  const textPlacements: TextPlacement[] = [];
   const transparent = new Set<GuiContainer>();
   const imagesByRef: { ref: string; bytes: Uint8Array }[] = [];
   const overlayImages: OverlayImageRequest[] = [];
@@ -78,6 +80,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     for (const f of files) texts.push(f.content);
     glyphPlacements.push(...glyphPlacementsFromMenus(files));
     imageButtons.push(...imageButtonsFromMenus(files));
+    textPlacements.push(...textPlacementsFromMenus(files));
     overlayImages.push(...(project.overlayImages ?? []));
     for (const c of transparentContainersFromMenus(files)) transparent.add(c);
     // Keyed by the folder name: the plugin names a menu's Project that way.
@@ -135,6 +138,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     overlayImages,
     input.hideInventoryLabel === true,
     usedSymbols(texts),
+    textPlacements,
   );
   if (!input.bedrock) return java;
   // Asset names collide across Projects the same way the Java pack resolves

@@ -417,7 +417,20 @@ describe("buildResourcePackZip", () => {
   });
 
   test("text_y0_h16.json shifts every bitmap ascent by +6 (smallest valid h for y=0)", () => {
-    const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
+    const { zipBytes } = buildResourcePackZip(
+      [],
+      new Map(),
+      new Map(),
+      undefined,
+      [],
+      [],
+      undefined,
+      undefined,
+      [],
+      false,
+      [],
+      [{ y: 0, size: 16 }],
+    );
     const entries = unzipSync(zipBytes);
     // y=0 with h=8 would need ascent=13 > height=8 (invalid, skipped). h=16 is
     // the smallest valid size for y=0: ASCII ascent 13 <= height 16.
@@ -463,29 +476,51 @@ describe("buildResourcePackZip", () => {
   });
 });
 
-describe("resource project — text_y matrix with size dimension", () => {
-  test("emits text_y{Y}_h{H}.json only for Y >= minYForSize(H) (skips invalid ascent>height combos)", () => {
-    const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
-    const entries = unzipSync(zipBytes);
-    const textYKeys = Object.keys(entries).filter((k) =>
-      k.startsWith("assets/artisan/font/text_y"),
+describe("resource project — text_y fonts: size 8 everywhere, other sizes where used", () => {
+  const build = (placements: { y: number; size: number }[]) => {
+    const { zipBytes } = buildResourcePackZip(
+      [],
+      new Map(),
+      new Map(),
+      undefined,
+      [],
+      [],
+      undefined,
+      undefined,
+      [],
+      false,
+      [],
+      placements,
     );
-    // Per-h Y count = 172 - minY + 1. Min Ys: h=8→5, h=12→1, h=16→-3,
-    // h=20→-7, h=24→-11, h=32→-19. Total = 168+172+176+180+184+192 = 1072.
-    expect(textYKeys).toHaveLength(1072);
-    // Valid combos present:
-    expect(entries["assets/artisan/font/text_y6_h8.json"]).toBeDefined();
-    expect(entries["assets/artisan/font/text_y20_h16.json"]).toBeDefined();
-    expect(entries["assets/artisan/font/text_y172_h32.json"]).toBeDefined();
-    // Boundary: y exactly at the min for each h.
-    expect(entries["assets/artisan/font/text_y5_h8.json"]).toBeDefined();
-    expect(entries["assets/artisan/font/text_y-19_h32.json"]).toBeDefined();
-    // Invalid combos (ascent>height): not emitted.
-    expect(entries["assets/artisan/font/text_y4_h8.json"]).toBeUndefined();
-    expect(entries["assets/artisan/font/text_y-20_h32.json"]).toBeUndefined();
-    // h=4 is no longer in the bake set at all.
-    expect(entries["assets/artisan/font/text_y10_h4.json"]).toBeUndefined();
-    expect(entries["assets/artisan/font/text_y50_h4.json"]).toBeUndefined();
+    return Object.keys(unzipSync(zipBytes))
+      .filter((k) => k.startsWith("assets/artisan/font/text_y"))
+      .map((k) => k.slice("assets/artisan/font/".length, -".json".length));
+  };
+
+  test("without any text: every Y at size 8 (minYForSize(8)=5 … 172), nothing else", () => {
+    const fonts = build([]);
+    expect(fonts).toHaveLength(168);
+    expect(fonts.every((f) => f.endsWith("_h8"))).toBe(true);
+    expect(fonts).toContain("text_y5_h8");
+    expect(fonts).toContain("text_y172_h8");
+    expect(fonts).not.toContain("text_y4_h8");
+  });
+
+  test("another size is written at the Ys in use only, once each, floor and cap respected", () => {
+    const fonts = build([
+      { y: 20, size: 12 },
+      { y: 20, size: 12 },
+      { y: 6, size: 8 },
+      { y: -19, size: 32 },
+      { y: -20, size: 32 }, // ascent > height: MC rejects the font
+      { y: 173, size: 16 },
+      { y: 10, size: 4 }, // not a text size
+    ]);
+    expect(fonts.filter((f) => !f.endsWith("_h8")).sort()).toEqual([
+      "text_y-19_h32",
+      "text_y20_h12",
+    ]);
+    expect(fonts).toHaveLength(170);
   });
 
   test("does NOT emit the old text_y{Y}.json filenames", () => {

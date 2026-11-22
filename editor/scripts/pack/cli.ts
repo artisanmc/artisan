@@ -4,12 +4,12 @@ import { TEXT_UP_TEXTURES, type TextUpTexture } from "@/lib/pack/fontJsonBuilder
 import type { OverlayImageRequest } from "@/lib/pack/overlayImages";
 import { type PackProject, type ServerPacks, assembleServerPack } from "@/lib/pack/packAssembly";
 import type { BuildResult } from "@/lib/pack/resourcePackBuilder";
+import { SYMBOL_GLYPHS } from "@/lib/pack/symbolGlyphs";
 import {
   VANILLA_ACCENTED,
   VANILLA_ASCII,
   VANILLA_NONLATIN_EUROPEAN,
 } from "@/lib/pack/vanillaFontChars";
-import { SYMBOL_GLYPHS } from "@/lib/pack/symbolGlyphs";
 import type { GuiContainer } from "@/lib/pack/vanillaGui";
 import { sha256Hex } from "@/lib/sha256";
 import { unzipSync } from "fflate";
@@ -221,6 +221,8 @@ export interface ConformanceCase {
   /** SHA-256 of each entry listed in `entries`: says which file drifted when `sha1` does. */
   entryHashes?: Record<string, string>;
   textYFonts: number;
+  /** The text fonts of another size than 8: one per (Y, size) the menus' texts use. */
+  textYSized?: string[];
   textUpFonts: number;
   sha1: string;
 }
@@ -283,6 +285,7 @@ export function expectedOf(result: BuildResult) {
     entries: listed,
     entryHashes: Object.fromEntries(listed.map((e) => [e, sha256Hex(entries[e]!)])),
     textYFonts: names.filter((e) => TEXT_Y.test(e)).length,
+    textYSized: names.filter((e) => TEXT_Y.test(e) && !e.endsWith("_h8.json")),
     textUpFonts: names.filter((e) => TEXT_UP.test(e)).length,
     sha1: result.hash,
   };

@@ -48,6 +48,11 @@ block. Changing alignment or width keeps the left edge of the block in place.
 **Adjust line spacing**, beside the spacing label, sets it to the text size plus
 2 pixels (maximum 32). Horizontal alignment has its own separate row.
 
+The resource pack carries size 8 at every height, and the other sizes only at the
+heights your texts use. Moving a larger text, or changing a text's size, therefore
+changes the pack: players see it once they have loaded the new one (the editor says
+so when you deploy, see [Resource packs](../../configuration/resource-packs/)).
+
 Existing Text and Textarea layers both appear as **Texte** and remain editable.
 Their translations are retained when editing them through the unified controls.
 Composed titles require the server's resource pack; vanilla title mode is unchanged.

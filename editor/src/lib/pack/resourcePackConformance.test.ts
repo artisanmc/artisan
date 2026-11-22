@@ -27,6 +27,7 @@ describe("resource pack — cross-stack vector", () => {
       expect(actual.entries).toEqual(c.entries);
       expect(actual.entryHashes).toEqual(c.entryHashes);
       expect(actual.textYFonts).toBe(c.textYFonts);
+      expect(actual.textYSized).toEqual(c.textYSized);
       expect(actual.textUpFonts).toBe(c.textUpFonts);
       expect(actual.sha1).toBe(c.sha1);
       if (c.bedrock) {
