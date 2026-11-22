@@ -64,9 +64,13 @@ elements:
 `,
     },
   ]);
+  // Its own rows first, then the same rectangle on every other row of the window: moving
+  // the button there needs no new pack.
   expect(placements).toEqual([
     { asset: "buy", fit: "stretch", width: 54, height: 36, y: 17 },
     { asset: "vip", fit: "contain", width: 54, height: 36, y: 17 },
+    { asset: "buy", fit: "stretch", width: 54, height: 36, y: 35 },
+    { asset: "vip", fit: "contain", width: 54, height: 36, y: 35 },
   ]);
   const png = createImage(2, 1);
   png.data.set([255, 0, 0, 255, 0, 255, 0, 255]);
@@ -148,10 +152,15 @@ elements:
 `,
     },
   ]);
-  expect(placements).toEqual([
-    { asset: "bar", fit: "contain", width: 54, height: 18, y: 142 },
-    { asset: "inv", fit: "contain", width: 36, height: 36, y: 84 },
-  ]);
+  const own = (asset: string) => placements.find((p) => p.asset === asset);
+  const rows = (asset: string) => placements.filter((p) => p.asset === asset).map((p) => p.y);
+  expect(own("bar")).toEqual({ asset: "bar", fit: "contain", width: 54, height: 18, y: 142 });
+  expect(own("inv")).toEqual({ asset: "inv", fit: "contain", width: 36, height: 36, y: 84 });
+  // Every row the rectangle fits in: the 3 chest rows, the 3 inventory rows, the hotbar; a
+  // 2-row rectangle never straddles the chest and the inventory, nor the inventory and the hotbar.
+  expect(rows("bar")).toEqual([142, 17, 35, 53, 84, 102, 120]);
+  expect(rows("inv")).toEqual([84, 17, 35, 102]);
+  expect(own("nope")).toBeUndefined();
   expect(
     imageButtonsFromMenus([
       {
@@ -192,12 +201,12 @@ elements:
 `,
     },
   ]);
-  // Slots 10-12 share row 1 (one area each, same y), 19 is row 2, 47 row 5.
-  expect(placements.map((p) => [p.asset, p.width, p.height, p.y])).toEqual([
-    ["claimed", 18, 18, 35],
-    ["claimed", 18, 18, 35],
-    ["claimed", 18, 18, 35],
-    ["claimed", 18, 18, 53],
-    ["pin", 18, 18, 107],
-  ]);
+  // Each slot is an 18×18 area of its own, and every row of the window gets the image.
+  expect(placements.every((p) => p.width === 18 && p.height === 18)).toBe(true);
+  const rows = (asset: string) =>
+    [...new Set(placements.filter((p) => p.asset === asset).map((p) => p.y))].sort((a, b) => a - b);
+  expect(rows("claimed")).toEqual([17, 35, 53, 71, 89, 107]);
+  expect(rows("pin")).toEqual([17, 35, 53, 71, 89, 107]);
+  // Slot 10 (row 1) comes first, as its own row.
+  expect(placements[0]).toMatchObject({ asset: "claimed", y: 35 });
 });

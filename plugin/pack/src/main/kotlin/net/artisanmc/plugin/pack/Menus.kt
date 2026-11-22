@@ -100,8 +100,10 @@ internal object MenuReaders {
                 // row: each slot of it is an 18×18 area of its own (`imageButtons.ts`).
                 if (Js.truthy(el["iterates"]) || Js.truthy(el["places"])) {
                     for (slot in rowSlots(el, limit)) {
-                        val area = ImageButtonGeometry.area(listOf(slot), type, sizeInt, hidden) ?: continue
-                        pushImages(out, el, area)
+                        for (row in everyRow(listOf(slot), type, limit)) {
+                            val area = ImageButtonGeometry.area(row, type, sizeInt, hidden) ?: continue
+                            pushImages(out, el, area)
+                        }
                     }
                     continue
                 }
@@ -122,9 +124,32 @@ internal object MenuReaders {
                     for (i in minOf(a, b).toInt()..maxOf(a, b).toInt()) slots += i
                 }
                 if (!valid || slots.isEmpty()) continue
-                val area = ImageButtonGeometry.area(slots.toList(), type, sizeInt, hidden) ?: continue
-                pushImages(out, el, area)
+                if (ImageButtonGeometry.area(slots.toList(), type, sizeInt, hidden) == null) continue
+                for (row in everyRow(slots.toList(), type, limit)) {
+                    val area = ImageButtonGeometry.area(row, type, sizeInt, hidden) ?: continue
+                    pushImages(out, el, area)
+                }
             }
+        }
+        return out
+    }
+
+    /**
+     * The rectangle of [slots] as it is, then moved to every other row of the window (chest:
+     * rows of 9). The pack carries a button's image for each of them, so moving a button to
+     * another row shows at once, without a pack the players have not downloaded yet (`everyRow`,
+     * `imageButtons.ts`).
+     */
+    private fun everyRow(slots: List<Int>, type: String, limit: Int): List<List<Int>> {
+        val out = ArrayList<List<Int>>()
+        out += slots
+        if (type != "chest") return out
+        val min = slots.min()
+        val max = slots.max()
+        var k = -(min / 9)
+        while (max + k * 9 < limit) {
+            if (k != 0) out += slots.map { it + k * 9 }
+            k++
         }
         return out
     }

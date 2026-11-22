@@ -60,8 +60,10 @@ export function imageButtonsFromMenus(
       // each slot of it is an 18×18 area of its own.
       if (el.iterates || el.places) {
         for (const slot of rowSlots(el, limit)) {
-          const area = imageButtonArea([slot], type, size, hidden);
-          if (area) pushImages(out, el, area);
+          for (const slots of everyRow([slot], type, limit)) {
+            const area = imageButtonArea(slots, type, size, hidden);
+            if (area) pushImages(out, el, area);
+          }
         }
         continue;
       }
@@ -83,10 +85,28 @@ export function imageButtonsFromMenus(
       }
       if (!valid || !slots.size) continue;
       // Same rectangle and origin as the editor and the plugin (imageButtonArea).
-      const area = imageButtonArea([...slots], type, size, hidden);
-      if (!area) continue;
-      pushImages(out, el, area);
+      if (!imageButtonArea([...slots], type, size, hidden)) continue;
+      for (const row of everyRow([...slots], type, limit)) {
+        const area = imageButtonArea(row, type, size, hidden);
+        if (area) pushImages(out, el, area);
+      }
     }
+  }
+  return out;
+}
+
+/**
+ * The rectangle of [slots] as it is, then moved to every other row of the window (chest:
+ * rows of 9). The pack carries a button's image for each of them, so moving a button to
+ * another row shows at once, without a pack the players have not downloaded yet.
+ */
+function everyRow(slots: number[], type: ImageButtonContainer, limit: number): number[][] {
+  const out = [slots];
+  if (type !== "chest") return out;
+  const min = Math.min(...slots);
+  const max = Math.max(...slots);
+  for (let k = -Math.floor(min / 9); max + k * 9 < limit; k++) {
+    if (k !== 0) out.push(slots.map((slot) => slot + k * 9));
   }
   return out;
 }

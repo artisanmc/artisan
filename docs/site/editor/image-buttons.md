@@ -55,6 +55,12 @@ The rectangle must fit inside the menu and cannot overlap another element. When 
 menu hides the player inventory, an image button can also sit in the 3 inventory
 rows or in the hotbar — within one of them, since the gaps between these parts
 break the slot grid.
+
+The resource pack carries each button's image for every row of a chest menu, so moving a button
+to another row (or column) shows as soon as the menu is deployed. A new image, another size
+(more or fewer slots), another fit or a pixel offset still needs the players to load the rebuilt
+pack: until then the button is not drawn.
+
 In the editor, image buttons use fixed positions. A menu written in YAML can also put an
 `image` on an element that iterates a list or places rows (`iterates`, `places`): each slot
 then shows its own 18×18 image, chosen per row by the element's states, with the row's title,
