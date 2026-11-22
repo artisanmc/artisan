@@ -74,6 +74,11 @@ describe("Stage — mode focus", () => {
    * That is what guarantees a Document never placed on the board stays fully
    * editable.
    */
+  it("keeps the View as tool: the viewed variant changes in focus view too", () => {
+    render(<Stage projectId={PID} focus="menu/m1" />);
+    expect(screen.getByTitle("Voir en tant que")).toBeTruthy();
+  });
+
   it("renders the targeted document even when absent from canvasLayout", () => {
     render(<Stage projectId={PID} focus="menu/m2" />);
     expect(groupNames()).toContain("menu:m2");
