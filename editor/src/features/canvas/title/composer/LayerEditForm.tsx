@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
 import { MmEditor } from "@/components/minimessage/MmEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,10 +13,9 @@ import { assetPreviewUrl } from "@/domain/asset";
 import type { AssetId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { duplicateAsset } from "@/lib/api/userAssets";
 import { cn } from "@/lib/cx";
-import { CONTAINER_TITLE } from "@/lib/mm/profiles";
+import { CONTAINER_TITLE, CONTAINER_TITLE_LINES } from "@/lib/mm/profiles";
 import { useTextEdit } from "@/lib/useText";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -405,25 +403,17 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
           setI18nValue({ projectId, lt: layer.value, lang, value });
         }}
         renderEditor={({ value, fallback, label, onChange }) => (
-          <PlaceholderInput
-            multiline
-            rows={3}
+          <MmEditor
             value={value}
-            aria-label={label}
             onChange={onChange}
+            aria-label={label}
+            profile={CONTAINER_TITLE_LINES}
             entries={placeholderEntries}
             placeholder={fallback ?? t("layerEditForm.textareaPlaceholder")}
+            toolbar="focus"
           />
         )}
       />
-
-      <div className="rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2">
-        <div className="field-label !mb-1">{t("layerEditForm.preview")}</div>
-        {lines.map((line, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: order is stable within preview
-          <MiniMessageInline key={i} source={line} className="font-mono text-xs" />
-        ))}
-      </div>
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5 flex-1">

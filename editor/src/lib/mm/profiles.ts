@@ -122,6 +122,19 @@ export const CONTAINER_TITLE: MmProfile = {
   preview: "item-name",
 };
 
+/**
+ * A title text layer of a container (`text` / `textarea` layers): no hover nor click, several
+ * lines, each drawn on its own (`TitleCompiler` splits on `
+`).
+ */
+export const CONTAINER_TITLE_LINES: MmProfile = {
+  id: "container-title-lines",
+  features: new Set(ONE_LINE),
+  lines: "separate",
+  defaults: { color: "#ffffff" },
+  preview: "item-name",
+};
+
 /** A one-line text whose use the editor does not know (a data value, a module's field). */
 export const TEXT_LINE: MmProfile = {
   id: "text-line",

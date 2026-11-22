@@ -48,6 +48,9 @@ block. Changing alignment or width keeps the left edge of the block in place.
 **Adjust line spacing**, beside the spacing label, sets it to the text size plus
 2 pixels (maximum 32). Horizontal alignment has its own separate row.
 
+Its text is edited in the same rich MiniMessage editor as an item's name: formatting
+toolbar, colours and gradients, `{` for the menu's variables and `%` for placeholders,
+one line per Enter. Element labels use it too.
 Existing Text and Textarea layers both appear as **Texte** and remain editable.
 Their translations are retained when editing them through the unified controls.
 Composed titles require the server's resource pack; vanilla title mode is unchanged.
