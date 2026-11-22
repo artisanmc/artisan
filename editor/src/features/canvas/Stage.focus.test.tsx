@@ -25,7 +25,10 @@ vi.mock("react-konva", () => ({
   Circle: () => <div />,
 }));
 vi.mock("use-image", () => ({ default: () => [null, "loaded"] }));
-vi.mock("./title/composer/TitleRender", () => ({ TitleRender: () => <div /> }));
+vi.mock("./title/composer/TitleRender", () => ({
+  TitleRender: () => <div />,
+  useTitleLayerBoxes: () => [],
+}));
 vi.mock("./Edges", () => ({ Edges: () => <div data-testid="edges" /> }));
 
 const PID = "p1" as ProjectId;

@@ -21,7 +21,10 @@ vi.mock("react-konva", () => ({
   Line: () => <div />,
 }));
 vi.mock("use-image", () => ({ default: () => [null, "loaded"] }));
-vi.mock("./title/composer/TitleRender", () => ({ TitleRender: () => <div /> }));
+vi.mock("./title/composer/TitleRender", () => ({
+  TitleRender: () => <div />,
+  useTitleLayerBoxes: () => [],
+}));
 
 import { MenuGroup } from "./MenuGroup";
 

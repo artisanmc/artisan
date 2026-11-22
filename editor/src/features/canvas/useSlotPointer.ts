@@ -18,11 +18,14 @@ export function useSlotPointer({
   projectId,
   menuId,
   armedPlacement,
+  onDeepSelect,
 }: {
   projectId: ProjectId;
   menuId: MenuId;
   /** The placement row armed for THIS menu, if any. */
   armedPlacement: ArmedPlacement | null;
+  /** Ctrl/Cmd+click: select the next thing under the pointer (a title layer over the slot). */
+  onDeepSelect?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
 }) {
   /** Drops what is armed at `position`; true if something was. */
   const dropArmed = (position: number): boolean => {
@@ -58,6 +61,7 @@ export function useSlotPointer({
 
   const select = (position: number, el: { elementId: string; multiPos: boolean }) => {
     const sel = useSelectionStore.getState();
+    useUiStore.getState().setSelectedLayerKey(null);
     // Single-pos elements: button mode and instance mode would render
     // identically (only one slot to outline), so the toggle is just visual
     // noise. Always pick instance mode for consistency.
@@ -79,7 +83,12 @@ export function useSlotPointer({
     e.cancelBubble = true;
     if (dropArmed(position) || !el?.elementId) return;
     const evt = e.evt as MouseEvent;
-    // Shift/ctrl = additive multi-select of this menu's items (always
+    // Ctrl/Cmd = deep select (Figma): the next thing under the pointer.
+    if (onDeepSelect && (evt.ctrlKey || evt.metaKey)) {
+      onDeepSelect(e);
+      return;
+    }
+    // Shift = additive multi-select of this menu's items (always
     // button-mode: instance focus only makes sense on a single element).
     if (evt.shiftKey || evt.ctrlKey || evt.metaKey) {
       useSelectionStore.getState().toggleElement(el.elementId, menuId);

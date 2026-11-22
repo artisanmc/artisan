@@ -475,14 +475,38 @@ describe("TitleRender", () => {
     expect(groups[0]?.getAttribute("data-draggable")).toBe("true");
   });
 
-  it("clicking an already-selected layer deselects it (toggle)", () => {
+  it("clicking the selected layer keeps it selected (it keeps the hand)", () => {
     const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
     useUiStore.getState().setSelectedLayerKey({ menuId: MENU_ID, index: 0 });
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const groups = screen.getAllByTestId("group");
     fireEvent.click(groups[0]!);
-    expect(useUiStore.getState().selectedLayerKey).toBeNull();
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_ID, index: 0 });
+  });
+
+  it("interactive pass: a click on a layer's box picks it; a background has no box", () => {
+    const layers: MenuTitleLayer[] = [
+      { kind: "background", assetId: "bg" as never },
+      { kind: "text", value: { key: I18N_KEY }, x: 10, y: 20 },
+    ];
+    seedProject(layers);
+    render(
+      <TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} pass="interactive" />,
+    );
+    const rects = screen.getAllByTestId("rect");
+    expect(rects).toHaveLength(1);
+    fireEvent.click(rects[0]!);
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_ID, index: 1 });
+    expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
+  });
+
+  it("visual pass leaves the selected layer to the interactive one", () => {
+    const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
+    seedProject(layers);
+    useUiStore.getState().setSelectedLayerKey({ menuId: MENU_ID, index: 0 });
+    render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} pass="visual" />);
+    expect(screen.queryAllByTestId("group")).toHaveLength(0);
   });
 
   it("clicking an unselected layer does not change selection (canvas is click-through when not selected)", () => {
