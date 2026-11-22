@@ -10,16 +10,16 @@ describe("title text symbols", () => {
     expect(usedSymbols(["abc"])).toEqual([]);
   });
 
-  it("lays them out 16 per row, empty cells as \\0", () => {
-    const rows = symbolRows([0x21aa, 0x2328]);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toBe(`↪⌨${"\0".repeat(14)}`);
-    expect(symbolRows(Array.from({ length: 17 }, (_, i) => 0x2460 + i))).toHaveLength(2);
+  it("lays them out in one row up to 256, only a large set's last row padded with \\0", () => {
+    expect(symbolRows([0x21aa, 0x2328])).toEqual(["↪⌨"]);
+    const many = symbolRows(Array.from({ length: 300 }, (_, i) => 0x2200 + i));
+    expect(many.map((r) => [...r].length)).toEqual([256, 256]);
+    expect(many[1]!.endsWith("\0")).toBe(true);
   });
 
   it("draws 16 px cells, padded for the rising fonts", () => {
-    const sheet = symbolSheet([0x21aa]);
-    expect([sheet.width, sheet.height]).toEqual([256, 16]);
+    const sheet = symbolSheet([0x21aa, 0x2328]);
+    expect([sheet.width, sheet.height]).toEqual([32, 16]);
     expect(sheet.data.some((v) => v === 255)).toBe(true);
     expect(symbolSheet([0x21aa], 256).height).toBe(272);
   });

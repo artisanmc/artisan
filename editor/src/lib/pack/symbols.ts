@@ -12,6 +12,12 @@ import { SYMBOL_GLYPHS } from "./symbolGlyphs";
 /** Drawn like the ascii sheet: 8 px high, baseline 7 px below the top (16 px cells at half size). */
 export const SYMBOLS_FONT = { height: 8, ascent: 7 } as const;
 const CELL = 16;
+/**
+ * Cells per row of the sheet: as many as the symbols, up to 256 (a 4096 px wide sheet), so only
+ * the last row of a large set pads with `\0` — each pad is 6 bytes (`\u0000`) in every one of
+ * the ~1,200 text fonts.
+ */
+const columns = (count: number) => Math.min(Math.max(count, 1), 256);
 
 const GLYPHS: ReadonlyMap<number, string> = new Map(
   SYMBOL_GLYPHS.split("\n")
@@ -33,27 +39,29 @@ export function usedSymbols(texts: Iterable<string>): number[] {
   return [...used].sort((a, b) => a - b);
 }
 
-/** The `chars` of the sheet's bitmap provider: rows of 16, `\0` for an empty cell. */
+/** The `chars` of the sheet's bitmap provider: rows of [columns], `\0` for an empty cell. */
 export function symbolRows(symbols: readonly number[]): string[] {
   const rows: string[] = [];
-  for (let i = 0; i < symbols.length; i += 16) {
-    const row = symbols.slice(i, i + 16).map((cp) => String.fromCodePoint(cp));
-    while (row.length < 16) row.push("\0");
+  const cols = columns(symbols.length);
+  for (let i = 0; i < symbols.length; i += cols) {
+    const row = symbols.slice(i, i + cols).map((cp) => String.fromCodePoint(cp));
+    while (row.length < cols) row.push("\0");
     rows.push(row.join(""));
   }
   return rows;
 }
 
-/** The sheet: 16 cells per row, white glyphs; `pad` transparent rows under each cell. */
+/** The sheet: [columns] cells per row, white glyphs; `pad` transparent rows under each cell. */
 export function symbolSheet(symbols: readonly number[], pad = 0): RgbaImage {
   const cellH = CELL + pad;
-  const image = createImage(16 * CELL, Math.ceil(symbols.length / 16) * cellH);
+  const cols = columns(symbols.length);
+  const image = createImage(cols * CELL, Math.ceil(symbols.length / cols) * cellH);
   symbols.forEach((cp, i) => {
     const hex = GLYPHS.get(cp)!;
     const width = hex.length === 64 ? 16 : 8;
     const digits = width / 4;
-    const x0 = (i % 16) * CELL;
-    const y0 = Math.floor(i / 16) * cellH;
+    const x0 = (i % cols) * CELL;
+    const y0 = Math.floor(i / cols) * cellH;
     for (let y = 0; y < CELL; y++) {
       const bits = Number.parseInt(hex.slice(y * digits, (y + 1) * digits), 16);
       for (let x = 0; x < width; x++) {

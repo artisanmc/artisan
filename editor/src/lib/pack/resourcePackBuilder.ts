@@ -136,7 +136,8 @@ export function buildResourcePackZip(
     const yMin = minYForSize(h);
     for (let y = yMin; y <= 172; y++) {
       files[`assets/artisan/font/text_y${y}_h${h}.json`] = strToU8(
-        JSON.stringify(buildTextYFontJson(y, h, rows), null, 2),
+        // Compact: ~1,200 text fonts are most of the pack (indented, 2 MB more).
+        JSON.stringify(buildTextYFontJson(y, h, rows)),
       );
     }
   }
@@ -154,7 +155,7 @@ export function buildResourcePackZip(
       );
     for (let rise = 0; rise <= TEXT_UP_MAX; rise++) {
       files[`assets/artisan/font/text_up${rise}.json`] = strToU8(
-        JSON.stringify(buildTextUpFontJson(rise, rows), null, 2),
+        JSON.stringify(buildTextUpFontJson(rise, rows)),
       );
     }
   }
