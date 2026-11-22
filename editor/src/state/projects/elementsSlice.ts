@@ -40,8 +40,8 @@ import { current } from "immer";
 import {
   allocStepLTexts,
   appearanceClickPrefixFor,
-  appearanceLoreKeyFor,
   appearanceLabelKeyFor,
+  appearanceLoreKeyFor,
   appearanceTitleKeyFor,
   cloneAppearanceLTextsInto,
   duplicateStepLTexts,
@@ -155,7 +155,9 @@ export interface ElementsSlice {
     input: {
       projectId: ProjectId;
       appearanceIndex?: number;
-      patch: Partial<Omit<NonNullable<import("@/domain/types").Appearance["label"]>, "text">> | null;
+      patch: Partial<
+        Omit<NonNullable<import("@/domain/types").Appearance["label"]>, "text">
+      > | null;
     } & AppearanceTarget,
   ) => void;
   /** Set the lore value (multi-line string, `\n`-separated lines) for an appearance. */
@@ -588,7 +590,12 @@ export const createElementsSlice = ({
       mutateAppearance(pId, input, appearanceIndex, (appearance, project) => {
         if (!appearance.label)
           appearance.label = {
-            text: createLTextAt(project, appearanceLabelKeyFor(input, appearanceIndex), value, lang),
+            text: createLTextAt(
+              project,
+              appearanceLabelKeyFor(input, appearanceIndex),
+              value,
+              lang,
+            ),
           };
         else setLText(project, appearance.label.text, lang, value);
       });

@@ -722,9 +722,12 @@ function StateCard({
                   .setAppearanceLabel({ projectId, ...target, appearanceIndex: stateIndex, patch })
               }
               onRemove={() =>
-                useProjectsStore
-                  .getState()
-                  .setAppearanceLabel({ projectId, ...target, appearanceIndex: stateIndex, patch: null })
+                useProjectsStore.getState().setAppearanceLabel({
+                  projectId,
+                  ...target,
+                  appearanceIndex: stateIndex,
+                  patch: null,
+                })
               }
             />
           )}
