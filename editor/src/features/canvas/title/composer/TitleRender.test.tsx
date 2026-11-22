@@ -509,6 +509,26 @@ describe("TitleRender", () => {
     expect(screen.queryAllByTestId("group")).toHaveLength(0);
   });
 
+  it("element labels are drawn by the interactive pass, over the buttons, not by the visual one", () => {
+    const menu = seedProject([]);
+    menu.layers = [
+      {
+        elements: [
+          { id: "claim", positions: "48-50", display: { label: { text: { key: I18N_KEY } } } },
+        ],
+      },
+    ] as never;
+    const { unmount } = render(
+      <TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} pass="visual" />,
+    );
+    expect(screen.queryAllByTestId("group")).toHaveLength(0);
+    unmount();
+    render(
+      <TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} pass="interactive" />,
+    );
+    expect(screen.queryAllByTestId("group").length).toBeGreaterThan(0);
+  });
+
   it("clicking an unselected layer does not change selection (canvas is click-through when not selected)", () => {
     const layers: MenuTitleLayer[] = [{ kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 }];
     seedProject(layers);
