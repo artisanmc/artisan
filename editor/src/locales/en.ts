@@ -1911,6 +1911,11 @@ export default {
     deployed: "Deployed to the server",
     packFailed: "The resource pack could not be rebuilt; players keep the previous one.",
     packFailedReason: "Reason: {{reason}}",
+    packChanged: "The resource pack changed",
+    packChangedReloaded:
+      "Reloaded with “{{command}}”. New images and moved elements show once players have loaded the pack.",
+    packChangedNoReload:
+      "No reload command is configured: reload the pack plugin (for example “nexo reload pack”), otherwise players keep the old pack and new or moved images do not show. Automate it in Server configuration, “Reload command after delegation”.",
     failed: "Deploy failed",
     reviewTitle: "Deploy to the server?",
     reviewBody:
