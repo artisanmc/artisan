@@ -238,7 +238,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
     >
       <div aria-hidden className="stage-bg-glow pointer-events-none absolute inset-0" />
       <ArmedBanner />
-      {!focusMode && <OriginalBanner projectId={projectId} />}
+      <OriginalBanner projectId={projectId} />
       {!focusMode && (
         <BoardChrome
           project={project}
@@ -254,7 +254,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
         />
       )}
       <CanvasToolbar
-        variants={focusMode ? undefined : <VariantSwitcher projectId={projectId} />}
+        variants={<VariantSwitcher projectId={projectId} />}
         onRearrange={
           focusMode
             ? undefined

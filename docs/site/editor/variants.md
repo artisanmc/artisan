@@ -15,7 +15,7 @@ you build it.
 
 ## View as
 
-On the board, the toolbar's **View as** menu picks what the canvas shows: **Default** (the
+On the board and in a Document's focus view, the toolbar's **View as** menu picks what the canvas shows: **Default** (the
 module's own documents) or one of the variants. While a variant is shown:
 
 - a document that has a version for this variant shows that version, tagged with the variant's

@@ -17,7 +17,7 @@ export function CanvasToolbar({
   rearrangeDisabled = false,
   variants,
 }: {
-  /** "View as": the variant switcher of the project, on the board only. */
+  /** "View as": the variant switcher of the project, on the board and in focus view. */
   variants?: React.ReactNode;
   /** Absent in focus view: there is only one Document, nothing to arrange. */
   onRearrange?: (mode: ArrangeMode) => void;
