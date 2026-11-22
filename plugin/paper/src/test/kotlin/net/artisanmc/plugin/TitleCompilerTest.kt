@@ -964,13 +964,16 @@ class TitleCompilerTest {
     }
 
     @Test
-    fun `compileLayerBody for text size=16 doubles end cursor`() {
+    fun `compileLayerBody for text size=16 advances each glyph as Minecraft scales it`() {
         val langMap = mapOf("k" to "Hello")
         val small = MenuTitleLayer.Text(value = LText("k"), x = 0, y = 5, size = 8)
         val large = MenuTitleLayer.Text(value = LText("k"), x = 0, y = 5, size = 16)
         val (_, smallEnd) = TitleCompiler.compileLayerBody(small, 0, langMap, emptyLookup, OffsetEncoder.EMPTY)
         val (_, largeEnd) = TitleCompiler.compileLayerBody(large, 0, langMap, emptyLookup, OffsetEncoder.EMPTY)
-        assertEquals(smallEnd * 2, largeEnd)
+        // Hello: H 6, e 6, l 3, l 3, o 6 = 24 at size 8. At size 16 a glyph of width w advances
+        // (int)(0.5 + 2w) + 1 = 2w + 1 (Minecraft's BitmapProvider), not 2 × (w + 1): 43, not 48.
+        assertEquals(24, smallEnd)
+        assertEquals(43, largeEnd)
     }
 
     @Test
@@ -1018,5 +1021,22 @@ class TitleCompilerTest {
         }
         // And the resulting Component contains the glyph
         assertTrue(asString.contains(ch.toString()) || asString.isNotEmpty())
+    }
+}
+
+class TitleCompilerScaledWidthTest {
+    private val compiler = net.artisanmc.plugin.render.title.TitleCompiler
+
+    @org.junit.jupiter.api.Test
+    fun `bold adds 1 px per glyph whatever the size, glyphs round one by one`() {
+        // "Jour" at size 8: J 6 + o 6 + u 6 + r 6 = 24; bold: +4.
+        kotlin.test.assertEquals(24, compiler.scaledLineWidth("Jour", 8))
+        kotlin.test.assertEquals(28, compiler.scaledLineWidth("<bold>Jour</bold>", 8))
+        // Size 12: each width-5 glyph advances (int)(0.5 + 7.5) + 1 = 9; bold still +1 each, not +1.5.
+        kotlin.test.assertEquals(36, compiler.scaledLineWidth("Jour", 12))
+        kotlin.test.assertEquals(40, compiler.scaledLineWidth("<b>Jour</b>", 12))
+        // A space is 4 × size/8; bold counts it too.
+        kotlin.test.assertEquals(6, compiler.scaledLineWidth(" ", 12))
+        kotlin.test.assertEquals(7, compiler.scaledLineWidth("<bold> </bold>", 12))
     }
 }

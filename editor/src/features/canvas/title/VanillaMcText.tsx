@@ -102,7 +102,8 @@ export function VanillaMcText({
     for (const seg of segments) {
       const bold = seg.style.bold ?? false;
       for (const ch of seg.text) {
-        totalWidth += (advance(ch) + (bold ? 1 : 0)) * scale * sizeScale;
+        // MC bold adds 1 px whatever the font's size.
+        totalWidth += (scaledAdvance(ch, sizeScale) + (bold ? 1 : 0)) * scale;
       }
     }
     if (totalWidth <= 0) {
@@ -150,7 +151,7 @@ export function VanillaMcText({
       for (const ch of seg.text) {
         const cell = charCell(ch);
         // MC bold adds 1px to the advance (glyph drawn twice, shifted 1px right).
-        const adv = (advance(ch) + (bold ? 1 : 0)) * scale * sizeScale;
+        const adv = (scaledAdvance(ch, sizeScale) + (bold ? 1 : 0)) * scale;
         if (cell) {
           const meta = ATLAS_META[cell.atlas];
           const cw = meta.cellW * meta.px * scale * sizeScale;
@@ -182,8 +183,7 @@ export function VanillaMcText({
           // Blit the tinted glyph to the main canvas. MC bold: draw twice,
           // second pass shifted 1px right.
           ctx.drawImage(temp, 0, 0, cw, cellH, cursor, yOffset, cw, cellH);
-          if (bold)
-            ctx.drawImage(temp, 0, 0, cw, cellH, cursor + scale * sizeScale, yOffset, cw, cellH);
+          if (bold) ctx.drawImage(temp, 0, 0, cw, cellH, cursor + scale, yOffset, cw, cellH);
         }
         cursor += adv;
       }
@@ -218,6 +218,17 @@ export function VanillaMcText({
  * Compute the rendered width of a plain string in MC pixels using the
  * vanilla advance table. Useful for hit-area sizing.
  */
+/**
+ * Advance of a glyph in a font `sizeScale` × the vanilla height, as Minecraft lays it out: a
+ * bitmap glyph of width `w` advances `(int)(0.5 + w × scale) + 1`, a space `4 × scale`.
+ */
+export function scaledAdvance(ch: string, sizeScale: number): number {
+  if (sizeScale === 1) return advance(ch);
+  return ch === " "
+    ? Math.trunc(4 * sizeScale)
+    : Math.trunc((advance(ch) - 1) * sizeScale + 0.5) + 1;
+}
+
 export function vanillaTextWidth(text: string): number {
   let w = 0;
   for (const ch of text) w += advance(ch);

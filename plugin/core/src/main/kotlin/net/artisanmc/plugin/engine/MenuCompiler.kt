@@ -30,35 +30,12 @@ object MenuCompiler {
             // Cf. ADR `element-display-and-states`.
             val compiled =
                 element.states.mapIndexedNotNull { i, app ->
-                    warnIncompleteState(app, yaml.id, element.id, i, logger)
                     compileAppearance(app, yaml.id, element.id, i + 1, logger)
                 } + listOfNotNull(compileAppearance(element.display, yaml.id, element.id, 0, logger))
             if (compiled.isNotEmpty()) compiledAppearances[element.id] = compiled
         }
 
         return RuntimeMenu(yaml, langMaps, compiledAppearances, slotToElement, defaultLang = defaultLang)
-    }
-
-    /**
-     * A state is a WHOLE appearance, not a patch on the display — so one that
-     * names no item renders a bare stone block (`MenuRenderer` falls back to
-     * STONE), silently. Written by hand it is almost always a merge that was
-     * expected and didn't happen; one WARN at load makes it findable after the
-     * fact. The render is left alone on purpose: "state ignored" would be a
-     * third rule to remember.
-     */
-    private fun warnIncompleteState(
-        app: AppearanceYaml,
-        menuId: String,
-        elementId: String,
-        stateIndex: Int,
-        logger: Logger?,
-    ) {
-        if (app.image != null || app.item != null || app.material != null || app.head != null) return
-        logger?.warning(
-            "menu=$menuId element=$elementId state${stateIndex + 1} names no material — it will render as STONE. " +
-                "A state replaces the display entirely; it inherits nothing from it.",
-        )
     }
 
     private fun compileAppearance(

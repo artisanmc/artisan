@@ -197,6 +197,7 @@ vi.mock("../VanillaMcText", () => ({
     />
   ),
   vanillaTextWidth: (text: string) => text.length * 6,
+  scaledAdvance: (_ch: string, sizeScale: number) => 6 * sizeScale,
 }));
 
 // Stub WidthResizeHandle so tests can assert its presence via data-testid.
@@ -1225,7 +1226,8 @@ describe("TitleRender — textarea wrap and resize handle", () => {
       expect(Number(hit.getAttribute("data-x"))).toBe(0);
       expect(Number(hit.getAttribute("data-width"))).toBe(240);
       const text = screen.getByTestId("vanilla-mc-text");
-      const width = (12 + 2) * 2;
+      // Size 16: each glyph scaled (mock: 6 → 12), bold +1 per glyph unscaled.
+      const width = 12 * 2 + 2;
       const expectedX =
         alignment === "left" ? 0 : alignment === "center" ? 60 - width / 2 : 120 - width;
       expect(Number(text.getAttribute("data-x"))).toBe(expectedX * 2);

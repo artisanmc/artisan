@@ -103,6 +103,21 @@ object TitleCompiler {
     }
 
     /**
+     * Width of a line in the `text_y{Y}_h{size}` fonts, as Minecraft lays it out: a bitmap glyph
+     * of width `w` (its size-8 advance minus 1) advances `(int)(0.5 + w × size/8) + 1`, a space
+     * `4 × size/8`, and a bold glyph 1 px more whatever the size (`GlyphInfo.getBoldOffset`).
+     * Scaling the size-8 width as a whole scaled the bold bump too, and rounded once instead of
+     * per glyph: the layers after a bold sized text were drawn too far left.
+     */
+    internal fun scaledLineWidth(text: String, size: Int): Int {
+        val visible = Regex("<[^>]+>").replace(text, "")
+        val glyphs = visible.sumOf { ch ->
+            if (ch == ' ') 4 * size / 8 else ((charAdvance(ch) - 1) * size / 8.0 + 0.5).toInt() + 1
+        }
+        return glyphs + countBoldChars(text)
+    }
+
+    /**
      * Splits a single line into N sub-lines, each fitting within [maxWidth] px.
      * Wraps at whitespace boundaries. A single word wider than [maxWidth]
      * overflows on its own line (soft constraint — see textarea-auto-wrap spec).
@@ -351,7 +366,7 @@ object TitleCompiler {
                     val lineY = (layer.y + i * layer.lineHeight).coerceAtLeast(minYForSize(layer.size))
                     if (lineY > TEXT_Y_MAX) break
                     if (line.isEmpty()) continue // skip empty lines (no advance, no render)
-                    val lineWidth = (measureLineWidth(line) * layer.size) / 8
+                    val lineWidth = scaledLineWidth(line, layer.size)
                     val lineX = when (layer.alignment) {
                         MenuTitleLayer.Alignment.LEFT -> layer.x
                         MenuTitleLayer.Alignment.CENTER -> layer.x - lineWidth / 2
@@ -409,7 +424,7 @@ object TitleCompiler {
             val text = interpolate(resolveLText(layer.value, langMap, lang, defaultLang))
             // Bitmap font scales advance proportionally with height: a width of
             // N px at size 8 becomes N × (size/8) at any other size.
-            (measureLineWidth(text) * layer.size) / 8
+            scaledLineWidth(text, layer.size)
         }
         is MenuTitleLayer.Plain -> {
             val text = interpolate(resolveLText(layer.value, langMap, lang, defaultLang))
@@ -421,7 +436,7 @@ object TitleCompiler {
             val hardLines = text.split("\n")
             val effectiveWidth = (layer.width * 8) / layer.size
             val lines = hardLines.flatMap { wrapLine(it, effectiveWidth) }
-            lines.maxOfOrNull { (measureLineWidth(it) * layer.size) / 8 } ?: 0
+            lines.maxOfOrNull { scaledLineWidth(it, layer.size) } ?: 0
         }
     }
 
