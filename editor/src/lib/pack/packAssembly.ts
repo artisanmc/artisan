@@ -7,6 +7,7 @@ import { type GlyphPlacement, glyphPlacementsFromMenus } from "./menuGlyphPlacem
 import type { OverlayImageRequest } from "./overlayImages";
 import { type AssetRow, type BuildResult, buildResourcePackZip } from "./resourcePackBuilder";
 import { type GlyphContribution, mergeCodepoints } from "./rpCodepointMerger";
+import { usedSymbols } from "./symbols";
 import {
   GUI_CONTAINERS,
   type GuiContainer,
@@ -69,9 +70,12 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   const imagesByRef: { ref: string; bytes: Uint8Array }[] = [];
   const overlayImages: OverlayImageRequest[] = [];
   const bedrockMenus: BedrockMenu[] = [];
+  const texts: string[] = [];
 
   for (const project of projects) {
     const { files } = project;
+    // Any text of the Project may reach a title (menus, lang files, data rows): its symbols ride along.
+    for (const f of files) texts.push(f.content);
     glyphPlacements.push(...glyphPlacementsFromMenus(files));
     imageButtons.push(...imageButtonsFromMenus(files));
     overlayImages.push(...(project.overlayImages ?? []));
@@ -130,6 +134,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     input.textUp,
     overlayImages,
     input.hideInventoryLabel === true,
+    usedSymbols(texts),
   );
   if (!input.bedrock) return java;
   // Asset names collide across Projects the same way the Java pack resolves

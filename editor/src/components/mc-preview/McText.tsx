@@ -1,3 +1,4 @@
+import symbolsAtlasUrl from "@/assets/minecraft/font/symbols.png";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { API_URL } from "@/lib/api/client";
 import { cn } from "@/lib/cx";
@@ -31,9 +32,13 @@ export function useMcAtlases(): McAtlases | null {
   const [ascii] = useImage(atlasUrl("ascii"), "anonymous");
   const [accented] = useImage(atlasUrl("accented"), "anonymous");
   const [nonlatin] = useImage(atlasUrl("nonlatin_european"), "anonymous");
+  const [symbols] = useImage(symbolsAtlasUrl);
   return useMemo(
-    () => (ascii && accented && nonlatin ? { ascii, accented, nonlatin_european: nonlatin } : null),
-    [ascii, accented, nonlatin],
+    () =>
+      ascii && accented && nonlatin && symbols
+        ? { ascii, accented, nonlatin_european: nonlatin, symbols }
+        : null,
+    [ascii, accented, nonlatin, symbols],
   );
 }
 

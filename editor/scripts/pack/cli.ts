@@ -9,6 +9,7 @@ import {
   VANILLA_ASCII,
   VANILLA_NONLATIN_EUROPEAN,
 } from "@/lib/pack/vanillaFontChars";
+import { SYMBOL_GLYPHS } from "@/lib/pack/symbolGlyphs";
 import type { GuiContainer } from "@/lib/pack/vanillaGui";
 import { sha256Hex } from "@/lib/sha256";
 import { unzipSync } from "fflate";
@@ -22,6 +23,12 @@ export const KOTLIN_FONT_CHARS = resolve(
   "../plugin/pack/src/main/resources/net/artisanmc/plugin/pack/vanilla-font-chars.json",
 );
 
+/** `symbolGlyphs.ts` as the Kotlin builder reads it. */
+export const KOTLIN_SYMBOL_GLYPHS = resolve(
+  EDITOR,
+  "../plugin/pack/src/main/resources/net/artisanmc/plugin/pack/symbol-glyphs.hex",
+);
+
 const USAGE = `Usage: npm run pack -- <command>
 
   build <projects-dir> [-o pack.zip] [--config config.yml] [--overlay-images images.json]
@@ -33,8 +40,8 @@ const USAGE = `Usage: npm run pack -- <command>
       load: pass what they ask for with --overlay-images ({ "<project>": [{ "asset", "rise" }] }).
 
   kotlin-data
-      Exports vanillaFontChars.ts for the hub's Kotlin builder (plugin/pack), after the
-      vanilla font tables were regenerated.
+      Exports vanillaFontChars.ts and symbolGlyphs.ts for the hub's Kotlin builder
+      (plugin/pack), after the vanilla font tables or the symbols were regenerated.
 
   vectors [--write]
       Rebuilds every case of testdata/resource-pack-conformance.json and compares its
@@ -49,7 +56,9 @@ export async function main(args: string[]): Promise<number> {
     if (command === "vectors") return await vectors(rest.includes("--write"));
     if (command === "kotlin-data") {
       writeFileSync(KOTLIN_FONT_CHARS, kotlinFontChars());
+      writeFileSync(KOTLIN_SYMBOL_GLYPHS, kotlinSymbolGlyphs());
       console.log(KOTLIN_FONT_CHARS);
+      console.log(KOTLIN_SYMBOL_GLYPHS);
       return 0;
     }
   } catch (error) {
@@ -300,6 +309,13 @@ async function vectors(write: boolean): Promise<number> {
   if (write) writeFileSync(VECTORS, `${JSON.stringify(doc, null, 2)}\n`);
   else if (drift === 0) console.log(`${doc.cases.length} case(s), no drift.`);
   return write || drift === 0 ? 0 : 1;
+}
+
+/** `symbolGlyphs.ts` as the Kotlin builder reads it: its `XXXX:<hex>` lines. */
+export function kotlinSymbolGlyphs(): string {
+  return `${SYMBOL_GLYPHS.split("\n")
+    .filter((line) => line.includes(":"))
+    .join("\n")}\n`;
 }
 
 /** `vanillaFontChars.ts` as the Kotlin builder reads it. */

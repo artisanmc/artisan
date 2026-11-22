@@ -6,10 +6,12 @@ import vectors from "../../../../testdata/resource-pack-conformance.json";
 import {
   type ConformanceCase,
   KOTLIN_FONT_CHARS,
+  KOTLIN_SYMBOL_GLYPHS,
   bedrockExpectedOf,
   buildCase,
   expectedOf,
   kotlinFontChars,
+  kotlinSymbolGlyphs,
 } from "../../../scripts/pack/cli";
 
 /**
@@ -39,4 +41,8 @@ describe("resource pack — cross-stack vector", () => {
 
 test("the Kotlin builder's vanilla font tables match vanillaFontChars.ts (npm run pack -- kotlin-data)", () => {
   expect(readFileSync(KOTLIN_FONT_CHARS, "utf-8")).toBe(kotlinFontChars());
+});
+
+test("the Kotlin builder's symbol glyphs match symbolGlyphs.ts (npm run pack -- kotlin-data)", () => {
+  expect(readFileSync(KOTLIN_SYMBOL_GLYPHS, "utf-8")).toBe(kotlinSymbolGlyphs());
 });

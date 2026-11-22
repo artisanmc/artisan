@@ -118,8 +118,8 @@ export function drawLine(
         const cell = charCell(ch);
         if (cell) {
           const meta = ATLAS_META[cell.atlas];
-          const cw = meta.cellW * scale;
-          const chh = meta.cellH * scale;
+          const cw = meta.cellW * meta.px * scale;
+          const chh = meta.cellH * meta.px * scale;
           tint.clearRect(0, 0, tint.canvas.width, tint.canvas.height);
           tint.globalCompositeOperation = "source-over";
           tint.drawImage(

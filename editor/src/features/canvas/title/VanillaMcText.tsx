@@ -1,3 +1,4 @@
+import symbolsAtlasUrl from "@/assets/minecraft/font/symbols.png";
 import { useEffect, useRef, useState } from "react";
 import { Group, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
@@ -23,6 +24,8 @@ const ATLAS_URLS: Record<AtlasName, string> = {
   ascii: `${API_URL}/api/v1/textures/1.21.4/font/ascii`,
   accented: `${API_URL}/api/v1/textures/1.21.4/font/accented`,
   nonlatin_european: `${API_URL}/api/v1/textures/1.21.4/font/nonlatin_european`,
+  // Unifont symbols (gen-symbols.ts), shipped with the editor: the pack carries the used ones.
+  symbols: symbolsAtlasUrl,
 };
 
 // All atlases share the same ascent reference: the canvas's top-of-line is
@@ -77,6 +80,7 @@ export function VanillaMcText({
   const [ascii] = useImage(ATLAS_URLS.ascii, "anonymous");
   const [accented] = useImage(ATLAS_URLS.accented, "anonymous");
   const [nonlatin] = useImage(ATLAS_URLS.nonlatin_european, "anonymous");
+  const [symbols] = useImage(ATLAS_URLS.symbols);
   const tempRef = useRef<HTMLCanvasElement | null>(null);
   const [rendered, setRendered] = useState<{
     canvas: HTMLCanvasElement;
@@ -84,11 +88,12 @@ export function VanillaMcText({
   } | null>(null);
 
   useEffect(() => {
-    if (!ascii || !accented || !nonlatin) return;
+    if (!ascii || !accented || !nonlatin || !symbols) return;
     const atlases: Record<AtlasName, HTMLImageElement> = {
       ascii,
       accented,
       nonlatin_european: nonlatin,
+      symbols,
     };
     const segments = parseMiniMessage(source);
 
@@ -148,8 +153,8 @@ export function VanillaMcText({
         const adv = (advance(ch) + (bold ? 1 : 0)) * scale * sizeScale;
         if (cell) {
           const meta = ATLAS_META[cell.atlas];
-          const cw = meta.cellW * scale * sizeScale;
-          const cellH = meta.cellH * scale * sizeScale;
+          const cw = meta.cellW * meta.px * scale * sizeScale;
+          const cellH = meta.cellH * meta.px * scale * sizeScale;
           // Vertical offset to align baselines: top of this glyph's cell is
           // placed `MAX_ASCENT - meta.ascent` source pixels below the canvas
           // top, so its baseline lands at MAX_ASCENT — same as every other
@@ -185,7 +190,7 @@ export function VanillaMcText({
     }
 
     setRendered({ canvas, width: Math.ceil(totalWidth) });
-  }, [ascii, accented, nonlatin, source, scale, sizeScale, defaultColor]);
+  }, [ascii, accented, nonlatin, symbols, source, scale, sizeScale, defaultColor]);
 
   if (!rendered) return null;
 
