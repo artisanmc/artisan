@@ -6,6 +6,7 @@ import type { MenuId, MenuTitleLayer, Project, ProjectId } from "@/domain/types"
 import { useAssetStore } from "@/features/assets/assetStore";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { getText } from "@/lib/i18n";
+import { plainTextFromMiniMessage } from "@/lib/miniMessage";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
@@ -235,11 +236,34 @@ export function titleLayerBox(
         : layer.kind === "textarea"
           ? textareaTotalH * scale
           : MC_FONT_HEIGHT_PX * scale * layerSizeScale;
+  // What a click may hit: the text itself, not its whole frame. A one-line `text` has a
+  // 168 px frame whatever it says, so the frame of "Day 4" would cover the buttons right of it.
+  let pickX = groupX;
+  let pickW = outlineW;
+  if (textFrame && !fontAsset) {
+    const lines = layer.kind === "textarea" ? textareaLines : [text];
+    const ink = Math.max(
+      8,
+      ...lines.map((l) => vanillaTextWidth(plainTextFromMiniMessage(l)) * scale * layerSizeScale),
+    );
+    if (ink < outlineW) {
+      const free = outlineW - ink;
+      pickX +=
+        textFrame.alignment === "center"
+          ? Math.floor(free / 2)
+          : textFrame.alignment === "right"
+            ? free
+            : 0;
+      pickW = ink;
+    }
+  }
   return {
     x: groupX,
     y: groupY,
     width: outlineW,
     height: outlineH,
+    pickX,
+    pickWidth: pickW,
     anchorOffset,
     fontRefAscent,
     imageW,
@@ -302,9 +326,9 @@ export function useTitleLayerBoxes(projectId: ProjectId, menuId: MenuId, scale: 
       return [
         {
           index,
-          x: box.x,
+          x: box.pickX,
           y: box.y,
-          width: box.width,
+          width: box.pickWidth,
           height: box.height,
           pickable: !coversWindow(layer.kind, box, window),
         },
@@ -438,9 +462,9 @@ export function TitleRender({
               // biome-ignore lint/suspicious/noArrayIndexKey: layer order is the stable identifier
               key={idx}
               name={`title-layer-hit:${menuId}:${idx}`}
-              x={box.x}
+              x={box.pickX}
               y={box.y}
-              width={box.width}
+              width={box.pickWidth}
               height={box.height}
               fill="rgba(0,0,0,0.001)"
               onClick={(e) => {

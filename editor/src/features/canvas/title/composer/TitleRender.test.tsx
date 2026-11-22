@@ -509,6 +509,16 @@ describe("TitleRender", () => {
     expect(screen.queryAllByTestId("group")).toHaveLength(0);
   });
 
+  it("interactive pass: a text is picked on its own width, not on its 168 px frame", () => {
+    seedProject([{ kind: "text", value: { key: I18N_KEY }, x: 10, y: 20 }]);
+    render(
+      <TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} pass="interactive" />,
+    );
+    const width = Number(screen.getAllByTestId("rect")[0]!.getAttribute("data-width"));
+    expect(width).toBeGreaterThan(0);
+    expect(width).toBeLessThan(60 * TEX_SCALE);
+  });
+
   it("element labels are drawn by the interactive pass, over the buttons, not by the visual one", () => {
     const menu = seedProject([]);
     menu.layers = [
