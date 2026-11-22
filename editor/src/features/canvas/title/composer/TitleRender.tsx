@@ -17,7 +17,7 @@ import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import { type PickBox, applyPick, coversWindow } from "../../canvasPick";
 import { MC_TITLE_H, MC_W } from "../../menuLayout";
 import { McFontText } from "../McFontText";
-import { VanillaMcText, vanillaTextWidth } from "../VanillaMcText";
+import { VanillaMcText, scaledAdvance, vanillaTextWidth } from "../VanillaMcText";
 import { WidthResizeHandle } from "./WidthResizeHandle";
 import { snapDragPosition } from "./snap";
 import { asTextFrame, patchTextFrame, textAnchorOffset } from "./textFrame";
@@ -55,6 +55,19 @@ function countBoldChars(text: string): number {
  * per-char advances from the CHAR_ADVANCES table (vanilla MC font scan),
  * Used by `wrapLineJs` so width math matches the plugin (and therefore MC).
  */
+/**
+ * TS port of TitleCompiler.scaledLineWidth: a line's width in the `text_y{Y}_h{size}` fonts —
+ * each glyph `(int)(0.5 + w × size/8) + 1` (w = its size-8 advance minus 1), a space
+ * `4 × size/8`, and 1 px per bold glyph whatever the size.
+ */
+export function scaledLineWidthJs(text: string, size: number): number {
+  let width = 0;
+  for (const ch of text.replace(TAG_RX, "")) {
+    width += scaledAdvance(ch, size / 8);
+  }
+  return width + countBoldChars(text);
+}
+
 function measureLineWidthJs(text: string): number {
   return vanillaTextWidth(text.replace(TAG_RX, "")) + countBoldChars(text);
 }
@@ -227,7 +240,12 @@ export function titleLayerBox(
         ? 10 * scale
         : textFrame
           ? textFrame.width * scale
-          : Math.max(vanillaTextWidth(text) * scale * layerSizeScale, 8);
+          : Math.max(
+              layer.kind === "text"
+                ? scaledLineWidthJs(text, layer.size ?? 8) * scale
+                : vanillaTextWidth(text) * scale,
+              8,
+            );
   const outlineH =
     layer.kind === "background" || layer.kind === "glyph"
       ? imageH
@@ -665,7 +683,7 @@ function LayerNode({
       wrapLineJs(l, Math.floor((layer.width * 8) / (layer.size ?? 8))),
     );
     body = lines.map((line, i) => {
-      const lineWidth = Math.floor((measureLineWidthJs(line) * (layer.size ?? 8)) / 8);
+      const lineWidth = scaledLineWidthJs(line, layer.size ?? 8);
       const lineX =
         layer.alignment === "center"
           ? (anchorOffset - Math.floor(lineWidth / 2)) * scale
