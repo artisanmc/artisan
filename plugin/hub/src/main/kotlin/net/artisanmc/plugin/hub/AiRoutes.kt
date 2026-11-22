@@ -6,9 +6,13 @@ import net.artisanmc.plugin.hub.EditorPermissions.VIEW
 
 /**
  * The editor's assistant (ADR `editor-assistant`). Same-origin, signed in, `edit` to talk to it,
- * `config` to set it up. Without settings, only [STATUS] and [CONFIG] answer.
+ * `config` to set it up. Without settings, only [STATUS], [CONFIG] and [CLOUD] answer.
  */
-class AiRoutes(private val setup: AiSetup) {
+class AiRoutes(
+    private val setup: AiSetup,
+    /** The network's link to its site account: the `artisan` provider's credits and models ([CLOUD]); null: none. */
+    private val site: SiteAccount? = null,
+) {
     fun register(router: Router) {
         router.on("GET", STATUS, VIEW) { call ->
             val assistant = setup.assistant()
@@ -16,8 +20,29 @@ class AiRoutes(private val setup: AiSetup) {
                 mapOf(
                     "enabled" to (assistant != null), "model" to assistant?.model, "canUse" to (assistant != null && call.session!!.can(EDIT)),
                     "attachments" to assistant?.attachments?.map { it.id }?.sorted(),
+                    // On the linked account's credits: the editor shows the balance.
+                    "cloud" to (setup.current().config.provider == AiConfig.ARTISAN),
                 ),
             )
+        }
+        // The linked account's AI credits and the models artisanmc.net offers: asked of the site, off the request's thread.
+        router.on("GET", CLOUD, VIEW) { call ->
+            val account = site ?: return@on call.json(mapOf("linked" to false))
+            if (account.link() == null) return@on call.json(mapOf("linked" to false))
+            val fresh = call.query("fresh") == "1"
+            call.offload {
+                try {
+                    val ai = account.ai(fresh)
+                    call.json(
+                        mapOf(
+                            "linked" to true, "balance" to ai.balance, "buy" to ai.buy,
+                            "models" to ai.models.map { mapOf("id" to it.id, "label" to it.label, "protocol" to it.protocol, "attachments" to it.attachments.map { k -> k.id }.sorted()) },
+                        ),
+                    )
+                } catch (e: SiteFailure) {
+                    if (e.code == "site_not_linked") call.json(mapOf("linked" to false)) else call.error(502, e.code)
+                }
+            }
         }
         router.on("GET", CONFIG_PATH, CONFIG) { call -> call.json(config()) }
         router.on("PUT", CONFIG_PATH, CONFIG) { call ->
@@ -143,6 +168,8 @@ class AiRoutes(private val setup: AiSetup) {
         if (effort !in EFFORTS) return Parsed.Invalid("invalid_input", "effort")
         val maxSteps = body.path("maxSteps").takeIf { it.isInt }?.asInt() ?: return Parsed.Invalid("invalid_input", "maxSteps")
         if (maxSteps !in 1..100) return Parsed.Invalid("invalid_input", "maxSteps")
+        // artisanmc.net's models: no key, no address, the site link pays.
+        if (provider == AiConfig.ARTISAN) return Parsed.Valid(AiConfig(provider, "", model, effort, maxSteps, ""))
         val baseUrl = text("baseUrl").orEmpty().trimEnd('/')
         if (baseUrl.isNotEmpty() && !validUrl(baseUrl)) return Parsed.Invalid("invalid_input", "baseUrl")
         val key = text("apiKey")?.takeIf { it.isNotEmpty() }
@@ -186,6 +213,7 @@ class AiRoutes(private val setup: AiSetup) {
         const val CONFIG_PATH = "/api/v1/ai/config"
         const val CONVERSATIONS = "/api/v1/ai/conversations"
         const val TRANSLATE = "/api/v1/ai/translate"
+        const val CLOUD = "/api/v1/ai/cloud"
         const val MAX_MESSAGE = 8000
         /** A message with its files in base64 ([AiAttachment.MAX_MESSAGE]), and room for the JSON around them. */
         const val MAX_MESSAGE_BODY = 8_500_000

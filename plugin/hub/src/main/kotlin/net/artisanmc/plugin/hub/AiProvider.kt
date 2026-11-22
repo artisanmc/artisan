@@ -7,7 +7,10 @@ import com.fasterxml.jackson.databind.JsonNode
  * talks to, on the admin's own key. Read by the hub only, never sent to the editor.
  */
 data class AiConfig(
-    /** `anthropic` or `openai` (any OpenAI-compatible API, at [baseUrl]); empty: no assistant. */
+    /**
+     * `anthropic`, `openai` (any OpenAI-compatible API, at [baseUrl]) or `artisan` (the models of
+     * artisanmc.net, paid from the linked site account's credits: no key); empty: no assistant.
+     */
     val provider: String = "",
     val apiKey: String = "",
     val model: String = DEFAULT_MODEL,
@@ -18,11 +21,38 @@ data class AiConfig(
     /** Another address for the provider's API (a proxy); empty: its own. */
     val baseUrl: String = "",
 ) {
-    val enabled: Boolean get() = provider.isNotBlank() && apiKey.isNotBlank()
+    val enabled: Boolean get() = provider == ARTISAN || (provider.isNotBlank() && apiKey.isNotBlank())
 
     companion object {
         const val DEFAULT_MODEL = "claude-opus-5-5"
-        val PROVIDERS = setOf("anthropic", "openai")
+        /** The site's models, through the network's link to its account ([CloudProvider]). */
+        const val ARTISAN = "artisan"
+        val PROVIDERS = setOf("anthropic", "openai", ARTISAN)
+    }
+}
+
+/**
+ * Where a provider sends its calls instead of the vendor's API: artisanmc.net's relay, which
+ * calls the vendor with its own key and takes the cost from the linked account ([CloudProvider]).
+ */
+class AiRelay(
+    val endpoint: String,
+    /** The site link's token, read at each call; null: the network is not linked. */
+    val token: () -> String?,
+    /** The site refused the token (unlinked there). */
+    val refused: () -> Unit = {},
+) {
+    fun key(): String = token() ?: throw AiFailure("ai_not_linked", "The network is not linked to an artisanmc.net account")
+
+    /** What the relay itself refuses, before or instead of the vendor's answer; null: the vendor's own failure. */
+    fun failure(status: Int, message: String): AiFailure? = when (status) {
+        401 -> {
+            runCatching(refused)
+            AiFailure("ai_not_linked", "artisanmc.net refused the link: $message")
+        }
+        402 -> AiFailure("ai_no_credits", "The linked account has no AI credits left")
+        404 -> AiFailure("ai_cloud_model", "artisanmc.net does not offer this model: $message")
+        else -> null
     }
 }
 

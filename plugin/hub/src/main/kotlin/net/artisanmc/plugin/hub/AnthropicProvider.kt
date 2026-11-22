@@ -23,8 +23,12 @@ class AnthropicProvider(
         // The longest silence between two pieces of a streamed answer (the API pings meanwhile).
         .readTimeout(Duration.ofMinutes(10))
         .build(),
+    /** artisanmc.net's relay instead of Anthropic's API ([CloudProvider]); null: the vendor's own, on [AiConfig.apiKey]. */
+    private val relay: AiRelay? = null,
 ) : AiProvider {
-    private val endpoint = config.baseUrl.ifBlank { DEFAULT_BASE_URL }.trimEnd('/') + "/v1/messages"
+    private val endpoint = relay?.endpoint ?: (config.baseUrl.ifBlank { DEFAULT_BASE_URL }.trimEnd('/') + "/v1/messages")
+    /** Anthropic's own API: the fields a proxy may refuse are sent only there. */
+    private val direct = relay == null && config.baseUrl.isBlank()
 
     override val model: String get() = config.model
 
@@ -56,6 +60,7 @@ class AnthropicProvider(
 
         @Synchronized
         override fun stream(input: List<AiInput>, live: (AiDelta) -> Unit): AiReply {
+            val key = relay?.key() ?: config.apiKey
             val answered = input.filterIsInstance<AiInput.ToolResult>().map { it.callId }.toSet()
             val interrupted = unanswered.filter { it !in answered }
                 .map { AiInput.ToolResult(it, """{"error":"interrupted","message":"The turn stopped before this result was sent; check what the call did before doing it again."}""", true) }
@@ -72,10 +77,10 @@ class AnthropicProvider(
             // Streamed: the editor shows the answer as it is written ([live]).
             body.put("stream", true)
             val request = Request.Builder().url(endpoint)
-                .header("x-api-key", config.apiKey)
+                .header(if (relay != null) "Authorization" else "x-api-key", if (relay != null) "Bearer $key" else key)
                 .header("anthropic-version", API_VERSION)
             // A refusal by a safety classifier is retried on another model the API picks.
-            if (config.model in FALLBACK_MODELS && config.baseUrl.isBlank()) {
+            if (config.model in FALLBACK_MODELS && direct) {
                 request.header("anthropic-beta", FALLBACK_BETA)
                 body.put("fallbacks", "default")
             }
@@ -138,6 +143,7 @@ class AnthropicProvider(
     private fun failed(status: Int, text: String): Nothing {
         val body = runCatching { Call.mapper.readTree(text) }.getOrNull()
         val message = body?.path("error")?.path("message")?.asText()?.takeIf { it.isNotBlank() } ?: text.take(200)
+        relay?.failure(status, message)?.let { throw it }
         throw when (status) {
             401 -> AiFailure("ai_key_refused", "Anthropic refused the API key")
             403 -> AiFailure("ai_key_refused", "Anthropic refused the API key: $message")
@@ -252,7 +258,7 @@ class AnthropicProvider(
         val declared = json.objectNode().put("name", tool.name).put("description", tool.description).set<ObjectNode>("input_schema", schema)
         // The input streams as the model writes it: a file being written shows before the call ends.
         // Not through another address: a proxy may refuse the field.
-        if (config.baseUrl.isBlank()) declared.put("eager_input_streaming", true)
+        if (direct) declared.put("eager_input_streaming", true)
         return declared
     }
 

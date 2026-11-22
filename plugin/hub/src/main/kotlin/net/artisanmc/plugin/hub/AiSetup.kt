@@ -109,7 +109,8 @@ class AiSetup(
     private fun build(config: AiConfig): AiAssistant? {
         if (!config.enabled) return null
         val provider = providerFor(config) ?: run {
-            logger?.warning("[Artisan] ai.provider '${config.provider}' is not one of ${AiConfig.PROVIDERS}: no assistant")
+            if (config.provider == AiConfig.ARTISAN) logger?.warning("[Artisan] ai.provider 'artisan' needs the site account (site.url): no assistant")
+            else logger?.warning("[Artisan] ai.provider '${config.provider}' is not one of ${AiConfig.PROVIDERS}: no assistant")
             return null
         }
         logger?.info("[Artisan] Editor assistant enabled: ${describe(config)}")
@@ -117,14 +118,17 @@ class AiSetup(
     }
 
     companion object {
-        fun defaultProvider(config: AiConfig): AiProvider? = when (config.provider) {
+        /** [site]: the network's link to its site account, which the `artisan` provider needs; without it, no such provider. */
+        fun defaultProvider(config: AiConfig, site: SiteAccount? = null): AiProvider? = when (config.provider) {
             "anthropic" -> AnthropicProvider(config)
             "openai" -> OpenAiProvider(config)
+            AiConfig.ARTISAN -> site?.let { CloudProvider(config, it) }
             else -> null
         }
 
         /** The protocol, where it is sent and the model: either with a base URL is another vendor's compatible API. */
         fun describe(config: AiConfig): String {
+            if (config.provider == AiConfig.ARTISAN) return "artisanmc.net (linked account's credits), model ${config.model}"
             val host = config.baseUrl.takeIf { it.isNotBlank() }?.let { runCatching { URI(it).host }.getOrNull() ?: it }
             return "${config.provider} API" + (host?.let { " at $it" } ?: "") + ", model ${config.model}"
         }

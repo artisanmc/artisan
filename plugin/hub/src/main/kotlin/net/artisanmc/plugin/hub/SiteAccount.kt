@@ -51,6 +51,29 @@ interface SiteApi {
 
     /** The catalogue for this account: `{channel, modules: […]}`. `site_unlinked` when the token is refused. */
     fun updates(token: String, channel: String, installed: Map<String, String>): JsonNode
+
+    /** The account's AI credits and the models on offer: `{balance, models: […], buy}`. `site_unlinked` when the token is refused. */
+    fun ai(token: String): JsonNode = throw SiteFailure("site_unreachable", "no AI on this site")
+}
+
+/** What artisanmc.net offers the linked account's assistant ([CloudProvider]): its balance in credits and the models. */
+data class SiteAi(val balance: Double, val models: List<Model>, val buy: String?) {
+    data class Model(val id: String, val label: String, val protocol: String, val attachments: Set<AiAttachment.Kind>)
+
+    fun model(id: String) = models.firstOrNull { it.id == id }
+
+    companion object {
+        fun read(body: JsonNode) = SiteAi(
+            balance = body.path("balance").asDouble(0.0),
+            models = body.path("models").mapNotNull { node ->
+                val id = node.path("id").asText("").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+                val protocol = node.path("protocol").asText("").takeIf { it == "anthropic" || it == "openai" } ?: return@mapNotNull null
+                val kinds = node.path("attachments").mapNotNull { kind -> AiAttachment.Kind.entries.firstOrNull { it.id == kind.asText() } }.toSet()
+                Model(id, node.path("label").asText(id), protocol, kinds + AiAttachment.Kind.TEXT)
+            },
+            buy = body.path("buy").asText("").takeIf { it.startsWith("https://") || it.startsWith("http://") },
+        )
+    }
 }
 
 /** [SiteApi] over HTTPS. Every call blocks: never on a Jetty selector or a game thread. */
@@ -89,6 +112,15 @@ class HttpSiteApi(private val baseUrl: String, private val version: String = "")
             200 -> body
             401 -> throw SiteFailure("site_unlinked")
             else -> throw SiteFailure("site_unreachable", "updates answered $status")
+        }
+    }
+
+    override fun ai(token: String): JsonNode {
+        val (status, body) = send(builder("/api/ai/").header("Authorization", "Bearer $token").GET().build())
+        return when (status) {
+            200 -> body
+            401 -> throw SiteFailure("site_unlinked")
+            else -> throw SiteFailure("site_unreachable", "ai answered $status")
         }
     }
 
@@ -215,11 +247,15 @@ class SiteAccount(
         unsaved = null
         store?.write(null)
         link = null
+        ai = null
         readAt = clock.instant()
     }
 
     /** The site refused the token (unlinked there): the link is gone, nothing to keep. */
-    fun refused() = try { unlink() } catch (_: Exception) { link = null }
+    fun refused() = try { unlink() } catch (_: Exception) {
+        link = null
+        ai = null
+    }
 
     fun updates(channel: String, installed: Map<String, String>): JsonNode {
         val token = link()?.token ?: throw SiteFailure("site_not_linked")
@@ -234,7 +270,37 @@ class SiteAccount(
         }
     }
 
+    @Volatile private var ai: Pair<SiteAi, Instant>? = null
+
+    /**
+     * The credits and models of the linked account, asked of the site at most every [AI_REFRESH]
+     * unless [fresh]. Blocks: never on a Jetty selector or a game thread. Throws [SiteFailure].
+     */
+    fun ai(fresh: Boolean = false): SiteAi {
+        val now = clock.instant()
+        ai?.takeIf { !fresh && Duration.between(it.second, now) < AI_REFRESH }?.let { return it.first }
+        val token = link()?.token ?: throw SiteFailure("site_not_linked")
+        val read = try {
+            SiteAi.read(api.ai(token))
+        } catch (e: SiteFailure) {
+            if (e.code == "site_unlinked") {
+                refused()
+                throw SiteFailure("site_not_linked")
+            }
+            throw e
+        }
+        ai = read to now
+        return read
+    }
+
+    /** What [ai] read last, without asking the site: null when it never did. */
+    fun knownAi(): SiteAi? = ai?.first
+
+    /** Where the assistant's calls go through the site ([CloudProvider]). */
+    val aiEndpoint: String get() = baseUrl.trimEnd('/') + "/api/ai/chat/"
+
     companion object {
         const val DEFAULT_URL = "https://artisanmc.net"
+        val AI_REFRESH: Duration = Duration.ofSeconds(60)
     }
 }

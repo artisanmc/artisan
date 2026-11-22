@@ -54,13 +54,15 @@ object EditorApi {
         }
         site?.let { SiteRoutes(servers, relay, it, logger).register(router) }
         ImportRoutes(servers, relay, logger).register(router)
-        AiRoutes(aiSetup(ai, aiSettings, aiProvider, tools, logger, aiConversations)).register(router)
+        AiRoutes(aiSetup(ai, aiSettings, aiProvider, tools, logger, aiConversations, site), site).register(router)
         return router
     }
 
-    private fun aiSetup(ai: AiConfig, settings: AiSettingsStore?, given: AiProvider?, tools: McpTools, logger: Logger?, conversations: AiConversationStore?): AiSetup =
+    private fun aiSetup(
+        ai: AiConfig, settings: AiSettingsStore?, given: AiProvider?, tools: McpTools, logger: Logger?, conversations: AiConversationStore?, site: SiteAccount?,
+    ): AiSetup =
         when {
-            given == null -> AiSetup(ai, settings, tools, logger, conversations = conversations)
+            given == null -> AiSetup(ai, settings, tools, logger, providerFor = { AiSetup.defaultProvider(it, site) }, conversations = conversations)
             settings == null -> AiSetup(AiConfig(provider = "given", apiKey = "given", model = given.model, maxSteps = ai.maxSteps), null, tools, logger, providerFor = { given }, conversations = conversations)
             else -> AiSetup(ai, settings, tools, logger, providerFor = { given }, conversations = conversations)
         }

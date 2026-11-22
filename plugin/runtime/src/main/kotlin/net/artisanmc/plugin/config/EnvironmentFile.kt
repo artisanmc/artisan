@@ -79,7 +79,9 @@ object EnvironmentFile {
         |# drafts, which they review and deploy. Its calls are billed to this key.
         |# Changes apply after a restart.
         |#   provider  : "anthropic", or "openai" for any OpenAI-compatible API (OpenAI, DeepSeek,
-        |#               Mistral, OpenRouter, Ollama…); empty turns the assistant off
+        |#               Mistral, OpenRouter, Ollama…), or "artisan" for artisanmc.net's models,
+        |#               paid from the credits of the linked site account (no api-key);
+        |#               empty turns the assistant off
         |#   api-key   : e.g. "${'$'}{ANTHROPIC_API_KEY}", to keep the key out of this file
         |#   model     : as the vendor names it; empty is claude-opus-5-5
         |#   base-url  : another vendor's compatible API, e.g. "https://api.deepseek.com" with

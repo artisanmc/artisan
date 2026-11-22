@@ -72,6 +72,7 @@ import {
   Table2,
   type Terminal,
 } from "lucide-react";
+import { AiCreditsLink } from "./AiCreditsLink";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { SidebarSearch } from "./SidebarSearch";
 import { UserMenu } from "./UserMenu";
@@ -371,6 +372,8 @@ export function ProjectSidebar() {
           <span className="truncate">{t("sidebar.updatesAvailable", { count: updates })}</span>
         </Link>
       )}
+
+      <AiCreditsLink />
 
       <UserMenu serverLabel={activeServerLabel} />
     </nav>

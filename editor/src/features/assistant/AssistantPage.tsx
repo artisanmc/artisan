@@ -8,13 +8,13 @@ import {
 import { deployDraftsAndReport } from "@/features/project/publish/deployDrafts";
 import { selectedDrafts, useOtherDrafts } from "@/features/project/publish/useOtherDrafts";
 import { useServerProjects } from "@/features/project/useServerProjects";
+import { liveWrites } from "@/lib/aiLive";
 import { type AiConversationSummary, listAiConversations } from "@/lib/api/ai";
 import { cn } from "@/lib/cx";
 import { useParams } from "@tanstack/react-router";
 import { MessageSquarePlus, Play, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { liveWrites } from "@/lib/aiLive";
 import { ArtifactCard, LiveArtifactCard } from "./ArtifactCard";
 import { artifactsOf, conversationDrafts, draftVersions } from "./artifacts";
 
@@ -136,7 +136,9 @@ export function AssistantPage() {
               <p>{t("ai.page.intro")}</p>
               {status && (
                 <p className="text-[12px] text-[var(--text-faint)]">
-                  {t("ai.billing", { model: status.model ?? "" })}
+                  {t(status.cloud ? "ai.billingCloud" : "ai.billing", {
+                    model: status.model ?? "",
+                  })}
                 </p>
               )}
             </div>
