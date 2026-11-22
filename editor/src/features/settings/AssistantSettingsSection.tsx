@@ -2,9 +2,11 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Segmented } from "@/components/ui/segmented";
 import {
+  type AiCloud,
   type AiSettings,
   type AiSettingsInput,
   deleteAiSettings,
+  getAiCloud,
   getAiSettings,
   saveAiSettings,
 } from "@/lib/api/ai";
@@ -31,6 +33,9 @@ const PRESETS: Record<string, { id: string; url: string }[]> = {
     { id: "ollama", url: "http://localhost:11434/v1" },
   ],
 };
+
+/** artisanmc.net's models, on the linked account's credits: no key, no address. */
+const CLOUD = "artisan";
 
 const DEFAULT_URL: Record<string, string> = {
   anthropic: "https://api.anthropic.com",
@@ -60,6 +65,9 @@ export function AssistantSettingsSection() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  /** The site's models, asked once the `artisan` API is picked; null: could not be read. */
+  const [cloud, setCloud] = useState<AiCloud | null | undefined>(undefined);
+  const cloudPicked = form?.provider === CLOUD;
 
   const show = (s: AiSettings) => {
     setSettings(s);
@@ -74,6 +82,13 @@ export function AssistantSettingsSection() {
       })
       .catch(() => setSettings(null));
   }, []);
+
+  useEffect(() => {
+    if (!cloudPicked || cloud !== undefined) return;
+    getAiCloud()
+      .then(setCloud)
+      .catch(() => setCloud(null));
+  }, [cloudPicked, cloud]);
 
   if (settings === undefined)
     return <p className="text-[13px] text-[var(--text-mut)]">{t("ai.settings.loading")}</p>;
@@ -111,8 +126,8 @@ export function AssistantSettingsSection() {
         model: form.model.trim(),
         effort: form.effort,
         maxSteps: Number.parseInt(form.maxSteps, 10),
-        baseUrl: form.baseUrl.trim(),
-        ...(apiKey ? { apiKey } : {}),
+        baseUrl: cloudPicked ? "" : form.baseUrl.trim(),
+        ...(apiKey && !cloudPicked ? { apiKey } : {}),
       }),
     );
   };
@@ -142,74 +157,87 @@ export function AssistantSettingsSection() {
                 provider,
                 baseUrl: "",
                 model:
-                  provider !== "anthropic" && form.model === settings.defaultModel
+                  provider === CLOUD || form.provider === CLOUD
                     ? ""
-                    : form.model,
+                    : provider !== "anthropic" && form.model === settings.defaultModel
+                      ? ""
+                      : form.model,
               })
             }
           />
         </FormField>
-        <div className="flex flex-col gap-2">
-          <FormField
-            label={t("ai.settings.baseUrl")}
-            hint={t(`ai.settings.baseUrlHints.${form.provider}`, {
-              defaultValue: t("ai.settings.baseUrlHint"),
-            })}
-          >
-            <Input
-              value={form.baseUrl}
-              placeholder={DEFAULT_URL[form.provider] ?? ""}
-              inputMode="url"
-              maxLength={300}
-              onChange={(e) => set({ baseUrl: e.target.value })}
-            />
-          </FormField>
-          {(PRESETS[form.provider] ?? []).length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {(PRESETS[form.provider] ?? []).map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className={cn("chip text-[12px]", form.baseUrl === preset.url && "is-active")}
-                  aria-pressed={form.baseUrl === preset.url}
-                  onClick={() => set({ baseUrl: preset.url })}
-                >
-                  {t(`ai.settings.vendors.${preset.id}`)}
-                </button>
-              ))}
+        {cloudPicked ? (
+          <CloudModels cloud={cloud} model={form.model} onPick={(model) => set({ model })} />
+        ) : (
+          <>
+            <div className="flex flex-col gap-2">
+              <FormField
+                label={t("ai.settings.baseUrl")}
+                hint={t(`ai.settings.baseUrlHints.${form.provider}`, {
+                  defaultValue: t("ai.settings.baseUrlHint"),
+                })}
+              >
+                <Input
+                  value={form.baseUrl}
+                  placeholder={DEFAULT_URL[form.provider] ?? ""}
+                  inputMode="url"
+                  maxLength={300}
+                  onChange={(e) => set({ baseUrl: e.target.value })}
+                />
+              </FormField>
+              {(PRESETS[form.provider] ?? []).length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {(PRESETS[form.provider] ?? []).map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      className={cn("chip text-[12px]", form.baseUrl === preset.url && "is-active")}
+                      aria-pressed={form.baseUrl === preset.url}
+                      onClick={() => set({ baseUrl: preset.url })}
+                    >
+                      {t(`ai.settings.vendors.${preset.id}`)}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <FormField label={t("ai.settings.model")} hint={t("ai.settings.modelHint")}>
-          <Input
-            value={form.model}
-            placeholder={
-              form.provider === "anthropic" ? settings.defaultModel : t("ai.settings.modelExamples")
-            }
-            maxLength={128}
-            required
-            onChange={(e) => set({ model: e.target.value })}
-          />
-        </FormField>
-        <FormField
-          label={t("ai.settings.apiKey")}
-          hint={
-            settings.keyHint
-              ? t("ai.settings.apiKeySaved", { hint: settings.keyHint })
-              : t("ai.settings.apiKeyHint")
-          }
-        >
-          <Input
-            type="password"
-            autoComplete="off"
-            value={form.apiKey}
-            placeholder={settings.keyHint ?? "sk-…"}
-            maxLength={500}
-            onChange={(e) => set({ apiKey: e.target.value })}
-          />
-        </FormField>
+            <FormField label={t("ai.settings.model")} hint={t("ai.settings.modelHint")}>
+              <Input
+                value={form.model}
+                placeholder={
+                  form.provider === "anthropic"
+                    ? settings.defaultModel
+                    : t("ai.settings.modelExamples")
+                }
+                maxLength={128}
+                required
+                onChange={(e) => set({ model: e.target.value })}
+              />
+            </FormField>
+            <FormField
+              label={t("ai.settings.apiKey")}
+              hint={
+                settings.keyHint
+                  ? t("ai.settings.apiKeySaved", { hint: settings.keyHint })
+                  : t("ai.settings.apiKeyHint")
+              }
+            >
+              <Input
+                type="password"
+                autoComplete="off"
+                value={form.apiKey}
+                placeholder={settings.keyHint ?? "sk-…"}
+                maxLength={500}
+                onChange={(e) => set({ apiKey: e.target.value })}
+              />
+            </FormField>
+          </>
+        )}
         {/* Only Anthropic's API takes it: a compatible API leaves the model's own default. */}
-        {form.provider === "anthropic" && (
+        {(form.provider === "anthropic" ||
+          (cloudPicked &&
+            cloud?.linked &&
+            cloud.models.find((m) => m.id === form.model)?.protocol === "anthropic")) && (
           <FormField group label={t("ai.settings.effort")} hint={t("ai.settings.effortHint")}>
             <Segmented
               label={t("ai.settings.effort")}
@@ -256,5 +284,47 @@ export function AssistantSettingsSection() {
         </div>
       )}
     </form>
+  );
+}
+
+/** The `artisan` API's models: artisanmc.net's catalogue, one click each. */
+function CloudModels({
+  cloud,
+  model,
+  onPick,
+}: {
+  cloud: AiCloud | null | undefined;
+  model: string;
+  onPick: (model: string) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const note = (text: string) => <p className="text-[13px] text-[var(--text-mut)]">{text}</p>;
+  if (cloud === undefined) return note(t("ai.settings.cloudLoading"));
+  if (cloud === null) return note(t("ai.settings.cloudFailed"));
+  if (!cloud.linked) return note(t("ai.settings.cloudUnlinked"));
+  const balance = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(
+    cloud.balance,
+  );
+  return (
+    <FormField group label={t("ai.settings.cloudModel")} hint={t("ai.settings.cloudHint")}>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {cloud.models.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              className={cn("chip text-[12px]", model === m.id && "is-active")}
+              aria-pressed={model === m.id}
+              onClick={() => onPick(m.id)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[12px] text-[var(--text-mut)]">
+          {t("ai.settings.cloudBalance", { balance })}
+        </p>
+      </div>
+    </FormField>
   );
 }

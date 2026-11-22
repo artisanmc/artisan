@@ -131,6 +131,24 @@ than the hub. One single Artisan user at this date: the admin's key first.
    refuses another kind at once and the hub refuses it too (`ai_attachment_model`), rather than
    the vendor's error after the message left. The editor offers the known addresses in one click.
 
+13. **Artisan's models, on the site account's credits** (2026-11-22). `provider: artisan` needs no
+   key: the network's link to its artisanmc.net account (ADR `site-account-and-module-updates`)
+   pays, so every editor user of the network spends that one balance, with no per-player quota.
+   The site is a relay that speaks each model's own protocol (`POST {site.url}/api/ai/chat/`,
+   `Authorization: Bearer <link token>`): `CloudProvider` asks the site's catalogue
+   (`GET /api/ai/`, kept a minute) which protocol the chosen model speaks, then is
+   `AnthropicProvider` or `OpenAiProvider` pointed at the relay (`AiRelay`). Nothing only
+   Anthropic's own API reads is sent (no `fallbacks`, no `eager_input_streaming`), the site swaps
+   in the vendor's model name and its own key, streams the answer back and charges the account
+   what the answer says it used, at the price the site's admin set per million tokens. The
+   relay's own refusals become `ai_not_linked` (401: the link is forgotten, as for updates),
+   `ai_no_credits` (402: balance at zero or below; the call that crosses zero is paid in full)
+   and `ai_cloud_model` (404: the site no longer offers the model). The history key is
+   `artisan|<model>`; the files a model reads come from the catalogue (text alone before the
+   site answered). `GET /api/v1/ai` says `cloud: true`, and the editor shows the balance at the
+   bottom of the sidebar, linking to the account page on the site. Credits are given by the
+   site's admins; buying them is not built yet.
+
 ## Consequences
 
 - The admin pays for every message of every player who has `edit`. No per-player quota nor
@@ -141,6 +159,6 @@ than the hub. One single Artisan user at this date: the admin's key first.
 
 ## Deferred
 
-- Artisan's cloud service and the per-server wallet, behind the same relay.
+- Buying credits on the site (decision 13), possibly for an account one does not sign in to.
 - An `artisan.editor.ai` permission and a per-player quota, if others than the admin use it.
 - The model's progress notes between two tools (`display: "updates"`).
