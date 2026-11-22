@@ -31,6 +31,14 @@ class PackLoadTracker : Listener {
     /** True once [packId], sent by Artisan, loaded for [playerId]: sending it again is useless. */
     fun hasLoaded(playerId: UUID, packId: UUID): Boolean = loaded[playerId] == packId
 
+    /**
+     * [packId] loaded before [playerId] joined ([PreJoinPackLoads]): Paper fires no status event
+     * in the configuration phase. Same rule as the event.
+     */
+    fun loadedBeforeJoin(playerId: UUID, packId: UUID) {
+        if (delegated || packId in artisanPacks) loaded[playerId] = packId
+    }
+
     @EventHandler
     fun onStatus(event: PlayerResourcePackStatusEvent) {
         if (event.status != PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) return
