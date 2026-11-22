@@ -11,8 +11,8 @@ import { projectClient } from "@/lib/projectClient";
 import { listDocumentKindContributions } from "@artisan/editor-sdk";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { overlayImagesFromFiles } from "./overlayImages";
-import { filesWithOriginals } from "./shippedView";
 import { type PackProject, type ServerPacks, assembleServerPack } from "./packAssembly";
+import { filesWithOriginals } from "./shippedView";
 import type { GuiContainer } from "./vanillaGui";
 
 const VANILLA_TEXTURES: Record<GuiContainer, string> = {
@@ -151,15 +151,15 @@ export async function uploadBedrockPack(serverId: string, pack: Uint8Array): Pro
   }
 }
 
-const running = new Map<string, Promise<void>>();
-const queued = new Map<string, Promise<void>>();
+const running = new Map<string, Promise<string | null>>();
+const queued = new Map<string, Promise<string | null>>();
 
 /**
  * Rebuilds and sends a server's pack in the background. One build at a time
  * per server, at most one pending: requests arriving while one runs share the
  * next, which re-reads the most recent published state.
  */
-export function requestResourcePackRebuild(serverId: string): Promise<void> {
+export function requestResourcePackRebuild(serverId: string): Promise<string | null> {
   const waiting = queued.get(serverId);
   if (waiting) return waiting;
   const current = running.get(serverId);
@@ -177,14 +177,18 @@ export function requestResourcePackRebuild(serverId: string): Promise<void> {
 /**
  * Asks the hub to build and apply the server's packs itself (`POST …/resource-pack/rebuild`).
  * False when the hub does not (an older plugin, or a hub still in shadow mode: 404): the
- * browser then builds them, as before.
+ * browser then builds them, as before. Otherwise the Java pack's hash, null while the hub is
+ * still building.
  */
-export async function requestHubPackRebuild(serverId: string): Promise<boolean> {
+export async function requestHubPackRebuild(
+  serverId: string,
+): Promise<false | { hash: string | null }> {
   try {
-    await apiFetch<{ done: boolean }>(`/api/v1/servers/${serverId}/resource-pack/rebuild`, {
-      method: "POST",
-    });
-    return true;
+    const answer = await apiFetch<{ done: boolean; hash?: string | null }>(
+      `/api/v1/servers/${serverId}/resource-pack/rebuild`,
+      { method: "POST" },
+    );
+    return { hash: (answer?.done && answer.hash) || null };
   } catch (error) {
     const failure = ApiError.from(error);
     if (failure.status === 404) return false;
@@ -196,12 +200,15 @@ export async function requestHubPackRebuild(serverId: string): Promise<boolean> 
   }
 }
 
-function start(serverId: string): Promise<void> {
+/** Resolves with the hash of the Java pack the server now has, null when not known yet. */
+function start(serverId: string): Promise<string | null> {
   const run = (async () => {
-    if (await requestHubPackRebuild(serverId)) return;
+    const hub = await requestHubPackRebuild(serverId);
+    if (hub) return hub.hash;
     const { zipBytes, bedrock } = await buildServerPack(serverId);
-    await uploadResourcePack(serverId, zipBytes);
+    const { hash } = await uploadResourcePack(serverId, zipBytes);
     if (bedrock) await uploadBedrockPack(serverId, bedrock.bytes);
+    return hash ?? null;
   })().finally(() => {
     if (running.get(serverId) === run) running.delete(serverId);
   });

@@ -168,7 +168,7 @@ describe("buildServerPack", () => {
 
   test("another server of the network: its own routes and the `<server>.<folder>` ids the hub lists", async () => {
     const { fetchMock, uploads } = mockHub({ server: LOBBY, ids: ["lobby.beta", "lobby.alpha"] });
-    await requestResourcePackRebuild(LOBBY);
+    await expect(requestResourcePackRebuild(LOBBY)).resolves.toBe("abc");
     expect(uploads).toHaveLength(1);
     const reads = fetchMock.mock.calls
       .map(([url]) => new URL(String(url), "http://x").pathname)
@@ -202,7 +202,8 @@ describe("buildServerPack", () => {
 
   test("a hub that builds the packs itself: the browser asks it and builds nothing", async () => {
     const { fetchMock, uploads } = mockHub({ hubBuilds: 200 });
-    await requestResourcePackRebuild(HUB);
+    // The hub's hash comes back: the deploy compares it with the last one to announce a change.
+    await expect(requestResourcePackRebuild(HUB)).resolves.toBe("def");
     expect(uploads).toHaveLength(0);
     const paths = fetchMock.mock.calls.map(([url]) => new URL(String(url), "http://x").pathname);
     expect(paths).toEqual([`/api/v1/servers/${HUB}/resource-pack/rebuild`]);

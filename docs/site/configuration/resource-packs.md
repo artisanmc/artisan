@@ -74,6 +74,11 @@ resource-pack:
   delegate-reload-command: "oraxen reload pack"
 ```
 
+When a deployment changes the pack (a new or moved image button, a new symbol), the editor
+says so. Without a `delegate-reload-command` it warns instead: the host plugin keeps serving
+the old pack, so new or moved images stay invisible until you reload it by hand
+(`nexo reload pack`, `oraxen reload pack`) and players load the pack again.
+
 For ItemsAdder or another host, point `delegate-to-dir` at the folder it merges and
 set its reload command. The path is absolute or relative to the server root. On
 success the log shows:
