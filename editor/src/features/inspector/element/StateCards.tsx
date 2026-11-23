@@ -26,7 +26,7 @@ import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { listLanguages } from "@/lib/i18nUsages";
-import { ITEM_NAME, LORE } from "@/lib/mm/profiles";
+import { CONTAINER_TITLE, ITEM_NAME, LORE } from "@/lib/mm/profiles";
 import { lookupPath } from "@/lib/placeholders";
 import { useGetText } from "@/lib/useText";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
@@ -707,7 +707,7 @@ function StateCard({
                       value={value}
                       onChange={onChange}
                       aria-label={label}
-                      profile={ITEM_NAME}
+                      profile={CONTAINER_TITLE}
                       entries={placeholderEntries}
                       placeholder={fallback || t("elementLabel.placeholder")}
                       toolbar="focus"

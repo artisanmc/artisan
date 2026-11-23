@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { EditorView } from "@codemirror/view";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Asset } from "@/domain/asset";
@@ -7,6 +8,20 @@ import { useAssetStore } from "@/features/assets/assetStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { LayerEditForm } from "./LayerEditForm";
+
+/** The rich MiniMessage editor (CodeMirror) of the text field. */
+const textEditor = (root: ParentNode) =>
+  EditorView.findFromDOM(root.querySelector(".cm-editor") as HTMLElement)!;
+const editorText = (root: ParentNode) => textEditor(root).state.doc.toString();
+function typeText(root: ParentNode, text: string) {
+  const view = textEditor(root);
+  act(() =>
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: text },
+      userEvent: "input.type",
+    }),
+  );
+}
 
 // Mock AssetPicker — same pattern as AddLayerBar.test. Renders a clickable
 // stub when `open` so we can assert the picker is mounted and exercise the
@@ -126,7 +141,7 @@ describe("LayerEditForm — empty state", () => {
       "text",
     );
     fireEvent.change(screen.getByTestId("textarea-width"), { target: { value: "100" } });
-    fireEvent.change(container.querySelector("textarea")!, { target: { value: "Hello\nWorld" } });
+    typeText(container, "Hello\nWorld");
     const project = useProjectsStore.getState().openProjects.projects[0]!;
     expect(menusOf(project)[0]!.title[0]).toMatchObject({
       kind: "textarea",
@@ -306,15 +321,13 @@ describe("LayerEditForm — text layer", () => {
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
     // The field shows a rendered facade until clicked (like the item inputs).
 
-    const input = container.querySelector("input, textarea") as HTMLInputElement;
-    expect(input.value).toBe("Hello");
+    expect(editorText(container)).toBe("Hello");
   });
 
   it("typing in the multiline editor writes via setI18nValue", () => {
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
 
-    const input = container.querySelector("input, textarea")!;
-    fireEvent.change(input, { target: { value: "<gold>Hi</gold>" } });
+    typeText(container, "<gold>Hi</gold>");
     expect(useProjectsStore.getState().openProjects.projects[0]!.i18nKeys[K("greet")]!.en).toBe(
       "<gold>Hi</gold>",
     );
@@ -428,7 +441,7 @@ describe("LayerEditForm — textarea layer", () => {
 
   it("renders the multi-line textarea + line-height + alignment + font picker + xy inputs", () => {
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
-    expect(container.querySelector("textarea")).toBeTruthy();
+    expect(container.querySelector(".cm-editor")).toBeTruthy();
     expect(screen.getByTestId("textarea-line-height")).toBeTruthy();
     expect(screen.getByTestId("textarea-align-left")).toBeTruthy();
     expect(screen.getByTestId("textarea-align-center")).toBeTruthy();
@@ -440,8 +453,7 @@ describe("LayerEditForm — textarea layer", () => {
 
   it("editing the content writes newlines to the i18n value", () => {
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
-    const ta = container.querySelector("textarea") as HTMLTextAreaElement;
-    fireEvent.change(ta, { target: { value: "line1\nline2\nline3" } });
+    typeText(container, "line1\nline2\nline3");
     const updated = useProjectsStore.getState().openProjects.projects[0]!.i18nKeys[K("t1")]?.en;
     expect(updated).toBe("line1\nline2\nline3");
   });
