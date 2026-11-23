@@ -437,6 +437,18 @@ describe("menuV1ToDomain — title layers + menu assembly", () => {
     });
   });
 
+  it("a textarea without line_height reads 10, as the plugin does", () => {
+    const src = {
+      schema: "menu/v1",
+      id: "s",
+      size: 27,
+      layers: [],
+      title: [{ kind: "textarea", value: "Day", x: 88, y: 20, width: 168, alignment: "center" }],
+    };
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.title[0]).toMatchObject({ kind: "textarea", lineHeight: 10 });
+  });
+
   it("un-snakes external_glyph title layer (glyph_name → glyphName)", () => {
     const src = {
       schema: "menu/v1",
