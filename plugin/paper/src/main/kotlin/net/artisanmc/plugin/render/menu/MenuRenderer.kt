@@ -143,7 +143,46 @@ object MenuRenderer {
         windows?.open(player, inv, content, menu.yaml.vanillaTexture, title.takeUnless { ServerPlatform.paper })
         player.openInventory(inv)
         if (player.openInventory.topInventory !== inv) windows?.release(player, inv)
-        return MenuSession(menu.id, renderCtx, fill.activeClicks, fill.slotArgs, content, menu.escapeGoesBack, fill.slotElements)
+        return MenuSession(menu.id, renderCtx, fill.activeClicks, fill.slotArgs, content, menu.escapeGoesBack, fill.slotElements,
+            refresh = fill.refresher(renderCtx))
+    }
+
+    /** `{refresh.n}`: how many times the element was redrawn since the menu opened (0 at opening). */
+    private fun withRefresh(ctx: ExecutionContext, n: Long): ExecutionContext =
+        ctx.copy(args = ctx.args + ("refresh" to mapOf("n" to n)))
+
+    private tailrec fun gcd(a: Int, b: Int): Int = if (b == 0) a else gcd(b, a % b)
+
+    /**
+     * One slot an element with `refresh_ticks` drew at opening, and how to draw it again:
+     * the row it shows, and for an element the title draws (image, label) the appearance
+     * chosen then, kept since the title cannot change without reopening the menu.
+     */
+    private class RefreshSlot(
+        val elementId: String,
+        val slot: Int,
+        val rowArgs: Map<String, Any>?,
+        val pinned: CompiledAppearance?,
+        /** Drawn as the invisible hit item under an image of the title. */
+        val hit: Boolean,
+    )
+
+    /** The [MenuRefresh] of one opening: each due element redraws its slots, in stacking order. */
+    private class Refresher(private val fill: SlotFill, private val ctx: ExecutionContext) : MenuRefresh {
+        private val byElement: Map<String, List<RefreshSlot>> = fill.refreshSlots.groupBy { it.elementId }
+        override val periodTicks: Long =
+            byElement.keys.map { fill.periods.getValue(it) }.reduce(::gcd).toLong()
+        private var elapsed = 0L
+
+        override fun tick() {
+            elapsed += periodTicks
+            for ((elementId, slots) in byElement) {
+                val period = fill.periods.getValue(elementId)
+                if (elapsed % period != 0L) continue
+                val elementCtx = withRefresh(ctx, elapsed / period)
+                for (slot in slots) fill.redraw(slot, elementCtx)
+            }
+        }
     }
 
     /**
@@ -325,6 +364,74 @@ object MenuRenderer {
         /** The element shown in each clickable slot: what `core:menu_click` counts a click by. */
         val slotElements = mutableMapOf<Int, String>()
 
+        /** `refresh_ticks` of each element that has one. */
+        val periods: Map<String, Int> =
+            menu.allElements.mapNotNull { el -> el.refreshPeriod?.let { el.id to it } }.toMap()
+        /** Elements the title draws (an image or a label in one of their appearances): a refresh keeps their appearance. */
+        private val pinnedElements: Set<String> = menu.allElements
+            .filter { el -> (listOf(el.display) + el.states).any { it.image != null || it.label != null } }
+            .mapTo(mutableSetOf()) { it.id }
+        val refreshSlots = mutableListOf<RefreshSlot>()
+        /** The element whose item each slot shows: a refresh never draws over a later element. */
+        private val slotOwners = mutableMapOf<Int, String>()
+
+        fun refresher(ctx: ExecutionContext): MenuRefresh? =
+            if (refreshSlots.isEmpty()) null else Refresher(this, ctx)
+
+        /** Notes the [slots] of a refreshing [elementId] so [redraw] can draw them again. */
+        fun track(elementId: String, slots: List<Int>, rowArgs: Map<String, Any>?, chosen: CompiledAppearance?, hit: Boolean) {
+            if (elementId !in periods) return
+            val pinned = if (elementId in pinnedElements) chosen ?: return else null
+            for (slot in slots) refreshSlots += RefreshSlot(elementId, slot, rowArgs, pinned, hit)
+        }
+
+        /**
+         * Draws [s] again in [ctx]: the same rule as at opening (first appearance whose
+         * conditions pass, its clicks with it), or only the texts of the pinned appearance.
+         * The slot is written, hence sent, only when its item changed.
+         */
+        fun redraw(s: RefreshSlot, ctx: ExecutionContext) {
+            val owner = slotOwners[s.slot]
+            if (owner != null && owner != s.elementId) return
+            val itemCtx = if (s.rowArgs != null) ctx.copy(args = ctx.args + s.rowArgs) else ctx
+            val pinned = s.pinned
+            if (pinned != null) {
+                write(s.slot, if (s.hit) buildImageHitItem(pinned.yaml, itemCtx, evaluator.deps, pinned.i18nBase)
+                    else build(pinned, itemCtx))
+                return
+            }
+            val chosen = choose(s.elementId, itemCtx)
+            if (chosen == null) {
+                write(s.slot, null)
+                slotOwners.remove(s.slot)
+                activeClicks.remove(s.slot); slotElements.remove(s.slot); slotArgs.remove(s.slot)
+                return
+            }
+            write(s.slot, build(chosen, itemCtx))
+            slotOwners[s.slot] = s.elementId
+            if (chosen.clicks.isNotEmpty()) {
+                activeClicks[s.slot] = chosen.clicks
+                slotElements[s.slot] = s.elementId
+                if (s.rowArgs != null) slotArgs[s.slot] = s.rowArgs
+            } else {
+                activeClicks.remove(s.slot); slotElements.remove(s.slot); slotArgs.remove(s.slot)
+            }
+        }
+
+        private fun write(slot: Int, item: ItemStack?) {
+            val shown = item?.takeUnless { it.type.isAir }
+            if (!sameLook(content[slot], shown)) content[slot] = shown
+        }
+
+        /** Equal stacks, name and lore compared as components too (not every meta's `equals` reads them). */
+        private fun sameLook(a: ItemStack?, b: ItemStack?): Boolean {
+            if (a == null || b == null) return a === b
+            if (a != b) return false
+            val am = a.itemMeta ?: return b.itemMeta == null
+            val bm = b.itemMeta ?: return false
+            return ItemTexts.name(am) == ItemTexts.name(bm) && ItemTexts.lore(am) == ItemTexts.lore(bm)
+        }
+
         /** The first appearance of [elementId] whose conditions pass in [ctx]. */
         fun choose(elementId: String, ctx: ExecutionContext): CompiledAppearance? =
             compiledAppearances[elementId].orEmpty().firstOrNull { evaluator.evaluateAll(it.conditions, ctx) }
@@ -334,8 +441,13 @@ object MenuRenderer {
             if (chosen.yaml.namesNoLook()) buildImageHitItem(chosen.yaml, ctx, evaluator.deps, chosen.i18nBase)
             else buildItem(chosen.yaml, ctx, evaluator.deps, chosen.i18nBase)
 
-        fun place(elementId: String, slots: List<Int>, chosen: CompiledAppearance, item: ItemStack, rowArgs: Map<String, Any>? = null) {
+        fun place(
+            elementId: String, slots: List<Int>, chosen: CompiledAppearance, item: ItemStack,
+            rowArgs: Map<String, Any>? = null, hit: Boolean = false,
+        ) {
+            track(elementId, slots, rowArgs, chosen, hit)
             for (slot in slots) {
+                slotOwners[slot] = elementId
                 content[slot] = item
                 if (chosen.clicks.isNotEmpty()) {
                     activeClicks[slot] = chosen.clicks
@@ -348,7 +460,7 @@ object MenuRenderer {
         /** One row of a source in one slot: the row is bound under its alias for the conditions, the item and the click. */
         fun placeRow(elementId: String, slot: Int, rowArgs: Map<String, Any>, ctx: ExecutionContext) {
             val itemCtx = ctx.copy(args = ctx.args + rowArgs)
-            val chosen = choose(elementId, itemCtx) ?: return
+            val chosen = choose(elementId, itemCtx) ?: return track(elementId, listOf(slot), rowArgs, null, false)
             val image = chosen.yaml.image
             if (image == null) {
                 place(elementId, listOf(slot), chosen, build(chosen, itemCtx), rowArgs)
@@ -361,7 +473,7 @@ object MenuRenderer {
             if (glyph != null) {
                 rowGlyphs += glyph
                 place(elementId, listOf(slot), chosen,
-                    buildImageHitItem(chosen.yaml, itemCtx, evaluator.deps, chosen.i18nBase), rowArgs)
+                    buildImageHitItem(chosen.yaml, itemCtx, evaluator.deps, chosen.i18nBase), rowArgs, hit = true)
             } else if (chosen.yaml.material != null || chosen.yaml.item != null || chosen.yaml.extends != null) {
                 place(elementId, listOf(slot), chosen, build(chosen, itemCtx), rowArgs)
             }
@@ -381,6 +493,7 @@ object MenuRenderer {
     private fun layout(menu: RuntimeMenu, ctx: ExecutionContext, images: ImageButtons, fill: SlotFill) {
         val slotLimit = fill.content.slotLimit
         for (element in menu.yaml.allElements) {
+            val ctx = if (element.id in fill.periods) withRefresh(ctx, 0) else ctx
             if (element.id in images.choices) {
                 val chosen = images.choices[element.id] ?: continue
                 val layout = images.layouts[element.id] ?: continue
@@ -388,7 +501,7 @@ object MenuRenderer {
                 if (image != null && images.layers.none { it.assetId == layout.assetKey(image) }) continue
                 val item = if (image == null) fill.build(chosen, ctx)
                     else buildImageHitItem(chosen.yaml, ctx, fill.evaluator.deps, chosen.i18nBase)
-                fill.place(element.id, layout.slots, chosen, item)
+                fill.place(element.id, layout.slots, chosen, item, hit = image != null)
                 continue
             }
 
@@ -413,7 +526,9 @@ object MenuRenderer {
             val slots = parsePositions(element.positionsSpec, slotLimit)
             val iter = element.iterates
             if (iter == null) {
-                val chosen = fill.choose(element.id, ctx) ?: continue
+                val chosen = fill.choose(element.id, ctx)
+                    ?: run { fill.track(element.id, slots, null, null, false); null }
+                    ?: continue
                 fill.place(element.id, slots, chosen, fill.build(chosen, ctx))
                 continue
             }

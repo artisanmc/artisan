@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { assetPreviewUrl } from "@/domain/asset";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import { addressedAppearances } from "@/domain/element";
+import { clampRefreshTicks } from "@/domain/elementRefresh";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Element, ElementId, Menu, MenuId, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
@@ -121,6 +122,7 @@ export function ElementEditor({
         {!element.places ? (
           <PositionsField projectId={projectId} menuId={menu.id} element={element} />
         ) : null}
+        <RefreshField projectId={projectId} menuId={menu.id} element={element} />
         {/* Iteration is managed at the MENU level (data section — item set);
             the element only shows its binding as context for the states. */}
         {element.iterates ? (
@@ -265,6 +267,63 @@ function PositionsField({
         }}
         className="h-8 px-2 py-0 font-mono text-xs"
       />
+    </div>
+  );
+}
+
+/** Ticks ⇄ the seconds the field shows (20 ticks = 1 s). */
+const secondsOf = (ticks: number | undefined) => (ticks === undefined ? "" : String(ticks / 20));
+
+function RefreshField({
+  projectId,
+  menuId,
+  element,
+}: {
+  projectId: ProjectId;
+  menuId: MenuId;
+  element: Element;
+}) {
+  const { t } = useTranslation();
+  const setElementRefresh = useProjectsStore((s) => s.setElementRefresh);
+  const [draft, setDraft] = useState(secondsOf(element.refreshTicks));
+  // biome-ignore lint/correctness/useExhaustiveDependencies: element.id forces draft reset on element switch
+  useEffect(() => {
+    setDraft(secondsOf(element.refreshTicks));
+  }, [element.id, element.refreshTicks]);
+  const commit = () => {
+    const seconds = Number.parseFloat(draft.replace(",", "."));
+    const ticks = draft.trim() === "" || Number.isNaN(seconds) ? undefined : seconds * 20;
+    const written = clampRefreshTicks(ticks);
+    if (written !== element.refreshTicks) {
+      setElementRefresh({ projectId, menuId, elementId: element.id, ticks: written });
+    }
+    setDraft(secondsOf(written));
+  };
+  const pinned = [element.display, ...element.states].some((a) => a.image || a.label);
+  return (
+    <div className="mb-3">
+      <FieldLabel>{t("flow.refreshLabel")}</FieldLabel>
+      <Input
+        data-testid="element-refresh"
+        inputMode="decimal"
+        value={draft}
+        placeholder={t("flow.refreshPlaceholder")}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+            e.currentTarget.blur();
+          }
+        }}
+        className="h-8 px-2 py-0 font-mono text-xs"
+      />
+      {element.refreshTicks !== undefined ? (
+        <div className="mt-1 text-[11px] text-[var(--text-faint)]">
+          {t("flow.refreshHint")}
+          {pinned ? ` ${t("flow.refreshPinnedHint")}` : null}
+        </div>
+      ) : null}
     </div>
   );
 }

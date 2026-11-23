@@ -82,6 +82,7 @@ function serializeElement(el: Element, project: Project): Record<string, unknown
     out.states = el.states.map((s) => serializeAppearance(s, project));
   }
   if (el.tags && el.tags.length > 0) out.tags = el.tags;
+  if (el.refreshTicks !== undefined) out.refresh_ticks = el.refreshTicks;
   return out;
 }
 

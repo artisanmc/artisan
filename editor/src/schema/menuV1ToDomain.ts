@@ -378,6 +378,7 @@ export function menuV1ToDomain(
       ...(el.iterates ? { iterates: iteratesOf(el.iterates) } : {}),
       ...(el.places ? { places: placesOf(el.places) } : {}),
       ...(el.tags ? { tags: el.tags } : {}),
+      ...(typeof el.refresh_ticks === "number" ? { refreshTicks: el.refresh_ticks } : {}),
     };
   }
 

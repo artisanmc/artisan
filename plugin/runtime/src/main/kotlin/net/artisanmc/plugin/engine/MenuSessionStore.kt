@@ -15,8 +15,20 @@ data class MenuSession(
     val escapeGoesBack: Boolean = false,
     /** The element id behind each clickable slot (`core:menu_click`). */
     val slotElements: Map<Int, String> = emptyMap(),
+    /** Redraws the elements that have a `refresh_ticks`; null when none has. */
+    val refresh: MenuRefresh? = null,
 ) {
     val ref: MenuRef get() = MenuRef(ctx.projectId, menuId)
+}
+
+/**
+ * The elements of an open menu that redraw themselves (`refresh_ticks`). [tick] runs every
+ * [periodTicks] on the player's thread, as long as the menu it was rendered for stays open;
+ * it rewrites only the slots whose item changed.
+ */
+interface MenuRefresh {
+    val periodTicks: Long
+    fun tick()
 }
 
 class MenuSessionStore {
