@@ -167,6 +167,18 @@ runs: `give_money: "{var.reward}"`, `teleport: "{var.last_death}"`. In the edito
 button next to a number switches it to a template. A template that does not give a number (or a
 place) skips that action and writes a warning in the server console; the rest of the chain runs.
 
+## Numbers
+
+| Method | Example | Result |
+|---|---|---|
+| `compact()` | `{guild.balance.compact()}` | `18.4K` — a number shortened to fit a small space |
+
+Below 10,000 a number reads as is. Above, it takes one unit, `K`, `M`, `B` or `T`
+(`18.4K`, `184K`, `1.8M`, `250B`), five characters at most up to 999T: a balance in a
+textured box or a short label never runs over. It rounds toward zero, so it never reads
+more than the value (999,999 is `999K`), and keeps one decimal only below 100 of a unit.
+Show the exact number elsewhere, in the lore for instance.
+
 ## Time
 
 Time fields carry an exact instant — the moment a quest group resets, the moment an

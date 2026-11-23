@@ -364,6 +364,7 @@ const KNOWN_METHODS = [
   "contains",
   "pluck",
   "mod",
+  "compact",
 ];
 
 function ValueView({ value }: { value: Value }) {

@@ -1,5 +1,6 @@
 import type { AstNode } from "./ast";
 import { compare, looseEq, toBoolean, toNumber, toStringValue } from "./coercion";
+import { formatCompact } from "./compact";
 import { formatDuration } from "./duration";
 import type { Scope } from "./scope";
 
@@ -169,6 +170,12 @@ function invokeMethod(target: unknown, method: string, args: unknown[], scope: S
       const ms = toNumber(target);
       if (ms === null) return "";
       return formatDuration(ms, (key) => scope.translate(key));
+    }
+    case "compact": {
+      // A number shortened to fit a small space (`{guild.balance.compact()}` reads `18.4K`).
+      const n = toNumber(target);
+      if (n === null) return "";
+      return formatCompact(n);
     }
     default:
       return null;

@@ -152,6 +152,7 @@ export const mmEditorEn = {
       contains: "list",
       pluck: "from each of",
       mod: "remainder of",
+      compact: "short form of",
     },
     methodArgs: {
       join: "separated by",
@@ -333,6 +334,7 @@ export const mmEditorFr: typeof mmEditorEn = {
       contains: "la liste",
       pluck: "pour chaque élément de",
       mod: "reste de",
+      compact: "forme courte de",
     },
     methodArgs: {
       join: "séparés par",

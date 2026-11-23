@@ -806,5 +806,93 @@
       "n": 3
     },
     "expected": "on"
+  },
+  {
+    "name": "compact leaves a small number as is",
+    "template": "[{n.compact()}]",
+    "scope": {
+      "n": 9999
+    },
+    "expected": "[9999]"
+  },
+  {
+    "name": "compact shortens thousands with one decimal",
+    "template": "[{n.compact()}]",
+    "scope": {
+      "n": 18450
+    },
+    "expected": "[18.4K]"
+  },
+  {
+    "name": "compact drops a zero decimal",
+    "template": "[{n.compact()}]",
+    "scope": {
+      "n": 10000
+    },
+    "expected": "[10K]"
+  },
+  {
+    "name": "compact rounds toward zero",
+    "template": "[{n.compact()}]",
+    "scope": {
+      "n": 999999
+    },
+    "expected": "[999K]"
+  },
+  {
+    "name": "compact has no decimal from 100 of a unit",
+    "template": "[{n.compact()}]",
+    "scope": {
+      "n": 184999
+    },
+    "expected": "[184K]"
+  },
+  {
+    "name": "compact reads millions",
+    "template": "[{n.compact()}]",
+    "scope": {
+      "n": 2300000
+    },
+    "expected": "[2.3M]"
+  },
+  {
+    "name": "compact reads billions",
+    "template": "[{n.compact()}]",
+    "scope": {
+      "n": 250000000000
+    },
+    "expected": "[250B]"
+  },
+  {
+    "name": "compact stops at trillions",
+    "template": "[{n.compact()}]",
+    "scope": {
+      "n": 12000000000000000
+    },
+    "expected": "[12000T]"
+  },
+  {
+    "name": "compact keeps the sign",
+    "template": "[{n.compact()}]",
+    "scope": {
+      "n": -18450
+    },
+    "expected": "[-18.4K]"
+  },
+  {
+    "name": "compact truncates a fraction",
+    "template": "[{n.compact()}]",
+    "scope": {
+      "n": 1234.9
+    },
+    "expected": "[1234]"
+  },
+  {
+    "name": "compact — not a number reads empty",
+    "template": "[{n.compact()}]",
+    "scope": {
+      "n": "rich"
+    },
+    "expected": "[]"
   }
 ]

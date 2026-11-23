@@ -163,6 +163,11 @@ private fun invokeMethod(target: Any?, method: String, args: List<Any?>, scope: 
         val ms = toNumberOrNull(target)
         if (ms == null) "" else Duration.format(ms.toLong()) { scope.translate(it) }
     }
+    "compact" -> {
+        // A number shortened to fit a small space (`{guild.balance.compact()}` reads `18.4K`).
+        val n = toNumberOrNull(target)
+        if (n == null) "" else Compact.format(n)
+    }
     else -> null
 }
 
