@@ -11,12 +11,12 @@ describe("title text decorations", () => {
 
   it("draws 8 underline bars on row 8 and 8 strikethrough bars on row 4, 2^i px wide", () => {
     const sheet = decorationSheet();
-    expect([sheet.width, sheet.height]).toEqual([2048, 16]);
+    expect([sheet.width, sheet.height]).toEqual([128, 256]);
     const lit = (x: number, y: number) => sheet.data[(y * sheet.width + x) * 4 + 3] === 255;
-    expect(lit(0, 8) && lit(127, 8) === false).toBe(true);
-    expect(lit(7 * 128 + 127, 8)).toBe(true);
-    expect(lit(8 * 128, 4) && !lit(8 * 128 + 1, 4)).toBe(true);
-    expect([...DECORATION_CHARS]).toHaveLength(16);
+    expect(lit(0, 8) && !lit(1, 8)).toBe(true);
+    expect(lit(127, 7 * 16 + 8)).toBe(true);
+    expect(lit(0, 8 * 16 + 4) && !lit(1, 8 * 16 + 4)).toBe(true);
+    expect(DECORATION_CHARS).toHaveLength(16);
   });
 
   it("adds the bars to a text font at the ascii scale", () => {
@@ -28,7 +28,7 @@ describe("title text decorations", () => {
       file: "artisan:font/decorations.png",
       ascent: 7 + 6 - 20,
       height: 24,
-      chars: [DECORATION_CHARS],
+      chars: DECORATION_CHARS,
     });
   });
 });
