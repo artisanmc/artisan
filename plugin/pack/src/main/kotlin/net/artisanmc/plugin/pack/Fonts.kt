@@ -97,7 +97,7 @@ internal object Fonts {
                 "file" to "artisan:font/decorations.png",
                 "ascent" to ASCII.ascent + shift,
                 "height" to 2 * h,
-                "chars" to listOf(TextDecorations.CHARS),
+                "chars" to TextDecorations.CHARS,
             ))),
         )
     }

@@ -1627,7 +1627,7 @@
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
         "assets/artisan/textures/font/accented_up.png": "00615ae046e35e18b8cc07eb97b750f4228b66db2ee2658f5311b93bb46aab08",
         "assets/artisan/textures/font/ascii_up.png": "f15b11eb5088fffe26be53f613ce3b186313847dc7a468fe91e95cb3af59f6c4",
-        "assets/artisan/textures/font/decorations.png": "88b1b7188f71fe4117afb5ff0d456bb17882f9911b4f07c5492cc76ae062dd37",
+        "assets/artisan/textures/font/decorations.png": "58d95a9aed0124abb5e8a75fdad598652de8b3de40be473214af92d106ed01db",
         "assets/artisan/textures/font/nonlatin_european_up.png": "ac34c8eb477c012101f587847cc74843be4df9287839502111535169584e222c",
         "assets/artisan/textures/gui/dispenser.png": "437f4c4c7cc98af96577d01a62aba607cf999bdc6ad032fa6cdf6ad47f44b718",
         "assets/artisan/textures/gui/generic_9x1.png": "898d282a843d306f23652f10f78e8bf765f25d5095f60e8cab8db8543b2fee02",
@@ -1645,7 +1645,7 @@
         "assets/artisan/font/text_y20_h12.json"
       ],
       "textUpFonts": 129,
-      "sha1": "dae83080a975dbc901a9ed890073b1d5c07be92d"
+      "sha1": "2cc1f23c4a597521bb9c74e85bd10babe9c08f1f"
     }
   ]
 }
