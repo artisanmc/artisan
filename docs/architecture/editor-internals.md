@@ -76,7 +76,11 @@ appearance card; width and height edit the Element's existing `positions` into
 one complete rectangle. States share that footprint but keep independent images,
 conditions, title/lore and actions. Iteration and explicit placements are excluded.
 `domain/imageButton.ts` validates resize/move operations and rejects collisions.
-`ImageButtonsRender` draws the display image once and drags the whole rectangle.
+`ImageButtonsRender` draws the display image once and drags the whole rectangle. On release,
+the slot under the pointer (`hitTestSlot`, any menu of the Project) receives the cell of the
+button held at mouse-down (`imageButtonOrigin`, in grid cells so the gaps above the player rows
+do not shift it); `moveImageButton` moves it there, into another menu when the slot is in one
+(id renamed only on a clash, texts rekeyed).
 The **Buttons → Images** tab lists button-classified PNGs with `ceil(width/16)` ×
 `ceil(height/16)` slot footprints and supports upload and direct drag/drop.
 The image drag overlay uses asset dimensions × `TEX_SCALE` × the live Stage zoom;

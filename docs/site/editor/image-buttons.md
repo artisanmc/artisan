@@ -20,7 +20,9 @@ To use an image of another project of the server, choose that project in the
 (see [Projects](../projects/)).
 Adjust **Width** and **Height** in slots:
 2 × 1 makes a horizontal button, 1 × 2 a vertical button, 2 × 2 covers four slots,
-and 3 × 2 or 2 × 3 covers six. Drag the image to move the entire button.
+and 3 × 2 or 2 × 3 covers six. Drag the image to move the entire button: the part of the
+button you hold lands on the slot under the pointer. Release it over another menu of the
+project to move it there.
 
 **Natural size** is the default for new buttons: an 8×8 PNG stays 8×8 and is centered.
 Use **Horizontal/Vertical offset (px)** to move it within the area, or **Center image**

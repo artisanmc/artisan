@@ -265,7 +265,16 @@ export function MenuGroup({
           layers select them, clicks on the grey backdrop set this menu as the
           selected one (and clear any layer selection belonging to this menu). */}
       <TitleRender projectId={projectId} menuId={menu.id} scale={TEX_SCALE} pass="visual" />
-      <ImageButtonsRender projectId={projectId} menu={menu} onDeepSelect={onDeepSelect} />
+      <ImageButtonsRender
+        projectId={projectId}
+        menu={menu}
+        frame={
+          solo
+            ? { position: { x: 0, y: 0 }, layout: { [key]: { x: 0, y: 0 } } }
+            : { position, layout }
+        }
+        onDeepSelect={onDeepSelect}
+      />
       <PlacementTray
         menu={menu}
         project={project}
