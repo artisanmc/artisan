@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.engine
 
 import net.artisanmc.plugin.command.ModuleCommandLine
+import net.artisanmc.plugin.integrations.BackLocation
 import net.artisanmc.plugin.platform.ServerPlatform
 import net.artisanmc.plugin.text.LenientText
 import net.kyori.adventure.title.Title
@@ -133,6 +134,7 @@ internal object PlayerActions {
             rt.warn("teleport: no world '${worldName.orEmpty()}' on this server — skipped")
             return ctx
         }
+        BackLocation.record(ctx.player)
         ServerPlatform.teleport(ctx.player, if (place != null) org.bukkit.Location(
             world, place.x, place.y, place.z, place.yaw.toFloat(), place.pitch.toFloat(),
         ) else org.bukkit.Location(

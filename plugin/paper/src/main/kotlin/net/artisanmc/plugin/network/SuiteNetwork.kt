@@ -11,6 +11,7 @@ import net.artisanmc.modules.api.network.TeleportResult
 import net.artisanmc.modules.api.text.TextApi
 import net.artisanmc.plugin.database.NetworkPlayerRow
 import net.artisanmc.plugin.database.NetworkRows
+import net.artisanmc.plugin.integrations.BackLocation
 import net.artisanmc.plugin.platform.ServerPlatform
 import net.artisanmc.plugin.scheduling.Scheduler
 import org.bukkit.Location
@@ -128,6 +129,7 @@ internal class SuiteNetwork(
         if (!here && !knows(location.server)) return CompletableFuture.completedFuture(TeleportResult.UNKNOWN_SERVER)
         if (here && plugin.server.getWorld(location.world) == null) return CompletableFuture.completedFuture(TeleportResult.UNKNOWN_WORLD)
         return afterDelay(player, delaySeconds) { target ->
+            BackLocation.record(target)
             if (here) {
                 val world = plugin.server.getWorld(location.world) ?: return@afterDelay TeleportResult.UNKNOWN_WORLD
                 ServerPlatform.teleport(target, Location(world, location.x, location.y, location.z, location.yaw, location.pitch))
@@ -144,6 +146,7 @@ internal class SuiteNetwork(
         if (server.equals(name, ignoreCase = true)) return CompletableFuture.completedFuture(TeleportResult.DONE)
         if (!knows(server)) return CompletableFuture.completedFuture(TeleportResult.UNKNOWN_SERVER)
         return afterDelay(player, delaySeconds) { target ->
+            BackLocation.record(target)
             sendTo(target, server)
             TeleportResult.DONE
         }
