@@ -25,6 +25,7 @@ vi.mock("react-konva", () => ({
     onDblTap?: ClickHandler;
     x?: number;
     y?: number;
+    draggable?: boolean;
   }) => (
     // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
@@ -32,6 +33,7 @@ vi.mock("react-konva", () => ({
       data-name={props.name}
       data-x={props.x}
       data-y={props.y}
+      data-draggable={String(Boolean(props.draggable))}
       onClick={(e) => {
         const evt = { cancelBubble: false, evt: e.nativeEvent as MouseEvent };
         props.onClick?.(evt);
@@ -168,5 +170,31 @@ describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
     expect(useSelectionStore.getState().ids.has(`menu/${MENU_ID}`)).toBe(true);
     expect(useSelectionStore.getState().ids.has("el1")).toBe(false);
     expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
+  });
+});
+
+describe("MenuGroup — slot drag", () => {
+  it("an element with no item (an invisible hover area) drags itself, not the whole menu", () => {
+    const menu = {
+      ...menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!,
+      layers: [
+        {
+          id: "l",
+          elements: [
+            { id: "streak", positions: "0-2", display: { title: "Streak" }, states: [] },
+            { id: "sword", positions: "5", display: { material: "diamond_sword" }, states: [] },
+          ],
+        },
+      ],
+    } as unknown as Menu;
+    render(<MenuGroup projectId={PACK_ID} menu={menu} position={{ x: 0, y: 0 }} layout={{}} />);
+    const slot = (i: number) =>
+      screen
+        .getAllByTestId("konva-group")
+        .find((g) => g.getAttribute("data-name") === `slot:${MENU_ID}:${i}`)!;
+    expect(slot(0).getAttribute("data-draggable")).toBe("true");
+    expect(slot(2).getAttribute("data-draggable")).toBe("true");
+    expect(slot(5).getAttribute("data-draggable")).toBe("true");
+    expect(slot(3).getAttribute("data-draggable")).toBe("false");
   });
 });

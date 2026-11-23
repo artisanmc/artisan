@@ -16,6 +16,7 @@ import { TEX_SLOT_STRIDE, slotXY } from "./menuLayout";
 import { buildPreviewScope } from "./menuPreviewScope";
 import { placementAtSlot } from "./placement";
 
+/** `material` empty: an element with no item, drawn as its dashed outline. */
 export type SiblingGhost = { position: number; material: string; head?: string; count?: number };
 export type DragState =
   | null
@@ -120,12 +121,12 @@ export function useSlotDrag(args: UseSlotDragArgs) {
           for (const el of layer.elements) {
             if (!sel.ids.has(el.id)) continue;
             const appearance = el.display;
-            if (!appearance?.material) continue;
+            if (appearance?.image) continue;
             for (const p of parsePositions(el.positions)) {
               if (p === slotPosition) continue;
               siblings.push({
                 position: p,
-                material: appearance.material,
+                material: appearance?.material ?? "",
                 head: appearance.head,
                 count: appearance.count,
               });
