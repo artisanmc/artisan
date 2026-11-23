@@ -80,6 +80,8 @@ class SyncedMenuProvider(
     /** Fetchers touch the Bukkit API: they run on the thread that owns the state they read. */
     private val scheduler: Scheduler = Scheduler.Direct,
     private val menuWindows: net.artisanmc.plugin.render.packets.MenuWindows? = null,
+    /** Redraws the `refresh_ticks` elements of the menus it opens; null: drawn once. */
+    private val menuRefresh: net.artisanmc.plugin.render.menu.MenuRefreshLoop? = null,
     private val pluginVersion: String = "1.0.0",
     private val nexoGlyphs: net.artisanmc.plugin.customitems.NexoGlyphReader? = null,
     private val nexoItemIcons: net.artisanmc.plugin.customitems.NexoItemIcons? = null,
@@ -440,6 +442,7 @@ class SyncedMenuProvider(
             dataSources, projectDataResolver, menuWindows, isBedrock,
         )
         sessions?.set(player, session)
+        menuRefresh?.start(player, session)
     }
 
     override fun findDialog(dialogId: String): RuntimeDialog? = findDialog(dialogId, null)

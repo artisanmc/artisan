@@ -202,11 +202,48 @@ artisan:
 
 Without those keys you get the compact defaults (`3h 12m`).
 
-:::note[Counters do not tick]
-A menu is redrawn every time the player interacts with it, so a countdown is exact
-each time it is drawn — but it does not count down while the player stands still
-looking at the inventory.
-:::
+### Countdowns and animations: refresh an element
+
+A menu is drawn when it opens and each time the player's click repaints it. To keep a
+countdown ticking while the player only looks, give the element a refresh period: in
+the editor, **refresh every (seconds)** on the element; in the file, `refresh_ticks`
+(20 ticks = 1 second, 2 at least).
+
+```yaml
+- id: event_timer
+  positions: 4
+  refresh_ticks: 20
+  material: CLOCK
+  title: "Ends in {var.event_end.until()}"
+```
+
+While the menu stays open, that element is drawn again at each period: its states'
+conditions, its texts, its `{…}` and `%placeholders%`. Only the slots whose item changed
+are sent to the player, and the rest of the menu is left alone: its data sources are
+not fetched again, so a repeating element keeps the rows it opened with and redraws each
+of them (`{offer.expires_at.until()}` on every offer).
+
+`{refresh.n}` counts the redraws of the element, `0` at opening. `mod(n)` turns it into a
+frame number that cycles (`{refresh.n.mod(3)}` reads `0`, `1`, `2`, `0`…, never negative);
+used in the conditions of the element's states, it makes an animation:
+
+```yaml
+- id: beacon
+  positions: 13
+  refresh_ticks: 10
+  material: LIGHT_BLUE_STAINED_GLASS_PANE
+  states:
+    - if: [{ type: expression, expr: "refresh.n.mod(2) == 1" }]
+      material: BLUE_STAINED_GLASS_PANE
+```
+
+The title cannot change without reopening the menu. An element that has an image or a
+label (both are drawn in the title) therefore keeps the state chosen at opening; only its
+name and lore are redrawn.
+
+Each refreshed element costs the server a few item builds per period and per viewer,
+more if its placeholders are slow: keep the period as long as the display allows (a
+countdown in minutes needs `refresh_ticks: 1200`, not `20`).
 
 ## When something goes wrong
 

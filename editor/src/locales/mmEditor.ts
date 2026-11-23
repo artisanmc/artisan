@@ -151,12 +151,14 @@ export const mmEditorEn = {
       at: "item of",
       contains: "list",
       pluck: "from each of",
+      mod: "remainder of",
     },
     methodArgs: {
       join: "separated by",
       at: "at position",
       contains: "contains",
       pluck: "the field",
+      mod: "divided by",
     },
   },
 };
@@ -330,12 +332,14 @@ export const mmEditorFr: typeof mmEditorEn = {
       at: "élément de",
       contains: "la liste",
       pluck: "pour chaque élément de",
+      mod: "reste de",
     },
     methodArgs: {
       join: "séparés par",
       at: "à la position",
       contains: "contient",
       pluck: "le champ",
+      mod: "divisé par",
     },
   },
 };

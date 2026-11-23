@@ -1,5 +1,6 @@
 import { docKey, mutableCommands, mutableMenus } from "@/domain/documents";
 import { addressedAppearances, appearanceAt } from "@/domain/element";
+import { clampRefreshTicks } from "@/domain/elementRefresh";
 import { rekeyCommand, rekeyMenu } from "@/domain/i18nSites";
 import { newLayerId } from "@/domain/ids";
 import {
@@ -169,6 +170,13 @@ export interface ElementsSlice {
       value: string;
     } & AppearanceTarget,
   ) => void;
+  /** `refresh_ticks` of the element; undefined: drawn once, at opening. Below 2 reads 2. */
+  setElementRefresh: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    elementId: ElementId;
+    ticks: number | undefined;
+  }) => void;
   /** Replace the element's positions string (e.g. "0-8,17,26"). */
   setElementPositions: (input: {
     projectId: ProjectId;
@@ -614,6 +622,12 @@ export const createElementsSlice = ({
         appearance.label = next;
       });
     },
+    setElementRefresh: ({ projectId: pId, menuId: mId, elementId, ticks }) =>
+      mutateElement(pId, mId, elementId, (el) => {
+        const clamped = clampRefreshTicks(ticks);
+        if (clamped === undefined) Reflect.deleteProperty(el, "refreshTicks");
+        else el.refreshTicks = clamped;
+      }),
     setElementPositions: ({ projectId: pId, menuId: mId, elementId, positions }) =>
       mutateElement(pId, mId, elementId, (el, menu) => {
         if (hasImageButton(el)) assertImageButtonPlacement(menu, el, positions);

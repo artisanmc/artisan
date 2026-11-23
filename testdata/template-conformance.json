@@ -774,5 +774,37 @@
     },
     "now": 1754400000000,
     "expected": "[]"
+  },
+  {
+    "name": "mod cycles a counter",
+    "template": "{n.mod(4)}",
+    "scope": {
+      "n": 6
+    },
+    "expected": "2"
+  },
+  {
+    "name": "mod is never negative",
+    "template": "{n.mod(4)}",
+    "scope": {
+      "n": -1
+    },
+    "expected": "3"
+  },
+  {
+    "name": "mod by zero renders empty",
+    "template": "{n.mod(0)}",
+    "scope": {
+      "n": 5
+    },
+    "expected": ""
+  },
+  {
+    "name": "mod in a condition picks a frame",
+    "template": "{n.mod(2) == 1 ? \"on\" : \"off\"}",
+    "scope": {
+      "n": 3
+    },
+    "expected": "on"
   }
 ]

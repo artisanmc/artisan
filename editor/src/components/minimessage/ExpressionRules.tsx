@@ -363,6 +363,7 @@ const KNOWN_METHODS = [
   "at",
   "contains",
   "pluck",
+  "mod",
 ];
 
 function ValueView({ value }: { value: Value }) {

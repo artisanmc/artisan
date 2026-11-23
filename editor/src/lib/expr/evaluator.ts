@@ -156,6 +156,14 @@ function invokeMethod(target: unknown, method: string, args: unknown[], scope: S
       if (at === null) return "";
       return formatDuration(scope.now() - at, (key) => scope.translate(key));
     }
+    case "mod": {
+      // The remainder of a division, never negative (`{refresh.n.mod(4)}` cycles 0..3): a refreshing
+      // element's frames. Null for a divisor of zero.
+      const n = toNumber(target);
+      const by = toNumber(args[0]);
+      if (n === null || by === null || by === 0) return null;
+      return ((n % by) + by) % by;
+    }
     case "duration": {
       // A length of time in milliseconds (`{player.playtime.duration()}`), same units as until().
       const ms = toNumber(target);

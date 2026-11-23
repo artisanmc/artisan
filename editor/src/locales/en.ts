@@ -649,6 +649,12 @@ export default {
     positionsLabelOther: "positions ({{count}} slots)",
     iterationManagedHint: '— fields via {{example}}, managed in "Data".',
     iterateBound: "Iterating over {{source}} as {{alias}}",
+    refreshLabel: "refresh every (seconds)",
+    refreshPlaceholder: "never",
+    refreshHint:
+      "Redraws this element while the menu is open: conditions, texts and placeholders again. {refresh.n} counts the redraws. 0.1 s minimum.",
+    refreshPinnedHint:
+      "Its image or label is in the title: the state chosen at opening stays, only its texts are redrawn.",
     deleteElement: "Delete this element",
     states: "States",
     addState: "+ Add state",

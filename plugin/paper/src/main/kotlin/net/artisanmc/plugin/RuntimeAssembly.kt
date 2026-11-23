@@ -276,6 +276,7 @@ internal class RuntimeAssembly(
         declaredModels = { api.models.declared().map { it.document } },
         scheduler = scheduler,
         menuWindows = menuWindows,
+        menuRefresh = net.artisanmc.plugin.render.menu.MenuRefreshLoop(scheduler, sessions, logger),
         pluginVersion = description.version,
         nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(dataFolder.parentFile, "Nexo")),
         nexoItemIcons = net.artisanmc.plugin.customitems.NexoItemIcons(java.io.File(dataFolder.parentFile, "Nexo")),

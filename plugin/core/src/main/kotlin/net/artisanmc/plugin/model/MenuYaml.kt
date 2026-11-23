@@ -130,7 +130,22 @@ data class ElementYaml(
     /** Guarded alternatives, tried in order BEFORE the display. Each is a whole
      *  appearance: what it omits is absent, never inherited from the display. */
     val states: List<AppearanceYaml> = emptyList(),
+    /**
+     * Redraws the element every this many ticks while the menu stays open (`refresh_ticks`):
+     * conditions, texts and placeholders again, one slot packet when the item changed. Null:
+     * drawn once, at opening. Read through [refreshPeriod].
+     */
+    @JsonProperty("refresh_ticks") val refreshTicks: Int? = null,
 ) {
+    /** [refreshTicks] as the runtime uses it: null when absent or not positive, never under [MIN_REFRESH_TICKS]. */
+    val refreshPeriod: Int?
+        get() = refreshTicks?.takeIf { it > 0 }?.coerceAtLeast(MIN_REFRESH_TICKS)
+
+    companion object {
+        /** Ten redraws a second at most: a faster period is read as this one. */
+        const val MIN_REFRESH_TICKS = 2
+    }
+
     /** Comma-joined spec string, whichever wire form carried the positions. */
     val positionsSpec: String
         get() = when (positions) {

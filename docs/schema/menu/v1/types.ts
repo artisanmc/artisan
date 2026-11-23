@@ -168,6 +168,8 @@ export interface Element extends Appearance {
   iterates?: { source: string; alias: string };
   template_ref?: TemplateRef | null;
   tags?: string[];
+  /** Redraws the element every this many ticks while the menu stays open (2 minimum, 20 = 1 s). */
+  refresh_ticks?: number;
 }
 
 export interface Appearance {

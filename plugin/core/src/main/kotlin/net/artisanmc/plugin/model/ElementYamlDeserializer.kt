@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer
  * `testdata/element-structural-keys.json`, so an appearance field that would
  * shadow a structural key fails a test instead of silently winning.
  */
-val ELEMENT_STRUCTURAL_KEYS = setOf("id", "positions", "iterates", "places", "states", "tags")
+val ELEMENT_STRUCTURAL_KEYS = setOf("id", "positions", "iterates", "places", "states", "tags", "refresh_ticks")
 
 /**
  * Reads the flat element form: the structural keys become the element's own
@@ -51,6 +51,7 @@ class ElementYamlDeserializer : StdDeserializer<ElementYaml>(ElementYaml::class.
                 ?: node.get("states")?.takeIf { it.isArray }?.map {
                     codec.treeToValue(it, AppearanceYaml::class.java)
                 } ?: emptyList(),
+            refreshTicks = node.get("refresh_ticks")?.takeIf { it.canConvertToInt() && it.isNumber }?.asInt(),
         )
     }
 

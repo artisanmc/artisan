@@ -334,6 +334,12 @@
             "type": "string"
           }
         },
+        "refresh_ticks": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 72000,
+          "description": "Redraws the element every this many ticks (20 = 1 s) while the menu stays open: conditions, texts and placeholders again, `{refresh.n}` counting the redraws. One slot packet only when the item changed. An element with an image or a label keeps the appearance chosen at opening (the title cannot change) and redraws its texts."
+        },
         "places": {
           "$ref": "#/$defs/Places"
         },
@@ -351,7 +357,7 @@
         }
       ],
       "unevaluatedProperties": false,
-      "description": "An element: its structural keys (`id`, `positions`, `iterates`, `places`, `states`, `tags`) plus, at the same level, the fields of its look."
+      "description": "An element: its structural keys (`id`, `positions`, `iterates`, `places`, `states`, `tags`, `refresh_ticks`) plus, at the same level, the fields of its look."
     },
     "ContextInput": {
       "type": "object",

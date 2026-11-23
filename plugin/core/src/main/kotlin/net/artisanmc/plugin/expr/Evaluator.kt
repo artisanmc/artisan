@@ -151,6 +151,13 @@ private fun invokeMethod(target: Any?, method: String, args: List<Any?>, scope: 
         val at = toNumberOrNull(target)
         if (at == null) "" else Duration.format(scope.now() - at.toLong()) { scope.translate(it) }
     }
+    "mod" -> {
+        // The remainder of a division, never negative (`{refresh.n.mod(4)}` cycles 0..3): a refreshing
+        // element's frames. Null for a divisor of zero.
+        val n = toNumberOrNull(target)
+        val by = toNumberOrNull(args.getOrNull(0))
+        if (n == null || by == null || by == 0.0) null else ((n % by) + by) % by
+    }
     "duration" -> {
         // A length of time in milliseconds (`{player.playtime.duration()}`), same units as until().
         val ms = toNumberOrNull(target)

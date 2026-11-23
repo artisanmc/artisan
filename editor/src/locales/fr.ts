@@ -663,6 +663,12 @@ const fr: typeof en = {
     positionsLabelOther: "positions ({{count}} slots)",
     iterationManagedHint: "— champs via {{example}}, géré dans « Données ».",
     iterateBound: "Itère sur {{source}} en tant que {{alias}}",
+    refreshLabel: "rafraîchir toutes les (secondes)",
+    refreshPlaceholder: "jamais",
+    refreshHint:
+      "Redessine cet élément tant que le menu est ouvert : conditions, textes et placeholders recalculés. {refresh.n} compte les rafraîchissements. 0,1 s minimum.",
+    refreshPinnedHint:
+      "Son image ou son label est dans le titre : l'état choisi à l'ouverture reste, seuls ses textes sont redessinés.",
     deleteElement: "Supprimer cet élément",
     states: "États",
     addState: "+ Ajouter un état",

@@ -14,7 +14,8 @@
     "iterates",
     "places",
     "states",
-    "tags"
+    "tags",
+    "refresh_ticks"
   ],
   "appearance": [
     "image",

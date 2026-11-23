@@ -387,6 +387,11 @@ export interface Element {
   states: Appearance[];
   tags?: string[];
   /**
+   * `refresh_ticks`: redraws the element every this many ticks while the menu is
+   * open (2 minimum, 20 = 1 s). Absent: drawn once, at opening.
+   */
+  refreshTicks?: number;
+  /**
    * Iteration: when set, this element is rendered once per item of the
    * source list (a placeholder pointing to a list-typed value in the
    * menu's context, e.g. `quests`). Each iteration's `alias` (e.g.
