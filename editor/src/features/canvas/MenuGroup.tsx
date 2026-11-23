@@ -280,6 +280,9 @@ export function MenuGroup({
         if (el?.image) return null;
         const present = Boolean(el);
         const filled = Boolean(el?.material);
+        // Any element moves by its slot, an invisible one (no item) too: otherwise the drag
+        // falls through to the menu, which moves instead.
+        const movableId = el?.elementId as ElementId | undefined;
         const innerX = TEX_SLOT_INNER_OFFSET;
         const innerY = TEX_SLOT_INNER_OFFSET;
         const elementSelected = Boolean(
@@ -303,13 +306,9 @@ export function MenuGroup({
             y={y}
             name={`slot:${menu.id}:${i}`}
             listening={present || armedForThisMenu}
-            draggable={filled}
-            onDragStart={
-              filled && el?.elementId
-                ? (e) => onSlotDragStart(e, i, el.elementId as ElementId)
-                : undefined
-            }
-            onDragMove={filled ? onSlotDragMove : undefined}
+            draggable={Boolean(movableId)}
+            onDragStart={movableId ? (e) => onSlotDragStart(e, i, movableId) : undefined}
+            onDragMove={movableId ? onSlotDragMove : undefined}
             onClick={present || armedForThisMenu ? (e) => onSlotClick(e, i, el) : undefined}
             onTap={present || armedForThisMenu ? (e) => onSlotTap(e, i, el) : undefined}
             onMouseEnter={
@@ -323,11 +322,7 @@ export function MenuGroup({
             onMouseLeave={
               present ? () => useHoverStore.getState().setElement(null, null) : undefined
             }
-            onDragEnd={
-              filled && el?.elementId
-                ? (e) => onSlotDragEnd(e, i, el.elementId as ElementId)
-                : undefined
-            }
+            onDragEnd={movableId ? (e) => onSlotDragEnd(e, i, movableId) : undefined}
           >
             {filled && !isSelectionSibling
               ? (() => {

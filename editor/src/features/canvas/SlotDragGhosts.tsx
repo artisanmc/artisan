@@ -1,7 +1,7 @@
 import type { InventoryType } from "@/domain/types";
-import { Group } from "react-konva";
+import { Group, Rect } from "react-konva";
 import { SlotItem } from "./SlotItem";
-import { TEX_SLOT_INNER_OFFSET, slotXY } from "./menuLayout";
+import { TEX_SLOT_INNER, TEX_SLOT_INNER_OFFSET, slotXY } from "./menuLayout";
 import type { SlotInfo } from "./menuSlots";
 import type { DragState } from "./useSlotDrag";
 
@@ -55,13 +55,26 @@ export function SlotDragGhosts({
                 listening={false}
                 opacity={0.75}
               >
-                <SlotItem
-                  material={sib.material}
-                  head={sib.head}
-                  innerX={TEX_SLOT_INNER_OFFSET}
-                  innerY={TEX_SLOT_INNER_OFFSET}
-                  count={sib.count}
-                />
+                {sib.material ? (
+                  <SlotItem
+                    material={sib.material}
+                    head={sib.head}
+                    innerX={TEX_SLOT_INNER_OFFSET}
+                    innerY={TEX_SLOT_INNER_OFFSET}
+                    count={sib.count}
+                  />
+                ) : (
+                  <Rect
+                    x={TEX_SLOT_INNER_OFFSET}
+                    y={TEX_SLOT_INNER_OFFSET}
+                    width={TEX_SLOT_INNER}
+                    height={TEX_SLOT_INNER}
+                    stroke="rgba(255,255,255,0.45)"
+                    strokeWidth={1.5}
+                    dash={[3, 3]}
+                    cornerRadius={2}
+                  />
+                )}
               </Group>
             );
           })
