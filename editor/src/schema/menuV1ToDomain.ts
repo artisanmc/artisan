@@ -276,7 +276,9 @@ export function menuV1ToDomain(
           x: l.x,
           y: l.y,
           width: l.width,
-          lineHeight: l.line_height,
+          // Absent: 10, as the plugin reads it (`MenuTitleParser`). Left undefined, the lines
+          // were placed at NaN and the text drawn outside the menu.
+          lineHeight: typeof l.line_height === "number" ? l.line_height : 10,
           alignment: l.alignment,
         };
         if (font !== undefined) out.fontAssetId = font;
