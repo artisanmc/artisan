@@ -147,3 +147,75 @@ it("converts and resizes together, and preserves the old item when its image are
     display: { image: { asset: "tall" } },
   });
 });
+
+it("moves an image button inside its menu and into another menu of the Project", () => {
+  const store = useProjectsStore.getState();
+  store.setAppearanceImage({ ...target(), image: { asset: "wide", fit: "native" } });
+  store.setElementPositions({ ...target(), positions: "0-2" });
+  expect(
+    store.moveImageButton({ projectId: p, menuId: m, elementId: e, toMenuId: m, position: 10 }),
+  ).toBe(e);
+  expect(current().layers[0]!.elements[0]!.positions).toBe("10-12");
+
+  const other = store.createMenu({ projectId: p, id: "other_images" });
+  expect(
+    store.moveImageButton({ projectId: p, menuId: m, elementId: e, toMenuId: other, position: 3 }),
+  ).toBe(e);
+  const project = useProjectsStore.getState().openProjects.projects.find((x) => x.id === p)!;
+  const moved = menusOf(project).find((menu) => menu.id === other)!;
+  expect(
+    current()
+      .layers.flatMap((layer) => layer.elements)
+      .some((el) => el.id === e),
+  ).toBe(false);
+  expect(moved.layers[0]!.elements.find((el) => el.id === e)).toMatchObject({
+    positions: "3-5",
+    display: { image: { asset: "wide" } },
+  });
+});
+
+it("renames a moved image button whose id the target menu already has", () => {
+  const store = useProjectsStore.getState();
+  store.setAppearanceImage({ ...target(), image: { asset: "wide", fit: "native" } });
+  store.setElementPositions({ ...target(), positions: "0-2" });
+  const other = store.createMenu({ projectId: p, id: "other_images" });
+  store.addElement({
+    projectId: p,
+    menuId: other,
+    element: { id: e, positions: "26", display: { material: "STONE" }, states: [] },
+  });
+  const project = () => useProjectsStore.getState().openProjects.projects.find((x) => x.id === p)!;
+  const otherMenu = () => menusOf(project()).find((menu) => menu.id === other)!;
+  // addElement renumbers the id: give it back the moved button's.
+  store.setElementId({
+    projectId: p,
+    menuId: other,
+    oldId: otherMenu().layers[0]!.elements[0]!.id,
+    newId: e,
+  });
+  const id = store.moveImageButton({
+    projectId: p,
+    menuId: m,
+    elementId: e,
+    toMenuId: other,
+    position: 0,
+  });
+  expect(id).not.toBe(e);
+  expect(otherMenu().layers[0]!.elements.map((el) => el.id)).toEqual([e, id]);
+});
+
+it("refuses a move off the grid or over another element, changing nothing", () => {
+  const store = useProjectsStore.getState();
+  store.setAppearanceImage({ ...target(), image: { asset: "wide", fit: "native" } });
+  store.setElementPositions({ ...target(), positions: "0-2" });
+  const before = structuredClone(current());
+  // Column 7: the 3-wide rectangle would leave the 9-column grid.
+  expect(() =>
+    store.moveImageButton({ projectId: p, menuId: m, elementId: e, toMenuId: m, position: 7 }),
+  ).toThrow();
+  // Slot 8 belongs to `other`.
+  expect(() =>
+    store.moveImageButton({ projectId: p, menuId: m, elementId: e, toMenuId: m, position: 6 }),
+  ).toThrow();
+  expect(current()).toEqual(before);
+});

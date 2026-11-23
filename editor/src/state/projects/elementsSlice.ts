@@ -415,6 +415,20 @@ export interface ElementsSlice {
     dCol: number;
     dRow: number;
   }) => void;
+  /**
+   * Move an image button so its top-left slot is `position` of `toMenuId`, a menu of the
+   * same Project (its own menu or another one, whose grid may differ). It keeps its size,
+   * its texts (rekeyed to the new menu) and its id, renamed only when the target menu
+   * already has it. Throws, changing nothing, when the rectangle leaves the target grid
+   * or covers another element. Returns the element's id in the target menu.
+   */
+  moveImageButton: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    elementId: ElementId;
+    toMenuId: MenuId;
+    position: number;
+  }) => ElementId | undefined;
   /** Paste already-cloned-and-id-rewritten entities into a project at an offset. */
   pasteEntities: (input: {
     projectId: ProjectId;
@@ -1049,6 +1063,50 @@ export const createElementsSlice = ({
           }
         }
       }),
+    moveImageButton: ({ projectId: pId, menuId: mId, elementId: eId, toMenuId, position }) => {
+      let moved: ElementId | undefined;
+      mutateProject(pId, (project) => {
+        const menus = mutableMenus(project);
+        const from = menus.find((menu) => menu.id === mId);
+        const to = menus.find((menu) => menu.id === toMenuId);
+        const layer = from?.layers.find((l) => l.elements.some((el) => el.id === eId));
+        const element = layer?.elements.find((el) => el.id === eId);
+        if (!from || !to || !layer || !element) return false;
+        const rect = imageButtonRect(
+          element.positions,
+          from.inventoryType ?? "chest",
+          from.rows,
+          from.playerInventory,
+        );
+        if (!rect || !hasImageButton(element)) throw new Error("Not an image button.");
+        const positions = rectanglePositions(
+          position,
+          rect.width,
+          rect.height,
+          to.inventoryType ?? "chest",
+          to.rows,
+          to.playerInventory,
+        );
+        if (from === to) {
+          if (positions === element.positions) return false;
+          assertImageButtonPlacement(to, element, positions);
+          element.positions = positions;
+          moved = eId;
+          return;
+        }
+        const id = findElement(to, eId)
+          ? nextElementIdForMaterial(project, element.display.material ?? undefined)
+          : eId;
+        const next: Element = { ...current(element), id, positions };
+        assertImageButtonPlacement(to, next);
+        layer.elements = layer.elements.filter((el) => el.id !== eId);
+        if (!to.layers.length) to.layers.push({ id: newLayerId(), name: "default", elements: [] });
+        to.layers[0]!.elements.push(next);
+        rekeyMenu(project, to);
+        moved = id;
+      });
+      return moved;
+    },
     setAppearanceLore: (input) => {
       const { projectId: pId, appearanceIndex = 0, lang, value } = input;
       mutateAppearance(pId, input, appearanceIndex, (appearance, project) => {

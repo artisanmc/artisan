@@ -118,3 +118,24 @@ export function elementLabels(menu: Menu): { elementId: Element["id"]; layer: La
 export function labelLayers(menu: Menu): LabelLayer[] {
   return elementLabels(menu).map((label) => label.layer);
 }
+
+/**
+ * The top-left slot of an image button whose cell `grab` (column and row inside its
+ * rectangle) is released over `slot` of `menu`, or null when that corner falls outside
+ * the menu's grid. Cells, not pixels: the gaps between the menu, the inventory and the
+ * hotbar do not shift the result.
+ */
+export function imageButtonOrigin(
+  menu: Pick<Menu, "inventoryType" | "rows" | "playerInventory">,
+  slot: number,
+  grab: { col: number; row: number },
+): number | null {
+  const type = menu.inventoryType ?? "chest";
+  const cell = positionToCell(slot, type, menu.rows);
+  return cellToPosition(
+    { col: cell.col - grab.col, row: cell.row - grab.row },
+    type,
+    menu.rows,
+    menu.playerInventory,
+  );
+}

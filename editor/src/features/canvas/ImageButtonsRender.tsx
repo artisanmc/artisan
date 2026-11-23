@@ -1,6 +1,12 @@
 import { assetPreviewUrl } from "@/domain/asset";
-import { hasImageButton, imageButtonGeometry, imageButtonRect } from "@/domain/imageButton";
-import type { Element, Menu, ProjectId } from "@/domain/types";
+import { menusOf } from "@/domain/documents";
+import {
+  hasImageButton,
+  imageButtonGeometry,
+  imageButtonOrigin,
+  imageButtonRect,
+} from "@/domain/imageButton";
+import type { Element, Menu, MenuId, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useCssVar } from "@/lib/themeColors";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
@@ -10,17 +16,30 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { isElementSelected, useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
+import { useRef } from "react";
 import { Group, Image, Rect, Text } from "react-konva";
 import { toast } from "sonner";
-import { TEX_SCALE } from "./menuLayout";
+import { hitTestSlot } from "./hitTest";
+import { TEX_SCALE, TEX_SLOT_STRIDE } from "./menuLayout";
+
+/**
+ * Where the menu sits on the project canvas and where every menu sits, to read which
+ * slot of which menu a button is released over.
+ */
+export interface ImageButtonDropFrame {
+  position: { x: number; y: number };
+  layout: Record<string, { x: number; y: number }>;
+}
 
 export function ImageButtonsRender({
   projectId,
   menu,
+  frame,
   onDeepSelect,
 }: {
   projectId: ProjectId;
   menu: Menu;
+  frame: ImageButtonDropFrame;
   onDeepSelect?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
 }) {
   return (
@@ -34,6 +53,7 @@ export function ImageButtonsRender({
             projectId={projectId}
             menu={menu}
             element={element}
+            frame={frame}
             onDeepSelect={onDeepSelect}
           />
         ))}
@@ -45,11 +65,13 @@ function ImageButtonRender({
   projectId,
   menu,
   element,
+  frame,
   onDeepSelect,
 }: {
   projectId: ProjectId;
   menu: Menu;
   element: Element;
+  frame: ImageButtonDropFrame;
   onDeepSelect?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
 }) {
   const appearance = element.display;
@@ -61,6 +83,8 @@ function ImageButtonRender({
   const ids = useSelectionStore((state) => state.ids);
   const selectedMenu = useSelectionStore((state) => state.menuId);
   const brand = useCssVar("--brand");
+  // The point of the button held by the pointer, in the button's own pixels.
+  const grabRef = useRef<{ x: number; y: number } | null>(null);
   const rect = imageButtonRect(
     element.positions,
     menu.inventoryType ?? "chest",
@@ -101,8 +125,17 @@ function ImageButtonRender({
         event.cancelBubble = true;
         select();
       }}
+      onMouseDown={(event) => {
+        grabRef.current = event.currentTarget.getRelativePointerPosition() ?? null;
+      }}
+      onTouchStart={(event) => {
+        grabRef.current = event.currentTarget.getRelativePointerPosition() ?? null;
+      }}
       onDragStart={(event) => {
         event.cancelBubble = true;
+        // Above the other menus, so the button stays visible on its way to one of them.
+        event.target.getParent()?.moveToTop();
+        event.target.moveToTop();
         select();
       }}
       onDragMove={(event) => {
@@ -118,17 +151,41 @@ function ImageButtonRender({
         event.cancelBubble = true;
         useImageButtonDragStore.getState().setDrag(null);
         const node = event.target;
-        const dCol = Math.round((node.x() - x) / (18 * TEX_SCALE));
-        const dRow = Math.round((node.y() - y) / (18 * TEX_SCALE));
+        const grab = grabRef.current ?? { x: width / 2, y: height / 2 };
+        grabRef.current = null;
+        // The slot under the pointer receives the cell of the button it holds.
+        const pointerX = node.x() + grab.x;
+        const pointerY = node.y() + grab.y;
         node.position({ x, y });
+        const cell = {
+          col: clamp(Math.floor(grab.x / TEX_SLOT_STRIDE), rect.width),
+          row: clamp(Math.floor(grab.y / TEX_SLOT_STRIDE), rect.height),
+        };
+        const project = useProjectsStore
+          .getState()
+          .openProjects.projects.find((entry) => entry.id === projectId);
+        if (!project) return;
+        const hit = hitTestSlot(
+          project,
+          frame.layout,
+          frame.position.x + pointerX,
+          frame.position.y + pointerY,
+        );
+        if (!hit) return;
+        const toMenuId = hit.menuId as MenuId;
+        const target = menusOf(project).find((entry) => entry.id === toMenuId);
+        if (!target) return;
+        const origin = imageButtonOrigin(target, hit.position, cell);
         try {
-          useProjectsStore.getState().moveSelectionByDelta({
+          if (origin === null) throw new Error("The image button must fit inside the menu.");
+          const id = useProjectsStore.getState().moveImageButton({
             projectId,
             menuId: menu.id,
-            elementIds: [element.id],
-            dCol,
-            dRow,
+            elementId: element.id,
+            toMenuId,
+            position: origin,
           });
+          if (id && toMenuId !== menu.id) useSelectionStore.getState().set([id], null, toMenuId);
         } catch (error) {
           toast.error(error instanceof Error ? error.message : String(error));
         }
@@ -165,3 +222,5 @@ function ImageButtonRender({
     </Group>
   );
 }
+
+const clamp = (index: number, size: number) => Math.min(Math.max(index, 0), size - 1);
