@@ -125,6 +125,8 @@ Drag an item onto a menu slot, or click an item and then tap a slot to place it.
 To paste copied items at a specific slot, hover that slot and press **Ctrl+V** (**⌘V**),
 or right-click the slot and choose **Paste here**. Several items keep their layout; if
 the slot is taken, they land in the next free slots.
+Drag an item of a menu onto a slot of another menu of the project to move it there (hold
+**Alt** to copy it instead); dropped outside every menu, it is removed.
 **Shift+click** items of a menu to select several of them; right-click one of them to copy,
 duplicate or delete the whole selection. The menu itself stays untouched.
 A click on a menu selects the topmost thing under the pointer, as in Figma: a title text or

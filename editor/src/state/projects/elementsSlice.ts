@@ -28,7 +28,7 @@ import type {
   ProjectId,
   Step,
 } from "@/domain/types";
-import { cellToPosition, positionToCell } from "@/features/canvas/inventoryTypes";
+import { cellToPosition, positionCount, positionToCell } from "@/features/canvas/inventoryTypes";
 import { createLText, createLTextAt, deleteLText, setLText } from "@/lib/i18n";
 import {
   addPosition,
@@ -428,6 +428,23 @@ export interface ElementsSlice {
     elementId: ElementId;
     toMenuId: MenuId;
     position: number;
+  }) => ElementId | undefined;
+  /**
+   * Move the item of slot `position` of an element (not an image button) to slot
+   * `toPosition` of another menu of the Project. An element with that one slot moves
+   * whole (its texts rekeyed, its id renamed only on a clash); one with several slots
+   * leaves this one in a copy with its own texts. `copy`: the source keeps its slot. The
+   * target slot is taken from whatever held it, unless an image button covers it (throws,
+   * changing nothing). Returns the element's id in the target menu.
+   */
+  moveElementToMenu: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    elementId: ElementId;
+    position: number;
+    toMenuId: MenuId;
+    toPosition: number;
+    copy?: boolean;
   }) => ElementId | undefined;
   /** Paste already-cloned-and-id-rewritten entities into a project at an offset. */
   pasteEntities: (input: {
@@ -1097,13 +1114,85 @@ export const createElementsSlice = ({
         const id = findElement(to, eId)
           ? nextElementIdForMaterial(project, element.display.material ?? undefined)
           : eId;
-        const next: Element = { ...current(element), id, positions };
+        // A deep copy: `current` shares the untouched subtrees (its texts) with the frozen state.
+        const next: Element = { ...structuredClone(current(element)), id, positions };
         assertImageButtonPlacement(to, next);
         layer.elements = layer.elements.filter((el) => el.id !== eId);
         if (!to.layers.length) to.layers.push({ id: newLayerId(), name: "default", elements: [] });
         to.layers[0]!.elements.push(next);
         rekeyMenu(project, to);
         moved = id;
+      });
+      return moved;
+    },
+    moveElementToMenu: ({
+      projectId: pId,
+      menuId: mId,
+      elementId: eId,
+      position,
+      toMenuId,
+      toPosition,
+      copy = false,
+    }) => {
+      let moved: ElementId | undefined;
+      mutateProject(pId, (project) => {
+        const menus = mutableMenus(project);
+        const from = menus.find((menu) => menu.id === mId);
+        const to = menus.find((menu) => menu.id === toMenuId);
+        const layer = from?.layers.find((l) => l.elements.some((el) => el.id === eId));
+        const element = layer?.elements.find((el) => el.id === eId);
+        if (!from || !to || from === to || !layer || !element) return false;
+        if (
+          hasImageButton(element) ||
+          element.places ||
+          !positionsContains(element.positions, position)
+        )
+          return false;
+        if (
+          toPosition < 0 ||
+          toPosition >= positionCount(to.inventoryType ?? "chest", to.rows, to.playerInventory)
+        )
+          throw new Error("The slot is outside the menu.");
+        for (const other of to.layers.flatMap((l) => l.elements)) {
+          if (hasImageButton(other) && positionsContains(other.positions, toPosition))
+            throw new Error("This area belongs to an image button.");
+        }
+        const whole = !copy && parsePositions(element.positions).length === 1;
+        // A deep copy: `current` shares the untouched subtrees (its texts) with the frozen state.
+        const next: Element = {
+          ...structuredClone(current(element)),
+          positions: String(toPosition),
+        };
+        if (whole) {
+          if (findElement(to, eId))
+            next.id = nextElementIdForMaterial(project, element.display.material ?? undefined);
+        } else {
+          next.id = nextElementIdForMaterial(project, element.display.material ?? undefined);
+          // The copy gets its own texts, so editing one never changes the other.
+          for (const appearance of addressedAppearances(next)) {
+            cloneAppearanceLTextsInto(project, appearance);
+            if (appearance.label) {
+              const src = project.i18nKeys[appearance.label.text.key];
+              appearance.label.text = createLText(project, "", project.defaultLang);
+              if (src) project.i18nKeys[appearance.label.text.key] = { ...src };
+            }
+          }
+        }
+        for (const targetLayer of to.layers) {
+          for (const other of targetLayer.elements) {
+            if (positionsContains(other.positions, toPosition))
+              other.positions = removePosition(other.positions, toPosition);
+          }
+          targetLayer.elements = targetLayer.elements.filter(
+            (el) => el.places || el.positions !== "",
+          );
+        }
+        if (whole) layer.elements = layer.elements.filter((el) => el.id !== eId);
+        else if (!copy) element.positions = removePosition(element.positions, position);
+        if (!to.layers.length) to.layers.push({ id: newLayerId(), name: "default", elements: [] });
+        to.layers[0]!.elements.push(next);
+        rekeyMenu(project, to);
+        moved = next.id;
       });
       return moved;
     },

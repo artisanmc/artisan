@@ -83,7 +83,9 @@ function drag(grabX: number, grabY: number, to: MenuId, slot: number) {
     x: () => nodeX,
     y: () => nodeY,
     position: () => {},
-    moveToTop: () => {},
+    moveToTop: () => {
+      throw new Error("the button must stay under its label");
+    },
     getParent: () => ({ moveToTop: () => {} }),
   };
   handlers.onMouseDown!({

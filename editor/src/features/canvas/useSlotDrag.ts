@@ -178,6 +178,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
    *
    * Single drag:
    *   - drop outside any menu          → clear this position
+   *   - drop on another menu's slot    → move the item there (Alt: copy it)
    *   - drop on another slot, no Alt   → move this position within source
    *   - drop on another slot, Alt held → duplicate (add target to source)
    *   - drop on a slot already owned   → no-op
@@ -220,7 +221,9 @@ export function useSlotDrag(args: UseSlotDragArgs) {
           srcPosition,
         );
         if (!placement) return;
-        if (!hit || hit.menuId !== menuId) {
+        // A placement belongs to its menu's source rows: over another menu, it stays.
+        if (hit && hit.menuId !== menuId) return;
+        if (!hit) {
           useProjectsStore.getState().removeElementPlacement({
             projectId,
             menuId,
@@ -264,7 +267,21 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       }
 
       try {
-        if (!hit || hit.menuId !== menuId) {
+        if (hit && hit.menuId !== menuId) {
+          // Over another menu: the item moves there (Alt: a copy goes there).
+          const id = useProjectsStore.getState().moveElementToMenu({
+            projectId,
+            menuId,
+            elementId: sourceElementId,
+            position: srcPosition,
+            toMenuId: hit.menuId as MenuId,
+            toPosition: hit.position,
+            copy: altKey,
+          });
+          if (id) useSelectionStore.getState().set([id], hit.position, hit.menuId as MenuId);
+          return;
+        }
+        if (!hit) {
           useProjectsStore.getState().clearSlot({
             projectId,
             menuId,
