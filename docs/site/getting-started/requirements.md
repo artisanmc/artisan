@@ -33,6 +33,9 @@ Artisan detects these when they are present, and works without them:
 Vault, PlaceholderAPI, WorldGuard, HeadDatabase, and the resource-pack hosts Nexo,
 Oraxen and ItemsAdder.
 
+With EssentialsX, `/back` returns to where Artisan last moved the player from: the
+`teleport` action, and a module's teleport or server switch (a guild home, for instance).
+
 ## Database
 
 Nothing to set up: Artisan uses an embedded H2 file by default. MySQL 8+ and
