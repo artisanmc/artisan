@@ -127,6 +127,7 @@ object ResourcePackBuilder {
             input.hideInventoryLabel,
             Symbols.used(texts),
             textPlacements,
+            TextDecorations.used(texts),
         )
         val serverId = input.bedrockServerId ?: return java
         // Asset names collide across Projects as the Java pack resolves them: the first Project (by id) wins.
@@ -167,6 +168,7 @@ object ResourcePackBuilder {
         hideInventoryLabel: Boolean,
         symbols: List<Int>,
         textPlacements: List<TextPlacement>,
+        decorations: Boolean,
     ): PackResult {
         val remapped = assets.map { a ->
             if (a.type != "glyph" || a.codepoint == null) a
@@ -186,6 +188,7 @@ object ResourcePackBuilder {
 
         val rows = Symbols.rows(symbols)
         if (rows.isNotEmpty()) files["assets/artisan/textures/font/symbols.png"] = Png.encode(Symbols.sheet(symbols))
+        if (decorations) files["assets/artisan/textures/font/decorations.png"] = Png.encode(TextDecorations.sheet())
         // Size 8 at every Y (`api.getOverlay().raise` picks any at run time), the other sizes at
         // the Ys the menus' texts and labels sit at (`resourcePackBuilder.ts`).
         for (h in MenuReaders.TEXT_SIZES) {
@@ -193,7 +196,7 @@ object ResourcePackBuilder {
             val ys = if (h == 8) range.toList()
             else textPlacements.filter { it.size == h && it.y in range }.map { it.y }.distinct().sorted()
             for (y in ys) {
-                files["assets/artisan/font/text_y${y}_h$h.json"] = Js.stringifyBytes(Fonts.textYFontJson(y, h, rows))
+                files["assets/artisan/font/text_y${y}_h$h.json"] = Js.stringifyBytes(Fonts.textYFontJson(y, h, rows, decorations))
             }
         }
         for (name in Fonts.TEXT_UP_TEXTURES) files["assets/artisan/textures/font/${name}_up.png"] = vanillaResource("font/${name}_up.png")

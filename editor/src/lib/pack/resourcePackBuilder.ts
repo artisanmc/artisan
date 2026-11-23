@@ -22,6 +22,7 @@ import { TEXT_SIZES, TEXT_Y_MAX, type TextPlacement } from "./menuTextPlacements
 import { type OverlayImageRequest, buildOverlayImages } from "./overlayImages";
 import { encodePng } from "./png";
 import { symbolRows, symbolSheet } from "./symbols";
+import { decorationSheet } from "./textDecorations";
 import { type GuiContainer, buildVanillaGuiFiles } from "./vanillaGui";
 
 export type { AssetRow };
@@ -88,6 +89,8 @@ export function buildResourcePackZip(
   symbols: readonly number[] = [],
   /** The (Y, size) of the menus' title texts and labels (`textPlacementsFromMenus`). */
   textPlacements: readonly TextPlacement[] = [],
+  /** Some text asks for underline / strikethrough (`usesDecorations`): the text fonts get the bars. */
+  decorations = false,
 ): BuildResult {
   const remapped = assets.map((a) => {
     if (a.type !== "glyph" || a.codepoint === null) return a;
@@ -123,6 +126,8 @@ export function buildResourcePackZip(
   const rows = symbolRows(symbols);
   if (rows.length > 0)
     files["assets/artisan/textures/font/symbols.png"] = encodePng(symbolSheet(symbols));
+  if (decorations)
+    files["assets/artisan/textures/font/decorations.png"] = encodePng(decorationSheet());
   for (const h of TEXT_SIZES) {
     // Never below minYForSize: MC rejects a font whose ascent exceeds its height (the plugin
     // clamps Y to the same floor).
@@ -139,7 +144,7 @@ export function buildResourcePackZip(
     for (const y of ys) {
       files[`assets/artisan/font/text_y${y}_h${h}.json`] = strToU8(
         // Compact: indented, each font is half as big again.
-        JSON.stringify(buildTextYFontJson(y, h, rows)),
+        JSON.stringify(buildTextYFontJson(y, h, rows, decorations)),
       );
     }
   }
