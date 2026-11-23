@@ -5,7 +5,6 @@ import {
   type AssetRow,
   TEXT_UP_MAX,
   TEXT_UP_PAD,
-  TEXT_UP_TEXTURES,
   type TextUpTexture,
   buildDefaultFontJson,
   buildGlyphYFontJson,
@@ -22,6 +21,7 @@ import { TEXT_SIZES, TEXT_Y_MAX, type TextPlacement } from "./menuTextPlacements
 import { type OverlayImageRequest, buildOverlayImages } from "./overlayImages";
 import { encodePng } from "./png";
 import { SYMBOLS_UP_FULL_MAX, symbolRows, symbolSheet } from "./symbols";
+import { type TextSheet, allTextSheets, textSheetFiles } from "./textChars";
 import { decorationSheet } from "./textDecorations";
 import { type GuiContainer, buildVanillaGuiFiles } from "./vanillaGui";
 
@@ -91,6 +91,8 @@ export function buildResourcePackZip(
   textPlacements: readonly TextPlacement[] = [],
   /** Some text asks for underline / strikethrough (`usesDecorations`): the text fonts get the bars. */
   decorations = false,
+  /** The vanilla sheets of the text fonts, with the characters the pack keeps (`textChars.ts`). */
+  textChars: readonly TextSheet[] = allTextSheets(),
 ): BuildResult {
   const remapped = assets.map((a) => {
     if (a.type !== "glyph" || a.codepoint === null) return a;
@@ -144,7 +146,7 @@ export function buildResourcePackZip(
     for (const y of ys) {
       files[`assets/artisan/font/text_y${y}_h${h}.json`] = strToU8(
         // Compact: indented, each font is half as big again.
-        JSON.stringify(buildTextYFontJson(y, h, rows, decorations)),
+        JSON.stringify(buildTextYFontJson(y, h, rows, decorations, textChars)),
       );
     }
   }
@@ -153,9 +155,7 @@ export function buildResourcePackZip(
   // default font puts it (a HUD in the action bar, above the hotbar). Always included, like the
   // text_y fonts, so a module never needs a rebuild to use another height.
   if (textUp) {
-    for (const name of TEXT_UP_TEXTURES) {
-      files[`assets/artisan/textures/font/${name}_up.png`] = textUp[name];
-    }
+    Object.assign(files, textSheetFiles(textChars, textUp));
     if (rows.length > 0) {
       files["assets/artisan/textures/font/symbols_up.png"] = encodePng(
         symbolSheet(symbols, 2 * SYMBOLS_UP_FULL_MAX),
@@ -166,7 +166,7 @@ export function buildResourcePackZip(
     }
     for (let rise = 0; rise <= TEXT_UP_MAX; rise++) {
       files[`assets/artisan/font/text_up${rise}.json`] = strToU8(
-        JSON.stringify(buildTextUpFontJson(rise, rows)),
+        JSON.stringify(buildTextUpFontJson(rise, rows, textChars)),
       );
     }
   }

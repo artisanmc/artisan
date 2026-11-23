@@ -408,11 +408,11 @@ describe("buildResourcePackZip", () => {
     expect(json.providers[0].type).toBe("space");
     expect(json.providers[0].advances[" "]).toBe(4);
     // Y=6 is the vanilla title position → bitmap ascents match vanilla unchanged.
-    expect(json.providers[1].file).toBe("minecraft:font/ascii.png");
+    expect(json.providers[1].file).toBe("artisan:font/text_ascii.png");
     expect(json.providers[1].ascent).toBe(7);
-    expect(json.providers[2].file).toBe("minecraft:font/accented.png");
+    expect(json.providers[2].file).toBe("artisan:font/text_accented.png");
     expect(json.providers[2].ascent).toBe(10);
-    expect(json.providers[3].file).toBe("minecraft:font/nonlatin_european.png");
+    expect(json.providers[3].file).toBe("artisan:font/text_nonlatin_european.png");
     expect(json.providers[3].ascent).toBe(7);
   });
 
