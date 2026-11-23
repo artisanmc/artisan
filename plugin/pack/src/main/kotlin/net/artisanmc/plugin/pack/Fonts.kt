@@ -69,7 +69,7 @@ internal object Fonts {
     }
 
     /** [symbols]: the `chars` rows of the pack's symbols sheet ([Symbols]), drawn after vanilla; empty, no provider. */
-    fun textYFontJson(y: Int, h: Int, symbols: List<String> = emptyList()): Map<String, Any?> {
+    fun textYFontJson(y: Int, h: Int, symbols: List<String> = emptyList(), decorations: Boolean = false): Map<String, Any?> {
         val shift = 6 - y
         val scale = h / 8.0
         fun bitmap(file: String, v: VanillaFont) = mapOf(
@@ -91,6 +91,13 @@ internal object Fonts {
                 "ascent" to Symbols.ASCENT + shift,
                 "height" to round(Symbols.HEIGHT * scale),
                 "chars" to symbols,
+            ))) + (if (!decorations) emptyList() else listOf(mapOf(
+                // 16 rows at the ascii scale: the same ascent puts row 0 at the text's top.
+                "type" to "bitmap",
+                "file" to "artisan:font/decorations.png",
+                "ascent" to ASCII.ascent + shift,
+                "height" to 2 * h,
+                "chars" to listOf(TextDecorations.CHARS),
             ))),
         )
     }

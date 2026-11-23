@@ -109,12 +109,67 @@ object TitleCompiler {
      * Scaling the size-8 width as a whole scaled the bold bump too, and rounded once instead of
      * per glyph: the layers after a bold sized text were drawn too far left.
      */
-    internal fun scaledLineWidth(text: String, size: Int): Int {
-        val visible = Regex("<[^>]+>").replace(text, "")
-        val glyphs = visible.sumOf { ch ->
-            if (ch == ' ') 4 * size / 8 else ((charAdvance(ch) - 1) * size / 8.0 + 0.5).toInt() + 1
+    internal fun scaledLineWidth(text: String, size: Int): Int =
+        scaledGlyphsWidth(Regex("<[^>]+>").replace(text, ""), size) + countBoldChars(text)
+
+    private fun scaledGlyphsWidth(visible: String, size: Int): Int = visible.sumOf { ch ->
+        if (ch == ' ') 4 * size / 8 else ((charAdvance(ch) - 1) * size / 8.0 + 0.5).toInt() + 1
+    }
+
+    /** First codepoint of the decoration bars in the text fonts (`TextDecorations` of plugin/pack). */
+    private const val UNDERLINE_BAR = 0xF7F0
+    private const val STRIKE_BAR = 0xF7F8
+    private val DECORATION_TAG = Regex("<(?:u|underlined|st|strikethrough)>", RegexOption.IGNORE_CASE)
+    /** A container title's colour where no tag sets one. */
+    private const val TITLE_COLOR = "#404040"
+
+    /**
+     * [text] drawn in [font] with its underline and strikethrough made of bar glyphs of that font.
+     * Minecraft draws these lines at fixed rows of the title line (y + 8, y + 4), whatever the
+     * font's ascent: a text moved by `text_y{Y}` kept its line on the vanilla title. So the
+     * decorations are taken off the text and drawn after each decorated span: back to 1 px
+     * before it, bars of 2^i px (0 ≤ i < 8, scaled with the font) each followed by −1 px, then
+     * forward to the span's end. The pack carries the bars once some text of a Project uses a
+     * decoration (`TextDecorations`). Null when [text] has none: drawn as before.
+     */
+    private fun decoratedBody(text: String, size: Int, font: String, offsetEncoder: OffsetEncoder): String? {
+        if (!DECORATION_TAG.containsMatchIn(text)) return null
+        val mm = MiniMessage.miniMessage()
+        val out = StringBuilder()
+        fun leaf(content: String, style: net.kyori.adventure.text.format.Style) {
+            if (content.isEmpty()) return
+            val bare = style
+                .decoration(net.kyori.adventure.text.format.TextDecoration.UNDERLINED, net.kyori.adventure.text.format.TextDecoration.State.NOT_SET)
+                .decoration(net.kyori.adventure.text.format.TextDecoration.STRIKETHROUGH, net.kyori.adventure.text.format.TextDecoration.State.NOT_SET)
+            out.append("<font:$font>").append(mm.serialize(Component.text(content, bare))).append("</font>")
+            val bold = style.decoration(net.kyori.adventure.text.format.TextDecoration.BOLD) == net.kyori.adventure.text.format.TextDecoration.State.TRUE
+            val width = scaledGlyphsWidth(content, size) + if (bold) content.length else 0
+            val color = style.color()?.asHexString() ?: TITLE_COLOR
+            for ((decoration, first) in listOf(
+                net.kyori.adventure.text.format.TextDecoration.UNDERLINED to UNDERLINE_BAR,
+                net.kyori.adventure.text.format.TextDecoration.STRIKETHROUGH to STRIKE_BAR,
+            )) {
+                if (style.decoration(decoration) != net.kyori.adventure.text.format.TextDecoration.State.TRUE) continue
+                out.append(offsetEncoder.encode(-(width + 1)))
+                var left = width + 1
+                for (i in 7 downTo 0) {
+                    val drawn = ((1 shl i) * size / 8.0 + 0.5).toInt()
+                    while (drawn in 1..left) {
+                        out.append("<font:$font><color:$color>").appendCodePoint(first + i).append("</color></font>")
+                        out.append(offsetEncoder.encode(-1))
+                        left -= drawn
+                    }
+                }
+                out.append(offsetEncoder.encode(left))
+            }
         }
-        return glyphs + countBoldChars(text)
+        fun walk(c: Component, parent: net.kyori.adventure.text.format.Style) {
+            val style = parent.merge(c.style())
+            if (c is net.kyori.adventure.text.TextComponent) leaf(c.content(), style)
+            for (child in c.children()) walk(child, style)
+        }
+        walk(mm.deserialize(text), net.kyori.adventure.text.format.Style.empty())
+        return out.toString()
     }
 
     /**
@@ -325,7 +380,8 @@ object TitleCompiler {
                 // Y pixel. Clamp out-of-range Y to the nearest valid value: otherwise MC
                 // resolves a missing font and renders every char as a missing-glyph square.
                 val clampedY = layer.y.coerceIn(minYForSize(layer.size), TEXT_Y_MAX)
-                "<font:artisan:text_y${clampedY}_h${layer.size}>$colored</font>"
+                decoratedBody(colored, layer.size, "artisan:text_y${clampedY}_h${layer.size}", offsetEncoder)
+                    ?: "<font:artisan:text_y${clampedY}_h${layer.size}>$colored</font>"
             }
             is MenuTitleLayer.Plain -> {
                 val text = interpolate(resolveLText(layer.value, langMap, lang, defaultLang))
@@ -373,9 +429,8 @@ object TitleCompiler {
                         MenuTitleLayer.Alignment.RIGHT -> layer.x - lineWidth
                     }
                     if (lineX != localX) sb2.append(offsetEncoder.encode(lineX - localX))
-                    sb2.append("<font:artisan:text_y${lineY}_h${layer.size}>")
-                    sb2.append(line)
-                    sb2.append("</font>")
+                    val font = "artisan:text_y${lineY}_h${layer.size}"
+                    sb2.append(decoratedBody(line, layer.size, font, offsetEncoder) ?: "<font:$font>$line</font>")
                     localX = lineX + lineWidth
                 }
                 return Pair(sb2.toString(), localX)

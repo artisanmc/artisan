@@ -1587,6 +1587,65 @@
       ],
       "textUpFonts": 129,
       "sha1": "fc1f1076ff38bee2d20fd6bb722e1ba8fc8285bb"
+    },
+    {
+      "name": "decorations: an underlined or struck title text puts the bars in the text fonts",
+      "projects": [
+        {
+          "id": "alpha",
+          "files": {
+            "menus/shop.yaml": "schema: menu/v1\nid: shop\nsize: 27\ntitle:\n  - kind: text\n    value: \"<u>Jour</u> 5\"\n    x: 8\n    y: 20\n    size: 12\nelements: []\n",
+            "lang/fr.yml": "menus.shop.title: \"<st>vieux</st> neuf\"\n"
+          },
+          "binaries": {}
+        }
+      ],
+      "containerTextures": {},
+      "vanillaGui": false,
+      "entries": [
+        "assets/artisan/asset-index.json",
+        "assets/artisan/font/default.json",
+        "assets/artisan/font/vanilla_gui.json",
+        "assets/artisan/textures/font/accented_up.png",
+        "assets/artisan/textures/font/ascii_up.png",
+        "assets/artisan/textures/font/decorations.png",
+        "assets/artisan/textures/font/nonlatin_european_up.png",
+        "assets/artisan/textures/gui/dispenser.png",
+        "assets/artisan/textures/gui/generic_9x1.png",
+        "assets/artisan/textures/gui/generic_9x2.png",
+        "assets/artisan/textures/gui/generic_9x3.png",
+        "assets/artisan/textures/gui/generic_9x4.png",
+        "assets/artisan/textures/gui/generic_9x5.png",
+        "assets/artisan/textures/gui/generic_9x6.png",
+        "assets/artisan/textures/gui/hopper.png",
+        "pack.mcmeta",
+        "pack.png"
+      ],
+      "entryHashes": {
+        "assets/artisan/asset-index.json": "526e7765ba7425ecbcc25c9b5f7b9185729204b9439d0529fc34eee9ba691597",
+        "assets/artisan/font/default.json": "3c35a70ee671afbb22c13e41b4c695e7c46f60b393d787d789c1c6f99bcac91f",
+        "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
+        "assets/artisan/textures/font/accented_up.png": "00615ae046e35e18b8cc07eb97b750f4228b66db2ee2658f5311b93bb46aab08",
+        "assets/artisan/textures/font/ascii_up.png": "f15b11eb5088fffe26be53f613ce3b186313847dc7a468fe91e95cb3af59f6c4",
+        "assets/artisan/textures/font/decorations.png": "88b1b7188f71fe4117afb5ff0d456bb17882f9911b4f07c5492cc76ae062dd37",
+        "assets/artisan/textures/font/nonlatin_european_up.png": "ac34c8eb477c012101f587847cc74843be4df9287839502111535169584e222c",
+        "assets/artisan/textures/gui/dispenser.png": "437f4c4c7cc98af96577d01a62aba607cf999bdc6ad032fa6cdf6ad47f44b718",
+        "assets/artisan/textures/gui/generic_9x1.png": "898d282a843d306f23652f10f78e8bf765f25d5095f60e8cab8db8543b2fee02",
+        "assets/artisan/textures/gui/generic_9x2.png": "fcb46d8c1adfb5c510e2f6560a037854c580e74059a57525bfd56b81f5a21a19",
+        "assets/artisan/textures/gui/generic_9x3.png": "6a5e5e3951556e6b87c73bf26096997afe63dd6da00116c97bbb2782e0a77da0",
+        "assets/artisan/textures/gui/generic_9x4.png": "bcb32b11964ab9aac32c6b8711618b94918461a73ffee7b9dc3f0073931337ef",
+        "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
+        "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
+        "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
+        "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
+      },
+      "textYFonts": 169,
+      "textYSized": [
+        "assets/artisan/font/text_y20_h12.json"
+      ],
+      "textUpFonts": 129,
+      "sha1": "dae83080a975dbc901a9ed890073b1d5c07be92d"
     }
   ]
 }

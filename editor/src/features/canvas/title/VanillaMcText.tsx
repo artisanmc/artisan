@@ -148,6 +148,7 @@ export function VanillaMcText({
     for (const seg of segments) {
       const color = seg.style.color ?? defaultColor;
       const bold = seg.style.bold ?? false;
+      const segStart = cursor;
       for (const ch of seg.text) {
         const cell = charCell(ch);
         // MC bold adds 1px to the advance (glyph drawn twice, shifted 1px right).
@@ -186,6 +187,19 @@ export function VanillaMcText({
           if (bold) ctx.drawImage(temp, 0, 0, cw, cellH, cursor + scale, yOffset, cw, cellH);
         }
         cursor += adv;
+      }
+      // Underline / strikethrough as the plugin draws them on a title text (bars of its font,
+      // TitleCompiler.decoratedBody): from 1 px before the span to its end, one text height
+      // below the top for the underline, half of it for the strikethrough, a pixel of the font thick.
+      const top = (MAX_ASCENT - ATLAS_META.ascii.ascent) * scale * sizeScale;
+      ctx.fillStyle = color;
+      for (const [on, row] of [
+        [seg.style.underlined, 8],
+        [seg.style.strikethrough, 4],
+      ] as const) {
+        if (!on) continue;
+        const from = Math.max(0, segStart - scale);
+        ctx.fillRect(from, top + row * scale * sizeScale, cursor - from, scale * sizeScale);
       }
     }
 

@@ -1040,3 +1040,33 @@ class TitleCompilerScaledWidthTest {
         kotlin.test.assertEquals(7, compiler.scaledLineWidth("<bold> </bold>", 12))
     }
 }
+
+class TitleCompilerDecorationsTest {
+    private val encoder = net.artisanmc.plugin.render.OffsetEncoder(
+        listOf(1, 2, 4, 8, 16, 32, 64, 128, -1, -2, -4, -8, -16, -32, -64, -128).mapIndexed { i, a -> (0xF800 + i).toChar() to a },
+    )
+
+    private fun body(text: String, size: Int = 8): String =
+        TitleCompiler.compileLayerBody(
+            MenuTitleLayer.Text(value = LText(text, literal = true), x = 0, y = 20, size = size),
+            0, emptyMap(), { null }, encoder,
+        ).first
+
+    @org.junit.jupiter.api.Test
+    fun `an underlined text is drawn without the decoration, with bars of its font under it`() {
+        val out = body("<u>Jour</u> 5")
+        assertTrue("underlined" !in out && "<u>" !in out, out)
+        // Jour = 24 px: bars cover 25 px from 1 px before it (16 + 8 + 1), each followed by -1.
+        val bars = out.codePoints().toArray().filter { it in 0xF7F0..0xF7F7 }
+        assertEquals(listOf(0xF7F4, 0xF7F3, 0xF7F0), bars)
+        assertTrue(out.contains("<font:artisan:text_y20_h8>"), out)
+        assertTrue("\uF7F8" !in out)
+    }
+
+    @org.junit.jupiter.api.Test
+    fun `strikethrough uses the other bars, and a text without decoration is unchanged`() {
+        val out = body("<st>ab</st>")
+        assertTrue(out.codePoints().toArray().any { it in 0xF7F8..0xF7FF }, out)
+        assertEquals("<font:artisan:text_y20_h8>plain</font>", body("plain"))
+    }
+}
