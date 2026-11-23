@@ -21,7 +21,7 @@ import type { GlyphPlacement } from "./menuGlyphPlacements";
 import { TEXT_SIZES, TEXT_Y_MAX, type TextPlacement } from "./menuTextPlacements";
 import { type OverlayImageRequest, buildOverlayImages } from "./overlayImages";
 import { encodePng } from "./png";
-import { symbolRows, symbolSheet } from "./symbols";
+import { SYMBOLS_UP_FULL_MAX, symbolRows, symbolSheet } from "./symbols";
 import { decorationSheet } from "./textDecorations";
 import { type GuiContainer, buildVanillaGuiFiles } from "./vanillaGui";
 
@@ -156,10 +156,14 @@ export function buildResourcePackZip(
     for (const name of TEXT_UP_TEXTURES) {
       files[`assets/artisan/textures/font/${name}_up.png`] = textUp[name];
     }
-    if (rows.length > 0)
+    if (rows.length > 0) {
       files["assets/artisan/textures/font/symbols_up.png"] = encodePng(
-        symbolSheet(symbols, 2 * TEXT_UP_PAD),
+        symbolSheet(symbols, 2 * SYMBOLS_UP_FULL_MAX),
       );
+      files["assets/artisan/textures/font/symbols_up_half.png"] = encodePng(
+        symbolSheet(symbols, TEXT_UP_PAD, true),
+      );
+    }
     for (let rise = 0; rise <= TEXT_UP_MAX; rise++) {
       files[`assets/artisan/font/text_up${rise}.json`] = strToU8(
         JSON.stringify(buildTextUpFontJson(rise, rows)),

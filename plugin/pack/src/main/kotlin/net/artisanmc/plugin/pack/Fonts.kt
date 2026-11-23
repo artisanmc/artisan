@@ -113,12 +113,13 @@ internal object Fonts {
                     "chars" to v.chars,
                 )
             } +
-            // 16 px cells at half size: 2 × TEXT_UP_PAD transparent rows under each ([Symbols.sheet]).
+            // Up to [Symbols.UP_FULL_MAX]: 16 px cells at half size, 2 × UP_FULL_MAX rows under each;
+            // above, 8 px cells at scale 1, TEXT_UP_PAD rows under each ([Symbols.sheet]).
             (if (symbols.isEmpty()) emptyList() else listOf(mapOf(
                 "type" to "bitmap",
-                "file" to "artisan:font/symbols_up.png",
+                "file" to if (rise <= Symbols.UP_FULL_MAX) "artisan:font/symbols_up.png" else "artisan:font/symbols_up_half.png",
                 "ascent" to Symbols.ASCENT + rise,
-                "height" to Symbols.HEIGHT + TEXT_UP_PAD,
+                "height" to Symbols.HEIGHT + if (rise <= Symbols.UP_FULL_MAX) Symbols.UP_FULL_MAX else TEXT_UP_PAD,
                 "chars" to symbols,
             ))),
     )
