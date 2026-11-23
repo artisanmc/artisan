@@ -133,9 +133,10 @@ function ImageButtonRender({
       }}
       onDragStart={(event) => {
         event.cancelBubble = true;
-        // Above the other menus, so the button stays visible on its way to one of them.
+        // Its menu above the other menus, so the button stays visible on its way to one of
+        // them. The button itself keeps its place in the menu: the labels, drawn after it,
+        // stay above it (raised, it would hide its own label until the menu redraws).
         event.target.getParent()?.moveToTop();
-        event.target.moveToTop();
         select();
       }}
       onDragMove={(event) => {
