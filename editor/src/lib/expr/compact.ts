@@ -24,5 +24,5 @@ export function formatCompact(value: number): string {
   const units = Math.floor(abs / divisor);
   if (units >= 100) return sign + units + UNITS[unit];
   const tenth = Math.floor((abs % divisor) / (divisor / 10));
-  return sign + units + (tenth === 0 ? "" : "." + tenth) + UNITS[unit];
+  return sign + units + (tenth === 0 ? "" : `.${tenth}`) + UNITS[unit];
 }
