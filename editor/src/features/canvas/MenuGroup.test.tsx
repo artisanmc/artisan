@@ -25,6 +25,7 @@ vi.mock("react-konva", () => ({
     onDblTap?: ClickHandler;
     x?: number;
     y?: number;
+    draggable?: boolean;
   }) => (
     // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
@@ -32,6 +33,7 @@ vi.mock("react-konva", () => ({
       data-name={props.name}
       data-x={props.x}
       data-y={props.y}
+      data-draggable={props.draggable ? "true" : "false"}
       onClick={(e) => {
         const evt = { cancelBubble: false, evt: e.nativeEvent as MouseEvent };
         props.onClick?.(evt);
@@ -168,5 +170,35 @@ describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
     expect(useSelectionStore.getState().ids.has(`menu/${MENU_ID}`)).toBe(true);
     expect(useSelectionStore.getState().ids.has("el1")).toBe(false);
     expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
+  });
+});
+
+describe("MenuGroup — slots of an element without an item", () => {
+  it("are draggable, so that dragging one moves the element and not the menu", () => {
+    const project = makeProject();
+    const menu = {
+      ...menusOf(project)[0]!,
+      layers: [
+        {
+          id: "l1",
+          name: "base",
+          elements: [{ id: "streak", positions: "0-2", display: { name: "Streak" } }],
+        },
+      ],
+    } as unknown as Menu;
+    render(
+      <MenuGroup
+        projectId={PACK_ID}
+        menu={menu}
+        position={{ x: 0, y: 0 }}
+        layout={{ [MENU_ID]: { x: 0, y: 0 } }}
+      />,
+    );
+    const slot = (i: number) =>
+      screen
+        .getAllByTestId("konva-group")
+        .find((g) => g.getAttribute("data-name") === `slot:${MENU_ID}:${i}`);
+    for (const i of [0, 1, 2]) expect(slot(i)?.getAttribute("data-draggable")).toBe("true");
+    expect(slot(3)?.getAttribute("data-draggable")).toBe("false");
   });
 });

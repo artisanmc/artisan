@@ -280,6 +280,9 @@ export function MenuGroup({
         if (el?.image) return null;
         const present = Boolean(el);
         const filled = Boolean(el?.material);
+        // An element without an item (tooltip-only, click area) moves like any other:
+        // left undraggable, the drag bubbled up and moved the whole menu.
+        const movable = Boolean(el?.elementId);
         const innerX = TEX_SLOT_INNER_OFFSET;
         const innerY = TEX_SLOT_INNER_OFFSET;
         const elementSelected = Boolean(
@@ -303,13 +306,13 @@ export function MenuGroup({
             y={y}
             name={`slot:${menu.id}:${i}`}
             listening={present || armedForThisMenu}
-            draggable={filled}
+            draggable={movable}
             onDragStart={
-              filled && el?.elementId
+              movable && el?.elementId
                 ? (e) => onSlotDragStart(e, i, el.elementId as ElementId)
                 : undefined
             }
-            onDragMove={filled ? onSlotDragMove : undefined}
+            onDragMove={movable ? onSlotDragMove : undefined}
             onClick={present || armedForThisMenu ? (e) => onSlotClick(e, i, el) : undefined}
             onTap={present || armedForThisMenu ? (e) => onSlotTap(e, i, el) : undefined}
             onMouseEnter={
@@ -324,7 +327,7 @@ export function MenuGroup({
               present ? () => useHoverStore.getState().setElement(null, null) : undefined
             }
             onDragEnd={
-              filled && el?.elementId
+              movable && el?.elementId
                 ? (e) => onSlotDragEnd(e, i, el.elementId as ElementId)
                 : undefined
             }
