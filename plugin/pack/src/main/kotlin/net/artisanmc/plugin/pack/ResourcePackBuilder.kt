@@ -200,7 +200,10 @@ object ResourcePackBuilder {
             }
         }
         for (name in Fonts.TEXT_UP_TEXTURES) files["assets/artisan/textures/font/${name}_up.png"] = vanillaResource("font/${name}_up.png")
-        if (rows.isNotEmpty()) files["assets/artisan/textures/font/symbols_up.png"] = Png.encode(Symbols.sheet(symbols, 2 * Fonts.TEXT_UP_PAD))
+        if (rows.isNotEmpty()) {
+            files["assets/artisan/textures/font/symbols_up.png"] = Png.encode(Symbols.sheet(symbols, 2 * Symbols.UP_FULL_MAX))
+            files["assets/artisan/textures/font/symbols_up_half.png"] = Png.encode(Symbols.sheet(symbols, Fonts.TEXT_UP_PAD, half = true))
+        }
         for (rise in 0..Fonts.TEXT_UP_MAX) files["assets/artisan/font/text_up$rise.json"] = Js.stringifyBytes(Fonts.textUpFontJson(rise, rows))
 
         val glyphs = remapped.filter { it.type == "glyph" && it.codepoint != null }.sortedBy { it.codepoint }

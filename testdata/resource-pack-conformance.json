@@ -1439,6 +1439,7 @@
         "assets/artisan/textures/font/nonlatin_european_up.png",
         "assets/artisan/textures/font/symbols.png",
         "assets/artisan/textures/font/symbols_up.png",
+        "assets/artisan/textures/font/symbols_up_half.png",
         "assets/artisan/textures/gui/dispenser.png",
         "assets/artisan/textures/gui/generic_9x1.png",
         "assets/artisan/textures/gui/generic_9x2.png",
@@ -1458,7 +1459,8 @@
         "assets/artisan/textures/font/ascii_up.png": "f15b11eb5088fffe26be53f613ce3b186313847dc7a468fe91e95cb3af59f6c4",
         "assets/artisan/textures/font/nonlatin_european_up.png": "ac34c8eb477c012101f587847cc74843be4df9287839502111535169584e222c",
         "assets/artisan/textures/font/symbols.png": "0ea1ff4c42305d6dd228b2c07653ea1783f0278064b507f22eaf29277882cef3",
-        "assets/artisan/textures/font/symbols_up.png": "16ab1484aa414044aeda1795d56c311042c7cc6959fae935676baed8a0b0d13e",
+        "assets/artisan/textures/font/symbols_up.png": "f89d413cf652f28752788e574b0bd7cf28758f40b54b0f8035a96d2e60899b31",
+        "assets/artisan/textures/font/symbols_up_half.png": "2050f27124a64179ce57f07c28af6e7bb49546cf560bead1690f84673ab0cf09",
         "assets/artisan/textures/gui/dispenser.png": "437f4c4c7cc98af96577d01a62aba607cf999bdc6ad032fa6cdf6ad47f44b718",
         "assets/artisan/textures/gui/generic_9x1.png": "898d282a843d306f23652f10f78e8bf765f25d5095f60e8cab8db8543b2fee02",
         "assets/artisan/textures/gui/generic_9x2.png": "fcb46d8c1adfb5c510e2f6560a037854c580e74059a57525bfd56b81f5a21a19",
@@ -1472,7 +1474,7 @@
       },
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "646e58f3a27da28562211ceafebe6bf7e780f373",
+      "sha1": "27590aeb3f73e645bfec8d32502f2df8c0da9c27",
       "textYSized": []
     },
     {
