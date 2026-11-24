@@ -146,7 +146,7 @@ uses without being duplicated. Only button images appear in **Buttons → Images
 and undo. The image keeps its size, so the menus that show it need nothing; **Save pixels**
 writes it into your draft. **Draw an image** starts from an empty one (an icon of 16 × 16, a
 slot, a button of three slots, or a size of your own). It is a small tool for a detail or an
-icon: for more, import a PNG made elsewhere or ask the [AI](../configuration/ai.md).
+icon: for more, import a PNG made elsewhere or ask the [AI](../configuration/ai/).
 
 The separate **Properties** panel edits the current selection. Selecting another
 menu or item keeps the Buttons open, and either panel can be closed independently.

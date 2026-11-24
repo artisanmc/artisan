@@ -171,7 +171,7 @@ compose:
 ```
 
 You can then move its layers by hand: the image's detail in the Resources page is a composer
-(see [Image buttons](../editor/image-buttons.md), "Composed images").
+(see [Image buttons](../../editor/image-buttons/), "Composed images").
 
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"
 on the consent page, or the "Can deploy" switch in **Settings → AI apps**. The app then shows

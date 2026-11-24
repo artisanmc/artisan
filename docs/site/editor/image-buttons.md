@@ -33,7 +33,7 @@ takes that area. A title's image layer offers the same list, with the kit's wind
 
 **Composed images.** An image may be a recipe instead of a PNG: a `compose:` list in its
 `.yml`, which stacks kit images and PNGs of the module (see
-[AI](../configuration/ai.md), "Composed images"). The Resources page lists it with its picture
+[AI](../../configuration/ai/), "Composed images"). The Resources page lists it with its picture
 and says what it is made of; you rename, duplicate or delete it there. It has no file to
 reimport, and it stays in its module: another module cannot copy it.
 
