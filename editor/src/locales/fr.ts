@@ -52,6 +52,8 @@ const fr: typeof en = {
     addImage: "Ajouter une image",
     inMenus: "Utilisée dans : {{menus}}",
     unused: "Cette image n’est utilisée dans aucun menu.",
+    composed:
+      "Image composée : le pack de ressources l’assemble à partir de {{layers}}. Elle n’a pas de fichier à elle et change quand ces images changent.",
   },
   elementLabel: {
     text: "Libellé",

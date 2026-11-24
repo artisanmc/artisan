@@ -361,7 +361,7 @@ class AiAssistant(
             "project" to (call.input.text("project") ?: body?.get("project")?.takeIf { !outcome.error }),
             // write_image names its file in its answer: its call only has the image's name.
             "path" to (call.input.text("path") ?: (body?.get("path") as? String)?.takeIf { !outcome.error }),
-            "image" to (body?.get("hash") as? String)?.takeIf { !outcome.error && call.name == "write_image" },
+            "image" to ((body?.get("hash") ?: body?.get("preview_hash")) as? String)?.takeIf { !outcome.error && call.name == "write_image" },
             "ok" to !outcome.error,
             "error" to body?.get("error")?.takeIf { outcome.error },
             "problems" to (body?.get("problems") as? List<*>)?.size?.takeIf { outcome.error },

@@ -49,6 +49,8 @@ export default {
     addImage: "Add an image",
     inMenus: "Used in: {{menus}}",
     unused: "This image is not used in a menu.",
+    composed:
+      "Composed image: the resource pack assembles it from {{layers}}. It has no file of its own and changes when they do.",
   },
   elementLabel: {
     text: "Label",

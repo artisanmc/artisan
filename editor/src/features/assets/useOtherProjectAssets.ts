@@ -31,19 +31,22 @@ export function useOtherProjectAssets(projectIds: readonly ProjectId[]): OtherPr
     }
     let cancelled = false;
     setState({ assets: [], loading: true, error: null });
-    void Promise.allSettled(ids.map((id) => listLocalAssets(id, {}))).then((reads) => {
-      if (cancelled) return;
-      const assets = reads.flatMap((read) => (read.status === "fulfilled" ? read.value : []));
-      const failed = reads.find(
-        (read): read is PromiseRejectedResult => read.status === "rejected",
-      );
-      const none = reads.every((read) => read.status === "rejected");
-      setState({
-        assets,
-        loading: false,
-        error: none && failed ? String((failed.reason as Error)?.message ?? failed.reason) : null,
-      });
-    });
+    // Without the composed images: these lists offer assets to copy in, and one cannot be.
+    void Promise.allSettled(ids.map((id) => listLocalAssets(id, { composed: false }))).then(
+      (reads) => {
+        if (cancelled) return;
+        const assets = reads.flatMap((read) => (read.status === "fulfilled" ? read.value : []));
+        const failed = reads.find(
+          (read): read is PromiseRejectedResult => read.status === "rejected",
+        );
+        const none = reads.every((read) => read.status === "rejected");
+        setState({
+          assets,
+          loading: false,
+          error: none && failed ? String((failed.reason as Error)?.message ?? failed.reason) : null,
+        });
+      },
+    );
     return () => {
       cancelled = true;
     };

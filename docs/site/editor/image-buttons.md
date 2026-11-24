@@ -31,6 +31,13 @@ button, every menu that names it follows. A kit image whose name ends with its s
 takes that area. A title's image layer offers the same list, with the kit's windows
 (`kit:window.6`, `kit:window.3`).
 
+**Composed images.** An image may be a recipe instead of a PNG: a `compose:` list in its
+`.yml`, which stacks kit images and PNGs of the module (see
+[AI](../configuration/ai.md), "Composed images"). The Resources page lists it with its picture
+and says what it is made of; you rename, duplicate or delete it there. It has no file to
+reimport, and it stays in its module: another module cannot copy it. Its layers are edited in
+the file for now.
+
 **Natural size** is the default for new buttons: an 8×8 PNG stays 8×8 and is centered.
 Use **Horizontal/Vertical offset (px)** to move it within the area, or **Center image**
 to reset both offsets. Pixels outside the area are clipped; the clickable slots stay fixed.

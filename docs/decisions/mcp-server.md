@@ -269,6 +269,35 @@ deployed.
       module's published files (`state/kitStore`, fed by the server index); **UI kit** beside
       Item and Image picks one for a button, sized by the slots its name states, and the title
       layer form picks one for a window. Nothing is copied into the module.
+15. **Composed images** (2026-11-24, step 4 b of the same design). Most of a module's images
+    are a kit image plus a detail: a window and its slots, a card and an icon. Kept as PNGs,
+    they would not follow a server that redraws its kit. So an image may be a recipe instead
+    of a file: a descriptor `assets/textures/<name>.yml` (or `assets/glyphs/`) with a `compose`
+    list and no PNG of its name, which both pack builders assemble (`Compose.kt`, `compose.ts`).
+    - **Layers, bottom first**: `use` or `image` places one image at `x`, `y`; `grid` repeats
+      it `columns` by `rows`, at its own size (the slots of a window: `kit:cell`). A layer is
+      `kit:<name>` or a PNG of the same module, never another composed image, so there is no
+      order to resolve and no cycle. The image is as large as `width` and `height` say (both),
+      else as far as its first layer reaches; what goes past is clipped. A layer whose file is
+      missing is left out; none drawn, there is no image. A PNG of the same name wins over the
+      recipe. At most 64 layers, 64 repeats, 512 pixels a side.
+    - **Same bytes in both builders**: layers are blended with whole-number alpha compositing,
+      and the result is an asset like a PNG's (same id, same place in the index, a title
+      background's `ascent` and `codepoint` read from the same descriptor). A composed image of
+      the `ui-kit` module is `kit:<its name>`, and replaces a slot of the base at its size.
+      A server with no recipe keeps its pack byte for byte.
+    - **For the model**: `write_image` takes `compose` ({layers: [{image, x, y, columns,
+      rows}], width, height}) in place of pixels, writes the descriptor and returns the picture
+      assembled. It is stricter than the pack: a layer that does not exist is refused, with what
+      to name instead. `read_image` on the `.yml` returns the picture and the layers,
+      `list_documents` lists them (`composed_images`), `render_menu` and `survey_ui` draw them
+      (`composed_of`). Written as pixels afterwards, the image keeps its place and loses its
+      recipe; composed again, its PNG.
+    - **In the editor**: a composed image is listed with the others, its picture assembled in
+      the browser (`features/assets/composedAssets.ts`, a `data:` URL). It is renamed,
+      duplicated and deleted through its descriptor; a PNG cannot be imported under its name,
+      and it is not offered for copying into another module, where its layers would be missing.
+      Editing its layers with the mouse is the next step (4 c).
 
 ## Consequences
 
@@ -293,7 +322,7 @@ deployed.
   old hashes.
 - Data tools (data sources), a server's UI kit and an image model: the next steps of the design
   named in decision 10. For `render_menu`: a state chosen by the caller, sample values for
-  expressions, hover text (name and lore). For the kit: its fixed slots, themes, composed images
-  and its place in the editor's Resources page. For `measure_image`: a pixel size that is not
+  expressions, hover text (name and lore). For the kit: themes, a visual editor for composed
+  images and its place in the editor's Resources page. For `measure_image`: a pixel size that is not
   whole found by itself (a mock-up from an image model), elements inside a dense menu, a WebP.
 - Deploying several Projects in one call, and a per-client limit on deploys.

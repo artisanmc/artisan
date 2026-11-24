@@ -8,11 +8,15 @@ import {
   type KitSlot,
   kitNameOf,
 } from "@/lib/pack/kit";
+import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import { kitImageUrl } from "@/lib/pack/kitUrls";
 import { type KitRead, useKitStore } from "@/state/kitStore";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { parse } from "yaml";
+import { create } from "zustand";
 import { useAssetStore } from "./assetStore";
+import { composedView } from "./composedAssets";
+import { readPublishedBinary } from "./localAssets";
 
 /**
  * The UI kit as the editor shows it (`lib/pack/kit.ts`): what a menu names `kit:<name>`. Each
@@ -82,12 +86,67 @@ function kitAsset(name: string, width: number, height: number, url: string, hash
 }
 
 /**
+ * The kit module's composed images by name (`lib/pack/compose.ts`), assembled as the pack does
+ * it: each over the module's PNGs and the base, never over another composed image.
+ */
+export async function composedKitImages(read: KitRead): Promise<Map<string, OwnImage>> {
+  const files = Object.entries(read.files).map(([path, content]) => ({ path, content }));
+  const disk = diskAssetsFromTree(
+    read.projectId,
+    files,
+    read.binaries.map((b) => ({ ...b, size: 0 })),
+  );
+  const bytes = new Map<string, Promise<Uint8Array | null>>();
+  const png = (path: string) => {
+    if (!bytes.has(path))
+      bytes.set(
+        path,
+        readPublishedBinary(read.projectId, path).catch(() => null),
+      );
+    return bytes.get(path)!;
+  };
+  const out = new Map<string, OwnImage>();
+  for (const asset of disk) {
+    if (!asset.compose) continue;
+    const view = await composedView(
+      asset,
+      disk,
+      (layer) => png(layer.path),
+      (name) => {
+        const own = disk.find((a) => !a.compose && a.row.type !== "font" && a.row.name === name);
+        return own ? png(own.path) : undefined;
+      },
+    ).catch(() => null);
+    if (view?.previewUrl)
+      out.set(asset.row.name, {
+        url: view.previewUrl,
+        hash: asset.hash,
+        width: view.width,
+        height: view.height,
+      });
+  }
+  return out;
+}
+
+const NONE = new Map<string, OwnImage>();
+/** The composed images of the last kit module read, kept until another read replaces it. */
+const useComposedKit = create<{ read: KitRead | undefined; images: Map<string, OwnImage> }>(() => ({
+  read: undefined,
+  images: NONE,
+}));
+let composing: KitRead | undefined;
+
+/**
  * Every kit image of a server: the base first, in its order (the kit module's image where it
  * has one of the slot's size, as its descriptor says; Artisan's otherwise), then the kit
- * module's other images.
+ * module's other images. `composed`: its composed images, which a PNG of the same name hides.
  */
-export function kitAssetsOf(read: KitRead | undefined): Asset[] {
+export function kitAssetsOf(
+  read: KitRead | undefined,
+  composed: Map<string, OwnImage> = NONE,
+): Asset[] {
   const own = ownImages(read);
+  for (const [name, image] of composed) if (!own.has(name)) own.set(name, image);
   const fits = (slot: KitSlot, image: OwnImage) =>
     (image.width ?? slot.width) === slot.width && (image.height ?? slot.height) === slot.height;
   const base = KIT_SLOTS.map((slot) => {
@@ -112,7 +171,15 @@ export const isKitBase = (asset: Asset): boolean =>
 /** The kit images of the server being edited (published state, from the server index). */
 export function useKitAssets(): Asset[] {
   const read = useKitStore((s) => s.read);
-  return useMemo(() => kitAssetsOf(read), [read]);
+  const composed = useComposedKit((s) => (s.read === read ? s.images : NONE));
+  useEffect(() => {
+    if (!read || composing === read || useComposedKit.getState().read === read) return;
+    composing = read;
+    void composedKitImages(read).then((images) => {
+      if (composing === read) useComposedKit.setState({ read, images });
+    });
+  }, [read]);
+  return useMemo(() => kitAssetsOf(read, composed), [read, composed]);
 }
 
 /** The module's assets and the kit's: what a title layer's image is looked up in. */

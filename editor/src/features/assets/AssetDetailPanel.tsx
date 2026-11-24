@@ -100,6 +100,11 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
       ) : (
         <AssetStage asset={asset} />
       )}
+      {asset.composedOf && (
+        <p className="text-xs text-[var(--text-mut)]">
+          {t("resources.composed", { layers: asset.composedOf.join(", ") })}
+        </p>
+      )}
       <label className="text-xs" htmlFor={`${inputId}-name`}>
         {t("resources.name")}
         <Input id={`${inputId}-name`} value={name} onChange={(e) => setName(e.target.value)} />

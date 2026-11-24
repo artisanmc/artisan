@@ -145,6 +145,31 @@ the kit in the style of the guild menus"): every menu that names it follows. An 
 size is left out, so that no menu is thrown off. Any other image of the `ui-kit` module is
 `kit:<its name>` too.
 
+**Composed images.** A window with its slots, or a card with its icon, does not have to be
+drawn pixel by pixel: the app can put it together from kit images and the module's own ("a
+window of 6 rows from the kit, with the guild icon in the title"). Such an image is a short
+recipe (`compose:` in `assets/textures/<name>.yml`, no PNG beside it) that the resource pack
+assembles at each build. It is used like any image, and it follows its layers: redraw the
+kit's window, and every image composed with it changes at the next build. A layer is a kit
+image or a PNG of the same module; the image is as large as its first layer, unless the recipe
+gives a `width` and a `height`.
+
+```yaml
+# assets/glyphs/guild_window.yml
+ascent: 13
+codepoint: 57344
+compose:
+  - use: "kit:window.6"
+  - grid: "kit:cell"      # 9 columns by 6 rows of slots
+    x: 7
+    y: 17
+    columns: 9
+    rows: 6
+  - image: guild_icon     # a PNG of this module
+    x: 80
+    y: 4
+```
+
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"
 on the consent page, or the "Can deploy" switch in **Settings → AI apps**. The app then shows
 the changes and deploys only after you say yes, with the same checks as the editor's Deploy.

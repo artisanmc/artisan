@@ -3,7 +3,7 @@ import type { ProjectDraft } from "@/features/project/draft";
 import type { AssetMutation } from "@/features/project/persistedDrafts";
 import { DraftApiError } from "@/lib/api/projectDrafts";
 import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
-import { createImage, encodePng } from "@/lib/pack/png";
+import { createImage, decodePng, encodePng } from "@/lib/pack/png";
 import { sha256Hex } from "@/lib/sha256";
 import { strToU8, zipSync } from "fflate";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +14,17 @@ import {
   performLocalAssetMutation,
   readAssetFiles,
 } from "./localAssets";
+
+// The kit's base, which a composed image may be made of: one cell, without the bundler's files.
+vi.mock("@/lib/pack/kitUrls", () => ({
+  kitImageUrl: () => undefined,
+  kitImageBytes: async (id: string) => {
+    if (id !== "cell") throw new Error(`kit_image_missing:${id}`);
+    const image = createImage(18, 18);
+    image.data.fill(255);
+    return encodePng(image);
+  },
+}));
 
 /** `w`×`h` PNG whose first `opaque` columns only are opaque. */
 function png(w: number, h: number, opaque = w): Uint8Array {
@@ -349,6 +360,99 @@ describe("listLocalAssets", () => {
       "star",
     ]);
     expect((await listLocalAssets("p", {})).map((a) => a.id)).toEqual(["bg"]);
+  });
+});
+
+describe("composed images", () => {
+  const recipe =
+    "ascent: 13\ncodepoint: 57344\nusages: [menu]\ncompose:\n  - use: 'kit:cell'\n  - image: frame\n    x: 18\n  - grid: icon\n    x: 2\n    y: 2\n    columns: 2\n  - image: gone\n";
+  function hubWithRecipe() {
+    const [frame, icon] = [png(20, 10), png(4, 4)];
+    const snapshot = empty();
+    snapshot.tree["assets/glyphs/window.yml"] = recipe;
+    snapshot.binaryTree = {
+      "assets/textures/frame.png": { hash: sha256Hex(frame), size: frame.length },
+      "assets/textures/icon.png": { hash: sha256Hex(icon), size: icon.length },
+    };
+    snapshot.binaryBaseline = { ...snapshot.binaryTree };
+    return fakeHub(snapshot, {
+      "assets/textures/frame.png": frame,
+      "assets/textures/icon.png": icon,
+    });
+  }
+  const sizeOf = (url: string | undefined) => {
+    const { width, height } = decodePng(Buffer.from((url ?? "").split(",")[1] ?? "", "base64"));
+    return [width, height];
+  };
+
+  it("lists one with the picture the pack assembles, its size and its layers", async () => {
+    hubWithRecipe();
+    const listed = await listLocalAssets("p", {}, "d1");
+    expect(listed.map((a) => a.id)).toEqual(["window", "frame", "icon"]);
+    const window = listed[0]!;
+    // As large as its first layer, the kit's cell; the frame beside it is clipped away.
+    expect(window).toMatchObject({
+      type: "glyph",
+      codepoint: 57344,
+      width: 18,
+      height: 18,
+      composedOf: ["kit:cell", "frame", "icon", "gone"],
+    });
+    expect(window.previewUrl).toMatch(/^data:image\/png;base64,/);
+    expect(sizeOf(window.previewUrl)).toEqual([18, 18]);
+    expect(listed[1]).not.toHaveProperty("composedOf");
+    // A list to copy from leaves it out, and it cannot be read for a copy.
+    expect((await listLocalAssets("p", { composed: false }, "d1")).map((a) => a.id)).toEqual([
+      "frame",
+      "icon",
+    ]);
+    const refused = await rejection(readAssetFiles("p", { id: "window", type: "glyph" }, "d1"));
+    expect(refused.status).toBe(400);
+  });
+
+  it("renames, duplicates and deletes one through its descriptor alone", async () => {
+    const hub = hubWithRecipe();
+    const binaries = Object.keys(hub.draft.snapshot.binaryTree!);
+
+    const renamed = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/window", method: "PATCH", fields: { name: "hall", ascent: "9" } }),
+    );
+    expect(renamed.asset).toMatchObject({ id: "hall", ascent: 9, codepoint: 57344, width: 18 });
+    expect(sizeOf(renamed.asset?.previewUrl)).toEqual([18, 18]);
+    expect(renamed.draft.snapshot.tree).not.toHaveProperty("assets/glyphs/window.yml");
+    const kept = parse(renamed.draft.snapshot.tree["assets/glyphs/hall.yml"]!);
+    expect(kept).toMatchObject({ ascent: 9, codepoint: 57344, usages: ["menu"] });
+    expect(kept.compose).toEqual(parse(recipe).compose);
+
+    const copy = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/hall/duplicate", method: "POST", fields: {} }),
+    );
+    expect(copy.asset).toMatchObject({ id: "hall_copy", codepoint: 57345 });
+    expect(parse(copy.draft.snapshot.tree["assets/glyphs/hall_copy.yml"]!).compose).toEqual(
+      kept.compose,
+    );
+
+    // A PNG imported under its name would hide the recipe: refused, as any taken name.
+    const taken = await rejection(
+      performLocalAssetMutation("p", createOp(hub, { type: "glyph", name: "hall" }, png(8, 8))),
+    );
+    expect([taken.status, taken.code]).toEqual([409, "Asset name already exists"]);
+    const resized = await rejection(
+      performLocalAssetMutation(
+        "p",
+        op(hub, { suffix: "/hall", method: "PATCH", fields: { height: "16" } }),
+      ),
+    );
+    expect(resized.status).toBe(400);
+
+    const removed = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/hall", method: "DELETE", fields: {} }),
+    );
+    expect(Object.keys(removed.draft.snapshot.tree)).toEqual(["assets/glyphs/hall_copy.yml"]);
+    expect(Object.keys(removed.draft.snapshot.binaryTree!)).toEqual(binaries);
   });
 });
 

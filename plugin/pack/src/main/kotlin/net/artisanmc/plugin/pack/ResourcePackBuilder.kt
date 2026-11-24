@@ -78,6 +78,7 @@ object ResourcePackBuilder {
         val texts = ArrayList<String>()
         val titleImages = ArrayList<String>()
         val kitImages = HashMap<String, ByteArray>()
+        val composed = ArrayList<Composed>()
 
         for (project in projects) {
             val files = project.files
@@ -95,12 +96,19 @@ object ResourcePackBuilder {
             contribs += project.id to fromDisk
                 .filter { it.row.type == "glyph" && it.row.codepoint != null }
                 .map { it.row.id to it.row.codepoint!! }
+            // The module's own PNGs by name: what its composed images are made of.
+            val own = HashMap<String, ByteArray>()
             for (a in fromDisk) {
                 allAssets += a.row
                 if ((a.row.type == "glyph" && a.row.codepoint != null) || a.row.type == "texture") {
+                    if (a.recipe != null) {
+                        composed += Composed(allAssets.lastIndex, project, a.recipe, own)
+                        continue
+                    }
                     val bytes = project.binary(a.path) ?: continue
                     glyphPngs[a.row.id] = bytes
                     imagesByRef += "${project.id}:${a.row.name}" to bytes
+                    own[a.row.name] = bytes
                     if (project.folder == Kit.FOLDER) kitImages[a.row.name] = bytes
                     continue
                 }
@@ -112,6 +120,20 @@ object ResourcePackBuilder {
                 for (g in meta?.glyphMap.orEmpty()) project.binary("$dir/${g.texture}")?.let { fontMap[g.texture] = it }
                 if (fontMap.isNotEmpty()) fontGlyphPngs[a.row.id] = fontMap
             }
+        }
+
+        // Composed images ([ComposedImages]), once every module's PNGs are read: a layer is a PNG
+        // of the module or a kit image, never another composed image, so their order does not matter.
+        val made = composed.mapNotNull { c ->
+            ComposedImages.render(c.recipe, c.own::get, kitImages::get)?.let { c to it }
+        }
+        for ((c, image) in made) {
+            val row = allAssets[c.index].copy(width = image.width.toDouble(), height = image.height.toDouble())
+            val bytes = Png.encode(image)
+            allAssets[c.index] = row
+            glyphPngs[row.id] = bytes
+            imagesByRef += "${c.project.id}:${row.name}" to bytes
+            if (c.project.folder == Kit.FOLDER) kitImages[row.name] = bytes
         }
 
         // `kit:<name>` ([Kit]): only the ones a menu or a module asks for, so a server that names
@@ -161,6 +183,9 @@ object ResourcePackBuilder {
         val bedrock = BedrockPack.build(serverId, bedrockMenus, pngsByName, allAssets, sources.getValue(GuiContainer.CHEST))
         return PackResult(java.zip, java.sha1, bedrock)
     }
+
+    /** A composed image waiting for its layers: its row's place, its module and that module's PNGs. */
+    private class Composed(val index: Int, val project: PackProject, val recipe: ComposedImages.Recipe, val own: Map<String, ByteArray>)
 
     /** First Project wins a codepoint; a later one taking it again moves to the first free one. */
     private fun mergeCodepoints(contribs: List<Pair<String, List<Pair<String, Double>>>>): Map<String, Double> {

@@ -2,6 +2,7 @@ import { sha256Hex } from "@/lib/sha256";
 import { type BedrockMenu, bedrockMenusFromProject } from "./bedrock/bedrockMenus";
 import { buildBedrockPack } from "./bedrock/bedrockPack";
 import { CODEPOINT_MIN } from "./codepoints";
+import { type ComposeRecipe, renderComposed } from "./compose";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
@@ -13,6 +14,7 @@ import {
 } from "./menuGlyphPlacements";
 import { type TextPlacement, textPlacementsFromMenus } from "./menuTextPlacements";
 import type { OverlayImageRequest } from "./overlayImages";
+import { type RgbaImage, encodePng } from "./png";
 import { type AssetRow, type BuildResult, buildResourcePackZip } from "./resourcePackBuilder";
 import { type GlyphContribution, mergeCodepoints } from "./rpCodepointMerger";
 import { usedSymbols } from "./symbols";
@@ -86,6 +88,12 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   const texts: string[] = [];
   const titleImages: string[] = [];
   const kitImages = new Map<string, Uint8Array>();
+  const composed: {
+    row: AssetRow;
+    project: PackProject;
+    recipe: ComposeRecipe;
+    own: Map<string, Uint8Array>;
+  }[] = [];
 
   for (const project of projects) {
     const { files } = project;
@@ -110,13 +118,20 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
         .filter((a) => a.row.type === "glyph" && a.row.codepoint !== null)
         .map((a) => ({ assetId: a.row.id, codepoint: a.row.codepoint! })),
     });
+    // The module's own PNGs by name: what its composed images are made of.
+    const own = new Map<string, Uint8Array>();
     for (const a of fromDisk) {
       allAssets.push(a.row);
       if ((a.row.type === "glyph" && a.row.codepoint !== null) || a.row.type === "texture") {
+        if (a.compose) {
+          composed.push({ row: a.row, project, recipe: a.compose, own });
+          continue;
+        }
         const bytes = await project.binary(a.path);
         if (!bytes) continue;
         glyphPngs.set(a.row.id, bytes);
         imagesByRef.push({ ref: `${project.id}:${a.row.name}`, bytes });
+        own.set(a.row.name, bytes);
         if ((project.folder ?? project.id) === KIT_FOLDER) kitImages.set(a.row.name, bytes);
         continue;
       }
@@ -131,6 +146,26 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
       }
       if (fontMap.size > 0) fontGlyphPngs.set(a.row.id, fontMap);
     }
+  }
+
+  // Composed images (`compose.ts`), once every module's PNGs are read: a layer is a PNG of the
+  // module or a kit image, never another composed image, so their order does not matter.
+  const made: { c: (typeof composed)[number]; image: RgbaImage }[] = [];
+  for (const c of composed) {
+    const image = await renderComposed(
+      c.recipe,
+      (name) => c.own.get(name),
+      async (name) => (await kitImage(name, kitImages.get(name), input.kitImage))?.png,
+    );
+    if (image) made.push({ c, image });
+  }
+  for (const { c, image } of made) {
+    c.row.width = image.width;
+    c.row.height = image.height;
+    const bytes = encodePng(image);
+    glyphPngs.set(c.row.id, bytes);
+    imagesByRef.push({ ref: `${c.project.id}:${c.row.name}`, bytes });
+    if ((c.project.folder ?? c.project.id) === KIT_FOLDER) kitImages.set(c.row.name, bytes);
   }
 
   // `kit:<name>` (`kit.ts`): only the ones a menu or a module asks for, so a server that names

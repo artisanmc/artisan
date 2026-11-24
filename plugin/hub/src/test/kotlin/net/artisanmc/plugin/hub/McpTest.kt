@@ -345,6 +345,122 @@ class McpTest {
     }
 
     @Test
+    fun `a composed image is written as a recipe, shown as the pack assembles it, and follows the kit`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        fun rgb(image: net.artisanmc.plugin.pack.RgbaImage, x: Int, y: Int) = image.data.slice((y * image.width + x) * 4 until (y * image.width + x) * 4 + 3).map { it.toInt() and 0xff }
+        fun picture(result: com.fasterxml.jackson.databind.JsonNode) =
+            net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(result["content"][1]["data"].asText()))
+        fun shipped(id: String, x: Int, y: Int) =
+            rgb(net.artisanmc.plugin.pack.Png.decode(net.artisanmc.plugin.pack.Kit.shipped(net.artisanmc.plugin.pack.Kit.slot(id)!!)), x, y)
+        val blue = listOf(0x33, 0x66, 0xcc)
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/shop_icon.png" to solid(16, 16, 0x3366cc)))
+        val (access, _) = tokens()
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: composed")["structuredContent"]["draft_id"].asText()
+        fun write(vararg args: Pair<String, Any?>) = tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, *args)
+        val snapshot = { mapper.readTree(drafts.rows.getValue(draftId))["snapshot"] }
+        val layers = listOf(
+            mapOf("image" to "kit:window.3"),
+            mapOf("image" to "kit:cell", "x" to 7, "y" to 17, "columns" to 9, "rows" to 3),
+            mapOf("image" to "shop_icon", "x" to 80, "y" to 1),
+        )
+
+        // A window put together from the kit and the module's icon: a descriptor, and no PNG.
+        val written = write("name" to "shop_window", "use" to "background", "compose" to mapOf("layers" to layers))
+        assertFalse(written.has("isError"), written.toString())
+        val facts = written["structuredContent"]
+        assertEquals("assets/glyphs/shop_window.yml", facts["path"].asText())
+        assertEquals(176 to 166, facts["width"].asInt() to facts["height"].asInt())
+        assertEquals(
+            "ascent: 13\ncodepoint: 57344\nusages: [menu]\ncompose:\n  - use: \"kit:window.3\"\n  - grid: \"kit:cell\"\n    x: 7\n    y: 17\n" +
+                "    columns: 9\n    rows: 3\n  - image: \"shop_icon\"\n    x: 80\n    y: 1\n",
+            snapshot()["tree"]["assets/glyphs/shop_window.yml"].asText(),
+        )
+        assertEquals(listOf("assets/textures/shop_icon.png"), snapshot()["binaryTree"].fieldNames().asSequence().toList())
+        // The picture as assembled, kept beside the draft for the editor's assistant to show.
+        assertEquals(176, net.artisanmc.plugin.pack.Png.decode(drafts.blobs.getValue(facts["preview_hash"].asText())).width)
+        // The picture the model looks at, twice the size: the icon over the window, a slot's frame, the window under them.
+        val shown = picture(written)
+        assertEquals(176 * 2, shown.width)
+        assertEquals(blue, rgb(shown, 2 * 85, 2 * 5))
+        assertEquals(shipped("cell", 9, 9), rgb(shown, 2 * (7 + 18 + 9), 2 * (17 + 18 + 9)))
+        assertEquals(shipped("window.3", 3, 150), rgb(shown, 2 * 3, 2 * 150))
+
+        // Read back, it is its layers; a draft lists it apart from its PNGs.
+        val read = tool(access, "read_image", "project" to "u-local.shop", "path" to "assets/glyphs/shop_window.yml", "draft_id" to draftId)
+        assertEquals(mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(layers), read["structuredContent"]["compose"]["layers"])
+        assertEquals(176, read["structuredContent"]["width"].asInt())
+        assertEquals(blue, rgb(picture(read), 2 * 85, 2 * 5))
+        val listed = tool(access, "list_documents", "project" to "u-local.shop", "draft_id" to draftId)["structuredContent"]
+        assertEquals(listOf("assets/glyphs/shop_window.yml"), listed["composed_images"].map { it.asText() })
+        assertTrue(tool(access, "read_image", "project" to "u-local.shop", "path" to "assets/glyphs/shop_window.yml")["isError"].asBoolean(), "not deployed yet")
+
+        // A menu of the draft draws it as its window.
+        val menu = "schema: menu/v1\nsize: 27\nvanilla_texture: false\ntitle:\n  - { kind: background, asset: shop_window }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/composed.yml", "content" to menu).has("isError"))
+        val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/composed.yml", "draft_id" to draftId, "scale" to 1)
+        assertTrue(rendered["structuredContent"]["notes"].none { "shop_window" in it.asText() }, rendered["structuredContent"].toString())
+        val window = rendered["structuredContent"]["window"]
+        assertEquals(blue, rgb(picture(rendered), window["x"].asInt() + 85, window["y"].asInt() + 5))
+
+        // A layer the pack would leave out is refused here, with what to name instead.
+        val revision = mapper.readTree(drafts.rows.getValue(draftId))["revision"].asInt()
+        fun refused(vararg args: Pair<String, Any?>): String = write(*args).also { assertTrue(it["isError"].asBoolean(), it.toString()) }["structuredContent"]["message"].asText()
+        assertTrue("no image 'gone'" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "gone")))))
+        assertTrue("kit:gone" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "kit:gone")))))
+        assertTrue("itself a composed image" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "shop_window")))))
+        assertTrue("layer of itself" in refused("name" to "shop_icon", "compose" to mapOf("layers" to listOf(mapOf("image" to "shop_icon")))))
+        assertTrue("together" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "shop_icon")), "width" to 20)))
+        assertTrue("columns" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "shop_icon", "columns" to 65)))))
+        assertTrue("at least one" in refused("name" to "card", "compose" to mapOf("layers" to emptyList<Any>())))
+        assertEquals(revision, mapper.readTree(drafts.rows.getValue(draftId))["revision"].asInt())
+
+        // A given size clips the layers; written as pixels, the image keeps its place and loses its recipe; composed again, its PNG.
+        val card = write("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "kit:card.3x2"), mapOf("image" to "shop_icon", "x" to 19, "y" to 4)), "width" to 30, "height" to 12))
+        assertEquals(30 to 12, card["structuredContent"]["width"].asInt() to card["structuredContent"]["height"].asInt())
+        assertEquals(
+            "width: 30\nheight: 12\nusages: [button]\ncompose:\n  - use: \"kit:card.3x2\"\n  - image: \"shop_icon\"\n    x: 19\n    y: 4\n",
+            snapshot()["tree"]["assets/textures/card.yml"].asText(),
+        )
+        val pixels = mapOf("palette" to mapOf("#" to "#373737"), "rows" to listOf("##", "##"))
+        val drawn = write("name" to "shop_window", "pixels" to pixels)
+        assertEquals("assets/glyphs/shop_window.png", drawn["structuredContent"]["path"].asText())
+        assertTrue(drawn["structuredContent"]["replaced"].asBoolean())
+        assertEquals("ascent: 13\ncodepoint: 57344\nusages: [menu]\nwidth: 2\nheight: 2\n", snapshot()["tree"]["assets/glyphs/shop_window.yml"].asText())
+        val again = write("name" to "shop_window", "compose" to mapOf("layers" to listOf(mapOf("image" to "kit:window.3"))))
+        assertTrue(again["structuredContent"]["replaced"].asBoolean())
+        assertNull(snapshot()["binaryTree"]["assets/glyphs/shop_window.png"])
+        assertEquals("ascent: 13\ncodepoint: 57344\nusages: [menu]\ncompose:\n  - use: \"kit:window.3\"\n", snapshot()["tree"]["assets/glyphs/shop_window.yml"].asText())
+        assertTrue(write("name" to "card", "delete" to true)["structuredContent"]["deleted"].asBoolean())
+        assertNull(snapshot()["tree"]["assets/textures/card.yml"])
+
+        // Deployed in another module, it is surveyed with what it is made of, and it follows the server's kit:
+        // the window redrawn in the kit module is the one under the icon.
+        modules["guilds"] = McpFixtures.Module(
+            files = mapOf(
+                "assets/glyphs/guild_window.yml" to "ascent: 13\ncodepoint: 57344\ncompose:\n  - use: 'kit:window.3'\n  - image: guild_icon\n    x: 80\n    y: 1\n",
+                "menus/guild.yml" to "schema: menu/v1\nsize: 27\nvanilla_texture: false\ntitle:\n  - { kind: background, asset: guild_window }\n",
+            ),
+            images = mapOf("assets/textures/guild_icon.png" to solid(16, 16, 0x3366cc)),
+        )
+        fun deployed(): Pair<List<Int>, List<Int>> {
+            val shownMenu = tool(access, "render_menu", "project" to "u-local.guilds", "path" to "menus/guild.yml", "scale" to 1)
+            val at = shownMenu["structuredContent"]["window"]
+            return rgb(picture(shownMenu), at["x"].asInt() + 85, at["y"].asInt() + 5) to rgb(picture(shownMenu), at["x"].asInt() + 3, at["y"].asInt() + 150)
+        }
+        assertEquals(blue to shipped("window.3", 3, 150), deployed())
+        val surveyed = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["modules"].first { it["project"].asText() == "u-local.guilds" }["images"]
+        assertEquals(listOf("guild_window" to "assets/glyphs/guild_window.yml", "guild_icon" to "assets/textures/guild_icon.png"), surveyed.map { it["name"].asText() to it["path"].asText() })
+        assertEquals(listOf("kit:window.3", "guild_icon"), surveyed[0]["composed_of"].map { it.asText() })
+        assertEquals(176 to 166, surveyed[0]["width"].asInt() to surveyed[0]["height"].asInt())
+        modules["ui-kit"] = McpFixtures.Module(images = mapOf("assets/textures/window.3.png" to solid(176, 166, 0xcc2020)))
+        assertEquals(blue to listOf(0xcc, 0x20, 0x20), deployed())
+        assertEquals(listOf("assets/glyphs/guild_window.yml"), tool(access, "list_documents", "project" to "u-local.guilds")["structuredContent"]["composed_images"].map { it.asText() })
+        assertTrue(sent.none { it["type"] == "project_write" || it["type"] == "project_draft_publish" })
+    }
+
+    @Test
     fun `an image is cut out of a picture, at the art's own size and without its ground`() {
         // A round button drawn four times its size on a plain ground, as a screenshot or a sprite sheet shows it.
         val rows = listOf("_kkkkkk_", "kwwwwwgk", "kwrrrrgk", "kwrbbrgk", "kgggggGk", "_kkkkkk_")

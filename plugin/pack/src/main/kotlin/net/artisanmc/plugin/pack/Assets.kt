@@ -25,7 +25,8 @@ internal data class AssetRow(
     val fontMeta: Any?,
 )
 
-internal class DiskAsset(val row: AssetRow, val path: String)
+/** [recipe]: a composed image ([ComposedImages]), whose [path] is its descriptor's: it has no PNG. */
+internal class DiskAsset(val row: AssetRow, val path: String, val recipe: ComposedImages.Recipe? = null)
 
 internal fun sha256Hex(bytes: ByteArray): String =
     MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
@@ -121,13 +122,16 @@ internal object DiskAssets {
         val binaries = if (originals) ShippedView.of(ownBinaries) { it }.map { (real, at) -> at to real }
         else ownBinaries.map { it to it }
         val descriptors = HashMap<String, Map<*, *>>()
-        for ((f, _) in files) {
+        val descriptorPaths = HashMap<String, String>()
+        for ((f, real) in files) {
             val stem = if (f.path.startsWith("assets/")) YamlPaths.stem(f.path) else null
             if (stem == null || (descriptors.containsKey(stem) && !f.path.endsWith(".yml"))) continue
             when (val parsed = Yaml.parseOrNull(f.content)) {
                 is Map<*, *> -> descriptors[stem] = parsed
                 is List<*> -> descriptors[stem] = emptyMap<String, Any?>()
+                else -> continue
             }
+            descriptorPaths[stem] = real
         }
 
         val out = ArrayList<DiskAsset>()
@@ -156,6 +160,30 @@ internal object DiskAssets {
                     fontMeta = meta["font_meta"],
                 ),
                 real,
+            )
+        }
+        // A composed image: a descriptor with a recipe and no file of its name beside it.
+        val drawn = binaries.mapTo(HashSet()) { (path, _) -> path.replace(Regex("\\.[^.]+$"), "") }
+        for ((stem, meta) in descriptors) {
+            val type = TYPE_BY_DIR[stem.substringBeforeLast('/', "")] ?: continue
+            if (stem in drawn) continue
+            val recipe = ComposedImages.recipe(meta) ?: continue
+            val name = stem.substringAfterLast('/')
+            out += DiskAsset(
+                AssetRow(
+                    id = name,
+                    projectId = anchorProjectId,
+                    type = type,
+                    name = name,
+                    width = num(meta["width"], 0.0)!!,
+                    height = num(meta["height"], 0.0)!!,
+                    ascent = num(meta["ascent"], null),
+                    codepoint = num(meta["codepoint"], null),
+                    contentWidth = num(meta["content_width"], null),
+                    fontMeta = meta["font_meta"],
+                ),
+                descriptorPaths.getValue(stem),
+                recipe,
             )
         }
         // Code unit order, as the editor sorts (not a locale's).

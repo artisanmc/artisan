@@ -42,8 +42,16 @@ export interface Asset {
   contentHash: string;
   createdAt: string;
   updatedAt: string;
-  /** Where its PNG is, for an image that is not a file of a Project: a UI kit image (`kit:<name>`). */
+  /**
+   * Where its PNG is, for an image that is not a file of a Project: a UI kit image
+   * (`kit:<name>`), or a composed image, assembled in the browser.
+   */
   previewUrl?: string;
+  /**
+   * A composed image (`lib/pack/compose.ts`): the images it is made of. It has no PNG: the
+   * resource pack assembles it, so it cannot be reimported or copied to another module.
+   */
+  composedOf?: string[];
 }
 
 /** URL to fetch the raw PNG of an asset for preview. */
