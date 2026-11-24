@@ -30,6 +30,9 @@ the copy; the variant's players see the module's document again. A command's nam
 arguments and permission are shared by every variant: editing them in a variant's view changes
 the module's command.
 
+The variant shown is kept in the page's address (`?variant=textured`): a reload, or a link you
+share, opens the same view.
+
 **New variant…** in the same menu creates one. Nobody sees it until the display rules show it.
 To delete a variant, hover it in that menu and click its trash icon.
 
