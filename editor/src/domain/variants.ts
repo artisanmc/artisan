@@ -422,9 +422,16 @@ export function variantNamesFromYaml(raw: unknown): string[] {
   ];
 }
 
-/** `variants.yml` as the editor writes it: every variant, and the tree. */
+/**
+ * `variants.yml` as the editor writes it: every variant, and the tree when it has steps. An
+ * empty tree is left out: the server's variants decide (a `show:` is the module's own, legacy).
+ */
 export function variantsToYaml(show: Step[], names: string[]): Record<string, unknown> {
-  return { schema: VARIANTS_SCHEMA, variants: names, show: stepsToWire(show) };
+  return {
+    schema: VARIANTS_SCHEMA,
+    variants: names,
+    ...(show.length > 0 ? { show: stepsToWire(show) } : {}),
+  };
 }
 
 interface LegacyRule {

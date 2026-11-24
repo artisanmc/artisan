@@ -16,17 +16,34 @@ interface ServerConfigAccess {
  * server root, the only power a path adds over menu console commands.
  */
 class EditableConfig(private val defaults: Configuration) {
-    val keys: List<String> = defaults.getKeys(true).filter { !defaults.isConfigurationSection(it) }.sorted()
+    val keys: List<String> = (defaults.getKeys(true).filter { !defaults.isConfigurationSection(it) } + MENU_VARIANTS).distinct().sorted()
 
-    fun report(cfg: Configuration): Map<String, Any?> = keys.associateWith { cfg.get(it) }
+    fun report(cfg: Configuration): Map<String, Any?> = keys.associateWith {
+        if (it == MENU_VARIANTS) menuVariants(cfg.getList(it)) else cfg.get(it)
+    }
 
     fun apply(cfg: Configuration, changes: Map<String, Any?>): String? {
         for ((key, value) in changes) validate(key, value)?.let { return "$key: $it" }
-        changes.forEach { (key, value) -> cfg.set(key, value) }
+        changes.forEach { (key, value) -> cfg.set(key, if (key == MENU_VARIANTS && value == emptyList<Any>()) null else value) }
         return null
     }
 
+    /** `menu-variants` as plain lists and maps (a section read back from YAML included); none: an empty list. */
+    private fun menuVariants(raw: List<*>?): List<Any?> = raw.orEmpty().map(::plain)
+
+    private fun plain(v: Any?): Any? = when (v) {
+        is org.bukkit.configuration.ConfigurationSection -> v.getKeys(false).associateWith { plain(v.get(it)) }
+        is Map<*, *> -> v.entries.associate { (k, x) -> k.toString() to plain(x) }
+        is List<*> -> v.map(::plain)
+        else -> v
+    }
+
     private fun validate(key: String, value: Any?): String? {
+        if (key == MENU_VARIANTS) {
+            if (value !is List<*>) return "invalid_type"
+            // Written only when every variant reads: one left out would vanish from players' menus silently.
+            return if (net.artisanmc.plugin.engine.ServerVariants.parse(value).problems.isEmpty()) null else "invalid_menu_variants"
+        }
         if (key !in keys) return "unknown_key"
         val typed = when (defaults.get(key)) {
             is Boolean -> value is Boolean
@@ -48,12 +65,14 @@ class EditableConfig(private val defaults: Configuration) {
         return normalized.startsWith("/") || DRIVE.containsMatchIn(normalized) || normalized.split('/').any { it == ".." }
     }
 
-    private companion object {
-        val DRIVE = Regex("^[A-Za-z]:")
-        val TEXTURE_REF = Regex("""[^:\s]+:[^:\s]+""")
+    companion object {
+        /** The server's menu variants: a list of `{name, parent, if, selectable}`, not in the bundled defaults. */
+        const val MENU_VARIANTS = "menu-variants"
+        private val DRIVE = Regex("^[A-Za-z]:")
+        private val TEXTURE_REF = Regex("""[^:\s]+:[^:\s]+""")
         /** `<name> #rrggbb`, the name free text. */
-        val PALETTE_COLOR = Regex("""\S.* #[0-9a-fA-F]{6}""")
+        private val PALETTE_COLOR = Regex("""\S.* #[0-9a-fA-F]{6}""")
         /** `<name> #rrggbb #rrggbb [...]`: two stops at least. */
-        val PALETTE_GRADIENT = Regex("""\S.*?( #[0-9a-fA-F]{6}){2,}""")
+        private val PALETTE_GRADIENT = Regex("""\S.*?( #[0-9a-fA-F]{6}){2,}""")
     }
 }

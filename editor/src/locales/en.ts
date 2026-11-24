@@ -1331,17 +1331,21 @@ export default {
     viewAs: "View as",
     viewAsValue: "View as: {{name}}",
     module: "Default",
-    moduleHint: "The module's own files, the version every player gets without a rule",
+    moduleHint:
+      "The module's own files, what a player gets when this module has no version for their variant",
     newVariant: "New variant…",
     newVariantTitle: "New variant",
     newVariantHint:
-      "A folder name (lowercase, digits, - and _). Nobody sees it until the display rules show it.",
+      "Pick one of the server's variants: its players see this module's versions. Another name is only shown by this module's display rules.",
+    serverVariants: "The server's variants",
+    notDeclared:
+      "The server does not declare {{name}}: only this module's display rules can show it. Add it under Configuration → Menu variants.",
     nameInvalid: "Lowercase letters, digits, - and _ only, starting with a letter or a digit.",
     nameTaken: "This variant exists already.",
     rules: "Display rules…",
     rulesTitle: "Display rules",
     rulesHint:
-      'A tree of conditions read for each player, top to bottom, up to the first "Show" they reach. They see that variant; a file it does not have comes from the module.',
+      'Legacy: the server now decides which variant each player sees (Configuration → Menu variants), the same in every module. Rules here still apply to players who did not choose with /artisan variant; leave the tree empty to follow the server. Read top to bottom, up to the first "Show" a player reaches.',
     rulesEmpty: "No variant yet.",
     variant: "Variant",
     removeVariant: "Delete the variant {{name}}",
@@ -2057,6 +2061,29 @@ export default {
       unsafe_path: "the path must stay inside the server folder.",
       invalid_reference: "pick an image as module:image.",
       invalid_palette_entry: "each entry needs a name and #rrggbb colors.",
+      invalid_menu_variants: "a variant has a bad name or a parent that is not declared.",
+    },
+    variants: {
+      builtin: {
+        default: "The module's own menus: no resource pack, or nothing else applies.",
+        bedrock: "Bedrock players (Geyser), automatically. Falls back to default.",
+        textured:
+          "Java players who loaded the resource pack, automatically. Falls back to default.",
+      },
+      name: "Name",
+      parent: "Falls back to",
+      conditions: "Shown automatically when",
+      noConditions: "No condition: only players who choose it see it.",
+      selectable: "Players can choose it with /artisan variant",
+      add: "Add a variant",
+      remove: "Remove this variant",
+      problems: {
+        name: "Lowercase letters, digits, - and _ (32 at most).",
+        builtin: "Built-in name: pick another.",
+        duplicate: "Another variant has this name.",
+        parent: "Its parent is not declared.",
+        loop: "Its parents loop back to it.",
+      },
     },
     listHint: "Comma-separated values.",
     vanillaTexture: "Vanilla texture",
@@ -2079,6 +2106,8 @@ export default {
     pending_one: "{{count}} setting changed",
     pending_other: "{{count}} settings changed",
     groupHints: {
+      variants:
+        "Which version of the menus each player sees, the same in every module. A module ships versions for these variants in variants/<name>/; a menu it has no version of comes from the variant's parent. Players choose theirs with /artisan variant.",
       palette:
         "Colors and gradients the formatting toolbar offers in every module of the server. Applying a color writes its value into the text: changing the palette does not change existing texts.",
       textures:
@@ -2089,6 +2118,7 @@ export default {
       textures: "Container textures",
       resourcePack: "Resource pack",
       editor: "Editor access",
+      variants: "Menu variants",
       palette: "Text palette",
       other: "Other",
     },

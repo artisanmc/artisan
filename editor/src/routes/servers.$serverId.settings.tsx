@@ -1,3 +1,4 @@
+import { ConditionsField } from "@/features/inspector/properties/ConditionsField";
 import { ServerConfigSection } from "@/features/serverConfig/ServerConfigSection";
 import { useServerFrame } from "@/features/serverPage/serverFrame";
 import { createFileRoute } from "@tanstack/react-router";
@@ -21,7 +22,13 @@ function ServerSettingsTab() {
         {summary?.updateRequired ? (
           <p className="text-[13px] text-[var(--text-mut)]">{t("serverDetail.updateRequired")}</p>
         ) : (
-          serverKeyId && <ServerConfigSection serverKeyId={serverKeyId} projects={projects} />
+          serverKeyId && (
+            <ServerConfigSection
+              serverKeyId={serverKeyId}
+              projects={projects}
+              conditionsField={ConditionsField}
+            />
+          )
         )}
       </div>
     </div>
