@@ -1,4 +1,7 @@
 import { documentKindsGeneration, subscribeDocumentKinds } from "@/domain/documentKinds";
+import { getServerConfig } from "@/lib/api/serverConfig";
+import { configuredTheme } from "@/lib/pack/theme";
+import { useKitStore } from "@/state/kitStore";
 import { useEffect, useSyncExternalStore } from "react";
 import { loadServerProjects } from "./serverIndexLoader";
 import { serverIndexScope, useServerIndexStore } from "./serverIndexStore";
@@ -32,6 +35,13 @@ export function useServerIndexLoader(
           useServerIndexStore
             .getState()
             .finish(scope, { status: "unavailable", projects: [], failed: [] });
+      });
+    // The theme the server's pack is built in: what its kit images are shown in (`state/kitStore`).
+    getServerConfig(serverId)
+      .then((res) => configuredTheme(res.config))
+      .catch(() => undefined)
+      .then((theme) => {
+        if (!cancelled) useKitStore.getState().setTheme(theme);
       });
     return () => {
       cancelled = true;

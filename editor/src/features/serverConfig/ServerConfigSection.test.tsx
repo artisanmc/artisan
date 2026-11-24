@@ -8,6 +8,7 @@ const api = vi.hoisted(() => ({
   getServerConfig: vi.fn(),
   patchServerConfig: vi.fn(),
   listAssets: vi.fn(),
+  readProject: vi.fn(),
 }));
 vi.mock("@/lib/api/serverConfig", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/serverConfig")>()),
@@ -15,6 +16,7 @@ vi.mock("@/lib/api/serverConfig", async (importOriginal) => ({
   patchServerConfig: api.patchServerConfig,
 }));
 vi.mock("@/lib/api/userAssets", () => ({ listAssets: api.listAssets }));
+vi.mock("@/lib/projectClient", () => ({ projectClient: () => ({ read: api.readProject }) }));
 
 const config = {
   language: "en",
@@ -90,6 +92,34 @@ describe("ServerConfigSection", () => {
       expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
         "resource-pack.container-textures.chest": "ui:chest_hd",
       }),
+    );
+  });
+
+  it("offers the themes of the kit module, and the one in place even when it is gone", async () => {
+    api.getServerConfig.mockResolvedValue({
+      config: { ...config, "resource-pack.theme": "paques" },
+      online: true,
+    });
+    api.readProject.mockResolvedValue({
+      ok: true,
+      files: { "themes/noel/theme.yml": "colors: {}", "menus/shop.yml": "" },
+      binaries: [{ path: "themes/halloween/assets/textures/button.3x1.png", hash: "h" }],
+    });
+    api.patchServerConfig.mockImplementation(async (_id, changes) => ({ ...config, ...changes }));
+    const kit = { id: "p2", externalId: "ui-kit", name: "ui-kit" } as ProjectSummary;
+    render(<ServerConfigSection serverKeyId="s1" projects={[project, kit]} />);
+    const theme = await screen.findByLabelText(/^Thème du kit/);
+    await waitFor(() => expect(screen.getByRole("option", { name: "noel" })).toBeInTheDocument());
+    expect([...theme.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
+      "Aucun thème",
+      "halloween",
+      "noel",
+      "paques",
+    ]);
+    fireEvent.change(theme, { target: { value: "noel" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() =>
+      expect(api.patchServerConfig).toHaveBeenCalledWith("s1", { "resource-pack.theme": "noel" }),
     );
   });
 

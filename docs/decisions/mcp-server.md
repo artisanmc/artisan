@@ -308,6 +308,39 @@ deployed.
       layers, no selection, no resizing. It is the hand's counterpart of `write_image`'s
       pixels: what the model drew is corrected there without leaving the editor, and beyond a
       detail the answer stays an import or the model.
+16. **Themes of the kit** (2026-11-24, step 4 bis of the same design). A server wants another
+    look for a season or an event without rewriting a menu. A theme is the same images, under
+    the same names and at the same sizes, with other pixels: a folder `themes/<name>/` of the
+    `ui-kit` module, read by both pack builders (`Theme.kt`, `theme.ts`).
+    - **Two means, the cheap one first**: `theme.yml` holds `colors`, a table of `"#rrggbb"`
+      to `"#rrggbb"` (256 at most) applied to each pixel whose colour is in it, alpha kept, in
+      one pass; `assets/textures/<image>.png` (or `assets/glyphs/`) is the theme's own drawing
+      of an image, taken as it is when it has that image's size, left out otherwise. A theme
+      holds no Document and moves nothing, so a menu laid out against the kit keeps its
+      layout whatever the theme: at worst it is ugly.
+    - **What changes is what `kit:<name>` shows**: the base's images and the kit module's.
+      A composed image follows through its layers and is not themed a second time once
+      assembled (the theme's own drawing of a composed kit image still replaces it). A
+      module's own PNG is never recoloured: its colours were not chosen against the kit's,
+      and a table applied blindly would repaint an icon that happens to share a green.
+    - **One theme per server**, `resource-pack.theme` of `config.yml` (the Configuration
+      page lists the kit's themes; the plugin checks the name, `invalid_theme`), passed to
+      the pack builders as `PackInput.theme`. A theme the kit does not hold is no theme. A
+      server that names none keeps its pack byte for byte.
+    - **For the model**: `survey_ui` lists the kit's themes (`kit.themes`), the one in place,
+      how to write one (`themes_format`), and shows the base in the server's theme. The table
+      is written with `write_document`, checked by the hub (the server does not check a file
+      that is no Document): unquoted colours, which YAML reads as comments, are refused with
+      the reason. `write_image` with `theme` writes the theme's drawing of a kit image,
+      refused at another size. `render_menu` draws the kit in the server's theme, in another
+      with `theme` (`none` for none), and from a draft of the kit module with `kit_draft_id`,
+      so a theme is looked at on a real menu before it is deployed. Switching the server's
+      theme stays the player's, in the Configuration page.
+    - **In the editor**: kit images and composed images are shown in the server's theme
+      (`features/assets/kitTheme.ts`), as players see them.
+    - **Not in this step**: a theme per player, a module's own theme overlay (its PNGs
+      redrawn per theme), a `themed: true` on a module's image to have it recoloured, and a
+      screen to edit a theme's table by hand (it is a YAML file of the kit module).
 
 ## Consequences
 
@@ -332,7 +365,7 @@ deployed.
   old hashes.
 - Data tools (data sources), a server's UI kit and an image model: the next steps of the design
   named in decision 10. For `render_menu`: a state chosen by the caller, sample values for
-  expressions, hover text (name and lore). For the kit: themes, a visual editor for composed
-  images and its place in the editor's Resources page. For `measure_image`: a pixel size that is not
+  expressions, hover text (name and lore). For the kit: a screen for a theme's colours, themes
+  for a module's own images, and its place in the editor's Resources page. For `measure_image`: a pixel size that is not
   whole found by itself (a mock-up from an image model), elements inside a dense menu, a WebP.
 - Deploying several Projects in one call, and a per-client limit on deploys.

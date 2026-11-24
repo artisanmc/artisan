@@ -29,7 +29,8 @@ class McpTest {
     private val sent: MutableList<Map<String, Any?>> = Collections.synchronizedList(mutableListOf())
     private val history = McpFixtures.History()
     private val modules = java.util.concurrent.ConcurrentHashMap<String, McpFixtures.Module>()
-    private val server = McpFixtures.server(sent, history, modules)
+    private val config = java.util.concurrent.ConcurrentHashMap<String, Any?>()
+    private val server = McpFixtures.server(sent, history, modules, config)
 
     private val drafts = McpFixtures.Drafts()
     private val sessions = Sessions()
@@ -342,6 +343,96 @@ class McpTest {
         assertEquals("artisan", restyled.getValue("kit:window.3")["drawn_by"].asText())
         assertTrue(restyled.getValue("kit:window.3").has("ignored"))
         assertFalse(restyled.getValue("kit:cell").has("ignored"))
+    }
+
+    @Test
+    fun `a theme of the kit recolours what kit names show, redraws an image at its size, and a menu is rendered in it`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        fun png(width: Int, height: Int, rgb: Int) = java.util.Base64.getEncoder().encodeToString(solid(width, height, rgb))
+        fun shipped(id: String, x: Int, y: Int): List<Int> {
+            val image = net.artisanmc.plugin.pack.Png.decode(net.artisanmc.plugin.pack.Kit.shipped(net.artisanmc.plugin.pack.Kit.slot(id)!!))
+            return image.data.slice((y * image.width + x) * 4 until (y * image.width + x) * 4 + 3).map { it.toInt() and 0xff }
+        }
+        val button = shipped("button.3x1", 27, 9)
+        val red = listOf(0xb3, 0x26, 0x1e)
+        val navy = listOf(0x11, 0x22, 0x33)
+        val table = "colors:\n  \"#%02x%02x%02x\": \"#b3261e\"\n".format(button[0], button[1], button[2])
+        modules["ui-kit"] = McpFixtures.Module()
+        val (access, _) = tokens()
+        val kitDraft = tool(access, "start_draft", "project" to "u-local.ui-kit", "name" to "AI: noel")["structuredContent"]["draft_id"].asText()
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: themed")["structuredContent"]["draft_id"].asText()
+        fun kit(tool: String, vararg args: Pair<String, Any?>) = tool(access, tool, "project" to "u-local.ui-kit", "draft_id" to kitDraft, *args)
+
+        // The theme's table: colours quoted, or the write is refused with the reason (unquoted, `#` starts a comment).
+        val unquoted = kit("write_document", "path" to "themes/noel/theme.yml", "content" to "colors:\n  #3c8527: #b3261e\n")
+        assertFalse(unquoted["structuredContent"]["written"].asBoolean(), unquoted.toString())
+        assertTrue("Quote" in unquoted["structuredContent"]["problems"][0]["message"].asText())
+        val wrong = kit("write_document", "path" to "themes/noel/theme.yml", "content" to "colors:\n  \"#3c8527\": \"red\"\n")
+        assertTrue("'red'" in wrong["structuredContent"]["problems"][0]["message"].asText(), wrong.toString())
+        assertTrue(kit("write_document", "path" to "themes/noel/theme.yml", "content" to table)["structuredContent"]["written"].asBoolean())
+
+        // The theme's own drawing of a kit image: of its size, in the kit module, of an image the kit has.
+        val small = kit("write_image", "name" to "cell", "theme" to "noel", "png_base64" to png(10, 10, 0x112233))
+        assertTrue(small["isError"].asBoolean() && "18x18" in small["structuredContent"]["message"].asText(), small.toString())
+        assertTrue("No kit image" in kit("write_image", "name" to "nothing", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["message"].asText())
+        val elsewhere = tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
+        assertTrue(elsewhere["isError"].asBoolean() && "ui-kit" in elsewhere["structuredContent"]["message"].asText(), elsewhere.toString())
+        val drawn = kit("write_image", "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
+        assertFalse(drawn.has("isError"), drawn.toString())
+        assertEquals("themes/noel/assets/textures/cell.png", drawn["structuredContent"]["path"].asText())
+        val snapshot = mapper.readTree(drafts.rows.getValue(kitDraft))["snapshot"]
+        assertEquals(listOf("themes/noel/assets/textures/cell.png"), snapshot["binaryTree"].fieldNames().asSequence().toList())
+        assertEquals(listOf("themes/noel/theme.yml"), snapshot["tree"].fieldNames().asSequence().filter { it.startsWith("themes/") }.toList())
+
+        // A menu of another module, with a button and a slot's frame of the kit.
+        val menu = "schema: menu/v1\nsize: 27\nelements:\n  - positions: \"0-2\"\n    image: { asset: \"kit:button.3x1\", fit: native }\n" +
+            "  - positions: \"4\"\n    image: { asset: \"kit:cell\", fit: native }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/themed.yml", "content" to menu).has("isError"))
+        fun render(vararg args: Pair<String, Any?>) = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/themed.yml", "draft_id" to draftId, "scale" to 1, *args)
+        // The middle of the button over the first three slots, and of the frame over the fifth; the theme it was drawn in.
+        fun shown(rendered: JsonNode): Triple<List<Int>, List<Int>, String?> {
+            assertFalse(rendered.has("isError"), rendered.toString())
+            val window = rendered["structuredContent"]["window"]
+            val picture = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+            fun rgb(x: Int, y: Int) = ((window["y"].asInt() + y) * picture.width + window["x"].asInt() + x).let { picture.data.slice(it * 4 until it * 4 + 3).map { b -> b.toInt() and 0xff } }
+            return Triple(rgb(7 + 27, 17 + 9), rgb(7 + 4 * 18 + 9, 17 + 9), rendered["structuredContent"]["theme"]?.asText())
+        }
+        val plain = Triple(button, shipped("cell", 9, 9), null)
+        assertEquals(plain, shown(render()))
+        // Not deployed: the theme is in the kit's draft only, which render_menu reads when given.
+        val absent = render("theme" to "noel")
+        assertTrue(absent["isError"].asBoolean() && "No theme 'noel'" in absent["structuredContent"]["message"].asText(), absent.toString())
+        assertEquals(Triple(red, navy, "noel"), shown(render("theme" to "noel", "kit_draft_id" to kitDraft)))
+        assertEquals(plain, shown(render("kit_draft_id" to kitDraft)))
+
+        // Deployed, and picked as the server's theme: every view of the kit is in it, unless asked without.
+        modules["ui-kit"] = McpFixtures.Module(
+            files = mapOf("themes/noel/theme.yml" to table),
+            images = mapOf("themes/noel/assets/textures/cell.png" to solid(18, 18, 0x112233), "themes/noel/assets/textures/window.3.png" to solid(20, 20, 0x00ff00)),
+        )
+        assertEquals(plain, shown(render()))
+        config["resource-pack.theme"] = "noel"
+        assertEquals(Triple(red, navy, "noel"), shown(render()))
+        assertEquals(plain, shown(render("theme" to "none")))
+        val survey = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
+        assertEquals("noel", survey["kit"]["theme"].asText())
+        assertEquals(1, survey["kit"]["themes"].size())
+        assertEquals(1, survey["kit"]["themes"][0]["colors"].asInt())
+        assertEquals(listOf("cell", "window.3"), survey["kit"]["themes"][0]["redraws"].map { it.asText() })
+        assertEquals("noel", survey["kit_base"]["theme"].asText())
+        assertTrue("theme.yml" in survey["themes_format"].asText())
+        // The colours a table replaces are the kit's own, whatever the theme in place.
+        assertTrue("#%02x%02x%02x".format(button[0], button[1], button[2]) in survey["kit_colours"].map { it.asText() }, survey["kit_colours"].toString())
+        assertFalse("#b3261e" in survey["kit_colours"].map { it.asText() })
+        // No image of the theme folders is one of the kit module's own.
+        assertTrue(survey["modules"].none { it["project"].asText() == "u-local.ui-kit" }, survey["modules"].toString())
+
+        // A theme the kit does not hold is no theme, as in the pack.
+        config["resource-pack.theme"] = "gone"
+        assertEquals(plain, shown(render()))
+        assertFalse(tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"].has("theme"))
     }
 
     @Test

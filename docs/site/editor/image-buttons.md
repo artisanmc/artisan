@@ -29,7 +29,9 @@ project to move it there.
 module. The menu names the image instead of copying it: when the server redraws the kit's
 button, every menu that names it follows. A kit image whose name ends with its slots (`3x1`)
 takes that area. A title's image layer offers the same list, with the kit's windows
-(`kit:window.6`, `kit:window.3`).
+(`kit:window.6`, `kit:window.3`). When the server's pack is built in a theme of the kit
+(see [AI](../../configuration/ai/), "Themes"), the editor shows these images in that theme, as
+players see them.
 
 **Composed images.** An image may be a recipe instead of a PNG: a `compose:` list in its
 `.yml`, which stacks kit images and PNGs of the module (see

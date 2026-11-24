@@ -2131,9 +2131,11 @@ export default {
       unsafe_path: "the path must stay inside the server folder.",
       invalid_reference: "pick an image as module:image.",
       invalid_palette_entry: "each entry needs a name and #rrggbb colors.",
+      invalid_theme: "pick a theme of the UI kit module.",
     },
     listHint: "Comma-separated values.",
     vanillaTexture: "Vanilla texture",
+    noTheme: "No theme",
     palette: {
       colors: "Colors",
       gradients: "Gradients",
@@ -2179,6 +2181,7 @@ export default {
         "delegate-reload-command": "Reload command after delegation",
         "hide-inventory-label":
           "Hide the “Inventory” label under menus (every container, every language)",
+        theme: "Theme of the UI kit",
         "container-textures": {
           chest: "Chests",
           hopper: "Hoppers",
@@ -2187,6 +2190,8 @@ export default {
       },
     },
     hints: {
+      theme:
+        "A folder of the UI kit module (ui-kit/themes/<name>/). Every kit image is then shown in the theme's colors, or as the theme redraws it; the menus keep their layout.",
       chest:
         "A generic_54.png layout (256×256, or a multiple for an HD pack). When a menu turns its vanilla texture off, every other chest on the server is drawn back with it.",
       hopper:

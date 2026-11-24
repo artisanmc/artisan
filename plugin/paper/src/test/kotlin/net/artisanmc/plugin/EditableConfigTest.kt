@@ -63,6 +63,18 @@ class EditableConfigTest {
     }
 
     @Test
+    fun `the pack's theme is a theme's folder name, or none`() {
+        val cfg = fileConfig()
+        assertEquals("", editable.report(cfg)["resource-pack.theme"])
+        assertNull(editable.apply(cfg, mapOf("resource-pack.theme" to "noel")))
+        assertEquals("noel", cfg.getString("resource-pack.theme"))
+        for (bad in listOf("../noel", "Noel", "noel/x", " ")) {
+            assertEquals("resource-pack.theme: invalid_theme", editable.apply(cfg, mapOf("resource-pack.theme" to bad)), bad)
+        }
+        assertNull(editable.apply(cfg, mapOf("resource-pack.theme" to "")))
+    }
+
+    @Test
     fun `paths stay under the server root`() {
         val cfg = fileConfig()
         for (bad in listOf("/etc", "C:\\Windows", "\\\\host\\share", "plugins/../../x", "..")) {

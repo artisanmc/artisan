@@ -64,16 +64,16 @@ object ComposedImages {
     fun read(descriptor: String): Recipe? = (Yaml.parseOrNull(descriptor) as? Map<*, *>)?.let(::recipe)
 
     /**
-     * [recipe] drawn from files: [own] gives a PNG of the module by its name, [kit] the kit
-     * module's by the name after `kit:` (the base's stands in, [Kit.image]). A layer whose file
-     * is missing or unreadable is left out.
+     * [recipe] drawn from files: [own] gives a PNG of the module by its name, [kit] the PNG
+     * `kit:<name>` shows by the name after `kit:` ([Kit.image], in the server's theme). A layer
+     * whose file is missing or unreadable is left out.
      */
     fun render(recipe: Recipe, own: (String) -> ByteArray?, kit: (String) -> ByteArray?): RgbaImage? {
         val decoded = HashMap<String, RgbaImage?>()
         return compose(recipe) { name ->
             decoded.getOrPut(name) {
                 val inKit = Kit.nameOf(name)
-                val png = if (inKit != null) Kit.image(inKit, kit(inKit))?.png else own(name)
+                val png = if (inKit != null) kit(inKit) else own(name)
                 png?.let { runCatching { Png.decode(it) }.getOrNull() }
             }
         }

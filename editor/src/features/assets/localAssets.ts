@@ -33,6 +33,7 @@ import { sha256Hex } from "@/lib/sha256";
 import { useKitStore } from "@/state/kitStore";
 import { parse, stringify } from "yaml";
 import { type ComposedView, composedView } from "./composedAssets";
+import { activeKitTheme } from "./kitTheme";
 
 /**
  * A Project's assets: the editor validates and stores them itself, on the
@@ -156,9 +157,12 @@ async function composedViews(
     const own = disk.find((a) => !a.compose && a.row.type !== "font" && a.row.name === name);
     return own ? read(own) : undefined;
   });
+  // The server's theme: the `kit:` layers are shown in it, and the kit module's own images too.
+  const theme = activeKitTheme(readPublishedBinary);
+  const inKit = useKitStore.getState().read?.projectId === projectId;
   for (const asset of disk) {
     if (!asset.compose) continue;
-    const view = await composedView(asset, disk, read, kit).catch(() => null);
+    const view = await composedView(asset, disk, read, kit, theme, inKit).catch(() => null);
     if (view) out.set(asset, view);
   }
   return out;

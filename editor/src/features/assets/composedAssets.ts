@@ -4,6 +4,7 @@ import type { DiskAsset } from "@/lib/pack/diskAssets";
 import { kitImage } from "@/lib/pack/kit";
 import { kitImageBytes } from "@/lib/pack/kitUrls";
 import { encodePng } from "@/lib/pack/png";
+import type { KitTheme } from "@/lib/pack/theme";
 
 /**
  * A composed image as the editor shows it (`lib/pack/compose.ts`): it has no PNG of its own, so
@@ -29,23 +30,30 @@ export function toDataUrl(png: Uint8Array): string {
 /**
  * What the composed image `asset` shows: `all` are its module's assets, `bytes` reads one's
  * PNG, `kitOwn` gives the server's kit module's PNG by name (the base stands in). Its recipe
- * is given even when no layer can be drawn; the picture is then empty.
+ * is given even when no layer can be drawn; the picture is then empty. `theme`: the server's
+ * theme, which its `kit:` layers are shown in, and its own too in the kit module (`ownToo`).
  */
 export async function composedView(
   asset: DiskAsset,
   all: DiskAsset[],
   bytes: (layer: DiskAsset) => Bytes | Promise<Bytes>,
   kitOwn: (name: string) => Bytes | Promise<Bytes>,
+  theme: KitTheme | null = null,
+  ownToo = false,
 ): Promise<ComposedView | null> {
   const recipe = asset.compose;
   if (!recipe) return null;
   const image = await renderComposed(
     recipe,
-    (name) => {
+    async (name) => {
       const layer = all.find((a) => isLayer(a) && a.row.name === name);
-      return layer ? bytes(layer) : undefined;
+      const png = layer ? await bytes(layer) : undefined;
+      return png && theme && ownToo ? theme.shown(name, png) : png;
     },
-    async (name) => (await kitImage(name, (await kitOwn(name)) ?? undefined, kitImageBytes))?.png,
+    async (name) => {
+      const png = (await kitImage(name, (await kitOwn(name)) ?? undefined, kitImageBytes))?.png;
+      return png && theme ? theme.shown(name, png) : png;
+    },
   );
   return image
     ? {

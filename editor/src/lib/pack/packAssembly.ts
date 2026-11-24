@@ -7,6 +7,7 @@ import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
 import { KIT_ASCENT, KIT_FILES, KIT_FOLDER, KIT_PREFIX, kitImage, kitNameOf } from "./kit";
+import { readKitTheme } from "./theme";
 import {
   type GlyphPlacement,
   glyphPlacementsFromMenus,
@@ -55,6 +56,8 @@ export interface PackInput {
   transparentContainers?: boolean;
   /** `resource-pack.hide-inventory-label` from `config.yml`: empty the client's "Inventory" label. */
   hideInventoryLabel?: boolean;
+  /** `resource-pack.theme` from `config.yml`: the kit's theme `kit:` images are shown in (`theme.ts`); absent, or one the kit module does not hold: none. */
+  theme?: string;
   /** Also build the Bedrock pack (`bedrock/bedrockPack.ts`) for this server. */
   bedrock?: { serverId: string };
 }
@@ -150,22 +153,39 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
 
   // Composed images (`compose.ts`), once every module's PNGs are read: a layer is a PNG of the
   // module or a kit image, never another composed image, so their order does not matter.
+  // The kit's theme (`theme.ts`) changes the kit's PNGs, the base's and the server's: an image
+  // composed with them follows, and is not themed a second time once assembled.
+  const inKit = (project: PackProject) => (project.folder ?? project.id) === KIT_FOLDER;
+  const kitProject = input.theme ? projects.find(inKit) : undefined;
+  const theme = input.theme && kitProject ? readKitTheme(input.theme, kitProject) : null;
+  const kitPng = async (name: string) => {
+    const png = (await kitImage(name, kitImages.get(name), input.kitImage))?.png;
+    return png && theme ? theme.shown(name, png) : png;
+  };
   const made: { c: (typeof composed)[number]; image: RgbaImage }[] = [];
   for (const c of composed) {
     const image = await renderComposed(
       c.recipe,
-      (name) => c.own.get(name),
-      async (name) => (await kitImage(name, kitImages.get(name), input.kitImage))?.png,
+      // In the kit module an image is a kit image under its bare name too.
+      (name) => {
+        const png = c.own.get(name);
+        return png && theme && inKit(c.project) ? theme.shown(name, png) : png;
+      },
+      kitPng,
     );
     if (image) made.push({ c, image });
   }
+  const kitComposed = new Set<string>();
   for (const { c, image } of made) {
     c.row.width = image.width;
     c.row.height = image.height;
     const bytes = encodePng(image);
     glyphPngs.set(c.row.id, bytes);
     imagesByRef.push({ ref: `${c.project.id}:${c.row.name}`, bytes });
-    if ((c.project.folder ?? c.project.id) === KIT_FOLDER) kitImages.set(c.row.name, bytes);
+    if (inKit(c.project)) {
+      kitImages.set(c.row.name, bytes);
+      kitComposed.add(c.row.name);
+    }
   }
 
   // `kit:<name>` (`kit.ts`): only the ones a menu or a module asks for, so a server that names
@@ -185,6 +205,12 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   for (const name of [...asked].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
     const image = await kitImage(name, kitImages.get(name), input.kitImage);
     if (!image) continue;
+    const png = !theme
+      ? image.png
+      : // Assembled from themed layers already: only the theme's own drawing of it replaces it.
+        image.png === kitImages.get(name) && kitComposed.has(name)
+        ? ((await theme.drawing(name, image.png)) ?? image.png)
+        : await theme.shown(name, image.png);
     const id = KIT_PREFIX + name;
     const glyph = inTitles.has(name);
     allAssets.push({
@@ -198,12 +224,12 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
       codepoint: glyph ? CODEPOINT_MIN : null,
       contentWidth: null,
       fontMeta: null,
-      contentHash: sha256Hex(image.png),
+      contentHash: sha256Hex(png),
       createdAt: new Date(0),
       updatedAt: new Date(0),
     });
     if (glyph) kitGlyphs.push({ assetId: id, codepoint: CODEPOINT_MIN });
-    glyphPngs.set(id, image.png);
+    glyphPngs.set(id, png);
   }
   if (kitGlyphs.length > 0) contribs.push({ projectId: KIT_FOLDER, glyphs: kitGlyphs });
 

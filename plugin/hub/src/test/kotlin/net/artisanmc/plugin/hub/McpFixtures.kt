@@ -12,7 +12,11 @@ object McpFixtures {
     /** Another module of the server, or the shop's deployed images: read each time, so a test may fill it as it goes. */
     class Module(val files: Map<String, String> = emptyMap(), val images: Map<String, ByteArray> = emptyMap())
 
-    fun server(sent: MutableList<Map<String, Any?>>, history: History? = null, modules: Map<String, Module> = emptyMap()): EditorServer = object : EditorServer {
+    fun server(
+        sent: MutableList<Map<String, Any?>>, history: History? = null, modules: Map<String, Module> = emptyMap(),
+        /** The server's `config.yml` as its plugin reports it, read each time. */
+        config: Map<String, Any?> = emptyMap(),
+    ): EditorServer = object : EditorServer {
         override val id = "u-local"
         override val online = true
         override val link = ServerLink { message ->
@@ -70,7 +74,7 @@ object McpFixtures {
                 ),
             ),
         )
-        override fun serverConfig() = emptyMap<String, Any?>()
+        override fun serverConfig() = config.toMap()
         override fun customItems() = emptyList<Map<String, String>>()
         override fun applyResourcePack(hash: String, path: String) = Unit
     }

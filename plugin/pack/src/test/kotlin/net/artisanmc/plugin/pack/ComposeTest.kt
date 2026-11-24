@@ -110,12 +110,12 @@ class ComposeTest {
     fun `a layer is a PNG of the module or a kit image, the base standing in`() {
         val icon = Png.encode(solid(2, 2, 255, 255, 255, 255))
         val out = assertNotNull(
-            ComposedImages.render(recipe("compose:\n  - use: \"kit:close.1x1\"\n  - image: icon\n  - image: broken\n"), { mapOf("icon" to icon, "broken" to byteArrayOf(1))[it] }, { null }),
+            ComposedImages.render(recipe("compose:\n  - use: \"kit:close.1x1\"\n  - image: icon\n  - image: broken\n"), { mapOf("icon" to icon, "broken" to byteArrayOf(1))[it] }, { Kit.image(it, null)?.png }),
         )
         assertEquals(16 to 16, out.width to out.height)
         assertEquals(listOf(255, 255, 255, 255), pixel(out, 1, 1))
         val own = Png.encode(solid(16, 16, 1, 2, 3, 255))
-        val restyled = assertNotNull(ComposedImages.render(recipe("compose:\n  - use: \"kit:close.1x1\"\n"), { null }, { own.takeIf { _ -> it == "close.1x1" } }))
+        val restyled = assertNotNull(ComposedImages.render(recipe("compose:\n  - use: \"kit:close.1x1\"\n"), { null }, { Kit.image(it, own.takeIf { _ -> it == "close.1x1" })?.png }))
         assertEquals(listOf(1, 2, 3, 255), pixel(restyled, 5, 5))
     }
 }

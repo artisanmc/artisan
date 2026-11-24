@@ -43,6 +43,10 @@ The plugin's other settings (`config.yml`) could only be edited by hand.
    palette belongs to the server whatever modules it runs. Editor-only (the toolbar
    writes the colors into the text), so it is read from the config the plugin reported:
    offline since the hub started, only the built-in palettes are offered. No history yet.
+8. **The kit's theme** (2026-11-24): `resource-pack.theme`, the name of a folder of the
+   `ui-kit` module's `themes/` (ADR `mcp-server`, decision 16), or empty. The plugin checks
+   its shape (`invalid_theme`), not that the kit holds it: the pack builder treats a missing
+   theme as none. The editor offers the themes of the kit module and rebuilds the pack.
 
 *Rejected:* `settings.yml` next to `config.yml` (names indistinguishable for an admin);
 closed choices (Nexo/Oraxen…) for pack delegation (guardrail moot given point 3);

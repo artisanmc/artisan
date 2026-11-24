@@ -27,6 +27,8 @@ class PackInput(
     val hideInventoryLabel: Boolean = false,
     /** Also build the server's Bedrock pack; the id seeds its uuid. */
     val bedrockServerId: String? = null,
+    /** `resource-pack.theme` of `config.yml`: the kit's theme `kit:` images are shown in ([KitTheme]); null, or one the kit module does not hold: none. */
+    val theme: String? = null,
 )
 
 /** The Java pack, and the Bedrock one when [PackInput.bedrockServerId] asked for it. */
@@ -124,16 +126,27 @@ object ResourcePackBuilder {
 
         // Composed images ([ComposedImages]), once every module's PNGs are read: a layer is a PNG
         // of the module or a kit image, never another composed image, so their order does not matter.
+        // The kit's theme ([KitTheme]) changes the kit's PNGs, the base's and the server's: an image
+        // composed with them follows, and is not themed a second time once assembled.
+        val theme = input.theme?.let { name -> projects.firstOrNull { it.folder == Kit.FOLDER }?.let { KitTheme.read(name, it) } }
+        val kitPng = { name: String -> Kit.image(name, kitImages[name])?.png?.let { theme?.shown(name, it) ?: it } }
         val made = composed.mapNotNull { c ->
-            ComposedImages.render(c.recipe, c.own::get, kitImages::get)?.let { c to it }
+            // In the kit module an image is a kit image under its bare name too.
+            val own: (String) -> ByteArray? =
+                if (theme != null && c.project.folder == Kit.FOLDER) { name -> c.own[name]?.let { theme.shown(name, it) } } else c.own::get
+            ComposedImages.render(c.recipe, own, kitPng)?.let { c to it }
         }
+        val kitComposed = HashSet<String>()
         for ((c, image) in made) {
             val row = allAssets[c.index].copy(width = image.width.toDouble(), height = image.height.toDouble())
             val bytes = Png.encode(image)
             allAssets[c.index] = row
             glyphPngs[row.id] = bytes
             imagesByRef += "${c.project.id}:${row.name}" to bytes
-            if (c.project.folder == Kit.FOLDER) kitImages[row.name] = bytes
+            if (c.project.folder == Kit.FOLDER) {
+                kitImages[row.name] = bytes
+                kitComposed += row.name
+            }
         }
 
         // `kit:<name>` ([Kit]): only the ones a menu or a module asks for, so a server that names
@@ -151,7 +164,12 @@ object ResourcePackBuilder {
                 if (glyph) Kit.ASCENT else null, if (glyph) CODEPOINT_MIN.toDouble() else null, null, null,
             )
             if (glyph) kitGlyphs += id to CODEPOINT_MIN.toDouble()
-            glyphPngs[id] = image.png
+            glyphPngs[id] = when {
+                theme == null -> image.png
+                // Assembled from themed layers already: only the theme's own drawing of it replaces it.
+                !image.shipped && name in kitComposed -> theme.drawing(name, image.png) ?: image.png
+                else -> theme.shown(name, image.png)
+            }
         }
         if (kitGlyphs.isNotEmpty()) contribs += Kit.FOLDER to kitGlyphs
 

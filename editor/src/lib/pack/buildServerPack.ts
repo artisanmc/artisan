@@ -14,6 +14,7 @@ import { kitImageUrl } from "./kitUrls";
 import { overlayImagesFromFiles } from "./overlayImages";
 import { type PackProject, type ServerPacks, assembleServerPack } from "./packAssembly";
 import { filesWithOriginals } from "./shippedView";
+import { configuredTheme } from "./theme";
 import type { GuiContainer } from "./vanillaGui";
 
 const VANILLA_TEXTURES: Record<GuiContainer, string> = {
@@ -82,6 +83,7 @@ export async function buildServerPack(serverId: string): Promise<ServerPacks> {
     projects,
     containerTextures: containerTextureRefs(config.config),
     hideInventoryLabel: config.config?.["resource-pack.hide-inventory-label"] === true,
+    theme: configuredTheme(config.config),
     vanillaTexture: (container) => fetchBytes(VANILLA_TEXTURES[container]),
     textUp,
     kitImage: async (id) => {

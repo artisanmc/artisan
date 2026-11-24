@@ -37,6 +37,7 @@ class ResourcePackConformanceTest {
             transparentContainers = case["vanillaGui"].asBoolean(),
             hideInventoryLabel = case["hideInventoryLabel"]?.asBoolean() ?: false,
             bedrockServerId = case["bedrock"]?.get("serverId")?.asText(),
+            theme = case["theme"]?.asText(),
         )
     }
 

@@ -38,6 +38,7 @@ class EditableConfig(private val defaults: Configuration) {
         if (!typed) return "invalid_type"
         if (key == "resource-pack.delegate-to-dir" && unsafePath(value as String)) return "unsafe_path"
         if (key.startsWith("resource-pack.container-textures.") && value != "" && !TEXTURE_REF.matches(value as String)) return "invalid_reference"
+        if (key == "resource-pack.theme" && value != "" && !THEME.matches(value as String)) return "invalid_theme"
         if (key == "text-palette.colors" && !(value as List<*>).all { PALETTE_COLOR.matches(it as String) }) return "invalid_palette_entry"
         if (key == "text-palette.gradients" && !(value as List<*>).all { PALETTE_GRADIENT.matches(it as String) }) return "invalid_palette_entry"
         return null
@@ -51,6 +52,8 @@ class EditableConfig(private val defaults: Configuration) {
     private companion object {
         val DRIVE = Regex("^[A-Za-z]:")
         val TEXTURE_REF = Regex("""[^:\s]+:[^:\s]+""")
+        /** A theme's folder name, as `KitTheme.isName` reads it. */
+        val THEME = Regex("^[a-z0-9][a-z0-9_-]*$")
         /** `<name> #rrggbb`, the name free text. */
         val PALETTE_COLOR = Regex("""\S.* #[0-9a-fA-F]{6}""")
         /** `<name> #rrggbb #rrggbb [...]`: two stops at least. */

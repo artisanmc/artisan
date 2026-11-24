@@ -2172,9 +2172,11 @@ const fr: typeof en = {
       unsafe_path: "le chemin doit rester dans le dossier du serveur.",
       invalid_reference: "choisir une image au format module:image.",
       invalid_palette_entry: "chaque entrée a un nom et des couleurs #rrggbb.",
+      invalid_theme: "choisir un thème du module du kit d'interface.",
     },
     listHint: "Valeurs séparées par des virgules.",
     vanillaTexture: "Texture vanilla",
+    noTheme: "Aucun thème",
     palette: {
       colors: "Couleurs",
       gradients: "Dégradés",
@@ -2221,6 +2223,7 @@ const fr: typeof en = {
         "delegate-reload-command": "Commande de rechargement après délégation",
         "hide-inventory-label":
           "Masquer le libellé « Inventaire » sous les menus (tous les conteneurs, toutes les langues)",
+        theme: "Thème du kit d'interface",
         "container-textures": {
           chest: "Coffres",
           hopper: "Entonnoirs",
@@ -2229,6 +2232,8 @@ const fr: typeof en = {
       },
     },
     hints: {
+      theme:
+        "Un dossier du module du kit d'interface (ui-kit/themes/<nom>/). Chaque image du kit est alors montrée aux couleurs du thème, ou telle qu'il la redessine ; les menus gardent leur mise en page.",
       chest:
         "Image au format generic_54.png (256×256, ou un multiple pour un pack HD). Quand un menu désactive sa texture vanilla, les autres coffres du serveur sont redessinés avec elle.",
       hopper:

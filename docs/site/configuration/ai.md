@@ -173,6 +173,29 @@ compose:
 You can then move its layers by hand: the image's detail in the Resources page is a composer
 (see [Image buttons](../../editor/image-buttons/), "Composed images").
 
+**Themes.** A theme gives the whole kit another look, for a season or an event, without a menu
+being touched ("make a Christmas theme of the kit: red buttons, snow on the windows"). It is a
+folder of the `ui-kit` module:
+
+```yaml
+# themes/noel/theme.yml: each colour of the kit's images, and what replaces it
+colors:
+  "#3c8527": "#b3261e"   # quoted: unquoted, # starts a comment
+  "#2a641c": "#7f1a14"
+```
+
+```text
+themes/noel/assets/textures/window.6.png   # an image the theme draws again, at its size
+```
+
+Every image a menu names `kit:<name>` is then shown as the theme draws it, else in the theme's
+colours, its transparency kept; an image composed from kit images follows. A drawing of
+another size than the image it replaces is left out, so the menus keep their layout. A
+module's own PNG never changes: to make an image follow the themes, compose it from kit images.
+The server shows one theme at a time: pick it in **Configuration**, **Resource pack**,
+**Theme of the UI kit** (`resource-pack.theme` of `config.yml`), which rebuilds the pack. The
+app cannot switch it; it shows you a menu in a theme before you do.
+
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"
 on the consent page, or the "Can deploy" switch in **Settings → AI apps**. The app then shows
 the changes and deploys only after you say yes, with the same checks as the editor's Deploy.
