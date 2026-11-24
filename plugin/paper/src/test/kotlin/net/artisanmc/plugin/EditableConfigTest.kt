@@ -98,4 +98,22 @@ class EditableConfigTest {
         assertEquals("text-palette.gradients: invalid_palette_entry", editable.apply(cfg, mapOf("text-palette.gradients" to listOf("One #ff6b35"))))
         assertNull(editable.apply(cfg, mapOf("text-palette.gradients" to listOf("Ice #a8e6ff #4f8cff #ffffff"))))
     }
+
+    @Test
+    fun `menu variants are reported and written as a list of variants, checked whole`() {
+        val cfg = fileConfig()
+        assertEquals(emptyList<Any?>(), editable.report(cfg)["menu-variants"])
+        val variants = listOf(
+            mapOf("name" to "vip", "parent" to "textured", "if" to listOf(mapOf("has_permission" to "rank.vip"))),
+            mapOf("name" to "large", "selectable" to true),
+        )
+        assertNull(editable.apply(cfg, mapOf("menu-variants" to variants)))
+        val back = YamlConfiguration().apply { loadFromString(cfg.saveToString()) }
+        assertEquals(variants, editable.report(back)["menu-variants"])
+        assertEquals("menu-variants: invalid_menu_variants",
+            editable.apply(cfg, mapOf("menu-variants" to listOf(mapOf("name" to "x", "parent" to "nowhere")))))
+        assertEquals("menu-variants: invalid_type", editable.apply(cfg, mapOf("menu-variants" to "vip")))
+        assertNull(editable.apply(cfg, mapOf("menu-variants" to emptyList<Any>())))
+        assertFalse(cfg.contains("menu-variants"))
+    }
 }

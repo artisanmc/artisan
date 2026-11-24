@@ -21,9 +21,11 @@ import { Input } from "@/components/ui/input";
 import type { ProjectId } from "@/domain/types";
 import { VARIANT_NAME, variantNames, viewedVariant } from "@/domain/variants";
 import { VariantRulesDialog } from "@/features/project/VariantRulesDialog";
+import { loadServerVariantNames } from "@/lib/variants/serverVariants";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useServersStore } from "@/state/serversStore";
 import { ChevronDown, Layers, ListOrdered, Lock, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 const MODULE = "__module__";
@@ -170,7 +172,20 @@ function NewVariantDialog({
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
+  const serverId = useServersStore((s) => s.activeServerId);
+  const [declared, setDeclared] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!open || !serverId) return;
+    let cancelled = false;
+    void loadServerVariantNames(serverId).then((names) => !cancelled && setDeclared(names));
+    return () => {
+      cancelled = true;
+    };
+  }, [open, serverId]);
+  const offered = (declared ?? []).filter((n) => n !== "default" && !taken.includes(n));
   const trimmed = name.trim();
+  const undeclared =
+    declared !== null && !!trimmed && VARIANT_NAME.test(trimmed) && !declared.includes(trimmed);
   const error = !trimmed
     ? null
     : !VARIANT_NAME.test(trimmed)
@@ -191,6 +206,23 @@ function NewVariantDialog({
           <DialogTitle>{t("variants.newVariantTitle")}</DialogTitle>
           <DialogDescription>{t("variants.newVariantHint")}</DialogDescription>
         </DialogHeader>
+        {offered.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <span className="field-label !mb-0">{t("variants.serverVariants")}</span>
+            <div className="flex flex-wrap gap-1.5">
+              {offered.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`chip font-mono ${n === trimmed ? "is-active" : ""}`}
+                  onClick={() => setName(n)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex flex-col gap-1">
           <Input
             value={name}
@@ -202,6 +234,11 @@ function NewVariantDialog({
             }}
           />
           {error && <span className="text-xs text-[var(--danger)]">{error}</span>}
+          {!error && undeclared && (
+            <span className="text-xs text-[var(--warning)]">
+              {t("variants.notDeclared", { name: trimmed })}
+            </span>
+          )}
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

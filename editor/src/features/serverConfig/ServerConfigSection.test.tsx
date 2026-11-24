@@ -2,6 +2,9 @@ import type { Asset } from "@/domain/asset";
 import type { ProjectSummary } from "@/lib/api/servers";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+/** The page gives the inspector's condition editor; these tests do not edit conditions. */
+const NoConditions = () => null;
 import { ServerConfigSection } from "./ServerConfigSection";
 
 const api = vi.hoisted(() => ({
@@ -31,7 +34,9 @@ const image = (name: string, size: number, type: Asset["type"] = "texture") =>
   ({ id: name, name, type, width: size, height: size, projectId: "p1" }) as Asset;
 
 function renderSection() {
-  return render(<ServerConfigSection serverKeyId="s1" projects={[project]} />);
+  return render(
+    <ServerConfigSection serverKeyId="s1" projects={[project]} conditionsField={NoConditions} />,
+  );
 }
 
 describe("ServerConfigSection", () => {
@@ -107,7 +112,13 @@ describe("ServerConfigSection", () => {
     });
     api.patchServerConfig.mockImplementation(async (_id, changes) => ({ ...config, ...changes }));
     const kit = { id: "p2", externalId: "ui-kit", name: "ui-kit" } as ProjectSummary;
-    render(<ServerConfigSection serverKeyId="s1" projects={[project, kit]} />);
+    render(
+      <ServerConfigSection
+        serverKeyId="s1"
+        projects={[project, kit]}
+        conditionsField={NoConditions}
+      />,
+    );
     const theme = await screen.findByLabelText(/^Thème du kit/);
     await waitFor(() => expect(screen.getByRole("option", { name: "noel" })).toBeInTheDocument());
     expect([...theme.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
@@ -158,6 +169,27 @@ describe("ServerConfigSection", () => {
     await waitFor(() =>
       expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
         "text-palette.colors": ["Brand #ff6b35", "Gold #5ab4ff"],
+      }),
+    );
+  });
+
+  it("edits the server's menu variants as a list, and holds back a wrong one", async () => {
+    api.getServerConfig.mockResolvedValue({
+      config: { ...config, "menu-variants": [] },
+      online: true,
+    });
+    api.patchServerConfig.mockResolvedValue({ ...config, "menu-variants": [{ name: "large" }] });
+    renderSection();
+    fireEvent.click(await screen.findByRole("button", { name: /Ajouter une variante/ }));
+    const name = screen.getByLabelText("Nom");
+    fireEvent.change(name, { target: { value: "textured" } });
+    expect(screen.getByText(/Nom intégré/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
+    fireEvent.change(name, { target: { value: "large" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() =>
+      expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
+        "menu-variants": [{ name: "large" }],
       }),
     );
   });
