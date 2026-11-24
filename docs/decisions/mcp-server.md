@@ -206,14 +206,31 @@ deployed.
      picture) and the `elements` that stand apart from the zone's most frequent colour, framed
      and numbered. The elements are a guess that works on a sprite sheet and fails on a dense
      menu, where everything touches: there the model reads the ruler.
+   - **A picture resized by a fraction** (a store's preview, a mock-up: one art pixel is 5.19 of
+     its pixels, its edges soft) has no exact cell. Its `pixel_size` is the cell size, from 3 to
+     32, on whose boundaries the colour changes fall best across and down at once (each change a
+     turn of `position / size`, summed: a Fourier term), kept only when the picture is drawn in
+     those cells: between two cells' middles every pixel is one of the two colours or a mix of
+     them. Lines one pixel wide at an even pitch (an inventory at its own size) fall on such
+     boundaries too, but are a third colour: no grid. A turned picture has none either. The
+     picture's pixel wins over a zone's when the zone's is a whole number of them (a chequered
+     block reads as a larger pixel on its own).
+   - **The slots of an inventory** are a frame, not elements: rows and columns of which one
+     colour holds half, two side by side at most, each running on, drawing two cells at least.
+     They leave the mask and part what stands in them, an icon that fills its slot included. One
+     outlined rectangle stays an element with its outline. The frame is looked for in the zone,
+     then within what its lines cover.
    - `write_image` takes `from`: a rectangle of a picture, brought back to one pixel per pixel of
      the art (each pixel the colour its cell holds most, read away from the cell's edges), on the
      grid found or at the `pixel_size` given (which may be a fraction). `background: remove`
      looks two art pixels around the rectangle, makes the colour found there transparent from the
      edge inward, leaves out what reaches the edge without reaching the middle (a neighbour the
      rectangle cut), and trims: the rectangle only has to hold the element. `remove_all` empties
-     a frame's inside too; `colours` limits the palette (median cut); a JPEG's close colours are
-     settled first. The answer says what was cut (`cut_from`) and shows the image, like any
+     a frame's inside too; a colour (`#8b8b8b`, the zone's `background`) names the ground of an
+     element whose rectangle has nothing around it (an icon in a slot, its frame next to it): it
+     goes from the rectangle's own edge inward, and the rectangle is not widened. `colours`
+     limits the palette (median cut); the close colours of a JPEG, or of a picture resized by a
+     fraction, are settled first. A `pixel_size` given by hand is laid on the art's own cells. The answer says what was cut (`cut_from`) and shows the image, like any
      `write_image`: the model corrects by art pixels.
    - **The picture is an attachment or a module's image.** In the editor's assistant, a picture
      the player attached, by its file name (ADR `editor-assistant`, decision 15). Over MCP a

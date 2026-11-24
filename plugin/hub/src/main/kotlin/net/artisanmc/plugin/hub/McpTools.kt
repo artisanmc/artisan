@@ -164,17 +164,21 @@ class McpTools(
                         "x" to INTEGER, "y" to INTEGER, "width" to INTEGER, "height" to INTEGER,
                         "pixel_size" to mapOf(
                             "type" to "number", "minimum" to 1, "maximum" to 64,
-                            "description" to "How many of the picture's pixels make one pixel of the art. Left out, it is found from the rectangle " +
-                                "(measure_image's pixel_size), and the picture is copied pixel for pixel when none is found.",
+                            "description" to "How many of the picture's pixels make one pixel of the art; a fraction for a picture resized " +
+                                "after the art was drawn (5.19). Left out, it is found from the rectangle (measure_image's pixel_size), " +
+                                "and the picture is copied pixel for pixel when none is found.",
                         ),
                         "background" to mapOf(
-                            "type" to "string", "enum" to listOf("keep", "remove", "remove_all"),
+                            "type" to "string",
                             "description" to "keep (default): the rectangle as it is, exact to the art's pixel: for an image that is a full " +
                                 "rectangle, or that touches its neighbours. remove: for an element that stands on a plain background (an " +
                                 "icon, a button with rounded corners): the colour around it becomes transparent from the rectangle's edge " +
                                 "inward, what the rectangle cut through is left out, and the image is trimmed to the element, so the " +
                                 "rectangle only has to hold the element with a little background around it. remove_all: that colour " +
-                                "becomes transparent inside the element too (the hole of a frame).",
+                                "becomes transparent inside the element too (the hole of a frame). A colour (`#8b8b8b`, measure_image's " +
+                                "`background`): for an element whose rectangle has nothing of its ground around it (measure_image's " +
+                                "elements, an icon in an inventory's slot, its frame next to it): that colour becomes transparent from " +
+                                "the rectangle's own edge inward, and the rectangle is not widened.",
                         ),
                         "tolerance" to mapOf(
                             "type" to "integer", "minimum" to 0, "maximum" to 255,
@@ -194,8 +198,9 @@ class McpTools(
                 "(`attachment`: its file name; other apps have none), or an image of a Project (`project` and `path`). It comes back " +
                 "with lines at round coordinates of its own pixels, numbered along the top and the left; `zone` shows one part of " +
                 "it larger. The result gives its size, `pixel_size` (how many of its pixels make one pixel of the art: 3 for a " +
-                "screenshot taken at GUI scale 3; absent when the zone is not enlarged pixel art), and the `elements` it tells " +
-                "apart from the zone's background, each framed under its number, with its rectangle. write_image with `from` then " +
+                "screenshot taken at GUI scale 3, a fraction for a picture resized afterwards; absent when the zone is not enlarged " +
+                "pixel art), and the `elements` it tells apart from the zone's background, each framed under its number, with its " +
+                "rectangle; the lines of an inventory's slots part them. write_image with `from` then " +
                 "cuts a rectangle out as an image. The elements are a guess from the colours: check each one on the picture, and " +
                 "measure a smaller zone when one is wrong or missing.",
             schema(
@@ -672,23 +677,33 @@ class McpTools(
             mapOf(
                 "picture" to picture.name, "width" to image.width, "height" to image.height,
                 "zone" to rectangle(zone), "shown_at" to view.label,
-                "pixel_size" to grid?.size,
-                "pixel_size_note" to "No enlarged pixel grid here: the art is at its own size, smooth, or mixed with something that is not on its grid (the game's world, a 3D item). Measure a zone that holds only the element to find it.".takeIf { grid == null },
+                "pixel_size" to grid?.let { pixelSize(it.size) },
+                "pixel_size_note" to when {
+                    grid == null -> "No enlarged pixel grid here: the art is at its own size, smooth, turned, or mixed with something that is not on its grid (the game's world, a 3D item). Measure a zone that holds only the element to find it."
+                    !grid.whole -> "This picture was resized after the art was drawn: one pixel of the art is ${pixelSize(grid.size)} of its pixels, and its edges are soft. A cut reads the middle of each cell: look at what it gives, a pixel on an edge may be wrong."
+                    else -> null
+                },
                 "background" to found?.background?.let { if (it and 0xff == 0) "transparent" else "#%06x".format(it ushr 8) },
                 "elements" to found?.rects?.mapIndexed { i, rect ->
                     mapOf("n" to i + 1) + rectangle(rect) + ("art_size" to grid?.let { "${Math.round(rect.width.toDouble() / it.size)}x${Math.round(rect.height.toDouble() / it.size)}" })
                 }?.map { it.filterValues { v -> v != null } },
                 "elements_note" to when {
                     found == null -> "No single background colour in this zone, so no element was told apart: read the rectangles off the ruler, or measure a smaller zone."
-                    found.rects.isEmpty() -> "Nothing stands apart from this zone's background (elements that touch one another are one block): read the rectangles off the ruler."
-                    else -> null
+                    found.rects.isEmpty() -> "Nothing stands apart from this zone's background (elements that touch one another are one block; the slots of an inventory are told apart in a zone that holds little else): measure a smaller zone, or read the rectangles off the ruler."
+                    else -> "Each rectangle is tight on its element; the lines of a frame around them (an inventory's slots) are left out."
                 },
                 "next" to "write_image with `from`: {${if (picture.name in attached) "attachment" else "path"}: \"${picture.name}\", x, y, width, height} cuts a rectangle out as an image; " +
-                    "with background: remove for a shape that is not a full rectangle.",
+                    (found?.takeIf { it.rects.isNotEmpty() && it.background and 0xff != 0 }?.let {
+                        "with background: \"${"#%06x".format(it.background ushr 8)}\" (this zone's background) for one of these elements, whose rectangle has nothing around it; "
+                    } ?: "") +
+                    "with background: remove for a shape that stands alone on its ground.",
             ).filterValues { it != null },
             listOf(McpImages.compact(ImageRulers.picture(image, zone, found?.rects.orEmpty()))),
         )
     }
+
+    /** An art pixel's size as a result gives it: a whole number, or a fraction to a hundredth. */
+    private fun pixelSize(size: Double): Number = if (size == Math.rint(size)) size.toInt() else Math.round(size * 100) / 100.0
 
     /** What write_image's `from` cut: the image, and what the result says about it. */
     private class Cut(val image: RgbaImage, val facts: Map<String, Any?>)
@@ -702,46 +717,57 @@ class McpTools(
         val picture = picture(from, attached) { project to draft }
         val source = picture.image
         val asked = rectangle(from, source, "from")
-        val mode = from.path("background").asText("keep").also {
-            if (it !in setOf("keep", "remove", "remove_all")) throw McpRefusal("invalid_input", "from.background is keep, remove or remove_all.")
-        }
+        val mode = from.path("background").asText("keep")
+        // A colour: the ground the element stands on, when the rectangle has nothing around it to read it from.
+        val ground = mode.takeIf { GROUND.matches(it) }?.let { (it.drop(1).toInt(16) shl 8) or 0xff }
+        if (ground == null && mode !in setOf("keep", "remove", "remove_all")) throw McpRefusal("invalid_input", "from.background is keep, remove, remove_all or the ground's colour as #RRGGBB.")
         val given = from.get("pixel_size")?.takeIf { it.isNumber }?.asDouble()?.also {
             if (it < 1 || it > 64) throw McpRefusal("invalid_input", "from.pixel_size is 1 to 64.")
         }
-        val grid = if (given == null) PixelArt.gridAround(source, asked) else null
-        val cell = given ?: grid?.size?.toDouble() ?: 1.0
-        // Removing the background starts from what is around the element: two art pixels more on each side.
-        val wide = if (mode == "keep") asked else asked.grown(Math.ceil(2 * cell).toInt()).within(source)!!
-        val rect = grid?.let { PixelArt.snap(wide, it) } ?: wide
-        val columns = Math.round(rect.width / cell).toInt().coerceAtLeast(1)
-        val rows = Math.round(rect.height / cell).toInt().coerceAtLeast(1)
+        // A size given by hand is laid on the art's own cells; found, it comes with them.
+        val grid = when (given) {
+            null -> PixelArt.gridAround(source, asked)
+            1.0 -> null
+            else -> PixelArt.laid(source, asked, given)
+        }
+        val cell = grid?.size ?: 1.0
+        // Removing a background nobody named starts from what is around the element: two art pixels more on each side.
+        val wide = if (mode == "remove" || mode == "remove_all") asked.grown(Math.ceil(2 * cell).toInt()).within(source)!! else asked
+        val cells = grid?.let { PixelArt.cells(wide, it) } ?: PixelArt.Cells(wide.x.toDouble(), wide.y.toDouble(), 1.0, wide.width, wide.height)
+        val columns = cells.columns
+        val rows = cells.rows
         if (columns > McpImages.MAX_SIDE || rows > McpImages.MAX_SIDE) throw McpRefusal(
             "invalid_image",
             "This cut is ${columns}x$rows pixels, an image is at most ${McpImages.MAX_SIDE} on each side: give a smaller rectangle" +
                 (if (cell == 1.0) ", or pixel_size when the picture shows the art enlarged." else "."),
         )
-        var image = PixelArt.reduce(source, rect, columns, rows)
+        var image = PixelArt.reduce(source, cells)
         val notes = ArrayList<String>()
         if (cell == 1.0 && given == null) notes += "Copied pixel for pixel: no enlarged pixel grid was found in this picture. If it shows the art enlarged, give pixel_size."
         if (picture.lossy) {
             PixelArt.settle(image, SETTLE_TOLERANCE)
             notes += "This picture is a JPEG: a flat colour of the art came back as several close ones. `colours` keeps as few as the art has."
+        } else if (grid?.whole == false) {
+            PixelArt.settle(image, SETTLE_TOLERANCE)
+            notes += "This picture was resized after the art was drawn (one pixel of the art is ${pixelSize(cell)} of its pixels): a flat colour came back as several close ones, and a pixel on an edge may be wrong. `colours` keeps as few as the art has."
         }
         var removed: String? = null
         var kept = PixelRect(0, 0, columns, rows)
         if (mode != "keep") {
-            val background = PixelArt.edgeColour(image)
+            val background = ground ?: PixelArt.edgeColour(image)
             if (background == null) notes += "Nothing was removed: the element stands on no single colour (a photograph, the game's world). Cut it with background: keep and an exact rectangle."
             else {
                 if (background and 0xff != 0) {
                     val tolerance = from.get("tolerance")?.takeIf { it.isNumber }?.asInt()?.coerceIn(0, 255) ?: CUT_TOLERANCE
-                    PixelArt.cutOut(image, background, tolerance, everywhere = mode == "remove_all")
-                    removed = "#%06x".format(background ushr 8)
+                    val gone = PixelArt.cutOut(image, background, tolerance, everywhere = mode == "remove_all")
+                    if (gone > 0 || ground == null) removed = "#%06x".format(background ushr 8)
+                    else notes += "Nothing was removed: no pixel on the rectangle's edge is $mode. measure_image gives a zone's background."
                 }
                 // What the rectangle cut through is a neighbour, not the element.
                 val dropped = PixelArt.dropCut(image)
                 if (dropped.pixels > 0) notes += "What touched the rectangle's edge without reaching its middle was left out, as a neighbour of the element."
-                if (dropped.keptAtEdge) notes += "The element reaches the rectangle's edge: either the rectangle cuts it (give a larger one), or a neighbour touches it and came with it (cut it with background: keep and an exact rectangle, or remove the extra pixels by writing the image again from its pixels)."
+                // With the ground named, the rectangle is the element's own: it touches its edge.
+                if (dropped.keptAtEdge && ground == null) notes += "The element reaches the rectangle's edge: either the rectangle cuts it (give a larger one), or a neighbour touches it and came with it (cut it with background: keep and an exact rectangle, name the ground's colour as background when a frame surrounds it, or remove the extra pixels by writing the image again from its pixels)."
                 kept = PixelArt.content(image) ?: throw McpRefusal(
                     "invalid_image",
                     "Nothing is left: everything in the rectangle is its background${removed?.let { " ($it)" }.orEmpty()} or touches its edge. Give a rectangle with " +
@@ -751,17 +777,15 @@ class McpTools(
             }
         }
         val colours = from.get("colours")?.takeIf { it.isNumber }?.asInt()?.coerceIn(2, 64)?.let { PixelArt.limit(image, it) }
-        val cellWidth = rect.width.toDouble() / columns
-        val cellHeight = rect.height.toDouble() / rows
+        val cut = cells.rect(kept.x, kept.y, kept.width, kept.height)
         return Cut(
             image,
             mapOf(
                 "cut_from" to mapOf(
                     "picture" to picture.name,
-                    "x" to Math.round(rect.x + kept.x * cellWidth), "y" to Math.round(rect.y + kept.y * cellHeight),
-                    "width" to Math.round(kept.width * cellWidth), "height" to Math.round(kept.height * cellHeight),
+                    "x" to cut.x, "y" to cut.y, "width" to cut.width, "height" to cut.height,
                 ),
-                "pixel_size" to (if (cell == Math.rint(cell)) cell.toInt() else cell),
+                "pixel_size" to pixelSize(cell),
                 "background_removed" to removed,
                 "colours_kept" to colours,
                 "notes" to notes.ifEmpty { null },
@@ -1235,6 +1259,8 @@ class McpTools(
         private const val CUT_TOLERANCE = 32
         /** How close two colours of a JPEG are when they were one. */
         private const val SETTLE_TOLERANCE = 30
+        /** write_image's `from.background` when it names the ground's colour. */
+        private val GROUND = Regex("#[0-9a-fA-F]{6}")
         private const val IMAGES_HOWTO = "Images: a menu with its own look is drawn with images (write_image). Before the first one, call " +
             "survey_ui on the server: reuse an image that fits (a menu may name any module's image), and draw what is missing in the " +
             "style of what is there. When the server has a UI kit (the module `ui-kit`), follow its notes and file there each " +

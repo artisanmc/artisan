@@ -118,9 +118,11 @@ in game, or in the editor's preview, to see it with real data.
 close button and the three tabs from this picture." The assistant measures the picture, cuts
 each element out at the art's own size, whatever the screenshot's GUI scale, removes the
 background around a shape, and writes the result into the draft as an image, which it looks at
-and corrects. It works best on pixel art over a plain background, in a PNG; a JPEG blurs
-colours, and a smooth or resized picture has to be told its pixel size. Elements that touch
-their neighbours are cut as rectangles, to the pixel. A PNG, JPEG or GIF up to 2560x1600. An app
+and corrects. It works best on pixel art over a plain background, in a PNG. The icons of an
+inventory are told apart from its slots. A picture resized after the art was drawn (a store's
+preview, a mock-up) is read too, less exactly: a JPEG or a resize blurs colours and edges, so
+look at each image it gives. Art that is turned, or drawn in perspective, cannot be cut out.
+Elements that touch their neighbours are cut as rectangles, to the pixel. A PNG, JPEG or GIF up to 2560x1600. An app
 connected over MCP has no attachments: upload the picture into a module's images first, and
 give it that path. Only take images you have the right to reuse.
 

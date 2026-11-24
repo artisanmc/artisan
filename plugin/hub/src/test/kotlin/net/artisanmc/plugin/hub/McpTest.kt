@@ -15,6 +15,7 @@ import java.util.logging.Logger
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -338,6 +339,82 @@ class McpTest {
         assertTrue(cut("x", "x" to 200, "y" to 0, "width" to 10, "height" to 10)["isError"].asBoolean())
         assertTrue("Nothing is left" in cut("x", "x" to 80, "y" to 60, "width" to 20, "height" to 20, "background" to "remove")["structuredContent"]["message"].asText())
         assertTrue(tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "x", "from" to mapOf("x" to 1))["isError"].asBoolean())
+    }
+
+    @Test
+    fun `icons are cut out of an inventory's slots, in a picture resized by a fraction`() {
+        // Three slots as the game draws them (dark edge top and left, light edge bottom and right) in a panel, a gem in the
+        // first and a block that fills the second, the whole resized by 4.5 and smoothed: a store's preview, a mock-up.
+        val gem = listOf("__kkkkkkkk__", "_kwwwwwwwwk_", "kwwbbbbbbwwk", "kwbbwbbbbbwk", "kwbwbbbbbbwk", "_kwbbbbbbwk_", "__kwbbbbwk__", "___kwbbwk___", "____kwwk____", "_____kk_____")
+        val colours = mapOf('_' to 0x8b8b8b, 'k' to 0x000000, 'w' to 0xffffff, 'r' to 0xc03030, 'b' to 0x3050c0, 'p' to 0xc6c6c6, 'd' to 0x373737)
+        fun art(x: Int, y: Int): Char {
+            val column = Math.floorDiv(x - 1, 18)
+            val i = Math.floorMod(x - 1, 18)
+            val j = y - 1
+            if (column !in 0..2 || j !in 0..17) return 'p'
+            return when {
+                (j == 0 && i < 17) || (i == 0 && j < 17) -> 'd'
+                (j == 17 && i > 0) || (i == 17 && j > 0) -> 'w'
+                i == 0 || i == 17 -> '_'
+                column == 0 -> gem.getOrNull(j - 4)?.getOrNull(i - 3) ?: '_'
+                column == 2 -> '_'
+                else -> if (((i - 1) / 4 + (j - 1) / 4) % 2 == 0) 'r' else 'b'
+            }
+        }
+        val scale = 4.5
+        val picture = net.artisanmc.plugin.pack.RgbaImage((56 * scale).toInt(), (20 * scale).toInt())
+        for (y in 0 until picture.height) for (x in 0 until picture.width) {
+            val sum = IntArray(3)
+            for (j in 0 until 4) for (i in 0 until 4) {
+                val colour = colours.getValue(art(((x + (i + 0.5) / 4) / scale).toInt(), ((y + (j + 0.5) / 4) / scale).toInt()))
+                sum[0] += colour shr 16
+                sum[1] += (colour shr 8) and 0xff
+                sum[2] += colour and 0xff
+            }
+            java.nio.ByteBuffer.wrap(picture.data, (y * picture.width + x) * 4, 4).putInt(((sum[0] / 16) shl 24) or ((sum[1] / 16) shl 16) or ((sum[2] / 16) shl 8) or 0xff)
+        }
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/preview.png" to net.artisanmc.plugin.pack.Png.encode(picture)))
+        val (access, _) = tokens()
+
+        val facts = tool(access, "measure_image", "project" to "u-local.shop", "path" to "assets/textures/preview.png")["structuredContent"]
+        assertEquals(4.5, facts["pixel_size"].asDouble(), 0.02)
+        assertTrue("resized" in facts["pixel_size_note"].asText())
+        assertEquals("#8b8b8b", facts["background"].asText())
+        // The slots' lines part the icons and are no element; the block touches them and still comes alone.
+        assertEquals(listOf("12x10", "16x16"), facts["elements"].map { it["art_size"].asText() })
+        assertTrue("background: \"#8b8b8b\"" in facts["next"].asText(), facts["next"].asText())
+
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: icons")["structuredContent"]["draft_id"].asText()
+        fun cut(name: String, element: JsonNode, vararg more: Pair<String, Any?>) = tool(
+            access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to name,
+            "from" to mapOf("path" to "assets/textures/preview.png", "x" to element["x"].asInt(), "y" to element["y"].asInt(), "width" to element["width"].asInt(), "height" to element["height"].asInt(), *more),
+        )
+        fun stored(name: String): net.artisanmc.plugin.pack.RgbaImage {
+            val ref = mapper.readTree(drafts.rows.getValue(draftId))["snapshot"]["binaryTree"]["assets/textures/$name.png"]
+            return net.artisanmc.plugin.pack.Png.decode(drafts.blobs.getValue(ref["hash"].asText()))
+        }
+        fun pixel(image: net.artisanmc.plugin.pack.RgbaImage, x: Int, y: Int) = java.nio.ByteBuffer.wrap(image.data, (y * image.width + x) * 4, 4).int
+
+        // The element's own rectangle has no ground around it: the ground is named, and goes from the rectangle's edge inward.
+        val written = cut("gem", facts["elements"][0], "background" to "#8b8b8b", "colours" to 4)
+        assertFalse(written.has("isError"), written.toString())
+        val cutFacts = written["structuredContent"]
+        assertEquals(listOf(12, 10), listOf("width", "height").map { cutFacts[it].asInt() })
+        assertEquals(4.5, cutFacts["pixel_size"].asDouble(), 0.02)
+        assertEquals("#8b8b8b", cutFacts["background_removed"].asText())
+        assertTrue(cutFacts["notes"].any { "resized" in it.asText() }, cutFacts.toString())
+        val image = stored("gem")
+        // A corner is transparent, the outline black, the gem's inside blue, as drawn.
+        assertEquals(listOf(0, 0x000000ff, 0x3050c0ff), listOf(pixel(image, 0, 0), pixel(image, 2, 0), pixel(image, 5, 4)))
+
+        // A ground the rectangle's edge does not show is said, not guessed; anything else than a colour or a mode is refused.
+        val wrong = cut("block", facts["elements"][1], "background" to "#00ff00")["structuredContent"]
+        assertEquals(listOf(16, 16), listOf("width", "height").map { wrong[it].asInt() })
+        assertTrue(!wrong.has("background_removed") && wrong["notes"].any { "Nothing was removed" in it.asText() }, wrong.toString())
+        assertTrue(cut("x", facts["elements"][0], "background" to "green")["isError"].asBoolean())
+        // The size given by hand is laid on the art's own cells: the same image.
+        cut("gem_by_hand", facts["elements"][0], "background" to "#8b8b8b", "colours" to 4, "pixel_size" to 4.5)
+        assertContentEquals(image.data, stored("gem_by_hand").data)
     }
 
     @Test
