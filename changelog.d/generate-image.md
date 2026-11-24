@@ -1,5 +1,6 @@
 - **Added** (preview): pictures from an image model. Set one in **Settings → Assistant** (or
-  `ai.image` in `environment.yml`: `openai` or `google`, with that vendor's key) and the editor's
+  `ai.image` in `environment.yml`: `openai` or `google` with that vendor's key, or `artisan` to
+  pay each picture from the linked artisanmc.net account's credits, without a key) and the editor's
   assistant can ask it for what it cannot draw pixel by pixel, an illustration or a painted
   background (`generate_image`). Each picture is paid on that key, so the assistant asks first, in
   the conversation: **Allow once**, **Always allow** (taken back in Settings → AI apps) or

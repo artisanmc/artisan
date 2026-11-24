@@ -138,10 +138,12 @@ class AiSetup(
     private fun images(config: AiImageConfig): ImageService? {
         if (config.provider.isBlank()) return null
         val model = imageFor(config) ?: run {
-            logger?.warning("[Artisan] ai.image: provider '${config.provider}' needs a key and to be one of ${AiImageConfig.PROVIDERS}: no generate_image")
+            if (config.provider == AiImageConfig.ARTISAN) logger?.warning("[Artisan] ai.image: provider 'artisan' needs the site account (site.url): no generate_image")
+            else logger?.warning("[Artisan] ai.image: provider '${config.provider}' needs a key and to be one of ${AiImageConfig.PROVIDERS}: no generate_image")
             return null
         }
-        logger?.info("[Artisan] Image model enabled: ${config.provider} API, model ${model.model}")
+        if (config.provider == AiImageConfig.ARTISAN) logger?.info("[Artisan] Image model enabled: artisanmc.net (linked account's credits)" + (config.model.takeIf { it.isNotBlank() }?.let { ", model $it" } ?: ""))
+        else logger?.info("[Artisan] Image model enabled: ${config.provider} API, model ${model.model}")
         return ImageService(model, config.dailyLimit)
     }
 

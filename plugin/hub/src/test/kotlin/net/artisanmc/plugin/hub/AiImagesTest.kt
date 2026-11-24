@@ -156,6 +156,89 @@ class AiImagesTest {
         assertEquals("ai_key_refused", assertFailsWith<AiFailure> { model.generate(request) }.code)
     }
 
+    private class Site(private val catalogue: String) : SiteApi {
+        var refuse = false
+        override fun startLink(name: String) = throw UnsupportedOperationException()
+        override fun collect(deviceCode: String) = throw UnsupportedOperationException()
+        override fun updates(token: String, channel: String, installed: Map<String, String>) = throw UnsupportedOperationException()
+        override fun ai(token: String): JsonNode {
+            if (refuse) throw SiteFailure("site_unlinked")
+            return ObjectMapper().readTree(catalogue)
+        }
+    }
+
+    private val catalogue = """
+        {"balance":12.5,"models":[],"imageModels":[
+          {"id":"gpt-image","label":"GPT Image","transparency":true,"price":0.6},
+          {"id":"nano","label":"Gemini image","transparency":false,"price":0.3}]}
+    """.trimIndent()
+
+    private fun account(api: SiteApi = Site(catalogue), linked: Boolean = true) =
+        SiteAccount(base, MemorySiteLinkStore(if (linked) SiteLink("tok-123", "Survival", Instant.EPOCH) else null), api)
+
+    @Test
+    fun `artisan asks the site for a picture with the link's token, and names nothing of a vendor`() {
+        val site = account()
+        val model = ArtisanImages(AiImageConfig(provider = "artisan", model = "nano"), site)
+        assertFalse(model.transparency, "from the site's catalogue")
+        assertEquals("nano", model.model)
+        answers += 200 to """{"image":"$encoded","model":"nano","cost":0.3}"""
+        val references = listOf(ImageRequest.Reference("reference-1.png", byteArrayOf(9, 8, 7)))
+        assertContentEquals(picture, model.generate(ImageRequest("a tall tower", ImageRequest.Shape.TALL, false, references)).bytes)
+        val sent = received.single()
+        assertEquals("/api/ai/image/", sent.path)
+        assertEquals("Bearer tok-123", sent.headers["authorization"])
+        assertEquals(
+            mapOf(
+                "model" to "nano", "prompt" to "a tall tower", "shape" to "tall", "transparent" to false,
+                "references" to listOf(mapOf("data" to Base64.getEncoder().encodeToString(byteArrayOf(9, 8, 7)))),
+            ),
+            mapper.convertValue(json(sent), Map::class.java),
+        )
+
+        // No model in the settings: the first one the site offers.
+        val first = ArtisanImages(AiImageConfig(provider = "artisan"), site)
+        assertTrue(first.transparency)
+        assertEquals("gpt-image", first.model)
+        answers += 200 to """{"image":"$encoded","model":"gpt-image","cost":0.6}"""
+        first.generate(ImageRequest("a red banner", ImageRequest.Shape.WIDE, true))
+        assertEquals(listOf("gpt-image", "wide", true), json(received.last()).let { listOf(it["model"].asText(), it["shape"].asText(), it["transparent"].asBoolean()) })
+    }
+
+    @Test
+    fun `artisan says what the site refused, no credits, no link, the picture or the model`() {
+        val site = account()
+        val model = ArtisanImages(AiImageConfig(provider = "artisan", model = "gpt-image"), site)
+        val request = ImageRequest("something", ImageRequest.Shape.SQUARE, false)
+        fun failed(status: Int, type: String, message: String): AiFailure {
+            answers += status to """{"type":"error","error":{"type":"$type","message":"$message"}}"""
+            return assertFailsWith<AiFailure> { model.generate(request) }
+        }
+        assertEquals("ai_no_credits", failed(402, "insufficient_credits", "No credits").code)
+        val refused = failed(422, "image_refused", "Your request was rejected by the safety system.")
+        assertEquals("ai_image_refused", refused.code)
+        assertTrue("safety system" in refused.message!!)
+        assertEquals("ai_image_refused", failed(400, "invalid_request_error", "prompt is 1 to 4000 characters.").code)
+        assertEquals("ai_cloud_model", failed(404, "not_found_error", "Not offered").code)
+        assertEquals("ai_rate_limited", failed(429, "rate_limit_error", "Busy").code)
+        assertEquals("ai_provider_error", failed(502, "provider_key", "Artisan's AI provider refused its key").code)
+        answers += 200 to """{"model":"gpt-image"}"""
+        assertEquals("ai_provider_error", assertFailsWith<AiFailure> { model.generate(request) }.code)
+
+        // A model the site does not offer is refused before anything is sent, a refused link forgotten.
+        val before = received.size
+        assertEquals("ai_cloud_model", assertFailsWith<AiFailure> { ArtisanImages(AiImageConfig(provider = "artisan", model = "gone"), site).generate(request) }.code)
+        assertEquals(before, received.size)
+        assertEquals("ai_not_linked", failed(401, "authentication_error", "Not linked").code)
+        assertNull(site.link(), "the refused link is forgotten")
+        assertEquals("ai_not_linked", assertFailsWith<AiFailure> { model.generate(request) }.code)
+        assertFalse(model.transparency, "unknown without a link: a flat background is asked for")
+
+        val none = ArtisanImages(AiImageConfig(provider = "artisan"), account(Site("""{"balance":1,"models":[]}""")))
+        assertEquals("ai_cloud_model", assertFailsWith<AiFailure> { none.generate(request) }.code)
+        assertEquals("artisanmc.net", none.model)
+    }
+
     @Test
     fun `the settings name a service only with a known provider and a key`() {
         assertNull(AiImageConfig.service(AiImageConfig()))
@@ -163,6 +246,9 @@ class AiImagesTest {
         assertNull(AiImageConfig.service(AiImageConfig(provider = "midjourney", apiKey = "k")))
         assertTrue(AiImageConfig.service(AiImageConfig(provider = "openai", apiKey = "k")) is OpenAiImages)
         assertTrue(AiImageConfig.service(AiImageConfig(provider = "google", apiKey = "k")) is GoogleImages)
+        // artisan needs no key, but the site account.
+        assertNull(AiImageConfig.service(AiImageConfig(provider = "artisan")))
+        assertTrue(AiImageConfig.service(AiImageConfig(provider = "artisan"), account()) is ArtisanImages)
         assertEquals("my-model", AiImageConfig(provider = "google", apiKey = "k", model = "my-model").usedModel)
         assertEquals(listOf("square", "wide", "tall"), ImageRequest.Shape.entries.map { it.id })
         assertNull(ImageRequest.Shape.of("round"))

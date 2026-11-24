@@ -218,10 +218,18 @@ export const aiEn = {
       "Turn the assistant off and forget its key? Ongoing conversations end; their drafts stay.",
     image: {
       title: "Image model",
-      help: "What generate_image asks for a picture the assistant cannot draw pixel by pixel (an illustration, a painted background). Each picture is paid on this key. The assistant asks the player before each one; an AI app needs the player's consent.",
+      help: "What generate_image asks for a picture the assistant cannot draw pixel by pixel (an illustration, a painted background). Each picture is paid on this key, or on the linked account's credits. The assistant asks the player before each one; an AI app needs the player's consent.",
       none: "None",
       provider: "Image API",
-      providers: { openai: "OpenAI (GPT Image)", google: "Google (Gemini image)" },
+      providers: {
+        openai: "OpenAI (GPT Image)",
+        google: "Google (Gemini image)",
+        artisan: "artisanmc.net credits",
+      },
+      cloudHint:
+        "artisanmc.net's image models, paid per picture from the AI credits of the account this network is linked to: no key here.",
+      cloudPrice: "{{label}} · {{price}} credits a picture",
+      cloudNone: "artisanmc.net offers no image model yet.",
       model: "Image model",
       modelHint: "Empty: {{model}}.",
       apiKey: "Image API key",
@@ -470,10 +478,18 @@ export const aiFr: typeof aiEn = {
       "Désactiver l’assistant et oublier sa clé ? Les conversations en cours s’arrêtent ; leurs brouillons restent.",
     image: {
       title: "Modèle d’image",
-      help: "Ce que generate_image interroge pour une image que l’assistant ne peut pas dessiner pixel par pixel (une illustration, un fond peint). Chaque image est payée sur cette clé. L’assistant demande au joueur avant chacune ; une application IA a besoin de l’accord du joueur.",
+      help: "Ce que generate_image interroge pour une image que l’assistant ne peut pas dessiner pixel par pixel (une illustration, un fond peint). Chaque image est payée sur cette clé, ou sur les crédits du compte lié. L’assistant demande au joueur avant chacune ; une application IA a besoin de l’accord du joueur.",
       none: "Aucun",
       provider: "API d’image",
-      providers: { openai: "OpenAI (GPT Image)", google: "Google (Gemini image)" },
+      providers: {
+        openai: "OpenAI (GPT Image)",
+        google: "Google (Gemini image)",
+        artisan: "Crédits artisanmc.net",
+      },
+      cloudHint:
+        "Les modèles d’image d’artisanmc.net, payés à l’image sur les crédits IA du compte auquel ce réseau est lié : aucune clé ici.",
+      cloudPrice: "{{label}} · {{price}} crédits par image",
+      cloudNone: "artisanmc.net ne propose pas encore de modèle d’image.",
       model: "Modèle d’image",
       modelHint: "Vide : {{model}}.",
       apiKey: "Clé de l’API d’image",

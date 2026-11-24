@@ -261,10 +261,27 @@ export interface AiCloudModel {
   attachments: AiAttachmentKind[];
 }
 
-/** The linked site account's AI credits (ADR `editor-assistant`, `artisan` provider). */
+/** An image model artisanmc.net offers `generate_image`; `price`: credits per picture. */
+export interface AiCloudImageModel {
+  id: string;
+  label: string;
+  transparency: boolean;
+  price: number;
+}
+
+/**
+ * The linked site account's AI credits (ADR `editor-assistant`, `artisan` provider).
+ * `imageModels` is absent from a hub that does not know them.
+ */
 export type AiCloud =
   | { linked: false }
-  | { linked: true; balance: number; buy: string | null; models: AiCloudModel[] };
+  | {
+      linked: true;
+      balance: number;
+      buy: string | null;
+      models: AiCloudModel[];
+      imageModels?: AiCloudImageModel[];
+    };
 
 /** Asked of the site by the hub, which keeps it a minute; `fresh` asks again now. */
 export function getAiCloud(fresh = false): Promise<AiCloud> {

@@ -396,8 +396,8 @@ deployed.
 - Detecting reuse of a refresh token (revoke the whole authorization): this would require keeping the
   old hashes.
 - Data tools (data sources): a next step of the design named in decision 10. For
-  `generate_image`: artisanmc.net credits paying for pictures (the relay only carries chat
-  models), a price shown before the call, other vendors, and pictures that outlive a restart. For `render_menu`: a state chosen by the caller, sample values for
+  `generate_image`: a price shown before the call (the site's catalogue has it for
+  `image.provider: artisan`, ADR `editor-assistant` decision 16), other vendors, and pictures that outlive a restart. For `render_menu`: a state chosen by the caller, sample values for
   expressions, hover text (name and lore). For the kit: a screen for a theme's colours, themes
   for a module's own images, and its place in the editor's Resources page. For `measure_image`: a pixel size that is not
   whole found by itself (a mock-up from an image model), elements inside a dense menu, a WebP.

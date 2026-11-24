@@ -39,6 +39,8 @@ class AiRoutes(
                         mapOf(
                             "linked" to true, "balance" to ai.balance, "buy" to ai.buy,
                             "models" to ai.models.map { mapOf("id" to it.id, "label" to it.label, "protocol" to it.protocol, "attachments" to it.attachments.map { k -> k.id }.sorted()) },
+                            // The image models generate_image may ask through the site, with their price in credits per picture.
+                            "imageModels" to ai.imageModels.map { mapOf("id" to it.id, "label" to it.label, "transparency" to it.transparency, "price" to it.price) },
                         ),
                     )
                 } catch (e: SiteFailure) {
@@ -247,6 +249,8 @@ class AiRoutes(
         if (baseUrl.isNotEmpty() && !validUrl(baseUrl)) return ParsedImage.Invalid("invalid_input", "image.baseUrl")
         val limit = node.get("dailyLimit")?.let { it.takeIf { n -> n.isInt }?.asInt()?.takeIf { n -> n in 0..10_000 } ?: return ParsedImage.Invalid("invalid_input", "image.dailyLimit") }
             ?: AiImageConfig.DEFAULT_DAILY_LIMIT
+        // artisanmc.net's image models: no key, no address, the site link pays.
+        if (provider == AiImageConfig.ARTISAN) return ParsedImage.Valid(AiImageConfig(provider, "", model, "", limit))
         val key = text("apiKey")?.takeIf { it.isNotEmpty() }
         if (key != null && (key.length > 500 || key.any { it.isWhitespace() })) return ParsedImage.Invalid("invalid_input", "image.apiKey")
         val kept = saved?.takeIf { it.provider == provider && it.baseUrl == baseUrl }?.apiKey?.takeIf { it.isNotBlank() }

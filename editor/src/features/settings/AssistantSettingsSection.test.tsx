@@ -277,6 +277,75 @@ describe("assistant settings", () => {
     ).toBeInTheDocument();
   });
 
+  it("picks one of artisanmc.net's image models, paid per picture, with no key nor address", async () => {
+    const withCloud = (over: Record<string, unknown> = {}) => ({
+      ...image(over),
+      imageProviders: ["artisan", "google", "openai"],
+    });
+    api.getAiSettings.mockResolvedValue(
+      settings({
+        source: "database",
+        enabled: true,
+        provider: "anthropic",
+        keyHint: "…abcd",
+        ...withCloud(),
+      }),
+    );
+    api.getAiCloud.mockResolvedValue({
+      linked: true,
+      balance: 12.5,
+      buy: null,
+      models: [],
+      imageModels: [
+        { id: "gpt-image", label: "GPT Image", transparency: true, price: 0.6 },
+        { id: "nano", label: "Gemini image", transparency: false, price: 0.3 },
+      ],
+    });
+    api.saveAiSettings.mockResolvedValue(
+      settings({
+        source: "database",
+        enabled: true,
+        provider: "anthropic",
+        keyHint: "…abcd",
+        ...withCloud({ enabled: true, provider: "artisan", model: "nano" }),
+      }),
+    );
+    render(<AssistantSettingsSection />);
+    fireEvent.click(await screen.findByRole("button", { name: "artisanmc.net credits" }));
+    // No model picked yet: the first one is what the hub would ask.
+    expect(
+      await screen.findByRole("button", { name: "GPT Image · 0.6 credits a picture" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Balance: 12.5 credits.")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Image API key/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Image API address/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Gemini image · 0.3 credits a picture" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.saveAiSettings).toHaveBeenCalled());
+    expect(api.saveAiSettings.mock.calls[0]?.[0].image).toEqual({
+      provider: "artisan",
+      model: "nano",
+      baseUrl: "",
+      dailyLimit: 40,
+    });
+    expect(await screen.findByText(/Pictures are generated with nano/)).toBeInTheDocument();
+  });
+
+  it("says when artisanmc.net has no image model, or the network is not linked", async () => {
+    api.getAiSettings.mockResolvedValue(
+      settings({ ...image(), imageProviders: ["artisan", "google", "openai"] }),
+    );
+    api.getAiCloud.mockResolvedValue({ linked: true, balance: 1, buy: null, models: [] });
+    const { unmount } = render(<AssistantSettingsSection />);
+    fireEvent.click(await screen.findByRole("button", { name: "artisanmc.net credits" }));
+    expect(await screen.findByText(/offers no image model yet/)).toBeInTheDocument();
+    unmount();
+    api.getAiCloud.mockResolvedValue({ linked: false });
+    render(<AssistantSettingsSection />);
+    fireEvent.click(await screen.findByRole("button", { name: "artisanmc.net credits" }));
+    expect(await screen.findByText(/not linked to an artisanmc.net account/)).toBeInTheDocument();
+  });
+
   it("names the image model's field a save refused", async () => {
     api.getAiSettings.mockResolvedValue(
       settings({

@@ -62,7 +62,7 @@ object EditorApi {
         }
         site?.let { SiteRoutes(servers, relay, it, logger).register(router) }
         ImportRoutes(servers, relay, logger).register(router)
-        setup = aiSetup(ai, aiSettings, aiProvider, tools, logger, aiConversations, site, aiPermissions, aiImages ?: { AiImageConfig.service(it) })
+        setup = aiSetup(ai, aiSettings, aiProvider, tools, logger, aiConversations, site, aiPermissions, aiImages ?: { AiImageConfig.service(it, site) })
         AiRoutes(setup, site).register(router)
         return router
     }

@@ -719,7 +719,7 @@ class AiAssistantTest {
         val store = MemoryAiSettingsStore()
         start(null, settings = store)
         val shown = editor("GET", AiRoutes.CONFIG_PATH).body!!
-        assertEquals(listOf("google", "openai"), shown["imageProviders"].map { it.asText() })
+        assertEquals(listOf("artisan", "google", "openai"), shown["imageProviders"].map { it.asText() })
         assertEquals("gpt-image-1", shown["imageDefaultModels"]["openai"].asText())
         assertTrue(shown["image"]["provider"].isNull)
 
@@ -744,6 +744,11 @@ class AiAssistantTest {
         assertEquals("sk-secret-123456789", store.read()!!.apiKey)
         // Another provider is another key; none turns it off, the assistant staying.
         assertEquals("ai_key_required", editor("PUT", AiRoutes.CONFIG_PATH, settings("image" to mapOf("provider" to "google"))).body!!["error"].asText())
+        // artisanmc.net's image models: no key, no address. No site account here, so no image model in service.
+        val cloud = editor("PUT", AiRoutes.CONFIG_PATH, settings("image" to mapOf("provider" to "artisan", "model" to "nano", "baseUrl" to "https://ignored.example", "dailyLimit" to 3)))
+        assertEquals(200, cloud.status, cloud.body.toString())
+        assertEquals(AiImageConfig("artisan", "", "nano", "", 3), store.read()!!.image)
+        assertEquals("""{"enabled":false,"provider":"artisan","model":"nano","baseUrl":"","dailyLimit":3,"keyHint":null}""", cloud.body!!["image"].toString())
         assertEquals(200, editor("PUT", AiRoutes.CONFIG_PATH, settings("image" to null)).status)
         assertEquals(AiImageConfig(), store.read()!!.image)
         assertTrue(editor("GET", AiRoutes.STATUS).body!!.let { it["enabled"].asBoolean() && it["imageModel"].isNull })

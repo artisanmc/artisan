@@ -56,11 +56,20 @@ interface SiteApi {
     fun ai(token: String): JsonNode = throw SiteFailure("site_unreachable", "no AI on this site")
 }
 
-/** What artisanmc.net offers the linked account's assistant ([CloudProvider]): its balance in credits and the models. */
-data class SiteAi(val balance: Double, val models: List<Model>, val buy: String?) {
+/**
+ * What artisanmc.net offers the linked account's assistant ([CloudProvider]): its balance in
+ * credits, the chat models, and the image models `generate_image` may ask ([ArtisanImages]).
+ */
+data class SiteAi(val balance: Double, val models: List<Model>, val buy: String?, val imageModels: List<ImageModel> = emptyList()) {
     data class Model(val id: String, val label: String, val protocol: String, val attachments: Set<AiAttachment.Kind>)
 
+    /** [price]: credits per picture. */
+    data class ImageModel(val id: String, val label: String, val transparency: Boolean, val price: Double)
+
     fun model(id: String) = models.firstOrNull { it.id == id }
+
+    /** The image model [id]; empty: the first one the site offers. */
+    fun imageModel(id: String) = if (id.isBlank()) imageModels.firstOrNull() else imageModels.firstOrNull { it.id == id }
 
     companion object {
         fun read(body: JsonNode) = SiteAi(
@@ -72,6 +81,11 @@ data class SiteAi(val balance: Double, val models: List<Model>, val buy: String?
                 Model(id, node.path("label").asText(id), protocol, kinds + AiAttachment.Kind.TEXT)
             },
             buy = body.path("buy").asText("").takeIf { it.startsWith("https://") || it.startsWith("http://") },
+            // Absent on a site that has no image models yet.
+            imageModels = body.path("imageModels").mapNotNull { node ->
+                val id = node.path("id").asText("").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+                ImageModel(id, node.path("label").asText(id), node.path("transparency").asBoolean(false), node.path("price").asDouble(0.0))
+            },
         )
     }
 }
@@ -298,6 +312,9 @@ class SiteAccount(
 
     /** Where the assistant's calls go through the site ([CloudProvider]). */
     val aiEndpoint: String get() = baseUrl.trimEnd('/') + "/api/ai/chat/"
+
+    /** Where a picture is asked of the site ([ArtisanImages]). */
+    val imageEndpoint: String get() = baseUrl.trimEnd('/') + "/api/ai/image/"
 
     companion object {
         const val DEFAULT_URL = "https://artisanmc.net"

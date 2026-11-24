@@ -20,31 +20,40 @@ import java.util.concurrent.ConcurrentHashMap
  * Empty: the tool is not offered, and everything else works.
  */
 data class AiImageConfig(
-    /** `openai` (the Images API, GPT Image models) or `google` (the Gemini API's image models); empty: none. */
+    /**
+     * `openai` (the Images API, GPT Image models) or `google` (the Gemini API's image models), on
+     * the admin's own key; or `artisan`: the image models artisanmc.net offers, paid from the
+     * linked account's credits ([ArtisanImages]), with no key here. Empty: none.
+     */
     val provider: String = "",
     val apiKey: String = "",
-    /** Empty: the provider's default ([DEFAULT_MODELS]). */
+    /** Empty: the provider's default ([DEFAULT_MODELS]); for `artisan`, the first image model the site offers. */
     val model: String = "",
-    /** Another address for the provider's API (a proxy); empty: its own. */
+    /** Another address for the provider's API (a proxy); empty: its own. Not read for `artisan`. */
     val baseUrl: String = "",
     /** Pictures one player may ask for in a day (UTC), all apps and the assistant together; 0: no limit. */
     val dailyLimit: Int = DEFAULT_DAILY_LIMIT,
 ) {
-    val enabled: Boolean get() = provider in PROVIDERS && apiKey.isNotBlank()
+    val enabled: Boolean get() = provider == ARTISAN || (provider in PROVIDERS && apiKey.isNotBlank())
 
     /** The model asked of the provider. */
     val usedModel: String get() = model.ifBlank { DEFAULT_MODELS[provider].orEmpty() }
 
     companion object {
-        val PROVIDERS = setOf("openai", "google")
+        const val ARTISAN = AiConfig.ARTISAN
+        val PROVIDERS = setOf("openai", "google", ARTISAN)
         val DEFAULT_MODELS = mapOf("openai" to "gpt-image-1", "google" to "gemini-2.5-flash-image")
         const val DEFAULT_DAILY_LIMIT = 40
 
-        /** The model service of [config]; null when it names none, or one that is not known. */
-        fun service(config: AiImageConfig): ImageModel? = when {
+        /**
+         * The model service of [config]; null when it names none, or one that is not known.
+         * [site]: the network's link to its site account, which `artisan` needs; without it, no such provider.
+         */
+        fun service(config: AiImageConfig, site: SiteAccount? = null): ImageModel? = when {
             !config.enabled -> null
             config.provider == "openai" -> OpenAiImages(config)
             config.provider == "google" -> GoogleImages(config)
+            config.provider == ARTISAN -> site?.let { ArtisanImages(config, it) }
             else -> null
         }
     }
@@ -190,6 +199,59 @@ class GoogleImages(private val config: AiImageConfig, private val client: OkHttp
             throw AiFailure("ai_image_refused", "$host made no image" + (if (said.isEmpty()) "" else ": ${said.take(300)}"))
         }
         return decode(host, data)
+    }
+}
+
+/**
+ * The `artisan` image provider: a picture asked of artisanmc.net (`POST /api/ai/image/`, with the
+ * link's token), which asks one of its image models with its own key and takes the model's price
+ * per picture from the linked account's credits. Unlike [CloudProvider], no vendor's protocol is
+ * spoken here: the site chooses the size and the quality its price pays for, and is sent the
+ * prompt, the shape and the references alone.
+ */
+class ArtisanImages(private val config: AiImageConfig, private val site: SiteAccount, private val client: OkHttpClient = imageClient()) : ImageModel {
+    private val relay = AiRelay(site.imageEndpoint, token = { site.link()?.token }, refused = site::refused)
+
+    /** The model asked for; when the settings name none, the site's first one once its catalogue was read. */
+    override val model: String get() = config.model.ifBlank { site.knownAi()?.imageModel("")?.id ?: "artisanmc.net" }
+
+    /** From the site's catalogue (read at most every few minutes, on the tool's thread); unknown: none, and the prompt asks for a flat background. */
+    override val transparency: Boolean get() = runCatching { site.ai().imageModel(config.model)?.transparency }.getOrNull() ?: false
+
+    override fun generate(request: ImageRequest): GeneratedImage {
+        val catalogue = try {
+            site.ai()
+        } catch (e: SiteFailure) {
+            throw if (e.code == "site_not_linked") AiFailure("ai_not_linked", "The network is not linked to an artisanmc.net account")
+            else AiFailure("ai_unreachable", "artisanmc.net could not be reached: ${e.message}", e)
+        }
+        val entry = catalogue.imageModel(config.model)
+            ?: throw AiFailure("ai_cloud_model", if (config.model.isBlank()) "artisanmc.net offers no image model" else "artisanmc.net does not offer the image model ${config.model}")
+        val payload = mapOf(
+            "model" to entry.id, "prompt" to request.prompt, "shape" to request.shape.id, "transparent" to request.transparent,
+            "references" to request.references.map { mapOf("data" to Base64.getEncoder().encodeToString(it.png)) },
+        )
+        val http = Request.Builder().url(relay.endpoint).header("Authorization", "Bearer ${relay.key()}")
+            .post(Call.mapper.writeValueAsString(payload).toRequestBody(JSON)).build()
+        val body = try {
+            client.newCall(http).execute().use { response ->
+                val text = response.body?.string().orEmpty()
+                val json = runCatching { Call.mapper.readTree(text) }.getOrNull()
+                if (!response.isSuccessful) {
+                    val message = json?.path("error")?.path("message")?.asText("")?.ifBlank { null } ?: text.take(300)
+                    throw relay.failure(response.code, message) ?: when (response.code) {
+                        // What the site or its image model refused in the request: the model reads why, and asks differently.
+                        400, 422 -> AiFailure("ai_image_refused", "artisanmc.net refused the request: $message")
+                        429 -> AiFailure("ai_rate_limited", "artisanmc.net limit: $message")
+                        else -> AiFailure("ai_provider_error", "artisanmc.net answered ${response.code}: $message")
+                    }
+                }
+                json ?: throw AiFailure("ai_provider_error", "artisanmc.net answered something that is not JSON")
+            }
+        } catch (e: IOException) {
+            throw AiFailure("ai_unreachable", "artisanmc.net could not be reached: ${e.message}", e)
+        }
+        return decode("artisanmc.net", body.path("image").asText(""))
     }
 }
 

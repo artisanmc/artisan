@@ -93,7 +93,9 @@ object EnvironmentFile {
         |#               (an illustration, a painted background). provider "openai" or "google",
         |#               its own api-key (each picture is billed to it), model (empty: the
         |#               provider's default), daily-limit pictures per player and per day (0: no
-        |#               limit). It can be set without a provider above, for AI apps (web.mcp).
+        |#               limit). Or provider "artisan", with no api-key: artisanmc.net's image
+        |#               models, paid per picture from the linked account's credits. It can be
+        |#               set without a provider above, for AI apps (web.mcp).
         |# ai:
         |#   provider: "anthropic"
         |#   api-key: "${'$'}{ANTHROPIC_API_KEY}"

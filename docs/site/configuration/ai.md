@@ -113,7 +113,13 @@ ai:
   model for what is painted.
 - OpenAI's models make a transparent background when asked. Google's do not: the picture comes
   on a flat colour, which is removed when it is cut.
-- artisanmc.net credits do not pay for pictures yet: an image model needs its own key.
+
+**Without a key: artisanmc.net credits.** When the network is linked to an artisanmc.net
+account, pick **artisanmc.net credits** under **Image model** instead (or `provider: "artisan"`
+in `environment.yml`, with no `api-key`). The site's image models are listed with their price
+in credits per picture, taken from the linked account's balance each time a picture is made; a
+refused or failed picture costs nothing. With no model picked, the first one the site offers is
+used. Everything above still applies: the question before each picture, the daily limit.
 
 ## AI clients (MCP)
 

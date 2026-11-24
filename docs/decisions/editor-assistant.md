@@ -175,7 +175,7 @@ than the hub. One single Artisan user at this date: the admin's key first.
    that it has no such picture and the model asks for it again. Nothing new is stored in
    `artisan_ai_conversations`.
 16. **An image model, and a question before each picture** (2026-11-24; ADR `mcp-server`,
-   decision 17). The settings carry a second model, `image` (`provider` `openai` or `google`,
+   decision 17). The settings carry a second model, `image` (`provider` `openai`, `google` or `artisan`,
    its own key, model, base URL, pictures per player and per day), saved and read with the
    others; `environment.yml` wins when it names either provider. It may be set alone, without
    an assistant, for MCP clients. With it, the assistant is offered `generate_image`.
@@ -197,6 +197,19 @@ than the hub. One single Artisan user at this date: the admin's key first.
      cut from it is in the draft.
    - The settings of the assistant changed while a question waits: the new assistant does
      not know the question, which then expires.
+   - **`image.provider: artisan`: the site account's credits pay** (`ArtisanImages`, with
+     decision 13's link and no key). Here the hub does not speak a vendor's protocol through
+     the relay, as it does for chat: it sends `POST <site>/api/ai/image/` the prompt, the
+     shape, whether the background is transparent and the references, and gets the picture
+     back. A chat call is priced by the tokens its answer reports, whatever was asked; a
+     picture has one price in the site's catalogue, so the site alone must choose what that
+     price depends on (one picture, its size, the quality). The catalogue of decision 13
+     (`GET <site>/api/ai/`) lists the image models with their price per picture and whether
+     they make a transparent background (`imageModels`, shown by `GET /api/v1/ai/cloud`);
+     no model in the settings means the first one. The site's refusals map to the same
+     codes as a vendor's (`ai_image_refused`, `ai_rate_limited`, `ai_provider_error`), plus
+     decision 13's (`ai_not_linked`, `ai_no_credits`, `ai_cloud_model`). The question before
+     each picture and the daily limit are unchanged: the balance is the whole network's.
 
 ## Consequences
 
