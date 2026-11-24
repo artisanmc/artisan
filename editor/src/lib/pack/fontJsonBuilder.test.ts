@@ -36,9 +36,12 @@ function glyph(
 }
 
 describe("buildDefaultFontJson", () => {
-  test("emits minecraft:default reference first", () => {
-    const json = buildDefaultFontJson([]);
-    expect(json.providers[0]).toEqual({ type: "reference", id: "minecraft:default" });
+  test("emits the minecraft:default reference last, after Artisan's glyphs and offsets", () => {
+    // A client pack's glyphs at the same codepoints (minecraft:default merges every loaded pack)
+    // must not win over Artisan's: the first provider that has a character draws it.
+    const json = buildDefaultFontJson([glyph({ codepoint: 0xf801 })]);
+    expect(json.providers.at(-1)).toEqual({ type: "reference", id: "minecraft:default" });
+    expect(json.providers.slice(0, -1).map((p) => p.type)).toEqual(["bitmap", "space"]);
   });
 
   test("adds one bitmap provider per glyph", () => {
@@ -46,16 +49,16 @@ describe("buildDefaultFontJson", () => {
       glyph({ name: "coin", codepoint: 0xe000, ascent: 8, height: 9 }),
       glyph({ id: "asset_g2", name: "gem", codepoint: 0xe001, ascent: 7, height: 8 }),
     ]);
-    // reference + 2 bitmaps + space = 4
+    // 2 bitmaps + space + reference = 4
     expect(json.providers).toHaveLength(4);
-    expect(json.providers[1]).toEqual({
+    expect(json.providers[0]).toEqual({
       type: "bitmap",
       file: "artisan:font/coin.png",
       ascent: 8,
       height: 9,
       chars: [String.fromCodePoint(0xe000)],
     });
-    expect(json.providers[2]).toEqual({
+    expect(json.providers[1]).toEqual({
       type: "bitmap",
       file: "artisan:font/gem.png",
       ascent: 7,
@@ -64,11 +67,11 @@ describe("buildDefaultFontJson", () => {
     });
   });
 
-  test("skips glyphs with null codepoint (reference + space remain)", () => {
+  test("skips glyphs with null codepoint (space + reference remain)", () => {
     const json = buildDefaultFontJson([glyph({ codepoint: null })]);
     expect(json.providers).toHaveLength(2);
-    expect(json.providers[0]!.type).toBe("reference");
-    expect(json.providers[1]!.type).toBe("space");
+    expect(json.providers[0]!.type).toBe("space");
+    expect(json.providers[1]!.type).toBe("reference");
   });
 
   test("skips non-glyph rows (texture, font)", () => {
@@ -77,8 +80,8 @@ describe("buildDefaultFontJson", () => {
       glyph({ type: "font" }),
     ]);
     expect(json.providers).toHaveLength(2);
-    expect(json.providers[0]!.type).toBe("reference");
-    expect(json.providers[1]!.type).toBe("space");
+    expect(json.providers[0]!.type).toBe("space");
+    expect(json.providers[1]!.type).toBe("reference");
   });
 
   test("sorts providers by codepoint for deterministic output", () => {
@@ -86,14 +89,14 @@ describe("buildDefaultFontJson", () => {
       glyph({ id: "g_b", name: "b", codepoint: 0xe002 }),
       glyph({ id: "g_a", name: "a", codepoint: 0xe001 }),
     ]);
-    expect((json.providers[1] as { file: string }).file).toBe("artisan:font/a.png");
-    expect((json.providers[2] as { file: string }).file).toBe("artisan:font/b.png");
+    expect((json.providers[0] as { file: string }).file).toBe("artisan:font/a.png");
+    expect((json.providers[1] as { file: string }).file).toBe("artisan:font/b.png");
   });
 
   test("appends a space provider with all offsets after bitmaps", () => {
     const json = buildDefaultFontJson([glyph({ id: "g_a", name: "a", codepoint: 0xe001 })]);
-    // [reference, bitmap, space]
-    const space = json.providers[json.providers.length - 1] as SpaceProvider;
+    // [bitmap, space, reference]
+    const space = json.providers[json.providers.length - 2] as SpaceProvider;
     expect(space.type).toBe("space");
     const advances = space.advances;
     // 18 entries, matching SPACE_OFFSET_ADVANCES

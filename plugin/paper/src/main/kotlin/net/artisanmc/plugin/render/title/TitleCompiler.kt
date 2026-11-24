@@ -20,7 +20,9 @@ import net.artisanmc.plugin.render.OffsetEncoder
  *    That font includes a `reference` to `minecraft:default` (so plain text falls
  *    back to vanilla), the bitmap providers for project glyphs, and a `space`
  *    provider mapping a set of codepoints (U+F800..U+F811) to positive/negative
- *    pixel advances (powers of two, ±1..±256).
+ *    pixel advances (powers of two, ±1..±256). The reference comes last, so a
+ *    client pack's glyphs at the same codepoints (merged into minecraft:default)
+ *    never take over the offsets or images.
  *  - Between layers the compiler emits a sequence of "space" chars produced by
  *    [OffsetEncoder] that advances the cursor from the previous layer's end to
  *    the next layer's `x`. After the body of a layer it estimates the body's

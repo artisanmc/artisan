@@ -54,18 +54,23 @@ export interface DefaultFontJson {
  * Builds the `assets/artisan/font/default.json` payload.
  *
  * Providers (in order):
- *   1. `reference` → `minecraft:default` (so plain text falls back to vanilla)
- *   2. one `bitmap` per glyph asset, sorted by codepoint for deterministic output
- *   3. one `space` provider mapping the pixel-offset codepoints (U+F800..)
+ *   1. one `bitmap` per glyph asset, sorted by codepoint for deterministic output
+ *   2. one `space` provider mapping the pixel-offset codepoints (U+F800..)
  *      to positive/negative pixel advances. Used by [TitleCompiler] to position
  *      layers at arbitrary X via greedy decomposition into powers of two.
+ *   3. `reference` → `minecraft:default` (so plain text falls back to vanilla)
+ *
+ * The reference comes last: a font takes each character from the first provider
+ * that has it, and `minecraft:default` merges every pack the client loaded, its
+ * own packs included. A client pack's private-use glyphs (negative space fonts
+ * use U+F801..) would otherwise take over the offsets and images of the titles.
  */
 export function buildDefaultFontJson(assets: AssetRow[]): DefaultFontJson {
   const glyphs = assets
     .filter((a) => a.type === "glyph" && a.codepoint !== null)
     .sort((a, b) => (a.codepoint ?? 0) - (b.codepoint ?? 0));
 
-  const providers: FontProvider[] = [{ type: "reference", id: "minecraft:default" }];
+  const providers: FontProvider[] = [];
   for (const g of glyphs) {
     providers.push({
       type: "bitmap",
@@ -81,6 +86,7 @@ export function buildDefaultFontJson(assets: AssetRow[]): DefaultFontJson {
     advances[String.fromCodePoint(codepoint)] = advance;
   }
   providers.push({ type: "space", advances });
+  providers.push({ type: "reference", id: "minecraft:default" });
 
   return { providers };
 }

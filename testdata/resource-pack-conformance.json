@@ -48,10 +48,10 @@
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "0ebb30f1c4fa4552c8c2106593200945df76afc3",
+      "sha1": "4a51c949ee3cca2dc6d928a0c92d32b8e5dd7b89",
       "entryHashes": {
         "assets/artisan/asset-index.json": "b64f9c96478bf19b162db993dc6327d5d59143e3d6e500ea68b87efdf100ffdb",
-        "assets/artisan/font/default.json": "866843618e73dffb9666e7f25b27786363a8c96aaa28f98cf16b84c43b6e6afc",
+        "assets/artisan/font/default.json": "a89928ee6906b6bf8b296e4fc01fc777aa3a7220020832c3a1fc418318a69077",
         "assets/artisan/font/pixel.json": "c38c2d6491abb045315d794b4f045781f00936419fc1fb63abd0186c3e82f101",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
         "assets/artisan/textures/font/accented_up.png": "454c174ce9e1aeefde41326f571561130bfc4cf5b1c39e26554bd7e34f1e6a18",
@@ -128,10 +128,10 @@
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "b14005239ec8d759cfc9a00cae28354124c5237c",
+      "sha1": "0cf692936ff21c9f56bf232cef6e1f2dde2f5106",
       "entryHashes": {
         "assets/artisan/asset-index.json": "01ea76c0cabef4adb1af8b024f5f1c7457aeb2d484e2a50d1174aecace486eee",
-        "assets/artisan/font/default.json": "fb2d7e174f11833d4b0a27ef945c88c8433c21b8313900bfccc49195a779d964",
+        "assets/artisan/font/default.json": "d78b9ef3f6e8e277549137dae84237637e733921253b552cc280f1da8bb40953",
         "assets/artisan/font/glyph_y30.json": "489b503f21ee830a351cb67ee8f2e9b85c0c09da1d9aa657b11ff6e397d799f8",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
         "assets/artisan/textures/font/accented_up.png": "454c174ce9e1aeefde41326f571561130bfc4cf5b1c39e26554bd7e34f1e6a18",
@@ -228,7 +228,7 @@
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "ff42687c30ce908ecff10ccebe0c4458145712e0",
+      "sha1": "fb282aa3af38a4c90967992ba22be60af9217ec7",
       "entryHashes": {
         "assets/artisan/asset-index.json": "e38c8f7545345b4fbd520e035e21440dc62cfc14fd1ea5d4e35a3ffc2b5ac44c",
         "assets/artisan/font/buttons/c3e2d78f3ff335724b4029f06505b511e4f8f01e258828de29849b36b40b55d0_18_18_contain_84_-1_0.json": "584dec2731002a56db11f5c1a7d802d1c5800c785ee4104ceae87c5f148a03f7",
@@ -236,7 +236,7 @@
         "assets/artisan/font/buttons/c3e2d78f3ff335724b4029f06505b511e4f8f01e258828de29849b36b40b55d0_36_18_contain_17.json": "e2fc1bc8156b6e141df719e802154dae5d9a1b15db041bb168ff71f52b93fa62",
         "assets/artisan/font/buttons/c3e2d78f3ff335724b4029f06505b511e4f8f01e258828de29849b36b40b55d0_36_36_stretch_17_2_-3.json": "8a3e302c72f4340a2bb18684bb9b3d1a344b676bb87014bfcf4bb89b6c8a3359",
         "assets/artisan/font/buttons/c3e2d78f3ff335724b4029f06505b511e4f8f01e258828de29849b36b40b55d0_54_18_contain_19.json": "1a5cda79e26f23ce1b1682ee9dbe130cf149a89a637093486c9fdb4896e3b3b9",
-        "assets/artisan/font/default.json": "3c35a70ee671afbb22c13e41b4c695e7c46f60b393d787d789c1c6f99bcac91f",
+        "assets/artisan/font/default.json": "b5f2753c7c38eac17fb8d8d5e4fcd0758c1ebfaa3e3e6337dcdf491300aa1a3c",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
         "assets/artisan/items/buttons/hit_area.json": "640b1ffd4b0f72ba22d7609e6adda9db80cef06419d273aa8ac528631a8ef135",
         "assets/artisan/textures/buttons/c3e2d78f3ff335724b4029f06505b511e4f8f01e258828de29849b36b40b55d0_18_18_contain_84_-1_0.png": "3d7767c965492a3c1471730c52a640bcf2580fb1dceac6cb7dc318bb56a537b7",
@@ -330,10 +330,10 @@
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "937c60eb90d59c19d722ab1cd188b81972fdfbf9",
+      "sha1": "b5a13d0465aa162f7ca4aa399249572d4bfea993",
       "entryHashes": {
         "assets/artisan/asset-index.json": "9110b4b85cc25a5e28594ecf9bd5e6d7ca97266218a303cdaadf0c8dbe0b8232",
-        "assets/artisan/font/default.json": "866843618e73dffb9666e7f25b27786363a8c96aaa28f98cf16b84c43b6e6afc",
+        "assets/artisan/font/default.json": "a89928ee6906b6bf8b296e4fc01fc777aa3a7220020832c3a1fc418318a69077",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
         "assets/artisan/textures/font/accented_up.png": "454c174ce9e1aeefde41326f571561130bfc4cf5b1c39e26554bd7e34f1e6a18",
         "assets/artisan/textures/font/ascii_up.png": "a2ca25208d39ab01617fc5d855f6e8e3f4d00100d114f19b5f79adcceb58a238",
@@ -454,10 +454,10 @@
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "59d5962511bc4a02077eb645b000184b12dcc82a",
+      "sha1": "c84ca5a2c639be14510b917dbeca79b0e004f52d",
       "entryHashes": {
         "assets/artisan/asset-index.json": "81ee03c6ebd4b4ccd4ce658d375f75adf40f5f2a23b80adc037e1f767973fc81",
-        "assets/artisan/font/default.json": "3c35a70ee671afbb22c13e41b4c695e7c46f60b393d787d789c1c6f99bcac91f",
+        "assets/artisan/font/default.json": "b5f2753c7c38eac17fb8d8d5e4fcd0758c1ebfaa3e3e6337dcdf491300aa1a3c",
         "assets/artisan/font/overlay/26f8567f2569182294c3fa5b9f9cb2270b554eef628b4c149cf82a42888ff4ae_81.json": "1f707af16c9cec8d0bddab74402861ddb8fab6b9d57e3ca73fd6710b1f6c9d1f",
         "assets/artisan/font/overlay/864ea39fe7e2b27155a29e46fb9458d05e2ccade4151d02b7c851b10257eda7a_12.json": "f67a74e2b90ee3885df0d87fdc8077cced66b9c2cf31f989b9936e0cf93bce87",
         "assets/artisan/font/overlay/864ea39fe7e2b27155a29e46fb9458d05e2ccade4151d02b7c851b10257eda7a_19.json": "6f0023f2f094c87013b42e81497a0ca77478b37e4fb5bc6e095fc13d28e3b550",
@@ -732,7 +732,7 @@
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "dea5c37fa11429c06abb168618205bdcdf19d7c6",
+      "sha1": "af7fa9a35e466e3d6063094516358c4a378b2b9d",
       "entryHashes": {
         "assets/artisan/asset-index.json": "88d9acae0211d4fed505d2cfb729acba6264985386c9c99b5a9e23f146b9b753",
         "assets/artisan/font/Big_Font.json": "14614bde06fe4dab4cfbe87939592dcb1050cbef88161fcef2d491505a6a9fc5",
@@ -750,7 +750,7 @@
         "assets/artisan/font/buttons/a1a38b5bae5866d7d998a9834229ec2f9db7a4fc8fb6f58b1115a96a446875ff_36_18_stretch_17.json": "4a124dcee35c224cd5ab8165a55369e073099cc01e36a5d49f92288f6c5edec4",
         "assets/artisan/font/buttons/c84c8016356014e02b049ff270c079dd03ab5c5d44a120bee60242782b234ddd_54_18_contain_53.json": "728de0d7e633924815fb0359479ed277a0d1211ffd9cf3858b21836b67f1fe32",
         "assets/artisan/font/buttons/c84c8016356014e02b049ff270c079dd03ab5c5d44a120bee60242782b234ddd_54_36_native_16.json": "c8625b735aada00b7b3619dc78d352c42e9aa28525084d994dbc24cc0ce00e51",
-        "assets/artisan/font/default.json": "9c05a8f6a29026b63d15fa454bf6a37df954d6b50cec3a6505c40a9b19fa5f47",
+        "assets/artisan/font/default.json": "4f72089add930038f3c5bc9e3394e73a17b3939021ff061799ebc15ee76586f4",
         "assets/artisan/font/glyph_y10.json": "f53491a5f7b880f4f74415f4ef906180f98c951847ab0ac915531242bfdbeda9",
         "assets/artisan/font/glyph_y12.json": "e026384456a7d4f4dc542c61a9fd0d9834202d472f419c39554ee7f43387f1db",
         "assets/artisan/font/glyph_y13.json": "dd5435308d0d70021cb0f1b63c26fa1e278602ecd23ecfba1812e30003d895f4",
@@ -1052,7 +1052,7 @@
         "assets/artisan/font/buttons/e8197b20f8e71e429645f83cc6f07d9d43ee7a30ef5dc6c02dd16692a7bc9aac_18_18_contain_17.json": "715bc865bd1cfb1af6c9ec8fbd6b7cda50454fa8ae4bc125fcbee180f14f1af0",
         "assets/artisan/font/buttons/e8197b20f8e71e429645f83cc6f07d9d43ee7a30ef5dc6c02dd16692a7bc9aac_54_18_native_35.json": "7e98e7e56b345c695f0523d95c7819b65d08b0930079ab4d6a06d500dc95725c",
         "assets/artisan/font/buttons/e8197b20f8e71e429645f83cc6f07d9d43ee7a30ef5dc6c02dd16692a7bc9aac_54_18_stretch_71.json": "ccb7c215bc648066dbcdcb3743e38e24b8469f018dd357618bd8bed57e333d25",
-        "assets/artisan/font/default.json": "866843618e73dffb9666e7f25b27786363a8c96aaa28f98cf16b84c43b6e6afc",
+        "assets/artisan/font/default.json": "a89928ee6906b6bf8b296e4fc01fc777aa3a7220020832c3a1fc418318a69077",
         "assets/artisan/font/glyph_y40.json": "032bc75f0af9111562af23a258ba59756b6fbc7440ea5f8f041366076121ee8b",
         "assets/artisan/font/glyph_y5.json": "83e20dbde9b44eebfb738b5ad76c5b7174b12544c36f1efa600130d13f8e1f34",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
@@ -1083,7 +1083,7 @@
       },
       "textYFonts": 169,
       "textUpFonts": 129,
-      "sha1": "f7ef2122690f63b74e2f290eb262306e07b61354",
+      "sha1": "58bc2ebf7346c03c21e16e20c15d066c4170f65d",
       "textYSized": [
         "assets/artisan/font/text_y30_h16.json"
       ]
@@ -1207,7 +1207,7 @@
         "assets/artisan/font/buttons/24d7f03d8dc3c3666969e6fa5bb1fac4736d3f1353c28307ed51b320f9dc42d3_54_18_contain_35.json": "c8feabcb7bd353a6e5eb736a08bebaa8c53025492829b1ef47b3a54674be8bbd",
         "assets/artisan/font/buttons/e8197b20f8e71e429645f83cc6f07d9d43ee7a30ef5dc6c02dd16692a7bc9aac_54_18_native_35.json": "7e98e7e56b345c695f0523d95c7819b65d08b0930079ab4d6a06d500dc95725c",
         "assets/artisan/font/buttons/e8197b20f8e71e429645f83cc6f07d9d43ee7a30ef5dc6c02dd16692a7bc9aac_54_18_stretch_35.json": "472bb90cc9d0800426e912928cbedc068bd8e906b5c8debe03c9517db37156e5",
-        "assets/artisan/font/default.json": "866843618e73dffb9666e7f25b27786363a8c96aaa28f98cf16b84c43b6e6afc",
+        "assets/artisan/font/default.json": "a89928ee6906b6bf8b296e4fc01fc777aa3a7220020832c3a1fc418318a69077",
         "assets/artisan/font/glyph_y5.json": "83e20dbde9b44eebfb738b5ad76c5b7174b12544c36f1efa600130d13f8e1f34",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
         "assets/artisan/items/buttons/hit_area.json": "640b1ffd4b0f72ba22d7609e6adda9db80cef06419d273aa8ac528631a8ef135",
@@ -1237,7 +1237,7 @@
       },
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "1552a871229c8059e6fb45f0cc9446aced0d1b1a",
+      "sha1": "262163a758b07a1d95533dad372840a9c41a553b",
       "textYSized": []
     },
     {
@@ -1357,7 +1357,7 @@
         "assets/artisan/font/buttons/24d7f03d8dc3c3666969e6fa5bb1fac4736d3f1353c28307ed51b320f9dc42d3_54_18_contain_35.json": "c8feabcb7bd353a6e5eb736a08bebaa8c53025492829b1ef47b3a54674be8bbd",
         "assets/artisan/font/buttons/e8197b20f8e71e429645f83cc6f07d9d43ee7a30ef5dc6c02dd16692a7bc9aac_54_18_native_35.json": "7e98e7e56b345c695f0523d95c7819b65d08b0930079ab4d6a06d500dc95725c",
         "assets/artisan/font/buttons/e8197b20f8e71e429645f83cc6f07d9d43ee7a30ef5dc6c02dd16692a7bc9aac_54_18_stretch_35.json": "472bb90cc9d0800426e912928cbedc068bd8e906b5c8debe03c9517db37156e5",
-        "assets/artisan/font/default.json": "866843618e73dffb9666e7f25b27786363a8c96aaa28f98cf16b84c43b6e6afc",
+        "assets/artisan/font/default.json": "a89928ee6906b6bf8b296e4fc01fc777aa3a7220020832c3a1fc418318a69077",
         "assets/artisan/font/glyph_y5.json": "83e20dbde9b44eebfb738b5ad76c5b7174b12544c36f1efa600130d13f8e1f34",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
         "assets/artisan/items/buttons/hit_area.json": "640b1ffd4b0f72ba22d7609e6adda9db80cef06419d273aa8ac528631a8ef135",
@@ -1387,7 +1387,7 @@
       },
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "1552a871229c8059e6fb45f0cc9446aced0d1b1a",
+      "sha1": "262163a758b07a1d95533dad372840a9c41a553b",
       "textYSized": []
     },
     {
@@ -1447,10 +1447,10 @@
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "661c7fd693fe661d09ad114f8c1c6d949fc14c31",
+      "sha1": "139dc86b30fed3765cd8a4c31050c506912a2b59",
       "entryHashes": {
         "assets/artisan/asset-index.json": "72ddb3d810deb18efa80ff1dafcd9485c6df45f09e44a4619b5d56d29f654dba",
-        "assets/artisan/font/default.json": "3c35a70ee671afbb22c13e41b4c695e7c46f60b393d787d789c1c6f99bcac91f",
+        "assets/artisan/font/default.json": "b5f2753c7c38eac17fb8d8d5e4fcd0758c1ebfaa3e3e6337dcdf491300aa1a3c",
         "assets/artisan/font/overlay/78cf4842afe41dcb96be60c73489b311db583418c3c4e98f4f1dea3fc42995ad_10.json": "04b42a8c9b0007281cbeca4212f50d40721e8bd5b668011a0c8c7b6a6ad83d00",
         "assets/artisan/font/overlay/9dff50df08c635815f4b19da10f756605a34a79a48d4ba48712782502975a70e_20.json": "018a720197d301b1814bdcd2472b4d5f5d342f817e7e43e64cd5055624ae61d8",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
@@ -1516,7 +1516,7 @@
       ],
       "entryHashes": {
         "assets/artisan/asset-index.json": "526e7765ba7425ecbcc25c9b5f7b9185729204b9439d0529fc34eee9ba691597",
-        "assets/artisan/font/default.json": "3c35a70ee671afbb22c13e41b4c695e7c46f60b393d787d789c1c6f99bcac91f",
+        "assets/artisan/font/default.json": "b5f2753c7c38eac17fb8d8d5e4fcd0758c1ebfaa3e3e6337dcdf491300aa1a3c",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
         "assets/artisan/textures/font/accented_up.png": "454c174ce9e1aeefde41326f571561130bfc4cf5b1c39e26554bd7e34f1e6a18",
         "assets/artisan/textures/font/ascii_up.png": "a2ca25208d39ab01617fc5d855f6e8e3f4d00100d114f19b5f79adcceb58a238",
@@ -1540,7 +1540,7 @@
       },
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "e64b8110f50eda1727c9ec26bf48ba2745d81dd2",
+      "sha1": "d0e390585fab9b3b43b3d0e9b01405bcf0c31236",
       "textYSized": []
     },
     {
@@ -1581,7 +1581,7 @@
       ],
       "entryHashes": {
         "assets/artisan/asset-index.json": "526e7765ba7425ecbcc25c9b5f7b9185729204b9439d0529fc34eee9ba691597",
-        "assets/artisan/font/default.json": "3c35a70ee671afbb22c13e41b4c695e7c46f60b393d787d789c1c6f99bcac91f",
+        "assets/artisan/font/default.json": "b5f2753c7c38eac17fb8d8d5e4fcd0758c1ebfaa3e3e6337dcdf491300aa1a3c",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
         "assets/artisan/textures/font/accented_up.png": "454c174ce9e1aeefde41326f571561130bfc4cf5b1c39e26554bd7e34f1e6a18",
         "assets/artisan/textures/font/ascii_up.png": "a2ca25208d39ab01617fc5d855f6e8e3f4d00100d114f19b5f79adcceb58a238",
@@ -1660,7 +1660,7 @@
         "assets/artisan/font/text_y94_h20.json"
       ],
       "textUpFonts": 129,
-      "sha1": "de55a8802c3aa676ec07da68cf0363a7893f63ea"
+      "sha1": "bab0d483a4a723d1738434ebda4cddfc1faaff64"
     },
     {
       "name": "decorations: an underlined or struck title text puts the bars in the text fonts",
@@ -1700,7 +1700,7 @@
       ],
       "entryHashes": {
         "assets/artisan/asset-index.json": "526e7765ba7425ecbcc25c9b5f7b9185729204b9439d0529fc34eee9ba691597",
-        "assets/artisan/font/default.json": "3c35a70ee671afbb22c13e41b4c695e7c46f60b393d787d789c1c6f99bcac91f",
+        "assets/artisan/font/default.json": "b5f2753c7c38eac17fb8d8d5e4fcd0758c1ebfaa3e3e6337dcdf491300aa1a3c",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
         "assets/artisan/textures/font/accented_up.png": "454c174ce9e1aeefde41326f571561130bfc4cf5b1c39e26554bd7e34f1e6a18",
         "assets/artisan/textures/font/ascii_up.png": "a2ca25208d39ab01617fc5d855f6e8e3f4d00100d114f19b5f79adcceb58a238",
@@ -1725,7 +1725,7 @@
         "assets/artisan/font/text_y20_h12.json"
       ],
       "textUpFonts": 129,
-      "sha1": "88c4e186ea61f476f2efab6078b95e369bebfc8d"
+      "sha1": "3ec6d2e02912cc028ff51f35acd319ca5668ba59"
     },
     {
       "name": "text characters: the Latin blocks always, a Cyrillic word of a lang file kept, the rest of the vanilla sheets left out",
@@ -1764,7 +1764,7 @@
       ],
       "entryHashes": {
         "assets/artisan/asset-index.json": "526e7765ba7425ecbcc25c9b5f7b9185729204b9439d0529fc34eee9ba691597",
-        "assets/artisan/font/default.json": "3c35a70ee671afbb22c13e41b4c695e7c46f60b393d787d789c1c6f99bcac91f",
+        "assets/artisan/font/default.json": "b5f2753c7c38eac17fb8d8d5e4fcd0758c1ebfaa3e3e6337dcdf491300aa1a3c",
         "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
         "assets/artisan/textures/font/accented_up.png": "454c174ce9e1aeefde41326f571561130bfc4cf5b1c39e26554bd7e34f1e6a18",
         "assets/artisan/textures/font/ascii_up.png": "a2ca25208d39ab01617fc5d855f6e8e3f4d00100d114f19b5f79adcceb58a238",
@@ -1786,7 +1786,7 @@
       "textYFonts": 168,
       "textYSized": [],
       "textUpFonts": 129,
-      "sha1": "9f3f3b267954cd5ff16c1f07249ac33b60237aa3"
+      "sha1": "e459c4b2d19caa3cd60880facf668b1daceceea0"
     }
   ]
 }

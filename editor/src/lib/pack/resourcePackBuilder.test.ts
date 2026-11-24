@@ -104,8 +104,8 @@ describe("buildResourcePackZip", () => {
     const { zipBytes } = buildResourcePackZip([g], pngs, new Map());
     const entries = unzipSync(zipBytes);
     const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]!));
-    expect(json.providers[0].id).toBe("minecraft:default");
-    expect(json.providers[1].file).toBe("artisan:font/coin.png");
+    expect(json.providers[0].file).toBe("artisan:font/coin.png");
+    expect(json.providers.at(-1).id).toBe("minecraft:default");
   });
 
   test("places glyph PNGs under assets/artisan/textures/font/<name>.png", () => {
@@ -156,10 +156,10 @@ describe("buildResourcePackZip", () => {
     const { zipBytes } = buildResourcePackZip([t], pngs, new Map());
     const entries = unzipSync(zipBytes);
     const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]!));
-    // reference + space (no bitmap for texture without codepoint)
+    // space + reference (no bitmap for texture without codepoint)
     expect(json.providers).toHaveLength(2);
-    expect(json.providers[0].type).toBe("reference");
-    expect(json.providers[1].type).toBe("space");
+    expect(json.providers[0].type).toBe("space");
+    expect(json.providers[1].type).toBe("reference");
     expect(entries["assets/artisan/textures/font/bg_one.png"]).toBeUndefined();
   });
 
