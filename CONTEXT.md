@@ -973,10 +973,15 @@ Non-examples:
 A named set of a **Module**'s menus, dialogs and command steps that replace, for some players, the files of
 the same id (`variants/<name>/menus/ranks.yml` for `menus/ranks.yml`): a textured version,
 one for Bedrock, one for VIPs, one in development. Every variant is loaded; none is
-"active" on the server. The **display rules** of `variants.yml` say which variant a player
-gets: in order, the first rule that holds **and** whose variant has the file wins, else the
-module's own file (the **default variant**). Chosen at each opening, file by file; ids never
-change, so code, commands and links open the same id. A **variant pack** is one or more
+"active" on the server. **Variants are declared by the server**, the same for every module:
+`default` (the module's own files), `bedrock` and `textured`, always there, and the server's
+own (`menu-variants` of `config.yml`), each with a **parent**. A player sees one variant in every
+module: their **choice** (`/artisan variant`), else the automatic one (the first custom variant
+whose `if` holds, Bedrock, the resource pack). For each file, the first of that variant and its
+parents the module has a version of wins, else the module's own file (the **default variant**).
+Chosen at each opening, file by file; ids never change, so code, commands and links open the
+same id. A module's own **display rules** (`show:` of its `variants.yml`) are legacy: kept, while
+a player has not chosen, for a module that still has them. A **variant pack** is one or more
 variants distributed apart (later: marketplace). Cf. design `variantes-modules`.
 
 Non-examples:

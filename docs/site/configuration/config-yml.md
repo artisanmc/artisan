@@ -34,6 +34,7 @@ Edit it in either place:
 | `resource-pack.container-textures.chest` | `""` | Texture drawn back on other chest windows when a menu turns the vanilla chest texture off. `project:image` names a project image in the vanilla layout (256×256 or an HD multiple). Empty: vanilla texture. |
 | `resource-pack.container-textures.hopper` | `""` | Same, for hoppers. |
 | `resource-pack.container-textures.dispenser` | `""` | Same, for dispensers. |
+| `menu-variants` | none | The server's own menu variants, beside `default`, `bedrock` and `textured`: a list of `name`, `parent`, `if` and `selectable`. Not in the default file: add it by hand. See [Variants](../../editor/variants/#the-servers-variants). |
 | `text-palette.colors` | `[]` | The server's named colors, `"<name> #rrggbb"` each. The editor's formatting toolbar offers them in every module, beside the built-in palettes. |
 | `text-palette.gradients` | `[]` | The server's named gradients, `"<name> #rrggbb #rrggbb [...]"` each (two colors or more). |
 | `stats.enabled` | `true` | `false`: nothing is recorded and no statistic is served. See [Statistics](../statistics/). |

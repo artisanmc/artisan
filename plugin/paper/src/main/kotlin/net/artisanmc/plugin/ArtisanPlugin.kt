@@ -118,6 +118,10 @@ open class ArtisanPlugin : JavaPlugin() {
     val placeholders by lazy { PaperPlaceholders(this) }
     /** Geyser, when installed: the Bedrock pack per session and who plays from Bedrock. */
     val geyser by lazy { net.artisanmc.plugin.integrations.GeyserIntegration(this) }
+    /** The server's menu variants (`menu-variants`) and each player's choice (`/artisan variant`). */
+    val menuVariants by lazy {
+        net.artisanmc.plugin.provider.MenuVariants({ runtime.variableStore }, geyser::isBedrock) { runtime.hasPack(it) }
+    }
     /** Pools lent through `api.database` (ADR `suite-foundation-database`). */
     lateinit var database: net.artisanmc.plugin.database.PooledDatabase
         internal set

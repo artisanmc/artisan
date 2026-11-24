@@ -90,10 +90,13 @@ class AiRoutes(
             val assistant = setup.assistant() ?: return@on call.error(404, "not_found")
             val conversation = assistant.get(call.session!!, call.params.getValue("conversation")) ?: return@on call.error(404, "not_found")
             val after = call.query("after")?.toIntOrNull() ?: 0
+            // `running` before the events: the turn adds `done` before it stops running, so a
+            // conversation read as stopped always carries its `done`.
+            val summary = summary(conversation.summary())
             // The events first, then what is being written: a step that ends between the two shows in neither, never in both.
             val events = conversation.after(after).map { mapOf("seq" to it.seq, "type" to it.type) + it.data }
             val live = conversation.live()
-            call.json(summary(conversation.summary()) + ("events" to events) + ("live" to live))
+            call.json(summary + ("events" to events) + ("live" to live))
         }
         router.on("POST", "$CONVERSATIONS/:conversation/messages", EDIT) { call ->
             val assistant = setup.assistant() ?: return@on call.error(404, "not_found")

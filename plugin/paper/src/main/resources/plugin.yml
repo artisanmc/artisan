@@ -17,13 +17,16 @@ libraries:
 commands:
   artisan:
     description: Artisan commands
-    usage: /artisan <menu <id>|reload|sync <status|reject>|editor|dump-title <id>>
+    usage: /artisan <menu <id>|variant <name|auto>|reload|sync <status|reject>|editor|dump-title <id>>
 permissions:
   artisan.admin:
     description: Run /artisan reload, sync and dump-title
     default: op
   artisan.menu:
     description: Open any menu by id with /artisan menu
+    default: true
+  artisan.variant:
+    description: Choose the variant of the menus with /artisan variant (with the resource pack, without, Bedrock…)
     default: true
   artisan.editor:
     description: Allows opening the Artisan web editor with every editor right

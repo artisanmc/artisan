@@ -25,10 +25,12 @@ class ArtisanCommand(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> listOf("menu", "reload", "sync", "editor", "stats", "import", "dump-title")
+            args.size == 1 -> listOf("menu", "variant", "reload", "sync", "editor", "stats", "import", "dump-title")
                 .filter { it.startsWith(args[0].lowercase()) && PERMISSIONS[it]?.let(sender::hasPermission) != false }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
+            args.size == 2 && args[0].equals("variant", ignoreCase = true) && sender is Player ->
+                (offered(sender) + "auto").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("dump-title", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
             args.size == 2 && args[0].equals("sync", ignoreCase = true) ->
@@ -63,6 +65,10 @@ class ArtisanCommand(
                 if (sender !is Player) { Chat.send(sender, lang.get("artisan.in_game_only", sender)); return true }
                 val menuId = args.getOrNull(1) ?: run { Chat.send(sender, lang.get("artisan.usage_menu", sender)); return true }
                 plugin.menuProvider.openMenu(sender, menuId, lang.playerLang(sender))
+            }
+            "variant" -> {
+                if (sender !is Player) { Chat.send(sender, lang.get("artisan.in_game_only", sender)); return true }
+                variant(sender, args.getOrNull(1)?.lowercase())
             }
             "reload" -> {
                 // Re-read disk config + reconfigure the translations so options like
@@ -106,6 +112,50 @@ class ArtisanCommand(
             else -> Chat.send(sender, lang.get("artisan.usage_main", sender))
         }
         return true
+    }
+
+    private fun offered(player: Player): List<String> = plugin.menuVariants.declared.offered(variantPlayer(player))
+
+    /** [player] for the server's variants; a custom variant's conditions are tested without a menu context. */
+    private fun variantPlayer(player: Player): net.artisanmc.plugin.engine.VariantPlayer {
+        val evaluator = plugin.runtime.evaluatorOrNull
+        return plugin.menuVariants.player(player) { c ->
+            evaluator?.evaluate(c, net.artisanmc.plugin.engine.ExecutionContext(player)) ?: false
+        }
+    }
+
+    /**
+     * `/artisan variant [name|auto]` (design `variantes-modules`, variants declared by the
+     * server): the menu variant [player] sees in every module. No name: which one, and why. A
+     * name offered to them becomes their choice, kept across restarts and servers; `auto` goes
+     * back to the server's detection (Bedrock, resource pack). Conditions of a custom variant are
+     * tested without a menu context.
+     */
+    private fun variant(player: Player, name: String?) {
+        val variants = plugin.menuVariants
+        val who = variantPlayer(player)
+        val offered = variants.declared.offered(who)
+        val choices = offered.joinToString("|")
+        // Kept in the Variable store: without it (before the start), nothing to choose.
+        if (name != null && plugin.runtime.variableStore == null) return
+        when (name) {
+            null -> {
+                val chosen = who.preference?.takeIf { it in offered }
+                val mode = lang.getRaw(if (chosen != null) "artisan.variant_mode_chosen" else "artisan.variant_mode_auto", player)
+                Chat.send(player, lang.get("artisan.variant_current", player,
+                    "variant" to variants.declared.current(who), "mode" to mode,
+                    "choices" to choices))
+            }
+            net.artisanmc.plugin.engine.ServerVariants.AUTO -> {
+                variants.choose(player, name)
+                Chat.send(player, lang.get("artisan.variant_auto", player, "variant" to variants.declared.auto(who)))
+            }
+            !in offered -> Chat.send(player, lang.get("artisan.variant_unavailable", player, "variant" to name, "choices" to offered.joinToString(", ")))
+            else -> {
+                variants.choose(player, name)
+                Chat.send(player, lang.get("artisan.variant_chosen", player, "variant" to name))
+            }
+        }
     }
 
     /**
@@ -394,6 +444,7 @@ class ArtisanCommand(
         /** `editor` checks its own rights, finer grained. */
         private val PERMISSIONS = mapOf(
             "menu" to "artisan.menu",
+            "variant" to "artisan.variant",
             "reload" to "artisan.admin",
             "sync" to "artisan.admin",
             "stats" to "artisan.stats.forget",

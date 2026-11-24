@@ -101,6 +101,8 @@ class SyncedMenuProvider(
      * Bedrock player): the `has_pack` of the variants' rules (design `variantes-modules`).
      */
     private val hasPack: (Player) -> Boolean = { false },
+    /** The server's menu variants and the players' choices; null: [isBedrock] and [hasPack] alone, no choice. */
+    private val menuVariants: MenuVariants? = null,
     /** Each loaded Snapshot, with the editor players whose publication it loads, by project id. */
     /** Each loaded Snapshot, with its publications' authors by project id; [done] announces the reload once it is recorded. */
     private val onSnapshot: (ProjectSnapshot, Map<String, net.artisanmc.plugin.project.PublicationAuthor>, done: () -> Unit) -> Unit =
@@ -488,16 +490,11 @@ class SyncedMenuProvider(
      */
     private fun <T : RuntimeDocument> inVariant(player: Player, ctx: ExecutionContext, kind: String, found: T): T {
         val project = runtimes.firstOrNull { it.projectId == projectOf(found) } ?: return found
-        if (project.variantRules.isEmpty()) return found
-        val who = object : net.artisanmc.plugin.engine.VariantPlayer {
-            override val bedrock by lazy { isBedrock(player) }
-            override val hasPack by lazy { this@SyncedMenuProvider.hasPack(player) }
-            override fun hasPermission(permission: String) = player.hasPermission(permission)
-            override fun test(condition: net.artisanmc.plugin.engine.Condition) = evaluator.evaluate(condition, ctx)
-        }
-        val variant = net.artisanmc.plugin.engine.VariantRules.select(
-            project.variantRules, { project.variantDocument(it, kind, found.id) != null }, who,
-        ) ?: return found
+        if (project.variants.isEmpty()) return found
+        val variants = menuVariants ?: MenuVariants({ null }, isBedrock, hasPack)
+        val variant = variants.select(
+            player, { evaluator.evaluate(it, ctx) }, project.variantRules,
+        ) { project.variantDocument(it, kind, found.id) != null } ?: return found
         @Suppress("UNCHECKED_CAST")
         return project.variantDocument(variant, kind, found.id) as? T ?: found
     }

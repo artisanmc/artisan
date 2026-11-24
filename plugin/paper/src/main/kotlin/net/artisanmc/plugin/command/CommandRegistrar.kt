@@ -56,9 +56,9 @@ class CommandRegistrar(
     private val folderOwner: (String) -> String? = { null },
     /** Runs a module command's code for the console (`console: true`). */
     private val consoleRunner: ModuleCommandRunner? = null,
-    /** For the variants' rules (`client`, `has_pack`): whether a player plays on Bedrock, has the pack. */
-    private val isBedrock: (org.bukkit.entity.Player) -> Boolean = { false },
-    private val hasPack: (org.bukkit.entity.Player) -> Boolean = { false },
+    /** The server's menu variants and the players' choices: which variant of a command a player runs. */
+    private val menuVariants: net.artisanmc.plugin.provider.MenuVariants =
+        net.artisanmc.plugin.provider.MenuVariants({ null }, { false }, { false }),
     /** A player ran a command or was refused: root name, sub-command path, result (`core:command`). */
     private val ran: (org.bukkit.entity.Player, String, String, String) -> Unit = { _, _, _, _ -> },
 ) {
@@ -171,8 +171,8 @@ class CommandRegistrar(
                 val vSource = "$source, variant $variant"
                 CommandCompiler.compile(file, logger)?.let { withoutMissing(it, name, vSource, declared) }?.let { variant to it }
             }.toMap()
-            val variants = if (trees.isEmpty() || rules.isEmpty() || evaluator == null) null
-                else CommandVariants(trees, rules, evaluator, isBedrock, hasPack)
+            val variants = if (trees.isEmpty() || evaluator == null) null
+                else CommandVariants(trees, rules, evaluator, menuVariants)
             val prefixed = "$prefix:$name"
             val nameOwner = claimed[name] ?: foreignOwner(commandMap.getCommand(name))
             if (nameOwner != null) {

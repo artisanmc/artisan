@@ -12,6 +12,7 @@ their own commands (see [Commands declared by projects](#commands-declared-by-pr
 
 | Command | Who can run it | What it does |
 |---|---|---|
+| `/artisan variant [name\|auto]` | `artisan.variant` (everyone by default), players only | Which version of the menus you see in every module: `default` (no resource pack), `textured`, `bedrock`, or one of the server's. `auto` goes back to automatic. Useful when the pack loaded but draws wrong. Your choice is kept. See [Variants](../../editor/variants/). |
 | `/artisan menu <id>` | `artisan.menu` (everyone by default), players only | Opens a menu by id. Ids autocomplete. |
 | `/artisan reload` | `artisan.admin` | Re-reads `config.yml`, `environment.yml` and the language files, and reloads every project from disk, including files edited by hand. On a leaf, reconnects to the hub. The web server and the database pools are not restarted: `web.*` and `database.*` changes need a server restart. |
 | `/artisan sync reject` | `artisan.admin` | Reloads projects from disk without re-reading `config.yml`. On a leaf, reconnects to the hub. |
@@ -38,6 +39,7 @@ go through the hub; if the hub is unreachable they say so and change nothing.
 | Permission | Allows | Default |
 |---|---|---|
 | `artisan.admin` | `/artisan reload`, `/artisan sync`, `/artisan dump-title`, and `/artisan editor logout <player>`. | op |
+| `artisan.variant` | Choose the menu variant with `/artisan variant`. | everyone |
 | `artisan.menu` | Open any menu by id with `/artisan menu`. Deny it to keep players to the menus your projects open for them. | everyone |
 | `artisan.editor` | All five editor permissions below. | op |
 | `artisan.editor.view` | Request a link with `/artisan editor`, open the editor, read projects, their versions and the server's settings. | op |

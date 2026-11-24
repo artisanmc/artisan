@@ -36,6 +36,8 @@ interface VariantPlayer {
     val hasPack: Boolean
     fun hasPermission(permission: String): Boolean
     fun test(condition: Condition): Boolean
+    /** The variant the player chose (`/artisan variant`), `auto` or null for none ([ServerVariants.select]). */
+    val preference: String? get() = null
 }
 
 /** `variants.yml`: its rules, read and checked. */

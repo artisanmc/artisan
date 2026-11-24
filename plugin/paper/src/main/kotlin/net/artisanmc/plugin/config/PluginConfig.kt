@@ -105,6 +105,9 @@ data class PluginConfig(
     val devEditorBundles: Map<String, String> = emptyMap(),
     val stats: StatsConfig = StatsConfig(),
     val statsExport: StatsExportConfig = StatsExportConfig(),
+    /** `menu-variants`: the server's own menu variants, on top of default, bedrock and textured. */
+    val menuVariants: net.artisanmc.plugin.engine.ServerVariants.Parsed =
+        net.artisanmc.plugin.engine.ServerVariants.Parsed(net.artisanmc.plugin.engine.ServerVariants(), emptyList()),
 ) {
     companion object {
         fun from(cfg: FileConfiguration, environment: FileConfiguration = cfg): PluginConfig {
@@ -149,6 +152,7 @@ data class PluginConfig(
                         .filterValues { it.isNotEmpty() }
                 }.orEmpty(),
                 stats = StatsConfig.from(cfg),
+                menuVariants = net.artisanmc.plugin.engine.ServerVariants.parse(cfg.getList("menu-variants")),
                 statsExport = StatsExportConfig(
                     url = EnvironmentFile.string(environment, "stats-export.url", "").trim(),
                     token = EnvironmentFile.string(environment, "stats-export.token", "").trim(),
