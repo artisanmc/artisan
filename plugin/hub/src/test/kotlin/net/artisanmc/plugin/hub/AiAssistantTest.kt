@@ -202,6 +202,9 @@ class AiAssistantTest {
         val drawn = finished(id).single { it["name"]?.asText() == "write_image" }
         assertTrue(drawn["ok"].asBoolean(), drawn.toString())
         assertEquals(drawn["draft"]["id"].asText(), drafts.rows.keys.single(), "the editor can open the draft the image went into")
+        // The event names the file and its content, for the editor to show the image from the draft.
+        assertEquals("assets/textures/shop_button.png", drawn["path"].asText())
+        assertTrue(drawn["image"].asText() in drafts.blobs.keys, drawn.toString())
         val seen = model.results.last()
         val picture = seen.pictures.single()
         assertEquals("shop_button" to "image/png", picture.name to picture.mediaType)

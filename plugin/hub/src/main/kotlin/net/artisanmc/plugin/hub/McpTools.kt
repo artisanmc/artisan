@@ -929,7 +929,7 @@ class McpTools(
         return Shown(
             mapOf(
                 "written" to true, "path" to path, "replaced" to (existing != null), "draft_id" to draftId, "revision" to revision,
-                "shown_at" to "x${McpImages.scale(image)}",
+                "hash" to hash, "shown_at" to "x${McpImages.scale(image)}",
                 "use_it" to if (background) "In a menu: `title: [{kind: background, asset_id: $name}]` and `vanilla_texture: false`."
                 else "In a menu element: `image: {asset: $name, fit: native}`, with a `material` for players without the resource pack.",
             ) + McpImages.facts(image) + cut?.facts.orEmpty(),

@@ -68,8 +68,9 @@ The assistant reads the modules, starts a draft and writes the files, each one c
 server first. The panel offers to open the draft in **Drafts**, where you review and deploy.
 
 - **Assistant tab** of the server page: the same conversation in full width, every file it wrote
-  on the right (menus shown as in game, other files as YAML with a diff). It can work across all
-  the server's projects, one draft each; **Review and deploy** takes them all.
+  on the right (menus shown as in game, images enlarged, other files as YAML with a diff). It
+  can work across all the server's projects, one draft each; **Review and deploy** takes them
+  all.
 - **Attach files** with the paperclip, or drop or paste them: up to 5 per message. Screenshots
   and textures (3.7 MB), PDFs (6 MB), text files such as another plugin's menu to convert
   (200,000 characters). 6 MB per message, 16 MB per conversation: start a new conversation for

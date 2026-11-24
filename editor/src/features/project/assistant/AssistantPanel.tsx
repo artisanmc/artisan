@@ -45,6 +45,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { DraftImage } from "./DraftImage";
 import { ServerFilePicker } from "./ServerFilePicker";
 import { useAiStatus, useAssistant } from "./useAssistant";
 
@@ -507,6 +508,16 @@ function ToolLine({ event }: { event: Extract<AiEvent, { type: "tool" }> }) {
           <span className="shrink-0">· {t("ai.problems", { count: event.problems })}</span>
         ) : null}
       </div>
+      {event.name === "write_image" && event.ok && event.image && event.draft && (
+        <DraftImage
+          project={event.draft.project}
+          draftId={event.draft.id}
+          hash={event.image}
+          label={event.path ?? event.name}
+          maxWidth={240}
+          maxHeight={96}
+        />
+      )}
       {event.name === "start_draft" && event.draft && (
         <button
           type="button"

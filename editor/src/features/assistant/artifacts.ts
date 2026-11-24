@@ -20,6 +20,14 @@ export interface Artifact {
   seq: number;
 }
 
+/** The tools that write a file into a draft: a Document or a text file, an image. */
+const WRITES = new Set(["write_document", "write_image"]);
+
+/** Whether a file of a draft is an image: its card shows the picture, not a diff. */
+export function isImagePath(path: string): boolean {
+  return path.endsWith(".png");
+}
+
 /** The files a conversation wrote, the last written first. A refused write leaves no card. */
 export function artifactsOf(events: readonly AiEvent[]): Artifact[] {
   const names = new Map<string, string>();
@@ -27,7 +35,7 @@ export function artifactsOf(events: readonly AiEvent[]): Artifact[] {
   for (const event of events) {
     if (event.type !== "tool" || !event.draft) continue;
     if (event.draft.name) names.set(event.draft.id, event.draft.name);
-    if (event.name !== "write_document" || !event.ok || !event.path) continue;
+    if (!WRITES.has(event.name) || !event.ok || !event.path) continue;
     const key = `${event.draft.project}\u0000${event.draft.id}\u0000${event.path}`;
     byKey.delete(key);
     byKey.set(key, {

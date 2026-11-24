@@ -60,6 +60,8 @@ export type AiEvent =
       name: string;
       project?: string;
       path?: string;
+      /** write_image: the content hash of the image it wrote, read from its draft. */
+      image?: string;
       ok: boolean;
       error?: string;
       problems?: number;
