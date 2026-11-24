@@ -1,13 +1,24 @@
 import { FormField } from "@/components/ui/form-field";
 import { Switch } from "@/components/ui/switch";
-import { ConditionsField } from "@/features/inspector/properties/ConditionsField";
 import {
   BUILTIN_VARIANTS,
   type ServerVariant,
   serverVariantProblems,
 } from "@/lib/variants/serverVariants";
 import { Plus, X } from "lucide-react";
+import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
+
+/**
+ * The editor of an `if:` list (the inspector's `ConditionsField`), given by the page: a
+ * feature does not import another one (`check:boundaries`).
+ */
+export type ConditionsEditor = ComponentType<{
+  value: unknown;
+  onChange: (conditions: unknown[]) => void;
+  label?: string;
+  emptyHint?: string;
+}>;
 
 /**
  * The server's menu variants (`menu-variants` of `config.yml`): the three built in, shown for
@@ -17,7 +28,12 @@ import { useTranslation } from "react-i18next";
 export function MenuVariantsFields({
   value,
   onChange,
-}: { value: ServerVariant[]; onChange: (next: ServerVariant[]) => void }) {
+  conditionsField: ConditionsField,
+}: {
+  value: ServerVariant[];
+  onChange: (next: ServerVariant[]) => void;
+  conditionsField: ConditionsEditor;
+}) {
   const { t } = useTranslation();
   const problems = serverVariantProblems(value);
   const set = (i: number, patch: Partial<ServerVariant>) =>

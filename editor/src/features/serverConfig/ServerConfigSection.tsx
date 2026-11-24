@@ -17,7 +17,7 @@ import {
 } from "@/lib/variants/serverVariants";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MenuVariantsFields } from "./MenuVariantsFields";
+import { type ConditionsEditor, MenuVariantsFields } from "./MenuVariantsFields";
 import { TextPaletteFields } from "./TextPaletteFields";
 
 const TEXTURES = "resource-pack.container-textures.";
@@ -35,9 +35,12 @@ const containerLayout = (w: number, h: number) => w === h && w >= 256 && w % 256
 export function ServerConfigSection({
   serverKeyId,
   projects,
+  conditionsField,
 }: {
   serverKeyId: string;
   projects: ProjectSummary[];
+  /** Edits a custom variant's conditions. */
+  conditionsField: ConditionsEditor;
 }) {
   const { t } = useTranslation();
   const [config, setConfig] = useState<ServerConfig | null | undefined>(undefined);
@@ -258,6 +261,7 @@ export function ServerConfigSection({
               <MenuVariantsFields
                 value={serverVariantsFromConfig(value(MENU_VARIANTS_KEY))}
                 onChange={(next) => set(MENU_VARIANTS_KEY, serverVariantsToConfig(next))}
+                conditionsField={conditionsField}
               />
             ) : group === "palette" ? (
               <TextPaletteFields

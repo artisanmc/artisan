@@ -2,6 +2,9 @@ import type { Asset } from "@/domain/asset";
 import type { ProjectSummary } from "@/lib/api/servers";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+/** The page gives the inspector's condition editor; these tests do not edit conditions. */
+const NoConditions = () => null;
 import { ServerConfigSection } from "./ServerConfigSection";
 
 const api = vi.hoisted(() => ({
@@ -29,7 +32,9 @@ const image = (name: string, size: number, type: Asset["type"] = "texture") =>
   ({ id: name, name, type, width: size, height: size, projectId: "p1" }) as Asset;
 
 function renderSection() {
-  return render(<ServerConfigSection serverKeyId="s1" projects={[project]} />);
+  return render(
+    <ServerConfigSection serverKeyId="s1" projects={[project]} conditionsField={NoConditions} />,
+  );
 }
 
 describe("ServerConfigSection", () => {
