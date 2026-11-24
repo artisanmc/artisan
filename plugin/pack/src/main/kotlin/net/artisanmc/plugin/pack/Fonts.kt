@@ -52,7 +52,11 @@ internal object Fonts {
 
     fun defaultFontJson(assets: List<AssetRow>): Map<String, Any?> {
         val glyphs = assets.filter { it.type == "glyph" && it.codepoint != null }.sortedBy { it.codepoint }
-        val providers = mutableListOf<Any?>(mapOf("type" to "reference", "id" to "minecraft:default"))
+        // The reference to minecraft:default comes last: a font takes each character from the first
+        // provider that has it, and minecraft:default merges every pack the client loaded, its own
+        // packs included. First, a client pack's private-use glyphs (negative space fonts use
+        // U+F801..) took over the offsets and images of every Artisan title.
+        val providers = mutableListOf<Any?>()
         for (g in glyphs) {
             providers += mapOf(
                 "type" to "bitmap",
@@ -65,6 +69,7 @@ internal object Fonts {
         val advances = LinkedHashMap<String, Any?>()
         for ((codepoint, advance) in spaceOffsetTable()) advances[String(Character.toChars(codepoint))] = advance
         providers += mapOf("type" to "space", "advances" to advances)
+        providers += mapOf("type" to "reference", "id" to "minecraft:default")
         return mapOf("providers" to providers)
     }
 
