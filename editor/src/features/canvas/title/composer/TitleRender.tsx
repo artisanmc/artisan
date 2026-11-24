@@ -3,7 +3,7 @@ import { assetPreviewUrl } from "@/domain/asset";
 import { menusOf } from "@/domain/documents";
 import { elementLabels } from "@/domain/imageButton";
 import type { MenuId, MenuTitleLayer, Project, ProjectId } from "@/domain/types";
-import { useAssetStore } from "@/features/assets/assetStore";
+import { useAssetsWithKit } from "@/features/assets/kitAssets";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { getText } from "@/lib/i18n";
 import { plainTextFromMiniMessage } from "@/lib/miniMessage";
@@ -324,7 +324,7 @@ export function useTitleLayerBoxes(projectId: ProjectId, menuId: MenuId, scale: 
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const menu = menusOf(project).find((m) => m.id === menuId);
   const activeLang = useUiStore((s) => s.activeLang);
-  const assets = useAssetStore((s) => s.assets);
+  const assets = useAssetsWithKit();
   const hiddenLayerKeys = useUiStore((s) => s.hiddenLayerKeys);
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const previewArgs = useUiStore((s) => s.menuPreviewArgs[menuId]);
@@ -407,7 +407,7 @@ export function TitleRender({
   const project = given ?? open;
   const menu = menusOf(project).find((m) => m.id === menuId);
   const activeLang = useUiStore((s) => s.activeLang);
-  const assets = useAssetStore((s) => s.assets);
+  const assets = useAssetsWithKit();
   const buttonDrag = useImageButtonDragStore((s) =>
     pass !== "visual" && s.drag?.menuId === menuId ? s.drag : null,
   );

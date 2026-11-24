@@ -42,9 +42,11 @@ export interface Asset {
   contentHash: string;
   createdAt: string;
   updatedAt: string;
+  /** Where its PNG is, for an image that is not a file of a Project: a UI kit image (`kit:<name>`). */
+  previewUrl?: string;
 }
 
 /** URL to fetch the raw PNG of an asset for preview. */
 export function assetPreviewUrl(asset: Asset): string {
-  return localAssetPreviewUrl(asset);
+  return asset.previewUrl ?? localAssetPreviewUrl(asset);
 }

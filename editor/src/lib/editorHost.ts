@@ -5,6 +5,7 @@ import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
 import { type DocKey, allDocuments, docKey, documentsOf } from "@/domain/documents";
 import type { I18nKey, Project, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { useKitAssets } from "@/features/assets/kitAssets";
 import { useAssetSize } from "@/features/assets/measuredSize";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
@@ -96,9 +97,12 @@ export const editorHost: Omit<EditorHost, "components"> = {
   },
   notify: (message, tone) => (tone === "error" ? toast.error(message) : toast(message)),
   useAssetImage: (projectId, name) => {
-    const asset = useAssetStore((s) =>
+    const own = useAssetStore((s) =>
       s.assets.find((a) => a.projectId === projectId && (a.name === name || a.id === name)),
     );
+    // `kit:<name>`: the UI kit's image, which no module holds.
+    const kit = useKitAssets().find((a) => a.id === name);
+    const asset = kit ?? own;
     const url = useAuthenticatedImageUrl(asset ? assetPreviewUrl(asset) : "");
     // A module's image has no descriptor: 0 × 0 until its size is read from the image.
     const size = useAssetSize(asset, url);

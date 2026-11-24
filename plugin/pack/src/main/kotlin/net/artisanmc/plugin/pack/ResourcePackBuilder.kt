@@ -76,12 +76,15 @@ object ResourcePackBuilder {
         val overlayImages = ArrayList<OverlayImageRequest>()
         val bedrockMenus = ArrayList<BedrockMenu>()
         val texts = ArrayList<String>()
+        val titleImages = ArrayList<String>()
+        val kitImages = HashMap<String, ByteArray>()
 
         for (project in projects) {
             val files = project.files
             // Any text of the Project may reach a title (menus, lang files, data rows): its symbols ride along.
             files.mapTo(texts) { it.content }
             glyphPlacements += MenuReaders.glyphPlacements(files)
+            titleImages += MenuReaders.titleImages(files)
             imageButtons += MenuReaders.imageButtons(files)
             textPlacements += MenuReaders.textPlacements(files)
             overlayImages += project.overlayImages
@@ -98,6 +101,7 @@ object ResourcePackBuilder {
                     val bytes = project.binary(a.path) ?: continue
                     glyphPngs[a.row.id] = bytes
                     imagesByRef += "${project.id}:${a.row.name}" to bytes
+                    if (project.folder == Kit.FOLDER) kitImages[a.row.name] = bytes
                     continue
                 }
                 if (a.row.type != "font") continue
@@ -109,6 +113,25 @@ object ResourcePackBuilder {
                 if (fontMap.isNotEmpty()) fontGlyphPngs[a.row.id] = fontMap
             }
         }
+
+        // `kit:<name>` ([Kit]): only the ones a menu or a module asks for, so a server that names
+        // none keeps the pack it had. One a title is drawn with is a glyph of the menu font, at
+        // the first codepoint no module's glyph has; the others are textures.
+        val inTitles = titleImages.mapNotNullTo(HashSet(), Kit::nameOf)
+        val asked = (inTitles + (imageButtons.map { it.asset } + overlayImages.map { it.asset }).mapNotNull(Kit::nameOf)).distinct().sorted()
+        val kitGlyphs = ArrayList<Pair<String, Double>>()
+        for (name in asked) {
+            val image = Kit.image(name, kitImages[name]) ?: continue
+            val id = Kit.PREFIX + name
+            val glyph = name in inTitles
+            allAssets += AssetRow(
+                id, Kit.FOLDER, if (glyph) "glyph" else "texture", Kit.FILES + name, image.width.toDouble(), image.height.toDouble(),
+                if (glyph) Kit.ASCENT else null, if (glyph) CODEPOINT_MIN.toDouble() else null, null, null,
+            )
+            if (glyph) kitGlyphs += id to CODEPOINT_MIN.toDouble()
+            glyphPngs[id] = image.png
+        }
+        if (kitGlyphs.isNotEmpty()) contribs += Kit.FOLDER to kitGlyphs
 
         val finalCodepoints = mergeCodepoints(contribs)
         val sources = GuiContainer.entries.associateWith { c ->
@@ -132,8 +155,9 @@ object ResourcePackBuilder {
         )
         val serverId = input.bedrockServerId ?: return java
         // Asset names collide across Projects as the Java pack resolves them: the first Project (by id) wins.
+        // By id, what a menu writes: a file's name, `kit:<name>` for a kit image.
         val pngsByName = LinkedHashMap<String, ByteArray>()
-        for (a in allAssets) glyphPngs[a.id]?.let { pngsByName.putIfAbsent(a.name, it) }
+        for (a in allAssets) glyphPngs[a.id]?.let { pngsByName.putIfAbsent(a.id, it) }
         val bedrock = BedrockPack.build(serverId, bedrockMenus, pngsByName, allAssets, sources.getValue(GuiContainer.CHEST))
         return PackResult(java.zip, java.sha1, bedrock)
     }

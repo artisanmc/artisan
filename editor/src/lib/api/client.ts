@@ -11,7 +11,8 @@ export const API_URL: string = import.meta.env.VITE_API_URL ?? "";
 
 /** An absolute URL for a hub path; a URL already absolute is returned as is. */
 export const apiUrl = (path: string): string =>
-  /^https?:\/\//.test(path) ? path : `${API_URL}${path}`;
+  // A bundled image small enough to be inlined is a `data:` URL: whole as it is.
+  /^(https?:\/\/|data:)/.test(path) ? path : `${API_URL}${path}`;
 
 /** What the hub puts in a refused answer: `{error, message?}` plus route-specific fields. */
 export interface ApiErrorBody {

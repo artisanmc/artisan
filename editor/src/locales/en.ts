@@ -59,6 +59,11 @@ export default {
     right: "Right",
     remove: "Remove label",
   },
+  kit: {
+    fromKit: "UI kit",
+    choose: "Choose a kit image",
+    hint: "Images every server has, and this server's own kit images. The menu names the image: it follows the kit when the server restyles it.",
+  },
   imageButton: {
     search: "Search images…",
     native: "Natural size",

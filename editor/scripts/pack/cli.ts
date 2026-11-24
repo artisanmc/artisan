@@ -82,6 +82,9 @@ const asset = (path: string) =>
 
 const vanillaTexture = async (container: GuiContainer) => asset(`${VANILLA_FILE[container]}.png`);
 
+const kitImage = async (id: string) =>
+  new Uint8Array(readFileSync(resolve(EDITOR, "src/assets/kit", `${id}.png`)));
+
 const textUp = () =>
   Object.fromEntries(
     TEXT_UP_TEXTURES.map((name) => [name, asset(`font/${name}_up.png`)]),
@@ -181,6 +184,7 @@ async function build(args: string[]): Promise<number> {
     hideInventoryLabel: hideInventoryLabel(option(args, "--config")),
     vanillaTexture,
     textUp: textUp(),
+    kitImage,
     ...(serverId ? { bedrock: { serverId } } : {}),
   });
   if (bedrock) {
@@ -257,6 +261,7 @@ export function buildCase(c: ConformanceCase): Promise<ServerPacks> {
     containerTextures: c.containerTextures,
     vanillaTexture,
     textUp: textUp(),
+    kitImage,
     transparentContainers: c.vanillaGui,
     hideInventoryLabel: c.hideInventoryLabel === true,
     ...(c.bedrock ? { bedrock: { serverId: c.bedrock.serverId } } : {}),

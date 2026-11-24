@@ -7,7 +7,7 @@ import {
   imageButtonRect,
 } from "@/domain/imageButton";
 import type { Element, Menu, MenuId, ProjectId } from "@/domain/types";
-import { useAssetStore } from "@/features/assets/assetStore";
+import { useImageAsset } from "@/features/assets/kitAssets";
 import { useCssVar } from "@/lib/themeColors";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
 import { useHoverStore } from "@/state/hoverStore";
@@ -75,10 +75,7 @@ function ImageButtonRender({
   onDeepSelect?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
 }) {
   const appearance = element.display;
-  const assets = useAssetStore((state) => state.assets);
-  const asset = assets.find(
-    (entry) => entry.id === appearance.image?.asset && entry.projectId === projectId,
-  );
+  const asset = useImageAsset(projectId, appearance.image?.asset);
   const [image] = useAuthenticatedImage(asset ? assetPreviewUrl(asset) : "");
   const ids = useSelectionStore((state) => state.ids);
   const selectedMenu = useSelectionStore((state) => state.menuId);

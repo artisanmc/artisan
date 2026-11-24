@@ -62,6 +62,11 @@ const fr: typeof en = {
     right: "Droite",
     remove: "Retirer le libellé",
   },
+  kit: {
+    fromKit: "Kit d'interface",
+    choose: "Choisir une image du kit",
+    hint: "Les images que tout serveur possède, et celles du kit de ce serveur. Le menu nomme l'image : elle suit le kit quand le serveur le redessine.",
+  },
   imageButton: {
     search: "Rechercher une image…",
     native: "Taille naturelle",

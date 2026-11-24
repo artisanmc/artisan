@@ -12,7 +12,9 @@ import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
 import type { AssetId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
+import { KitPicker } from "@/features/assets/KitPicker";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { useAssetsWithKit } from "@/features/assets/kitAssets";
 import { duplicateAsset } from "@/lib/api/userAssets";
 import { cn } from "@/lib/cx";
 import { CONTAINER_TITLE, CONTAINER_TITLE_LINES } from "@/lib/mm/profiles";
@@ -123,11 +125,12 @@ interface ImageLayerFormProps {
 }
 
 function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps) {
-  const asset = useAssetStore((s) => s.assets.find((a) => a.id === layer.assetId));
+  const asset = useAssetsWithKit().find((a) => a.id === layer.assetId);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
   const updateLayer = useProjectsStore((s) => s.updateMenuTitleLayer);
   const user = useAuthStore((s) => s.currentUser);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [kitOpen, setKitOpen] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const { t } = useTranslation();
 
@@ -139,6 +142,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
       patch: { assetId: picked.id as AssetId } as Partial<MenuTitleLayer>,
     });
     setPickerOpen(false);
+    setKitOpen(false);
   };
 
   const onDuplicate = async () => {
@@ -198,7 +202,16 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
         <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
           {t("layerEditForm.chooseImage")}
         </Button>
-        <Button size="sm" variant="outline" onClick={onDuplicate} disabled={duplicating}>
+        <Button size="sm" variant="outline" onClick={() => setKitOpen(true)}>
+          {t("kit.fromKit")}
+        </Button>
+        {/* A kit image is not a file of this module: nothing to duplicate here. */}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onDuplicate}
+          disabled={duplicating || !!asset?.previewUrl}
+        >
           {duplicating ? t("layerEditForm.duplicating") : t("layerEditForm.duplicateImage")}
         </Button>
       </div>
@@ -252,6 +265,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
         onPick={onPick}
         title={t("layerEditForm.pickerTitle")}
       />
+      <KitPicker open={kitOpen} onClose={() => setKitOpen(false)} onPick={onPick} />
     </div>
   );
 }

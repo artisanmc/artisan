@@ -24,6 +24,13 @@ and 3 × 2 or 2 × 3 covers six. Drag the image to move the entire button: the p
 button you hold lands on the slot under the pointer. Release it over another menu of the
 project to move it there.
 
+**UI kit.** Beside **Item** and **Image**, **UI kit** lists the images every server has
+(`kit:button.3x1`, `kit:close.1x1`, arrows, toggles…) and the images of this server's `ui-kit`
+module. The menu names the image instead of copying it: when the server redraws the kit's
+button, every menu that names it follows. A kit image whose name ends with its slots (`3x1`)
+takes that area. A title's image layer offers the same list, with the kit's windows
+(`kit:window.6`, `kit:window.3`).
+
 **Natural size** is the default for new buttons: an 8×8 PNG stays 8×8 and is centered.
 Use **Horizontal/Vertical offset (px)** to move it within the area, or **Center image**
 to reset both offsets. Pixels outside the area are clipped; the clickable slots stay fixed.

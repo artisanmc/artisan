@@ -76,6 +76,12 @@ appearance card; width and height edit the Element's existing `positions` into
 one complete rectangle. States share that footprint but keep independent images,
 conditions, title/lore and actions. Iteration and explicit placements are excluded.
 `domain/imageButton.ts` validates resize/move operations and rejects collisions.
+An image named `kit:<name>` is a UI kit image (`lib/pack/kit.ts`, ADR `mcp-server`, decision 14):
+no file of the module, never copied into it. `features/assets/kitAssets.ts` gives each one as an
+`Asset` whose id is that reference and whose `previewUrl` is the kit module's published file or
+the base Artisan ships; `useImageAsset` (buttons, inspector) and `useAssetsWithKit` (title
+layers) look an image up there, `KitPicker` chooses one. The kit module's files come from the
+server index through `state/kitStore`, so nothing here imports that feature.
 `ImageButtonsRender` draws the display image once and drags the whole rectangle. On release,
 the slot under the pointer (`hitTestSlot`, any menu of the Project) receives the cell of the
 button held at mouse-down (`imageButtonOrigin`, in grid cells so the gaps above the player rows

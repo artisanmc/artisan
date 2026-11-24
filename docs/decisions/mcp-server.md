@@ -241,6 +241,35 @@ deployed.
    - The ruler's picture is a PNG the JDK compresses, or a JPEG above 400 kB (the game's world
      behind a menu): it is looked at, never written.
 
+14. **The UI kit's base: `kit:<name>`** (2026-11-24, step 4 a of the same design). A module's
+    menus cannot be laid out against a server's own kit, which differs from one server to the
+    next. So Artisan ships a base: 19 images under names and sizes that are public and never
+    change (`editor/src/assets/kit`, listed in `slots.json`): `window.6`, `window.3`, `cell`,
+    four `button.*.3x1`, `panel.3x1`, `card.3x2`, two `value.*`, four `arrow.*.1x2`, `close.1x1`,
+    `back.1x1`, two `toggle.*.1x1`. A name ends with the slots the image covers, columns by rows.
+    - **A menu names an image `kit:<name>`** where it takes one: an element's `image`, a title's
+      `background` or `glyph` layer, a module's pack image. It is the image `<name>` of the
+      server's `ui-kit` module, else the base's. The kit module's image replaces a slot of the
+      base only at the slot's size: a menu laid out against `kit:button.3x1` keeps its place
+      whatever the server draws. A name outside the base is the kit module's own image, so a
+      server extends the kit by adding one.
+    - **The base ships in the jar, not on the server's disk.** The design said "through the
+      originals mechanism"; that needs a module on every server, a write at each start and a
+      Project to show in the editor, for files nobody edits. Both pack builders read the base
+      from their own resources (`Kit.kt`, `kit.ts`, one copy in git) and add an image only when
+      a menu or a module names it: a server that names none keeps its pack byte for byte. A kit
+      image a title is drawn with is a glyph of the menu font at the first codepoint no module's
+      glyph has; the others are textures. Its files sit under `kit/` in the pack (`:` cannot be
+      in a path), its key in the asset index is what the menu writes. The runtime did not
+      change: it already looks an image up by the name the menu gives.
+    - **For the model**: `survey_ui` returns `kit_base` (each image, its size, whether this
+      server drew it, on one more sheet), `render_menu` draws `kit:` images, and `write_image`
+      in the `ui-kit` module takes a base name, refused at another size than the slot's.
+    - **In the editor**: a menu's canvas, title and inspector show `kit:` images, from the kit
+      module's published files (`state/kitStore`, fed by the server index); **UI kit** beside
+      Item and Image picks one for a button, sized by the slots its name states, and the title
+      layer form picks one for a window. Nothing is copied into the module.
+
 ## Consequences
 
 - A player who has `edit` can entrust their drafts to an AI; by default the worst it does is a wrong

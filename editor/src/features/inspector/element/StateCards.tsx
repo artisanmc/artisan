@@ -15,7 +15,7 @@ import type {
   MenuId,
   ProjectId,
 } from "@/domain/types";
-import { useAssetStore } from "@/features/assets/assetStore";
+import { useImageAsset } from "@/features/assets/kitAssets";
 import { ItemEditor, type ItemTranslations } from "@/features/canvas/ItemEditor";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { droppableProps } from "@/features/canvas/dragPayload";
@@ -304,9 +304,7 @@ function StateCard({
   const display = project ? resolveDisplayRef(project, material) : { material };
   const materialUrl = useTextureUrl(display.material);
   const itemTextureUrl = useHeadPreviewUrl(appearance.head ?? display.head) ?? materialUrl;
-  const imageAsset = useAssetStore((s) =>
-    s.assets.find((a) => a.projectId === projectId && a.id === appearance.image?.asset),
-  );
+  const imageAsset = useImageAsset(projectId, appearance.image?.asset);
   const textureUrl = imageAsset ? assetPreviewUrl(imageAsset) : itemTextureUrl;
   const title = getText(appearance.title);
 

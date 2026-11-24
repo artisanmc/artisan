@@ -263,7 +263,7 @@ class McpTest {
         assertEquals("#c6c6c6", facts["colours"][0]["colour"].asText(), "the colour most pixels have")
         assertTrue("Vanilla bevel" in facts["kit"]["content"].asText())
         assertEquals("u-local.ui-kit", facts["kit"]["project"].asText())
-        assertEquals(listOf("text", "image", "image"), survey["content"].map { it["type"].asText() }, "one sheet per module")
+        assertEquals(listOf("text", "image", "image", "image"), survey["content"].map { it["type"].asText() }, "one sheet per module, one for the base")
 
         // A menu of the shop that names the kit's button draws it: an image is found on the whole server.
         val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: kit")["structuredContent"]["draft_id"].asText()
@@ -280,6 +280,68 @@ class McpTest {
         modules.remove("ui-kit")
         assertTrue("create_module" in tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"]["how"].asText())
         assertTrue(tool(access, "survey_ui", "server" to "nowhere")["isError"].asBoolean())
+    }
+
+    @Test
+    fun `the kit's base is on every server under kit names, and the kit module's image of the same size replaces one`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/shop_icon.png" to solid(16, 16, 0x3366cc)))
+        val (access, _) = tokens()
+
+        // A server without a kit module has the base as Artisan ships it, numbered after its own images.
+        val base = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit_base"]
+        assertEquals(net.artisanmc.plugin.pack.Kit.slots.map { "kit:${it.id}" }, base["images"].map { it["image"].asText() })
+        assertEquals((2..20).toList(), base["images"].map { it["n"].asInt() })
+        assertEquals(setOf("artisan"), base["images"].map { it["drawn_by"].asText() }.toSet())
+        assertEquals(54 to 18, base["images"][3].let { it["width"].asInt() to it["height"].asInt() })
+
+        // A menu draws a base image as an element's and as its window.
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: base")["structuredContent"]["draft_id"].asText()
+        val menu = "schema: menu/v1\nsize: 27\nvanilla_texture: false\ntitle:\n  - { kind: background, asset: \"kit:window.3\" }\n" +
+            "elements:\n  - positions: \"0-2\"\n    image: { asset: \"kit:button.3x1\", fit: native }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/base.yml", "content" to menu).has("isError"))
+        fun pixels(): Pair<List<Int>, List<Int>> {
+            val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/base.yml", "draft_id" to draftId, "scale" to 1)
+            assertTrue(rendered["structuredContent"]["notes"].none { "kit:" in it.asText() }, rendered["structuredContent"].toString())
+            val window = rendered["structuredContent"]["window"]
+            val shown = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+            fun at(x: Int, y: Int) = ((window["y"].asInt() + y) * shown.width + window["x"].asInt() + x) * 4
+            fun rgb(at: Int) = shown.data.slice(at until at + 3).map { it.toInt() and 0xff }
+            // The middle of the button over the first three slots; the window's corner pixel that is not empty.
+            return rgb(at(7 + 27, 17 + 9)) to rgb(at(3, 3))
+        }
+        fun shipped(id: String, x: Int, y: Int): List<Int> {
+            val image = net.artisanmc.plugin.pack.Png.decode(net.artisanmc.plugin.pack.Kit.shipped(net.artisanmc.plugin.pack.Kit.slot(id)!!))
+            return image.data.slice((y * image.width + x) * 4 until (y * image.width + x) * 4 + 3).map { it.toInt() and 0xff }
+        }
+        assertEquals(shipped("button.3x1", 27, 9) to shipped("window.3", 3, 3), pixels())
+
+        // The kit module restyles a slot with an image of its name and size; another size or another module is refused.
+        modules["ui-kit"] = McpFixtures.Module()
+        val kitDraft = tool(access, "start_draft", "project" to "u-local.ui-kit", "name" to "AI: kit")["structuredContent"]["draft_id"].asText()
+        fun png(width: Int, height: Int) = java.util.Base64.getEncoder().encodeToString(solid(width, height, 0xcc2020))
+        val small = tool(access, "write_image", "project" to "u-local.ui-kit", "draft_id" to kitDraft, "name" to "button.3x1", "png_base64" to png(20, 10))
+        assertTrue(small["isError"].asBoolean() && "54x18" in small["structuredContent"]["message"].asText(), small.toString())
+        val written = tool(access, "write_image", "project" to "u-local.ui-kit", "draft_id" to kitDraft, "name" to "button.3x1", "use" to "background", "png_base64" to png(54, 18))
+        assertFalse(written.has("isError"), written.toString())
+        assertEquals("assets/textures/button.3x1.png", written["structuredContent"]["path"].asText())
+        assertTrue("kit:button.3x1" in written["structuredContent"]["use_it"].asText())
+        assertTrue(tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "button.3x1", "png_base64" to png(54, 18))["isError"].asBoolean())
+        val other = tool(access, "write_image", "project" to "u-local.ui-kit", "draft_id" to kitDraft, "name" to "banner", "png_base64" to png(20, 10))
+        assertTrue("kit:banner" in other["structuredContent"]["use_it"].asText(), other.toString())
+
+        // Deployed, the server's image is what every menu naming the slot shows; one of another size is left out.
+        modules["ui-kit"] = McpFixtures.Module(
+            images = mapOf("assets/textures/button.3x1.png" to solid(54, 18, 0xcc2020), "assets/textures/window.3.png" to solid(20, 20, 0x00ff00)),
+        )
+        assertEquals(listOf(0xcc, 0x20, 0x20) to shipped("window.3", 3, 3), pixels())
+        val restyled = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit_base"]["images"].associateBy { it["image"].asText() }
+        assertEquals("this server", restyled.getValue("kit:button.3x1")["drawn_by"].asText())
+        assertEquals("artisan", restyled.getValue("kit:window.3")["drawn_by"].asText())
+        assertTrue(restyled.getValue("kit:window.3").has("ignored"))
+        assertFalse(restyled.getValue("kit:cell").has("ignored"))
     }
 
     @Test

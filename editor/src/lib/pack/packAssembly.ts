@@ -1,9 +1,16 @@
+import { sha256Hex } from "@/lib/sha256";
 import { type BedrockMenu, bedrockMenusFromProject } from "./bedrock/bedrockMenus";
 import { buildBedrockPack } from "./bedrock/bedrockPack";
+import { CODEPOINT_MIN } from "./codepoints";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
-import { type GlyphPlacement, glyphPlacementsFromMenus } from "./menuGlyphPlacements";
+import { KIT_ASCENT, KIT_FILES, KIT_FOLDER, KIT_PREFIX, kitImage, kitNameOf } from "./kit";
+import {
+  type GlyphPlacement,
+  glyphPlacementsFromMenus,
+  titleImagesFromMenus,
+} from "./menuGlyphPlacements";
 import { type TextPlacement, textPlacementsFromMenus } from "./menuTextPlacements";
 import type { OverlayImageRequest } from "./overlayImages";
 import { type AssetRow, type BuildResult, buildResourcePackZip } from "./resourcePackBuilder";
@@ -40,6 +47,8 @@ export interface PackInput {
   vanillaTexture(container: GuiContainer): Promise<Uint8Array>;
   /** The padded vanilla font textures (`*_up.png`). */
   textUp: Record<TextUpTexture, Uint8Array>;
+  /** The PNG Artisan ships for a slot of the UI kit's base (`kit.ts`), read only when a menu names it. */
+  kitImage(id: string): Promise<Uint8Array>;
   /** Redraw the containers a menu makes transparent (`vanilla_gui_v1`); true for every current plugin. */
   transparentContainers?: boolean;
   /** `resource-pack.hide-inventory-label` from `config.yml`: empty the client's "Inventory" label. */
@@ -75,12 +84,15 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   const overlayImages: OverlayImageRequest[] = [];
   const bedrockMenus: BedrockMenu[] = [];
   const texts: string[] = [];
+  const titleImages: string[] = [];
+  const kitImages = new Map<string, Uint8Array>();
 
   for (const project of projects) {
     const { files } = project;
     // Any text of the Project may reach a title (menus, lang files, data rows): its symbols ride along.
     for (const f of files) texts.push(f.content);
     glyphPlacements.push(...glyphPlacementsFromMenus(files));
+    titleImages.push(...titleImagesFromMenus(files));
     imageButtons.push(...imageButtonsFromMenus(files));
     textPlacements.push(...textPlacementsFromMenus(files));
     overlayImages.push(...(project.overlayImages ?? []));
@@ -105,6 +117,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
         if (!bytes) continue;
         glyphPngs.set(a.row.id, bytes);
         imagesByRef.push({ ref: `${project.id}:${a.row.name}`, bytes });
+        if ((project.folder ?? project.id) === KIT_FOLDER) kitImages.set(a.row.name, bytes);
         continue;
       }
       if (a.row.type !== "font") continue;
@@ -119,6 +132,45 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
       if (fontMap.size > 0) fontGlyphPngs.set(a.row.id, fontMap);
     }
   }
+
+  // `kit:<name>` (`kit.ts`): only the ones a menu or a module asks for, so a server that names
+  // none keeps the pack it had. One a title is drawn with is a glyph of the menu font, at the
+  // first codepoint no module's glyph has; the others are textures.
+  const inTitles = new Set<string>();
+  for (const asset of titleImages) {
+    const name = kitNameOf(asset);
+    if (name) inTitles.add(name);
+  }
+  const asked = new Set(inTitles);
+  for (const { asset } of [...imageButtons, ...overlayImages]) {
+    const name = kitNameOf(asset);
+    if (name) asked.add(name);
+  }
+  const kitGlyphs: GlyphContribution["glyphs"] = [];
+  for (const name of [...asked].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
+    const image = await kitImage(name, kitImages.get(name), input.kitImage);
+    if (!image) continue;
+    const id = KIT_PREFIX + name;
+    const glyph = inTitles.has(name);
+    allAssets.push({
+      id,
+      projectId: KIT_FOLDER,
+      type: glyph ? "glyph" : "texture",
+      name: KIT_FILES + name,
+      width: image.width,
+      height: image.height,
+      ascent: glyph ? KIT_ASCENT : null,
+      codepoint: glyph ? CODEPOINT_MIN : null,
+      contentWidth: null,
+      fontMeta: null,
+      contentHash: sha256Hex(image.png),
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
+    });
+    if (glyph) kitGlyphs.push({ assetId: id, codepoint: CODEPOINT_MIN });
+    glyphPngs.set(id, image.png);
+  }
+  if (kitGlyphs.length > 0) contribs.push({ projectId: KIT_FOLDER, glyphs: kitGlyphs });
 
   const { finalCodepoints } = mergeCodepoints(contribs);
   const sources = {} as Record<GuiContainer, Uint8Array>;
@@ -150,7 +202,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   const pngsByName = new Map<string, Uint8Array>();
   for (const a of allAssets) {
     const bytes = glyphPngs.get(a.id);
-    if (bytes && !pngsByName.has(a.name)) pngsByName.set(a.name, bytes);
+    // By id, what a menu writes: a file's name, `kit:<name>` for a kit image.
+    if (bytes && !pngsByName.has(a.id)) pngsByName.set(a.id, bytes);
   }
   const bedrock = buildBedrockPack({
     serverId: input.bedrock.serverId,

@@ -136,6 +136,15 @@ start of each conversation, which is the only thing it remembers from the last o
 a module like any other: you review and deploy what the app adds to it, and you can edit the
 file yourself.
 
+**The kit's base.** Every server has a few plain images under names that never change: two
+windows (`kit:window.6`, `kit:window.3`), four buttons (`kit:button.3x1` and its `danger`, `off`
+and `plain` forms), a panel, a card, two value boxes, arrows, close, back and two toggles. A
+menu that names them looks right on any server, which is what a module you share needs. Your
+`ui-kit` module restyles one with an image of the same name and size ("redraw `button.3x1` of
+the kit in the style of the guild menus"): every menu that names it follows. An image of another
+size is left out, so that no menu is thrown off. Any other image of the `ui-kit` module is
+`kit:<its name>` too.
+
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"
 on the consent page, or the "Can deploy" switch in **Settings → AI apps**. The app then shows
 the changes and deploys only after you say yes, with the same checks as the editor's Deploy.
