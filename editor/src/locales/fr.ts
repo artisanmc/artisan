@@ -47,6 +47,7 @@ const fr: typeof en = {
     showAll: "Afficher toutes les images",
     reuseHint: "Choisir une autre image lui ajoute cet usage, sans créer de copie.",
     back: "Retour aux ressources",
+    zoom: "Zoom ×{{scale}}",
     appearance: "Apparence du menu",
     addImage: "Ajouter une image",
     inMenus: "Utilisée dans : {{menus}}",
@@ -115,7 +116,7 @@ const fr: typeof en = {
     resize: "Redimensionner la navigation (double-clic : largeur par défaut)",
   },
   projectSource: {
-    all: "Tous les autres modules",
+    all: "Tous les modules",
     from: "Dans le module {{project}}",
     searchItems: "Rechercher un item…",
     label: "Module :",
@@ -129,6 +130,14 @@ const fr: typeof en = {
     itemHint: "Glisse ou choisis un item : il est d’abord copié dans ce module.",
     resourcesHint:
       "Ressources d’un autre module, en lecture seule. Copie celles dont tu as besoin.",
+    allResourcesHint:
+      "Ressources de tous les modules du serveur. Celles des autres modules sont en lecture seule : copie celles dont tu as besoin.",
+    allDragHint:
+      "Glisse une image sur un menu : celle d’un autre module est d’abord copiée dans ce module.",
+    allItemHint:
+      "Glisse ou choisis un item : celui d’un autre module est d’abord copié dans ce module.",
+    hereTag: "ce module",
+    open: "Ouvrir dans ce module",
     noItems: "Ce module n’a aucun item capturé.",
     noAssets: "Ce module n’a aucune ressource.",
     copy: "Copier dans ce module",

@@ -44,6 +44,7 @@ export default {
     showAll: "Show all images",
     reuseHint: "Choosing another image adds this use without creating a copy.",
     back: "Back to resources",
+    zoom: "Zoom ×{{scale}}",
     appearance: "Menu appearance",
     addImage: "Add an image",
     inMenus: "Used in: {{menus}}",
@@ -112,7 +113,7 @@ export default {
     resize: "Resize navigation (double-click: default width)",
   },
   projectSource: {
-    all: "All other modules",
+    all: "All modules",
     from: "In module {{project}}",
     searchItems: "Search items…",
     label: "Module:",
@@ -125,6 +126,13 @@ export default {
     dragHint: "Drag an image onto a menu: it is copied into this module first.",
     itemHint: "Drag or pick an item: it is copied into this module first.",
     resourcesHint: "Another module's resources, read only. Copy the ones you need.",
+    allResourcesHint:
+      "Resources of every module on the server. The other modules' ones are read only: copy the ones you need.",
+    allDragHint:
+      "Drag an image onto a menu: one from another module is copied into this module first.",
+    allItemHint: "Drag or pick an item: one from another module is copied into this module first.",
+    hereTag: "this module",
+    open: "Open in this module",
     noItems: "This module has no captured items.",
     noAssets: "This module has no resources.",
     copy: "Copy into this module",
