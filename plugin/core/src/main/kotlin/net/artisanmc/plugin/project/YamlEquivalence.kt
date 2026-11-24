@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.project
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import net.artisanmc.plugin.yaml.Yaml12
 import net.artisanmc.plugin.model.YamlFiles
 
 /**
@@ -10,7 +10,7 @@ import net.artisanmc.plugin.model.YamlFiles
  * the same. Mirrored by the editor (`lib/yamlEquivalence.ts`).
  */
 object YamlEquivalence {
-    private val mapper = ObjectMapper(YAMLFactory())
+    private val mapper = ObjectMapper(Yaml12.factory())
 
     fun sameValue(path: String, a: String, b: String): Boolean {
         if (a == b) return true

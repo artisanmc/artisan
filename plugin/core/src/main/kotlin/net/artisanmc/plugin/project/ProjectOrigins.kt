@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.project
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import net.artisanmc.plugin.yaml.Yaml12
 import java.io.File
 
 /**
@@ -22,7 +22,7 @@ data class FileOrigin(val module: String, val template: String, val version: Int
 object ProjectOrigins {
     const val PATH = ".artisan/origins.yaml"
 
-    private val yaml = ObjectMapper(YAMLFactory())
+    private val yaml = ObjectMapper(Yaml12.factory())
 
     /** The origins recorded in [projectDir], by project-relative path; empty when none, or unreadable. */
     fun read(projectDir: File): Map<String, FileOrigin> {

@@ -2,7 +2,7 @@ package net.artisanmc.plugin.protocol
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import net.artisanmc.plugin.yaml.Yaml12
 import com.networknt.schema.JsonSchema
 import com.networknt.schema.JsonSchemaFactory
 import com.networknt.schema.SchemaLocation
@@ -57,7 +57,7 @@ class DocumentCheck(
 
     data class Result(val problems: List<Problem>, val impacts: List<Impact>)
 
-    private val yaml = ObjectMapper(YAMLFactory())
+    private val yaml = ObjectMapper(Yaml12.factory())
     private val schemas = ConcurrentHashMap<String, JsonSchema?>()
     private val factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012) { builder ->
         // The schemas cross-reference each other by their `$id`: read from the jar, never fetched.

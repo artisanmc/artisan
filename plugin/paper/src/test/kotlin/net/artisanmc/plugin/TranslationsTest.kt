@@ -151,6 +151,23 @@ class TranslationsTest {
         }
     }
 
+    @Test fun `a message On or Yes is the word, not a boolean dropped`() {
+        MockBukkit.mock()
+        try {
+            val plugin = MockBukkit.createMockPlugin("Words")
+            val lang = File(plugin.dataFolder, "lang").apply { mkdirs() }
+            File(lang, "en.yml").writeText("toggle:\n  on: On\n  off: Off\nconfirm: Yes\ncount: 3\n")
+            val en = FileMessageSource.load(plugin, emptyList()).getValue("en")
+            assertEquals("On", en["toggle.on"])
+            assertEquals("Off", en["toggle.off"])
+            assertEquals("Yes", en["confirm"])
+            // Not a message: as before, only text values are.
+            assertTrue("count" !in en)
+        } finally {
+            MockBukkit.unmock()
+        }
+    }
+
     @Test fun `inFolder moves the data folder's lang files into the module's folder once, and reads them there`() {
         MockBukkit.mock()
         val module = kotlin.io.path.createTempDirectory("artisan-module").toFile()

@@ -189,6 +189,14 @@ class ModuleCommandFilesTest {
         assertEquals(listOf(ArgDef.IntArg("price", required = false), ArgDef.EnumArg("currency", false, listOf("coins", "gems"))), compiled.child("sell")?.argDefs)
     }
 
+    @Test fun `an enum value such as on or off stays that word when the plugin reads the file`() {
+        val toggle = PlayerCommandDeclaration.builder("x:toggle").name("toggle")
+            .argument(CommandArgument.choice("state", listOf("on", "off", "yes", "no", "y", "N")))
+            .executor(run).build()
+        val compiled = assertNotNull(CommandCompiler.compile(ModuleCommandFiles.commandYaml(toggle)))
+        assertEquals(listOf(ArgDef.EnumArg("state", true, listOf("on", "off", "yes", "no", "y", "N"))), compiled.argDefs)
+    }
+
     @Test fun `a module's roots are one system template, one file each`() {
         val template = assertNotNull(ModuleCommandFiles.template(listOf(auctionHouse(), shop())))
         assertTrue(template.isSystem)

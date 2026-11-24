@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.model
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import net.artisanmc.plugin.yaml.Yaml12
 
 /**
  * A module's originals (design `originaux-modules`): `originals/` holds what the module ships,
@@ -20,7 +20,7 @@ object Originals {
 
     const val INDEX_PATH = "$DIR/$INDEX"
 
-    private val yaml = ObjectMapper(YAMLFactory())
+    private val yaml = ObjectMapper(Yaml12.factory())
 
     data class Index(val module: String = "", val version: Int = 0, val required: List<String> = emptyList())
 

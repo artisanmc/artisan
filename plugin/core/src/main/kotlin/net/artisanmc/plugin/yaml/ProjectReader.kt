@@ -6,7 +6,6 @@ import net.artisanmc.plugin.engine.VariantRules
 import net.artisanmc.plugin.engine.RuntimeProject
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.MenuCompiler
 import net.artisanmc.plugin.model.*
@@ -41,7 +40,7 @@ class ProjectReader(
         declaredModels: () -> Map<String, Map<String, Any?>> = { emptyMap() },
     ) : this(net.artisanmc.plugin.project.ProjectRoots(projectsRoot), logger, declaredModels)
 
-    private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
+    private val mapper = ObjectMapper(Yaml12.factory()).registerKotlinModule()
 
     /** What a kind's reader needs from the project being read. */
     private class ReadContext(
