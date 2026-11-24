@@ -93,7 +93,7 @@ class TemplateSeeds(
     private val defaultLang: () -> String = { "en" },
 ) {
     private val file get() = File(roots.coreRoot, FILE)
-    private val yaml = com.fasterxml.jackson.databind.ObjectMapper(net.artisanmc.plugin.yaml.Yaml12.factory())
+    private val yaml = com.fasterxml.jackson.databind.ObjectMapper(net.artisanmc.plugin.yamlio.Yaml12.factory())
 
     /** The `<module>/<template>` keys already seeded. */
     fun seeded(): Set<String> {

@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.command
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.plugin.yaml.Yaml12
+import net.artisanmc.plugin.yamlio.Yaml12
 import net.artisanmc.modules.api.playercommand.PlayerCommandDeclaration
 import net.artisanmc.plugin.project.EditorYaml
 import net.artisanmc.plugin.project.ProjectPathPolicy

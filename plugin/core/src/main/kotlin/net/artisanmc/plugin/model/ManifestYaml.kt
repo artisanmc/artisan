@@ -3,7 +3,7 @@ package net.artisanmc.plugin.model
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.plugin.yaml.Yaml12
+import net.artisanmc.plugin.yamlio.Yaml12
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 

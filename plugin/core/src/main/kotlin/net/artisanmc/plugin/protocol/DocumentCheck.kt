@@ -2,7 +2,7 @@ package net.artisanmc.plugin.protocol
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.plugin.yaml.Yaml12
+import net.artisanmc.plugin.yamlio.Yaml12
 import com.networknt.schema.JsonSchema
 import com.networknt.schema.JsonSchemaFactory
 import com.networknt.schema.SchemaLocation

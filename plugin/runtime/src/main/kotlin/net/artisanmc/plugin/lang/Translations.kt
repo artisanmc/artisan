@@ -8,7 +8,7 @@ import net.artisanmc.modules.api.translation.TranslationsApi
 import net.artisanmc.plugin.model.Originals
 import net.artisanmc.plugin.project.ProjectOrigins
 import net.artisanmc.plugin.project.ProjectPublisher
-import net.artisanmc.plugin.yaml.Yaml12
+import net.artisanmc.plugin.yamlio.Yaml12
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin

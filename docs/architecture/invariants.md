@@ -108,7 +108,7 @@ token, is reproduced editor-side by `lib/contentHash.ts`, with a pure JS fallbac
 The editor's `yaml` reads YAML 1.2: `on`, `off`, `yes`, `no`, `y`, `n` are text. Jackson's
 default `YAMLFactory()` (and Bukkit's `YamlConfiguration`) read YAML 1.1, where the first four
 are booleans: an enum value `on` became `true`, a message `Yes` was lost. Every reader of a
-Project's or a module's file builds its mapper on `Yaml12.factory()` (`plugin/core/.../yaml/`),
+Project's or a module's file builds its mapper on `Yaml12.factory()` (`plugin/core/.../yamlio/`),
 never on `YAMLFactory()` nor `YamlConfiguration`. Files stay written plain (`values: [on, off]`):
 the editor's output, byte for byte (`testdata/module-command-files.json`).
 

@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.yaml
+package net.artisanmc.plugin.yamlio
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import kotlin.test.Test

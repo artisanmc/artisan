@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.command
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.plugin.yaml.Yaml12
+import net.artisanmc.plugin.yamlio.Yaml12
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.modules.api.playercommand.CommandArgument
 import net.artisanmc.modules.api.playercommand.PlayerCommandDeclaration

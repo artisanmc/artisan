@@ -7,6 +7,7 @@ import net.artisanmc.plugin.engine.RuntimeProject
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import net.artisanmc.plugin.yamlio.Yaml12
 import net.artisanmc.plugin.engine.MenuCompiler
 import net.artisanmc.plugin.model.*
 import java.io.File

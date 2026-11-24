@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.model
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.plugin.yaml.Yaml12
+import net.artisanmc.plugin.yamlio.Yaml12
 
 /**
  * A module's originals (design `originaux-modules`): `originals/` holds what the module ships,

@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.yaml
+package net.artisanmc.plugin.yamlio
 
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.dataformat.yaml.YAMLParser
@@ -9,7 +9,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLParser
  * `no`, `y`, `n` (any case) as booleans: an enum value `on`, a lang line `Yes` turned into
  * `true`, while the editor showed the text. Here only `true` and `false` are booleans.
  *
- * A new factory per mapper: an `ObjectMapper` sets itself as its factory's codec.
+ * A new factory per mapper: an `ObjectMapper` sets itself as its factory's codec. Its own
+ * package, imported by `yaml`, `project`, `command`, `model`, `protocol`: a leaf, no cycle.
  */
 object Yaml12 {
     fun factory(): YAMLFactory = YAMLFactory.builder()

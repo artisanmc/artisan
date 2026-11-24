@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.project
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.plugin.yaml.Yaml12
+import net.artisanmc.plugin.yamlio.Yaml12
 import net.artisanmc.modules.api.template.TemplateDeclaration
 import net.artisanmc.plugin.model.ModuleFile
 import net.artisanmc.plugin.model.Originals
