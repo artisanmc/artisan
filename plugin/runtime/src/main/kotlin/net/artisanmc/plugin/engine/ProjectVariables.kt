@@ -77,5 +77,6 @@ class ProjectVariables(val store: VariableStore) {
 
     /** A stored JSON value of [ref] as its Variable's type, or null (unknown Variable, type changed). */
     fun decode(ref: String, json: String): Any? =
-        definitions[ref]?.let { ProjectVariable.decode(it.type, json) }
+        if (ref == ServerVariants.PREFERENCE_REF) ProjectVariable.decode(net.artisanmc.modules.api.variable.VariableType.STRING, json)
+        else definitions[ref]?.let { ProjectVariable.decode(it.type, json) }
 }

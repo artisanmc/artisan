@@ -1,6 +1,7 @@
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import { docKey, resolveDocKey } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
+import { VARIANT_NAME } from "@/domain/variants";
 import { AssetsTab } from "@/features/assets/AssetsTab";
 import { CapturedItemsSection } from "@/features/canvas/CapturedItemsSection";
 import { Stage } from "@/features/canvas/Stage";
@@ -44,6 +45,7 @@ import { opensOnStage } from "./documentStage";
 import { useActiveLangFallback } from "./useActiveLangFallback";
 import { useCollectionsAtRoot } from "./useCollectionsAtRoot";
 import { useProjectDeepLinks } from "./useProjectDeepLinks";
+import { useVariantInUrl } from "./useVariantInUrl";
 import { useWorkspaceDnd } from "./useWorkspaceDnd";
 import { effectiveTab } from "./workspaceTabs";
 
@@ -60,19 +62,25 @@ export type ProjectSearch = {
   doc?: string;
   /** The kind of the Document the focus view shows (`document/$documentId`): an id is unique within its kind only. */
   kind?: string;
+  /** The variant "View as" shows (`useVariantInUrl`): a reload keeps it. */
+  variant?: string;
 };
 
 export const validateProjectSearch = (search: Record<string, unknown>): ProjectSearch => {
   const t = search.tab;
+  const variant =
+    typeof search.variant === "string" && VARIANT_NAME.test(search.variant)
+      ? { variant: search.variant }
+      : {};
   // `data-sources` (the former Data view, whose content moved to the sidebar) falls back to
   // the home like any unknown tab.
-  if (t === "translations" || t === "resources" || t === "history") return { tab: t };
+  if (t === "translations" || t === "resources" || t === "history") return { tab: t, ...variant };
   const doc = typeof search.doc === "string" && search.doc ? { doc: search.doc } : {};
   const kind = typeof search.kind === "string" && search.kind ? { kind: search.kind } : {};
   // `overview` was the board's name before the home: old links still open the board, and
   // so does a `?doc=` link, which centers the board on a Document.
   const board = t === "board" || t === "overview" || "doc" in doc;
-  return { ...(board ? { tab: "board" as const } : {}), ...doc, ...kind };
+  return { ...(board ? { tab: "board" as const } : {}), ...doc, ...kind, ...variant };
 };
 
 /**
@@ -122,8 +130,9 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     return mountEditorTour({ playerId, ready: tourReady });
   }, [playerId, tourReady, pId]);
   const navigate = useNavigate();
-  const { tab, doc, kind: docKind } = useSearch({ strict: false }) as ProjectSearch;
+  const { tab, doc, kind: docKind, variant } = useSearch({ strict: false }) as ProjectSearch;
   useProjectDeepLinks({ project, urlId, projectId, serverId, documentId, doc });
+  useVariantInUrl(project, variant);
   useActiveLangFallback(project);
   useCollectionsAtRoot(project);
   const childMatches = useChildMatches();

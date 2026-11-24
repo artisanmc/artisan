@@ -74,23 +74,28 @@ export function ImageButtonLibrary({ projectId }: { projectId: ProjectId }) {
 
 /**
  * The button images of `projectId`, or of `sources` (other projects: read only,
- * copied on drop; each tile names its project when there are several).
+ * copied on drop; `projectId` itself when "all modules" lists it, used in
+ * place; each tile names its project when there are several).
  */
 function ImageGrid({ projectId, sources }: { projectId: ProjectId; sources: Project[] | null }) {
   const { t } = useTranslation();
   const own = useAssetStore((s) => s.assets);
   const ownLoading = useAssetStore((s) => s.loading);
   const ownError = useAssetStore((s) => s.error);
-  const sourceIds = useMemo(() => (sources ?? []).map((p) => p.id), [sources]);
+  const withHere = (sources ?? []).some((p) => p.id === projectId);
+  const sourceIds = useMemo(
+    () => (sources ?? []).map((p) => p.id).filter((id) => id !== projectId),
+    [sources, projectId],
+  );
   const other = useOtherProjectAssets(sourceIds);
   const current = useProjectsStore((s) =>
     s.openProjects.projects.find((entry) => entry.id === projectId),
   );
   const owners = new Map((sources ?? (current ? [current] : [])).map((p) => [p.id as string, p]));
   const source = sources !== null;
-  const assets = source ? other.assets : own;
-  const loading = source ? other.loading : ownLoading;
-  const error = source ? other.error : ownError;
+  const assets = source ? (withHere ? [...own, ...other.assets] : other.assets) : own;
+  const loading = source ? other.loading || (withHere && ownLoading) : ownLoading;
+  const error = source ? (withHere ? ownError : other.error) : ownError;
   const [search, setSearch] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   const images = assets.filter(
@@ -117,14 +122,26 @@ function ImageGrid({ projectId, sources }: { projectId: ProjectId; sources: Proj
         onChange={(e) => setSearch(e.target.value)}
       />
       <p className="text-xs text-[var(--text-mut)]">
-        {t(source ? "projectSource.dragHint" : "imageButton.dragHint")}
+        {t(
+          withHere
+            ? "projectSource.allDragHint"
+            : source
+              ? "projectSource.dragHint"
+              : "imageButton.dragHint",
+        )}
       </p>
       <div className="grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto">
         {images.map((asset) => (
           <ImageTile
             key={`${asset.projectId}:${asset.id}`}
             asset={asset}
-            from={(sources?.length ?? 0) > 1 ? owners.get(asset.projectId)?.name : undefined}
+            from={
+              (sources?.length ?? 0) > 1
+                ? asset.projectId === projectId
+                  ? t("projectSource.hereTag")
+                  : owners.get(asset.projectId)?.name
+                : undefined
+            }
           />
         ))}
         {(loading || error || !images.length) && (

@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetsTab, useResourcesView } from "./AssetsTab";
 import { useAssetStore } from "./assetStore";
 
+let desktop = false;
+vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => desktop }));
+
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
     getTotalSize: () => count * estimateSize(),
@@ -55,6 +58,29 @@ describe("AssetsTab", () => {
     useAssetStore.getState().reset();
     useResourcesView.getState().setView("files");
     useAssetStore.getState().setAssets([A1, A2]);
+    desktop = false;
+  });
+
+  it("shows the selected image large beside the list on a wide screen", () => {
+    desktop = true;
+    render(<AssetsTab projectId={"p1" as never} />);
+    expect(screen.queryByTestId("resources-detail")).toBeNull();
+    fireEvent.click(screen.getByTitle("bg_one"));
+    // Both panes at once, split by a handle the user drags.
+    expect(screen.getByTitle("ico_one")).toBeTruthy();
+    expect(screen.getByRole("separator")).toBeTruthy();
+    expect(screen.getByTestId("resources-detail")).toContainElement(
+      screen.getByTestId("asset-stage"),
+    );
+  });
+
+  it("shows the list or the selected image, one at a time, on a narrow screen", () => {
+    render(<AssetsTab projectId={"p1" as never} />);
+    fireEvent.click(screen.getByTitle("bg_one"));
+    expect(screen.queryByTitle("ico_one")).toBeNull();
+    expect(screen.getByTestId("asset-stage")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /retour aux ressources/i }));
+    expect(screen.getByTitle("ico_one")).toBeTruthy();
   });
 
   it("renders the assets from the store", () => {

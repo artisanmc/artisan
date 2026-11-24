@@ -64,7 +64,8 @@ export function CapturedItemsSection({
 /**
  * Other projects' captured items, read only, grouped by project when there are
  * several: a tile used here (dropped, armed or picked) is copied into
- * `projectId` first, then its copy is used.
+ * `projectId` first, then its copy is used. When "all modules" lists
+ * `projectId` itself, its own items come first and are used in place.
  */
 function OtherProjectItems({
   projectId,
@@ -88,12 +89,15 @@ function OtherProjectItems({
     }))
     .filter((group) => group.items.length > 0);
   const total = sources.reduce((n, p) => n + (p.capturedItems?.length ?? 0), 0);
+  const withHere = sources.some((p) => p.id === projectId);
   return (
     <div className="flex flex-col gap-2" data-testid="other-project-items">
       <div className="eyebrow">{t("capturedItems.sectionTitle")}</div>
       {total > 0 ? (
         <>
-          <p className="text-[11px] text-[var(--text-faint)]">{t("projectSource.itemHint")}</p>
+          <p className="text-[11px] text-[var(--text-faint)]">
+            {t(withHere ? "projectSource.allItemHint" : "projectSource.itemHint")}
+          </p>
           <Input
             aria-label={t("projectSource.searchItems")}
             placeholder={t("projectSource.searchItems")}
@@ -104,22 +108,30 @@ function OtherProjectItems({
           {groups.map(({ source, items }) => (
             <div key={source.id} className="flex flex-col gap-1">
               {sources.length > 1 && (
-                <div className="text-[11px] text-[var(--text-mut)]">{source.name}</div>
+                <div className="text-[11px] text-[var(--text-mut)]">
+                  {source.id === projectId
+                    ? `${source.name} (${t("projectSource.hereTag")})`
+                    : source.name}
+                </div>
               )}
               <div className="flex flex-wrap gap-1.5">
-                {items.map((ci) => (
-                  <CapturedTile
-                    key={ci.id}
-                    project={source}
-                    item={ci}
-                    foreign
-                    onPick={() => {
-                      const local = adoptCapturedItem(projectId, ci);
-                      if (onPick) onPick(local);
-                      else setArmedMaterial(local);
-                    }}
-                  />
-                ))}
+                {items.map((ci) =>
+                  source.id === projectId ? (
+                    <CapturedTile key={ci.id} project={source} item={ci} onPick={onPick} />
+                  ) : (
+                    <CapturedTile
+                      key={ci.id}
+                      project={source}
+                      item={ci}
+                      foreign
+                      onPick={() => {
+                        const local = adoptCapturedItem(projectId, ci);
+                        if (onPick) onPick(local);
+                        else setArmedMaterial(local);
+                      }}
+                    />
+                  ),
+                )}
               </div>
             </div>
           ))}

@@ -53,6 +53,9 @@ internal class RuntimeAssembly(
     lateinit var commandRegistrar: CommandRegistrar
         private set
     private lateinit var cooldowns: CooldownStore
+    /** The Variable store, created by [prepare]: where the players' menu variant choices are kept too. */
+    @Volatile var variableStore: net.artisanmc.plugin.engine.VariableStore? = null
+        private set
     private lateinit var evaluator: ConditionEvaluator
     /** The event-registered resource-pack manager — swapped (not stacked) on `/artisan reload`. */
     @Volatile
@@ -78,6 +81,7 @@ internal class RuntimeAssembly(
         // Project variables (ADR `triggers-and-variables` §5): values in memory, kept in `artisan_vars` once the database opens.
         val variables = net.artisanmc.plugin.engine.ProjectVariables(net.artisanmc.plugin.engine.VariableStore())
         net.artisanmc.plugin.engine.ModuleVariableValues.projects = variables
+        variableStore = variables.store
         VariableSync(variables.store, {
             suite.artisanData?.let { net.artisanmc.plugin.database.VariableRows(it, plugin.database.dialect, plugin.database.tables) }
         }, suite.sessionWriter(), plugin).start()
@@ -101,8 +105,7 @@ internal class RuntimeAssembly(
             commandOwner = api.playerCommands::ownerOf,
             folderOwner = projectRoots::ownerOf,
             consoleRunner = moduleCommand,
-            isBedrock = plugin.geyser::isBedrock,
-            hasPack = ::hasPack,
+            menuVariants = plugin.menuVariants,
             ran = plugin.stats::command,
         )
         // A module enabled or disabled after the start: its commands come and go without a reload,
@@ -208,6 +211,8 @@ internal class RuntimeAssembly(
      */
     fun start(cfg: PluginConfig, beforeLoad: () -> Unit = {}) {
         projectRoots.coreRoot.mkdirs()
+        plugin.menuVariants.declared = cfg.menuVariants.variants
+        cfg.menuVariants.problems.forEach { logger.warning("[Artisan] config.yml: $it") }
         capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
         capturedItems.reload()
         val softDeps = SoftDepRegistry(plugin, capturedItems, placeholders)
@@ -248,7 +253,7 @@ internal class RuntimeAssembly(
     }
 
     /** Whether [p] has the server's pack: Geyser's for a Bedrock player, the Java one's load otherwise. */
-    private fun hasPack(p: org.bukkit.entity.Player): Boolean =
+    internal fun hasPack(p: org.bukkit.entity.Player): Boolean =
         if (plugin.geyser.isBedrock(p)) plugin.geyser.currentPack() != null else plugin.packLoads.hasLoaded(p.uniqueId)
 
     private fun createProvider(cfg: PluginConfig) = SyncedMenuProvider(
@@ -285,6 +290,7 @@ internal class RuntimeAssembly(
         hub = editorHost.hubLink(cfg.web),
         isBedrock = plugin.geyser::isBedrock,
         hasPack = ::hasPack,
+        menuVariants = plugin.menuVariants,
         peers = { editorHost.peerLinks },
         menuEvents = menuEvents,
         onSnapshot = suite::recordVersions,

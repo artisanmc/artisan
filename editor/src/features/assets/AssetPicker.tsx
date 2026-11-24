@@ -9,7 +9,7 @@ import { patchAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
 import { useProjectsStore } from "@/state/projectsStore";
 import { Upload } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
 import { AssetUploadDialog } from "./AssetUploadDialog";
@@ -57,7 +57,13 @@ export function AssetPicker({
   const [busy, setBusy] = useState(false);
   const [sourceId, setSourceId] = useState<ProjectSourceId>(null);
   const [sourceIds, setSourceIds] = useState<ProjectId[]>([]);
-  const other = useOtherProjectAssets(sourceIds);
+  // "All modules" lists this project too: its images come from the asset store, live.
+  const withHere = Boolean(projectId && sourceIds.includes(projectId));
+  const otherIds = useMemo(
+    () => sourceIds.filter((id) => id !== projectId),
+    [sourceIds, projectId],
+  );
+  const other = useOtherProjectAssets(otherIds);
   const [error, setError] = useState<string | null>(null);
   const loading = useAssetStore((s) => s.loading);
   const loadError = useAssetStore((s) => s.error);
@@ -119,7 +125,8 @@ export function AssetPicker({
         ? typeFilter
         : [typeFilter];
 
-  const matches = (sourceId ? other.assets : all)
+  const listed = sourceId ? (withHere ? [...all, ...other.assets] : other.assets) : all;
+  const matches = listed
     .filter((a) =>
       sourceId
         ? sourceIds.includes(a.projectId as ProjectId)
@@ -195,7 +202,9 @@ export function AssetPicker({
           {matches.length === 0 && (
             <div className="col-span-6 py-4 text-center text-xs text-[var(--text-faint)]">
               {t(
-                (sourceId ? other.loading : loading) ? "resources.loading" : "resources.noResults",
+                (sourceId ? other.loading || (withHere && loading) : loading)
+                  ? "resources.loading"
+                  : "resources.noResults",
               )}
             </div>
           )}

@@ -8,6 +8,7 @@ import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AssetStage } from "./AssetStage";
 import { AssetUsageFields } from "./AssetUsageFields";
 import { useAssetStore } from "./assetStore";
 
@@ -87,14 +88,18 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 border-l border-[var(--border-soft)] bg-[var(--surface)] p-3 text-[var(--text)]">
-      <img
-        src={assetPreviewUrl(asset)}
-        alt={asset.name}
-        className="h-24 w-24 self-center object-contain"
-        style={{ imageRendering: "pixelated" }}
-        decoding="async"
-      />
+    <div className="flex flex-col gap-3 bg-[var(--surface)] p-3 text-[var(--text)]">
+      {asset.type === "font" ? (
+        <img
+          src={assetPreviewUrl(asset)}
+          alt={asset.name}
+          className="h-24 w-24 self-center object-contain"
+          style={{ imageRendering: "pixelated" }}
+          decoding="async"
+        />
+      ) : (
+        <AssetStage asset={asset} />
+      )}
       <label className="text-xs" htmlFor={`${inputId}-name`}>
         {t("resources.name")}
         <Input id={`${inputId}-name`} value={name} onChange={(e) => setName(e.target.value)} />

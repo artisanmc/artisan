@@ -86,7 +86,8 @@ describe("using another project's resources", () => {
 
     await userEvent.click(screen.getByTestId("project-source"));
     const options = screen.getAllByRole("menuitemradio").map((o) => o.textContent);
-    expect(options).toHaveLength(2);
+    // This module, all modules, then the one other module (the edited one's published copy is never offered).
+    expect(options).toHaveLength(3);
     expect(options).toContain(shop.name);
     await userEvent.click(screen.getByRole("menuitemradio", { name: shop.name }));
 
@@ -118,7 +119,7 @@ describe("using another project's resources", () => {
     expect(useServerIndexStore.getState().projects[0]?.capturedItems).toEqual([sword]);
   });
 
-  it("searches every other project at once, naming each one", async () => {
+  it("searches every project at once, this one included, naming each one", async () => {
     const open = mockOpenProjects();
     const shop = open.projects.find((p) => p.id === "p_shop_system")!;
     const quests = open.projects.find((p) => p.id === "p_daily_quests")!;
@@ -138,20 +139,36 @@ describe("using another project's resources", () => {
     const listed = vi
       .spyOn(local, "listLocalAssets")
       .mockImplementation(async (id) => (id === "p_shop_system" ? [coin] : [questCoin]));
+    // This project's own coin, read live from the asset store, never from its disk.
+    const ownCoin = { ...coin, projectId: EDITED, contentHash: "h-own" };
+    useAssetStore.setState({ assets: [ownCoin] });
     render(<AssetsTab projectId={EDITED} />);
 
     await userEvent.click(screen.getByTestId("project-source"));
     await userEvent.click(
-      screen.getByRole("menuitemradio", { name: /tous les autres|all other/i }),
+      screen.getByRole("menuitemradio", { name: /tous les modules|all modules/i }),
     );
 
     expect(listed.mock.calls.map(([id]) => id).sort()).toEqual(["p_daily_quests", "p_shop_system"]);
     expect(await screen.findByTitle(`coin · ${shop.name}`)).toBeInTheDocument();
     await userEvent.click(screen.getByTitle(`coin · ${quests.name}`));
     expect(screen.getByTestId("other-asset-detail")).toHaveTextContent(quests.name);
+
+    // This project's own one is listed too, and opened in place rather than copied.
+    const copy = vi.spyOn(userAssets, "copyAsset");
+    await userEvent.click(
+      screen.getByRole("button", { name: /retour aux ressources|back to resources/i }),
+    );
+    await userEvent.click(screen.getByTitle(/^coin · (ce module|this module)$/));
+    await userEvent.click(
+      screen.getByRole("button", { name: /ouvrir dans ce module|open in this module/i }),
+    );
+    expect(copy).not.toHaveBeenCalled();
+    expect(useAssetStore.getState().selectedId).toBe("coin");
+    expect(screen.getByTestId("project-source")).toHaveTextContent(/ce module|this module/i);
   });
 
-  it("lists every other project's captured items, grouped and searchable", async () => {
+  it("lists every project's captured items, grouped and searchable", async () => {
     const open = mockOpenProjects();
     const shop = open.projects.find((p) => p.id === "p_shop_system")!;
     const quests = open.projects.find((p) => p.id === "p_daily_quests")!;
@@ -166,18 +183,33 @@ describe("using another project's resources", () => {
       ],
       failed: [],
     });
+    const shield = { ...sword, id: "ci_shield", name: "Bouclier maison" } as CapturedItem;
+    useProjectsStore.setState({
+      openProjects: {
+        ...open,
+        projects: open.projects.map((p) =>
+          p.id === EDITED ? { ...p, capturedItems: [shield] } : p,
+        ),
+      },
+    });
     render(<CapturedItemsSection projectId={EDITED} />);
 
     await userEvent.click(screen.getByTestId("project-source"));
     await userEvent.click(
-      screen.getByRole("menuitemradio", { name: /tous les autres|all other/i }),
+      screen.getByRole("menuitemradio", { name: /tous les modules|all modules/i }),
     );
     expect(screen.getByText(shop.name)).toBeInTheDocument();
     expect(screen.getByText(quests.name)).toBeInTheDocument();
+    // This module is listed too, first and named as such.
+    expect(screen.getByText(/\((ce module|this module)\)$/)).toBeInTheDocument();
+    // Its own item is used in place, never copied again.
+    await userEvent.click(screen.getByTitle("Bouclier maison"));
+    expect(useUiStore.getState().armedMaterial).toBe("item:ci_shield");
+    expect(edited().capturedItems?.map((c) => c.id)).toEqual(["ci_shield"]);
 
     await userEvent.type(screen.getByRole("textbox"), "arc des");
     expect(screen.queryByTitle("Épée du marchand")).toBeNull();
     await userEvent.click(screen.getByTitle("Arc des quêtes"));
-    expect(edited().capturedItems?.map((c) => c.id)).toEqual(["ci_bow"]);
+    expect(edited().capturedItems?.map((c) => c.id)).toEqual(["ci_shield", "ci_bow"]);
   });
 });

@@ -880,15 +880,17 @@ class McpTools(
     companion object {
         /** How a module's variants are written, through the same file tools (design `variantes-modules`). */
         const val VARIANTS_HOWTO =
-            "Variants: a module may show other versions of its menus and dialogs to some players (Bedrock, resource pack " +
-                "loaded, a permission, any condition). They are files too. `variants.yml` at the module root holds the display " +
-                "rules as a step tree like an action chain (`schema: variants/v1`, `variants: [bedrock, textured]`, `show: [{if: " +
-                "[{client_is: bedrock}], do: [{show_variant: bedrock}], else: [{if: [{has_resource_pack: true}], do: [{show_variant: " +
-                "textured}]}]}, show_default]`; `if` takes conditions of the action engine; the old `rules:` list is still read). A variant's version of " +
-                "`menus/ranks.yml` is `variants/<name>/menus/ranks.yml`: same id, same `inputs`, a whole Document. A variant's " +
-                "command file (`variants/<name>/commands/<id>.yml`) holds only `actions`, `requirements`, `fallback`, on the root " +
-                "and on `subcommands` found by `name`. A show step ends its list: the player gets the variant of the first one their " +
-                "path reaches, for each file it has, else the module's file; `show_default` or the end gives the module's own files. list_documents shows the variants apart."
+            "Variants: a module may show other versions of its menus and dialogs to some players. They are files too. " +
+                "Variants are declared by the server, the same for every module: `default` (the module's own files), `bedrock` " +
+                "(Geyser players), `textured` (Java players who loaded the resource pack), plus the server's own (`menu-variants` " +
+                "of config.yml, each with a parent). A player sees one variant everywhere, automatic or chosen with " +
+                "`/artisan variant`; for each file, the first of that variant and its parents the module has, else the module's file. " +
+                "A module's variants live in `variants/<name>/`, named after the server's variants; `variants.yml` at the module " +
+                "root marks the folder (`schema: variants/v1`, `variants: [bedrock, textured]`). Do not add `show:` to it: a " +
+                "`show:` step tree is the legacy per-module display rules, still obeyed for players who did not choose. A " +
+                "variant's version of `menus/ranks.yml` is `variants/<name>/menus/ranks.yml`: same id, same `inputs`, a whole " +
+                "Document. A variant's command file (`variants/<name>/commands/<id>.yml`) holds only `actions`, `requirements`, " +
+                "`fallback`, on the root and on `subcommands` found by `name`. list_documents shows the variants apart."
 
         /** How a module's originals work, through the same file tools (design `originaux-modules`). */
         const val ORIGINALS_HOWTO =

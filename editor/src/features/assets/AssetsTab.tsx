@@ -1,3 +1,4 @@
+import { SplitPane } from "@/components/SplitPane";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
@@ -7,14 +8,15 @@ import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectS
 import { cx } from "@/lib/cx";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useProjectsStore } from "@/state/projectsStore";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { AssetGrid } from "./AssetGrid";
 import { AssetImportFontDialog } from "./AssetImportFontDialog";
 import { AssetImportNexoDialog } from "./AssetImportNexoDialog";
-import { AssetPreview } from "./AssetPreview";
+import { AssetStage } from "./AssetStage";
 import { AssetUploadDialog } from "./AssetUploadDialog";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
@@ -49,6 +51,90 @@ export const useResourcesView = create<{
   view: ResourcesView;
   setView: (view: ResourcesView) => void;
 }>((set) => ({ view: "files", setView: (view) => set({ view }) }));
+
+const DETAIL_WIDTH = 400;
+const MIN_DETAIL = 260;
+const MIN_LIST = 280;
+
+/** The width of the Resources tab's detail pane, kept between sessions. */
+const useResourcesLayout = create<{ detailWidth: number; setDetailWidth: (w: number) => void }>()(
+  persist(
+    (set) => ({
+      detailWidth: DETAIL_WIDTH,
+      setDetailWidth: (detailWidth) => set({ detailWidth: Math.round(detailWidth) }),
+    }),
+    { name: "artisan-resources-layout", version: 1 },
+  ),
+);
+
+/**
+ * The tab's list beside the selected resource's detail. Wide: two panes split by
+ * a handle the user drags, the detail's width remembered. Narrow: one at a time,
+ * the detail with a way back to the list.
+ */
+function ResourcesSplit({
+  narrow,
+  list,
+  detail,
+  onBack,
+}: {
+  narrow: boolean;
+  list: ReactNode;
+  /** The selected resource's detail, `null` when nothing is selected. */
+  detail: ReactNode;
+  onBack: () => void;
+}) {
+  const { t } = useTranslation();
+  const width = useResourcesLayout((s) => s.detailWidth);
+  const setWidth = useResourcesLayout((s) => s.setDetailWidth);
+  const frame = useRef<HTMLDivElement>(null);
+  const [available, setAvailable] = useState<number | null>(null);
+  useEffect(() => {
+    const element = frame.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setAvailable(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  if (narrow) {
+    return detail ? (
+      <div className="h-full min-h-0 w-full overflow-y-auto">
+        <Button variant="ghost" size="sm" className="m-2" onClick={onBack}>
+          {t("resources.back")}
+        </Button>
+        {detail}
+      </div>
+    ) : (
+      <div className="flex h-full min-h-0">{list}</div>
+    );
+  }
+  const size =
+    available === null ? width : Math.max(MIN_DETAIL, Math.min(width, available - MIN_LIST));
+  return (
+    <div ref={frame} className="h-full min-h-0" data-testid="resources-split">
+      <SplitPane
+        orientation="horizontal"
+        primary={<div className="flex h-full min-h-0">{list}</div>}
+        secondary={
+          detail ? (
+            <aside
+              className="h-full min-h-0 overflow-y-auto bg-[var(--surface)]"
+              data-testid="resources-detail"
+            >
+              {detail}
+            </aside>
+          ) : null
+        }
+        secondarySize={size}
+        onSecondarySizeChange={setWidth}
+        minSecondary={MIN_DETAIL}
+        minPrimary={MIN_LIST}
+      />
+    </div>
+  );
+}
 
 export function AssetsTab({
   projectId,
@@ -162,9 +248,11 @@ function CategoryChips({
 const assetKey = (asset: Asset) => `${asset.projectId}:${asset.id}`;
 
 /**
- * Other projects' images and fonts, read only, searched together. "Copy into
- * this project" copies the selected one (free name, snapshot) and goes back to
- * this project with it selected.
+ * The images and fonts of several projects, searched together: other projects'
+ * ones read only, and the edited project's own (`projectId`, read live) when
+ * "all modules" lists it too. "Copy into this project" copies another project's
+ * selected asset (free name, snapshot); either way the tab goes back to this
+ * project with the asset selected.
  */
 function OtherProjectAssets({
   projectId,
@@ -180,9 +268,21 @@ function OtherProjectAssets({
   const { t } = useTranslation();
   const isDesktop = useIsDesktop();
   const narrow = compact || !isDesktop;
-  const sourceIds = useMemo(() => sources.map((p) => p.id), [sources]);
+  const withHere = sources.some((p) => p.id === projectId);
+  const sourceIds = useMemo(
+    () => sources.map((p) => p.id).filter((id) => id !== projectId),
+    [sources, projectId],
+  );
   const owners = new Map(sources.map((p) => [p.id as string, p]));
-  const { assets, loading, error } = useOtherProjectAssets(sourceIds);
+  const other = useOtherProjectAssets(sourceIds);
+  const own = useAssetStore((s) => s.assets);
+  const ownLoading = useAssetStore((s) => s.loading);
+  const assets = useMemo(
+    () => [...(withHere ? own.filter((a) => a.projectId === projectId) : []), ...other.assets],
+    [withHere, own, projectId, other.assets],
+  );
+  const loading = other.loading || (withHere && ownLoading);
+  const error = withHere ? null : other.error;
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<Category>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -191,91 +291,89 @@ function OtherProjectAssets({
     matchesFilter(asset, asset.projectId, owners.get(asset.projectId), search, category),
   );
   const selected = assets.find((asset) => assetKey(asset) === selectedId) ?? null;
-  const ownerName = (asset: Asset) => owners.get(asset.projectId)?.name ?? asset.projectId;
+  const mine = selected?.projectId === projectId;
+  const ownerName = (asset: Asset) =>
+    asset.projectId === projectId
+      ? t("projectSource.hereTag")
+      : (owners.get(asset.projectId)?.name ?? asset.projectId);
   const copy = async () => {
     if (!selected || busy) return;
+    if (mine) {
+      onCopied(selected);
+      return;
+    }
     setBusy(true);
     const copied = await copyAssetInto(projectId, selected);
     setBusy(false);
     if (copied) onCopied(copied);
   };
-  return (
-    <div className="flex h-full min-h-0">
-      {(!narrow || !selected) && (
-        <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
-          <p className="text-xs text-[var(--text-mut)]">{t("projectSource.resourcesHint")}</p>
-          <Input
-            aria-label={t("resources.search")}
-            placeholder={t("resources.search")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <CategoryChips category={category} onChange={setCategory} />
-          {loading || error || !filtered.length ? (
-            <p
-              role={error ? "alert" : "status"}
-              className="py-8 text-center text-sm text-[var(--text-mut)]"
-            >
-              {t(
-                loading
-                  ? "resources.loading"
-                  : error
-                    ? "resources.loadError"
-                    : search || category !== "all"
-                      ? "resources.noResults"
-                      : "projectSource.noAssets",
-              )}
-            </p>
-          ) : (
-            <AssetGrid
-              assets={filtered}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              keyOf={assetKey}
-              titleOf={(asset) =>
-                sources.length > 1 ? `${asset.name} · ${ownerName(asset)}` : asset.name
-              }
-            />
-          )}
-        </div>
-      )}
-      {selected && (
-        <div
-          className={narrow ? "min-h-0 w-full overflow-y-auto" : "w-72 shrink-0 overflow-y-auto"}
+  const list = (
+    <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
+      <p className="text-xs text-[var(--text-mut)]">
+        {t(withHere ? "projectSource.allResourcesHint" : "projectSource.resourcesHint")}
+      </p>
+      <Input
+        aria-label={t("resources.search")}
+        placeholder={t("resources.search")}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      <CategoryChips category={category} onChange={setCategory} />
+      {loading || error || !filtered.length ? (
+        <p
+          role={error ? "alert" : "status"}
+          className="py-8 text-center text-sm text-[var(--text-mut)]"
         >
-          {narrow && (
-            <Button variant="ghost" size="sm" className="m-2" onClick={() => setSelectedId(null)}>
-              {t("resources.back")}
-            </Button>
+          {t(
+            loading
+              ? "resources.loading"
+              : error
+                ? "resources.loadError"
+                : search || category !== "all"
+                  ? "resources.noResults"
+                  : "projectSource.noAssets",
           )}
-          <div className="flex flex-col gap-3 p-3" data-testid="other-asset-detail">
-            {selected.type !== "font" && (
-              <AssetPreview
-                asset={selected}
-                className="max-h-40 w-full rounded-[var(--r-md)] bg-[var(--surface-inset)] object-contain"
-              />
-            )}
-            <div className="min-w-0">
-              <div className="truncate text-sm font-medium">{selected.name}</div>
-              <div className="text-xs text-[var(--text-mut)]">
-                {selected.type === "font"
-                  ? t("resources.font")
-                  : `${selected.width} × ${selected.height} px`}
-              </div>
-              <div className="truncate text-xs text-[var(--text-mut)]">
-                {t("projectSource.from", { project: ownerName(selected) })}
-              </div>
-            </div>
-            <Button onClick={() => void copy()} disabled={busy}>
-              {t(busy ? "projectSource.copying" : "projectSource.copy")}
-            </Button>
-            <p className="text-[11px] text-[var(--text-faint)]">
-              {t("projectSource.snapshotHint")}
-            </p>
-          </div>
-        </div>
+        </p>
+      ) : (
+        <AssetGrid
+          assets={filtered}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          keyOf={assetKey}
+          titleOf={(asset) =>
+            sources.length > 1 ? `${asset.name} · ${ownerName(asset)}` : asset.name
+          }
+        />
       )}
     </div>
+  );
+  const detail = selected ? (
+    <div className="flex flex-col gap-3 p-3" data-testid="other-asset-detail">
+      {selected.type !== "font" && <AssetStage asset={selected} />}
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium">{selected.name}</div>
+        {selected.type === "font" && (
+          <div className="text-xs text-[var(--text-mut)]">{t("resources.font")}</div>
+        )}
+        <div className="truncate text-xs text-[var(--text-mut)]">
+          {t("projectSource.from", { project: ownerName(selected) })}
+        </div>
+      </div>
+      <Button onClick={() => void copy()} disabled={busy}>
+        {t(mine ? "projectSource.open" : busy ? "projectSource.copying" : "projectSource.copy")}
+      </Button>
+      {!mine && (
+        <p className="text-[11px] text-[var(--text-faint)]">{t("projectSource.snapshotHint")}</p>
+      )}
+    </div>
+  ) : null;
+  return (
+    <ResourcesSplit
+      narrow={narrow}
+      list={list}
+      detail={detail}
+      onBack={() => setSelectedId(null)}
+    />
   );
 }
 
@@ -305,59 +403,58 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
     matchesFilter(asset, projectId, project, search, category),
   );
 
-  return (
-    <div className="flex h-full min-h-0">
-      {(!narrow || !selectedId) && (
-        <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setUploadOpen(true)}>{t("resources.upload")}</Button>
-            <Button variant="outline" onClick={() => setImportFontOpen(true)}>
-              {t("resources.importFont")}
-            </Button>
-            <Button variant="outline" onClick={() => setImportNexoOpen(true)}>
-              {t("resources.importNexo")}
-            </Button>
-            <Input
-              aria-label={t("resources.search")}
-              placeholder={t("resources.search")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className={narrow ? "w-full" : "flex-1"}
-            />
-          </div>
-          <CategoryChips category={category} onChange={setCategory} />
-          {loading || error || !filtered.length ? (
-            <p
-              role={error ? "alert" : "status"}
-              className="py-8 text-center text-sm text-[var(--text-mut)]"
-            >
-              {t(
-                loading
-                  ? "resources.loading"
-                  : error
-                    ? "resources.loadError"
-                    : search || category !== "all"
-                      ? "resources.noResults"
-                      : "resources.empty",
-              )}
-            </p>
-          ) : (
-            <AssetGrid assets={filtered} selectedId={selectedId} onSelect={setSelectedId} />
-          )}
-        </div>
-      )}
-      {selectedId && (
-        <div
-          className={narrow ? "min-h-0 w-full overflow-y-auto" : "w-72 shrink-0 overflow-y-auto"}
+  const list = (
+    <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => setUploadOpen(true)}>{t("resources.upload")}</Button>
+        <Button variant="outline" onClick={() => setImportFontOpen(true)}>
+          {t("resources.importFont")}
+        </Button>
+        <Button variant="outline" onClick={() => setImportNexoOpen(true)}>
+          {t("resources.importNexo")}
+        </Button>
+        <Input
+          aria-label={t("resources.search")}
+          placeholder={t("resources.search")}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className={narrow ? "w-full" : "min-w-40 flex-1"}
+        />
+      </div>
+      <CategoryChips category={category} onChange={setCategory} />
+      {loading || error || !filtered.length ? (
+        <p
+          role={error ? "alert" : "status"}
+          className="py-8 text-center text-sm text-[var(--text-mut)]"
         >
-          {narrow && (
-            <Button variant="ghost" size="sm" className="m-2" onClick={() => setSelectedId(null)}>
-              {t("resources.back")}
-            </Button>
+          {t(
+            loading
+              ? "resources.loading"
+              : error
+                ? "resources.loadError"
+                : search || category !== "all"
+                  ? "resources.noResults"
+                  : "resources.empty",
           )}
-          <AssetDetailPanel key={`${projectId}:${selectedId}`} projectId={projectId} />
-        </div>
+        </p>
+      ) : (
+        <AssetGrid assets={filtered} selectedId={selectedId} onSelect={setSelectedId} />
       )}
+    </div>
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <ResourcesSplit
+        narrow={narrow}
+        list={list}
+        detail={
+          selectedId ? (
+            <AssetDetailPanel key={`${projectId}:${selectedId}`} projectId={projectId} />
+          ) : null
+        }
+        onBack={() => setSelectedId(null)}
+      />
       <AssetUploadDialog
         usage={category === "button" || category === "menu" ? category : undefined}
         projectId={projectId}

@@ -8,6 +8,7 @@ the `permissions:` block of `paper/src/main/resources/plugin.yml`.
 | Subcommand | Effect |
 |---|---|
 | `menu <menu_id>` | Permission `artisan.menu`. Opens a menu. Players only (`in_game_only` otherwise). Resolves the language via `lang.playerLang(sender)`. |
+| `variant [name\|auto]` | Permission `artisan.variant` (everyone by default). Players only. The menu variant the player sees in every module (`MenuVariants`, `ServerVariants` in core): without a name, which one and whether chosen or automatic; a name among `ServerVariants.offered` becomes the player's choice, a value of the Variable store under `@artisan/menu_variant` (kept in `artisan_vars`, shared by the network); `auto` clears it. Completion lists the variants offered to the player. Design `variantes-modules`. |
 | `reload` | Permission `artisan.admin`. `reinit(loadPluginConfig())`, which recreates the provider and loads it: a single read from disk. Picks up `language` / `per_player_language` and hand edits made on disk. Does not restart the web server: `web.*` needs a restart. |
 | `sync status` | Fixed message pointing to the logs (leftover of cloud sync). |
 | `sync reject` | Permission `artisan.admin`. `menuProvider.unload()/load()` — reloads from disk and, on a leaf, reconnects to the hub. |
