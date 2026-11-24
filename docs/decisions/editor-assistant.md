@@ -150,7 +150,7 @@ than the hub. One single Artisan user at this date: the admin's key first.
    site's admins; buying them is not built yet.
 
 14. **The pictures a tool returns** (2026-11-24; ADR `mcp-server`, decisions 10 and 11). `write_image` and
-   `read_image` answer with the image enlarged, `render_menu` with a whole menu (`McpTools.Outcome.pictures`). The assistant gives
+   `read_image` answer with the image enlarged, `render_menu` with a whole menu, `survey_ui` with a sheet of images per module (`McpTools.Outcome.pictures`). The assistant gives
    them to the model with the tool's result (`AiInput.ToolResult.pictures`), so it checks what it
    drew as an MCP client does: inside the `tool_result` block after its text for the Messages API;
    for Chat Completions, whose `tool` messages are text only, in a `user` message after the tool
@@ -160,7 +160,20 @@ than the hub. One single Artisan user at this date: the admin's key first.
    the history the model rereads at every step and in `artisan_ai_conversations`: at most 2 MB of
    base64 each and 8 MB per conversation (counted from the `tool` events' `pictures`, so a
    restored conversation counts too); beyond, the result comes without it and says so. The editor
-   does not show these pictures in the chat yet: the image is in the draft.
+   does not show these pictures (a ruler, a rendered menu, a sheet): they are the model's. What
+   it shows is the image the assistant wrote: `write_image`'s `tool` event carries the file's
+   `path` and its content hash (`image`), and the editor reads that blob from the draft
+   (`DraftImage`): under the line of the conversation, at a whole number of times its size, and
+   as a card of the Assistant tab's files (new, changed, deleted, from the draft's
+   `binaryBaseline` and `binaryTree`).
+15. **Attached pictures stay at hand for the tools** (2026-11-24; ADR `mcp-server`, decision 13).
+   `measure_image` and `write_image`'s `from` take a picture the player attached by its file
+   name. An image block carries no name, so the message that brings pictures ends with a line
+   naming them in order. The conversation keeps their bytes in memory only
+   (`Conversation.pictures`, within the 16 MB of attachments a conversation may hold), and hands
+   them to `McpTools.invoke`: after a hub restart, or in another conversation, the tool answers
+   that it has no such picture and the model asks for it again. Nothing new is stored in
+   `artisan_ai_conversations`.
 
 ## Consequences
 
@@ -175,4 +188,3 @@ than the hub. One single Artisan user at this date: the admin's key first.
 - Buying credits on the site (decision 13), possibly for an account one does not sign in to.
 - An `artisan.editor.ai` permission and a per-player quota, if others than the admin use it.
 - The model's progress notes between two tools (`display: "updates"`).
-- A card in the chat for an image the assistant drew (decision 14), as a written file has one.

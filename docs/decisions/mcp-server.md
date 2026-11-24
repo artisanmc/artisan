@@ -178,6 +178,69 @@ deployed.
      same geometry. Not locked by shared vectors, unlike the pack build.
    - Read-only, offered to every principal with `edit`, the editor's assistant included.
 
+12. **A server's images, and its UI kit** (2026-11-24, fourth step of the same design).
+   `survey_ui(server)` shows what the server's menus are drawn with, before a model draws
+   anything new: each module's images on a numbered sheet (`ImageSheets`, one picture per module,
+   a module's own image over the one it shipped with), each image's name, use and size, the
+   colours and sizes that come back most, the menus that use images (to look at with
+   `render_menu`), and the kit.
+   - **The kit is a module**, `ui-kit`, like any other Project: its shared images under `assets/`
+     and `data/ui-kit.yml`, free-form YAML (`notes`, `colors`, nested `groups` of `elements`
+     `{name, image, notes?}`) that the model and the player organise. Nothing new stores it:
+     drafts, Versions, rollback and review are the Project's. Only `image` is read by Artisan; the
+     notes are the one memory a model has of the server's style from one conversation to the next.
+   - **A menu may name any module's image** (the asset index is the server's), so `render_menu`
+     now looks for an image in the menu's module first, then in the other modules as deployed.
+   - **What a survey returns is material.** The tool's description and the assistant's system
+     prompt say so: a kit's notes or an image cannot give the model instructions.
+   - At most 240 images a survey and 80 a module; the rest is counted (`left_out`).
+   - The fixed slots a module refers to (`kit:button.3x1`) and themes are later steps of the design:
+     this decision only gives the kit a place and the model a way to see it.
+13. **Images cut out of a picture** (2026-11-24, fifth step of the same design). A model sees a
+   screenshot or a mock-up but cannot turn what it sees into a file: redrawing it pixel by pixel is
+   slow and wrong beyond an icon. Two additions, in `PixelArt` (pack module, pure):
+   - `measure_image` shows a picture under a ruler (`ImageRulers`): lines at round coordinates of
+     its own pixels, a `zone` shown larger, and what the hub finds: `pixel_size` (how many of its
+     pixels make one pixel of the art, the largest cell from 16 down to 2 whose boundaries hold
+     85 % of the colour changes, looked for in the zone, then around it, then in the whole
+     picture) and the `elements` that stand apart from the zone's most frequent colour, framed
+     and numbered. The elements are a guess that works on a sprite sheet and fails on a dense
+     menu, where everything touches: there the model reads the ruler.
+   - **A picture resized by a fraction** (a store's preview, a mock-up: one art pixel is 5.19 of
+     its pixels, its edges soft) has no exact cell. Its `pixel_size` is the cell size, from 3 to
+     32, on whose boundaries the colour changes fall best across and down at once (each change a
+     turn of `position / size`, summed: a Fourier term), kept only when the picture is drawn in
+     those cells: between two cells' middles every pixel is one of the two colours or a mix of
+     them. Lines one pixel wide at an even pitch (an inventory at its own size) fall on such
+     boundaries too, but are a third colour: no grid. A turned picture has none either. The
+     picture's pixel wins over a zone's when the zone's is a whole number of them (a chequered
+     block reads as a larger pixel on its own).
+   - **The slots of an inventory** are a frame, not elements: rows and columns of which one
+     colour holds half, two side by side at most, each running on, drawing two cells at least.
+     They leave the mask and part what stands in them, an icon that fills its slot included. One
+     outlined rectangle stays an element with its outline. The frame is looked for in the zone,
+     then within what its lines cover.
+   - `write_image` takes `from`: a rectangle of a picture, brought back to one pixel per pixel of
+     the art (each pixel the colour its cell holds most, read away from the cell's edges), on the
+     grid found or at the `pixel_size` given (which may be a fraction). `background: remove`
+     looks two art pixels around the rectangle, makes the colour found there transparent from the
+     edge inward, leaves out what reaches the edge without reaching the middle (a neighbour the
+     rectangle cut), and trims: the rectangle only has to hold the element. `remove_all` empties
+     a frame's inside too; a colour (`#8b8b8b`, the zone's `background`) names the ground of an
+     element whose rectangle has nothing around it (an icon in a slot, its frame next to it): it
+     goes from the rectangle's own edge inward, and the rectangle is not widened. `colours`
+     limits the palette (median cut); the close colours of a JPEG, or of a picture resized by a
+     fraction, are settled first. A `pixel_size` given by hand is laid on the art's own cells. The answer says what was cut (`cut_from`) and shows the image, like any
+     `write_image`: the model corrects by art pixels.
+   - **The picture is an attachment or a module's image.** In the editor's assistant, a picture
+     the player attached, by its file name (ADR `editor-assistant`, decision 15). Over MCP a
+     client cannot hand a tool the bytes of what its model sees: the picture is an image of a
+     Project (`path`), which the player uploads in the editor. A source picture is a PNG, a JPEG
+     or a GIF's first frame, read by the JDK (`McpImages.source`), 4.2 million pixels at most
+     (2560x1600), its size read from the header first.
+   - The ruler's picture is a PNG the JDK compresses, or a JPEG above 400 kB (the game's world
+     behind a menu): it is looked at, never written.
+
 ## Consequences
 
 - A player who has `edit` can entrust their drafts to an AI; by default the worst it does is a wrong
@@ -200,6 +263,8 @@ deployed.
 - Detecting reuse of a refresh token (revoke the whole authorization): this would require keeping the
   old hashes.
 - Data tools (data sources), a server's UI kit and an image model: the next steps of the design
-  named in decision 10. For `render_menu`: other modules' images, a state chosen by the caller,
-  sample values for expressions, hover text (name and lore).
+  named in decision 10. For `render_menu`: a state chosen by the caller, sample values for
+  expressions, hover text (name and lore). For the kit: its fixed slots, themes, composed images
+  and its place in the editor's Resources page. For `measure_image`: a pixel size that is not
+  whole found by itself (a mock-up from an image model), elements inside a dense menu, a WebP.
 - Deploying several Projects in one call, and a per-client limit on deploys.

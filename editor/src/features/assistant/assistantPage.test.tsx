@@ -1,5 +1,6 @@
 import { menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
+import { resetDraftImages } from "@/features/project/assistant/DraftImage";
 import { resetAiStatus, resetConversations } from "@/features/project/assistant/useAssistant";
 import type { AiEvent } from "@/lib/api/ai";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
@@ -14,6 +15,7 @@ const api = vi.hoisted(() => ({
   sendAiMessage: vi.fn(),
   listAiConversations: vi.fn(),
   readDraft: vi.fn(),
+  readDraftBlob: vi.fn(),
   loadOtherDrafts: vi.fn(),
 }));
 vi.mock("@/lib/api/ai", async (importOriginal) => ({
@@ -27,6 +29,7 @@ vi.mock("@/lib/api/ai", async (importOriginal) => ({
 vi.mock("@/lib/api/projectDrafts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/projectDrafts")>()),
   readDraft: api.readDraft,
+  readDraftBlob: api.readDraftBlob,
 }));
 vi.mock("@/features/project/publish/otherDrafts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/project/publish/otherDrafts")>()),
@@ -123,8 +126,26 @@ describe("the conversation's files", () => {
         ok: true,
         draft: { project: "u-local.shop", id: "d1" },
       },
+      // An image it drew is a file of the draft too; one drawn before the event named its file is not listed.
+      {
+        seq: 8,
+        type: "tool",
+        name: "write_image",
+        path: "assets/textures/buy.png",
+        image: "abc",
+        ok: true,
+        draft: { project: "u-local.shop", id: "d1" },
+      },
+      {
+        seq: 9,
+        type: "tool",
+        name: "write_image",
+        ok: true,
+        draft: { project: "u-local.shop", id: "d1" },
+      },
     ];
     expect(artifactsOf(events).map((a) => [a.project, a.path, a.draftName, a.seq])).toEqual([
+      ["u-local.shop", "assets/textures/buy.png", "IA : boutique", 8],
       ["u-local.shop", "commands/shop.yml", "IA : boutique", 7],
       ["u-local.vip", "menus/vip.yml", null, 6],
     ]);
@@ -291,6 +312,68 @@ describe("the Assistant tab", () => {
     fireEvent.click(within(card).getByRole("button", { name: "YAML" }));
     expect(within(card).queryByTestId("menu-preview")).toBeNull();
     expect(within(card).getByText(/size: 27/)).toBeTruthy();
+  });
+
+  it("shows an image it drew, in the conversation and as a card, read from the draft", async () => {
+    api.readAiConversation.mockResolvedValue({
+      ...summary("c1", null),
+      events: [
+        { seq: 0, type: "user", text: "un bouton" },
+        {
+          seq: 1,
+          type: "tool",
+          name: "write_image",
+          path: "assets/textures/buy.png",
+          image: "h-new",
+          ok: true,
+          draft: { project: "u-local.shop", id: "d-img", name: "IA : bouton" },
+        },
+        { seq: 2, type: "done", inputTokens: 1, outputTokens: 1 },
+      ],
+    });
+    // Its own draft: a draft's read is kept by draft and version, across the tests of this file.
+    api.readDraft.mockResolvedValue({
+      id: "d-img",
+      projectId: "u-local.shop",
+      name: "IA : bouton",
+      snapshot: {
+        baseline: {},
+        tree: { "assets/textures/buy.yml": "width: 54\nheight: 18\n" },
+        binaryBaseline: { "assets/textures/buy.png": { hash: "h-old", size: 90 } },
+        binaryTree: { "assets/textures/buy.png": { hash: "h-new", size: 120 } },
+        at: 0,
+      },
+    });
+    api.readDraftBlob.mockResolvedValue(new Uint8Array([137, 80, 78, 71]));
+    const made = vi.fn(() => "blob:buy");
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: made }));
+    resetDraftImages();
+    render(<AssistantPage />);
+    fireEvent.change(await screen.findByLabelText("Demande à l’assistant…"), {
+      target: { value: "un bouton" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+
+    // In the conversation, under the line that says what it drew.
+    expect(await screen.findByText("A dessiné assets/textures/buy.png")).toBeTruthy();
+    const card = await screen.findByRole("article", { name: "Store · assets/textures/buy.png" });
+    expect(await within(card).findByText("Modifiée")).toBeTruthy();
+    // Not shown until its size is known: found by its text, not by its role.
+    const pictures = await screen.findAllByAltText("assets/textures/buy.png");
+    expect(pictures).toHaveLength(2);
+    expect(pictures[0]).toHaveAttribute("src", "blob:buy");
+    // The same content is read once for both.
+    expect(api.readDraftBlob).toHaveBeenCalledTimes(1);
+    expect(api.readDraftBlob).toHaveBeenCalledWith("u-local.shop", "d-img", "h-new");
+    // Its size shows once the picture has loaded, at a whole number of times its size.
+    const shown = within(card).getByAltText("assets/textures/buy.png");
+    Object.defineProperties(shown, {
+      naturalWidth: { value: 54 },
+      naturalHeight: { value: 18 },
+    });
+    fireEvent.load(shown);
+    expect(within(card).getByText("54 × 18")).toBeTruthy();
+    expect(shown).toHaveAttribute("width", String(54 * 5));
   });
 
   it("opens Deploy's review with every draft of the conversation picked", async () => {

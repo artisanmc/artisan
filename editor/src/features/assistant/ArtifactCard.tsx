@@ -4,12 +4,19 @@ import { Spinner } from "@/components/ui/spinner";
 import { menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { MenuPlayPreview } from "@/features/play/MenuPlayPreview";
-import { type PersistedDraft, readDraft } from "@/lib/api/projectDrafts";
+import { DraftImage } from "@/features/project/assistant/DraftImage";
 import type { LiveWrite } from "@/lib/aiLive";
-import { FileText, PenLine } from "lucide-react";
+import { type PersistedDraft, readDraft } from "@/lib/api/projectDrafts";
+import { FileText, Image as ImageIcon, PenLine } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { type Artifact, isProject, menuIdOfPath, projectFromDraftTree } from "./artifacts";
+import {
+  type Artifact,
+  isImagePath,
+  isProject,
+  menuIdOfPath,
+  projectFromDraftTree,
+} from "./artifacts";
 
 type DraftRead =
   | { status: "loading" }
@@ -68,6 +75,7 @@ export function ArtifactCard({
   const { t } = useTranslation();
   const read = useDraft(artifact.project, artifact.draftId, version);
   const base = projects.find((p) => isProject(p, artifact.project));
+  const image = isImagePath(artifact.path);
   const menuId = menuIdOfPath(artifact.path);
   const [mode, setMode] = useState<Mode>("visual");
   // A menu of a loaded Project shows as the game would; anything else as YAML.
@@ -75,11 +83,18 @@ export function ArtifactCard({
   const shown: Mode = visual ? mode : "yaml";
 
   const snapshot = read.status === "ready" ? read.draft.snapshot : null;
-  const before = snapshot ? (snapshot.baseline[artifact.path] ?? null) : null;
-  const after = snapshot ? (snapshot.tree[artifact.path] ?? null) : null;
+  // An image is known by its content hash, a text file by its content.
+  const before = snapshot
+    ? ((image
+        ? snapshot.binaryBaseline?.[artifact.path]?.hash
+        : snapshot.baseline[artifact.path]) ?? null)
+    : null;
+  const after = snapshot
+    ? ((image ? snapshot.binaryTree?.[artifact.path]?.hash : snapshot.tree[artifact.path]) ?? null)
+    : null;
   const stats = useMemo(
-    () => (snapshot ? diffStats(before, after) : null),
-    [snapshot, before, after],
+    () => (snapshot && !image ? diffStats(before, after) : null),
+    [snapshot, image, before, after],
   );
 
   // The server's Projects, this one as the draft has it: its menus open the draft's others.
@@ -99,7 +114,11 @@ export function ArtifactCard({
     >
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <FileText className="size-4 shrink-0 text-[var(--text-faint)]" aria-hidden />
+          {image ? (
+            <ImageIcon className="size-4 shrink-0 text-[var(--text-faint)]" aria-hidden />
+          ) : (
+            <FileText className="size-4 shrink-0 text-[var(--text-faint)]" aria-hidden />
+          )}
           <div className="min-w-0">
             <p className="truncate text-[13px] font-medium text-[var(--text)]">
               <span className="text-[var(--text-mut)]">{projectName} · </span>
@@ -113,6 +132,19 @@ export function ArtifactCard({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {snapshot && image && (
+            <span className="font-mono text-[11.5px]">
+              {before === null ? (
+                <span className="text-[var(--success)]">{t("ai.page.addedImage")}</span>
+              ) : after === null ? (
+                <span className="text-[var(--danger)]">{t("ai.page.deleted")}</span>
+              ) : before === after ? (
+                <span className="text-[var(--text-faint)]">{t("ai.page.same")}</span>
+              ) : (
+                <span className="text-[var(--warning)]">{t("ai.page.changedImage")}</span>
+              )}
+            </span>
+          )}
           {stats && (
             <span className="font-mono text-[11.5px]">
               {before === null ? (
@@ -151,6 +183,17 @@ export function ArtifactCard({
         <p role="alert" className="text-[12.5px] text-[var(--danger)]">
           {t("ai.page.unreadable")}
         </p>
+      ) : image ? (
+        after ? (
+          <DraftImage
+            project={artifact.project}
+            draftId={artifact.draftId}
+            hash={after}
+            label={artifact.path}
+          />
+        ) : (
+          <p className="text-[12.5px] text-[var(--text-mut)]">{t("ai.page.imageGone")}</p>
+        )
       ) : shown === "visual" && menuId && base ? (
         preview ? (
           <MenuPlayPreview

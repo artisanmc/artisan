@@ -9,19 +9,28 @@ object McpFixtures {
      * Server `u-local`: [sent] records each message; a file saying `bad` fails its check. A
      * publication is written and loaded at once: [history] gets its Version.
      */
-    fun server(sent: MutableList<Map<String, Any?>>, history: History? = null): EditorServer = object : EditorServer {
+    /** Another module of the server, or the shop's deployed images: read each time, so a test may fill it as it goes. */
+    class Module(val files: Map<String, String> = emptyMap(), val images: Map<String, ByteArray> = emptyMap())
+
+    fun server(sent: MutableList<Map<String, Any?>>, history: History? = null, modules: Map<String, Module> = emptyMap()): EditorServer = object : EditorServer {
         override val id = "u-local"
         override val online = true
         override val link = ServerLink { message ->
             sent += message
             val reply = when (message["type"]) {
-                "project_list" -> mapOf("ok" to true, "project_ids" to listOf("shop"))
+                "project_list" -> mapOf("ok" to true, "project_ids" to listOf("shop") + (modules.keys - "shop"))
+                "asset_read" -> modules[message["project_id"]]?.images?.get(message["path"])
+                    ?.let { mapOf("ok" to true, "content_base64" to java.util.Base64.getEncoder().encodeToString(it)) }
+                    ?: mapOf("ok" to false, "error" to "not_found")
                 "project_create" -> if (message["project_id"] == "shop") mapOf("ok" to false, "error" to "project_exists") else mapOf("ok" to true)
                 "project_read" -> mapOf(
                     "ok" to true, "hash" to "h1",
-                    "files" to (history?.versions?.last()?.files ?: mapOf("menus/shop.yml" to "schema: menu/v1\n", "lang/en.yml" to "a: b\n"))
-                        .map { (path, content) -> mapOf("path" to path, "content" to content) },
-                    "failed" to emptyList<Any>(), "binaries" to emptyList<Any>(),
+                    "files" to (
+                        if (message["project_id"] != "shop") modules[message["project_id"]]?.files.orEmpty()
+                        else history?.versions?.last()?.files ?: mapOf("menus/shop.yml" to "schema: menu/v1\n", "lang/en.yml" to "a: b\n")
+                    ).map { (path, content) -> mapOf("path" to path, "content" to content) },
+                    "failed" to emptyList<Any>(),
+                    "binaries" to modules[message["project_id"]]?.images.orEmpty().map { (path, bytes) -> mapOf("path" to path, "hash" to net.artisanmc.plugin.project.ContentHash.hashBytes(bytes), "size" to bytes.size) },
                 )
                 // The server's check: a file saying `bad` does not load.
                 "documents_check" -> {

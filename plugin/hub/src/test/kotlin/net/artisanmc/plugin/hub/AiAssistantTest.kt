@@ -202,6 +202,9 @@ class AiAssistantTest {
         val drawn = finished(id).single { it["name"]?.asText() == "write_image" }
         assertTrue(drawn["ok"].asBoolean(), drawn.toString())
         assertEquals(drawn["draft"]["id"].asText(), drafts.rows.keys.single(), "the editor can open the draft the image went into")
+        // The event names the file and its content, for the editor to show the image from the draft.
+        assertEquals("assets/textures/shop_button.png", drawn["path"].asText())
+        assertTrue(drawn["image"].asText() in drafts.blobs.keys, drawn.toString())
         val seen = model.results.last()
         val picture = seen.pictures.single()
         assertEquals("shop_button" to "image/png", picture.name to picture.mediaType)
@@ -217,6 +220,58 @@ class AiAssistantTest {
         assertTrue(blind.pictures.isEmpty())
         assertFalse(blind.error)
         assertTrue("not shown" in mapper.readTree(blind.json)["picture"].asText())
+    }
+
+    @Test
+    fun `a picture the player attached is measured and cut by its file name, in its own conversation`() {
+        // A white square in a black border, four times its size, on a plain ground.
+        val capture = net.artisanmc.plugin.pack.RgbaImage(64, 48).also { image ->
+            for (y in 0 until 48) for (x in 0 until 64) java.nio.ByteBuffer.wrap(image.data, (y * 64 + x) * 4, 4).putInt(
+                when {
+                    x in 20 until 36 && y in 16 until 32 -> 0xffffffff.toInt()
+                    x in 16 until 40 && y in 12 until 36 -> 0x000000ff
+                    else -> 0x3a2852ff
+                },
+            )
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        val model = object : AiProvider {
+            override val model = "scripted"
+            override val attachments = AiAttachment.Kind.entries.toSet()
+            val results = CopyOnWriteArrayList<AiInput.ToolResult>()
+            override fun conversation(system: String, tools: List<McpTools.Tool>) = object : AiConversation {
+                var draftId = ""
+                var step = 0
+                override fun step(input: List<AiInput>): AiReply {
+                    input.filterIsInstance<AiInput.ToolResult>().forEach { result ->
+                        results += result
+                        mapper.readTree(result.json).path("draft_id").takeIf { it.isTextual }?.let { draftId = it.asText() }
+                    }
+                    val from = mapOf("attachment" to "capture.png", "x" to 12, "y" to 8, "width" to 32, "height" to 32, "background" to "remove")
+                    return when (step++) {
+                        0 -> calls("measure_image" to mapOf("attachment" to "capture.png"))
+                        1 -> calls("start_draft" to mapOf("project" to "u-local.shop", "name" to "AI: cut"))
+                        2 -> calls("write_image" to mapOf("project" to "u-local.shop", "draft_id" to draftId, "name" to "square", "from" to from))
+                        else -> AiReply(listOf("Voilà."), emptyList(), AiReply.END)
+                    }
+                }
+            }
+        }
+        start(model)
+        val id = conversation()
+        val attached = listOf(mapOf("name" to "capture.png", "data" to java.util.Base64.getEncoder().encodeToString(capture)))
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "prends ce bouton", "attachments" to attached))
+        val events = finished(id)
+        assertEquals(listOf(true, true, true), events.filter { it["type"].asText() == "tool" }.map { it["ok"].asBoolean() }, events.toString())
+        val (measured, _, written) = model.results.toList()
+        assertEquals(4, mapper.readTree(measured.json)["pixel_size"].asInt())
+        assertEquals("""[{"n":1,"x":16,"y":12,"width":24,"height":24,"art_size":"6x6"}]""", mapper.readTree(measured.json)["elements"].toString())
+        assertEquals(1, measured.pictures.size, "the picture under its ruler")
+        assertEquals(listOf(6, 6), listOf("width", "height").map { mapper.readTree(written.json)[it].asInt() })
+
+        // Another conversation has no such picture: the tool says so, the turn goes on.
+        val other = conversation()
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$other/messages", mapOf("text" to "et ici ?"))
+        assertEquals("not_found", finished(other).first { it["type"].asText() == "tool" }["error"].asText())
     }
 
     @Test
@@ -416,8 +471,10 @@ class AiAssistantTest {
         assertEquals("menus/shop.yml", user["attachments"][1]["path"].asText())
         assertFalse(user.toString().contains(b64(png)), "the bytes stay out of the events")
 
-        val (image, file, text) = model.inputs.single()
+        val (image, file, named, text) = model.inputs.single()
         assertEquals(AiInput.Image("capture.png", "image/png", b64(png)), image)
+        // An image block carries no name: the pictures are named after the files, for the tools that cut from one.
+        assertTrue("`capture.png`" in (named as AiInput.Text).text && "shop.yml" !in named.text, named.toString())
         val wrapped = (file as AiInput.Text).text
         assertTrue(wrapped.startsWith("<attachment name=\"shop.yml\" module=\"u-local.old\" path=\"menus/shop.yml\">\nname: '&6Boutique'"), wrapped)
         assertEquals(AiInput.Text("Convertis ce menu"), text)

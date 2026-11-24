@@ -15,6 +15,7 @@ import java.util.logging.Logger
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -27,7 +28,8 @@ class McpTest {
     private val mapper = ObjectMapper()
     private val sent: MutableList<Map<String, Any?>> = Collections.synchronizedList(mutableListOf())
     private val history = McpFixtures.History()
-    private val server = McpFixtures.server(sent, history)
+    private val modules = java.util.concurrent.ConcurrentHashMap<String, McpFixtures.Module>()
+    private val server = McpFixtures.server(sent, history, modules)
 
     private val drafts = McpFixtures.Drafts()
     private val sessions = Sessions()
@@ -140,7 +142,7 @@ class McpTest {
         val notification = http("POST", McpRoutes.PATH, """{"jsonrpc":"2.0","method":"notifications/initialized"}""", mapOf("Authorization" to "Bearer $access"))
         assertEquals(202, notification.status)
         val names = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
-        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "render_menu", "list_versions"), names)
+        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "measure_image", "render_menu", "survey_ui", "list_versions"), names)
         assertTrue(names.none { "publish" in it || "deploy" in it || "rollback" in it })
         // The kind guide is prose for the model to read, the schema outlined rather than dumped.
         val guide = tool(access, "get_kind_guide", "kind" to "menu", "project" to "u-local.shop")
@@ -232,6 +234,187 @@ class McpTest {
         assertEquals("x1", deployed["structuredContent"]["shown_at"].asText())
         assertTrue(tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/vip.yml")["isError"].asBoolean(), "not deployed yet")
         assertTrue(tool(access, "render_menu", "project" to "u-local.shop", "path" to "lang/en.yml")["isError"].asBoolean())
+    }
+
+    @Test
+    fun `a server's images are surveyed module by module, with its kit, and a menu draws the kit's image`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/shop_icon.png" to solid(16, 16, 0x3366cc)))
+        modules["ui-kit"] = McpFixtures.Module(
+            files = mapOf("data/ui-kit.yml" to "notes: Vanilla bevel, no black outline.\n", "menus/demo.yml" to "schema: menu/v1\nsize: 9\nelements:\n  - positions: \"0\"\n    image: { asset: kit_button }\n"),
+            images = mapOf(
+                "assets/textures/kit_button.png" to solid(54, 18, 0x20c040), "originals/assets/textures/kit_button.png" to solid(54, 18, 0x000000),
+                "assets/glyphs/kit_window.png" to solid(176, 166, 0xc6c6c6),
+            ),
+        )
+        val (access, _) = tokens()
+
+        val survey = tool(access, "survey_ui", "server" to "u-local")
+        assertFalse(survey.has("isError"), survey.toString())
+        val facts = survey["structuredContent"]
+        assertEquals(listOf("u-local.shop", "u-local.ui-kit"), facts["modules"].map { it["project"].asText() })
+        // The kit's own button, not the one it shipped with; numbered across the modules.
+        val kitImages = facts["modules"][1]["images"]
+        assertEquals(listOf("kit_window" to "background", "kit_button" to "button"), kitImages.map { it["name"].asText() to it["use"].asText() })
+        assertEquals(listOf(2, 3), kitImages.map { it["n"].asInt() })
+        assertEquals(listOf("menus/demo.yml"), facts["modules"][1]["menus_with_images"].map { it.asText() })
+        assertEquals("#c6c6c6", facts["colours"][0]["colour"].asText(), "the colour most pixels have")
+        assertTrue("Vanilla bevel" in facts["kit"]["content"].asText())
+        assertEquals("u-local.ui-kit", facts["kit"]["project"].asText())
+        assertEquals(listOf("text", "image", "image"), survey["content"].map { it["type"].asText() }, "one sheet per module")
+
+        // A menu of the shop that names the kit's button draws it: an image is found on the whole server.
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: kit")["structuredContent"]["draft_id"].asText()
+        val menu = "schema: menu/v1\nsize: 9\nvanilla_texture: false\nelements:\n  - positions: \"0-2\"\n    image: { asset: kit_button }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/kit.yml", "content" to menu).has("isError"))
+        val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/kit.yml", "draft_id" to draftId, "scale" to 1)
+        assertTrue(rendered["structuredContent"]["notes"].none { "kit_button" in it.asText() }, rendered["structuredContent"].toString())
+        val window = rendered["structuredContent"]["window"]
+        val shown = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+        val at = ((window["y"].asInt() + 17 + 9) * shown.width + window["x"].asInt() + 7 + 27) * 4
+        assertEquals(listOf(0x20, 0xc0, 0x40), shown.data.slice(at until at + 3).map { it.toInt() and 0xff })
+
+        // A server without a kit is told how one is made.
+        modules.remove("ui-kit")
+        assertTrue("create_module" in tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"]["how"].asText())
+        assertTrue(tool(access, "survey_ui", "server" to "nowhere")["isError"].asBoolean())
+    }
+
+    @Test
+    fun `an image is cut out of a picture, at the art's own size and without its ground`() {
+        // A round button drawn four times its size on a plain ground, as a screenshot or a sprite sheet shows it.
+        val rows = listOf("_kkkkkk_", "kwwwwwgk", "kwrrrrgk", "kwrbbrgk", "kgggggGk", "_kkkkkk_")
+        val colours = mapOf('_' to 0x3a2852, 'k' to 0x000000, 'w' to 0xffffff, 'r' to 0xc03030, 'b' to 0x3050c0, 'g' to 0x8b8b8b, 'G' to 0x555555)
+        val sheet = net.artisanmc.plugin.pack.RgbaImage(120, 90)
+        for (y in 0 until 90) for (x in 0 until 120) {
+            val key = rows.getOrNull(Math.floorDiv(y - 19, 4))?.getOrNull(Math.floorDiv(x - 23, 4)) ?: '_'
+            java.nio.ByteBuffer.wrap(sheet.data, (y * 120 + x) * 4, 4).putInt((colours.getValue(key) shl 8) or 0xff)
+        }
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/sheet.png" to net.artisanmc.plugin.pack.Png.encode(sheet)))
+        val (access, _) = tokens()
+
+        val measured = tool(access, "measure_image", "project" to "u-local.shop", "path" to "assets/textures/sheet.png")
+        assertFalse(measured.has("isError"), measured.toString())
+        val facts = measured["structuredContent"]
+        assertEquals(listOf(120, 90, 4), listOf("width", "height", "pixel_size").map { facts[it].asInt() })
+        assertEquals("x8" to "#3a2852", facts["shown_at"].asText() to facts["background"].asText())
+        assertEquals("""[{"n":1,"x":23,"y":19,"width":32,"height":24,"art_size":"8x6"}]""", facts["elements"].toString())
+        assertEquals("image" to "image/png", measured["content"][1]["type"].asText() to measured["content"][1]["mimeType"].asText())
+        // A zone holds what is asked of the picture, and one outside it is refused.
+        val zone = mapOf("x" to 10, "y" to 10, "width" to 60, "height" to 40)
+        assertEquals("x12", tool(access, "measure_image", "project" to "u-local.shop", "path" to "assets/textures/sheet.png", "zone" to zone)["structuredContent"]["shown_at"].asText())
+        assertTrue(tool(access, "measure_image", "project" to "u-local.shop", "path" to "assets/textures/sheet.png", "zone" to zone + ("x" to 500))["isError"].asBoolean())
+
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: cut")["structuredContent"]["draft_id"].asText()
+        fun cut(name: String, vararg from: Pair<String, Any?>) =
+            tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to name, "from" to mapOf("path" to "assets/textures/sheet.png", *from))
+        fun stored(name: String): net.artisanmc.plugin.pack.RgbaImage {
+            val ref = mapper.readTree(drafts.rows.getValue(draftId))["snapshot"]["binaryTree"]["assets/textures/$name.png"]
+            return net.artisanmc.plugin.pack.Png.decode(drafts.blobs.getValue(ref["hash"].asText()))
+        }
+        fun pixel(image: net.artisanmc.plugin.pack.RgbaImage, x: Int, y: Int) = java.nio.ByteBuffer.wrap(image.data, (y * image.width + x) * 4, 4).int
+
+        // A loose rectangle around the button: its ground goes, the image is the button alone, one pixel per art pixel.
+        val round = cut("round_button", "x" to 18, "y" to 15, "width" to 44, "height" to 33, "background" to "remove")
+        assertFalse(round.has("isError"), round.toString())
+        val cutFacts = round["structuredContent"]
+        assertEquals(listOf(8, 6, 4), listOf("width", "height", "pixel_size").map { cutFacts[it].asInt() })
+        assertEquals("#3a2852", cutFacts["background_removed"].asText())
+        assertEquals("""{"picture":"assets/textures/sheet.png","x":23,"y":19,"width":32,"height":24}""", cutFacts["cut_from"].toString())
+        val button = stored("round_button")
+        assertEquals(listOf(0, 0x000000ff, 0xffffffff.toInt(), 0x3050c0ff), listOf(pixel(button, 0, 0), pixel(button, 1, 0), pixel(button, 1, 1), pixel(button, 3, 3)))
+        assertEquals("width: 8\nheight: 6\nusages: [button]\n", mapper.readTree(drafts.rows.getValue(draftId))["snapshot"]["tree"]["assets/textures/round_button.yml"].asText())
+
+        // Kept as it is: a rectangle a pixel or two off snaps to the art's pixels, and the corners keep the ground.
+        assertEquals(0x3a2852ff, pixel(cut("square_button", "x" to 24, "y" to 18, "width" to 31, "height" to 25).let { stored("square_button") }, 0, 0))
+        // A pixel size given wins over the one found; fewer colours when asked.
+        val coarse = cut("coarse", "x" to 23, "y" to 19, "width" to 32, "height" to 24, "pixel_size" to 8, "colours" to 2)["structuredContent"]
+        assertEquals(listOf(4, 3, 2), listOf("width", "height", "colours_kept").map { coarse[it].asInt() })
+
+        // What cannot be cut says why: no attachment outside the assistant, a rectangle off the picture, only ground.
+        val none = cut("x", "attachment" to "capture.png")
+        assertTrue(none["isError"].asBoolean() && "editor's assistant" in none["structuredContent"]["message"].asText(), none.toString())
+        assertTrue(cut("x", "x" to 200, "y" to 0, "width" to 10, "height" to 10)["isError"].asBoolean())
+        assertTrue("Nothing is left" in cut("x", "x" to 80, "y" to 60, "width" to 20, "height" to 20, "background" to "remove")["structuredContent"]["message"].asText())
+        assertTrue(tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "x", "from" to mapOf("x" to 1))["isError"].asBoolean())
+    }
+
+    @Test
+    fun `icons are cut out of an inventory's slots, in a picture resized by a fraction`() {
+        // Three slots as the game draws them (dark edge top and left, light edge bottom and right) in a panel, a gem in the
+        // first and a block that fills the second, the whole resized by 4.5 and smoothed: a store's preview, a mock-up.
+        val gem = listOf("__kkkkkkkk__", "_kwwwwwwwwk_", "kwwbbbbbbwwk", "kwbbwbbbbbwk", "kwbwbbbbbbwk", "_kwbbbbbbwk_", "__kwbbbbwk__", "___kwbbwk___", "____kwwk____", "_____kk_____")
+        val colours = mapOf('_' to 0x8b8b8b, 'k' to 0x000000, 'w' to 0xffffff, 'r' to 0xc03030, 'b' to 0x3050c0, 'p' to 0xc6c6c6, 'd' to 0x373737)
+        fun art(x: Int, y: Int): Char {
+            val column = Math.floorDiv(x - 1, 18)
+            val i = Math.floorMod(x - 1, 18)
+            val j = y - 1
+            if (column !in 0..2 || j !in 0..17) return 'p'
+            return when {
+                (j == 0 && i < 17) || (i == 0 && j < 17) -> 'd'
+                (j == 17 && i > 0) || (i == 17 && j > 0) -> 'w'
+                i == 0 || i == 17 -> '_'
+                column == 0 -> gem.getOrNull(j - 4)?.getOrNull(i - 3) ?: '_'
+                column == 2 -> '_'
+                else -> if (((i - 1) / 4 + (j - 1) / 4) % 2 == 0) 'r' else 'b'
+            }
+        }
+        val scale = 4.5
+        val picture = net.artisanmc.plugin.pack.RgbaImage((56 * scale).toInt(), (20 * scale).toInt())
+        for (y in 0 until picture.height) for (x in 0 until picture.width) {
+            val sum = IntArray(3)
+            for (j in 0 until 4) for (i in 0 until 4) {
+                val colour = colours.getValue(art(((x + (i + 0.5) / 4) / scale).toInt(), ((y + (j + 0.5) / 4) / scale).toInt()))
+                sum[0] += colour shr 16
+                sum[1] += (colour shr 8) and 0xff
+                sum[2] += colour and 0xff
+            }
+            java.nio.ByteBuffer.wrap(picture.data, (y * picture.width + x) * 4, 4).putInt(((sum[0] / 16) shl 24) or ((sum[1] / 16) shl 16) or ((sum[2] / 16) shl 8) or 0xff)
+        }
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/preview.png" to net.artisanmc.plugin.pack.Png.encode(picture)))
+        val (access, _) = tokens()
+
+        val facts = tool(access, "measure_image", "project" to "u-local.shop", "path" to "assets/textures/preview.png")["structuredContent"]
+        assertEquals(4.5, facts["pixel_size"].asDouble(), 0.02)
+        assertTrue("resized" in facts["pixel_size_note"].asText())
+        assertEquals("#8b8b8b", facts["background"].asText())
+        // The slots' lines part the icons and are no element; the block touches them and still comes alone.
+        assertEquals(listOf("12x10", "16x16"), facts["elements"].map { it["art_size"].asText() })
+        assertTrue("background: \"#8b8b8b\"" in facts["next"].asText(), facts["next"].asText())
+
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: icons")["structuredContent"]["draft_id"].asText()
+        fun cut(name: String, element: JsonNode, vararg more: Pair<String, Any?>) = tool(
+            access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to name,
+            "from" to mapOf("path" to "assets/textures/preview.png", "x" to element["x"].asInt(), "y" to element["y"].asInt(), "width" to element["width"].asInt(), "height" to element["height"].asInt(), *more),
+        )
+        fun stored(name: String): net.artisanmc.plugin.pack.RgbaImage {
+            val ref = mapper.readTree(drafts.rows.getValue(draftId))["snapshot"]["binaryTree"]["assets/textures/$name.png"]
+            return net.artisanmc.plugin.pack.Png.decode(drafts.blobs.getValue(ref["hash"].asText()))
+        }
+        fun pixel(image: net.artisanmc.plugin.pack.RgbaImage, x: Int, y: Int) = java.nio.ByteBuffer.wrap(image.data, (y * image.width + x) * 4, 4).int
+
+        // The element's own rectangle has no ground around it: the ground is named, and goes from the rectangle's edge inward.
+        val written = cut("gem", facts["elements"][0], "background" to "#8b8b8b", "colours" to 4)
+        assertFalse(written.has("isError"), written.toString())
+        val cutFacts = written["structuredContent"]
+        assertEquals(listOf(12, 10), listOf("width", "height").map { cutFacts[it].asInt() })
+        assertEquals(4.5, cutFacts["pixel_size"].asDouble(), 0.02)
+        assertEquals("#8b8b8b", cutFacts["background_removed"].asText())
+        assertTrue(cutFacts["notes"].any { "resized" in it.asText() }, cutFacts.toString())
+        val image = stored("gem")
+        // A corner is transparent, the outline black, the gem's inside blue, as drawn.
+        assertEquals(listOf(0, 0x000000ff, 0x3050c0ff), listOf(pixel(image, 0, 0), pixel(image, 2, 0), pixel(image, 5, 4)))
+
+        // A ground the rectangle's edge does not show is said, not guessed; anything else than a colour or a mode is refused.
+        val wrong = cut("block", facts["elements"][1], "background" to "#00ff00")["structuredContent"]
+        assertEquals(listOf(16, 16), listOf("width", "height").map { wrong[it].asInt() })
+        assertTrue(!wrong.has("background_removed") && wrong["notes"].any { "Nothing was removed" in it.asText() }, wrong.toString())
+        assertTrue(cut("x", facts["elements"][0], "background" to "green")["isError"].asBoolean())
+        // The size given by hand is laid on the art's own cells: the same image.
+        cut("gem_by_hand", facts["elements"][0], "background" to "#8b8b8b", "colours" to 4, "pixel_size" to 4.5)
+        assertContentEquals(image.data, stored("gem_by_hand").data)
     }
 
     @Test

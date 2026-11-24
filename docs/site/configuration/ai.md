@@ -68,8 +68,9 @@ The assistant reads the modules, starts a draft and writes the files, each one c
 server first. The panel offers to open the draft in **Drafts**, where you review and deploy.
 
 - **Assistant tab** of the server page: the same conversation in full width, every file it wrote
-  on the right (menus shown as in game, other files as YAML with a diff). It can work across all
-  the server's projects, one draft each; **Review and deploy** takes them all.
+  on the right (menus shown as in game, images enlarged, other files as YAML with a diff). It
+  can work across all the server's projects, one draft each; **Review and deploy** takes them
+  all.
 - **Attach files** with the paperclip, or drop or paste them: up to 5 per message. Screenshots
   and textures (3.7 MB), PDFs (6 MB), text files such as another plugin's menu to convert
   (200,000 characters). 6 MB per message, 16 MB per conversation: start a new conversation for
@@ -111,6 +112,29 @@ check a layout before telling you it is done. It is a still picture, not the gam
 and data are not evaluated, so an element shows its default look, a value such as
 `{shop.price}` shows as `{price}`, and an item only known in game shows a `?`. Open the menu
 in game, or in the editor's preview, to see it with real data.
+
+**From a screenshot or a mock-up.** Attach a picture to your message in the editor's assistant
+(a menu you like, a sheet of buttons, a mock-up) and ask for what you want from it: "Take the
+close button and the three tabs from this picture." The assistant measures the picture, cuts
+each element out at the art's own size, whatever the screenshot's GUI scale, removes the
+background around a shape, and writes the result into the draft as an image, which it looks at
+and corrects. It works best on pixel art over a plain background, in a PNG. The icons of an
+inventory are told apart from its slots. A picture resized after the art was drawn (a store's
+preview, a mock-up) is read too, less exactly: a JPEG or a resize blurs colours and edges, so
+look at each image it gives. Art that is turned, or drawn in perspective, cannot be cut out.
+Elements that touch their neighbours are cut as rectangles, to the pixel. A PNG, JPEG or GIF up to 2560x1600. An app
+connected over MCP has no attachments: upload the picture into a module's images first, and
+give it that path. Only take images you have the right to reuse.
+
+**A consistent style: the UI kit.** Before it draws, the app looks at the images your modules
+already have, so a new menu matches the others. To keep a style over time, ask it for a UI kit:
+"Make a UI kit for this server from the guild menus." It creates a module named `ui-kit` that
+holds the shared images (buttons, windows, arrows) and a `data/ui-kit.yml` file: the list of
+those images, grouped as you like, and the style rules in plain words ("vanilla bevel, no black
+outline"). Any menu of the server can use the kit's images, and the app reads the kit at the
+start of each conversation, which is the only thing it remembers from the last one. The kit is
+a module like any other: you review and deploy what the app adds to it, and you can edit the
+file yourself.
 
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"
 on the consent page, or the "Can deploy" switch in **Settings → AI apps**. The app then shows
