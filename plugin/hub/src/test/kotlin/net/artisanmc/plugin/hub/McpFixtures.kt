@@ -100,7 +100,8 @@ object McpFixtures {
             receipts[commit.receipt.operationId] = commit.receipt
             return true
         }
-        override fun content(hash: String): ByteArray? = null
-        override fun putContent(hash: String, bytes: ByteArray) = Unit
+        val blobs = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
+        override fun content(hash: String): ByteArray? = blobs[hash]
+        override fun putContent(hash: String, bytes: ByteArray) { blobs[hash] = bytes }
     }
 }

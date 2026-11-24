@@ -109,6 +109,28 @@ class OpenAiProviderTest {
     }
 
     @Test
+    fun `a tool's picture follows the tool messages in a user message, named after its call`() {
+        answers += 200 to stream(calls = listOf(read, read.copy(id = "call_2")), finish = "tool_calls")
+        answers += 200 to stream(text = "Vu.")
+        val conversation = provider().conversation("s", tools)
+        conversation.step(listOf(AiInput.Text("dessine")))
+        conversation.step(
+            listOf(
+                AiInput.ToolResult("call_1", """{"width":4}""", error = false, pictures = listOf(AiInput.Image("shop_button", "image/png", "aGk="))),
+                AiInput.ToolResult("call_2", """{"ok":true}""", error = false),
+            ),
+        )
+
+        val history = requests[1]["messages"]
+        assertEquals(listOf("system", "user", "assistant", "tool", "tool", "user"), history.map { it["role"].asText() })
+        assertEquals("""{"width":4}""", history[3]["content"].asText(), "a tool message stays text")
+        val shown = history[5]["content"]
+        assertEquals(listOf("text", "image_url"), shown.map { it["type"].asText() })
+        assertTrue("call_1" in shown[0]["text"].asText() && "shop_button" in shown[0]["text"].asText())
+        assertEquals("data:image/png;base64,aGk=", shown[1]["image_url"]["url"].asText())
+    }
+
+    @Test
     fun `a stored history goes on where it stopped, the calls left without result answered as interrupted`() {
         answers += 200 to stream(calls = listOf(read), finish = "tool_calls", reasoning = "Il faut lire le menu.")
         answers += 200 to stream(text = "Je reprends.")

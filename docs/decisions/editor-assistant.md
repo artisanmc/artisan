@@ -19,7 +19,7 @@ than the hub. One single Artisan user at this date: the admin's key first.
    stays in the hub, never in the browser nor in the editor. The editor reads the events
    (`user`, `text`, `tool`, `notice`, `error`, `done`, numbered) by polling, asking only for
    the new ones (`?after=`); no stream to keep open through the tunnel.
-2. **The same tools as `/mcp`, the same scope.** The assistant gets the seven tools of
+2. **The same tools as `/mcp`, the same scope.** The assistant gets the draft tools of
    `McpTools` (`invoke`, shared with `McpRoutes`) and acts as the session's player, minus
    `publish` and `config`. It writes drafts checked by the server, it does not deploy. A
    draft it creates is offered in the panel: "Open in Drafts". Since 2026-10-29 an MCP client
@@ -149,6 +149,19 @@ than the hub. One single Artisan user at this date: the admin's key first.
    bottom of the sidebar, linking to the account page on the site. Credits are given by the
    site's admins; buying them is not built yet.
 
+14. **The pictures a tool returns** (2026-11-24; ADR `mcp-server`, decisions 10 and 11). `write_image` and
+   `read_image` answer with the image enlarged, `render_menu` with a whole menu (`McpTools.Outcome.pictures`). The assistant gives
+   them to the model with the tool's result (`AiInput.ToolResult.pictures`), so it checks what it
+   drew as an MCP client does: inside the `tool_result` block after its text for the Messages API;
+   for Chat Completions, whose `tool` messages are text only, in a `user` message after the tool
+   messages, each picture named after its call. Only to a model that reads images
+   (`AiProvider.attachments`): otherwise the result says `picture: not shown…`, and the system
+   prompt tells the model to say so rather than describe what it did not see. A picture stays in
+   the history the model rereads at every step and in `artisan_ai_conversations`: at most 2 MB of
+   base64 each and 8 MB per conversation (counted from the `tool` events' `pictures`, so a
+   restored conversation counts too); beyond, the result comes without it and says so. The editor
+   does not show these pictures in the chat yet: the image is in the draft.
+
 ## Consequences
 
 - The admin pays for every message of every player who has `edit`. No per-player quota nor
@@ -162,3 +175,4 @@ than the hub. One single Artisan user at this date: the admin's key first.
 - Buying credits on the site (decision 13), possibly for an account one does not sign in to.
 - An `artisan.editor.ai` permission and a per-player quota, if others than the admin use it.
 - The model's progress notes between two tools (`display: "updates"`).
+- A card in the chat for an image the assistant drew (decision 14), as a written file has one.

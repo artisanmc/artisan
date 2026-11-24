@@ -40,7 +40,7 @@ class McpRefusal(val code: String, override val message: String) : RuntimeExcept
 class McpProjects(
     private val servers: Servers,
     private val loaded: LoadedProjects? = null,
-    draftStorage: DraftStorage? = null,
+    private val draftStorage: DraftStorage? = null,
     private val history: ProjectHistory? = null,
     private val timeoutSeconds: Long = 20,
 ) {
@@ -60,6 +60,17 @@ class McpProjects(
         loaded?.read(project.server.id, project.folder)?.let { return it + ("ok" to true) }
         return request(project.server, mapOf("type" to "project_read", "project_id" to project.folder)).also(::refuseUnlessOk)
     }
+
+    /** An image or font file of the Project as the server has it; null when it has none at [path]. */
+    fun binary(project: ProjectRef, path: String): ByteArray? {
+        loaded?.binary(project.server.id, project.folder, path)?.let { return it }
+        val reply = request(project.server, mapOf("type" to "asset_read", "project_id" to project.folder, "path" to path))
+        val content = (reply["content_base64"] as? String)?.takeIf { reply["ok"] == true } ?: return null
+        return runCatching { java.util.Base64.getDecoder().decode(content) }.getOrNull()
+    }
+
+    /** The bytes a draft holds under [hash] (`write_blob`); null when no draft kept them. */
+    fun blob(hash: String): ByteArray? = draftStorage?.content(hash)
 
     /** `documents_check` on the Project's own server: its kinds, its schemas, its reader. */
     fun check(project: ProjectRef, files: Map<String, String>, deletes: Collection<String>): List<Map<String, Any?>> {

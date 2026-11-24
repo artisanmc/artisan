@@ -129,6 +129,55 @@ deployed.
      asked, and a link to follow from a chat); a scope in the OAuth sense (clients ask for scopes at
      registration, and the choice belongs to the player, after).
 
+10. **Images in a draft** (2026-11-24, first step of the design `design-ia-menus-assets-2026-11-24`,
+   project files). `write_image(project, draft_id, name, use, pixels | png_base64, delete?)` puts a
+   menu's image in the draft; `read_image(project, path, draft_id?)` shows one; `list_documents`
+   lists them (`images`).
+   - **Pixels as data, never code.** `pixels` is a palette of one-character keys and one string per
+     row (`McpImages.fromPixels`): the model sets every pixel, with no drawing primitive to limit
+     it and nothing to run on the server. `png_base64` takes an image a client made on its side
+     (Claude Code and others have their own sandbox). Either way ≤ 512 px a side (read from the
+     PNG header before decoding), ≤ 2 MB, and re-encoded by `Png` as plain 8-bit RGBA.
+   - **Where it goes.** `use: button` → `assets/textures/<name>.png`, descriptor `usages: [button]`;
+     `use: background` → `assets/glyphs/<name>.png` with `ascent: 13` and the first codepoint no
+     descriptor of the draft has (U+E000..U+F7FF, as the editor offers it; the build still settles
+     collisions between Projects). Writing over an image keeps its place and its descriptor but the
+     size. The bytes go through `write_blob`, then one `update` sets `binaryTree` and the
+     descriptor: the draft actions are unchanged, and so is the protocol.
+   - **The model sees what it wrote.** A tool may answer with pictures (`McpTools.Shown`,
+     `Outcome.pictures`): the image enlarged to at least 256 px, nearest neighbour, over a dark
+     chequerboard, sent as an MCP `image` content block after the JSON. The JSON says the size, the
+     colour count and the partly transparent pixels; `read_image` adds a small image's pixels as
+     `write_image` takes them.
+   - **Draft only.** Both tools are offered to every principal with `edit`, the editor's assistant
+     included. Rebuilding the pack stays a deploying tool.
+   - **The editor's assistant sees them too** (ADR `editor-assistant`, decision 14): a tool's
+     pictures go to its model with the result, when the model reads images.
+
+11. **A menu as a picture** (2026-11-24, third step of the same design).
+   `render_menu(project, path, draft_id?, lang?, scale?)` draws a whole menu, as deployed or as a
+   draft has it, so the model judges the layout and not one image at a time.
+   - **Drawn by the pack module** (`MenuPictures`, pure): the container (the jar's vanilla textures,
+     unless `vanilla_texture: false`), the title's layers at their chest coordinates (`background`,
+     `glyph`, `text`, `textarea`, `plain`), the image buttons through `ImageButtonGeometry` and
+     their labels as the title compiler lays them out, then each slot's item over them, with its
+     count. Text uses the vanilla sheets the jar carries, at the title sizes. The picture is the
+     window at the game's size on a dark backdrop with room around it (a title image may be wider
+     or start above), enlarged 3 times by default; `window` says where the window is in it.
+   - **Static.** No expression, condition nor data source is evaluated: an element shows its
+     default look (its first state when it has no look of its own), a row-bound element its look in
+     every slot it may fill, a value in `{…}` is drawn as its name, an item that is an expression
+     shows `?`. The result's `notes` say each of these, and name the images and items it could not
+     find, so a model does not take the picture for the game.
+   - **Images come from the menu's module**, the draft's first: `assets/glyphs`, `assets/textures`,
+     then what the module shipped with (`originals/assets/…`). Another module's image is not drawn
+     yet (noted). Items are the hub's vanilla pictures (`VanillaAssets`: the 3D icon, else the flat
+     texture), which download on first use: until then, and for an unknown id, a `?`.
+   - **No twin in the editor.** The editor shows a menu with its own Play engine; this picture is
+     for a model's eyes and only has to place things where the pack does, which it reads from the
+     same geometry. Not locked by shared vectors, unlike the pack build.
+   - Read-only, offered to every principal with `edit`, the editor's assistant included.
+
 ## Consequences
 
 - A player who has `edit` can entrust their drafts to an AI; by default the worst it does is a wrong
@@ -150,6 +199,7 @@ deployed.
   `/ai` relay): next milestones of the proposal.
 - Detecting reuse of a refresh token (revoke the whole authorization): this would require keeping the
   old hashes.
-- Image and data tools (writing images, data sources): not until the text flow has been put to use.
-  `write_blob` serves only `version_rollback`.
+- Data tools (data sources), a server's UI kit and an image model: the next steps of the design
+  named in decision 10. For `render_menu`: other modules' images, a state chosen by the caller,
+  sample values for expressions, hover text (name and lore).
 - Deploying several Projects in one call, and a per-client limit on deploys.

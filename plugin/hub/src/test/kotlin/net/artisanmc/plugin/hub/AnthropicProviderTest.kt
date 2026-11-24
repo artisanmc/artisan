@@ -177,6 +177,21 @@ class AnthropicProviderTest {
     }
 
     @Test
+    fun `a tool's picture goes back inside its result, after the text`() {
+        answers += 200 to message("""[{"type":"tool_use","id":"toolu_1","name":"read_document","input":{}}]""", "tool_use")
+        answers += 200 to message("""[{"type":"text","text":"Vu."}]""", "end_turn")
+        val conversation = provider().conversation("s", tools)
+        conversation.step(listOf(AiInput.Text("dessine")))
+        conversation.step(listOf(AiInput.ToolResult("toolu_1", """{"width":4}""", error = false, pictures = listOf(AiInput.Image("shop_button", "image/png", "aGk=")))))
+
+        val result = requests[1]["messages"][2]["content"].single()
+        assertEquals("tool_result", result["type"].asText())
+        assertEquals(listOf("text", "image"), result["content"].map { it["type"].asText() })
+        assertEquals("""{"width":4}""", result["content"][0]["text"].asText())
+        assertEquals("image/png" to "aGk=", result["content"][1]["source"].let { it["media_type"].asText() to it["data"].asText() })
+    }
+
+    @Test
     fun `a refused key, a refusal and a cut answer are told apart`() {
         answers += 401 to """{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}"""
         val failure = assertFailsWith<AiFailure> { provider().conversation("s", tools).step(listOf(AiInput.Text("hi"))) }

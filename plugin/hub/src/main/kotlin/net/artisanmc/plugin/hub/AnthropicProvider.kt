@@ -240,8 +240,11 @@ class AnthropicProvider(
 
     private fun block(input: AiInput): JsonNode = when (input) {
         is AiInput.Text -> json.objectNode().put("type", "text").put("text", input.text)
-        is AiInput.ToolResult -> json.objectNode().put("type", "tool_result").put("tool_use_id", input.callId)
-            .put("content", input.json).put("is_error", input.error)
+        is AiInput.ToolResult -> json.objectNode().put("type", "tool_result").put("tool_use_id", input.callId).apply {
+            // A plain result stays a string; one with pictures is its text, then each picture.
+            if (input.pictures.isEmpty()) put("content", input.json)
+            else set<ObjectNode>("content", json.arrayNode().add(block(AiInput.Text(input.json))).addAll(input.pictures.map(::block)))
+        }.put("is_error", input.error)
         is AiInput.Image -> json.objectNode().put("type", "image").set<ObjectNode>(
             "source", json.objectNode().put("type", "base64").put("media_type", input.mediaType).put("data", input.base64),
         )

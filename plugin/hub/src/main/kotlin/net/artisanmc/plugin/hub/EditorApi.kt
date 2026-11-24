@@ -47,7 +47,9 @@ object EditorApi {
         }
         AddressRoutes(tunnel, sessions).register(router)
         stats?.let { StatsRoutes(servers, it, relay).register(router) }
-        val tools = McpTools(McpProjects(servers, loaded, drafts, history), packs = packBuilder)
+        // An item's picture for render_menu: its 3D icon, else its flat texture.
+        val itemPictures = vanilla?.let { v -> { id: String -> v.texture("icons/$id") ?: v.texture("item/$id") ?: v.texture("block/$id") } }
+        val tools = McpTools(McpProjects(servers, loaded, drafts, history), packs = packBuilder, items = itemPictures)
         if (mcp != null) {
             OAuthRoutes(mcp).register(router)
             McpRoutes(tools, mcp, version, logger).register(router)

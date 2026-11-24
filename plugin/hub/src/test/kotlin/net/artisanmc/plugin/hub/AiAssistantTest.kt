@@ -170,6 +170,56 @@ class AiAssistantTest {
     }
 
     @Test
+    fun `an image the assistant draws comes back for it to look at, unless the model reads no images`() {
+        val model = object : AiProvider {
+            override val model = "scripted"
+            @Volatile var kinds: Set<AiAttachment.Kind> = AiAttachment.Kind.entries.toSet()
+            override val attachments get() = kinds
+            val results = CopyOnWriteArrayList<AiInput.ToolResult>()
+            override fun conversation(system: String, tools: List<McpTools.Tool>) = object : AiConversation {
+                var draftId = ""
+                var step = 0
+                override fun step(input: List<AiInput>): AiReply {
+                    input.filterIsInstance<AiInput.ToolResult>().forEach { result ->
+                        results += result
+                        mapper.readTree(result.json).path("draft_id").takeIf { it.isTextual }?.let { draftId = it.asText() }
+                    }
+                    val draw = mapOf(
+                        "project" to "u-local.shop", "draft_id" to draftId, "name" to "shop_button",
+                        "pixels" to mapOf("palette" to mapOf("#" to "#373737"), "rows" to listOf("##", "##")),
+                    )
+                    return when (step++) {
+                        0 -> calls("start_draft" to mapOf("project" to "u-local.shop", "name" to "AI: images"))
+                        1, 3 -> calls("write_image" to draw)
+                        else -> AiReply(listOf("Voilà."), emptyList(), AiReply.END)
+                    }
+                }
+            }
+        }
+        start(model)
+        val id = conversation()
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "un bouton"))
+        val drawn = finished(id).single { it["name"]?.asText() == "write_image" }
+        assertTrue(drawn["ok"].asBoolean(), drawn.toString())
+        assertEquals(drawn["draft"]["id"].asText(), drafts.rows.keys.single(), "the editor can open the draft the image went into")
+        val seen = model.results.last()
+        val picture = seen.pictures.single()
+        assertEquals("shop_button" to "image/png", picture.name to picture.mediaType)
+        assertEquals(2 * 16, net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(picture.base64)).width, "enlarged")
+        assertEquals(picture.base64.length, drawn["pictures"].asInt(), "counted against the conversation's pictures")
+        assertFalse(mapper.readTree(seen.json).has("picture"))
+
+        // A model that reads no images gets the facts, and is told the picture is missing.
+        model.kinds = setOf(AiAttachment.Kind.TEXT)
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "encore"))
+        finished(id)
+        val blind = model.results.last()
+        assertTrue(blind.pictures.isEmpty())
+        assertFalse(blind.error)
+        assertTrue("not shown" in mapper.readTree(blind.json)["picture"].asText())
+    }
+
+    @Test
     fun `a file the server would not load comes back to the model, and the draft keeps its content`() {
         val model = object : AiProvider {
             override val model = "scripted"

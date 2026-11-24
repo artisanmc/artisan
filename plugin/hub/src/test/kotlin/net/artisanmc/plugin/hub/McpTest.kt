@@ -140,7 +140,7 @@ class McpTest {
         val notification = http("POST", McpRoutes.PATH, """{"jsonrpc":"2.0","method":"notifications/initialized"}""", mapOf("Authorization" to "Bearer $access"))
         assertEquals(202, notification.status)
         val names = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
-        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "list_versions"), names)
+        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "render_menu", "list_versions"), names)
         assertTrue(names.none { "publish" in it || "deploy" in it || "rollback" in it })
         // The kind guide is prose for the model to read, the schema outlined rather than dumped.
         val guide = tool(access, "get_kind_guide", "kind" to "menu", "project" to "u-local.shop")
@@ -201,6 +201,96 @@ class McpTest {
         val check = sent.last { it["type"] == "documents_check" }
         assertEquals("shop", check["project_id"])
         assertEquals("active", mapper.readTree(drafts.rows.getValue(draftId))["status"].asText())
+        assertTrue(sent.none { it["type"] == "project_write" || it["type"] == "project_draft_publish" })
+    }
+
+    @Test
+    fun `a menu is rendered as a picture, from a draft with the images it holds or as deployed`() {
+        val (access, _) = tokens()
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: render")["structuredContent"]["draft_id"].asText()
+        val green = mapOf("palette" to mapOf("g" to "#20c040"), "rows" to List(18) { "g".repeat(54) })
+        assertFalse(tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "buy_button", "pixels" to green).has("isError"))
+        val menu = "schema: menu/v1\nsize: 27\ntitle: Shop\nelements:\n  - id: buy\n    positions: \"12-14\"\n    image: { asset: buy_button }\n  - id: gem\n    positions: \"0\"\n    material: DIAMOND\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/vip.yml", "content" to menu).has("isError"))
+
+        val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/vip.yml", "draft_id" to draftId)
+        assertFalse(rendered.has("isError"), rendered.toString())
+        val facts = rendered["structuredContent"]
+        assertEquals("x3", facts["shown_at"].asText())
+        val window = facts["window"]
+        assertEquals(listOf(176, 113 + 3 * 18), listOf(window["width"].asInt(), window["height"].asInt()))
+        assertTrue(facts["notes"].any { "every item shows" in it.asText() }, "no item pictures in this hub: said, not hidden")
+        val picture = rendered["content"][1]
+        assertEquals("image" to "image/png", picture["type"].asText() to picture["mimeType"].asText())
+        val shown = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(picture["data"].asText()))
+        // The button over slots 12 to 14 (second row, columns 3 to 5), three picture pixels a game pixel.
+        val at = ((window["y"].asInt() + 17 + 18 + 9) * 3 * shown.width + (window["x"].asInt() + 7 + 4 * 18) * 3) * 4
+        assertEquals(listOf(0x20, 0xc0, 0x40), shown.data.slice(at until at + 3).map { it.toInt() and 0xff })
+
+        // As deployed, without the draft: the menu the server has. Another file is not a menu.
+        val deployed = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/shop.yml", "scale" to 1)
+        assertEquals("x1", deployed["structuredContent"]["shown_at"].asText())
+        assertTrue(tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/vip.yml")["isError"].asBoolean(), "not deployed yet")
+        assertTrue(tool(access, "render_menu", "project" to "u-local.shop", "path" to "lang/en.yml")["isError"].asBoolean())
+    }
+
+    @Test
+    fun `an image written as pixels enters the draft with its descriptor, and comes back enlarged for the model to see`() {
+        val (access, _) = tokens()
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: images")["structuredContent"]["draft_id"].asText()
+        fun write(vararg args: Pair<String, Any?>) = tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, *args)
+        val pixels = mapOf("palette" to mapOf("#" to "#373737", "w" to "#ffffff", "s" to "#00000080"), "rows" to listOf("####", "#ww#", "#.s#", "####"))
+
+        val written = write("name" to "shop_button", "pixels" to pixels)
+        assertFalse(written.has("isError"), written.toString())
+        val facts = written["structuredContent"]
+        assertEquals("assets/textures/shop_button.png", facts["path"].asText())
+        assertEquals(listOf(4, 4, 3, 1), listOf("width", "height", "colours", "translucent_pixels").map { facts[it].asInt() })
+        // The picture the model looks at: a PNG, each pixel a square.
+        val picture = written["content"][1]
+        assertEquals("image" to "image/png", picture["type"].asText() to picture["mimeType"].asText())
+        val shown = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(picture["data"].asText()))
+        assertEquals(4 * 16, shown.width)
+        val snapshot = { mapper.readTree(drafts.rows.getValue(draftId))["snapshot"] }
+        val ref = snapshot()["binaryTree"]["assets/textures/shop_button.png"]
+        assertEquals("width: 4\nheight: 4\nusages: [button]\n", snapshot()["tree"]["assets/textures/shop_button.yml"].asText())
+        val stored = net.artisanmc.plugin.pack.Png.decode(drafts.blobs.getValue(ref["hash"].asText()))
+        assertEquals(listOf(0x37, 0x37, 0x37, 0xff), stored.data.take(4).map { it.toInt() and 0xff })
+        assertEquals(0, stored.alpha(1, 2))
+        assertEquals(0x80, stored.alpha(2, 2))
+
+        // Read back from the draft: the same pixels as text, to change and write again.
+        val read = tool(access, "read_image", "project" to "u-local.shop", "path" to "assets/textures/shop_button.png", "draft_id" to draftId)
+        assertEquals(listOf("####", "#aa#", "#.b#", "####"), read["structuredContent"]["pixels"]["rows"].map { it.asText() })
+        assertEquals("#00000080", read["structuredContent"]["pixels"]["palette"]["b"].asText())
+        assertEquals(listOf("assets/textures/shop_button.png"), tool(access, "list_documents", "project" to "u-local.shop", "draft_id" to draftId)["structuredContent"]["images"].map { it.asText() })
+        assertTrue(tool(access, "read_image", "project" to "u-local.shop", "path" to "assets/textures/shop_button.png")["isError"].asBoolean())
+
+        // A window background is a title image: a codepoint no other image of the draft has, kept when it is written over.
+        val png = java.util.Base64.getEncoder().encodeToString(net.artisanmc.plugin.pack.Png.encode(net.artisanmc.plugin.pack.RgbaImage(176, 166)))
+        assertFalse(write("name" to "shop_window", "use" to "background", "png_base64" to png).has("isError"))
+        assertFalse(write("name" to "vip_window", "use" to "background", "png_base64" to png).has("isError"))
+        assertEquals("ascent: 13\ncodepoint: 57344\nwidth: 176\nheight: 166\nusages: [menu]\n", snapshot()["tree"]["assets/glyphs/shop_window.yml"].asText())
+        assertTrue("codepoint: 57345\n" in snapshot()["tree"]["assets/glyphs/vip_window.yml"].asText())
+        val again = write("name" to "shop_window", "pixels" to pixels)
+        assertTrue(again["structuredContent"]["replaced"].asBoolean())
+        assertEquals("ascent: 13\ncodepoint: 57344\nusages: [menu]\nwidth: 4\nheight: 4\n", snapshot()["tree"]["assets/glyphs/shop_window.yml"].asText())
+
+        // What cannot be an image is refused with what to fix, and the draft does not move.
+        val revision = mapper.readTree(drafts.rows.getValue(draftId))["revision"].asInt()
+        val ragged = write("name" to "bad", "pixels" to mapOf("palette" to mapOf("#" to "#000000"), "rows" to listOf("##", "#")))
+        assertTrue(ragged["isError"].asBoolean() && "row 2" in ragged["structuredContent"]["message"].asText(), ragged.toString())
+        assertTrue(write("name" to "bad", "pixels" to mapOf("palette" to mapOf("#" to "red"), "rows" to listOf("#")))["isError"].asBoolean())
+        assertTrue(write("name" to "bad", "pixels" to mapOf("palette" to emptyMap<String, String>(), "rows" to listOf("?")))["isError"].asBoolean())
+        assertTrue(write("name" to "Bad Name", "pixels" to pixels)["isError"].asBoolean())
+        assertTrue(write("name" to "bad", "png_base64" to "bm90IGEgcG5nIGZpbGUsIGp1c3QgdGV4dCB0aGF0IGlzIGxvbmc=")["isError"].asBoolean())
+        val huge = net.artisanmc.plugin.pack.Png.encode(net.artisanmc.plugin.pack.RgbaImage(1, 1)).also { java.nio.ByteBuffer.wrap(it).putInt(16, 100_000) }
+        assertTrue(write("name" to "bad", "png_base64" to java.util.Base64.getEncoder().encodeToString(huge))["isError"].asBoolean())
+        assertEquals(revision, mapper.readTree(drafts.rows.getValue(draftId))["revision"].asInt())
+
+        assertTrue(write("name" to "vip_window", "delete" to true)["structuredContent"]["deleted"].asBoolean())
+        assertNull(snapshot()["binaryTree"]["assets/glyphs/vip_window.png"])
+        assertNull(snapshot()["tree"]["assets/glyphs/vip_window.yml"])
         assertTrue(sent.none { it["type"] == "project_write" || it["type"] == "project_draft_publish" })
     }
 
