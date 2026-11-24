@@ -8,21 +8,23 @@ import { VANILLA_ACCENTED, VANILLA_ASCII, VANILLA_NONLATIN_EUROPEAN } from "./va
  * now redrawn in the pack with only the characters kept, in `TEXT_SHEET_COLUMNS` columns of the
  * vanilla cell size (`text_<sheet>.png` for `text_y`, `<sheet>_up.png` padded for `text_up`),
  * and the fonts list only those. Kept:
- *  - every character of the Latin, punctuation, currency and letterlike blocks
- *    (`TEXT_CHARS_BASE`): player names and the Latin languages, whatever the Projects say;
+ *  - every character of the Latin and Greek blocks and of U+2000–2BFF (punctuation, currency,
+ *    arrows, maths, shapes, symbols, dingbats) and the emoji of U+1F000–1FAFF
+ *    (`TEXT_CHARS_BASE`): player names, European languages and the symbols other plugins'
+ *    prefixes and placeholders use (€ ★ ❤ ✔ ⚔ →), whatever the Projects say;
  *  - every other character the Projects' files contain (menus, lang files, data rows).
  * A character an earlier sheet already draws is left out of the later ones (the first provider
  * wins in Minecraft, so it was never drawn there). Text written at run time outside every
- * Project (another plugin's placeholder in Greek, say) draws the missing glyph.
+ * Project (another plugin's placeholder in Cyrillic, say) draws the missing glyph.
  * The glyphs are the vanilla ones copied from the padded textures: a resource pack that
  * replaces `minecraft:font/ascii.png` no longer changes them, as it never changed `text_up`.
  * Mirror of `TextChars.kt` (plugin/pack).
  */
 export const TEXT_CHARS_BASE: readonly (readonly [number, number])[] = [
   [0x0000, 0x024f],
-  [0x2000, 0x206f],
-  [0x20a0, 0x20cf],
-  [0x2100, 0x214f],
+  [0x0370, 0x03ff],
+  [0x2000, 0x2bff],
+  [0x1f000, 0x1faff],
 ];
 
 /** Cells per row of a redrawn sheet: the vanilla sheets' own width. */

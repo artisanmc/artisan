@@ -30,10 +30,12 @@ const textUp = Object.fromEntries(
 ) as Record<TextUpTexture, Uint8Array>;
 
 describe("text sheets keep the characters a pack can show", () => {
-  test("the Latin and punctuation blocks stay, the rest of the vanilla sheets goes", () => {
+  test("Latin, Greek, punctuation and symbols stay, the rest of the vanilla sheets goes", () => {
     const sheets = textSheets(usedTextChars(["Bonjour à tous"]));
     const all = sheets.flatMap((s) => kept(s.chars));
-    expect(all).toEqual(expect.arrayContaining(["A", "é", "œ", "…", "€", "«"]));
+    expect(all).toEqual(
+      expect.arrayContaining(["A", "é", "œ", "…", "€", "«", "Ω", "α", "π", "★", "❤", "✔", "→"]),
+    );
     expect(all).not.toContain("Ж");
     expect(all).not.toContain("ḁ"); // U+1E01, Latin Extended Additional
     // Rows of TEXT_SHEET_COLUMNS, padded with \0, one cell per kept character.
@@ -97,11 +99,11 @@ describe("text sheets keep the characters a pack can show", () => {
     expect(up.map((p) => p.file)).toEqual(sheets.map((s) => `artisan:font/${s.name}_up.png`));
   });
 
-  test("a font shrinks several times over, stored or zipped", () => {
+  test("a font is less than half as heavy, stored or zipped", () => {
     const sheets = textSheets(new Set());
     const all = strToU8(JSON.stringify(buildTextYFontJson(20, 8)));
     const reduced = strToU8(JSON.stringify(buildTextYFontJson(20, 8, [], false, sheets)));
-    expect(reduced.length * 3).toBeLessThan(all.length);
-    expect(deflateSync(reduced).length * 3).toBeLessThan(deflateSync(all).length);
+    expect(reduced.length * 2).toBeLessThan(all.length);
+    expect(deflateSync(reduced).length * 2).toBeLessThan(deflateSync(all).length);
   });
 });
