@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.command
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import net.artisanmc.plugin.yamlio.Yaml12
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.modules.api.playercommand.CommandArgument
 import net.artisanmc.modules.api.playercommand.PlayerCommandDeclaration
@@ -51,7 +51,7 @@ object ModuleCommandFiles {
     fun argDefs(declaration: PlayerCommandDeclaration): List<ArgDef> =
         ArgDefParser.parseAll(declaration.arguments.map { arg -> argument(arg).mapNotNull { (k, v) -> v?.let { k to it } }.toMap() })
 
-    private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
+    private val mapper = ObjectMapper(Yaml12.factory()).registerKotlinModule()
 
     /**
      * The root document, without `id` (the file name) nor `name` (equal to it). [dress] changes

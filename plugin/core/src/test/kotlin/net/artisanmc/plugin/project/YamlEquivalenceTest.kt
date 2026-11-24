@@ -18,4 +18,11 @@ class YamlEquivalenceTest {
         assertFalse(YamlEquivalence.sameValue("a.txt", "a: 1\r\n", "a: 1\n"))
         assertFalse(YamlEquivalence.sameValue("a.yml", "a: [", "a: ]"))
     }
+
+    @Test
+    fun `on, off, yes, no are text as the editor reads them, never booleans`() {
+        assertTrue(YamlEquivalence.sameValue("a.yml", "a: [on, off, yes]", "a: [\"on\", 'off', \"yes\"]"))
+        assertFalse(YamlEquivalence.sameValue("a.yml", "a: on", "a: true"))
+        assertFalse(YamlEquivalence.sameValue("a.yml", "a: no", "a: false"))
+    }
 }

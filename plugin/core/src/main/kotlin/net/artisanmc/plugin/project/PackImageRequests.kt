@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.project
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import net.artisanmc.plugin.yamlio.Yaml12
 import net.artisanmc.modules.api.document.PackImagesProvider
 import net.artisanmc.modules.api.text.OverlayApi
 
@@ -39,7 +39,7 @@ data class PackImageRequest(val asset: String, val rise: Int? = null, val bottom
  * server its pack. [warn] hears about the throws.
  */
 object PackImageRequests {
-    private val yaml = ObjectMapper(YAMLFactory())
+    private val yaml = ObjectMapper(Yaml12.factory())
     private val DOCUMENT = Regex("^([^/]+)/([^/]+)\\.ya?ml$")
     private val IN_DIR = Regex("^(.+)/([^/]+)\\.ya?ml$")
 

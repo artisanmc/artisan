@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.project
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import net.artisanmc.plugin.yamlio.Yaml12
 import net.artisanmc.modules.api.template.TemplateDeclaration
 import net.artisanmc.plugin.model.ModuleFile
 import net.artisanmc.plugin.model.Originals
@@ -39,7 +39,7 @@ object SystemFiles {
      */
     const val BASES = ".artisan/bases"
 
-    private val yaml = ObjectMapper(YAMLFactory())
+    private val yaml = ObjectMapper(Yaml12.factory())
 
     /** `originals/<path>`, `.yml` for a YAML file whatever the module ships it under. */
     fun originalPath(shippedPath: String): String = "${Originals.DIR}/${YamlFiles.canonical(shippedPath)}"

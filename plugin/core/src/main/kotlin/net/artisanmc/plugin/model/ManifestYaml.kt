@@ -3,7 +3,7 @@ package net.artisanmc.plugin.model
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import net.artisanmc.plugin.yamlio.Yaml12
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 
@@ -27,7 +27,7 @@ data class ManifestYaml(
     val originals: OriginalsYaml = OriginalsYaml(),
 ) {
     companion object {
-        private val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule()
+        private val yaml = ObjectMapper(Yaml12.factory()).registerKotlinModule()
 
         /** A module file's text, or null when it does not parse. */
         fun parse(text: String): ManifestYaml? = runCatching { yaml.readValue<ManifestYaml>(text) }.getOrNull()

@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.lang
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.modules.api.translation.MessageBundle
 import net.artisanmc.modules.api.translation.MessageBundleDeclaration
@@ -7,12 +8,11 @@ import net.artisanmc.modules.api.translation.TranslationsApi
 import net.artisanmc.plugin.model.Originals
 import net.artisanmc.plugin.project.ProjectOrigins
 import net.artisanmc.plugin.project.ProjectPublisher
+import net.artisanmc.plugin.yamlio.Yaml12
 import org.bukkit.command.CommandSender
-import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 import java.io.File
-import java.io.InputStreamReader
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Level
@@ -139,15 +139,39 @@ object FileMessageSource {
             .associateBy { it.name.substringBeforeLast('.') }
         return (bundledLangs + overrides.keys).distinct().associateWith { lang ->
             val bundled = plugin.getResource("lang/$lang.yml")?.use { stream ->
-                flatten(YamlConfiguration.loadConfiguration(InputStreamReader(stream, Charsets.UTF_8)))
+                read(String(stream.readBytes(), Charsets.UTF_8), "jar lang/$lang.yml", plugin.logger)
             } ?: emptyMap()
-            val server = overrides[lang]?.let { flatten(YamlConfiguration.loadConfiguration(it)) } ?: emptyMap()
+            val server = overrides[lang]?.let { read(it.readText(Charsets.UTF_8), it.path, plugin.logger) } ?: emptyMap()
             bundled + server
         }
     }
 
-    fun flatten(cfg: YamlConfiguration): Map<String, String> =
-        cfg.getKeys(true).filter { cfg.isString(it) }.associateWith { cfg.getString(it)!! }
+    /**
+     * Read as the editor reads it (YAML 1.2, [Yaml12]): a message `Yes` or `On` stays text, where
+     * Bukkit's YAML 1.1 reader made it a boolean and dropped it. The text values by dotted
+     * path; numbers, booleans, lists and nulls are not messages. Unreadable: empty, logged.
+     */
+    fun flatten(text: String): Map<String, String> {
+        val out = LinkedHashMap<String, String>()
+        fun walk(node: JsonNode, path: String) {
+            when {
+                node.isObject -> node.fields().forEach { (k, v) -> walk(v, if (path.isEmpty()) k else "$path.$k") }
+                node.isTextual && path.isNotEmpty() -> out[path] = node.textValue()
+            }
+        }
+        if (text.isNotBlank()) yaml.readTree(text)?.let { walk(it, "") }
+        return out
+    }
+
+    private val yaml = ObjectMapper(Yaml12.factory())
+
+    private fun read(text: String, source: String, logger: Logger): Map<String, String> =
+        try {
+            flatten(text)
+        } catch (e: Exception) {
+            logger.log(Level.SEVERE, "[Artisan] Cannot read $source: ${e.message}")
+            emptyMap()
+        }
 }
 
 /**

@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.command
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import net.artisanmc.plugin.yamlio.Yaml12
 import net.artisanmc.modules.api.playercommand.PlayerCommandDeclaration
 import net.artisanmc.plugin.project.EditorYaml
 import net.artisanmc.plugin.project.ProjectPathPolicy
@@ -30,7 +30,7 @@ class CommandOverrideMigration(
     private val defaultLang: () -> String,
     private val logger: Logger?,
 ) {
-    private val mapper = ObjectMapper(YAMLFactory())
+    private val mapper = ObjectMapper(Yaml12.factory())
 
     /** True when files were written or moved: the projects need a reload. */
     fun migrate(): Boolean {
