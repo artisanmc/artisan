@@ -1,12 +1,13 @@
 import { type Asset, assetPreviewUrl } from "@/domain/asset";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 
 export function AssetPreview({
   asset,
   className,
   lazy = false,
-}: { asset: Asset; className?: string; lazy?: boolean }) {
+  style,
+}: { asset: Asset; className?: string; lazy?: boolean; style?: CSSProperties }) {
   const ref = useRef<HTMLImageElement>(null);
   const [visible, setVisible] = useState(!lazy || typeof IntersectionObserver === "undefined");
   useEffect(() => {
@@ -31,7 +32,7 @@ export function AssetPreview({
       alt={asset.name}
       draggable={false}
       className={className}
-      style={{ imageRendering: "pixelated" }}
+      style={{ imageRendering: "pixelated", ...style }}
       decoding="async"
     />
   );

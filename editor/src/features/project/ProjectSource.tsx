@@ -10,21 +10,27 @@ import {
 import type { Project, ProjectId } from "@/domain/types";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useOtherServerProjects } from "@/features/serverIndex/useOtherServerProjects";
+import { useProjectsStore } from "@/state/projectsStore";
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 const HERE = "__here__";
-/** Every other project of the server at once, for when you don't know where a resource lives. */
+/**
+ * Every project of the server at once, the edited one first, for when you don't
+ * know where a resource lives.
+ */
 export const ALL_PROJECTS = "__all__";
 /** What a library shows: the edited project (`null`), one other project, or all of them. */
 export type ProjectSourceId = ProjectId | typeof ALL_PROJECTS | null;
 
 /**
  * Lets a library show the images and items of the other projects of the same
- * server, one of them or all at once. They come from the server index the
- * project view already loads (their published state): nothing is read twice,
- * and the edited project is never one of them.
+ * server, one of them or all of them at once. They come from the server index
+ * the project view already loads (their published state): nothing is read
+ * twice. "All modules" also lists the edited project, first and read live from
+ * the projects store: a child tells it apart by its id (`projectId`) and uses
+ * its resources in place instead of copying them.
  */
 export function ProjectSource({
   projectId,
@@ -38,8 +44,9 @@ export function ProjectSource({
   sourceId: ProjectSourceId;
   onSourceChange: (sourceId: ProjectSourceId) => void;
   /**
-   * What to show for the choice: `null` is the project being edited, otherwise
-   * the other projects shown (one, or all of them; never empty).
+   * What to show for the choice: `null` is the project being edited alone,
+   * otherwise the projects shown (one other, or all of them with the edited one
+   * first; never empty).
    */
   children: (sources: Project[] | null) => ReactNode;
   /** Classes of the menu's own row. */
@@ -47,10 +54,11 @@ export function ProjectSource({
 }) {
   const { t } = useTranslation();
   const others = useOtherServerProjects(projectId);
+  const here = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const status = useServerIndexStore((s) => s.status);
   const all = sourceId === ALL_PROJECTS;
   const source = sourceId && !all ? others.find((p) => p.id === sourceId) : undefined;
-  const sources = all ? others : source ? [source] : [];
+  const sources = all ? (here ? [here, ...others] : others) : source ? [source] : [];
   const loading = status === "loading";
   return (
     <>
@@ -82,7 +90,7 @@ export function ProjectSource({
               <DropdownMenuRadioItem value={HERE} className="text-xs">
                 {t("projectSource.here")}
               </DropdownMenuRadioItem>
-              {others.length > 1 && (
+              {others.length > 0 && (
                 <DropdownMenuRadioItem value={ALL_PROJECTS} className="text-xs">
                   {t("projectSource.all")}
                 </DropdownMenuRadioItem>

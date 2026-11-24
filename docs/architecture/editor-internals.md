@@ -125,10 +125,21 @@ the draft snapshot and blobs), switched at the `lib/api/userAssets.ts` boundary.
 **Using another project's resources.** `features/project/ProjectSource.tsx` lists the server's
 other projects from the server index the project view already loads (`useOtherServerProjects`,
 published state, the edited project excluded), so nothing is loaded twice. Its choice is
-`ProjectSourceId`: `null` (this project), one project id, or `ALL_PROJECTS` (every other project,
-offered from two on); children get the resolved `Project[]`. A library shows them read only,
-several projects merged (assets keyed `projectId:id`, captured items grouped by project): assets through `useOtherProjectAssets` (`listLocalAssets` on the
-published disk, kept out of `assetStore`), captured items straight from the indexed `Project`.
+`ProjectSourceId`: `null` (this project), one project id, or `ALL_PROJECTS` ("All modules":
+the edited project first, read live from `projectsStore`, then every other one; offered as soon
+as there is one other); children get the resolved `Project[]`. A library shows the other
+projects read only, several projects merged (assets keyed `projectId:id`, captured items grouped
+by project, each tile or group naming its project): assets through `useOtherProjectAssets`
+(`listLocalAssets` on the published disk, kept out of `assetStore`), captured items straight
+from the indexed `Project`. The edited project, when listed, is told apart by its id: its assets
+come from `assetStore` and its items from its live `Project`, used in place, never copied (the
+Resources tab's "Open in this module" goes back to it with the asset selected).
+
+**Resources tab layout.** `AssetsTab` puts the list beside the selected resource's detail
+(`ResourcesSplit`): on a wide screen a horizontal `SplitPane`, the detail's width kept in
+`localStorage` (`artisan-resources-layout`) and clamped to leave the list 280 px; on a narrow one,
+the list or the detail with a way back. The detail shows the image large (`AssetStage`): scaled
+by a whole factor so pixel art stays square, shrunk to fit when larger than the pane.
 Using one copies it first, a snapshot with no link back:
 - an asset: `copyAsset` (`lib/api/userAssets.ts`) reuses an identical one (type + hash, glyph
   metrics, font glyph map), otherwise reads its files (`readAssetFiles`) and runs the `/copy`
