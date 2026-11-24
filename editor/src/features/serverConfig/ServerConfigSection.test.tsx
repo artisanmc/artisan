@@ -131,4 +131,25 @@ describe("ServerConfigSection", () => {
       }),
     );
   });
+
+  it("edits the server's menu variants as a list, and holds back a wrong one", async () => {
+    api.getServerConfig.mockResolvedValue({
+      config: { ...config, "menu-variants": [] },
+      online: true,
+    });
+    api.patchServerConfig.mockResolvedValue({ ...config, "menu-variants": [{ name: "large" }] });
+    renderSection();
+    fireEvent.click(await screen.findByRole("button", { name: /Ajouter une variante/ }));
+    const name = screen.getByLabelText("Nom");
+    fireEvent.change(name, { target: { value: "textured" } });
+    expect(screen.getByText(/Nom intégré/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
+    fireEvent.change(name, { target: { value: "large" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() =>
+      expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
+        "menu-variants": [{ name: "large" }],
+      }),
+    );
+  });
 });

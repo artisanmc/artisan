@@ -34,9 +34,9 @@ the module's command.
 The variant shown is kept in the page's address (`?variant=textured`): a reload, or a link you
 share, opens the same view.
 
-**New variant…** in the same menu creates one. Name it after one of the server's variants
-(`bedrock`, `textured`, or one of yours) so its players get it; a name the server does not
-declare is only shown by the module's own display rules.
+**New variant…** in the same menu creates one: it offers the server's variants the module has no
+version for yet (`bedrock`, `textured`, or one of yours), so their players get it. A name the
+server does not declare is only shown by the module's own display rules, and the dialog says so.
 To delete a variant, hover it in that menu and click its trash icon.
 
 ## The server's variants
@@ -63,7 +63,9 @@ kept across restarts and the servers of a network; `auto` goes back to automatic
 only offered what their client can show: `textured` needs the pack on Java, `bedrock` a Bedrock
 client. Want a shorter command? Make an Artisan command (`/menus`) that runs `artisan variant`.
 
-**Your own variants** go in `config.yml`, each with a parent to fall back to:
+**Your own variants** are edited on the server page, **Configuration → Menu variants** (name,
+the variant it falls back to, the conditions that show it automatically, whether players may
+choose it), or by hand in `config.yml`, each with a parent to fall back to:
 
 ```yaml
 menu-variants:
@@ -87,7 +89,8 @@ a variant, so nothing changes on a server that updates Artisan; a player's choic
 the server's variants. Modules drop their rules as they update; a `variants.yml` you edited
 yourself stays until you remove its `show:`.
 
-**View as → Display rules…** edits them: one tree, edited like an action chain, **If** branches
+**View as → Display rules…** edits them; an empty tree (the default for a new module) leaves the
+choice to the server: one tree, edited like an action chain, **If** branches
 (with **Else if** and **Else**), and two steps, **Show variant** (pick which) and **Show
 Default**. It is read for each player, top to bottom, up to the first **Show** step they reach.
 The conditions are the same as an action's `if`, with two made for variants:

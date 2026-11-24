@@ -1363,14 +1363,17 @@ const fr: typeof en = {
     newVariant: "Nouvelle variante…",
     newVariantTitle: "Nouvelle variante",
     newVariantHint:
-      "Un nom de dossier (minuscules, chiffres, - et _). Personne ne la voit tant que les règles d'affichage ne l'affichent pas.",
+      "Choisis une des variantes du serveur : ses joueurs voient les versions de ce module. Un autre nom n'est affiché que par les règles d'affichage du module.",
+    serverVariants: "Les variantes du serveur",
+    notDeclared:
+      "Le serveur ne déclare pas {{name}} : seules les règles d'affichage de ce module peuvent l'afficher. Ajoute-la dans Configuration → Variantes des menus.",
     nameInvalid:
       "Minuscules, chiffres, - et _ uniquement, en commençant par une lettre ou un chiffre.",
     nameTaken: "Cette variante existe déjà.",
     rules: "Règles d'affichage…",
     rulesTitle: "Règles d'affichage",
     rulesHint:
-      "Un arbre de conditions lu pour chaque joueur, de haut en bas, jusqu'au premier « Afficher » qu'il atteint. Il voit cette variante ; un fichier qu'elle n'a pas vient du module.",
+      "Ancien système : le serveur décide maintenant quelle variante voit chaque joueur (Configuration → Variantes des menus), la même dans tous les modules. Ces règles s'appliquent encore aux joueurs qui n'ont pas choisi avec /artisan variant ; laisse l'arbre vide pour suivre le serveur. Lu de haut en bas, jusqu'au premier « Afficher » qu'atteint le joueur.",
     rulesEmpty: "Aucune variante pour l'instant.",
     variant: "Variante",
     removeVariant: "Supprimer la variante {{name}}",
@@ -2096,6 +2099,30 @@ const fr: typeof en = {
       unsafe_path: "le chemin doit rester dans le dossier du serveur.",
       invalid_reference: "choisir une image au format module:image.",
       invalid_palette_entry: "chaque entrée a un nom et des couleurs #rrggbb.",
+      invalid_menu_variants: "une variante a un nom invalide ou un parent non déclaré.",
+    },
+    variants: {
+      builtin: {
+        default:
+          "Les menus du module : sans pack de ressources, ou quand rien d'autre ne s'applique.",
+        bedrock: "Joueurs Bedrock (Geyser), automatiquement. Repli sur default.",
+        textured:
+          "Joueurs Java qui ont chargé le pack de ressources, automatiquement. Repli sur default.",
+      },
+      name: "Nom",
+      parent: "Repli sur",
+      conditions: "Affichée automatiquement quand",
+      noConditions: "Aucune condition : seuls les joueurs qui la choisissent la voient.",
+      selectable: "Les joueurs peuvent la choisir avec /artisan variant",
+      add: "Ajouter une variante",
+      remove: "Retirer cette variante",
+      problems: {
+        name: "Minuscules, chiffres, - et _ (32 au plus).",
+        builtin: "Nom intégré : choisis-en un autre.",
+        duplicate: "Une autre variante porte ce nom.",
+        parent: "Son parent n'est pas déclaré.",
+        loop: "Ses parents reviennent sur elle.",
+      },
     },
     listHint: "Valeurs séparées par des virgules.",
     vanillaTexture: "Texture vanilla",
@@ -2119,12 +2146,15 @@ const fr: typeof en = {
     pending_one: "{{count}} réglage modifié",
     pending_other: "{{count}} réglages modifiés",
     groupHints: {
+      variants:
+        "Quelle version des menus voit chaque joueur, la même dans tous les modules. Un module livre ses versions pour ces variantes dans variants/<nom>/ ; un menu sans version vient du parent de la variante. Les joueurs choisissent la leur avec /artisan variant.",
       palette:
         "Couleurs et dégradés proposés par la barre de mise en forme dans tous les modules du serveur. Appliquer une couleur écrit sa valeur dans le texte : modifier la palette ne change pas les textes existants.",
       textures:
         "Redessinent les coffres, entonnoirs et distributeurs du serveur quand un menu désactive sa texture vanilla.",
     },
     groups: {
+      variants: "Variantes des menus",
       general: "Général",
       textures: "Textures des conteneurs",
       resourcePack: "Resource pack",

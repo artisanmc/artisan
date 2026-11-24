@@ -8,8 +8,16 @@ import { type ServerConfig, getServerConfig, patchServerConfig } from "@/lib/api
 import type { ProjectSummary } from "@/lib/api/servers";
 import { listAssets } from "@/lib/api/userAssets";
 import { SERVER_PALETTE_KEYS, serverPaletteEntries, serverPaletteForm } from "@/lib/mm/palettes";
+import {
+  MENU_VARIANTS_KEY,
+  invalidateServerVariants,
+  serverVariantProblems,
+  serverVariantsFromConfig,
+  serverVariantsToConfig,
+} from "@/lib/variants/serverVariants";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { MenuVariantsFields } from "./MenuVariantsFields";
 import { TextPaletteFields } from "./TextPaletteFields";
 
 const TEXTURES = "resource-pack.container-textures.";
@@ -97,6 +105,7 @@ export function ServerConfigSection({
       setConfig(await patchServerConfig(serverKeyId, changes));
       setChanges({});
       if (Object.keys(changes).some((key) => key.startsWith(PALETTE))) invalidateServerPalette();
+      if (MENU_VARIANTS_KEY in changes) invalidateServerVariants();
       // Changing container textures or the inventory label requires rebuilding the pack.
       if (Object.keys(changes).some((key) => key.startsWith(TEXTURES) || key === INVENTORY_LABEL))
         rebuildServerPackInBackground(t, serverKeyId);
@@ -184,17 +193,20 @@ export function ServerConfigSection({
 
   const keys = Object.keys(config);
   const groups: [string, string[]][] = [
-    ["general", keys.filter((k) => !k.includes("."))],
+    ["general", keys.filter((k) => !k.includes(".") && k !== MENU_VARIANTS_KEY)],
     ["textures", keys.filter((k) => k.startsWith(TEXTURES))],
     ["resourcePack", keys.filter((k) => k.startsWith("resource-pack.") && !k.startsWith(TEXTURES))],
     ["editor", keys.filter((k) => k.startsWith("editor."))],
     ["palette", keys.filter((k) => k.startsWith(PALETTE))],
+    ["variants", keys.filter((k) => k === MENU_VARIANTS_KEY)],
   ];
   const grouped = new Set(groups.flatMap(([, ks]) => ks));
   groups.push(["other", keys.filter((k) => !grouped.has(k))]);
 
   const shown = groups.filter(([, ks]) => ks.length > 0);
   const pending = Object.keys(changes).length;
+  const variantsInvalid =
+    serverVariantProblems(serverVariantsFromConfig(value(MENU_VARIANTS_KEY))).size > 0;
 
   return (
     <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:items-start">
@@ -237,7 +249,17 @@ export function ServerConfigSection({
                 {t("serverConfig.groupHints.palette")}
               </p>
             )}
-            {group === "palette" ? (
+            {group === "variants" && (
+              <p className="-mt-1 text-[12px] text-[var(--text-mut)]">
+                {t("serverConfig.groupHints.variants")}
+              </p>
+            )}
+            {group === "variants" ? (
+              <MenuVariantsFields
+                value={serverVariantsFromConfig(value(MENU_VARIANTS_KEY))}
+                onChange={(next) => set(MENU_VARIANTS_KEY, serverVariantsToConfig(next))}
+              />
+            ) : group === "palette" ? (
               <TextPaletteFields
                 value={serverPaletteForm({
                   [SERVER_PALETTE_KEYS.colors]: value(SERVER_PALETTE_KEYS.colors),
@@ -277,7 +299,7 @@ export function ServerConfigSection({
             <button
               type="button"
               className="btn btn-primary btn-sm"
-              disabled={saving || pending === 0}
+              disabled={saving || pending === 0 || variantsInvalid}
               onClick={save}
             >
               {t("serverConfig.save")}
