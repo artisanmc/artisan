@@ -76,6 +76,30 @@ resource-pack:
     hopper: ""
     dispenser: ""
 
+# Menu variants: which version of a module's menus, dialogs and command steps a
+# player sees. Every server has three, which cannot be removed:
+#   default   the module's own files.
+#   bedrock   for Bedrock players (Geyser). Falls back to default.
+#   textured  for Java players whose client loaded the server's resource pack.
+#             Falls back to default; a refused or failed pack drops a player back
+#             to default at the next menu they open.
+# A module ships versions for them in variants/<name>/; a menu it has no version
+# of comes from the variant's parent, down to the module's own file.
+# A player can choose with `/artisan variant <name|auto>` (permission
+# artisan.variant, granted by default): kept across restarts and servers.
+#
+# Declare your own here, each with a parent to fall back to. With `if`
+# (conditions of an action's `if`, all required), it is picked automatically,
+# before bedrock and textured, for the players it holds for; without, only the
+# players who choose it see it. `selectable: false` keeps it out of the command.
+#   menu-variants:
+#     - name: large-text
+#       parent: default
+#     - name: vip
+#       parent: textured
+#       if: [{ has_permission: rank.vip }]
+#       selectable: false
+
 # The server's text palette: colors and gradients the editor's MiniMessage
 # toolbar offers in every module, beside the built-in Minecraft and Artisan
 # palettes. Editor-only: applying one writes its colors into the text

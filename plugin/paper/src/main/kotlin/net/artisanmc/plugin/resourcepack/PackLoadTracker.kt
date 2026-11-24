@@ -41,8 +41,25 @@ class PackLoadTracker : Listener {
 
     @EventHandler
     fun onStatus(event: PlayerResourcePackStatusEvent) {
-        if (event.status != PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) return
-        if (delegated || event.id in artisanPacks) loaded[event.player.uniqueId] = event.id
+        status(event.player.uniqueId, event.id, event.status.name)
+    }
+
+    /**
+     * One answer of [playerId]'s client about [packId]. A success marks it loaded; a refusal, a
+     * failed download or reload, or a pack the client dropped unmarks it when it is the pack
+     * that loaded, or one of Artisan's: the `textured` menus give way to the plain ones at the
+     * next opening instead of drawing glyphs the client no longer has.
+     */
+    internal fun status(playerId: UUID, packId: UUID, status: String) {
+        when (status) {
+            "SUCCESSFULLY_LOADED" -> if (delegated || packId in artisanPacks) loaded[playerId] = packId
+            in LOST -> if (loaded[playerId] == packId || packId in artisanPacks) loaded -= playerId
+        }
+    }
+
+    private companion object {
+        /** The statuses after which the client does not show the pack (names: older servers lack some). */
+        val LOST = setOf("DECLINED", "FAILED_DOWNLOAD", "INVALID_URL", "FAILED_RELOAD", "DISCARDED")
     }
 
     @EventHandler
