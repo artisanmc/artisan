@@ -120,9 +120,9 @@ describe("buildTextYFontJson", () => {
     expect(sp.advances[" "]).toBe(4);
   });
 
-  test("uses minecraft:font/ascii.png as the bitmap file (providers[1])", () => {
+  test("draws the pack's ascii sheet (providers[1])", () => {
     const json = buildTextYFontJson(6);
-    expect((json.providers[1] as { file: string }).file).toBe("minecraft:font/ascii.png");
+    expect((json.providers[1] as { file: string }).file).toBe("artisan:font/text_ascii.png");
   });
 
   test("ascent = 13 - y (title label y=6 → ascent=7, matching vanilla)", () => {
@@ -137,21 +137,13 @@ describe("buildTextYFontJson", () => {
     expect((buildTextYFontJson(50).providers[1] as { height: number }).height).toBe(8);
   });
 
-  test("chars array has exactly 16 rows", () => {
-    const json = buildTextYFontJson(6);
-    expect((json.providers[1] as { chars: string[] }).chars).toHaveLength(16);
-  });
-
-  test("printable ASCII rows are correctly mapped", () => {
+  test("the ascii sheet lists the printable characters, empty cells left out", () => {
     const chars = (buildTextYFontJson(6).providers[1] as { chars: string[] }).chars;
-    // Row 2 (0x20-0x2F) starts with space
-    expect(chars[2]?.[0]).toBe(" ");
-    // Row 3 (0x30-0x3F) starts with '0'
-    expect(chars[3]?.[0]).toBe("0");
-    // Row 4 (0x40-0x4F) starts with '@'
-    expect(chars[4]?.[0]).toBe("@");
-    // Row 6 (0x60-0x6F) starts with '`'
-    expect(chars[6]?.[0]).toBe("`");
+    // The vanilla rows 0x20-0x7E, packed 16 by row from the first non-empty cell.
+    expect(chars[0]).toBe(" !\"#$%&'()*+,-./");
+    expect(chars[1]).toBe("0123456789:;<=>?");
+    expect(chars[2]?.[0]).toBe("@");
+    expect(chars[4]?.[0]).toBe("`");
   });
 });
 
@@ -163,8 +155,8 @@ describe("buildTextYFontJson — size scaling", () => {
       file: string;
     }>;
     expect(bitmaps).toHaveLength(3); // ascii + accented + nonlatin
-    const ascii = bitmaps.find((b) => b.file === "minecraft:font/ascii.png")!;
-    const accented = bitmaps.find((b) => b.file === "minecraft:font/accented.png")!;
+    const ascii = bitmaps.find((b) => b.file === "artisan:font/text_ascii.png")!;
+    const accented = bitmaps.find((b) => b.file === "artisan:font/text_accented.png")!;
     expect(ascii.height).toBe(8);
     expect(accented.height).toBe(12);
   });
@@ -175,9 +167,9 @@ describe("buildTextYFontJson — size scaling", () => {
       height: number;
       file: string;
     }>;
-    const ascii = bitmaps.find((b) => b.file === "minecraft:font/ascii.png")!;
-    const accented = bitmaps.find((b) => b.file === "minecraft:font/accented.png")!;
-    const nonlatin = bitmaps.find((b) => b.file === "minecraft:font/nonlatin_european.png")!;
+    const ascii = bitmaps.find((b) => b.file === "artisan:font/text_ascii.png")!;
+    const accented = bitmaps.find((b) => b.file === "artisan:font/text_accented.png")!;
+    const nonlatin = bitmaps.find((b) => b.file === "artisan:font/text_nonlatin_european.png")!;
     expect(ascii.height).toBe(16);
     expect(accented.height).toBe(24);
     expect(nonlatin.height).toBe(16);
@@ -187,10 +179,10 @@ describe("buildTextYFontJson — size scaling", () => {
     const a = buildTextYFontJson(20, 8);
     const b = buildTextYFontJson(20, 16);
     const ascii_a = a.providers.find(
-      (p) => p.type === "bitmap" && p.file === "minecraft:font/ascii.png",
+      (p) => p.type === "bitmap" && p.file === "artisan:font/text_ascii.png",
     ) as { ascent: number };
     const ascii_b = b.providers.find(
-      (p) => p.type === "bitmap" && p.file === "minecraft:font/ascii.png",
+      (p) => p.type === "bitmap" && p.file === "artisan:font/text_ascii.png",
     ) as { ascent: number };
     expect(ascii_a.ascent).toBe(ascii_b.ascent);
   });

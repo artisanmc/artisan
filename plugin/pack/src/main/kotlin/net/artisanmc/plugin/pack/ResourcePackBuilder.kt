@@ -128,6 +128,7 @@ object ResourcePackBuilder {
             Symbols.used(texts),
             textPlacements,
             TextDecorations.used(texts),
+            TextChars.sheets(TextChars.used(texts)),
         )
         val serverId = input.bedrockServerId ?: return java
         // Asset names collide across Projects as the Java pack resolves them: the first Project (by id) wins.
@@ -169,6 +170,7 @@ object ResourcePackBuilder {
         symbols: List<Int>,
         textPlacements: List<TextPlacement>,
         decorations: Boolean,
+        textChars: List<TextSheet>,
     ): PackResult {
         val remapped = assets.map { a ->
             if (a.type != "glyph" || a.codepoint == null) a
@@ -196,15 +198,15 @@ object ResourcePackBuilder {
             val ys = if (h == 8) range.toList()
             else textPlacements.filter { it.size == h && it.y in range }.map { it.y }.distinct().sorted()
             for (y in ys) {
-                files["assets/artisan/font/text_y${y}_h$h.json"] = Js.stringifyBytes(Fonts.textYFontJson(y, h, rows, decorations))
+                files["assets/artisan/font/text_y${y}_h$h.json"] = Js.stringifyBytes(Fonts.textYFontJson(y, h, rows, decorations, textChars))
             }
         }
-        for (name in Fonts.TEXT_UP_TEXTURES) files["assets/artisan/textures/font/${name}_up.png"] = vanillaResource("font/${name}_up.png")
+        TextChars.files(textChars, { name -> vanillaResource("font/${name}_up.png") }, files)
         if (rows.isNotEmpty()) {
             files["assets/artisan/textures/font/symbols_up.png"] = Png.encode(Symbols.sheet(symbols, 2 * Symbols.UP_FULL_MAX))
             files["assets/artisan/textures/font/symbols_up_half.png"] = Png.encode(Symbols.sheet(symbols, Fonts.TEXT_UP_PAD, half = true))
         }
-        for (rise in 0..Fonts.TEXT_UP_MAX) files["assets/artisan/font/text_up$rise.json"] = Js.stringifyBytes(Fonts.textUpFontJson(rise, rows))
+        for (rise in 0..Fonts.TEXT_UP_MAX) files["assets/artisan/font/text_up$rise.json"] = Js.stringifyBytes(Fonts.textUpFontJson(rise, rows, textChars))
 
         val glyphs = remapped.filter { it.type == "glyph" && it.codepoint != null }.sortedBy { it.codepoint }
         for (g in glyphs) files["assets/artisan/textures/font/${g.name}.png"] = glyphPngs[g.id] ?: continue

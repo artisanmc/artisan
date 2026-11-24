@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { buildServerPack, requestResourcePackRebuild } from "./buildServerPack";
 import { diskAssetsFromTree } from "./diskAssets";
 import { buildResourcePackZip } from "./resourcePackBuilder";
+import { textSheets, usedTextChars } from "./textChars";
 
 const PNG_1x1 = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -141,6 +142,14 @@ describe("buildServerPack", () => {
         accented: vanilla("font/accented_up"),
         nonlatin_european: vanilla("font/nonlatin_european_up"),
       },
+      [],
+      false,
+      [],
+      [],
+      false,
+      textSheets(
+        usedTextChars(["alpha", "beta"].flatMap((id) => toFiles(id).map((f) => f.content))),
+      ),
     );
     expect(built.hash).toBe(expected.hash);
     // Byte-for-byte comparison without vitest's deep diff, very slow on a zip.

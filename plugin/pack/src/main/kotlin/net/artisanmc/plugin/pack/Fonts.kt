@@ -69,12 +69,19 @@ internal object Fonts {
     }
 
     /** [symbols]: the `chars` rows of the pack's symbols sheet ([Symbols]), drawn after vanilla; empty, no provider. */
-    fun textYFontJson(y: Int, h: Int, symbols: List<String> = emptyList(), decorations: Boolean = false): Map<String, Any?> {
+    fun textYFontJson(
+        y: Int,
+        h: Int,
+        symbols: List<String> = emptyList(),
+        decorations: Boolean = false,
+        sheets: List<TextSheet> = TextChars.ALL,
+    ): Map<String, Any?> {
         val shift = 6 - y
         val scale = h / 8.0
-        fun bitmap(file: String, v: VanillaFont) = mapOf(
+        // The vanilla sheets redrawn with the characters the pack keeps ([TextChars]).
+        fun bitmap(v: TextSheet) = mapOf(
             "type" to "bitmap",
-            "file" to file,
+            "file" to "artisan:font/text_${v.name}.png",
             "ascent" to v.ascent + shift,
             "height" to round(v.height * scale),
             "chars" to v.chars,
@@ -82,10 +89,8 @@ internal object Fonts {
         return mapOf(
             "providers" to listOf(
                 mapOf("type" to "space", "advances" to mapOf(" " to 4 * scale)),
-                bitmap("minecraft:font/ascii.png", ASCII),
-                bitmap("minecraft:font/accented.png", ACCENTED),
-                bitmap("minecraft:font/nonlatin_european.png", NONLATIN_EUROPEAN),
-            ) + (if (symbols.isEmpty()) emptyList() else listOf(mapOf(
+            ) + sheets.map(::bitmap) +
+                (if (symbols.isEmpty()) emptyList() else listOf(mapOf(
                 "type" to "bitmap",
                 "file" to "artisan:font/symbols.png",
                 "ascent" to Symbols.ASCENT + shift,
@@ -102,12 +107,12 @@ internal object Fonts {
         )
     }
 
-    fun textUpFontJson(rise: Int, symbols: List<String> = emptyList()): Map<String, Any?> = mapOf(
+    fun textUpFontJson(rise: Int, symbols: List<String> = emptyList(), sheets: List<TextSheet> = TextChars.ALL): Map<String, Any?> = mapOf(
         "providers" to listOf<Any?>(mapOf("type" to "space", "advances" to mapOf(" " to 4))) +
-            listOf("ascii" to ASCII, "accented" to ACCENTED, "nonlatin_european" to NONLATIN_EUROPEAN).map { (name, v) ->
+            sheets.map { v ->
                 mapOf(
                     "type" to "bitmap",
-                    "file" to "artisan:font/${name}_up.png",
+                    "file" to "artisan:font/${v.name}_up.png",
                     "ascent" to v.ascent + rise,
                     "height" to v.height + TEXT_UP_PAD,
                     "chars" to v.chars,
