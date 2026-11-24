@@ -302,6 +302,12 @@ deployed.
       removed; **Compose an image** starts one from a kit window or a kit button. The editor
       writes the same descriptor as `write_image` (`use`, `image`, `grid`), and refuses a
       recipe the pack would not read back as given, so a person and a model edit one file.
+    - **Pixel editor** (step 4 d): an image that has a PNG is retouched in the Resources page
+      (pencil, eraser, colour picker, paint bucket, the image's and the kit's colours, undo),
+      at its size, and **Draw an image** starts from an empty one. Kept small on purpose: no
+      layers, no selection, no resizing. It is the hand's counterpart of `write_image`'s
+      pixels: what the model drew is corrected there without leaving the editor, and beyond a
+      detail the answer stays an import or the model.
 
 ## Consequences
 

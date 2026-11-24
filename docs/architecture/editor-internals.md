@@ -99,6 +99,17 @@ for a kit image, `ImageChoiceDialog` for a PNG of the module). The size shown is
 the pack's rule on the layers' sizes alone. Nothing is written before **Save layers**, one patch.
 `ComposeNewDialog` (Resources page, **Compose an image**) creates one from a kit window or a
 kit button.
+An image that has a PNG is retouched in the same pane (`PixelEditor.tsx`, **Retouch pixels**):
+its bytes are read once (`assetBytes.ts`) and decoded by the pack's own `decodePng`, never
+through a canvas, whose premultiplied alpha would change translucent pixels. The tools are pure
+functions on that `RgbaImage` (`pixelTools.ts`: `paint`, `paintLine` so a fast stroke leaves no
+gap, `fill` by four neighbours, `colours`); the picture shown is the PNG encoded again after
+each change, as a `data:` URL. Undo keeps one copy of the image per stroke (50 at most). The
+palette is the image's colours and a few from each kit image (`useKitColours`). Saving is an
+upload under the same name with `retouch` (`localAssets.ts`): like a reimport it keeps
+codepoint, ascent and usages, and it also keeps the size the image is shown at (a glyph scaled
+to another height), refusing a file of another size. `PixelNewDialog` (**Draw an image**)
+uploads an empty PNG of the chosen size and opens the editor on it.
 `ImageButtonsRender` draws the display image once and drags the whole rectangle. On release,
 the slot under the pointer (`hitTestSlot`, any menu of the Project) receives the cell of the
 button held at mouse-down (`imageButtonOrigin`, in grid cells so the gaps above the player rows

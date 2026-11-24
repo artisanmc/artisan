@@ -318,6 +318,69 @@ describe("performLocalAssetMutation", () => {
     expect(Object.keys(result.draft.snapshot.tree)).toEqual(["assets/glyphs/new.yml"]);
   });
 
+  it("retouches an image: other pixels under the same name, at the size it is shown", async () => {
+    const hub = fakeHub(empty());
+    await performLocalAssetMutation(
+      "p",
+      createOp(
+        hub,
+        { type: "glyph", name: "gem", ascent: "7", usages: '["button"]' },
+        png(8, 8, 6),
+      ),
+    );
+    // Shown twice its file's height: the descriptor says 16, the file stays 8 pixels.
+    await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/gem", method: "PATCH", fields: { height: "16" } }),
+    );
+    const retouched = png(8, 8, 3);
+    const result = await performLocalAssetMutation(
+      "p",
+      createOp(hub, { type: "glyph", name: "gem", retouch: "true" }, retouched),
+    );
+    expect(result.asset).toMatchObject({
+      id: "gem",
+      codepoint: 57344,
+      ascent: 7,
+      width: 16,
+      height: 16,
+      usages: ["button"],
+      contentHash: sha256Hex(retouched),
+    });
+    expect(parse(result.draft.snapshot.tree["assets/glyphs/gem.yml"]!)).toEqual({
+      ascent: 7,
+      codepoint: 57344,
+      width: 16,
+      height: 16,
+      content_width: 6,
+      usages: ["button"],
+    });
+    expect(result.draft.snapshot.binaryTree).toEqual({
+      "assets/glyphs/gem.png": { hash: sha256Hex(retouched), size: retouched.length },
+    });
+
+    // A reimport takes the new file's size; a retouch refuses another one.
+    const resized = await rejection(
+      performLocalAssetMutation(
+        "p",
+        createOp(hub, { type: "glyph", name: "gem", retouch: "true" }, png(8, 9)),
+      ),
+    );
+    expect([resized.status, resized.code]).toEqual([400, "A retouch keeps the image's size"]);
+    const missing = await rejection(
+      performLocalAssetMutation(
+        "p",
+        createOp(hub, { type: "glyph", name: "none", retouch: "true" }, png(8, 8)),
+      ),
+    );
+    expect(missing.status).toBe(404);
+    const reimported = await performLocalAssetMutation(
+      "p",
+      createOp(hub, { type: "glyph", name: "gem", replace: "true" }, png(8, 9)),
+    );
+    expect(reimported.asset).toMatchObject({ width: 8, height: 9, codepoint: 57344 });
+  });
+
   it("surfaces a stale revision as draft_conflict with the server draft", async () => {
     const bytes = png(8, 8);
     const snapshot = empty();

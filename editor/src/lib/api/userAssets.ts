@@ -70,12 +70,15 @@ export async function uploadAsset(
     ascent?: number;
     usages?: AssetUsage[];
     replace?: boolean;
+    /** The same image with other pixels, at the same size: what else it has is kept. */
+    retouch?: boolean;
   },
 ): Promise<Asset> {
   const result = await uploadFile(projectId, input.file, {
     type: input.type,
     name: input.name,
     ...(input.replace ? { replace: "true" } : {}),
+    ...(input.retouch ? { retouch: "true" } : {}),
     ...(input.usages === undefined ? {} : { usages: JSON.stringify(input.usages) }),
     ...(input.ascent === undefined ? {} : { ascent: String(input.ascent) }),
   });

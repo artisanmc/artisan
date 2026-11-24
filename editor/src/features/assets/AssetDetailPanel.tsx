@@ -11,9 +11,17 @@ import { useTranslation } from "react-i18next";
 import { AssetStage } from "./AssetStage";
 import { AssetUsageFields } from "./AssetUsageFields";
 import { ComposedImageEditor } from "./ComposedImageEditor";
+import { PixelEditor } from "./PixelEditor";
 import { useAssetStore } from "./assetStore";
 
-export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
+export function AssetDetailPanel({
+  projectId,
+  retouch = false,
+}: {
+  projectId: ProjectId;
+  /** Opens on the pixel editor: an image just created to be drawn. */
+  retouch?: boolean;
+}) {
   const inputId = useId();
   const { t } = useTranslation();
   const project = useProjectsStore((s) =>
@@ -32,6 +40,7 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   const [error, setError] = useState<string | null>(null);
   const [usages, setUsages] = useState<AssetUsage[]>([]);
   const [busy, setBusy] = useState(false);
+  const [retouching, setRetouching] = useState(retouch);
 
   const savedName = asset?.name ?? "";
   const savedAscent = asset?.ascent ?? "";
@@ -100,8 +109,21 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
         />
       ) : asset.compose ? (
         <ComposedImageEditor projectId={projectId} asset={asset} />
+      ) : retouching ? (
+        <PixelEditor projectId={projectId} asset={asset} onClose={() => setRetouching(false)} />
       ) : (
-        <AssetStage asset={asset} />
+        <>
+          <AssetStage asset={asset} />
+          <Button
+            size="sm"
+            variant="outline"
+            className="self-end"
+            disabled={!user}
+            onClick={() => setRetouching(true)}
+          >
+            {t("pixel.edit")}
+          </Button>
+        </>
       )}
       {asset.compose && (
         <p className="text-xs text-[var(--text-mut)]">

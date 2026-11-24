@@ -544,10 +544,31 @@ async function create(
     fail(409, "Asset name already exists");
   const existingSame = disk.assets.find((a) => a.path === path);
   // `replace` = reimport: new pixels, same codepoint/ascent/usages.
-  const replace = fields.replace === "true";
+  // `retouch` = the same image with other pixels (the pixel editor): it also keeps its size.
+  const retouch = fields.retouch === "true";
+  const replace = retouch || fields.replace === "true";
   if (existingSame && !replace) fail(409, "Asset name already exists");
   if (!existingSame && replace) fail(404, "not_found");
   const kept = existingSame?.row;
+  if (retouch && existingSame && kept) {
+    const before = await overlay.bytes(existingSame);
+    if (!before) fail(503, "server_offline");
+    let drawn = { width: 0, height: 0 };
+    try {
+      drawn = readPngDimensions(before);
+    } catch {
+      // An unreadable file has no size to keep: refused below.
+    }
+    if (drawn.width !== width || drawn.height !== height)
+      fail(400, "A retouch keeps the image's size");
+    // A glyph shown at another height than its file's stays at that height.
+    if (kept.width > 0 && kept.height > 0 && kept.height !== height) {
+      if (typeof contentWidth === "number" && contentWidth > 0)
+        contentWidth = Math.max(1, Math.round(contentWidth * (kept.height / height)));
+      width = kept.width;
+      height = kept.height;
+    }
+  }
   const previous = existingSame ? descriptorOf(disk.files, existingSame.path) : null;
   if (kept) usages = kept.usages;
   const ascentValue = kept
