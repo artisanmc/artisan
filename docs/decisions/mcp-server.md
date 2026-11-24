@@ -150,8 +150,9 @@ deployed.
      colour count and the partly transparent pixels; `read_image` adds a small image's pixels as
      `write_image` takes them.
    - **Draft only.** Both tools are offered to every principal with `edit`, the editor's assistant
-     included; the assistant's tool results are text for now (`AiInput.ToolResult`), so it gets the
-     facts without the picture. Rebuilding the pack stays a deploying tool.
+     included. Rebuilding the pack stays a deploying tool.
+   - **The editor's assistant sees them too** (ADR `editor-assistant`, decision 14): a tool's
+     pictures go to its model with the result, when the model reads images.
 
 ## Consequences
 
@@ -174,6 +175,6 @@ deployed.
   `/ai` relay): next milestones of the proposal.
 - Detecting reuse of a refresh token (revoke the whole authorization): this would require keeping the
   old hashes.
-- Data tools (data sources), a render of a whole menu, images in the assistant's tool results, a
-  server's UI kit and an image model: the next steps of the design named in decision 10.
+- Data tools (data sources), a render of a whole menu, a server's UI kit and an image model: the
+  next steps of the design named in decision 10.
 - Deploying several Projects in one call, and a per-client limit on deploys.

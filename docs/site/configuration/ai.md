@@ -102,7 +102,8 @@ backgrounds, as pixel art it writes pixel by pixel or as a PNG it made on its si
 image enlarged after writing it, and can read the images a project already has to keep their
 style. Ask for example: "Make the shop menu textured, in the style of the guild menus." An image
 is at most 512 pixels on each side. Players see it once the draft is deployed and the resource
-pack rebuilt. The editor's assistant gets the same tools, but does not see the pictures yet.
+pack rebuilt. The editor's assistant gets the same tools and sees its images the same way, when
+its model reads images (a text-only model draws without seeing, and says so).
 
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"
 on the consent page, or the "Can deploy" switch in **Settings → AI apps**. The app then shows

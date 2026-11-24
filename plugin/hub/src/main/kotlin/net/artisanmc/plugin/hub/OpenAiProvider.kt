@@ -110,14 +110,22 @@ class OpenAiProvider(
         }
     }
 
-    /** [input] as the API's messages: each tool result its own `tool` message, the rest one `user` message after them. */
+    /**
+     * [input] as the API's messages: each tool result its own `tool` message, the rest one `user`
+     * message after them. A `tool` message is text only in this API, so the pictures a tool
+     * returned go in that `user` message, each one named after its call.
+     */
     private fun messages(input: List<AiInput>): List<JsonNode> {
-        val results = input.filterIsInstance<AiInput.ToolResult>().map { result ->
+        val results = input.filterIsInstance<AiInput.ToolResult>()
+        val answers = results.map { result ->
             // No error flag in this API: a failed call's result says so itself (`{"error":…}`).
             json.objectNode().put("role", TOOL).put("tool_call_id", result.callId).put("content", result.json)
         }
-        val parts = input.filter { it !is AiInput.ToolResult }
-        if (parts.isEmpty()) return results
+        val shown = results.flatMap { result ->
+            result.pictures.flatMap { listOf(AiInput.Text("The picture the tool call ${result.callId} returned (${it.name}):"), it) }
+        }
+        val parts = shown + input.filter { it !is AiInput.ToolResult }
+        if (parts.isEmpty()) return answers
         val user = json.objectNode().put("role", USER)
         val only = parts.singleOrNull() as? AiInput.Text
         // Plain text as a string: some compatible APIs (DeepSeek) read no other form.
@@ -125,7 +133,7 @@ class OpenAiProvider(
         else if (parts.all { it is AiInput.Text }) user.put("content", parts.joinToString("\n\n") { (it as AiInput.Text).text })
         else user.set<ArrayNode>("content", json.arrayNode().addAll(parts.map(::part)))
         // A node is Iterable: `+ user` would add its fields.
-        return results + listOf(user)
+        return answers + listOf(user)
     }
 
     private fun part(input: AiInput): JsonNode = when (input) {
