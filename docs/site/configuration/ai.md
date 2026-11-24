@@ -14,6 +14,7 @@ deploy, as with your own edits.
 | Who pays the model | You, with your API key or your artisanmc.net credits | The player's own AI subscription |
 | Turn it on | **Settings → Assistant**: model + key | `web.mcp: true` in `environment.yml` |
 | Can it deploy? | Never | Off by default; the player can allow it |
+| Pictures from an image model | Asks you before each one | Off by default; the player can allow it |
 
 Both are previews.
 
@@ -83,6 +84,37 @@ server first. The panel offers to open the draft in **Drafts**, where you review
 
 Every message of every player is billed to your key, or to the linked account's credits.
 
+### Generated pictures
+
+The assistant draws pixel art itself: buttons, icons, windows. What it cannot draw pixel by
+pixel (an illustration, a painted background, a detailed emblem) it can ask of an **image
+model**, when you set one. In **Settings → Assistant**, under **Image model**, pick OpenAI or
+Google and paste that vendor's API key. Or in `environment.yml`:
+
+```yaml
+ai:
+  image:
+    provider: "openai"
+    api-key: "${OPENAI_API_KEY}"
+```
+
+- **Each picture is paid on that key**, a few cents each depending on the model. So the
+  assistant asks first: a card in the conversation shows what it is about to ask for, with
+  **Allow once**, **Always allow** and **Deny**. "Always" is yours alone, for this tool; take it
+  back in **Settings → AI apps**. A question left unanswered for five minutes counts as a no.
+- **A player gets `ai.image.daily-limit` pictures a day** (40 unless you change it), the
+  assistant and their AI apps together.
+- **The picture is material, not a file.** It comes back at about a megapixel and shows in the
+  conversation. The assistant then measures it and cuts out what the menu needs, at the size it
+  needs, into a draft, the same way as from a screenshot you attach. The server keeps each
+  player's last 8 pictures while it runs.
+- **Pixel art from an image model is approximate**: its pixels are rarely on a true grid.
+  Buttons, slots and small icons come out better drawn by the assistant itself. Use an image
+  model for what is painted.
+- OpenAI's models make a transparent background when asked. Google's do not: the picture comes
+  on a flat colour, which is removed when it is cut.
+- artisanmc.net credits do not pay for pictures yet: an image model needs its own key.
+
 ## AI clients (MCP)
 
 With `web.mcp: true` in `environment.yml`, the editor's address also answers the
@@ -97,6 +129,12 @@ With `web.mcp: true` in `environment.yml`, the editor's address also answers the
 The app then acts as you, with your editor permissions minus `artisan.editor.config`. It needs
 `artisan.editor.edit`. It can list servers and projects, read files and schemas, start a draft
 and write into it; each file is checked by the server before it enters the draft.
+
+Where the server has an image model ([Generated pictures](#generated-pictures)), the consent
+page offers one more box: **let it ask the server's image model for pictures**. Off unless you
+tick it, since the server's owner pays for each one; you switch it per app in
+**Settings → AI apps** ("Can generate pictures"). An app that does its own image generation
+does not need it: it can write the PNG it made with `write_image`.
 
 **Images.** The app can also draw the images of a menu into the draft: buttons, icons and window
 backgrounds, as pixel art it writes pixel by pixel or as a PNG it made on its side. It sees each

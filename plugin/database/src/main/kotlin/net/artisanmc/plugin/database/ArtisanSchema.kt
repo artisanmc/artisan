@@ -301,6 +301,8 @@ object ArtisanSchema {
             )""",
         ),
         Migration(54, "CREATE INDEX ${t.serverPlaytimeSeenIndex} ON ${t.serverPlaytime} (last_seen)") { hasIndex(it, t.serverPlaytime, t.serverPlaytimeSeenIndex) },
+        // An MCP app may call the server's image model (generate_image, paid by the server's owner) only once the player allowed it.
+        Migration(55, "ALTER TABLE ${t.mcpGrants} ADD COLUMN allow_images BOOLEAN NOT NULL DEFAULT FALSE") { hasColumn(it, t.mcpGrants, "allow_images") },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

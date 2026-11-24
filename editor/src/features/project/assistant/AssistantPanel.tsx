@@ -46,6 +46,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { DraftImage } from "./DraftImage";
+import { GeneratedPicture, PermissionLine } from "./PermissionLine";
 import { ServerFilePicker } from "./ServerFilePicker";
 import { useAiStatus, useAssistant } from "./useAssistant";
 
@@ -467,6 +468,8 @@ export function EventLine({ event }: { event: AiEvent }) {
       return <Markdown className="mr-4">{event.text}</Markdown>;
     case "tool":
       return <ToolLine event={event} />;
+    case "permission":
+      return <PermissionLine event={event} />;
     case "notice":
       return (
         <p className="flex items-center gap-1.5 text-[12.5px] text-[var(--warning)]">
@@ -518,6 +521,7 @@ function ToolLine({ event }: { event: Extract<AiEvent, { type: "tool" }> }) {
           maxHeight={96}
         />
       )}
+      {event.ok && event.generated && <GeneratedPicture name={event.generated} />}
       {event.name === "start_draft" && event.draft && (
         <button
           type="button"

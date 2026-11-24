@@ -14,6 +14,7 @@ import net.artisanmc.plugin.pack.KitTheme
 import net.artisanmc.plugin.pack.MenuPictures
 import net.artisanmc.plugin.pack.PixelArt
 import net.artisanmc.plugin.pack.PixelRect
+import net.artisanmc.plugin.pack.Png
 import net.artisanmc.plugin.pack.RgbaImage
 import net.artisanmc.plugin.project.ProjectMetadataPaths
 import net.artisanmc.plugin.project.ProjectPathPolicy
@@ -34,17 +35,25 @@ class McpTools(
     private val packs: PackBuilder? = null,
     /** A vanilla item's picture by its id (`diamond_sword`), for render_menu; null: items show as `?`. */
     private val items: ((String) -> ByteArray?)? = null,
+    /** The image model in service (`ai.image`), read at each call; null: generate_image is not offered. */
+    private val images: () -> ImageService? = { null },
+    private val logger: java.util.logging.Logger? = null,
 ) {
     /**
      * A tool as `tools/list` describes it, and what it does. [requires]: the permission without
      * which it is not offered. [attached]: what it does instead when it also reads the pictures
-     * the caller holds ([invoke]).
+     * the caller holds ([invoke]). [spends]: each call is paid by the server's owner (an image
+     * model): offered only to a principal allowed to ([McpPrincipal.images]), while a model is set.
      */
     class Tool(
         val name: String, val title: String, val description: String, val input: Map<String, Any?>, val readOnly: Boolean,
         val run: (McpPrincipal, JsonNode) -> Any?, val requires: String? = null, val destructive: Boolean = false,
         val attached: ((McpPrincipal, JsonNode, Map<String, ByteArray>) -> Any?)? = null,
+        val spends: Boolean = false,
     )
+
+    /** The pictures generate_image made, each player's own, and how many each asked for today. */
+    val generated = GeneratedPictures()
 
     val tools: List<Tool> = listOf(
         Tool(
@@ -169,7 +178,7 @@ class McpTools(
                     "description" to "Instead of pixels: the rectangle of a picture to cut the image out of, in that picture's own pixels " +
                         "(measure_image shows them). The cut comes back at one pixel per pixel of the art, whatever size the picture shows it at.",
                     "properties" to mapOf(
-                        "attachment" to string("The file name of a picture the player attached in the editor's assistant."),
+                        "attachment" to string(ATTACHMENT),
                         "path" to string("Or an image of this Project, as the draft has it: `assets/textures/sheet.png`."),
                         "x" to INTEGER, "y" to INTEGER, "width" to INTEGER, "height" to INTEGER,
                         "pixel_size" to mapOf(
@@ -247,7 +256,7 @@ class McpTools(
                 "cuts a rectangle out as an image. The elements are a guess from the colours: check each one on the picture, and " +
                 "measure a smaller zone when one is wrong or missing.",
             schema(
-                "attachment" to string("The file name of a picture the player attached in the editor's assistant."),
+                "attachment" to string(ATTACHMENT),
                 "project" to PROJECT, "path" to string("With project: an image of it, e.g. `assets/glyphs/shop_background.png`."), "draft_id" to DRAFT_OPTIONAL,
                 "zone" to mapOf(
                     "type" to "object", "description" to "The part to show, in the picture's pixels; left out, the whole picture.",
@@ -257,6 +266,42 @@ class McpTools(
                 required = emptyList(),
             ),
             readOnly = true, { principal, args -> measureImage(principal, args, emptyMap()) }, attached = ::measureImage,
+        ),
+        Tool(
+            "generate_image", "Generate a picture",
+            "Asks the server's image model for a picture from a description: what you cannot draw pixel by pixel (an illustration, " +
+                "a painted background, a detailed emblem). Every call is paid by the server's owner: call it when the player asked " +
+                "for such a picture, once per picture, never to try things out. A button, a slot, a panel, an icon of a few colours " +
+                "is drawn with write_image instead: free, exact, and in the kit's style. The picture is about a megapixel and is not " +
+                "an image of a module yet: it comes back under a name (`generated-3.png`), kept while the hub runs, that measure_image " +
+                "and write_image's `from` take as `attachment`. Measure it, then cut out of it what the menu needs, at the size it " +
+                "needs: an image model's pixel art is rarely on a true grid, so look at each cut.",
+            schema(
+                "prompt" to string(
+                    "What to draw, in full, in English: the subject, the style (`pixel art, 32x32 sprite, flat shading, dark outline`), " +
+                        "the colours (hex values, e.g. survey_ui's kit colours), the framing (`centred, the whole subject in frame`), " +
+                        "and what must not be there (text, a border, a shadow on the ground). The model knows nothing of this server.",
+                ),
+                "shape" to mapOf("type" to "string", "enum" to ImageRequest.Shape.entries.map { it.id }, "description" to "square (the default), wide (3:2) or tall (2:3)."),
+                "transparent" to mapOf(
+                    "type" to "boolean",
+                    "description" to "The subject alone, nothing behind it: an image that sits on a menu. Left out: a picture that fills its frame (a background).",
+                ),
+                "references" to mapOf(
+                    "type" to "array", "maxItems" to MAX_REFERENCES,
+                    "description" to "Pictures the model works from: the style to follow (an image of the kit), an element to redraw or to vary.",
+                    "items" to mapOf(
+                        "type" to "object",
+                        "properties" to mapOf(
+                            "attachment" to string(ATTACHMENT),
+                            "project" to PROJECT, "path" to string("With project: an image of it, e.g. `assets/textures/shop_banner.png`."), "draft_id" to DRAFT_OPTIONAL,
+                        ),
+                    ),
+                ),
+                required = listOf("prompt"),
+            ),
+            readOnly = false, { principal, args -> generateImage(principal, args, emptyMap()) }, requires = EditorPermissions.EDIT,
+            attached = ::generateImage, spends = true,
         ),
         Tool(
             "render_menu", "Render a menu",
@@ -357,23 +402,31 @@ class McpTools(
 
     /** The tools [principal] may call: those needing a permission it lacks are not offered. */
     fun available(principal: McpPrincipal): List<Tool> =
-        tools.filter { (it.requires == null || principal.can(it.requires)) && (!it.destructive || principal.canDeploy) }
+        tools.filter { (it.requires == null || principal.can(it.requires)) && (!it.destructive || principal.canDeploy) && (!it.spends || canSpend(principal)) }
+
+    /** Whether [principal] is offered the tools that cost the server's owner money: allowed to, and a model is set. */
+    private fun canSpend(principal: McpPrincipal) = principal.images && images() != null
 
     /**
      * The tools of a principal that never deploys: the editor's assistant. It may create an empty module
      * (`create_module`, the player's own publish permission): nothing in it runs before a deployed draft.
      */
-    val draftOnly: List<Tool> get() = tools.filter { !it.destructive }
+    val draftOnly: List<Tool> get() = tools.filter { !it.destructive && (!it.spends || images() != null) }
 
     /** A tool call's answer as a model reads it: the MCP endpoint and the editor's assistant both hand it on. */
     class Outcome(val body: Any?, val error: Boolean, val pictures: List<McpImages.Picture> = emptyList())
 
-    /** [attached]: the pictures the caller holds beside the Projects, by file name: what the player attached in the assistant's conversation. */
+    /**
+     * [attached]: the pictures the caller holds beside the Projects, by file name: what the player
+     * attached in the assistant's conversation. The pictures generate_image made for the player
+     * are taken by name the same way.
+     */
     fun invoke(principal: McpPrincipal, tool: Tool, args: JsonNode, attached: Map<String, ByteArray> = emptyMap()): Outcome = try {
         if (tool.destructive && !principal.canDeploy) throw McpRefusal("forbidden", McpProjects.NOT_ALLOWED)
         if (tool.requires != null && !principal.can(tool.requires))
             throw McpRefusal("forbidden", if (tool.requires == EditorPermissions.PUBLISH) "The player lacks artisan.editor.publish." else "The player lacks ${tool.requires}.")
-        when (val out = if (tool.attached != null) tool.attached.invoke(principal, args, attached) else tool.run(principal, args)) {
+        if (tool.spends && !principal.images) throw McpRefusal("forbidden", NOT_ALLOWED_TO_SPEND)
+        when (val out = if (tool.attached != null) tool.attached.invoke(principal, args, generated.of(principal.playerId) + attached) else tool.run(principal, args)) {
             is Refused -> Outcome(out.body, error = true)
             is Shown -> Outcome(out.body, error = false, pictures = out.pictures)
             else -> Outcome(out, error = false)
@@ -404,6 +457,7 @@ class McpTools(
             "can_write_drafts" to principal.can(EditorPermissions.EDIT),
             "can_deploy" to principal.canDeploy,
             "can_create_modules" to principal.can(EditorPermissions.PUBLISH),
+            "can_generate_images" to (principal.can(EditorPermissions.EDIT) && canSpend(principal)),
             "servers" to servers,
             "workflow" to listOfNotNull(
                 "1. Pick a Project (the player calls it a module). Read what exists with list_documents and read_document. " +
@@ -855,14 +909,14 @@ class McpTools(
             val bytes = attached[attachment] ?: attached.entries.firstOrNull { it.key.equals(attachment.trim(), ignoreCase = true) }?.value
                 ?: throw McpRefusal(
                     "not_found",
-                    if (attached.isEmpty()) "No attached picture here. A picture is attached in the editor's assistant, and is kept while the hub runs: " +
-                        "ask the player to attach it (again), or take an image of a Project by its path."
-                    else "No attached picture '$attachment'. Attached: ${attached.keys.joinToString(", ")}.",
+                    if (attached.isEmpty()) "No attached or generated picture here. A picture is attached in the editor's assistant, or made by " +
+                        "generate_image, and is kept while the hub runs: ask the player to attach it (again), or take an image of a Project by its path."
+                    else "No picture '$attachment'. Attached or generated: ${attached.keys.joinToString(", ")}.",
                 )
             return Picture(attachment, McpImages.source(bytes), McpImages.lossy(bytes))
         }
         val path = node.get("path")?.takeIf { it.isTextual && it.asText().isNotBlank() }?.asText()?.trim()?.removePrefix("/")
-            ?: throw McpRefusal("invalid_input", "attachment (a picture the player attached) or path (an image of a Project) is required.")
+            ?: throw McpRefusal("invalid_input", "attachment (a picture the player attached, or one generate_image made) or path (an image of a Project) is required.")
         if (!contentPath(path) || !SOURCE_PATH.containsMatchIn(path)) throw McpRefusal("invalid_path", "'$path' is not an image of a Project: assets/…/<name>.png.")
         val (ref, draft) = project()
         val bytes = imageBytes(ref, path, draft)
@@ -921,6 +975,72 @@ class McpTools(
             ).filterValues { it != null },
             listOf(McpImages.compact(ImageRulers.picture(image, zone, found?.rects.orEmpty()))),
         )
+    }
+
+    /**
+     * A picture from the server's image model (design `design-ia-menus-assets`, step 6). The call
+     * costs the server's owner money: [invoke] let it through only for a principal allowed to
+     * spend, and each player has a number of pictures a day. The picture is kept in the hub's
+     * memory under a name, material to measure and cut, never a file of a Project by itself.
+     */
+    private fun generateImage(principal: McpPrincipal, args: JsonNode, attached: Map<String, ByteArray>): Any {
+        val service = images() ?: throw McpRefusal("ai_image_unavailable", "No image model is set on this network: the admin sets one in Settings → Assistant (or `ai.image` in environment.yml). Draw with write_image instead.")
+        val prompt = text(args, "prompt").trim()
+        if (prompt.length < MIN_PROMPT || prompt.length > MAX_PROMPT) throw McpRefusal("invalid_input", "prompt is $MIN_PROMPT to $MAX_PROMPT characters: describe the subject, the style, the colours and the framing.")
+        val shape = args.get("shape")?.takeIf { !it.isNull }?.let { ImageRequest.Shape.of(it.asText()) ?: throw McpRefusal("invalid_input", "shape is one of ${ImageRequest.Shape.entries.joinToString(", ") { s -> s.id }}.") }
+            ?: ImageRequest.Shape.SQUARE
+        val transparent = args.path("transparent").asBoolean(false)
+        val nodes = args.get("references")?.takeIf { it.isArray }?.toList().orEmpty()
+        if (nodes.size > MAX_REFERENCES) throw McpRefusal("invalid_input", "references holds at most $MAX_REFERENCES pictures.")
+        val references = nodes.mapIndexed { i, node ->
+            val picture = picture(node, attached) {
+                val project = projects.project(text(node, "project"))
+                project to node.get("draft_id")?.takeIf { it.isTextual }?.asText()?.let { draftSnapshot(principal, project, it) }
+            }
+            ImageRequest.Reference("reference-${i + 1}.png", Png.encode(readable(picture.image)))
+        }
+        if (!generated.spend(principal.playerId, service.dailyLimit))
+            throw McpRefusal("ai_image_limit", "This player asked for ${service.dailyLimit} pictures today, the server's limit (`ai.image.daily-limit`): no more before tomorrow (UTC). Draw with write_image, or use a picture already made.")
+        // A model that makes no transparent background draws on a flat one, removed when the picture is cut.
+        val flat = transparent && !service.model.transparency
+        val asked = if (flat) "$prompt\n\nBackground: one flat, uniform colour the subject does not use (pure magenta #ff00ff), with no gradient, shadow or texture; nothing else behind the subject." else prompt
+        val made = try {
+            service.model.generate(ImageRequest(asked, shape, transparent && !flat, references))
+        } catch (e: AiFailure) {
+            generated.giveBack(principal.playerId)
+            throw McpRefusal(e.code, e.message ?: e.code)
+        }
+        val image = try {
+            McpImages.source(made.bytes)
+        } catch (e: McpRefusal) {
+            throw McpRefusal("ai_provider_error", "The image model (${service.model.model}) answered with a picture that cannot be read: ${e.message}")
+        }
+        val name = generated.keep(principal.playerId, made.bytes)
+        logger?.info("[Artisan] ${principal.playerName}${principal.clientName?.let { " via $it" }.orEmpty()}: generate_image on ${service.model.model} → $name (${image.width}x${image.height})")
+        return Shown(
+            mapOf(
+                "picture" to name, "width" to image.width, "height" to image.height, "model" to service.model.model,
+                "background" to when {
+                    flat -> "flat magenta asked for (this model makes no transparent background): cut with write_image's from.background \"remove\", or the colour measure_image reads"
+                    transparent -> "transparent"
+                    else -> "filled"
+                },
+                "next" to "This picture is not in a module. measure_image {attachment: \"$name\"} shows it under a ruler; write_image with from: " +
+                    "{attachment: \"$name\", x, y, width, height} cuts it out as an image of a draft, brought down to the art's own size. " +
+                    "Tell the player what was made, and that it cost one picture on the server's image model.",
+            ),
+            listOf(McpImages.compact(McpImages.onChequer(image))),
+        )
+    }
+
+    /** A reference as an image model reads it: a small image (a 16x16 icon) enlarged pixel for pixel. */
+    private fun readable(image: RgbaImage): RgbaImage {
+        val scale = McpImages.scale(image)
+        if (scale == 1) return image
+        val out = RgbaImage(image.width * scale, image.height * scale)
+        for (y in 0 until out.height) for (x in 0 until out.width)
+            System.arraycopy(image.data, ((y / scale) * image.width + x / scale) * 4, out.data, (y * out.width + x) * 4, 4)
+        return out
     }
 
     /** An art pixel's size as a result gives it: a whole number, or a fraction to a hundredth. */
@@ -1706,6 +1826,11 @@ class McpTools(
         private const val SETTLE_TOLERANCE = 30
         /** write_image's `from.background` when it names the ground's colour. */
         private val GROUND = Regex("#[0-9a-fA-F]{6}")
+        private const val ATTACHMENT = "The file name of a picture the player attached in the editor's assistant, or the name generate_image gave a picture it made."
+        private const val MAX_REFERENCES = 4
+        private const val MIN_PROMPT = 10
+        private const val MAX_PROMPT = 4000
+        const val NOT_ALLOWED_TO_SPEND = "This app may not use the server's image model, which the server's owner pays for: the player can allow it in Settings → AI apps."
         private const val IMAGES_HOWTO = "Images: a menu with its own look is drawn with images (write_image). Before the first one, call " +
             "survey_ui on the server: reuse an image that fits (a menu may name any module's image), and draw what is missing in the " +
             "style of what is there. For a plain button, panel, arrow or window, name an image of the kit's base (`kit:button.3x1`, " +

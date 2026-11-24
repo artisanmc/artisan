@@ -11,6 +11,9 @@ export const mcpEn = {
     publish: "Also let it deploy drafts to the server",
     publishHint:
       "It shows you the changes and deploys only after you say yes. Each deploy is a Version marked “via {{client}}”, which you can roll back.",
+    images: "Also let it ask the server's image model for pictures",
+    imagesHint:
+      "Each picture is paid by the server's owner, on the image model set for this network. {{client}} decides when to ask; you can take this back in Settings, AI apps.",
     redirect: "You will then return to {{host}}.",
     approve: "Allow",
     deny: "Deny",
@@ -33,6 +36,12 @@ export const mcpEn = {
     failed: "The change could not be saved. Try again.",
     publish: "Can deploy",
     publishNeedsRight: "Letting a client deploy requires the artisan.editor.publish permission.",
+    images: "Can generate pictures",
+    imagesHint:
+      "Lets this client ask the server's image model for pictures. Each one is paid by the server's owner.",
+    assistant: "Editor assistant",
+    assistantAlways: "Always allowed, without asking: {{tools}}",
+    assistantRevoke: "Ask again",
     disabled:
       "The MCP endpoint is off on this server. An admin turns it on with web.mcp: true in environment.yml.",
     loading: "Loading…",
@@ -53,6 +62,9 @@ export const mcpFr: typeof mcpEn = {
     publish: "L'autoriser aussi à déployer des brouillons sur le serveur",
     publishHint:
       "Il vous montre les changements et ne déploie qu'après votre accord. Chaque déploiement est une Version marquée « via {{client}} », que vous pouvez annuler.",
+    images: "L'autoriser aussi à demander des images au modèle d'image du serveur",
+    imagesHint:
+      "Chaque image est payée par le propriétaire du serveur, sur le modèle d'image réglé pour ce réseau. {{client}} décide quand en demander ; vous pouvez retirer cet accord dans Réglages, Applications IA.",
     redirect: "Vous reviendrez ensuite sur {{host}}.",
     approve: "Autoriser",
     deny: "Refuser",
@@ -77,6 +89,12 @@ export const mcpFr: typeof mcpEn = {
     publish: "Peut déployer",
     publishNeedsRight:
       "Autoriser un client à déployer demande la permission artisan.editor.publish.",
+    images: "Peut générer des images",
+    imagesHint:
+      "Laisse ce client demander des images au modèle d'image du serveur. Chacune est payée par le propriétaire du serveur.",
+    assistant: "Assistant de l'éditeur",
+    assistantAlways: "Toujours autorisé, sans demander : {{tools}}",
+    assistantRevoke: "Redemander",
     disabled:
       "Le point d'entrée MCP est désactivé sur ce serveur. Un admin l'active avec web.mcp: true dans environment.yml.",
     loading: "Chargement…",

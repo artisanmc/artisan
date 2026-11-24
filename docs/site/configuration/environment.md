@@ -52,8 +52,8 @@ On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no por
 
 Preview. The editor's assistant, on your own model account. Read by the hub only, never sent to
 the editor. You can leave it out and set the assistant from the editor instead (**Settings →
-Assistant**), once for the whole network. When this section names a `provider`, it wins: the
-editor shows its values read-only. See [The editor's assistant](../ai/#the-editors-assistant).
+Assistant**), once for the whole network. When this section names a `provider` (the
+assistant's or the image model's), it wins: the editor shows its values read-only. See [The editor's assistant](../ai/#the-editors-assistant).
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -63,6 +63,11 @@ editor shows its values read-only. See [The editor's assistant](../ai/#the-edito
 | `ai.effort` | `"medium"` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the model thinks, and how many tokens it spends. `anthropic` only. |
 | `ai.max-steps` | `25` | Model calls one message may make (1 to 100). The assistant stops there and says so; the next message lets it go on. |
 | `ai.base-url` | `""` | Another address for the API: a proxy, or another vendor's compatible API. With `anthropic`: DeepSeek `https://api.deepseek.com/anthropic`. With `openai`: DeepSeek `https://api.deepseek.com`, Mistral `https://api.mistral.ai/v1`, OpenRouter `https://openrouter.ai/api/v1`, Ollama `http://localhost:11434/v1`. Empty: the provider's own (Anthropic, OpenAI). |
+| `ai.image.provider` | `""` | The image model the assistant and AI apps ask for a picture ([Generated pictures](../ai/#generated-pictures)): `"openai"` (GPT Image models) or `"google"` (Gemini image models). Empty: none. It can be set without `ai.provider`, for AI apps alone. |
+| `ai.image.api-key` | `""` | That provider's API key; `"${OPENAI_API_KEY}"` reads it from the environment. Every picture is billed to it. |
+| `ai.image.model` | `""` | The image model, as the vendor names it. Empty: `gpt-image-1` for `openai`, `gemini-2.5-flash-image` for `google`. |
+| `ai.image.base-url` | `""` | Another address for that API (a proxy). Empty: the provider's own. |
+| `ai.image.daily-limit` | `40` | Pictures one player may ask for in a day (UTC), the assistant and their AI apps together. `0`: no limit. Counted in memory: a restart starts the day again. |
 
 ## `stats-export`
 

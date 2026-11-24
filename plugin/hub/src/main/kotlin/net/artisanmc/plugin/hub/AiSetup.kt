@@ -19,6 +19,26 @@ interface AiSettingsStore {
     fun write(config: AiConfig?)
 }
 
+/**
+ * What a player answered "always" to when the assistant asked before a paid tool
+ * (`generate_image`): the tools' names, per player, kept with the settings. The player takes one
+ * back in the assistant's settings.
+ */
+interface AiPermissionStore {
+    /** The tools [player] always allows. Throws while the database is not open yet. */
+    fun allowed(player: java.util.UUID): Set<String>
+
+    fun set(player: java.util.UUID, tool: String, allow: Boolean)
+}
+
+class MemoryAiPermissionStore : AiPermissionStore {
+    private val byPlayer = java.util.concurrent.ConcurrentHashMap<java.util.UUID, Set<String>>()
+    override fun allowed(player: java.util.UUID) = byPlayer[player].orEmpty()
+    override fun set(player: java.util.UUID, tool: String, allow: Boolean) {
+        byPlayer.compute(player) { _, tools -> (if (allow) tools.orEmpty() + tool else tools.orEmpty() - tool).ifEmpty { null } }
+    }
+}
+
 class MemoryAiSettingsStore(@Volatile private var config: AiConfig? = null) : AiSettingsStore {
     override fun read() = config
     override fun write(config: AiConfig?) {
@@ -27,8 +47,9 @@ class MemoryAiSettingsStore(@Volatile private var config: AiConfig? = null) : Ai
 }
 
 /**
- * The assistant the hub runs and the settings it runs on. environment.yml's `ai` section wins when
- * it names a provider: the editor shows it, read-only. Otherwise the settings saved from the
+ * The assistant the hub runs, the image model `generate_image` calls, and the settings they run
+ * on. environment.yml's `ai` section wins when it names a provider (the assistant's or the image
+ * model's): the editor shows it, read-only. Otherwise the settings saved from the
  * editor ([store]), read once the database answers, and applied at once when they change: the
  * assistant is rebuilt; it takes the conversations back from [conversations] (without it, they end).
  *
@@ -47,10 +68,18 @@ class AiSetup(
     private val clock: Clock = Clock.systemUTC(),
     /** Where conversations outlive the assistant; null: in its memory alone. */
     private val conversations: AiConversationStore? = null,
+    /** Builds the image model service for a configuration; null: none, or a provider that is not known. */
+    private val imageFor: (AiImageConfig) -> ImageModel? = { AiImageConfig.service(it) },
+    /** What each player always allows the assistant; in memory when the hub has no database. */
+    val permissions: AiPermissionStore = MemoryAiPermissionStore(),
 ) {
     enum class Source(val id: String) { FILE("file"), DATABASE("database"), NONE("none") }
 
-    data class Current(val config: AiConfig, val source: Source, val assistant: AiAssistant?)
+    /** [images]: the image model in service, with or without an assistant (an MCP app may use it alone). */
+    data class Current(val config: AiConfig, val source: Source, val assistant: AiAssistant?, val images: ImageService? = null)
+
+    /** The pictures the image model made, by player: the editor shows them in the conversation. */
+    val generated: GeneratedPictures get() = tools.generated
 
     @Volatile private var current: Current? = null
 
@@ -68,7 +97,7 @@ class AiSetup(
     /** Whether the editor may change the settings: not when environment.yml sets them. */
     val editable: Boolean get() = !fromFile
 
-    private val fromFile: Boolean get() = file.provider.isNotBlank()
+    private val fromFile: Boolean get() = file.provider.isNotBlank() || file.image.provider.isNotBlank()
 
     private fun stale() = Duration.between(readAt, clock.instant()) >= refresh
 
@@ -100,10 +129,20 @@ class AiSetup(
 
     private fun apply(config: AiConfig?, source: Source): Current {
         val previous = current
-        val next = Current(config ?: AiConfig(), source, config?.let(::build))
+        val next = Current(config ?: AiConfig(), source, config?.let(::build), config?.image?.let(::images))
         current = next
         previous?.assistant?.takeIf { it !== next.assistant }?.close()
         return next
+    }
+
+    private fun images(config: AiImageConfig): ImageService? {
+        if (config.provider.isBlank()) return null
+        val model = imageFor(config) ?: run {
+            logger?.warning("[Artisan] ai.image: provider '${config.provider}' needs a key and to be one of ${AiImageConfig.PROVIDERS}: no generate_image")
+            return null
+        }
+        logger?.info("[Artisan] Image model enabled: ${config.provider} API, model ${model.model}")
+        return ImageService(model, config.dailyLimit)
     }
 
     private fun build(config: AiConfig): AiAssistant? {
@@ -114,7 +153,7 @@ class AiSetup(
             return null
         }
         logger?.info("[Artisan] Editor assistant enabled: ${describe(config)}")
-        return AiAssistant(provider, tools, config.maxSteps, logger, store = conversations)
+        return AiAssistant(provider, tools, config.maxSteps, logger, store = conversations, permissions = permissions)
     }
 
     companion object {

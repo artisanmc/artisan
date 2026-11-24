@@ -32,13 +32,40 @@ class McpTest {
     private val config = java.util.concurrent.ConcurrentHashMap<String, Any?>()
     private val server = McpFixtures.server(sent, history, modules, config)
 
+    /** The image model generate_image calls: it records what it was asked and answers one picture, or fails. */
+    private class ScriptedImages : ImageModel {
+        val asked = java.util.concurrent.CopyOnWriteArrayList<ImageRequest>()
+        @Volatile var failure: AiFailure? = null
+        @Volatile override var transparency = false
+        override val model = "scripted-image"
+
+        /** A square of 8x8 art pixels, two reds in a chequer, drawn four times its size in the middle of a magenta ground. */
+        val picture: ByteArray = net.artisanmc.plugin.pack.RgbaImage(64, 64).let { image ->
+            for (y in 0 until 64) for (x in 0 until 64) {
+                val inside = x in 16 until 48 && y in 16 until 48
+                java.nio.ByteBuffer.wrap(image.data, (y * 64 + x) * 4, 4).putInt(if (!inside) 0xff00ffff.toInt() else if ((x / 4 + y / 4) % 2 == 0) 0xc03030ff.toInt() else 0x801818ff.toInt())
+            }
+            net.artisanmc.plugin.pack.Png.encode(image)
+        }
+
+        override fun generate(request: ImageRequest): GeneratedImage {
+            asked += request
+            failure?.let { throw it }
+            return GeneratedImage(picture)
+        }
+    }
+
+    private val imageModel = ScriptedImages()
     private val drafts = McpFixtures.Drafts()
     private val sessions = Sessions()
     private val grants = McpGrants()
     private val player = UUID.randomUUID()
     private val hub = HubServer(
         WebConfig(port = 0, bind = "127.0.0.1"),
-        EditorApi.router(Servers(server), sessions, null, history = history, drafts = drafts, mcp = grants, version = "2.0.0"),
+        EditorApi.router(
+            Servers(server), sessions, null, history = history, drafts = drafts, mcp = grants, version = "2.0.0",
+            ai = AiConfig(image = AiImageConfig(provider = "openai", apiKey = "k", dailyLimit = 4)), aiImages = { imageModel },
+        ),
         sessions, EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
     )
     private val client = HttpClient.newHttpClient()
@@ -98,14 +125,14 @@ class McpTest {
     }
 
     /** Register, authorize, consent, code: what a client and the player do, in that order. */
-    private fun code(clientId: String = registerClient(), challenge: String = McpGrants.challenge(verifier), publish: Boolean = false): String {
+    private fun code(clientId: String = registerClient(), challenge: String = McpGrants.challenge(verifier), publish: Boolean = false, images: Boolean = false): String {
         val authorize = http("GET", "${OAuthRoutes.AUTHORIZE}?response_type=code&client_id=$clientId&redirect_uri=${URLEncoder.encode(redirect, Charsets.UTF_8)}&state=xyz&code_challenge=$challenge&code_challenge_method=S256")
         assertEquals(302, authorize.status)
         val consent = authorize.headers.firstValue("Location").get()
         assertTrue(consent.startsWith(OAuthRoutes.CONSENT_PAGE + "?"), consent)
         val query = consent.substringAfter('?').split('&').associate { it.substringBefore('=') to URLDecoder.decode(it.substringAfter('='), Charsets.UTF_8) }
         assertEquals("Claude", editor("GET", "${OAuthRoutes.CONSENT}?client_id=$clientId&redirect_uri=${URLEncoder.encode(redirect, Charsets.UTF_8)}").body!!["client"]["name"].asText())
-        val approved = editor("POST", OAuthRoutes.CONSENT, query + ("approve" to true) + ("publish" to publish))
+        val approved = editor("POST", OAuthRoutes.CONSENT, query + ("approve" to true) + ("publish" to publish) + ("images" to images))
         assertEquals(200, approved.status)
         val back = approved.body!!["redirect"].asText()
         assertTrue(back.startsWith("$redirect?code="), back)
@@ -113,8 +140,8 @@ class McpTest {
         return back.substringAfter("code=").substringBefore('&')
     }
 
-    private fun tokens(clientId: String = registerClient(), publish: Boolean = false): Pair<String, String> {
-        val code = code(clientId, publish = publish)
+    private fun tokens(clientId: String = registerClient(), publish: Boolean = false, images: Boolean = false): Pair<String, String> {
+        val code = code(clientId, publish = publish, images = images)
         val answer = form(OAuthRoutes.TOKEN, "grant_type" to "authorization_code", "code" to code, "client_id" to clientId, "redirect_uri" to redirect, "code_verifier" to verifier)
         assertEquals(200, answer.status, answer.body.toString())
         assertEquals("Bearer", answer.body!!["token_type"].asText())
@@ -869,6 +896,100 @@ class McpTest {
         assertEquals("invalid_name", tool(access, "create_module", "server" to "u-local", "name" to "../x")["structuredContent"]["error"].asText())
         assertEquals("unknown_server", tool(access, "create_module", "server" to "nope", "name" to "x")["structuredContent"]["error"].asText())
         assertEquals(2, sent.count { it["type"] == "project_create" })
+    }
+
+    @Test
+    fun `an app asks the server's image model only once the player allowed it, and cuts the picture it got`() {
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/gem.png" to net.artisanmc.plugin.pack.Png.encode(net.artisanmc.plugin.pack.RgbaImage(8, 8))))
+        val (access, _) = tokens()
+        fun names() = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
+        fun generate(vararg args: Pair<String, Any?>) = tool(access, "generate_image", *args)
+
+        // Not offered, and refused when called anyway: the server's owner pays for each picture.
+        assertFalse("generate_image" in names())
+        val refused = generate("prompt" to "a red square on nothing")
+        assertEquals("forbidden", refused["structuredContent"]["error"].asText())
+        assertTrue("Settings → AI apps" in refused["structuredContent"]["message"].asText())
+        assertFalse(tool(access, "artisan_overview")["structuredContent"]["can_generate_images"].asBoolean())
+        assertTrue(imageModel.asked.isEmpty())
+
+        val listed = editor("GET", OAuthRoutes.GRANTS).body!!
+        assertTrue(listed["canImages"].asBoolean())
+        assertFalse(listed["grants"][0]["images"].asBoolean())
+        val grant = listed["grants"][0]["id"].asText()
+        val allowed = editor("PATCH", "${OAuthRoutes.GRANTS}/$grant", mapOf("images" to true))
+        assertEquals(200 to """{"ok":true,"images":true}""", allowed.status to allowed.body.toString())
+        assertTrue(editor("GET", OAuthRoutes.GRANTS).body!!["grants"][0]["images"].asBoolean())
+        assertFalse(editor("GET", OAuthRoutes.GRANTS).body!!["grants"][0]["publish"].asBoolean(), "one choice does not move the other")
+        assertTrue("generate_image" in names())
+        assertTrue(tool(access, "artisan_overview")["structuredContent"]["can_generate_images"].asBoolean())
+
+        // A model that makes no transparent background is asked for a flat one; a small reference is enlarged for it.
+        val made = generate(
+            "prompt" to "a red square, pixel art", "shape" to "wide", "transparent" to true,
+            "references" to listOf(mapOf("project" to "u-local.shop", "path" to "assets/textures/gem.png")),
+        )
+        assertFalse(made.has("isError"), made.toString())
+        val facts = made["structuredContent"]
+        assertEquals(listOf("generated-1.png", "64", "64", "scripted-image"), listOf("picture", "width", "height", "model").map { facts[it].asText() })
+        assertTrue("magenta" in facts["background"].asText())
+        assertEquals("image", made["content"][1]["type"].asText())
+        val request = imageModel.asked.single()
+        assertTrue(request.prompt.startsWith("a red square, pixel art\n\n") && "#ff00ff" in request.prompt, request.prompt)
+        assertEquals(ImageRequest.Shape.WIDE to false, request.shape to request.transparent)
+        assertEquals("reference-1.png", request.references.single().name)
+        assertEquals(128, net.artisanmc.plugin.pack.Png.decode(request.references.single().png).width)
+
+        // The picture is no module's file: it is measured and cut by the name it came back under.
+        val measured = tool(access, "measure_image", "attachment" to "generated-1.png")
+        assertEquals("""[{"n":1,"x":16,"y":16,"width":32,"height":32,"art_size":"8x8"}]""", measured["structuredContent"]["elements"].toString())
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: picture")["structuredContent"]["draft_id"].asText()
+        val cut = tool(
+            access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "red_square",
+            "from" to mapOf("attachment" to "generated-1.png", "x" to 8, "y" to 8, "width" to 48, "height" to 48, "background" to "remove"),
+        )
+        assertFalse(cut.has("isError"), cut.toString())
+        assertEquals(listOf(8, 8), listOf("width", "height").map { cut["structuredContent"][it].asInt() })
+        assertTrue("assets/textures/red_square.png" in mapper.readTree(drafts.rows.getValue(draftId))["snapshot"]["binaryTree"].fieldNames().asSequence().toList())
+
+        // A model that makes one is asked for it, with the prompt as written.
+        imageModel.transparency = true
+        assertEquals("transparent", generate("prompt" to "a blue circle, alone", "transparent" to true)["structuredContent"]["background"].asText())
+        assertEquals(Triple("a blue circle, alone", ImageRequest.Shape.SQUARE, true), imageModel.asked.last().let { Triple(it.prompt, it.shape, it.transparent) })
+        assertEquals("filled", generate("prompt" to "a painted night sky")["structuredContent"]["background"].asText())
+
+        // What is wrong in the call never reaches the model; a picture the model did not make is not counted.
+        assertTrue(generate("prompt" to "short")["isError"].asBoolean())
+        assertTrue(generate("prompt" to "a red square on nothing", "shape" to "round")["isError"].asBoolean())
+        assertTrue(generate("prompt" to "a red square on nothing", "references" to List(5) { mapOf("attachment" to "generated-1.png") })["isError"].asBoolean())
+        assertTrue(generate("prompt" to "a red square on nothing", "references" to listOf(mapOf("attachment" to "nope.png")))["isError"].asBoolean())
+        assertEquals(3, imageModel.asked.size)
+        imageModel.failure = AiFailure("ai_image_refused", "api.example refused the request: not that")
+        val failed = generate("prompt" to "something it refuses")
+        assertEquals("ai_image_refused" to "api.example refused the request: not that", failed["structuredContent"].let { it["error"].asText() to it["message"].asText() })
+        imageModel.failure = null
+
+        // Four pictures a day here: the fifth waits for tomorrow, whichever app asks.
+        assertFalse(generate("prompt" to "the last of the day").has("isError"))
+        val limited = generate("prompt" to "one picture too many")
+        assertEquals("ai_image_limit", limited["structuredContent"]["error"].asText())
+        assertEquals(5, imageModel.asked.size)
+        val (other, _) = tokens(images = true)
+        assertEquals("ai_image_limit", tool(other, "generate_image", "prompt" to "from another app")["structuredContent"]["error"].asText())
+        assertEquals(listOf("generated-1.png", "generated-2.png", "generated-3.png", "generated-4.png"), hubPictures())
+
+        // Taken back, the app is refused on its next call.
+        assertEquals(200, editor("PATCH", "${OAuthRoutes.GRANTS}/$grant", mapOf("images" to false)).status)
+        assertFalse("generate_image" in names())
+        assertEquals("forbidden", generate("prompt" to "a red square on nothing")["structuredContent"]["error"].asText())
+        assertEquals(422, editor("PATCH", "${OAuthRoutes.GRANTS}/$grant", mapOf("images" to "yes")).status)
+    }
+
+    /** The names of the pictures the hub keeps for the player, as the editor asks for them. */
+    private fun hubPictures(): List<String> = (1..5).map { "generated-$it.png" }.filter {
+        client.send(
+            HttpRequest.newBuilder(URI("$base${AiRoutes.GENERATED}/$it")).header("Cookie", cookie).build(), HttpResponse.BodyHandlers.ofByteArray(),
+        ).statusCode() == 200
     }
 
     @Test

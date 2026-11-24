@@ -89,12 +89,22 @@ object EnvironmentFile {
         |#   effort    : low, medium, high, xhigh or max: how hard the model thinks, and what it
         |#               costs (anthropic only)
         |#   max-steps : model calls one message may make (1 to 100)
+        |#   image     : an image model, for the pictures the assistant cannot draw pixel by pixel
+        |#               (an illustration, a painted background). provider "openai" or "google",
+        |#               its own api-key (each picture is billed to it), model (empty: the
+        |#               provider's default), daily-limit pictures per player and per day (0: no
+        |#               limit). It can be set without a provider above, for AI apps (web.mcp).
         |# ai:
         |#   provider: "anthropic"
         |#   api-key: "${'$'}{ANTHROPIC_API_KEY}"
         |#   model: ""
         |#   effort: "medium"
         |#   max-steps: 25
+        |#   image:
+        |#     provider: "openai"
+        |#     api-key: "${'$'}{OPENAI_API_KEY}"
+        |#     model: ""
+        |#     daily-limit: 40
         |
         |# Rankings and player profiles on your website (Azuriom's Artisan plugin, or any site
         |# that speaks the same protocol). This server pushes the player metrics that changed

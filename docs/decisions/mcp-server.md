@@ -341,6 +341,38 @@ deployed.
     - **Not in this step**: a theme per player, a module's own theme overlay (its PNGs
       redrawn per theme), a `themed: true` on a module's image to have it recoloured, and a
       screen to edit a theme's table by hand (it is a YAML file of the kit module).
+17. **A picture from an image model: `generate_image`** (2026-11-24, step 6 of the same
+    design). A chat model draws pixel art cell by cell; it cannot paint an illustration or a
+    background. `generate_image` asks an image model for one, on the admin's key (`ai.image`:
+    `openai`, the Images API with GPT Image models, or `google`, the Gemini API's image
+    models; `AiImages.kt`, behind `ImageModel`).
+    - **The picture is material, never a file.** It comes back at about a megapixel, kept in
+      the hub's memory under a name (`generated-<n>.png`, each player's last 8,
+      `GeneratedPictures`), with a compact copy for the model's eyes. `measure_image` and
+      `write_image`'s `from` take it by that name as `attachment`, so it enters a draft the
+      way a screenshot does: measured, cut, brought to the art's size, checked. Nothing new
+      is written to a server's disk nor to the database.
+    - **It spends the server owner's money, so it is off by default.** An MCP client is
+      offered the tool only when its grant carries `allow_images` (migration 55): a box on
+      the consent page, off unless ticked, and a switch per app in Settings → AI apps. It
+      takes `edit`, like the assistant's own question (ADR `editor-assistant`, decision 16).
+      Not listed and refused (`forbidden`) otherwise; `artisan_overview` says
+      `can_generate_images`. Without an image model the tool does not exist.
+    - **A number of pictures per player and per day** (`ai.image.daily-limit`, 40, UTC, in
+      memory), all clients and the assistant together: the guard against a model that loops
+      on a paid tool. A call the image model failed or refused is not counted.
+    - **Transparency**: a model that makes a transparent background is asked for one; one
+      that does not (Google's) gets a prompt that asks for a flat magenta ground, removed
+      when the picture is cut (`from.background`).
+    - **References** (4 at most): pictures the image model works from, an attachment or a
+      module's image, a small one enlarged pixel for pixel before it is sent.
+    - **Why not let the client generate on its side?** It can: `write_image` takes a
+      `png_base64` it made. `generate_image` is for clients that have no image model, and for
+      the editor's assistant, which has none.
+    - **Not verified against the vendors** when this was written: no key was at hand. The
+      requests follow the vendors' published API and are tested against a local stand-in;
+      the first real call may show a field to adjust. The quality of pixel art from an image
+      model is the open question of the design's benchmark.
 
 ## Consequences
 
@@ -363,8 +395,9 @@ deployed.
   `/ai` relay): next milestones of the proposal.
 - Detecting reuse of a refresh token (revoke the whole authorization): this would require keeping the
   old hashes.
-- Data tools (data sources), a server's UI kit and an image model: the next steps of the design
-  named in decision 10. For `render_menu`: a state chosen by the caller, sample values for
+- Data tools (data sources): a next step of the design named in decision 10. For
+  `generate_image`: artisanmc.net credits paying for pictures (the relay only carries chat
+  models), a price shown before the call, other vendors, and pictures that outlive a restart. For `render_menu`: a state chosen by the caller, sample values for
   expressions, hover text (name and lore). For the kit: a screen for a theme's colours, themes
   for a module's own images, and its place in the editor's Resources page. For `measure_image`: a pixel size that is not
   whole found by itself (a mock-up from an image model), elements inside a dense menu, a WebP.

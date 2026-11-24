@@ -12,7 +12,11 @@ import java.net.URLEncoder
  * page of the editor (`/oauth/consent`): the player is signed in there as usual, and approves
  * through [CONSENT], a same-origin route like any other.
  */
-class OAuthRoutes(private val grants: McpGrants) {
+class OAuthRoutes(
+    private val grants: McpGrants,
+    /** Whether an image model is set (`ai.image`): the consent then offers `generate_image`, which the server's owner pays for. */
+    private val images: () -> Boolean = { false },
+) {
     fun register(router: Router) {
         for (path in listOf(RESOURCE_METADATA, "$RESOURCE_METADATA${McpRoutes.PATH}")) {
             router.on("GET", path, null, crossOrigin = true) { call ->
@@ -62,6 +66,8 @@ class OAuthRoutes(private val grants: McpGrants) {
                 "canEdit" to session.can(EDIT),
                 // Whether the consent may offer deploying: a token is "draft only" unless the player ticks it.
                 "canPublish" to session.can(PUBLISH),
+                // Whether it may offer the server's image model: only where one is set.
+                "canImages" to (session.can(EDIT) && images()),
             ))
         }
         router.on("POST", CONSENT, EDIT) { call ->
@@ -72,7 +78,7 @@ class OAuthRoutes(private val grants: McpGrants) {
             val state = body.path("state").asText("").ifEmpty { null }
             if (!body.path("approve").asBoolean(false)) return@on call.json(mapOf("redirect" to back(redirect, "error" to "access_denied", "state" to state)))
             val publish = body.path("publish").asBoolean(false)
-            val code = grants.approve(call.session!!, client, redirect, body.path("code_challenge").asText(""), publish)
+            val code = grants.approve(call.session!!, client, redirect, body.path("code_challenge").asText(""), publish, body.path("images").asBoolean(false))
                 ?: return@on call.error(422, "invalid_input")
             call.json(mapOf("redirect" to back(redirect, "code" to code, "state" to state, "iss" to base(call))))
         }
@@ -82,18 +88,25 @@ class OAuthRoutes(private val grants: McpGrants) {
                 "grants" to grants.grants(session.playerId).map { g ->
                     mapOf(
                         "id" to g.id, "client" to g.clientName, "createdAt" to g.createdAt.toString(), "lastUsedAt" to g.lastUsedAt.toString(),
-                        "publish" to g.allowPublish,
+                        "publish" to g.allowPublish, "images" to g.allowImages,
                     )
                 },
                 "canPublish" to session.can(PUBLISH),
+                "canImages" to (session.can(EDIT) && images()),
             ))
         }
         // Allowing an app to deploy takes the player's own right to: the app never holds more than they do.
+        // The same for the server's image model: turning it on takes `edit`, like the assistant that asks before each picture.
         router.on("PATCH", "$GRANTS/:grant", VIEW) { call ->
-            val body = call.body()?.get("publish")?.takeIf { it.isBoolean } ?: return@on call.error(422, "invalid_input")
+            val body = call.body()
+            val publish = body?.get("publish")?.takeIf { it.isBoolean }?.booleanValue()
+            val images = body?.get("images")?.takeIf { it.isBoolean }?.booleanValue()
+            if (publish == null && images == null) return@on call.error(422, "invalid_input")
             val session = call.session!!
-            if (body.booleanValue() && !session.can(PUBLISH)) return@on call.error(403, "forbidden")
-            if (grants.allowPublish(session.playerId, call.params.getValue("grant"), body.booleanValue())) call.json(mapOf("ok" to true, "publish" to body.booleanValue()))
+            if ((publish == true && !session.can(PUBLISH)) || (images == true && !session.can(EDIT))) return@on call.error(403, "forbidden")
+            val grant = call.params.getValue("grant")
+            val done = (publish == null || grants.allowPublish(session.playerId, grant, publish)) && (images == null || grants.allowImages(session.playerId, grant, images))
+            if (done) call.json(mapOf("ok" to true, "publish" to publish, "images" to images).filterValues { it != null })
             else call.error(404, "not_found")
         }
         router.on("DELETE", "$GRANTS/:grant", VIEW) { call ->

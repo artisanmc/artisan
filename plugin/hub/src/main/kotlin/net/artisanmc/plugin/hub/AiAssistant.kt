@@ -32,6 +32,10 @@ class AiAssistant(
     /** The loop blocks on the model and on servers: never on the web server's threads. */
     private val executor: ExecutorService = Executors.newFixedThreadPool(4) { r -> Thread(r, "artisan-ai").apply { isDaemon = true } },
     private val store: AiConversationStore? = null,
+    /** The paid tools each player always allows; the others are asked about at each call ([ask]). */
+    private val permissions: AiPermissionStore = MemoryAiPermissionStore(),
+    /** How long a question to the player waits for its answer before it counts as a no. */
+    private val askTimeout: Duration = Duration.ofMinutes(5),
 ) {
     /** What the editor shows, in order: [seq] from 0, so it asks only for what it has not seen. */
     data class Event(val seq: Int, val type: String, val data: Map<String, Any?>)
@@ -169,6 +173,26 @@ class AiAssistant(
 
         @Synchronized internal fun attached(): Map<String, ByteArray> = LinkedHashMap(pictures)
 
+        /** The questions the player has not answered yet, by their id: the turn waits on one. */
+        private val asked = ConcurrentHashMap<String, java.util.concurrent.CompletableFuture<String>>()
+
+        /** Shows the player a question about [tool] and returns what answers it. */
+        internal fun ask(request: String, tool: String, detail: Map<String, Any?>): java.util.concurrent.CompletableFuture<String> {
+            val answer = java.util.concurrent.CompletableFuture<String>()
+            asked[request] = answer
+            add(PERMISSION, "request" to request, "tool" to tool, "state" to ASKED, "detail" to detail)
+            return answer
+        }
+
+        /** The question is over: [state] is written after it, so the editor stops asking. */
+        internal fun asked(request: String, tool: String, state: String) {
+            asked.remove(request)
+            add(PERMISSION, "request" to request, "tool" to tool, "state" to state)
+        }
+
+        /** The player's [answer] to [request]; false when nothing waits on it (answered, expired, another turn). */
+        fun answer(request: String, answer: String): Boolean = asked.remove(request)?.complete(answer) ?: false
+
         /** The base64 size of every picture a tool showed the model so far, counted from the events like [attachedBytes]. */
         @Synchronized fun shownBytes(): Long = events.filter { it.type == TOOL }.sumOf { (it.data["pictures"] as? Number)?.toLong() ?: 0L }
     }
@@ -258,7 +282,8 @@ class AiAssistant(
         }
         // Read when the player writes, like a session: losing `edit` stops the next message.
         // Publish stays for create_module (an empty folder); the tools that deploy are not the assistant's ([call]).
-        val principal = McpPrincipal(session.playerId, session.playerName, session.permissions - EditorPermissions.CONFIG, clientName = CLIENT, deploys = false)
+        // `images`: the paid tools are the assistant's to name; the player is asked at each call ([permitted]).
+        val principal = McpPrincipal(session.playerId, session.playerName, session.permissions - EditorPermissions.CONFIG, clientName = CLIENT, deploys = false, images = true)
         executor.execute { run(conversation, principal, text, attachments) }
         return Sent.Accepted
     }
@@ -297,8 +322,9 @@ class AiAssistant(
             conversation.clearLive()
             conversation.lastActive = clock.instant()
             conversation.add(DONE, "inputTokens" to conversation.inputTokens, "outputTokens" to conversation.outputTokens)
-            conversation.running = false
+            // Saved before the turn is said over: who sees it ended finds it in the store.
             save(conversation)
+            conversation.running = false
         }
     }
 
@@ -347,7 +373,15 @@ class AiAssistant(
         // Only the draft-only tools: a deploying tool named by the model is unknown here.
         val tool = tools.draftOnly.firstOrNull { it.name == call.name }
         val outcome = if (tool == null) McpTools.Outcome(mapOf("error" to "unknown_tool", "message" to "No tool '${call.name}'."), error = true)
-        else {
+        else if (tool.spends && !permitted(conversation, principal, call)) {
+            McpTools.Outcome(
+                mapOf(
+                    "error" to "refused_by_player",
+                    "message" to "The player did not allow this call. Do not call ${call.name} again unless they ask for it; offer what you can do without it (write_image draws pixel art).",
+                ),
+                error = true,
+            )
+        } else {
             if (!tool.readOnly) logger?.info("[Artisan] Assistant for ${principal.playerName}: ${call.name} ${call.input.path("path").asText("")}".trimEnd())
             tools.invoke(principal, tool, call.input, conversation.attached())
         }
@@ -367,8 +401,45 @@ class AiAssistant(
             "problems" to (body?.get("problems") as? List<*>)?.size?.takeIf { outcome.error },
             "draft" to draftOf(call, body, outcome.error),
             "pictures" to shown.sumOf { it.base64.length }.takeIf { it > 0 },
+            // generate_image's picture, by the name the hub keeps it under: the editor shows it while the hub holds it.
+            "generated" to (body?.get("picture") as? String)?.takeIf { !outcome.error && tool?.spends == true },
         )
         return AiInput.ToolResult(call.id, McpTools.resultText(result, indent = false), outcome.error, shown)
+    }
+
+    /**
+     * Whether the player lets a paid tool run (`generate_image`: the server's image model): yes at
+     * once when they answered "always" before, otherwise asked in the conversation, where the turn
+     * waits for the answer up to [askTimeout]. "Always" is the player's own, for this tool.
+     */
+    private fun permitted(conversation: Conversation, principal: McpPrincipal, call: AiToolCall): Boolean {
+        val always = try {
+            call.name in permissions.allowed(principal.playerId)
+        } catch (e: Exception) {
+            false
+        }
+        if (always) return true
+        val detail = mapOf(
+            "prompt" to call.input.text("prompt")?.take(1000), "shape" to call.input.text("shape"),
+            "references" to call.input.path("references").size().takeIf { it > 0 },
+        ).filterValues { it != null }
+        val waiting = conversation.ask(call.id, call.name, detail)
+        save(conversation)
+        val answer = try {
+            waiting.get(askTimeout.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)
+        } catch (e: java.util.concurrent.TimeoutException) {
+            EXPIRED
+        }
+        val state = answer.takeIf { it in setOf(ONCE, ALWAYS) } ?: if (answer == EXPIRED) EXPIRED else DENIED
+        if (state == ALWAYS) {
+            try {
+                permissions.set(principal.playerId, call.name, true)
+            } catch (e: Exception) {
+                logger?.log(Level.WARNING, "[Artisan] Could not keep ${principal.playerName}'s \"always\" for ${call.name}", e)
+            }
+        }
+        conversation.asked(call.id, call.name, state)
+        return state == ONCE || state == ALWAYS
     }
 
     /**
@@ -430,6 +501,11 @@ class AiAssistant(
         append("\n\nWhen the player attaches a picture to take images from (a screenshot of a menu they like, a mock-up), do not redraw it by hand: ")
         append("measure_image shows it under a ruler with the elements it finds, and write_image with `from` cuts a rectangle out as an image, ")
         append("at the art's own size. Look at each cut, and cut again when an edge is wrong.")
+        if (tools.draftOnly.any { it.spends }) {
+            append("\n\ngenerate_image asks the server's image model for a picture, which the server's owner pays for: use it for what you cannot draw ")
+            append("with write_image (an illustration, a painted background), not for a button or a small icon. Say what you are about to ask for before the call: ")
+            append("the player is asked to allow it, and may refuse. After a refusal, do not ask again; offer to draw it yourself.")
+        }
         if (server != null) append("\n\nThe player is working on the server `$server`: its Projects (modules) are the ids that start with `$server.`. Work in them unless asked otherwise; one piece of work may span several of its modules, one draft each. A new module: create_module on `$server`, only when the player asks for one.")
         if (project != null) append("\n\nThe player has this Project (module) open: $project. Work in it unless asked otherwise.")
     }
@@ -441,6 +517,15 @@ class AiAssistant(
         const val NOTICE = "notice"
         const val ERROR = "error"
         const val DONE = "done"
+        /** A question to the player before a paid tool, then its answer: `state` is [ASKED], then one of the others. */
+        const val PERMISSION = "permission"
+        const val ASKED = "asked"
+        const val ONCE = "once"
+        const val ALWAYS = "always"
+        const val DENIED = "denied"
+        const val EXPIRED = "expired"
+        /** What the player may answer. */
+        val ANSWERS = setOf(ONCE, ALWAYS, DENIED)
         const val CLIENT = "assistant"
         const val MAX_PER_PLAYER = 10
         val IDLE: Duration = Duration.ofHours(6)

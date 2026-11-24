@@ -20,6 +20,11 @@ data class McpPrincipal(
      * (an empty folder) but never deploys, whatever the permissions say.
      */
     val deploys: Boolean = true,
+    /**
+     * May call the tools that cost the server's owner money (`generate_image`): an app the player
+     * allowed to, or the editor's assistant, which then asks the player at each call.
+     */
+    val images: Boolean = false,
 ) {
     fun can(permission: String) = permission in permissions
 

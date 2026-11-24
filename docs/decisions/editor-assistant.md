@@ -174,11 +174,35 @@ than the hub. One single Artisan user at this date: the admin's key first.
    them to `McpTools.invoke`: after a hub restart, or in another conversation, the tool answers
    that it has no such picture and the model asks for it again. Nothing new is stored in
    `artisan_ai_conversations`.
+16. **An image model, and a question before each picture** (2026-11-24; ADR `mcp-server`,
+   decision 17). The settings carry a second model, `image` (`provider` `openai` or `google`,
+   its own key, model, base URL, pictures per player and per day), saved and read with the
+   others; `environment.yml` wins when it names either provider. It may be set alone, without
+   an assistant, for MCP clients. With it, the assistant is offered `generate_image`.
+   - **The player is asked at each call**, as a coding agent asks before a command: the turn
+     adds a `permission` event (`asked`, with the prompt) and waits, on its thread, for
+     `POST …/permissions/:request` with `once`, `always` or `denied`, five minutes at most
+     (`expired`, a no). The answer is another `permission` event; a refusal goes back to the
+     model as the tool's result (`refused_by_player`), and the turn goes on. The chat
+     model's tokens are not asked about: they were the assistant's cost from the start. A
+     picture is a separate, larger unit of spending the model decides on by itself.
+   - **"Always" is the player's, per tool**: kept in `artisan_settings`
+     (`ai-always:<player>`), shown and taken back in Settings → AI apps. It is not the
+     admin's switch: the admin's are the image model itself and `daily-limit`.
+   - **A waiting question holds one of the assistant's four threads.** Five minutes bounds
+     it; four players leaving a question open at once delay the others' turns.
+   - **The picture shows in the conversation**: the `tool` event carries the name the hub
+     keeps it under (`generated`), served by `GET /api/v1/ai/generated/:name` to its player
+     while the hub holds it. After a restart the line says the picture is gone; what was
+     cut from it is in the draft.
+   - The settings of the assistant changed while a question waits: the new assistant does
+     not know the question, which then expires.
 
 ## Consequences
 
 - The admin pays for every message of every player who has `edit`. No per-player quota nor
-  dedicated permission in milestone 1.
+  dedicated permission in milestone 1. Pictures from the image model are the exception: asked
+  about one by one, and counted per player and per day.
 - No dependency added: the Messages API is called with the okhttp and Jackson the hub already has.
 - What the assistant writes goes through the same check as `write_document`, then the same review and
   the same `DocumentCheck` on deploy.

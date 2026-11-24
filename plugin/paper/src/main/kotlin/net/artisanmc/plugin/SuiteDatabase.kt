@@ -9,6 +9,7 @@ private const val PURGE_TICKS = 20L * 60 * 60 * 24
 
 /** The `artisan_settings` row of the assistant's settings (ADR `editor-assistant`). */
 private const val AI_SETTING = "ai"
+private const val AI_ALWAYS_SETTING = "ai-always"
 private const val SITE_SETTING = "site_link"
 
 /** A peer that missed this many presence beats is left alone until it is seen again. */
@@ -230,6 +231,7 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         override fun touch(id: String, at: java.time.Instant) = store().touch(id, at)
         override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) = store().setPermissions(playerId, origin, permissions)
         override fun setPublish(playerId: UUID, id: String, allow: Boolean) = store().setPublish(playerId, id, allow)
+        override fun setImages(playerId: UUID, id: String, allow: Boolean) = store().setImages(playerId, id, allow)
         override fun deletePlayer(playerId: UUID, origin: String?) = store().deletePlayer(playerId, origin)
         override fun purge(now: java.time.Instant) = store().purge(now)
     }
@@ -252,6 +254,15 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
                 effort = text("effort", "medium"),
                 maxSteps = node.path("maxSteps").asInt(25).coerceIn(1, 100),
                 baseUrl = text("baseUrl"),
+                image = node.path("image").let { image ->
+                    net.artisanmc.plugin.hub.AiImageConfig(
+                        provider = image.path("provider").asText(""),
+                        apiKey = image.path("apiKey").asText(""),
+                        model = image.path("model").asText(""),
+                        baseUrl = image.path("baseUrl").asText(""),
+                        dailyLimit = image.path("dailyLimit").asInt(net.artisanmc.plugin.hub.AiImageConfig.DEFAULT_DAILY_LIMIT).coerceIn(0, 10_000),
+                    )
+                },
             )
         }
 
@@ -261,9 +272,31 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
                 mapOf(
                     "provider" to config.provider, "apiKey" to config.apiKey, "model" to config.model,
                     "effort" to config.effort, "maxSteps" to config.maxSteps, "baseUrl" to config.baseUrl,
+                    "image" to mapOf(
+                        "provider" to config.image.provider, "apiKey" to config.image.apiKey, "model" to config.image.model,
+                        "baseUrl" to config.image.baseUrl, "dailyLimit" to config.image.dailyLimit,
+                    ),
                 ),
             )
             rows().put(AI_SETTING, json, java.time.Instant.now())
+        }
+    }
+
+    /**
+     * The paid tools each player always allows the editor's assistant (`generate_image`):
+     * `artisan_settings`, one row per player. Unreadable until the database is open.
+     */
+    fun aiPermissionStore(): net.artisanmc.plugin.hub.AiPermissionStore = object : net.artisanmc.plugin.hub.AiPermissionStore {
+        private val mapper = com.fasterxml.jackson.databind.ObjectMapper()
+        private fun rows() = net.artisanmc.plugin.database.SettingRows(artisanData ?: throw IllegalStateException("suite database not open"), database.tables)
+        private fun name(player: UUID) = "$AI_ALWAYS_SETTING:$player"
+
+        override fun allowed(player: UUID): Set<String> =
+            rows().get(name(player))?.let { json -> mapper.readTree(json).mapNotNull { it.asText("").ifEmpty { null } }.toSet() }.orEmpty()
+
+        override fun set(player: UUID, tool: String, allow: Boolean) {
+            val next = if (allow) allowed(player) + tool else allowed(player) - tool
+            if (next.isEmpty()) rows().delete(name(player)).let {} else rows().put(name(player), mapper.writeValueAsString(next.sorted()), java.time.Instant.now())
         }
     }
 

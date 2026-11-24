@@ -20,6 +20,8 @@ data class AiConfig(
     val maxSteps: Int = 25,
     /** Another address for the provider's API (a proxy); empty: its own. */
     val baseUrl: String = "",
+    /** The image model `generate_image` calls ([AiImageConfig]); off when it names no provider. */
+    val image: AiImageConfig = AiImageConfig(),
 ) {
     val enabled: Boolean get() = provider == ARTISAN || (provider.isNotBlank() && apiKey.isNotBlank())
 
