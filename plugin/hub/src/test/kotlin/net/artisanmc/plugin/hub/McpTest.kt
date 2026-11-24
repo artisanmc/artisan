@@ -141,7 +141,7 @@ class McpTest {
         val notification = http("POST", McpRoutes.PATH, """{"jsonrpc":"2.0","method":"notifications/initialized"}""", mapOf("Authorization" to "Bearer $access"))
         assertEquals(202, notification.status)
         val names = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
-        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "render_menu", "survey_ui", "list_versions"), names)
+        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "measure_image", "render_menu", "survey_ui", "list_versions"), names)
         assertTrue(names.none { "publish" in it || "deploy" in it || "rollback" in it })
         // The kind guide is prose for the model to read, the schema outlined rather than dumped.
         val guide = tool(access, "get_kind_guide", "kind" to "menu", "project" to "u-local.shop")
@@ -279,6 +279,65 @@ class McpTest {
         modules.remove("ui-kit")
         assertTrue("create_module" in tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"]["how"].asText())
         assertTrue(tool(access, "survey_ui", "server" to "nowhere")["isError"].asBoolean())
+    }
+
+    @Test
+    fun `an image is cut out of a picture, at the art's own size and without its ground`() {
+        // A round button drawn four times its size on a plain ground, as a screenshot or a sprite sheet shows it.
+        val rows = listOf("_kkkkkk_", "kwwwwwgk", "kwrrrrgk", "kwrbbrgk", "kgggggGk", "_kkkkkk_")
+        val colours = mapOf('_' to 0x3a2852, 'k' to 0x000000, 'w' to 0xffffff, 'r' to 0xc03030, 'b' to 0x3050c0, 'g' to 0x8b8b8b, 'G' to 0x555555)
+        val sheet = net.artisanmc.plugin.pack.RgbaImage(120, 90)
+        for (y in 0 until 90) for (x in 0 until 120) {
+            val key = rows.getOrNull(Math.floorDiv(y - 19, 4))?.getOrNull(Math.floorDiv(x - 23, 4)) ?: '_'
+            java.nio.ByteBuffer.wrap(sheet.data, (y * 120 + x) * 4, 4).putInt((colours.getValue(key) shl 8) or 0xff)
+        }
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/sheet.png" to net.artisanmc.plugin.pack.Png.encode(sheet)))
+        val (access, _) = tokens()
+
+        val measured = tool(access, "measure_image", "project" to "u-local.shop", "path" to "assets/textures/sheet.png")
+        assertFalse(measured.has("isError"), measured.toString())
+        val facts = measured["structuredContent"]
+        assertEquals(listOf(120, 90, 4), listOf("width", "height", "pixel_size").map { facts[it].asInt() })
+        assertEquals("x8" to "#3a2852", facts["shown_at"].asText() to facts["background"].asText())
+        assertEquals("""[{"n":1,"x":23,"y":19,"width":32,"height":24,"art_size":"8x6"}]""", facts["elements"].toString())
+        assertEquals("image" to "image/png", measured["content"][1]["type"].asText() to measured["content"][1]["mimeType"].asText())
+        // A zone holds what is asked of the picture, and one outside it is refused.
+        val zone = mapOf("x" to 10, "y" to 10, "width" to 60, "height" to 40)
+        assertEquals("x12", tool(access, "measure_image", "project" to "u-local.shop", "path" to "assets/textures/sheet.png", "zone" to zone)["structuredContent"]["shown_at"].asText())
+        assertTrue(tool(access, "measure_image", "project" to "u-local.shop", "path" to "assets/textures/sheet.png", "zone" to zone + ("x" to 500))["isError"].asBoolean())
+
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: cut")["structuredContent"]["draft_id"].asText()
+        fun cut(name: String, vararg from: Pair<String, Any?>) =
+            tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to name, "from" to mapOf("path" to "assets/textures/sheet.png", *from))
+        fun stored(name: String): net.artisanmc.plugin.pack.RgbaImage {
+            val ref = mapper.readTree(drafts.rows.getValue(draftId))["snapshot"]["binaryTree"]["assets/textures/$name.png"]
+            return net.artisanmc.plugin.pack.Png.decode(drafts.blobs.getValue(ref["hash"].asText()))
+        }
+        fun pixel(image: net.artisanmc.plugin.pack.RgbaImage, x: Int, y: Int) = java.nio.ByteBuffer.wrap(image.data, (y * image.width + x) * 4, 4).int
+
+        // A loose rectangle around the button: its ground goes, the image is the button alone, one pixel per art pixel.
+        val round = cut("round_button", "x" to 18, "y" to 15, "width" to 44, "height" to 33, "background" to "remove")
+        assertFalse(round.has("isError"), round.toString())
+        val cutFacts = round["structuredContent"]
+        assertEquals(listOf(8, 6, 4), listOf("width", "height", "pixel_size").map { cutFacts[it].asInt() })
+        assertEquals("#3a2852", cutFacts["background_removed"].asText())
+        assertEquals("""{"picture":"assets/textures/sheet.png","x":23,"y":19,"width":32,"height":24}""", cutFacts["cut_from"].toString())
+        val button = stored("round_button")
+        assertEquals(listOf(0, 0x000000ff, 0xffffffff.toInt(), 0x3050c0ff), listOf(pixel(button, 0, 0), pixel(button, 1, 0), pixel(button, 1, 1), pixel(button, 3, 3)))
+        assertEquals("width: 8\nheight: 6\nusages: [button]\n", mapper.readTree(drafts.rows.getValue(draftId))["snapshot"]["tree"]["assets/textures/round_button.yml"].asText())
+
+        // Kept as it is: a rectangle a pixel or two off snaps to the art's pixels, and the corners keep the ground.
+        assertEquals(0x3a2852ff, pixel(cut("square_button", "x" to 24, "y" to 18, "width" to 31, "height" to 25).let { stored("square_button") }, 0, 0))
+        // A pixel size given wins over the one found; fewer colours when asked.
+        val coarse = cut("coarse", "x" to 23, "y" to 19, "width" to 32, "height" to 24, "pixel_size" to 8, "colours" to 2)["structuredContent"]
+        assertEquals(listOf(4, 3, 2), listOf("width", "height", "colours_kept").map { coarse[it].asInt() })
+
+        // What cannot be cut says why: no attachment outside the assistant, a rectangle off the picture, only ground.
+        val none = cut("x", "attachment" to "capture.png")
+        assertTrue(none["isError"].asBoolean() && "editor's assistant" in none["structuredContent"]["message"].asText(), none.toString())
+        assertTrue(cut("x", "x" to 200, "y" to 0, "width" to 10, "height" to 10)["isError"].asBoolean())
+        assertTrue("Nothing is left" in cut("x", "x" to 80, "y" to 60, "width" to 20, "height" to 20, "background" to "remove")["structuredContent"]["message"].asText())
+        assertTrue(tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "x", "from" to mapOf("x" to 1))["isError"].asBoolean())
     }
 
     @Test

@@ -112,6 +112,17 @@ and data are not evaluated, so an element shows its default look, a value such a
 `{shop.price}` shows as `{price}`, and an item only known in game shows a `?`. Open the menu
 in game, or in the editor's preview, to see it with real data.
 
+**From a screenshot or a mock-up.** Attach a picture to your message in the editor's assistant
+(a menu you like, a sheet of buttons, a mock-up) and ask for what you want from it: "Take the
+close button and the three tabs from this picture." The assistant measures the picture, cuts
+each element out at the art's own size, whatever the screenshot's GUI scale, removes the
+background around a shape, and writes the result into the draft as an image, which it looks at
+and corrects. It works best on pixel art over a plain background, in a PNG; a JPEG blurs
+colours, and a smooth or resized picture has to be told its pixel size. Elements that touch
+their neighbours are cut as rectangles, to the pixel. A PNG, JPEG or GIF up to 2560x1600. An app
+connected over MCP has no attachments: upload the picture into a module's images first, and
+give it that path. Only take images you have the right to reuse.
+
 **A consistent style: the UI kit.** Before it draws, the app looks at the images your modules
 already have, so a new menu matches the others. To keep a style over time, ask it for a UI kit:
 "Make a UI kit for this server from the guild menus." It creates a module named `ui-kit` that

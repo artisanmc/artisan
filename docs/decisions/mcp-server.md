@@ -196,6 +196,33 @@ deployed.
    - At most 240 images a survey and 80 a module; the rest is counted (`left_out`).
    - The fixed slots a module refers to (`kit:button.3x1`) and themes are later steps of the design:
      this decision only gives the kit a place and the model a way to see it.
+13. **Images cut out of a picture** (2026-11-24, fifth step of the same design). A model sees a
+   screenshot or a mock-up but cannot turn what it sees into a file: redrawing it pixel by pixel is
+   slow and wrong beyond an icon. Two additions, in `PixelArt` (pack module, pure):
+   - `measure_image` shows a picture under a ruler (`ImageRulers`): lines at round coordinates of
+     its own pixels, a `zone` shown larger, and what the hub finds: `pixel_size` (how many of its
+     pixels make one pixel of the art, the largest cell from 16 down to 2 whose boundaries hold
+     85 % of the colour changes, looked for in the zone, then around it, then in the whole
+     picture) and the `elements` that stand apart from the zone's most frequent colour, framed
+     and numbered. The elements are a guess that works on a sprite sheet and fails on a dense
+     menu, where everything touches: there the model reads the ruler.
+   - `write_image` takes `from`: a rectangle of a picture, brought back to one pixel per pixel of
+     the art (each pixel the colour its cell holds most, read away from the cell's edges), on the
+     grid found or at the `pixel_size` given (which may be a fraction). `background: remove`
+     looks two art pixels around the rectangle, makes the colour found there transparent from the
+     edge inward, leaves out what reaches the edge without reaching the middle (a neighbour the
+     rectangle cut), and trims: the rectangle only has to hold the element. `remove_all` empties
+     a frame's inside too; `colours` limits the palette (median cut); a JPEG's close colours are
+     settled first. The answer says what was cut (`cut_from`) and shows the image, like any
+     `write_image`: the model corrects by art pixels.
+   - **The picture is an attachment or a module's image.** In the editor's assistant, a picture
+     the player attached, by its file name (ADR `editor-assistant`, decision 15). Over MCP a
+     client cannot hand a tool the bytes of what its model sees: the picture is an image of a
+     Project (`path`), which the player uploads in the editor. A source picture is a PNG, a JPEG
+     or a GIF's first frame, read by the JDK (`McpImages.source`), 4.2 million pixels at most
+     (2560x1600), its size read from the header first.
+   - The ruler's picture is a PNG the JDK compresses, or a JPEG above 400 kB (the game's world
+     behind a menu): it is looked at, never written.
 
 ## Consequences
 
@@ -221,5 +248,6 @@ deployed.
 - Data tools (data sources), a server's UI kit and an image model: the next steps of the design
   named in decision 10. For `render_menu`: a state chosen by the caller, sample values for
   expressions, hover text (name and lore). For the kit: its fixed slots, themes, composed images
-  and its place in the editor's Resources page.
+  and its place in the editor's Resources page. For `measure_image`: a pixel size that is not
+  whole found by itself (a mock-up from an image model), elements inside a dense menu, a WebP.
 - Deploying several Projects in one call, and a per-client limit on deploys.

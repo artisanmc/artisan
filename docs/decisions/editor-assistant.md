@@ -161,6 +161,14 @@ than the hub. One single Artisan user at this date: the admin's key first.
    base64 each and 8 MB per conversation (counted from the `tool` events' `pictures`, so a
    restored conversation counts too); beyond, the result comes without it and says so. The editor
    does not show these pictures in the chat yet: the image is in the draft.
+15. **Attached pictures stay at hand for the tools** (2026-11-24; ADR `mcp-server`, decision 13).
+   `measure_image` and `write_image`'s `from` take a picture the player attached by its file
+   name. An image block carries no name, so the message that brings pictures ends with a line
+   naming them in order. The conversation keeps their bytes in memory only
+   (`Conversation.pictures`, within the 16 MB of attachments a conversation may hold), and hands
+   them to `McpTools.invoke`: after a hub restart, or in another conversation, the tool answers
+   that it has no such picture and the model asks for it again. Nothing new is stored in
+   `artisan_ai_conversations`.
 
 ## Consequences
 

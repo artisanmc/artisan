@@ -3,8 +3,16 @@ package net.artisanmc.plugin.hub
 import com.fasterxml.jackson.databind.JsonNode
 import net.artisanmc.plugin.pack.Png
 import net.artisanmc.plugin.pack.RgbaImage
+import java.awt.image.BufferedImage
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.util.Base64
+import javax.imageio.IIOImage
+import javax.imageio.ImageIO
+import javax.imageio.ImageWriteParam
+import javax.imageio.stream.MemoryCacheImageInputStream
+import javax.imageio.stream.MemoryCacheImageOutputStream
 import kotlin.math.ceil
 
 /**
@@ -17,6 +25,11 @@ object McpImages {
     const val MAX_SIDE = 512
     /** An image file's size, as the editor's upload limits it. */
     const val MAX_BYTES = 2 * 1024 * 1024
+    /** A picture an image is cut from (a screenshot, a mock-up) may be larger than an image: 2560x1600 at most. */
+    const val MAX_SOURCE_PIXELS = 4_200_000
+    /** Beyond this a picture shown under a ruler goes as a JPEG: it is looked at, not written. */
+    private const val MAX_RULER_PNG = 400_000
+    private val SOURCE_FORMATS = setOf("png", "jpeg", "gif")
     /** Beyond this an image does not go back as text ([grid]): too long to read, and to rewrite. */
     private const val MAX_GRID_PIXELS = 4096
     private const val PREVIEW_SIDE = 256
@@ -84,6 +97,73 @@ object McpImages {
         val bytes = runCatching { Base64.getDecoder().decode(text.substringAfter("base64,").filterNot(Char::isWhitespace)) }.getOrNull()
             ?: refuse("png_base64 is not base64.")
         return fromPng(bytes)
+    }
+
+    /**
+     * A picture to cut images from: a PNG, a JPEG or a GIF's first frame, read by the JDK, its size
+     * taken from the header before anything is allocated for its pixels.
+     */
+    fun source(bytes: ByteArray): RgbaImage {
+        val stream = MemoryCacheImageInputStream(ByteArrayInputStream(bytes))
+        val reader = ImageIO.getImageReaders(stream).asSequence().firstOrNull { it.formatName.lowercase() in SOURCE_FORMATS }
+            ?: refuse("this picture is not a PNG, a JPEG or a GIF: ask for it in one of those formats.")
+        try {
+            reader.setInput(stream, true, true)
+            val width = reader.getWidth(0)
+            val height = reader.getHeight(0)
+            if (width < 1 || height < 1 || width.toLong() * height > MAX_SOURCE_PIXELS)
+                refuse("a picture to cut from is at most $MAX_SOURCE_PIXELS pixels (2560x1600), this one is ${width}x$height: ask for a smaller one, or for the part that matters.")
+            val read = reader.read(0)
+            val image = RgbaImage(width, height)
+            val row = IntArray(width)
+            val out = ByteBuffer.wrap(image.data)
+            for (y in 0 until height) {
+                read.getRGB(0, y, width, 1, row, 0, width)
+                // ARGB to RGBA.
+                for (argb in row) out.putInt((argb shl 8) or (argb ushr 24))
+            }
+            return image
+        } catch (e: McpRefusal) {
+            throw e
+        } catch (e: Exception) {
+            refuse("this picture cannot be read: ${e.message}")
+        } finally {
+            reader.dispose()
+        }
+    }
+
+    /** True for a JPEG: its flat colours are no longer flat. */
+    fun lossy(bytes: ByteArray): Boolean = bytes.size > 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte()
+
+    /**
+     * An opaque picture a model only looks at (a picture under its ruler), as small as it goes: a
+     * PNG the JDK compresses, or a JPEG when the PNG is heavy (a screenshot of the game's world).
+     */
+    fun compact(image: RgbaImage): Picture {
+        val buffered = BufferedImage(image.width, image.height, BufferedImage.TYPE_INT_RGB)
+        val row = IntArray(image.width)
+        val pixels = ByteBuffer.wrap(image.data)
+        for (y in 0 until image.height) {
+            for (x in 0 until image.width) row[x] = pixels.getInt() ushr 8
+            buffered.setRGB(0, y, image.width, 1, row, 0, image.width)
+        }
+        val png = ByteArrayOutputStream().also { ImageIO.write(buffered, "png", it) }.toByteArray()
+        if (png.size <= MAX_RULER_PNG) return Picture(Base64.getEncoder().encodeToString(png))
+        val writer = ImageIO.getImageWritersByFormatName("jpeg").asSequence().firstOrNull() ?: return Picture(Base64.getEncoder().encodeToString(png))
+        val jpeg = ByteArrayOutputStream()
+        try {
+            MemoryCacheImageOutputStream(jpeg).use { out ->
+                writer.output = out
+                val quality = writer.defaultWriteParam.apply {
+                    compressionMode = ImageWriteParam.MODE_EXPLICIT
+                    compressionQuality = 0.85f
+                }
+                writer.write(null, IIOImage(buffered, null, null), quality)
+            }
+        } finally {
+            writer.dispose()
+        }
+        return if (jpeg.size() < png.size) Picture(Base64.getEncoder().encodeToString(jpeg.toByteArray()), "image/jpeg") else Picture(Base64.getEncoder().encodeToString(png))
     }
 
     /**
