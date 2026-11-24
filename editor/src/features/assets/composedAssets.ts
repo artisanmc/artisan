@@ -9,7 +9,7 @@ import { encodePng } from "@/lib/pack/png";
  * A composed image as the editor shows it (`lib/pack/compose.ts`): it has no PNG of its own, so
  * its picture is assembled here, as the pack does it, and carried as a `data:` URL.
  */
-export type ComposedView = Required<Pick<Asset, "previewUrl" | "composedOf">> &
+export type ComposedView = Required<Pick<Asset, "previewUrl" | "compose">> &
   Pick<Asset, "width" | "height">;
 
 type Bytes = Uint8Array | null | undefined;
@@ -28,8 +28,8 @@ export function toDataUrl(png: Uint8Array): string {
 
 /**
  * What the composed image `asset` shows: `all` are its module's assets, `bytes` reads one's
- * PNG, `kitOwn` gives the server's kit module's PNG by name (the base stands in). Its layers
- * are named even when none can be drawn; the picture is then empty.
+ * PNG, `kitOwn` gives the server's kit module's PNG by name (the base stands in). Its recipe
+ * is given even when no layer can be drawn; the picture is then empty.
  */
 export async function composedView(
   asset: DiskAsset,
@@ -39,7 +39,6 @@ export async function composedView(
 ): Promise<ComposedView | null> {
   const recipe = asset.compose;
   if (!recipe) return null;
-  const composedOf = [...new Set(recipe.layers.map((layer) => layer.image))];
   const image = await renderComposed(
     recipe,
     (name) => {
@@ -53,7 +52,7 @@ export async function composedView(
         previewUrl: toDataUrl(encodePng(image)),
         width: image.width,
         height: image.height,
-        composedOf,
+        compose: recipe,
       }
-    : { previewUrl: "", width: 0, height: 0, composedOf };
+    : { previewUrl: "", width: 0, height: 0, compose: recipe };
 }

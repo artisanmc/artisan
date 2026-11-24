@@ -23,6 +23,7 @@ import {
   nextFreeCodepoint,
 } from "@/lib/pack/assetDiskWrite";
 import { type AssetUsage, parseAssetUsages } from "@/lib/pack/assetUsages";
+import { type ComposeRecipe, composeRecipe, composeYaml } from "@/lib/pack/compose";
 import { type DiskAsset, diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import { FONT_DESCRIPTOR, fontDir, fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
 import { type ParsedMcFont, parseMcFontsZip } from "@/lib/pack/mcFontsParser";
@@ -75,7 +76,7 @@ export function assetJsonFields(fields: Record<string, string>): Record<string, 
   return Object.fromEntries(
     Object.entries(fields).map(([key, value]) => [
       key,
-      key === "usages"
+      key === "usages" || key === "compose"
         ? JSON.parse(value)
         : ["height", "ascent"].includes(key)
           ? Number(value)
@@ -207,7 +208,10 @@ export async function listLocalAssets(
 }
 
 /** A published binary of a Project, `null` when the disk does not have it. */
-export async function readPublishedBinary(projectId: string, path: string): Promise<Uint8Array | null> {
+export async function readPublishedBinary(
+  projectId: string,
+  path: string,
+): Promise<Uint8Array | null> {
   const response = await apiRequest(
     `/api/v1/projects/${encodeURIComponent(projectId)}/binary?path=${encodeURIComponent(path)}`,
   ).catch(() => fail(503, "storage_unavailable"));
@@ -338,11 +342,10 @@ class DraftOverlay {
     return readPublishedBinary(this.projectId, path);
   }
 
-  /** What the composed image `asset` shows, from the draft's files. */
+  /** What the composed image `asset` shows, from the draft's files: one of `disk`, or one about to be. */
   async view(disk: DiskAssetsTree, asset: DiskAsset): Promise<ComposedView | undefined> {
-    return (await composedViews(this.projectId, disk.assets, (layer) => this.bytes(layer))).get(
-      asset,
-    );
+    const all = disk.assets.includes(asset) ? disk.assets : [...disk.assets, asset];
+    return (await composedViews(this.projectId, all, (layer) => this.bytes(layer))).get(asset);
   }
 
   /** All or nothing: base hashes checked, blobs written, then a single revision. */
@@ -453,6 +456,33 @@ async function create(
     }
     if (type === "font" || usages === undefined)
       fail(400, "Invalid usages (images only; button, menu)");
+  }
+  if (fields.compose !== undefined) {
+    // A composed image: a descriptor that holds its recipe, and no file.
+    if (type === "font") fail(400, "Invalid type (a composed image is a texture or a glyph)");
+    let recipe: ComposeRecipe;
+    try {
+      recipe = requestedRecipe(JSON.parse(fields.compose));
+    } catch (error) {
+      if (error instanceof DraftApiError) throw error;
+      fail(400, "Invalid compose");
+    }
+    const disk = overlay.read();
+    const id = assetFileName(name);
+    if (disk.assets.some((a) => a.row.id === id)) fail(409, "Asset name already exists");
+    const ascent = type === "glyph" ? Number.parseInt(ascentRaw ?? "8", 10) : null;
+    if (ascent !== null && !Number.isFinite(ascent)) fail(400, "Invalid ascent");
+    const codepoint = type === "glyph" ? nextFreeCodepoint(disk.assets) : null;
+    const path = descriptorPath(assetDiskPath(type, name));
+    const content = stringify({
+      ...(ascent === null ? {} : { ascent }),
+      ...(codepoint === null ? {} : { codepoint }),
+      usages,
+      ...recipeFields(recipe),
+    });
+    await overlay.commit({ files: [{ path, content, base_hash: null }], binaries: [] });
+    const made = diskAssetsFromTree(projectId, [{ path, content }], [])[0]!;
+    return { asset: { ...serialize(made.row), ...(await overlay.view(disk, made)) } };
   }
   if (!file) fail(400, "Missing file");
   if (file.length > (type === "font" ? MAX_FONT_BYTES : MAX_RAW_BYTES))
@@ -573,6 +603,52 @@ function lookup(disk: DiskAssetsTree, id: string): DiskAsset {
   return disk.assets.find((a) => a.row.id === id) ?? fail(404, "Not found");
 }
 
+/**
+ * The recipe a request carries (`{layers, width, height}`, as `Asset.compose`), read as the pack
+ * reads a descriptor: refused unless the pack reads back that very recipe, with a layer at least.
+ */
+function requestedRecipe(value: unknown): ComposeRecipe {
+  const input = (value && typeof value === "object" ? value : {}) as Partial<ComposeRecipe>;
+  const layers = Array.isArray(input.layers) ? input.layers : [];
+  const invalid: () => never = () =>
+    fail(400, "Invalid compose (layers: image, x, y, columns, rows)");
+  if (
+    layers.some((layer) => !layer || typeof layer !== "object" || typeof layer.image !== "string")
+  )
+    invalid();
+  const [width, height] = [input.width ?? null, input.height ?? null];
+  const recipe = composeRecipe({
+    compose: composeYaml({ layers, width, height }),
+    width: width ?? undefined,
+    height: height ?? undefined,
+  });
+  const same = (a: ComposeRecipe["layers"][number], b: ComposeRecipe["layers"][number]) =>
+    a.image === b.image &&
+    a.x === b.x &&
+    a.y === b.y &&
+    a.columns === b.columns &&
+    a.rows === b.rows;
+  if (
+    !recipe ||
+    recipe.layers.length === 0 ||
+    recipe.layers.length !== layers.length ||
+    recipe.width !== width ||
+    recipe.height !== height ||
+    !recipe.layers.every((layer, i) => same(layer, layers[i] as ComposeRecipe["layers"][number]))
+  )
+    invalid();
+  return recipe;
+}
+
+/** What a descriptor holds of `recipe`: its layers, and its size when it gives one. */
+function recipeFields(recipe: ComposeRecipe): Record<string, unknown> {
+  return {
+    width: recipe.width ?? undefined,
+    height: recipe.height ?? undefined,
+    compose: composeYaml(recipe),
+  };
+}
+
 /** The descriptor of a composed image (its `path`): its text's hash, and what it holds. */
 function composedDescriptor(disk: DiskAssetsTree, asset: DiskAsset) {
   const content = disk.files.find((f) => f.path === asset.path)?.content ?? fail(404, "Not found");
@@ -627,7 +703,11 @@ async function patch(
     // A composed image is its descriptor: what changes is written there, the recipe kept as it is.
     if (typeof body.height === "number") fail(400, "height only valid for a glyph with a PNG");
     const current = composedDescriptor(disk, found);
-    const next: Record<string, unknown> = { ...current.parsed };
+    const recipe = body.compose === undefined ? found.compose : requestedRecipe(body.compose);
+    const next: Record<string, unknown> = {
+      ...current.parsed,
+      ...(body.compose === undefined ? {} : recipeFields(recipe)),
+    };
     if (nextAscent === null) next.ascent = undefined;
     else next.ascent = nextAscent;
     next.usages = nextUsages;
@@ -648,10 +728,14 @@ async function patch(
           ascent: nextAscent,
           usages: nextUsages,
         }),
-        ...(await overlay.view(disk, found)),
+        ...(await overlay.view(
+          disk,
+          recipe === found.compose ? found : { ...found, compose: recipe },
+        )),
       },
     };
   }
+  if (body.compose !== undefined) fail(400, "compose only valid for a composed image");
   const bytes = await overlay.bytes(found);
   if (!bytes) fail(503, "server_offline");
   const previous = descriptorOf(disk.files, found.path);

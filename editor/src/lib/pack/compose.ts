@@ -166,3 +166,39 @@ export async function renderComposed(
   }
   return composeImage(recipe, (name) => decoded.get(name));
 }
+
+/**
+ * A recipe's layers as a descriptor holds them, which `composeRecipe` reads back alike: `grid`
+ * for a layer that repeats, `use` for a kit image, `image` for a PNG of the module.
+ */
+export function composeYaml(recipe: ComposeRecipe): Record<string, string | number>[] {
+  return recipe.layers.map((layer) => {
+    const repeats = layer.columns > 1 || layer.rows > 1;
+    const key = repeats ? "grid" : kitNameOf(layer.image) !== null ? "use" : "image";
+    return {
+      [key]: layer.image,
+      ...(layer.x !== 0 ? { x: layer.x } : {}),
+      ...(layer.y !== 0 ? { y: layer.y } : {}),
+      ...(repeats ? { columns: layer.columns, rows: layer.rows } : {}),
+    };
+  });
+}
+
+/**
+ * The size of the image `recipe` gives, as `composeImage` settles it, from its layers' sizes
+ * alone (`undefined`: no image under that name); `null` when no layer can be drawn.
+ */
+export function composeSize(
+  recipe: ComposeRecipe,
+  sizeOf: (name: string) => { width: number; height: number } | undefined,
+): { width: number; height: number } | null {
+  for (const layer of recipe.layers) {
+    const size = sizeOf(layer.image);
+    if (!size) continue;
+    return {
+      width: recipe.width ?? clamp(layer.x + layer.columns * size.width),
+      height: recipe.height ?? clamp(layer.y + layer.rows * size.height),
+    };
+  }
+  return null;
+}

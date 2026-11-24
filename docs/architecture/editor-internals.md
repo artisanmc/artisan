@@ -85,10 +85,20 @@ server index through `state/kitStore`, so nothing here imports that feature.
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)
-and gives it as `Asset.previewUrl` (a `data:` URL) with its size and `composedOf`, so canvases
-and lists draw it like a PNG. `localAssets.ts` renames, duplicates and deletes it through its
-descriptor alone. The kit module's composed images are assembled once per read of the module
-(`kitAssets.ts`, `composedKitImages`).
+and gives it as `Asset.previewUrl` (a `data:` URL) with its size and its recipe
+(`Asset.compose`), so canvases and lists draw it like a PNG. `localAssets.ts` renames,
+duplicates and deletes it through its descriptor alone, and writes its recipe: a `compose`
+field on the create and patch requests (`composeAsset`, `patchAsset`), refused unless the pack
+reads back that very recipe (`requestedRecipe`). The kit module's composed images are assembled
+once per read of the module (`kitAssets.ts`, `composedKitImages`).
+Its detail pane is the composer (`ComposedImageEditor.tsx`) in place of the plain stage: each
+layer is an element laid at its place in game pixels (a grid as a repeated background, so the
+browser draws what the pack will), dragged with the pointer (Shift: steps of one slot, 18 px)
+or nudged with the arrow keys; the list beside it orders, removes and adds layers (`KitPicker`
+for a kit image, `ImageChoiceDialog` for a PNG of the module). The size shown is `composeSize`,
+the pack's rule on the layers' sizes alone. Nothing is written before **Save layers**, one patch.
+`ComposeNewDialog` (Resources page, **Compose an image**) creates one from a kit window or a
+kit button.
 `ImageButtonsRender` draws the display image once and drags the whole rectangle. On release,
 the slot under the pointer (`hitTestSlot`, any menu of the Project) receives the cell of the
 button held at mouse-down (`imageButtonOrigin`, in grid cells so the gaps above the player rows

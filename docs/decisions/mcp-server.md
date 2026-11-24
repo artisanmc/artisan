@@ -297,7 +297,11 @@ deployed.
       the browser (`features/assets/composedAssets.ts`, a `data:` URL). It is renamed,
       duplicated and deleted through its descriptor; a PNG cannot be imported under its name,
       and it is not offered for copying into another module, where its layers would be missing.
-      Editing its layers with the mouse is the next step (4 c).
+    - **Composer** (step 4 c): the detail of a composed image in the Resources page lays its
+      layers out to be dragged, ordered, repeated, added from the kit or the module, and
+      removed; **Compose an image** starts one from a kit window or a kit button. The editor
+      writes the same descriptor as `write_image` (`use`, `image`, `grid`), and refuses a
+      recipe the pack would not read back as given, so a person and a model edit one file.
 
 ## Consequences
 

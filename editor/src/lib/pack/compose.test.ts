@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from "vitest";
 import { parse } from "yaml";
-import { composeImage, composeRecipe, over } from "./compose";
+import { composeImage, composeRecipe, composeSize, composeYaml, over } from "./compose";
 import { type RgbaImage, createImage } from "./png";
 
 const solid = (width: number, height: number, ...rgba: number[]): RgbaImage => {
@@ -119,5 +119,39 @@ compose:
     const empty = solid(1, 1, 7, 7, 7, 0);
     over(empty, solid(1, 1, 9, 8, 7, 60), 0, 0);
     expect(pixel(empty, 0, 0)).toEqual([9, 8, 7, 60]);
+  });
+
+  test("a recipe is written as it is read back, each layer under the key that says what it is", () => {
+    const read = recipe(
+      "compose:\n  - use: 'kit:window.6'\n  - image: frame\n    x: 4\n    y: -2\n  - grid: 'kit:cell'\n    y: 18\n    columns: 9\n  - grid: tile\n    rows: 3\n",
+    );
+    const written = composeYaml(read);
+    expect(written).toEqual([
+      { use: "kit:window.6" },
+      { image: "frame", x: 4, y: -2 },
+      { grid: "kit:cell", y: 18, columns: 9, rows: 1 },
+      { grid: "tile", columns: 1, rows: 3 },
+    ]);
+    expect(composeRecipe({ compose: written })).toEqual(read);
+  });
+
+  test("the size is known from the layers' sizes alone, as the drawn image has it", () => {
+    const sizes: Record<string, { width: number; height: number }> = {
+      red: { width: 4, height: 3 },
+    };
+    const sizeOf = (name: string) => sizes[name];
+    const grown = recipe(
+      "compose:\n  - image: gone\n  - grid: red\n    x: 1\n    y: 2\n    columns: 2\n",
+    );
+    expect(composeSize(grown, sizeOf)).toEqual({ width: 9, height: 5 });
+    const drawn = composeImage(grown, (name) =>
+      sizes[name] ? solid(4, 3, 255, 0, 0, 255) : undefined,
+    );
+    expect([drawn?.width, drawn?.height]).toEqual([9, 5]);
+    expect(composeSize(recipe("width: 2\nheight: 7\ncompose:\n  - image: red\n"), sizeOf)).toEqual({
+      width: 2,
+      height: 7,
+    });
+    expect(composeSize(recipe("compose:\n  - image: gone\n"), sizeOf)).toBeNull();
   });
 });

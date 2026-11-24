@@ -1,4 +1,5 @@
 import { localAssetPreviewUrl } from "@/features/assets/localAssetUrl";
+import type { ComposeRecipe } from "@/lib/pack/compose";
 
 export type AssetType = "texture" | "glyph" | "font";
 export type AssetId = string;
@@ -48,10 +49,10 @@ export interface Asset {
    */
   previewUrl?: string;
   /**
-   * A composed image (`lib/pack/compose.ts`): the images it is made of. It has no PNG: the
-   * resource pack assembles it, so it cannot be reimported or copied to another module.
+   * A composed image (`lib/pack/compose.ts`): its recipe. It has no PNG: the resource pack
+   * assembles it, so it cannot be reimported or copied to another module.
    */
-  composedOf?: string[];
+  compose?: ComposeRecipe;
 }
 
 /** URL to fetch the raw PNG of an asset for preview. */

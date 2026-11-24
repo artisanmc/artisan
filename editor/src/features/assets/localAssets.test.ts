@@ -396,11 +396,17 @@ describe("composed images", () => {
       codepoint: 57344,
       width: 18,
       height: 18,
-      composedOf: ["kit:cell", "frame", "icon", "gone"],
+      compose: { width: null, height: null },
     });
     expect(window.previewUrl).toMatch(/^data:image\/png;base64,/);
     expect(sizeOf(window.previewUrl)).toEqual([18, 18]);
-    expect(listed[1]).not.toHaveProperty("composedOf");
+    expect(window.compose?.layers.map((layer) => layer.image)).toEqual([
+      "kit:cell",
+      "frame",
+      "icon",
+      "gone",
+    ]);
+    expect(listed[1]).not.toHaveProperty("compose");
     // A list to copy from leaves it out, and it cannot be read for a copy.
     expect((await listLocalAssets("p", { composed: false }, "d1")).map((a) => a.id)).toEqual([
       "frame",
@@ -453,6 +459,137 @@ describe("composed images", () => {
     );
     expect(Object.keys(removed.draft.snapshot.tree)).toEqual(["assets/glyphs/hall_copy.yml"]);
     expect(Object.keys(removed.draft.snapshot.binaryTree!)).toEqual(binaries);
+  });
+
+  it("creates one from a recipe, and rewrites its layers and size on a patch", async () => {
+    const hub = hubWithRecipe();
+    const layer = (image: string, x = 0, y = 0, columns = 1, rows = 1) => ({
+      image,
+      x,
+      y,
+      columns,
+      rows,
+    });
+    const compose = (
+      layers: unknown[],
+      width: number | null = null,
+      height: number | null = null,
+    ) => JSON.stringify({ layers, width, height });
+
+    const made = await performLocalAssetMutation(
+      "p",
+      op(hub, {
+        suffix: "",
+        method: "POST",
+        fields: {
+          type: "glyph",
+          name: "panel",
+          ascent: "13",
+          usages: '["menu"]',
+          compose: compose([layer("kit:cell"), layer("icon", 2, 2)]),
+        },
+      }),
+    );
+    expect(made.asset).toMatchObject({
+      id: "panel",
+      type: "glyph",
+      ascent: 13,
+      codepoint: 57345,
+      usages: ["menu"],
+      width: 18,
+      height: 18,
+    });
+    expect(sizeOf(made.asset?.previewUrl)).toEqual([18, 18]);
+    expect(parse(made.draft.snapshot.tree["assets/glyphs/panel.yml"]!)).toEqual({
+      ascent: 13,
+      codepoint: 57345,
+      usages: ["menu"],
+      compose: [{ use: "kit:cell" }, { image: "icon", x: 2, y: 2 }],
+    });
+    expect(Object.keys(made.draft.snapshot.binaryTree!)).toHaveLength(2);
+
+    const edited = await performLocalAssetMutation(
+      "p",
+      op(hub, {
+        suffix: "/panel",
+        method: "PATCH",
+        fields: { compose: compose([layer("kit:cell", 0, 0, 3, 2), layer("frame", 4, 1)], 60, 40) },
+      }),
+    );
+    expect(edited.asset).toMatchObject({ id: "panel", codepoint: 57345, width: 60, height: 40 });
+    expect(edited.asset?.compose).toEqual({
+      layers: [layer("kit:cell", 0, 0, 3, 2), layer("frame", 4, 1)],
+      width: 60,
+      height: 40,
+    });
+    expect(sizeOf(edited.asset?.previewUrl)).toEqual([60, 40]);
+    expect(parse(edited.draft.snapshot.tree["assets/glyphs/panel.yml"]!)).toEqual({
+      ascent: 13,
+      codepoint: 57345,
+      usages: ["menu"],
+      width: 60,
+      height: 40,
+      compose: [
+        { grid: "kit:cell", columns: 3, rows: 2 },
+        { image: "frame", x: 4, y: 1 },
+      ],
+    });
+
+    // Back to a size the layers give: the two sides leave the file together.
+    const grown = await performLocalAssetMutation(
+      "p",
+      op(hub, {
+        suffix: "/panel",
+        method: "PATCH",
+        fields: { compose: compose([layer("frame")]) },
+      }),
+    );
+    expect(grown.asset).toMatchObject({ width: 20, height: 10 });
+    expect(parse(grown.draft.snapshot.tree["assets/glyphs/panel.yml"]!)).toEqual({
+      ascent: 13,
+      codepoint: 57345,
+      usages: ["menu"],
+      compose: [{ image: "frame" }],
+    });
+
+    // What the pack would not draw is refused, as is a recipe for an image that has a PNG.
+    for (const bad of [
+      compose([]),
+      compose([layer("icon", 0, 0, 99)]),
+      compose([layer("icon", 600)]),
+      compose([layer("icon")], 60),
+      compose([{ x: 1 }]),
+    ]) {
+      const refused = await rejection(
+        performLocalAssetMutation(
+          "p",
+          op(hub, { suffix: "/panel", method: "PATCH", fields: { compose: bad } }),
+        ),
+      );
+      expect(refused.status).toBe(400);
+    }
+    const png = await rejection(
+      performLocalAssetMutation(
+        "p",
+        op(hub, {
+          suffix: "/frame",
+          method: "PATCH",
+          fields: { compose: compose([layer("icon")]) },
+        }),
+      ),
+    );
+    expect(png.status).toBe(400);
+    const taken = await rejection(
+      performLocalAssetMutation(
+        "p",
+        op(hub, {
+          suffix: "",
+          method: "POST",
+          fields: { type: "glyph", name: "frame", compose: compose([layer("icon")]) },
+        }),
+      ),
+    );
+    expect(taken.status).toBe(409);
   });
 });
 

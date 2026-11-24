@@ -35,8 +35,14 @@ takes that area. A title's image layer offers the same list, with the kit's wind
 `.yml`, which stacks kit images and PNGs of the module (see
 [AI](../configuration/ai.md), "Composed images"). The Resources page lists it with its picture
 and says what it is made of; you rename, duplicate or delete it there. It has no file to
-reimport, and it stays in its module: another module cannot copy it. Its layers are edited in
-the file for now.
+reimport, and it stays in its module: another module cannot copy it.
+
+**Compose an image** in the Resources page starts one from a kit window or a kit button. Its
+detail is a composer: drag a layer to move it (hold Shift to move by one slot, or use the arrow
+keys for one pixel), reorder or remove layers in the list, add a **Kit piece** or a
+**Module image**. A layer repeats with **Columns** and **Rows** (the slots of a window: a grid
+of `kit:cell`). The image is as large as its bottom layer reaches unless you give it a
+**Fixed size**; what goes past is cut. **Save layers** writes the recipe into your draft.
 
 **Natural size** is the default for new buttons: an 8×8 PNG stays 8×8 and is centered.
 Use **Horizontal/Vertical offset (px)** to move it within the area, or **Center image**

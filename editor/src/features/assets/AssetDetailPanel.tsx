@@ -10,6 +10,7 @@ import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetStage } from "./AssetStage";
 import { AssetUsageFields } from "./AssetUsageFields";
+import { ComposedImageEditor } from "./ComposedImageEditor";
 import { useAssetStore } from "./assetStore";
 
 export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
@@ -97,12 +98,16 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
           style={{ imageRendering: "pixelated" }}
           decoding="async"
         />
+      ) : asset.compose ? (
+        <ComposedImageEditor projectId={projectId} asset={asset} />
       ) : (
         <AssetStage asset={asset} />
       )}
-      {asset.composedOf && (
+      {asset.compose && (
         <p className="text-xs text-[var(--text-mut)]">
-          {t("resources.composed", { layers: asset.composedOf.join(", ") })}
+          {t("resources.composed", {
+            layers: [...new Set(asset.compose.layers.map((layer) => layer.image))].join(", "),
+          })}
         </p>
       )}
       <label className="text-xs" htmlFor={`${inputId}-name`}>
