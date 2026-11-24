@@ -119,7 +119,7 @@ class McpRoutes(
     /**
      * A tool result: the JSON as text for any client, and as `structuredContent` for those that read it.
      * A tool that answers in prose (get_kind_guide) is sent as it is. The images a tool shows
-     * (write_image, read_image) follow as `image` blocks, for the model to look at.
+     * (write_image, read_image, render_menu) follow as `image` blocks, for the model to look at.
      */
     private fun content(body: Any?, error: Boolean, pictures: List<McpImages.Picture> = emptyList()): Map<String, Any?> = buildMap {
         put("content", listOf(mapOf("type" to "text", "text" to McpTools.resultText(body))) +

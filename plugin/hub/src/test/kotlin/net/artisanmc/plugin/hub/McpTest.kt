@@ -140,7 +140,7 @@ class McpTest {
         val notification = http("POST", McpRoutes.PATH, """{"jsonrpc":"2.0","method":"notifications/initialized"}""", mapOf("Authorization" to "Bearer $access"))
         assertEquals(202, notification.status)
         val names = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
-        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "list_versions"), names)
+        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "render_menu", "list_versions"), names)
         assertTrue(names.none { "publish" in it || "deploy" in it || "rollback" in it })
         // The kind guide is prose for the model to read, the schema outlined rather than dumped.
         val guide = tool(access, "get_kind_guide", "kind" to "menu", "project" to "u-local.shop")
@@ -202,6 +202,36 @@ class McpTest {
         assertEquals("shop", check["project_id"])
         assertEquals("active", mapper.readTree(drafts.rows.getValue(draftId))["status"].asText())
         assertTrue(sent.none { it["type"] == "project_write" || it["type"] == "project_draft_publish" })
+    }
+
+    @Test
+    fun `a menu is rendered as a picture, from a draft with the images it holds or as deployed`() {
+        val (access, _) = tokens()
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: render")["structuredContent"]["draft_id"].asText()
+        val green = mapOf("palette" to mapOf("g" to "#20c040"), "rows" to List(18) { "g".repeat(54) })
+        assertFalse(tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "buy_button", "pixels" to green).has("isError"))
+        val menu = "schema: menu/v1\nsize: 27\ntitle: Shop\nelements:\n  - id: buy\n    positions: \"12-14\"\n    image: { asset: buy_button }\n  - id: gem\n    positions: \"0\"\n    material: DIAMOND\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/vip.yml", "content" to menu).has("isError"))
+
+        val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/vip.yml", "draft_id" to draftId)
+        assertFalse(rendered.has("isError"), rendered.toString())
+        val facts = rendered["structuredContent"]
+        assertEquals("x3", facts["shown_at"].asText())
+        val window = facts["window"]
+        assertEquals(listOf(176, 113 + 3 * 18), listOf(window["width"].asInt(), window["height"].asInt()))
+        assertTrue(facts["notes"].any { "every item shows" in it.asText() }, "no item pictures in this hub: said, not hidden")
+        val picture = rendered["content"][1]
+        assertEquals("image" to "image/png", picture["type"].asText() to picture["mimeType"].asText())
+        val shown = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(picture["data"].asText()))
+        // The button over slots 12 to 14 (second row, columns 3 to 5), three picture pixels a game pixel.
+        val at = ((window["y"].asInt() + 17 + 18 + 9) * 3 * shown.width + (window["x"].asInt() + 7 + 4 * 18) * 3) * 4
+        assertEquals(listOf(0x20, 0xc0, 0x40), shown.data.slice(at until at + 3).map { it.toInt() and 0xff })
+
+        // As deployed, without the draft: the menu the server has. Another file is not a menu.
+        val deployed = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/shop.yml", "scale" to 1)
+        assertEquals("x1", deployed["structuredContent"]["shown_at"].asText())
+        assertTrue(tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/vip.yml")["isError"].asBoolean(), "not deployed yet")
+        assertTrue(tool(access, "render_menu", "project" to "u-local.shop", "path" to "lang/en.yml")["isError"].asBoolean())
     }
 
     @Test

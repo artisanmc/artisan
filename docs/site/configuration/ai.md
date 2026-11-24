@@ -105,6 +105,13 @@ is at most 512 pixels on each side. Players see it once the draft is deployed an
 pack rebuilt. The editor's assistant gets the same tools and sees its images the same way, when
 its model reads images (a text-only model draws without seeing, and says so).
 
+**A menu as a picture.** The app can also look at a whole menu, deployed or in its draft: the
+window, the title's images and texts, the image buttons and each slot's item. It uses it to
+check a layout before telling you it is done. It is a still picture, not the game: conditions
+and data are not evaluated, so an element shows its default look, a value such as
+`{shop.price}` shows as `{price}`, and an item only known in game shows a `?`. Open the menu
+in game, or in the editor's preview, to see it with real data.
+
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"
 on the consent page, or the "Can deploy" switch in **Settings → AI apps**. The app then shows
 the changes and deploys only after you say yes, with the same checks as the editor's Deploy.

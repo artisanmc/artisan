@@ -149,8 +149,8 @@ than the hub. One single Artisan user at this date: the admin's key first.
    bottom of the sidebar, linking to the account page on the site. Credits are given by the
    site's admins; buying them is not built yet.
 
-14. **The pictures a tool returns** (2026-11-24; ADR `mcp-server`, decision 10). `write_image` and
-   `read_image` answer with the image enlarged (`McpTools.Outcome.pictures`). The assistant gives
+14. **The pictures a tool returns** (2026-11-24; ADR `mcp-server`, decisions 10 and 11). `write_image` and
+   `read_image` answer with the image enlarged, `render_menu` with a whole menu (`McpTools.Outcome.pictures`). The assistant gives
    them to the model with the tool's result (`AiInput.ToolResult.pictures`), so it checks what it
    drew as an MCP client does: inside the `tool_result` block after its text for the Messages API;
    for Chat Completions, whose `tool` messages are text only, in a `user` message after the tool

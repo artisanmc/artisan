@@ -5,6 +5,9 @@ import net.artisanmc.plugin.model.DocumentLayout
 import net.artisanmc.plugin.model.ManifestYaml
 import net.artisanmc.plugin.model.ModuleFile
 import net.artisanmc.plugin.model.Originals
+import net.artisanmc.plugin.pack.MenuPictureImage
+import net.artisanmc.plugin.pack.MenuPictureInput
+import net.artisanmc.plugin.pack.MenuPictures
 import net.artisanmc.plugin.project.ProjectMetadataPaths
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import java.util.UUID
@@ -22,6 +25,8 @@ class McpTools(
     private val editorUrl: () -> String = { "" },
     /** The hub's own pack build: the resource pack tools; null, they are not offered. */
     private val packs: PackBuilder? = null,
+    /** A vanilla item's picture by its id (`diamond_sword`), for render_menu; null: items show as `?`. */
+    private val items: ((String) -> ByteArray?)? = null,
 ) {
     /** A tool as `tools/list` describes it, and what it does. [requires]: the permission without which it is not offered. */
     class Tool(
@@ -142,6 +147,22 @@ class McpTools(
                 required = listOf("project", "draft_id", "name"),
             ),
             readOnly = false, ::writeImage,
+        ),
+        Tool(
+            "render_menu", "Render a menu",
+            "Shows a whole menu as a picture, as deployed or as a draft has it: the window, the title's images and texts, the " +
+                "image buttons with their labels, and each slot's item, enlarged. Use it after writing a menu or its images, to " +
+                "check the layout before telling the player it is done. It is a still picture of the menu before anyone opens it: " +
+                "no condition, expression or data source is evaluated (an element shows its default look, `{…}` and `%…%` are " +
+                "drawn as written, a slot whose item is unknown shows `?`), and the result's notes say what was left out. " +
+                "`window` gives the window's corner and size in the picture, in game pixels.",
+            schema(
+                "project" to PROJECT, "path" to string("The menu's path, e.g. `menus/shop.yml`."), "draft_id" to DRAFT_OPTIONAL,
+                "lang" to string("The language translated texts are drawn in; the first one written otherwise."),
+                "scale" to mapOf("type" to "integer", "minimum" to 1, "maximum" to 4, "description" to "Picture pixels per game pixel; 3 by default."),
+                required = listOf("project", "path"),
+            ),
+            readOnly = true, ::renderMenu,
         ),
         Tool(
             "list_versions", "List versions",
@@ -519,6 +540,44 @@ class McpTools(
         )
     }
 
+    private fun renderMenu(principal: McpPrincipal, args: JsonNode): Any {
+        val project = projects.project(text(args, "project"))
+        val path = path(args)
+        if (!contentPath(path) || !MENU_PATH.containsMatchIn(path)) throw McpRefusal("invalid_path", "'$path' is not a menu of a Project: menus/<name>.yml.")
+        val draftId = args.get("draft_id")?.takeIf { it.isTextual }?.asText()
+        val read = projects.read(project)
+        val deployed = binaries(read["binaries"])
+        val draft = draftId?.let { draftSnapshot(principal, project, it) }
+        val tree = draft?.tree ?: files(read)
+        val content = tree[path] ?: throw McpRefusal("not_found", "No menu '$path' in ${if (draftId == null) "the Project" else "draft $draftId"}.")
+        val hashes: Map<String, String?> = draft?.json?.path("binaryTree")?.fields()?.asSequence()?.associate { it.key to it.value.path("hash").asText("").ifEmpty { null } }
+            ?: deployed.mapValues { it.value["hash"] as? String }
+        // An image by its name, as the pack finds it: the module's own file, then the one it shipped with.
+        fun image(name: String): MenuPictureImage? {
+            val at = IMAGE_ROOTS.map { "$it/$name.png" }.firstOrNull { hashes[it] != null } ?: return null
+            val hash = hashes[at]
+            val bytes = (if (hash == deployed[at]?.get("hash")) projects.binary(project, at) else projects.blob(hash!!)) ?: return null
+            if (bytes.size > McpImages.MAX_BYTES) return null
+            val descriptor = listOf(".yml", ".yaml").firstNotNullOfOrNull { tree[at.removeSuffix(".png") + it] }
+            return MenuPictureImage(bytes, descriptor?.let { ASCENT_LINE.find(it)?.groupValues?.get(1)?.toDoubleOrNull() })
+        }
+        val picture = try {
+            MenuPictures.render(MenuPictureInput(content, ::image, { id -> items?.invoke(id) }, args.get("lang")?.takeIf { it.isTextual }?.asText()))
+        } catch (e: IllegalArgumentException) {
+            throw McpRefusal("invalid_input", "'$path' cannot be drawn: ${e.message}.")
+        }
+        val scale = (args.get("scale")?.takeIf { it.isInt }?.asInt() ?: RENDER_SCALE).coerceIn(1, 4)
+        val png = net.artisanmc.plugin.pack.Png.encode(MenuPictures.enlarge(picture.image, scale))
+        return Shown(
+            mapOf(
+                "project" to project.id, "path" to path, "shown_at" to "x$scale",
+                "window" to mapOf("x" to picture.windowX, "y" to picture.windowY, "width" to picture.windowWidth, "height" to picture.windowHeight),
+                "notes" to picture.notes + listOfNotNull("Item pictures are not available on this server: every item shows `?`.".takeIf { items == null }),
+            ),
+            listOf(McpImages.Picture(java.util.Base64.getEncoder().encodeToString(png))),
+        )
+    }
+
     private fun writeImage(principal: McpPrincipal, args: JsonNode): Any {
         requireEdit(principal)
         val project = projects.project(text(args, "project"))
@@ -852,6 +911,12 @@ class McpTools(
         /** Where an image goes by its use, as the editor files them: a title image is a glyph of the menu font. */
         private val IMAGE_DIRS = mapOf("button" to "assets/textures", "background" to "assets/glyphs")
         private val SIZE_LINE = Regex("^(width|height):")
+        private val ASCENT_LINE = Regex("(?m)^ascent:\\s*(-?[0-9.]+)")
+        /** A menu of a module, or of one of its variants. */
+        private val MENU_PATH = Regex("(^|/)menus/.+\\.ya?ml$")
+        /** Where an image named by a menu is, the module's own file first (`ShippedView`). */
+        private val IMAGE_ROOTS = listOf("assets/glyphs", "assets/textures", "originals/assets/glyphs", "originals/assets/textures")
+        private const val RENDER_SCALE = 3
         private val CODEPOINT_LINE = Regex("(?m)^codepoint:\\s*(\\d+)")
         /** The private use range a Project's glyphs take (the editor's `codepoints.ts`). */
         private const val CODEPOINT_MIN = 0xe000
