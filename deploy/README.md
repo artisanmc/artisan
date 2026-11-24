@@ -108,8 +108,9 @@ Notes are the annotated tag's message, refused when empty:
 By hand after `publish`: SpigotMC and BuiltByBit have no upload API; take the jar from the draft
 Release. **Never publish the GitHub Release**: the repository is public, a published Release hands
 the paid jar to anyone. A push to `main` sends its jar to the Artisan site as the
-development build `<last tag>-dev.<run>` (`1.0.0-dev.<run>` before the first tag; notes: the pushed
-commits; the site keeps the last 20), and nowhere else. The site needs the repository secret
+development build of the next patch, `1.0.4-dev.<run>` after `v1.0.3` (`1.0.0-dev.<run>` before the
+first tag: the site ranks `1.0.3-dev.<run>` before `1.0.3`, so a build named after the last tag would
+never be offered as an update; notes: the pushed commits; the site keeps the last 20), and nowhere else. The site needs the repository secret
 `RELEASE_TOKEN`, the same value as the secret of that name on the site's Worker.
 
 GitHub `release` environment (restrict it to tags `v*`; a required reviewer lets you check the

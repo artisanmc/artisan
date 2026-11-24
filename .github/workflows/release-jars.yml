@@ -10,10 +10,10 @@ name: Release jars
 # Setup: deploy/README.md, "Releasing the plugin".
 #
 # The Artisan site (artisanmc.net/modules/artisan/versions/, downloads behind the buyer's licence)
-# gets both channels: a push to `main` sends `<last tag>-dev.<run>` as a development build (notes:
-# the pushed commits), a tag sends the release from the job `publish`. Secret: RELEASE_TOKEN.
+# gets both channels: a push to `main` sends `<last tag + 1 patch>-dev.<run>` as a development build
+# (notes: the pushed commits), a tag sends the release from the job `publish`. Secret: RELEASE_TOKEN.
 #
-# Pushes to `v2` build `<last tag>-dev.<run>` as a check only, nothing is uploaded.
+# Pushes to `v2` build `<last tag + 1 patch>-dev.<run>` as a check only, nothing is uploaded.
 on:
   push:
     tags: ["v*"]
@@ -66,9 +66,15 @@ jobs:
           if [ -n "$INPUT_VERSION" ]; then VERSION="$INPUT_VERSION"
           elif [ "$GITHUB_REF_TYPE" = tag ]; then VERSION="${GITHUB_REF_NAME#v}"
           else
-            # Before the first release, development builds are those of 1.0.0.
-            LAST="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || echo v1.0.0)"
-            VERSION="${LAST#v}-dev.${GITHUB_RUN_NUMBER}"
+            # Before the first release, development builds are those of 1.0.0; after a release, those
+            # of the next patch: the site ranks 1.0.0-dev.N before the release 1.0.0, so a build made
+            # after it would never be offered as an update.
+            LAST="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true)"
+            if [ -z "$LAST" ]; then NEXT=1.0.0
+            elif [[ "$LAST" == *-* ]]; then NEXT="${LAST#v}"; NEXT="${NEXT%%-*}"   # after v2.0.0-beta.1: 2.0.0
+            else NEXT="$(echo "${LAST#v}" | awk -F. '{print $1 "." $2 "." $3 + 1}')"
+            fi
+            VERSION="$NEXT-dev.${GITHUB_RUN_NUMBER}"
           fi
           echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$' || { echo "bad version '$VERSION'" >&2; exit 1; }
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
