@@ -113,15 +113,17 @@ class McpRoutes(
         val args = params.path("arguments").takeIf { it.isObject } ?: Call.mapper.createObjectNode()
         if (!tool.readOnly) logger?.info("[Artisan] MCP ${principal.clientName ?: "editor"} for ${principal.playerName}: $name ${args.path("path").asText("")}".trimEnd())
         val outcome = tools.invoke(principal, tool, args)
-        return result(id, content(outcome.body, outcome.error))
+        return result(id, content(outcome.body, outcome.error, outcome.pictures))
     }
 
     /**
      * A tool result: the JSON as text for any client, and as `structuredContent` for those that read it.
-     * A tool that answers in prose (get_kind_guide) is sent as it is.
+     * A tool that answers in prose (get_kind_guide) is sent as it is. The images a tool shows
+     * (write_image, read_image) follow as `image` blocks, for the model to look at.
      */
-    private fun content(body: Any?, error: Boolean): Map<String, Any?> = buildMap {
-        put("content", listOf(mapOf("type" to "text", "text" to McpTools.resultText(body))))
+    private fun content(body: Any?, error: Boolean, pictures: List<McpImages.Picture> = emptyList()): Map<String, Any?> = buildMap {
+        put("content", listOf(mapOf("type" to "text", "text" to McpTools.resultText(body))) +
+            pictures.map { mapOf("type" to "image", "data" to it.base64, "mimeType" to it.mediaType) })
         if (body is Map<*, *>) put("structuredContent", body)
         if (error) put("isError", true)
     }

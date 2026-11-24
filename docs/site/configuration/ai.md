@@ -97,6 +97,13 @@ The app then acts as you, with your editor permissions minus `artisan.editor.con
 `artisan.editor.edit`. It can list servers and projects, read files and schemas, start a draft
 and write into it; each file is checked by the server before it enters the draft.
 
+**Images.** The app can also draw the images of a menu into the draft: buttons, icons and window
+backgrounds, as pixel art it writes pixel by pixel or as a PNG it made on its side. It sees each
+image enlarged after writing it, and can read the images a project already has to keep their
+style. Ask for example: "Make the shop menu textured, in the style of the guild menus." An image
+is at most 512 pixels on each side. Players see it once the draft is deployed and the resource
+pack rebuilt. The editor's assistant gets the same tools, but does not see the pictures yet.
+
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"
 on the consent page, or the "Can deploy" switch in **Settings → AI apps**. The app then shows
 the changes and deploys only after you say yes, with the same checks as the editor's Deploy.

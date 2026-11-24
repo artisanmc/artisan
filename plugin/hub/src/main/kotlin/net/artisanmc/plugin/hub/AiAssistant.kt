@@ -344,7 +344,7 @@ class AiAssistant(
     private fun draftOf(call: AiToolCall, body: Map<*, *>?, error: Boolean): Map<String, Any?>? {
         if (error || body == null) return null
         val draftId = body["draft_id"]?.toString() ?: return null
-        if (call.name != "start_draft" && call.name != "write_document") return null
+        if (call.name !in setOf("start_draft", "write_document", "write_image")) return null
         return mapOf("project" to (body["project"] ?: call.input.text("project")), "id" to draftId, "name" to body["name"])
     }
 

@@ -40,7 +40,7 @@ class McpTools(
         Tool(
             "list_documents", "List documents",
             "Lists the files of a Project, as the server loaded them, or as a draft has them when draft_id is given: each Document with " +
-                "its kind, the other files (translations under lang/, data), and the files the server could not load with the reason.",
+                "its kind, the other files (translations under lang/, data), the images (read_image shows one), and the files the server could not load with the reason.",
             schema("project" to PROJECT, "draft_id" to DRAFT_OPTIONAL), readOnly = true, ::listDocuments,
         ),
         Tool(
@@ -100,6 +100,48 @@ class McpTools(
                 required = listOf("project", "draft_id", "path"),
             ),
             readOnly = false, ::writeDocument,
+        ),
+        Tool(
+            "read_image", "Read an image",
+            "Shows one image of a Project (a button, a background, a title image under assets/), as deployed, or as a draft has it " +
+                "when draft_id is given: the picture enlarged so each pixel can be seen, its size and colour count, and, for a " +
+                "small image, its pixels as write_image takes them (palette and rows), to change a few and write it back. " +
+                "list_documents gives the paths of a Project's images.",
+            schema(
+                "project" to PROJECT, "path" to string("The image's path, e.g. `assets/textures/shop_button.png`."), "draft_id" to DRAFT_OPTIONAL,
+                required = listOf("project", "path"),
+            ),
+            readOnly = true, ::readImage,
+        ),
+        Tool(
+            "write_image", "Write an image in a draft",
+            "Writes (or, with delete: true, removes) one image in a draft: pixel art for a menu. Give the pixels yourself in " +
+                "`pixels` (a palette of one-character keys and one string per row, one character per pixel, `.` transparent), " +
+                "which suits buttons, icons and frames, or a PNG you made elsewhere in `png_base64`. use \"button\": an image a " +
+                "menu element shows over its slots (`image: {asset: <name>}`; a slot is 18x18, an item 16x16, so a button over " +
+                "3x1 slots is 54x18). use \"background\": an image of a menu's title, such as the whole window (176 wide; 222 high " +
+                "for 6 rows, 166 for 3; `title: [{kind: background, asset_id: <name>}]` with `vanilla_texture: false`). The answer " +
+                "shows the image enlarged: look at it, and write it again until it is right. Writing over an image keeps where " +
+                "it is used. Players see it once the draft is deployed and the resource pack rebuilt. Look at the Project's " +
+                "other images first (read_image) and keep their colours, borders and sizes.",
+            schema(
+                "project" to PROJECT, "draft_id" to string("The draft from start_draft."),
+                "name" to string("The image's name, which Documents refer to: lowercase letters, digits, `_` and `-`, e.g. `shop_button`."),
+                "use" to mapOf("type" to "string", "enum" to listOf("button", "background"), "description" to "button (default) or background."),
+                "pixels" to mapOf(
+                    "type" to "object",
+                    "description" to "The image as text. palette: {\"#\": \"#373737\", \"w\": \"#ffffff\", \"s\": \"#00000080\"}; rows: [\"####\", \"#ww#\", \"####\"].",
+                    "properties" to mapOf(
+                        "palette" to mapOf("type" to "object", "additionalProperties" to mapOf("type" to "string"), "description" to "One character → #RRGGBB, #RRGGBBAA or transparent."),
+                        "rows" to mapOf("type" to "array", "items" to mapOf("type" to "string"), "description" to "Top to bottom, every row the same length."),
+                    ),
+                    "required" to listOf("palette", "rows"),
+                ),
+                "png_base64" to string("Instead of pixels: a PNG file in base64, at most ${McpImages.MAX_SIDE} pixels on each side."),
+                "delete" to mapOf("type" to "boolean", "description" to "Remove the image instead."),
+                required = listOf("project", "draft_id", "name"),
+            ),
+            readOnly = false, ::writeImage,
         ),
         Tool(
             "list_versions", "List versions",
@@ -175,7 +217,7 @@ class McpTools(
     val draftOnly: List<Tool> get() = tools.filter { !it.destructive }
 
     /** A tool call's answer as a model reads it: the MCP endpoint and the editor's assistant both hand it on. */
-    class Outcome(val body: Any?, val error: Boolean)
+    class Outcome(val body: Any?, val error: Boolean, val pictures: List<McpImages.Picture> = emptyList())
 
     fun invoke(principal: McpPrincipal, tool: Tool, args: JsonNode): Outcome = try {
         if (tool.destructive && !principal.canDeploy) throw McpRefusal("forbidden", McpProjects.NOT_ALLOWED)
@@ -183,6 +225,7 @@ class McpTools(
             throw McpRefusal("forbidden", if (tool.requires == EditorPermissions.PUBLISH) "The player lacks artisan.editor.publish." else "The player lacks ${tool.requires}.")
         when (val out = tool.run(principal, args)) {
             is Refused -> Outcome(out.body, error = true)
+            is Shown -> Outcome(out.body, error = false, pictures = out.pictures)
             else -> Outcome(out, error = false)
         }
     } catch (e: McpRefusal) {
@@ -239,7 +282,10 @@ class McpTools(
         val project = projects.project(text(args, "project"))
         val draftId = args.path("draft_id").asText("").ifEmpty { null }
         val read = projects.read(project)
-        val tree = draftId?.let { draftSnapshot(principal, project, it).tree } ?: files(read)
+        val draft = draftId?.let { draftSnapshot(principal, project, it) }
+        val tree = draft?.tree ?: files(read)
+        val images = (draft?.json?.path("binaryTree")?.fieldNames()?.asSequence()?.toList() ?: binaries(read["binaries"]).keys)
+            .filter { it.endsWith(".png") }.sorted()
         val kinds = kinds(project.server)
         val manifest = ModuleFile.NAMES.firstNotNullOfOrNull { tree[it] }?.let(ManifestYaml::parse)
         val index = Originals.parseIndex(tree[Originals.INDEX_PATH])
@@ -286,6 +332,7 @@ class McpTools(
                 "excluded" to exclusions.excluded, "exclusions_refused" to exclusions.refused,
             ),
             "other_files" to tree.keys.filter { it !in listed }.sorted(),
+            "images" to images,
             "not_loaded" to if (draftId == null) failed else emptyList(),
             "your_drafts" to drafts,
         )
@@ -454,6 +501,107 @@ class McpTools(
         )
     }
 
+    private fun readImage(principal: McpPrincipal, args: JsonNode): Any {
+        val project = projects.project(text(args, "project"))
+        val path = path(args)
+        if (!contentPath(path) || !path.endsWith(".png")) throw McpRefusal("invalid_path", "'$path' is not an image of a Project: assets/…/<name>.png.")
+        val draftId = args.get("draft_id")?.takeIf { it.isTextual }?.asText()
+        val deployed = binaries(projects.read(project)["binaries"])[path]?.get("hash") as? String
+        val hash = if (draftId == null) deployed else draftSnapshot(principal, project, draftId).json.path("binaryTree").path(path).path("hash").asText("").ifEmpty { null }
+        if (hash == null) throw McpRefusal("not_found", "No image '$path' in ${if (draftId == null) "the Project" else "draft $draftId"}.")
+        val bytes = (if (hash == deployed) projects.binary(project, path) else projects.blob(hash))
+            ?: throw McpRefusal("not_found", "The image '$path' could not be read from the server.")
+        val image = McpImages.fromPng(bytes)
+        return Shown(
+            mapOf("project" to project.id, "path" to path, "shown_at" to "x${McpImages.scale(image)}") + McpImages.facts(image) +
+                ("pixels" to McpImages.grid(image)),
+            listOf(McpImages.preview(image)),
+        )
+    }
+
+    private fun writeImage(principal: McpPrincipal, args: JsonNode): Any {
+        requireEdit(principal)
+        val project = projects.project(text(args, "project"))
+        val draftId = text(args, "draft_id")
+        val name = text(args, "name").trim()
+        if (!IMAGE_NAME.matches(name)) throw McpRefusal("invalid_input", "An image's name is lowercase letters, digits, `_` and `-`.")
+        val draft = draftSnapshot(principal, project, draftId)
+        val binaryTree = draft.json.path("binaryTree").fields().asSequence().associate { it.key to it.value }
+        // An image keeps its place: a name already in the draft is written over where it is, whatever `use` says.
+        val existing = IMAGE_DIRS.values.map { "$it/$name.png" }.firstOrNull { it in binaryTree }
+        val use = args.path("use").asText("button").also { if (it !in IMAGE_DIRS) throw McpRefusal("invalid_input", "use is button or background.") }
+        val path = existing ?: "${IMAGE_DIRS.getValue(use)}/$name.png"
+        val descriptorPath = listOf(".yml", ".yaml").map { path.removeSuffix(".png") + it }.firstOrNull { it in draft.tree } ?: (path.removeSuffix(".png") + ".yml")
+
+        if (args.path("delete").asBoolean(false)) {
+            if (existing == null) throw McpRefusal("not_found", "No image '$name' in draft $draftId.")
+            val revision = updateDraft(principal, project, draftId, draft, draft.tree - descriptorPath, binaryTree - path)
+            return mapOf("written" to true, "deleted" to true, "path" to path, "draft_id" to draftId, "revision" to revision)
+        }
+        val image = when {
+            args.path("pixels").isObject -> McpImages.fromPixels(args["pixels"])
+            args.path("png_base64").isTextual -> McpImages.fromBase64(args["png_base64"].asText())
+            else -> throw McpRefusal("invalid_input", "pixels or png_base64 is required, unless delete is true.")
+        }
+        // Encoded here either way: the file is a plain 8-bit RGBA PNG, whatever the client sent.
+        val bytes = net.artisanmc.plugin.pack.Png.encode(image)
+        val hash = net.artisanmc.plugin.project.ContentHash.hashBytes(bytes)
+        refuseDraft(projects.draft(
+            principal, project, "write_blob",
+            "draft_id" to draftId, "expected_revision" to draft.revision, "operation_id" to UUID.randomUUID().toString(),
+            "hash" to hash, "content_base64" to java.util.Base64.getEncoder().encodeToString(bytes),
+        ))
+        val descriptor = descriptor(draft.tree[descriptorPath], image.width, image.height, path, draft.tree)
+        val revision = updateDraft(
+            principal, project, draftId, draft, draft.tree + (descriptorPath to descriptor),
+            binaryTree + (path to Call.mapper.valueToTree<JsonNode>(mapOf("hash" to hash, "size" to bytes.size))),
+        )
+        val background = path.startsWith(IMAGE_DIRS.getValue("background"))
+        return Shown(
+            mapOf(
+                "written" to true, "path" to path, "replaced" to (existing != null), "draft_id" to draftId, "revision" to revision,
+                "shown_at" to "x${McpImages.scale(image)}",
+                "use_it" to if (background) "In a menu: `title: [{kind: background, asset_id: $name}]` and `vanilla_texture: false`."
+                else "In a menu element: `image: {asset: $name, fit: native}`, with a `material` for players without the resource pack.",
+            ) + McpImages.facts(image),
+            listOf(McpImages.preview(image)),
+        )
+    }
+
+    /**
+     * An image's descriptor, as the editor writes it beside the PNG: what the pixels cannot say.
+     * [current] (the image is written over) keeps everything but the size; a new background gets
+     * the first codepoint no image of the draft has, as the editor offers it.
+     */
+    private fun descriptor(current: String?, width: Int, height: Int, path: String, tree: Map<String, String>): String {
+        if (current != null) {
+            val kept = current.lines().filter { it.isNotBlank() && !SIZE_LINE.containsMatchIn(it) }
+            return (kept + listOf("width: $width", "height: $height")).joinToString("\n", postfix = "\n")
+        }
+        if (!path.startsWith(IMAGE_DIRS.getValue("background"))) return "width: $width\nheight: $height\nusages: [button]\n"
+        val used = tree.filterKeys { it.startsWith("assets/") }.values.flatMap { CODEPOINT_LINE.findAll(it).map { m -> m.groupValues[1].toInt() } }.toSet()
+        val codepoint = (CODEPOINT_MIN..CODEPOINT_MAX).firstOrNull { it !in used }
+            ?: throw McpRefusal("invalid_input", "No free codepoint left for a new title image in this module.")
+        return "ascent: $WINDOW_ASCENT\ncodepoint: $codepoint\nwidth: $width\nheight: $height\nusages: [menu]\n"
+    }
+
+    /** Stores [tree] and [binaryTree] as the draft's files; the new revision. */
+    private fun updateDraft(
+        principal: McpPrincipal, project: ProjectRef, draftId: String, draft: DraftSnapshot, tree: Map<String, String>, binaryTree: Map<String, JsonNode>,
+    ): Any? {
+        val snapshot = (draft.json.deepCopy<com.fasterxml.jackson.databind.node.ObjectNode>()).apply {
+            set<JsonNode>("tree", Call.mapper.valueToTree(tree))
+            set<JsonNode>("binaryTree", Call.mapper.valueToTree(binaryTree))
+        }
+        val reply = projects.draft(
+            principal, project, "update",
+            "draft_id" to draftId, "expected_revision" to draft.revision, "operation_id" to UUID.randomUUID().toString(),
+            "name" to draft.name, "snapshot" to snapshot,
+        )
+        refuseDraft(reply)
+        return (reply["draft"] as? Map<*, *>)?.get("revision")
+    }
+
     private fun listVersions(principal: McpPrincipal, args: JsonNode): Any {
         val project = projects.project(text(args, "project"))
         val limit = args.path("limit").asInt(10).coerceIn(1, 50)
@@ -618,6 +766,9 @@ class McpTools(
     /** A tool's answer that is a refusal for the model to act on: `isError`, with what to fix. */
     class Refused(val body: Any)
 
+    /** A tool's answer with images for the model to look at, beside its JSON. */
+    class Shown(val body: Any, val pictures: List<McpImages.Picture>)
+
     private class DraftSnapshot(val name: String, val revision: Long, val json: JsonNode, val baseline: Map<String, String>, val tree: Map<String, String>)
 
     private fun draftSnapshot(principal: McpPrincipal, project: ProjectRef, draftId: String): DraftSnapshot {
@@ -697,6 +848,16 @@ class McpTools(
         /** What a draft made through the MCP endpoint says it came from: the editor shows it. */
         private const val SOURCE = "ai"
         private const val MAX_FILE = 512 * 1024
+        private val IMAGE_NAME = Regex("[a-z0-9][a-z0-9_-]{0,63}")
+        /** Where an image goes by its use, as the editor files them: a title image is a glyph of the menu font. */
+        private val IMAGE_DIRS = mapOf("button" to "assets/textures", "background" to "assets/glyphs")
+        private val SIZE_LINE = Regex("^(width|height):")
+        private val CODEPOINT_LINE = Regex("(?m)^codepoint:\\s*(\\d+)")
+        /** The private use range a Project's glyphs take (the editor's `codepoints.ts`). */
+        private const val CODEPOINT_MIN = 0xe000
+        private const val CODEPOINT_MAX = 0xf7ff
+        /** A title image drawn from the window's top edge, as the container texture is. */
+        private const val WINDOW_ASCENT = 13
         private const val MAX_EXAMPLE = 8000
         /** Characters of diff a deploy's answer carries, all files together. */
         private const val MAX_DIFF = 30_000

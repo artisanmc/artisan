@@ -129,6 +129,30 @@ deployed.
      asked, and a link to follow from a chat); a scope in the OAuth sense (clients ask for scopes at
      registration, and the choice belongs to the player, after).
 
+10. **Images in a draft** (2026-11-24, first step of the design `design-ia-menus-assets-2026-11-24`,
+   project files). `write_image(project, draft_id, name, use, pixels | png_base64, delete?)` puts a
+   menu's image in the draft; `read_image(project, path, draft_id?)` shows one; `list_documents`
+   lists them (`images`).
+   - **Pixels as data, never code.** `pixels` is a palette of one-character keys and one string per
+     row (`McpImages.fromPixels`): the model sets every pixel, with no drawing primitive to limit
+     it and nothing to run on the server. `png_base64` takes an image a client made on its side
+     (Claude Code and others have their own sandbox). Either way ≤ 512 px a side (read from the
+     PNG header before decoding), ≤ 2 MB, and re-encoded by `Png` as plain 8-bit RGBA.
+   - **Where it goes.** `use: button` → `assets/textures/<name>.png`, descriptor `usages: [button]`;
+     `use: background` → `assets/glyphs/<name>.png` with `ascent: 13` and the first codepoint no
+     descriptor of the draft has (U+E000..U+F7FF, as the editor offers it; the build still settles
+     collisions between Projects). Writing over an image keeps its place and its descriptor but the
+     size. The bytes go through `write_blob`, then one `update` sets `binaryTree` and the
+     descriptor: the draft actions are unchanged, and so is the protocol.
+   - **The model sees what it wrote.** A tool may answer with pictures (`McpTools.Shown`,
+     `Outcome.pictures`): the image enlarged to at least 256 px, nearest neighbour, over a dark
+     chequerboard, sent as an MCP `image` content block after the JSON. The JSON says the size, the
+     colour count and the partly transparent pixels; `read_image` adds a small image's pixels as
+     `write_image` takes them.
+   - **Draft only.** Both tools are offered to every principal with `edit`, the editor's assistant
+     included; the assistant's tool results are text for now (`AiInput.ToolResult`), so it gets the
+     facts without the picture. Rebuilding the pack stays a deploying tool.
+
 ## Consequences
 
 - A player who has `edit` can entrust their drafts to an AI; by default the worst it does is a wrong
@@ -150,6 +174,6 @@ deployed.
   `/ai` relay): next milestones of the proposal.
 - Detecting reuse of a refresh token (revoke the whole authorization): this would require keeping the
   old hashes.
-- Image and data tools (writing images, data sources): not until the text flow has been put to use.
-  `write_blob` serves only `version_rollback`.
+- Data tools (data sources), a render of a whole menu, images in the assistant's tool results, a
+  server's UI kit and an image model: the next steps of the design named in decision 10.
 - Deploying several Projects in one call, and a per-client limit on deploys.

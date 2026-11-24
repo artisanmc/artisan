@@ -19,7 +19,7 @@ than the hub. One single Artisan user at this date: the admin's key first.
    stays in the hub, never in the browser nor in the editor. The editor reads the events
    (`user`, `text`, `tool`, `notice`, `error`, `done`, numbered) by polling, asking only for
    the new ones (`?after=`); no stream to keep open through the tunnel.
-2. **The same tools as `/mcp`, the same scope.** The assistant gets the seven tools of
+2. **The same tools as `/mcp`, the same scope.** The assistant gets the draft tools of
    `McpTools` (`invoke`, shared with `McpRoutes`) and acts as the session's player, minus
    `publish` and `config`. It writes drafts checked by the server, it does not deploy. A
    draft it creates is offered in the panel: "Open in Drafts". Since 2026-10-29 an MCP client
