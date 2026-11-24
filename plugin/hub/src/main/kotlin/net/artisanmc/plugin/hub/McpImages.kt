@@ -129,6 +129,17 @@ object McpImages {
         ).filterValues { it != null }
     }
 
+    /** How many opaque pixels [image] has of each colour (0xRRGGBB). */
+    fun colours(image: RgbaImage): Map<Int, Long> {
+        val out = HashMap<Int, Long>()
+        val pixels = ByteBuffer.wrap(image.data)
+        repeat(image.width * image.height) {
+            val rgba = pixels.getInt()
+            if (rgba and 0xff == 0xff) out.merge(rgba ushr 8, 1L, Long::plus)
+        }
+        return out
+    }
+
     /** [image] as [fromPixels] reads it, to change a few pixels and write it back; null when it is too large or has too many colours. */
     fun grid(image: RgbaImage): Map<String, Any?>? {
         if (image.width * image.height > MAX_GRID_PIXELS) return null

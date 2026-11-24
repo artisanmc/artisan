@@ -27,7 +27,8 @@ class McpTest {
     private val mapper = ObjectMapper()
     private val sent: MutableList<Map<String, Any?>> = Collections.synchronizedList(mutableListOf())
     private val history = McpFixtures.History()
-    private val server = McpFixtures.server(sent, history)
+    private val modules = java.util.concurrent.ConcurrentHashMap<String, McpFixtures.Module>()
+    private val server = McpFixtures.server(sent, history, modules)
 
     private val drafts = McpFixtures.Drafts()
     private val sessions = Sessions()
@@ -140,7 +141,7 @@ class McpTest {
         val notification = http("POST", McpRoutes.PATH, """{"jsonrpc":"2.0","method":"notifications/initialized"}""", mapOf("Authorization" to "Bearer $access"))
         assertEquals(202, notification.status)
         val names = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
-        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "render_menu", "list_versions"), names)
+        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "render_menu", "survey_ui", "list_versions"), names)
         assertTrue(names.none { "publish" in it || "deploy" in it || "rollback" in it })
         // The kind guide is prose for the model to read, the schema outlined rather than dumped.
         val guide = tool(access, "get_kind_guide", "kind" to "menu", "project" to "u-local.shop")
@@ -232,6 +233,52 @@ class McpTest {
         assertEquals("x1", deployed["structuredContent"]["shown_at"].asText())
         assertTrue(tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/vip.yml")["isError"].asBoolean(), "not deployed yet")
         assertTrue(tool(access, "render_menu", "project" to "u-local.shop", "path" to "lang/en.yml")["isError"].asBoolean())
+    }
+
+    @Test
+    fun `a server's images are surveyed module by module, with its kit, and a menu draws the kit's image`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/shop_icon.png" to solid(16, 16, 0x3366cc)))
+        modules["ui-kit"] = McpFixtures.Module(
+            files = mapOf("data/ui-kit.yml" to "notes: Vanilla bevel, no black outline.\n", "menus/demo.yml" to "schema: menu/v1\nsize: 9\nelements:\n  - positions: \"0\"\n    image: { asset: kit_button }\n"),
+            images = mapOf(
+                "assets/textures/kit_button.png" to solid(54, 18, 0x20c040), "originals/assets/textures/kit_button.png" to solid(54, 18, 0x000000),
+                "assets/glyphs/kit_window.png" to solid(176, 166, 0xc6c6c6),
+            ),
+        )
+        val (access, _) = tokens()
+
+        val survey = tool(access, "survey_ui", "server" to "u-local")
+        assertFalse(survey.has("isError"), survey.toString())
+        val facts = survey["structuredContent"]
+        assertEquals(listOf("u-local.shop", "u-local.ui-kit"), facts["modules"].map { it["project"].asText() })
+        // The kit's own button, not the one it shipped with; numbered across the modules.
+        val kitImages = facts["modules"][1]["images"]
+        assertEquals(listOf("kit_window" to "background", "kit_button" to "button"), kitImages.map { it["name"].asText() to it["use"].asText() })
+        assertEquals(listOf(2, 3), kitImages.map { it["n"].asInt() })
+        assertEquals(listOf("menus/demo.yml"), facts["modules"][1]["menus_with_images"].map { it.asText() })
+        assertEquals("#c6c6c6", facts["colours"][0]["colour"].asText(), "the colour most pixels have")
+        assertTrue("Vanilla bevel" in facts["kit"]["content"].asText())
+        assertEquals("u-local.ui-kit", facts["kit"]["project"].asText())
+        assertEquals(listOf("text", "image", "image"), survey["content"].map { it["type"].asText() }, "one sheet per module")
+
+        // A menu of the shop that names the kit's button draws it: an image is found on the whole server.
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: kit")["structuredContent"]["draft_id"].asText()
+        val menu = "schema: menu/v1\nsize: 9\nvanilla_texture: false\nelements:\n  - positions: \"0-2\"\n    image: { asset: kit_button }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/kit.yml", "content" to menu).has("isError"))
+        val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/kit.yml", "draft_id" to draftId, "scale" to 1)
+        assertTrue(rendered["structuredContent"]["notes"].none { "kit_button" in it.asText() }, rendered["structuredContent"].toString())
+        val window = rendered["structuredContent"]["window"]
+        val shown = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+        val at = ((window["y"].asInt() + 17 + 9) * shown.width + window["x"].asInt() + 7 + 27) * 4
+        assertEquals(listOf(0x20, 0xc0, 0x40), shown.data.slice(at until at + 3).map { it.toInt() and 0xff })
+
+        // A server without a kit is told how one is made.
+        modules.remove("ui-kit")
+        assertTrue("create_module" in tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"]["how"].asText())
+        assertTrue(tool(access, "survey_ui", "server" to "nowhere")["isError"].asBoolean())
     }
 
     @Test

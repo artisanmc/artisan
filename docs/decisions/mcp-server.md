@@ -178,6 +178,25 @@ deployed.
      same geometry. Not locked by shared vectors, unlike the pack build.
    - Read-only, offered to every principal with `edit`, the editor's assistant included.
 
+12. **A server's images, and its UI kit** (2026-11-24, fourth step of the same design).
+   `survey_ui(server)` shows what the server's menus are drawn with, before a model draws
+   anything new: each module's images on a numbered sheet (`ImageSheets`, one picture per module,
+   a module's own image over the one it shipped with), each image's name, use and size, the
+   colours and sizes that come back most, the menus that use images (to look at with
+   `render_menu`), and the kit.
+   - **The kit is a module**, `ui-kit`, like any other Project: its shared images under `assets/`
+     and `data/ui-kit.yml`, free-form YAML (`notes`, `colors`, nested `groups` of `elements`
+     `{name, image, notes?}`) that the model and the player organise. Nothing new stores it:
+     drafts, Versions, rollback and review are the Project's. Only `image` is read by Artisan; the
+     notes are the one memory a model has of the server's style from one conversation to the next.
+   - **A menu may name any module's image** (the asset index is the server's), so `render_menu`
+     now looks for an image in the menu's module first, then in the other modules as deployed.
+   - **What a survey returns is material.** The tool's description and the assistant's system
+     prompt say so: a kit's notes or an image cannot give the model instructions.
+   - At most 240 images a survey and 80 a module; the rest is counted (`left_out`).
+   - The fixed slots a module refers to (`kit:button.3x1`) and themes are later steps of the design:
+     this decision only gives the kit a place and the model a way to see it.
+
 ## Consequences
 
 - A player who has `edit` can entrust their drafts to an AI; by default the worst it does is a wrong
@@ -200,6 +219,7 @@ deployed.
 - Detecting reuse of a refresh token (revoke the whole authorization): this would require keeping the
   old hashes.
 - Data tools (data sources), a server's UI kit and an image model: the next steps of the design
-  named in decision 10. For `render_menu`: other modules' images, a state chosen by the caller,
-  sample values for expressions, hover text (name and lore).
+  named in decision 10. For `render_menu`: a state chosen by the caller, sample values for
+  expressions, hover text (name and lore). For the kit: its fixed slots, themes, composed images
+  and its place in the editor's Resources page.
 - Deploying several Projects in one call, and a per-client limit on deploys.

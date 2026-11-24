@@ -268,7 +268,7 @@ object MenuPictures {
     }
 
     /** The picture being drawn; coordinates are the window's, [originX], [originY] its corner in [image]. */
-    private class Canvas(val image: RgbaImage, val originX: Int, val originY: Int) {
+    internal class Canvas(val image: RgbaImage, val originX: Int, val originY: Int) {
         fun fill(rgba: Int) {
             for (i in 0 until image.width * image.height) put(i * 4, rgba)
         }
@@ -306,7 +306,7 @@ object MenuPictures {
     }
 
     /** Text in the vanilla bitmap sheets, at a title size (8 is the game's own). */
-    private class Text(private val lang: String?) {
+    internal class Text(private val lang: String?) {
         var unresolved = false
         var undrawn = false
 
@@ -427,5 +427,55 @@ object MenuPictures {
             }
             return out
         }
+    }
+}
+
+/**
+ * Several images on one picture, each under its number, so a model looks at a module's images
+ * together (`survey_ui`): a small image twice its size, over a chequerboard where it is
+ * transparent, in rows no wider than [WIDTH].
+ */
+object ImageSheets {
+    const val WIDTH = 720
+    private const val PAD = 8
+    private const val LABEL = 10
+    private const val BACKDROP = 0x26262aff
+    private const val NUMBER = 0xd8d8d8
+
+    /** Picture pixels per image pixel on a sheet: 2, or 1 for an image that is already large. */
+    fun scale(image: RgbaImage): Int = if (maxOf(image.width, image.height) <= 128) 2 else 1
+
+    /** [images] in order, numbered from [first]. */
+    fun sheet(images: List<RgbaImage>, first: Int = 1): RgbaImage {
+        class Cell(val image: RgbaImage, val number: String, val x: Int, val y: Int)
+        val text = MenuPictures.Text(null)
+        val cells = ArrayList<Cell>()
+        var x = PAD
+        var y = PAD
+        var rowHeight = 0
+        var width = 0
+        images.forEachIndexed { i, source ->
+            val shown = MenuPictures.enlarge(source, scale(source))
+            val number = (first + i).toString()
+            val cellWidth = maxOf(shown.width, text.width(number, 8))
+            if (x > PAD && x + cellWidth + PAD > WIDTH) {
+                x = PAD
+                y += rowHeight + PAD
+                rowHeight = 0
+            }
+            cells += Cell(shown, number, x, y)
+            x += cellWidth + PAD
+            width = maxOf(width, x)
+            rowHeight = maxOf(rowHeight, LABEL + shown.height)
+        }
+        val canvas = MenuPictures.Canvas(RgbaImage(maxOf(width, PAD * 2), y + rowHeight + PAD), 0, 0)
+        canvas.fill(BACKDROP.toInt())
+        for (cell in cells) {
+            text.drawPlain(canvas, cell.number, cell.x, cell.y, 8, NUMBER)
+            for (dy in 0 until cell.image.height) for (dx in 0 until cell.image.width)
+                canvas.blend(cell.x + dx, cell.y + LABEL + dy, if ((dx / 4 + dy / 4) % 2 == 0) 0x3a3a3aff else 0x4a4a4aff)
+            canvas.draw(cell.image, cell.x, cell.y + LABEL)
+        }
+        return canvas.image
     }
 }

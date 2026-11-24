@@ -112,6 +112,16 @@ and data are not evaluated, so an element shows its default look, a value such a
 `{shop.price}` shows as `{price}`, and an item only known in game shows a `?`. Open the menu
 in game, or in the editor's preview, to see it with real data.
 
+**A consistent style: the UI kit.** Before it draws, the app looks at the images your modules
+already have, so a new menu matches the others. To keep a style over time, ask it for a UI kit:
+"Make a UI kit for this server from the guild menus." It creates a module named `ui-kit` that
+holds the shared images (buttons, windows, arrows) and a `data/ui-kit.yml` file: the list of
+those images, grouped as you like, and the style rules in plain words ("vanilla bevel, no black
+outline"). Any menu of the server can use the kit's images, and the app reads the kit at the
+start of each conversation, which is the only thing it remembers from the last one. The kit is
+a module like any other: you review and deploy what the app adds to it, and you can edit the
+file yourself.
+
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"
 on the consent page, or the "Can deploy" switch in **Settings → AI apps**. The app then shows
 the changes and deploys only after you say yes, with the same checks as the editor's Deploy.
