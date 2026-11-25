@@ -120,6 +120,13 @@ deployed.
      `overrides/colors.yml` is checked for its `scope`. The default is "does not follow": a
      table applied to an image whose colours were not chosen for it repaints an icon by
      accident, and the assistant knows when it drew in the base's palette.
+   - **A theme's table from one colour per ramp** (2026-11-25, same decision).
+     `theme_colours(ramps)` computes the table a theme's file holds from what the main colour
+     of each ramp becomes, and `survey_ui` gives the ramps (`kit_ramps`). It is read-only and
+     writes nothing: the model writes the file with `write_document`, where it is checked. A
+     model asked for "a red theme" otherwise invents some forty shades one by one, and gets
+     another result than the editor's theme page; the hub computes the editor's
+     (`testdata/ramp-shades-conformance.json`).
    - **Creating a module** (2026-10-30). `create_module(server, name)` makes an empty Project
      folder (`project_create`, as the editor's "New module"), for a principal with
      `artisan.editor.publish`, like the editor's route. Not destructive: the folder holds nothing,

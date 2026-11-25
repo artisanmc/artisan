@@ -19,7 +19,7 @@ tasks.processResources {
         into("net/artisanmc/plugin/pack/minecraft")
     }
     from(kitAssets) {
-        include("*.png", "slots.json")
+        include("*.png", "slots.json", "ramps.json")
         into("net/artisanmc/plugin/pack/kit")
     }
 }
@@ -27,4 +27,5 @@ tasks.processResources {
 // The vectors are read from the repository, outside the sources: a change to them reruns the test.
 tasks.test {
     inputs.file(rootDir.resolve("../testdata/resource-pack-conformance.json"))
+    inputs.file(rootDir.resolve("../testdata/ramp-shades-conformance.json"))
 }

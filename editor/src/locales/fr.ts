@@ -328,6 +328,26 @@ const fr: typeof en = {
       compare: "Sans et avec, dans un menu",
       putHint:
         "Mettre en place pose le thème au-dessus de ceux qui y sont déjà et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
+      open: "Ouvrir le dossier du thème",
+      ramps: {
+        title: "Couleurs d'Artisan",
+        hint: "Choisissez ce que devient chaque couleur des images d'Artisan dans ce thème : ses nuances suivent. Le menu à côté montre le résultat avant toute écriture.",
+        primary: "Principale (boutons)",
+        danger: "Danger (supprimer, fermer)",
+        accent: "Accent (mises en avant)",
+        neutral: "Neutre (fenêtres, cadres)",
+        pick: "Couleur de : {{ramp}}",
+        reset: "Revenir à la couleur d'Artisan",
+        save: "Enregistrer les couleurs",
+        discard: "Annuler",
+        saveHint:
+          "Écrit dans le fichier du thème sur le serveur. Les joueurs ne voient rien tant que le thème n'est pas mis en place.",
+        saveInPlace:
+          "Ce thème est en place : enregistrer reconstruit le pack du serveur, et les joueurs le reçoivent à leur prochaine connexion.",
+        trying: "{{name}}, pas encore enregistré",
+        conflict:
+          "Le fichier du thème a changé sur le serveur entre-temps. Rechargez la page et choisissez à nouveau.",
+      },
     },
   },
   imageButton: {

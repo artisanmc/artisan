@@ -11,6 +11,7 @@ import {
   readOwnTheme,
   themeChange,
   themeColors,
+  themeColorsText,
   themeDrawings,
   themeFile,
   themeNames,
@@ -427,5 +428,50 @@ describe("kit themes", () => {
     // A theme the common images keep reads its scope from its file too.
     const former = readKitTheme("old", kit({ "themes/old/theme.yml": `scope: guilds\n${table}` }))!;
     expect(await former.shown("button.3x1", green, true)).toBe(green);
+  });
+  test("a theme's file is written with another table, its other keys and comments kept", () => {
+    const table = new Map([
+      [0x3c8527, 0xb3261e],
+      [0x1e5214, 0x000000],
+    ]);
+    const written = 'colors:\n  "#3c8527": "#b3261e"\n  "#1e5214": "#000000"\n';
+    expect(themeColorsText(undefined, table)).toBe(written);
+    expect(themeColors(written)).toEqual(table);
+    expect(
+      themeColorsText('# note\nscope: guilds # only\ncolors:\n  "#a02824": "#102030"\n', table),
+    ).toBe(`# note\nscope: guilds # only\n${written}`);
+    // No colour left: the key goes, and a file with nothing else has nothing to write.
+    expect(themeColorsText('scope: guilds\ncolors: {"#a02824": "#102030"}\n', new Map())).toBe(
+      "scope: guilds\n",
+    );
+    expect(themeColorsText('colors: {"#a02824": "#102030"}\n', new Map())).toBeNull();
+    expect(themeColorsText(undefined, new Map())).toBeNull();
+    // A file that cannot be read, or that is not a map, is written anew.
+    expect(themeColorsText("colors: [", table)).toBe(written);
+    expect(themeColorsText("- a\n", table)).toBe(written);
+  });
+
+  test("a theme is tried with another table: its drawings and its scope stay", async () => {
+    const drawn = encodePng(solid(1, 1, 9, 9, 9, 255));
+    const green = encodePng(solid(1, 1, 0x3c, 0x85, 0x27, 255));
+    const theme = readOwnTheme({
+      files: [
+        {
+          path: "overrides/colors.yml",
+          content: 'scope: artisan\ncolors: {"#3c8527": "#b3261e"}\n',
+        },
+      ],
+      binaries: [{ path: "overrides/artisan/close.png" }],
+      binary: () => drawn,
+    });
+    const tried = theme.withColors(new Map([[0x3c8527, 0x010203]]));
+    expect([...decodePng(await tried.shown("cell", green, true)).data.slice(0, 3)]).toEqual([
+      1, 2, 3,
+    ]);
+    expect(await tried.shown("close", green, true)).toBe(drawn);
+    expect(tried.scope).toBe("artisan");
+    expect(await tried.moduleShown("guilds", "x", green, true)).toBe(green);
+    // The theme itself keeps its table.
+    expect(theme.colors.get(0x3c8527)).toBe(0xb3261e);
   });
 });

@@ -410,12 +410,37 @@ reach. The MCP tools: `write_image` takes `ramps`, `survey_ui` marks the images 
 and gives a theme's `scope`, `render_menu` draws accordingly, and a theme's file is checked
 for its `scope`. The vector locks it in both builders and both packs (one case), with twin
 unit cases.
-Not in this part: the ramps themselves (the base declaring primary, danger, neutral and
-accent with their shades, the editor computing a theme's table from a colour picked per
-ramp: the table is still written by hand or by the assistant); an image made in the atelier
-from a base image under another name, which does not get the flag by itself; the editor's
-canvas and a module's Resources, which show a module's image as the module holds it, not in
-the colours of a theme in place.
+Not in this part: an image made in the atelier from a base image under another name, which
+does not get the flag by itself; the editor's canvas and a module's Resources, which show a
+module's image as the module holds it, not in the colours of a theme in place.
+
+**Step 4, sixth part: the ramps declared, and one colour picked per ramp** (`ramps.json`
+beside the base, `ramps.ts` and `Ramps.kt`, `KitThemePage`).
+The base declares its four ramps, `primary`, `danger`, `accent` and `neutral`: each colour of
+its images is in one ramp and one only, with the ramp's main colour (a button's face, a
+window's body). The declaration is one file, `editor/src/assets/kit/ramps.json`, shipped in
+the jar beside the base; a test on each side checks that it covers the base's images colour
+for colour, so an image added to the base in a new colour fails until the colour has a ramp.
+A theme changes a ramp by the colour its main one becomes (decision 7). Each shade takes the
+picked colour's hue, its saturation in the proportion it had to the main colour's (the picked
+one's for the greys), and keeps its place between black, the main colour and white. This is
+not the "same lightness" the decision words: the main colour becomes the picked one exactly,
+which is what the owner chose, and the shades keep their order around it, so a dark red
+button still has a darker edge and a lighter highlight; black stays black and white stays
+white. The result is written as the exact colour-to-colour table: the builders compute
+nothing, as decided.
+In the editor the page of a theme of its own folder has one colour to pick per ramp. The menu
+beside is drawn with the table being picked, before anything is written; **Save the colours**
+writes `overrides/colors.yml` on the server (`saveThemeColors`: the file's other keys, such
+as `scope`, are kept, a file changed since it was read is refused), and rebuilds the pack
+when the theme is in place. The page also opens the theme's Project, where a draft of it is
+deployed. The MCP tool `theme_colours` computes the same table from the same picks
+(`Ramps.table`, checked against the editor's on `testdata/ramp-shades-conformance.json`), and
+`survey_ui` gives the ramps (`kit_ramps`).
+Not in this part: a theme the common images' Project still keeps has no picker (it moves to
+its own folder at the server's next start); a theme's `scope` is still written by hand or by
+the assistant; a table written by hand that changes a ramp's shades without its main colour
+shows the ramp as unchanged, and picking a colour for it replaces those entries.
 
 Not there yet:
 
@@ -449,8 +474,9 @@ Not there yet:
   changed" notice of its own.
 - Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are not in the pack,
   and a theme is not deleted or renamed from the editor.
-- Against decision 7: the base declares no ramps and the editor computes no shade: a theme's
-  table is written colour by colour.
+- Against decision 7: an image of the server that follows the ramps is repainted by its
+  colours as they are, so one drawn in other colours than the base's is not reached by a pick;
+  the editor does not say which of an image's colours are in no ramp.
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no
   module), so two modules asking for the same name at the same rise share one picture.
 - The editor draws the base from its own build, not from the server's `originals/`: the two

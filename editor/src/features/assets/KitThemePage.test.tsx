@@ -95,4 +95,67 @@ describe("KitThemePage", () => {
     render(<KitThemePage name="noel" onBack={() => {}} />);
     expect(screen.getByTestId("kit-theme-stack")).toHaveTextContent("hiver, noel");
   });
+  it("picks one colour per ramp for a theme of its own folder, and writes the table", async () => {
+    useKitStore.setState({
+      own: {
+        printemps: {
+          projectId: "srv.printemps",
+          files: { "overrides/colors.yml": 'colors: {"#a02824": "#102030"}\n' },
+          binaries: [],
+        },
+      },
+    });
+    const onColors = vi.fn().mockResolvedValue(undefined);
+    const onOpenTheme = vi.fn();
+    render(
+      <KitThemePage
+        name="printemps"
+        onBack={() => {}}
+        onColors={onColors}
+        onOpenTheme={onOpenTheme}
+      />,
+    );
+    const ramps = within(screen.getByTestId("kit-theme-ramps"));
+    // Each ramp shows what its main colour becomes in the theme.
+    const main = ramps.getByLabelText("Couleur de : Principale (boutons)") as HTMLInputElement;
+    expect(main.value).toBe("#3c8527");
+    const danger = ramps.getByLabelText("Couleur de : Danger (supprimer, fermer)");
+    expect((danger as HTMLInputElement).value).toBe("#102030");
+    expect(screen.queryByRole("button", { name: "Enregistrer les couleurs" })).toBeNull();
+    fireEvent.change(main, { target: { value: "#b3261e" } });
+    // The shades follow, shown before anything is written.
+    expect(within(screen.getByTestId("kit-theme-colors")).getByText("#3c8527")).toBeInTheDocument();
+    expect(screen.getByTestId("kit-theme-after")).toHaveTextContent("pas encore enregistré");
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les couleurs" }));
+    await waitFor(() => expect(onColors).toHaveBeenCalledTimes(1));
+    const [name, table] = onColors.mock.calls[0] as [string, Map<number, number>];
+    expect(name).toBe("printemps");
+    expect(table.get(0x3c8527)).toBe(0xb3261e);
+    expect(table.get(0xa02824)).toBe(0x102030);
+    expect(table.size).toBeGreaterThan(2);
+    // Cancelled, the theme's own table is back.
+    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(main.value).toBe("#3c8527");
+    expect(screen.queryByRole("button", { name: "Enregistrer les couleurs" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Ouvrir le dossier du thème" }));
+    expect(onOpenTheme).toHaveBeenCalled();
+  });
+
+  it("says a write was refused, and offers no picker for a theme the common images keep", async () => {
+    useKitStore.setState({
+      own: { printemps: { projectId: "srv.printemps", files: {}, binaries: [] } },
+    });
+    const onColors = vi.fn().mockRejectedValue(new Error("conflict"));
+    const { unmount } = render(
+      <KitThemePage name="printemps" onBack={() => {}} onColors={onColors} />,
+    );
+    fireEvent.change(screen.getByLabelText("Couleur de : Neutre (fenêtres, cadres)"), {
+      target: { value: "#4a5a8c" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les couleurs" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("a changé sur le serveur");
+    unmount();
+    render(<KitThemePage name="noel" onBack={() => {}} onColors={onColors} />);
+    expect(screen.queryByTestId("kit-theme-ramps")).toBeNull();
+  });
 });

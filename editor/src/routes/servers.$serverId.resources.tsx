@@ -3,6 +3,7 @@ import { KitThemePage } from "@/features/assets/KitThemePage";
 import { NewThemeDialog } from "@/features/assets/NewThemeDialog";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useResourcesView } from "@/features/assets/resourcesView";
+import { saveThemeColors } from "@/features/assets/themeWrite";
 import {
   SERVER_COMMON,
   ServerResources,
@@ -50,6 +51,7 @@ function ServerResourcesTab() {
   useServerIndexLoader(serverId, serverKeyId !== null, rereads);
   const uses = useImageUses();
   const read = useKitStore((s) => s.read);
+  const ownThemes = useKitStore((s) => s.own);
   const kitId = read?.projectId;
   if (!serverKeyId) return null;
   const openModule = (projectId: string) =>
@@ -81,6 +83,20 @@ function ServerResourcesTab() {
             name={theme}
             onBack={() => void showScope(SERVER_COMMON)}
             onOpenKit={kitId ? () => void openModule(kitId) : undefined}
+            onOpenTheme={
+              ownThemes[theme]
+                ? () => void openModule((ownThemes[theme] as { projectId: string }).projectId)
+                : undefined
+            }
+            onColors={async (name, colors) => {
+              const mine = useKitStore.getState().own[name];
+              if (!mine) throw new Error("unknown_project");
+              if (!(await saveThemeColors(mine, colors))) return;
+              // The theme is read again as the server holds it, and its pack rebuilt when it is in place.
+              setRereads((count) => count + 1);
+              if (useKitStore.getState().themes.includes(name))
+                rebuildServerPackInBackground(t, serverKeyId);
+            }}
             onPutInPlace={async (name, put) => {
               const { themes, stacks } = useKitStore.getState();
               const saved = await patchServerConfig(

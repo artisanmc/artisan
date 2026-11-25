@@ -243,6 +243,11 @@ A theme may also redraw a module's own image, at its size
 (`overrides/guilds/banner.png` for the image `banner` of the module `guilds`): ask for it by
 the module's name ("in the theme noel, redraw the guilds banner with snow").
 
+Ask for a theme by its colours ("a Christmas theme: red buttons, dark blue windows"): the
+assistant picks one colour per family of Artisan's images (main, danger, accent, neutral) and
+the shades of each family are computed for it, the same ones the theme's page computes when
+you pick the colour yourself.
+
 An image a theme draws is shown as drawn. Otherwise the theme's colours repaint the images
 that follow them, their transparency kept: Artisan's own, and any image, common or a
 module's, that says so (`ramps: true` in its `.yml`, **Follows the themes' colours** in

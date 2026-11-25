@@ -321,6 +321,26 @@ export default {
       compare: "Without and with, in a menu",
       putHint:
         "Putting a theme in place sets it above the ones already there and rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
+      open: "Open the theme's folder",
+      ramps: {
+        title: "Artisan's colours",
+        hint: "Pick what each colour of Artisan's images becomes in this theme: its shades follow. The menu beside shows the result before anything is written.",
+        primary: "Main (buttons)",
+        danger: "Danger (delete, close)",
+        accent: "Accent (highlights)",
+        neutral: "Neutral (windows, frames)",
+        pick: "Colour of: {{ramp}}",
+        reset: "Back to Artisan's colour",
+        save: "Save the colours",
+        discard: "Cancel",
+        saveHint:
+          "Written in the theme's file on the server. Players see nothing until the theme is put in place.",
+        saveInPlace:
+          "This theme is in place: saving rebuilds the server's pack, and players receive it at their next connection.",
+        trying: "{{name}}, not saved yet",
+        conflict:
+          "The theme's file changed on the server in the meantime. Reload the page and pick again.",
+      },
     },
   },
   imageButton: {

@@ -171,7 +171,7 @@ class McpTest {
         val notification = http("POST", McpRoutes.PATH, """{"jsonrpc":"2.0","method":"notifications/initialized"}""", mapOf("Authorization" to "Bearer $access"))
         assertEquals(202, notification.status)
         val names = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
-        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "measure_image", "render_menu", "survey_ui", "list_versions"), names)
+        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "measure_image", "render_menu", "survey_ui", "theme_colours", "list_versions"), names)
         assertTrue(names.none { "publish" in it || "deploy" in it || "rollback" in it })
         // The kind guide is prose for the model to read, the schema outlined rather than dumped.
         val guide = tool(access, "get_kind_guide", "kind" to "menu", "project" to "u-local.shop")
@@ -681,6 +681,40 @@ class McpTest {
         val survey = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
         assertEquals(listOf("guilds:crest"), survey["kit"]["themes"].first { it["name"].asText() == "noel" }["module_redraws"].map { it.asText() })
         assertEquals(light to light, crest("theme" to "noel"))
+    }
+
+    @Test
+    fun `the colours of a theme are computed from one colour per family of the base`() {
+        val (access, _) = tokens()
+        // The families are the base's: every colour of a button's face is in `primary`.
+        val ramps = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit_ramps"]
+        assertEquals(listOf("primary", "danger", "accent", "neutral"), ramps["ramps"].map { it["id"].asText() })
+        assertEquals("#3c8527", ramps["ramps"][0]["main"].asText())
+        assertTrue("theme_colours" in ramps["how"].asText())
+
+        // One colour picked: the family's main colour becomes it, its shades follow, the others keep Artisan's.
+        val one = tool(access, "theme_colours", "ramps" to mapOf("primary" to "#B3261E"))["structuredContent"]
+        assertEquals("#b3261e", one["colors"]["#3c8527"].asText())
+        assertEquals(net.artisanmc.plugin.pack.Ramps.ramp("primary")!!.shades.size, one["colors"].size())
+        assertNull(one["colors"]["#a02824"])
+        assertTrue(one["file"].asText().startsWith("colors:\n  \"#3c8527\": \"#b3261e\"\n"), one["file"].asText())
+        assertEquals("overrides/colors.yml", one["path"].asText())
+        // The file is a theme's table as the builders read it.
+        assertEquals(one["colors"].size(), net.artisanmc.plugin.pack.KitTheme.colors(one["file"].asText()).size)
+
+        // Two families, in the declaration's order whatever order they are asked in.
+        val two = tool(access, "theme_colours", "ramps" to mapOf("neutral" to "#4a5a8c", "primary" to "#b3261e"))["structuredContent"]
+        assertEquals(listOf("primary", "neutral"), two["ramps"].fieldNames().asSequence().toList())
+        assertEquals("#3c8527", two["colors"].fieldNames().next())
+        assertNull(two["colors"]["#000000"], "black stays black")
+
+        // Artisan's own colour changes nothing; an unknown family and a colour that is not one are refused.
+        val same = tool(access, "theme_colours", "ramps" to mapOf("primary" to "#3c8527"))["structuredContent"]
+        assertEquals(0, same["colors"].size())
+        assertEquals("", same["file"].asText())
+        assertEquals("invalid_input", tool(access, "theme_colours", "ramps" to mapOf("brand" to "#b3261e"))["structuredContent"]["error"].asText())
+        assertEquals("invalid_input", tool(access, "theme_colours", "ramps" to mapOf("primary" to "red"))["structuredContent"]["error"].asText())
+        assertEquals("invalid_input", tool(access, "theme_colours", "ramps" to emptyMap<String, String>())["structuredContent"]["error"].asText())
     }
 
     @Test
