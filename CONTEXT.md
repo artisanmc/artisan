@@ -986,11 +986,41 @@ variants distributed apart (later: marketplace). Cf. design `variantes-modules`.
 
 Non-examples:
 - A **Folder** is not a variant: it only arranges files, every player sees its Documents.
-- A theme is not a term of the code: the word is taken by the Folders (*themed folders*), and
-  a variant changes behaviour too (where the actions sit, which clicks).
+- A **Theme** is not a variant: a theme changes pixels only and holds no Document, a variant
+  changes behaviour too (where the actions sit, which clicks).
 - What is registered for the server (a command's name, aliases, permission, arguments;
   triggers, data sources, actions) has no variants: a variant's command file only changes what
   the command runs (`actions`, `requirements`, `fallback`).
+
+## Common image
+
+An image every menu of the server names without a prefix: Artisan's base and what the owner
+moved there. A menu's bare name (`button.3x1`) is its module's image, else the common one;
+`guilds:banner` is another module's image, `artisan:button.3x1` the common one even when the
+module has its own. An image belongs to its module unless the owner makes it common. Decided
+2026-11-25 (ADR `common-images-and-themes`), not built yet: until then the code has the UI kit
+(`kit:<name>`, the `ui-kit` module) of ADR `mcp-server`, decisions 12 and 14.
+
+Non-examples:
+- A **Captured item** is never common: it is game content, and stays in a module.
+- A module's own `button.3x1` is not a common image: it replaces the common one for that
+  module's menus only.
+
+## Theme
+
+A folder of images under `themes/<name>/`, in the format of a module, that changes how images
+look and never what a menu does: its redraws of images that exist elsewhere, its colour table,
+and its own images (`<theme>:<name>`). It holds no Document. The theme `artisan` is Artisan's
+base: it alone fixes the names and measures of the **Common images**, is always in place and
+below the others. The other themes in place are a stack the server orders
+(`resource-pack.themes`). A module draws what it owns; a theme redraws what others own. Decided
+2026-11-25 (ADR `common-images-and-themes`), not built yet: until then a theme is a folder of
+the `ui-kit` module, one in place per server (ADR `mcp-server`, decision 16).
+
+Non-examples:
+- A **Variant** is not a theme: it replaces Documents for some players.
+- A **Folder** is not a theme: it only arranges a module's files.
+- A module that ships its own images is not a theme: its images serve its own menus.
 
 ## Version
 
