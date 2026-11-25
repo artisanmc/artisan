@@ -88,6 +88,8 @@ class SyncedMenuProvider(
     private val serverConfig: net.artisanmc.plugin.config.ServerConfigAccess? = null,
     /** Unrequested announcements (`projects_reloaded`…): the editor served by the plugin relays them. */
     private val editorEvents: (Map<String, Any?>) -> Unit = {},
+    /** [load] runs while the server enables: its announcement waits for [serverStarted]. */
+    private val awaitsStart: Boolean = false,
     /** On a leaf, the hub to connect to; null on the hub or a standalone server. */
     private val hub: HubLink? = null,
     /** The other servers that serve their own editor (ADR `peer-servers`): this one joins each as a leaf. */
@@ -260,14 +262,24 @@ class SyncedMenuProvider(
     private val registerQueued = java.util.concurrent.atomic.AtomicBoolean(false)
 
     /**
+     * The server's first tick, told by whoever calls [load] while the server enables, right
+     * after it: so before the Add-ons' roots queue their own reload, and [registerQueued]
+     * already tells whether a reload with their Projects follows, which announces everything.
+     */
+    fun serverStarted() {
+        started = true
+        if (announceHeld.getAndSet(false) && !registerQueued.get() && !reloadQueued.get()) announceReload()
+    }
+
+    /**
      * False until the server's first tick. The load made while Artisan enables cannot hold the
      * Projects of the Add-ons, which register their roots when they enable, after us: announced
      * as it is, the hub would build the server's pack from part of its content and hand it to
      * players (or to the pack host plugin, which builds its own pack right then) before the
      * whole one. Its announcement is held ([announceHeld]) until the reload those roots ask
-     * for, or until the first tick when none did.
+     * for, or until [serverStarted] when none did. Only with [awaitsStart].
      */
-    @Volatile private var started = false
+    @Volatile private var started = !awaitsStart
     private val announceHeld = java.util.concurrent.atomic.AtomicBoolean(false)
     private val registeredFolders: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
@@ -323,12 +335,6 @@ class SyncedMenuProvider(
         // reload; the disk work itself leaves the global thread (refreshFromDisk). The
         // modules enabled at startup register before the first tick: one reload for all,
         // which notifies the folders' modules only, not every module each time.
-        if (!started) scheduler.global {
-            started = true
-            // Queued before the roots' own task below: `registerQueued` already tells whether a
-            // reload with the Add-ons' Projects follows, which announces the whole content.
-            if (announceHeld.getAndSet(false) && !registerQueued.get() && !reloadQueued.get()) announceReload()
-        }
         roots.onRegister = { projectId, _ ->
             registeredFolders += projectId
             roots.ownerOf(projectId)?.let(notifyOwners::add)

@@ -31,7 +31,14 @@ class StartupAnnouncementTest {
         logger = null,
         scheduler = ticks,
         editorEvents = { events += it },
+        awaitsStart = true,
     ).also { it.setSendForTesting { } }
+
+    /** As the plugin does: the first tick is asked for right after the load. */
+    private fun SyncedMenuProvider.loadAtEnable() {
+        load()
+        ticks.global { serverStarted() }
+    }
 
     private fun announced() = events.filter { it["type"] == "projects_reloaded" }
         .map { event -> (event["projects"] as List<*>).map { (it as Map<*, *>)["id"] } }
@@ -44,7 +51,7 @@ class StartupAnnouncementTest {
     @Test
     fun `the first load is announced at the first tick, not while the server enables`() {
         project(File(root, "shop"))
-        provider(ProjectRoots(root)).load()
+        provider(ProjectRoots(root)).loadAtEnable()
         assertTrue(announced().isEmpty(), "announced before the first tick: $events")
 
         ticks.tick()
@@ -55,7 +62,7 @@ class StartupAnnouncementTest {
     fun `with an add-on's root registered before the first tick, only the whole content is announced`() {
         project(File(root, "shop"))
         val roots = ProjectRoots(root)
-        provider(roots).load()
+        provider(roots).loadAtEnable()
         // An Add-on enables after Artisan and registers its own Project.
         val addon = Files.createTempDirectory("artisan_addon_").toFile()
         project(addon)
@@ -69,7 +76,7 @@ class StartupAnnouncementTest {
     @Test
     fun `a reload after the start is announced at once`() {
         val provider = provider(ProjectRoots(root))
-        provider.load()
+        provider.loadAtEnable()
         ticks.tick()
         events.clear()
 

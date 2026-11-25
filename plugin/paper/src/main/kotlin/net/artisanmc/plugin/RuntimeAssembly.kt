@@ -246,6 +246,9 @@ internal class RuntimeAssembly(
         provider.setBedrockPackManager(bedrockPacks)
         plugin.geyser.follow(bedrockPacks)
         provider.load()
+        // Queued before any Add-on enables: the load above is announced at the server's first
+        // tick, once their Projects are known (SyncedMenuProvider.serverStarted).
+        scheduler.global { provider.serverStarted() }
 
         executor = ActionExecutor(plugin, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry, plugin.langManager)
         net.artisanmc.plugin.engine.ChatButtons.executor = executor
@@ -287,6 +290,7 @@ internal class RuntimeAssembly(
         nexoItemIcons = net.artisanmc.plugin.customitems.NexoItemIcons(java.io.File(dataFolder.parentFile, "Nexo")),
         serverConfig = serverConfigAccess,
         editorEvents = { editorChannel.relay(it, serverId.toString()) },
+        awaitsStart = true,
         hub = editorHost.hubLink(cfg.web),
         isBedrock = plugin.geyser::isBedrock,
         hasPack = ::hasPack,
