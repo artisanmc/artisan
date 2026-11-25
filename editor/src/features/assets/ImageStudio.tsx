@@ -2,7 +2,9 @@ import { Button } from "@/components/ui/button";
 import type { Asset } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { cx } from "@/lib/cx";
+import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { ChevronLeft } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -10,7 +12,9 @@ import { ComposedImageEditor } from "./ComposedImageEditor";
 import { ImageGuides } from "./ImageGuides";
 import { PixelEditor } from "./PixelEditor";
 import { SITUATION_SCALE, SituationPreview } from "./SituationPreview";
+import { useAssetStore } from "./assetStore";
 import { type GuideName, guideNames, imageGuides } from "./imageGuides";
+import { canHaveLayers, flatten, toLayers } from "./imageLayers";
 
 /** The guides and the preview the atelier shows, kept between images and sessions. */
 export const useStudioPrefs = create<{
@@ -55,7 +59,7 @@ function Toggle({
 /**
  * The atelier: an image edited on its own screen, in place of the library. A composed image's
  * layers are moved, repeated and drawn (`ComposedImageEditor`); a PNG is drawn pixel by pixel
- * (`PixelEditor`). Either way with the guides of its size (slots, and for a window the
+ * (`PixelEditor`), and becomes layers when one is added (`imageLayers.ts`). Either way with the guides of its size (slots, and for a window the
  * player's inventory and the title), and, for an image on slots, as a player sees it in a menu.
  */
 export function ImageStudio({
@@ -69,6 +73,34 @@ export function ImageStudio({
 }) {
   const { t } = useTranslation();
   const prefs = useStudioPrefs();
+  const user = useProjectPrincipalId(projectId);
+  const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = async (work: () => Promise<void>) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await work();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+      setConfirming(false);
+    }
+  };
+  /** The PNG becomes the first layer of an image of the same name: the menus that name it follow. */
+  const addLayers = () =>
+    run(async () => {
+      const { assets, upsertAsset } = useAssetStore.getState();
+      const taken = new Set(assets.filter((a) => a.projectId === projectId).map((a) => a.name));
+      const { layer, image } = await toLayers(projectId, asset, taken);
+      upsertAsset(layer);
+      upsertAsset(image);
+    });
+  const flattenLayers = () =>
+    run(async () => useAssetStore.getState().upsertAsset(await flatten(projectId, asset)));
   const offered = guideNames(asset.width, asset.height);
   const shown = offered.filter((guide) => !prefs.hidden.includes(guide));
   const kind = imageGuides(asset.width, asset.height);
@@ -98,6 +130,34 @@ export function ImageStudio({
               : ""}
           </span>
         </div>
+        {canHaveLayers(asset) ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!user || busy}
+            title={t("studio.toLayersHint")}
+            onClick={() => void addLayers()}
+          >
+            {t("studio.toLayers")}
+          </Button>
+        ) : null}
+        {asset.compose ? (
+          <Button
+            variant={confirming ? "default" : "outline"}
+            size="sm"
+            disabled={!user || busy}
+            title={t("studio.flattenHint")}
+            onClick={() => (confirming ? void flattenLayers() : setConfirming(true))}
+            onBlur={() => setConfirming(false)}
+          >
+            {t(confirming ? "studio.flattenConfirm" : "studio.flatten")}
+          </Button>
+        ) : null}
+        {error ? (
+          <span role="alert" className="text-xs text-[var(--danger)]">
+            {t("studio.failed", { detail: error })}
+          </span>
+        ) : null}
         {(offered.length > 0 || inMenu) && (
           <div className="ml-auto flex flex-wrap items-center gap-1.5">
             <span className="field-label">{t("studio.guides.label")}</span>

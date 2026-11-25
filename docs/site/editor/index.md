@@ -141,12 +141,13 @@ Open the project's **Resources** tab to import and manage images and fonts.
 Select a resource to edit its details; **Back to resources** returns to the grid.
 Classify images as **Button images** and/or **Menu images**; one image may have both
 uses without being duplicated. Only button images appear in **Buttons → Images**.
-**Retouch pixels**, under an image, edits it in place: pencil, eraser, colour picker
-(Alt+click) and paint bucket, with the colours of the image and of the server's UI kit, zoom
-and undo. The image keeps its size, so the menus that show it need nothing; **Save pixels**
-writes it into your draft. **Draw an image** starts from an empty one (an icon of 16 × 16, a
-slot, a button of three slots, or a size of your own). It is a small tool for a detail or an
-icon: for more, import a PNG made elsewhere or ask the [AI](../configuration/ai/).
+**Open in the atelier**, under an image, gives it the whole page: a PNG is retouched with a
+pencil, an eraser, a colour picker (Alt+click) and a paint bucket, with the colours of the
+image and of the server's UI kit, zoom and undo. The image keeps its size, so the menus that
+show it need nothing; **Save pixels** writes it into your draft. **New image** starts one sized
+by its use (a menu background, slots, an icon, or a size of your own); see
+[Image buttons](image-buttons/). It is a small tool for a detail or an icon: for more, import
+a PNG made elsewhere or ask the [AI](../configuration/ai/).
 
 The separate **Properties** panel edits the current selection. Selecting another
 menu or item keeps the Buttons open, and either panel can be closed independently.

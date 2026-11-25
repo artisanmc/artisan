@@ -33,14 +33,22 @@ takes that area. A title's image layer offers the same list, with the kit's wind
 (see [AI](../../configuration/ai/), "Themes"), the editor shows these images in that theme, as
 players see them.
 
-**The kit in the Resources page.** The **UI kit** view of a module's Resources page shows every
-piece of the base with its name and size, and who drew it: **Artisan**, or this server
-(**Redrawn**). Below are the server's other kit images and the themes of its kit, the one in
-place marked. From any module, **Open the kit module** leads to the `ui-kit` module, and
-**Create the kit module** makes it on a server that has none. In the kit module, **Redraw**
-copies Artisan's image under the piece's name and opens it in the pixel editor; the size stays
-the piece's, so the menus keep their layout. **Back to Artisan's** removes your image. Like any
-change, a redrawn piece reaches players when the draft is deployed and the pack rebuilt.
+**The kit, a tab of the server.** The server page's **UI kit** tab shows the kit as the server
+has it deployed: every piece of the base by family (buttons; windows, panels and values; arrows
+and controls) with its size and who drew it, **Artisan** or this server (**Redrawn**), then the
+server's own kit images. **The kit in a menu** sets every piece on one window, as players see
+it. Click a piece, on its card or on that menu, to open it in the atelier of the `ui-kit`
+module: a piece still Artisan's is first copied under the piece's name, at the piece's size, so
+the menus keep their layout. Deleting that image in the kit module gives the piece back to
+Artisan. **Create the kit module** makes the module on a server that has none. Like any change,
+a redrawn piece reaches players when the draft is deployed and the pack rebuilt.
+
+**Themes.** The tab lists the kit's themes, the one in place marked. A theme opens on what it
+changes (the colours it replaces, the pieces it redraws) and on the same menu without it and
+with it. **Put in place on the server** sets the server's theme and rebuilds its pack: players
+receive it at their next connection. **Take off the server** goes back to no theme. A theme's
+files are written in the kit module (see [AI](../../configuration/ai/), "Themes") and read here
+once deployed.
 
 **Composed images.** An image may be a recipe instead of a PNG: a `compose:` list in its
 `.yml`, which stacks kit images and PNGs of the module (see
@@ -48,12 +56,28 @@ change, a redrawn piece reaches players when the draft is deployed and the pack 
 and says what it is made of; you rename, duplicate or delete it there. It has no file to
 reimport, and it stays in its module: another module cannot copy it.
 
-**Compose an image** in the Resources page starts one from a kit window or a kit button. Its
-detail is a composer: drag a layer to move it (hold Shift to move by one slot, or use the arrow
-keys for one pixel), reorder or remove layers in the list, add a **Kit piece** or a
-**Module image**. A layer repeats with **Columns** and **Rows** (the slots of a window: a grid
-of `kit:cell`). The image is as large as its bottom layer reaches unless you give it a
-**Fixed size**; what goes past is cut. **Save layers** writes the recipe into your draft.
+**New image** in the Resources page asks what the image is for, which gives its size: a
+**menu background** (a window of 1 to 6 rows), **slots** (pick the area on a 9 × 6 grid: 3 × 1
+for a button), an **icon** (16 × 16) or a **free size**. It starts empty, to be drawn, or from
+a kit piece of that size, as a composed image.
+
+**The atelier.** Selecting an image shows it in the side panel; **Open in the atelier** gives
+it the whole page. A PNG opens in the pixel editor, a composed image in the composer: drag a
+layer to move it (hold Shift to move by one slot, or use the arrow keys for one pixel), reorder
+or remove layers in the list, add a **Kit piece** or a **Module image**. A layer repeats with
+**Columns** and **Rows** (the slots of a window: a grid of `kit:cell`). The image is as large
+as its bottom layer reaches unless you give it a **Fixed size**; what goes past is cut. **Save
+layers** writes the recipe into your draft. The atelier draws guides over the image, each
+switched on or off: the **slots**, and on a menu background the **inventory** and the
+**title** line. **In a menu** shows an image on slots at the game's size, on the kit's window,
+while you draw.
+
+**One image, one or several layers.** A PNG open in the atelier is an image of one layer.
+**Add layers** turns it into a composed image of the same name whose first layer is that
+drawing (kept in the module as `<image>_layer`): the menus that show it keep showing it, and
+you set kit pieces or other drawings over it. **Flatten**, on a composed image, does the
+reverse: its layers become one PNG of the same name, which no longer follows the kit; the
+layers stay in the module as images.
 
 **Draw a layer** adds an empty image of the composed image's size on top of the others, saves
 the recipe, and opens the pixel editor on it: you draw among the other layers, the ones above

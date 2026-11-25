@@ -17,7 +17,7 @@ import { variablesFr } from "./variables";
 const fr: typeof en = {
   onboarding: onboardingFr,
   resources: {
-    view: { files: "Images et polices", kit: "Kit d'interface", captured: "Items capturés" },
+    view: { files: "Images et polices", captured: "Items capturés" },
     capturedHint:
       "Items capturés en jeu. Pose-en un sur un menu depuis le panneau Boutons du canvas, ou choisis-le dans un champ item.",
     all: "Tout",
@@ -167,6 +167,14 @@ const fr: typeof en = {
     layers_one: "{{count}} calque",
     layers_other: "{{count}} calques",
     situation: "Comme un joueur la voit : sur la fenêtre du kit, à deux fois les pixels du jeu.",
+    toLayers: "Ajouter des calques",
+    toLayersHint:
+      "L'image devient des calques : ce dessin est le premier, et vous posez par-dessus des pièces du kit ou d'autres dessins. Elle garde son nom, les menus qui la montrent suivent.",
+    flatten: "Aplatir",
+    flattenConfirm: "Aplatir en un seul dessin ?",
+    flattenHint:
+      "Les calques deviennent un seul dessin du même nom. Il ne suit plus le kit ; les calques restent dans le module comme images.",
+    failed: "Ça n'a pas marché : {{detail}}",
     guides: {
       label: "Repères",
       slots: "Slots",
@@ -180,30 +188,58 @@ const fr: typeof en = {
     fromKit: "Kit d'interface",
     choose: "Choisir une image du kit",
     hint: "Les images que tout serveur possède, et celles du kit de ce serveur. Le menu nomme l'image : elle suit le kit quand le serveur le redessine.",
-    panel: {
+    page: {
+      title: "Kit d'interface",
       intro:
-        "Les images que les menus du serveur partagent. Un menu en nomme une kit:<nom> ; redessinez-la une fois et tous les menus qui la nomment suivent.",
-      here: "Ce module est le kit du serveur. Redessinez une pièce pour la changer partout ; sa taille reste la même, donc les menus gardent leur mise en page. Les joueurs voient le changement au déploiement.",
-      elsewhere: "Les pièces se redessinent dans le module du kit du serveur.",
-      none: "Ce serveur n'a pas encore de module de kit : chaque pièce est celle d'Artisan.",
+        "Les images que tous les menus du serveur partagent. Un menu en nomme une kit:<nom> ; redessinez une pièce une fois, chaque menu qui la nomme suit.",
+      none: "Ce serveur n'a pas encore de module de kit : chaque pièce est celle d'Artisan. Créez-le pour en redessiner une.",
       open: "Ouvrir le module du kit",
       create: "Créer le module du kit",
-      failed: "Cela n'a pas fonctionné : {{detail}}",
-      base: "Socle",
+      failed: "Ça n'a pas marché : {{detail}}",
+      themes: "Thèmes",
+      noTheme: "Sans thème",
+      noThemeInPlace: "Sans thème (en place)",
+      themeInPlace: "{{name}} (en place)",
+      noThemes: "Aucun thème pour l'instant.",
+      family: {
+        buttons: "Boutons",
+        frames: "Fenêtres, panneaux, valeurs",
+        controls: "Flèches et commandes",
+      },
       shipped: "Artisan",
       redrawn: "Redessinée",
-      redraw: "Redessiner",
-      retouch: "Retoucher",
-      restore: "Remettre celle d'Artisan",
-      others: "Les autres images du kit de ce serveur",
+      others: "Les images de ce serveur",
       noOthers:
         "Aucune pour l'instant. Une image ajoutée au module du kit se nomme kit:<son nom> dans n'importe quel menu.",
-      show: "Ouvrir",
-      themes: "Thèmes",
-      noThemes: "Aucun thème pour l'instant.",
-      themeInPlace: "{{name}} (en place)",
-      themesHint:
-        "Un thème est un dossier du module du kit (themes/<nom>/). Celui dans lequel le pack est construit se choisit dans les réglages du serveur.",
+      inMenu: "Le kit dans un menu",
+      inMenuHint:
+        "Toutes les pièces posées sur une fenêtre, comme les joueurs les voient. Cliquez une pièce pour l'ouvrir dans l'atelier du module du kit.",
+      inMenuHintNoKit: "Toutes les pièces posées sur une fenêtre, comme les joueurs les voient.",
+      redrawnCount_one: "{{count}} pièce redessinée sur {{total}}",
+      redrawnCount_other: "{{count}} pièces redessinées sur {{total}}",
+      menusNaming_one: "{{count}} menu nomme le kit",
+      menusNaming_other: "{{count}} menus nomment le kit",
+    },
+    theme: {
+      back: "‹ Kit",
+      title: "Thème « {{name}} »",
+      intro:
+        "Un thème change les couleurs du kit, ou redessine une pièce. Les menus gardent leur mise en page.",
+      inPlace: "En place",
+      notInPlace: "Pas en place",
+      putInPlace: "Mettre en place sur le serveur",
+      takeOff: "Retirer du serveur",
+      missing: "Le module du kit du serveur n'a pas de thème « {{name}} » déployé.",
+      colors: "Couleurs remplacées",
+      noColors: "Ce thème ne remplace aucune couleur.",
+      becomes: "devient",
+      drawings: "Pièces redessinées pour ce thème",
+      noDrawings: "Ce thème ne redessine aucune pièce.",
+      files:
+        "Un thème est un dossier du module du kit : themes/{{name}}/theme.yml porte ses couleurs, themes/{{name}}/assets/textures/<pièce>.png une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
+      compare: "Sans et avec, dans un menu",
+      putHint:
+        "Mettre en place reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
     },
   },
   imageButton: {
@@ -2356,6 +2392,7 @@ const fr: typeof en = {
     tabs: {
       label: "Sections du serveur",
       overview: "Vue d'ensemble",
+      kit: "Kit d'interface",
       play: "Jeu",
       assistant: "Assistant",
       data: "Sources de données",

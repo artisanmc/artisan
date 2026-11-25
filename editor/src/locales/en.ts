@@ -15,7 +15,7 @@ import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
-    view: { files: "Images and fonts", kit: "UI kit", captured: "Captured items" },
+    view: { files: "Images and fonts", captured: "Captured items" },
     capturedHint:
       "Items captured in game. Place one on a menu from the Buttons panel of the canvas, or pick it in an item field.",
     all: "All",
@@ -160,6 +160,14 @@ export default {
     layers_one: "{{count}} layer",
     layers_other: "{{count}} layers",
     situation: "As a player sees it: on the kit's window, at twice the game's pixels.",
+    toLayers: "Add layers",
+    toLayersHint:
+      "The image becomes layers: this drawing is the first, and you add kit pieces or other drawings over it. It keeps its name, so the menus that show it follow.",
+    flatten: "Flatten",
+    flattenConfirm: "Flatten into one drawing?",
+    flattenHint:
+      "The layers become a single drawing of the same name. It no longer follows the kit; the layers stay in the module as images.",
+    failed: "That did not work: {{detail}}",
     guides: {
       label: "Guides",
       slots: "Slots",
@@ -173,29 +181,56 @@ export default {
     fromKit: "UI kit",
     choose: "Choose a kit image",
     hint: "Images every server has, and this server's own kit images. The menu names the image: it follows the kit when the server restyles it.",
-    panel: {
+    page: {
+      title: "UI kit",
       intro:
-        "The images the server's menus share. A menu names one kit:<name>; redraw it once and every menu that names it follows.",
-      here: "This module is the server's kit. Redraw a piece to restyle it everywhere; its size stays the same, so the menus keep their layout. Changes reach players when you deploy.",
-      elsewhere: "The pieces are redrawn in the server's kit module.",
-      none: "This server has no kit module yet: every piece is Artisan's.",
+        "The images every menu of the server shares. A menu names one kit:<name>; redraw a piece once and every menu that names it follows.",
+      none: "This server has no kit module yet: every piece is Artisan's. Create it to redraw one.",
       open: "Open the kit module",
       create: "Create the kit module",
       failed: "That did not work: {{detail}}",
-      base: "Base",
+      themes: "Themes",
+      noTheme: "No theme",
+      noThemeInPlace: "No theme (in place)",
+      themeInPlace: "{{name}} (in place)",
+      noThemes: "No theme yet.",
+      family: {
+        buttons: "Buttons",
+        frames: "Windows, panels, values",
+        controls: "Arrows and controls",
+      },
       shipped: "Artisan",
       redrawn: "Redrawn",
-      redraw: "Redraw",
-      retouch: "Retouch",
-      restore: "Back to Artisan's",
-      others: "This server's other kit images",
+      others: "This server's own images",
       noOthers: "None yet. An image added to the kit module is named kit:<its name> by any menu.",
-      show: "Open",
-      themes: "Themes",
-      noThemes: "No theme yet.",
-      themeInPlace: "{{name}} (in place)",
-      themesHint:
-        "A theme is a folder of the kit module (themes/<name>/). The one the pack is built in is chosen in the server's settings.",
+      inMenu: "The kit in a menu",
+      inMenuHint:
+        "Every piece set on one window, as players see it. Click a piece to open it in the atelier of the kit module.",
+      inMenuHintNoKit: "Every piece set on one window, as players see it.",
+      redrawnCount_one: "{{count}} piece redrawn out of {{total}}",
+      redrawnCount_other: "{{count}} pieces redrawn out of {{total}}",
+      menusNaming_one: "{{count}} menu names the kit",
+      menusNaming_other: "{{count}} menus name the kit",
+    },
+    theme: {
+      back: "‹ Kit",
+      title: "Theme “{{name}}”",
+      intro: "A theme changes the kit's colours, or redraws a piece. The menus keep their layout.",
+      inPlace: "In place",
+      notInPlace: "Not in place",
+      putInPlace: "Put in place on the server",
+      takeOff: "Take off the server",
+      missing: "The server's kit module has no theme “{{name}}” deployed.",
+      colors: "Colours replaced",
+      noColors: "This theme replaces no colour.",
+      becomes: "becomes",
+      drawings: "Pieces redrawn for this theme",
+      noDrawings: "This theme redraws no piece.",
+      files:
+        "A theme is a folder of the kit module: themes/{{name}}/theme.yml holds its colours, themes/{{name}}/assets/textures/<piece>.png a piece redrawn at the piece's size. It is read here once deployed.",
+      compare: "Without and with, in a menu",
+      putHint:
+        "Putting a theme in place rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
     },
   },
   imageButton: {
@@ -2310,6 +2345,7 @@ export default {
     tabs: {
       label: "Server sections",
       overview: "Overview",
+      kit: "UI kit",
       play: "Play",
       assistant: "Assistant",
       data: "Data sources",

@@ -20,10 +20,10 @@ import { AssetStage } from "./AssetStage";
 import { AssetUploadDialog } from "./AssetUploadDialog";
 import { ImageNewDialog } from "./ImageNewDialog";
 import { ImageStudio } from "./ImageStudio";
-import { KitPanel } from "./KitPanel";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
 import { type ResourcesView, useResourcesView } from "./resourcesView";
+import { useKitPieceAsked } from "./useKitPieceAsked";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
 
 export { type ResourcesView, useResourcesView } from "./resourcesView";
@@ -137,17 +137,11 @@ export function AssetsTab({
   projectId,
   compact = false,
   capturedItems,
-  serverId,
-  onOpenProject,
 }: {
   projectId: ProjectId;
   compact?: boolean;
   /** The captured view's content, given by the page (the section lives with the canvas). */
   capturedItems?: ReactNode;
-  /** The server being edited: where the kit view creates the kit module. */
-  serverId?: string;
-  /** Opens another module of the server on its resources: the kit view's way to the kit module. */
-  onOpenProject?: (projectId: string) => void;
 }) {
   const { t } = useTranslation();
   const [sourceId, setSourceId] = useState<ProjectSourceId>(null);
@@ -165,8 +159,9 @@ export function AssetsTab({
   );
   // The atelier belongs to the module it was opened in: another module shows its library.
   useEffect(() => () => useResourcesView.getState().openStudio(null), []);
-  const views: ResourcesView[] = capturedItems ? ["files", "kit", "captured"] : ["files", "kit"];
-  const tabs = (
+  useKitPieceAsked(projectId);
+  const views: ResourcesView[] = ["files", "captured"];
+  const tabs = !capturedItems ? null : (
     <div className="flex shrink-0 gap-1 px-3 pt-3" role="tablist" data-testid="resources-views">
       {views.map((entry) => (
         <button
@@ -187,16 +182,6 @@ export function AssetsTab({
   );
   if (edited)
     return <ImageStudio projectId={projectId} asset={edited} onClose={() => openStudio(null)} />;
-  if (view === "kit") {
-    return (
-      <div className="flex h-full min-h-0 flex-col">
-        {tabs}
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          <KitPanel projectId={projectId} serverId={serverId} onOpenProject={onOpenProject} />
-        </div>
-      </div>
-    );
-  }
   if (view === "captured" && capturedItems) {
     return (
       <div className="flex h-full min-h-0 flex-col">

@@ -1,5 +1,5 @@
 import type { Asset } from "@/domain/asset";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ImageStudio, useStudioPrefs } from "./ImageStudio";
 import { useAssetStore } from "./assetStore";
@@ -10,6 +10,14 @@ vi.mock("@/state/authStore", () => ({
 }));
 vi.mock("@/lib/useAuthenticatedImage", () => ({
   useAuthenticatedImageUrl: (url: string) => url,
+}));
+
+const toLayers = vi.fn();
+const flatten = vi.fn();
+vi.mock("./imageLayers", async (original) => ({
+  ...(await original<typeof import("./imageLayers")>()),
+  toLayers: (...args: unknown[]) => toLayers(...args),
+  flatten: (...args: unknown[]) => flatten(...args),
 }));
 
 const composed = (name: string, width: number, height: number, image: string): Asset =>
@@ -73,5 +81,32 @@ describe("ImageStudio", () => {
     expect(screen.queryByTestId("situation-preview")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Ressources" }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("gives a PNG layers under its name, and flattens layers after a second click", async () => {
+    const png = { ...composed("go", 54, 18, "x"), compose: undefined } as Asset;
+    const layered = composed("go", 54, 18, "go_layer");
+    toLayers.mockResolvedValue({
+      layer: { ...png, id: "go_layer", name: "go_layer" },
+      image: layered,
+    });
+    const { unmount } = render(
+      <ImageStudio projectId={"p1" as never} asset={png} onClose={() => {}} />,
+    );
+    expect(screen.queryByRole("button", { name: "Aplatir" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter des calques" }));
+    await waitFor(() =>
+      expect(useAssetStore.getState().assets.map((a) => a.id)).toEqual(["go_layer", "go"]),
+    );
+    expect(toLayers.mock.calls[0]?.[1]).toBe(png);
+    unmount();
+
+    flatten.mockResolvedValue(png);
+    render(<ImageStudio projectId={"p1" as never} asset={layered} onClose={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Ajouter des calques" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Aplatir" }));
+    expect(flatten).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Aplatir en un seul dessin ?" }));
+    await waitFor(() => expect(flatten).toHaveBeenCalledWith("p1", layered));
   });
 });

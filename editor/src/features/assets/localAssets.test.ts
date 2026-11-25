@@ -554,6 +554,55 @@ describe("composed images", () => {
     expect(Object.keys(removed.draft.snapshot.binaryTree!)).toEqual(binaries);
   });
 
+  it("turns a PNG into a composed image of the same name, the PNG kept as its layer", async () => {
+    const button = png(54, 18);
+    const snapshot = empty();
+    snapshot.tree["assets/glyphs/go.yml"] =
+      "ascent: 8\ncodepoint: 57344\nwidth: 54\nheight: 18\nusages: [button]\n";
+    snapshot.binaryTree = {
+      "assets/glyphs/go.png": { hash: sha256Hex(button), size: button.length },
+    };
+    snapshot.binaryBaseline = { ...snapshot.binaryTree };
+    const hub = fakeHub(snapshot, { "assets/glyphs/go.png": button });
+    // What `toLayers` asks for (imageLayers.ts): the PNG renamed, then a recipe under its name.
+    const renamed = await performLocalAssetMutation(
+      "p",
+      op(hub, {
+        suffix: "/go",
+        method: "PATCH",
+        fields: { name: "go_layer", usages: "[]" },
+      }),
+    );
+    expect(renamed.asset).toMatchObject({ id: "go_layer", width: 54, height: 18, usages: [] });
+    const made = await performLocalAssetMutation(
+      "p",
+      op(hub, {
+        suffix: "",
+        method: "POST",
+        fields: {
+          type: "glyph",
+          name: "go",
+          ascent: "8",
+          usages: '["button"]',
+          compose: JSON.stringify({
+            width: null,
+            height: null,
+            layers: [{ image: "go_layer", x: 0, y: 0, columns: 1, rows: 1 }],
+          }),
+        },
+      }),
+    );
+    expect(made.asset).toMatchObject({ id: "go", width: 54, height: 18, usages: ["button"] });
+    expect(Object.keys(made.draft.snapshot.tree).sort()).toEqual([
+      "assets/glyphs/go.yml",
+      "assets/glyphs/go_layer.yml",
+    ]);
+    expect(Object.keys(made.draft.snapshot.binaryTree!)).toEqual(["assets/glyphs/go_layer.png"]);
+    expect(parse(made.draft.snapshot.tree["assets/glyphs/go.yml"]!).compose).toEqual([
+      { image: "go_layer" },
+    ]);
+  });
+
   it("creates one from a recipe, and rewrites its layers and size on a patch", async () => {
     const hub = hubWithRecipe();
     const layer = (image: string, x = 0, y = 0, columns = 1, rows = 1) => ({
