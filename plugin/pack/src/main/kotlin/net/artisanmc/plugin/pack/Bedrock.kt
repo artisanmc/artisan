@@ -241,7 +241,8 @@ internal object BedrockMenus {
         return out
     }
 
-    fun fromProject(projectId: String, files: List<PackFile>): List<BedrockMenu> {
+    /** [resolve]: the id of the image a name of these files is ([ImageNames.resolve]). */
+    fun fromProject(projectId: String, files: List<PackFile>, resolve: (String) -> String = { it }): List<BedrockMenu> {
         val out = ArrayList<BedrockMenu>()
         // The id is the file name, wherever the menu sits (themed folders included), as the plugin reads it.
         // A variant's menu gets its own key: the plugin sends it for that variant only.
@@ -258,7 +259,7 @@ internal object BedrockMenus {
             val images = ArrayList<BedrockImageLayer>()
             for (layer in asList(doc["title"])) {
                 val l = layer as? Map<*, *> ?: continue
-                val asset = (l["asset"] as? String ?: l["asset_id"]) as? String ?: continue
+                val asset = resolve((l["asset"] as? String ?: l["asset_id"]) as? String ?: continue)
                 if (l["kind"] == "background") images += BedrockImageLayer(asset, 0.0, null)
                 val x = l["x"] as? Number
                 val y = l["y"] as? Number
@@ -296,7 +297,7 @@ internal object BedrockMenus {
                 apps.forEachIndexed { state, app ->
                     val image = imageOf(app)
                     if (image != null && state < BedrockTitle.STATE_MAX) {
-                        buttonImages += BedrockButtonImage(image.asset, image.fit, image.offsetX, image.offsetY, state)
+                        buttonImages += BedrockButtonImage(resolve(image.asset), image.fit, image.offsetX, image.offsetY, state)
                     }
                 }
                 buttons += BedrockButton(buttons.size, area.x, area.y, area.width * 18, area.height * 18, buttonImages)

@@ -34,6 +34,12 @@ export function overlayImageKey(image: PackImage): string {
 /** What a kind asks for: an image at a rise, or by its bottom (resolved once its height is known). */
 export type OverlayImageRequest = PackImage | PackImageByBottom;
 
+/**
+ * A request with the id of the image it names in its module (`imageNames.ts`), when that is not
+ * its name: the key keeps the name the plugin asks with, the picture is the module's own.
+ */
+export type OverlayAsk = OverlayImageRequest & { image?: string };
+
 function inRange(rise: number): boolean {
   return Number.isInteger(rise) && rise >= OVERLAY_MIN_RISE && rise <= TEXT_UP_MAX;
 }
@@ -125,16 +131,17 @@ export function buildOverlayImages(
   files: Record<string, Uint8Array>,
   index: AssetIndex,
   pngs: Map<string, Uint8Array>,
-  requests: OverlayImageRequest[],
+  asks: OverlayAsk[],
 ): void {
   const decoded = new Map<string, ReturnType<typeof decodePng>>();
-  for (const request of requests) {
-    const source = pngs.get(request.asset);
+  for (const request of asks) {
+    const id = request.image ?? request.asset;
+    const source = pngs.get(id);
     if (!source) continue;
-    let input = decoded.get(request.asset);
+    let input = decoded.get(id);
     if (!input) {
       input = decodePng(source);
-      decoded.set(request.asset, input);
+      decoded.set(id, input);
     }
     // By its bottom: its top is its height above it.
     const rise = "bottom" in request ? input.height - request.bottom : request.rise;

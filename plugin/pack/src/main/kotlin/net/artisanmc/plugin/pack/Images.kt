@@ -192,6 +192,9 @@ data class OverlayImageRequest(val asset: String, val rise: Int? = null, val bot
     }
 }
 
+/** A request and the id of the image it names in its module ([ImageNames]). */
+internal class OverlayAsk(val request: OverlayImageRequest, val image: String)
+
 /** Module images at a height, as `artisan:overlay/…` fonts (`overlayImages.ts`). */
 internal object OverlayImages {
     private const val TEXT_ASCENT = 7
@@ -207,11 +210,12 @@ internal object OverlayImages {
         return 0
     }
 
-    fun build(files: MutableMap<String, ByteArray>, index: AssetIndex, pngs: Map<String, ByteArray>, requests: List<OverlayImageRequest>) {
+    fun build(files: MutableMap<String, ByteArray>, index: AssetIndex, pngs: Map<String, ByteArray>, asks: List<OverlayAsk>) {
         val decoded = HashMap<String, RgbaImage>()
-        for (request in requests) {
-            val source = pngs[request.asset] ?: continue
-            val input = decoded.getOrPut(request.asset) { Png.decode(source) }
+        for (ask in asks) {
+            val request = ask.request
+            val source = pngs[ask.image] ?: continue
+            val input = decoded.getOrPut(ask.image) { Png.decode(source) }
             val rise = request.rise ?: (input.height - request.bottom!!)
             if (!inRange(rise)) continue
             val key = key(request.asset, rise)

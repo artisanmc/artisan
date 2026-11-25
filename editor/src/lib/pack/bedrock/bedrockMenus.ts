@@ -154,6 +154,8 @@ function textLayers(title: unknown): BedrockTextLayer[] {
 export function bedrockMenusFromProject(
   projectId: string,
   files: { path: string; content: string }[],
+  /** The id of the image a name of these files is (`imageNames.ts`). */
+  resolve: (ref: string) => string = (ref) => ref,
 ): BedrockMenu[] {
   const out: BedrockMenu[] = [];
   // The id is the file name, wherever the menu sits (themed folders included), as the
@@ -199,8 +201,9 @@ export function bedrockMenusFromProject(
     const title = Array.isArray(doc.title) ? doc.title : doc.title ? [doc.title] : [];
     for (const layer of title) {
       if (!layer || typeof layer !== "object") continue;
-      const asset = typeof layer.asset === "string" ? layer.asset : layer.asset_id;
-      if (typeof asset !== "string") continue;
+      const named = typeof layer.asset === "string" ? layer.asset : layer.asset_id;
+      if (typeof named !== "string") continue;
+      const asset = resolve(named);
       if (layer.kind === "background") images.push({ asset, x: 0, y: null });
       if (layer.kind === "glyph" && typeof layer.x === "number" && typeof layer.y === "number")
         images.push({ asset, x: layer.x, y: layer.y });
@@ -218,7 +221,12 @@ export function bedrockMenusFromProject(
       apps.forEach((app, state) => {
         const image = imageOf(app);
         if (image && state < STATE_MAX)
-          images.push({ ...image, state, fit: image.fit ?? "contain" });
+          images.push({
+            ...image,
+            asset: resolve(image.asset),
+            state,
+            fit: image.fit ?? "contain",
+          });
       });
       buttons.push({
         index: buttons.length,

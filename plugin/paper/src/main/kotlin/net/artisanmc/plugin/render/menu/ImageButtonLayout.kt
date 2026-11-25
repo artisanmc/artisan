@@ -11,8 +11,9 @@ import net.artisanmc.plugin.model.MenuYaml
 import java.security.MessageDigest
 
 data class ImageButtonLayout(val slots: List<Int>, val x: Int, val y: Int, val width: Int, val height: Int) {
-    fun assetKey(image: ImageButtonYaml): String {
-        val hash = MessageDigest.getInstance("SHA-256").digest(image.asset.toByteArray(Charsets.UTF_8))
+    /** [asset]: the pack id of the image, which is its name unless its module is not the first to hold one ([MenuImages]). */
+    fun assetKey(image: ImageButtonYaml, asset: String = image.asset): String {
+        val hash = MessageDigest.getInstance("SHA-256").digest(asset.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
         val offsets = if (image.offsetX != 0 || image.offsetY != 0) "_${image.offsetX}_${image.offsetY}" else ""
         return "buttons/${hash}_${width}_${height}_${image.fit}_${y}${offsets}"

@@ -579,6 +579,37 @@ class McpTest {
     }
 
     @Test
+    fun `a rendered menu shows its module's own image, and another module's by module and name`() {
+        fun solid(rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(54, 18).also { image ->
+            for (i in 0 until 54 * 18) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        // Two modules hold `gold`: `bank` is the first by Project order.
+        modules["bank"] = McpFixtures.Module(images = mapOf("assets/textures/gold.png" to solid(0xcc2020)))
+        modules["guilds"] = McpFixtures.Module(
+            files = mapOf(
+                "menus/two.yml" to "schema: menu/v1\nsize: 27\ntitle: Gold\nelements:\n" +
+                    "  - id: own\n    positions: \"12-14\"\n    image: { asset: gold }\n" +
+                    "  - id: theirs\n    positions: \"3-5\"\n    image: { asset: \"bank:gold\" }\n" +
+                    "  - id: named\n    positions: \"21-23\"\n    image: { asset: \"guilds:gold\" }\n",
+            ),
+            images = mapOf("assets/textures/gold.png" to solid(0x3366cc)),
+        )
+        val (access, _) = tokens()
+        val rendered = tool(access, "render_menu", "project" to "u-local.guilds", "path" to "menus/two.yml", "scale" to 1)
+        assertFalse(rendered.has("isError"), rendered.toString())
+        val window = rendered["structuredContent"]["window"]
+        val shown = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+        // The middle of the button over columns 3 to 5 of a row.
+        fun row(index: Int): List<Int> {
+            val at = ((window["y"].asInt() + 17 + index * 18 + 9) * shown.width + window["x"].asInt() + 7 + 4 * 18) * 4
+            return shown.data.slice(at until at + 3).map { it.toInt() and 0xff }
+        }
+        assertEquals(listOf(0xcc, 0x20, 0x20), row(0), "bank:gold")
+        assertEquals(listOf(0x33, 0x66, 0xcc), row(1), "its own gold, not the first module's")
+        assertEquals(listOf(0x33, 0x66, 0xcc), row(2), "guilds:gold")
+    }
+
+    @Test
     fun `an image is cut out of a picture, at the art's own size and without its ground`() {
         // A round button drawn four times its size on a plain ground, as a screenshot or a sprite sheet shows it.
         val rows = listOf("_kkkkkk_", "kwwwwwgk", "kwrrrrgk", "kwrbbrgk", "kgggggGk", "_kkkkkk_")

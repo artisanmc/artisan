@@ -6,6 +6,7 @@ import { type ComposeRecipe, renderComposed } from "./compose";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
+import { ImageNames, namedImageRow } from "./imageNames";
 import { KIT_ASCENT, KIT_FILES, KIT_FOLDER, KIT_PREFIX, kitImage, kitNameOf } from "./kit";
 import { readKitTheme } from "./theme";
 import {
@@ -14,7 +15,7 @@ import {
   titleImagesFromMenus,
 } from "./menuGlyphPlacements";
 import { type TextPlacement, textPlacementsFromMenus } from "./menuTextPlacements";
-import type { OverlayImageRequest } from "./overlayImages";
+import type { OverlayAsk, OverlayImageRequest } from "./overlayImages";
 import { type RgbaImage, encodePng } from "./png";
 import { type AssetRow, type BuildResult, buildResourcePackZip } from "./resourcePackBuilder";
 import { type GlyphContribution, mergeCodepoints } from "./rpCodepointMerger";
@@ -38,7 +39,7 @@ export interface PackProject {
   binary(path: string): Promise<Uint8Array | undefined>;
   /** The module images this Project's files ask for (`pack.images`, resolved by the caller). */
   overlayImages?: OverlayImageRequest[];
-  /** The Project's folder on disk, which names it on the plugin side (Bedrock menu keys); defaults to `id`. */
+  /** The Project's folder on disk, which names it on the plugin side (Bedrock menu keys, `<folder>:<name>` of an image, `imageNames.ts`); defaults to `id`. */
   folder?: string;
 }
 
@@ -81,13 +82,14 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   const contribs: GlyphContribution[] = [];
   const glyphPngs = new Map<string, Uint8Array>();
   const fontGlyphPngs = new Map<string, Map<string, Uint8Array>>();
-  const glyphPlacements: GlyphPlacement[] = [];
-  const imageButtons: ImageButtonPlacement[] = [];
+  // A menu's image names are read with its module's folder, once every module's images are known.
+  const names = new ImageNames();
+  const placedGlyphs: { folder: string; placement: GlyphPlacement }[] = [];
+  const placedButtons: { folder: string; button: ImageButtonPlacement }[] = [];
+  const askedOverlays: { folder: string; request: OverlayImageRequest }[] = [];
   const textPlacements: TextPlacement[] = [];
   const transparent = new Set<GuiContainer>();
   const imagesByRef: { ref: string; bytes: Uint8Array }[] = [];
-  const overlayImages: OverlayImageRequest[] = [];
-  const bedrockMenus: BedrockMenu[] = [];
   const texts: string[] = [];
   const titleImages: string[] = [];
   const kitImages = new Map<string, Uint8Array>();
@@ -96,58 +98,67 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     project: PackProject;
     recipe: ComposeRecipe;
     own: Map<string, Uint8Array>;
+    /** Its name in its module, which its row's is not once qualified. */
+    name: string;
   }[] = [];
 
   for (const project of projects) {
     const { files } = project;
+    const folder = project.folder ?? project.id;
     // Any text of the Project may reach a title (menus, lang files, data rows): its symbols ride along.
     for (const f of files) texts.push(f.content);
-    glyphPlacements.push(...glyphPlacementsFromMenus(files));
+    for (const placement of glyphPlacementsFromMenus(files))
+      placedGlyphs.push({ folder, placement });
     titleImages.push(...titleImagesFromMenus(files));
-    imageButtons.push(...imageButtonsFromMenus(files));
+    for (const button of imageButtonsFromMenus(files)) placedButtons.push({ folder, button });
     textPlacements.push(...textPlacementsFromMenus(files));
-    overlayImages.push(...(project.overlayImages ?? []));
+    for (const request of project.overlayImages ?? []) askedOverlays.push({ folder, request });
     for (const c of transparentContainersFromMenus(files)) transparent.add(c);
-    // Keyed by the folder name: the plugin names a menu's Project that way.
-    if (input.bedrock)
-      bedrockMenus.push(...bedrockMenusFromProject(project.folder ?? project.id, files));
     const fromDisk: DiskAsset[] = diskAssetsFromTree(project.id, files, project.binaries, {
       originals: true,
     });
 
+    // An image the module is not the first to hold under that name gets its module's id (`imageNames.ts`).
+    const rows = fromDisk.map((a) => {
+      if (a.row.type === "glyph" || a.row.type === "texture")
+        return namedImageRow(a.row, names.claim(folder, a.row.id), folder);
+      names.take(a.row.id);
+      return a.row;
+    });
     contribs.push({
       projectId: project.id,
-      glyphs: fromDisk
-        .filter((a) => a.row.type === "glyph" && a.row.codepoint !== null)
-        .map((a) => ({ assetId: a.row.id, codepoint: a.row.codepoint! })),
+      glyphs: rows
+        .filter((row) => row.type === "glyph" && row.codepoint !== null)
+        .map((row) => ({ assetId: row.id, codepoint: row.codepoint! })),
     });
     // The module's own PNGs by name: what its composed images are made of.
     const own = new Map<string, Uint8Array>();
-    for (const a of fromDisk) {
-      allAssets.push(a.row);
-      if ((a.row.type === "glyph" && a.row.codepoint !== null) || a.row.type === "texture") {
+    for (const [i, a] of fromDisk.entries()) {
+      const row = rows[i]!;
+      allAssets.push(row);
+      if ((row.type === "glyph" && row.codepoint !== null) || row.type === "texture") {
         if (a.compose) {
-          composed.push({ row: a.row, project, recipe: a.compose, own });
+          composed.push({ row, project, recipe: a.compose, own, name: a.row.name });
           continue;
         }
         const bytes = await project.binary(a.path);
         if (!bytes) continue;
-        glyphPngs.set(a.row.id, bytes);
+        glyphPngs.set(row.id, bytes);
         imagesByRef.push({ ref: `${project.id}:${a.row.name}`, bytes });
         own.set(a.row.name, bytes);
-        if ((project.folder ?? project.id) === KIT_FOLDER) kitImages.set(a.row.name, bytes);
+        if (folder === KIT_FOLDER) kitImages.set(a.row.name, bytes);
         continue;
       }
-      if (a.row.type !== "font") continue;
+      if (row.type !== "font") continue;
       // A font is unpacked on disk: its glyphs are sibling files of the descriptor.
-      const meta = a.row.fontMeta as { glyphMap?: { texture: string }[] } | null;
+      const meta = row.fontMeta as { glyphMap?: { texture: string }[] } | null;
       const dir = a.path.slice(0, a.path.lastIndexOf("/"));
       const fontMap = new Map<string, Uint8Array>();
       for (const g of meta?.glyphMap ?? []) {
         const bytes = await project.binary(`${dir}/${g.texture}`);
         if (bytes) fontMap.set(g.texture, bytes);
       }
-      if (fontMap.size > 0) fontGlyphPngs.set(a.row.id, fontMap);
+      if (fontMap.size > 0) fontGlyphPngs.set(row.id, fontMap);
     }
   }
 
@@ -181,12 +192,27 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     c.row.height = image.height;
     const bytes = encodePng(image);
     glyphPngs.set(c.row.id, bytes);
-    imagesByRef.push({ ref: `${c.project.id}:${c.row.name}`, bytes });
+    imagesByRef.push({ ref: `${c.project.id}:${c.name}`, bytes });
     if (inKit(c.project)) {
-      kitImages.set(c.row.name, bytes);
-      kitComposed.add(c.row.name);
+      kitImages.set(c.name, bytes);
+      kitComposed.add(c.name);
     }
   }
+
+  const glyphPlacements = placedGlyphs.map(({ folder, placement }) => ({
+    ...placement,
+    assetId: names.resolve(folder, placement.assetId),
+  }));
+  const imageButtons = placedButtons.map(({ folder, button }) => ({
+    ...button,
+    asset: names.resolve(folder, button.asset),
+  }));
+  // The plugin asks for a module's image by its name alone (`OverlayApi.image`): the key keeps
+  // the name, the picture is the asking module's own.
+  const overlayImages: OverlayAsk[] = askedOverlays.map(({ folder, request }) => ({
+    ...request,
+    image: names.resolve(folder, request.asset),
+  }));
 
   // `kit:<name>` (`kit.ts`): only the ones a menu or a module asks for, so a server that names
   // none keeps the pack it had. One a title is drawn with is a glyph of the menu font, at the
@@ -266,6 +292,11 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     // By id, what a menu writes: a file's name, `kit:<name>` for a kit image.
     if (bytes && !pngsByName.has(a.id)) pngsByName.set(a.id, bytes);
   }
+  // Keyed by the folder name: the plugin names a menu's Project that way.
+  const bedrockMenus: BedrockMenu[] = projects.flatMap((project) => {
+    const folder = project.folder ?? project.id;
+    return bedrockMenusFromProject(folder, project.files, (ref) => names.resolve(folder, ref));
+  });
   const bedrock = buildBedrockPack({
     serverId: input.bedrock.serverId,
     menus: bedrockMenus,

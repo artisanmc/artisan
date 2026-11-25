@@ -154,4 +154,46 @@ class MenuRendererImageButtonTest {
             bedrock = { true })
         assertEquals(Material.GRAY_DYE, bedrock.slots[10]?.type)
     }
+
+    @Test fun `a module that is not the first to hold an image shows its own`() {
+        val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule().readValue<MenuYaml>("""
+            schema: menu/v1
+            id: image
+            title:
+              - { kind: glyph, asset: gold, x: 4, y: 4 }
+            size: 27
+            elements:
+              - id: buy
+                positions: "0-2"
+                image: { asset: gold, fit: stretch }
+                click: { left: 'send_message "Bought"' }
+              - id: other
+                positions: "9-11"
+                image: { asset: "guilds:gold", fit: stretch }
+                click: { left: 'send_message "Guilds"' }
+        """.trimIndent())
+        val player = MockBukkit.getMock()!!.addPlayer()
+        val buy = ImageButtonLayout.of(yaml, yaml.allElements.first())!!
+        val other = ImageButtonLayout.of(yaml, yaml.allElements.last())!!
+        val image = ImageButtonYaml("gold", "stretch")
+        // The pack of a server where `guilds` then `plain` hold `gold`: the first one keeps the bare id.
+        val pack = setOf("gold", "plain:gold", buy.assetKey(image, "plain:gold"), other.assetKey(image, "gold"), buy.assetKey(image), other.assetKey(image, "guilds:gold"))
+        fun open(module: String): Set<String> {
+            val drawn = mutableSetOf<String>()
+            val session = MenuRenderer.open(player, MenuCompiler.compile(yaml, emptyMap()).copy(projectId = module), "en",
+                lookupAsset = { key ->
+                    if (key !in pack) null
+                    else AssetEntry(key, "glyph", 0xe000, -4, 18, 54, "artisan:$key").also { if (it.width > 0) drawn += key }
+                })
+            assertEquals(setOf(0, 1, 2, 9, 10, 11), session.activeClicks.keys)
+            return drawn
+        }
+        val plain = open("plain")
+        assertTrue(buy.assetKey(image, "plain:gold") in plain, "its own gold on its button")
+        assertTrue(buy.assetKey(image) !in plain, "not the first module's")
+        assertTrue(other.assetKey(image, "gold") in plain, "`guilds:gold` is the first module's, under the bare id")
+        val guilds = open("guilds")
+        assertTrue(buy.assetKey(image) in guilds)
+        assertTrue(buy.assetKey(image, "plain:gold") !in guilds)
+    }
 }
