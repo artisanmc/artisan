@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { guideNames, imageGuides, windowHeight } from "./imageGuides";
+import { guideNames, imageGuides, windowHeight } from "./guideRules";
 
 describe("imageGuides", () => {
   it("finds a chest window's slots, title and player inventory from its size", () => {

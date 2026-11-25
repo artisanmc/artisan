@@ -14,7 +14,7 @@ import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
 import { useAssetStore } from "./assetStore";
-import { SLOT, WINDOW_WIDTH, windowHeight } from "./imageGuides";
+import { SLOT, WINDOW_WIDTH, windowHeight } from "./guideRules";
 import { useKitAssets } from "./kitAssets";
 
 /** What the image is for: its size follows from it. */

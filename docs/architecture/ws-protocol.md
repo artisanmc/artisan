@@ -118,7 +118,7 @@ the message is ignored (`EditorRequest.parse` returns `null`).
 
 | Message | Content |
 |---|---|
-| `projects_reloaded` | `{projects:[{id, hash}]}` after each reload (`/artisan reload`, write, publish). The hub relays it to the editor's tabs on `/ws/editor`, ids prefixed `<server id>.`. Fire-and-forget. |
+| `projects_reloaded` | `{projects:[{id, hash}]}` after each reload (`/artisan reload`, write, publish). The hub relays it to the editor's tabs on `/ws/editor`, ids prefixed `<server id>.`. Fire-and-forget. The load made while the plugin enables is announced at the server's first tick, with the Projects the add-ons registered meanwhile: the hub builds the server's pack on each one, and a pack built from that first load alone misses their images. |
 | `modules_changed` | `{installed_modules, data_sources, declared_models, editor_screens, declared_actions, document_kinds, declared_game_events, declared_variables, player_commands, declared_option_lists}`: a module registered after the `hello`; the hub replaces these fields (`ServerAnnouncement.updatedBy`: a missing field keeps its value). |
 | `custom_items_changed` | `{hash}`: Nexo/Oraxen/ItemsAdder reloaded; the hub asks for the bundle again. |
 | `editor_link` | `{request_id, player_id, player_name, permissions, host?}`: `/artisan editor` typed on a leaf. The hub consults no permission, it takes the ones the leaf read (`artisan.editor.view` required) and answers `editor_link_result` `{ok, url}` or `{error: "too_soon", retry_after}` / `invalid_input`. Leaf timeout 15 s. |

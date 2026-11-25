@@ -258,6 +258,17 @@ class SyncedMenuProvider(
     private val notifyAll = java.util.concurrent.atomic.AtomicBoolean(false)
     private val notifyOwners: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
     private val registerQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * False until the server's first tick. The load made while Artisan enables cannot hold the
+     * Projects of the Add-ons, which register their roots when they enable, after us: announced
+     * as it is, the hub would build the server's pack from part of its content and hand it to
+     * players (or to the pack host plugin, which builds its own pack right then) before the
+     * whole one. Its announcement is held ([announceHeld]) until the reload those roots ask
+     * for, or until the first tick when none did.
+     */
+    @Volatile private var started = false
+    private val announceHeld = java.util.concurrent.atomic.AtomicBoolean(false)
     private val registeredFolders: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     /**
@@ -291,6 +302,9 @@ class SyncedMenuProvider(
         if (!reloadQueued.compareAndSet(false, true)) return
         reloadExecutor.execute {
             reloadQueued.set(false)
+            // Asked from a tick, or by an editor: the server is past its start.
+            started = true
+            announceHeld.set(false)
             val everything = readEverything.getAndSet(false)
             val some = readFolders.toSet().also { readFolders.removeAll(it) }
             val everyModule = notifyAll.getAndSet(false)
@@ -309,6 +323,12 @@ class SyncedMenuProvider(
         // reload; the disk work itself leaves the global thread (refreshFromDisk). The
         // modules enabled at startup register before the first tick: one reload for all,
         // which notifies the folders' modules only, not every module each time.
+        if (!started) scheduler.global {
+            started = true
+            // Queued before the roots' own task below: `registerQueued` already tells whether a
+            // reload with the Add-ons' Projects follows, which announces the whole content.
+            if (announceHeld.getAndSet(false) && !registerQueued.get() && !reloadQueued.get()) announceReload()
+        }
         roots.onRegister = { projectId, _ ->
             registeredFolders += projectId
             roots.ownerOf(projectId)?.let(notifyOwners::add)
@@ -739,6 +759,10 @@ class SyncedMenuProvider(
      * knows, without another round trip, that it has nothing to refetch.
      */
     private fun announceReload() {
+        if (!started) {
+            announceHeld.set(true)
+            return
+        }
         val hashes = projects.hashes()
         // Fire-and-forget: without a reachable hub the announcement is lost; `project_read` returns the same fingerprint.
         runCatching { send(mapOf("type" to "projects_reloaded", "projects" to hashes)) }
