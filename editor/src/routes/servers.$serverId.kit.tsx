@@ -77,19 +77,16 @@ function ServerKitTab() {
         <KitPage
           onTheme={(name) => void showTheme(name)}
           menusNaming={menusNaming}
-          onPiece={
-            kitId
-              ? (id) => {
-                  useResourcesView.getState().askPiece(id);
-                  void openKit(kitId);
-                }
-              : undefined
-          }
-          onOpenKit={kitId ? () => void openKit(kitId) : undefined}
-          onCreateKit={async () => {
-            const project = await createProject(serverKeyId, KIT_FOLDER);
-            await openKit(project.id);
+          onPiece={async (id) => {
+            // A server without a kit module gets it at its first redrawn piece.
+            const target =
+              kitId ??
+              projects.find((p) => (p.diskId ?? p.id) === KIT_FOLDER)?.id ??
+              (await createProject(serverKeyId, KIT_FOLDER)).id;
+            useResourcesView.getState().askPiece(id);
+            await openKit(target);
           }}
+          onOpenKit={kitId ? () => void openKit(kitId) : undefined}
         />
       </div>
     </div>

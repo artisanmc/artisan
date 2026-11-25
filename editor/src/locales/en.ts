@@ -185,9 +185,9 @@ export default {
       title: "UI kit",
       intro:
         "The images every menu of the server shares. A menu names one kit:<name>; redraw a piece once and every menu that names it follows.",
-      none: "This server has no kit module yet: every piece is Artisan's. Create it to redraw one.",
+      none: "Every piece is Artisan's for now. Click a piece to redraw it for this server.",
+      redrawHint: "Click a piece to redraw it in the atelier.",
       open: "Open the kit module",
-      create: "Create the kit module",
       failed: "That did not work: {{detail}}",
       themes: "Themes",
       noTheme: "No theme",
@@ -203,10 +203,6 @@ export default {
       redrawn: "Redrawn",
       others: "This server's own images",
       noOthers: "None yet. An image added to the kit module is named kit:<its name> by any menu.",
-      inMenu: "The kit in a menu",
-      inMenuHint:
-        "Every piece set on one window, as players see it. Click a piece to open it in the atelier of the kit module.",
-      inMenuHintNoKit: "Every piece set on one window, as players see it.",
       redrawnCount_one: "{{count}} piece redrawn out of {{total}}",
       redrawnCount_other: "{{count}} pieces redrawn out of {{total}}",
       menusNaming_one: "{{count}} menu names the kit",
@@ -228,7 +224,7 @@ export default {
       noDrawings: "This theme redraws no piece.",
       files:
         "A theme is a folder of the kit module: themes/{{name}}/theme.yml holds its colours, themes/{{name}}/assets/textures/<piece>.png a piece redrawn at the piece's size. It is read here once deployed.",
-      compare: "Without and with, in a menu",
+      compare: "The pieces without and with the theme",
       putHint:
         "Putting a theme in place rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
     },

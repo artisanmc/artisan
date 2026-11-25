@@ -36,16 +36,15 @@ players see them.
 **The kit, a tab of the server.** The server page's **UI kit** tab shows the kit as the server
 has it deployed: every piece of the base by family (buttons; windows, panels and values; arrows
 and controls) with its size and who drew it, **Artisan** or this server (**Redrawn**), then the
-server's own kit images. **The kit in a menu** sets every piece on one window, as players see
-it. Click a piece, on its card or on that menu, to open it in the atelier of the `ui-kit`
-module: a piece still Artisan's is first copied under the piece's name, at the piece's size, so
-the menus keep their layout. Deleting that image in the kit module gives the piece back to
-Artisan. **Create the kit module** makes the module on a server that has none. Like any change,
-a redrawn piece reaches players when the draft is deployed and the pack rebuilt.
+server's own kit images. Click a piece to open it in the atelier of the `ui-kit` module: a
+piece still Artisan's is first copied under the piece's name, at the piece's size, so the menus
+keep their layout. A server that has no `ui-kit` module gets it at that first click. Deleting
+that image in the kit module gives the piece back to Artisan. Like any change, a redrawn piece
+reaches players when the draft is deployed and the pack rebuilt.
 
 **Themes.** The tab lists the kit's themes, the one in place marked. A theme opens on what it
-changes (the colours it replaces, the pieces it redraws) and on the same menu without it and
-with it. **Put in place on the server** sets the server's theme and rebuilds its pack: players
+changes (the colours it replaces, the pieces it redraws) and on every piece of the kit without
+it and with it. **Put in place on the server** sets the server's theme and rebuilds its pack: players
 receive it at their next connection. **Take off the server** goes back to no theme. A theme's
 files are written in the kit module (see [AI](../../configuration/ai/), "Themes") and read here
 once deployed.

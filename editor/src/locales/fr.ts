@@ -192,9 +192,9 @@ const fr: typeof en = {
       title: "Kit d'interface",
       intro:
         "Les images que tous les menus du serveur partagent. Un menu en nomme une kit:<nom> ; redessinez une pièce une fois, chaque menu qui la nomme suit.",
-      none: "Ce serveur n'a pas encore de module de kit : chaque pièce est celle d'Artisan. Créez-le pour en redessiner une.",
+      none: "Chaque pièce est pour l'instant celle d'Artisan. Cliquez une pièce pour la redessiner pour ce serveur.",
+      redrawHint: "Cliquez une pièce pour la redessiner dans l'atelier.",
       open: "Ouvrir le module du kit",
-      create: "Créer le module du kit",
       failed: "Ça n'a pas marché : {{detail}}",
       themes: "Thèmes",
       noTheme: "Sans thème",
@@ -211,10 +211,6 @@ const fr: typeof en = {
       others: "Les images de ce serveur",
       noOthers:
         "Aucune pour l'instant. Une image ajoutée au module du kit se nomme kit:<son nom> dans n'importe quel menu.",
-      inMenu: "Le kit dans un menu",
-      inMenuHint:
-        "Toutes les pièces posées sur une fenêtre, comme les joueurs les voient. Cliquez une pièce pour l'ouvrir dans l'atelier du module du kit.",
-      inMenuHintNoKit: "Toutes les pièces posées sur une fenêtre, comme les joueurs les voient.",
       redrawnCount_one: "{{count}} pièce redessinée sur {{total}}",
       redrawnCount_other: "{{count}} pièces redessinées sur {{total}}",
       menusNaming_one: "{{count}} menu nomme le kit",
@@ -237,7 +233,7 @@ const fr: typeof en = {
       noDrawings: "Ce thème ne redessine aucune pièce.",
       files:
         "Un thème est un dossier du module du kit : themes/{{name}}/theme.yml porte ses couleurs, themes/{{name}}/assets/textures/<pièce>.png une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
-      compare: "Sans et avec, dans un menu",
+      compare: "Les pièces sans et avec le thème",
       putHint:
         "Mettre en place reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
     },

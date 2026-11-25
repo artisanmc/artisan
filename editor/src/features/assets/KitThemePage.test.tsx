@@ -30,8 +30,11 @@ describe("KitThemePage", () => {
       within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
     ).toBeInTheDocument();
     expect(screen.getByText("Pas en place")).toBeInTheDocument();
-    expect(screen.getByTestId("kit-theme-before")).toBeInTheDocument();
-    expect(screen.getByTestId("kit-theme-after")).toBeInTheDocument();
+    // Every piece of the kit, without the theme and with it.
+    for (const side of ["kit-theme-before", "kit-theme-after"])
+      expect(
+        within(screen.getByTestId(side)).getByTestId("kit-sheet-close.1x1"),
+      ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Mettre en place sur le serveur" }));
     await waitFor(() => expect(onPutInPlace).toHaveBeenCalledWith("noel"));
   });
