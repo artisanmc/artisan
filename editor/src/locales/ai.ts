@@ -58,6 +58,7 @@ export const aiEn = {
   tools: {
     artisan_overview: "Looked at the servers and modules",
     create_module: "Created the module {{module}}",
+    create_theme: "Created the theme {{module}}",
     list_documents: "Listed the documents",
     read_document: "Read {{path}}",
     get_kind_guide: "Read a document kind's guide",
@@ -314,6 +315,7 @@ export const aiFr: typeof aiEn = {
   tools: {
     artisan_overview: "A regardé les serveurs et les modules",
     create_module: "A créé le module {{module}}",
+    create_theme: "A créé le thème {{module}}",
     list_documents: "A listé les documents",
     read_document: "A lu {{path}}",
     get_kind_guide: "A lu le guide d’un type de document",

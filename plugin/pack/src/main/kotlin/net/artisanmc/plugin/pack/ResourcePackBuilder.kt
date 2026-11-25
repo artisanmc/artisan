@@ -108,6 +108,10 @@ object ResourcePackBuilder {
             for (name in shippedNames + Kit.slots.map { it.id }) names.common(name)
         }
 
+        // The themes in place ([ThemeStack]), the lowest first: they change the common images, and
+        // redraw the modules' images they name.
+        val theme = KitTheme.stack(input.themes, kitProject, themeProjects)
+
         for (project in projects) {
             val files = project.files
             // Any text of the Project may reach a title (menus, lang files, data rows): its symbols ride along.
@@ -157,7 +161,9 @@ object ResourcePackBuilder {
                         composed += Composed(allAssets.lastIndex, project, a.recipe, own, a.row.name)
                         continue
                     }
-                    val bytes = project.binary(a.path) ?: continue
+                    val disk = project.binary(a.path) ?: continue
+                    // A theme in place may redraw a module's image, at its size (`overrides/<module>/`).
+                    val bytes = theme?.moduleDrawing(project.folder, a.row.name, disk) ?: disk
                     glyphPngs[row.id] = bytes
                     imagesByRef += "${project.id}:${a.row.name}" to bytes
                     own[a.row.name] = bytes
@@ -176,9 +182,8 @@ object ResourcePackBuilder {
 
         // Composed images ([ComposedImages]), once every module's PNGs are read: a layer is a PNG
         // of the module or a kit image, never another composed image, so their order does not matter.
-        // The themes in place ([ThemeStack]) change the kit's PNGs, the base's and the server's: an image
+        // The themes in place change the kit's PNGs, the base's and the server's: an image
         // composed with them follows, and is not themed a second time once assembled.
-        val theme = KitTheme.stack(input.themes, kitProject, themeProjects)
         val kitPng = { name: String -> kitImage(name)?.png?.let { theme?.shown(name, it) ?: it } }
         val made = composed.mapNotNull { c ->
             // In the kit module an image is a kit image under its bare name too.

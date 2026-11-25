@@ -18,6 +18,9 @@ import java.util.logging.Logger
  * a module of the server is left unregistered, the module stays what the name means.
  */
 object ServerThemes {
+    /** A theme's `role` in the Project roots, and in the `project_create` that makes one. */
+    const val ROLE = "theme"
+
     /** In a theme's folder, what it changes in images that exist elsewhere. */
     const val OVERRIDES = "overrides"
 
@@ -36,11 +39,12 @@ object ServerThemes {
     fun isName(name: String): Boolean = NAME.matches(name) && name != ArtisanTheme.NAME
 
     /**
-     * Registers each theme's folder and returns the names registered, sorted. A theme the theme
-     * `artisan` still holds (`themes/artisan/themes/<name>/`) stays there, where the pack reads
-     * it: [migrate] moves it once the editor and the MCP tools write a theme's own folder.
+     * Moves the themes the theme `artisan` still holds to their own folder ([migrate]), then
+     * registers each theme's folder and returns the names registered, sorted. A theme that could
+     * not move stays where it is, where the pack still reads it.
      */
     fun register(roots: ProjectRoots, logger: Logger? = null): List<String> {
+        migrate(roots, logger)
         val names = roots.themesRoot.listFiles().orEmpty().filter { it.isDirectory && isName(it.name) }.map { it.name }.sorted()
         return names.filter { name ->
             val free = free(roots, name)
@@ -50,6 +54,20 @@ object ServerThemes {
             ) else roots.theme(name)
             free
         }
+    }
+
+    /**
+     * A new, empty theme [name], registered at once (`project_create` with `role: "theme"`).
+     * Returns a protocol error code, or null when it is there.
+     */
+    fun create(roots: ProjectRoots, name: String): String? {
+        if (!isName(name)) return "invalid_name"
+        // A module's name, a theme's, or a folder that differs by its case alone.
+        val taken = roots.isRegistered(name) ||
+            listOf(roots.themesRoot, roots.coreRoot).any { root -> root.listFiles().orEmpty().any { it.name.equals(name, ignoreCase = true) } }
+        if (taken) return "project_exists"
+        roots.theme(name)
+        return if (File(roots.themesRoot, name).isDirectory) null else "write_error"
     }
 
     /** Whether no module of the server is named [name]: a theme never hides one. */

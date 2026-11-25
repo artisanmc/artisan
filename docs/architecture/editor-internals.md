@@ -156,7 +156,8 @@ look (`serverTheme`: a theme's own Project, `overrides/colors.yml` and `override
 else the folder the common images' Project keeps for that name; `serverThemeNames`: both
 places; `kitThemeStack`: each theme applied to what the ones below show). A theme's Project is
 no module: the pack assembly, the server's Resources and the Configuration page leave it out of
-the modules. `useKitAssets` gives each kit
+the modules. `NewThemeDialog` creates one from the common images' page (`createProject` with
+the role `theme`), after which the route reads the server's Projects again. `useKitAssets` gives each kit
 image as they show it (`themedKitAssets`: a `data:` URL where the picture changes, the same
 size, name and order), and a composed image is assembled over themed `kit:` layers
 (`composedView`). A module's own PNG is never recoloured, as in the pack. Putting a theme in

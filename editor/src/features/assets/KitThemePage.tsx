@@ -130,7 +130,9 @@ export function KitThemePage({
             <section className="card flex flex-col gap-2 p-4">
               <h3 className="eyebrow">{t("kit.theme.drawings")}</h3>
               {theme.drawings.length === 0 ? (
-                <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.noDrawings")}</p>
+                theme.moduleDrawings.length === 0 ? (
+                  <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.noDrawings")}</p>
+                ) : null
               ) : (
                 <ul className="flex flex-col gap-1.5" data-testid="kit-theme-drawings">
                   {theme.drawings.map((piece) => {
@@ -154,6 +156,21 @@ export function KitThemePage({
                   })}
                 </ul>
               )}
+              {theme.moduleDrawings.length > 0 ? (
+                <>
+                  <h4 className="field-label">{t("kit.theme.moduleDrawings")}</h4>
+                  <ul className="flex flex-col gap-1" data-testid="kit-theme-module-drawings">
+                    {theme.moduleDrawings.map((key) => (
+                      <li
+                        key={key}
+                        className="rounded-[var(--r-md)] bg-[var(--surface-inset)] p-1.5 text-xs"
+                      >
+                        <code className="truncate">{key}</code>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
             </section>
             <section className="flex flex-col gap-2">
               <p className="text-[12px] text-[var(--text-mut)]">

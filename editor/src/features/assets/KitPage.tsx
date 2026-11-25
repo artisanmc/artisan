@@ -91,6 +91,7 @@ export function KitPage({
   onPiece,
   onOpenKit,
   onTheme,
+  newTheme,
 }: {
   /** How many of the server's menus name a common image. */
   menusNaming: number;
@@ -102,6 +103,8 @@ export function KitPage({
   onOpenKit?: () => void;
   /** Opens the theme `name`. */
   onTheme?: (name: string) => void;
+  /** What creates a theme on the server, given the names its themes have. */
+  newTheme?: (themes: readonly string[]) => ReactNode;
 }) {
   const { t } = useTranslation();
   const read = useKitStore((s) => s.read);
@@ -176,6 +179,7 @@ export function KitPage({
             {t("kit.page.themesOrder")}
           </span>
         ) : null}
+        {newTheme?.(themes)}
       </div>
 
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start">

@@ -267,6 +267,26 @@ export default {
       usedBy_other: "{{count}} menus name it",
       unused: "No menu names it",
     },
+    newTheme: {
+      open: "New theme",
+      title: "New theme",
+      intro:
+        "A theme gives the common images another look, for a season or an event, without a menu being touched. It is created empty: it changes nothing until it holds colours or redrawn images, and until it is put in place.",
+      name: "Theme name",
+      placeholder: "noel",
+      errors: {
+        invalid_name:
+          "Lowercase letters, digits, “_” and “-”, starting with a letter or a digit. “artisan” is the name of the common images.",
+        project_exists: "A theme or a module already has this name on this server.",
+        server_offline: "The server is offline. Connect it to create the theme.",
+        fetch_timeout:
+          "The server did not answer in time. Check the list of themes before trying again.",
+        forbidden: "You are not allowed to create a theme on this server.",
+        plugin_update_required:
+          "This server runs an older Artisan. Update its plugin to create themes.",
+        create_failed: "Could not create the theme on the server. Try again.",
+      },
+    },
     theme: {
       failed: "That did not work: {{detail}}",
       back: "‹ Common images",
@@ -285,10 +305,11 @@ export default {
       becomes: "becomes",
       drawings: "Pieces redrawn for this theme",
       noDrawings: "This theme redraws no piece.",
+      moduleDrawings: "Module images redrawn",
       files:
         "A theme is a folder of the server's common images (themes/artisan/): themes/{{name}}/theme.yml holds its colours, themes/{{name}}/assets/textures/<piece>.png a piece redrawn at the piece's size. It is read here once deployed.",
       filesOwn:
-        "This theme is a folder of the server, themes/{{name}}/: overrides/colors.yml holds its colours, overrides/artisan/<image>.png a common image redrawn at that image's size. It is read here once deployed.",
+        "This theme is a folder of the server, themes/{{name}}/: overrides/colors.yml holds its colours, overrides/artisan/<image>.png a common image redrawn at that image's size, overrides/<module>/<image>.png a module's image redrawn at its size. It is read here once deployed.",
       compare: "Without and with, in a menu",
       putHint:
         "Putting a theme in place sets it above the ones already there and rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",

@@ -285,7 +285,10 @@ The risk remains: hub and leaves are distinct jars, updated at different times.
   an older leaf gets 501 on the restart route and `canRestart: false`. `1.9` (`IMPORTS`) adds
   `imports_fetch` and `import_start` (ADR `data-imports`); an older leaf gets 501 on the imports routes.
   `1.10` (`ORIGIN_KEEP`) adds `project_origin_keep` (ADR `common-images-and-themes`); an older
-  leaf gets 501 on the keep route.
+  leaf gets 501 on the keep route. `1.11` (`THEME_FOLDERS`) adds `role: "theme"` to
+  `project_create` and reads a theme from its own folder; an older leaf would create a module
+  of that name, so the hub answers 501 to the creation of a theme, and the MCP tools write a
+  theme in that server's common images, where it keeps them.
 - **One release = one number** for all jars; update hub and leaves together.
 
 The server that hosts the hub talks to it in process (`LocalServerLink`): never a version gap.

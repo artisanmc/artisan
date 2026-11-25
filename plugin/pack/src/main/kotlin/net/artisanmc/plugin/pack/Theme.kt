@@ -33,6 +33,8 @@ class KitTheme internal constructor(
     /** The images the theme redraws: their name to their file. */
     private val redrawn: Map<String, String>,
     private val binary: (String) -> ByteArray?,
+    /** The modules' images the theme redraws: their [moduleImageKey] to their file. */
+    private val modules: Map<String, String> = emptyMap(),
 ) {
     private val files = HashMap<String, ByteArray?>()
 
@@ -46,8 +48,20 @@ class KitTheme internal constructor(
     fun shown(name: String, png: ByteArray): ByteArray = drawing(name, png) ?: recolored(png)
 
     /** The theme's own drawing of [name], when it has one as large as [png]; null otherwise. */
-    fun drawing(name: String, png: ByteArray): ByteArray? {
-        val path = redrawn[name] ?: return null
+    fun drawing(name: String, png: ByteArray): ByteArray? = drawnAt(redrawn[name], png)
+
+    /** The modules' images this theme redraws, each as `<module>:<name>`. */
+    val moduleDrawings: Set<String> get() = modules.keys
+
+    /**
+     * The theme's own drawing of the image [name] of the module [folder], whose PNG is [png], when
+     * it has one as large; null otherwise. A module's image is never recoloured: drawn or left.
+     */
+    fun moduleDrawing(folder: String, name: String, png: ByteArray): ByteArray? = drawnAt(modules[moduleImageKey(folder, name)], png)
+
+    /** The theme's file at [path], when it is as large as [png]: a drawing of another size is left out. */
+    private fun drawnAt(path: String?, png: ByteArray): ByteArray? {
+        if (path == null) return null
         val mine = files.getOrPut(path) { binary(path) } ?: return null
         val base = runCatching { Png.decode(png) }.getOrNull() ?: return null
         val drawn = runCatching { Png.decode(mine) }.getOrNull() ?: return null
@@ -143,12 +157,33 @@ class KitTheme internal constructor(
             return out
         }
 
+        /** The key of the image [name] of the module [folder] among a theme's redraws of modules' images. */
+        fun moduleImageKey(folder: String, name: String): String = "$folder:$name"
+
+        /**
+         * The modules' images a theme of its own folder redraws among its [binaries]
+         * (`overrides/<module>/<image>.png`), by [moduleImageKey]. `overrides/artisan/` is the
+         * common images' ([ownDrawings]).
+         */
+        fun ownModuleDrawings(binaries: Collection<String>): Map<String, String> {
+            val out = LinkedHashMap<String, String>()
+            for (path in binaries.sorted()) {
+                if (!path.startsWith(OVERRIDES_DIR) || path.startsWith(COMMON_DIR)) continue
+                val parts = path.substring(OVERRIDES_DIR.length).split('/')
+                if (parts.size != 2 || parts[0].isEmpty()) continue
+                val file = parts[1]
+                if (!file.endsWith(".png") || file.length == ".png".length) continue
+                out[moduleImageKey(parts[0], file.dropLast(".png".length))] = path
+            }
+            return out
+        }
+
         /** A theme that is its own Project: its table and its redraws of the common images. One that holds neither changes nothing. */
         fun own(theme: PackProject): KitTheme = ownOf(theme.files.associate { it.path to it.content }, theme.binaries, theme.binary)
 
         /** [own] of a theme given as its text [files] (path to content), the paths of its [binaries] and what reads one. */
         fun ownOf(files: Map<String, String>, binaries: Collection<String>, binary: (String) -> ByteArray?): KitTheme =
-            KitTheme(COLORS_FILES.firstNotNullOfOrNull(files::get)?.let(::colors).orEmpty(), ownDrawings(binaries), binary)
+            KitTheme(COLORS_FILES.firstNotNullOfOrNull(files::get)?.let(::colors).orEmpty(), ownDrawings(binaries), binary, ownModuleDrawings(binaries))
 
         /** `0xRRGGBB` of `#rrggbb`; null for anything else. */
         fun color(text: Any?): Int? = (text as? String)?.takeIf { COLOR.matches(it) }?.substring(1)?.toInt(16)
@@ -242,7 +277,8 @@ class KitTheme internal constructor(
 /**
  * The themes in place as one look (`kitThemeStack` in `theme.ts`), from the lowest to the
  * highest: each is applied to what the ones below show, so the highest that draws an image wins
- * and the colours of the ones above it repaint that drawing.
+ * and the colours of the ones above it repaint that drawing. A module's image is the highest
+ * theme's drawing of it, as drawn.
  */
 class ThemeStack private constructor(private val themes: List<KitTheme>) {
     /** The kit image [name], whose PNG is [png], as the themes show it. */
@@ -257,6 +293,10 @@ class ThemeStack private constructor(private val themes: List<KitTheme>) {
         for (theme in themes) out = theme.drawing(name, out ?: png) ?: out?.let(theme::recolored)
         return out
     }
+
+    /** The image [name] of the module [folder] as the highest theme that redraws it at [png]'s size draws it; null when none does. */
+    fun moduleDrawing(folder: String, name: String, png: ByteArray): ByteArray? =
+        themes.asReversed().firstNotNullOfOrNull { it.moduleDrawing(folder, name, png) }
 
     companion object {
         /** Null for no theme. */

@@ -223,28 +223,35 @@ You can then move its layers by hand: the image's detail in the Resources page i
 
 **Themes.** A theme gives the common images another look, for a season or an event, without a
 menu being touched ("make a Christmas theme: red buttons, snow on the windows"). It is a
-folder of the common images (`plugins/Artisan/themes/artisan/`):
+folder of its own beside the common images, `plugins/Artisan/themes/noel/`, which the
+assistant creates when you ask for a new theme (or you, with **New theme** in **Resources**,
+common images):
 
 ```yaml
-# themes/noel/theme.yml: each colour of the common images, and what replaces it
+# overrides/colors.yml: each colour of the common images, and what replaces it
 colors:
   "#3c8527": "#b3261e"   # quoted: unquoted, # starts a comment
   "#2a641c": "#7f1a14"
 ```
 
 ```text
-themes/noel/assets/textures/window.6.png   # an image the theme draws again, at its size
+overrides/artisan/window.6.png   # an image the theme draws again, at its size
 ```
+
+The assistant writes both into a draft of the theme, which you deploy like any other draft.
+A theme may also redraw a module's own image, at its size
+(`overrides/guilds/banner.png` for the image `banner` of the module `guilds`): ask for it by
+the module's name ("in the theme noel, redraw the guilds banner with snow").
 
 Every common image a menu names is then shown as the theme draws it, else in the theme's
 colours, its transparency kept; an image composed from common images follows. A drawing of
 another size than the image it replaces is left out, so the menus keep their layout. A
-module's own PNG never changes: to make an image follow the themes, compose it from common
-images.
-A theme can also be a folder of its own beside the common images,
-`plugins/Artisan/themes/noel/`: its colours in `overrides/colors.yml`, its drawings in
-`overrides/artisan/window.6.png`. The server reads it at start, and a theme in both places is
-read from its own folder. The assistant still writes the first place.
+theme's colours never change a module's own PNG: the theme redraws it, or the image is
+composed from common images and follows them.
+A theme written before themes had their own folder (`themes/<name>/` inside the common
+images, with a `theme.yml`) moves to its own folder at the server's next start, its files put
+at the places above; it keeps its name and its place in the stack, and the pack does not
+change. A theme's folder holds no menu, command or Trigger: the server reads none from it.
 The server's themes in place are a stack (`resource-pack.themes` of `config.yml`, the lowest
 first): each changes what the ones below show, so the highest that redraws an image wins and
 its colours repaint what is below. Put a theme in place from its page (**Resources**, common

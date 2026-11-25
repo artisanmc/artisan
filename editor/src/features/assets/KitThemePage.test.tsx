@@ -60,7 +60,10 @@ describe("KitThemePage", () => {
         printemps: {
           projectId: "srv.printemps",
           files: { "overrides/colors.yml": 'colors: {"#3c8527": "#ffb7c5"}\n' },
-          binaries: [{ path: "overrides/artisan/close.1x1.png", hash: "h" }],
+          binaries: [
+            { path: "overrides/artisan/close.1x1.png", hash: "h" },
+            { path: "overrides/guilds/banner.png", hash: "h" },
+          ],
         },
       },
     });
@@ -69,6 +72,10 @@ describe("KitThemePage", () => {
     expect(within(screen.getByTestId("kit-theme-colors")).getByText("#ffb7c5")).toBeInTheDocument();
     expect(
       within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
+    ).toBeInTheDocument();
+    // A module's image it redraws is named with its module.
+    expect(
+      within(screen.getByTestId("kit-theme-module-drawings")).getByText("guilds:banner"),
     ).toBeInTheDocument();
     // Its files are its own folder's, not the common images'.
     expect(screen.getByText(/themes\/printemps\/ : overrides\/colors.yml/)).toBeInTheDocument();

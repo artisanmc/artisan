@@ -346,12 +346,45 @@ it (`themes/artisan/themes/<name>/`), so a server's themes and its pack are unch
 vector locks the same stack in either place to the same bytes). The editor lists both, shows
 and stacks them alike, and the MCP tools draw them alike (`kit.themes[].project` in
 `survey_ui` names a theme's own Project).
-Not in this part, and next: creating a theme from the editor or the MCP tools, which still
-write the former place (`write_image theme=`, `themes/<name>/theme.yml`); the move of the
-former folders to the new place, written and tested (`ServerThemes.migrate`) and not called
-at start until those writers follow; a theme's own images (`assets/`, `<theme>:<name>`) in
-the pack; a theme's draft read by `render_menu`. A theme's folder is read at start: one added
-by hand shows after a restart.
+A theme's folder is read at start: one added by hand shows after a restart.
+
+**Step 4, third part: a theme is created and written in its own folder**
+(`ServerThemes.create` and `migrate`, `create_theme` in `McpTools.kt`, `NewThemeDialog.tsx`).
+`project_create` takes `role: "theme"` (protocol `1.11`): an empty folder `themes/<name>/`,
+registered at once, under a name no module, theme or folder has. The editor's **New theme**
+(common images' page) and the MCP tool `create_theme` send it, with the permission that
+creates a module. In a draft of a theme's Project, `write_document` takes one file, its table
+`overrides/colors.yml`, checked by the hub (the server checks Documents, and a theme holds
+none), and `write_image` writes the theme's drawing of the common image it names, at that
+image's size, to `overrides/artisan/<name>.png`; `render_menu` draws a menu in a theme as a
+draft of it has it (`theme` with `theme_draft_id`). On such a server the former place is no
+longer written (`themes/<name>/theme.yml` and `write_image theme=` in the common images are
+refused, with the way to the theme's Project); against a leaf older than `1.11` the tools
+write it as before. At start, each theme the common images kept moves to its own folder, its
+files put at a theme's places; one whose name a module has, or whose folder holds files
+already, stays where it is and is still read there. A name's place in the stack and the pack
+do not change (the vector locks both places to the same bytes).
+Not in this part: deleting or renaming a theme from the editor (its folder is moved by hand);
+editing a theme's colours in the editor (the assistant or the file); a theme's own images
+(`assets/`, `<theme>:<name>`) in the pack; a draft of the common images that still held a
+former theme, which would write that folder back when deployed (the theme's own folder wins).
+
+**Step 4, fourth part: a theme redraws a module's image** (`moduleDrawing` in `Theme.kt` and
+`theme.ts`, both pack builders).
+`overrides/<module>/<image>.png` in a theme's folder is its drawing of the image `<image>` of
+the module whose folder is `<module>`, taken when it has that image's size and left out
+otherwise, like a redraw of a common image. The image keeps its id, its descriptor and its
+measures: a glyph stays a glyph of that height. Among the themes in place the highest that
+redraws the image wins, as drawn. No theme's colours touch a module's image, drawn by a theme
+or not: which images follow the colours is decision 7's (ramps), not built. A module's
+composed image follows the redraw of its own layers and is not redrawn itself. The vector
+locks it in both builders and both packs. The MCP tools write one (`write_image` in a draft
+of the theme, `name` as `<module>:<image>`), list them (`kit.themes[].module_redraws` in
+`survey_ui`) and draw a menu with them (`render_menu`); a theme's page lists them.
+Not in this part: `scope` (a theme of one module, whose colours touch that module: it needs
+decision 7's "follows the ramps"); the editor's canvas and a module's Resources, which show a
+module's image as the module holds it, not as a theme in place redraws it; an add-on's
+original beside a theme's redraw.
 
 Not there yet:
 

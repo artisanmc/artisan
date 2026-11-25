@@ -64,11 +64,9 @@ class ServerThemesTest {
         file("themes/artisan/themes/noel/assets/glyphs/star.png", byteArrayOf(4))
         file("themes/artisan/themes/noel/notes.txt", "red".toByteArray())
         ArtisanTheme.register(roots)
-        // Registering alone moves nothing: the theme is read where it is.
-        assertEquals(emptyList(), ServerThemes.register(roots))
-        assertTrue(File(data, "themes/artisan/themes/noel/theme.yml").isFile)
-        assertEquals(listOf("noel"), ServerThemes.migrate(roots))
+        // The start moves it, then registers it where it is now.
         assertEquals(listOf("noel"), ServerThemes.register(roots))
+        assertTrue(roots.isTheme("noel"))
 
         val noel = File(data, "themes/noel")
         assertEquals("colors: {\"#3c8527\": \"#b3261e\"}\n", File(noel, "overrides/colors.yml").readText())
@@ -106,5 +104,29 @@ class ServerThemesTest {
         assertTrue(File(data, "themes/artisan/themes/Bad Name/theme.yml").isFile)
         assertContentEquals(byteArrayOf(6), File(data, "themes/noel/overrides/colors.yml").readBytes())
         assertFalse(File(data, "themes/guilds").exists())
+    }
+
+    @Test
+    fun `a theme is created empty and registered at once, under a name nothing has`() {
+        val roots = roots()
+        File(roots.coreRoot, "guilds").mkdirs()
+        ArtisanTheme.register(roots)
+        assertNull(ServerThemes.create(roots, "noel"))
+        assertTrue(File(data, "themes/noel").isDirectory)
+        assertTrue(roots.isTheme("noel"))
+        assertEquals("theme", roots.descriptor("noel")["role"])
+        assertEquals("project_exists", ServerThemes.create(roots, "noel"))
+        // A module's name, the common images' and a name that differs by its case alone are taken.
+        assertEquals("project_exists", ServerThemes.create(roots, "guilds"))
+        assertEquals("invalid_name", ServerThemes.create(roots, "artisan"))
+        assertEquals("invalid_name", ServerThemes.create(roots, "Noel"))
+        assertEquals("invalid_name", ServerThemes.create(roots, "../x"))
+        File(data, "themes/Hiver").mkdirs()
+        assertEquals("project_exists", ServerThemes.create(roots, "hiver"))
+        assertFalse(roots.isTheme("guilds"))
+        // The next start finds it again.
+        val restarted = roots()
+        ArtisanTheme.register(restarted)
+        assertEquals(listOf("noel"), ServerThemes.register(restarted))
     }
 }

@@ -32,9 +32,9 @@ export function AssistantPage() {
   const { serverId } = useParams({ from: ROUTE });
   const status = useAiStatus();
   const { id, events, live, running, failure, send, reset } = useAssistant({ server: serverId });
-  // A module the assistant created joins the listing: its cards name it and show its menus.
+  // A module or a theme the assistant created joins the listing: its cards name it and show its files.
   const created = events.filter(
-    (e) => e.type === "tool" && e.name === "create_module" && e.ok,
+    (e) => e.type === "tool" && (e.name === "create_module" || e.name === "create_theme") && e.ok,
   ).length;
   const { projects, probes } = useServerProjects(serverId, created);
   const others = useOtherDrafts();

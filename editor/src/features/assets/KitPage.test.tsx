@@ -111,4 +111,20 @@ describe("KitPage", () => {
     ]);
     expect(screen.getByTestId("kit-themes-order")).toBeInTheDocument();
   });
+
+  it("offers what creates a theme beside the themes, with the names they have", () => {
+    published([], { "themes/hiver/theme.yml": "colors: {}\n" });
+    useKitStore.setState({
+      own: { printemps: { projectId: "srv.printemps", files: {}, binaries: [] } },
+    });
+    render(
+      <KitPage
+        menusNaming={0}
+        newTheme={(themes) => <button type="button">new:{themes.join(",")}</button>}
+      />,
+    );
+    expect(
+      within(screen.getByTestId("kit-themes")).getByRole("button", { name: "new:hiver,printemps" }),
+    ).toBeInTheDocument();
+  });
 });

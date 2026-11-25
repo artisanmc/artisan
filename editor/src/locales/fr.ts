@@ -274,6 +274,26 @@ const fr: typeof en = {
       usedBy_other: "{{count}} menus la nomment",
       unused: "Aucun menu ne la nomme",
     },
+    newTheme: {
+      open: "Nouveau thème",
+      title: "Nouveau thème",
+      intro:
+        "Un thème donne un autre aspect aux images communes, pour une saison ou un événement, sans toucher aux menus. Il est créé vide : il ne change rien tant qu'il n'a ni couleurs ni images redessinées, et tant qu'il n'est pas mis en place.",
+      name: "Nom du thème",
+      placeholder: "noel",
+      errors: {
+        invalid_name:
+          "Minuscules, chiffres, « _ » et « - », en commençant par une lettre ou un chiffre. « artisan » est le nom des images communes.",
+        project_exists: "Un thème ou un module porte déjà ce nom sur ce serveur.",
+        server_offline: "Le serveur est hors ligne. Connecte-le pour créer le thème.",
+        fetch_timeout:
+          "Le serveur n'a pas répondu à temps. Vérifie la liste des thèmes avant de réessayer.",
+        forbidden: "Tu n'as pas le droit de créer un thème sur ce serveur.",
+        plugin_update_required:
+          "Ce serveur utilise une version plus ancienne d'Artisan. Mets son plugin à jour pour créer des thèmes.",
+        create_failed: "Impossible de créer le thème sur le serveur. Réessaie.",
+      },
+    },
     theme: {
       failed: "Ça n'a pas marché : {{detail}}",
       back: "‹ Images communes",
@@ -292,10 +312,11 @@ const fr: typeof en = {
       becomes: "devient",
       drawings: "Pièces redessinées pour ce thème",
       noDrawings: "Ce thème ne redessine aucune pièce.",
+      moduleDrawings: "Images de modules redessinées",
       files:
         "Un thème est un dossier des images communes du serveur (themes/artisan/) : themes/{{name}}/theme.yml porte ses couleurs, themes/{{name}}/assets/textures/<pièce>.png une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
       filesOwn:
-        "Ce thème est un dossier du serveur, themes/{{name}}/ : overrides/colors.yml porte ses couleurs, overrides/artisan/<image>.png une image commune redessinée à la taille de cette image. Il se lit ici une fois déployé.",
+        "Ce thème est un dossier du serveur, themes/{{name}}/ : overrides/colors.yml porte ses couleurs, overrides/artisan/<image>.png une image commune redessinée à la taille de cette image, overrides/<module>/<image>.png l'image d'un module redessinée à sa taille. Il se lit ici une fois déployé.",
       compare: "Sans et avec, dans un menu",
       putHint:
         "Mettre en place pose le thème au-dessus de ceux qui y sont déjà et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",

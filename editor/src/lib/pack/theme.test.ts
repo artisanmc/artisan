@@ -5,6 +5,7 @@ import { type RgbaImage, createImage, decodePng, encodePng } from "./png";
 import {
   configuredThemes,
   ownThemeDrawings,
+  ownThemeModuleDrawings,
   readKitTheme,
   readKitThemes,
   readOwnTheme,
@@ -287,5 +288,56 @@ describe("kit themes", () => {
     ).toEqual([0xb3, 0x26, 0x1e, 255]);
     expect(readKitThemes(["nuit"], undefined, own)).toBeNull();
     expect(readKitThemes(["Bad Name"], common, new Map([["Bad Name", kit({})]]))).toBeNull();
+  });
+
+  test("a theme redraws a module's image at its size, and the highest in place wins as drawn", async () => {
+    const image = encodePng(solid(2, 2, 0x3c, 0x85, 0x27, 255));
+    const low = encodePng(solid(2, 2, 1, 1, 1, 255));
+    const high = encodePng(solid(2, 2, 2, 2, 2, 255));
+    const large = encodePng(solid(3, 2, 3, 3, 3, 255));
+    const paths = [
+      "overrides/guilds/banner.png",
+      "overrides/Shop_2/coin.png",
+      "overrides/artisan/close.png",
+      "overrides/guilds/deep/banner.png",
+      "overrides/guilds/.png",
+      "overrides/guilds/notes.txt",
+      "overrides/banner.png",
+      "assets/textures/banner.png",
+    ];
+    expect([...ownThemeModuleDrawings(paths)]).toEqual([
+      ["Shop_2:coin", "overrides/Shop_2/coin.png"],
+      ["guilds:banner", "overrides/guilds/banner.png"],
+    ]);
+    const noel = kit(
+      { "overrides/colors.yml": table },
+      { "overrides/guilds/banner.png": low, "overrides/guilds/wide.png": large },
+    );
+    const theme = readOwnTheme(noel);
+    expect([...theme.moduleDrawings]).toEqual(["guilds:banner", "guilds:wide"]);
+    expect(await theme.moduleDrawing("guilds", "banner", image)).toBe(low);
+    // Another module's image of that name, an image it does not redraw, and a drawing of another size are left.
+    expect(await theme.moduleDrawing("shop", "banner", image)).toBeNull();
+    expect(await theme.moduleDrawing("guilds", "coin", image)).toBeNull();
+    expect(await theme.moduleDrawing("guilds", "wide", image)).toBeNull();
+    // Its colours never touch a module's image: drawn, or left as it is.
+    expect(await theme.moduleDrawing("guilds", "x", image)).toBeNull();
+    // In a stack the highest that redraws it wins; one that does not gives way to the one below.
+    const own = new Map([
+      ["noel", noel],
+      ["hiver", kit({}, { "overrides/guilds/banner.png": high })],
+      ["nuit", kit({ "overrides/colors.yml": 'colors:\n  "#010101": "#ffffff"\n' })],
+    ]);
+    const stack = (names: string[]) => readKitThemes(names, undefined, own)!;
+    expect(await stack(["noel", "hiver"]).moduleDrawing("guilds", "banner", image)).toBe(high);
+    expect(await stack(["hiver", "noel"]).moduleDrawing("guilds", "banner", image)).toBe(low);
+    expect(await stack(["noel", "nuit"]).moduleDrawing("guilds", "banner", image)).toBe(low);
+    expect(await stack(["nuit", "hiver"]).moduleDrawing("shop", "banner", image)).toBeNull();
+    // A theme the common images keep redraws no module's image.
+    const former = readKitThemes(
+      ["old"],
+      kit({ "themes/old/theme.yml": table }, { "themes/old/overrides/guilds/banner.png": low }),
+    )!;
+    expect(await former.moduleDrawing("guilds", "banner", image)).toBeNull();
   });
 });

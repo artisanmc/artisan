@@ -109,6 +109,10 @@ deployed.
    - **The editor's assistant stays draft only** (ADR `editor-assistant`): the player is in the
      editor, next to Deploy and its review; deploying from the conversation would skip that review
      to save one click. It is offered no deploying tool.
+   - **Creating a theme** (2026-11-25). `create_theme(server, name)` makes an empty theme's
+     folder (`project_create` with `role: "theme"`, ADR `common-images-and-themes`, decision 5)
+     under the same permission and the same reasoning as `create_module`: it changes nothing
+     until a draft of it is deployed and the player puts it in place.
    - **Creating a module** (2026-10-30). `create_module(server, name)` makes an empty Project
      folder (`project_create`, as the editor's "New module"), for a principal with
      `artisan.editor.publish`, like the editor's route. Not destructive: the folder holds nothing,
