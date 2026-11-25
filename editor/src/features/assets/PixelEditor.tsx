@@ -145,6 +145,7 @@ export function PixelEditor({
   asset,
   onClose,
   around,
+  below,
 }: {
   projectId: ProjectId;
   asset: Asset;
@@ -154,6 +155,8 @@ export function PixelEditor({
    * from the image's top left corner and cut to its area. A composed image's other layers.
    */
   around?: (zoom: number) => { under: ReactNode; over: ReactNode };
+  /** Shown under the canvas, given the picture as it is drawn now: the image where a player sees it. */
+  below?: (picture: string) => ReactNode;
 }) {
   const { t } = useTranslation();
   const user = useProjectPrincipalId(projectId);
@@ -480,6 +483,7 @@ export function PixelEditor({
           </span>
         </figcaption>
       </figure>
+      {below?.(picture)}
 
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex flex-col gap-1">

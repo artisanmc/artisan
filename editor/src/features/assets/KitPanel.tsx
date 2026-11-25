@@ -12,7 +12,7 @@ import { useKitStore } from "@/state/kitStore";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
-import { useResourcesView } from "./AssetsTab";
+import { useResourcesView } from "./resourcesView";
 import { useAssetStore } from "./assetStore";
 import { isKitBase, useKitAssets } from "./kitAssets";
 import { isKitModule } from "./localAssets";
@@ -80,7 +80,7 @@ export function KitPanel({
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
   const removeAsset = useAssetStore((s) => s.removeAsset);
   const setSelectedId = useAssetStore((s) => s.setSelectedId);
-  const retouchImage = useResourcesView((s) => s.retouchImage);
+  const openStudio = useResourcesView((s) => s.openStudio);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const here = isKitModule(projectId);
@@ -116,7 +116,7 @@ export function KitPanel({
 
   const open = (asset: Asset) => {
     setSelectedId(asset.id);
-    retouchImage(asset.id);
+    openStudio(asset.id);
   };
 
   /** Artisan's image of the piece becomes the module's, under the piece's name, ready to be redrawn. */

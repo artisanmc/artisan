@@ -27,8 +27,11 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { ImageGuides } from "./ImageGuides";
 import { ImageChoiceDialog, KitPicker } from "./KitPicker";
 import { PixelEditor } from "./PixelEditor";
+import { SITUATION_SCALE, SituationPreview } from "./SituationPreview";
+import type { GuideName } from "./imageGuides";
 import { useAssetStore } from "./assetStore";
 import { useKitAssets } from "./kitAssets";
 import { type ImageSize, assetSize, useAssetSize, useMeasuredAssetSizes } from "./measuredSize";
@@ -37,8 +40,14 @@ import { type ImageSize, assetSize, useAssetSize, useMeasuredAssetSizes } from "
 const SLOT = 18;
 /** How much of the window's height the stage may take. */
 const STAGE_HEIGHT = 0.6;
+/** In the atelier, where the stage has the screen. */
+const WIDE_STAGE_HEIGHT = 0.78;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+/** Where the image itself starts: what a layer is placed from when nothing else is drawn. */
+const ORIGIN: ComposeLayer = { image: "", x: 0, y: 0, columns: 1, rows: 1 };
+const NO_GUIDES: readonly GuideName[] = [];
 
 const sameRecipe = (a: ComposeRecipe, b: ComposeRecipe) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -178,7 +187,22 @@ function NumberField({
  * the module is retouched. What is saved is the recipe itself, so what an AI app composed is
  * edited here, and the other way round.
  */
-export function ComposedImageEditor({ projectId, asset }: { projectId: ProjectId; asset: Asset }) {
+export function ComposedImageEditor({
+  projectId,
+  asset,
+  wide = false,
+  guides = NO_GUIDES,
+  situation = false,
+}: {
+  projectId: ProjectId;
+  asset: Asset;
+  /** In the atelier: the stage beside the layers, as large as the screen allows. */
+  wide?: boolean;
+  /** The guides drawn over the stage (`ImageGuides`). */
+  guides?: readonly GuideName[];
+  /** Shows the image where a player sees it, under the stage (`SituationPreview`). */
+  situation?: boolean;
+}) {
   const { t } = useTranslation();
   const fieldId = useId();
   const user = useProjectPrincipalId(projectId);
@@ -227,7 +251,10 @@ export function ComposedImageEditor({ projectId, asset }: { projectId: ProjectId
   // than most of the window; smaller than the game's only when the image is wider than the panel.
   const fit =
     size && width > 0
-      ? Math.min(width / size.width, (window.innerHeight * STAGE_HEIGHT) / size.height)
+      ? Math.min(
+          width / size.width,
+          (window.innerHeight * (wide ? WIDE_STAGE_HEIGHT : STAGE_HEIGHT)) / size.height,
+        )
       : 2;
   const scale = fit >= 1 ? Math.floor(fit) : fit;
 
@@ -376,7 +403,25 @@ export function ComposedImageEditor({ projectId, asset }: { projectId: ProjectId
       // The layers above are shown through, so what is drawn under them stays visible.
       return {
         under: shown(0, drawing, false),
-        over: shown(drawing + 1, recipe.layers.length, true),
+        over: (
+          <>
+            {shown(drawing + 1, recipe.layers.length, true)}
+            {size && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute"
+                style={{
+                  left: -drawn.x * zoom,
+                  top: -drawn.y * zoom,
+                  width: size.width * zoom,
+                  height: size.height * zoom,
+                }}
+              >
+                <ImageGuides width={size.width} height={size.height} scale={zoom} shown={guides} />
+              </span>
+            )}
+          </>
+        ),
       };
     };
     return (
@@ -395,235 +440,269 @@ export function ComposedImageEditor({ projectId, asset }: { projectId: ProjectId
   }
 
   return (
-    <div className="flex flex-col gap-3" data-testid="compose-editor">
-      <figure className="flex flex-col gap-1">
-        <div
-          ref={frame}
-          className="checker flex min-h-32 w-full items-center justify-center overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] p-3"
-        >
-          {size ? (
-            <div
-              className="relative shrink-0 overflow-hidden outline outline-1 outline-[var(--border-strong)]"
-              data-testid="compose-stage"
-              style={{ width: size.width * scale, height: size.height * scale }}
-            >
-              {recipe.layers.map((layer, index) => {
-                const image = imageOf(layer.image);
-                return image ? (
-                  <StageLayer
-                    // biome-ignore lint/suspicious/noArrayIndexKey: layers have no identity but their place in the stack
-                    key={index}
-                    asset={image}
-                    layer={layer}
-                    scale={scale}
-                    selected={selected === index}
-                    label={t("compose.layerLabel", { name: labelOf(layer), n: index + 1 })}
-                    {...handlers(index, layer)}
-                  />
-                ) : null;
-              })}
-            </div>
-          ) : (
-            <p className="text-center text-xs text-[var(--text-mut)]">{t("compose.nothing")}</p>
-          )}
-        </div>
-        <figcaption className="flex justify-between gap-2 text-[11px] text-[var(--text-faint)]">
-          <span>{t("compose.dragHint")}</span>
-          {size && (
-            <span className="shrink-0">
-              {size.width} × {size.height} px
-              {scale >= 1 ? ` · ${t("resources.zoom", { scale })}` : ""}
-            </span>
-          )}
-        </figcaption>
-      </figure>
-
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-2">
-          <span className="field-label">{t("compose.layers")}</span>
-          <div className="flex flex-wrap justify-end gap-1.5">
-            <Button size="sm" variant="outline" onClick={() => setPicker("kit")}>
-              {t("compose.addKit")}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setPicker("module")}>
-              {t("compose.addImage")}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!user || busy || recipe.layers.length >= COMPOSE_MAX_LAYERS}
-              onClick={() => void draw()}
-            >
-              {t("compose.addDrawn")}
-            </Button>
+    <div
+      className={cx(
+        "flex flex-col gap-3",
+        wide && "lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-5",
+      )}
+      data-testid="compose-editor"
+    >
+      <div className="flex min-w-0 flex-col gap-3">
+        <figure className="flex flex-col gap-1">
+          <div
+            ref={frame}
+            className="checker flex min-h-32 w-full items-center justify-center overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] p-3"
+          >
+            {size ? (
+              <div
+                className="relative shrink-0 overflow-hidden outline outline-1 outline-[var(--border-strong)]"
+                data-testid="compose-stage"
+                style={{ width: size.width * scale, height: size.height * scale }}
+              >
+                {recipe.layers.map((layer, index) => {
+                  const image = imageOf(layer.image);
+                  return image ? (
+                    <StageLayer
+                      // biome-ignore lint/suspicious/noArrayIndexKey: layers have no identity but their place in the stack
+                      key={index}
+                      asset={image}
+                      layer={layer}
+                      scale={scale}
+                      selected={selected === index}
+                      label={t("compose.layerLabel", { name: labelOf(layer), n: index + 1 })}
+                      {...handlers(index, layer)}
+                    />
+                  ) : null;
+                })}
+                <ImageGuides width={size.width} height={size.height} scale={scale} shown={guides} />
+              </div>
+            ) : (
+              <p className="text-center text-xs text-[var(--text-mut)]">{t("compose.nothing")}</p>
+            )}
           </div>
-        </div>
-        {/* The top layer first, as it is seen. */}
-        <ul className="flex flex-col gap-1">
-          {recipe.layers
-            .map((layer, index) => ({ layer, index }))
-            .reverse()
-            .map(({ layer, index }) => {
+          <figcaption className="flex justify-between gap-2 text-[11px] text-[var(--text-faint)]">
+            <span>{t("compose.dragHint")}</span>
+            {size && (
+              <span className="shrink-0">
+                {size.width} × {size.height} px
+                {scale >= 1 ? ` · ${t("resources.zoom", { scale })}` : ""}
+              </span>
+            )}
+          </figcaption>
+        </figure>
+        {situation && size && (
+          <SituationPreview width={size.width} height={size.height}>
+            {recipe.layers.map((layer, index) => {
               const image = imageOf(layer.image);
-              return (
-                <li
+              return image ? (
+                <AroundLayer
+                  // biome-ignore lint/suspicious/noArrayIndexKey: layers have no identity but their place in the stack
                   key={index}
-                  className={cx(
-                    "flex items-center gap-1 rounded-[8px] border px-1.5 py-1",
-                    selected === index
-                      ? "border-[var(--brand)] bg-[var(--brand-soft)]"
-                      : "border-[var(--border-soft)] bg-[var(--surface-raised)]",
-                  )}
-                >
-                  <button
-                    type="button"
-                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left text-xs text-[var(--text)]"
-                    aria-pressed={selected === index}
-                    onClick={() => setSelected(selected === index ? null : index)}
-                  >
-                    <span className="truncate font-mono">{labelOf(layer)}</span>
-                    {(layer.columns > 1 || layer.rows > 1) && (
-                      <span className="badge shrink-0">
-                        {layer.columns} × {layer.rows}
-                      </span>
-                    )}
-                    {!image && (
-                      <span className="badge badge-amber shrink-0">{t("compose.missing")}</span>
-                    )}
-                  </button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="size-7"
-                    aria-label={t("compose.up", { name: labelOf(layer) })}
-                    disabled={index === recipe.layers.length - 1}
-                    onClick={() => move(index, index + 1)}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="size-7"
-                    aria-label={t("compose.down", { name: labelOf(layer) })}
-                    disabled={index === 0}
-                    onClick={() => move(index, index - 1)}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="size-7"
-                    aria-label={t("compose.remove", { name: labelOf(layer) })}
-                    disabled={recipe.layers.length === 1}
-                    onClick={() => remove(index)}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </li>
-              );
+                  asset={image}
+                  layer={layer}
+                  from={ORIGIN}
+                  zoom={SITUATION_SCALE}
+                  faint={false}
+                />
+              ) : null;
             })}
-        </ul>
+          </SituationPreview>
+        )}
       </div>
 
-      {current && selected !== null && (
-        <div className="flex flex-wrap gap-3" data-testid="compose-layer-fields">
-          <NumberField
-            label={t("compose.x")}
-            value={current.x}
-            min={-COMPOSE_MAX_SIDE}
-            max={COMPOSE_MAX_SIDE}
-            onChange={(x) => update(selected, { x })}
-          />
-          <NumberField
-            label={t("compose.y")}
-            value={current.y}
-            min={-COMPOSE_MAX_SIDE}
-            max={COMPOSE_MAX_SIDE}
-            onChange={(y) => update(selected, { y })}
-          />
-          <NumberField
-            label={t("compose.columns")}
-            value={current.columns}
-            min={1}
-            max={COMPOSE_MAX_REPEAT}
-            onChange={(columns) => update(selected, { columns })}
-          />
-          <NumberField
-            label={t("compose.rows")}
-            value={current.rows}
-            min={1}
-            max={COMPOSE_MAX_REPEAT}
-            onChange={(rows) => update(selected, { rows })}
-          />
-          {kitNameOf(current.image) === null && imageOf(current.image) ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="self-end"
-              disabled={!user}
-              onClick={() => setDrawing(selected)}
-            >
-              {t("compose.retouchLayer")}
-            </Button>
-          ) : null}
+      <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="field-label">{t("compose.layers")}</span>
+            <div className="flex flex-wrap justify-end gap-1.5">
+              <Button size="sm" variant="outline" onClick={() => setPicker("kit")}>
+                {t("compose.addKit")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setPicker("module")}>
+                {t("compose.addImage")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!user || busy || recipe.layers.length >= COMPOSE_MAX_LAYERS}
+                onClick={() => void draw()}
+              >
+                {t("compose.addDrawn")}
+              </Button>
+            </div>
+          </div>
+          {/* The top layer first, as it is seen. */}
+          <ul className="flex flex-col gap-1">
+            {recipe.layers
+              .map((layer, index) => ({ layer, index }))
+              .reverse()
+              .map(({ layer, index }) => {
+                const image = imageOf(layer.image);
+                return (
+                  <li
+                    key={index}
+                    className={cx(
+                      "flex items-center gap-1 rounded-[8px] border px-1.5 py-1",
+                      selected === index
+                        ? "border-[var(--brand)] bg-[var(--brand-soft)]"
+                        : "border-[var(--border-soft)] bg-[var(--surface-raised)]",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left text-xs text-[var(--text)]"
+                      aria-pressed={selected === index}
+                      onClick={() => setSelected(selected === index ? null : index)}
+                    >
+                      <span className="truncate font-mono">{labelOf(layer)}</span>
+                      {(layer.columns > 1 || layer.rows > 1) && (
+                        <span className="badge shrink-0">
+                          {layer.columns} × {layer.rows}
+                        </span>
+                      )}
+                      {!image && (
+                        <span className="badge badge-amber shrink-0">{t("compose.missing")}</span>
+                      )}
+                    </button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7"
+                      aria-label={t("compose.up", { name: labelOf(layer) })}
+                      disabled={index === recipe.layers.length - 1}
+                      onClick={() => move(index, index + 1)}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7"
+                      aria-label={t("compose.down", { name: labelOf(layer) })}
+                      disabled={index === 0}
+                      onClick={() => move(index, index - 1)}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7"
+                      aria-label={t("compose.remove", { name: labelOf(layer) })}
+                      disabled={recipe.layers.length === 1}
+                      onClick={() => remove(index)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </li>
+                );
+              })}
+          </ul>
         </div>
-      )}
 
-      <div className="flex flex-col gap-1.5">
-        <label className="flex items-center gap-2 text-xs" htmlFor={`${fieldId}-fixed`}>
-          <input
-            id={`${fieldId}-fixed`}
-            type="checkbox"
-            className="accent-[var(--brand)]"
-            checked={fixed}
-            onChange={(event) =>
-              setRecipe((r) => ({
-                ...r,
-                width: event.target.checked ? (size?.width ?? SLOT) : null,
-                height: event.target.checked ? (size?.height ?? SLOT) : null,
-              }))
-            }
-          />
-          {t("compose.fixedSize")}
-        </label>
-        {fixed && (
-          <div className="flex gap-3">
+        {current && selected !== null && (
+          <div className="flex flex-wrap gap-3" data-testid="compose-layer-fields">
             <NumberField
-              label={t("compose.width")}
-              value={recipe.width ?? 1}
-              min={1}
+              label={t("compose.x")}
+              value={current.x}
+              min={-COMPOSE_MAX_SIDE}
               max={COMPOSE_MAX_SIDE}
-              onChange={(width) => setRecipe((r) => ({ ...r, width }))}
+              onChange={(x) => update(selected, { x })}
             />
             <NumberField
-              label={t("compose.height")}
-              value={recipe.height ?? 1}
-              min={1}
+              label={t("compose.y")}
+              value={current.y}
+              min={-COMPOSE_MAX_SIDE}
               max={COMPOSE_MAX_SIDE}
-              onChange={(height) => setRecipe((r) => ({ ...r, height }))}
+              onChange={(y) => update(selected, { y })}
             />
+            <NumberField
+              label={t("compose.columns")}
+              value={current.columns}
+              min={1}
+              max={COMPOSE_MAX_REPEAT}
+              onChange={(columns) => update(selected, { columns })}
+            />
+            <NumberField
+              label={t("compose.rows")}
+              value={current.rows}
+              min={1}
+              max={COMPOSE_MAX_REPEAT}
+              onChange={(rows) => update(selected, { rows })}
+            />
+            {kitNameOf(current.image) === null && imageOf(current.image) ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="self-end"
+                disabled={!user}
+                onClick={() => setDrawing(selected)}
+              >
+                {t("compose.retouchLayer")}
+              </Button>
+            ) : null}
           </div>
         )}
-        <p className="text-[11px] text-[var(--text-faint)]">{t("compose.sizeHint")}</p>
-      </div>
 
-      {error && (
-        <p role="alert" className="text-xs text-[var(--danger)]">
-          {error}
-        </p>
-      )}
-      {dirty && (
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" disabled={busy} onClick={() => setRecipe(saved)}>
-            {t("compose.reset")}
-          </Button>
-          <Button variant="primary" size="sm" disabled={busy || !user} onClick={() => void save()}>
-            {t(busy ? "compose.saving" : "compose.save")}
-          </Button>
+        <div className="flex flex-col gap-1.5">
+          <label className="flex items-center gap-2 text-xs" htmlFor={`${fieldId}-fixed`}>
+            <input
+              id={`${fieldId}-fixed`}
+              type="checkbox"
+              className="accent-[var(--brand)]"
+              checked={fixed}
+              onChange={(event) =>
+                setRecipe((r) => ({
+                  ...r,
+                  width: event.target.checked ? (size?.width ?? SLOT) : null,
+                  height: event.target.checked ? (size?.height ?? SLOT) : null,
+                }))
+              }
+            />
+            {t("compose.fixedSize")}
+          </label>
+          {fixed && (
+            <div className="flex gap-3">
+              <NumberField
+                label={t("compose.width")}
+                value={recipe.width ?? 1}
+                min={1}
+                max={COMPOSE_MAX_SIDE}
+                onChange={(width) => setRecipe((r) => ({ ...r, width }))}
+              />
+              <NumberField
+                label={t("compose.height")}
+                value={recipe.height ?? 1}
+                min={1}
+                max={COMPOSE_MAX_SIDE}
+                onChange={(height) => setRecipe((r) => ({ ...r, height }))}
+              />
+            </div>
+          )}
+          <p className="text-[11px] text-[var(--text-faint)]">{t("compose.sizeHint")}</p>
         </div>
-      )}
+
+        {error && (
+          <p role="alert" className="text-xs text-[var(--danger)]">
+            {error}
+          </p>
+        )}
+        {dirty && (
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" disabled={busy} onClick={() => setRecipe(saved)}>
+              {t("compose.reset")}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={busy || !user}
+              onClick={() => void save()}
+            >
+              {t(busy ? "compose.saving" : "compose.save")}
+            </Button>
+          </div>
+        )}
+      </div>
 
       <KitPicker open={picker === "kit"} onClose={() => setPicker(null)} onPick={add} />
       <ImageChoiceDialog

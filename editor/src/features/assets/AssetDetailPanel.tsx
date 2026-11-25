@@ -10,18 +10,14 @@ import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetStage } from "./AssetStage";
 import { AssetUsageFields } from "./AssetUsageFields";
-import { ComposedImageEditor } from "./ComposedImageEditor";
-import { PixelEditor } from "./PixelEditor";
 import { useAssetStore } from "./assetStore";
+import { useResourcesView } from "./resourcesView";
 
-export function AssetDetailPanel({
-  projectId,
-  retouch = false,
-}: {
-  projectId: ProjectId;
-  /** Opens on the pixel editor: an image just created to be drawn. */
-  retouch?: boolean;
-}) {
+/**
+ * The selected resource in the library's column: its picture, what it is and where it is used.
+ * An image is edited in the atelier (`ImageStudio`), which this only opens.
+ */
+export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   const inputId = useId();
   const { t } = useTranslation();
   const project = useProjectsStore((s) =>
@@ -40,7 +36,7 @@ export function AssetDetailPanel({
   const [error, setError] = useState<string | null>(null);
   const [usages, setUsages] = useState<AssetUsage[]>([]);
   const [busy, setBusy] = useState(false);
-  const [retouching, setRetouching] = useState(retouch);
+  const openStudio = useResourcesView((s) => s.openStudio);
 
   const savedName = asset?.name ?? "";
   const savedAscent = asset?.ascent ?? "";
@@ -107,21 +103,11 @@ export function AssetDetailPanel({
           style={{ imageRendering: "pixelated" }}
           decoding="async"
         />
-      ) : asset.compose ? (
-        <ComposedImageEditor projectId={projectId} asset={asset} />
-      ) : retouching ? (
-        <PixelEditor projectId={projectId} asset={asset} onClose={() => setRetouching(false)} />
       ) : (
         <>
           <AssetStage asset={asset} />
-          <Button
-            size="sm"
-            variant="outline"
-            className="self-end"
-            disabled={!user}
-            onClick={() => setRetouching(true)}
-          >
-            {t("pixel.edit")}
+          <Button variant="primary" disabled={!user} onClick={() => openStudio(asset.id)}>
+            {t("studio.open")}
           </Button>
         </>
       )}

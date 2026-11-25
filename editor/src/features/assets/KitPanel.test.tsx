@@ -51,7 +51,7 @@ describe("KitPanel", () => {
     createProject.mockReset();
     useAssetStore.getState().reset();
     useKitStore.setState({ read: undefined, theme: undefined });
-    useResourcesView.setState({ view: "kit", retouch: null });
+    useResourcesView.setState({ view: "kit", studio: null });
     openProject("p1", "shop");
   });
 
@@ -106,7 +106,7 @@ describe("KitPanel", () => {
     expect(project).toBe("kit");
     expect(input).toMatchObject({ name: "button.3x1", type: "glyph", usages: ["button"] });
     expect(useAssetStore.getState().selectedId).toBe("button.3x1");
-    expect(useResourcesView.getState().retouch).toBe("button.3x1");
+    expect(useResourcesView.getState().studio).toBe("button.3x1");
 
     expect(within(slot).getByText("Redessinée")).toBeInTheDocument();
     fireEvent.click(within(slot).getByRole("button", { name: "Remettre celle d'Artisan" }));
