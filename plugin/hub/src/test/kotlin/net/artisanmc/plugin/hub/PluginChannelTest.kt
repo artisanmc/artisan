@@ -515,6 +515,39 @@ class PluginChannelTest {
     }
 
     @Test
+    fun `the owner keeps their version of a file whose original changed`() {
+        val leaf = Leaf()
+        leaf.hello(protocol = "1.10")
+        leaf.next()
+        val keep = send("POST", "/api/v1/projects/u-survie2.shop/origins/keep", mapOf("path" to "assets/textures/logo.png"))
+        val keepRequest = leaf.next()
+        assertEquals("project_origin_keep", keepRequest["type"].asText())
+        assertEquals("shop", keepRequest["project_id"].asText())
+        assertEquals("assets/textures/logo.png", keepRequest["path"].asText())
+        leaf.send(mapOf("type" to "project_origin_keep_result", "request_id" to keepRequest["request_id"].asText(), "ok" to true))
+        assertEquals(200, keep.get(5, TimeUnit.SECONDS).first)
+
+        val missing = send("POST", "/api/v1/projects/u-survie2.shop/origins/keep", mapOf("path" to "assets/textures/none.png"))
+        leaf.send(mapOf(
+            "type" to "project_origin_keep_result", "request_id" to leaf.next()["request_id"].asText(), "ok" to false, "error" to "not_found",
+        ))
+        assertEquals(404, missing.get(5, TimeUnit.SECONDS).first)
+        assertEquals(422, send("POST", "/api/v1/projects/u-survie2.shop/origins/keep", mapOf("path" to "")).get(5, TimeUnit.SECONDS).first)
+        assertTrue(leaf.received.isEmpty())
+    }
+
+    @Test
+    fun `a server older than keeping one's version is told to update`() {
+        val leaf = Leaf()
+        leaf.hello(protocol = "1.9")
+        leaf.next()
+        val (code, body) = send("POST", "/api/v1/projects/u-survie2.shop/origins/keep", mapOf("path" to "a.png")).get(5, TimeUnit.SECONDS)
+        assertEquals(501, code)
+        assertEquals("plugin_update_required", body!!["error"].asText())
+        assertTrue(leaf.received.isEmpty())
+    }
+
+    @Test
     fun `a server without templates is told to update`() {
         val leaf = Leaf()
         leaf.hello(protocol = "1.2")

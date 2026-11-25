@@ -112,6 +112,23 @@ export async function fetchProjectOrigins(
   }
 }
 
+/**
+ * The owner keeps their version of `path`, a file whose original changed since they made it
+ * (ADR `common-images-and-themes`, decision 8): the server records the current original as
+ * the one their version answers, so the change is no longer flagged.
+ */
+export async function keepProjectOrigin(
+  target: ProjectTarget,
+  path: string,
+): Promise<{ ok: true } | { ok: false; error: TemplateError }> {
+  try {
+    await apiFetch(`${projectBase(target)}/origins/keep`, { method: "POST", json: { path } });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: errorOf(error) };
+  }
+}
+
 export type TemplateCopyResult =
   | { ok: true; written: string[]; unchanged: string[] }
   /** Files holding other content: nothing was written. */

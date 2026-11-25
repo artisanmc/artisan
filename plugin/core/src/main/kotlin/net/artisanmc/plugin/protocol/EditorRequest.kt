@@ -92,6 +92,11 @@ sealed interface EditorRequest {
     ) : WithReply
     /** Where a Project's files copied from templates came from (protocol 1.3). */
     data class ProjectOriginsFetch(override val requestId: String, val projectId: String) : WithReply
+    /**
+     * The owner keeps their version of [path] though its original changed: its origin becomes
+     * the original as it is now (protocol 1.10, [ProtocolVersion.ORIGIN_KEEP]).
+     */
+    data class ProjectOriginKeep(override val requestId: String, val projectId: String, val path: String) : WithReply
     data class DataSourceFetch(
         override val requestId: String,
         val ref: String,
@@ -226,6 +231,9 @@ sealed interface EditorRequest {
                     replace = node["replace"]?.asBoolean() ?: false,
                 )
                 "project_origins_fetch" -> ProjectOriginsFetch(requestId, node.text("project_id") ?: return null)
+                "project_origin_keep" -> ProjectOriginKeep(
+                    requestId, node.text("project_id") ?: return null, node.text("path") ?: return null,
+                )
                 "data_source_fetch" -> DataSourceFetch(
                     requestId = requestId,
                     ref = node.text("ref") ?: return null,

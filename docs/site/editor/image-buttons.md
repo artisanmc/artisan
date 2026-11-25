@@ -83,6 +83,14 @@ the server's version: it gives the piece back to Artisan: the base Artisan ships
 `themes/artisan/originals/`, rewritten when an update of Artisan changes it. Like any change, a
 redrawn piece reaches players when the draft is deployed and the pack rebuilt.
 
+When an update of Artisan changes an original the server drew its own version of, the image
+says **The original changed since your version**. Menus keep showing the server's version.
+**Keep mine** records that it is kept knowingly, and the notice goes; **Restore the original**
+gives the piece back to Artisan, to redraw it from the new original. The same notice shows on
+a module's image the server drew over. It needs Artisan up to date on the server that holds
+the files, and it starts counting at the first start after the server's version was deployed:
+an original that changes before that start is not flagged.
+
 A server that had a `ui-kit` module keeps its images: at the first start after the update, the
 module's folder moves to `plugins/Artisan/themes/artisan/`, and the menus that name its images
 keep working.

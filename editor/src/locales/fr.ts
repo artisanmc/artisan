@@ -17,6 +17,15 @@ import { variablesFr } from "./variables";
 const fr: typeof en = {
   onboarding: onboardingFr,
   resources: {
+    originalChanged: {
+      title: "L'original a changé depuis ta version.",
+      hint: "Les menus continuent de montrer la tienne. Garde-la telle quelle, ou restaure l'original pour repartir du nouveau.",
+      keep: "Garder la mienne",
+      errors: {
+        not_found: "Ce fichier ou son original n'est plus sur le serveur.",
+        plugin_update_required: "Mets Artisan à jour sur ce serveur pour garder ta version.",
+      },
+    },
     common: {
       hint: "Les images que tous les menus du serveur partagent. Un menu en nomme une par son nom : rien n'est copié dans ce module.",
       added: "Ce serveur",

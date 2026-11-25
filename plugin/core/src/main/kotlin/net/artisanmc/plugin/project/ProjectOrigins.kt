@@ -11,7 +11,10 @@ import java.io.File
  * template, the template's version, and the hash of the file as shipped. A file whose content
  * still has that hash is an untouched copy; any other content is the owner's.
  *
- * Only the copy writes it ([TemplateCopies]). An edit leaves it alone (the hash tells), a
+ * The copy writes it ([TemplateCopies]), and so does the originals sync ([SystemFiles]): beside
+ * an original (`originals/<path>`) the hash it ships now, beside the owner's file at that path
+ * the original it was made against. The two differ once the original changed, until the owner
+ * keeps their version ([SystemFiles.keep]). An edit leaves it alone (the hash tells), a
  * delete leaves a stale entry (the file is "removed" from the template's point of view), and
  * a rename in the editor loses the link: the renamed file is the owner's.
  */

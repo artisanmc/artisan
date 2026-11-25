@@ -1,9 +1,12 @@
 import type { Asset } from "@/domain/asset";
+import * as templatesApi from "@/lib/api/templates";
 import * as userAssetsApi from "@/lib/api/userAssets";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { useKitStore } from "@/state/kitStore";
+import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useAssetStore } from "./assetStore";
 
 let mockCurrentUser: { id: string } | null = { id: "u1" };
@@ -49,6 +52,8 @@ describe("AssetDetailPanel", () => {
     useAssetStore.getState().reset();
     useAssetStore.getState().setAssets([A]);
     useAssetStore.getState().setSelectedId("asset_a");
+    useProjectTemplatesStore.setState({ entries: {} });
+    useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } });
     mockCurrentUser = { id: "u1" };
     vi.restoreAllMocks();
   });
@@ -102,6 +107,58 @@ describe("AssetDetailPanel", () => {
     expect(screen.queryByTestId("asset-misfit")).toBeNull();
     expect(screen.queryByTestId("common-image-original")).toBeNull();
     expect(screen.getByRole("button", { name: "Supprimer du module" })).toBeInTheDocument();
+  });
+
+  it("says the original changed since the owner's version, until they keep theirs", async () => {
+    const origin = (hash: string) => ({ module: "artisan", template: "base", version: 1, hash });
+    const image = { ...A, id: "frame", name: "frame", type: "texture" as const };
+    useAssetStore.getState().setAssets([image]);
+    useAssetStore.getState().setSelectedId("frame");
+    useProjectsStore.setState({
+      openProjects: {
+        projects: [{ id: "p1", diskId: "shop", serverKeyId: "srv", documents: {} } as never],
+        projectOrder: ["p1" as never],
+      },
+    });
+    const origins = {
+      "assets/textures/frame.png": origin("old"),
+      "originals/assets/textures/frame.png": origin("new"),
+      // Made against the original the module still ships: nothing to say.
+      "assets/textures/other.png": origin("same"),
+      "originals/assets/textures/other.png": origin("same"),
+    };
+    useProjectTemplatesStore.setState({
+      entries: { p1: { status: "ready", origins, hashes: {} } },
+    });
+    const keep = vi
+      .spyOn(templatesApi, "keepProjectOrigin")
+      .mockResolvedValueOnce({ ok: false, error: "plugin_update_required" })
+      .mockResolvedValue({ ok: true });
+    render(<AssetDetailPanel projectId={"p1" as never} />);
+    expect(screen.getByTestId("original-changed")).toHaveTextContent(
+      "L'original a changé depuis ta version.",
+    );
+    // A server too old to record it says so, and the notice stays.
+    fireEvent.click(screen.getByRole("button", { name: "Garder la mienne" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Mets Artisan à jour sur ce serveur pour garder ta version.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Garder la mienne" }));
+    await waitFor(() => expect(screen.queryByTestId("original-changed")).toBeNull());
+    expect(keep).toHaveBeenLastCalledWith(
+      { serverId: "srv", diskId: "shop" },
+      "assets/textures/frame.png",
+    );
+    expect(useProjectTemplatesStore.getState().entries.p1?.origins).toMatchObject({
+      "assets/textures/frame.png": origin("new"),
+    });
+    // An image whose original did not change, or that has none, says nothing.
+    act(() => {
+      useAssetStore.getState().setAssets([{ ...image, id: "other", name: "other" }]);
+      useAssetStore.getState().setSelectedId("other");
+    });
+    expect((screen.getByLabelText(/^Nom$/i) as HTMLInputElement).value).toBe("other");
+    expect(screen.queryByTestId("original-changed")).toBeNull();
   });
 
   it("renders nothing when no asset is selected", () => {

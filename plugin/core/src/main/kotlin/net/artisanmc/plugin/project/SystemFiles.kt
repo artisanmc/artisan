@@ -176,6 +176,25 @@ object SystemFiles {
     private fun base(projectDir: File, hash: String): File = ProjectPathPolicy.resolve(projectDir, "$BASES/$hash")
 
     /**
+     * The owner keeps their version of [path] (ADR `common-images-and-themes`, decision 8): its
+     * origin becomes its original's, as shipped now, so "the original changed since your
+     * version" is answered until the original changes again. False when [path] has no original
+     * in the folder or no file of the owner's; true when the origin is, or already was, that one.
+     */
+    fun keep(projectDir: File, path: String): Boolean {
+        if (Originals.isOriginal(path) || !ProjectPathPolicy.resolve(projectDir, path).isFile) return false
+        val origins = ProjectOrigins.read(projectDir)
+        val shipped = origins["${Originals.DIR}/$path"] ?: return false
+        if (origins[path] == shipped) return true
+        ProjectPublisher(projectDir).commit(
+            "system-${UUID.randomUUID()}", UUID.randomUUID().toString(),
+            mapOf(ProjectOrigins.PATH to ProjectOrigins.serialize(origins + (path to shipped))),
+            com.fasterxml.jackson.databind.ObjectMapper().valueToTree(mapOf("ok" to true)),
+        )
+        return true
+    }
+
+    /**
      * The owner's file [ours] merged with [shipped] from the base [baseHash]: the bytes to write
      * (null when the merge is the owner's file as is) and the conflicts; null when it cannot be
      * merged (not YAML, no base, a document that is not a map).

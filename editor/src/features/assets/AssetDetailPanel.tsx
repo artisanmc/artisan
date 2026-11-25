@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { AssetStage } from "./AssetStage";
 import { AssetUsageFields } from "./AssetUsageFields";
 import { CommonImageOriginal } from "./CommonImageState";
+import { OriginalChanged } from "./OriginalChanged";
 import { useAssetStore } from "./assetStore";
 import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
@@ -127,6 +128,7 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
         </>
       )}
       {piece && <CommonImageOriginal slot={piece} />}
+      <OriginalChanged projectId={projectId} asset={asset} />
       {misfit && (
         <p role="alert" className="text-xs text-[var(--danger)]" data-testid="asset-misfit">
           {t("kit.page.misfitDetail", {

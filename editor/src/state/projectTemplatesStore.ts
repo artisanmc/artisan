@@ -1,5 +1,11 @@
 import type { ProjectTarget } from "@/lib/api/projectFiles";
-import { type FileOrigin, fetchProjectOrigins, fetchTemplateFiles } from "@/lib/api/templates";
+import {
+  type FileOrigin,
+  type TemplateError,
+  fetchProjectOrigins,
+  fetchTemplateFiles,
+  keepProjectOrigin,
+} from "@/lib/api/templates";
 import { hashContent } from "@/lib/contentHash";
 import { create } from "zustand";
 
@@ -24,6 +30,25 @@ interface ProjectTemplatesState {
   loadShipped: (serverId: string, moduleId: string, templateId: string) => Promise<void>;
   /** (Re)reads the origins of `projectId` and hashes `files`, its published base. */
   load: (projectId: string, target: ProjectTarget, files: Record<string, string>) => Promise<void>;
+  /**
+   * The owner keeps their version of `path` although its original changed: asked of the
+   * server, then recorded here as the server records it. The error, null when kept.
+   */
+  keep: (projectId: string, target: ProjectTarget, path: string) => Promise<TemplateError | null>;
+}
+
+/** Where the original of the file at `path` is kept in its module's folder. */
+const ORIGINALS = "originals/";
+
+/**
+ * Whether the original of `path` changed since the owner's version of it (ADR
+ * `common-images-and-themes`, decision 8): the server records, beside the owner's file, the
+ * original it was made against, and beside the original the one it ships now.
+ */
+export function originalChanged(origins: Record<string, FileOrigin>, path: string): boolean {
+  const mine = origins[path];
+  const shipped = origins[`${ORIGINALS}${path}`];
+  return !!mine && !!shipped && mine.hash !== shipped.hash;
 }
 
 export const shippedKey = (serverId: string, moduleId: string, templateId: string) =>
@@ -65,5 +90,21 @@ export const useProjectTemplatesStore = create<ProjectTemplatesState>((set, get)
           hashes: Object.fromEntries(hashes),
         };
     set((s) => ({ entries: { ...s.entries, [projectId]: entry } }));
+  },
+  async keep(projectId, target, path) {
+    const kept = await keepProjectOrigin(target, path);
+    if (!kept.ok) return kept.error;
+    set((s) => {
+      const entry = s.entries[projectId];
+      const shipped = entry?.origins[`${ORIGINALS}${path}`];
+      if (!entry || !shipped) return s;
+      return {
+        entries: {
+          ...s.entries,
+          [projectId]: { ...entry, origins: { ...entry.origins, [path]: shipped } },
+        },
+      };
+    });
+    return null;
   },
 }));

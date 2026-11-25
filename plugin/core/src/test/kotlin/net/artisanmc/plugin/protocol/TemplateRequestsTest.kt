@@ -14,6 +14,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class TemplateRequestsTest {
     private val coreRoot = Files.createTempDirectory("artisan-template-requests").toFile()
@@ -43,6 +44,7 @@ class TemplateRequestsTest {
             is EditorRequest.TemplateFetch -> requests.fetch(request)
             is EditorRequest.TemplateCopy -> requests.copy(request)
             is EditorRequest.ProjectOriginsFetch -> requests.origins(request)
+            is EditorRequest.ProjectOriginKeep -> requests.keep(request)
             else -> error("not a template request: $json")
         }
         return sent.removeLast()
@@ -60,6 +62,11 @@ class TemplateRequestsTest {
         )
         assertNull(EditorRequest.parse(mapper.readTree("""{"type":"template_fetch","request_id":"r","module_id":"quests"}""")))
         assertNull(EditorRequest.parse(mapper.readTree("""{"type":"project_origins_fetch","request_id":"r"}""")))
+        assertEquals(
+            EditorRequest.ProjectOriginKeep("r", "shop", "menus/a.yml"),
+            EditorRequest.parse(mapper.readTree("""{"type":"project_origin_keep","request_id":"r","project_id":"shop","path":"menus/a.yml"}""")),
+        )
+        assertNull(EditorRequest.parse(mapper.readTree("""{"type":"project_origin_keep","request_id":"r","project_id":"shop"}""")))
     }
 
     @Test
@@ -93,6 +100,32 @@ class TemplateRequestsTest {
         // The editor neither sees nor writes the origins: only a copy does.
         assertEquals(true, EditorPaths.isInvisible(".artisan/origins.yaml"))
         assertEquals(false, EditorPaths.isWritable(".artisan/origins.yaml"))
+    }
+
+    @Test
+    fun `the owner keeps their version of a file whose original changed`() {
+        val dir = File(coreRoot, "shop").apply { mkdirs() }
+        fun shipped(version: Int, title: String) =
+            net.artisanmc.modules.api.template.TemplateDeclaration.builder("menus", version).system()
+                .file("assets/textures/logo.png", title.toByteArray()).build()
+        fun origins() = net.artisanmc.plugin.project.ProjectOrigins.read(dir)
+        val keep = """{"type":"project_origin_keep","request_id":"k","project_id":"shop","path":"assets/textures/logo.png"}"""
+
+        net.artisanmc.plugin.project.SystemFiles.sync(dir, "quests", shipped(1, "v1"))
+        assertEquals("not_found", dispatch(keep)["error"], "the owner has no version of it")
+        File(dir, "assets/textures/logo.png").apply { parentFile.mkdirs(); writeText("mine") }
+        net.artisanmc.plugin.project.SystemFiles.sync(dir, "quests", shipped(1, "v1"))
+        net.artisanmc.plugin.project.SystemFiles.sync(dir, "quests", shipped(2, "v2"))
+        assertTrue(origins()["assets/textures/logo.png"] != origins()["originals/assets/textures/logo.png"])
+
+        val reply = dispatch(keep)
+        assertEquals("project_origin_keep_result", reply["type"])
+        assertEquals(true, reply["ok"])
+        assertEquals(origins()["originals/assets/textures/logo.png"], origins()["assets/textures/logo.png"])
+        assertEquals("mine", File(dir, "assets/textures/logo.png").readText())
+
+        assertEquals("unknown_project", dispatch(keep.replace("\"shop\"", "\"ghost\""))["error"])
+        assertEquals("invalid_path", dispatch(keep.replace("assets/textures/logo.png", "../x.png"))["error"])
     }
 
     @Test

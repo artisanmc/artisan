@@ -118,7 +118,12 @@ size, and `CommonImageBadge` / `CommonImageMisfit` (`CommonImageState.tsx`) say 
 common image shows its state. In the common images' own Project, `AssetDetailPanel` reports
 the same on the image, from the draft. `CommonImageOriginal` draws the piece as Artisan ships
 it (this build's image) beside the server's version; there, deleting the image is "Restore
-the original".
+the original". `OriginalChanged` (in `AssetDetailPanel`, any module) says the original of an
+image changed since the owner's version: `originalChanged` (`projectTemplatesStore`) compares,
+in the origins the server recorded, the hash beside the image's path and the one beside
+`originals/<path>`; **Keep mine** is the store's `keep` (`POST …/origins/keep`), which then
+holds what the server wrote. The origins are read by the module's tree, and by the notice
+when the tree has not.
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)

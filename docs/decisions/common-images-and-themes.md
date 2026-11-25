@@ -269,6 +269,21 @@ builders; `ImageRefs.kt` did not change).
   in the Resources lists and in the common images' Project, where deleting the server's image
   is named **Restore the original**.
 
+**Step 5, second part: the original changed since the server's version** (`SystemFiles.keep`,
+`OriginalChanged.tsx`).
+
+- The originals sync already records, in `.artisan/origins.yaml`, the original an owner's file
+  at a shipped path was made against, and leaves an image alone when its original changes.
+  The editor reads the two hashes: when they differ, the image says the original changed
+  since the owner's version, in any module.
+- **Keep mine** is a request of its own to the server (`project_origin_keep`, protocol 1.10),
+  which records the current original beside the owner's file: only the server writes
+  `.artisan/origins.yaml`. "Start again from the new original" is restoring it, then
+  redrawing: no third action.
+- Limit: the origin of an owner's file is recorded at the first originals sync that sees it
+  (a start or a reload), not when it is deployed. An original that changes between the
+  deploy and that sync is not flagged.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -282,8 +297,9 @@ Not there yet:
 - Against decision 12: the server's Resources and a module's are two components, the first
   read-only. Both read the common images as published, so an image drawn in the theme's draft
   shows there once deployed. The uses count menus only: an image named by a dialog, an overlay
-  or a composed image's layer is not counted yet. An image shows no state against its original
-  (step 5), and cannot be moved or copied to another scope from the server's list. Themes have
+  or a composed image's layer is not counted yet. The change of an original shows on the image
+  in its module only, not in the server's list, and a module's image shows no original beside
+  it (step 5). An image cannot be moved or copied to another scope from the server's list. Themes have
   no screen of their own yet: they are reached from the common images' page.
 - Against decision 4: an image does not declare its function yet. Only the base's pieces
   have fixed measures (their pixel size, from Artisan's own list); a module's image that

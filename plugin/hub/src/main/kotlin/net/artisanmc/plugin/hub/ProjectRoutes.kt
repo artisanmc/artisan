@@ -101,6 +101,21 @@ class ProjectRoutes(
                     if (ok(reply)) call.json(mapOf("origins" to (reply["origins"] ?: emptyMap<String, Any>()))) else readError(call, reply)
                 }
             }
+            // The owner keeps their version of a file whose original changed (ADR `common-images-and-themes`, decision 8).
+            onProject(router, "POST", "$base/origins/keep", PUBLISH) { call, project ->
+                val path = call.body()?.get("path")?.takeIf { it.isTextual && it.asText().isNotEmpty() }?.asText()
+                    ?: return@onProject call.error(422, "invalid_input")
+                if (ProtocolVersion.minor(project.server.protocolVersion) < ProtocolVersion.ORIGIN_KEEP) {
+                    return@onProject call.error(501, "plugin_update_required")
+                }
+                relay.send(call, project.server, mapOf("type" to "project_origin_keep", "project_id" to project.folder, "path" to path)) { reply ->
+                    when {
+                        ok(reply) -> call.json(mapOf("ok" to true))
+                        errorCode(reply) == "not_found" -> call.error(404, "not_found")
+                        else -> readError(call, reply)
+                    }
+                }
+            }
             onProject(router, "POST", "$base/templates", PUBLISH) { call, project ->
                 val request = call.body()
                 val module = request?.get("module")?.takeIf { it.isTextual && it.asText().isNotEmpty() }?.asText()

@@ -15,6 +15,15 @@ import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
+    originalChanged: {
+      title: "The original changed since your version.",
+      hint: "Menus keep showing yours. Keep it as it is, or restore the original and redraw from the new one.",
+      keep: "Keep mine",
+      errors: {
+        not_found: "This file or its original is no longer on the server.",
+        plugin_update_required: "Update Artisan on this server to keep your version.",
+      },
+    },
     common: {
       hint: "The images every menu of the server shares. A menu names one by its name: nothing is copied into this module.",
       added: "This server's",

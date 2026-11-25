@@ -2,6 +2,7 @@ package net.artisanmc.plugin.protocol
 
 import net.artisanmc.plugin.project.ModuleTemplates
 import net.artisanmc.plugin.project.ProjectOrigins
+import net.artisanmc.plugin.project.SystemFiles
 import net.artisanmc.plugin.project.TemplateCopies
 import java.util.Base64
 
@@ -63,6 +64,23 @@ class TemplateRequests(
             val projectDir = roots.dirFor(request.projectId)
             if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")
             reply.ok("origins" to ProjectOrigins.read(projectDir).mapValues { it.value.toWire() })
+        }
+    }
+
+    /** The owner keeps their version of a file whose original changed ([SystemFiles.keep]). */
+    fun keep(request: EditorRequest.ProjectOriginKeep) {
+        val reply = replies.to(request, "project_origin_keep_result")
+        if (!EditorPaths.isSafeProjectId(request.projectId) || !EditorPaths.isSafeRelPath(request.path)) {
+            return reply.error("invalid_path")
+        }
+        replies.offThread("project_origin_keep", workspace.io) {
+            val projectDir = roots.dirFor(request.projectId)
+            if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")
+            try {
+                if (SystemFiles.keep(projectDir, request.path)) reply.ok() else reply.error("not_found")
+            } catch (e: Throwable) {
+                reply.failure("write_error", "project_origin_keep '${request.projectId}'", e)
+            }
         }
     }
 }
