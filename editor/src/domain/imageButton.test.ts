@@ -7,7 +7,13 @@ describe("image button footprint", () => {
     [16, 48, 1, 3],
     [48, 16, 3, 1],
     [32, 32, 2, 2],
-    [17, 33, 2, 3],
+    // A slot is 18 pixels from the next: the kit's sizes are whole slots.
+    [18, 18, 1, 1],
+    [54, 18, 3, 1],
+    [54, 16, 3, 1],
+    [54, 36, 3, 2],
+    [18, 36, 1, 2],
+    [19, 37, 2, 3],
   ])("uses the source pixels to reserve slots for a %i x %i image", (width, height, cols, rows) => {
     expect(imageButtonSize(width, height)).toEqual({ width: cols, height: rows });
   });

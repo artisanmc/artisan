@@ -6,8 +6,8 @@ sidebar:
 ---
 
 Open **Buttons → Images**, upload a PNG if needed, then drag its thumbnail
-onto the menu. The button automatically occupies one slot per 16 source pixels
-in each direction (rounded up): 16×48 uses 1×3 slots; 48×16 uses 3×1; 32×32 uses 2×2.
+onto the menu. The button automatically occupies the slots it needs to fit, a slot being 18
+pixels from the next: 54×18 uses 3×1 slots; 54×36 uses 3×2; 16×16 uses one; 48×16 uses 3×1.
 You can also convert an existing item by choosing **Image** in its appearance card.
 While dragging, the image preview uses its native pixel dimensions at the current
 canvas zoom, matching its size after placement instead of a fixed-size thumbnail.
