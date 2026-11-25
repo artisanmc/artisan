@@ -27,6 +27,8 @@ class ImageNamesTest {
         val names = names()
         // Asking twice (a glyph and a texture of one name in a module) gives the same id.
         assertEquals("guilds:gold", names.claim("guilds", "gold"))
+        // The theme's `<folder>:` names the common images: its own image keeps its name.
+        assertEquals("gold", names.claim("artisan", "gold"))
     }
 
     @Test

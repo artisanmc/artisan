@@ -27,6 +27,15 @@ plugins/Artisan/modules/
     .artisan/history/              ← archives from before 2026-09-26, read only
 ```
 
+Beside it, `plugins/Artisan/themes/<name>/` holds a theme, in the format of a module and
+registered as the Project `<name>` (`ProjectRoots.theme`, `role: "theme"` in the Project roots,
+left out of the editor's module list; ADR `common-images-and-themes`). The theme `artisan`
+(`ArtisanTheme`) holds the server's common images: `originals/assets/textures/<name>.png` is the
+base Artisan ships, written by the originals sync at start (`SystemFiles`, system template
+`base`), `assets/` the server's redraws of it and the images it added, `data/ui-kit.yml` its
+notes. A former `modules/ui-kit/` moves there at the first start, when the theme holds nothing
+of the server's.
+
 Before 2026-10, the root was `plugins/Artisan/projects/`. On first startup, the plugin
 moves it to `modules/` (`ModulesRootMigration`): each folder keeps its name (namespace, qualified
 refs) and its `.artisan/project-id` (Versions, drafts), the old folder stays as

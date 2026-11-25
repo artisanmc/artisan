@@ -34,6 +34,8 @@ internal object ArtisanApiFactory {
             net.artisanmc.plugin.project.ModulesRootMigration.run(plugin.dataFolder, plugin.logger), plugin.logger,
             moveToYml = true,
         )
+        // The theme `artisan`: the server's common images, among the Projects from the first read.
+        net.artisanmc.plugin.project.ArtisanTheme.register(plugin.projectRoots, plugin.logger)
         plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger) { ticks, task ->
             plugin.scheduler.globalLater(ticks, task)
         }

@@ -8,7 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class MenuImagesTest {
-    private val pack = setOf("gold", "plain:gold", "title", "plain:title")
+    private val pack = setOf("gold", "plain:gold", "title", "plain:title", "kit:panel", "kit:gold")
     private fun images(module: String) = MenuImages(module) { id -> if (id in pack) AssetEntry(id, "glyph", 0xe000, 0, 8) else null }
 
     @Test fun `a title's images are the module's own, a text's font keeps its name`() {
@@ -24,5 +24,15 @@ class MenuImagesTest {
         )
         // A menu without a module (a relayed draft): names as written.
         assertEquals("gold", images("").id("gold"))
+    }
+
+    @Test fun `a name no module holds is the common image, and artisan names it whatever the module holds`() {
+        assertEquals("kit:panel", images("plain").id("panel"))
+        assertEquals("kit:panel", images("plain").id("artisan:panel"))
+        assertEquals("kit:panel", images("plain").id("kit:panel"))
+        assertEquals("plain:gold", images("plain").id("gold"))
+        assertEquals("kit:gold", images("plain").id("artisan:gold"))
+        // Not in the pack: the name as written, which shows the fallback.
+        assertEquals("ribbon", images("plain").id("ribbon"))
     }
 }

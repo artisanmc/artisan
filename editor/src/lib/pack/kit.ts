@@ -2,17 +2,61 @@ import slots from "@/assets/kit/slots.json";
 import { decodePng } from "./png";
 
 /**
- * The UI kit: the images a server's menus share. A menu names one `kit:<name>`: the image
- * `<name>` of the server's `ui-kit` module, else the one Artisan ships under that id (the base,
- * `src/assets/kit`). The base's ids and sizes are public and never change, so a module's menus
- * are laid out against them on any server (`Kit.kt` in the hub's builder).
+ * The common images: the ones every menu of a server may name (ADR `common-images-and-themes`).
+ * They are the theme `artisan`'s: the image `<name>` the server keeps in `themes/artisan/assets/`,
+ * else the one Artisan ships under that name (the base, `src/assets/kit`, written on the server
+ * as `themes/artisan/originals/`). A menu names one by its name alone when its module holds none
+ * of that name, or `artisan:<name>`; `kit:<name>` is the former spelling, still read. The base's
+ * names and sizes are public and never change, so a module's menus are laid out against them on
+ * any server (`Kit.kt` in the hub's builder).
+ *
+ * In the pack a common image keeps the id `kit:<name>` (`KIT_PREFIX`), whatever the menu wrote.
  */
 
-/** The folder of the module that holds a server's kit. */
-export const KIT_FOLDER = "ui-kit";
+/** The theme that holds a server's common images: its folder and its Project. */
+export const KIT_FOLDER = "artisan";
 
-/** What a menu writes before the image's name. */
+/** The module that held them before the theme: read as the theme on a server that has no theme `artisan`. */
+export const KIT_LEGACY_FOLDER = "ui-kit";
+
+/** A common image's id in the pack, before its name; also what a menu wrote before `artisan:`. */
 export const KIT_PREFIX = "kit:";
+
+/** What a menu writes before a common image's name, to name it even when its module holds one. */
+export const KIT_ALIAS = `${KIT_FOLDER}:`;
+
+/** Where the theme keeps the base Artisan ships, before the image's name. */
+const SHIPPED_DIR = "originals/assets/textures/";
+
+/** The folder the common images are read from, among `folders`. */
+export function kitFolderAmong(folders: readonly string[]): string {
+  return folders.includes(KIT_FOLDER) || !folders.includes(KIT_LEGACY_FOLDER)
+    ? KIT_FOLDER
+    : KIT_LEGACY_FOLDER;
+}
+
+/** The Project the common images are read from, among `projects`, each named by `folderOf`. */
+export function kitProjectAmong<T>(
+  projects: readonly T[],
+  folderOf: (project: T) => string,
+): T | undefined {
+  const folder = kitFolderAmong(projects.map(folderOf));
+  return projects.find((p) => folderOf(p) === folder);
+}
+
+/** Whether `folder` may hold a server's common images: the theme, or the module before it. */
+export const isKitFolder = (folder: string): boolean =>
+  folder === KIT_FOLDER || folder === KIT_LEGACY_FOLDER;
+
+/** The path of the base image `name` in the theme's folder. */
+export const kitShippedPath = (name: string): string => `${SHIPPED_DIR}${name}.png`;
+
+/** The name of the base image kept at `path` in the theme's folder; `null` for another file. */
+export function kitShippedName(path: string): string | null {
+  if (!path.startsWith(SHIPPED_DIR) || !path.endsWith(".png")) return null;
+  const name = path.slice(SHIPPED_DIR.length, -".png".length);
+  return name.length > 0 && !name.includes("/") ? name : null;
+}
 
 /** Where a kit image's files go in the pack, before its name (`:` cannot be in a pack's path). */
 export const KIT_FILES = "kit/";
@@ -32,11 +76,24 @@ export const KIT_SLOTS: readonly KitSlot[] = slots;
 
 export const kitSlot = (id: string): KitSlot | undefined => KIT_SLOTS.find((s) => s.id === id);
 
-/** The name after `kit:`; `null` when `asset` is not a kit image. */
+/** The name after `kit:` or `artisan:`; `null` when `asset` does not say it is a common image. */
 export function kitNameOf(asset: string): string | null {
-  return asset.startsWith(KIT_PREFIX) && asset.length > KIT_PREFIX.length
-    ? asset.slice(KIT_PREFIX.length)
-    : null;
+  const prefix = [KIT_PREFIX, KIT_ALIAS].find((p) => asset.startsWith(p));
+  return prefix !== undefined && asset.length > prefix.length ? asset.slice(prefix.length) : null;
+}
+
+/**
+ * The image `ref` names among `images`, a module's own and the common ones by their ids
+ * (`kit:<name>`): `artisan:<name>` and `kit:<name>` are the common one, another name the module's
+ * own, else the common one of that name (`resolveImageRef`, without the other modules' images).
+ */
+export function imageNamed<T extends { id: string }>(
+  images: readonly T[],
+  ref: string,
+): T | undefined {
+  const common = kitNameOf(ref);
+  if (common !== null) return images.find((a) => a.id === KIT_PREFIX + common);
+  return images.find((a) => a.id === ref) ?? images.find((a) => a.id === KIT_PREFIX + ref);
 }
 
 /** The slots a kit image covers when its name ends with them (`kit:button.3x1`: 3 wide, 1 high). */
@@ -52,23 +109,40 @@ export interface KitImage {
 }
 
 /**
- * What `kit:<name>` shows: `own` (the image of that name in the server's kit module) unless it
- * is unreadable or has another size than the base's, then the base's; `null` when neither exists.
+ * What the common image `name` shows: `own` (the server's image of that name) unless it is
+ * unreadable or has another size than the base's, then the base's; `null` when neither exists.
+ * `base` is the base image the server holds (`themes/artisan/originals/`), which may be another
+ * version of Artisan's than this build's; without it, `shipped`, this build's own.
  */
 export async function kitImage(
   name: string,
   own: Uint8Array | undefined,
   shipped: (id: string) => Promise<Uint8Array>,
+  base?: Uint8Array | null,
 ): Promise<KitImage | null> {
-  const slot = kitSlot(name);
-  if (own) {
+  const size = (png: Uint8Array | null | undefined) => {
+    if (!png) return null;
     try {
-      const { width, height } = decodePng(own);
-      if (!slot || (width === slot.width && height === slot.height))
-        return { png: own, width, height };
+      return decodePng(png);
     } catch {
-      // An unreadable file is no image: the base's, if any.
+      // An unreadable file is no image.
+      return null;
     }
-  }
-  return slot ? { png: await shipped(slot.id), width: slot.width, height: slot.height } : null;
+  };
+  const held = size(base);
+  const slot = held ? null : kitSlot(name);
+  const original: KitImage | null =
+    held && base
+      ? { png: base, width: held.width, height: held.height }
+      : slot
+        ? { png: await shipped(slot.id), width: slot.width, height: slot.height }
+        : null;
+  const mine = size(own);
+  if (
+    own &&
+    mine &&
+    (!original || (mine.width === original.width && mine.height === original.height))
+  )
+    return { png: own, width: mine.width, height: mine.height };
+  return original;
 }

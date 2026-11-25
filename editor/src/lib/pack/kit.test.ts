@@ -3,7 +3,16 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
-import { KIT_SLOTS, kitFootprint, kitImage, kitNameOf } from "./kit";
+import {
+  KIT_SLOTS,
+  imageNamed,
+  kitFolderAmong,
+  kitFootprint,
+  kitImage,
+  kitNameOf,
+  kitShippedName,
+  kitShippedPath,
+} from "./kit";
 import { createImage, decodePng, encodePng } from "./png";
 
 const shipped = async (id: string) =>
@@ -40,11 +49,47 @@ describe("UI kit", () => {
     expect(await kitImage("banner", new Uint8Array([1, 2, 3]), shipped)).toBeNull();
   });
 
+  test("the base is the one the server holds, when it holds one", async () => {
+    const held = png(20, 12);
+    // Another version of Artisan's than this build's: its size is the one a redraw has to match.
+    expect((await kitImage("close.1x1", undefined, shipped, held))?.png).toBe(held);
+    const own = png(20, 12);
+    expect((await kitImage("close.1x1", own, shipped, held))?.png).toBe(own);
+    expect((await kitImage("close.1x1", png(16, 16), shipped, held))?.png).toBe(held);
+    expect((await kitImage("later", undefined, shipped, held))?.png).toBe(held);
+    const base = await shipped("close.1x1");
+    expect((await kitImage("close.1x1", undefined, shipped, new Uint8Array([1])))?.png).toEqual(
+      base,
+    );
+  });
+
+  test("the common images are the theme artisan's, the ui-kit module's on a server without it", () => {
+    expect(kitFolderAmong(["shop", "artisan", "ui-kit"])).toBe("artisan");
+    expect(kitFolderAmong(["shop", "ui-kit"])).toBe("ui-kit");
+    expect(kitFolderAmong(["shop"])).toBe("artisan");
+    expect(kitShippedPath("button.3x1")).toBe("originals/assets/textures/button.3x1.png");
+    expect(kitShippedName("originals/assets/textures/button.3x1.png")).toBe("button.3x1");
+    expect(kitShippedName("assets/textures/button.3x1.png")).toBeNull();
+    expect(kitShippedName("originals/assets/textures/sub/x.png")).toBeNull();
+    expect(kitShippedName("originals/assets/textures/x.yml")).toBeNull();
+  });
+
   test("only a name after the prefix is a kit image", () => {
     expect(kitNameOf("kit:button.3x1")).toBe("button.3x1");
+    expect(kitNameOf("artisan:button.3x1")).toBe("button.3x1");
+    expect(kitNameOf("artisan:")).toBeNull();
     expect(kitNameOf("kit:")).toBeNull();
     expect(kitNameOf("button")).toBeNull();
     expect(kitNameOf("my_kit:button")).toBeNull();
+  });
+
+  test("a menu's name is the module's image, else the common one; artisan: is the common one", () => {
+    const images = [{ id: "gold" }, { id: "kit:gold" }, { id: "kit:panel" }];
+    expect(imageNamed(images, "gold")).toBe(images[0]);
+    expect(imageNamed(images, "artisan:gold")).toBe(images[1]);
+    expect(imageNamed(images, "kit:gold")).toBe(images[1]);
+    expect(imageNamed(images, "panel")).toBe(images[2]);
+    expect(imageNamed(images, "ribbon")).toBeUndefined();
   });
 
   test("a name ending with its slots says the area the image covers", () => {

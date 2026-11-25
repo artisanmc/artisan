@@ -79,8 +79,15 @@ object ResourcePackBuilder {
         val transparent = LinkedHashSet<GuiContainer>()
         val imagesByRef = ArrayList<Pair<String, ByteArray>>()
         val texts = ArrayList<String>()
-        val titleImages = ArrayList<String>()
+        val titleImages = ArrayList<Pair<String, String>>()
+        // The common images ([Kit]): the server's by name, and the base as the server holds it.
+        val kitFolder = Kit.folderAmong(projects.map { it.folder })
+        val kitProject = projects.firstOrNull { it.folder == kitFolder }
         val kitImages = HashMap<String, ByteArray>()
+        val kitBase = HashMap<String, ByteArray?>()
+        val kitImage = { name: String ->
+            Kit.image(name, kitImages[name], kitBase.getOrPut(name) { kitProject?.takeIf { Kit.shippedPath(name) in it.binaries }?.binary(Kit.shippedPath(name)) })
+        }
         val composed = ArrayList<Composed>()
 
         for (project in projects) {
@@ -88,24 +95,40 @@ object ResourcePackBuilder {
             // Any text of the Project may reach a title (menus, lang files, data rows): its symbols ride along.
             files.mapTo(texts) { it.content }
             MenuReaders.glyphPlacements(files).mapTo(placedGlyphs) { project.folder to it }
-            titleImages += MenuReaders.titleImages(files)
+            MenuReaders.titleImages(files).mapTo(titleImages) { project.folder to it }
             MenuReaders.imageButtons(files).mapTo(placedButtons) { project.folder to it }
             textPlacements += MenuReaders.textPlacements(files)
             project.overlayImages.mapTo(askedOverlays) { project.folder to it }
             transparent += MenuReaders.transparentContainers(files)
-            val fromDisk = DiskAssets.fromTree(project.id, files, project.binaries, originals = true)
+            // The theme `artisan` holds the common images: one enters the pack as `kit:<name>` when a
+            // menu names it, never as an image of the theme's own; its originals are the base.
+            val common = project.folder == Kit.FOLDER
+            val fromDisk = DiskAssets.fromTree(project.id, files, project.binaries, originals = !common)
             // An image the module is not the first to hold under that name gets its module's id ([ImageNames]).
             val rows = fromDisk.map { a ->
-                if (a.row.type == "glyph" || a.row.type == "texture") ImageNames.named(a.row, names.claim(project.folder, a.row.id), project.folder)
-                else a.row.also { names.take(it.id) }
+                val image = a.row.type == "glyph" || a.row.type == "texture"
+                when {
+                    image && common -> a.row
+                    image -> ImageNames.named(a.row, names.claim(project.folder, a.row.id), project.folder)
+                    else -> a.row.also { names.take(it.id) }
+                }
             }
             contribs += project.id to rows
-                .filter { it.type == "glyph" && it.codepoint != null }
+                .filter { it.type == "glyph" && it.codepoint != null && !common }
                 .map { it.id to it.codepoint!! }
             // The module's own PNGs by name: what its composed images are made of.
             val own = HashMap<String, ByteArray>()
             for ((i, a) in fromDisk.withIndex()) {
                 val row = rows[i]
+                if (common && (row.type == "glyph" || row.type == "texture")) {
+                    if (a.recipe != null) composed += Composed(null, project, a.recipe, own, a.row.name)
+                    else project.binary(a.path)?.let { bytes ->
+                        imagesByRef += "${project.id}:${a.row.name}" to bytes
+                        own[a.row.name] = bytes
+                        kitImages[a.row.name] = bytes
+                    }
+                    continue
+                }
                 allAssets += row
                 if ((row.type == "glyph" && row.codepoint != null) || row.type == "texture") {
                     if (a.recipe != null) {
@@ -116,7 +139,7 @@ object ResourcePackBuilder {
                     glyphPngs[row.id] = bytes
                     imagesByRef += "${project.id}:${a.row.name}" to bytes
                     own[a.row.name] = bytes
-                    if (project.folder == Kit.FOLDER) kitImages[a.row.name] = bytes
+                    if (project.folder == kitFolder) kitImages[a.row.name] = bytes
                     continue
                 }
                 if (row.type != "font") continue
@@ -133,26 +156,33 @@ object ResourcePackBuilder {
         // of the module or a kit image, never another composed image, so their order does not matter.
         // The kit's theme ([KitTheme]) changes the kit's PNGs, the base's and the server's: an image
         // composed with them follows, and is not themed a second time once assembled.
-        val theme = input.theme?.let { name -> projects.firstOrNull { it.folder == Kit.FOLDER }?.let { KitTheme.read(name, it) } }
-        val kitPng = { name: String -> Kit.image(name, kitImages[name])?.png?.let { theme?.shown(name, it) ?: it } }
+        val theme = input.theme?.let { name -> kitProject?.let { KitTheme.read(name, it) } }
+        val kitPng = { name: String -> kitImage(name)?.png?.let { theme?.shown(name, it) ?: it } }
         val made = composed.mapNotNull { c ->
             // In the kit module an image is a kit image under its bare name too.
             val own: (String) -> ByteArray? =
-                if (theme != null && c.project.folder == Kit.FOLDER) { name -> c.own[name]?.let { theme.shown(name, it) } } else c.own::get
+                if (theme != null && c.project.folder == kitFolder) { name -> c.own[name]?.let { theme.shown(name, it) } } else c.own::get
             ComposedImages.render(c.recipe, own, kitPng)?.let { c to it }
         }
         val kitComposed = HashSet<String>()
         for ((c, image) in made) {
-            val row = allAssets[c.index].copy(width = image.width.toDouble(), height = image.height.toDouble())
             val bytes = Png.encode(image)
-            allAssets[c.index] = row
-            glyphPngs[row.id] = bytes
+            // A composed common image has no row of its own: it is a `kit:<name>` once named.
+            if (c.index != null) {
+                val row = allAssets[c.index].copy(width = image.width.toDouble(), height = image.height.toDouble())
+                allAssets[c.index] = row
+                glyphPngs[row.id] = bytes
+            }
             imagesByRef += "${c.project.id}:${c.name}" to bytes
-            if (c.project.folder == Kit.FOLDER) {
+            if (c.project.folder == kitFolder) {
                 kitImages[c.name] = bytes
                 kitComposed += c.name
             }
         }
+
+        // A name no module holds reaches the common image of that name ([ImageNames.resolve]).
+        val shippedNames = kitProject?.binaries.orEmpty().mapNotNull(Kit::shippedName)
+        for (name in kitImages.keys + shippedNames + Kit.slots.map { it.id }) names.take(Kit.PREFIX + name)
 
         val glyphPlacements = placedGlyphs.map { (folder, p) -> p.copy(assetId = names.resolve(folder, p.assetId)) }
         val imageButtons = placedButtons.map { (folder, b) -> b.copy(asset = names.resolve(folder, b.asset)) }
@@ -163,11 +193,11 @@ object ResourcePackBuilder {
         // `kit:<name>` ([Kit]): only the ones a menu or a module asks for, so a server that names
         // none keeps the pack it had. One a title is drawn with is a glyph of the menu font, at
         // the first codepoint no module's glyph has; the others are textures.
-        val inTitles = titleImages.mapNotNullTo(HashSet(), Kit::nameOf)
-        val asked = (inTitles + (imageButtons.map { it.asset } + overlayImages.map { it.request.asset }).mapNotNull(Kit::nameOf)).distinct().sorted()
+        val inTitles = titleImages.mapNotNullTo(HashSet()) { (folder, ref) -> Kit.nameOf(names.resolve(folder, ref)) }
+        val asked = (inTitles + (imageButtons.map { it.asset } + overlayImages.map { it.image }).mapNotNull(Kit::nameOf)).distinct().sorted()
         val kitGlyphs = ArrayList<Pair<String, Double>>()
         for (name in asked) {
-            val image = Kit.image(name, kitImages[name]) ?: continue
+            val image = kitImage(name) ?: continue
             val id = Kit.PREFIX + name
             val glyph = name in inTitles
             allAssets += AssetRow(
@@ -216,7 +246,7 @@ object ResourcePackBuilder {
     }
 
     /** A composed image waiting for its layers: its row's place, its module, that module's PNGs and its [name] there. */
-    private class Composed(val index: Int, val project: PackProject, val recipe: ComposedImages.Recipe, val own: Map<String, ByteArray>, val name: String)
+    private class Composed(val index: Int?, val project: PackProject, val recipe: ComposedImages.Recipe, val own: Map<String, ByteArray>, val name: String)
 
     /** First Project wins a codepoint; a later one taking it again moves to the first free one. */
     private fun mergeCodepoints(contribs: List<Pair<String, List<Pair<String, Double>>>>): Map<String, Double> {

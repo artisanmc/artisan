@@ -40,8 +40,34 @@ class KitTest {
     }
 
     @Test
+    fun `the base is the one the server holds, when it holds one`() {
+        val held = png(20, 12)
+        // Another version of Artisan's than this builder's: its size is the one a redraw has to match.
+        assertTrue(Kit.image("close.1x1", null, held)!!.let { it.png === held && it.shipped })
+        val own = png(20, 12)
+        assertTrue(Kit.image("close.1x1", own, held)!!.let { it.png === own && !it.shipped })
+        assertTrue(Kit.image("close.1x1", png(16, 16), held)!!.png === held)
+        assertTrue(Kit.image("later", null, held)!!.png === held)
+        assertEquals(16, Kit.image("close.1x1", null, byteArrayOf(1))!!.width)
+    }
+
+    @Test
+    fun `the common images are the theme artisan's, the ui-kit module's on a server without it`() {
+        assertEquals("artisan", Kit.folderAmong(listOf("shop", "artisan", "ui-kit")))
+        assertEquals("ui-kit", Kit.folderAmong(listOf("shop", "ui-kit")))
+        assertEquals("artisan", Kit.folderAmong(listOf("shop")))
+        assertEquals("originals/assets/textures/button.3x1.png", Kit.shippedPath("button.3x1"))
+        assertEquals("button.3x1", Kit.shippedName("originals/assets/textures/button.3x1.png"))
+        assertNull(Kit.shippedName("assets/textures/button.3x1.png"))
+        assertNull(Kit.shippedName("originals/assets/textures/sub/x.png"))
+        assertNull(Kit.shippedName("originals/assets/textures/x.yml"))
+    }
+
+    @Test
     fun `only a name after the prefix is a kit image`() {
         assertEquals("button.3x1", Kit.nameOf("kit:button.3x1"))
+        assertEquals("button.3x1", Kit.nameOf("artisan:button.3x1"))
+        assertNull(Kit.nameOf("artisan:"))
         assertNull(Kit.nameOf("kit:"))
         assertNull(Kit.nameOf("button"))
         assertNull(Kit.nameOf("my_kit:button"))

@@ -25,8 +25,8 @@ button you hold lands on the slot under the pointer. Release it over another men
 project to move it there.
 
 **UI kit.** Beside **Item** and **Image**, **UI kit** lists the images every server has
-(`kit:button.3x1`, `kit:close.1x1`, arrows, toggles…) and the images of this server's `ui-kit`
-module. The menu names the image instead of copying it: when the server redraws the kit's
+(`kit:button.3x1`, `kit:close.1x1`, arrows, toggles…) and this server's common images, kept in
+`plugins/Artisan/themes/artisan/`. The menu names the image instead of copying it: when the server redraws the kit's
 button, every menu that names it follows. A kit image whose name ends with its slots (`3x1`)
 takes that area. A title's image layer offers the same list, with the kit's windows
 (`kit:window.6`, `kit:window.3`). When the server's pack is built in a theme of the kit
@@ -38,22 +38,32 @@ each hold a `gold.png`, each one's menus show their own. To show another module'
 it with its module in the menu's file: `image: { asset: "guilds:gold" }`. The editor's picker
 lists the open module's images and the kit.
 
+**Common images by their name.** A name no module holds is a common image: `button.3x1` shows
+the server's common image of that name. `artisan:button.3x1` shows it even when the menu's
+module holds a `button.3x1` of its own. `kit:button.3x1`, which the picker writes, means the
+same and stays read.
+
 **The kit, a tab of the server.** The server page's **UI kit** tab shows the kit as the server
 has it deployed: every piece of the base by family (buttons; windows, panels and values; arrows
 and controls) with its size and who drew it, **Artisan** or this server (**Redrawn**), then the
 server's own kit images. **The kit in a menu** sets every piece on one window, as players see
-it. Click a piece, on its card or on that menu, to open it in the atelier of the `ui-kit`
-module: a piece still Artisan's is first copied under the piece's name, at the piece's size, so
-the menus keep their layout. Deleting that image in the kit module gives the piece back to
-Artisan. **Create the kit module** makes the module on a server that has none. Like any change,
-a redrawn piece reaches players when the draft is deployed and the pack rebuilt.
+it. Click a piece, on its card or on that menu, to open it in the atelier of the common images
+(the theme `artisan`, which is not in the module list): a piece still Artisan's is first copied
+under the piece's name, at the piece's size, so the menus keep their layout. Deleting that image
+gives the piece back to Artisan: the base Artisan ships stays beside it, in
+`themes/artisan/originals/`, rewritten when an update of Artisan changes it. Like any change, a
+redrawn piece reaches players when the draft is deployed and the pack rebuilt.
+
+A server that had a `ui-kit` module keeps its images: at the first start after the update, the
+module's folder moves to `plugins/Artisan/themes/artisan/`, and the menus that name its images
+keep working.
 
 **Themes.** The tab lists the kit's themes, the one in place marked. A theme opens on what it
 changes (the colours it replaces, the pieces it redraws) and on the same menu without it and
 with it. **Put in place on the server** sets the server's theme and rebuilds its pack: players
 receive it at their next connection. **Take off the server** goes back to no theme. A theme's
-files are written in the kit module (see [AI](../../configuration/ai/), "Themes") and read here
-once deployed.
+files are written with the common images (see [AI](../../configuration/ai/), "Themes") and read
+here once deployed.
 
 **Composed images.** An image may be a recipe instead of a PNG: a `compose:` list in its
 `.yml`, which stacks kit images and PNGs of the module (see
@@ -88,7 +98,7 @@ layers stay in the module as images.
 the recipe, and opens the pixel editor on it: you draw among the other layers, the ones above
 shown through. The layer is a PNG of the module (`<image>_layer`), and the image stays a
 recipe, so it still follows the kit. **Retouch this layer** does the same for any layer that is
-a PNG of the module; a kit piece is redrawn in the kit module.
+a PNG of the module; a kit piece is redrawn among the common images.
 
 **Natural size** is the default for new buttons: an 8×8 PNG stays 8×8 and is centered.
 Use **Horizontal/Vertical offset (px)** to move it within the area, or **Center image**

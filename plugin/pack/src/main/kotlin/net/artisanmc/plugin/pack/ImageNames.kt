@@ -25,8 +25,8 @@ internal class ImageNames {
     fun claim(folder: String, name: String): String {
         val mine = owned.getOrPut(folder) { HashMap() }
         mine[name]?.let { return it }
-        // `kit:<name>` is the UI kit's: a module whose folder is `kit` keeps bare names.
-        val id = if (name in ids && "$folder:" != Kit.PREFIX) "$folder:$name" else name
+        // `kit:<name>` and `artisan:<name>` are common images: such a folder keeps bare names.
+        val id = if (name in ids && !reserved(folder)) "$folder:$name" else name
         ids += id
         mine[name] = id
         return id
@@ -37,9 +37,10 @@ internal class ImageNames {
 
     companion object {
         /**
-         * [ref] as an id, among the ids [has] knows: the module's own image when it is not the
-         * first of that name, then `<module>:<name>` when that id exists, else the name after the
-         * colon (the first module's image keeps the bare id), else [ref] as written.
+         * [ref] as an id, among the ids [has] knows: `kit:<name>` for `artisan:<name>` (a
+         * common image, [Kit]); else the module's own image when it is not the first of that name,
+         * then `<module>:<name>` when that id exists, else the name after the colon (the first
+         * module's image keeps the bare id), else the common image of that name, else the name.
          *
          * The ids do not say who holds a bare one: `<module>:<name>` for an image that module
          * does not hold reaches the bare name. The asset index gains the holder with the common
@@ -47,12 +48,18 @@ internal class ImageNames {
          */
         fun resolve(has: (String) -> Boolean, folder: String, ref: String): String {
             if (ref.startsWith(Kit.PREFIX)) return ref
-            val own = "$folder:$ref"
-            // In a module whose folder is `kit`, `kit:<name>` stays the UI kit's.
-            if (!own.startsWith(Kit.PREFIX) && has(own)) return own
+            if (ref.startsWith(Kit.ALIAS)) return Kit.PREFIX + ref.substring(Kit.ALIAS.length)
+            if (!reserved(folder) && has("$folder:$ref")) return "$folder:$ref"
+            if (has(ref)) return ref
             val colon = ref.indexOf(':')
-            return if (colon < 0 || has(ref)) ref else ref.substring(colon + 1)
+            val name = if (colon < 0) ref else ref.substring(colon + 1)
+            if (colon >= 0 && has(name)) return name
+            // No module's image: the common one of that name, when the server has it.
+            return if (has(Kit.PREFIX + name)) Kit.PREFIX + name else name
         }
+
+        /** A folder whose `<folder>:` already names the common images. */
+        private fun reserved(folder: String) = "$folder:" == Kit.PREFIX || "$folder:" == Kit.ALIAS
 
         /** Where the files of a qualified image go in the pack (`:` cannot be in a pack's path). */
         fun path(folder: String, name: String) = "modules/$folder/$name"

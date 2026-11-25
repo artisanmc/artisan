@@ -1,8 +1,9 @@
 # An image belongs to a module or to the server, and a theme redraws it
 
-**Status:** accepted (2026-11-25), **being built**: of step 2, the image keyed by its module is in
-the code (see "Built so far"); the rest is not. Replaces decisions 12 (the kit as a module),
-14 and 16 of `mcp-server`: those three still describe the code until the steps below land. Nothing
+**Status:** accepted (2026-11-25), **being built**: of step 2, the image keyed by its module and
+the theme `artisan` are in the code (see "Built so far"); the rest is not. Replaces decisions 12
+(the kit as a module), 14 and 16 of `mcp-server`: 12 and 14 are replaced in the code, 16 (one
+theme per server, a folder beside the common images) describes it until step 4. Nothing
 this ADR removes shipped in a release. Design note: `Images partagées, thèmes et originaux`
 (project files). Follows `addon-owned-project-roots`, `project-qualified-refs` and the design
 `originaux-modules`.
@@ -170,13 +171,48 @@ working through a rewrite to `module:name` at load.
   `<module>:<name>` reaches that module's image. Both pack builders, the game (titles, image
   buttons, row images, `dump-title`) and `render_menu` follow the one rule, computed from the
   ids alone so the game needs nothing but the asset index.
-- Not there yet, against decision 3: a bare name still reaches another module's image when the
-  menu's module holds none (no rewrite to `module:name` at load, no "common" scope to fall on);
-  `<module>:<name>` for an image that module does not hold falls on the bare name instead of
-  the visible fallback, because the asset index does not say who holds a bare id; there is no
-  `artisan:` prefix. An overlay image keeps its key on the name the add-on asks with
-  (`OverlayApi.image` has no module), so two modules asking for the same name at the same rise
-  share one picture. The editor's canvas shows the open module's images and the kit, as before.
+
+**Step 2, second part: the theme `artisan`** (`ArtisanTheme.kt`, `ProjectRoots.theme`, `Kit.kt`,
+`kit.ts`, `UiBase.kt`).
+
+- `plugins/Artisan/themes/artisan/` is registered at start as the Project `artisan`, with
+  `role: "theme"` in the Project roots: the editor leaves it out of the module list, and the hub,
+  the drafts and the Versions treat it as they treat an Add-on's root (key `addon:artisan`, not
+  renamed or deleted). **A theme shares the modules' namespace**: no module can be named
+  `artisan`, and a folder `modules/artisan` is shadowed with a warning.
+- The base is written by the originals sync into `themes/artisan/originals/assets/textures/`
+  (system template `base` of the shipper `artisan`, `SystemFiles`): only what differs is
+  written, and a server image identical to the base is removed. Both pack builders read the
+  base there, so the base a server shows is the one of its own Artisan; a builder falls on its
+  own copy for a server that has none yet.
+- `modules/ui-kit/` moves to `themes/artisan/` at the first start, when the theme holds nothing
+  of the server's. On a server that has no theme `artisan` (an older Artisan), both builders and
+  the editor still read the `ui-kit` module.
+- A common image keeps the pack id `kit:<name>`. The naming rule gains two steps:
+  `artisan:<name>` is the common image, and a name no module holds reaches the common image of
+  that name (the three places, `image-ref-conformance.json`). `kit:<name>` stays read.
+- The theme's own images are not rows of the pack: one enters it as `kit:<name>` when a menu
+  or a module names it (decision 11), the base included.
+- The MCP tools read the common images in the theme's Project (`survey_ui`'s `kit.project`), the
+  base as the server holds it; their names and arguments did not change.
+
+Not there yet:
+
+- Against decision 3: a bare name still reaches **another module's** image before the common
+  one when the menu's module holds none (no rewrite to `module:name` at load), so a module that
+  holds `button.3x1` hides the common one from the modules that hold none; `artisan:<name>` is
+  the spelling that does not depend on it. `<module>:<name>` for an image that module does not
+  hold falls on the bare name, then on the common image, instead of the visible fallback,
+  because the asset index does not say who holds a bare id.
+- Against decision 1: the editor and the MCP tools still write `kit:<name>` and still say "UI
+  kit"; the server's "UI kit" tab is still there, opening the theme's Project. The Resources
+  screen has no "Common" scope yet.
+- Against decisions 5 and 6: a theme other than `artisan` is still a folder
+  `themes/artisan/themes/<name>/`, one in place per server (`resource-pack.theme`).
+- An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no
+  module), so two modules asking for the same name at the same rise share one picture.
+- The editor draws the base from its own build, not from the server's `originals/`: the two
+  differ only while the editor and the server run different versions of Artisan.
 
 ## Consequences
 
@@ -199,9 +235,9 @@ working through a rewrite to `module:name` at load.
   image the owner redraws has no origin today: decision 8's "the original changed" records one
   when the redraw is written.
 
-## Still to check before step 2
+## Still to check
 
-- That the hub's sync to the other servers and the drafts treat a `themes/` root as they treat
-  a module's folder.
-- What the editor's own lookup does today when two modules hold the same name (`render_menu`
-  already looks in the menu's module first).
+- On a running network: that the hub's sync to the other servers and the drafts treat the
+  theme's root as they treat an Add-on's (the code path is the same; no test covers a leaf).
+- What the editor's own lookup does when two modules hold the same name: it shows the open
+  module's images and the common ones, never another module's.

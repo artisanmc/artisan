@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import type { Asset } from "@/domain/asset";
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetsWithKit } from "@/features/assets/kitAssets";
+import { imageNamed } from "@/lib/pack/kit";
 import { cn } from "@/lib/cx";
 import { getText } from "@/lib/i18n";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -198,7 +199,7 @@ function externalProviderLabel(provider: "oraxen" | "nexo" | "itemsadder"): stri
 }
 
 function resolveAssetName(id: AssetId, assets: Asset[]): string {
-  const asset = assets.find((a) => a.id === id);
+  const asset = imageNamed(assets, id);
   if (asset?.name) return asset.name;
   return truncate(id, 12);
 }

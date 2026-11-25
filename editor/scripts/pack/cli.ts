@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { TEXT_UP_TEXTURES, type TextUpTexture } from "@/lib/pack/fontJsonBuilder";
 import type { OverlayImageRequest } from "@/lib/pack/overlayImages";
@@ -34,7 +34,8 @@ const USAGE = `Usage: npm run pack -- <command>
   build <projects-dir> [-o pack.zip] [--config config.yml] [--overlay-images images.json]
         [--bedrock <server-id> [--bedrock-out bedrock.mcpack]]
       Builds the server's Java pack from Project folders on disk (one folder per Project,
-      named by its id), as the editor would after a publication; with --bedrock, also its
+      named by its id; the themes of a "themes" folder beside <projects-dir> too, for the
+      server's common images), as the editor would after a publication; with --bedrock, also its
       Bedrock pack (the server id seeds the pack's uuid). Module images
       (pack.images) come from the modules' editor bundles, which this command does not
       load: pass what they ask for with --overlay-images ({ "<project>": [{ "asset", "rise" }] }).
@@ -182,9 +183,18 @@ async function build(args: string[]): Promise<number> {
   const images = imagesPath
     ? (JSON.parse(readFileSync(imagesPath, "utf-8")) as Record<string, OverlayImageRequest[]>)
     : {};
-  const projects = readdirSync(dir)
-    .filter((name) => !name.startsWith(".") && statSync(join(dir, name)).isDirectory())
-    .map((id) => projectFromDisk(id, join(dir, id), images[id]));
+  const foldersOf = (root: string) =>
+    readdirSync(root)
+      .filter((name) => !name.startsWith(".") && statSync(join(root, name)).isDirectory())
+      .map((id) => ({ id, path: join(root, id) }));
+  // The themes beside the modules (`plugins/Artisan/themes/`): a theme is a Project of its name,
+  // which hides a module's folder of that name, as on the server.
+  const themes = join(dir, "..", "themes");
+  const themed = existsSync(themes) ? foldersOf(themes) : [];
+  const projects = [
+    ...foldersOf(dir).filter((module) => !themed.some((theme) => theme.id === module.id)),
+    ...themed,
+  ].map(({ id, path }) => projectFromDisk(id, path, images[id]));
   if (!imagesPath) console.warn("No --overlay-images: module images (pack.images) are left out.");
   const serverId = option(args, "--bedrock");
   const { zipBytes, hash, bedrock } = await assembleServerPack({

@@ -199,6 +199,14 @@ mappings:
       - "docs/decisions/common-images-and-themes.md"
     reason: "Which image a name in a module's file is: one rule in three places (hub builder, editor builder, the game from the asset index), locked by a shared vector. A change goes into the three"
 
+  - touches: "{plugin/core/src/main/kotlin/**/project/ArtisanTheme.kt,plugin/pack/src/main/kotlin/**/Kit.kt,editor/src/lib/pack/kit.ts}"
+    updates:
+      - "docs/decisions/common-images-and-themes.md"
+      - "docs/architecture/project-files.md"
+      - "docs/site/editor/image-buttons.md"
+      - "docs/site/configuration/ai.md"
+    reason: "The theme `artisan` and the common images: where they are on disk, what a menu writes to name one, and what the ADR's 'Built so far' says is in the code"
+
   # --- Module API surface (2 layers: plugin + editor) ---
 
   - touches: "plugin/api/src/main/"

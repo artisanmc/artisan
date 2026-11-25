@@ -76,12 +76,16 @@ appearance card; width and height edit the Element's existing `positions` into
 one complete rectangle. States share that footprint but keep independent images,
 conditions, title/lore and actions. Iteration and explicit placements are excluded.
 `domain/imageButton.ts` validates resize/move operations and rejects collisions.
-An image named `kit:<name>` is a UI kit image (`lib/pack/kit.ts`, ADR `mcp-server`, decision 14):
-no file of the module, never copied into it. `features/assets/kitAssets.ts` gives each one as an
-`Asset` whose id is that reference and whose `previewUrl` is the kit module's published file or
-the base Artisan ships; `useImageAsset` (buttons, inspector) and `useAssetsWithKit` (title
-layers) look an image up there, `KitPicker` chooses one. The kit module's files come from the
-server index through `state/kitStore`, so nothing here imports that feature.
+A common image (`lib/pack/kit.ts`, ADR `common-images-and-themes`) is no file of the module,
+never copied into it: the image the theme `artisan` holds (the Project `artisan`, `role: "theme"`,
+left out of the module list by `projectGroups.ts`; the `ui-kit` module on a server older than the
+theme, `kitProjectAmong`), else the base Artisan ships. `features/assets/kitAssets.ts` gives each
+one as an `Asset` whose id is `kit:<name>` and whose `previewUrl` is the theme's published file or
+the base; `useImageAsset` (buttons, inspector) and `useAssetsWithKit` (title layers) look an image
+up there through `imageNamed`: the module's own image, else the common one of that name, and
+`artisan:<name>` or `kit:<name>` the common one whatever the module holds. `KitPicker` chooses one
+and writes `kit:<name>`. The theme's files come from the server index through `state/kitStore`,
+so nothing here imports that feature.
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)
@@ -89,12 +93,12 @@ and gives it as `Asset.previewUrl` (a `data:` URL) with its size and its recipe
 (`Asset.compose`), so canvases and lists draw it like a PNG. `localAssets.ts` renames,
 duplicates and deletes it through its descriptor alone, and writes its recipe: a `compose`
 field on the create and patch requests (`composeAsset`, `patchAsset`), refused unless the pack
-reads back that very recipe (`requestedRecipe`). The kit module's composed images are assembled
-once per read of the module (`kitAssets.ts`, `composedKitImages`).
+reads back that very recipe (`requestedRecipe`). The common images' composed images are assembled
+once per read of their Project (`kitAssets.ts`, `composedKitImages`).
 The kit is shown in the theme the server's pack is built in (`lib/pack/theme.ts`, ADR
 `mcp-server`, decision 16): the server index loader reads `resource-pack.theme` into
 `state/kitStore` (the Configuration page updates it on save), `kitTheme.ts` reads that theme from
-the kit module's published files once per read, `useKitAssets` gives each kit image as the theme
+the published files of the common images' Project once per read, `useKitAssets` gives each kit image as the theme
 shows it (`themedKitAssets`: a `data:` URL where the picture changes, the same size, name and
 order), and a composed image is assembled over themed `kit:` layers (`composedView`). A
 module's own PNG is never recoloured, as in the pack.

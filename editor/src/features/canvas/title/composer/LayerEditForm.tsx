@@ -15,6 +15,7 @@ import { AssetPicker } from "@/features/assets/AssetPicker";
 import { KitPicker } from "@/features/assets/KitPicker";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useAssetsWithKit } from "@/features/assets/kitAssets";
+import { imageNamed } from "@/lib/pack/kit";
 import { duplicateAsset } from "@/lib/api/userAssets";
 import { cn } from "@/lib/cx";
 import { CONTAINER_TITLE, CONTAINER_TITLE_LINES } from "@/lib/mm/profiles";
@@ -125,7 +126,7 @@ interface ImageLayerFormProps {
 }
 
 function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps) {
-  const asset = useAssetsWithKit().find((a) => a.id === layer.assetId);
+  const asset = imageNamed(useAssetsWithKit(), layer.assetId);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
   const updateLayer = useProjectsStore((s) => s.updateMenuTitleLayer);
   const user = useAuthStore((s) => s.currentUser);

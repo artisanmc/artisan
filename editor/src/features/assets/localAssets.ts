@@ -25,7 +25,7 @@ import {
 import { type AssetUsage, parseAssetUsages } from "@/lib/pack/assetUsages";
 import { type ComposeRecipe, composeRecipe, composeYaml } from "@/lib/pack/compose";
 import { type DiskAsset, diskAssetsFromTree } from "@/lib/pack/diskAssets";
-import { KIT_FOLDER, kitSlot } from "@/lib/pack/kit";
+import { isKitFolder, kitSlot } from "@/lib/pack/kit";
 import { FONT_DESCRIPTOR, fontDir, fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
 import { type ParsedMcFont, parseMcFontsZip } from "@/lib/pack/mcFontsParser";
 import { readPngContentWidth, readPngDimensions } from "@/lib/pack/pngDimensions";
@@ -44,11 +44,11 @@ import { activeKitTheme } from "./kitTheme";
 
 const NAME_RE = /^[a-z0-9_-]+$/;
 
-/** Whether `projectId` is the server's UI kit module (`ui-kit`), published or still a draft. */
+/** Whether `projectId` holds the server's common images (the theme `artisan`), published or still a draft. */
 export function isKitModule(projectId: string): boolean {
   if (useKitStore.getState().read?.projectId === projectId) return true;
   const open = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
-  return !!open && (open.diskId ?? open.id) === KIT_FOLDER;
+  return !!open && isKitFolder(open.diskId ?? open.id);
 }
 const MAX_RAW_BYTES = 2 * 1024 * 1024;
 const MAX_FONT_BYTES = 5 * 1024 * 1024;

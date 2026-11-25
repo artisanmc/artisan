@@ -1,9 +1,10 @@
 import type { AssetRow } from "./fontJsonBuilder";
-import { KIT_PREFIX } from "./kit";
+import { KIT_ALIAS, KIT_PREFIX } from "./kit";
 
 /**
  * Which image a menu's name is (ADR `common-images-and-themes`, decision 3): a module's own image
- * first, another module's as `<folder>:<name>`.
+ * first, another module's as `<folder>:<name>`, a common one (`kit.ts`) as `artisan:<name>` or
+ * by its name when no module holds one.
  *
  * An image's id in the pack stays its bare name for the first module that holds it, by Project
  * order: a server where no two modules share a name keeps its pack byte for byte. A later
@@ -31,8 +32,8 @@ export class ImageNames {
     }
     const had = mine.get(name);
     if (had !== undefined) return had;
-    // `kit:<name>` is the UI kit's: a module whose folder is `kit` keeps bare names.
-    const id = this.ids.has(name) && `${folder}:` !== KIT_PREFIX ? `${folder}:${name}` : name;
+    // `kit:<name>` and `artisan:<name>` are common images: such a folder keeps bare names.
+    const id = this.ids.has(name) && !reserved(folder) ? `${folder}:${name}` : name;
     this.ids.add(id);
     mine.set(name, id);
     return id;
@@ -44,10 +45,16 @@ export class ImageNames {
   }
 }
 
+/** A folder whose `<folder>:` already names the common images. */
+function reserved(folder: string): boolean {
+  return `${folder}:` === KIT_PREFIX || `${folder}:` === KIT_ALIAS;
+}
+
 /**
- * `ref` as an id, among the ids `has` knows: the module's own image when it is not the first of
- * that name, then `<module>:<name>` when that id exists, else the name after the colon (the first
- * module's image keeps the bare id), else `ref` as written.
+ * `ref` as an id, among the ids `has` knows: `kit:<name>` for `artisan:<name>` (a common image,
+ * `kit.ts`); else the module's own image when it is not the first of that name, then
+ * `<module>:<name>` when that id exists, else the name after the colon (the first module's image
+ * keeps the bare id), else the common image of that name, else the name.
  *
  * The ids do not say who holds a bare one: `<module>:<name>` for an image that module does not
  * hold reaches the bare name. The asset index gains the holder with the common images (step 2
@@ -55,11 +62,14 @@ export class ImageNames {
  */
 export function resolveImageRef(has: (id: string) => boolean, folder: string, ref: string): string {
   if (ref.startsWith(KIT_PREFIX)) return ref;
-  const own = `${folder}:${ref}`;
-  // In a module whose folder is `kit`, `kit:<name>` stays the UI kit's.
-  if (!own.startsWith(KIT_PREFIX) && has(own)) return own;
+  if (ref.startsWith(KIT_ALIAS)) return KIT_PREFIX + ref.slice(KIT_ALIAS.length);
+  if (!reserved(folder) && has(`${folder}:${ref}`)) return `${folder}:${ref}`;
+  if (has(ref)) return ref;
   const colon = ref.indexOf(":");
-  return colon < 0 || has(ref) ? ref : ref.slice(colon + 1);
+  const name = colon < 0 ? ref : ref.slice(colon + 1);
+  if (colon >= 0 && has(name)) return name;
+  // No module's image: the common one of that name, when the server has it.
+  return has(KIT_PREFIX + name) ? KIT_PREFIX + name : name;
 }
 
 /** Where the files of a qualified image go in the pack (`:` cannot be in a pack's path). */

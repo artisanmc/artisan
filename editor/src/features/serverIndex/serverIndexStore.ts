@@ -1,5 +1,5 @@
 import type { Project } from "@/domain/types";
-import { KIT_FOLDER } from "@/lib/pack/kit";
+import { kitProjectAmong } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
 import { create } from "zustand";
 import type { ServerProjectsResult } from "./serverIndexLoader";
@@ -59,10 +59,10 @@ export const useServerIndexStore = create<ServerIndexState>((set, get) => ({
     set({ scope: null, status: "idle", projects: [], failed: [], reads: [], requested: false }),
 }));
 
-// The kit module's published files, for whatever draws a `kit:<name>` image (`state/kitStore`).
+// The published files of the common images' Project (the theme `artisan`), for whatever draws a `kit:<name>` image (`state/kitStore`).
 useServerIndexStore.subscribe((state, previous) => {
   if (state.reads === previous.reads) return;
-  const read = state.reads.find((r) => (r.summary.externalId ?? r.summary.id) === KIT_FOLDER);
+  const read = kitProjectAmong(state.reads, (r) => r.summary.externalId ?? r.summary.id);
   useKitStore
     .getState()
     .setRead(read && { projectId: read.summary.id, files: read.files, binaries: read.binaries });

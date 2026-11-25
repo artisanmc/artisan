@@ -998,8 +998,9 @@ An image every menu of the server names without a prefix: Artisan's base and wha
 moved there. A menu's bare name (`button.3x1`) is its module's image, else the common one;
 `guilds:banner` is another module's image, `artisan:button.3x1` the common one even when the
 module has its own. An image belongs to its module unless the owner makes it common. Decided
-2026-11-25 (ADR `common-images-and-themes`), not built yet: until then the code has the UI kit
-(`kit:<name>`, the `ui-kit` module) of ADR `mcp-server`, decisions 12 and 14.
+2026-11-25 (ADR `common-images-and-themes`), being built: the common images are in the theme
+`artisan` and the three spellings are read; `kit:<name>` is the former spelling, still read and
+still what the editor writes, and the editor still says "UI kit" (see the ADR, "Built so far").
 
 Non-examples:
 - A **Captured item** is never common: it is game content, and stays in a module.
@@ -1014,8 +1015,9 @@ and its own images (`<theme>:<name>`). It holds no Document. The theme `artisan`
 base: it alone fixes the names and measures of the **Common images**, is always in place and
 below the others. The other themes in place are a stack the server orders
 (`resource-pack.themes`). A module draws what it owns; a theme redraws what others own. Decided
-2026-11-25 (ADR `common-images-and-themes`), not built yet: until then a theme is a folder of
-the `ui-kit` module, one in place per server (ADR `mcp-server`, decision 16).
+2026-11-25 (ADR `common-images-and-themes`), being built: the theme `artisan` exists
+(`plugins/Artisan/themes/artisan/`); until step 4 another theme is a folder `themes/<name>/` of
+that theme, one in place per server (`resource-pack.theme`, ADR `mcp-server`, decision 16).
 
 Non-examples:
 - A **Variant** is not a theme: it replaces Documents for some players.
