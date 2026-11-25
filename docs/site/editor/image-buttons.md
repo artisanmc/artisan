@@ -108,7 +108,8 @@ files are written with the common images (see [AI](../../configuration/ai/), "Th
 here once deployed. **New theme** creates one, empty, as a folder of its own on the server
 (`plugins/Artisan/themes/<name>/`): it changes nothing until it holds colours or redrawn
 images and is put in place. Its page says where its files are; the assistant fills it when
-asked ("make the buttons red in the theme noel").
+asked ("make the buttons red in the theme noel"). A theme changes the common images, and may
+redraw a module's own image at its size; its page lists both.
 
 **Composed images.** An image may be a recipe instead of a PNG: a `compose:` list in its
 `.yml`, which stacks kit images and PNGs of the module (see

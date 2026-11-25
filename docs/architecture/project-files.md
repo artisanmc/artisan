@@ -38,7 +38,8 @@ of the server's.
 
 Every other folder of `themes/` is a theme of the server (`ServerThemes.register`, decision 5):
 `overrides/colors.yml` is its table of colours, `overrides/artisan/<image>.png` its redraw of
-a common image, at that image's size. Its name is lowercase letters, digits, `_` and `-`. It
+a common image and `overrides/<module>/<image>.png` its redraw of a module's image, each at
+that image's size. Its name is lowercase letters, digits, `_` and `-`. It
 holds no Document: the server loads no menu, command or Trigger from it
 (`ProjectRoots.holdsDocuments`). A folder named like a module of the server is not registered
 (warning at start): the module keeps the name. The editor's **New theme** and the MCP tool

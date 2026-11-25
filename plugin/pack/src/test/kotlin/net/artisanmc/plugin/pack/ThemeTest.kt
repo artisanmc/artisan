@@ -236,4 +236,44 @@ class ThemeTest {
         assertNull(KitTheme.stack(listOf("nuit"), null, own))
         assertNull(KitTheme.stack(listOf("Bad Name"), common, mapOf("Bad Name" to kit(emptyMap()))))
     }
+
+    @Test
+    fun `a theme redraws a module's image at its size, and the highest in place wins as drawn`() {
+        val image = Png.encode(solid(2, 2, 0x3c, 0x85, 0x27, 255))
+        val low = Png.encode(solid(2, 2, 1, 1, 1, 255))
+        val high = Png.encode(solid(2, 2, 2, 2, 2, 255))
+        val large = Png.encode(solid(3, 2, 3, 3, 3, 255))
+        val paths = listOf(
+            "overrides/guilds/banner.png", "overrides/Shop_2/coin.png", "overrides/artisan/close.png", "overrides/guilds/deep/banner.png",
+            "overrides/guilds/.png", "overrides/guilds/notes.txt", "overrides/banner.png", "assets/textures/banner.png",
+        )
+        assertEquals(
+            listOf("Shop_2:coin" to "overrides/Shop_2/coin.png", "guilds:banner" to "overrides/guilds/banner.png"),
+            KitTheme.ownModuleDrawings(paths).toList(),
+        )
+        val noel = kit(mapOf("overrides/colors.yml" to table), mapOf("overrides/guilds/banner.png" to low, "overrides/guilds/wide.png" to large))
+        val theme = KitTheme.own(noel)
+        assertEquals(setOf("guilds:banner", "guilds:wide"), theme.moduleDrawings)
+        assertTrue(theme.moduleDrawing("guilds", "banner", image) === low)
+        // Another module's image of that name, an image it does not redraw, and a drawing of another size are left.
+        assertNull(theme.moduleDrawing("shop", "banner", image))
+        assertNull(theme.moduleDrawing("guilds", "coin", image))
+        assertNull(theme.moduleDrawing("guilds", "wide", image))
+        // Its colours never touch a module's image: drawn, or left as it is.
+        assertNull(theme.moduleDrawing("guilds", "x", image))
+        // In a stack the highest that redraws it wins; one that does not gives way to the one below.
+        val own = mapOf(
+            "noel" to noel,
+            "hiver" to kit(emptyMap(), mapOf("overrides/guilds/banner.png" to high)),
+            "nuit" to kit(mapOf("overrides/colors.yml" to "colors:\n  \"#010101\": \"#ffffff\"\n")),
+        )
+        fun stack(vararg names: String) = KitTheme.stack(names.toList(), null, own)!!
+        assertTrue(stack("noel", "hiver").moduleDrawing("guilds", "banner", image) === high)
+        assertTrue(stack("hiver", "noel").moduleDrawing("guilds", "banner", image) === low)
+        assertTrue(stack("noel", "nuit").moduleDrawing("guilds", "banner", image) === low)
+        assertNull(stack("nuit", "hiver").moduleDrawing("shop", "banner", image))
+        // A theme the common images keep redraws no module's image.
+        val former = KitTheme.stack(listOf("old"), kit(mapOf("themes/old/theme.yml" to table), mapOf("themes/old/overrides/guilds/banner.png" to low)))!!
+        assertNull(former.moduleDrawing("guilds", "banner", image))
+    }
 }

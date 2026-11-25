@@ -188,6 +188,13 @@ export interface KitTheme {
   shown(name: string, png: Uint8Array): Promise<Uint8Array>;
   /** The theme's own drawing of `name`, when it has one as large as `png`; `null` otherwise. */
   drawing(name: string, png: Uint8Array): Promise<Uint8Array | null>;
+  /** The modules' images this theme redraws, each as `<module>:<name>`. */
+  moduleDrawings: readonly string[];
+  /**
+   * The theme's own drawing of the image `name` of the module `folder`, whose PNG is `png`, when
+   * it has one as large; `null` otherwise. A module's image is never recoloured: drawn or left.
+   */
+  moduleDrawing(folder: string, name: string, png: Uint8Array): Promise<Uint8Array | null>;
 }
 
 const sizeOf = (png: Uint8Array) => {
@@ -211,15 +218,22 @@ export function recolored(png: Uint8Array, colors: ReadonlyMap<number, number>):
   return recolor(image, colors) ? encodePng(image) : png;
 }
 
-/** A theme from its table and the files of the images it redraws (`binary` reads one by path). */
+/** The key of the image `name` of the module `folder` among a theme's redraws of modules' images. */
+export const moduleImageKey = (folder: string, name: string) => `${folder}:${name}`;
+
+/**
+ * A theme from its table and the files of the images it redraws (`binary` reads one by path):
+ * `redrawn`, the common images by name; `modules`, the modules' images by `moduleImageKey`.
+ */
 export function kitTheme(
   colors: ReadonlyMap<number, number>,
   redrawn: ReadonlyMap<string, string>,
   binary: (path: string) => Bytes | Promise<Bytes>,
+  modules: ReadonlyMap<string, string> = new Map(),
 ): KitTheme {
   const files = new Map<string, Promise<Bytes>>();
-  const drawing = async (name: string, png: Uint8Array) => {
-    const path = redrawn.get(name);
+  // The theme's file at `path`, when it is as large as `png`: a drawing of another size is left out.
+  const drawnAt = async (path: string | undefined, png: Uint8Array) => {
     if (path === undefined) return null;
     if (!files.has(path))
       files.set(
@@ -236,11 +250,14 @@ export function kitTheme(
       ? mine
       : null;
   };
+  const drawing = (name: string, png: Uint8Array) => drawnAt(redrawn.get(name), png);
   return {
     colors,
     drawings: [...redrawn.keys()],
     drawing,
     shown: async (name, png) => (await drawing(name, png)) ?? recolored(png, colors),
+    moduleDrawings: [...modules.keys()],
+    moduleDrawing: (folder, name, png) => drawnAt(modules.get(moduleImageKey(folder, name)), png),
   };
 }
 
@@ -279,6 +296,23 @@ export function ownThemeDrawings(binaries: readonly string[]): Map<string, strin
   return out;
 }
 
+/**
+ * The modules' images a theme of its own folder redraws among its `binaries`
+ * (`overrides/<module>/<image>.png`), by `moduleImageKey`. `overrides/artisan/` is the common
+ * images' (`ownThemeDrawings`).
+ */
+export function ownThemeModuleDrawings(binaries: readonly string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const path of [...binaries].sort(byCodeUnit)) {
+    if (!path.startsWith(THEME_OVERRIDES_DIR) || path.startsWith(THEME_COMMON_DIR)) continue;
+    const [folder, file, ...deeper] = path.slice(THEME_OVERRIDES_DIR.length).split("/");
+    if (!folder || !file || deeper.length > 0) continue;
+    if (!file.endsWith(".png") || file.length === ".png".length) continue;
+    out.set(moduleImageKey(folder, file.slice(0, -".png".length)), path);
+  }
+  return out;
+}
+
 /** The files of a theme that is its own Project (`themes/<name>/`). */
 export type ThemeFiles = Parameters<typeof readKitTheme>[1];
 
@@ -286,20 +320,23 @@ export type ThemeFiles = Parameters<typeof readKitTheme>[1];
 export function readOwnTheme(theme: ThemeFiles): KitTheme {
   const file = THEME_COLORS_FILES.find((path) => theme.files.some((f) => f.path === path));
   const text = file === undefined ? "" : (theme.files.find((f) => f.path === file)?.content ?? "");
+  const binaries = theme.binaries.map((b) => b.path);
   return kitTheme(
     themeColors(text),
-    ownThemeDrawings(theme.binaries.map((b) => b.path)),
+    ownThemeDrawings(binaries),
     theme.binary,
+    ownThemeModuleDrawings(binaries),
   );
 }
 
 /** What the builders ask of the themes in place: one theme, or a stack of them. */
-export type ThemeLook = Pick<KitTheme, "shown" | "drawing">;
+export type ThemeLook = Pick<KitTheme, "shown" | "drawing" | "moduleDrawing">;
 
 /**
  * The themes in place as one look, `themes` from the lowest to the highest: each is applied to
  * what the ones below show, so the highest that draws an image wins and the colours of the ones
- * above it repaint that drawing. `null` for none.
+ * above it repaint that drawing. A module's image is the highest theme's drawing of it, as
+ * drawn. `null` for none.
  */
 export function kitThemeStack(themes: readonly KitTheme[]): ThemeLook | null {
   if (themes.length === 0) return null;
@@ -317,6 +354,13 @@ export function kitThemeStack(themes: readonly KitTheme[]): ThemeLook | null {
       for (const theme of themes)
         out = (await theme.drawing(name, out ?? png)) ?? (out && recolored(out, theme.colors));
       return out;
+    },
+    moduleDrawing: async (folder, name, png) => {
+      for (const theme of [...themes].reverse()) {
+        const drawn = await theme.moduleDrawing(folder, name, png);
+        if (drawn) return drawn;
+      }
+      return null;
     },
   };
 }

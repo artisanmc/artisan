@@ -157,6 +157,12 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     for (const slot of KIT_SLOTS) names.common(slot.id);
   }
 
+  // The themes in place (`theme.ts`), the lowest first: they change the common images, and
+  // redraw the modules' images they name.
+  const theme = input.themes?.length
+    ? readKitThemes(input.themes, kitProject, themeProjects)
+    : null;
+
   for (const project of projects) {
     const { files } = project;
     const folder = folderOf(project);
@@ -218,8 +224,10 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
           composed.push({ row, project, recipe: a.compose, own, name: a.row.name });
           continue;
         }
-        const bytes = await project.binary(a.path);
-        if (!bytes) continue;
+        const disk = await project.binary(a.path);
+        if (!disk) continue;
+        // A theme in place may redraw a module's image, at its size (`overrides/<module>/`).
+        const bytes = (await theme?.moduleDrawing(folder, a.row.name, disk)) ?? disk;
         glyphPngs.set(row.id, bytes);
         imagesByRef.push({ ref: `${project.id}:${a.row.name}`, bytes });
         own.set(a.row.name, bytes);
@@ -241,11 +249,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
 
   // Composed images (`compose.ts`), once every module's PNGs are read: a layer is a PNG of the
   // module or a kit image, never another composed image, so their order does not matter.
-  // The themes in place (`theme.ts`) change the kit's PNGs, the base's and the server's: an image
-  // composed with them follows, and is not themed a second time once assembled.
-  const theme = input.themes?.length
-    ? readKitThemes(input.themes, kitProject, themeProjects)
-    : null;
+  // The themes in place change the kit's PNGs, the base's and the server's: an image composed
+  // with them follows, and is not themed a second time once assembled.
   const kitPng = async (name: string) => {
     const png = (await kitImageOf(name))?.png;
     return png && theme ? theme.shown(name, png) : png;

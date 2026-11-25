@@ -305,10 +305,11 @@ export default {
       becomes: "becomes",
       drawings: "Pieces redrawn for this theme",
       noDrawings: "This theme redraws no piece.",
+      moduleDrawings: "Module images redrawn",
       files:
         "A theme is a folder of the server's common images (themes/artisan/): themes/{{name}}/theme.yml holds its colours, themes/{{name}}/assets/textures/<piece>.png a piece redrawn at the piece's size. It is read here once deployed.",
       filesOwn:
-        "This theme is a folder of the server, themes/{{name}}/: overrides/colors.yml holds its colours, overrides/artisan/<image>.png a common image redrawn at that image's size. It is read here once deployed.",
+        "This theme is a folder of the server, themes/{{name}}/: overrides/colors.yml holds its colours, overrides/artisan/<image>.png a common image redrawn at that image's size, overrides/<module>/<image>.png a module's image redrawn at its size. It is read here once deployed.",
       compare: "Without and with, in a menu",
       putHint:
         "Putting a theme in place sets it above the ones already there and rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",

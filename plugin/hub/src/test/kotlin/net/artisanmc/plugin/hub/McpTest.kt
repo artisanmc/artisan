@@ -644,6 +644,43 @@ class McpTest {
         val removed = theme("write_image", "name" to "cell", "delete" to true)
         assertTrue(removed["structuredContent"]["deleted"].asBoolean(), removed.toString())
         assertEquals(listOf(0xb3, 0x26, 0x1e) to shipped("cell", 9, 9), shown(render("theme" to "noel", "theme_draft_id" to themeDraft)))
+
+        // A theme redraws a module's image too, named `<module>:<image>`, at that image's size.
+        modules["guilds"] = McpFixtures.Module(
+            files = mapOf("assets/textures/pair.yml" to "width: 36\nheight: 18\ncompose:\n  - image: crest\n  - image: crest\n    x: 18\n"),
+            images = mapOf("assets/textures/crest.png" to solid(18, 18, 0x101010)),
+        )
+        val crestMenu = "schema: menu/v1\nsize: 27\nelements:\n  - positions: \"0\"\n    image: { asset: \"guilds:crest\", fit: native }\n" +
+            "  - positions: \"3-4\"\n    image: { asset: \"guilds:pair\", fit: native }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/crest.yml", "content" to crestMenu).has("isError"))
+        fun crest(vararg args: Pair<String, Any?>): Pair<List<Int>, List<Int>> {
+            val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/crest.yml", "draft_id" to draftId, "scale" to 1, *args)
+            assertFalse(rendered.has("isError"), rendered.toString())
+            val window = rendered["structuredContent"]["window"]
+            val picture = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+            fun rgb(x: Int, y: Int) = ((window["y"].asInt() + y) * picture.width + window["x"].asInt() + x).let { picture.data.slice(it * 4 until it * 4 + 3).map { b -> b.toInt() and 0xff } }
+            return rgb(7 + 9, 17 + 9) to rgb(7 + 3 * 18 + 27, 17 + 9)
+        }
+        val dark = listOf(0x10, 0x10, 0x10)
+        assertEquals(dark to dark, crest("theme" to "noel", "theme_draft_id" to themeDraft))
+        val wrongSize = theme("write_image", "name" to "guilds:crest", "png_base64" to png(10, 10, 0xaabbcc))
+        assertTrue(wrongSize["isError"].asBoolean() && "18x18" in wrongSize["structuredContent"]["message"].asText(), wrongSize.toString())
+        assertTrue("No module 'nowhere'" in theme("write_image", "name" to "nowhere:crest", "png_base64" to png(18, 18, 0xaabbcc))["structuredContent"]["message"].asText())
+        assertTrue("no image 'nothing'" in theme("write_image", "name" to "guilds:nothing", "png_base64" to png(18, 18, 0xaabbcc))["structuredContent"]["message"].asText())
+        assertTrue("composed image" in theme("write_image", "name" to "guilds:pair", "png_base64" to png(36, 18, 0xaabbcc))["structuredContent"]["message"].asText())
+        val redrawn = theme("write_image", "name" to "guilds:crest", "png_base64" to png(18, 18, 0xaabbcc))
+        assertFalse(redrawn.has("isError"), redrawn.toString())
+        assertEquals("overrides/guilds/crest.png", redrawn["structuredContent"]["path"].asText())
+        // The module's image and the image composed from it follow, in the theme's draft only; `artisan:<name>` is the common image.
+        val light = listOf(0xaa, 0xbb, 0xcc)
+        assertEquals(light to light, crest("theme" to "noel", "theme_draft_id" to themeDraft))
+        assertEquals(dark to dark, crest("theme" to "noel"))
+        assertEquals("overrides/artisan/cell.png", theme("write_image", "name" to "artisan:cell", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["path"].asText())
+        // Deployed, the survey lists what the theme redraws in modules.
+        modules["noel"] = McpFixtures.Module(images = mapOf("overrides/guilds/crest.png" to solid(18, 18, 0xaabbcc)), role = "theme")
+        val survey = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
+        assertEquals(listOf("guilds:crest"), survey["kit"]["themes"].first { it["name"].asText() == "noel" }["module_redraws"].map { it.asText() })
+        assertEquals(light to light, crest("theme" to "noel"))
     }
 
     @Test

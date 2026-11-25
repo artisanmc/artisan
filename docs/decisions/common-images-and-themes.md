@@ -369,6 +369,23 @@ editing a theme's colours in the editor (the assistant or the file); a theme's o
 (`assets/`, `<theme>:<name>`) in the pack; a draft of the common images that still held a
 former theme, which would write that folder back when deployed (the theme's own folder wins).
 
+**Step 4, fourth part: a theme redraws a module's image** (`moduleDrawing` in `Theme.kt` and
+`theme.ts`, both pack builders).
+`overrides/<module>/<image>.png` in a theme's folder is its drawing of the image `<image>` of
+the module whose folder is `<module>`, taken when it has that image's size and left out
+otherwise, like a redraw of a common image. The image keeps its id, its descriptor and its
+measures: a glyph stays a glyph of that height. Among the themes in place the highest that
+redraws the image wins, as drawn. No theme's colours touch a module's image, drawn by a theme
+or not: which images follow the colours is decision 7's (ramps), not built. A module's
+composed image follows the redraw of its own layers and is not redrawn itself. The vector
+locks it in both builders and both packs. The MCP tools write one (`write_image` in a draft
+of the theme, `name` as `<module>:<image>`), list them (`kit.themes[].module_redraws` in
+`survey_ui`) and draw a menu with them (`render_menu`); a theme's page lists them.
+Not in this part: `scope` (a theme of one module, whose colours touch that module: it needs
+decision 7's "follows the ramps"); the editor's canvas and a module's Resources, which show a
+module's image as the module holds it, not as a theme in place redraws it; an add-on's
+original beside a theme's redraw.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still

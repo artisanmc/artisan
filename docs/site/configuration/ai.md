@@ -239,12 +239,15 @@ overrides/artisan/window.6.png   # an image the theme draws again, at its size
 ```
 
 The assistant writes both into a draft of the theme, which you deploy like any other draft.
+A theme may also redraw a module's own image, at its size
+(`overrides/guilds/banner.png` for the image `banner` of the module `guilds`): ask for it by
+the module's name ("in the theme noel, redraw the guilds banner with snow").
 
 Every common image a menu names is then shown as the theme draws it, else in the theme's
 colours, its transparency kept; an image composed from common images follows. A drawing of
 another size than the image it replaces is left out, so the menus keep their layout. A
-module's own PNG never changes: to make an image follow the themes, compose it from common
-images.
+theme's colours never change a module's own PNG: the theme redraws it, or the image is
+composed from common images and follows them.
 A theme written before themes had their own folder (`themes/<name>/` inside the common
 images, with a `theme.yml`) moves to its own folder at the server's next start, its files put
 at the places above; it keeps its name and its place in the stack, and the pack does not
