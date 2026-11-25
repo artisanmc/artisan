@@ -10,9 +10,9 @@ import {
 } from "@/lib/pack/kit";
 import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import { kitImageUrl } from "@/lib/pack/kitUrls";
-import type { KitTheme } from "@/lib/pack/theme";
+import { type KitTheme, readKitTheme } from "@/lib/pack/theme";
 import { type KitRead, useKitStore } from "@/state/kitStore";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { parse } from "yaml";
 import { create } from "zustand";
 import { assetBytes } from "./assetBytes";
@@ -243,6 +243,45 @@ export function useKitAssets(): Asset[] {
   const composed = current ? shown.images : NONE;
   const themed = current ? shown.themed : null;
   return useMemo(() => themed ?? kitAssetsOf(read, composed), [read, composed, themed]);
+}
+
+/** The theme `name` of the published kit module `read`; `null` when it holds none of that name. */
+export const publishedKitTheme = (read: KitRead, name: string): KitTheme | null =>
+  readKitTheme(name, {
+    files: Object.entries(read.files).map(([path, content]) => ({ path, content })),
+    binaries: read.binaries,
+    binary: (path) => readPublishedBinary(read.projectId, path).catch(() => null),
+  });
+
+/**
+ * The server's kit images in the theme `name` of its kit module, whatever theme its pack is
+ * built in; `null`: in no theme. What a theme is judged on before it is put in place.
+ */
+export function useKitAssetsIn(name: string | null): Asset[] {
+  const read = useKitStore((s) => s.read);
+  const [shown, setShown] = useState<{
+    read: KitRead;
+    name: string | null;
+    assets: Asset[];
+  } | null>(null);
+  useEffect(() => {
+    if (!read) return;
+    let cancelled = false;
+    const theme = name === null ? null : publishedKitTheme(read, name);
+    void composedKitImages(read, theme)
+      .then((images) => {
+        const plain = kitAssetsOf(read, images);
+        return theme ? themedKitAssets(plain, images, theme) : plain;
+      })
+      .then((assets) => {
+        if (!cancelled) setShown({ read, name, assets });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [read, name]);
+  const plain = useMemo(() => kitAssetsOf(read), [read]);
+  return shown && shown.read === read && shown.name === name ? shown.assets : plain;
 }
 
 /** The module's assets and the kit's: what a title layer's image is looked up in. */

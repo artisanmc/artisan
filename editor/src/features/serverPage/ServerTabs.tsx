@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
  */
 export const SERVER_TABS = [
   { to: "/servers/$serverId", label: "serverDetail.tabs.overview" },
+  { to: "/servers/$serverId/kit", label: "serverDetail.tabs.kit" },
   { to: "/servers/$serverId/play", label: "serverDetail.tabs.play" },
   { to: "/servers/$serverId/assistant", label: "serverDetail.tabs.assistant" },
   { to: "/servers/$serverId/data", label: "serverDetail.tabs.data" },

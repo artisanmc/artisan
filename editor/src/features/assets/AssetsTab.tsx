@@ -18,11 +18,15 @@ import { AssetImportFontDialog } from "./AssetImportFontDialog";
 import { AssetImportNexoDialog } from "./AssetImportNexoDialog";
 import { AssetStage } from "./AssetStage";
 import { AssetUploadDialog } from "./AssetUploadDialog";
-import { ComposeNewDialog } from "./ComposeNewDialog";
-import { PixelNewDialog } from "./PixelNewDialog";
+import { ImageNewDialog } from "./ImageNewDialog";
+import { ImageStudio } from "./ImageStudio";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
+import { type ResourcesView, useResourcesView } from "./resourcesView";
+import { useKitPieceAsked } from "./useKitPieceAsked";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
+
+export { type ResourcesView, useResourcesView } from "./resourcesView";
 
 const CATEGORIES = ["all", "button", "menu", "font", "unclassified"] as const;
 
@@ -44,15 +48,6 @@ function matchesFilter(
   if (category === "unclassified") return asset.type !== "font" && usages.length === 0;
   return true;
 }
-
-/** What the Resources tab shows: the module's files (images, fonts) or its captured items. */
-export type ResourcesView = "files" | "captured";
-
-/** The tab's view, settable from elsewhere (the module home opens it on the captured items). */
-export const useResourcesView = create<{
-  view: ResourcesView;
-  setView: (view: ResourcesView) => void;
-}>((set) => ({ view: "files", setView: (view) => set({ view }) }));
 
 const DETAIL_WIDTH = 400;
 const MIN_DETAIL = 260;
@@ -155,9 +150,20 @@ export function AssetsTab({
   const captured = useProjectsStore(
     (s) => s.openProjects.projects.find((p) => p.id === projectId)?.capturedItems?.length ?? 0,
   );
-  const tabs = capturedItems ? (
+  const studio = useResourcesView((s) => s.studio);
+  const openStudio = useResourcesView((s) => s.openStudio);
+  const edited = useAssetStore((s) =>
+    studio === null
+      ? undefined
+      : s.assets.find((a) => a.projectId === projectId && a.id === studio && a.type !== "font"),
+  );
+  // The atelier belongs to the module it was opened in: another module shows its library.
+  useEffect(() => () => useResourcesView.getState().openStudio(null), []);
+  useKitPieceAsked(projectId);
+  const views: ResourcesView[] = ["files", "captured"];
+  const tabs = !capturedItems ? null : (
     <div className="flex shrink-0 gap-1 px-3 pt-3" role="tablist" data-testid="resources-views">
-      {(["files", "captured"] as const).map((entry) => (
+      {views.map((entry) => (
         <button
           key={entry}
           type="button"
@@ -173,7 +179,9 @@ export function AssetsTab({
         </button>
       ))}
     </div>
-  ) : null;
+  );
+  if (edited)
+    return <ImageStudio projectId={projectId} asset={edited} onClose={() => openStudio(null)} />;
   if (view === "captured" && capturedItems) {
     return (
       <div className="flex h-full min-h-0 flex-col">
@@ -400,10 +408,8 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
   const [uploadOpen, setUploadOpen] = useState(false);
   const [importFontOpen, setImportFontOpen] = useState(false);
   const [importNexoOpen, setImportNexoOpen] = useState(false);
-  const [composeOpen, setComposeOpen] = useState(false);
-  const [drawOpen, setDrawOpen] = useState(false);
-  /** The image just created to be drawn: its detail opens on the pixel editor. */
-  const [drawn, setDrawn] = useState<string | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+  const openStudio = useResourcesView((s) => s.openStudio);
 
   const filtered = assets.filter((asset) =>
     matchesFilter(asset, projectId, project, search, category),
@@ -412,18 +418,17 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
   const list = (
     <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => setUploadOpen(true)}>{t("resources.upload")}</Button>
+        <Button variant="primary" onClick={() => setNewOpen(true)}>
+          {t("imageNew.open")}
+        </Button>
+        <Button variant="outline" onClick={() => setUploadOpen(true)}>
+          {t("resources.upload")}
+        </Button>
         <Button variant="outline" onClick={() => setImportFontOpen(true)}>
           {t("resources.importFont")}
         </Button>
         <Button variant="outline" onClick={() => setImportNexoOpen(true)}>
           {t("resources.importNexo")}
-        </Button>
-        <Button variant="outline" onClick={() => setComposeOpen(true)}>
-          {t("compose.new")}
-        </Button>
-        <Button variant="outline" onClick={() => setDrawOpen(true)}>
-          {t("pixel.new")}
         </Button>
         <Input
           aria-label={t("resources.search")}
@@ -462,11 +467,7 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
         list={list}
         detail={
           selectedId ? (
-            <AssetDetailPanel
-              key={`${projectId}:${selectedId}`}
-              projectId={projectId}
-              retouch={selectedId === drawn}
-            />
+            <AssetDetailPanel key={`${projectId}:${selectedId}`} projectId={projectId} />
           ) : null
         }
         onBack={() => setSelectedId(null)}
@@ -487,19 +488,13 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
         open={importNexoOpen}
         onClose={() => setImportNexoOpen(false)}
       />
-      <ComposeNewDialog
+      <ImageNewDialog
         projectId={projectId}
-        open={composeOpen}
-        onClose={() => setComposeOpen(false)}
-        onCreated={(asset) => setSelectedId(asset.id)}
-      />
-      <PixelNewDialog
-        projectId={projectId}
-        open={drawOpen}
-        onClose={() => setDrawOpen(false)}
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
         onCreated={(asset) => {
-          setDrawn(asset.id);
           setSelectedId(asset.id);
+          openStudio(asset.id);
         }}
       />
     </div>

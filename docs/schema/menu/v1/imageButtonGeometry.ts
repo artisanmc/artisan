@@ -5,10 +5,17 @@ export interface ImageButtonImage {
   offset_y?: number;
 }
 
+/** A slot's stride in a menu, in Minecraft pixels: N slots side by side span N times this. */
+const SLOT_STRIDE = 18;
+
+/**
+ * The slots an image of that size covers: as many as it needs to fit, N slots spanning N × 18
+ * pixels. A 54 × 18 button takes 3 × 1, a 16 × 16 icon one slot, a 48 × 16 strip of icons 3 × 1.
+ */
 export function imageButtonSize(width: number, height: number) {
   if (![width, height].every((n) => Number.isInteger(n) && n > 0))
     throw new Error("Invalid image dimensions.");
-  return { width: Math.ceil(width / 16), height: Math.ceil(height / 16) };
+  return { width: Math.ceil(width / SLOT_STRIDE), height: Math.ceil(height / SLOT_STRIDE) };
 }
 
 /** Coordinates in Minecraft pixels, shared by the canvas and resource pack. */

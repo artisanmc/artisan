@@ -5,6 +5,7 @@ import { DraftApiError } from "@/lib/api/projectDrafts";
 import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import { createImage, decodePng, encodePng } from "@/lib/pack/png";
 import { sha256Hex } from "@/lib/sha256";
+import { useKitStore } from "@/state/kitStore";
 import { strToU8, zipSync } from "fflate";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
@@ -222,6 +223,35 @@ describe("performLocalAssetMutation", () => {
     );
     expect(badPng.code).toBe("Invalid PNG");
     expect(hub.calls.filter((call) => !call.startsWith("GET"))).toEqual([]);
+  });
+
+  it("takes a name of the kit's base in the kit module only", async () => {
+    const hub = fakeHub(empty());
+    const refused = await rejection(
+      performLocalAssetMutation(
+        "p",
+        createOp(hub, { type: "glyph", name: "button.3x1" }, png(54, 18)),
+      ),
+    );
+    expect(refused.code).toBe("Invalid name (must match [a-z0-9_-]+)");
+
+    useKitStore.setState({ read: { projectId: "p", files: {}, binaries: [] } });
+    try {
+      const result = await performLocalAssetMutation(
+        "p",
+        createOp(hub, { type: "glyph", name: "button.3x1" }, png(54, 18)),
+      );
+      expect(result.asset).toMatchObject({ id: "button.3x1", width: 54, height: 18 });
+      const other = await rejection(
+        performLocalAssetMutation(
+          "p",
+          createOp(hub, { type: "glyph", name: "my.logo" }, png(4, 4)),
+        ),
+      );
+      expect(other.status).toBe(400);
+    } finally {
+      useKitStore.setState({ read: undefined });
+    }
   });
 
   it("unpacks a font zip into one PNG per glyph plus font.yml", async () => {
@@ -522,6 +552,55 @@ describe("composed images", () => {
     );
     expect(Object.keys(removed.draft.snapshot.tree)).toEqual(["assets/glyphs/hall_copy.yml"]);
     expect(Object.keys(removed.draft.snapshot.binaryTree!)).toEqual(binaries);
+  });
+
+  it("turns a PNG into a composed image of the same name, the PNG kept as its layer", async () => {
+    const button = png(54, 18);
+    const snapshot = empty();
+    snapshot.tree["assets/glyphs/go.yml"] =
+      "ascent: 8\ncodepoint: 57344\nwidth: 54\nheight: 18\nusages: [button]\n";
+    snapshot.binaryTree = {
+      "assets/glyphs/go.png": { hash: sha256Hex(button), size: button.length },
+    };
+    snapshot.binaryBaseline = { ...snapshot.binaryTree };
+    const hub = fakeHub(snapshot, { "assets/glyphs/go.png": button });
+    // What `toLayers` asks for (imageLayers.ts): the PNG renamed, then a recipe under its name.
+    const renamed = await performLocalAssetMutation(
+      "p",
+      op(hub, {
+        suffix: "/go",
+        method: "PATCH",
+        fields: { name: "go_layer", usages: "[]" },
+      }),
+    );
+    expect(renamed.asset).toMatchObject({ id: "go_layer", width: 54, height: 18, usages: [] });
+    const made = await performLocalAssetMutation(
+      "p",
+      op(hub, {
+        suffix: "",
+        method: "POST",
+        fields: {
+          type: "glyph",
+          name: "go",
+          ascent: "8",
+          usages: '["button"]',
+          compose: JSON.stringify({
+            width: null,
+            height: null,
+            layers: [{ image: "go_layer", x: 0, y: 0, columns: 1, rows: 1 }],
+          }),
+        },
+      }),
+    );
+    expect(made.asset).toMatchObject({ id: "go", width: 54, height: 18, usages: ["button"] });
+    expect(Object.keys(made.draft.snapshot.tree).sort()).toEqual([
+      "assets/glyphs/go.yml",
+      "assets/glyphs/go_layer.yml",
+    ]);
+    expect(Object.keys(made.draft.snapshot.binaryTree!)).toEqual(["assets/glyphs/go_layer.png"]);
+    expect(parse(made.draft.snapshot.tree["assets/glyphs/go.yml"]!).compose).toEqual([
+      { image: "go_layer" },
+    ]);
   });
 
   it("creates one from a recipe, and rewrites its layers and size on a patch", async () => {

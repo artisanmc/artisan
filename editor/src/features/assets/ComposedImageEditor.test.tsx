@@ -1,6 +1,7 @@
 import type { Asset } from "@/domain/asset";
 import * as userAssetsApi from "@/lib/api/userAssets";
 import type { ComposeRecipe } from "@/lib/pack/compose";
+import { decodePng } from "@/lib/pack/png";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposedImageEditor } from "./ComposedImageEditor";
@@ -153,5 +154,43 @@ describe("ComposedImageEditor", () => {
     fireEvent.change(screen.getByLabelText("Hauteur"), { target: { value: "36" } });
     const stage = screen.getByTestId("compose-stage");
     expect([px(stage.style.width), px(stage.style.height)]).toEqual([108, 72]);
+  });
+  it("draws a layer: an empty PNG of the image's size on top, saved, then drawn among the others", async () => {
+    const uploaded = vi
+      .spyOn(userAssetsApi, "uploadAsset")
+      .mockImplementation(async (_project, input) => image(input.name, 176, 166));
+    const saved = vi
+      .spyOn(userAssetsApi, "patchAsset")
+      .mockImplementation(async (_project, _id, patch) => ({
+        ...composed,
+        compose: patch.compose as ComposeRecipe,
+      }));
+    const Shown = () => {
+      const asset = useAssetStore((s) => s.assets.find((a) => a.id === "hall")) ?? composed;
+      return <ComposedImageEditor projectId={"p1" as never} asset={asset} />;
+    };
+    render(<Shown />);
+    fireEvent.click(screen.getByRole("button", { name: "Dessiner un calque" }));
+    await waitFor(() => expect(screen.getByTestId("compose-drawing")).toBeInTheDocument());
+    expect(uploaded.mock.calls[0]?.[1]).toMatchObject({ name: "hall_layer", type: "glyph" });
+    const file = uploaded.mock.calls[0]?.[1].file as File;
+    const { width, height } = decodePng(new Uint8Array(await file.arrayBuffer()));
+    expect([width, height]).toEqual([176, 166]);
+    expect((saved.mock.calls[0]?.[2].compose as ComposeRecipe).layers.at(-1)).toEqual({
+      image: "hall_layer",
+      x: 0,
+      y: 0,
+      columns: 1,
+      rows: 1,
+    });
+  });
+
+  it("retouches a PNG layer of the module, never a kit piece", () => {
+    render(<ComposedImageEditor projectId={"p1" as never} asset={composed} />);
+    fireEvent.pointerDown(layers()[0] as HTMLElement);
+    expect(screen.queryByRole("button", { name: "Retoucher ce calque" })).toBeNull();
+    fireEvent.pointerDown(layers()[2] as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "Retoucher ce calque" }));
+    expect(screen.getByTestId("compose-drawing")).toBeInTheDocument();
   });
 });
