@@ -82,10 +82,17 @@ export function ServerConfigSection({
     };
   }, [projects]);
 
-  // The themes the pack can be built in: the folders of `themes/` in the common images' Project.
+  // The themes the pack can be built in: the server's themes of their own folder, and the folders
+  // of `themes/` its common images' Project still keeps.
   const kitId = kitProjectAmong(projects, (p) => p.externalId ?? p.id)?.id;
+  const ownThemes = projects
+    .filter((p) => p.role === "theme" && p.id !== kitId)
+    .map((p) => p.externalId ?? p.id)
+    .sort()
+    .join(",");
   useEffect(() => {
-    setThemes([]);
+    const own = ownThemes ? ownThemes.split(",") : [];
+    setThemes(own);
     if (!kitId) return;
     let cancelled = false;
     projectClient(kitId)
@@ -93,13 +100,13 @@ export function ServerConfigSection({
       .then((tree) => {
         if (cancelled || !tree.ok || tree.unchanged) return;
         const binaries = (tree.binaries ?? []).map((binary) => binary.path);
-        setThemes(themeNames(Object.keys(tree.files), binaries));
+        setThemes([...new Set([...own, ...themeNames(Object.keys(tree.files), binaries)])].sort());
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [kitId]);
+  }, [kitId, ownThemes]);
 
   if (config === undefined)
     return <p className="text-[13px] text-[var(--text-mut)]">{t("serverConfig.loading")}</p>;

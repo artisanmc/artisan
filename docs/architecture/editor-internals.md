@@ -149,9 +149,14 @@ The kit is shown in the themes in place on the server (`lib/pack/theme.ts`, ADR
 `common-images-and-themes`, decision 6): the server index loader reads the server's config into
 `state/kitStore` (`readConfig`: `themes`, the stack from `resource-pack.themes`, the lowest
 first, else the former `resource-pack.theme`; `stacks`, whether the server holds the list; the
-Configuration page and the theme's page update it on save), `kitTheme.ts` reads those themes
-from the published files of the common images' Project once per read, as one look
-(`kitThemeStack`: each theme applied to what the ones below show), `useKitAssets` gives each kit
+Configuration page and the theme's page update it on save; `own`, the published read of each
+theme that has its own folder, by name, filled by the server index from the Projects of role
+`theme` other than the common images'), `kitTheme.ts` reads those themes once per read, as one
+look (`serverTheme`: a theme's own Project, `overrides/colors.yml` and `overrides/artisan/`,
+else the folder the common images' Project keeps for that name; `serverThemeNames`: both
+places; `kitThemeStack`: each theme applied to what the ones below show). A theme's Project is
+no module: the pack assembly, the server's Resources and the Configuration page leave it out of
+the modules. `useKitAssets` gives each kit
 image as they show it (`themedKitAssets`: a `data:` URL where the picture changes, the same
 size, name and order), and a composed image is assembled over themed `kit:` layers
 (`composedView`). A module's own PNG is never recoloured, as in the pack. Putting a theme in

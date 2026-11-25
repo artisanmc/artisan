@@ -1,8 +1,17 @@
 package net.artisanmc.plugin.pack
 
 /**
- * A theme of the UI kit (`theme.ts`): the same images, under the same names and at the same
- * sizes, with other pixels. It lives in the kit module ([Kit.FOLDER]), one folder per theme:
+ * A theme (`theme.ts`): the same images, under the same names and at the same sizes, with other
+ * pixels. It is a folder of its own beside the theme `artisan`, a Project of its name (ADR
+ * `common-images-and-themes`, decision 5):
+ *
+ * ```
+ * themes/noel/overrides/colors.yml                colors: {"#3c8527": "#b3261e"}
+ * themes/noel/overrides/artisan/button.3x1.png    this common image redrawn, at its size
+ * ```
+ *
+ * A server whose Artisan is older than that keeps its themes in the common images' Project
+ * ([Kit.FOLDER]), which is read where no Project of the theme's name is:
  *
  * ```
  * themes/noel/theme.yml                         colors: {"#3c8527": "#b3261e"}
@@ -74,8 +83,20 @@ class KitTheme internal constructor(
     }
 
     companion object {
-        /** The folder of the themes, at the kit module's root. */
+        /** The folder of the themes, at the kit module's root: where a server older than a theme's own folder keeps them. */
         const val DIR = "themes"
+
+        /** In a theme's own folder, what it changes in images that exist elsewhere. */
+        const val OVERRIDES_DIR = "overrides/"
+
+        /** Its redraws of the common images, before the image's name. */
+        const val COMMON_DIR = OVERRIDES_DIR + "artisan/"
+
+        /** Its table of colours: `.yml` before `.yaml`. */
+        val COLORS_FILES = listOf(OVERRIDES_DIR + "colors.yml", OVERRIDES_DIR + "colors.yaml")
+
+        /** The path of the theme's own drawing of the common image [name]. */
+        fun drawingPath(name: String): String = "$COMMON_DIR$name.png"
 
         /** Colours a theme may replace. */
         const val MAX_COLORS = 256
@@ -102,8 +123,32 @@ class KitTheme internal constructor(
                 listOfNotNull((config?.get(FORMER_CONFIG_KEY) as? String)?.takeIf(::isName))
             }
 
-        /** The themes [names] of the kit module [kit] as one look, in that order; null when it holds none of them. */
-        fun stack(names: List<String>, kit: PackProject): ThemeStack? = ThemeStack.of(names.mapNotNull { read(it, kit) })
+        /**
+         * The themes [names] as one look, in that order: each from the Project of its name among
+         * [own] (the server's themes, by folder), else from the common images' Project [kit], where
+         * an older server keeps it. One the server does not hold is left out; null for none.
+         */
+        fun stack(names: List<String>, kit: PackProject?, own: Map<String, PackProject> = emptyMap()): ThemeStack? = ThemeStack.of(
+            names.filter(::isName).mapNotNull { name -> own[name]?.let(::own) ?: kit?.let { read(name, it) } },
+        )
+
+        /** The common images a theme of its own folder redraws among its [binaries], by name. */
+        fun ownDrawings(binaries: Collection<String>): Map<String, String> {
+            val out = LinkedHashMap<String, String>()
+            for (path in binaries.sorted()) {
+                val file = path.removePrefix(COMMON_DIR).takeIf { it.length < path.length } ?: continue
+                if ('/' in file || !file.endsWith(".png") || file.length == ".png".length) continue
+                out[file.dropLast(".png".length)] = path
+            }
+            return out
+        }
+
+        /** A theme that is its own Project: its table and its redraws of the common images. One that holds neither changes nothing. */
+        fun own(theme: PackProject): KitTheme = ownOf(theme.files.associate { it.path to it.content }, theme.binaries, theme.binary)
+
+        /** [own] of a theme given as its text [files] (path to content), the paths of its [binaries] and what reads one. */
+        fun ownOf(files: Map<String, String>, binaries: Collection<String>, binary: (String) -> ByteArray?): KitTheme =
+            KitTheme(COLORS_FILES.firstNotNullOfOrNull(files::get)?.let(::colors).orEmpty(), ownDrawings(binaries), binary)
 
         /** `0xRRGGBB` of `#rrggbb`; null for anything else. */
         fun color(text: Any?): Int? = (text as? String)?.takeIf { COLOR.matches(it) }?.substring(1)?.toInt(16)

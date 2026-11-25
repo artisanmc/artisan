@@ -10,7 +10,11 @@ object McpFixtures {
      * publication is written and loaded at once: [history] gets its Version.
      */
     /** Another module of the server, or the shop's deployed images: read each time, so a test may fill it as it goes. */
-    class Module(val files: Map<String, String> = emptyMap(), val images: Map<String, ByteArray> = emptyMap())
+    class Module(
+        val files: Map<String, String> = emptyMap(), val images: Map<String, ByteArray> = emptyMap(),
+        /** `theme`: a folder of the server's `themes/`, as its Project roots say. */
+        val role: String? = null,
+    )
 
     fun server(
         sent: MutableList<Map<String, Any?>>, history: History? = null, modules: Map<String, Module> = emptyMap(),
@@ -22,7 +26,10 @@ object McpFixtures {
         override val link = ServerLink { message ->
             sent += message
             val reply = when (message["type"]) {
-                "project_list" -> mapOf("ok" to true, "project_ids" to listOf("shop") + (modules.keys - "shop"))
+                "project_list" -> mapOf(
+                    "ok" to true, "project_ids" to listOf("shop") + (modules.keys - "shop"),
+                    "project_roots" to modules.filterValues { it.role != null }.map { (folder, module) -> mapOf("project_id" to folder, "identity" to "addon", "role" to module.role) },
+                )
                 "asset_read" -> modules[message["project_id"]]?.images?.get(message["path"])
                     ?.let { mapOf("ok" to true, "content_base64" to java.util.Base64.getEncoder().encodeToString(it)) }
                     ?: mapOf("ok" to false, "error" to "not_found")

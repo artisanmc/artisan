@@ -241,6 +241,10 @@ colours, its transparency kept; an image composed from common images follows. A 
 another size than the image it replaces is left out, so the menus keep their layout. A
 module's own PNG never changes: to make an image follow the themes, compose it from common
 images.
+A theme can also be a folder of its own beside the common images,
+`plugins/Artisan/themes/noel/`: its colours in `overrides/colors.yml`, its drawings in
+`overrides/artisan/window.6.png`. The server reads it at start, and a theme in both places is
+read from its own folder. The assistant still writes the first place.
 The server's themes in place are a stack (`resource-pack.themes` of `config.yml`, the lowest
 first): each changes what the ones below show, so the highest that redraws an image wins and
 its colours repaint what is below. Put a theme in place from its page (**Resources**, common

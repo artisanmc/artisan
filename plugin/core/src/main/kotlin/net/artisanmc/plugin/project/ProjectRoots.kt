@@ -79,6 +79,13 @@ class ProjectRoots(
     fun isTheme(projectId: String): Boolean = projectId in themeRoots
 
     /**
+     * Whether the server loads Documents from [projectId]'s folder: a module's, and the theme
+     * `artisan`'s as the module it came from. Any other theme holds none (ADR
+     * `common-images-and-themes`, decision 5): installing one adds no menu, command or Trigger.
+     */
+    fun holdsDocuments(projectId: String): Boolean = projectId !in themeRoots || projectId == ArtisanTheme.NAME
+
+    /**
      * `themes/<name>/`, registered as the Project [name]: a theme shares the modules' namespace,
      * so `<name>:<image>` names its image as it names a module's, and it travels to the hub, the
      * drafts and the Versions as a module's folder does. A folder of the same name in the modules
@@ -114,6 +121,14 @@ class ProjectRoots(
                 "[Artisan] Add-on project root '$projectId' -> ${dir.path} shadows the stale copy " +
                 "at ${shadowed.path}, which is no longer read or synced. Delete or move it away: " +
                 "if this Add-on ever fails to load, that copy becomes the live project."
+            )
+        }
+        // An Add-on's root named like a theme registered before it: the name is the module's.
+        if (projectId in themeRoots && dir.canonicalFile != File(themesRoot, projectId).canonicalFile) {
+            themeRoots.remove(projectId)
+            logger?.warning(
+                "[Artisan] The theme ${File(themesRoot, projectId).path} has the name of the module '$projectId': it is not read. " +
+                    "Rename its folder, then restart.",
             )
         }
         registered[projectId] = dir

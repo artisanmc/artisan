@@ -36,6 +36,8 @@ internal object ArtisanApiFactory {
         )
         // The theme `artisan`: the server's common images, among the Projects from the first read.
         net.artisanmc.plugin.project.ArtisanTheme.register(plugin.projectRoots, plugin.logger)
+        // The server's other themes, each folder of `themes/` a Project of its name.
+        net.artisanmc.plugin.project.ServerThemes.register(plugin.projectRoots, plugin.logger)
         plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger) { ticks, task ->
             plugin.scheduler.globalLater(ticks, task)
         }

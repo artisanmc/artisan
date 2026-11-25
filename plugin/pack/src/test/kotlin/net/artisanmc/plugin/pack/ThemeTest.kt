@@ -190,4 +190,50 @@ class ThemeTest {
         assertNull(stack("noel", "nuit")!!.drawing("x", green))
         assertNull(stack("nuit")!!.drawing("close", green))
     }
+
+    @Test
+    fun `a theme of its own folder holds its table and its redraws of the common images`() {
+        val green = Png.encode(solid(2, 2, 0x3c, 0x85, 0x27, 255))
+        val drawn = Png.encode(solid(2, 2, 9, 9, 9, 255))
+        val binaries = listOf(
+            "overrides/artisan/close.png", "overrides/artisan/deep/close.png", "overrides/artisan/.png", "overrides/artisan/notes.txt",
+            "overrides/guilds/banner.png", "overrides/close.png", "assets/textures/close.png",
+        ).associateWith { drawn }
+        assertEquals(mapOf("close" to "overrides/artisan/close.png"), KitTheme.ownDrawings(binaries.keys))
+        val theme = KitTheme.own(
+            kit(
+                mapOf(
+                    "overrides/colors.yml" to table,
+                    // `.yml` before `.yaml`; a file elsewhere is not the table.
+                    "overrides/colors.yaml" to "colors:\n  \"#3c8527\": \"#0000ff\"\n",
+                    "colors.yml" to "colors:\n  \"#3c8527\": \"#00ff00\"\n",
+                ),
+                binaries,
+            ),
+        )
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(theme.shown("x", green), 0, 0))
+        assertTrue(theme.shown("close", green) === drawn)
+        assertEquals(setOf("close"), theme.drawings)
+        // `.yaml` alone is read; a folder that holds neither changes nothing.
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(KitTheme.own(kit(mapOf("overrides/colors.yaml" to table))).shown("x", green), 0, 0))
+        assertTrue(KitTheme.own(kit(emptyMap())).shown("x", green) === green)
+    }
+
+    @Test
+    fun `a theme in place is the Project of its name, else the folder the common images keep`() {
+        val green = Png.encode(solid(2, 2, 0x3c, 0x85, 0x27, 255))
+        val common = kit(
+            mapOf(
+                "themes/noel/theme.yml" to "colors:\n  \"#3c8527\": \"#00ffff\"\n",
+                "themes/nuit/theme.yml" to "colors:\n  \"#b3261e\": \"#000000\"\n",
+            ),
+        )
+        val own = mapOf("noel" to kit(mapOf("overrides/colors.yml" to table)))
+        // `noel` is read from its own folder, `nuit` where the common images keep it.
+        assertEquals(listOf(0, 0, 0, 255), pixel(KitTheme.stack(listOf("noel", "nuit", "nowhere"), common, own)!!.shown("x", green), 0, 0))
+        // Without the common images' Project, the themes of their own folder are still read.
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(KitTheme.stack(listOf("noel", "nuit"), null, own)!!.shown("x", green), 0, 0))
+        assertNull(KitTheme.stack(listOf("nuit"), null, own))
+        assertNull(KitTheme.stack(listOf("Bad Name"), common, mapOf("Bad Name" to kit(emptyMap()))))
+    }
 }

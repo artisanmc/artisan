@@ -4,8 +4,10 @@ import { describe, expect, test } from "vitest";
 import { type RgbaImage, createImage, decodePng, encodePng } from "./png";
 import {
   configuredThemes,
+  ownThemeDrawings,
   readKitTheme,
   readKitThemes,
+  readOwnTheme,
   themeChange,
   themeColors,
   themeDrawings,
@@ -232,5 +234,58 @@ describe("kit themes", () => {
     // Colours are no drawing.
     expect(await stack("noel", "nuit")!.drawing("x", green)).toBeNull();
     expect(await stack("nuit")!.drawing("close", green)).toBeNull();
+  });
+
+  test("a theme of its own folder holds its table and its redraws of the common images", async () => {
+    const green = encodePng(solid(2, 2, 0x3c, 0x85, 0x27, 255));
+    const drawn = encodePng(solid(2, 2, 9, 9, 9, 255));
+    const binaries = {
+      "overrides/artisan/close.png": drawn,
+      "overrides/artisan/deep/close.png": drawn,
+      "overrides/artisan/.png": drawn,
+      "overrides/artisan/notes.txt": drawn,
+      "overrides/guilds/banner.png": drawn,
+      "overrides/close.png": drawn,
+      "assets/textures/close.png": drawn,
+    };
+    expect([...ownThemeDrawings(Object.keys(binaries))]).toEqual([
+      ["close", "overrides/artisan/close.png"],
+    ]);
+    const theme = readOwnTheme(
+      kit(
+        {
+          "overrides/colors.yml": table,
+          // `.yml` before `.yaml`; a file elsewhere is not the table.
+          "overrides/colors.yaml": 'colors:\n  "#3c8527": "#0000ff"\n',
+          "colors.yml": 'colors:\n  "#3c8527": "#00ff00"\n',
+        },
+        binaries,
+      ),
+    );
+    expect(pixel(await theme.shown("x", green), 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
+    expect(await theme.shown("close", green)).toBe(drawn);
+    expect([...theme.drawings]).toEqual(["close"]);
+    // `.yaml` alone is read; a folder that holds neither changes nothing.
+    const yaml = readOwnTheme(kit({ "overrides/colors.yaml": table }));
+    expect(pixel(await yaml.shown("x", green), 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
+    expect(await readOwnTheme(kit({})).shown("x", green)).toBe(green);
+  });
+
+  test("a theme in place is the Project of its name, else the folder the common images keep", async () => {
+    const green = encodePng(solid(2, 2, 0x3c, 0x85, 0x27, 255));
+    const common = kit({
+      "themes/noel/theme.yml": 'colors:\n  "#3c8527": "#00ffff"\n',
+      "themes/nuit/theme.yml": 'colors:\n  "#b3261e": "#000000"\n',
+    });
+    const own = new Map([["noel", kit({ "overrides/colors.yml": table })]]);
+    // `noel` is read from its own folder, `nuit` where the common images keep it.
+    const look = readKitThemes(["noel", "nuit", "nowhere"], common, own)!;
+    expect(pixel(await look.shown("x", green), 0, 0)).toEqual([0, 0, 0, 255]);
+    // Without the common images' Project, the themes of their own folder are still read.
+    expect(
+      pixel(await readKitThemes(["noel", "nuit"], undefined, own)!.shown("x", green), 0, 0),
+    ).toEqual([0xb3, 0x26, 0x1e, 255]);
+    expect(readKitThemes(["nuit"], undefined, own)).toBeNull();
+    expect(readKitThemes(["Bad Name"], common, new Map([["Bad Name", kit({})]]))).toBeNull();
   });
 });

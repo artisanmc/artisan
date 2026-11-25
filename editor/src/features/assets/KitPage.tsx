@@ -4,9 +4,9 @@ import type { Asset } from "@/domain/asset";
 import { AssetPreview } from "./AssetPreview";
 import { CommonImageBadge, CommonImageMisfit } from "./CommonImageState";
 import { isKitBase, useKitAssets, useKitMisfits } from "./kitAssets";
+import { serverThemeNames } from "./kitTheme";
 import { cx } from "@/lib/cx";
 import { KIT_PREFIX, KIT_SLOTS, type KitSlot, kitNameOf } from "@/lib/pack/kit";
-import { themeNames } from "@/lib/pack/theme";
 import { useKitStore } from "@/state/kitStore";
 import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -110,18 +110,14 @@ export function KitPage({
   const misfits = useKitMisfits();
   const [over, setOver] = useState<string | null>(null);
   // The themes in place first, from the lowest to the highest, then the others.
+  const own = useKitStore((s) => s.own);
   const themes = useMemo(() => {
-    const held = read
-      ? themeNames(
-          Object.keys(read.files),
-          read.binaries.map((b) => b.path),
-        )
-      : [];
+    const held = serverThemeNames(read, own);
     return [
       ...inPlace.filter((name) => held.includes(name)),
       ...held.filter((name) => !inPlace.includes(name)),
     ];
-  }, [read, inPlace]);
+  }, [read, own, inPlace]);
   const shownIn = themes.filter((name) => inPlace.includes(name));
   const themeLabel = (name: string) =>
     !shownIn.includes(name)

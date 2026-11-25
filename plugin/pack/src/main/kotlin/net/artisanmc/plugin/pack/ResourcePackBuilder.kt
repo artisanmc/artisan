@@ -15,6 +15,12 @@ class PackProject(
     val overlayImages: List<OverlayImageRequest> = emptyList(),
     /** The Project's folder, which names it on the plugin side (Bedrock menu keys, `<folder>:<name>` of an image, [ImageNames]); defaults to [id]. */
     val folder: String = id,
+    /**
+     * A folder of `themes/` (the Project roots' `role`). One other than the common images' holds
+     * no Document and no image of its own in the pack: it is read as a theme when the server has
+     * it in place ([KitTheme]).
+     */
+    val theme: Boolean = false,
 )
 
 class PackInput(
@@ -65,7 +71,11 @@ object ResourcePackBuilder {
             ?: error("vanilla texture $path missing from the jar")
 
     fun build(input: PackInput): PackResult {
-        val projects = input.projects.sortedWith { a, b -> a.id.compareTo(b.id) }
+        // The common images ([Kit]): the server's by name, and the base as the server holds it.
+        val kitFolder = Kit.folderAmong(input.projects.map { it.folder })
+        // The server's themes, each a Project of its name: read when in place, never as a module.
+        val themeProjects = input.projects.filter { it.theme && it.folder != kitFolder }.associateBy { it.folder }
+        val projects = input.projects.filterNot { it.theme && it.folder != kitFolder }.sortedWith { a, b -> a.id.compareTo(b.id) }
         val allAssets = ArrayList<AssetRow>()
         val contribs = ArrayList<Pair<String, List<Pair<String, Double>>>>()
         val glyphPngs = HashMap<String, ByteArray>()
@@ -81,7 +91,6 @@ object ResourcePackBuilder {
         val texts = ArrayList<String>()
         val titleImages = ArrayList<Pair<String, String>>()
         // The common images ([Kit]): the server's by name, and the base as the server holds it.
-        val kitFolder = Kit.folderAmong(projects.map { it.folder })
         val kitProject = projects.firstOrNull { it.folder == kitFolder }
         val kitImages = HashMap<String, ByteArray>()
         val kitBase = HashMap<String, ByteArray?>()
@@ -169,7 +178,7 @@ object ResourcePackBuilder {
         // of the module or a kit image, never another composed image, so their order does not matter.
         // The themes in place ([ThemeStack]) change the kit's PNGs, the base's and the server's: an image
         // composed with them follows, and is not themed a second time once assembled.
-        val theme = kitProject?.let { KitTheme.stack(input.themes, it) }
+        val theme = KitTheme.stack(input.themes, kitProject, themeProjects)
         val kitPng = { name: String -> kitImage(name)?.png?.let { theme?.shown(name, it) ?: it } }
         val made = composed.mapNotNull { c ->
             // In the kit module an image is a kit image under its bare name too.

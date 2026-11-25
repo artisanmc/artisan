@@ -36,14 +36,15 @@ export function KitThemePage({
   onBack: () => void;
   /** Puts the theme `name` in place on the server, above the ones that are (`put`), or takes it off. */
   onPutInPlace?: (name: string, put: boolean) => Promise<void>;
-  /** Opens the kit module, where a theme's files are. */
+  /** Opens the common images' Project, where the files of a theme it still keeps are. */
   onOpenKit?: () => void;
 }) {
   const { t } = useTranslation();
   const read = useKitStore((s) => s.read);
+  const own = useKitStore((s) => s.own);
   const stack = useKitStore((s) => s.themes);
   const inPlace = stack.includes(name);
-  const theme = useMemo(() => (read ? publishedKitTheme(read, name) : null), [read, name]);
+  const theme = useMemo(() => publishedKitTheme(read, name, own), [read, own, name]);
   const plain = useKitAssetsIn(null);
   const themed = useKitAssetsIn(name);
   const [busy, setBusy] = useState(false);
@@ -155,8 +156,10 @@ export function KitThemePage({
               )}
             </section>
             <section className="flex flex-col gap-2">
-              <p className="text-[12px] text-[var(--text-mut)]">{t("kit.theme.files", { name })}</p>
-              {onOpenKit ? (
+              <p className="text-[12px] text-[var(--text-mut)]">
+                {t(name in own ? "kit.theme.filesOwn" : "kit.theme.files", { name })}
+              </p>
+              {onOpenKit && !(name in own) ? (
                 <div>
                   <Button variant="outline" size="sm" onClick={onOpenKit}>
                     {t("kit.page.open")}

@@ -70,6 +70,10 @@ export async function buildServerPack(serverId: string): Promise<ServerPacks> {
       // The module's shipped Documents ask too, the owner's version winning.
       overlayImages: overlayImagesFromFiles(filesWithOriginals(files), kinds),
       folder: folders.get(projectId),
+      // A folder of the server's `themes/`: read as a theme, never as a module.
+      ...(list.projects?.find((p) => p.id === projectId)?.role === "theme"
+        ? { role: "theme" as const }
+        : {}),
     });
   }
 

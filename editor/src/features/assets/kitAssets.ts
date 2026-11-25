@@ -12,7 +12,7 @@ import {
 } from "@/lib/pack/kit";
 import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import { kitImageUrl } from "@/lib/pack/kitUrls";
-import { type KitTheme, type ThemeLook, readKitTheme } from "@/lib/pack/theme";
+import type { KitTheme, ThemeLook } from "@/lib/pack/theme";
 import { type KitRead, useKitStore } from "@/state/kitStore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { parse } from "yaml";
@@ -20,7 +20,7 @@ import { create } from "zustand";
 import { assetBytes } from "./assetBytes";
 import { useAssetStore } from "./assetStore";
 import { composedView, toDataUrl } from "./composedAssets";
-import { activeKitTheme } from "./kitTheme";
+import { activeKitTheme, serverTheme } from "./kitTheme";
 import { readPublishedBinary } from "./localAssets";
 
 /**
@@ -142,8 +142,9 @@ const NONE = new Map<string, OwnImage>();
 
 interface ShownKit {
   read: KitRead | undefined;
-  /** The themes `images` and `themed` were made in. */
+  /** The themes `images` and `themed` were made in, and the server's themes they were read from. */
   themes: readonly string[];
+  own: unknown;
   /** The kit module's composed images. */
   images: Map<string, OwnImage>;
   /** Every kit image in the themes, when the server has some in place. */
@@ -153,10 +154,11 @@ interface ShownKit {
 const useShownKit = create<ShownKit>(() => ({
   read: undefined,
   themes: [],
+  own: undefined,
   images: NONE,
   themed: null,
 }));
-let showing: { read: KitRead; themes: readonly string[] } | undefined;
+let showing: { read: KitRead; themes: readonly string[]; own: unknown } | undefined;
 
 /**
  * The kit images `assets` as the theme shows them (`lib/pack/theme.ts`), like the pack: the
@@ -256,11 +258,17 @@ export const isKitBase = (asset: Asset): boolean =>
 export function useKitAssets(): Asset[] {
   const read = useKitStore((s) => s.read);
   const themes = useKitStore((s) => s.themes);
+  const own = useKitStore((s) => s.own);
   const shown = useShownKit();
-  const current = shown.read === read && shown.themes === themes;
+  const current = shown.read === read && shown.themes === themes && shown.own === own;
   useEffect(() => {
-    if (!read || current || (showing?.read === read && showing.themes === themes)) return;
-    const mine = { read, themes };
+    if (
+      !read ||
+      current ||
+      (showing?.read === read && showing.themes === themes && showing.own === own)
+    )
+      return;
+    const mine = { read, themes, own };
     showing = mine;
     const inTheme = activeKitTheme(readPublishedBinary);
     void composedKitImages(read, inTheme)
@@ -269,28 +277,31 @@ export function useKitAssets(): Asset[] {
         themed: inTheme ? await themedKitAssets(kitAssetsOf(read, images), images, inTheme) : null,
       }))
       .then(({ images, themed }) => {
-        if (showing === mine) useShownKit.setState({ read, themes, images, themed });
+        if (showing === mine) useShownKit.setState({ read, themes, own, images, themed });
       });
-  }, [read, themes, current]);
+  }, [read, themes, own, current]);
   const composed = current ? shown.images : NONE;
   const themed = current ? shown.themed : null;
   return useMemo(() => themed ?? kitAssetsOf(read, composed), [read, composed, themed]);
 }
 
-/** The theme `name` of the published kit module `read`; `null` when it holds none of that name. */
-export const publishedKitTheme = (read: KitRead, name: string): KitTheme | null =>
-  readKitTheme(name, {
-    files: Object.entries(read.files).map(([path, content]) => ({ path, content })),
-    binaries: read.binaries,
-    binary: (path) => readPublishedBinary(read.projectId, path).catch(() => null),
-  });
+/**
+ * The theme `name` of the server as published: the Project of that name among `own`, else the
+ * folder its common images' Project `read` keeps; `null` when it holds none of that name.
+ */
+export const publishedKitTheme = (
+  read: KitRead | undefined,
+  name: string,
+  own: Readonly<Record<string, KitRead>> = {},
+): KitTheme | null => serverTheme(read, own, name, readPublishedBinary);
 
 /**
- * The server's kit images in the theme `name` of its kit module, whatever theme its pack is
- * built in; `null`: in no theme. What a theme is judged on before it is put in place.
+ * The server's kit images in its theme `name` alone, whatever themes its pack is built in;
+ * `null`: in no theme. What a theme is judged on before it is put in place.
  */
 export function useKitAssetsIn(name: string | null): Asset[] {
   const read = useKitStore((s) => s.read);
+  const own = useKitStore((s) => s.own);
   const [shown, setShown] = useState<{
     read: KitRead;
     name: string | null;
@@ -299,7 +310,7 @@ export function useKitAssetsIn(name: string | null): Asset[] {
   useEffect(() => {
     if (!read) return;
     let cancelled = false;
-    const theme = name === null ? null : publishedKitTheme(read, name);
+    const theme = name === null ? null : publishedKitTheme(read, name, own);
     void composedKitImages(read, theme)
       .then((images) => {
         const plain = kitAssetsOf(read, images);
@@ -311,7 +322,7 @@ export function useKitAssetsIn(name: string | null): Asset[] {
     return () => {
       cancelled = true;
     };
-  }, [read, name]);
+  }, [read, own, name]);
   const plain = useMemo(() => kitAssetsOf(read), [read]);
   return shown && shown.read === read && shown.name === name ? shown.assets : plain;
 }

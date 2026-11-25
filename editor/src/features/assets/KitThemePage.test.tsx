@@ -17,6 +17,7 @@ describe("KitThemePage", () => {
         binaries: [{ path: "themes/noel/assets/textures/close.1x1.png", hash: "h" }],
       },
       themes: [],
+      own: {},
     });
   });
 
@@ -51,6 +52,27 @@ describe("KitThemePage", () => {
     render(<KitThemePage name="paques" onBack={() => {}} onPutInPlace={onPutInPlace} />);
     expect(screen.getByText(/n'a pas de thème « paques »/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mettre en place sur le serveur" })).toBeNull();
+  });
+
+  it("shows a theme of its own folder from the Project of its name", () => {
+    useKitStore.setState({
+      own: {
+        printemps: {
+          projectId: "srv.printemps",
+          files: { "overrides/colors.yml": 'colors: {"#3c8527": "#ffb7c5"}\n' },
+          binaries: [{ path: "overrides/artisan/close.1x1.png", hash: "h" }],
+        },
+      },
+    });
+    const onOpenKit = vi.fn();
+    render(<KitThemePage name="printemps" onBack={() => {}} onOpenKit={onOpenKit} />);
+    expect(within(screen.getByTestId("kit-theme-colors")).getByText("#ffb7c5")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
+    ).toBeInTheDocument();
+    // Its files are its own folder's, not the common images'.
+    expect(screen.getByText(/themes\/printemps\/ : overrides\/colors.yml/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ouvrir les images du serveur" })).toBeNull();
   });
 
   it("tells the order of the themes in place when there are several", () => {
