@@ -1,6 +1,12 @@
 import type { Asset } from "@/domain/asset";
 import { API_URL } from "@/lib/api/client";
 import { assetDiskPath } from "@/lib/pack/assetDiskWrite";
+import {
+  type ImageFunction,
+  type PixelSize,
+  imagesOverOriginals,
+  refusedImages,
+} from "@/lib/pack/imageFunction";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useMemo } from "react";
@@ -62,4 +68,78 @@ export function useImageStanding(
 /** The published file of a module's original: the server writes it, a draft never holds another. */
 export function originalImageUrl(projectId: string, original: { path: string; hash: string }) {
   return `${API_URL}/api/v1/projects/${encodeURIComponent(projectId)}/binary?path=${encodeURIComponent(original.path)}&h=${original.hash}`;
+}
+
+/** The measures a function fixes, as a descriptor states them. */
+export interface StatedMeasures {
+  width: number;
+  height: number;
+  ascent: number | null;
+}
+
+/** The owner's image that is not taken, with its measures and those of the original it stands over. */
+export interface ImageNotTaken {
+  function: ImageFunction;
+  mine: StatedMeasures;
+  original: StatedMeasures;
+}
+
+const stated = (meta: Record<string, unknown>): StatedMeasures => {
+  const num = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+  const ascent = meta.ascent;
+  return {
+    width: num(meta.width),
+    height: num(meta.height),
+    ascent: typeof ascent === "number" && Number.isFinite(ascent) ? ascent : null,
+  };
+};
+
+/**
+ * Whether the owner's image `asset` is left out of the pack: it stands over an original that
+ * declares a function, at other measures (`imageFunction.ts`). The pack measures a menu or HUD
+ * image by its pixels; here by what its descriptor states, an image that states no size being
+ * taken as fitting.
+ */
+export function imageNotTaken(
+  files: Record<string, string>,
+  binaries: BinaryTree,
+  asset: Pick<Asset, "id" | "type">,
+): ImageNotTaken | null {
+  if (asset.type === "font") return null;
+  const stem = assetDiskPath(asset.type, asset.id).replace(/\.png$/, "");
+  const fileList = Object.entries(files).map(([path, content]) => ({ path, content }));
+  const binaryList = Object.keys(binaries).map((path) => ({ path }));
+  const over = imagesOverOriginals(fileList, binaryList).find((image) => image.stem === stem);
+  if (!over) return null;
+  const size = (meta: Record<string, unknown>): PixelSize | null => {
+    const { width, height } = stated(meta);
+    return width > 0 && height > 0 ? { width, height } : null;
+  };
+  const sizeOf = (path: string) =>
+    path === over.original
+      ? size(over.originalMeta)
+      : path === over.path
+        ? (size(over.meta) ?? size(over.originalMeta))
+        : null;
+  if (!refusedImages(fileList, binaryList, sizeOf).some((image) => image.stem === stem))
+    return null;
+  return { function: over.function, mine: stated(over.meta), original: stated(over.originalMeta) };
+}
+
+/** [imageNotTaken] of an image of the open module, as its draft holds it, else as published. */
+export function useImageNotTaken(
+  projectId: string,
+  asset: Pick<Asset, "id" | "type"> | null,
+): ImageNotTaken | null {
+  const draft = useProjectDraftStore((s) => s.drafts[projectId]);
+  const publishedFiles = useProjectBaselineStore((s) => s.baselines[projectId]);
+  const publishedBinaries = useProjectBaselineStore((s) => s.binaryBaselines[projectId]);
+  const files = draft?.tree ?? publishedFiles;
+  const binaries = draft?.binaryTree ?? draft?.binaryBaseline ?? publishedBinaries;
+  const id = asset?.id;
+  const type = asset?.type;
+  return useMemo(
+    () => (files && binaries && id && type ? imageNotTaken(files, binaries, { id, type }) : null),
+    [files, binaries, id, type],
+  );
 }

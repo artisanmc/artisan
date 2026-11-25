@@ -1,5 +1,6 @@
 import { localAssetPreviewUrl } from "@/features/assets/localAssetUrl";
 import type { ComposeRecipe } from "@/lib/pack/compose";
+import type { ImageFunction } from "@/lib/pack/imageFunction";
 
 export type AssetType = "texture" | "glyph" | "font";
 export type AssetId = string;
@@ -30,6 +31,8 @@ export interface FontMeta {
 export interface Asset {
   /** Legacy classifications may remain in cached drafts until their next save. */
   usages?: (AssetUsage | LegacyAssetUsage)[];
+  /** What the image is for, which fixes its measures (`lib/pack/imageFunction.ts`); absent for none. */
+  function?: ImageFunction;
   draftId?: string;
   id: AssetId;
   projectId: string;

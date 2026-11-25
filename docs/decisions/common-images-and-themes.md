@@ -263,6 +263,22 @@ builders; `ImageRefs.kt` did not change).
   the piece's, on the common images' page, in the Resources lists, and on the image itself in
   the common images' Project.
 
+**Step 3, second part: an image states its function** (`imageFunction.ts`, `ImageFunctions` in
+`Assets.kt`).
+
+- `function: menu | glyph | hud` in an image's descriptor; anything else, or no key, is none.
+  The measures it fixes: the pixel size for `menu` and `hud`, the descriptor's `height` and
+  `ascent` for `glyph`.
+- Both pack builders apply one rule to a module's images: the owner's image of the name of an
+  original (`originals/…`) that declares a function is taken at the original's measures only.
+  Otherwise it is left out with its descriptor, and the original shows with its own. The
+  function that counts is the original's: an original without one is replaced at any size, so
+  no pack changes until a module declares a function. One case of the shared vector locks it.
+- The editor keeps the key on every write of a descriptor, sets it from the image's advanced
+  fields, and reports the owner's version that is not taken on the image, with both
+  measures. It measures a menu or HUD image by the size its descriptor states (an image that
+  states none is taken as fitting), the pack by the PNG.
+
 **Step 5, first part: the original beside a redrawn piece** (`CommonImageState.tsx`).
 
 - A piece of the base the server drew its own version of shows Artisan's original beside it:
@@ -312,11 +328,13 @@ Not there yet:
   list does not mark which images are the owner's versions (step 5). An image cannot be moved
   or copied to another scope from the server's list. Themes have no screen of their own yet:
   they are reached from the common images' page.
-- Against decision 4: an image does not declare its function yet. Only the base's pieces
-  have fixed measures (their pixel size, from Artisan's own list); a module's image that
-  replaces its original (`originals/`) at other measures is still taken, and nothing is said
-  of a glyph's height and ascent or of a HUD image. The editor reads a redrawn piece's size
-  from its descriptor, the pack from the PNG.
+- Against decision 4: the base's pieces take their measures from Artisan's own list, not from
+  a declared function, and the slots a name ends with (`3x1`) are not read from the function.
+  The MCP tools do not apply the rule: `render_menu` shows the owner's image where the pack
+  shows the original, and `write_image` does not say that what it wrote is not taken. A
+  composed image over an original is not measured. The module's list does not mark an image
+  that is not taken: only its panel does. The editor reads a size from the descriptor, the
+  pack from the PNG.
 - Against decision 8: the original an owner's image was made against is recorded at the first
   originals sync that sees the image, not when it is deployed, so an original that changes
   in between is not flagged. A menu keeps what module originals already gave it (compare with

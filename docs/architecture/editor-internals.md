@@ -129,7 +129,13 @@ both: both, `AssetDetailPanel` draws the module's file beside the owner's (`Orig
 its delete is "Restore the original"; the module's alone, the panel offers nothing that would
 write (the owner holds no file) but the atelier, whose save (`retouch`) writes the owner's
 version beside the original with the original's codepoint, ascent, size and uses
-(`DraftOverlay.shipped`, `localAssets.ts`).
+(`DraftOverlay.shipped`, `localAssets.ts`). An image's `function` (`lib/pack/imageFunction.ts`:
+`menu`, `glyph`, `hud`, or none) is a key of its descriptor, read into `Asset.function`, kept
+by every write of the descriptor (`descriptorYaml`) and set from the panel's advanced fields
+(`patchAsset`'s `function`, `""` to clear). `refusedImages` is the rule both pack builders
+apply: the owner's image of an original that declares a function is left out at other
+measures. `imageNotTaken` (`imageStanding.ts`) applies it to the open module from what the
+descriptors state, and `AssetDetailPanel` reports it on the image.
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)

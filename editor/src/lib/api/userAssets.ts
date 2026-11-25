@@ -12,6 +12,7 @@ import {
 } from "@/features/project/persistedDrafts";
 import { ApiError, apiFetch, apiRequest, apiUrl } from "@/lib/api/client";
 import type { ComposeRecipe } from "@/lib/pack/compose";
+import type { ImageFunction } from "@/lib/pack/imageFunction";
 import { watchProjectPrincipal } from "@/lib/projectPrincipal";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import type { PersistedDraft } from "./projectDrafts";
@@ -168,6 +169,8 @@ export async function patchAsset(
     ascent?: number;
     height?: number;
     usages?: AssetUsage[];
+    /** What the image is for (`imageFunction.ts`); `""` clears it. */
+    function?: ImageFunction | "";
     /** A composed image's new recipe. */
     compose?: ComposeRecipe;
   },

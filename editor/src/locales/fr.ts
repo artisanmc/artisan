@@ -27,6 +27,18 @@ const fr: typeof en = {
       asShippedCommon:
         "Celle d'Artisan, telle que livrée. La modifier dans l'atelier en fait la version de ce serveur, montrée à sa place.",
     },
+    function: {
+      label: "Fonction",
+      none: "Aucune",
+      menu: "Image de menu (sa taille en pixels est fixée)",
+      glyph: "Glyphe (sa hauteur et son ascent sont fixés)",
+      hud: "Image de HUD (sa taille en pixels est fixée)",
+      hint: "Une image qui remplace celle-ci à d'autres mesures n'est pas prise : celle-ci reste montrée.",
+      notTaken:
+        "Non prise : cette image fait {{width}} × {{height}} px, l'original {{originalWidth}} × {{originalHeight}} px. L'original reste montré tant que cette image n'a pas sa taille.",
+      notTakenGlyph:
+        "Non prise : ce glyphe a une hauteur de {{height}} et un ascent de {{ascent}}, l'original une hauteur de {{originalHeight}} et un ascent de {{originalAscent}}. L'original reste montré tant qu'ils diffèrent.",
+    },
     originalChanged: {
       title: "L'original a changé depuis ta version.",
       hint: "Les menus continuent de montrer la tienne. Garde-la telle quelle, ou restaure l'original pour repartir du nouveau.",

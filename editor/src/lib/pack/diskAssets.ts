@@ -4,6 +4,7 @@ import { sha256Hex } from "../sha256";
 import { parseAssetUsages } from "./assetUsages";
 import { type ComposeRecipe, composeRecipe } from "./compose";
 import { FONT_DIR, FONT_STEM, fontFromDisk } from "./fontOnDisk";
+import { type PixelSize, imageFunctionOf, refusedImages } from "./imageFunction";
 import type { AssetRow } from "./resourcePackBuilder";
 import { shippedView } from "./shippedView";
 
@@ -65,14 +66,32 @@ export function diskAssetsFromTree(
    * The pack's read: the module's assets (`originals/assets/…`) too, the owner's file winning
    * name for name. A returned `path` stays the file's real one, to read its bytes.
    */
-  options: { originals?: boolean } = {},
+  options: {
+    originals?: boolean;
+    /**
+     * The pixel size of a file, for the pack: with it, the owner's image of an original that
+     * declares a function is left out at other measures (`imageFunction.ts`), the original showing.
+     */
+    sizeOf?: (path: string) => PixelSize | null;
+  } = {},
 ): DiskAsset[] {
+  // The owner's images that are not taken go, descriptor included: the original's show.
+  const refused = options.originals ? refusedImages(ownFiles, ownBinaries, options.sizeOf) : [];
+  const leftOut = new Set(refused.map((image) => image.path));
+  const leftOutStems = new Set(refused.map((image) => image.stem));
+  const keptFiles = leftOut.size
+    ? ownFiles.filter((f) => {
+        const stem = f.path.startsWith("originals/") ? null : yamlStem(f.path);
+        return stem === null || !leftOutStems.has(stem);
+      })
+    : ownFiles;
+  const keptBinaries = leftOut.size ? ownBinaries.filter((b) => !leftOut.has(b.path)) : ownBinaries;
   const files = options.originals
-    ? shippedView(ownFiles).map(({ entry, at }) => ({ ...entry, path: at, real: entry.path }))
-    : ownFiles.map((f) => ({ ...f, real: f.path }));
+    ? shippedView(keptFiles).map(({ entry, at }) => ({ ...entry, path: at, real: entry.path }))
+    : keptFiles.map((f) => ({ ...f, real: f.path }));
   const binaries = options.originals
-    ? shippedView(ownBinaries).map(({ entry, at }) => ({ ...entry, path: at, real: entry.path }))
-    : ownBinaries.map((b) => ({ ...b, real: b.path }));
+    ? shippedView(keptBinaries).map(({ entry, at }) => ({ ...entry, path: at, real: entry.path }))
+    : keptBinaries.map((b) => ({ ...b, real: b.path }));
   const descriptors = new Map<string, Record<string, unknown>>();
   const descriptorFiles = new Map<string, { real: string; content: string }>();
   for (const f of files) {
@@ -140,6 +159,7 @@ export function diskAssetsFromTree(
         type,
         name: nameOf(bin.path),
         usages: parseAssetUsages(meta.usages),
+        ...(imageFunctionOf(meta) ? { function: imageFunctionOf(meta)! } : {}),
         width: num(meta.width, 0) ?? 0,
         height: num(meta.height, 0) ?? 0,
         ascent: num(meta.ascent, null),
@@ -173,6 +193,7 @@ export function diskAssetsFromTree(
         type,
         name,
         usages: parseAssetUsages(meta.usages),
+        ...(imageFunctionOf(meta) ? { function: imageFunctionOf(meta)! } : {}),
         width: num(meta.width, 0) ?? 0,
         height: num(meta.height, 0) ?? 0,
         ascent: num(meta.ascent, null),

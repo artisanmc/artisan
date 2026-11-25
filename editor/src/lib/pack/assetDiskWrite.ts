@@ -3,6 +3,7 @@ import { parse, stringify } from "yaml";
 import type { AssetUsage } from "./assetUsages";
 import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
 import type { DiskAsset } from "./diskAssets";
+import type { ImageFunction } from "./imageFunction";
 import { kitSlot } from "./kit";
 
 /** Pure asset descriptors and discovery types; ProjectAssets owns storage operations. */
@@ -34,6 +35,8 @@ export function assetDiskPath(type: string, name: string): string {
 
 export interface DiskAssetDescriptor {
   usages?: AssetUsage[];
+  /** What the image is for (`imageFunction.ts`); absent or null for none. */
+  function?: ImageFunction | null;
   ascent?: number | null;
   codepoint?: number | null;
   width?: number;
@@ -50,6 +53,7 @@ export function descriptorYaml(d: DiskAssetDescriptor): string {
   if (d.content_width !== null && d.content_width !== undefined)
     out.content_width = d.content_width;
   if (d.usages !== undefined) out.usages = d.usages;
+  if (d.function) out.function = d.function;
   return stringify(out);
 }
 

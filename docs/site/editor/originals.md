@@ -48,6 +48,11 @@ An image a module ships shows in the module's **Resources** like yours. Select i
   since your version**: **Keep mine** clears the notice, **Restore the original** gives the
   image back to the module.
 
+A module may fix the measures of an image it ships (its pixel size for a menu or HUD image, its
+height and ascent for a glyph), so that its menus keep their layout. Your version of such an
+image is taken at those measures only: at others the module's original keeps showing, in the
+editor and in the game, and the image says **Not taken** with both measures.
+
 ## Removing a shipped document
 
 Delete a shipped example and Artisan remembers it in the module file, so it does not come back

@@ -232,6 +232,17 @@ files existed.
 Copying files from your jar's resources is the simplest way to ship them; the
 [worked example](../example/) does exactly that.
 
+An image you ship may state what it is for in its descriptor, which fixes its measures:
+
+```yaml
+# assets/textures/panel.yml
+function: menu   # menu or hud: the pixel size; glyph: height and ascent
+```
+
+A server's own version of that image is then taken at those measures only: at others yours
+keeps showing, so a menu or a HUD laid out against it does not break. Without `function`, a
+server's version replaces yours at any size.
+
 ## Migrate your own YAML
 
 If your plugin reads its own versioned YAML documents (with a `schema:` key
