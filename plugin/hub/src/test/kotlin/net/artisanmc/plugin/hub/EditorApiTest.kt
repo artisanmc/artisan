@@ -291,6 +291,14 @@ class EditorApiTest {
         assertEquals(404, call("POST", "/api/v1/servers/nope/projects", mapOf("name" to "shop")).first)
         assertEquals(422, call("POST", "/api/v1/servers/u-local/projects", emptyMap<String, Any>()).first)
 
+        // With the role `theme`: a theme's folder, which the server lists apart from the modules.
+        val (themed, theme) = call("POST", "/api/v1/servers/u-local/projects", mapOf("name" to "noel", "role" to "theme"))
+        assertEquals(201, themed)
+        assertEquals("u-local.noel", theme!!["project"]["id"].asText())
+        assertEquals("theme", theme["project"]["role"].asText())
+        assertEquals(mapOf("type" to "project_create", "project_id" to "noel", "role" to "theme"), sent.last())
+        assertEquals(422, call("POST", "/api/v1/servers/u-local/projects", mapOf("name" to "noel", "role" to "config")).first)
+
         val (renamed, identity) = call("POST", "/api/v1/projects/u-local.shop/rename", mapOf("operationId" to "op1", "targetId" to "store"))
         assertEquals(200, renamed)
         assertEquals("u-local.store", identity!!["projectId"].asText())

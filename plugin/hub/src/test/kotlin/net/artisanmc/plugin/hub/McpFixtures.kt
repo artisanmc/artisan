@@ -20,7 +20,10 @@ object McpFixtures {
         sent: MutableList<Map<String, Any?>>, history: History? = null, modules: Map<String, Module> = emptyMap(),
         /** The server's `config.yml` as its plugin reports it, read each time. */
         config: Map<String, Any?> = emptyMap(),
+        /** The protocol the server's plugin speaks, read each time: an older one keeps its themes in its common images. */
+        protocol: () -> String = { net.artisanmc.plugin.protocol.ProtocolVersion.CURRENT },
     ): EditorServer = object : EditorServer {
+        override val protocolVersion get() = protocol()
         override val id = "u-local"
         override val online = true
         override val link = ServerLink { message ->
@@ -33,7 +36,8 @@ object McpFixtures {
                 "asset_read" -> modules[message["project_id"]]?.images?.get(message["path"])
                     ?.let { mapOf("ok" to true, "content_base64" to java.util.Base64.getEncoder().encodeToString(it)) }
                     ?: mapOf("ok" to false, "error" to "not_found")
-                "project_create" -> if (message["project_id"] == "shop") mapOf("ok" to false, "error" to "project_exists") else mapOf("ok" to true)
+                "project_create" ->
+                    if (message["project_id"] == "shop" || message["project_id"] in modules.keys) mapOf("ok" to false, "error" to "project_exists") else mapOf("ok" to true)
                 "project_read" -> mapOf(
                     "ok" to true, "hash" to "h1",
                     "files" to (

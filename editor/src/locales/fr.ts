@@ -274,6 +274,26 @@ const fr: typeof en = {
       usedBy_other: "{{count}} menus la nomment",
       unused: "Aucun menu ne la nomme",
     },
+    newTheme: {
+      open: "Nouveau thème",
+      title: "Nouveau thème",
+      intro:
+        "Un thème donne un autre aspect aux images communes, pour une saison ou un événement, sans toucher aux menus. Il est créé vide : il ne change rien tant qu'il n'a ni couleurs ni images redessinées, et tant qu'il n'est pas mis en place.",
+      name: "Nom du thème",
+      placeholder: "noel",
+      errors: {
+        invalid_name:
+          "Minuscules, chiffres, « _ » et « - », en commençant par une lettre ou un chiffre. « artisan » est le nom des images communes.",
+        project_exists: "Un thème ou un module porte déjà ce nom sur ce serveur.",
+        server_offline: "Le serveur est hors ligne. Connecte-le pour créer le thème.",
+        fetch_timeout:
+          "Le serveur n'a pas répondu à temps. Vérifie la liste des thèmes avant de réessayer.",
+        forbidden: "Tu n'as pas le droit de créer un thème sur ce serveur.",
+        plugin_update_required:
+          "Ce serveur utilise une version plus ancienne d'Artisan. Mets son plugin à jour pour créer des thèmes.",
+        create_failed: "Impossible de créer le thème sur le serveur. Réessaie.",
+      },
+    },
     theme: {
       failed: "Ça n'a pas marché : {{detail}}",
       back: "‹ Images communes",

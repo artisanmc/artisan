@@ -10,10 +10,12 @@ import java.util.concurrent.Executor
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ProjectFolderRequestsTest {
-    private val coreRoot = Files.createTempDirectory("artisan-folder-requests").toFile()
+    private val data = Files.createTempDirectory("artisan-folder-requests").toFile()
+    private val coreRoot = File(data, "modules").apply { mkdirs() }
     private val sent = mutableListOf<Map<String, Any?>>()
     private var reloads = 0
     private val reloaded = mutableListOf<Set<String>?>()
@@ -28,7 +30,7 @@ class ProjectFolderRequestsTest {
     private val writes = ProjectWrites(workspace, Replies(workspace.io, { sent += it }, null), { sent += it }, null)
     private val mapper = ObjectMapper()
 
-    @AfterTest fun teardown() { coreRoot.deleteRecursively() }
+    @AfterTest fun teardown() { data.deleteRecursively() }
 
     private fun dispatch(json: String): Map<String, Any?> {
         when (val request = EditorRequest.parse(mapper.readTree(json))) {
@@ -55,6 +57,19 @@ class ProjectFolderRequestsTest {
         assertEquals(3, reloads)
         val expected: List<Set<String>?> = listOf(setOf("shop"), setOf("shop", "store"), setOf("store"))
         assertEquals(expected, reloaded, "each operation reloads its folders only")
+    }
+
+    @Test fun `create with the role theme makes a theme's folder, beside the modules`() {
+        val created = dispatch("""{"type":"project_create","request_id":"r1","project_id":"noel","role":"theme"}""")
+        assertEquals(mapOf("type" to "project_create_result", "request_id" to "r1", "ok" to true), created)
+        assertTrue(File(coreRoot.parentFile, "themes/noel").isDirectory)
+        assertFalse(File(coreRoot, "noel").exists())
+        assertTrue(workspace.roots.isTheme("noel"))
+        assertEquals(listOf<Set<String>?>(setOf("noel")), reloaded)
+        assertEquals("project_exists", dispatch("""{"type":"project_create","request_id":"r2","project_id":"noel","role":"theme"}""")["error"])
+        assertEquals("project_exists", dispatch("""{"type":"project_create","request_id":"r3","project_id":"noel"}""")["error"])
+        assertEquals("invalid_name", dispatch("""{"type":"project_create","request_id":"r4","project_id":"Noel","role":"theme"}""")["error"])
+        assertEquals("invalid_input", dispatch("""{"type":"project_create","request_id":"r5","project_id":"x","role":"config"}""")["error"])
     }
 
     @Test fun `a publication names its author before the reload`() {

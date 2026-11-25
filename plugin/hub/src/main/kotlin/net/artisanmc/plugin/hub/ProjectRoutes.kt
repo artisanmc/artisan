@@ -12,6 +12,7 @@ import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.speaksTemplates
 import net.artisanmc.plugin.project.ProjectListing
 import net.artisanmc.plugin.project.ProjectRootInfo
+import net.artisanmc.plugin.project.ServerThemes
 import net.artisanmc.plugin.protocol.ProtocolVersion
 import java.util.Base64
 import java.util.UUID
@@ -150,12 +151,21 @@ class ProjectRoutes(
     private fun lifecycle(router: Router) {
         router.on("POST", "$SERVER/projects", PUBLISH) { call ->
             val server = servers.of(call) ?: return@on call.error(404, "not_found")
-            val name = call.body()?.get("name")?.takeIf { it.isTextual }?.asText()?.trim()
+            val body = call.body()
+            val name = body?.get("name")?.takeIf { it.isTextual }?.asText()?.trim()
             if (name.isNullOrEmpty()) return@on call.error(422, "invalid_input")
+            // `role: "theme"`: a theme's folder beside the modules (ADR `common-images-and-themes`, decision 5).
+            val role = body.get("role")?.takeIf { !it.isNull }?.let { if (it.isTextual) it.asText() else "" }
+            if (role != null && role != ServerThemes.ROLE) return@on call.error(422, "invalid_input")
             if (!speaksFolders(call, server)) return@on
-            relay.send(call, server, mapOf("type" to "project_create", "project_id" to name)) { reply ->
+            // An older leaf would ignore the role and create a module of that name.
+            if (role != null && ProtocolVersion.minor(server.protocolVersion) < ProtocolVersion.THEME_FOLDERS)
+                return@on call.error(501, "plugin_update_required")
+            val message = mapOf("type" to "project_create", "project_id" to name) + (if (role != null) mapOf("role" to role) else emptyMap())
+            relay.send(call, server, message) { reply ->
                 if (!ok(reply)) return@send folderError(call, reply)
-                call.json(mapOf("project" to summary(server, ProjectRootInfo(name, identity = "folder"))), 201)
+                val root = if (role != null) ProjectRootInfo(name, identity = "addon", role = role) else ProjectRootInfo(name, identity = "folder")
+                call.json(mapOf("project" to summary(server, root)), 201)
             }
         }
         onProject(router, "DELETE", "/api/v1/user/projects/:project", PUBLISH) { call, project ->

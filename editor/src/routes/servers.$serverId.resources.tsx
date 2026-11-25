@@ -1,5 +1,6 @@
 import { KitPage } from "@/features/assets/KitPage";
 import { KitThemePage } from "@/features/assets/KitThemePage";
+import { NewThemeDialog } from "@/features/assets/NewThemeDialog";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useResourcesView } from "@/features/assets/resourcesView";
 import {
@@ -18,6 +19,7 @@ import { isThemeName, themeChange } from "@/lib/pack/theme";
 import { projectDestination } from "@/lib/projectNavigation";
 import { useKitStore } from "@/state/kitStore";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/servers/$serverId/resources")({
@@ -43,7 +45,9 @@ function ServerResourcesTab() {
   const { t } = useTranslation();
   const { theme, show } = Route.useSearch();
   // The server index reads the modules, the theme and the menus that name the images.
-  useServerIndexLoader(serverId, serverKeyId !== null);
+  // A theme created here is read with the server's Projects again.
+  const [rereads, setRereads] = useState(0);
+  useServerIndexLoader(serverId, serverKeyId !== null, rereads);
   const uses = useImageUses();
   const read = useKitStore((s) => s.read);
   const kitId = read?.projectId;
@@ -111,6 +115,20 @@ function ServerResourcesTab() {
           usesOf={(name) => uses.get(commonImageKey(name))?.length ?? 0}
           onPiece={openCommon}
           onOpenKit={kitId ? () => void openModule(kitId) : undefined}
+          newTheme={
+            kitId
+              ? (themes) => (
+                  <NewThemeDialog
+                    serverKeyId={serverKeyId}
+                    taken={themes}
+                    onCreated={(name) => {
+                      setRereads((count) => count + 1);
+                      void showScope(SERVER_COMMON, name);
+                    }}
+                  />
+                )
+              : undefined
+          }
         />
       }
     />

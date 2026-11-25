@@ -7,6 +7,7 @@ import net.artisanmc.plugin.project.DraftPublication
 import net.artisanmc.plugin.project.ProjectFolders
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import net.artisanmc.plugin.project.ProjectPublisher
+import net.artisanmc.plugin.project.ServerThemes
 import net.artisanmc.plugin.protocol.EditorRequest.ConfigWrite
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectCreate
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectDelete
@@ -174,8 +175,15 @@ class ProjectWrites(
         }
     }
 
+    /** A module's folder, or with `role: "theme"` a theme's ([ServerThemes.create]); any other role is refused. */
     fun create(request: ProjectCreate) =
-        folder(request, "project_create", touched = setOf(request.projectId)) { it.create(request.projectId) }
+        folder(request, "project_create", touched = setOf(request.projectId)) {
+            when (request.role) {
+                null -> it.create(request.projectId)
+                ServerThemes.ROLE -> ServerThemes.create(roots, request.projectId)
+                else -> "invalid_input"
+            }
+        }
 
     fun delete(request: ProjectDelete) =
         folder(request, "project_delete", request.projectId, setOf(request.projectId)) { it.delete(request.projectId) }

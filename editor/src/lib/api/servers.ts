@@ -49,9 +49,17 @@ export async function listServers(): Promise<ServerSummary[]> {
   return servers;
 }
 
-/** Creates a Project folder on a server's disk. Rejects with an `ApiError` carrying the hub's code. */
-export async function createProject(serverId: string, name: string): Promise<ProjectSummary> {
+/**
+ * Creates a Project folder on a server's disk: a module's, or with `role: "theme"` a theme's,
+ * beside the modules (ADR `common-images-and-themes`, decision 5). Rejects with an `ApiError`
+ * carrying the hub's code.
+ */
+export async function createProject(
+  serverId: string,
+  name: string,
+  role?: "theme",
+): Promise<ProjectSummary> {
   const path = `/api/v1/servers/${encodeURIComponent(serverId)}/projects`;
-  return (await apiFetch<{ project: ProjectSummary }>(path, { method: "POST", json: { name } }))
-    .project;
+  const json = role ? { name, role } : { name };
+  return (await apiFetch<{ project: ProjectSummary }>(path, { method: "POST", json })).project;
 }

@@ -30,7 +30,8 @@ class McpTest {
     private val history = McpFixtures.History()
     private val modules = java.util.concurrent.ConcurrentHashMap<String, McpFixtures.Module>()
     private val config = java.util.concurrent.ConcurrentHashMap<String, Any?>()
-    private val server = McpFixtures.server(sent, history, modules, config)
+    private var protocol = net.artisanmc.plugin.protocol.ProtocolVersion.CURRENT
+    private val server = McpFixtures.server(sent, history, modules, config) { protocol }
 
     /** The image model generate_image calls: it records what it was asked and answers one picture, or fails. */
     private class ScriptedImages : ImageModel {
@@ -438,6 +439,8 @@ class McpTest {
         val navy = listOf(0x11, 0x22, 0x33)
         val table = "colors:\n  \"#%02x%02x%02x\": \"#b3261e\"\n".format(button[0], button[1], button[2])
         modules["artisan"] = McpFixtures.Module()
+        // A server older than themes of their own folder: its themes are written in its common images.
+        protocol = "1.10"
         val (access, _) = tokens()
         val kitDraft = tool(access, "start_draft", "project" to "u-local.artisan", "name" to "AI: noel")["structuredContent"]["draft_id"].asText()
         val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: themed")["structuredContent"]["draft_id"].asText()
@@ -550,6 +553,97 @@ class McpTest {
         config["resource-pack.theme"] = "gone"
         assertEquals(plain, shown(render()))
         assertFalse(tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"].has("in_place"))
+    }
+
+    @Test
+    fun `a theme is created as a Project of its own, written in its draft, and a menu is rendered in that draft`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        fun png(width: Int, height: Int, rgb: Int) = java.util.Base64.getEncoder().encodeToString(solid(width, height, rgb))
+        fun shipped(id: String, x: Int, y: Int): List<Int> {
+            val image = net.artisanmc.plugin.pack.Png.decode(net.artisanmc.plugin.pack.Kit.shipped(net.artisanmc.plugin.pack.Kit.slot(id)!!))
+            return image.data.slice((y * image.width + x) * 4 until (y * image.width + x) * 4 + 3).map { it.toInt() and 0xff }
+        }
+        val button = shipped("button.3x1", 27, 9)
+        val table = "colors:\n  \"#%02x%02x%02x\": \"#b3261e\"\n".format(button[0], button[1], button[2])
+        modules["artisan"] = McpFixtures.Module(role = "theme")
+        val (draftOnly, _) = tokens()
+        assertFalse(rpc(draftOnly, "tools/list").body!!["result"]["tools"].any { it["name"].asText() == "create_theme" })
+        val (access, _) = tokens(publish = true)
+
+        // Created on the server, with the role that makes it a theme's folder; a server older than them cannot.
+        protocol = "1.10"
+        assertEquals("plugin_update_required", tool(access, "create_theme", "server" to "u-local", "name" to "noel")["structuredContent"]["error"].asText())
+        protocol = net.artisanmc.plugin.protocol.ProtocolVersion.CURRENT
+        assertEquals("invalid_name", tool(access, "create_theme", "server" to "u-local", "name" to "Noel")["structuredContent"]["error"].asText())
+        assertEquals("invalid_name", tool(access, "create_theme", "server" to "u-local", "name" to "artisan")["structuredContent"]["error"].asText())
+        assertEquals("project_exists", tool(access, "create_theme", "server" to "u-local", "name" to "shop")["structuredContent"]["error"].asText())
+        assertEquals(0, sent.count { it["type"] == "project_create" && it["project_id"] != "shop" })
+        val created = tool(access, "create_theme", "server" to "u-local", "name" to "noel")["structuredContent"]
+        assertEquals("u-local.noel", created["project"].asText())
+        assertEquals(mapOf("type" to "project_create", "project_id" to "noel", "role" to "theme"), sent.last { it["type"] == "project_create" })
+        modules["noel"] = McpFixtures.Module(role = "theme")
+        assertTrue("create_theme" in tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["themes_format"].asText())
+
+        val themeDraft = tool(access, "start_draft", "project" to "u-local.noel", "name" to "AI: noel")["structuredContent"]["draft_id"].asText()
+        val kitDraft = tool(access, "start_draft", "project" to "u-local.artisan", "name" to "AI: kit")["structuredContent"]["draft_id"].asText()
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: themed")["structuredContent"]["draft_id"].asText()
+        fun theme(tool: String, vararg args: Pair<String, Any?>) = tool(access, tool, "project" to "u-local.noel", "draft_id" to themeDraft, *args)
+        fun kit(tool: String, vararg args: Pair<String, Any?>) = tool(access, tool, "project" to "u-local.artisan", "draft_id" to kitDraft, *args)
+
+        // Its table of colours is the one file it holds, checked here: the server reads no Document from a theme.
+        val unquoted = theme("write_document", "path" to "overrides/colors.yml", "content" to "colors:\n  #3c8527: #b3261e\n")
+        assertFalse(unquoted["structuredContent"]["written"].asBoolean(), unquoted.toString())
+        assertTrue("Quote" in unquoted["structuredContent"]["problems"][0]["message"].asText())
+        val menuInTheme = theme("write_document", "path" to "menus/x.yml", "content" to "schema: menu/v1\n")
+        assertTrue(menuInTheme["isError"].asBoolean() && "overrides/colors.yml" in menuInTheme["structuredContent"]["message"].asText(), menuInTheme.toString())
+        val checks = sent.count { it["type"] == "documents_check" }
+        assertTrue(theme("write_document", "path" to "overrides/colors.yml", "content" to table)["structuredContent"]["written"].asBoolean())
+        assertEquals(checks, sent.count { it["type"] == "documents_check" })
+        // The former place, in the common images, is no longer written.
+        val former = kit("write_document", "path" to "themes/noel/theme.yml", "content" to table)
+        assertTrue(former["isError"].asBoolean() && "create_theme" in former["structuredContent"]["message"].asText(), former.toString())
+        val formerImage = kit("write_image", "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
+        assertTrue(formerImage["isError"].asBoolean() && "Project of its own" in formerImage["structuredContent"]["message"].asText(), formerImage.toString())
+
+        // Its drawing of a common image: named as that image, at its size.
+        val small = theme("write_image", "name" to "cell", "png_base64" to png(10, 10, 0x112233))
+        assertTrue(small["isError"].asBoolean() && "18x18" in small["structuredContent"]["message"].asText(), small.toString())
+        assertTrue("No common image" in theme("write_image", "name" to "nothing", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["message"].asText())
+        assertTrue(theme("write_image", "name" to "cell", "theme" to "paques", "png_base64" to png(18, 18, 0x112233))["isError"].asBoolean())
+        val drawn = theme("write_image", "name" to "cell", "png_base64" to png(18, 18, 0x112233))
+        assertFalse(drawn.has("isError"), drawn.toString())
+        assertEquals("overrides/artisan/cell.png", drawn["structuredContent"]["path"].asText())
+        assertEquals("noel", drawn["structuredContent"]["theme"].asText())
+        assertTrue("theme_draft_id" in drawn["structuredContent"]["use_it"].asText())
+        val snapshot = mapper.readTree(drafts.rows.getValue(themeDraft))["snapshot"]
+        assertEquals(listOf("overrides/artisan/cell.png"), snapshot["binaryTree"].fieldNames().asSequence().toList())
+        assertEquals(listOf("overrides/colors.yml"), snapshot["tree"].fieldNames().asSequence().toList())
+
+        // A menu of a module, seen in the theme as deployed (it changes nothing yet), then as its draft has it.
+        val menu = "schema: menu/v1\nsize: 27\nelements:\n  - positions: \"0-2\"\n    image: { asset: \"kit:button.3x1\", fit: native }\n" +
+            "  - positions: \"4\"\n    image: { asset: \"kit:cell\", fit: native }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/themed.yml", "content" to menu).has("isError"))
+        fun render(vararg args: Pair<String, Any?>) = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/themed.yml", "draft_id" to draftId, "scale" to 1, *args)
+        fun shown(rendered: JsonNode): Pair<List<Int>, List<Int>> {
+            assertFalse(rendered.has("isError"), rendered.toString())
+            val window = rendered["structuredContent"]["window"]
+            val picture = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+            fun rgb(x: Int, y: Int) = ((window["y"].asInt() + y) * picture.width + window["x"].asInt() + x).let { picture.data.slice(it * 4 until it * 4 + 3).map { b -> b.toInt() and 0xff } }
+            return rgb(7 + 27, 17 + 9) to rgb(7 + 4 * 18 + 9, 17 + 9)
+        }
+        val plain = button to shipped("cell", 9, 9)
+        assertEquals(plain, shown(render("theme" to "noel")))
+        assertEquals(listOf(0xb3, 0x26, 0x1e) to listOf(0x11, 0x22, 0x33), shown(render("theme" to "noel", "theme_draft_id" to themeDraft)))
+        // The draft is a theme's: the theme is named, and is one of its own folder.
+        assertTrue(render("theme_draft_id" to themeDraft)["isError"].asBoolean())
+        assertTrue(render("theme" to "artisan", "theme_draft_id" to themeDraft)["isError"].asBoolean())
+
+        // Removing its drawing gives the image back to the themes below.
+        val removed = theme("write_image", "name" to "cell", "delete" to true)
+        assertTrue(removed["structuredContent"]["deleted"].asBoolean(), removed.toString())
+        assertEquals(listOf(0xb3, 0x26, 0x1e) to shipped("cell", 9, 9), shown(render("theme" to "noel", "theme_draft_id" to themeDraft)))
     }
 
     @Test

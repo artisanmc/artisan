@@ -123,12 +123,15 @@ class McpProjects(
      * principal that holds [EditorPermissions.PUBLISH], like the editor's route. It holds nothing:
      * what goes in it reaches players only through a deployed draft.
      */
-    fun create(principal: McpPrincipal, server: EditorServer, folder: String): ProjectRef {
-        if (!principal.can(EditorPermissions.PUBLISH)) throw McpRefusal("forbidden", "Creating a module takes the player's artisan.editor.publish.")
-        if (!server.online) throw McpRefusal("server_offline", "The server '${server.label}' is offline: a module cannot be created on it.")
-        if (ProtocolVersion.minor(server.protocolVersion) < ProtocolVersion.PROJECT_FOLDERS)
-            throw McpRefusal("plugin_update_required", "The server '${server.label}' runs an older Artisan that cannot create modules.")
-        refuseUnlessOk(request(server, mapOf("type" to "project_create", "project_id" to folder)))
+    fun create(principal: McpPrincipal, server: EditorServer, folder: String, theme: Boolean = false): ProjectRef {
+        val what = if (theme) "theme" else "module"
+        if (!principal.can(EditorPermissions.PUBLISH)) throw McpRefusal("forbidden", "Creating a $what takes the player's artisan.editor.publish.")
+        if (!server.online) throw McpRefusal("server_offline", "The server '${server.label}' is offline: a $what cannot be created on it.")
+        if (ProtocolVersion.minor(server.protocolVersion) < (if (theme) ProtocolVersion.THEME_FOLDERS else ProtocolVersion.PROJECT_FOLDERS))
+            throw McpRefusal("plugin_update_required", "The server '${server.label}' runs an older Artisan that cannot create ${what}s.")
+        val message = mapOf("type" to "project_create", "project_id" to folder) +
+            (if (theme) mapOf("role" to net.artisanmc.plugin.project.ServerThemes.ROLE) else emptyMap())
+        refuseUnlessOk(request(server, message))
         return ProjectRef(server, folder)
     }
 
