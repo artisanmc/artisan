@@ -12,7 +12,7 @@ import {
 } from "@/lib/pack/kit";
 import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import { kitImageUrl } from "@/lib/pack/kitUrls";
-import { type KitTheme, readKitTheme } from "@/lib/pack/theme";
+import { type KitTheme, type ThemeLook, readKitTheme } from "@/lib/pack/theme";
 import { type KitRead, useKitStore } from "@/state/kitStore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { parse } from "yaml";
@@ -96,7 +96,7 @@ function kitAsset(name: string, width: number, height: number, url: string, hash
  */
 export async function composedKitImages(
   read: KitRead,
-  theme: KitTheme | null = null,
+  theme: ThemeLook | null = null,
 ): Promise<Map<string, OwnImage>> {
   const files = Object.entries(read.files).map(([path, content]) => ({ path, content }));
   const disk = diskAssetsFromTree(
@@ -142,21 +142,21 @@ const NONE = new Map<string, OwnImage>();
 
 interface ShownKit {
   read: KitRead | undefined;
-  /** The theme `images` and `themed` were made in. */
-  theme: string | undefined;
+  /** The themes `images` and `themed` were made in. */
+  themes: readonly string[];
   /** The kit module's composed images. */
   images: Map<string, OwnImage>;
-  /** Every kit image in the theme, when the server has one in place. */
+  /** Every kit image in the themes, when the server has some in place. */
   themed: Asset[] | null;
 }
-/** What the last kit module read shows, kept until another read or another theme replaces it. */
+/** What the last kit module read shows, kept until another read or other themes replace it. */
 const useShownKit = create<ShownKit>(() => ({
   read: undefined,
-  theme: undefined,
+  themes: [],
   images: NONE,
   themed: null,
 }));
-let showing: { read: KitRead; theme: string | undefined } | undefined;
+let showing: { read: KitRead; themes: readonly string[] } | undefined;
 
 /**
  * The kit images `assets` as the theme shows them (`lib/pack/theme.ts`), like the pack: the
@@ -166,7 +166,7 @@ let showing: { read: KitRead; theme: string | undefined } | undefined;
 export async function themedKitAssets(
   assets: Asset[],
   composed: Map<string, OwnImage>,
-  theme: KitTheme,
+  theme: ThemeLook,
 ): Promise<Asset[]> {
   return Promise.all(
     assets.map(async (asset) => {
@@ -251,16 +251,16 @@ export const isKitBase = (asset: Asset): boolean =>
 
 /**
  * The kit images of the server being edited (published state, from the server index), in the
- * theme its pack is built in: what a player sees for `kit:<name>`.
+ * themes its pack is built in: what a player sees for `kit:<name>`.
  */
 export function useKitAssets(): Asset[] {
   const read = useKitStore((s) => s.read);
-  const theme = useKitStore((s) => s.theme);
+  const themes = useKitStore((s) => s.themes);
   const shown = useShownKit();
-  const current = shown.read === read && shown.theme === theme;
+  const current = shown.read === read && shown.themes === themes;
   useEffect(() => {
-    if (!read || current || (showing?.read === read && showing.theme === theme)) return;
-    const mine = { read, theme };
+    if (!read || current || (showing?.read === read && showing.themes === themes)) return;
+    const mine = { read, themes };
     showing = mine;
     const inTheme = activeKitTheme(readPublishedBinary);
     void composedKitImages(read, inTheme)
@@ -269,9 +269,9 @@ export function useKitAssets(): Asset[] {
         themed: inTheme ? await themedKitAssets(kitAssetsOf(read, images), images, inTheme) : null,
       }))
       .then(({ images, themed }) => {
-        if (showing === mine) useShownKit.setState({ read, theme, images, themed });
+        if (showing === mine) useShownKit.setState({ read, themes, images, themed });
       });
-  }, [read, theme, current]);
+  }, [read, themes, current]);
   const composed = current ? shown.images : NONE;
   const themed = current ? shown.themed : null;
   return useMemo(() => themed ?? kitAssetsOf(read, composed), [read, composed, themed]);

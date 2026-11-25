@@ -47,6 +47,12 @@ The plugin's other settings (`config.yml`) could only be edited by hand.
    `ui-kit` module's `themes/` (ADR `mcp-server`, decision 16), or empty. The plugin checks
    its shape (`invalid_theme`), not that the kit holds it: the pack builder treats a missing
    theme as none. The editor offers the themes of the kit module and rebuilds the pack.
+   Since 2026-11-25 the themes in place are a list, `resource-pack.themes`, the lowest first
+   (ADR `common-images-and-themes`, decision 6): each name checked the same way. The former
+   key is out of the bundled defaults and stays a key of the report and of a write, for a hub
+   older than the list: reported as the highest theme, and a write of it becomes a list of
+   one. A file that holds the former key alone is read as a list of one; the first write of
+   either key removes it from the file.
 
 *Rejected:* `settings.yml` next to `config.yml` (names indistinguishable for an admin);
 closed choices (Nexo/Oraxen…) for pack delegation (guardrail moot given point 3);

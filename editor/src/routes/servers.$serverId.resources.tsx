@@ -14,7 +14,7 @@ import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoade
 import { useServerFrame } from "@/features/serverPage/serverFrame";
 import { patchServerConfig } from "@/lib/api/serverConfig";
 import { commonImageKey } from "@/lib/pack/kit";
-import { THEME_CONFIG_KEY, configuredTheme, isThemeName } from "@/lib/pack/theme";
+import { isThemeName, themeChange } from "@/lib/pack/theme";
 import { projectDestination } from "@/lib/projectNavigation";
 import { useKitStore } from "@/state/kitStore";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -77,12 +77,14 @@ function ServerResourcesTab() {
             name={theme}
             onBack={() => void showScope(SERVER_COMMON)}
             onOpenKit={kitId ? () => void openModule(kitId) : undefined}
-            onPutInPlace={async (name) => {
-              const saved = await patchServerConfig(serverKeyId, {
-                [THEME_CONFIG_KEY]: name ?? "",
-              });
-              // The kit's images are shown in the server's theme from now on, and its pack rebuilt in it.
-              useKitStore.getState().setTheme(configuredTheme(saved));
+            onPutInPlace={async (name, put) => {
+              const { themes, stacks } = useKitStore.getState();
+              const saved = await patchServerConfig(
+                serverKeyId,
+                themeChange(themes, stacks, name, put),
+              );
+              // The kit's images are shown in the server's themes from now on, and its pack rebuilt in them.
+              useKitStore.getState().readConfig(saved);
               rebuildServerPackInBackground(t, serverKeyId);
             }}
           />

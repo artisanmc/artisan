@@ -101,7 +101,7 @@ const callbacks = () => ({
 });
 
 beforeEach(() => {
-  useKitStore.setState({ read: undefined, theme: undefined });
+  useKitStore.setState({ read: undefined, themes: [], stacks: false });
   useServerIndexStore.getState().reset();
 });
 afterEach(() => vi.restoreAllMocks());

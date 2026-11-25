@@ -328,7 +328,10 @@ deployed.
     - **One theme per server**, `resource-pack.theme` of `config.yml` (the Configuration
       page lists the kit's themes; the plugin checks the name, `invalid_theme`), passed to
       the pack builders as `PackInput.theme`. A theme the kit does not hold is no theme. A
-      server that names none keeps its pack byte for byte.
+      server that names none keeps its pack byte for byte. *Replaced on 2026-11-25 by a
+      stack of themes in place, `resource-pack.themes` and `PackInput.themes` (ADR
+      `common-images-and-themes`, decision 6, "Step 4, first part"): `survey_ui` gives the
+      stack as `kit.in_place`, a render says the themes it was drawn in as `themes`.*
     - **For the model**: `survey_ui` lists the kit's themes (`kit.themes`), the one in place,
       how to write one (`themes_format`), and shows the base in the server's theme. The table
       is written with `write_document`, checked by the hub (the server does not check a file

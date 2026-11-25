@@ -211,7 +211,7 @@ class PackBuilder(
                     projects,
                     containerTextures(config),
                     hideInventoryLabel = config?.get("resource-pack.hide-inventory-label") == true,
-                    theme = KitTheme.configured(config),
+                    themes = KitTheme.configured(config),
                     bedrockServerId = server.takeIf { bedrock != null },
                 )
             },

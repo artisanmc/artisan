@@ -63,15 +63,43 @@ class EditableConfigTest {
     }
 
     @Test
-    fun `the pack's theme is a theme's folder name, or none`() {
+    fun `the pack's themes are theme folder names, the lowest first`() {
         val cfg = fileConfig()
+        assertEquals(emptyList<String>(), editable.report(cfg)["resource-pack.themes"])
         assertEquals("", editable.report(cfg)["resource-pack.theme"])
-        assertNull(editable.apply(cfg, mapOf("resource-pack.theme" to "noel")))
-        assertEquals("noel", cfg.getString("resource-pack.theme"))
+        assertNull(editable.apply(cfg, mapOf("resource-pack.themes" to listOf("noel", "nuit", "noel"))))
+        assertEquals(listOf("noel", "nuit"), cfg.getStringList("resource-pack.themes"))
+        assertEquals(listOf("noel", "nuit"), editable.report(cfg)["resource-pack.themes"])
+        // A hub older than the list reads one theme: the highest.
+        assertEquals("nuit", editable.report(cfg)["resource-pack.theme"])
+        for (bad in listOf("../noel", "Noel", "noel/x", " ", "")) {
+            assertEquals("resource-pack.themes: invalid_theme", editable.apply(cfg, mapOf("resource-pack.themes" to listOf("noel", bad))), bad)
+        }
+        assertEquals("resource-pack.themes: invalid_type", editable.apply(cfg, mapOf("resource-pack.themes" to "noel")))
+        assertNull(editable.apply(cfg, mapOf("resource-pack.themes" to emptyList<String>())))
+        assertEquals(emptyList<String>(), editable.report(cfg)["resource-pack.themes"])
+    }
+
+    @Test
+    fun `the former single theme is read, and written as a list of one`() {
+        // A file written before the list: its theme is in place.
+        val cfg = fileConfig("resource-pack:\n  theme: \"noel\"\n")
+        assertEquals(listOf("noel"), editable.report(cfg)["resource-pack.themes"])
+        assertEquals("noel", editable.report(cfg)["resource-pack.theme"])
+        // Taking it off through the list removes the former key, which would bring it back.
+        assertNull(editable.apply(cfg, mapOf("resource-pack.themes" to emptyList<String>())))
+        assertFalse(cfg.isSet("resource-pack.theme"))
+        assertEquals(emptyList<String>(), editable.report(cfg)["resource-pack.themes"])
+        // A hub older than the list writes the former key: a list of one.
+        assertNull(editable.apply(cfg, mapOf("resource-pack.theme" to "paques")))
+        assertEquals(listOf("paques"), cfg.getStringList("resource-pack.themes"))
+        assertFalse(cfg.isSet("resource-pack.theme"))
         for (bad in listOf("../noel", "Noel", "noel/x", " ")) {
             assertEquals("resource-pack.theme: invalid_theme", editable.apply(cfg, mapOf("resource-pack.theme" to bad)), bad)
         }
+        assertEquals("resource-pack.theme: invalid_type", editable.apply(cfg, mapOf("resource-pack.theme" to 3)))
         assertNull(editable.apply(cfg, mapOf("resource-pack.theme" to "")))
+        assertEquals(emptyList<String>(), editable.report(cfg)["resource-pack.themes"])
     }
 
     @Test

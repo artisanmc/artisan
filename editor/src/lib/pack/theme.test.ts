@@ -2,7 +2,16 @@
 
 import { describe, expect, test } from "vitest";
 import { type RgbaImage, createImage, decodePng, encodePng } from "./png";
-import { readKitTheme, themeColors, themeDrawings, themeFile, themeNames } from "./theme";
+import {
+  configuredThemes,
+  readKitTheme,
+  readKitThemes,
+  themeChange,
+  themeColors,
+  themeDrawings,
+  themeFile,
+  themeNames,
+} from "./theme";
 
 const solid = (width: number, height: number, ...rgba: number[]): RgbaImage => {
   const image = createImage(width, height);
@@ -147,5 +156,81 @@ describe("kit themes", () => {
     expect(pixel(await theme.shown("back", base), 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
     expect(await theme.drawing("broken", base)).toBeNull();
     expect(await theme.drawing("other", base)).toBeNull();
+  });
+
+  test("the themes in place are the list, the lowest first, else the former single theme", () => {
+    expect(configuredThemes(null)).toEqual([]);
+    expect(configuredThemes({})).toEqual([]);
+    expect(configuredThemes({ "resource-pack.theme": "noel" })).toEqual(["noel"]);
+    expect(configuredThemes({ "resource-pack.theme": "" })).toEqual([]);
+    expect(configuredThemes({ "resource-pack.theme": "Bad Name" })).toEqual([]);
+    // The list wins; a name that is not one, or said twice, is left out.
+    expect(
+      configuredThemes({
+        "resource-pack.themes": ["noel", "Bad Name", 3, "nuit", "noel"],
+        "resource-pack.theme": "paques",
+      }),
+    ).toEqual(["noel", "nuit"]);
+    // An empty list leaves the former key its say: a config that was never rewritten.
+    expect(
+      configuredThemes({ "resource-pack.themes": [], "resource-pack.theme": "paques" }),
+    ).toEqual(["paques"]);
+    expect(configuredThemes({ "resource-pack.themes": "noel" })).toEqual([]);
+  });
+
+  test("a theme is put on top of the ones in place, or taken off", () => {
+    expect(themeChange(["a", "b"], true, "c", true)).toEqual({
+      "resource-pack.themes": ["a", "b", "c"],
+    });
+    // Put again: it goes to the top.
+    expect(themeChange(["a", "b"], true, "a", true)).toEqual({
+      "resource-pack.themes": ["b", "a"],
+    });
+    expect(themeChange(["a", "b"], true, "a", false)).toEqual({ "resource-pack.themes": ["b"] });
+    // A server older than the list holds one theme.
+    expect(themeChange(["a"], false, "b", true)).toEqual({ "resource-pack.theme": "b" });
+    expect(themeChange(["a"], false, "a", false)).toEqual({ "resource-pack.theme": "" });
+  });
+
+  test("themes in place stack: each changes what the ones below show", async () => {
+    const green = encodePng(solid(2, 2, 0x3c, 0x85, 0x27, 255));
+    const drawn = encodePng(solid(2, 2, 0xb3, 0x26, 0x1e, 255));
+    const top = encodePng(solid(2, 2, 7, 7, 7, 255));
+    const files = {
+      // `noel`: green to red, and its own `close`, in red.
+      "themes/noel/theme.yml": 'colors:\n  "#3c8527": "#b3261e"\n',
+      // `nuit`: red to black, colours alone.
+      "themes/nuit/theme.yml": 'colors:\n  "#b3261e": "#000000"\n',
+    };
+    const binaries = {
+      "themes/noel/assets/textures/close.png": drawn,
+      "themes/haut/assets/textures/close.png": top,
+    };
+    const stack = (...names: string[]) => readKitThemes(names, kit(files, binaries));
+    expect(stack()).toBeNull();
+    expect(stack("nowhere")).toBeNull();
+    // One theme: the theme itself.
+    expect(pixel(await stack("noel")!.shown("x", green), 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
+    // `nuit` above `noel` repaints what `noel` shows; under it, it finds no red yet.
+    expect(pixel(await stack("noel", "nuit")!.shown("x", green), 0, 0)).toEqual([0, 0, 0, 255]);
+    expect(pixel(await stack("nuit", "noel")!.shown("x", green), 0, 0)).toEqual([
+      0xb3, 0x26, 0x1e, 255,
+    ]);
+    // A theme the module does not hold is left out of the stack.
+    expect(pixel(await stack("noel", "nowhere", "nuit")!.shown("x", green), 0, 0)).toEqual([
+      0, 0, 0, 255,
+    ]);
+    // The highest theme that draws the image wins, as it is.
+    expect(await stack("noel", "haut")!.shown("close", green)).toBe(top);
+    expect(await stack("noel", "haut")!.drawing("close", green)).toBe(top);
+    expect(await stack("haut", "noel")!.drawing("close", green)).toBe(drawn);
+    // Colours above a drawing repaint it, in `shown` and in `drawing` alike.
+    expect(pixel(await stack("noel", "nuit")!.shown("close", green), 0, 0)).toEqual([0, 0, 0, 255]);
+    expect(pixel((await stack("noel", "nuit")!.drawing("close", green))!, 0, 0)).toEqual([
+      0, 0, 0, 255,
+    ]);
+    // Colours are no drawing.
+    expect(await stack("noel", "nuit")!.drawing("x", green)).toBeNull();
+    expect(await stack("nuit")!.drawing("close", green)).toBeNull();
   });
 });

@@ -69,7 +69,7 @@ beforeEach(() => {
   useAssetStore.getState().reset();
   useProjectLibraryStore.setState({ sourceId: null });
   useUiStore.getState().setArmedMaterial(null);
-  useKitStore.setState({ read: undefined, theme: undefined });
+  useKitStore.setState({ read: undefined, themes: [], stacks: false });
   useResourcesView.setState({ piece: null, pieceFrom: null });
 });
 afterEach(() => vi.restoreAllMocks());

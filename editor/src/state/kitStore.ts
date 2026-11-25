@@ -1,3 +1,4 @@
+import { THEMES_CONFIG_KEY, configuredThemes } from "@/lib/pack/theme";
 import { create } from "zustand";
 
 /** The Project of the server's common images (the theme `artisan`) as it is published: the files its kit images are read from. */
@@ -17,10 +18,21 @@ interface KitState {
   /** `undefined`: the server has no kit module, or its projects are not read yet. */
   read: KitRead | undefined;
   setRead: (read: KitRead | undefined) => void;
-  /** The theme the server's pack is built in (`resource-pack.theme`); `undefined`: none, or not read yet. */
-  theme: string | undefined;
-  setTheme: (theme: string | undefined) => void;
+  /**
+   * The themes in place on the server, the lowest first (`resource-pack.themes`): what its pack
+   * is built in. Empty: none, or not read yet. The array changes only when the names do.
+   */
+  themes: readonly string[];
+  /**
+   * Whether the server's `config.yml` holds the list of themes; `false` on an older one, which
+   * has one theme in place at most (`resource-pack.theme`).
+   */
+  stacks: boolean;
+  /** Reads both from the server's `config.yml` as its plugin reports it; `null`: not read. */
+  readConfig: (config: Record<string, unknown> | null | undefined) => void;
 }
+
+const NO_THEMES: readonly string[] = [];
 
 /**
  * What the server index knows of the kit module, held here so that whatever draws a menu can
@@ -29,6 +41,17 @@ interface KitState {
 export const useKitStore = create<KitState>((set) => ({
   read: undefined,
   setRead: (read) => set({ read }),
-  theme: undefined,
-  setTheme: (theme) => set({ theme }),
+  themes: NO_THEMES,
+  stacks: false,
+  readConfig: (config) =>
+    set((state) => {
+      const themes = configuredThemes(config);
+      const same =
+        themes.length === state.themes.length &&
+        themes.every((name, i) => name === state.themes[i]);
+      return {
+        stacks: !!config && THEMES_CONFIG_KEY in config,
+        themes: same ? state.themes : themes.length === 0 ? NO_THEMES : themes,
+      };
+    }),
 }));

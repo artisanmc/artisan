@@ -34,7 +34,7 @@ const table = themeColors('colors:\n  "#3c8527": "#b3261e"\n');
 
 describe("the kit in the server's theme", () => {
   beforeEach(() => {
-    useKitStore.setState({ read: undefined, theme: undefined });
+    useKitStore.setState({ read: undefined, themes: [], stacks: false });
   });
 
   test("each kit image is the theme's drawing of it, else in the theme's colours", async () => {
@@ -89,7 +89,7 @@ describe("the kit in the server's theme", () => {
     expect(await at(true, 1)).toEqual(RED);
   });
 
-  test("the theme in place is the one the server names, when its kit module holds it", () => {
+  test("the theme in place is the one the server names, when its kit module holds it", async () => {
     const binary = vi.fn(async () => null);
     expect(activeKitTheme(binary)).toBeNull();
     const read = {
@@ -97,14 +97,43 @@ describe("the kit in the server's theme", () => {
       files: { "themes/noel/theme.yml": 'colors:\n  "#3c8527": "#b3261e"\n' },
       binaries: [],
     };
-    useKitStore.setState({ read, theme: "noel" });
+    useKitStore.setState({ read, themes: ["noel"] });
     const theme = activeKitTheme(binary);
-    expect(theme?.colors.get(0x3c8527)).toBe(0xb3261e);
-    // Read once for a kit module and a theme.
+    expect(first(decodePng(await theme!.shown("cell", solid(1, 1, GREEN))))).toEqual(RED);
+    // Read once for a kit module and its themes in place.
     expect(activeKitTheme(binary)).toBe(theme);
-    useKitStore.setState({ theme: "paques" });
+    useKitStore.setState({ themes: ["paques"] });
     expect(activeKitTheme(binary)).toBeNull();
-    useKitStore.setState({ read: undefined, theme: "noel" });
+    useKitStore.setState({ read: undefined, themes: ["noel"] });
     expect(activeKitTheme(binary)).toBeNull();
+  });
+
+  test("several themes in place are one look, the highest last", async () => {
+    const read = {
+      projectId: "srv.ui-kit",
+      files: {
+        "themes/noel/theme.yml": 'colors:\n  "#3c8527": "#b3261e"\n',
+        "themes/nuit/theme.yml": 'colors:\n  "#b3261e": "#010203"\n',
+      },
+      binaries: [],
+    };
+    const binary = async () => null;
+    // `nuit` repaints what `noel` shows.
+    useKitStore.setState({ read, themes: ["noel", "nuit"] });
+    const stacked = await activeKitTheme(binary)!.shown("cell", solid(1, 1, GREEN));
+    expect(first(decodePng(stacked))).toEqual([1, 2, 3]);
+    // The other way round, `nuit` finds no red yet, then `noel` paints the green red.
+    useKitStore.setState({ themes: ["nuit", "noel"] });
+    const turned = await activeKitTheme(binary)!.shown("cell", solid(1, 1, GREEN));
+    expect(first(decodePng(turned))).toEqual(RED);
+    // The store reads the list from the server's config, the former key when the list is empty.
+    useKitStore
+      .getState()
+      .readConfig({ "resource-pack.themes": [], "resource-pack.theme": "noel" });
+    expect(useKitStore.getState()).toMatchObject({ themes: ["noel"], stacks: true });
+    const same = useKitStore.getState().themes;
+    useKitStore.getState().readConfig({ "resource-pack.theme": "noel" });
+    expect(useKitStore.getState().themes).toBe(same);
+    expect(useKitStore.getState().stacks).toBe(false);
   });
 });

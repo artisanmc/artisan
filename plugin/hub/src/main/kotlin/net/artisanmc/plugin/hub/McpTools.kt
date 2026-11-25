@@ -11,6 +11,7 @@ import net.artisanmc.plugin.pack.MenuPictureInput
 import net.artisanmc.plugin.pack.ImageRulers
 import net.artisanmc.plugin.pack.Kit
 import net.artisanmc.plugin.pack.KitTheme
+import net.artisanmc.plugin.pack.ThemeStack
 import net.artisanmc.plugin.pack.MenuPictures
 import net.artisanmc.plugin.pack.PixelArt
 import net.artisanmc.plugin.pack.PixelRect
@@ -236,7 +237,7 @@ class McpTools(
                 ),
                 "theme" to string(
                     "In the server's common images only ($KIT_PROJECT): a theme's name (`noel`). The image is then that theme's own drawing of the common " +
-                        "image `name` (of the base, or the server's), shown in its place while the server's theme is this one. It has to " +
+                        "image `name` (of the base, or the server's), shown in its place while this theme is in place on the server. It has to " +
                         "be of that image's size; drawn with pixels, png_base64 or from. survey_ui tells how themes work (`themes_format`).",
                 ),
                 "delete" to mapOf("type" to "boolean", "description" to "Remove the image instead."),
@@ -311,12 +312,12 @@ class McpTools(
                 "no condition, expression or data source is evaluated (an element shows its default look, `{…}` and `%…%` are " +
                 "drawn as written, a slot whose item is unknown shows `?`), and the result's notes say what was left out. " +
                 "`window` gives the window's corner and size in the picture, in game pixels. The common images are drawn in the " +
-                "server's theme when it has one; `theme` shows another, before the player switches to it.",
+                "server's themes in place when it has some (the result's `themes`, the lowest first); `theme` shows one alone, before the player puts it in place.",
             schema(
                 "project" to PROJECT, "path" to string("The menu's path, e.g. `menus/shop.yml`."), "draft_id" to DRAFT_OPTIONAL,
                 "lang" to string("The language translated texts are drawn in; the first one written otherwise."),
                 "scale" to mapOf("type" to "integer", "minimum" to 1, "maximum" to 4, "description" to "Picture pixels per game pixel; 3 by default."),
-                "theme" to string("A theme of the server to draw its common images in (survey_ui lists them); `$NO_THEME` for none. Left out: the server's own."),
+                "theme" to string("A theme of the server to draw its common images in (survey_ui lists them); `$NO_THEME` for none. Left out: the ones in place on the server."),
                 "kit_draft_id" to string(
                     "Optional: a draft of the server's common images ($KIT_PROJECT), to draw the common images (and the theme) as that draft has " +
                         "them: a menu of another module seen with common images or a theme not deployed yet.",
@@ -751,7 +752,7 @@ class McpTools(
             mapOf("project" to project.id, "path" to path, "shown_at" to "x${McpImages.scale(image)}") + McpImages.facts(image) + mapOf(
                 "compose" to compose(recipe),
                 "missing_layers" to missing.ifEmpty { null },
-                "theme" to kit.themed,
+                "themes" to kit.themed,
             ).filterValues { it != null },
             listOf(McpImages.preview(image)),
         )
@@ -853,24 +854,25 @@ class McpTools(
 
     /**
      * What `kit:<name>` shows on a server ([Kit]): the image of its kit module ([module]; null when
-     * it has none) where there is one, else the base's, in the theme [themeName] when the kit holds
-     * it ([KitTheme]); [strict] refuses a theme it does not hold. [except]: an image of the kit
-     * module being written over, which is no layer of itself.
+     * it has none) where there is one, else the base's, in the themes [themeNames] the kit holds,
+     * the lowest first ([ThemeStack]); [strict] refuses a theme it does not hold. [except]: an image
+     * of the kit module being written over, which is no layer of itself.
      */
-    private inner class KitView(module: () -> Images?, private val themeName: String?, private val strict: Boolean = false, private val except: String? = null) {
+    private inner class KitView(module: () -> Images?, private val themeNames: List<String>, private val strict: Boolean = false, private val except: String? = null) {
         val module: Images? by lazy(module)
-        val theme: KitTheme? by lazy {
-            themeName?.let { name ->
-                this.module?.theme(name) ?: if (!strict) null else throw McpRefusal(
+        private val held: List<Pair<String, KitTheme>> by lazy {
+            themeNames.mapNotNull { name ->
+                this.module?.theme(name)?.let { name to it } ?: if (!strict) null else throw McpRefusal(
                     "not_found",
                     "No theme '$name' among the server's common images: it has ${this.module?.themes?.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "none"}. " +
                         "`$NO_THEME` shows the common images without a theme.",
                 )
             }
         }
+        val theme: ThemeStack? by lazy { ThemeStack.of(held.map { it.second }) }
 
-        /** The theme the kit is shown in, when it is. */
-        val themed: String? get() = themeName?.takeIf { theme != null }
+        /** The themes the kit is shown in, the lowest first, when it is in any. */
+        val themed: List<String>? get() = held.map { it.first }.ifEmpty { null }
 
         /** A layer `kit:<name>` of a composed image: a PNG of the kit module or the base's, never a composed image. */
         fun layer(name: String): ByteArray? =
@@ -890,12 +892,12 @@ class McpTools(
     /**
      * The kit of [view]'s server: [view] itself when it is the kit module (a draft's own images),
      * else the module as deployed, or what [module] reads. [asked]: the theme to show it in,
-     * [NO_THEME] for none; null, the server's own (`resource-pack.theme`), left out when the kit
-     * does not hold it, as the pack does.
+     * [NO_THEME] for none; null, the server's own (`resource-pack.themes`), each left out when the
+     * kit does not hold it, as the pack does.
      */
     private fun kitView(view: Images, asked: String? = null, except: String? = null, module: (() -> Images?)? = null): KitView = KitView(
         module ?: { if (view.project.folder == KIT_FOLDER) view else deployed(view.project.server, KIT_FOLDER) },
-        if (asked == null) KitTheme.configured(view.project.server.serverConfig()) else asked.takeIf { it.isNotEmpty() && it != NO_THEME },
+        if (asked == null) KitTheme.configured(view.project.server.serverConfig()) else listOfNotNull(asked.takeIf { it.isNotEmpty() && it != NO_THEME }),
         strict = asked != null, except = except,
     )
 
@@ -1197,7 +1199,7 @@ class McpTools(
             mapOf(
                 "project" to project.id, "path" to path, "shown_at" to "x$scale",
                 "window" to mapOf("x" to picture.windowX, "y" to picture.windowY, "width" to picture.windowWidth, "height" to picture.windowHeight),
-                "theme" to kit.themed,
+                "themes" to kit.themed,
                 "notes" to picture.notes + listOfNotNull("Item pictures are not available on this server: every item shows `?`.".takeIf { items == null }),
             ).filterValues { it != null },
             listOf(McpImages.Picture(java.util.Base64.getEncoder().encodeToString(png))),
@@ -1221,8 +1223,8 @@ class McpTools(
         val folders = folders(server)
         // The kit module: its images by name, where one named as a slot of the base replaces it.
         val kitModule = if (KIT_FOLDER in folders) deployed(server, KIT_FOLDER) else null
-        // The modules' images as their files are, to draw from; the base as the players see it, in the server's theme.
-        val plain = KitView({ kitModule }, null)
+        // The modules' images as their files are, to draw from; the base as the players see it, in the server's themes in place.
+        val plain = KitView({ kitModule }, emptyList())
         val themed = KitView({ kitModule }, KitTheme.configured(server.serverConfig()))
         // The colours of what `kit:<name>` shows without a theme: what a theme's table replaces.
         val kitColours = HashMap<Int, Long>()
@@ -1234,8 +1236,8 @@ class McpTools(
                 "themes" to view.themes.mapNotNull { name ->
                     view.theme(name)?.let { mapOf("name" to name, "colors" to it.colorCount, "redraws" to it.drawings.sorted().ifEmpty { null }).filterValues { v -> v != null } }
                 }.ifEmpty { null },
-                // The one the pack is built in (`resource-pack.theme`), when the kit holds it.
-                "theme" to themed.themed,
+                // The ones the pack is built in (`resource-pack.themes`, the lowest first) that the kit holds.
+                "in_place" to themed.themed,
             ).filterValues { it != null }
             // A PNG by its path, a composed image by its descriptor's, drawn as the pack assembles it.
             val paths = (view.pngs + view.recipes.values).sorted()
@@ -1306,7 +1308,7 @@ class McpTools(
                 "themes_format" to KIT_THEMES,
                 "kit_colours" to kitColours.entries.sortedWith(compareByDescending<Map.Entry<Int, Long>> { it.value }.thenBy { it.key })
                     .take(SURVEY_KIT_COLOURS).map { "#%06x".format(it.key) },
-                "kit_base" to mapOf("how" to (if (kit != null) KIT_BASE else KIT_BASE_BEFORE), "theme" to themed.themed, "images" to base.map { it.second }).filterValues { it != null },
+                "kit_base" to mapOf("how" to (if (kit != null) KIT_BASE else KIT_BASE_BEFORE), "themes" to themed.themed, "images" to base.map { it.second }).filterValues { it != null },
                 "left_out" to left.takeIf { it > 0 }?.let { "$it more image(s) are not shown: read_image shows one, list_documents lists a module's." },
             ).filterValues { it != null },
             sheets,
@@ -1436,7 +1438,7 @@ class McpTools(
             return mapOf("written" to true, "deleted" to true, "path" to existing.first(), "theme" to theme, "draft_id" to draftId, "revision" to revision)
         }
         val view = Images(project, projects.read(project), draft)
-        val redrawn = KitView({ view }, null).image(name) ?: throw McpRefusal(
+        val redrawn = KitView({ view }, emptyList()).image(name) ?: throw McpRefusal(
             "not_found",
             "No common image '$name' to redraw: a theme redraws an image of the base (survey_ui's kit_base) or one written here, by its name alone.",
         )
@@ -1467,8 +1469,8 @@ class McpTools(
             mapOf(
                 "written" to true, "path" to paths.first(), "theme" to theme, "replaced" to existing.isNotEmpty(), "draft_id" to draftId, "revision" to revision,
                 "hash" to hash, "shown_at" to "x${McpImages.scale(image)}",
-                "use_it" to "Every menu that names the common image `$name` shows this image while the server's theme is `$theme`: the player picks the theme in the " +
-                    "editor's Configuration page, once the draft is deployed. render_menu with theme: \"$theme\" and kit_draft_id: \"$draftId\" shows a menu in it now.",
+                "use_it" to "Every menu that names the common image `$name` shows this image while the theme `$theme` is in place on the server, unless a theme above it redraws the image too: the player puts " +
+                    "the theme in place from its page in the editor, once the draft is deployed. render_menu with theme: \"$theme\" and kit_draft_id: \"$draftId\" shows a menu in it now.",
             ) + McpImages.facts(image) + cut?.facts.orEmpty(),
             listOf(McpImages.preview(image)),
         )
@@ -1489,7 +1491,7 @@ class McpTools(
         val layers = node.path("layers").takeIf { it.isArray && it.size() > 0 }
             ?: refuse("compose.layers is a list of at least one layer: {image, x, y, columns, rows}.")
         if (layers.size() > ComposedImages.MAX_LAYERS) refuse("compose: at most ${ComposedImages.MAX_LAYERS} layers.")
-        val kit = KitView({ if (view.project.folder == KIT_FOLDER) view else deployed(view.project.server, KIT_FOLDER) }, null)
+        val kit = KitView({ if (view.project.folder == KIT_FOLDER) view else deployed(view.project.server, KIT_FOLDER) }, emptyList())
         val side = ComposedImages.MAX_SIDE
         val read = layers.map { layer ->
             val image = layer.path("image").takeIf { it.isTextual }?.asText()?.trim().orEmpty()
@@ -1906,8 +1908,10 @@ class McpTools(
             "`colors: {\"#3c8527\": \"#b3261e\"}` turns every pixel of the first colour into the second in the common images, its transparency kept " +
             "(survey_ui's `kit_colours` lists the colours they use without a theme, the most used first). An image a recolour does not do justice to gets the theme's own " +
             "drawing: write_image with `theme`, at the image's size. Only the common images change: the base, the ones the server added and " +
-            "what is composed from them; a module's own PNG never does. A server shows one theme at a time, which the player picks in the " +
-            "editor's Configuration page (`resource-pack.theme`): you cannot. render_menu with `theme` shows a menu in a theme before that."
+            "what is composed from them; a module's own PNG never does. A server has its themes in place as a stack (`resource-pack.themes`, the " +
+            "lowest first; survey_ui's `kit.in_place`): each changes what the ones below show, so the highest that redraws an image wins and its " +
+            "colours repaint what is below. The player puts a theme in place, above the others, from the theme's page in the editor: you cannot. " +
+            "render_menu with `theme` shows a menu in one theme alone before that."
         private val CODEPOINT_LINE = Regex("(?m)^codepoint:\\s*(\\d+)")
         /** The private use range a Project's glyphs take (the editor's `codepoints.ts`). */
         private const val CODEPOINT_MIN = 0xe000

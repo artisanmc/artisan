@@ -123,7 +123,7 @@ class ThemeTest {
     }
 
     @Test
-    fun `a theme file about to be written says what is wrong in it, and a server's config names its theme`() {
+    fun `a theme file about to be written says what is wrong in it`() {
         assertEquals(emptyList(), KitTheme.problems("colors:\n  \"#3c8527\": \"#b3261e\"\n"))
         assertEquals(emptyList(), KitTheme.problems("colors: {}\n"))
         // Unquoted, `#` starts a comment: the table is empty, which is said rather than written.
@@ -138,9 +138,56 @@ class ThemeTest {
         assertNull(KitTheme.nameOfFile("themes/noel/assets/theme.yml"))
         assertNull(KitTheme.nameOfFile("menus/theme.yml"))
 
-        assertEquals("noel", KitTheme.configured(mapOf("resource-pack.theme" to "noel")))
-        for (none in listOf(null, emptyMap(), mapOf("resource-pack.theme" to ""), mapOf("resource-pack.theme" to "../x"), mapOf("resource-pack.theme" to 3))) {
-            assertNull(KitTheme.configured(none))
-        }
+    }
+
+    @Test
+    fun `the themes in place are the list, the lowest first, else the former single theme`() {
+        assertEquals(emptyList(), KitTheme.configured(null))
+        assertEquals(emptyList(), KitTheme.configured(emptyMap()))
+        assertEquals(listOf("noel"), KitTheme.configured(mapOf("resource-pack.theme" to "noel")))
+        assertEquals(emptyList(), KitTheme.configured(mapOf("resource-pack.theme" to "")))
+        assertEquals(emptyList(), KitTheme.configured(mapOf("resource-pack.theme" to "Bad Name")))
+        assertEquals(emptyList(), KitTheme.configured(mapOf("resource-pack.theme" to 3)))
+        // The list wins; a name that is not one, or said twice, is left out.
+        assertEquals(
+            listOf("noel", "nuit"),
+            KitTheme.configured(mapOf("resource-pack.themes" to listOf("noel", "Bad Name", 3, "nuit", "noel"), "resource-pack.theme" to "paques")),
+        )
+        // An empty list leaves the former key its say: a config that was never rewritten.
+        assertEquals(listOf("paques"), KitTheme.configured(mapOf("resource-pack.themes" to emptyList<String>(), "resource-pack.theme" to "paques")))
+        assertEquals(emptyList(), KitTheme.configured(mapOf("resource-pack.themes" to "noel")))
+    }
+
+    @Test
+    fun `themes in place stack, each changes what the ones below show`() {
+        val green = Png.encode(solid(2, 2, 0x3c, 0x85, 0x27, 255))
+        val drawn = Png.encode(solid(2, 2, 0xb3, 0x26, 0x1e, 255))
+        val top = Png.encode(solid(2, 2, 7, 7, 7, 255))
+        val files = mapOf(
+            // `noel`: green to red, and its own `close`, in red.
+            "themes/noel/theme.yml" to "colors:\n  \"#3c8527\": \"#b3261e\"\n",
+            // `nuit`: red to black, colours alone.
+            "themes/nuit/theme.yml" to "colors:\n  \"#b3261e\": \"#000000\"\n",
+        )
+        val binaries = mapOf("themes/noel/assets/textures/close.png" to drawn, "themes/haut/assets/textures/close.png" to top)
+        fun stack(vararg names: String) = KitTheme.stack(names.toList(), kit(files, binaries))
+        assertNull(stack())
+        assertNull(stack("nowhere"))
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(stack("noel")!!.shown("x", green), 0, 0))
+        // `nuit` above `noel` repaints what `noel` shows; under it, it finds no red yet.
+        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nuit")!!.shown("x", green), 0, 0))
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(stack("nuit", "noel")!!.shown("x", green), 0, 0))
+        // A theme the module does not hold is left out of the stack.
+        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nowhere", "nuit")!!.shown("x", green), 0, 0))
+        // The highest theme that draws the image wins, as it is.
+        assertTrue(stack("noel", "haut")!!.shown("close", green) === top)
+        assertTrue(stack("noel", "haut")!!.drawing("close", green) === top)
+        assertTrue(stack("haut", "noel")!!.drawing("close", green) === drawn)
+        // Colours above a drawing repaint it, in `shown` and in `drawing` alike.
+        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nuit")!!.shown("close", green), 0, 0))
+        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nuit")!!.drawing("close", green)!!, 0, 0))
+        // Colours are no drawing.
+        assertNull(stack("noel", "nuit")!!.drawing("x", green))
+        assertNull(stack("nuit")!!.drawing("close", green))
     }
 }

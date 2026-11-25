@@ -134,6 +134,41 @@ describe("ServerConfigSection", () => {
     );
   });
 
+  it("edits the themes in place as an ordered list, and names the server's themes", async () => {
+    api.getServerConfig.mockResolvedValue({
+      config: { ...config, "resource-pack.themes": ["noel"], "resource-pack.theme": "noel" },
+      online: true,
+    });
+    api.readProject.mockResolvedValue({
+      ok: true,
+      files: { "themes/noel/theme.yml": "colors: {}", "themes/nuit/theme.yml": "colors: {}" },
+      binaries: [],
+    });
+    api.patchServerConfig.mockImplementation(async (_id, changes) => ({ ...config, ...changes }));
+    const kit = { id: "p2", externalId: "ui-kit", name: "ui-kit" } as ProjectSummary;
+    render(
+      <ServerConfigSection
+        serverKeyId="s1"
+        projects={[project, kit]}
+        conditionsField={NoConditions}
+      />,
+    );
+    const themes = await screen.findByLabelText(/^Thèmes en place/);
+    expect(themes).toHaveValue("noel");
+    // The former single theme, which the server still reports, is not offered beside the list.
+    expect(screen.queryByLabelText(/^Thème des images communes/)).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByText(/Thèmes du serveur : noel, nuit/)).toBeInTheDocument(),
+    );
+    fireEvent.change(themes, { target: { value: "noel, nuit" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() =>
+      expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
+        "resource-pack.themes": ["noel", "nuit"],
+      }),
+    );
+  });
+
   it("explains the plugin's refusal with the field's label", async () => {
     const { ApiError } = await import("@/lib/api/client");
     api.patchServerConfig.mockRejectedValue(

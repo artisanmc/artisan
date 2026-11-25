@@ -20,7 +20,7 @@ import {
   kitShippedName,
   kitShippedPath,
 } from "./kit";
-import { readKitTheme } from "./theme";
+import { readKitThemes } from "./theme";
 import {
   type GlyphPlacement,
   glyphPlacementsFromMenus,
@@ -69,8 +69,8 @@ export interface PackInput {
   transparentContainers?: boolean;
   /** `resource-pack.hide-inventory-label` from `config.yml`: empty the client's "Inventory" label. */
   hideInventoryLabel?: boolean;
-  /** `resource-pack.theme` from `config.yml`: the kit's theme `kit:` images are shown in (`theme.ts`); absent, or one the kit module does not hold: none. */
-  theme?: string;
+  /** `resource-pack.themes` from `config.yml`: the themes `kit:` images are shown in, the lowest first (`theme.ts`); one the kit module does not hold is left out. */
+  themes?: readonly string[];
   /** Also build the Bedrock pack (`bedrock/bedrockPack.ts`) for this server. */
   bedrock?: { serverId: string };
 }
@@ -232,7 +232,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   // module or a kit image, never another composed image, so their order does not matter.
   // The kit's theme (`theme.ts`) changes the kit's PNGs, the base's and the server's: an image
   // composed with them follows, and is not themed a second time once assembled.
-  const theme = input.theme && kitProject ? readKitTheme(input.theme, kitProject) : null;
+  const theme = input.themes?.length && kitProject ? readKitThemes(input.themes, kitProject) : null;
   const kitPng = async (name: string) => {
     const png = (await kitImageOf(name))?.png;
     return png && theme ? theme.shown(name, png) : png;

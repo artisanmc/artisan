@@ -11,10 +11,14 @@ import { type RgbaImage, decodePng, encodePng } from "./png";
  * themes/noel/assets/textures/button.3x1.png    this image redrawn, at its size
  * ```
  *
- * The server's theme (`resource-pack.theme` of `config.yml`) changes what `kit:<name>` shows:
- * the theme's own drawing of that image when it has one of the same size, else the image with
- * each colour of the table replaced, its transparency kept. A theme holds no Document and moves
- * nothing, so a menu laid out against the kit keeps its layout; at worst it is ugly.
+ * A theme in place changes what `kit:<name>` shows: the theme's own drawing of that image when
+ * it has one of the same size, else the image with each colour of the table replaced, its
+ * transparency kept. A theme holds no Document and moves nothing, so a menu laid out against
+ * the kit keeps its layout; at worst it is ugly.
+ *
+ * The themes in place are a stack (`resource-pack.themes` of `config.yml`, the lowest first):
+ * each changes what the ones below show (`kitThemeStack`), so the highest that draws an image
+ * wins, and a theme of colours alone repaints what is below it.
  */
 
 /** The folder of the themes, at the kit module's root. */
@@ -27,17 +31,42 @@ const NAME = /^[a-z0-9][a-z0-9_-]*$/;
 const COLOR = /^#[0-9a-fA-F]{6}$/;
 const IMAGE_DIRS = ["assets/glyphs/", "assets/textures/"];
 
-/** The key of the server's theme in its `config.yml`. */
+/** The key of the server's themes in its `config.yml`: the stack in place, the lowest first. */
+export const THEMES_CONFIG_KEY = "resource-pack.themes";
+
+/** The former key, one theme: still read when the list names none. */
 export const THEME_CONFIG_KEY = "resource-pack.theme";
 
 export const isThemeName = (name: string): boolean => NAME.test(name);
 
-/** The theme a server's `config.yml` names, as its plugin reports it; `undefined` when none. */
-export function configuredTheme(
-  config: Record<string, unknown> | null | undefined,
-): string | undefined {
-  const value = config?.[THEME_CONFIG_KEY];
-  return typeof value === "string" && isThemeName(value) ? value : undefined;
+/**
+ * The themes a server's `config.yml` puts in place, as its plugin reports it: the lowest first,
+ * each name once (ADR `common-images-and-themes`, decision 6). Empty when it names none.
+ */
+export function configuredThemes(config: Record<string, unknown> | null | undefined): string[] {
+  const list = config?.[THEMES_CONFIG_KEY];
+  const names = Array.isArray(list)
+    ? [...new Set(list.filter((v): v is string => typeof v === "string" && isThemeName(v)))]
+    : [];
+  if (names.length > 0) return names;
+  const one = config?.[THEME_CONFIG_KEY];
+  return typeof one === "string" && isThemeName(one) ? [one] : [];
+}
+
+/**
+ * What putting the theme `name` in place, above the ones that are, or taking it off, writes in
+ * the server's `config.yml`. `stacks`: the server holds the list; an older one has one theme at
+ * most, which the new one replaces.
+ */
+export function themeChange(
+  inPlace: readonly string[],
+  stacks: boolean,
+  name: string,
+  put: boolean,
+): Record<string, unknown> {
+  if (!stacks) return { [THEME_CONFIG_KEY]: put ? name : "" };
+  const others = inPlace.filter((other) => other !== name);
+  return { [THEMES_CONFIG_KEY]: put ? [...others, name] : others };
 }
 
 /** `0xRRGGBB` of `#rrggbb`; `null` for anything else. */
@@ -213,4 +242,42 @@ export function readKitTheme(
   if (file === undefined && redrawn.size === 0) return null;
   const text = file === undefined ? "" : (kit.files.find((f) => f.path === file)?.content ?? "");
   return kitTheme(themeColors(text), redrawn, kit.binary);
+}
+
+/** What the builders ask of the themes in place: one theme, or a stack of them. */
+export type ThemeLook = Pick<KitTheme, "shown" | "drawing">;
+
+/**
+ * The themes in place as one look, `themes` from the lowest to the highest: each is applied to
+ * what the ones below show, so the highest that draws an image wins and the colours of the ones
+ * above it repaint that drawing. `null` for none.
+ */
+export function kitThemeStack(themes: readonly KitTheme[]): ThemeLook | null {
+  if (themes.length === 0) return null;
+  if (themes.length === 1) return themes[0]!;
+  return {
+    shown: async (name, png) => {
+      let out = png;
+      for (const theme of themes) out = await theme.shown(name, out);
+      return out;
+    },
+    // A table of colours is not a drawing: `null` unless a theme draws the image. The themes
+    // above the one that does repaint its drawing, as they do in `shown`.
+    drawing: async (name, png) => {
+      let out: Uint8Array | null = null;
+      for (const theme of themes)
+        out = (await theme.drawing(name, out ?? png)) ?? (out && recolored(out, theme.colors));
+      return out;
+    },
+  };
+}
+
+/** The themes `names` of a kit module as one look, in that order; the ones it does not hold are left out. */
+export function readKitThemes(
+  names: readonly string[],
+  kit: Parameters<typeof readKitTheme>[1],
+): ThemeLook | null {
+  return kitThemeStack(
+    names.map((name) => readKitTheme(name, kit)).filter((t): t is KitTheme => t !== null),
+  );
 }
