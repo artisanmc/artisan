@@ -25,7 +25,7 @@ describe("KitPage", () => {
     expect(within(slot).getByText("54 × 18 px")).toBeInTheDocument();
     expect(within(slot).getByText("Artisan")).toBeInTheDocument();
     expect(screen.getByText("0 pièce redessinée sur 19")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /module du kit/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Créer/ })).toBeNull();
     fireEvent.click(slot);
     await waitFor(() => expect(onPiece).toHaveBeenCalledWith("button.3x1"));
   });
