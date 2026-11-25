@@ -14,7 +14,11 @@ import type { Project } from "@/domain/types";
 import { AssetGrid } from "@/features/assets/AssetGrid";
 import { AssetStage } from "@/features/assets/AssetStage";
 import { ResourcesSplit } from "@/features/assets/AssetsTab";
-import { CommonImageBadge, CommonImageMisfit } from "@/features/assets/CommonImageState";
+import {
+  CommonImageBadge,
+  CommonImageMisfit,
+  CommonImageOriginal,
+} from "@/features/assets/CommonImageState";
 import {
   type KitMisfit,
   isKitBase,
@@ -23,7 +27,7 @@ import {
 } from "@/features/assets/kitAssets";
 import { useOtherProjectAssets } from "@/features/assets/useOtherProjectAssets";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
-import { commonImageKey, kitNameOf, moduleImageKey } from "@/lib/pack/kit";
+import { commonImageKey, kitNameOf, kitSlot, moduleImageKey } from "@/lib/pack/kit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useKitStore } from "@/state/kitStore";
 import { ChevronDown } from "lucide-react";
@@ -254,6 +258,8 @@ function ServerAssetDetail({
 }) {
   const { t } = useTranslation();
   const shipped = !owner && isKitBase(asset) && !asset.contentHash;
+  // A piece the server drew its own version of: the original shows beside it.
+  const redrawnPiece = !owner && (asset.contentHash || misfit) ? kitSlot(name) : undefined;
   return (
     <div className="flex flex-col gap-3 p-3" data-testid="server-asset-detail">
       {asset.type !== "font" && <AssetStage asset={asset} />}
@@ -271,6 +277,7 @@ function ServerAssetDetail({
         {owner ? null : <CommonImageBadge asset={asset} misfit={misfit} />}
       </div>
       {owner ? null : <CommonImageMisfit asset={asset} misfit={misfit} />}
+      {redrawnPiece && <CommonImageOriginal slot={redrawnPiece} />}
       <div className="flex flex-col gap-1">
         <span className="field-label">{t("serverResources.provider")}</span>
         <span className="truncate text-xs" data-testid="server-asset-provider">

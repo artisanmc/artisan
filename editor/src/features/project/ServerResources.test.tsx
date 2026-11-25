@@ -134,6 +134,8 @@ describe("the server's Resources", () => {
         name: "vitrine · Boutique",
       }),
     ).toBeInTheDocument();
+    // A piece as shipped has no original to show beside it.
+    expect(screen.queryByTestId("common-image-original")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /redessiner pour le serveur/i }));
     expect(on.onOpenCommon).toHaveBeenCalledWith("button.3x1");
 
@@ -170,5 +172,35 @@ describe("the server's Resources", () => {
     rerender(<ServerResources scope={SERVER_COMMON} common={<p>communes</p>} {...on} />);
     expect(screen.getByText("communes")).toBeInTheDocument();
     expect(screen.queryByTestId("server-asset-detail")).toBeNull();
+  });
+
+  it("shows Artisan's original beside a piece the server redrew, and says when it is not taken", async () => {
+    setup();
+    // A piece the server redrew: Artisan's original beside it; at another size, not taken.
+    useKitStore.setState({
+      read: {
+        projectId: "p_artisan",
+        files: {
+          "assets/textures/close.1x1.yml": "width: 16\nheight: 16\n",
+          "assets/textures/back.1x1.yml": "width: 20\nheight: 16\n",
+        },
+        binaries: [
+          { path: "assets/textures/close.1x1.png", hash: "h1" },
+          { path: "assets/textures/back.1x1.png", hash: "h2" },
+        ],
+        byName: true,
+      },
+    });
+    render(<ServerResources scope={WHOLE_SERVER} common={<p>communes</p>} {...callbacks()} />);
+    await userEvent.click(await screen.findByTitle("close.1x1 · Images communes"));
+    const redrawn = within(screen.getByTestId("server-asset-detail"));
+    expect(redrawn.getByText("Redessinée")).toBeInTheDocument();
+    expect(redrawn.getByTestId("common-image-original")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Retour aux ressources" }));
+    await userEvent.click(screen.getByTitle("back.1x1 · Images communes"));
+    const misfit = within(screen.getByTestId("server-asset-detail"));
+    expect(misfit.getByText("Non prise")).toBeInTheDocument();
+    expect(misfit.getByRole("alert")).toHaveTextContent("20 × 16 px, la pièce 16 × 16 px");
+    expect(misfit.getByTestId("common-image-original")).toBeInTheDocument();
   });
 });

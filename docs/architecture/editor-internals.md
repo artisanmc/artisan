@@ -116,7 +116,9 @@ A server's image of a base piece's name at another size than the piece's is not 
 pack and `kitAssetsOf` show the base's); `kitMisfits` (`kitAssets.ts`) lists these with their
 size, and `CommonImageBadge` / `CommonImageMisfit` (`CommonImageState.tsx`) say it wherever a
 common image shows its state. In the common images' own Project, `AssetDetailPanel` reports
-the same on the image, from the draft.
+the same on the image, from the draft. `CommonImageOriginal` draws the piece as Artisan ships
+it (this build's image) beside the server's version; there, deleting the image is "Restore
+the original".
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)

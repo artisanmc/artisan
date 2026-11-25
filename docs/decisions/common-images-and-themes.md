@@ -263,6 +263,12 @@ builders; `ImageRefs.kt` did not change).
   the piece's, on the common images' page, in the Resources lists, and on the image itself in
   the common images' Project.
 
+**Step 5, first part: the original beside a redrawn piece** (`CommonImageState.tsx`).
+
+- A piece of the base the server drew its own version of shows Artisan's original beside it:
+  in the Resources lists and in the common images' Project, where deleting the server's image
+  is named **Restore the original**.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -284,6 +290,9 @@ Not there yet:
   replaces its original (`originals/`) at other measures is still taken, and nothing is said
   of a glyph's height and ascent or of a HUD image. The editor reads a redrawn piece's size
   from its descriptor, the pack from the PNG.
+- Against decision 8: "the original changed since your redraw" is not there (a redrawn image
+  records no origin), and neither the side by side nor the restore reach an add-on module's
+  images or a menu.
 - Against decisions 5 and 6: a theme other than `artisan` is still a folder
   `themes/artisan/themes/<name>/`, one in place per server (`resource-pack.theme`).
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no

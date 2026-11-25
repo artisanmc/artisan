@@ -13,6 +13,11 @@ vi.mock("@/state/authStore", () => ({
     sel({ currentUser: mockCurrentUser }),
 }));
 
+vi.mock("@/lib/pack/kitUrls", () => ({
+  kitImageUrl: (id: string) => `/kit/${id}.png`,
+  kitImageBytes: async () => new Uint8Array([1, 2, 3]),
+}));
+
 const A: Asset = {
   id: "asset_a",
   projectId: "p1",
@@ -81,6 +86,9 @@ describe("AssetDetailPanel", () => {
     expect(screen.getByTestId("asset-misfit")).toHaveTextContent(
       "Cette image fait 60 × 18 px, la pièce 54 × 18 px",
     );
+    // Artisan's original shows beside it, and deleting the image is restoring the original.
+    expect(screen.getByTestId("common-image-original")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restaurer l'original" })).toBeInTheDocument();
     unmount();
     // At the piece's size it is taken; in any other module the name is an image like another.
     useAssetStore.getState().setAssets([{ ...piece, width: 54, height: 18 }]);
@@ -92,6 +100,8 @@ describe("AssetDetailPanel", () => {
     });
     expect(screen.getByText("60×18")).toBeInTheDocument();
     expect(screen.queryByTestId("asset-misfit")).toBeNull();
+    expect(screen.queryByTestId("common-image-original")).toBeNull();
+    expect(screen.getByRole("button", { name: "Supprimer du module" })).toBeInTheDocument();
   });
 
   it("renders nothing when no asset is selected", () => {

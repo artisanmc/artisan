@@ -11,6 +11,7 @@ import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetStage } from "./AssetStage";
 import { AssetUsageFields } from "./AssetUsageFields";
+import { CommonImageOriginal } from "./CommonImageState";
 import { useAssetStore } from "./assetStore";
 import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
@@ -93,7 +94,12 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
 
   const onDelete = async () => {
     if (!user) return;
-    if (!window.confirm(t("resources.confirmDelete", { name: asset.name }))) return;
+    if (
+      !window.confirm(
+        t(piece ? "kit.page.confirmRestore" : "resources.confirmDelete", { name: asset.name }),
+      )
+    )
+      return;
     try {
       await deleteAsset(projectId, asset.id);
       removeAsset(asset.id);
@@ -120,6 +126,7 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
           </Button>
         </>
       )}
+      {piece && <CommonImageOriginal slot={piece} />}
       {misfit && (
         <p role="alert" className="text-xs text-[var(--danger)]" data-testid="asset-misfit">
           {t("kit.page.misfitDetail", {
@@ -185,7 +192,7 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
       {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
       <div className="flex justify-between">
         <Button variant="destructive" onClick={onDelete}>
-          {t("resources.delete")}
+          {t(piece ? "kit.page.restore" : "resources.delete")}
         </Button>
         <Button disabled={busy} onClick={onSave}>
           {t(busy ? "resources.saving" : "resources.save")}

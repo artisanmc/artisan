@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import type { Asset } from "@/domain/asset";
-import { kitNameOf, kitSlot } from "@/lib/pack/kit";
+import { type KitSlot, kitNameOf, kitSlot } from "@/lib/pack/kit";
+import { kitImageUrl } from "@/lib/pack/kitUrls";
 import { useTranslation } from "react-i18next";
 import { type KitMisfit, isKitBase } from "./kitAssets";
 
@@ -40,5 +41,35 @@ export function CommonImageMisfit({ asset, misfit }: { asset: Asset; misfit?: Ki
         pieceHeight: slot.height,
       })}
     </p>
+  );
+}
+
+/** The most the original is enlarged, so a small piece stays readable and a window fits. */
+const ORIGINAL_MAX = 160;
+
+/**
+ * The piece `slot` as Artisan ships it, shown beside the server's version of it (ADR
+ * `common-images-and-themes`, decision 8): what "restore the original" comes back to.
+ */
+export function CommonImageOriginal({ slot }: { slot: KitSlot }) {
+  const { t } = useTranslation();
+  const url = kitImageUrl(slot.id);
+  if (!url) return null;
+  const scale = Math.max(1, Math.min(3, Math.floor(ORIGINAL_MAX / slot.width)));
+  return (
+    <div className="flex flex-col gap-1" data-testid="common-image-original">
+      <span className="field-label">{t("kit.page.original")}</span>
+      <div className="flex justify-center rounded-[var(--r-md)] bg-[var(--surface-inset)] p-3">
+        <img
+          src={url}
+          alt={t("kit.page.originalAlt", { name: slot.id })}
+          width={slot.width * scale}
+          height={slot.height * scale}
+          className="max-w-full object-contain"
+          style={{ imageRendering: "pixelated" }}
+          decoding="async"
+        />
+      </div>
+    </div>
   );
 }

@@ -213,6 +213,11 @@ export default {
       shipped: "Artisan",
       redrawn: "Redrawn",
       misfit: "Not taken",
+      original: "Artisan's original",
+      originalAlt: "{{name}} as Artisan ships it",
+      restore: "Restore the original",
+      confirmRestore:
+        "Delete this server's {{name}}? Menus show Artisan's original again once deployed.",
       misfitDetail:
         "This image is {{width}} × {{height}} px, the piece is {{pieceWidth}} × {{pieceHeight}} px: menus keep the original until this image has the piece's size.",
       others: "This server's own images",

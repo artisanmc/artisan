@@ -7,7 +7,7 @@ import type { Project, ProjectId } from "@/domain/types";
 import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
 import { useImageUses } from "@/features/project/imageUses";
 import { cx } from "@/lib/cx";
-import { KIT_ALIAS, commonImageKey, kitNameOf } from "@/lib/pack/kit";
+import { KIT_ALIAS, commonImageKey, kitNameOf, kitSlot } from "@/lib/pack/kit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useProjectsStore } from "@/state/projectsStore";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -24,7 +24,7 @@ import { ImageNewDialog } from "./ImageNewDialog";
 import { ImageStudio } from "./ImageStudio";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
-import { CommonImageBadge, CommonImageMisfit } from "./CommonImageState";
+import { CommonImageBadge, CommonImageMisfit, CommonImageOriginal } from "./CommonImageState";
 import { isKitBase, useCommonImageRef, useKitAssets, useKitMisfits } from "./kitAssets";
 import { type ResourcesView, useResourcesView } from "./resourcesView";
 import { useKitPieceAsked } from "./useKitPieceAsked";
@@ -452,6 +452,11 @@ function CommonAssets({
   const selected = assets.find((asset) => asset.id === selectedId) ?? null;
   const shipped = selected !== null && isKitBase(selected) && !selected.contentHash;
   const written = selected ? refOf(selected) : "";
+  // A piece the server drew its own version of: the original shows beside it.
+  const redrawnPiece =
+    selected && (selected.contentHash || misfits.has(nameOf(selected)))
+      ? kitSlot(nameOf(selected))
+      : undefined;
   const usedBy = selected ? (uses.get(commonImageKey(nameOf(selected))) ?? []) : [];
   const open = () => {
     if (!selected || !onOpen) return;
@@ -496,6 +501,7 @@ function CommonAssets({
         <CommonImageBadge asset={selected} misfit={misfits.get(nameOf(selected))} />
       </div>
       <CommonImageMisfit asset={selected} misfit={misfits.get(nameOf(selected))} />
+      {redrawnPiece && <CommonImageOriginal slot={redrawnPiece} />}
       <div className="flex flex-col gap-1">
         <span className="field-label">{t("resources.common.written")}</span>
         <code className="truncate text-xs" data-testid="common-asset-ref">

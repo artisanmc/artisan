@@ -219,6 +219,11 @@ const fr: typeof en = {
       shipped: "Artisan",
       redrawn: "Redessinée",
       misfit: "Non prise",
+      original: "Original d'Artisan",
+      originalAlt: "{{name}} telle qu'Artisan la livre",
+      restore: "Restaurer l'original",
+      confirmRestore:
+        "Supprimer le {{name}} de ce serveur ? Les menus montrent de nouveau l'original d'Artisan une fois déployé.",
       misfitDetail:
         "Cette image fait {{width}} × {{height}} px, la pièce {{pieceWidth}} × {{pieceHeight}} px : les menus gardent l'original tant que cette image n'a pas la taille de la pièce.",
       others: "Les images de ce serveur",
