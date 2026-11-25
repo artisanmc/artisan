@@ -24,6 +24,9 @@ const fr: typeof en = {
       prefixed: "Ce module a une image de ce nom : artisan: désigne la commune.",
       redraw: "Redessiner pour le serveur",
       open: "Ouvrir dans les images communes",
+      usedBy: "Menus qui la nomment",
+      unused: "Aucun menu du serveur ne la nomme.",
+      usedIn: "{{menu}} · {{project}}",
       followHint:
         "Une image commune se redessine dans les images communes du serveur : chaque menu qui la nomme suit.",
     },
@@ -226,6 +229,9 @@ const fr: typeof en = {
       redrawnCount_other: "{{count}} pièces redessinées sur {{total}}",
       menusNaming_one: "{{count}} menu nomme une image commune",
       menusNaming_other: "{{count}} menus nomment une image commune",
+      usedBy_one: "{{count}} menu la nomme",
+      usedBy_other: "{{count}} menus la nomment",
+      unused: "Aucun menu ne la nomme",
     },
     theme: {
       failed: "Ça n'a pas marché : {{detail}}",

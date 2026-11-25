@@ -226,6 +226,22 @@ builders; `ImageRefs.kt` did not change).
 - A server older than the theme `artisan` (its common images are the module `ui-kit`) keeps the
   ids it had.
 
+**Step 2, fifth part: what the MCP tools say and write** (`McpTools.kt`).
+
+- The tools' texts say "common images". `survey_ui` gives each image of the base under its
+  name alone, what a menu writes; `write_image` in the theme's Project says the same of the
+  image it wrote. A composed image's layer is `artisan:<name>` (`kit:<name>` stays read).
+- On a server that has no theme `artisan`, `survey_ui` still gives `kit:<name>` and says that
+  this server reads nothing else.
+
+**Step 2, sixth part: where a common image is used** (decision 12, "where it is used").
+
+- The server's **Common images** tab says, under each image, how many deployed menus name it.
+- In a module's Resources, a common image lists the menus of the server that name it, each a
+  link to that menu; the open module's menus count as its draft holds them.
+- A menu names a common image by the rule it is read with (`commonNameOf`): `artisan:<name>`
+  and `kit:<name>` always, a name alone when its module holds no image of that name.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -233,11 +249,13 @@ Not there yet:
   problem shown in the editor). `<module>:<name>` for an image that module does not hold falls
   on the bare name, then on the common image, instead of the visible fallback, because the
   asset index does not say who holds a bare id.
-- Against decision 1: the MCP tools still write `kit:<name>` and still say "UI kit"
-  (`survey_ui`, `write_image`, the docs they serve). In the editor, a composed image's layers
-  still hold `kit:<name>`.
+- Against decision 1: the MCP tools keep the names `kit`, `kit_base`, `kit_format`,
+  `kit_colours` and `kit_draft_id` in what they take and return, and the notes file is still
+  `data/ui-kit.yml`. In the editor, a composed image's layers still hold `kit:<name>`.
 - Against decision 12: the Resources screen is still a module's; its **Common images** entry
   reads the published theme, so an image drawn in the theme's draft shows there once deployed.
+  The uses count menus only: a common image named by a dialog, an overlay or a composed
+  image's layer is not counted yet. An image cannot be moved or copied to another scope.
 - Against decisions 5 and 6: a theme other than `artisan` is still a folder
   `themes/artisan/themes/<name>/`, one in place per server (`resource-pack.theme`).
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no

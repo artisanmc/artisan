@@ -27,10 +27,11 @@ import { SearchPalette } from "@/features/search/SearchPalette";
 import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
+import { projectDestination } from "@/lib/projectNavigation";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useIsDesktop } from "@/lib/useMediaQuery";
-import { useKitStore } from "@/state/kitStore";
 import { useAuthStore } from "@/state/authStore";
+import { useKitStore } from "@/state/kitStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useUiStore } from "@/state/uiStore";
 import { DndContext } from "@dnd-kit/core";
@@ -214,6 +215,12 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
                       params: { serverId, projectId: commonId },
                       search: { tab: "resources" },
                     })
+                : undefined
+            }
+            onOpenMenu={
+              serverId
+                ? (owner, menuId) =>
+                    void navigate(projectDestination(owner, serverId, menuId, "menu"))
                 : undefined
             }
           />

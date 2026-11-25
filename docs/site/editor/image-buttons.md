@@ -52,12 +52,16 @@ every common image as the server has it deployed; one selected shows its size, w
 (**Artisan**, **Redrawn** or **This server's**) and what a menu of the open module writes to
 name it. Nothing is copied into the module. **Redraw for the server** (a piece still Artisan's)
 or **Open in the common images** opens the image in the atelier of the common images. The
-common images are not one of the other modules of that selector.
+common images are not one of the other modules of that selector. **Menus that name it** lists
+the menus of the whole server that show this image, each a link to that menu: the other
+modules' menus as deployed, the open module's as you are editing them. A menu whose module
+holds an image of the same name is not listed, since it shows its own.
 
 **Common images, a tab of the server.** The server page's **Common images** tab shows them as
 the server has them deployed: every piece of the base by family (buttons; windows, panels and
 values; arrows and controls) with its size and who drew it, **Artisan** or this server
-(**Redrawn**), then the images the server added. **In a menu** sets every piece on one window,
+(**Redrawn**), then the images the server added. Each image says how many deployed menus name
+it, so an image no menu names is seen before it is redrawn. **In a menu** sets every piece on one window,
 as players see it. Click a piece, on its card or on that menu, to open it in the atelier of the
 common images (the theme `artisan`, which is not in the module list): a piece still Artisan's
 is first copied under the piece's name, at the piece's size, so the menus keep their layout.

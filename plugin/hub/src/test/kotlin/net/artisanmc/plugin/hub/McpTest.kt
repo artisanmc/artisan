@@ -332,8 +332,10 @@ class McpTest {
         val facts = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
         val common = facts["modules"].first { it["project"].asText() == "u-local.artisan" }
         assertEquals(listOf("ribbon"), common["images"].map { it["name"].asText() })
-        val button = facts["kit_base"]["images"].first { it["image"].asText() == "kit:button.3x1" }
+        val button = facts["kit_base"]["images"].first { it["image"].asText() == "button.3x1" }
         assertEquals("artisan", button["drawn_by"].asText())
+        // What a menu writes: the name alone, `artisan:<name>` where the name alone is the module's own.
+        assertTrue("artisan:<name>" in facts["kit_base"]["how"].asText())
 
         val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: common")["structuredContent"]["draft_id"].asText()
         val menu = "schema: menu/v1\nsize: 18\nvanilla_texture: false\nelements:\n" +
@@ -404,10 +406,10 @@ class McpTest {
         val written = tool(access, "write_image", "project" to "u-local.artisan", "draft_id" to kitDraft, "name" to "button.3x1", "use" to "background", "png_base64" to png(54, 18))
         assertFalse(written.has("isError"), written.toString())
         assertEquals("assets/textures/button.3x1.png", written["structuredContent"]["path"].asText())
-        assertTrue("kit:button.3x1" in written["structuredContent"]["use_it"].asText())
+        assertTrue("names `button.3x1`" in written["structuredContent"]["use_it"].asText())
         assertTrue(tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "button.3x1", "png_base64" to png(54, 18))["isError"].asBoolean())
         val other = tool(access, "write_image", "project" to "u-local.artisan", "draft_id" to kitDraft, "name" to "banner", "png_base64" to png(20, 10))
-        assertTrue("kit:banner" in other["structuredContent"]["use_it"].asText(), other.toString())
+        assertTrue("{asset: banner, fit: native}" in other["structuredContent"]["use_it"].asText(), other.toString())
 
         // Deployed, the server's image is what every menu naming the slot shows; one of another size is left out.
         modules["artisan"] = McpFixtures.Module(
@@ -415,10 +417,10 @@ class McpTest {
         )
         assertEquals(listOf(0xcc, 0x20, 0x20) to shipped("window.3", 3, 3), pixels())
         val restyled = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit_base"]["images"].associateBy { it["image"].asText() }
-        assertEquals("this server", restyled.getValue("kit:button.3x1")["drawn_by"].asText())
-        assertEquals("artisan", restyled.getValue("kit:window.3")["drawn_by"].asText())
-        assertTrue(restyled.getValue("kit:window.3").has("ignored"))
-        assertFalse(restyled.getValue("kit:cell").has("ignored"))
+        assertEquals("this server", restyled.getValue("button.3x1")["drawn_by"].asText())
+        assertEquals("artisan", restyled.getValue("window.3")["drawn_by"].asText())
+        assertTrue(restyled.getValue("window.3").has("ignored"))
+        assertFalse(restyled.getValue("cell").has("ignored"))
     }
 
     @Test
@@ -452,9 +454,9 @@ class McpTest {
         // The theme's own drawing of a kit image: of its size, in the kit module, of an image the kit has.
         val small = kit("write_image", "name" to "cell", "theme" to "noel", "png_base64" to png(10, 10, 0x112233))
         assertTrue(small["isError"].asBoolean() && "18x18" in small["structuredContent"]["message"].asText(), small.toString())
-        assertTrue("No kit image" in kit("write_image", "name" to "nothing", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["message"].asText())
+        assertTrue("No common image" in kit("write_image", "name" to "nothing", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["message"].asText())
         val elsewhere = tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
-        assertTrue(elsewhere["isError"].asBoolean() && "artisan" in elsewhere["structuredContent"]["message"].asText(), elsewhere.toString())
+        assertTrue(elsewhere["isError"].asBoolean() && "common images" in elsewhere["structuredContent"]["message"].asText(), elsewhere.toString())
         val drawn = kit("write_image", "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
         assertFalse(drawn.has("isError"), drawn.toString())
         assertEquals("themes/noel/assets/textures/cell.png", drawn["structuredContent"]["path"].asText())

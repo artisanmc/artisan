@@ -170,41 +170,45 @@ Elements that touch their neighbours are cut as rectangles, to the pixel. A PNG,
 connected over MCP has no attachments: upload the picture into a module's images first, and
 give it that path. Only take images you have the right to reuse.
 
-**A consistent style: the UI kit.** Before it draws, the app looks at the images your modules
-already have, so a new menu matches the others. To keep a style over time, ask it for a UI kit:
-"Make a UI kit for this server from the guild menus." It fills the server's common images
-(`plugins/Artisan/themes/artisan/`, which every server has) with the shared images (buttons,
-windows, arrows) and a `data/ui-kit.yml` file: the list of those images, grouped as you like,
-and the style rules in plain words ("vanilla bevel, no black outline"). Any menu of the server
-can use these images, and the app reads the kit at the start of each conversation, which is the
-only thing it remembers from the last one. You review and deploy what the app adds there as you
-do for a module, and you can edit the file yourself.
+**A consistent style: the common images.** Before it draws, the app looks at the images your
+modules already have, so a new menu matches the others. To keep a style over time, ask it for
+common images: "Make common images for this server from the guild menus." It fills the server's
+common images (`plugins/Artisan/themes/artisan/`, which every server has) with the shared images
+(buttons, windows, arrows) and a `data/ui-kit.yml` file: the list of those images, grouped as you
+like, and the style rules in plain words ("vanilla bevel, no black outline"). Any menu of the
+server can use these images, and the app reads that file at the start of each conversation, which
+is the only thing it remembers from the last one. You review and deploy what the app adds there
+as you do for a module, and you can edit the file yourself.
 
-**The kit's base.** Every server has a few plain images under names that never change: two
-windows (`kit:window.6`, `kit:window.3`), four buttons (`kit:button.3x1` and its `danger`, `off`
+**The base.** Every server has a few plain images under names that never change: two
+windows (`window.6`, `window.3`), four buttons (`button.3x1` and its `danger`, `off`
 and `plain` forms), a panel, a card, two value boxes, arrows, close, back and two toggles. A
-menu that names them looks right on any server, which is what a module you share needs. Your
-server restyles one with a common image of the same name and size ("redraw `button.3x1` of
-the kit in the style of the guild menus"): every menu that names it follows. An image of another
-size is left out, so that no menu is thrown off. Any other common image of the server is
-`kit:<its name>` too. The base itself is on the server, in `themes/artisan/originals/`.
+menu names one by its name (`image: { asset: button.3x1 }`) and looks right on any server, which
+is what a module you share needs. Your server restyles one with a common image of the same name
+and size ("redraw the common `button.3x1` in the style of the guild menus"): every menu that
+names it follows. An image of another size is left out, so that no menu is thrown off. Any other
+common image of the server is named the same way. A module that holds an image of that name
+shows its own in its menus; `artisan:button.3x1` names the common one there. The app writes the
+name alone, and `artisan:<name>` in that case and in a composed image's layers; `kit:<name>`,
+which it wrote before, is still read. The base itself is on the server, in
+`themes/artisan/originals/`.
 
 **Composed images.** A window with its slots, or a card with its icon, does not have to be
-drawn pixel by pixel: the app can put it together from kit images and the module's own ("a
-window of 6 rows from the kit, with the guild icon in the title"). Such an image is a short
+drawn pixel by pixel: the app can put it together from common images and the module's own ("a
+common window of 6 rows, with the guild icon in the title"). Such an image is a short
 recipe (`compose:` in `assets/textures/<name>.yml`, no PNG beside it) that the resource pack
 assembles at each build. It is used like any image, and it follows its layers: redraw the
-kit's window, and every image composed with it changes at the next build. A layer is a kit
-image or a PNG of the same module; the image is as large as its first layer, unless the recipe
-gives a `width` and a `height`.
+common window, and every image composed with it changes at the next build. A layer is a common
+image (`artisan:window.6`) or a PNG of the same module; the image is as large as its first
+layer, unless the recipe gives a `width` and a `height`.
 
 ```yaml
 # assets/glyphs/guild_window.yml
 ascent: 13
 codepoint: 57344
 compose:
-  - use: "kit:window.6"
-  - grid: "kit:cell"      # 9 columns by 6 rows of slots
+  - use: "artisan:window.6"
+  - grid: "artisan:cell"  # 9 columns by 6 rows of slots
     x: 7
     y: 17
     columns: 9
@@ -217,12 +221,12 @@ compose:
 You can then move its layers by hand: the image's detail in the Resources page is a composer
 (see [Image buttons](../../editor/image-buttons/), "Composed images").
 
-**Themes.** A theme gives the whole kit another look, for a season or an event, without a menu
-being touched ("make a Christmas theme of the kit: red buttons, snow on the windows"). It is a
+**Themes.** A theme gives the common images another look, for a season or an event, without a
+menu being touched ("make a Christmas theme: red buttons, snow on the windows"). It is a
 folder of the common images (`plugins/Artisan/themes/artisan/`):
 
 ```yaml
-# themes/noel/theme.yml: each colour of the kit's images, and what replaces it
+# themes/noel/theme.yml: each colour of the common images, and what replaces it
 colors:
   "#3c8527": "#b3261e"   # quoted: unquoted, # starts a comment
   "#2a641c": "#7f1a14"
@@ -232,12 +236,13 @@ colors:
 themes/noel/assets/textures/window.6.png   # an image the theme draws again, at its size
 ```
 
-Every image a menu names `kit:<name>` is then shown as the theme draws it, else in the theme's
-colours, its transparency kept; an image composed from kit images follows. A drawing of
+Every common image a menu names is then shown as the theme draws it, else in the theme's
+colours, its transparency kept; an image composed from common images follows. A drawing of
 another size than the image it replaces is left out, so the menus keep their layout. A
-module's own PNG never changes: to make an image follow the themes, compose it from kit images.
+module's own PNG never changes: to make an image follow the themes, compose it from common
+images.
 The server shows one theme at a time: pick it in **Configuration**, **Resource pack**,
-**Theme of the UI kit** (`resource-pack.theme` of `config.yml`), which rebuilds the pack. The
+**Theme of the common images** (`resource-pack.theme` of `config.yml`), which rebuilds the pack. The
 app cannot switch it; it shows you a menu in a theme before you do.
 
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"

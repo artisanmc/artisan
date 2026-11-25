@@ -22,6 +22,9 @@ export default {
       prefixed: "This module holds an image of this name: artisan: names the common one.",
       redraw: "Redraw for the server",
       open: "Open in the common images",
+      usedBy: "Menus that name it",
+      unused: "No menu of the server names it.",
+      usedIn: "{{menu}} · {{project}}",
       followHint:
         "A common image is redrawn in the server's common images: every menu that names it follows.",
     },
@@ -219,6 +222,9 @@ export default {
       redrawnCount_other: "{{count}} pieces redrawn out of {{total}}",
       menusNaming_one: "{{count}} menu names a common image",
       menusNaming_other: "{{count}} menus name a common image",
+      usedBy_one: "{{count}} menu names it",
+      usedBy_other: "{{count}} menus name it",
+      unused: "No menu names it",
     },
     theme: {
       failed: "That did not work: {{detail}}",

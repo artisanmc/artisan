@@ -118,16 +118,59 @@ export const commonImageRef = (name: string, own: (name: string) => boolean): st
   own(name) ? KIT_ALIAS + name : name;
 
 /**
- * Whether `ref`, written in a module, names a common image: `artisan:<name>` or `kit:<name>`,
- * or a name the module holds no image of (`own`) and a common image has (`common`).
+ * The common image `ref` names when written in a module: the name after `artisan:` or `kit:`,
+ * or `ref` itself when the module holds no image of that name (`own`) and a common image has
+ * it (`common`); `null` when it names another image.
  */
-export function namesCommonImage(
+export function commonNameOf(
   ref: string,
   own: (name: string) => boolean,
   common: (name: string) => boolean,
-): boolean {
-  if (kitNameOf(ref) !== null) return true;
-  return !ref.includes(":") && !own(ref) && common(ref);
+): string | null {
+  const named = kitNameOf(ref);
+  if (named !== null) return named;
+  return !ref.includes(":") && !own(ref) && common(ref) ? ref : null;
+}
+
+/** A menu that names a common image. */
+export interface CommonImageUse {
+  projectId: string;
+  projectName: string;
+  menuId: string;
+}
+
+/** A module as `commonImageUses` reads it: its own image names, and what each menu writes. */
+export interface CommonImageReader {
+  id: string;
+  name: string;
+  own: (name: string) => boolean;
+  menus: { id: string; refs: string[] }[];
+}
+
+/**
+ * The menus that name each common image, by the image's name, in the order of `modules` then
+ * of their menus. A menu counts once per image, however many of its buttons name it.
+ */
+export function commonImageUses(
+  modules: CommonImageReader[],
+  common: (name: string) => boolean,
+): Map<string, CommonImageUse[]> {
+  const uses = new Map<string, CommonImageUse[]>();
+  for (const module of modules) {
+    for (const menu of module.menus) {
+      const names = new Set<string>();
+      for (const ref of menu.refs) {
+        const name = commonNameOf(ref, module.own, common);
+        if (name !== null) names.add(name);
+      }
+      for (const name of names) {
+        const held = uses.get(name) ?? [];
+        held.push({ projectId: module.id, projectName: module.name, menuId: menu.id });
+        uses.set(name, held);
+      }
+    }
+  }
+  return uses;
 }
 
 /** The image names a Document writes: every `asset` and `assetId` it holds, at any depth. */

@@ -39,7 +39,25 @@ describe("KitPage", () => {
     const onPiece = vi.fn();
     const onOpenKit = vi.fn();
     const onTheme = vi.fn();
-    render(<KitPage menusNaming={14} onPiece={onPiece} onOpenKit={onOpenKit} onTheme={onTheme} />);
+    render(
+      <KitPage
+        menusNaming={14}
+        usesOf={(name) => (name === "button.3x1" ? 3 : name === "blason" ? 1 : 0)}
+        onPiece={onPiece}
+        onOpenKit={onOpenKit}
+        onTheme={onTheme}
+      />,
+    );
+    // Each image says how many menus name it.
+    expect(
+      within(screen.getByTestId("kit-slot-button.3x1")).getByText("3 menus la nomment"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("kit-other-kit:blason")).getByText("1 menu la nomme"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("kit-slot-card.3x2")).getByText("Aucun menu ne la nomme"),
+    ).toBeInTheDocument();
     expect(
       within(screen.getByTestId("kit-slot-button.3x1")).getByText("Redessinée"),
     ).toBeInTheDocument();
