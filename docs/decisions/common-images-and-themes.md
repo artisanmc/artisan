@@ -34,7 +34,8 @@ On 24 and 25 November the server got a UI kit: a base of 19 images in the jar, n
    "kit", "UI" or "variant" for any of this.
 
 2. **Artisan's base is the theme `artisan`**, in `plugins/Artisan/themes/artisan/`:
-   `originals/assets/` holds the base, written by the server when Artisan's version changes;
+   `originals/assets/` holds the base, written by the originals sync (`SystemFiles`, which
+   writes only what differs, so nothing on a start where Artisan did not change);
    `assets/` holds the server's redraw of a base image (same name) and the common images the
    server added; `data/` holds the drawing notes a model reads. `themes/` is one more Project
    root. The theme `artisan` is not in the module list, cannot be renamed or deleted, and its
@@ -51,6 +52,11 @@ On 24 and 25 November the server got a UI kit: a base of 19 images in the jar, n
    editor: there is no "elsewhere on the server when the name is unique" as for Documents
    (`project-qualified-refs`). One rule, the server's and the editor's, held by a shared case
    file like `doc-ref-conformance.json`.
+   **This changes the pack and the runtime.** Today an image's key is its name alone, for the
+   whole server (`AssetIndex`, `asset-index.json`): two modules that each hold `button.3x1`
+   collide and one of the two shows in every menu. The key becomes the module and the name, in
+   both pack builders, in the asset index and where the runtime looks an image up, which then
+   needs the menu's module.
 
 4. **An image states its function, and the function fixes its measures.** Menu (pixel size,
    and slots when the name ends with `3x1`), glyph (height and `ascent`), HUD (pixel size),
@@ -133,8 +139,11 @@ Nothing below shipped in a release; only test servers hold it.
 | `ui-kit/data/ui-kit.yml` | the same file in `themes/artisan/data/` |
 | MCP tools `survey_ui`, `write_image`, `render_menu` | same names and arguments, reading the new places |
 
-A module's existing images do not move, and the menus that name them stay valid: "the module
-first" is today's rule.
+A module's existing images do not move, and the menus that name them stay valid. One visible
+change: on a server where two modules hold an image of the same name, each module's menus now
+show their own, where today one of the two shows everywhere. A menu that names, without a
+prefix, an image only another module holds (allowed today, the index being the server's) keeps
+working through a rewrite to `module:name` at load.
 
 ## Steps
 
@@ -158,14 +167,20 @@ first" is today's rule.
 - The glossary gains **Theme**, which it refused as a term for a Variant: a theme changes
   pixels only.
 
-## To check in the code before step 2
+## Read in the code on 2026-11-25
 
-- How the pack keys two images of the same name from two modules. If the key is the name
-  alone, step 2 also qualifies it by module.
-- That Artisan can register `themes/` as a root and write its originals as an add-on does
-  (`addon-owned-project-roots`, `SystemFiles`), and what `SystemFiles` keeps for a file that is
-  not YAML (origins and bases exist for the merge of YAML files).
-- That the Bedrock pack and the hub's sync to the other servers do not assume one place for
-  common images.
-- The glossary says `originals/` is rewritten at each start; decision 2 writes the base when
-  Artisan's version changes.
+- The pack keys an image by its name alone (`ResourcePackBuilder`, `AssetIndex`; the Bedrock
+  pack keeps the first module's): decision 3 says what step 2 changes.
+- The core registers a Project root itself (`ProjectRoots`, `registerProjectRoot`), so
+  `themes/<name>/` needs no new mechanism.
+- `SystemFiles` keeps where an owner's file came from (`.artisan/origins.yaml`, the version and
+  its hash) and merges YAML files only; a file that is not YAML stays as the owner left it. An
+  image the owner redraws has no origin today: decision 8's "the original changed" records one
+  when the redraw is written.
+
+## Still to check before step 2
+
+- That the hub's sync to the other servers and the drafts treat a `themes/` root as they treat
+  a module's folder.
+- What the editor's own lookup does today when two modules hold the same name (`render_menu`
+  already looks in the menu's module first).
