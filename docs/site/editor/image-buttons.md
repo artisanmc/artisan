@@ -57,17 +57,39 @@ the menus of the whole server that show this image, each a link to that menu: th
 modules' menus as deployed, the open module's as you are editing them. A menu whose module
 holds an image of the same name is not listed, since it shows its own.
 
-**Common images, a tab of the server.** The server page's **Common images** tab shows them as
-the server has them deployed: every piece of the base by family (buttons; windows, panels and
+**Resources, a tab of the server.** The server page's **Resources** tab is the Resources screen
+for the whole server: the images and fonts of every module and the common images in one list,
+as deployed. **Show** narrows it to one module or to the common images. An image selected
+shows who provides it (its module, or the common images), its size, and the menus of the
+server that name it, each a link to that menu: a menu of its own module that writes its name,
+and a menu of another module that writes `<module>:<name>`. Nothing is changed from this
+list: **Open in** opens the module's Resources on that image, and a common image opens in the
+atelier of the common images.
+
+**Show: Common images** is the page of the common images alone, as the server has them
+deployed: every piece of the base by family (buttons; windows, panels and
 values; arrows and controls) with its size and who drew it, **Artisan** or this server
 (**Redrawn**), then the images the server added. Each image says how many deployed menus name
 it, so an image no menu names is seen before it is redrawn. **In a menu** sets every piece on one window,
 as players see it. Click a piece, on its card or on that menu, to open it in the atelier of the
 common images (the theme `artisan`, which is not in the module list): a piece still Artisan's
 is first copied under the piece's name, at the piece's size, so the menus keep their layout.
-Deleting that image gives the piece back to Artisan: the base Artisan ships stays beside it, in
+An image of a piece's name at another size is not taken: menus keep the original, and the
+image is marked **Not taken**, with its size and the piece's, on its card, in the Resources
+lists and in the common images' own Resources, until it has the piece's size.
+A piece the server drew its own version of shows **Artisan's original** beside it, wherever
+the image is selected. In the common images' own Resources, **Restore the original** deletes
+the server's version: it gives the piece back to Artisan: the base Artisan ships stays beside it, in
 `themes/artisan/originals/`, rewritten when an update of Artisan changes it. Like any change, a
 redrawn piece reaches players when the draft is deployed and the pack rebuilt.
+
+When an update of Artisan changes an original the server drew its own version of, the image
+says **The original changed since your version**. Menus keep showing the server's version.
+**Keep mine** records that it is kept knowingly, and the notice goes; **Restore the original**
+gives the piece back to Artisan, to redraw it from the new original. The same notice shows on
+a module's image the server drew over. It needs Artisan up to date on the server that holds
+the files, and it starts counting at the first start after the server's version was deployed:
+an original that changes before that start is not flagged.
 
 A server that had a `ui-kit` module keeps its images: at the first start after the update, the
 module's folder moves to `plugins/Artisan/themes/artisan/`, and the menus that name its images

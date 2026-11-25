@@ -829,6 +829,7 @@ class SyncedMenuProvider(
             is EditorRequest.TemplateFetch -> templateRequests.fetch(request)
             is EditorRequest.TemplateCopy -> templateRequests.copy(request)
             is EditorRequest.ProjectOriginsFetch -> templateRequests.origins(request)
+            is EditorRequest.ProjectOriginKeep -> templateRequests.keep(request)
             is EditorRequest.DataSourceFetch -> queries.dataSource(request)
             is EditorRequest.ServerConfigWrite -> queries.serverConfigWrite(request)
             is EditorRequest.NexoGlyphsList -> queries.nexoGlyphs(request)

@@ -2,7 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Asset } from "@/domain/asset";
 import { AssetPreview } from "./AssetPreview";
-import { isKitBase, useKitAssets } from "./kitAssets";
+import { CommonImageBadge, CommonImageMisfit } from "./CommonImageState";
+import { isKitBase, useKitAssets, useKitMisfits } from "./kitAssets";
 import { cx } from "@/lib/cx";
 import { KIT_PREFIX, KIT_SLOTS, type KitSlot, kitNameOf } from "@/lib/pack/kit";
 import { themeNames } from "@/lib/pack/theme";
@@ -106,6 +107,7 @@ export function KitPage({
   const read = useKitStore((s) => s.read);
   const theme = useKitStore((s) => s.theme);
   const kit = useKitAssets();
+  const misfits = useKitMisfits();
   const [over, setOver] = useState<string | null>(null);
   const themes = useMemo(
     () =>
@@ -173,7 +175,6 @@ export function KitPage({
               <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
                 {kitPiecesOf(family).map((slot) => {
                   const shown = piece(slot);
-                  const mine = !!shown?.contentHash;
                   return (
                     <Card
                       key={slot.id}
@@ -190,10 +191,13 @@ export function KitPage({
                         <span>
                           {slot.width} × {slot.height} px
                         </span>
-                        <Badge variant={mine ? "amber" : "sage"}>
-                          {t(mine ? "kit.page.redrawn" : "kit.page.shipped")}
-                        </Badge>
+                        {shown ? (
+                          <CommonImageBadge asset={shown} misfit={misfits.get(slot.id)} />
+                        ) : null}
                       </span>
+                      {shown ? (
+                        <CommonImageMisfit asset={shown} misfit={misfits.get(slot.id)} />
+                      ) : null}
                       {usesOf ? <Uses count={usesOf(slot.id)} /> : null}
                     </Card>
                   );

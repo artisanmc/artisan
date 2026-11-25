@@ -112,6 +112,42 @@ class SystemFilesTest {
     }
 
     @Test
+    fun `an image redrawn keeps the original it was drawn from, until the owner keeps their version`() {
+        fun base(version: Int, pixels: String) =
+            TemplateDeclaration.builder("base", version).system().file("assets/textures/button.png", pixels.toByteArray()).build()
+        val redraw = File(folder, "assets/textures/button.png")
+        fun changed() = origins()["assets/textures/button.png"] != origins()["originals/assets/textures/button.png"]
+
+        SystemFiles.sync(folder, "artisan", base(1, "v1"))
+        assertTrue(!SystemFiles.keep(folder, "assets/textures/button.png"), "nothing of the owner's to keep")
+        redraw.apply { parentFile.mkdirs(); writeText("mine") }
+        SystemFiles.sync(folder, "artisan", base(1, "v1"))
+        assertTrue(!changed(), "drawn from v1, which is the original")
+
+        // Artisan changes the original: the redraw stays, and its origin still names v1.
+        SystemFiles.sync(folder, "artisan", base(2, "v2"))
+        assertEquals("mine", redraw.readText())
+        assertEquals("v2", File(folder, "originals/assets/textures/button.png").readText())
+        assertEquals(hash("v1"), origins().getValue("assets/textures/button.png").hash)
+        assertTrue(changed())
+
+        // The owner keeps theirs: the question is answered, at this start and the next.
+        assertTrue(SystemFiles.keep(folder, "assets/textures/button.png"))
+        assertTrue(!changed())
+        assertTrue(SystemFiles.keep(folder, "assets/textures/button.png"), "already kept")
+        SystemFiles.sync(folder, "artisan", base(2, "v2"))
+        assertEquals("mine", redraw.readText())
+        assertTrue(!changed())
+
+        // Until the original changes again.
+        SystemFiles.sync(folder, "artisan", base(3, "v3"))
+        assertTrue(changed())
+
+        assertTrue(!SystemFiles.keep(folder, "originals/assets/textures/button.png"), "an original is never the owner's")
+        assertTrue(!SystemFiles.keep(folder, "assets/textures/other.png"), "no such file")
+    }
+
+    @Test
     fun `without a kept base an edited file stays as it is`() {
         edit("title: Shop\n", "title: Mine\n")
         File(folder, SystemFiles.BASES).deleteRecursively()

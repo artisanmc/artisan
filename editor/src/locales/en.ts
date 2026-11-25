@@ -15,6 +15,15 @@ import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
+    originalChanged: {
+      title: "The original changed since your version.",
+      hint: "Menus keep showing yours. Keep it as it is, or restore the original and redraw from the new one.",
+      keep: "Keep mine",
+      errors: {
+        not_found: "This file or its original is no longer on the server.",
+        plugin_update_required: "Update Artisan on this server to keep your version.",
+      },
+    },
     common: {
       hint: "The images every menu of the server shares. A menu names one by its name: nothing is copied into this module.",
       added: "This server's",
@@ -212,6 +221,14 @@ export default {
       },
       shipped: "Artisan",
       redrawn: "Redrawn",
+      misfit: "Not taken",
+      original: "Artisan's original",
+      originalAlt: "{{name}} as Artisan ships it",
+      restore: "Restore the original",
+      confirmRestore:
+        "Delete this server's {{name}}? Menus show Artisan's original again once deployed.",
+      misfitDetail:
+        "This image is {{width}} × {{height}} px, the piece is {{pieceWidth}} × {{pieceHeight}} px: menus keep the original until this image has the piece's size.",
       others: "This server's own images",
       noOthers: "None yet. An image added here is named by its name in any menu of the server.",
       inMenu: "In a menu",
@@ -301,6 +318,16 @@ export default {
     close: "Close navigation",
     dismiss: "Dismiss navigation",
     resize: "Resize navigation (double-click: default width)",
+  },
+  serverResources: {
+    show: "Show:",
+    all: "Whole server",
+    modules: "Modules",
+    hint: "The images and fonts of the server, as deployed. An image is changed where it lives: in its module, or among the common images.",
+    empty: "No image or font here yet.",
+    provider: "Provided by",
+    openIn: "Open in {{project}}",
+    moduleHint: "This image belongs to its module: it is changed in that module's Resources.",
   },
   projectSource: {
     common: "Common images",
@@ -2362,7 +2389,7 @@ export default {
     tabs: {
       label: "Server sections",
       overview: "Overview",
-      common: "Common images",
+      resources: "Resources",
       play: "Play",
       assistant: "Assistant",
       data: "Data sources",

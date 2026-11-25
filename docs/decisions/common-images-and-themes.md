@@ -236,11 +236,53 @@ builders; `ImageRefs.kt` did not change).
 
 **Step 2, sixth part: where a common image is used** (decision 12, "where it is used").
 
-- The server's **Common images** tab says, under each image, how many deployed menus name it.
+- The common images' page says, under each image, how many deployed menus name it.
 - In a module's Resources, a common image lists the menus of the server that name it, each a
   link to that menu; the open module's menus count as its draft holds them.
 - A menu names a common image by the rule it is read with (`commonNameOf`): `artisan:<name>`
   and `kit:<name>` always, a name alone when its module holds no image of that name.
+
+**Decision 12, first part: the server's Resources** (`ServerResources.tsx`, `imageUses.ts`,
+`servers.$serverId.resources.tsx`).
+
+- The server's **Common images** tab is gone. Its **Resources** tab is the Resources screen on
+  the whole server: every module's images and fonts and the common images in one list, as
+  deployed; **Show** narrows it to one module, or to the common images, whose page (pieces by
+  family, the trial menu, the themes) is the one the old tab had.
+- Each image shows who provides it, and the menus that name it, each a link to that menu. A
+  module's image is named by a menu of its module that writes its name, and by a menu of
+  another module that writes `<module>:<name>` (`imageNamedBy`).
+- The list changes nothing: an image opens where it lives, in its module's Resources or in the
+  atelier of the common images.
+
+**Step 3, first part: a common image that is not taken is reported** (`kitAssets.ts`,
+`CommonImageState.tsx`).
+
+- The server's image of a base piece's name at another size than the piece's was already not
+  taken by the pack, silently. The editor now says so: **Not taken**, with the image's size and
+  the piece's, on the common images' page, in the Resources lists, and on the image itself in
+  the common images' Project.
+
+**Step 5, first part: the original beside a redrawn piece** (`CommonImageState.tsx`).
+
+- A piece of the base the server drew its own version of shows Artisan's original beside it:
+  in the Resources lists and in the common images' Project, where deleting the server's image
+  is named **Restore the original**.
+
+**Step 5, second part: the original changed since the server's version** (`SystemFiles.keep`,
+`OriginalChanged.tsx`).
+
+- The originals sync already records, in `.artisan/origins.yaml`, the original an owner's file
+  at a shipped path was made against, and leaves an image alone when its original changes.
+  The editor reads the two hashes: when they differ, the image says the original changed
+  since the owner's version, in any module.
+- **Keep mine** is a request of its own to the server (`project_origin_keep`, protocol 1.10),
+  which records the current original beside the owner's file: only the server writes
+  `.artisan/origins.yaml`. "Start again from the new original" is restoring it, then
+  redrawing: no third action.
+- Limit: the origin of an owner's file is recorded at the first originals sync that sees it
+  (a start or a reload), not when it is deployed. An original that changes between the
+  deploy and that sync is not flagged.
 
 Not there yet:
 
@@ -252,10 +294,21 @@ Not there yet:
 - Against decision 1: the MCP tools keep the names `kit`, `kit_base`, `kit_format`,
   `kit_colours` and `kit_draft_id` in what they take and return, and the notes file is still
   `data/ui-kit.yml`. In the editor, a composed image's layers still hold `kit:<name>`.
-- Against decision 12: the Resources screen is still a module's; its **Common images** entry
-  reads the published theme, so an image drawn in the theme's draft shows there once deployed.
-  The uses count menus only: a common image named by a dialog, an overlay or a composed
-  image's layer is not counted yet. An image cannot be moved or copied to another scope.
+- Against decision 12: the server's Resources and a module's are two components, the first
+  read-only. Both read the common images as published, so an image drawn in the theme's draft
+  shows there once deployed. The uses count menus only: an image named by a dialog, an overlay
+  or a composed image's layer is not counted yet. The change of an original shows on the image
+  in its module only, not in the server's list, and a module's image shows no original beside
+  it (step 5). An image cannot be moved or copied to another scope from the server's list. Themes have
+  no screen of their own yet: they are reached from the common images' page.
+- Against decision 4: an image does not declare its function yet. Only the base's pieces
+  have fixed measures (their pixel size, from Artisan's own list); a module's image that
+  replaces its original (`originals/`) at other measures is still taken, and nothing is said
+  of a glyph's height and ascent or of a HUD image. The editor reads a redrawn piece's size
+  from its descriptor, the pack from the PNG.
+- Against decision 8: "the original changed since your redraw" is not there (a redrawn image
+  records no origin), and neither the side by side nor the restore reach an add-on module's
+  images or a menu.
 - Against decisions 5 and 6: a theme other than `artisan` is still a folder
   `themes/artisan/themes/<name>/`, one in place per server (`resource-pack.theme`).
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no

@@ -17,6 +17,15 @@ import { variablesFr } from "./variables";
 const fr: typeof en = {
   onboarding: onboardingFr,
   resources: {
+    originalChanged: {
+      title: "L'original a changé depuis ta version.",
+      hint: "Les menus continuent de montrer la tienne. Garde-la telle quelle, ou restaure l'original pour repartir du nouveau.",
+      keep: "Garder la mienne",
+      errors: {
+        not_found: "Ce fichier ou son original n'est plus sur le serveur.",
+        plugin_update_required: "Mets Artisan à jour sur ce serveur pour garder ta version.",
+      },
+    },
     common: {
       hint: "Les images que tous les menus du serveur partagent. Un menu en nomme une par son nom : rien n'est copié dans ce module.",
       added: "Ce serveur",
@@ -218,6 +227,14 @@ const fr: typeof en = {
       },
       shipped: "Artisan",
       redrawn: "Redessinée",
+      misfit: "Non prise",
+      original: "Original d'Artisan",
+      originalAlt: "{{name}} telle qu'Artisan la livre",
+      restore: "Restaurer l'original",
+      confirmRestore:
+        "Supprimer le {{name}} de ce serveur ? Les menus montrent de nouveau l'original d'Artisan une fois déployé.",
+      misfitDetail:
+        "Cette image fait {{width}} × {{height}} px, la pièce {{pieceWidth}} × {{pieceHeight}} px : les menus gardent l'original tant que cette image n'a pas la taille de la pièce.",
       others: "Les images de ce serveur",
       noOthers:
         "Aucune pour l'instant. Une image ajoutée ici se nomme par son nom dans n'importe quel menu du serveur.",
@@ -308,6 +325,17 @@ const fr: typeof en = {
     close: "Fermer la navigation",
     dismiss: "Refermer la navigation",
     resize: "Redimensionner la navigation (double-clic : largeur par défaut)",
+  },
+  serverResources: {
+    show: "Afficher :",
+    all: "Tout le serveur",
+    modules: "Modules",
+    hint: "Les images et les polices du serveur, telles que déployées. Une image se modifie là où elle vit : dans son module, ou parmi les images communes.",
+    empty: "Aucune image ni police ici pour l'instant.",
+    provider: "Fournie par",
+    openIn: "Ouvrir dans {{project}}",
+    moduleHint:
+      "Cette image appartient à son module : elle se modifie dans les Ressources de ce module.",
   },
   projectSource: {
     common: "Images communes",
@@ -2407,7 +2435,7 @@ const fr: typeof en = {
     tabs: {
       label: "Sections du serveur",
       overview: "Vue d'ensemble",
-      common: "Images communes",
+      resources: "Ressources",
       play: "Jeu",
       assistant: "Assistant",
       data: "Sources de données",

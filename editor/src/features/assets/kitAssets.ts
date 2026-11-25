@@ -215,6 +215,36 @@ export function kitAssetsOf(
   return [...base, ...others];
 }
 
+/** The size of a server's image that is not taken for a piece of the base. */
+export interface KitMisfit {
+  width: number;
+  height: number;
+}
+
+/**
+ * The pieces of the base the server holds an image of at another size than the piece's, by
+ * name, with that image's size (ADR `common-images-and-themes`, decision 4): it is not taken,
+ * the base's shows, and the editor says so on the image.
+ */
+export function kitMisfits(read: KitRead | undefined): Map<string, KitMisfit> {
+  const out = new Map<string, KitMisfit>();
+  const own = ownImages(read);
+  for (const slot of KIT_SLOTS) {
+    const mine = own.get(slot.id);
+    if (!mine) continue;
+    const width = mine.width ?? slot.width;
+    const height = mine.height ?? slot.height;
+    if (width !== slot.width || height !== slot.height) out.set(slot.id, { width, height });
+  }
+  return out;
+}
+
+/** `kitMisfits` of the server being edited, as published. */
+export function useKitMisfits(): Map<string, KitMisfit> {
+  const read = useKitStore((s) => s.read);
+  return useMemo(() => kitMisfits(read), [read]);
+}
+
 /** The base alone, for a list to choose from. */
 export const isKitBase = (asset: Asset): boolean =>
   KIT_SLOTS.some((slot) => KIT_PREFIX + slot.id === asset.id);

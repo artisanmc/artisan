@@ -4,13 +4,17 @@ import { type AssetUsage, assetPreviewUrl } from "@/domain/asset";
 import { assetMenuReferences, assetUsages } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { deleteAsset, patchAsset } from "@/lib/api/userAssets";
+import { kitSlot } from "@/lib/pack/kit";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetStage } from "./AssetStage";
 import { AssetUsageFields } from "./AssetUsageFields";
+import { CommonImageOriginal } from "./CommonImageState";
+import { OriginalChanged } from "./OriginalChanged";
 import { useAssetStore } from "./assetStore";
+import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
 
 /**
@@ -52,6 +56,13 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
 
   if (!asset) return null;
 
+  // In the common images' Project, an image named as a piece of the base replaces it only at the piece's size.
+  const piece = asset.type !== "font" && isKitModule(projectId) ? kitSlot(asset.id) : undefined;
+  const misfit =
+    piece && asset.width > 0 && (asset.width !== piece.width || asset.height !== piece.height)
+      ? piece
+      : null;
+
   const onSave = async () => {
     if (!user) return;
     setBusy(true);
@@ -84,7 +95,12 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
 
   const onDelete = async () => {
     if (!user) return;
-    if (!window.confirm(t("resources.confirmDelete", { name: asset.name }))) return;
+    if (
+      !window.confirm(
+        t(piece ? "kit.page.confirmRestore" : "resources.confirmDelete", { name: asset.name }),
+      )
+    )
+      return;
     try {
       await deleteAsset(projectId, asset.id);
       removeAsset(asset.id);
@@ -110,6 +126,18 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
             {t("studio.open")}
           </Button>
         </>
+      )}
+      {piece && <CommonImageOriginal slot={piece} />}
+      <OriginalChanged projectId={projectId} asset={asset} />
+      {misfit && (
+        <p role="alert" className="text-xs text-[var(--danger)]" data-testid="asset-misfit">
+          {t("kit.page.misfitDetail", {
+            width: asset.width,
+            height: asset.height,
+            pieceWidth: misfit.width,
+            pieceHeight: misfit.height,
+          })}
+        </p>
       )}
       {asset.compose && (
         <p className="text-xs text-[var(--text-mut)]">
@@ -166,7 +194,7 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
       {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
       <div className="flex justify-between">
         <Button variant="destructive" onClick={onDelete}>
-          {t("resources.delete")}
+          {t(piece ? "kit.page.restore" : "resources.delete")}
         </Button>
         <Button disabled={busy} onClick={onSave}>
           {t(busy ? "resources.saving" : "resources.save")}
