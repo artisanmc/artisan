@@ -25,6 +25,7 @@ import {
 import { type AssetUsage, parseAssetUsages } from "@/lib/pack/assetUsages";
 import { type ComposeRecipe, composeRecipe, composeYaml } from "@/lib/pack/compose";
 import { type DiskAsset, diskAssetsFromTree } from "@/lib/pack/diskAssets";
+import { imageFunctionOf } from "@/lib/pack/imageFunction";
 import { isKitFolder, kitSlot } from "@/lib/pack/kit";
 import { FONT_DESCRIPTOR, fontDir, fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
 import { type ParsedMcFont, parseMcFontsZip } from "@/lib/pack/mcFontsParser";
@@ -118,6 +119,7 @@ function serialize(row: AssetRow): Asset {
       codepoint: row.codepoint,
       fontMeta: row.fontMeta,
       usages: row.usages,
+      function: row.function,
       contentHash: row.contentHash,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -600,6 +602,7 @@ async function create(
   }
   const previous = existingSame ? descriptorOf(disk.files, existingSame.path) : null;
   if (kept) usages = kept.usages;
+  const fn = kept ? kept.function : (imageFunctionOf({ function: fields.function }) ?? undefined);
   const ascentValue = kept
     ? kept.ascent
     : type === "glyph"
@@ -624,6 +627,7 @@ async function create(
       height,
       content_width: contentWidth,
       usages,
+      function: fn,
     },
     baseHash: existingSame?.hash ?? null,
     ...(previous ? { previous: { path: previous.path, hash: textHash(previous.content) } } : {}),
@@ -641,6 +645,7 @@ async function create(
         codepoint: codepointValue,
         fontMeta: null,
         usages,
+        function: fn,
         contentHash: sha256Hex(file),
         createdAt: now,
         updatedAt: now,
@@ -724,6 +729,13 @@ async function patch(
   if (body.usages !== undefined && (row.type === "font" || nextUsages === undefined))
     fail(400, "Invalid usages (images only; button, menu)");
   if (typeof body.name === "string" && !NAME_RE.test(body.name)) fail(400, "Invalid name");
+  // `function: ""` clears it; an unknown one is refused.
+  if (body.function !== undefined && body.function !== "" && !imageFunctionOf(body))
+    fail(400, "Invalid function (menu, glyph, hud)");
+  if (body.function !== undefined && row.type === "font")
+    fail(400, "function only valid for an image");
+  const nextFunction =
+    body.function === undefined ? row.function : (imageFunctionOf(body) ?? undefined);
   const nextName = typeof body.name === "string" ? body.name : row.name;
   if (typeof body.ascent === "number" && row.type !== "glyph")
     fail(400, "ascent only valid for glyph");
@@ -761,6 +773,7 @@ async function patch(
     if (nextAscent === null) next.ascent = undefined;
     else next.ascent = nextAscent;
     next.usages = nextUsages;
+    next.function = nextFunction;
     const to = renamed
       ? found.path.replace(/[^/]+(\.ya?ml)$/, `${assetFileName(nextName)}$1`)
       : found.path;
@@ -777,6 +790,7 @@ async function patch(
           name: nextName,
           ascent: nextAscent,
           usages: nextUsages,
+          function: nextFunction,
         }),
         ...(await overlay.view(
           disk,
@@ -801,6 +815,7 @@ async function patch(
         height: nextHeight,
         content_width: nextContentWidth,
         usages: nextUsages,
+        function: nextFunction,
       },
       baseHash: renamed ? null : found.hash,
       ...(previous && !renamed
@@ -825,6 +840,7 @@ async function patch(
       width: nextWidth,
       contentWidth: nextContentWidth,
       usages: nextUsages,
+      function: nextFunction,
     }),
   };
 }
@@ -866,6 +882,7 @@ async function duplicate(overlay: DraftOverlay, id: string): Promise<Body> {
       height: src.height,
       content_width: src.contentWidth,
       usages: src.usages,
+      function: src.function,
     },
     baseHash: null,
   });

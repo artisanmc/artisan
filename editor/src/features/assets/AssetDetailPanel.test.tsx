@@ -54,7 +54,7 @@ describe("AssetDetailPanel", () => {
     useAssetStore.getState().setAssets([A]);
     useAssetStore.getState().setSelectedId("asset_a");
     useProjectTemplatesStore.setState({ entries: {} });
-    useProjectBaselineStore.setState({ binaryBaselines: {} });
+    useProjectBaselineStore.setState({ baselines: {}, binaryBaselines: {} });
     useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } });
     mockCurrentUser = { id: "u1" };
     vi.restoreAllMocks();
@@ -192,6 +192,48 @@ describe("AssetDetailPanel", () => {
     expect(screen.getByLabelText(/^Nom$/)).toBeDisabled();
     expect(screen.queryByRole("button", { name: /Supprimer|Restaurer|Enregistrer/ })).toBeNull();
     expect(screen.getByRole("button", { name: /atelier/i })).toBeEnabled();
+  });
+
+  it("states an image's function, and reports the owner's version that is not taken", async () => {
+    const image = { ...A, id: "frame", name: "frame", type: "texture" as const, width: 24 };
+    const glyph = { ...A, id: "coin", name: "coin", ascent: 9 };
+    useAssetStore.getState().setAssets([image, glyph]);
+    useAssetStore.getState().setSelectedId("frame");
+    useProjectBaselineStore.setState({
+      baselines: {
+        p1: {
+          "originals/assets/textures/frame.yml": "function: menu\nwidth: 20\nheight: 9\n",
+          "assets/textures/frame.yml": "width: 24\nheight: 9\n",
+          "originals/assets/glyphs/coin.yml": "function: glyph\nheight: 9\nascent: 7\n",
+          "assets/glyphs/coin.yml": "height: 9\nascent: 9\n",
+        },
+      },
+      binaryBaselines: {
+        p1: {
+          "assets/textures/frame.png": { hash: "mine", size: 1 },
+          "originals/assets/textures/frame.png": { hash: "theirs", size: 1 },
+          "assets/glyphs/coin.png": { hash: "c", size: 1 },
+          "originals/assets/glyphs/coin.png": { hash: "d", size: 1 },
+        },
+      },
+    });
+    const patch = vi
+      .spyOn(userAssetsApi, "patchAsset")
+      .mockResolvedValue({ ...image, function: "hud" });
+    render(<AssetDetailPanel projectId={"p1" as never} />);
+    expect(screen.getByTestId("asset-not-taken")).toHaveTextContent(
+      "Non prise : cette image fait 24 × 9 px, l'original 20 × 9 px.",
+    );
+    fireEvent.change(screen.getByLabelText(/^Fonction/), { target: { value: "hud" } });
+    fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
+    await waitFor(() => expect(patch).toHaveBeenCalledWith("p1", "frame", { function: "hud" }));
+    await waitFor(() =>
+      expect((screen.getByLabelText(/^Fonction/) as HTMLSelectElement).value).toBe("hud"),
+    );
+    act(() => useAssetStore.getState().setSelectedId("coin"));
+    expect(screen.getByTestId("asset-not-taken")).toHaveTextContent(
+      "Non prise : ce glyphe a une hauteur de 9 et un ascent de 9, l'original une hauteur de 9 et un ascent de 7.",
+    );
   });
 
   it("renders nothing when no asset is selected", () => {

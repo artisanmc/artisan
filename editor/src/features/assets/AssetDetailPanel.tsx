@@ -4,6 +4,7 @@ import { type AssetUsage, assetPreviewUrl } from "@/domain/asset";
 import { assetMenuReferences, assetUsages } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { deleteAsset, patchAsset } from "@/lib/api/userAssets";
+import { IMAGE_FUNCTIONS, type ImageFunction } from "@/lib/pack/imageFunction";
 import { kitSlot } from "@/lib/pack/kit";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -14,7 +15,7 @@ import { AssetUsageFields } from "./AssetUsageFields";
 import { CommonImageOriginal, OriginalImage } from "./CommonImageState";
 import { OriginalChanged } from "./OriginalChanged";
 import { useAssetStore } from "./assetStore";
-import { originalImageUrl, useImageStanding } from "./imageStanding";
+import { originalImageUrl, useImageNotTaken, useImageStanding } from "./imageStanding";
 import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
 
@@ -40,13 +41,19 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   const [ascent, setAscent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [usages, setUsages] = useState<AssetUsage[]>([]);
+  const [fn, setFn] = useState<ImageFunction | "">("");
   const [busy, setBusy] = useState(false);
   const openStudio = useResourcesView((s) => s.openStudio);
   const standing = useImageStanding(projectId, asset);
+  const notTaken = useImageNotTaken(projectId, asset);
 
   const savedName = asset?.name ?? "";
   const savedAscent = asset?.ascent ?? "";
   const savedUsages = JSON.stringify(asset ? assetUsages(asset, project) : []);
+  const savedFunction = asset?.function ?? "";
+  useEffect(() => {
+    setFn(savedFunction);
+  }, [savedFunction]);
   useEffect(() => {
     setName(savedName);
     setAscent(String(savedAscent));
@@ -75,7 +82,13 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
     setBusy(true);
     setError(null);
     try {
-      const patch: { name?: string; ascent?: number; usages?: AssetUsage[] } = {};
+      const patch: {
+        name?: string;
+        ascent?: number;
+        usages?: AssetUsage[];
+        function?: ImageFunction | "";
+      } = {};
+      if (asset.type !== "font" && fn !== savedFunction) patch.function = fn;
       if (
         asset.type !== "font" &&
         JSON.stringify(usages) !== JSON.stringify(assetUsages(asset, project))
@@ -170,6 +183,23 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
           })}
         </p>
       )}
+      {notTaken && !piece && (
+        <p role="alert" className="text-xs text-[var(--danger)]" data-testid="asset-not-taken">
+          {notTaken.function === "glyph"
+            ? t("resources.function.notTakenGlyph", {
+                height: notTaken.mine.height,
+                ascent: notTaken.mine.ascent ?? "–",
+                originalHeight: notTaken.original.height,
+                originalAscent: notTaken.original.ascent ?? "–",
+              })
+            : t("resources.function.notTaken", {
+                width: notTaken.mine.width,
+                height: notTaken.mine.height,
+                originalWidth: notTaken.original.width,
+                originalHeight: notTaken.original.height,
+              })}
+        </p>
+      )}
       {asset.compose && (
         <p className="text-xs text-[var(--text-mut)]">
           {t("resources.composed", {
@@ -215,6 +245,25 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
             </>
           )}
         </div>
+        {asset.type !== "font" && !piece && !asShipped && (
+          <label className="mt-2 flex flex-col gap-1 text-xs" htmlFor={`${inputId}-function`}>
+            {t("resources.function.label")}
+            <select
+              id={`${inputId}-function`}
+              className="input"
+              value={fn}
+              onChange={(e) => setFn(e.target.value as ImageFunction | "")}
+            >
+              <option value="">{t("resources.function.none")}</option>
+              {IMAGE_FUNCTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {t(`resources.function.${value}`)}
+                </option>
+              ))}
+            </select>
+            <span className="text-[var(--text-mut)]">{t("resources.function.hint")}</span>
+          </label>
+        )}
         {asset.type === "glyph" && (
           <label className="text-xs" htmlFor={`${inputId}-ascent`}>
             Ascent

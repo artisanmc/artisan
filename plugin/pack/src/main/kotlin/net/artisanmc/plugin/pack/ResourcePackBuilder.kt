@@ -112,7 +112,11 @@ object ResourcePackBuilder {
             // The theme `artisan` holds the common images: one enters the pack as `kit:<name>` when a
             // menu names it, never as an image of the theme's own; its originals are the base.
             val common = project.folder == Kit.FOLDER
-            val fromDisk = DiskAssets.fromTree(project.id, files, project.binaries, originals = !common)
+            // The owner's image of an original that declares a function is taken at its measures only.
+            val sizes = HashMap<String, Pair<Int, Int>?>()
+            val fromDisk = DiskAssets.fromTree(project.id, files, project.binaries, originals = !common) { path ->
+                sizes.getOrPut(path) { ImageFunctions.pixelSize(project.binary(path)) }
+            }
             // An image the module is not the first to hold under that name gets its module's id ([ImageNames]).
             val rows = fromDisk.map { a ->
                 val image = a.row.type == "glyph" || a.row.type == "texture"

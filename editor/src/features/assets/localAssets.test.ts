@@ -348,6 +348,45 @@ describe("performLocalAssetMutation", () => {
     expect(Object.keys(result.draft.snapshot.tree)).toEqual(["assets/glyphs/new.yml"]);
   });
 
+  it("states an image's function in its descriptor, keeps it across a retouch and a rename, and clears it", async () => {
+    const hub = fakeHub(empty());
+    await performLocalAssetMutation(
+      "p",
+      createOp(hub, { type: "texture", name: "panel", function: "menu" }, png(8, 8)),
+    );
+    expect(parse(hub.draft.snapshot.tree["assets/textures/panel.yml"]!)).toMatchObject({
+      function: "menu",
+    });
+    const retouched = await performLocalAssetMutation(
+      "p",
+      createOp(hub, { type: "texture", name: "panel", retouch: "true" }, png(8, 8, 2)),
+    );
+    expect(retouched.asset).toMatchObject({ function: "menu" });
+    const renamed = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/panel", method: "PATCH", fields: { name: "frame", function: "hud" } }),
+    );
+    expect(renamed.asset).toMatchObject({ id: "frame", function: "hud" });
+    expect(parse(hub.draft.snapshot.tree["assets/textures/frame.yml"]!)).toMatchObject({
+      function: "hud",
+    });
+    const refused = await rejection(
+      performLocalAssetMutation(
+        "p",
+        op(hub, { suffix: "/frame", method: "PATCH", fields: { function: "button" } }),
+      ),
+    );
+    expect([refused.status, refused.code]).toEqual([400, "Invalid function (menu, glyph, hud)"]);
+    const cleared = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/frame", method: "PATCH", fields: { function: "" } }),
+    );
+    expect(cleared.asset?.function).toBeUndefined();
+    expect(parse(hub.draft.snapshot.tree["assets/textures/frame.yml"]!)).not.toHaveProperty(
+      "function",
+    );
+  });
+
   it("retouches an image the module ships: the owner's version beside the original", async () => {
     const original = png(8, 8, 6);
     const snapshot = empty();

@@ -1,4 +1,5 @@
 import type { AssetUsage } from "./assetUsages";
+import type { ImageFunction } from "./imageFunction";
 import { spaceOffsetTable } from "./spaceOffsets";
 import { SYMBOLS_FONT, SYMBOLS_UP_FULL_MAX } from "./symbols";
 import { type TextSheet, allTextSheets } from "./textChars";
@@ -15,6 +16,8 @@ export interface AssetRow {
   type: string;
   name: string;
   usages?: AssetUsage[];
+  /** What the image is for, which fixes its measures (`imageFunction.ts`); absent for none. */
+  function?: ImageFunction;
   width: number;
   height: number;
   ascent: number | null;

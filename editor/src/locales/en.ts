@@ -25,6 +25,18 @@ export default {
       asShippedCommon:
         "Artisan's, as shipped. Editing it in the atelier makes this server's version, shown in its place.",
     },
+    function: {
+      label: "Function",
+      none: "None",
+      menu: "Menu image (its pixel size is fixed)",
+      glyph: "Glyph (its height and ascent are fixed)",
+      hud: "HUD image (its pixel size is fixed)",
+      hint: "An image that replaces this one at other measures is not taken: this one keeps showing.",
+      notTaken:
+        "Not taken: this image is {{width}} × {{height}} px, the original {{originalWidth}} × {{originalHeight}} px. The original shows until this image has its size.",
+      notTakenGlyph:
+        "Not taken: this glyph has height {{height}} and ascent {{ascent}}, the original height {{originalHeight}} and ascent {{originalAscent}}. The original shows until they match.",
+    },
     originalChanged: {
       title: "The original changed since your version.",
       hint: "Menus keep showing yours. Keep it as it is, or restore the original and redraw from the new one.",
