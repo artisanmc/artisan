@@ -284,6 +284,16 @@ builders; `ImageRefs.kt` did not change).
   (a start or a reload), not when it is deployed. An original that changes between the
   deploy and that sync is not flagged.
 
+**Step 5, third part: a module's images** (`imageStanding.ts`, `localAssets.ts`).
+
+- Saving, in the atelier, an image the module ships and the owner does not hold writes the
+  owner's version beside the original: same name, size, codepoint, ascent and uses. It was
+  refused (`not_found`), so a shipped image could not be redrawn from the editor.
+- The owner's version of a shipped image shows the module's original beside it, and its delete
+  is **Restore the original**. An image as shipped offers nothing to rename or delete: the
+  owner holds no file. The same holds in the common images' Project, where a piece of the
+  base as shipped was offered a restore that could only fail.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -297,9 +307,9 @@ Not there yet:
 - Against decision 12: the server's Resources and a module's are two components, the first
   read-only. Both read the common images as published, so an image drawn in the theme's draft
   shows there once deployed. The uses count menus only: an image named by a dialog, an overlay
-  or a composed image's layer is not counted yet. The change of an original shows on the image
-  in its module only, not in the server's list, and a module's image shows no original beside
-  it (step 5). An image cannot be moved or copied to another scope from the server's list. Themes have
+  or a composed image's layer is not counted yet. The change of an original and a module's
+  original show on the image in its module only, not in the server's list, and the module's
+  list does not mark which images are the owner's versions (step 5). An image cannot be moved or copied to another scope from the server's list. Themes have
   no screen of their own yet: they are reached from the common images' page.
 - Against decision 4: an image does not declare its function yet. Only the base's pieces
   have fixed measures (their pixel size, from Artisan's own list); a module's image that

@@ -348,6 +348,64 @@ describe("performLocalAssetMutation", () => {
     expect(Object.keys(result.draft.snapshot.tree)).toEqual(["assets/glyphs/new.yml"]);
   });
 
+  it("retouches an image the module ships: the owner's version beside the original", async () => {
+    const original = png(8, 8, 6);
+    const snapshot = empty();
+    snapshot.tree["originals/assets/glyphs/gem.yml"] =
+      "ascent: 7\ncodepoint: 57350\nwidth: 16\nheight: 16\nusages: [button]\n";
+    snapshot.binaryTree = {
+      "originals/assets/glyphs/gem.png": { hash: sha256Hex(original), size: original.length },
+    };
+    snapshot.binaryBaseline = { ...snapshot.binaryTree };
+    const hub = fakeHub(snapshot, { "originals/assets/glyphs/gem.png": original });
+    const mine = png(8, 8, 3);
+    const result = await performLocalAssetMutation(
+      "p",
+      createOp(hub, { type: "glyph", name: "gem", retouch: "true" }, mine),
+    );
+    // The original's codepoint, ascent, shown size and uses: menus need nothing.
+    expect(result.asset).toMatchObject({
+      id: "gem",
+      codepoint: 57350,
+      ascent: 7,
+      width: 16,
+      height: 16,
+      usages: ["button"],
+      contentHash: sha256Hex(mine),
+    });
+    expect(parse(result.draft.snapshot.tree["assets/glyphs/gem.yml"]!)).toMatchObject({
+      ascent: 7,
+      codepoint: 57350,
+      width: 16,
+      height: 16,
+      usages: ["button"],
+    });
+    // The original stays as the server wrote it.
+    expect(result.draft.snapshot.binaryTree).toEqual({
+      "originals/assets/glyphs/gem.png": { hash: sha256Hex(original), size: original.length },
+      "assets/glyphs/gem.png": { hash: sha256Hex(mine), size: mine.length },
+    });
+    expect(result.draft.snapshot.tree["originals/assets/glyphs/gem.yml"]).toBe(
+      snapshot.tree["originals/assets/glyphs/gem.yml"],
+    );
+    // Another size than the original's is refused, as for any retouch.
+    const resized = await rejection(
+      performLocalAssetMutation(
+        "p",
+        createOp(
+          fakeHub(snapshot, { "originals/assets/glyphs/gem.png": original }),
+          {
+            type: "glyph",
+            name: "gem",
+            retouch: "true",
+          },
+          png(8, 9),
+        ),
+      ),
+    );
+    expect([resized.status, resized.code]).toEqual([400, "A retouch keeps the image's size"]);
+  });
+
   it("retouches an image: other pixels under the same name, at the size it is shown", async () => {
     const hub = fakeHub(empty());
     await performLocalAssetMutation(

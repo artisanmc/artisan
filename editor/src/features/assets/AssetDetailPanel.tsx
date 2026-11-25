@@ -11,9 +11,10 @@ import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetStage } from "./AssetStage";
 import { AssetUsageFields } from "./AssetUsageFields";
-import { CommonImageOriginal } from "./CommonImageState";
+import { CommonImageOriginal, OriginalImage } from "./CommonImageState";
 import { OriginalChanged } from "./OriginalChanged";
 import { useAssetStore } from "./assetStore";
+import { originalImageUrl, useImageStanding } from "./imageStanding";
 import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
 
@@ -41,6 +42,7 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   const [usages, setUsages] = useState<AssetUsage[]>([]);
   const [busy, setBusy] = useState(false);
   const openStudio = useResourcesView((s) => s.openStudio);
+  const standing = useImageStanding(projectId, asset);
 
   const savedName = asset?.name ?? "";
   const savedAscent = asset?.ascent ?? "";
@@ -62,6 +64,11 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
     piece && asset.width > 0 && (asset.width !== piece.width || asset.height !== piece.height)
       ? piece
       : null;
+  // What the module ships (`originals/`): alone, the image is the module's as shipped and the
+  // owner holds nothing to rename or delete; beside the owner's file, deleting theirs restores it.
+  const original = standing.original;
+  const asShipped = !!original && !standing.own;
+  const restores = piece ? !asShipped : !!original && !!standing.own;
 
   const onSave = async () => {
     if (!user) return;
@@ -97,7 +104,14 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
     if (!user) return;
     if (
       !window.confirm(
-        t(piece ? "kit.page.confirmRestore" : "resources.confirmDelete", { name: asset.name }),
+        t(
+          !restores
+            ? "resources.confirmDelete"
+            : piece
+              ? "kit.page.confirmRestore"
+              : "resources.original.confirmRestore",
+          { name: asset.name },
+        ),
       )
     )
       return;
@@ -127,7 +141,24 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
           </Button>
         </>
       )}
-      {piece && <CommonImageOriginal slot={piece} />}
+      {piece
+        ? restores && <CommonImageOriginal slot={piece} />
+        : restores &&
+          original && (
+            <OriginalImage
+              url={originalImageUrl(projectId, original)}
+              label={t("resources.original.label")}
+              alt={t("resources.original.alt", { name: asset.name })}
+              width={asset.width}
+              height={asset.height}
+              testId="module-image-original"
+            />
+          )}
+      {asShipped && (
+        <p className="text-xs text-[var(--text-mut)]" data-testid="asset-as-shipped">
+          {t(piece ? "resources.original.asShippedCommon" : "resources.original.asShipped")}
+        </p>
+      )}
       <OriginalChanged projectId={projectId} asset={asset} />
       {misfit && (
         <p role="alert" className="text-xs text-[var(--danger)]" data-testid="asset-misfit">
@@ -148,11 +179,16 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
       )}
       <label className="text-xs" htmlFor={`${inputId}-name`}>
         {t("resources.name")}
-        <Input id={`${inputId}-name`} value={name} onChange={(e) => setName(e.target.value)} />
+        <Input
+          id={`${inputId}-name`}
+          value={name}
+          disabled={asShipped}
+          onChange={(e) => setName(e.target.value)}
+        />
       </label>
       {asset.type !== "font" && (
         <>
-          <AssetUsageFields value={usages} onChange={setUsages} />
+          {!asShipped && <AssetUsageFields value={usages} onChange={setUsages} />}
           <p className="text-xs text-[var(--text-mut)]">
             {assetMenuReferences(asset, project).length
               ? t("resources.inMenus", { menus: assetMenuReferences(asset, project).join(", ") })
@@ -192,14 +228,16 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
         )}
       </details>
       {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
-      <div className="flex justify-between">
-        <Button variant="destructive" onClick={onDelete}>
-          {t(piece ? "kit.page.restore" : "resources.delete")}
-        </Button>
-        <Button disabled={busy} onClick={onSave}>
-          {t(busy ? "resources.saving" : "resources.save")}
-        </Button>
-      </div>
+      {!asShipped && (
+        <div className="flex justify-between">
+          <Button variant="destructive" onClick={onDelete}>
+            {t(restores ? "kit.page.restore" : "resources.delete")}
+          </Button>
+          <Button disabled={busy} onClick={onSave}>
+            {t(busy ? "resources.saving" : "resources.save")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

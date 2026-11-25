@@ -35,6 +35,19 @@ versions, the module's elsewhere) and is read-only: look, copy what you need, un
 Edit a document and it becomes yours; edit it back to what the module ships and it is the
 module's again. Only documents that differ from the module's are written to your folder.
 
+## Images
+
+An image a module ships shows in the module's **Resources** like yours. Select it:
+
+- **As shipped**: the panel says the module ships it, and there is nothing to rename or delete.
+  Open it in the atelier and save: your version is written in your module folder under the
+  same name, at the same size, with the same settings, so the menus that show it need nothing.
+- **Your version**: the module's original shows beside it. **Restore the original** deletes
+  your version; menus show the module's again once deployed.
+- When a module update changes an original you drew over, the image says **The original changed
+  since your version**: **Keep mine** clears the notice, **Restore the original** gives the
+  image back to the module.
+
 ## Removing a shipped document
 
 Delete a shipped example and Artisan remembers it in the module file, so it does not come back

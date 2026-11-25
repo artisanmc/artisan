@@ -5,6 +5,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { useKitStore } from "@/state/kitStore";
+import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useAssetStore } from "./assetStore";
@@ -53,6 +54,7 @@ describe("AssetDetailPanel", () => {
     useAssetStore.getState().setAssets([A]);
     useAssetStore.getState().setSelectedId("asset_a");
     useProjectTemplatesStore.setState({ entries: {} });
+    useProjectBaselineStore.setState({ binaryBaselines: {} });
     useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } });
     mockCurrentUser = { id: "u1" };
     vi.restoreAllMocks();
@@ -159,6 +161,37 @@ describe("AssetDetailPanel", () => {
     });
     expect((screen.getByLabelText(/^Nom$/i) as HTMLInputElement).value).toBe("other");
     expect(screen.queryByTestId("original-changed")).toBeNull();
+  });
+
+  it("shows a module's original beside the owner's version, and holds nothing of an image as shipped", () => {
+    const image = { ...A, id: "frame", name: "frame", type: "texture" as const };
+    const shipped = { ...image, id: "banner", name: "banner" };
+    useAssetStore.getState().setAssets([image, shipped]);
+    useAssetStore.getState().setSelectedId("frame");
+    useProjectBaselineStore.setState({
+      binaryBaselines: {
+        p1: {
+          "assets/textures/frame.png": { hash: "mine", size: 1 },
+          "originals/assets/textures/frame.png": { hash: "theirs", size: 1 },
+          "originals/assets/textures/banner.png": { hash: "b", size: 1 },
+        },
+      },
+    });
+    render(<AssetDetailPanel projectId={"p1" as never} />);
+    // The owner's version over the module's: the original beside it, deleting restores it.
+    expect(screen.getByTestId("module-image-original").querySelector("img")?.src).toContain(
+      "/api/v1/projects/p1/binary?path=originals%2Fassets%2Ftextures%2Fframe.png&h=theirs",
+    );
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    fireEvent.click(screen.getByRole("button", { name: "Restaurer l'original" }));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("Supprimer ta version de frame"));
+    // As shipped: the owner holds no file, so nothing to rename, classify or delete.
+    act(() => useAssetStore.getState().setSelectedId("banner"));
+    expect(screen.getByTestId("asset-as-shipped")).toHaveTextContent("Livrée par le module");
+    expect(screen.queryByTestId("module-image-original")).toBeNull();
+    expect(screen.getByLabelText(/^Nom$/)).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Supprimer|Restaurer|Enregistrer/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /atelier/i })).toBeEnabled();
   });
 
   it("renders nothing when no asset is selected", () => {
