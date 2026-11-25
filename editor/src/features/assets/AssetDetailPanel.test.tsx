@@ -3,6 +3,7 @@ import * as userAssetsApi from "@/lib/api/userAssets";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetDetailPanel } from "./AssetDetailPanel";
+import { useKitStore } from "@/state/kitStore";
 import { useAssetStore } from "./assetStore";
 
 let mockCurrentUser: { id: string } | null = { id: "u1" };
@@ -69,6 +70,28 @@ describe("AssetDetailPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /Supprimer du module/i }));
     await waitFor(() => expect(spy).toHaveBeenCalledWith("p1", "asset_a"));
     expect(useAssetStore.getState().assets).toHaveLength(0);
+  });
+
+  it("reports a common image that is not at its piece's size, in the common images' Project", () => {
+    useKitStore.setState({ read: { projectId: "p1", files: {}, binaries: [], byName: true } });
+    const piece = { ...A, id: "button.3x1", name: "button.3x1", type: "texture" as const };
+    useAssetStore.getState().setAssets([{ ...piece, width: 60, height: 18 }]);
+    useAssetStore.getState().setSelectedId("button.3x1");
+    const { unmount } = render(<AssetDetailPanel projectId={"p1" as never} />);
+    expect(screen.getByTestId("asset-misfit")).toHaveTextContent(
+      "Cette image fait 60 × 18 px, la pièce 54 × 18 px",
+    );
+    unmount();
+    // At the piece's size it is taken; in any other module the name is an image like another.
+    useAssetStore.getState().setAssets([{ ...piece, width: 54, height: 18 }]);
+    render(<AssetDetailPanel projectId={"p1" as never} />);
+    expect(screen.queryByTestId("asset-misfit")).toBeNull();
+    act(() => {
+      useKitStore.setState({ read: undefined });
+      useAssetStore.getState().setAssets([{ ...piece, width: 60, height: 18 }]);
+    });
+    expect(screen.getByText("60×18")).toBeInTheDocument();
+    expect(screen.queryByTestId("asset-misfit")).toBeNull();
   });
 
   it("renders nothing when no asset is selected", () => {

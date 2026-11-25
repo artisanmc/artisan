@@ -31,10 +31,19 @@ describe("KitPage", () => {
   });
 
   it("tells a redrawn piece, and opens a piece from its card or from the trial menu", () => {
-    published(["assets/glyphs/button.3x1.png", "assets/textures/blason.png"], {
-      "assets/glyphs/button.3x1.yml": "width: 54\nheight: 18\n",
-      "themes/noel/theme.yml": 'colors: {"#3c8527": "#b3261e"}\n',
-    });
+    published(
+      [
+        "assets/glyphs/button.3x1.png",
+        "assets/textures/blason.png",
+        "assets/textures/back.1x1.png",
+      ],
+      {
+        "assets/glyphs/button.3x1.yml": "width: 54\nheight: 18\n",
+        // Not the piece's size: the image is not taken, and the card says so.
+        "assets/textures/back.1x1.yml": "width: 20\nheight: 16\n",
+        "themes/noel/theme.yml": 'colors: {"#3c8527": "#b3261e"}\n',
+      },
+    );
     useKitStore.setState({ theme: "noel" });
     const onPiece = vi.fn();
     const onOpenKit = vi.fn();
@@ -47,6 +56,11 @@ describe("KitPage", () => {
         onOpenKit={onOpenKit}
         onTheme={onTheme}
       />,
+    );
+    const misfit = within(screen.getByTestId("kit-slot-back.1x1"));
+    expect(misfit.getByText("Non prise")).toBeInTheDocument();
+    expect(misfit.getByRole("alert")).toHaveTextContent(
+      "Cette image fait 20 × 16 px, la pièce 16 × 16 px",
     );
     // Each image says how many menus name it.
     expect(

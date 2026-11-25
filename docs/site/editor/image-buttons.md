@@ -74,6 +74,9 @@ it, so an image no menu names is seen before it is redrawn. **In a menu** sets e
 as players see it. Click a piece, on its card or on that menu, to open it in the atelier of the
 common images (the theme `artisan`, which is not in the module list): a piece still Artisan's
 is first copied under the piece's name, at the piece's size, so the menus keep their layout.
+An image of a piece's name at another size is not taken: menus keep the original, and the
+image is marked **Not taken**, with its size and the piece's, on its card, in the Resources
+lists and in the common images' own Resources, until it has the piece's size.
 Deleting that image gives the piece back to Artisan: the base Artisan ships stays beside it, in
 `themes/artisan/originals/`, rewritten when an update of Artisan changes it. Like any change, a
 redrawn piece reaches players when the draft is deployed and the pack rebuilt.

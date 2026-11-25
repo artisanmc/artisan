@@ -4,6 +4,7 @@ import { type AssetUsage, assetPreviewUrl } from "@/domain/asset";
 import { assetMenuReferences, assetUsages } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { deleteAsset, patchAsset } from "@/lib/api/userAssets";
+import { kitSlot } from "@/lib/pack/kit";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useId, useState } from "react";
@@ -11,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { AssetStage } from "./AssetStage";
 import { AssetUsageFields } from "./AssetUsageFields";
 import { useAssetStore } from "./assetStore";
+import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
 
 /**
@@ -51,6 +53,13 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   }, [savedUsages]);
 
   if (!asset) return null;
+
+  // In the common images' Project, an image named as a piece of the base replaces it only at the piece's size.
+  const piece = asset.type !== "font" && isKitModule(projectId) ? kitSlot(asset.id) : undefined;
+  const misfit =
+    piece && asset.width > 0 && (asset.width !== piece.width || asset.height !== piece.height)
+      ? piece
+      : null;
 
   const onSave = async () => {
     if (!user) return;
@@ -110,6 +119,16 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
             {t("studio.open")}
           </Button>
         </>
+      )}
+      {misfit && (
+        <p role="alert" className="text-xs text-[var(--danger)]" data-testid="asset-misfit">
+          {t("kit.page.misfitDetail", {
+            width: asset.width,
+            height: asset.height,
+            pieceWidth: misfit.width,
+            pieceHeight: misfit.height,
+          })}
+        </p>
       )}
       {asset.compose && (
         <p className="text-xs text-[var(--text-mut)]">

@@ -112,6 +112,11 @@ reference counts by the rule a menu is read with (`imageNamedBy`): `artisan:` an
 the common image, a name alone the module's own image then the common one, `<folder>:<name>`
 the image of the module in that folder. `CommonAssets` and `ServerResources` list these menus
 (`onOpenMenu` opens one), `KitPage` shows their number per common image.
+A server's image of a base piece's name at another size than the piece's is not taken (the
+pack and `kitAssetsOf` show the base's); `kitMisfits` (`kitAssets.ts`) lists these with their
+size, and `CommonImageBadge` / `CommonImageMisfit` (`CommonImageState.tsx`) say it wherever a
+common image shows its state. In the common images' own Project, `AssetDetailPanel` reports
+the same on the image, from the draft.
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)

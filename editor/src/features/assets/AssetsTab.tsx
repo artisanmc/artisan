@@ -1,5 +1,4 @@
 import { SplitPane } from "@/components/SplitPane";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
@@ -25,7 +24,8 @@ import { ImageNewDialog } from "./ImageNewDialog";
 import { ImageStudio } from "./ImageStudio";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
-import { isKitBase, useCommonImageRef, useKitAssets } from "./kitAssets";
+import { CommonImageBadge, CommonImageMisfit } from "./CommonImageState";
+import { isKitBase, useCommonImageRef, useKitAssets, useKitMisfits } from "./kitAssets";
 import { type ResourcesView, useResourcesView } from "./resourcesView";
 import { useKitPieceAsked } from "./useKitPieceAsked";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
@@ -442,6 +442,7 @@ function CommonAssets({
     [project, ownAssets, projectId],
   );
   const uses = useImageUses(live);
+  const misfits = useKitMisfits();
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const nameOf = (asset: Asset) => kitNameOf(asset.id) ?? asset.name;
@@ -492,16 +493,9 @@ function CommonAssets({
             </div>
           )}
         </div>
-        <Badge variant={shipped ? "sage" : "amber"}>
-          {t(
-            shipped
-              ? "kit.page.shipped"
-              : isKitBase(selected)
-                ? "kit.page.redrawn"
-                : "resources.common.added",
-          )}
-        </Badge>
+        <CommonImageBadge asset={selected} misfit={misfits.get(nameOf(selected))} />
       </div>
+      <CommonImageMisfit asset={selected} misfit={misfits.get(nameOf(selected))} />
       <div className="flex flex-col gap-1">
         <span className="field-label">{t("resources.common.written")}</span>
         <code className="truncate text-xs" data-testid="common-asset-ref">

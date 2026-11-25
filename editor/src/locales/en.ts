@@ -212,6 +212,9 @@ export default {
       },
       shipped: "Artisan",
       redrawn: "Redrawn",
+      misfit: "Not taken",
+      misfitDetail:
+        "This image is {{width}} × {{height}} px, the piece is {{pieceWidth}} × {{pieceHeight}} px: menus keep the original until this image has the piece's size.",
       others: "This server's own images",
       noOthers: "None yet. An image added here is named by its name in any menu of the server.",
       inMenu: "In a menu",

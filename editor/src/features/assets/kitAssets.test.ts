@@ -4,7 +4,7 @@ import { type KitRead, useKitStore } from "@/state/kitStore";
 import { renderHook } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 import { useAssetStore } from "./assetStore";
-import { isKitBase, kitAssetsOf, useCommonImageRef } from "./kitAssets";
+import { isKitBase, kitAssetsOf, kitMisfits, useCommonImageRef } from "./kitAssets";
 
 const read = (files: Record<string, string>, binaries: string[]): KitRead => ({
   projectId: "srv.ui-kit",
@@ -47,6 +47,25 @@ describe("kit images in the editor", () => {
     expect(by.get("kit:banner")).toMatchObject({ width: 20, height: 12 });
     expect(isKitBase(by.get("kit:banner")!)).toBe(false);
     expect(assets).toHaveLength(KIT_SLOTS.length + 1);
+  });
+
+  test("an image of a piece's name at another size is a misfit, with its size", () => {
+    const held = read(
+      {
+        "assets/textures/button.3x1.yml": "width: 54\nheight: 18\n",
+        "assets/textures/close.1x1.yml": "width: 10\nheight: 12\n",
+        "assets/textures/banner.yml": "width: 20\nheight: 12\n",
+      },
+      [
+        "assets/textures/button.3x1.png",
+        "assets/textures/close.1x1.png",
+        // No descriptor: nothing says its size, it is taken as the piece's.
+        "assets/textures/cell.png",
+        "assets/textures/banner.png",
+      ],
+    );
+    expect([...kitMisfits(held)]).toEqual([["close.1x1", { width: 10, height: 12 }]]);
+    expect(kitMisfits(undefined).size).toBe(0);
   });
 
   test("a menu names a common image by its name alone, artisan: when its module holds the name", () => {

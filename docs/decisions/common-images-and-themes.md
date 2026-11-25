@@ -255,6 +255,14 @@ builders; `ImageRefs.kt` did not change).
 - The list changes nothing: an image opens where it lives, in its module's Resources or in the
   atelier of the common images.
 
+**Step 3, first part: a common image that is not taken is reported** (`kitAssets.ts`,
+`CommonImageState.tsx`).
+
+- The server's image of a base piece's name at another size than the piece's was already not
+  taken by the pack, silently. The editor now says so: **Not taken**, with the image's size and
+  the piece's, on the common images' page, in the Resources lists, and on the image itself in
+  the common images' Project.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -271,6 +279,11 @@ Not there yet:
   or a composed image's layer is not counted yet. An image shows no state against its original
   (step 5), and cannot be moved or copied to another scope from the server's list. Themes have
   no screen of their own yet: they are reached from the common images' page.
+- Against decision 4: an image does not declare its function yet. Only the base's pieces
+  have fixed measures (their pixel size, from Artisan's own list); a module's image that
+  replaces its original (`originals/`) at other measures is still taken, and nothing is said
+  of a glyph's height and ascent or of a HUD image. The editor reads a redrawn piece's size
+  from its descriptor, the pack from the PNG.
 - Against decisions 5 and 6: a theme other than `artisan` is still a folder
   `themes/artisan/themes/<name>/`, one in place per server (`resource-pack.theme`).
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no

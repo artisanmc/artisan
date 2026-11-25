@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,7 +14,13 @@ import type { Project } from "@/domain/types";
 import { AssetGrid } from "@/features/assets/AssetGrid";
 import { AssetStage } from "@/features/assets/AssetStage";
 import { ResourcesSplit } from "@/features/assets/AssetsTab";
-import { isKitBase, useKitAssets } from "@/features/assets/kitAssets";
+import { CommonImageBadge, CommonImageMisfit } from "@/features/assets/CommonImageState";
+import {
+  type KitMisfit,
+  isKitBase,
+  useKitAssets,
+  useKitMisfits,
+} from "@/features/assets/kitAssets";
 import { useOtherProjectAssets } from "@/features/assets/useOtherProjectAssets";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { commonImageKey, kitNameOf, moduleImageKey } from "@/lib/pack/kit";
@@ -77,6 +82,7 @@ export function ServerResources({
   const held = useOtherProjectAssets(shownIds);
   const kit = useKitAssets();
   const uses = useImageUses();
+  const misfits = useKitMisfits();
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
@@ -195,6 +201,7 @@ export function ServerResources({
       asset={selected}
       name={nameOf(selected)}
       owner={ownerOf(selected)}
+      misfit={ownerOf(selected) ? undefined : misfits.get(nameOf(selected))}
       usedBy={
         selected.type === "font"
           ? null
@@ -227,6 +234,7 @@ function ServerAssetDetail({
   asset,
   name,
   owner,
+  misfit,
   usedBy,
   onOpenModule,
   onOpenCommon,
@@ -234,6 +242,8 @@ function ServerAssetDetail({
 }: {
   asset: Asset;
   name: string;
+  /** Set when the server holds an image of this piece's name at another size, which is not taken. */
+  misfit?: KitMisfit;
   /** The module that holds it; `null` for a common image. */
   owner: Project | null;
   /** The menus that name it; `null` for a font, which no menu names this way. */
@@ -258,18 +268,9 @@ function ServerAssetDetail({
             </div>
           ) : null}
         </div>
-        {owner ? null : (
-          <Badge variant={shipped ? "sage" : "amber"}>
-            {t(
-              shipped
-                ? "kit.page.shipped"
-                : isKitBase(asset)
-                  ? "kit.page.redrawn"
-                  : "resources.common.added",
-            )}
-          </Badge>
-        )}
+        {owner ? null : <CommonImageBadge asset={asset} misfit={misfit} />}
       </div>
+      {owner ? null : <CommonImageMisfit asset={asset} misfit={misfit} />}
       <div className="flex flex-col gap-1">
         <span className="field-label">{t("serverResources.provider")}</span>
         <span className="truncate text-xs" data-testid="server-asset-provider">

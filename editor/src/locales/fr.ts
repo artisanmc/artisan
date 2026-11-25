@@ -218,6 +218,9 @@ const fr: typeof en = {
       },
       shipped: "Artisan",
       redrawn: "Redessinée",
+      misfit: "Non prise",
+      misfitDetail:
+        "Cette image fait {{width}} × {{height}} px, la pièce {{pieceWidth}} × {{pieceHeight}} px : les menus gardent l'original tant que cette image n'a pas la taille de la pièce.",
       others: "Les images de ce serveur",
       noOthers:
         "Aucune pour l'instant. Une image ajoutée ici se nomme par son nom dans n'importe quel menu du serveur.",
