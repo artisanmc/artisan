@@ -523,6 +523,29 @@ class McpTest {
         assertEquals(Triple(red, navy, "noel"), shown(render("theme" to "noel")))
         config.remove("resource-pack.themes")
 
+        // A theme of its own folder is the Project of its name (`overrides/colors.yml`, `overrides/artisan/<image>.png`):
+        // it wins over the folder of that name the common images keep, and a module of a theme's name is no theme.
+        modules["noel"] = McpFixtures.Module(
+            files = mapOf("overrides/colors.yml" to "colors:\n  \"#%02x%02x%02x\": \"#445566\"\n".format(button[0], button[1], button[2])),
+            images = mapOf("overrides/artisan/cell.png" to solid(18, 18, 0x778899), "assets/textures/cell.png" to solid(18, 18, 0x00ff00)),
+            role = "theme",
+        )
+        modules["nuit"] = McpFixtures.Module(files = mapOf("overrides/colors.yml" to "colors:\n  \"#445566\": \"#040506\"\n"))
+        config["resource-pack.themes"] = listOf("noel", "nuit")
+        // `nuit` is a module here, and the common images still keep a theme of that name: that one is read (it finds no red).
+        assertEquals(Triple(listOf(0x44, 0x55, 0x66), listOf(0x77, 0x88, 0x99), "noel,nuit"), shown(render()))
+        assertEquals(Triple(listOf(0x44, 0x55, 0x66), listOf(0x77, 0x88, 0x99), "noel"), shown(render("theme" to "noel")))
+        val own = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
+        assertEquals(listOf("noel", "nuit"), own["kit"]["themes"].map { it["name"].asText() })
+        assertEquals("u-local.noel", own["kit"]["themes"][0]["project"].asText())
+        assertEquals(listOf("cell"), own["kit"]["themes"][0]["redraws"].map { it.asText() })
+        assertFalse(own["kit"]["themes"][1].has("project"))
+        // The theme's folder is no module with images to list.
+        assertTrue(own["modules"].none { it["project"].asText() == "u-local.noel" }, own["modules"].toString())
+        modules.remove("noel")
+        modules.remove("nuit")
+        config.remove("resource-pack.themes")
+
         // A theme the kit does not hold is no theme, as in the pack.
         config["resource-pack.theme"] = "gone"
         assertEquals(plain, shown(render()))

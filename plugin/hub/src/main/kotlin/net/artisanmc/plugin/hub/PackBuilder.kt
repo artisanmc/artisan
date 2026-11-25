@@ -184,6 +184,9 @@ class PackBuilder(
         val target = servers.find(server) ?: return null
         val list = loaded.list(server) ?: return null
         val folders = (list["project_ids"] as? List<*>).orEmpty().filterIsInstance<String>()
+        // The server's themes among them (`role: theme` in its Project roots): read as themes, never as modules.
+        val themes = (list["project_roots"] as? List<*>).orEmpty().mapNotNull(net.artisanmc.plugin.project.ProjectRootInfo::from)
+            .filter { it.role == "theme" }.mapTo(HashSet()) { it.projectId }
         val projects = folders.mapNotNull { folder ->
             val read = loaded.read(server, folder) ?: return@mapNotNull null
             val files = (read["files"] as? List<*>).orEmpty().mapNotNull { f ->
@@ -203,6 +206,7 @@ class PackBuilder(
                 },
                 // The plugin keys a Bedrock menu by its Project's folder.
                 folder = folder,
+                theme = folder in themes,
             )
         }
         return ResourcePackBuilder.build(

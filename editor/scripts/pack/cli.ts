@@ -119,6 +119,7 @@ export function projectFromDisk(
   id: string,
   dir: string,
   overlayImages?: OverlayImageRequest[],
+  role?: PackProject["role"],
 ): PackProject {
   const files: PackProject["files"] = [];
   const bytesOf = new Map<string, Uint8Array>();
@@ -136,6 +137,7 @@ export function projectFromDisk(
     })),
     binary: async (path) => bytesOf.get(path),
     overlayImages,
+    ...(role ? { role } : {}),
   };
 }
 
@@ -195,9 +197,11 @@ async function build(args: string[]): Promise<number> {
   const themes = join(dir, "..", "themes");
   const themed = existsSync(themes) ? foldersOf(themes) : [];
   const projects = [
-    ...foldersOf(dir).filter((module) => !themed.some((theme) => theme.id === module.id)),
-    ...themed,
-  ].map(({ id, path }) => projectFromDisk(id, path, images[id]));
+    ...foldersOf(dir)
+      .filter((module) => !themed.some((theme) => theme.id === module.id))
+      .map(({ id, path }) => projectFromDisk(id, path, images[id])),
+    ...themed.map(({ id, path }) => projectFromDisk(id, path, images[id], "theme")),
+  ];
   if (!imagesPath) console.warn("No --overlay-images: module images (pack.images) are left out.");
   const serverId = option(args, "--bedrock");
   const { zipBytes, hash, bedrock } = await assembleServerPack({
@@ -232,6 +236,8 @@ export interface ConformanceCase {
     overlayImages?: OverlayImageRequest[];
     /** The Project's folder, which keys its Bedrock menus; defaults to `id`. */
     folder?: string;
+    /** `"theme"`: a folder of `themes/`, read as a theme when in place and never as a module. */
+    role?: "theme";
   }[];
   /** The case's Bedrock pack: built for `serverId`, expected as its entries, their SHA-256 and the zip's SHA-1. */
   bedrock?: {
@@ -281,6 +287,7 @@ export function buildCase(c: ConformanceCase): Promise<ServerPacks> {
       binary: async (path) => bytesOf.get(path),
       overlayImages: p.overlayImages,
       ...(p.folder ? { folder: p.folder } : {}),
+      ...(p.role === "theme" ? { role: "theme" as const } : {}),
     };
   });
   return assembleServerPack({

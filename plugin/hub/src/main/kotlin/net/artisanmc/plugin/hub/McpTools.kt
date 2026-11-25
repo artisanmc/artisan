@@ -844,6 +844,9 @@ class McpTools(
 
         fun theme(name: String): KitTheme? = KitTheme.of(name, tree, binaryPaths, ::bytes)
 
+        /** The theme this Project is, when it is a theme's own folder ([KitTheme.own]). */
+        fun ownTheme(): KitTheme = KitTheme.ownOf(tree, binaryPaths, ::bytes)
+
         private fun descriptor(stem: String): String? = listOf(".yml", ".yaml").firstNotNullOfOrNull { tree[stem + it] }
         private fun ascent(descriptor: String): Double? = ASCENT_LINE.find(descriptor)?.groupValues?.get(1)?.toDoubleOrNull()
     }
@@ -854,17 +857,29 @@ class McpTools(
 
     /**
      * What `kit:<name>` shows on a server ([Kit]): the image of its kit module ([module]; null when
-     * it has none) where there is one, else the base's, in the themes [themeNames] the kit holds,
-     * the lowest first ([ThemeStack]); [strict] refuses a theme it does not hold. [except]: an image
-     * of the kit module being written over, which is no layer of itself.
+     * it has none) where there is one, else the base's, in the themes [themeNames] the server
+     * holds, the lowest first ([ThemeStack]): each the Project of its name ([own], a theme's own
+     * folder), else the folder of that name the kit module keeps. [strict] refuses a theme the
+     * server does not hold. [except]: an image of the kit module being written over, which is no
+     * layer of itself.
      */
-    private inner class KitView(module: () -> Images?, private val themeNames: List<String>, private val strict: Boolean = false, private val except: String? = null) {
+    private inner class KitView(
+        module: () -> Images?, private val themeNames: List<String>, private val strict: Boolean = false, private val except: String? = null,
+        private val own: Map<String, () -> Images?> = emptyMap(),
+    ) {
         val module: Images? by lazy(module)
+
+        /** The server's themes by name: the ones of their own folder, then the ones the kit module keeps. */
+        val themes: List<String> get() = (own.keys + this.module?.themes.orEmpty()).distinct().sorted()
+
+        /** The theme [name] of the server; null when it holds none. */
+        fun themeNamed(name: String): KitTheme? = own[name]?.let { it()?.ownTheme() } ?: this.module?.theme(name)
+
         private val held: List<Pair<String, KitTheme>> by lazy {
             themeNames.mapNotNull { name ->
-                this.module?.theme(name)?.let { name to it } ?: if (!strict) null else throw McpRefusal(
+                themeNamed(name)?.let { name to it } ?: if (!strict) null else throw McpRefusal(
                     "not_found",
-                    "No theme '$name' among the server's common images: it has ${this.module?.themes?.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "none"}. " +
+                    "No theme '$name' on the server: it has ${themes.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "none"}. " +
                         "`$NO_THEME` shows the common images without a theme.",
                 )
             }
@@ -898,8 +913,17 @@ class McpTools(
     private fun kitView(view: Images, asked: String? = null, except: String? = null, module: (() -> Images?)? = null): KitView = KitView(
         module ?: { if (view.project.folder == KIT_FOLDER) view else deployed(view.project.server, KIT_FOLDER) },
         if (asked == null) KitTheme.configured(view.project.server.serverConfig()) else listOfNotNull(asked.takeIf { it.isNotEmpty() && it != NO_THEME }),
-        strict = asked != null, except = except,
+        strict = asked != null, except = except, own = ownThemes(view.project.server),
     )
+
+    /** The server's themes of their own folder (`role: theme` in its Project roots, the common images' apart), each as deployed. */
+    private fun ownThemes(server: EditorServer): Map<String, () -> Images?> =
+        themeFolders(server).filter { it != KIT_FOLDER }.associateWith { folder -> { deployed(server, folder) } }
+
+    /** The folders of [server] that are themes, the common images' included. */
+    private fun themeFolders(server: EditorServer): Set<String> =
+        (runCatching { projects.list(server) }.getOrNull()?.get("project_roots") as? List<*>).orEmpty()
+            .mapNotNull(net.artisanmc.plugin.project.ProjectRootInfo::from).filter { it.role == "theme" }.mapTo(HashSet()) { it.projectId }
 
     /** The file of the image at [path], as [draft] has it, or as deployed. */
     private fun imageBytes(project: ProjectRef, path: String, draft: DraftSnapshot?): ByteArray {
@@ -1177,8 +1201,8 @@ class McpTools(
             val colon = name.indexOf(':')
             val folders = folders(project.server)
             val themed = KIT_FOLDER in folders
-            // The theme's images are the common ones, never a module's under the name alone.
-            val modules = folders.filter { it != KIT_FOLDER }
+            // The theme's images are the common ones, never a module's under the name alone; another theme holds no image a menu names.
+            val modules = folders.filter { it != KIT_FOLDER } - themeFolders(project.server)
             fun elsewhere(bare: String, except: String?): MenuPictureImage? {
                 val common = { kit.image(bare)?.let { MenuPictureImage(it.png, Kit.ASCENT) } }
                 val others = { modules.firstNotNullOfOrNull { if (it == except) null else module(it)?.image(bare, kit) } }
@@ -1224,17 +1248,26 @@ class McpTools(
         // The kit module: its images by name, where one named as a slot of the base replaces it.
         val kitModule = if (KIT_FOLDER in folders) deployed(server, KIT_FOLDER) else null
         // The modules' images as their files are, to draw from; the base as the players see it, in the server's themes in place.
+        val themes = ownThemes(server)
         val plain = KitView({ kitModule }, emptyList())
-        val themed = KitView({ kitModule }, KitTheme.configured(server.serverConfig()))
+        val themed = KitView({ kitModule }, KitTheme.configured(server.serverConfig()), own = themes)
         // The colours of what `kit:<name>` shows without a theme: what a theme's table replaces.
         val kitColours = HashMap<Int, Long>()
         for (folder in folders) {
+            // A theme of its own folder holds no image a menu names: it is listed with the themes.
+            if (folder in themes) continue
             val view = (if (folder == KIT_FOLDER) kitModule else deployed(server, folder)) ?: continue
             val project = view.project
             val tree = view.tree
             if (folder == KIT_FOLDER) kit = mapOf("project" to project.id, "path" to KIT_FILE, "content" to tree[KIT_FILE]?.take(MAX_KIT)) + mapOf(
-                "themes" to view.themes.mapNotNull { name ->
-                    view.theme(name)?.let { mapOf("name" to name, "colors" to it.colorCount, "redraws" to it.drawings.sorted().ifEmpty { null }).filterValues { v -> v != null } }
+                "themes" to themed.themes.mapNotNull { name ->
+                    themed.themeNamed(name)?.let {
+                        mapOf(
+                            "name" to name, "colors" to it.colorCount, "redraws" to it.drawings.sorted().ifEmpty { null },
+                            // A theme of its own folder is a Project of its name.
+                            "project" to name.takeIf { n -> n in themes }?.let { n -> ProjectRef.id(server.id, n) },
+                        ).filterValues { v -> v != null }
+                    }
                 }.ifEmpty { null },
                 // The ones the pack is built in (`resource-pack.themes`, the lowest first) that the kit holds.
                 "in_place" to themed.themed,

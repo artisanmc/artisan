@@ -75,7 +75,12 @@ export function ServerResources({
   const kitId = useKitStore((s) => s.read?.projectId);
   const every = useServerIndexStore((s) => s.projects);
   const status = useServerIndexStore((s) => s.status);
-  const modules = useMemo(() => every.filter((p) => p.id !== kitId), [every, kitId]);
+  // A theme is no module: the common images are shown apart, another theme holds no image a menu names.
+  const themes = useKitStore((s) => s.own);
+  const modules = useMemo(() => {
+    const themeIds = new Set(Object.values(themes).map((theme) => theme.projectId));
+    return every.filter((p) => p.id !== kitId && !themeIds.has(p.id));
+  }, [every, kitId, themes]);
   const one = scope === WHOLE_SERVER ? undefined : modules.find((p) => p.id === scope);
   const shown = useMemo(
     () => (scope === WHOLE_SERVER ? modules : one ? [one] : []),

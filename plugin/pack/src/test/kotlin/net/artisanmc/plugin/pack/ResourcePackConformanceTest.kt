@@ -29,6 +29,7 @@ class ResourcePackConformanceTest {
                     OverlayImageRequest(it["asset"].asText(), it["rise"]?.asInt(), it["bottom"]?.asInt())
                 }.orEmpty(),
                 folder = p["folder"]?.asText() ?: p["id"].asText(),
+                theme = p["role"]?.asText() == "theme",
             )
         }
         return PackInput(

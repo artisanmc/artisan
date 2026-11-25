@@ -146,10 +146,12 @@ describe("ServerConfigSection", () => {
     });
     api.patchServerConfig.mockImplementation(async (_id, changes) => ({ ...config, ...changes }));
     const kit = { id: "p2", externalId: "ui-kit", name: "ui-kit" } as ProjectSummary;
+    // A theme of its own folder is a Project of the server with the role `theme`.
+    const automne = { id: "p3", externalId: "automne", name: "automne", role: "theme" };
     render(
       <ServerConfigSection
         serverKeyId="s1"
-        projects={[project, kit]}
+        projects={[project, kit, automne as ProjectSummary]}
         conditionsField={NoConditions}
       />,
     );
@@ -158,7 +160,7 @@ describe("ServerConfigSection", () => {
     // The former single theme, which the server still reports, is not offered beside the list.
     expect(screen.queryByLabelText(/^Thème des images communes/)).toBeNull();
     await waitFor(() =>
-      expect(screen.getByText(/Thèmes du serveur : noel, nuit/)).toBeInTheDocument(),
+      expect(screen.getByText(/Thèmes du serveur : automne, noel, nuit/)).toBeInTheDocument(),
     );
     fireEvent.change(themes, { target: { value: "noel, nuit" } });
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));

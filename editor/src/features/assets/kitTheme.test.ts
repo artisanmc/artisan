@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { assetBytes } from "./assetBytes";
 import { composedView } from "./composedAssets";
 import { kitAssetsOf, themedKitAssets } from "./kitAssets";
-import { activeKitTheme } from "./kitTheme";
+import { activeKitTheme, serverTheme, serverThemeNames } from "./kitTheme";
 
 const GREEN = [0x3c, 0x85, 0x27];
 const RED = [0xb3, 0x26, 0x1e];
@@ -34,7 +34,7 @@ const table = themeColors('colors:\n  "#3c8527": "#b3261e"\n');
 
 describe("the kit in the server's theme", () => {
   beforeEach(() => {
-    useKitStore.setState({ read: undefined, themes: [], stacks: false });
+    useKitStore.setState({ read: undefined, own: {}, themes: [], stacks: false });
   });
 
   test("each kit image is the theme's drawing of it, else in the theme's colours", async () => {
@@ -135,5 +135,45 @@ describe("the kit in the server's theme", () => {
     useKitStore.getState().readConfig({ "resource-pack.theme": "noel" });
     expect(useKitStore.getState().themes).toBe(same);
     expect(useKitStore.getState().stacks).toBe(false);
+  });
+
+  test("a theme of its own folder is read from the Project of its name", async () => {
+    const read = {
+      projectId: "srv.artisan",
+      files: {
+        "themes/noel/theme.yml": 'colors:\n  "#3c8527": "#00ffff"\n',
+        "themes/nuit/theme.yml": 'colors:\n  "#b3261e": "#010203"\n',
+      },
+      binaries: [],
+    };
+    const own = {
+      noel: {
+        projectId: "srv.noel",
+        files: { "overrides/colors.yml": 'colors:\n  "#3c8527": "#b3261e"\n' },
+        binaries: [{ path: "overrides/artisan/cell.png", hash: "h" }],
+      },
+    };
+    const drawn = solid(18, 18, [7, 8, 9]);
+    const asked: string[] = [];
+    const binary = async (projectId: string, path: string) => {
+      asked.push(`${projectId}/${path}`);
+      return drawn;
+    };
+    expect(serverThemeNames(read, own)).toEqual(["noel", "nuit"]);
+    expect(serverThemeNames(undefined, {})).toEqual([]);
+    // The Project wins over the folder of that name the common images keep.
+    const noel = serverTheme(read, own, "noel", binary)!;
+    expect(first(decodePng(await noel.shown("x", solid(1, 1, GREEN))))).toEqual(RED);
+    expect(await noel.shown("cell", solid(18, 18, GREEN))).toBe(drawn);
+    expect(asked).toEqual(["srv.noel/overrides/artisan/cell.png"]);
+    expect(serverTheme(read, own, "nuit", binary)).not.toBeNull();
+    expect(serverTheme(read, own, "gone", binary)).toBeNull();
+    // In place: `nuit`, still kept by the common images, repaints what `noel` shows.
+    useKitStore.setState({ read, own, themes: ["noel", "nuit"] });
+    const shown = await activeKitTheme(binary)!.shown("x", solid(1, 1, GREEN));
+    expect(first(decodePng(shown))).toEqual([1, 2, 3]);
+    // A server whose themes are all of their own folder needs no theme kept by the common images.
+    useKitStore.setState({ read: undefined, themes: ["noel"] });
+    expect(activeKitTheme(binary)).not.toBeNull();
   });
 });

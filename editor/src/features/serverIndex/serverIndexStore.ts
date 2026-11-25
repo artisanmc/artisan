@@ -62,7 +62,8 @@ export const useServerIndexStore = create<ServerIndexState>((set, get) => ({
 // The published files of the common images' Project (the theme `artisan`), for whatever draws a `kit:<name>` image (`state/kitStore`).
 useServerIndexStore.subscribe((state, previous) => {
   if (state.reads === previous.reads) return;
-  const read = kitProjectAmong(state.reads, (r) => r.summary.externalId ?? r.summary.id);
+  const folderOf = (r: (typeof state.reads)[number]) => r.summary.externalId ?? r.summary.id;
+  const read = kitProjectAmong(state.reads, folderOf);
   useKitStore.getState().setRead(
     read && {
       projectId: read.summary.id,
@@ -71,4 +72,17 @@ useServerIndexStore.subscribe((state, previous) => {
       byName: read.summary.role === "theme",
     },
   );
+  // The server's other themes, each a Project of its name (`lib/pack/theme.ts`).
+  useKitStore
+    .getState()
+    .setOwn(
+      Object.fromEntries(
+        state.reads
+          .filter((r) => r.summary.role === "theme" && r !== read)
+          .map((r) => [
+            folderOf(r),
+            { projectId: r.summary.id, files: r.files, binaries: r.binaries },
+          ]),
+      ),
+    );
 });

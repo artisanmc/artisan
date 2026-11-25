@@ -182,7 +182,8 @@ class ProjectReader(
     fun read(ids: Set<String>): List<RuntimeProject> = read(roots.all().filterKeys { it in ids })
 
     private fun read(dirs: Map<String, File>): List<RuntimeProject> =
-        dirs.mapNotNull { (projectId, dir) ->
+        // A theme holds no Document: nothing of its folder is loaded.
+        dirs.filterKeys(roots::holdsDocuments).mapNotNull { (projectId, dir) ->
             // Tolerant per project: a broken manifest/lang never nukes the
             // whole reload (which would fail plugin enable + cascade to
             // add-ons that `depend: Artisan`).

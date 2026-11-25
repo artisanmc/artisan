@@ -105,7 +105,9 @@ palette over a drawn theme). **Take off the server** removes that theme alone; t
 to the top, take it off and put it back, or reorder the list in **Configuration**, **Themes in
 place**. A theme's
 files are written with the common images (see [AI](../../configuration/ai/), "Themes") and read
-here once deployed.
+here once deployed. A theme that has its own folder on the server
+(`plugins/Artisan/themes/<name>/`) is listed with the others and stacks the same way; its page
+says where its files are.
 
 **Composed images.** An image may be a recipe instead of a PNG: a `compose:` list in its
 `.yml`, which stacks kit images and PNGs of the module (see

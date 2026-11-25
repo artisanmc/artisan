@@ -53,6 +53,12 @@ export interface PackProject {
   overlayImages?: OverlayImageRequest[];
   /** The Project's folder on disk, which names it on the plugin side (Bedrock menu keys, `<folder>:<name>` of an image, `imageNames.ts`); defaults to `id`. */
   folder?: string;
+  /**
+   * `"theme"`: a folder of `themes/` (the Project roots' `role`). One other than the common
+   * images' holds no Document and no image of its own in the pack: it is read as a theme when
+   * the server has it in place (`theme.ts`).
+   */
+  role?: "theme";
 }
 
 export interface PackInput {
@@ -89,7 +95,16 @@ export interface ServerPacks extends BuildResult {
  * collisions.
  */
 export async function assembleServerPack(input: PackInput): Promise<ServerPacks> {
-  const projects = [...input.projects].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const folderOf = (project: PackProject) => project.folder ?? project.id;
+  // The common images (`kit.ts`): the server's by name, and the base as the server holds it.
+  const kitFolder = kitFolderAmong(input.projects.map(folderOf));
+  const inKit = (project: PackProject) => folderOf(project) === kitFolder;
+  // The server's themes, each a Project of its name: read when in place, never as a module.
+  const isTheme = (project: PackProject) => project.role === "theme" && !inKit(project);
+  const themeProjects = new Map(input.projects.filter(isTheme).map((p) => [folderOf(p), p]));
+  const projects = input.projects
+    .filter((p) => !isTheme(p))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const allAssets: AssetRow[] = [];
   const contribs: GlyphContribution[] = [];
   const glyphPngs = new Map<string, Uint8Array>();
@@ -104,10 +119,6 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   const imagesByRef: { ref: string; bytes: Uint8Array }[] = [];
   const texts: string[] = [];
   const titleImages: { folder: string; ref: string }[] = [];
-  // The common images (`kit.ts`): the server's by name, and the base as the server holds it.
-  const folderOf = (project: PackProject) => project.folder ?? project.id;
-  const kitFolder = kitFolderAmong(projects.map(folderOf));
-  const inKit = (project: PackProject) => folderOf(project) === kitFolder;
   const kitProject = projects.find(inKit);
   const kitImages = new Map<string, Uint8Array>();
   const kitBase = new Map<string, Uint8Array | null>();
@@ -230,9 +241,11 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
 
   // Composed images (`compose.ts`), once every module's PNGs are read: a layer is a PNG of the
   // module or a kit image, never another composed image, so their order does not matter.
-  // The kit's theme (`theme.ts`) changes the kit's PNGs, the base's and the server's: an image
+  // The themes in place (`theme.ts`) change the kit's PNGs, the base's and the server's: an image
   // composed with them follows, and is not themed a second time once assembled.
-  const theme = input.themes?.length && kitProject ? readKitThemes(input.themes, kitProject) : null;
+  const theme = input.themes?.length
+    ? readKitThemes(input.themes, kitProject, themeProjects)
+    : null;
   const kitPng = async (name: string) => {
     const png = (await kitImageOf(name))?.png;
     return png && theme ? theme.shown(name, png) : png;

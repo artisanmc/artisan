@@ -294,6 +294,8 @@ const fr: typeof en = {
       noDrawings: "Ce thème ne redessine aucune pièce.",
       files:
         "Un thème est un dossier des images communes du serveur (themes/artisan/) : themes/{{name}}/theme.yml porte ses couleurs, themes/{{name}}/assets/textures/<pièce>.png une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
+      filesOwn:
+        "Ce thème est un dossier du serveur, themes/{{name}}/ : overrides/colors.yml porte ses couleurs, overrides/artisan/<image>.png une image commune redessinée à la taille de cette image. Il se lit ici une fois déployé.",
       compare: "Sans et avec, dans un menu",
       putHint:
         "Mettre en place pose le thème au-dessus de ceux qui y sont déjà et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",

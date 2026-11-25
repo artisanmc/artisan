@@ -19,6 +19,13 @@ interface KitState {
   read: KitRead | undefined;
   setRead: (read: KitRead | undefined) => void;
   /**
+   * The server's themes that are a folder of their own (`themes/<name>/`, a Project of that
+   * name), by name, as published. A theme the common images' Project still keeps is not here:
+   * it is read from `read`.
+   */
+  own: Readonly<Record<string, KitRead>>;
+  setOwn: (own: Readonly<Record<string, KitRead>>) => void;
+  /**
    * The themes in place on the server, the lowest first (`resource-pack.themes`): what its pack
    * is built in. Empty: none, or not read yet. The array changes only when the names do.
    */
@@ -33,6 +40,7 @@ interface KitState {
 }
 
 const NO_THEMES: readonly string[] = [];
+const NO_OWN: Readonly<Record<string, KitRead>> = {};
 
 /**
  * What the server index knows of the kit module, held here so that whatever draws a menu can
@@ -41,6 +49,8 @@ const NO_THEMES: readonly string[] = [];
 export const useKitStore = create<KitState>((set) => ({
   read: undefined,
   setRead: (read) => set({ read }),
+  own: NO_OWN,
+  setOwn: (own) => set({ own: Object.keys(own).length === 0 ? NO_OWN : own }),
   themes: NO_THEMES,
   stacks: false,
   readConfig: (config) =>

@@ -15,7 +15,7 @@ const published = (binaries: string[], files: Record<string, string> = {}) =>
 
 describe("KitPage", () => {
   beforeEach(() => {
-    useKitStore.setState({ read: undefined, themes: [], stacks: false });
+    useKitStore.setState({ read: undefined, own: {}, themes: [], stacks: false });
   });
 
   it("shows every piece as Artisan's on a server that has no theme yet", () => {
@@ -96,13 +96,18 @@ describe("KitPage", () => {
       "themes/noel/theme.yml": "colors: {}\n",
     });
     // `gone` is in place on the server and no longer among its themes: it shows nothing.
-    useKitStore.setState({ themes: ["noel", "gone", "automne"] });
+    // `printemps` is a theme of its own folder, a Project of its name.
+    useKitStore.setState({
+      themes: ["noel", "gone", "automne"],
+      own: { printemps: { projectId: "srv.printemps", files: {}, binaries: [] } },
+    });
     render(<KitPage menusNaming={0} onTheme={() => {}} />);
     const themes = within(screen.getByTestId("kit-themes"));
     expect(themes.getAllByRole("button").map((button) => button.textContent)).toEqual([
       "1. noel (en place)",
       "2. automne (en place)",
       "hiver",
+      "printemps",
     ]);
     expect(screen.getByTestId("kit-themes-order")).toBeInTheDocument();
   });

@@ -332,6 +332,27 @@ theme's redraw of a module's image and `scope`, colour ramps (decision 7), order
 by hand elsewhere than in the Configuration list, and a preview of a theme within the stack
 (the theme's page compares it alone against no theme).
 
+**Step 4, second part: a theme read from its own folder** (`ServerThemes.kt`, `KitTheme.own`
+in `Theme.kt`, `readOwnTheme` in `theme.ts`, `kitStore.own`).
+Each folder of `plugins/Artisan/themes/` other than `artisan` is a theme of decision 5,
+registered at start as the Project of its name with the role `theme`: `overrides/colors.yml`
+is its table, `overrides/artisan/<image>.png` its redraw of a common image, with the rules of
+the first part (256 colours, a drawing at the image's size only). It holds no Document: the
+server reads no menu, command or Trigger from it, and neither pack builder, the server's
+Resources nor the MCP survey counts it as a module. A folder named like a module is left
+unregistered, with a warning: the module keeps the name. A name of the stack is read from the
+theme's own Project when the server has one, else from the folder the common images keep for
+it (`themes/artisan/themes/<name>/`), so a server's themes and its pack are unchanged (the
+vector locks the same stack in either place to the same bytes). The editor lists both, shows
+and stacks them alike, and the MCP tools draw them alike (`kit.themes[].project` in
+`survey_ui` names a theme's own Project).
+Not in this part, and next: creating a theme from the editor or the MCP tools, which still
+write the former place (`write_image theme=`, `themes/<name>/theme.yml`); the move of the
+former folders to the new place, written and tested (`ServerThemes.migrate`) and not called
+at start until those writers follow; a theme's own images (`assets/`, `<theme>:<name>`) in
+the pack; a theme's draft read by `render_menu`. A theme's folder is read at start: one added
+by hand shows after a restart.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still

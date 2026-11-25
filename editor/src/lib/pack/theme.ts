@@ -2,9 +2,17 @@ import { parse } from "yaml";
 import { type RgbaImage, decodePng, encodePng } from "./png";
 
 /**
- * A theme of the UI kit (`Theme.kt` in the hub's builder): the same images, under the same names
- * and at the same sizes, with other pixels. It lives in the kit module (`kit.ts`), one folder per
- * theme:
+ * A theme (`Theme.kt` in the hub's builder): the same images, under the same names and at the
+ * same sizes, with other pixels. It is a folder of its own beside the theme `artisan`, a
+ * Project of its name (ADR `common-images-and-themes`, decision 5):
+ *
+ * ```
+ * themes/noel/overrides/colors.yml                colors: {"#3c8527": "#b3261e"}
+ * themes/noel/overrides/artisan/button.3x1.png    this common image redrawn, at its size
+ * ```
+ *
+ * A server whose Artisan is older than that keeps its themes in the common images' Project
+ * (`kit.ts`), which is read where no Project of the theme's name is:
  *
  * ```
  * themes/noel/theme.yml                         colors: {"#3c8527": "#b3261e"}
@@ -21,8 +29,23 @@ import { type RgbaImage, decodePng, encodePng } from "./png";
  * wins, and a theme of colours alone repaints what is below it.
  */
 
-/** The folder of the themes, at the kit module's root. */
+/** The folder of the themes, at the kit module's root: where a server older than a theme's own folder keeps them. */
 export const THEMES_DIR = "themes";
+
+/** In a theme's own folder, what it changes in images that exist elsewhere. */
+export const THEME_OVERRIDES_DIR = "overrides/";
+
+/** Its redraws of the common images, before the image's name: `overrides/artisan/`. */
+export const THEME_COMMON_DIR = `${THEME_OVERRIDES_DIR}artisan/`;
+
+/** Its table of colours: `.yml` before `.yaml`. */
+export const THEME_COLORS_FILES = [
+  `${THEME_OVERRIDES_DIR}colors.yml`,
+  `${THEME_OVERRIDES_DIR}colors.yaml`,
+] as const;
+
+/** The path of the theme's own drawing of the common image `name`. */
+export const themeDrawingPath = (name: string): string => `${THEME_COMMON_DIR}${name}.png`;
 
 /** Colours a theme may replace. */
 export const THEME_MAX_COLORS = 256;
@@ -244,6 +267,32 @@ export function readKitTheme(
   return kitTheme(themeColors(text), redrawn, kit.binary);
 }
 
+/** The common images a theme of its own folder redraws among its `binaries`, by name. */
+export function ownThemeDrawings(binaries: readonly string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const path of [...binaries].sort(byCodeUnit)) {
+    if (!path.startsWith(THEME_COMMON_DIR)) continue;
+    const file = path.slice(THEME_COMMON_DIR.length);
+    if (file.includes("/") || !file.endsWith(".png") || file.length === ".png".length) continue;
+    out.set(file.slice(0, -".png".length), path);
+  }
+  return out;
+}
+
+/** The files of a theme that is its own Project (`themes/<name>/`). */
+export type ThemeFiles = Parameters<typeof readKitTheme>[1];
+
+/** A theme that is its own Project: its table and its redraws of the common images. One that holds neither changes nothing. */
+export function readOwnTheme(theme: ThemeFiles): KitTheme {
+  const file = THEME_COLORS_FILES.find((path) => theme.files.some((f) => f.path === path));
+  const text = file === undefined ? "" : (theme.files.find((f) => f.path === file)?.content ?? "");
+  return kitTheme(
+    themeColors(text),
+    ownThemeDrawings(theme.binaries.map((b) => b.path)),
+    theme.binary,
+  );
+}
+
 /** What the builders ask of the themes in place: one theme, or a stack of them. */
 export type ThemeLook = Pick<KitTheme, "shown" | "drawing">;
 
@@ -272,12 +321,23 @@ export function kitThemeStack(themes: readonly KitTheme[]): ThemeLook | null {
   };
 }
 
-/** The themes `names` of a kit module as one look, in that order; the ones it does not hold are left out. */
+/**
+ * The themes `names` as one look, in that order: each from the Project of its name among `own`
+ * (the server's themes, by folder), else from the common images' Project `kit`, where an older
+ * server keeps it. One the server does not hold is left out.
+ */
 export function readKitThemes(
   names: readonly string[],
-  kit: Parameters<typeof readKitTheme>[1],
+  kit: ThemeFiles | undefined,
+  own: ReadonlyMap<string, ThemeFiles> = new Map(),
 ): ThemeLook | null {
   return kitThemeStack(
-    names.map((name) => readKitTheme(name, kit)).filter((t): t is KitTheme => t !== null),
+    names
+      .map((name) => {
+        if (!isThemeName(name)) return null;
+        const mine = own.get(name);
+        return mine ? readOwnTheme(mine) : kit ? readKitTheme(name, kit) : null;
+      })
+      .filter((t): t is KitTheme => t !== null),
   );
 }

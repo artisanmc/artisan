@@ -36,6 +36,16 @@ base Artisan ships, written by the originals sync at start (`SystemFiles`, syste
 notes. A former `modules/ui-kit/` moves there at the first start, when the theme holds nothing
 of the server's.
 
+Every other folder of `themes/` is a theme of the server (`ServerThemes.register`, decision 5):
+`overrides/colors.yml` is its table of colours, `overrides/artisan/<image>.png` its redraw of
+a common image, at that image's size. Its name is lowercase letters, digits, `_` and `-`. It
+holds no Document: the server loads no menu, command or Trigger from it
+(`ProjectRoots.holdsDocuments`). A folder named like a module of the server is not registered
+(warning at start): the module keeps the name. A theme still kept in the common images' folder
+(`themes/artisan/themes/<name>/`, `theme.yml` and `assets/`) is read where it is when no
+folder of `themes/` has its name; `ServerThemes.migrate` moves it to the new place and is not
+called at start yet (the editor and the MCP tools still write the former place).
+
 Before 2026-10, the root was `plugins/Artisan/projects/`. On first startup, the plugin
 moves it to `modules/` (`ModulesRootMigration`): each folder keeps its name (namespace, qualified
 refs) and its `.artisan/project-id` (Versions, drafts), the old folder stays as
