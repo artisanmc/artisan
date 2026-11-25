@@ -1,4 +1,4 @@
-import { parse } from "yaml";
+import { isMap, parse, parseDocument } from "yaml";
 import { type RgbaImage, decodePng, encodePng } from "./png";
 
 /**
@@ -140,6 +140,33 @@ export function themeScope(text: string): string | null {
   }
 }
 
+const colorText = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
+
+/**
+ * The text of a theme's file with its table replaced by `colors`: every other key (`scope`, a
+ * note) and its comments are kept. `text`: the file as it is, `undefined` when the theme has
+ * none. `null` when nothing is left to write: no colour and no other key.
+ */
+export function themeColorsText(
+  text: string | undefined,
+  colors: ReadonlyMap<number, number>,
+): string | null {
+  let doc = parseDocument(text ?? "");
+  // A file that cannot be read, or that is not a map, is written anew.
+  if (doc.errors.length > 0 || (doc.contents !== null && !isMap(doc.contents)))
+    doc = parseDocument("");
+  if (colors.size === 0) {
+    if (doc.contents !== null) doc.delete("colors");
+  } else {
+    const table: Record<string, string> = {};
+    for (const [from, to] of colors) table[colorText(from)] = colorText(to);
+    doc.set("colors", table);
+  }
+  const left = doc.toJS() as Record<string, unknown> | null;
+  if (!left || Object.keys(left).length === 0) return null;
+  return doc.toString();
+}
+
 /** The path of the theme `name`'s file among `paths`: `.yml` before `.yaml`. */
 export function themeFile(name: string, paths: readonly string[]): string | undefined {
   return [`${THEMES_DIR}/${name}/theme.yml`, `${THEMES_DIR}/${name}/theme.yaml`].find((path) =>
@@ -229,6 +256,8 @@ export interface KitTheme {
    * recoloured; `png` itself otherwise.
    */
   moduleShown(folder: string, name: string, png: Uint8Array, ramps: boolean): Promise<Uint8Array>;
+  /** This theme with another table: the same drawings and the same scope. What a table is tried in before it is written. */
+  withColors(colors: ReadonlyMap<number, number>): KitTheme;
 }
 
 /** The folder of the common images, as a theme's `scope` names them (`KIT_FOLDER` in `kit.ts`). */
@@ -305,6 +334,7 @@ export function kitTheme(
     moduleShown: async (folder, name, png, ramps) =>
       (await moduleDrawing(folder, name, png)) ??
       (ramps && paints(folder) ? recolored(png, colors) : png),
+    withColors: (next) => kitTheme(next, redrawn, binary, modules, scope),
   };
 }
 

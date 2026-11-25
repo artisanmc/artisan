@@ -16,6 +16,7 @@ import net.artisanmc.plugin.pack.MenuPictures
 import net.artisanmc.plugin.pack.PixelArt
 import net.artisanmc.plugin.pack.PixelRect
 import net.artisanmc.plugin.pack.Png
+import net.artisanmc.plugin.pack.Ramps
 import net.artisanmc.plugin.pack.RgbaImage
 import net.artisanmc.plugin.project.ProjectMetadataPaths
 import net.artisanmc.plugin.project.ProjectPathPolicy
@@ -366,6 +367,24 @@ class McpTools(
             readOnly = true, ::surveyUi,
         ),
         Tool(
+            "theme_colours", "Compute a theme's colours",
+            "Computes the table of colours of a theme from one colour per family of Artisan's images (survey_ui's `kit_ramps`): give what " +
+                "the main colour of a family becomes, each shade of that family follows, darker ones darker and lighter ones lighter. " +
+                "Returns `colors`, the exact table, and `file`, the text to write as the theme's `${KitTheme.COLORS_FILES.first()}` " +
+                "(write_document; add `scope` yourself). A family left out keeps Artisan's colours. Use it instead of choosing each shade: " +
+                "the result is the one the editor's theme page computes. It writes nothing.",
+            schema(
+                "ramps" to mapOf(
+                    "type" to "object",
+                    "description" to "What each family's main colour becomes, as `#rrggbb`: `primary` (buttons, green), `danger` (delete, close, red), " +
+                        "`accent` (highlights, yellow), `neutral` (windows and frames, grey). At least one.",
+                    "additionalProperties" to mapOf("type" to "string"),
+                ),
+                required = listOf("ramps"),
+            ),
+            readOnly = true, ::themeColours,
+        ),
+        Tool(
             "list_versions", "List versions",
             "The Versions of a Project, newest first: each deploy the server loaded, who published it (\"<player> via <app>\" for an AI " +
                 "app), when, and the files it changed. version_rollback takes one of these numbers.",
@@ -664,6 +683,35 @@ class McpTools(
         return mapOf(
             "project" to created.id, "created" to true,
             "next" to "start_draft on ${created.id}, then write_document for each file; the player deploys the draft.",
+        )
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    private fun themeColours(principal: McpPrincipal, args: JsonNode): Any {
+        val picks = args.get("ramps")?.takeIf { it.isObject && it.size() > 0 }
+            ?: throw McpRefusal("invalid_input", "ramps is required: one colour per family to change, e.g. {\"primary\": \"#b3261e\"}. survey_ui's `kit_ramps` lists the families.")
+        val table = LinkedHashMap<Int, Int>()
+        val picked = LinkedHashMap<String, String>()
+        // In the declaration's order, whatever order the families were given in: one request, one table.
+        val asked = picks.fieldNames().asSequence().toSet()
+        asked.firstOrNull { Ramps.ramp(it) == null }?.let {
+            throw McpRefusal("invalid_input", "No family '$it'. The families are ${Ramps.all.joinToString(", ") { r -> r.id }}.")
+        }
+        for (ramp in Ramps.all) {
+            if (ramp.id !in asked) continue
+            val colour = picks[ramp.id].takeIf { it.isTextual }?.asText()?.trim()?.takeIf { COLOUR.matches(it) }
+                ?: throw McpRefusal("invalid_input", "ramps.${ramp.id} is a colour as `#rrggbb`.")
+            picked[ramp.id] = colour.lowercase()
+            table.putAll(Ramps.table(ramp, colour.substring(1).toInt(16)))
+        }
+        val colors = table.entries.associate { "#%06x".format(it.key) to "#%06x".format(it.value) }
+        return mapOf(
+            "ramps" to picked,
+            "colors" to colors,
+            "file" to if (colors.isEmpty()) "" else "colors:\n" + colors.entries.joinToString("") { "  \"${it.key}\": \"${it.value}\"\n" },
+            "path" to KitTheme.COLORS_FILES.first(),
+            "next" to (if (colors.isEmpty()) "These are Artisan's own colours: the theme needs no table for them."
+            else "Write `file` as `path` in a draft of the theme's Project (write_document), keeping the file's other keys such as `scope`; render_menu with `theme_draft_id` shows a menu in it."),
         )
     }
 
@@ -1444,6 +1492,10 @@ class McpTools(
                 "themes_format" to if (readsThemeFolders(server)) KIT_THEMES else KIT_THEMES_FORMER,
                 "kit_colours" to kitColours.entries.sortedWith(compareByDescending<Map.Entry<Int, Long>> { it.value }.thenBy { it.key })
                     .take(SURVEY_KIT_COLOURS).map { "#%06x".format(it.key) },
+                "kit_ramps" to mapOf(
+                    "how" to KIT_RAMPS,
+                    "ramps" to Ramps.all.map { ramp -> mapOf("id" to ramp.id, "main" to "#%06x".format(ramp.main), "shades" to ramp.shades.map { "#%06x".format(it) }) },
+                ),
                 "kit_base" to mapOf("how" to (if (kit != null) KIT_BASE else KIT_BASE_BEFORE), "themes" to themed.themed, "images" to base.map { it.second }).filterValues { it != null },
                 "left_out" to left.takeIf { it > 0 }?.let { "$it more image(s) are not shown: read_image shows one, list_documents lists a module's." },
             ).filterValues { it != null },
@@ -2086,13 +2138,19 @@ class McpTools(
             "with the slots it covers, columns by rows (`3x1`: three slots wide, one high); `window.6` and `window.3` are whole windows of " +
             "6 and 3 rows with the player's inventory; `cell` is one slot's frame. Prefer these to a new image for a plain button, panel, " +
             "arrow or window."
+        private val COLOUR = Regex("#[0-9a-fA-F]{6}")
+        /** survey_ui's `kit_ramps`: what the families of colours are for. */
+        private const val KIT_RAMPS = "The colours of Artisan's images, by family: each has a main colour (a button's face, a window's body) and its shades. " +
+            "An image that follows a theme's colours is drawn in these. A theme changes a family as a whole: theme_colours computes the table from the " +
+            "colour its main one becomes."
         /** render_menu's `theme` for the common images without one. */
         private const val NO_THEME = "none"
         private val KIT_THEMES = "A theme restyles the server's common images at once, for a season or an event, without a menu being touched: a Project " +
             "of its own, of the theme's name (create_theme makes one; survey_ui's `kit.themes` gives each one's `project`). Its " +
             "`${KitTheme.COLORS_FILES.first()}` (write_document, in a draft of the theme's Project) replaces colours, each one quoted: " +
             "`colors: {\"#3c8527\": \"#b3261e\"}` turns every pixel of the first colour into the second in the common images, its transparency kept " +
-            "(survey_ui's `kit_colours` lists the colours they use without a theme, the most used first). An image a recolour does not do justice to gets the theme's own " +
+            "(survey_ui's `kit_colours` lists the colours they use without a theme, the most used first; theme_colours computes the whole table from one colour per " +
+            "family of `kit_ramps`, which is how a theme is usually made). An image a recolour does not do justice to gets the theme's own " +
             "drawing: write_image in that draft, `name` the common image's, at the image's size. Its colours repaint the images that follow them: the base, " +
             "and any image, common or a module's, written with `ramps: true` (write_image; survey_ui's `ramps` on an image), with what is composed from them. " +
             "Any other image keeps its colours. `scope: guilds` beside `colors` keeps the theme's colours to that one module's images (`scope: $KIT_FOLDER`: " +

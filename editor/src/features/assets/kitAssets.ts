@@ -322,31 +322,38 @@ export const publishedKitTheme = (
  * The server's kit images in its theme `name` alone, whatever themes its pack is built in;
  * `null`: in no theme. What a theme is judged on before it is put in place.
  */
-export function useKitAssetsIn(name: string | null): Asset[] {
+export function useKitAssetsIn(
+  name: string | null,
+  /** The theme's table as it is being changed, not written yet: the theme is shown with it. */
+  colors: ReadonlyMap<number, number> | null = null,
+): Asset[] {
   const read = useKitStore((s) => s.read);
   const own = useKitStore((s) => s.own);
   const [shown, setShown] = useState<{
     read: KitRead;
     name: string | null;
+    colors: ReadonlyMap<number, number> | null;
     assets: Asset[];
   } | null>(null);
   useEffect(() => {
     if (!read) return;
     let cancelled = false;
-    const theme = name === null ? null : publishedKitTheme(read, name, own);
+    const published = name === null ? null : publishedKitTheme(read, name, own);
+    const theme = published && colors ? published.withColors(colors) : published;
     void composedKitImages(read, theme)
       .then((images) => {
         const plain = kitAssetsOf(read, images);
         return theme ? themedKitAssets(plain, images, theme) : plain;
       })
       .then((assets) => {
-        if (!cancelled) setShown({ read, name, assets });
+        if (!cancelled) setShown({ read, name, colors, assets });
       });
     return () => {
       cancelled = true;
     };
-  }, [read, own, name]);
+  }, [read, own, name, colors]);
   const plain = useMemo(() => kitAssetsOf(read), [read]);
+  // While another table is being read, the last one stays: the menu does not blink to the base.
   return shown && shown.read === read && shown.name === name ? shown.assets : plain;
 }
 

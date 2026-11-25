@@ -1,6 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ResetButton } from "@/components/ui/reset-button";
 import { KIT_FOLDER, KIT_PREFIX } from "@/lib/pack/kit";
+import { KIT_RAMPS, rampPicked, withRamp } from "@/lib/pack/ramps";
+import { themeColor } from "@/lib/pack/theme";
 import { useKitStore } from "@/state/kitStore";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,17 +23,26 @@ function Swatch({ color }: { color: number }) {
   );
 }
 
+const sameTable = (a: ReadonlyMap<number, number>, b: ReadonlyMap<number, number>) =>
+  a.size === b.size && [...a].every(([from, to]) => b.get(from) === to);
+
 /**
  * One theme of the server's kit (`lib/pack/theme.ts`), read from the published kit module: the
  * colours it replaces, the pieces it redraws, and the same menu without it and with it. A theme
  * is put in place from here (`onPutInPlace`: on top of the server's `resource-pack.themes`,
  * then its pack rebuilt), and taken off the same way.
+ *
+ * A theme of its own folder has its colours picked here (`onColors`): one colour per ramp of
+ * the base (`lib/pack/ramps.ts`), the shades computed, the menu shown with them before they
+ * are written.
  */
 export function KitThemePage({
   name,
   onBack,
   onPutInPlace,
   onOpenKit,
+  onOpenTheme,
+  onColors,
 }: {
   name: string;
   onBack: () => void;
@@ -38,6 +50,10 @@ export function KitThemePage({
   onPutInPlace?: (name: string, put: boolean) => Promise<void>;
   /** Opens the common images' Project, where the files of a theme it still keeps are. */
   onOpenKit?: () => void;
+  /** Opens the Project of a theme of its own folder: its files, and a draft of it to deploy. */
+  onOpenTheme?: () => void;
+  /** Writes the table `colors` in the file of the theme `name`, a theme of its own folder. */
+  onColors?: (name: string, colors: ReadonlyMap<number, number>) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const read = useKitStore((s) => s.read);
@@ -45,10 +61,15 @@ export function KitThemePage({
   const stack = useKitStore((s) => s.themes);
   const inPlace = stack.includes(name);
   const theme = useMemo(() => publishedKitTheme(read, name, own), [read, own, name]);
+  // The table as it is being picked; `null`: the theme's own, as published.
+  const [picked, setPicked] = useState<ReadonlyMap<number, number> | null>(null);
+  const changed = picked !== null && !!theme && !sameTable(picked, theme.colors);
+  const table = changed ? picked : (theme?.colors ?? null);
   const plain = useKitAssetsIn(null);
-  const themed = useKitAssetsIn(name);
+  const themed = useKitAssetsIn(name, changed ? picked : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const picks = !!onColors && name in own;
 
   const put = async (next: boolean) => {
     if (busy || !onPutInPlace) return;
@@ -63,7 +84,20 @@ export function KitThemePage({
     }
   };
 
-  const colors = theme ? [...theme.colors] : [];
+  const save = async () => {
+    if (busy || !onColors || !changed) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onColors(name, picked);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const colors = table ? [...table] : [];
   return (
     <div className="flex flex-col gap-4" data-testid="kit-theme-page">
       <header className="flex flex-wrap items-center gap-3">
@@ -93,7 +127,9 @@ export function KitThemePage({
       </header>
       {error ? (
         <p role="alert" className="text-xs text-[var(--danger)]">
-          {t("kit.theme.failed", { detail: error })}
+          {error === "conflict"
+            ? t("kit.theme.ramps.conflict")
+            : t("kit.theme.failed", { detail: error })}
         </p>
       ) : null}
       {inPlace && stack.length > 1 ? (
@@ -106,6 +142,63 @@ export function KitThemePage({
       ) : (
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
           <div className="flex w-full shrink-0 flex-col gap-4 xl:w-[340px]">
+            {picks && table ? (
+              <section className="card flex flex-col gap-2 p-4" data-testid="kit-theme-ramps">
+                <h3 className="eyebrow">{t("kit.theme.ramps.title")}</h3>
+                <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.ramps.hint")}</p>
+                <ul className="flex flex-col gap-1.5">
+                  {KIT_RAMPS.map((ramp) => {
+                    const now = rampPicked(ramp, table);
+                    const label = t(`kit.theme.ramps.${ramp.id}`, { defaultValue: ramp.id });
+                    return (
+                      <li
+                        key={ramp.id}
+                        className="flex items-center gap-2 rounded-[var(--r-md)] bg-[var(--surface-inset)] p-1.5 text-xs"
+                      >
+                        <Swatch color={ramp.main} />
+                        <span className="min-w-0 flex-1 truncate">{label}</span>
+                        <input
+                          type="color"
+                          aria-label={t("kit.theme.ramps.pick", { ramp: label })}
+                          value={hex(now)}
+                          disabled={busy}
+                          onChange={(event) => {
+                            const next = themeColor(event.target.value);
+                            if (next !== null) setPicked(withRamp(table, ramp, next));
+                          }}
+                          className="size-8 shrink-0 cursor-pointer rounded border border-[var(--border)] bg-transparent p-0"
+                        />
+                        <ResetButton
+                          modified={now !== ramp.main}
+                          onReset={() => setPicked(withRamp(table, ramp, ramp.main))}
+                          label={t("kit.theme.ramps.reset")}
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+                {changed ? (
+                  <>
+                    <div className="flex gap-2">
+                      <Button size="sm" disabled={busy} onClick={() => void save()}>
+                        {t("kit.theme.ramps.save")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => setPicked(null)}
+                      >
+                        {t("kit.theme.ramps.discard")}
+                      </Button>
+                    </div>
+                    <p className="text-[12px] text-[var(--text-mut)]">
+                      {t(inPlace ? "kit.theme.ramps.saveInPlace" : "kit.theme.ramps.saveHint")}
+                    </p>
+                  </>
+                ) : null}
+              </section>
+            ) : null}
             <section className="card flex flex-col gap-2 p-4">
               <h3 className="eyebrow">{t("kit.theme.colors")}</h3>
               {colors.length > 0 ? (
@@ -192,6 +285,13 @@ export function KitThemePage({
                   </Button>
                 </div>
               ) : null}
+              {onOpenTheme && name in own ? (
+                <div>
+                  <Button variant="outline" size="sm" onClick={onOpenTheme}>
+                    {t("kit.theme.open")}
+                  </Button>
+                </div>
+              ) : null}
             </section>
           </div>
           <section className="card flex min-w-0 flex-1 flex-col gap-3 p-4">
@@ -205,7 +305,7 @@ export function KitThemePage({
               </figure>
               <figure className="flex flex-col items-center gap-2" data-testid="kit-theme-after">
                 <figcaption className="text-xs font-medium text-[var(--text-mut)]">
-                  {name}
+                  {changed ? t("kit.theme.ramps.trying", { name }) : name}
                 </figcaption>
                 <KitTrialMenu kit={themed} />
               </figure>

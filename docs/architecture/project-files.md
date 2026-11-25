@@ -42,6 +42,9 @@ a common image and `overrides/<module>/<image>.png` its redraw of a module's ima
 that image's size. The table repaints the images that follow the ramps: the base's, and any
 image, common or a module's, whose descriptor says `ramps: true`; `scope: <module>` beside
 `colors` keeps it to that one module's images (`scope: artisan`: the common images alone).
+The table is exact, colour to colour: the editor's theme page and the MCP tool
+`theme_colours` compute it from one colour picked per ramp of the base (`kit/ramps.json`,
+`ramps.ts`, `Ramps.kt`) and write it; the builders compute no colour.
 Its name is lowercase letters, digits, `_` and `-`. It
 holds no Document: the server loads no menu, command or Trigger from it
 (`ProjectRoots.holdsDocuments`). A folder named like a module of the server is not registered

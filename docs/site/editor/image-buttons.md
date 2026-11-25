@@ -111,6 +111,15 @@ images and is put in place. Its page says where its files are; the assistant fil
 asked ("make the buttons red in the theme noel"). A theme changes the common images, and may
 redraw a module's own image at its size; its page lists both.
 
+On the page of a theme, **Artisan's colours** has one colour to pick per family: main
+(buttons), danger (delete, close), accent (highlights) and neutral (windows, frames). Pick
+what a family's colour becomes and its shades follow, darker ones darker, lighter ones
+lighter; the menu beside shows the result before anything is written. **Save the colours**
+writes them in the theme's `overrides/colors.yml` on the server, as the exact list of colours
+replaced, which you may still edit by hand. A theme in place has its pack rebuilt at once, so
+players receive the new colours at their next connection; a theme that is not in place changes
+nothing for them. The arrow beside a family puts Artisan's colour back.
+
 A theme's colours repaint the images that follow them, and leave the others alone. Artisan's
 own images always follow. An image of yours, common or a module's, follows when **Follows the
 themes' colours** is ticked on it in **Resources**: tick it for an image drawn in Artisan's

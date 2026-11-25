@@ -167,6 +167,15 @@ size, name and order), and a composed image is assembled over themed `kit:` laye
 (`composedView`). A module's own PNG is never recoloured, as in the pack. Putting a theme in
 place or taking it off writes `themeChange`: the list with the theme on top or without it, or
 the former key on a server older than the list.
+The base's ramps (`lib/pack/ramps.ts`, declared in `assets/kit/ramps.json`): `KitThemePage`
+offers, for a theme of its own folder, one colour per ramp. `withRamp` gives the theme's table
+with that ramp's shades recomputed (`rampShade`), `useKitAssetsIn(name, colors)` shows the kit
+in the theme with the table being picked (`KitTheme.withColors`), and saving is the route's
+`onColors`: `saveThemeColors` (`themeWrite.ts`) writes `overrides/colors.yml` on the server's
+disk with `writeProjectFiles`, the file's other keys kept (`themeColorsText`) and checked
+against the content read, then the server's Projects are read again and the pack rebuilt when
+the theme is in place. The page is changed only while the picked table differs from the
+published one, so it settles by itself once the write is read back.
 Its detail pane is the composer (`ComposedImageEditor.tsx`) in place of the plain stage: each
 layer is an element laid at its place in game pixels (a grid as a repeated background, so the
 browser draws what the pack will), dragged with the pointer (Shift: steps of one slot, 18 px)
