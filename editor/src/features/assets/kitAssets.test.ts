@@ -49,28 +49,28 @@ describe("kit images in the editor", () => {
     expect(assets).toHaveLength(KIT_SLOTS.length + 1);
   });
 
-  test("a menu names a common image by its name alone, artisan: when a module holds the name", () => {
+  test("a menu names a common image by its name alone, artisan: when its module holds the name", () => {
     const common = kitAssetsOf(undefined);
     const button = common.find((a) => a.id === "kit:button.3x1") as Asset;
     const close = common.find((a) => a.id === "kit:close.1x1") as Asset;
-    const card = common.find((a) => a.id === "kit:card.3x2") as Asset;
     useAssetStore.getState().reset();
-    // The module being edited holds a `close.1x1` of its own, not yet published.
-    useAssetStore.getState().setAssets([{ ...close, id: "close.1x1", projectId: "shop" }]);
-    useKitStore.setState({
-      read: { ...read({}, []), byName: true },
-      taken: new Set(["card.3x2"]),
-    });
+    // The module being edited holds a `close.1x1` of its own, not yet published; another
+    // module's image of a name does not come before the common one.
+    useAssetStore.getState().setAssets([
+      { ...close, id: "close.1x1", projectId: "shop" },
+      { ...button, id: "button.3x1", projectId: "guilds" },
+    ]);
+    useKitStore.setState({ read: { ...read({}, []), byName: true } });
     const { result, rerender } = renderHook(() => useCommonImageRef("shop"));
     expect(result.current(button)).toBe("button.3x1");
     expect(result.current(close)).toBe("artisan:close.1x1");
-    expect(result.current(card)).toBe("artisan:card.3x2");
     // Not a common image: as it is.
     expect(result.current({ ...button, id: "gold" })).toBe("gold");
     // A server older than the theme reads `kit:<name>` only.
     useKitStore.setState({ read: read({}, []) });
     rerender();
     expect(result.current(button)).toBe("kit:button.3x1");
-    useKitStore.setState({ read: undefined, taken: new Set() });
+    useKitStore.setState({ read: undefined });
+    useAssetStore.getState().reset();
   });
 });

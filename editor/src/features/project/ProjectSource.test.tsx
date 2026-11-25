@@ -69,7 +69,7 @@ beforeEach(() => {
   useAssetStore.getState().reset();
   useProjectLibraryStore.setState({ sourceId: null });
   useUiStore.getState().setArmedMaterial(null);
-  useKitStore.setState({ read: undefined, taken: new Set(), theme: undefined });
+  useKitStore.setState({ read: undefined, theme: undefined });
   useResourcesView.setState({ piece: null, pieceFrom: null });
 });
 afterEach(() => vi.restoreAllMocks());
@@ -226,8 +226,11 @@ describe("using another project's resources", () => {
     });
     useKitStore.setState({
       read: { projectId: "p_artisan", files: {}, binaries: [], byName: true },
-      taken: new Set(["close.1x1"]),
     });
+    // The open module holds a `close.1x1` of its own.
+    useAssetStore
+      .getState()
+      .setAssets([{ ...coin, id: "close.1x1", name: "close.1x1", projectId: EDITED }]);
     const onOpenCommon = vi.fn();
     render(<AssetsTab projectId={EDITED} onOpenCommon={onOpenCommon} />);
 
@@ -240,7 +243,7 @@ describe("using another project's resources", () => {
     // A piece of the base nobody else names: a menu writes its name alone.
     await userEvent.click(await screen.findByTitle("button.3x1"));
     expect(screen.getByTestId("common-asset-ref")).toHaveTextContent(/^button\.3x1$/);
-    // A module of the server holds this name: `artisan:` names the common one.
+    // The open module holds this name: `artisan:` names the common one.
     await userEvent.click(screen.getByRole("button", { name: "Retour aux ressources" }));
     await userEvent.click(screen.getByTitle("close.1x1"));
     expect(screen.getByTestId("common-asset-ref")).toHaveTextContent("artisan:close.1x1");

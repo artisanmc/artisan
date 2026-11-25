@@ -85,9 +85,8 @@ the base; `useImageAsset` (buttons, inspector) and `useAssetsWithKit` (title lay
 up there through `imageNamed`: the module's own image, else the common one of that name, and
 `artisan:<name>` or `kit:<name>` the common one whatever the module holds. `KitPicker` chooses one
 and the caller writes what `useCommonImageRef` gives: the name alone, `artisan:<name>` when the
-open module or another module of the server holds that name (`kitStore.taken`, the names the
-server index read in the modules' files, `assetNamesIn`), and `kit:<name>` on a server older
-than the theme, which reads nothing else (`KitRead.byName`). The theme's files come from the
+open module holds an image of that name (its assets, deployed or not), and `kit:<name>` on a
+server older than the theme, which reads nothing else (`KitRead.byName`). The theme's files come from the
 server index through `state/kitStore`, so nothing here imports that feature.
 The Resources screen's module selector (`features/project/ProjectSource.tsx`) never lists the
 common images' Project among the other modules; a library that gives it `common` (the Resources
@@ -355,7 +354,7 @@ The `textarea` kind (SP5) is a multi-line block: the i18n string is split on `\n
 
 The plugin embeds `assets/artisan/asset-index.json` (schema **v2**) in the RP zip to map `asset_id → name + type + codepoint? + ascent + height + width + namespace? + slices?` and to declare the `offsets` table (hex codepoint → pixel advance).
 
-An image's id is its file name for the first module (by Project order) that holds an image of that name: a server where no two modules share a name has the pack it always had. A later module's image of the same name has the id `<folder>:<name>`, its files under `modules/<folder>/` in the pack. A name in a menu is read with the menu's module: its own image first, then the bare id; `<module>:<name>` names another module's (ADR `common-images-and-themes`, decision 3). The rule is computed from the ids alone, in three places that `testdata/image-ref-conformance.json` holds together: `ImageNames.kt` (hub builder), `imageNames.ts` (editor builder), `ImageRefs.kt` (the game, from the asset index, through `MenuImages`). Fonts keep their bare id. An overlay image (`OverlayApi.image(asset, rise)`) keeps its key on the name the add-on asks with: the picture is the asking module's own, and two modules asking for the same name at the same rise share one key (the first by Project order wins).
+An image's id is its file name for the first module (by Project order) that holds an image of that name, when no common image has that name: a server where no two modules share a name, and none takes a common image's, has the pack it always had. Any other module's image has the id `<folder>:<name>`, its files under `modules/<folder>/` in the pack; a builder is told the common images' names first (`ImageNames.common`, only on a server that has the theme `artisan`), so a bare id is never an image a common one shares its name with. A name in a menu is read with the menu's module: its own image first, then the bare id, then the common image of that name; `<module>:<name>` names another module's (ADR `common-images-and-themes`, decision 3). So a name alone reaches the common image before another module's, without the asset index saying who holds what. The rule is computed from the ids alone, in three places that `testdata/image-ref-conformance.json` holds together: `ImageNames.kt` (hub builder), `imageNames.ts` (editor builder), `ImageRefs.kt` (the game, from the asset index, through `MenuImages`). Fonts keep their bare id. An overlay image (`OverlayApi.image(asset, rise)`) keeps its key on the name the add-on asks with: the picture is the asking module's own, and two modules asking for the same name at the same rise share one key (the first by Project order wins).
 
 ## Title Composer — pixel offsets (spaces font)
 

@@ -112,22 +112,22 @@ export function assetNamesIn(paths: Iterable<string>): string[] {
 
 /**
  * What a menu writes to name the common image `name`: the name alone, or `artisan:<name>` when
- * a module of the server holds an image of that name (`taken`), which a name alone reaches first.
+ * the menu's module holds an image of that name (`own`), which a name alone reaches first.
  */
-export const commonImageRef = (name: string, taken: (name: string) => boolean): string =>
-  taken(name) ? KIT_ALIAS + name : name;
+export const commonImageRef = (name: string, own: (name: string) => boolean): string =>
+  own(name) ? KIT_ALIAS + name : name;
 
 /**
  * Whether `ref`, written in a module, names a common image: `artisan:<name>` or `kit:<name>`,
- * or a name that no module holds (`taken`) and a common image has (`common`).
+ * or a name the module holds no image of (`own`) and a common image has (`common`).
  */
 export function namesCommonImage(
   ref: string,
-  taken: (name: string) => boolean,
+  own: (name: string) => boolean,
   common: (name: string) => boolean,
 ): boolean {
   if (kitNameOf(ref) !== null) return true;
-  return !ref.includes(":") && !taken(ref) && common(ref);
+  return !ref.includes(":") && !own(ref) && common(ref);
 }
 
 /** The image names a Document writes: every `asset` and `assetId` it holds, at any depth. */

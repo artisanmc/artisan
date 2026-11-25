@@ -118,21 +118,21 @@ describe("UI kit", () => {
     ).toEqual(["button.3x1", "gold", "panel", "title"]);
   });
 
-  test("a menu writes a common image's name alone, artisan: when a module holds the name", () => {
-    const taken = (name: string) => name === "gold";
-    expect(commonImageRef("panel", taken)).toBe("panel");
-    expect(commonImageRef("gold", taken)).toBe("artisan:gold");
+  test("a menu writes a common image's name alone, artisan: when its module holds the name", () => {
+    const own = (name: string) => name === "gold";
+    expect(commonImageRef("panel", own)).toBe("panel");
+    expect(commonImageRef("gold", own)).toBe("artisan:gold");
   });
 
-  test("a name written in a menu names a common image when no module holds it", () => {
-    const taken = (name: string) => name === "gold";
+  test("a name written in a menu names a common image when its module holds none of that name", () => {
+    const own = (name: string) => name === "gold";
     const common = (name: string) => name === "gold" || name === "panel";
-    expect(namesCommonImage("panel", taken, common)).toBe(true);
-    expect(namesCommonImage("artisan:gold", taken, common)).toBe(true);
-    expect(namesCommonImage("kit:ribbon", taken, common)).toBe(true);
-    expect(namesCommonImage("gold", taken, common)).toBe(false);
-    expect(namesCommonImage("ribbon", taken, common)).toBe(false);
-    expect(namesCommonImage("guilds:panel", taken, common)).toBe(false);
+    expect(namesCommonImage("panel", own, common)).toBe(true);
+    expect(namesCommonImage("artisan:gold", own, common)).toBe(true);
+    expect(namesCommonImage("kit:ribbon", own, common)).toBe(true);
+    expect(namesCommonImage("gold", own, common)).toBe(false);
+    expect(namesCommonImage("ribbon", own, common)).toBe(false);
+    expect(namesCommonImage("guilds:panel", own, common)).toBe(false);
   });
 
   test("a Document's image names are its asset and assetId values, at any depth", () => {

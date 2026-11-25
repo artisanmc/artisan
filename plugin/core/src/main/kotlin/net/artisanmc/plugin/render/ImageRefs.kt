@@ -2,10 +2,11 @@ package net.artisanmc.plugin.render
 
 /**
  * Which image of the pack a name written in a module's file is (ADR `common-images-and-themes`,
- * decision 3): the module's own first, else the server's common image. The pack keeps the bare
- * name as the id of the first module that holds an image of that name, writes a later module's
- * as `<folder>:<name>` and a common image as `kit:<name>` (`ImageNames` in the pack builder,
- * `imageNames.ts` in the editor).
+ * decision 3): the module's own first, then the server's common image, then another module's.
+ * The pack keeps the bare name as the id of the first module that holds an image of that name
+ * when no common image has it, writes any other module's as `<folder>:<name>` and a common image
+ * as `kit:<name>` (`ImageNames` in the pack builder, `imageNames.ts` in the editor): a bare id is
+ * never an image whose name a common image has.
  *
  * Computed from the ids of the pack's asset index alone, as both builders do:
  * `testdata/image-ref-conformance.json` holds the three to one answer.
@@ -19,8 +20,9 @@ object ImageRefs {
 
     /**
      * The id [ref] reaches when written in a file of the module [folder] (`""`: no module), among
-     * the ids [has] knows: the module's own image, another module's, else the common image of
-     * that name (the theme `artisan`'s) when the pack holds it.
+     * the ids [has] knows: the module's own image, the bare id (its own or another module's, when
+     * no common image has that name), else the common image of that name (the theme `artisan`'s)
+     * when the pack holds it.
      */
     fun resolve(has: (String) -> Boolean, folder: String, ref: String): String {
         if (ref.startsWith(COMMON)) return ref

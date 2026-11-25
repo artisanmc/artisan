@@ -38,11 +38,13 @@ each hold a `gold.png`, each one's menus show their own. To show another module'
 it with its module in the menu's file: `image: { asset: "guilds:gold" }`. The editor's picker
 lists the open module's images and the common ones.
 
-**Common images by their name.** A name no module holds is a common image: `button.3x1` shows
-the server's common image of that name. `artisan:button.3x1` shows it even when a module holds
-a `button.3x1` of its own. The picker writes the name alone, and `artisan:<name>` when a module
-of the server holds an image of that name. `kit:button.3x1`, which older menus hold, means the
-same and stays read.
+**Common images by their name.** A name the menu's module holds no image of is a common image:
+`button.3x1` shows the server's common image of that name, even when another module holds a
+`button.3x1` of its own. A module that draws its own `button.3x1` shows it in its own menus
+only; `artisan:button.3x1` shows the common one there too. The picker writes the name alone,
+and `artisan:<name>` when the open module holds an image of that name. `kit:button.3x1`, which
+older menus hold, means the same and stays read. A name that neither the menu's module nor the
+common images hold still reaches another module's image of that name, as before.
 
 **Common images in a module's Resources.** The **Module** selector of the Resources screen has
 an entry **Common images**, beside this module, all modules and the other modules. It lists

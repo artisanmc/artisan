@@ -5,6 +5,7 @@ import type { AssetRow } from "./fontJsonBuilder";
 import { ImageNames, namedImageRow, resolveImageRef } from "./imageNames";
 
 interface Vector {
+  common: string[];
   modules: { folder: string; fonts: string[]; images: string[] }[];
   ids: Record<string, Record<string, string>>;
   also: string[];
@@ -17,6 +18,7 @@ const vector: Vector = JSON.parse(
 
 function names(): ImageNames {
   const out = new ImageNames();
+  for (const name of vector.common) out.common(name);
   for (const module of vector.modules) {
     for (const font of module.fonts) out.take(font);
     for (const image of module.images)
@@ -27,9 +29,13 @@ function names(): ImageNames {
   return out;
 }
 
-test("the first module keeps the bare name, a later one is qualified", () => {
+test("the first module keeps the bare name, a later one is qualified, and one that shares a common image's name", () => {
+  const built = names();
   // Asking twice (a glyph and a texture of one name in a module) gives the same id.
-  expect(names().claim("guilds", "gold")).toBe("guilds:gold");
+  expect(built.claim("guilds", "gold")).toBe("guilds:gold");
+  // No common image is named `gold`: the first module's is the bare id. One is named `panel`.
+  expect(built.claim("core", "gold")).toBe("gold");
+  expect(built.claim("core", "panel")).toBe("core:panel");
 });
 
 test("a name reaches the id the shared cases say", () => {

@@ -29,28 +29,36 @@ function ServerKitTab() {
   // The server index reads the theme and the menus that name its images.
   useServerIndexLoader(serverId, serverKeyId !== null);
   const projects = useServerIndexStore((s) => s.projects);
+  const reads = useServerIndexStore((s) => s.reads);
   const read = useKitStore((s) => s.read);
-  const taken = useKitStore((s) => s.taken);
   const kitId = read?.projectId;
   const menusNaming = useMemo(() => {
+    const paths = (held: { files: Record<string, string>; binaries: { path: string }[] }) => [
+      ...held.binaries.map((b) => b.path),
+      ...Object.keys(held.files),
+    ];
     const common = new Set([
       ...KIT_SLOTS.map((slot) => slot.id),
-      ...(read
-        ? assetNamesIn([...read.binaries.map((b) => b.path), ...Object.keys(read.files)])
-        : []),
+      ...(read ? assetNamesIn(paths(read)) : []),
     ]);
-    return projects
-      .flatMap((p) => documentsOf(p, "menu"))
-      .filter((menu) =>
-        imageRefsIn(menu).some((ref) =>
-          namesCommonImage(
-            ref,
-            (name) => taken.has(name),
-            (name) => common.has(name),
+    return projects.reduce((count, project) => {
+      // A name alone is the module's own image first.
+      const held = reads.find((r) => r.summary.id === project.id);
+      const own = new Set(held ? assetNamesIn(paths(held)) : []);
+      return (
+        count +
+        documentsOf(project, "menu").filter((menu) =>
+          imageRefsIn(menu).some((ref) =>
+            namesCommonImage(
+              ref,
+              (name) => own.has(name),
+              (name) => common.has(name),
+            ),
           ),
-        ),
-      ).length;
-  }, [projects, read, taken]);
+        ).length
+      );
+    }, 0);
+  }, [projects, reads, read]);
   if (!serverKeyId) return null;
   const openKit = (projectId: string) =>
     navigate({

@@ -11,6 +11,7 @@ class ImageNamesTest {
 
     private fun names(): ImageNames {
         val names = ImageNames()
+        for (name in vector["common"]) names.common(name.asText())
         for (module in vector["modules"]) {
             val folder = module["folder"].asText()
             for (font in module["fonts"]) names.take(font.asText())
@@ -23,8 +24,11 @@ class ImageNamesTest {
     }
 
     @Test
-    fun `the first module keeps the bare name, a later one is qualified`() {
+    fun `the first module keeps the bare name, a later one is qualified, and one that shares a common image's name`() {
         val names = names()
+        // No common image is named `gold`: the first module's is the bare id. One is named `panel`.
+        assertEquals("gold", names.claim("core", "gold"))
+        assertEquals("core:panel", names.claim("core", "panel"))
         // Asking twice (a glyph and a texture of one name in a module) gives the same id.
         assertEquals("guilds:gold", names.claim("guilds", "gold"))
         // The theme's `<folder>:` names the common images: its own image keeps its name.

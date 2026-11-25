@@ -17,9 +17,6 @@ interface KitState {
   /** `undefined`: the server has no kit module, or its projects are not read yet. */
   read: KitRead | undefined;
   setRead: (read: KitRead | undefined) => void;
-  /** The names of the images and fonts the server's modules hold, as published: a name alone reaches one of them before a common image. */
-  taken: ReadonlySet<string>;
-  setTaken: (taken: ReadonlySet<string>) => void;
   /** The theme the server's pack is built in (`resource-pack.theme`); `undefined`: none, or not read yet. */
   theme: string | undefined;
   setTheme: (theme: string | undefined) => void;
@@ -32,8 +29,6 @@ interface KitState {
 export const useKitStore = create<KitState>((set) => ({
   read: undefined,
   setRead: (read) => set({ read }),
-  taken: new Set(),
-  setTaken: (taken) => set({ taken }),
   theme: undefined,
   setTheme: (theme) => set({ theme }),
 }));

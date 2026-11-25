@@ -19,8 +19,7 @@ export default {
       hint: "The images every menu of the server shares. A menu names one by its name: nothing is copied into this module.",
       added: "This server's",
       written: "A menu of this module writes",
-      prefixed:
-        "A module of the server holds an image of this name: artisan: names the common one.",
+      prefixed: "This module holds an image of this name: artisan: names the common one.",
       redraw: "Redraw for the server",
       open: "Open in the common images",
       followHint:

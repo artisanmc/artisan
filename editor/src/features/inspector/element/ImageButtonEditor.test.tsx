@@ -1,3 +1,4 @@
+import { useAssetStore } from "@/features/assets/assetStore";
 import { useKitStore } from "@/state/kitStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
@@ -80,22 +81,24 @@ const pickCommon = () => {
 };
 
 it("takes a common image by its name alone, at its natural footprint", () => {
-  useKitStore.setState({
-    read: { projectId: "artisan", files: {}, binaries: [], byName: true },
-    taken: new Set(),
-  });
+  useKitStore.setState({ read: { projectId: "artisan", files: {}, binaries: [], byName: true } });
+  useAssetStore.getState().reset();
   expect(pickCommon()).toHaveBeenCalledWith({ asset: "button.3x1", fit: "native" }, "1-3");
 });
 
-it("names the common image with artisan: when a module of the server holds the name", () => {
-  useKitStore.setState({
-    read: { projectId: "artisan", files: {}, binaries: [], byName: true },
-    taken: new Set(["button.3x1"]),
-  });
+it("names the common image with artisan: when the module holds an image of that name", () => {
+  useKitStore.setState({ read: { projectId: "artisan", files: {}, binaries: [], byName: true } });
+  useAssetStore.getState().reset();
+  useAssetStore
+    .getState()
+    .setAssets([
+      { id: "button.3x1", projectId: "p", type: "texture", name: "button.3x1" } as never,
+    ]);
   expect(pickCommon()).toHaveBeenCalledWith({ asset: "artisan:button.3x1", fit: "native" }, "1-3");
+  useAssetStore.getState().reset();
 });
 
 it("keeps kit: on a server older than the common images", () => {
-  useKitStore.setState({ read: undefined, taken: new Set() });
+  useKitStore.setState({ read: undefined });
   expect(pickCommon()).toHaveBeenCalledWith({ asset: "kit:button.3x1", fit: "native" }, "1-3");
 });

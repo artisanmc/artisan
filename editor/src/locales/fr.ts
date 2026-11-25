@@ -21,7 +21,7 @@ const fr: typeof en = {
       hint: "Les images que tous les menus du serveur partagent. Un menu en nomme une par son nom : rien n'est copié dans ce module.",
       added: "Ce serveur",
       written: "Un menu de ce module écrit",
-      prefixed: "Un module du serveur a une image de ce nom : artisan: désigne la commune.",
+      prefixed: "Ce module a une image de ce nom : artisan: désigne la commune.",
       redraw: "Redessiner pour le serveur",
       open: "Ouvrir dans les images communes",
       followHint:

@@ -1,5 +1,5 @@
 import type { Project } from "@/domain/types";
-import { assetNamesIn, kitProjectAmong } from "@/lib/pack/kit";
+import { kitProjectAmong } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
 import { create } from "zustand";
 import type { ServerProjectsResult } from "./serverIndexLoader";
@@ -63,21 +63,12 @@ export const useServerIndexStore = create<ServerIndexState>((set, get) => ({
 useServerIndexStore.subscribe((state, previous) => {
   if (state.reads === previous.reads) return;
   const read = kitProjectAmong(state.reads, (r) => r.summary.externalId ?? r.summary.id);
-  const kit = useKitStore.getState();
-  kit.setRead(
+  useKitStore.getState().setRead(
     read && {
       projectId: read.summary.id,
       files: read.files,
       binaries: read.binaries,
       byName: read.summary.role === "theme",
     },
-  );
-  // What the modules hold under a name alone, the theme's own images apart.
-  kit.setTaken(
-    new Set(
-      state.reads
-        .filter((r) => r !== read)
-        .flatMap((r) => assetNamesIn([...r.binaries.map((b) => b.path), ...Object.keys(r.files)])),
-    ),
   );
 });

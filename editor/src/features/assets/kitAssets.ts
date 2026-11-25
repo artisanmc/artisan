@@ -288,23 +288,19 @@ export function useKitAssetsIn(name: string | null): Asset[] {
 
 /**
  * What a menu of `projectId` writes for the common image `asset` (`commonImageRef`): its name
- * alone, unless the module being edited or another module of the server holds that name. On a
- * server older than the theme `artisan`, `kit:<name>`: the only spelling it reads.
+ * alone, unless the module holds an image of that name, deployed or not. On a server older
+ * than the theme `artisan`, `kit:<name>`: the only spelling it reads.
  */
 export function useCommonImageRef(projectId: string): (asset: Asset) => string {
   const byName = useKitStore((s) => s.read?.byName === true);
-  const taken = useKitStore((s) => s.taken);
   const own = useAssetStore((s) => s.assets);
   return useCallback(
     (asset: Asset) => {
       const name = kitNameOf(asset.id);
       if (name === null || !byName) return asset.id;
-      return commonImageRef(
-        name,
-        (n) => taken.has(n) || own.some((a) => a.projectId === projectId && a.id === n),
-      );
+      return commonImageRef(name, (n) => own.some((a) => a.projectId === projectId && a.id === n));
     },
-    [byName, taken, own, projectId],
+    [byName, own, projectId],
   );
 }
 

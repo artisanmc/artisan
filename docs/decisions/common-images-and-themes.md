@@ -202,22 +202,37 @@ working through a rewrite to `module:name` at load.
 - The editor says "common images", never "UI kit". The server's tab is **Common images**
   (`/servers/<id>/common`); it no longer offers to create a module, the theme being there from
   the server's start.
-- The picker writes the name alone, or `artisan:<name>` when a module of the server (or the
-  open one, unpublished images included) holds that name. On a server that has no theme
-  `artisan` it still writes `kit:<name>`, the only spelling that server reads.
+- The picker writes the name alone, or `artisan:<name>` when the open module holds an image of
+  that name, deployed or not. On a server that has no theme `artisan` it still writes
+  `kit:<name>`, the only spelling that server reads.
 - The Resources screen's module selector has an entry **Common images**: the published common
   images, what a menu of the open module writes for each, and a way to the atelier of the
   common images. The theme's Project is not one of its "other modules", nor part of "all
   modules".
 
+**Step 2, fourth part: the common image before another module's** (`ImageNames.common`, in both
+builders; `ImageRefs.kt` did not change).
+
+- A builder is told the common images' names before it names any module's image: the theme's
+  own, the base as the server holds it, and the base's 19 names. A module's image of such a
+  name is `<folder>:<name>`, the first module's included. A bare id is therefore never an image
+  a common one shares its name with, and the rule the game already had (own id, bare id, common
+  image) gives decision 3's order from the ids alone: the menu's module's image, the common
+  one, then another module's.
+- What changes on a server: a module whose image has a common image's name (`button.3x1`) has
+  it under `modules/<folder>/` in the pack, and another module's menu that named it by the name
+  alone now shows the common image. `<module>:<name>` reaches it as before. A server where no
+  module's image has a common image's name keeps its pack byte for byte.
+- A server older than the theme `artisan` (its common images are the module `ui-kit`) keeps the
+  ids it had.
+
 Not there yet:
 
-- Against decision 3: a bare name still reaches **another module's** image before the common
-  one when the menu's module holds none (no rewrite to `module:name` at load), so a module that
-  holds `button.3x1` hides the common one from the modules that hold none; `artisan:<name>` is
-  the spelling that does not depend on it. `<module>:<name>` for an image that module does not
-  hold falls on the bare name, then on the common image, instead of the visible fallback,
-  because the asset index does not say who holds a bare id.
+- Against decision 3: a name that neither the menu's module nor the common images hold still
+  reaches **another module's** image of that name (no rewrite to `module:name` at load, no
+  problem shown in the editor). `<module>:<name>` for an image that module does not hold falls
+  on the bare name, then on the common image, instead of the visible fallback, because the
+  asset index does not say who holds a bare id.
 - Against decision 1: the MCP tools still write `kit:<name>` and still say "UI kit"
   (`survey_ui`, `write_image`, the docs they serve). In the editor, a composed image's layers
   still hold `kit:<name>`.

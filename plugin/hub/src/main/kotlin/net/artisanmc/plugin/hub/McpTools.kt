@@ -1166,22 +1166,25 @@ class McpTools(
         if (asked != null) kit.theme
         // An image by its name, as the pack finds it: `kit:<name>` or `artisan:<name>` is the server's common
         // image (this draft's, when the menu is the theme's own), else the base's, in the theme; another name is
-        // the module's own, then another module's, then the common one; `<module>:<name>` is that module's, else
-        // the name alone as above (ADR `common-images-and-themes`, decision 3; `ImageNames` in the pack).
+        // the module's own, then the common one, then another module's; `<module>:<name>` is that module's, else
+        // the name alone as above (ADR `common-images-and-themes`, decision 3; `ImageNames` in the pack). A
+        // server older than the theme `artisan` keeps its order: another module's before the common one.
         fun image(name: String): MenuPictureImage? {
             val inKit = Kit.nameOf(name)
             if (inKit != null) return kit.image(inKit)?.let { MenuPictureImage(it.png, Kit.ASCENT) }
             val colon = name.indexOf(':')
-            // The theme's images are the common ones: after every module's, under the name alone.
-            val modules = folders(project.server).filter { it != KIT_FOLDER }
-            val common = { bare: String -> kit.image(bare)?.let { MenuPictureImage(it.png, Kit.ASCENT) } }
-            if (colon < 0) return (if (project.folder == KIT_FOLDER) null else mine.image(name, kit))
-                ?: modules.firstNotNullOfOrNull { if (it == project.folder) null else module(it)?.image(name, kit) }
-                ?: common(name)
+            val folders = folders(project.server)
+            val themed = KIT_FOLDER in folders
+            // The theme's images are the common ones, never a module's under the name alone.
+            val modules = folders.filter { it != KIT_FOLDER }
+            fun elsewhere(bare: String, except: String?): MenuPictureImage? {
+                val common = { kit.image(bare)?.let { MenuPictureImage(it.png, Kit.ASCENT) } }
+                val others = { modules.firstNotNullOfOrNull { if (it == except) null else module(it)?.image(bare, kit) } }
+                return if (themed) common() ?: others() else others() ?: common()
+            }
+            if (colon < 0) return (if (project.folder == KIT_FOLDER) null else mine.image(name, kit)) ?: elsewhere(name, project.folder)
             val bare = name.substring(colon + 1)
-            return module(name.substring(0, colon))?.image(bare, kit)
-                ?: modules.firstNotNullOfOrNull { module(it)?.image(bare, kit) }
-                ?: common(bare)
+            return module(name.substring(0, colon))?.image(bare, kit) ?: elsewhere(bare, null)
         }
         val picture = try {
             MenuPictures.render(MenuPictureInput(content, ::image, { id -> items?.invoke(id) }, args.get("lang")?.takeIf { it.isTextual }?.asText()))
