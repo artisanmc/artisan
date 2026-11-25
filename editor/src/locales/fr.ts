@@ -309,6 +309,17 @@ const fr: typeof en = {
     dismiss: "Refermer la navigation",
     resize: "Redimensionner la navigation (double-clic : largeur par défaut)",
   },
+  serverResources: {
+    show: "Afficher :",
+    all: "Tout le serveur",
+    modules: "Modules",
+    hint: "Les images et les polices du serveur, telles que déployées. Une image se modifie là où elle vit : dans son module, ou parmi les images communes.",
+    empty: "Aucune image ni police ici pour l'instant.",
+    provider: "Fournie par",
+    openIn: "Ouvrir dans {{project}}",
+    moduleHint:
+      "Cette image appartient à son module : elle se modifie dans les Ressources de ce module.",
+  },
   projectSource: {
     common: "Images communes",
     all: "Tous les modules",
@@ -2407,7 +2418,7 @@ const fr: typeof en = {
     tabs: {
       label: "Sections du serveur",
       overview: "Vue d'ensemble",
-      common: "Images communes",
+      resources: "Ressources",
       play: "Jeu",
       assistant: "Assistant",
       data: "Sources de données",

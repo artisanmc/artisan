@@ -302,6 +302,16 @@ export default {
     dismiss: "Dismiss navigation",
     resize: "Resize navigation (double-click: default width)",
   },
+  serverResources: {
+    show: "Show:",
+    all: "Whole server",
+    modules: "Modules",
+    hint: "The images and fonts of the server, as deployed. An image is changed where it lives: in its module, or among the common images.",
+    empty: "No image or font here yet.",
+    provider: "Provided by",
+    openIn: "Open in {{project}}",
+    moduleHint: "This image belongs to its module: it is changed in that module's Resources.",
+  },
   projectSource: {
     common: "Common images",
     all: "All modules",
@@ -2362,7 +2372,7 @@ export default {
     tabs: {
       label: "Server sections",
       overview: "Overview",
-      common: "Common images",
+      resources: "Resources",
       play: "Play",
       assistant: "Assistant",
       data: "Data sources",

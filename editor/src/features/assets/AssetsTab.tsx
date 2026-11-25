@@ -6,9 +6,9 @@ import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
 import type { Project, ProjectId } from "@/domain/types";
 import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
-import { useCommonImageUses } from "@/features/project/commonImageUses";
+import { useImageUses } from "@/features/project/imageUses";
 import { cx } from "@/lib/cx";
-import { KIT_ALIAS, kitNameOf } from "@/lib/pack/kit";
+import { KIT_ALIAS, commonImageKey, kitNameOf } from "@/lib/pack/kit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useProjectsStore } from "@/state/projectsStore";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -73,7 +73,7 @@ const useResourcesLayout = create<{ detailWidth: number; setDetailWidth: (w: num
  * a handle the user drags, the detail's width remembered. Narrow: one at a time,
  * the detail with a way back to the list.
  */
-function ResourcesSplit({
+export function ResourcesSplit({
   narrow,
   list,
   detail,
@@ -441,7 +441,7 @@ function CommonAssets({
       },
     [project, ownAssets, projectId],
   );
-  const uses = useCommonImageUses(live);
+  const uses = useImageUses(live);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const nameOf = (asset: Asset) => kitNameOf(asset.id) ?? asset.name;
@@ -451,7 +451,7 @@ function CommonAssets({
   const selected = assets.find((asset) => asset.id === selectedId) ?? null;
   const shipped = selected !== null && isKitBase(selected) && !selected.contentHash;
   const written = selected ? refOf(selected) : "";
-  const usedBy = selected ? (uses.get(nameOf(selected)) ?? []) : [];
+  const usedBy = selected ? (uses.get(commonImageKey(nameOf(selected))) ?? []) : [];
   const open = () => {
     if (!selected || !onOpen) return;
     useResourcesView.getState().askPiece(nameOf(selected), projectId);

@@ -95,13 +95,23 @@ tab) gets an entry **Common images** (`COMMON_IMAGES`), drawn by `CommonAssets` 
 one selected, and a button that asks for it (`useResourcesView.askPiece(name, from)`) then opens
 the common images' Project (`onOpenCommon`, given by `ProjectCanvasPage`). `useKitPieceAsked`
 answers there: the module the request was made in leaves it alone, any other module drops it.
-The server page's tab is the route `servers.$serverId.common.tsx` (`KitPage`, `KitThemePage`).
-Where a common image is used comes from `useCommonImageUses` (`features/project/commonImageUses.ts`,
-over `commonImageUses` of `lib/pack/kit.ts`): for each common name, the menus that name it, read
-from the server index (every module as published, its own image names from its files) with the
-open module as its draft holds it. A reference counts by the rule a menu is read with
-(`commonNameOf`): `artisan:` and `kit:` always, a name alone when the menu's module holds none.
-`CommonAssets` lists these menus (`onOpenMenu` opens one), `KitPage` shows their number per image.
+The server page's **Resources** tab is the route `servers.$serverId.resources.tsx`, drawn by
+`ServerResources` (`features/project/ServerResources.tsx`): the Resources screen at the scale
+of the server (ADR `common-images-and-themes`, decision 12). `?show=` picks what it lists: the
+whole server by default (every module's published images and fonts, read by
+`useOtherProjectAssets`, with the common images), one module (`?show=<project id>`), or the
+common images alone (`?show=common`: `KitPage`, and `?theme=<name>` its `KitThemePage`). It
+changes nothing itself: an image opens where it lives, in its module's Resources (the route
+sets the asset store's selection, then opens that module) or in the atelier of the common
+images (`useResourcesView.askPiece`).
+Where an image is used comes from `useImageUses` (`features/project/imageUses.ts`, over
+`imageUses` of `lib/pack/kit.ts`): for each image of the server, by its key (`commonImageKey`,
+`moduleImageKey`), the menus that name it, read from the server index (every module as
+published, its own image names from its files) with the open module as its draft holds it. A
+reference counts by the rule a menu is read with (`imageNamedBy`): `artisan:` and `kit:` are
+the common image, a name alone the module's own image then the common one, `<folder>:<name>`
+the image of the module in that folder. `CommonAssets` and `ServerResources` list these menus
+(`onOpenMenu` opens one), `KitPage` shows their number per common image.
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)

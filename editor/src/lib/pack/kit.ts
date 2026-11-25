@@ -132,41 +132,72 @@ export function commonNameOf(
   return !ref.includes(":") && !own(ref) && common(ref) ? ref : null;
 }
 
-/** A menu that names a common image. */
-export interface CommonImageUse {
+/** A menu that names an image. */
+export interface ImageUse {
   projectId: string;
   projectName: string;
   menuId: string;
 }
 
-/** A module as `commonImageUses` reads it: its own image names, and what each menu writes. */
-export interface CommonImageReader {
+/** A module as `imageUses` reads it: its folder, its own image names, and what each menu writes. */
+export interface ImageReader {
   id: string;
   name: string;
+  /** What qualifies its images from elsewhere: `<folder>:<name>`. */
+  folder: string;
   own: (name: string) => boolean;
   menus: { id: string; refs: string[] }[];
 }
 
+/** The key of the common image `name` in what `imageUses` gives. */
+export const commonImageKey = (name: string): string => KIT_ALIAS + name;
+
+/** The key of the image `name` of the module in `folder` in what `imageUses` gives. */
+export const moduleImageKey = (folder: string, name: string): string => `${folder}:${name}`;
+
 /**
- * The menus that name each common image, by the image's name, in the order of `modules` then
- * of their menus. A menu counts once per image, however many of its buttons name it.
+ * The image `ref` names when written in `module`, as its key: the common image (`artisan:`,
+ * `kit:`, or a name alone the module holds no image of), the module's own image of that name,
+ * or `<folder>:<name>` when the module in that folder holds it; `null` for a name that reaches
+ * no image known here.
  */
-export function commonImageUses(
-  modules: CommonImageReader[],
+export function imageNamedBy(
+  ref: string,
+  module: ImageReader,
+  byFolder: ReadonlyMap<string, ImageReader>,
   common: (name: string) => boolean,
-): Map<string, CommonImageUse[]> {
-  const uses = new Map<string, CommonImageUse[]>();
+): string | null {
+  const shared = commonNameOf(ref, module.own, common);
+  if (shared !== null) return commonImageKey(shared);
+  const colon = ref.indexOf(":");
+  if (colon < 0) return module.own(ref) ? moduleImageKey(module.folder, ref) : null;
+  const folder = ref.slice(0, colon);
+  const name = ref.slice(colon + 1);
+  return byFolder.get(folder)?.own(name) ? moduleImageKey(folder, name) : null;
+}
+
+/**
+ * The menus that name each image of the server, by the image's key (`commonImageKey`,
+ * `moduleImageKey`), in the order of `modules` then of their menus. A menu counts once per
+ * image, however many of its buttons name it.
+ */
+export function imageUses(
+  modules: ImageReader[],
+  common: (name: string) => boolean,
+): Map<string, ImageUse[]> {
+  const byFolder = new Map(modules.map((module) => [module.folder, module]));
+  const uses = new Map<string, ImageUse[]>();
   for (const module of modules) {
     for (const menu of module.menus) {
-      const names = new Set<string>();
+      const keys = new Set<string>();
       for (const ref of menu.refs) {
-        const name = commonNameOf(ref, module.own, common);
-        if (name !== null) names.add(name);
+        const key = imageNamedBy(ref, module, byFolder, common);
+        if (key !== null) keys.add(key);
       }
-      for (const name of names) {
-        const held = uses.get(name) ?? [];
+      for (const key of keys) {
+        const held = uses.get(key) ?? [];
         held.push({ projectId: module.id, projectName: module.name, menuId: menu.id });
-        uses.set(name, held);
+        uses.set(key, held);
       }
     }
   }

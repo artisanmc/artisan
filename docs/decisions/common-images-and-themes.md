@@ -236,11 +236,24 @@ builders; `ImageRefs.kt` did not change).
 
 **Step 2, sixth part: where a common image is used** (decision 12, "where it is used").
 
-- The server's **Common images** tab says, under each image, how many deployed menus name it.
+- The common images' page says, under each image, how many deployed menus name it.
 - In a module's Resources, a common image lists the menus of the server that name it, each a
   link to that menu; the open module's menus count as its draft holds them.
 - A menu names a common image by the rule it is read with (`commonNameOf`): `artisan:<name>`
   and `kit:<name>` always, a name alone when its module holds no image of that name.
+
+**Decision 12, first part: the server's Resources** (`ServerResources.tsx`, `imageUses.ts`,
+`servers.$serverId.resources.tsx`).
+
+- The server's **Common images** tab is gone. Its **Resources** tab is the Resources screen on
+  the whole server: every module's images and fonts and the common images in one list, as
+  deployed; **Show** narrows it to one module, or to the common images, whose page (pieces by
+  family, the trial menu, the themes) is the one the old tab had.
+- Each image shows who provides it, and the menus that name it, each a link to that menu. A
+  module's image is named by a menu of its module that writes its name, and by a menu of
+  another module that writes `<module>:<name>` (`imageNamedBy`).
+- The list changes nothing: an image opens where it lives, in its module's Resources or in the
+  atelier of the common images.
 
 Not there yet:
 
@@ -252,10 +265,12 @@ Not there yet:
 - Against decision 1: the MCP tools keep the names `kit`, `kit_base`, `kit_format`,
   `kit_colours` and `kit_draft_id` in what they take and return, and the notes file is still
   `data/ui-kit.yml`. In the editor, a composed image's layers still hold `kit:<name>`.
-- Against decision 12: the Resources screen is still a module's; its **Common images** entry
-  reads the published theme, so an image drawn in the theme's draft shows there once deployed.
-  The uses count menus only: a common image named by a dialog, an overlay or a composed
-  image's layer is not counted yet. An image cannot be moved or copied to another scope.
+- Against decision 12: the server's Resources and a module's are two components, the first
+  read-only. Both read the common images as published, so an image drawn in the theme's draft
+  shows there once deployed. The uses count menus only: an image named by a dialog, an overlay
+  or a composed image's layer is not counted yet. An image shows no state against its original
+  (step 5), and cannot be moved or copied to another scope from the server's list. Themes have
+  no screen of their own yet: they are reached from the common images' page.
 - Against decisions 5 and 6: a theme other than `artisan` is still a folder
   `themes/artisan/themes/<name>/`, one in place per server (`resource-pack.theme`).
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no

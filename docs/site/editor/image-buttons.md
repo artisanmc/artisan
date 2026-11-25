@@ -57,8 +57,17 @@ the menus of the whole server that show this image, each a link to that menu: th
 modules' menus as deployed, the open module's as you are editing them. A menu whose module
 holds an image of the same name is not listed, since it shows its own.
 
-**Common images, a tab of the server.** The server page's **Common images** tab shows them as
-the server has them deployed: every piece of the base by family (buttons; windows, panels and
+**Resources, a tab of the server.** The server page's **Resources** tab is the Resources screen
+for the whole server: the images and fonts of every module and the common images in one list,
+as deployed. **Show** narrows it to one module or to the common images. An image selected
+shows who provides it (its module, or the common images), its size, and the menus of the
+server that name it, each a link to that menu: a menu of its own module that writes its name,
+and a menu of another module that writes `<module>:<name>`. Nothing is changed from this
+list: **Open in** opens the module's Resources on that image, and a common image opens in the
+atelier of the common images.
+
+**Show: Common images** is the page of the common images alone, as the server has them
+deployed: every piece of the base by family (buttons; windows, panels and
 values; arrows and controls) with its size and who drew it, **Artisan** or this server
 (**Redrawn**), then the images the server added. Each image says how many deployed menus name
 it, so an image no menu names is seen before it is redrawn. **In a menu** sets every piece on one window,
