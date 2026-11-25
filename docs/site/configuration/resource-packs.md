@@ -79,6 +79,10 @@ says so. Without a `delegate-reload-command` it warns instead: the host plugin k
 the old pack, so new or moved images stay invisible until you reload it by hand
 (`nexo reload pack`, `oraxen reload pack`) and players load the pack again.
 
+After a restart, the host plugin builds its pack with Artisan's files already in its folder:
+Artisan writes them again, and reloads the host, only when the pack changed while the server
+was off or the files are gone.
+
 For ItemsAdder or another host, point `delegate-to-dir` at the folder it merges and
 set its reload command. The path is absolute or relative to the server root. On
 success the log shows:

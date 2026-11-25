@@ -28,8 +28,9 @@ open class ResourcePackManager(
     private val assetCatalog: AssetCatalog? = null,
     private val delegator: ResourcePackDelegator? = null,
     /** Optional on-disk cache of the last applied pack info ({url, download_url,
-     *  hash} JSON). When set, [onUpdate] persists here and [loadFromDisk]
-     *  restores at boot, even before a leaf reaches its hub. */
+     *  hash, delegated} JSON). When set, [onUpdate] persists here and [loadFromDisk]
+     *  restores at boot, even before a leaf reaches its hub. `delegated` is the hash
+     *  the host plugin was last given, so a restart does not hand it the same pack again. */
     private val cacheFile: java.io.File? = null,
     /** Records the packs sent here, so a player counts once one of them is loaded. */
     private val packLoads: PackLoadTracker? = null,
@@ -60,8 +61,15 @@ open class ResourcePackManager(
     /** The hash applied in this process (delegated or sent): the same pack announced again (a reconnection, `/artisan reload`) is not downloaded nor sent again. */
     @Volatile private var appliedHash: String? = null
 
-    /** Restores [currentPackInfo] from [cacheFile]. No-op without a cache file
-     *  or cached entry; any parse error leaves the state null. Call at boot. */
+    /**
+     * Restores [currentPackInfo] from [cacheFile]. No-op without a cache file
+     * or cached entry; any parse error leaves the state null. Call at boot.
+     *
+     * In delegation, a pack the host plugin already holds counts as applied: the host builds
+     * its pack at boot with our files in it. Writing them again and reloading the host while
+     * it builds (the hub announces the pack as soon as the server connects) left players
+     * with the host's pack without Artisan's images until the host was reloaded by hand.
+     */
     fun loadFromDisk() {
         val f = cacheFile ?: return
         try {
@@ -71,12 +79,13 @@ open class ResourcePackManager(
             val hash = node["hash"]?.asText() ?: return
             val downloadUrl = node["download_url"]?.asText() ?: url
             currentPackInfo = ResourcePackInfo.from(url, downloadUrl, hash).also { previousUuid = it.uuid }
+            if (delegator != null && node["delegated"]?.asText() == hash && delegator.present()) appliedHash = hash
         } catch (_: Throwable) {
             // Swallow: a corrupt cache must never break boot.
         }
     }
 
-    private fun persistToDisk(info: ResourcePackInfo?) {
+    private fun persistToDisk(info: ResourcePackInfo?, delegated: String? = null) {
         val f = cacheFile ?: return
         try {
             if (info == null) {
@@ -85,7 +94,8 @@ open class ResourcePackManager(
             }
             f.parentFile?.mkdirs()
             val json = com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(
-                mapOf("url" to info.url, "download_url" to info.downloadUrl, "hash" to info.hash),
+                mapOf("url" to info.url, "download_url" to info.downloadUrl, "hash" to info.hash) +
+                    (delegated?.let { mapOf("delegated" to it) } ?: emptyMap()),
             )
             val tmp = java.io.File(f.parentFile, f.name + ".tmp")
             tmp.writeText(json, Charsets.UTF_8)
@@ -122,7 +132,7 @@ open class ResourcePackManager(
 
     fun onUpdate(info: ResourcePackInfo?) {
         currentPackInfo = info
-        persistToDisk(info)
+        persistToDisk(info, delegated = appliedHash.takeIf { delegator != null && it == info?.hash })
         if (info == null) {
             appliedHash = null
             // Delegated, nothing was added to players: nothing to remove.
@@ -247,6 +257,7 @@ open class ResourcePackManager(
                 throw IllegalStateException("download or extract of ${info.downloadUrl} failed: ${t.message}", t)
             }
             appliedHash = info.hash
+            if (currentPackInfo?.hash == info.hash) persistToDisk(currentPackInfo, delegated = info.hash)
             val reloadCmd = config.delegateReloadCommand
             if (reloadCmd != null) {
                 // Bukkit's command dispatch isn't thread-safe: schedule the host's
