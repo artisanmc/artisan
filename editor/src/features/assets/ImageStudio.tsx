@@ -13,7 +13,7 @@ import { ImageGuides } from "./ImageGuides";
 import { PixelEditor } from "./PixelEditor";
 import { SITUATION_SCALE, SituationPreview } from "./SituationPreview";
 import { useAssetStore } from "./assetStore";
-import { type GuideName, guideNames, imageGuides } from "./imageGuides";
+import { type GuideName, guideNames, imageGuides } from "./guideRules";
 import { canHaveLayers, flatten, toLayers } from "./imageLayers";
 
 /** The guides and the preview the atelier shows, kept between images and sessions. */

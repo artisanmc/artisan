@@ -31,7 +31,7 @@ import { ImageGuides } from "./ImageGuides";
 import { ImageChoiceDialog, KitPicker } from "./KitPicker";
 import { PixelEditor } from "./PixelEditor";
 import { SITUATION_SCALE, SituationPreview } from "./SituationPreview";
-import type { GuideName } from "./imageGuides";
+import type { GuideName } from "./guideRules";
 import { useAssetStore } from "./assetStore";
 import { useKitAssets } from "./kitAssets";
 import { type ImageSize, assetSize, useAssetSize, useMeasuredAssetSizes } from "./measuredSize";

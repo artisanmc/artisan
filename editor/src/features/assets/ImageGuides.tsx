@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { type GuideName, type Rect, SLOT, imageGuides } from "./imageGuides";
+import { type GuideName, type Rect, SLOT, imageGuides } from "./guideRules";
 
 const box = (rect: Rect, scale: number) => ({
   left: rect.x * scale,

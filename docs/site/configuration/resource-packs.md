@@ -82,6 +82,8 @@ the old pack, so new or moved images stay invisible until you reload it by hand
 After a restart, the host plugin builds its pack with Artisan's files already in its folder:
 Artisan writes them again, and reloads the host, only when the pack changed while the server
 was off or the files are gone.
+The server's pack is built once the server has started, with every module
+loaded, never from the part Artisan reads while it enables.
 
 For ItemsAdder or another host, point `delegate-to-dir` at the folder it merges and
 set its reload command. The path is absolute or relative to the server root. On

@@ -3,7 +3,7 @@ import { KIT_PREFIX } from "@/lib/pack/kit";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { SLOT } from "./imageGuides";
+import { SLOT } from "./guideRules";
 import { useKitAssets } from "./kitAssets";
 
 /** The game's pixels, twice: large enough to judge, small enough to read as a menu. */
