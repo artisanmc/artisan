@@ -145,13 +145,18 @@ duplicates and deletes it through its descriptor alone, and writes its recipe: a
 field on the create and patch requests (`composeAsset`, `patchAsset`), refused unless the pack
 reads back that very recipe (`requestedRecipe`). The common images' composed images are assembled
 once per read of their Project (`kitAssets.ts`, `composedKitImages`).
-The kit is shown in the theme the server's pack is built in (`lib/pack/theme.ts`, ADR
-`mcp-server`, decision 16): the server index loader reads `resource-pack.theme` into
-`state/kitStore` (the Configuration page updates it on save), `kitTheme.ts` reads that theme from
-the published files of the common images' Project once per read, `useKitAssets` gives each kit image as the theme
-shows it (`themedKitAssets`: a `data:` URL where the picture changes, the same size, name and
-order), and a composed image is assembled over themed `kit:` layers (`composedView`). A
-module's own PNG is never recoloured, as in the pack.
+The kit is shown in the themes in place on the server (`lib/pack/theme.ts`, ADR
+`common-images-and-themes`, decision 6): the server index loader reads the server's config into
+`state/kitStore` (`readConfig`: `themes`, the stack from `resource-pack.themes`, the lowest
+first, else the former `resource-pack.theme`; `stacks`, whether the server holds the list; the
+Configuration page and the theme's page update it on save), `kitTheme.ts` reads those themes
+from the published files of the common images' Project once per read, as one look
+(`kitThemeStack`: each theme applied to what the ones below show), `useKitAssets` gives each kit
+image as they show it (`themedKitAssets`: a `data:` URL where the picture changes, the same
+size, name and order), and a composed image is assembled over themed `kit:` layers
+(`composedView`). A module's own PNG is never recoloured, as in the pack. Putting a theme in
+place or taking it off writes `themeChange`: the list with the theme on top or without it, or
+the former key on a server older than the list.
 Its detail pane is the composer (`ComposedImageEditor.tsx`) in place of the plain stage: each
 layer is an element laid at its place in game pixels (a grid as a repeated background, so the
 browser draws what the pack will), dragged with the pointer (Shift: steps of one slot, 18 px)

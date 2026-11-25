@@ -36,7 +36,7 @@ describe("useKitPieceAsked", () => {
   beforeEach(() => {
     uploadAsset.mockReset();
     useAssetStore.getState().reset();
-    useKitStore.setState({ read: { projectId: "kit", files: {}, binaries: [] }, theme: undefined });
+    useKitStore.setState({ read: { projectId: "kit", files: {}, binaries: [] }, themes: [] });
     useResourcesView.setState({ view: "files", studio: null, piece: null, pieceFrom: null });
   });
 

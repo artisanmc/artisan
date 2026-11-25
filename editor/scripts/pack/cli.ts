@@ -5,6 +5,7 @@ import type { OverlayImageRequest } from "@/lib/pack/overlayImages";
 import { type PackProject, type ServerPacks, assembleServerPack } from "@/lib/pack/packAssembly";
 import type { BuildResult } from "@/lib/pack/resourcePackBuilder";
 import { SYMBOL_GLYPHS } from "@/lib/pack/symbolGlyphs";
+import { THEMES_CONFIG_KEY, THEME_CONFIG_KEY, configuredThemes } from "@/lib/pack/theme";
 import {
   VANILLA_ACCENTED,
   VANILLA_ASCII,
@@ -153,13 +154,15 @@ function containerTextures(configPath: string | undefined): Partial<Record<GuiCo
   return out;
 }
 
-/** `resource-pack.theme` of a server's `config.yml`, nested or flat: the kit's theme. */
-function theme(configPath: string | undefined): string | undefined {
-  if (!configPath) return undefined;
+/** `resource-pack.themes` of a server's `config.yml`, nested or flat (the former `theme` too): the themes in place. */
+function themesInPlace(configPath: string | undefined): string[] {
+  if (!configPath) return [];
   const config = parse(readFileSync(configPath, "utf-8")) as Record<string, unknown> | null;
-  const nested = (config?.["resource-pack"] as Record<string, unknown> | undefined)?.theme;
-  const value = nested ?? config?.["resource-pack.theme"];
-  return typeof value === "string" && value !== "" ? value : undefined;
+  const nested = config?.["resource-pack"] as Record<string, unknown> | undefined;
+  return configuredThemes({
+    [THEMES_CONFIG_KEY]: nested?.themes ?? config?.[THEMES_CONFIG_KEY],
+    [THEME_CONFIG_KEY]: nested?.theme ?? config?.[THEME_CONFIG_KEY],
+  });
 }
 
 /** `resource-pack.hide-inventory-label` of a server's `config.yml`, nested or flat. */
@@ -201,7 +204,7 @@ async function build(args: string[]): Promise<number> {
     projects,
     containerTextures: containerTextures(option(args, "--config")),
     hideInventoryLabel: hideInventoryLabel(option(args, "--config")),
-    theme: theme(option(args, "--config")),
+    themes: themesInPlace(option(args, "--config")),
     vanillaTexture,
     textUp: textUp(),
     kitImage,
@@ -241,8 +244,10 @@ export interface ConformanceCase {
   vanillaGui: boolean;
   /** `resource-pack.hide-inventory-label`; absent = false. */
   hideInventoryLabel?: boolean;
-  /** `resource-pack.theme`: the kit's theme; absent = none. */
+  /** `resource-pack.theme`, the former key: one theme in place; absent = none. */
   theme?: string;
+  /** `resource-pack.themes`: the themes in place, the lowest first; absent = `theme`. */
+  themes?: string[];
   entries: string[];
   /** SHA-256 of each entry listed in `entries`: says which file drifted when `sha1` does. */
   entryHashes?: Record<string, string>;
@@ -286,7 +291,7 @@ export function buildCase(c: ConformanceCase): Promise<ServerPacks> {
     kitImage,
     transparentContainers: c.vanillaGui,
     hideInventoryLabel: c.hideInventoryLabel === true,
-    ...(c.theme ? { theme: c.theme } : {}),
+    themes: c.themes ?? (c.theme ? [c.theme] : []),
     ...(c.bedrock ? { bedrock: { serverId: c.bedrock.serverId } } : {}),
   });
 }

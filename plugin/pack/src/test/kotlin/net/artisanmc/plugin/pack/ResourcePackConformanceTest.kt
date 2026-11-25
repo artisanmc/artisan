@@ -37,7 +37,8 @@ class ResourcePackConformanceTest {
             transparentContainers = case["vanillaGui"].asBoolean(),
             hideInventoryLabel = case["hideInventoryLabel"]?.asBoolean() ?: false,
             bedrockServerId = case["bedrock"]?.get("serverId")?.asText(),
-            theme = case["theme"]?.asText(),
+            // `themes`: the stack in place, the lowest first; `theme`, the former single one.
+            themes = case["themes"]?.map { it.asText() } ?: listOfNotNull(case["theme"]?.asText()),
         )
     }
 

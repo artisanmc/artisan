@@ -235,6 +235,8 @@ export default {
       noTheme: "No theme",
       noThemeInPlace: "No theme (in place)",
       themeInPlace: "{{name}} (in place)",
+      themeInStack: "{{rank}}. {{name}} (in place)",
+      themesOrder: "From the lowest to the highest: the highest that redraws an image wins.",
       noThemes: "No theme yet.",
       family: {
         buttons: "Buttons",
@@ -275,6 +277,8 @@ export default {
       notInPlace: "Not in place",
       putInPlace: "Put in place on the server",
       takeOff: "Take off the server",
+      stack:
+        "Themes in place, from the lowest to the highest: {{themes}}. The highest that redraws an image wins; its colours apply to what the ones below show.",
       missing: "The server has no theme “{{name}}” deployed.",
       colors: "Colours replaced",
       noColors: "This theme replaces no colour.",
@@ -285,7 +289,7 @@ export default {
         "A theme is a folder of the server's common images (themes/artisan/): themes/{{name}}/theme.yml holds its colours, themes/{{name}}/assets/textures/<piece>.png a piece redrawn at the piece's size. It is read here once deployed.",
       compare: "Without and with, in a menu",
       putHint:
-        "Putting a theme in place rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
+        "Putting a theme in place sets it above the ones already there and rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
     },
   },
   imageButton: {
@@ -2378,6 +2382,7 @@ export default {
         "hide-inventory-label":
           "Hide the “Inventory” label under menus (every container, every language)",
         theme: "Theme of the common images",
+        themes: "Themes in place",
         "container-textures": {
           chest: "Chests",
           hopper: "Hoppers",
@@ -2386,6 +2391,8 @@ export default {
       },
     },
     hints: {
+      themes:
+        "From the lowest to the highest, separated by commas: the highest that redraws an image wins, and its colours apply to what the ones below show. The server's themes: {{themes}}.",
       theme:
         "A folder of the server's common images (themes/artisan/themes/<name>/). Every common image is then shown in the theme's colors, or as the theme redraws it; the menus keep their layout.",
       chest:

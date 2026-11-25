@@ -9,7 +9,7 @@ import type { ProjectSummary } from "@/lib/api/servers";
 import { listAssets } from "@/lib/api/userAssets";
 import { SERVER_PALETTE_KEYS, serverPaletteEntries, serverPaletteForm } from "@/lib/mm/palettes";
 import { kitProjectAmong } from "@/lib/pack/kit";
-import { THEME_CONFIG_KEY, configuredTheme, themeNames } from "@/lib/pack/theme";
+import { THEMES_CONFIG_KEY, THEME_CONFIG_KEY, themeNames } from "@/lib/pack/theme";
 import { projectClient } from "@/lib/projectClient";
 import { useKitStore } from "@/state/kitStore";
 import {
@@ -131,15 +131,20 @@ export function ServerConfigSection({
     try {
       const saved = await patchServerConfig(serverKeyId, changes);
       setConfig(saved);
-      // The kit's images are shown in the server's theme from now on.
-      if (THEME_CONFIG_KEY in changes) useKitStore.getState().setTheme(configuredTheme(saved));
+      // The kit's images are shown in the server's themes from now on.
+      if (THEME_CONFIG_KEY in changes || THEMES_CONFIG_KEY in changes)
+        useKitStore.getState().readConfig(saved);
       setChanges({});
       if (Object.keys(changes).some((key) => key.startsWith(PALETTE))) invalidateServerPalette();
       if (MENU_VARIANTS_KEY in changes) invalidateServerVariants();
       // Changing container textures, the inventory label or the theme requires rebuilding the pack.
       if (
         Object.keys(changes).some(
-          (key) => key.startsWith(TEXTURES) || key === INVENTORY_LABEL || key === THEME_CONFIG_KEY,
+          (key) =>
+            key.startsWith(TEXTURES) ||
+            key === INVENTORY_LABEL ||
+            key === THEME_CONFIG_KEY ||
+            key === THEMES_CONFIG_KEY,
         )
       )
         rebuildServerPackInBackground(t, serverKeyId);
@@ -196,6 +201,29 @@ export function ServerConfigSection({
         </FormField>
       );
     }
+    if (key === THEMES_CONFIG_KEY)
+      return (
+        <FormField
+          key={key}
+          label={label(key)}
+          hint={t("serverConfig.hints.themes", {
+            themes: themes.length > 0 ? themes.join(", ") : t("serverConfig.noTheme"),
+          })}
+        >
+          <Input
+            value={(Array.isArray(current) ? (current as string[]) : []).join(", ")}
+            onChange={(e) =>
+              set(
+                key,
+                e.target.value
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              )
+            }
+          />
+        </FormField>
+      );
     if (typeof config[key] === "boolean")
       return (
         <div key={key} className="flex items-center justify-between gap-3">
@@ -244,7 +272,11 @@ export function ServerConfigSection({
     );
   };
 
-  const keys = Object.keys(config);
+  // A server that holds the list of themes still reports the former single one, for an older
+  // hub: the list alone is edited.
+  const keys = Object.keys(config).filter(
+    (key) => key !== THEME_CONFIG_KEY || !(THEMES_CONFIG_KEY in config),
+  );
   const groups: [string, string[]][] = [
     ["general", keys.filter((k) => !k.includes(".") && k !== MENU_VARIANTS_KEY)],
     ["textures", keys.filter((k) => k.startsWith(TEXTURES))],

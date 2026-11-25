@@ -241,9 +241,12 @@ colours, its transparency kept; an image composed from common images follows. A 
 another size than the image it replaces is left out, so the menus keep their layout. A
 module's own PNG never changes: to make an image follow the themes, compose it from common
 images.
-The server shows one theme at a time: pick it in **Configuration**, **Resource pack**,
-**Theme of the common images** (`resource-pack.theme` of `config.yml`), which rebuilds the pack. The
-app cannot switch it; it shows you a menu in a theme before you do.
+The server's themes in place are a stack (`resource-pack.themes` of `config.yml`, the lowest
+first): each changes what the ones below show, so the highest that redraws an image wins and
+its colours repaint what is below. Put a theme in place from its page (**Resources**, common
+images, the theme, **Put in place on the server**), which sets it above the others and rebuilds
+the pack; **Configuration**, **Resource pack**, **Themes in place** holds the list in order. The
+app cannot put a theme in place; it shows you a menu in a theme before you do.
 
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"
 on the consent page, or the "Can deploy" switch in **Settings → AI apps**. The app then shows

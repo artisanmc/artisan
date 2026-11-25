@@ -9,10 +9,14 @@ package net.artisanmc.plugin.pack
  * themes/noel/assets/textures/button.3x1.png    this image redrawn, at its size
  * ```
  *
- * The server's theme (`resource-pack.theme` of `config.yml`) changes what `kit:<name>` shows:
- * the theme's own drawing of that image when it has one of the same size, else the image with
- * each colour of the table replaced, its transparency kept. A theme holds no Document and moves
- * nothing, so a menu laid out against the kit keeps its layout; at worst it is ugly.
+ * A theme in place changes what `kit:<name>` shows: the theme's own drawing of that image when
+ * it has one of the same size, else the image with each colour of the table replaced, its
+ * transparency kept. A theme holds no Document and moves nothing, so a menu laid out against
+ * the kit keeps its layout; at worst it is ugly.
+ *
+ * The themes in place are a stack (`resource-pack.themes` of `config.yml`, the lowest first):
+ * each changes what the ones below show ([ThemeStack]), so the highest that draws an image
+ * wins, and a theme of colours alone repaints what is below it.
  */
 class KitTheme internal constructor(
     /** A colour to its replacement, each as `0xRRGGBB`. */
@@ -81,13 +85,25 @@ class KitTheme internal constructor(
         private val IMAGE_DIRS = listOf("assets/glyphs/", "assets/textures/")
         private val FILE = Regex("^themes/([^/]+)/theme\\.ya?ml$")
 
-        /** The key of the server's theme in its `config.yml`. */
-        const val CONFIG_KEY = "resource-pack.theme"
+        /** The key of the server's themes in its `config.yml`: the stack in place, the lowest first. */
+        const val CONFIG_KEY = "resource-pack.themes"
+
+        /** The former key, one theme: still read when the list names none (a server older than the list reports it alone). */
+        const val FORMER_CONFIG_KEY = "resource-pack.theme"
 
         fun isName(name: String): Boolean = NAME.matches(name)
 
-        /** The theme a server's `config.yml` names, as its plugin reports it; null when it names none. */
-        fun configured(config: Map<String, Any?>?): String? = (config?.get(CONFIG_KEY) as? String)?.takeIf(::isName)
+        /**
+         * The themes a server's `config.yml` puts in place, as its plugin reports it: the lowest
+         * first, each name once (ADR `common-images-and-themes`, decision 6). Empty when it names none.
+         */
+        fun configured(config: Map<String, Any?>?): List<String> =
+            (config?.get(CONFIG_KEY) as? List<*>).orEmpty().filterIsInstance<String>().filter(::isName).distinct().ifEmpty {
+                listOfNotNull((config?.get(FORMER_CONFIG_KEY) as? String)?.takeIf(::isName))
+            }
+
+        /** The themes [names] of the kit module [kit] as one look, in that order; null when it holds none of them. */
+        fun stack(names: List<String>, kit: PackProject): ThemeStack? = ThemeStack.of(names.mapNotNull { read(it, kit) })
 
         /** `0xRRGGBB` of `#rrggbb`; null for anything else. */
         fun color(text: Any?): Int? = (text as? String)?.takeIf { COLOR.matches(it) }?.substring(1)?.toInt(16)
@@ -175,5 +191,30 @@ class KitTheme internal constructor(
             }
             return out
         }
+    }
+}
+
+/**
+ * The themes in place as one look (`kitThemeStack` in `theme.ts`), from the lowest to the
+ * highest: each is applied to what the ones below show, so the highest that draws an image wins
+ * and the colours of the ones above it repaint that drawing.
+ */
+class ThemeStack private constructor(private val themes: List<KitTheme>) {
+    /** The kit image [name], whose PNG is [png], as the themes show it. */
+    fun shown(name: String, png: ByteArray): ByteArray = themes.fold(png) { out, theme -> theme.shown(name, out) }
+
+    /**
+     * The themes' drawing of [name]: null unless one draws it at [png]'s size (a table of colours
+     * is not a drawing); the themes above the one that does repaint its drawing, as in [shown].
+     */
+    fun drawing(name: String, png: ByteArray): ByteArray? {
+        var out: ByteArray? = null
+        for (theme in themes) out = theme.drawing(name, out ?: png) ?: out?.let(theme::recolored)
+        return out
+    }
+
+    companion object {
+        /** Null for no theme. */
+        fun of(themes: List<KitTheme>): ThemeStack? = themes.takeIf { it.isNotEmpty() }?.let(::ThemeStack)
     }
 }

@@ -105,20 +105,30 @@ export function KitPage({
 }) {
   const { t } = useTranslation();
   const read = useKitStore((s) => s.read);
-  const theme = useKitStore((s) => s.theme);
+  const inPlace = useKitStore((s) => s.themes);
   const kit = useKitAssets();
   const misfits = useKitMisfits();
   const [over, setOver] = useState<string | null>(null);
-  const themes = useMemo(
-    () =>
-      read
-        ? themeNames(
-            Object.keys(read.files),
-            read.binaries.map((b) => b.path),
-          )
-        : [],
-    [read],
-  );
+  // The themes in place first, from the lowest to the highest, then the others.
+  const themes = useMemo(() => {
+    const held = read
+      ? themeNames(
+          Object.keys(read.files),
+          read.binaries.map((b) => b.path),
+        )
+      : [];
+    return [
+      ...inPlace.filter((name) => held.includes(name)),
+      ...held.filter((name) => !inPlace.includes(name)),
+    ];
+  }, [read, inPlace]);
+  const shownIn = themes.filter((name) => inPlace.includes(name));
+  const themeLabel = (name: string) =>
+    !shownIn.includes(name)
+      ? name
+      : shownIn.length > 1
+        ? t("kit.page.themeInStack", { name, rank: shownIn.indexOf(name) + 1 })
+        : t("kit.page.themeInPlace", { name });
   const piece = (slot: KitSlot) => kit.find((a) => a.id === KIT_PREFIX + slot.id);
   const others = kit.filter((a) => !isKitBase(a));
   const redrawn = KIT_SLOTS.filter((slot) => !!piece(slot)?.contentHash).length;
@@ -143,27 +153,32 @@ export function KitPage({
 
       <div className="flex flex-wrap items-center gap-1.5" data-testid="kit-themes">
         <span className="field-label mr-1">{t("kit.page.themes")}</span>
-        <Badge variant={theme ? "sage" : "amber"}>
-          {t(theme ? "kit.page.noTheme" : "kit.page.noThemeInPlace")}
+        <Badge variant={shownIn.length > 0 ? "sage" : "amber"}>
+          {t(shownIn.length > 0 ? "kit.page.noTheme" : "kit.page.noThemeInPlace")}
         </Badge>
         {themes.map((name) =>
           onTheme ? (
             <button
               key={name}
               type="button"
-              className={cx("chip text-[12px]", name === theme && "is-active")}
+              className={cx("chip text-[12px]", shownIn.includes(name) && "is-active")}
               onClick={() => onTheme(name)}
             >
-              {name === theme ? t("kit.page.themeInPlace", { name }) : name}
+              {themeLabel(name)}
             </button>
           ) : (
-            <Badge key={name} variant={name === theme ? "amber" : "sage"}>
-              {name === theme ? t("kit.page.themeInPlace", { name }) : name}
+            <Badge key={name} variant={shownIn.includes(name) ? "amber" : "sage"}>
+              {themeLabel(name)}
             </Badge>
           ),
         )}
         {themes.length === 0 ? (
           <span className="text-[12px] text-[var(--text-faint)]">{t("kit.page.noThemes")}</span>
+        ) : null}
+        {shownIn.length > 1 ? (
+          <span className="text-[12px] text-[var(--text-faint)]" data-testid="kit-themes-order">
+            {t("kit.page.themesOrder")}
+          </span>
         ) : null}
       </div>
 

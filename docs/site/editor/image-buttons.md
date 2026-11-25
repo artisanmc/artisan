@@ -29,8 +29,8 @@ project to move it there.
 `plugins/Artisan/themes/artisan/`. The menu names the image instead of copying it: when the
 server redraws the common button, every menu that names it follows. A common image whose name
 ends with its slots (`3x1`) takes that area. A title's image layer offers the same list, with
-the common windows (`window.6`, `window.3`). When the server's pack is built in a theme
-(see [AI](../../configuration/ai/), "Themes"), the editor shows these images in that theme, as
+the common windows (`window.6`, `window.3`). When the server has themes in place
+(see [AI](../../configuration/ai/), "Themes"), the editor shows these images in them, as
 players see them.
 
 **The same name in two modules.** A menu shows the image of its own module. When two modules
@@ -95,10 +95,15 @@ A server that had a `ui-kit` module keeps its images: at the first start after t
 module's folder moves to `plugins/Artisan/themes/artisan/`, and the menus that name its images
 keep working.
 
-**Themes.** The tab lists the themes, the one in place marked. A theme opens on what it
-changes (the colours it replaces, the pieces it redraws) and on the same menu without it and
-with it. **Put in place on the server** sets the server's theme and rebuilds its pack: players
-receive it at their next connection. **Take off the server** goes back to no theme. A theme's
+**Themes.** The tab lists the themes, the ones in place first and numbered from the lowest to
+the highest. A theme opens on what it changes (the colours it replaces, the pieces it redraws)
+and on the same menu without it and with it. **Put in place on the server** sets the theme
+above the ones already in place and rebuilds the server's pack: players receive it at their
+next connection. Several themes stack: each changes what the ones below show, so the highest
+that redraws an image wins, and a theme of colours alone repaints what is below it (a seasonal
+palette over a drawn theme). **Take off the server** removes that theme alone; to move a theme
+to the top, take it off and put it back, or reorder the list in **Configuration**, **Themes in
+place**. A theme's
 files are written with the common images (see [AI](../../configuration/ai/), "Themes") and read
 here once deployed.
 

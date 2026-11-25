@@ -15,7 +15,7 @@ const published = (binaries: string[], files: Record<string, string> = {}) =>
 
 describe("KitPage", () => {
   beforeEach(() => {
-    useKitStore.setState({ read: undefined, theme: undefined });
+    useKitStore.setState({ read: undefined, themes: [], stacks: false });
   });
 
   it("shows every piece as Artisan's on a server that has no theme yet", () => {
@@ -44,7 +44,7 @@ describe("KitPage", () => {
         "themes/noel/theme.yml": 'colors: {"#3c8527": "#b3261e"}\n',
       },
     );
-    useKitStore.setState({ theme: "noel" });
+    useKitStore.setState({ themes: ["noel"] });
     const onPiece = vi.fn();
     const onOpenKit = vi.fn();
     const onTheme = vi.fn();
@@ -86,5 +86,24 @@ describe("KitPage", () => {
     expect(onOpenKit).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "noel (en place)" }));
     expect(onTheme).toHaveBeenCalledWith("noel");
+    expect(screen.queryByTestId("kit-themes-order")).toBeNull();
+  });
+
+  it("lists the themes in place first, in their order, then the others", () => {
+    published([], {
+      "themes/automne/theme.yml": "colors: {}\n",
+      "themes/hiver/theme.yml": "colors: {}\n",
+      "themes/noel/theme.yml": "colors: {}\n",
+    });
+    // `gone` is in place on the server and no longer among its themes: it shows nothing.
+    useKitStore.setState({ themes: ["noel", "gone", "automne"] });
+    render(<KitPage menusNaming={0} onTheme={() => {}} />);
+    const themes = within(screen.getByTestId("kit-themes"));
+    expect(themes.getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "1. noel (en place)",
+      "2. automne (en place)",
+      "hiver",
+    ]);
+    expect(screen.getByTestId("kit-themes-order")).toBeInTheDocument();
   });
 });

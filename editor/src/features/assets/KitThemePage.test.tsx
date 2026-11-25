@@ -16,7 +16,7 @@ describe("KitThemePage", () => {
         files: { "themes/noel/theme.yml": 'colors: {"#3c8527": "#b3261e"}\n' },
         binaries: [{ path: "themes/noel/assets/textures/close.1x1.png", hash: "h" }],
       },
-      theme: undefined,
+      themes: [],
     });
   });
 
@@ -33,21 +33,29 @@ describe("KitThemePage", () => {
     expect(screen.getByTestId("kit-theme-before")).toBeInTheDocument();
     expect(screen.getByTestId("kit-theme-after")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Mettre en place sur le serveur" }));
-    await waitFor(() => expect(onPutInPlace).toHaveBeenCalledWith("noel"));
+    await waitFor(() => expect(onPutInPlace).toHaveBeenCalledWith("noel", true));
   });
 
   it("takes off the theme in place, and says so of a theme the kit does not hold", async () => {
-    useKitStore.setState({ theme: "noel" });
+    useKitStore.setState({ themes: ["noel"] });
     const onPutInPlace = vi.fn().mockResolvedValue(undefined);
     const { unmount } = render(
       <KitThemePage name="noel" onBack={() => {}} onPutInPlace={onPutInPlace} />,
     );
     expect(screen.getByText("En place")).toBeInTheDocument();
+    // Alone in place: there is no order to tell.
+    expect(screen.queryByTestId("kit-theme-stack")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Retirer du serveur" }));
-    await waitFor(() => expect(onPutInPlace).toHaveBeenCalledWith(null));
+    await waitFor(() => expect(onPutInPlace).toHaveBeenCalledWith("noel", false));
     unmount();
     render(<KitThemePage name="paques" onBack={() => {}} onPutInPlace={onPutInPlace} />);
     expect(screen.getByText(/n'a pas de thème « paques »/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mettre en place sur le serveur" })).toBeNull();
+  });
+
+  it("tells the order of the themes in place when there are several", () => {
+    useKitStore.setState({ themes: ["hiver", "noel"] });
+    render(<KitThemePage name="noel" onBack={() => {}} />);
+    expect(screen.getByTestId("kit-theme-stack")).toHaveTextContent("hiver, noel");
   });
 });

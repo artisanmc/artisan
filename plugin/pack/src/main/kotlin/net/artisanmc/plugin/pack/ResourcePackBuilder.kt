@@ -27,8 +27,8 @@ class PackInput(
     val hideInventoryLabel: Boolean = false,
     /** Also build the server's Bedrock pack; the id seeds its uuid. */
     val bedrockServerId: String? = null,
-    /** `resource-pack.theme` of `config.yml`: the kit's theme `kit:` images are shown in ([KitTheme]); null, or one the kit module does not hold: none. */
-    val theme: String? = null,
+    /** `resource-pack.themes` of `config.yml`: the themes `kit:` images are shown in, the lowest first ([ThemeStack]); one the kit module does not hold is left out. */
+    val themes: List<String> = emptyList(),
 )
 
 /** The Java pack, and the Bedrock one when [PackInput.bedrockServerId] asked for it. */
@@ -167,9 +167,9 @@ object ResourcePackBuilder {
 
         // Composed images ([ComposedImages]), once every module's PNGs are read: a layer is a PNG
         // of the module or a kit image, never another composed image, so their order does not matter.
-        // The kit's theme ([KitTheme]) changes the kit's PNGs, the base's and the server's: an image
+        // The themes in place ([ThemeStack]) change the kit's PNGs, the base's and the server's: an image
         // composed with them follows, and is not themed a second time once assembled.
-        val theme = input.theme?.let { name -> kitProject?.let { KitTheme.read(name, it) } }
+        val theme = kitProject?.let { KitTheme.stack(input.themes, it) }
         val kitPng = { name: String -> kitImage(name)?.png?.let { theme?.shown(name, it) ?: it } }
         val made = composed.mapNotNull { c ->
             // In the kit module an image is a kit image under its bare name too.

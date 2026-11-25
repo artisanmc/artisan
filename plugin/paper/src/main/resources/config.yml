@@ -67,10 +67,12 @@ resource-pack:
   # from every other chest, furnace… for players with the pack. Not written
   # when delegating (only `assets/artisan/` is).
   hide-inventory-label: false
-  # The theme the common images are shown in: the name of a folder of
-  # `themes/artisan/themes/`. Every common image (`kit:<name>`) is then
-  # shown in the theme's colours, or as the theme redraws it. Empty: no theme.
-  theme: ""
+  # The themes the common images are shown in, the lowest first: each the name
+  # of a folder of `themes/artisan/themes/`. Every common image is then shown
+  # in a theme's colours, or as the theme redraws it; a theme changes what the
+  # ones before it show, so the last one that redraws an image wins. Empty: no
+  # theme. The former `theme: "<name>"` is still read while this list is empty.
+  themes: []
   # Textures drawn back on the other windows when a menu turns its vanilla
   # texture off (the pack makes that container transparent server-wide).
   # "project:image" names a project image in the vanilla layout (256×256 or an

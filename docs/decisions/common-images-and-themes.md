@@ -310,6 +310,28 @@ builders; `ImageRefs.kt` did not change).
   owner holds no file. The same holds in the common images' Project, where a piece of the
   base as shipped was offered a restore that could only fail.
 
+**Step 4, first part: the themes in place are a stack** (`ThemeStack` in `Theme.kt`,
+`kitThemeStack` in `theme.ts`, `EditableConfig.kt`).
+`resource-pack.themes` of `config.yml` is the ordered list of decision 6, the lowest first, on
+today's theme folders (`themes/artisan/themes/<name>/`). Both pack builders fold the list:
+each theme is applied to what the ones below show, so the highest that redraws an image wins
+as drawn, a theme of colours alone repaints what is below it, and the colours of a theme
+above a drawing repaint that drawing (a composed common image's too). A theme the server does
+not hold is left out. One theme in place gives the pack it gave before, byte for byte (the
+vector's former case is unchanged; a second case locks a stack of three and one missing).
+The former `resource-pack.theme` is read while the list is empty, and a server reports it
+still, as its highest theme, so a hub older than the list keeps building its pack in one
+theme; the first write of either key leaves the list alone in the file. In the editor the
+theme's page puts a theme on top of the stack or takes it off (`themeChange`), the common
+images' page lists the themes in place first, numbered from the lowest, and the Configuration
+page holds the list in order; against a server older than the list, the former key is written.
+The MCP tools show the server's images in its stack (`kit.in_place` in `survey_ui`, `themes` on
+a render) and draw one theme alone when asked for it.
+Not in this part: a theme as its own folder `themes/<name>/` with `overrides/` (decision 5), a
+theme's redraw of a module's image and `scope`, colour ramps (decision 7), ordering the stack
+by hand elsewhere than in the Configuration list, and a preview of a theme within the stack
+(the theme's page compares it alone against no theme).
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -340,8 +362,9 @@ Not there yet:
   in between is not flagged. A menu keeps what module originals already gave it (compare with
   the original, back to the original, a merge at each update): it has no "the original
   changed" notice of its own.
-- Against decisions 5 and 6: a theme other than `artisan` is still a folder
-  `themes/artisan/themes/<name>/`, one in place per server (`resource-pack.theme`).
+- Against decision 5: a theme other than `artisan` is still a folder
+  `themes/artisan/themes/<name>/`, which redraws common images only.
+- Against decision 6: a theme has no `scope`, and its colours touch every common image.
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no
   module), so two modules asking for the same name at the same rise share one picture.
 - The editor draws the base from its own build, not from the server's `originals/`: the two

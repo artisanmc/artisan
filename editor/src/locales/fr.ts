@@ -241,6 +241,8 @@ const fr: typeof en = {
       noTheme: "Sans thème",
       noThemeInPlace: "Sans thème (en place)",
       themeInPlace: "{{name}} (en place)",
+      themeInStack: "{{rank}}. {{name}} (en place)",
+      themesOrder: "Du plus bas au plus haut : le plus haut qui redessine une image l'emporte.",
       noThemes: "Aucun thème pour l'instant.",
       family: {
         buttons: "Boutons",
@@ -282,6 +284,8 @@ const fr: typeof en = {
       notInPlace: "Pas en place",
       putInPlace: "Mettre en place sur le serveur",
       takeOff: "Retirer du serveur",
+      stack:
+        "Thèmes en place, du plus bas au plus haut : {{themes}}. Le plus haut qui redessine une image l'emporte ; ses couleurs s'appliquent à ce que montrent ceux du dessous.",
       missing: "Le serveur n'a pas de thème « {{name}} » déployé.",
       colors: "Couleurs remplacées",
       noColors: "Ce thème ne remplace aucune couleur.",
@@ -292,7 +296,7 @@ const fr: typeof en = {
         "Un thème est un dossier des images communes du serveur (themes/artisan/) : themes/{{name}}/theme.yml porte ses couleurs, themes/{{name}}/assets/textures/<pièce>.png une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
       compare: "Sans et avec, dans un menu",
       putHint:
-        "Mettre en place reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
+        "Mettre en place pose le thème au-dessus de ceux qui y sont déjà et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
     },
   },
   imageButton: {
@@ -2423,6 +2427,7 @@ const fr: typeof en = {
         "hide-inventory-label":
           "Masquer le libellé « Inventaire » sous les menus (tous les conteneurs, toutes les langues)",
         theme: "Thème des images communes",
+        themes: "Thèmes en place",
         "container-textures": {
           chest: "Coffres",
           hopper: "Entonnoirs",
@@ -2431,6 +2436,8 @@ const fr: typeof en = {
       },
     },
     hints: {
+      themes:
+        "Du plus bas au plus haut, séparés par des virgules : le plus haut qui redessine une image l'emporte, et ses couleurs s'appliquent à ce que montrent ceux du dessous. Thèmes du serveur : {{themes}}.",
       theme:
         "Un dossier des images communes du serveur (themes/artisan/themes/<nom>/). Chaque image commune est alors montrée aux couleurs du thème, ou telle qu'il la redessine ; les menus gardent leur mise en page.",
       chest:

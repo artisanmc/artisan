@@ -23,8 +23,8 @@ function Swatch({ color }: { color: number }) {
 /**
  * One theme of the server's kit (`lib/pack/theme.ts`), read from the published kit module: the
  * colours it replaces, the pieces it redraws, and the same menu without it and with it. A theme
- * is put in place from here (`onPutInPlace`: the server's `resource-pack.theme`, then its pack
- * rebuilt), and taken off the same way.
+ * is put in place from here (`onPutInPlace`: on top of the server's `resource-pack.themes`,
+ * then its pack rebuilt), and taken off the same way.
  */
 export function KitThemePage({
   name,
@@ -34,26 +34,27 @@ export function KitThemePage({
 }: {
   name: string;
   onBack: () => void;
-  /** Puts the theme `name` in place on the server; `null` takes the theme in place off. */
-  onPutInPlace?: (name: string | null) => Promise<void>;
+  /** Puts the theme `name` in place on the server, above the ones that are (`put`), or takes it off. */
+  onPutInPlace?: (name: string, put: boolean) => Promise<void>;
   /** Opens the kit module, where a theme's files are. */
   onOpenKit?: () => void;
 }) {
   const { t } = useTranslation();
   const read = useKitStore((s) => s.read);
-  const inPlace = useKitStore((s) => s.theme) === name;
+  const stack = useKitStore((s) => s.themes);
+  const inPlace = stack.includes(name);
   const theme = useMemo(() => (read ? publishedKitTheme(read, name) : null), [read, name]);
   const plain = useKitAssetsIn(null);
   const themed = useKitAssetsIn(name);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const put = async (next: string | null) => {
+  const put = async (next: boolean) => {
     if (busy || !onPutInPlace) return;
     setBusy(true);
     setError(null);
     try {
-      await onPutInPlace(next);
+      await onPutInPlace(name, next);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -81,7 +82,7 @@ export function KitThemePage({
               <Button
                 variant={inPlace ? "outline" : "default"}
                 disabled={busy}
-                onClick={() => void put(inPlace ? null : name)}
+                onClick={() => void put(!inPlace)}
               >
                 {t(inPlace ? "kit.theme.takeOff" : "kit.theme.putInPlace")}
               </Button>
@@ -92,6 +93,11 @@ export function KitThemePage({
       {error ? (
         <p role="alert" className="text-xs text-[var(--danger)]">
           {t("kit.theme.failed", { detail: error })}
+        </p>
+      ) : null}
+      {inPlace && stack.length > 1 ? (
+        <p className="text-[13px] text-[var(--text-mut)]" data-testid="kit-theme-stack">
+          {t("kit.theme.stack", { themes: stack.join(", ") })}
         </p>
       ) : null}
       {!theme ? (
