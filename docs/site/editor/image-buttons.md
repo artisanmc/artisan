@@ -111,6 +111,16 @@ images and is put in place. Its page says where its files are; the assistant fil
 asked ("make the buttons red in the theme noel"). A theme changes the common images, and may
 redraw a module's own image at its size; its page lists both.
 
+A theme's colours repaint the images that follow them, and leave the others alone. Artisan's
+own images always follow. An image of yours, common or a module's, follows when **Follows the
+themes' colours** is ticked on it in **Resources**: tick it for an image drawn in Artisan's
+base colours (the server's version of a base image, first drawn in the atelier, has it
+ticked), and leave it for an icon or an imported picture, which would otherwise lose a green
+it merely shares with the buttons. A theme may be kept to one module: with `scope: guilds` in
+its `overrides/colors.yml`, its colours change the images of `guilds` only, so a "Christmas
+for Guilds" sits beside another theme (`scope: artisan`: the common images only). The theme's
+page says what its colours reach.
+
 **Composed images.** An image may be a recipe instead of a PNG: a `compose:` list in its
 `.yml`, which stacks kit images and PNGs of the module (see
 [AI](../../configuration/ai/), "Composed images"). The Resources page lists it with its picture

@@ -32,6 +32,8 @@ export function toDataUrl(png: Uint8Array): string {
  * PNG, `kitOwn` gives the server's kit module's PNG by name (the base stands in). Its recipe
  * is given even when no layer can be drawn; the picture is then empty. `theme`: the server's
  * themes in place, which its `kit:` layers are shown in, and its own too in the kit module (`ownToo`).
+ * `kitRamps`: whether the server's own common image of that name follows the ramps, so the
+ * themes' colours repaint it (the base's always do).
  */
 export async function composedView(
   asset: DiskAsset,
@@ -40,6 +42,7 @@ export async function composedView(
   kitOwn: (name: string) => Bytes | Promise<Bytes>,
   theme: ThemeLook | null = null,
   ownToo = false,
+  kitRamps: (name: string) => boolean = () => false,
 ): Promise<ComposedView | null> {
   const recipe = asset.compose;
   if (!recipe) return null;
@@ -48,11 +51,12 @@ export async function composedView(
     async (name) => {
       const layer = all.find((a) => isLayer(a) && a.row.name === name);
       const png = layer ? await bytes(layer) : undefined;
-      return png && theme && ownToo ? theme.shown(name, png) : png;
+      return png && theme && ownToo ? theme.shown(name, png, layer?.row.ramps === true) : png;
     },
     async (name) => {
-      const png = (await kitImage(name, (await kitOwn(name)) ?? undefined, kitImageBytes))?.png;
-      return png && theme ? theme.shown(name, png) : png;
+      const own = (await kitOwn(name)) ?? undefined;
+      const png = (await kitImage(name, own, kitImageBytes))?.png;
+      return png && theme ? theme.shown(name, png, png === own ? kitRamps(name) : true) : png;
     },
   );
   return image

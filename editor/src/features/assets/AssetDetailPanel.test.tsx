@@ -236,6 +236,22 @@ describe("AssetDetailPanel", () => {
     );
   });
 
+  it("says whether an image follows the themes' colours", async () => {
+    const image = { ...A, id: "frame", name: "frame", type: "texture" as const };
+    useAssetStore.getState().setAssets([image]);
+    useAssetStore.getState().setSelectedId("frame");
+    const patch = vi
+      .spyOn(userAssetsApi, "patchAsset")
+      .mockResolvedValue({ ...image, ramps: true });
+    render(<AssetDetailPanel projectId={"p1" as never} />);
+    const box = screen.getByRole("checkbox", { name: "Suit les couleurs des thèmes" });
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
+    await waitFor(() => expect(patch).toHaveBeenCalledWith("p1", "frame", { ramps: true }));
+    await waitFor(() => expect(box).toBeChecked());
+  });
+
   it("renders nothing when no asset is selected", () => {
     useAssetStore.getState().setSelectedId(null);
     const { container } = render(<AssetDetailPanel projectId={"p1" as never} />);

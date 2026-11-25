@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { KIT_PREFIX } from "@/lib/pack/kit";
+import { KIT_FOLDER, KIT_PREFIX } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -108,6 +108,15 @@ export function KitThemePage({
           <div className="flex w-full shrink-0 flex-col gap-4 xl:w-[340px]">
             <section className="card flex flex-col gap-2 p-4">
               <h3 className="eyebrow">{t("kit.theme.colors")}</h3>
+              {colors.length > 0 ? (
+                <p className="text-xs text-[var(--text-mut)]" data-testid="kit-theme-scope">
+                  {theme.scope === null
+                    ? t("kit.theme.scopeAll")
+                    : theme.scope === KIT_FOLDER
+                      ? t("kit.theme.scopeCommon")
+                      : t("kit.theme.scopeModule", { module: theme.scope })}
+                </p>
+              ) : null}
               {colors.length === 0 ? (
                 <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.noColors")}</p>
               ) : (

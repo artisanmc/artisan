@@ -24,6 +24,13 @@ import { type RgbaImage, decodePng, encodePng } from "./png";
  * transparency kept. A theme holds no Document and moves nothing, so a menu laid out against
  * the kit keeps its layout; at worst it is ugly.
  *
+ * The table repaints an image only when the image follows the ramps (decision 7): the base's
+ * images do, and any other whose descriptor says `ramps: true` (`DiskAsset.ramps`). An image
+ * that does not is drawn by a theme or left as it is, so an icon that happens to share a green
+ * keeps it. `scope: <module>` beside `colors` keeps the table to that module's images
+ * (`artisan` for the common ones); without it the table reaches every image that follows the
+ * ramps, the common ones and the modules'.
+ *
  * The themes in place are a stack (`resource-pack.themes` of `config.yml`, the lowest first):
  * each changes what the ones below show (`kitThemeStack`), so the highest that draws an image
  * wins, and a theme of colours alone repaints what is below it.
@@ -119,6 +126,20 @@ export function themeColors(text: string): Map<number, number> {
   return out;
 }
 
+/**
+ * The one module a theme's file keeps its colours to: `scope`, the module's folder (`artisan`
+ * for the common images). `null` without one, or for anything but a name: the colours then
+ * reach every image that follows the ramps.
+ */
+export function themeScope(text: string): string | null {
+  try {
+    const scope = (parse(text) as { scope?: unknown } | null)?.scope;
+    return typeof scope === "string" && scope !== "" ? scope : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The path of the theme `name`'s file among `paths`: `.yml` before `.yaml`. */
 export function themeFile(name: string, paths: readonly string[]): string | undefined {
   return [`${THEMES_DIR}/${name}/theme.yml`, `${THEMES_DIR}/${name}/theme.yaml`].find((path) =>
@@ -182,20 +203,36 @@ type Bytes = Uint8Array | null | undefined;
 export interface KitTheme {
   /** A colour to its replacement, each as `0xRRGGBB`. */
   colors: ReadonlyMap<number, number>;
+  /** The one module whose images the colours touch (`artisan` for the common images); `null` for every module. */
+  scope: string | null;
+  /** Whether the theme's colours touch the images of the module `folder` (`artisan` for the common images). */
+  paints(folder: string): boolean;
   /** The names of the images this theme redraws. */
   drawings: readonly string[];
-  /** The kit image `name`, whose PNG is `png`, as the theme shows it. */
-  shown(name: string, png: Uint8Array): Promise<Uint8Array>;
+  /**
+   * The kit image `name`, whose PNG is `png`, as the theme shows it: its own drawing, else, when
+   * the image follows the ramps (`ramps`) and the colours reach the common images, recoloured.
+   */
+  shown(name: string, png: Uint8Array, ramps: boolean): Promise<Uint8Array>;
   /** The theme's own drawing of `name`, when it has one as large as `png`; `null` otherwise. */
   drawing(name: string, png: Uint8Array): Promise<Uint8Array | null>;
   /** The modules' images this theme redraws, each as `<module>:<name>`. */
   moduleDrawings: readonly string[];
   /**
    * The theme's own drawing of the image `name` of the module `folder`, whose PNG is `png`, when
-   * it has one as large; `null` otherwise. A module's image is never recoloured: drawn or left.
+   * it has one as large; `null` otherwise.
    */
   moduleDrawing(folder: string, name: string, png: Uint8Array): Promise<Uint8Array | null>;
+  /**
+   * The image `name` of the module `folder`, whose PNG is `png`, as the theme shows it: its own
+   * drawing, else, when the image follows the ramps (`ramps`) and the colours reach that module,
+   * recoloured; `png` itself otherwise.
+   */
+  moduleShown(folder: string, name: string, png: Uint8Array, ramps: boolean): Promise<Uint8Array>;
 }
+
+/** The folder of the common images, as a theme's `scope` names them (`KIT_FOLDER` in `kit.ts`). */
+const COMMON_SCOPE = "artisan";
 
 const sizeOf = (png: Uint8Array) => {
   try {
@@ -230,6 +267,7 @@ export function kitTheme(
   redrawn: ReadonlyMap<string, string>,
   binary: (path: string) => Bytes | Promise<Bytes>,
   modules: ReadonlyMap<string, string> = new Map(),
+  scope: string | null = null,
 ): KitTheme {
   const files = new Map<string, Promise<Bytes>>();
   // The theme's file at `path`, when it is as large as `png`: a drawing of another size is left out.
@@ -251,13 +289,22 @@ export function kitTheme(
       : null;
   };
   const drawing = (name: string, png: Uint8Array) => drawnAt(redrawn.get(name), png);
+  const paints = (folder: string) => scope === null || scope === folder;
+  const moduleDrawing = (folder: string, name: string, png: Uint8Array) =>
+    drawnAt(modules.get(moduleImageKey(folder, name)), png);
   return {
     colors,
+    scope,
+    paints,
     drawings: [...redrawn.keys()],
     drawing,
-    shown: async (name, png) => (await drawing(name, png)) ?? recolored(png, colors),
+    shown: async (name, png, ramps) =>
+      (await drawing(name, png)) ?? (ramps && paints(COMMON_SCOPE) ? recolored(png, colors) : png),
     moduleDrawings: [...modules.keys()],
-    moduleDrawing: (folder, name, png) => drawnAt(modules.get(moduleImageKey(folder, name)), png),
+    moduleDrawing,
+    moduleShown: async (folder, name, png, ramps) =>
+      (await moduleDrawing(folder, name, png)) ??
+      (ramps && paints(folder) ? recolored(png, colors) : png),
   };
 }
 
@@ -281,7 +328,7 @@ export function readKitTheme(
   );
   if (file === undefined && redrawn.size === 0) return null;
   const text = file === undefined ? "" : (kit.files.find((f) => f.path === file)?.content ?? "");
-  return kitTheme(themeColors(text), redrawn, kit.binary);
+  return kitTheme(themeColors(text), redrawn, kit.binary, new Map(), themeScope(text));
 }
 
 /** The common images a theme of its own folder redraws among its `binaries`, by name. */
@@ -326,41 +373,63 @@ export function readOwnTheme(theme: ThemeFiles): KitTheme {
     ownThemeDrawings(binaries),
     theme.binary,
     ownThemeModuleDrawings(binaries),
+    themeScope(text),
   );
 }
 
-/** What the builders ask of the themes in place: one theme, or a stack of them. */
-export type ThemeLook = Pick<KitTheme, "shown" | "drawing" | "moduleDrawing">;
+/**
+ * What the builders ask of the themes in place, as one look. `ramps`: the image follows the
+ * ramps, so the themes' colours repaint it.
+ */
+export interface ThemeLook {
+  /** The kit image `name`, whose PNG is `png`, as the themes show it. */
+  shown(name: string, png: Uint8Array, ramps: boolean): Promise<Uint8Array>;
+  /**
+   * The themes' drawing of `name`: `null` unless one draws it at `png`'s size (a table of
+   * colours is not a drawing). When the image follows the ramps the themes above the one that
+   * draws it repaint its drawing, as in `shown`.
+   */
+  drawing(name: string, png: Uint8Array, ramps: boolean): Promise<Uint8Array | null>;
+  /** The image `name` of the module `folder`, whose PNG is `png`, as the themes show it. */
+  moduleShown(folder: string, name: string, png: Uint8Array, ramps: boolean): Promise<Uint8Array>;
+}
 
 /**
- * The themes in place as one look, `themes` from the lowest to the highest: each is applied to
- * what the ones below show, so the highest that draws an image wins and the colours of the ones
- * above it repaint that drawing. A module's image is the highest theme's drawing of it, as
- * drawn. `null` for none.
+ * The themes in place as one look, `themes` from the lowest to the highest. An image that
+ * follows the ramps takes each theme in turn, applied to what the ones below show: the highest
+ * that draws it wins, and the colours of the ones above repaint that drawing. An image that
+ * does not is the highest theme's drawing of it, as drawn, else itself. `null` for none.
  */
 export function kitThemeStack(themes: readonly KitTheme[]): ThemeLook | null {
   if (themes.length === 0) return null;
-  if (themes.length === 1) return themes[0]!;
+  const highest = async (drawn: (theme: KitTheme) => Promise<Uint8Array | null>) => {
+    for (const theme of [...themes].reverse()) {
+      const png = await drawn(theme);
+      if (png) return png;
+    }
+    return null;
+  };
   return {
-    shown: async (name, png) => {
+    shown: async (name, png, ramps) => {
+      if (!ramps) return (await highest((theme) => theme.drawing(name, png))) ?? png;
       let out = png;
-      for (const theme of themes) out = await theme.shown(name, out);
+      for (const theme of themes) out = await theme.shown(name, out, true);
       return out;
     },
-    // A table of colours is not a drawing: `null` unless a theme draws the image. The themes
-    // above the one that does repaint its drawing, as they do in `shown`.
-    drawing: async (name, png) => {
+    drawing: async (name, png, ramps) => {
+      if (!ramps) return highest((theme) => theme.drawing(name, png));
       let out: Uint8Array | null = null;
       for (const theme of themes)
-        out = (await theme.drawing(name, out ?? png)) ?? (out && recolored(out, theme.colors));
+        out =
+          (await theme.drawing(name, out ?? png)) ??
+          (out && theme.paints(COMMON_SCOPE) ? recolored(out, theme.colors) : out);
       return out;
     },
-    moduleDrawing: async (folder, name, png) => {
-      for (const theme of [...themes].reverse()) {
-        const drawn = await theme.moduleDrawing(folder, name, png);
-        if (drawn) return drawn;
-      }
-      return null;
+    moduleShown: async (folder, name, png, ramps) => {
+      if (!ramps) return (await highest((theme) => theme.moduleDrawing(folder, name, png))) ?? png;
+      let out = png;
+      for (const theme of themes) out = await theme.moduleShown(folder, name, out, true);
+      return out;
     },
   };
 }

@@ -23,6 +23,13 @@ package net.artisanmc.plugin.pack
  * transparency kept. A theme holds no Document and moves nothing, so a menu laid out against
  * the kit keeps its layout; at worst it is ugly.
  *
+ * The table repaints an image only when the image follows the ramps (decision 7): the base's
+ * images do, and any other whose descriptor says `ramps: true` ([DiskAsset.ramps]). An image
+ * that does not is drawn by a theme or left as it is, so an icon that happens to share a green
+ * keeps it. `scope: <module>` beside `colors` keeps the table to that module's images
+ * (`artisan` for the common ones); without it the table reaches every image that follows the
+ * ramps, the common ones and the modules'.
+ *
  * The themes in place are a stack (`resource-pack.themes` of `config.yml`, the lowest first):
  * each changes what the ones below show ([ThemeStack]), so the highest that draws an image
  * wins, and a theme of colours alone repaints what is below it.
@@ -35,6 +42,8 @@ class KitTheme internal constructor(
     private val binary: (String) -> ByteArray?,
     /** The modules' images the theme redraws: their [moduleImageKey] to their file. */
     private val modules: Map<String, String> = emptyMap(),
+    /** The one module whose images the colours touch ([Kit.FOLDER] for the common images); null for every module. */
+    val scope: String? = null,
 ) {
     private val files = HashMap<String, ByteArray?>()
 
@@ -44,8 +53,15 @@ class KitTheme internal constructor(
     /** How many colours the theme replaces. */
     val colorCount: Int get() = colors.size
 
-    /** The kit image [name], whose PNG is [png], as the theme shows it. */
-    fun shown(name: String, png: ByteArray): ByteArray = drawing(name, png) ?: recolored(png)
+    /** Whether the theme's colours touch the images of the module [folder] ([Kit.FOLDER] for the common images). */
+    fun paints(folder: String): Boolean = scope == null || scope == folder
+
+    /**
+     * The kit image [name], whose PNG is [png], as the theme shows it: its own drawing, else, when
+     * the image follows the ramps ([ramps]) and the colours reach the common images, recoloured.
+     */
+    fun shown(name: String, png: ByteArray, ramps: Boolean): ByteArray =
+        drawing(name, png) ?: if (ramps && paints(Kit.FOLDER)) recolored(png) else png
 
     /** The theme's own drawing of [name], when it has one as large as [png]; null otherwise. */
     fun drawing(name: String, png: ByteArray): ByteArray? = drawnAt(redrawn[name], png)
@@ -53,11 +69,16 @@ class KitTheme internal constructor(
     /** The modules' images this theme redraws, each as `<module>:<name>`. */
     val moduleDrawings: Set<String> get() = modules.keys
 
-    /**
-     * The theme's own drawing of the image [name] of the module [folder], whose PNG is [png], when
-     * it has one as large; null otherwise. A module's image is never recoloured: drawn or left.
-     */
+    /** The theme's own drawing of the image [name] of the module [folder], whose PNG is [png], when it has one as large; null otherwise. */
     fun moduleDrawing(folder: String, name: String, png: ByteArray): ByteArray? = drawnAt(modules[moduleImageKey(folder, name)], png)
+
+    /**
+     * The image [name] of the module [folder], whose PNG is [png], as the theme shows it: its own
+     * drawing, else, when the image follows the ramps ([ramps]) and the colours reach that module,
+     * recoloured; [png] itself otherwise.
+     */
+    fun moduleShown(folder: String, name: String, png: ByteArray, ramps: Boolean): ByteArray =
+        moduleDrawing(folder, name, png) ?: if (ramps && paints(folder)) recolored(png) else png
 
     /** The theme's file at [path], when it is as large as [png]: a drawing of another size is left out. */
     private fun drawnAt(path: String?, png: ByteArray): ByteArray? {
@@ -182,8 +203,10 @@ class KitTheme internal constructor(
         fun own(theme: PackProject): KitTheme = ownOf(theme.files.associate { it.path to it.content }, theme.binaries, theme.binary)
 
         /** [own] of a theme given as its text [files] (path to content), the paths of its [binaries] and what reads one. */
-        fun ownOf(files: Map<String, String>, binaries: Collection<String>, binary: (String) -> ByteArray?): KitTheme =
-            KitTheme(COLORS_FILES.firstNotNullOfOrNull(files::get)?.let(::colors).orEmpty(), ownDrawings(binaries), binary, ownModuleDrawings(binaries))
+        fun ownOf(files: Map<String, String>, binaries: Collection<String>, binary: (String) -> ByteArray?): KitTheme {
+            val table = COLORS_FILES.firstNotNullOfOrNull(files::get)
+            return KitTheme(table?.let(::colors).orEmpty(), ownDrawings(binaries), binary, ownModuleDrawings(binaries), table?.let(::scope))
+        }
 
         /** `0xRRGGBB` of `#rrggbb`; null for anything else. */
         fun color(text: Any?): Int? = (text as? String)?.takeIf { COLOR.matches(it) }?.substring(1)?.toInt(16)
@@ -204,6 +227,18 @@ class KitTheme internal constructor(
             }
             return out
         }
+
+        /**
+         * The one module a theme's file keeps its colours to: `scope`, the module's folder
+         * ([Kit.FOLDER] for the common images). Null without one, or for anything but a name:
+         * the colours then reach every image that follows the ramps.
+         */
+        fun scope(text: String): String? =
+            ((Yaml.parseOrNull(text) as? Map<*, *>)?.get("scope") as? String)?.takeIf { it.isNotEmpty() }
+
+        /** Whether an image's descriptor, as text, says the image follows the ramps (`ramps: true`); false without one. */
+        fun followsRamps(descriptor: String?): Boolean =
+            descriptor != null && ImageFunctions.ramps(Yaml.parseOrNull(descriptor) as? Map<*, *>)
 
         /** The path of the theme [name]'s file among [paths]: `.yml` before `.yaml`. */
         fun file(name: String, paths: Collection<String>): String? =
@@ -246,7 +281,8 @@ class KitTheme internal constructor(
             val file = file(name, files.keys)
             val redrawn = drawings(name, binaries)
             if (file == null && redrawn.isEmpty()) return null
-            return KitTheme(file?.let(files::get)?.let(::colors).orEmpty(), redrawn, binary)
+            val table = file?.let(files::get)
+            return KitTheme(table?.let(::colors).orEmpty(), redrawn, binary, scope = table?.let(::scope))
         }
 
         /** The theme whose file is at [path] (`themes/<name>/theme.yml`); null for any other path. */
@@ -263,6 +299,10 @@ class KitTheme internal constructor(
             val table = root["colors"] as? Map<*, *>
                 ?: return listOf("`colors` is not a map of colours. Quote each one: `colors: {\"#3c8527\": \"#b3261e\"}` (unquoted, `#` starts a comment and the line is empty).")
             val out = ArrayList<String>()
+            val scope = root["scope"]
+            if (scope != null && (scope !is String || scope.isEmpty())) {
+                out += "`scope` is not a module's folder. Write `scope: guilds` to keep the colours to that module's images, `scope: ${Kit.FOLDER}` for the common images, or leave it out."
+            }
             if (table.size > MAX_COLORS) out += "`colors` holds ${table.size} colours: a theme replaces $MAX_COLORS at most."
             for ((key, value) in table) {
                 if (out.size >= 8) break
@@ -276,27 +316,32 @@ class KitTheme internal constructor(
 
 /**
  * The themes in place as one look (`kitThemeStack` in `theme.ts`), from the lowest to the
- * highest: each is applied to what the ones below show, so the highest that draws an image wins
- * and the colours of the ones above it repaint that drawing. A module's image is the highest
- * theme's drawing of it, as drawn.
+ * highest. An image that follows the ramps takes each theme in turn, applied to what the ones
+ * below show: the highest that draws it wins, and the colours of the ones above repaint that
+ * drawing. An image that does not is the highest theme's drawing of it, as drawn, else itself.
  */
 class ThemeStack private constructor(private val themes: List<KitTheme>) {
-    /** The kit image [name], whose PNG is [png], as the themes show it. */
-    fun shown(name: String, png: ByteArray): ByteArray = themes.fold(png) { out, theme -> theme.shown(name, out) }
+    /** The kit image [name], whose PNG is [png], as the themes show it; [ramps]: it follows the ramps. */
+    fun shown(name: String, png: ByteArray, ramps: Boolean): ByteArray =
+        if (ramps) themes.fold(png) { out, theme -> theme.shown(name, out, true) }
+        else themes.asReversed().firstNotNullOfOrNull { it.drawing(name, png) } ?: png
 
     /**
      * The themes' drawing of [name]: null unless one draws it at [png]'s size (a table of colours
-     * is not a drawing); the themes above the one that does repaint its drawing, as in [shown].
+     * is not a drawing). When the image follows the ramps ([ramps]) the themes above the one that
+     * draws it repaint its drawing, as in [shown].
      */
-    fun drawing(name: String, png: ByteArray): ByteArray? {
+    fun drawing(name: String, png: ByteArray, ramps: Boolean): ByteArray? {
+        if (!ramps) return themes.asReversed().firstNotNullOfOrNull { it.drawing(name, png) }
         var out: ByteArray? = null
-        for (theme in themes) out = theme.drawing(name, out ?: png) ?: out?.let(theme::recolored)
+        for (theme in themes) out = theme.drawing(name, out ?: png) ?: out?.let { if (theme.paints(Kit.FOLDER)) theme.recolored(it) else it }
         return out
     }
 
-    /** The image [name] of the module [folder] as the highest theme that redraws it at [png]'s size draws it; null when none does. */
-    fun moduleDrawing(folder: String, name: String, png: ByteArray): ByteArray? =
-        themes.asReversed().firstNotNullOfOrNull { it.moduleDrawing(folder, name, png) }
+    /** The image [name] of the module [folder], whose PNG is [png], as the themes show it; [ramps]: it follows the ramps. */
+    fun moduleShown(folder: String, name: String, png: ByteArray, ramps: Boolean): ByteArray =
+        if (ramps) themes.fold(png) { out, theme -> theme.moduleShown(folder, name, out, true) }
+        else themes.asReversed().firstNotNullOfOrNull { it.moduleDrawing(folder, name, png) } ?: png
 
     companion object {
         /** Null for no theme. */

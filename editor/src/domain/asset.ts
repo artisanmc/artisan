@@ -33,6 +33,8 @@ export interface Asset {
   usages?: (AssetUsage | LegacyAssetUsage)[];
   /** What the image is for, which fixes its measures (`lib/pack/imageFunction.ts`); absent for none. */
   function?: ImageFunction;
+  /** The image follows the ramps: a theme's colours repaint it (`lib/pack/theme.ts`). */
+  ramps?: boolean;
   draftId?: string;
   id: AssetId;
   projectId: string;

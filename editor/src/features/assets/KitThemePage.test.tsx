@@ -30,6 +30,10 @@ describe("KitThemePage", () => {
     expect(
       within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
     ).toBeInTheDocument();
+    // Without a scope its colours reach every image that follows them.
+    expect(screen.getByTestId("kit-theme-scope")).toHaveTextContent(
+      "Dans les images qui suivent les couleurs des thèmes",
+    );
     expect(screen.getByText("Pas en place")).toBeInTheDocument();
     expect(screen.getByTestId("kit-theme-before")).toBeInTheDocument();
     expect(screen.getByTestId("kit-theme-after")).toBeInTheDocument();
@@ -59,7 +63,7 @@ describe("KitThemePage", () => {
       own: {
         printemps: {
           projectId: "srv.printemps",
-          files: { "overrides/colors.yml": 'colors: {"#3c8527": "#ffb7c5"}\n' },
+          files: { "overrides/colors.yml": 'scope: guilds\ncolors: {"#3c8527": "#ffb7c5"}\n' },
           binaries: [
             { path: "overrides/artisan/close.1x1.png", hash: "h" },
             { path: "overrides/guilds/banner.png", hash: "h" },
@@ -70,6 +74,10 @@ describe("KitThemePage", () => {
     const onOpenKit = vi.fn();
     render(<KitThemePage name="printemps" onBack={() => {}} onOpenKit={onOpenKit} />);
     expect(within(screen.getByTestId("kit-theme-colors")).getByText("#ffb7c5")).toBeInTheDocument();
+    // A theme of one module says which.
+    expect(screen.getByTestId("kit-theme-scope")).toHaveTextContent(
+      "Dans les images du module guilds seulement",
+    );
     expect(
       within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
     ).toBeInTheDocument();

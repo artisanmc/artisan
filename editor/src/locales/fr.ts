@@ -39,6 +39,10 @@ const fr: typeof en = {
       notTakenGlyph:
         "Non prise : ce glyphe a une hauteur de {{height}} et un ascent de {{ascent}}, l'original une hauteur de {{originalHeight}} et un ascent de {{originalAscent}}. L'original reste montré tant qu'ils diffèrent.",
     },
+    ramps: {
+      label: "Suit les couleurs des thèmes",
+      hint: "Un thème en place remplace les couleurs de cette image par les siennes. À cocher pour une image dessinée dans les couleurs de base d'Artisan ; sans cela l'image garde ses couleurs, comme il convient à une image importée.",
+    },
     originalChanged: {
       title: "L'original a changé depuis ta version.",
       hint: "Les menus continuent de montrer la tienne. Garde-la telle quelle, ou restaure l'original pour repartir du nouveau.",
@@ -309,6 +313,10 @@ const fr: typeof en = {
       missing: "Le serveur n'a pas de thème « {{name}} » déployé.",
       colors: "Couleurs remplacées",
       noColors: "Ce thème ne remplace aucune couleur.",
+      scopeAll:
+        "Dans les images qui suivent les couleurs des thèmes : celles d'Artisan, et celles des images communes et des modules qui le disent.",
+      scopeCommon: "Dans les images communes seulement (scope: artisan).",
+      scopeModule: "Dans les images du module {{module}} seulement (scope: {{module}}).",
       becomes: "devient",
       drawings: "Pièces redessinées pour ce thème",
       noDrawings: "Ce thème ne redessine aucune pièce.",

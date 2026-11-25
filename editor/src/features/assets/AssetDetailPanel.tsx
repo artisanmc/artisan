@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { type AssetUsage, assetPreviewUrl } from "@/domain/asset";
 import { assetMenuReferences, assetUsages } from "@/domain/assetUsage";
@@ -42,6 +43,7 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   const [error, setError] = useState<string | null>(null);
   const [usages, setUsages] = useState<AssetUsage[]>([]);
   const [fn, setFn] = useState<ImageFunction | "">("");
+  const [ramps, setRamps] = useState(false);
   const [busy, setBusy] = useState(false);
   const openStudio = useResourcesView((s) => s.openStudio);
   const standing = useImageStanding(projectId, asset);
@@ -54,6 +56,10 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   useEffect(() => {
     setFn(savedFunction);
   }, [savedFunction]);
+  const savedRamps = asset?.ramps === true;
+  useEffect(() => {
+    setRamps(savedRamps);
+  }, [savedRamps]);
   useEffect(() => {
     setName(savedName);
     setAscent(String(savedAscent));
@@ -87,8 +93,10 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
         ascent?: number;
         usages?: AssetUsage[];
         function?: ImageFunction | "";
+        ramps?: boolean;
       } = {};
       if (asset.type !== "font" && fn !== savedFunction) patch.function = fn;
+      if (ramps !== savedRamps) patch.ramps = ramps;
       if (
         asset.type !== "font" &&
         JSON.stringify(usages) !== JSON.stringify(assetUsages(asset, project))
@@ -263,6 +271,15 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
             </select>
             <span className="text-[var(--text-mut)]">{t("resources.function.hint")}</span>
           </label>
+        )}
+        {asset.type !== "font" && !asset.compose && !asShipped && (
+          <div className="mt-2 flex flex-col gap-1 text-xs">
+            <label className="flex items-center gap-2" htmlFor={`${inputId}-ramps`}>
+              <Checkbox id={`${inputId}-ramps`} checked={ramps} onCheckedChange={setRamps} />
+              {t("resources.ramps.label")}
+            </label>
+            <span className="text-[var(--text-mut)]">{t("resources.ramps.hint")}</span>
+          </div>
         )}
         {asset.type === "glyph" && (
           <label className="text-xs" htmlFor={`${inputId}-ascent`}>

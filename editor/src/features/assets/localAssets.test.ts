@@ -387,6 +387,90 @@ describe("performLocalAssetMutation", () => {
     );
   });
 
+  it("says an image follows the ramps in its descriptor, keeps it across a retouch and a rename, and clears it", async () => {
+    const hub = fakeHub(empty());
+    const created = await performLocalAssetMutation(
+      "p",
+      createOp(hub, { type: "texture", name: "panel", ramps: "true" }, png(8, 8)),
+    );
+    expect(created.asset).toMatchObject({ ramps: true });
+    expect(parse(hub.draft.snapshot.tree["assets/textures/panel.yml"]!)).toMatchObject({
+      ramps: true,
+    });
+    const retouched = await performLocalAssetMutation(
+      "p",
+      createOp(hub, { type: "texture", name: "panel", retouch: "true" }, png(8, 8, 2)),
+    );
+    expect(retouched.asset).toMatchObject({ ramps: true });
+    const renamed = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/panel", method: "PATCH", fields: { name: "frame" } }),
+    );
+    expect(renamed.asset).toMatchObject({ id: "frame", ramps: true });
+    const refused = await rejection(
+      performLocalAssetMutation(
+        "p",
+        op(hub, { suffix: "/frame", method: "PATCH", fields: { ramps: "yes" } }),
+      ),
+    );
+    expect([refused.status, refused.code]).toEqual([400, "Invalid ramps (true or false)"]);
+    const cleared = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/frame", method: "PATCH", fields: { ramps: "false" } }),
+    );
+    expect(cleared.asset?.ramps).toBeUndefined();
+    expect(parse(hub.draft.snapshot.tree["assets/textures/frame.yml"]!)).not.toHaveProperty(
+      "ramps",
+    );
+    // An image imported without a word of it keeps its colours.
+    const plain = await performLocalAssetMutation(
+      "p",
+      createOp(hub, { type: "texture", name: "photo" }, png(8, 8)),
+    );
+    expect(plain.asset?.ramps).toBeUndefined();
+    const set = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/photo", method: "PATCH", fields: { ramps: "true" } }),
+    );
+    expect(set.asset).toMatchObject({ ramps: true });
+    expect(parse(hub.draft.snapshot.tree["assets/textures/photo.yml"]!)).toMatchObject({
+      ramps: true,
+    });
+  });
+
+  it("the server's version of a base image, first drawn over the base, follows the ramps", async () => {
+    const original = png(8, 8, 6);
+    const snapshot = empty();
+    snapshot.binaryTree = {
+      "originals/assets/textures/cell.png": { hash: sha256Hex(original), size: original.length },
+    };
+    snapshot.binaryBaseline = { ...snapshot.binaryTree };
+    const hub = fakeHub(snapshot, { "originals/assets/textures/cell.png": original });
+    useKitStore.setState({ read: { projectId: "p", files: {}, binaries: [] } });
+    try {
+      const mine = await performLocalAssetMutation(
+        "p",
+        createOp(hub, { type: "texture", name: "cell", retouch: "true" }, png(8, 8, 3)),
+      );
+      expect(mine.asset).toMatchObject({ id: "cell", ramps: true });
+      expect(parse(hub.draft.snapshot.tree["assets/textures/cell.yml"]!)).toMatchObject({
+        ramps: true,
+      });
+      // Told that it keeps its colours, it stays so across the next retouch.
+      await performLocalAssetMutation(
+        "p",
+        op(hub, { suffix: "/cell", method: "PATCH", fields: { ramps: "false" } }),
+      );
+      const again = await performLocalAssetMutation(
+        "p",
+        createOp(hub, { type: "texture", name: "cell", retouch: "true" }, png(8, 8, 4)),
+      );
+      expect(again.asset?.ramps).toBeUndefined();
+    } finally {
+      useKitStore.setState({ read: undefined });
+    }
+  });
+
   it("retouches an image the module ships: the owner's version beside the original", async () => {
     const original = png(8, 8, 6);
     const snapshot = empty();
