@@ -73,16 +73,19 @@ useServerIndexStore.subscribe((state, previous) => {
     },
   );
   // The server's other themes, each a Project of its name (`lib/pack/theme.ts`).
-  useKitStore
-    .getState()
-    .setOwn(
-      Object.fromEntries(
-        state.reads
-          .filter((r) => r.summary.role === "theme" && r !== read)
-          .map((r) => [
-            folderOf(r),
-            { projectId: r.summary.id, files: r.files, binaries: r.binaries },
-          ]),
-      ),
-    );
+  useKitStore.getState().setOwn(
+    Object.fromEntries(
+      state.reads
+        .filter((r) => r.summary.role === "theme" && r !== read)
+        .map((r) => [
+          folderOf(r),
+          {
+            projectId: r.summary.id,
+            files: r.files,
+            binaries: r.binaries,
+            canMove: r.summary.capabilities?.canRename === true,
+          },
+        ]),
+    ),
+  );
 });

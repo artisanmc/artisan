@@ -6,7 +6,7 @@ package net.artisanmc.plugin.protocol
  * talk to the server. The minor only adds fields, which the other side ignores.
  */
 object ProtocolVersion {
-    const val CURRENT = "1.11"
+    const val CURRENT = "1.12"
 
     /** Minor that adds `project_create`, `project_delete` and `project_rename`. */
     const val PROJECT_FOLDERS = 1
@@ -43,6 +43,9 @@ object ProtocolVersion {
      * (ADR `common-images-and-themes`, decision 5). An older server would create a module of that name.
      */
     const val THEME_FOLDERS = 11
+
+    /** Minor from which `project_delete` and `project_rename` reach a theme's folder; an older server answers `addon_immutable`. */
+    const val THEME_MOVES = 12
 
     fun major(version: String): Int? = version.substringBefore('.').toIntOrNull()
 

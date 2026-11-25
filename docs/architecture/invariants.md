@@ -248,7 +248,8 @@ Nothing blocking in `onEnable` nor on the global thread after it (issue #42):
 
 Name reserved at the top of a Projects root, excluded from the hash and from the editor. `project_delete`
 (`ProjectFolders`) moves a deleted Project's folder there, under `<id>-<timestamp>`: nothing
-is ever erased. Never use it for anything else.
+is ever erased. Never use it for anything else. A deleted theme goes to the same name at the
+top of `themes/` (`ServerThemes.delete`), which is no theme's name and so never registered.
 
 ## Menu content only exists client-side
 

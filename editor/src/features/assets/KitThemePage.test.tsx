@@ -158,4 +158,61 @@ describe("KitThemePage", () => {
     render(<KitThemePage name="noel" onBack={() => {}} onColors={onColors} />);
     expect(screen.queryByTestId("kit-theme-ramps")).toBeNull();
   });
+
+  it("renames and deletes a theme of its own folder the server moves", async () => {
+    const mine = { projectId: "srv.printemps", files: {}, binaries: [] };
+    useKitStore.setState({ own: { printemps: { ...mine, canMove: true }, ete: mine } });
+    const onRename = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = render(
+      <KitThemePage name="printemps" onBack={() => {}} onRename={onRename} onDelete={onDelete} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Renommer" }));
+    const dialog = screen.getByRole("dialog");
+    const field = within(dialog).getByLabelText("Nom du thème");
+    expect(field).toHaveValue("printemps");
+    // Its own name, a name another theme has, a name that is no theme's: nothing is sent.
+    expect(within(dialog).getByRole("button", { name: "Renommer" })).toBeDisabled();
+    fireEvent.change(field, { target: { value: "ete" } });
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("porte déjà ce nom");
+    fireEvent.change(field, { target: { value: "Été" } });
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Minuscules, chiffres");
+    expect(within(dialog).getByRole("button", { name: "Renommer" })).toBeDisabled();
+    fireEvent.change(field, { target: { value: "avril" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Renommer" }));
+    await waitFor(() => expect(onRename).toHaveBeenCalledWith("printemps", "avril"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: "Supprimer" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("themes/.artisan-trash/");
+    expect(screen.getByRole("dialog")).not.toHaveTextContent("Ce thème est en place");
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }));
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith("printemps"));
+
+    // A theme the server does not move (an older server), or one the common images keep: neither is offered.
+    rerender(<KitThemePage name="ete" onBack={() => {}} onRename={onRename} onDelete={onDelete} />);
+    expect(screen.queryByTestId("theme-moves")).toBeNull();
+    rerender(
+      <KitThemePage name="noel" onBack={() => {}} onRename={onRename} onDelete={onDelete} />,
+    );
+    expect(screen.queryByTestId("theme-moves")).toBeNull();
+  });
+
+  it("says a theme in place is taken off when deleted, and shows the server's refusal", async () => {
+    useKitStore.setState({
+      own: { printemps: { projectId: "srv.printemps", files: {}, binaries: [], canMove: true } },
+      themes: ["printemps"],
+    });
+    const onDelete = vi.fn().mockRejectedValue(new Error("server_offline"));
+    render(<KitThemePage name="printemps" onBack={() => {}} onDelete={onDelete} />);
+    // Without a way to rename, renaming is not offered.
+    expect(screen.queryByRole("button", { name: "Renommer" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Supprimer" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("Ce thème est en place");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Supprimer" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Le serveur est hors ligne");
+    // The dialog stays open on a refusal.
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
 });

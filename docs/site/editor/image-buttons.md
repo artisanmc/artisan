@@ -117,6 +117,14 @@ the ones below show; drag a theme by its handle to change its place, **Take off*
 place** to change the list. Each change rebuilds the server's pack. A click on a theme opens
 its page.
 
+A theme created as a folder of its own is renamed and deleted from its page (**Rename**,
+**Delete**, under where its files are). A renamed theme keeps its colours, its images and its
+place among the themes in place. A deleted theme is taken off the server and its folder moved
+to the server's trash (`plugins/Artisan/themes/.artisan-trash/`): nothing is erased, and
+moving the folder back into `themes/` under the theme's name restores it at the server's
+next start. The common images
+(`artisan`) are neither renamed nor deleted. Both need the server's plugin to be up to date.
+
 On the page of a theme, **Artisan's colours** has one colour to pick per family: main
 (buttons), danger (delete, close), accent (highlights) and neutral (windows, frames). Pick
 what a family's colour becomes and its shades follow, darker ones darker, lighter ones

@@ -4,6 +4,7 @@ import net.artisanmc.plugin.project.PublicationAuthor
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.project.ProjectRoots
 import net.artisanmc.plugin.project.ProjectSnapshot
+import net.artisanmc.plugin.project.ServerThemes
 import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.Executor
@@ -70,6 +71,46 @@ class ProjectFolderRequestsTest {
         assertEquals("project_exists", dispatch("""{"type":"project_create","request_id":"r3","project_id":"noel"}""")["error"])
         assertEquals("invalid_name", dispatch("""{"type":"project_create","request_id":"r4","project_id":"Noel","role":"theme"}""")["error"])
         assertEquals("invalid_input", dispatch("""{"type":"project_create","request_id":"r5","project_id":"x","role":"config"}""")["error"])
+    }
+
+    @Test fun `a theme is renamed and deleted as a theme, the theme artisan never`() {
+        val themes = File(coreRoot.parentFile, "themes")
+        dispatch("""{"type":"project_create","request_id":"r1","project_id":"noel","role":"theme"}""")
+        File(themes, "noel/overrides").mkdirs()
+        File(themes, "noel/overrides/colors.yml").writeText("colors: {}\n")
+        File(coreRoot, "shop").mkdirs()
+        workspace.roots.theme("artisan")
+
+        // A module's name, the theme's own, or a name that is no theme's is refused; nothing moves.
+        fun rename(to: String) = dispatch("""{"type":"project_rename","request_id":"r","project_id":"noel","target_project_id":"$to"}""")
+        assertEquals("destination_exists", rename("shop")["error"])
+        assertEquals("invalid_path", rename("artisan")["error"], "the common images' name is no theme's")
+        assertEquals("invalid_path", rename("Noel")["error"])
+        assertEquals("invalid_path", rename("noel")["error"])
+        assertTrue(workspace.roots.isTheme("noel"))
+
+        assertEquals(true, rename("hiver")["ok"])
+        assertTrue(File(themes, "hiver/overrides/colors.yml").isFile)
+        assertFalse(File(themes, "noel").exists())
+        assertFalse(File(coreRoot, "hiver").exists(), "a theme stays beside the modules")
+        assertTrue(workspace.roots.isTheme("hiver") && !workspace.roots.isTheme("noel") && !workspace.roots.isRegistered("noel"))
+        assertEquals(setOf("noel", "hiver"), reloaded.last())
+
+        // Deleted: its folder goes to the themes' trash, and it is a Project no more.
+        assertEquals(true, dispatch("""{"type":"project_delete","request_id":"r5","project_id":"hiver"}""")["ok"])
+        assertFalse(File(themes, "hiver").exists())
+        val trashed = File(themes, ".artisan-trash").list()!!.toList()
+        assertTrue(trashed.size == 1 && trashed[0].startsWith("hiver-"), trashed.toString())
+        assertTrue(File(themes, ".artisan-trash/${trashed[0]}/overrides/colors.yml").isFile)
+        assertFalse(workspace.roots.isRegistered("hiver"))
+        assertEquals("unknown_project", dispatch("""{"type":"project_delete","request_id":"r6","project_id":"hiver"}""")["error"])
+        // The trash is no theme at the next start.
+        assertFalse(".artisan-trash" in ServerThemes.register(ProjectRoots(coreRoot)))
+
+        // The common images stay.
+        assertEquals("addon_immutable", dispatch("""{"type":"project_delete","request_id":"r7","project_id":"artisan"}""")["error"])
+        assertEquals("addon_immutable", dispatch("""{"type":"project_rename","request_id":"r8","project_id":"artisan","target_project_id":"base"}""")["error"])
+        assertTrue(File(themes, "artisan").isDirectory && workspace.roots.isTheme("artisan"))
     }
 
     @Test fun `a publication names its author before the reload`() {

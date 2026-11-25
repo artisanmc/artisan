@@ -16,9 +16,11 @@ import { menusNamingCommon, useImageUses } from "@/features/project/imageUses";
 import { rebuildServerPackInBackground } from "@/features/project/resourcePackSync";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { useServerFrame } from "@/features/serverPage/serverFrame";
+import { renameProject } from "@/lib/api/projectIdentity";
 import { patchServerConfig } from "@/lib/api/serverConfig";
+import { deleteUserProject } from "@/lib/api/userProjects";
 import { commonImageKey } from "@/lib/pack/kit";
-import { THEMES_CONFIG_KEY, isThemeName, themeChange } from "@/lib/pack/theme";
+import { THEMES_CONFIG_KEY, isThemeName, themeChange, themesRenamed } from "@/lib/pack/theme";
 import { projectDestination } from "@/lib/projectNavigation";
 import { useKitStore } from "@/state/kitStore";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -78,6 +80,7 @@ function ServerResourcesTab() {
         void openModule(kitId);
       }
     : undefined;
+  const fromThemes = show === SERVER_THEMES;
   // The kit's images are shown in the server's themes from now on, and its pack rebuilt in them.
   const stackSaved = (saved: Record<string, unknown>) => {
     useKitStore.getState().readConfig(saved);
@@ -86,6 +89,42 @@ function ServerResourcesTab() {
   const putInPlace = async (name: string, put: boolean) => {
     const { themes, stacks } = useKitStore.getState();
     stackSaved(await patchServerConfig(serverKeyId, themeChange(themes, stacks, name, put)));
+  };
+  /**
+   * Writes the themes in place once a theme's folder has moved (`names`; `null`: it was not in
+   * place, nothing to write), then reads the server's themes again. The folder is moved first:
+   * a refusal then leaves the list as it was.
+   */
+  const stackFollows = async (names: string[] | null) => {
+    setRereads((count) => count + 1);
+    if (!names) return;
+    let saved: Record<string, unknown>;
+    try {
+      saved = await patchServerConfig(serverKeyId, { [THEMES_CONFIG_KEY]: names });
+    } catch {
+      throw new Error("stack_failed");
+    }
+    stackSaved(saved);
+  };
+  const renameTheme = async (name: string, target: string) => {
+    const mine = useKitStore.getState().own[name];
+    if (!mine) throw new Error("unknown_project");
+    const result = await renameProject(mine.projectId, {
+      operationId: crypto.randomUUID(),
+      targetId: target,
+    });
+    if (result.status !== "complete") throw new Error("failed");
+    // The page of the theme under its new name, before the list is written: a refusal there is said on it.
+    void showScope(fromThemes ? SERVER_THEMES : SERVER_COMMON, target);
+    await stackFollows(themesRenamed(useKitStore.getState().themes, name, target));
+  };
+  const deleteTheme = async (name: string) => {
+    const mine = useKitStore.getState().own[name];
+    if (!mine) throw new Error("unknown_project");
+    await deleteUserProject(mine.projectId);
+    void showScope(SERVER_THEMES);
+    const { themes } = useKitStore.getState();
+    await stackFollows(themes.includes(name) ? themes.filter((other) => other !== name) : null);
   };
   const newTheme = (from: ServerResourcesScope) =>
     kitId
@@ -100,7 +139,6 @@ function ServerResourcesTab() {
           />
         )
       : undefined;
-  const fromThemes = show === SERVER_THEMES;
   if (theme)
     return (
       <div className="h-full overflow-auto">
@@ -125,6 +163,8 @@ function ServerResourcesTab() {
                 rebuildServerPackInBackground(t, serverKeyId);
             }}
             onPutInPlace={putInPlace}
+            onRename={renameTheme}
+            onDelete={deleteTheme}
           />
         </div>
       </div>

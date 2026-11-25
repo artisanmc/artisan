@@ -103,7 +103,11 @@ whole server by default (every module's published images and fonts, read by
 common images alone (`?show=common`: `KitPage`), or the server's themes (`?show=themes`:
 `ThemesPage`, the stack in place the highest first, dragged to reorder, with the themes that
 are not in place; `themesMoved` turns a move on the screen into the server's list);
-`?theme=<name>` is one theme's `KitThemePage`, which goes back to the page named by `show`. It
+`?theme=<name>` is one theme's `KitThemePage`, which goes back to the page named by `show`.
+That page renames and deletes a theme of its own folder (`ThemeMoves`, offered when the
+theme's `KitRead.canMove` is set, the server's `capabilities.canRename`): the route moves the
+folder (`renameProject`, `deleteUserProject`), then writes the themes in place when the theme
+was among them (`themesRenamed`) and rebuilds the pack. The list
 changes nothing itself: an image opens where it lives, in its module's Resources (the route
 sets the asset store's selection, then opens that module) or in the atelier of the common
 images (`useResourcesView.askPiece`).

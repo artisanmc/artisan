@@ -12,6 +12,11 @@ export interface KitRead {
    * older one, whose common images are the module `ui-kit`, reads `kit:<name>` only.
    */
   byName?: boolean;
+  /**
+   * A theme of its own folder: whether the server renames and deletes that folder. Not so
+   * for an older server, and never for the common images.
+   */
+  canMove?: boolean;
 }
 
 interface KitState {

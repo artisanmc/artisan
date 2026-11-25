@@ -111,6 +111,19 @@ export function themesMoved(inPlace: readonly string[], from: number, to: number
   return shown.reverse();
 }
 
+/**
+ * The themes in place once the theme `name` is renamed `target`: it keeps its place. `null`
+ * when it is not in place, so nothing is to write.
+ */
+export function themesRenamed(
+  inPlace: readonly string[],
+  name: string,
+  target: string,
+): string[] | null {
+  if (!inPlace.includes(name)) return null;
+  return inPlace.map((other) => (other === name ? target : other));
+}
+
 /** `0xRRGGBB` of `#rrggbb`; `null` for anything else. */
 export const themeColor = (text: unknown): number | null =>
   typeof text === "string" && COLOR.test(text) ? Number.parseInt(text.slice(1), 16) : null;

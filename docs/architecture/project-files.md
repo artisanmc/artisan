@@ -50,6 +50,11 @@ holds no Document: the server loads no menu, command or Trigger from it
 (`ProjectRoots.holdsDocuments`). A folder named like a module of the server is not registered
 (warning at start): the module keeps the name. The editor's **New theme** and the MCP tool
 `create_theme` make one empty (`project_create` with `role: "theme"`, `ServerThemes.create`).
+The theme's page renames it (`project_rename`, `ServerThemes.rename`: the folder moves within
+`themes/`, to a name no module, theme or folder there has) and deletes it (`project_delete`,
+`ServerThemes.delete`: the folder moves to `themes/.artisan-trash/<name>-<UTC timestamp>/`,
+never erased). The theme `artisan` is neither renamed nor deleted. `resource-pack.themes` is
+not the server's to follow: the editor writes it after the move.
 A theme the common images' folder kept (`themes/artisan/themes/<name>/`, `theme.yml` and
 `assets/`) moves to its own folder at start (`ServerThemes.migrate`): `theme.yml` becomes
 `overrides/colors.yml`, `assets/textures/<image>.png` (then `assets/glyphs/` for a name no
@@ -243,7 +248,7 @@ resolved at bind, item values are material refs.
 
 Paths whose **first segment** starts with `.artisan` are outside the hash and
 invisible to the disk scan — see `invariants.md` § Universal `.artisan*` exclusion. Same for
-`.artisan-trash/`, at the top of `projectsDir`.
+`.artisan-trash/`, at the top of `projectsDir` and at the top of `themes/` (a deleted theme).
 
 ## Originals (`originals/`)
 

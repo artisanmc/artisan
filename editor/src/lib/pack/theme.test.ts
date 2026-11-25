@@ -17,6 +17,7 @@ import {
   themeNames,
   themeScope,
   themesMoved,
+  themesRenamed,
 } from "./theme";
 
 const solid = (width: number, height: number, ...rgba: number[]): RgbaImage => {
@@ -483,5 +484,15 @@ describe("kit themes", () => {
     expect(themesMoved(inPlace, 1, 1)).toEqual(inPlace);
     expect(themesMoved(inPlace, 0, 5)).toEqual(inPlace);
     expect(themesMoved([], 0, 0)).toEqual([]);
+  });
+
+  test("a theme renamed keeps its place among the themes in place", () => {
+    expect(themesRenamed(["hiver", "noel", "nuit"], "noel", "fetes")).toEqual([
+      "hiver",
+      "fetes",
+      "nuit",
+    ]);
+    // Not in place: nothing is to write.
+    expect(themesRenamed(["hiver"], "noel", "fetes")).toBeNull();
   });
 });
