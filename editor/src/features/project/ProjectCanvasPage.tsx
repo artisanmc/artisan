@@ -29,6 +29,7 @@ import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoade
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useIsDesktop } from "@/lib/useMediaQuery";
+import { useKitStore } from "@/state/kitStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useUiStore } from "@/state/uiStore";
@@ -130,6 +131,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     return mountEditorTour({ playerId, ready: tourReady });
   }, [playerId, tourReady, pId]);
   const navigate = useNavigate();
+  const commonId = useKitStore((s) => s.read?.projectId);
   const { tab, doc, kind: docKind, variant } = useSearch({ strict: false }) as ProjectSearch;
   useProjectDeepLinks({ project, urlId, projectId, serverId, documentId, doc });
   useVariantInUrl(project, variant);
@@ -204,6 +206,16 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           <AssetsTab
             projectId={pId}
             capturedItems={<CapturedItemsSection projectId={pId} onPick={NO_PICK} />}
+            onOpenCommon={
+              serverId && commonId
+                ? () =>
+                    void navigate({
+                      to: "/servers/$serverId/projects/$projectId",
+                      params: { serverId, projectId: commonId },
+                      search: { tab: "resources" },
+                    })
+                : undefined
+            }
           />
         </WorkspaceView>
         <WorkspaceView

@@ -100,7 +100,7 @@ describe("ServerConfigSection", () => {
     );
   });
 
-  it("offers the themes of the kit module, and the one in place even when it is gone", async () => {
+  it("offers the themes of the common images, and the one in place even when it is gone", async () => {
     api.getServerConfig.mockResolvedValue({
       config: { ...config, "resource-pack.theme": "paques" },
       online: true,
@@ -119,7 +119,7 @@ describe("ServerConfigSection", () => {
         conditionsField={NoConditions}
       />,
     );
-    const theme = await screen.findByLabelText(/^Thème du kit/);
+    const theme = await screen.findByLabelText(/^Thème des images communes/);
     await waitFor(() => expect(screen.getByRole("option", { name: "noel" })).toBeInTheDocument());
     expect([...theme.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
       "Aucun thème",

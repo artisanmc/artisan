@@ -17,6 +17,16 @@ import { variablesFr } from "./variables";
 const fr: typeof en = {
   onboarding: onboardingFr,
   resources: {
+    common: {
+      hint: "Les images que tous les menus du serveur partagent. Un menu en nomme une par son nom : rien n'est copié dans ce module.",
+      added: "Ce serveur",
+      written: "Un menu de ce module écrit",
+      prefixed: "Un module du serveur a une image de ce nom : artisan: désigne la commune.",
+      redraw: "Redessiner pour le serveur",
+      open: "Ouvrir dans les images communes",
+      followHint:
+        "Une image commune se redessine dans les images communes du serveur : chaque menu qui la nomme suit.",
+    },
     view: { files: "Images et polices", captured: "Items capturés" },
     capturedHint:
       "Items capturés en jeu. Pose-en un sur un menu depuis le panneau Boutons du canvas, ou choisis-le dans un champ item.",
@@ -68,14 +78,14 @@ const fr: typeof en = {
     new: "Composer une image",
     newTitle: "Composer une image",
     newHint:
-      "Une image assemblée à partir de pièces du kit et d’images de ce module. Le pack de ressources l’assemble, donc elle suit le kit du serveur.",
+      "Une image assemblée à partir d’images communes et d’images de ce module. Le pack de ressources l’assemble, donc elle suit les images communes du serveur.",
     newFor: "À quoi elle sert",
     newWindow: "La fenêtre d’un menu",
     newButton: "Un bouton",
     newCreate: "Créer",
     layers: "Calques",
     layerLabel: "Calque {{n}} : {{name}}",
-    addKit: "Pièce du kit",
+    addKit: "Image commune",
     addImage: "Image du module",
     addDrawn: "Dessiner un calque",
     retouchLayer: "Retoucher ce calque",
@@ -120,7 +130,7 @@ const fr: typeof en = {
     colour: "Couleur",
     anyColour: "Une autre couleur",
     ownColours: "Couleurs de cette image",
-    kitColours: "Couleurs du kit",
+    kitColours: "Couleurs des images communes",
     save: "Enregistrer les pixels",
     discard: "Annuler les changements",
     close: "Fermer",
@@ -129,7 +139,7 @@ const fr: typeof en = {
     new: "Dessiner une image",
     newTitle: "Dessiner une image",
     newHint:
-      "Une image vide de la taille choisie, dessinée pixel par pixel. Pour une fenêtre ou un bouton, composez plutôt une image à partir du kit.",
+      "Une image vide de la taille choisie, dessinée pixel par pixel. Pour une fenêtre ou un bouton, composez plutôt une image à partir des images communes.",
     newSize: "Taille",
     newIcon: "Icône 16 × 16",
     newSlot: "Case 18 × 18",
@@ -151,8 +161,7 @@ const fr: typeof en = {
     start: "Partir de",
     empty: "Vide",
     emptyHint: "Une image vide de cette taille, dessinée pixel par pixel.",
-    noPiece:
-      "Le kit n'a pas de pièce de cette taille : l'image part vide, dessinée pixel par pixel.",
+    noPiece: "Aucune image commune n'a cette taille : l'image part vide, dessinée pixel par pixel.",
     kitHint:
       "L'image suit cette pièce quand le serveur la redessine. Vous ajoutez et dessinez des calques par-dessus.",
     create: "Créer et ouvrir l'atelier",
@@ -166,14 +175,14 @@ const fr: typeof en = {
     single: "Un slot ou moins",
     layers_one: "{{count}} calque",
     layers_other: "{{count}} calques",
-    situation: "Comme un joueur la voit : sur la fenêtre du kit, à deux fois les pixels du jeu.",
+    situation: "Comme un joueur la voit : sur la fenêtre commune, à deux fois les pixels du jeu.",
     toLayers: "Ajouter des calques",
     toLayersHint:
-      "L'image devient des calques : ce dessin est le premier, et vous posez par-dessus des pièces du kit ou d'autres dessins. Elle garde son nom, les menus qui la montrent suivent.",
+      "L'image devient des calques : ce dessin est le premier, et vous posez par-dessus des images communes ou d'autres dessins. Elle garde son nom, les menus qui la montrent suivent.",
     flatten: "Aplatir",
     flattenConfirm: "Aplatir en un seul dessin ?",
     flattenHint:
-      "Les calques deviennent un seul dessin du même nom. Il ne suit plus le kit ; les calques restent dans le module comme images.",
+      "Les calques deviennent un seul dessin du même nom. Il ne suit plus les images communes ; les calques restent dans le module comme images.",
     failed: "Ça n'a pas marché : {{detail}}",
     guides: {
       label: "Repères",
@@ -185,17 +194,15 @@ const fr: typeof en = {
     },
   },
   kit: {
-    fromKit: "Kit d'interface",
-    choose: "Choisir une image du kit",
-    hint: "Les images que tout serveur possède, et celles du kit de ce serveur. Le menu nomme l'image : elle suit le kit quand le serveur le redessine.",
+    fromKit: "Communes",
+    choose: "Choisir une image commune",
+    hint: "Les images que tout serveur possède, et celles que ce serveur a rendues communes. Le menu nomme l'image : elle suit quand le serveur la redessine.",
     page: {
-      title: "Kit d'interface",
+      title: "Images communes",
       intro:
-        "Les images que tous les menus du serveur partagent. Un menu en nomme une kit:<nom> ; redessinez une pièce une fois, chaque menu qui la nomme suit.",
-      none: "L'Artisan de ce serveur est plus ancien que les images communes : chaque pièce est celle d'Artisan. Mettez-le à jour, ou créez le module du kit pour en redessiner une.",
+        "Les images que tous les menus du serveur partagent. Un menu en nomme une par son nom ; redessinez-en une, chaque menu qui la nomme suit.",
+      none: "L'Artisan de ce serveur est plus ancien que les images communes : chaque pièce est celle d'Artisan. Mettez-le à jour pour en redessiner une.",
       open: "Ouvrir les images du serveur",
-      create: "Créer le module du kit",
-      failed: "Ça n'a pas marché : {{detail}}",
       themes: "Thèmes",
       noTheme: "Sans thème",
       noThemeInPlace: "Sans thème (en place)",
@@ -210,21 +217,22 @@ const fr: typeof en = {
       redrawn: "Redessinée",
       others: "Les images de ce serveur",
       noOthers:
-        "Aucune pour l'instant. Une image ajoutée aux images communes du serveur se nomme kit:<son nom> dans n'importe quel menu.",
-      inMenu: "Le kit dans un menu",
+        "Aucune pour l'instant. Une image ajoutée ici se nomme par son nom dans n'importe quel menu du serveur.",
+      inMenu: "Dans un menu",
       inMenuHint:
         "Toutes les pièces posées sur une fenêtre, comme les joueurs les voient. Cliquez une pièce pour l'ouvrir dans l'atelier des images communes du serveur.",
       inMenuHintNoKit: "Toutes les pièces posées sur une fenêtre, comme les joueurs les voient.",
       redrawnCount_one: "{{count}} pièce redessinée sur {{total}}",
       redrawnCount_other: "{{count}} pièces redessinées sur {{total}}",
-      menusNaming_one: "{{count}} menu nomme le kit",
-      menusNaming_other: "{{count}} menus nomment le kit",
+      menusNaming_one: "{{count}} menu nomme une image commune",
+      menusNaming_other: "{{count}} menus nomment une image commune",
     },
     theme: {
-      back: "‹ Kit",
+      failed: "Ça n'a pas marché : {{detail}}",
+      back: "‹ Images communes",
       title: "Thème « {{name}} »",
       intro:
-        "Un thème change les couleurs du kit, ou redessine une pièce. Les menus gardent leur mise en page.",
+        "Un thème change les couleurs des images communes, ou en redessine une. Les menus gardent leur mise en page.",
       inPlace: "En place",
       notInPlace: "Pas en place",
       putInPlace: "Mettre en place sur le serveur",
@@ -296,6 +304,7 @@ const fr: typeof en = {
     resize: "Redimensionner la navigation (double-clic : largeur par défaut)",
   },
   projectSource: {
+    common: "Images communes",
     all: "Tous les modules",
     from: "Dans le module {{project}}",
     searchItems: "Rechercher un item…",
@@ -2357,7 +2366,7 @@ const fr: typeof en = {
         "delegate-reload-command": "Commande de rechargement après délégation",
         "hide-inventory-label":
           "Masquer le libellé « Inventaire » sous les menus (tous les conteneurs, toutes les langues)",
-        theme: "Thème du kit d'interface",
+        theme: "Thème des images communes",
         "container-textures": {
           chest: "Coffres",
           hopper: "Entonnoirs",
@@ -2367,7 +2376,7 @@ const fr: typeof en = {
     },
     hints: {
       theme:
-        "Un dossier des images communes du serveur (themes/artisan/themes/<nom>/). Chaque image du kit est alors montrée aux couleurs du thème, ou telle qu'il la redessine ; les menus gardent leur mise en page.",
+        "Un dossier des images communes du serveur (themes/artisan/themes/<nom>/). Chaque image commune est alors montrée aux couleurs du thème, ou telle qu'il la redessine ; les menus gardent leur mise en page.",
       chest:
         "Image au format generic_54.png (256×256, ou un multiple pour un pack HD). Quand un menu désactive sa texture vanilla, les autres coffres du serveur sont redessinés avec elle.",
       hopper:
@@ -2392,7 +2401,7 @@ const fr: typeof en = {
     tabs: {
       label: "Sections du serveur",
       overview: "Vue d'ensemble",
-      kit: "Kit d'interface",
+      common: "Images communes",
       play: "Jeu",
       assistant: "Assistant",
       data: "Sources de données",

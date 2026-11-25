@@ -14,16 +14,20 @@ export const useResourcesView = create<{
   /** Opens the atelier on the image `id` of the module, over its files; `null` closes it. */
   openStudio: (id: string | null) => void;
   /**
-   * A piece of the UI kit base asked for from the server's kit page: the kit module's Resources
-   * open it in the atelier once its images are read, redrawing it first if it is still Artisan's.
+   * A common image asked for from the server's page or from a module's Resources: the Resources
+   * of the common images' Project open it in the atelier once its images are read, redrawing it
+   * first if it is a piece of the base that is still Artisan's.
    */
   piece: string | null;
-  askPiece: (id: string | null) => void;
+  /** The module the request was made in, which leaves it for the Project it then opens. */
+  pieceFrom: string | null;
+  askPiece: (id: string | null, from?: string) => void;
 }>((set) => ({
   view: "files",
   setView: (view) => set({ view }),
   studio: null,
   openStudio: (studio) => set(studio === null ? { studio } : { view: "files", studio }),
   piece: null,
-  askPiece: (piece) => set({ piece }),
+  pieceFrom: null,
+  askPiece: (piece, from) => set({ piece, pieceFrom: piece === null ? null : (from ?? null) }),
 }));

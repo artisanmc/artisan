@@ -6,6 +6,7 @@ import {
   KIT_PREFIX,
   KIT_SLOTS,
   type KitSlot,
+  commonImageRef,
   imageNamed,
   kitNameOf,
 } from "@/lib/pack/kit";
@@ -13,7 +14,7 @@ import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import { kitImageUrl } from "@/lib/pack/kitUrls";
 import { type KitTheme, readKitTheme } from "@/lib/pack/theme";
 import { type KitRead, useKitStore } from "@/state/kitStore";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { parse } from "yaml";
 import { create } from "zustand";
 import { assetBytes } from "./assetBytes";
@@ -283,6 +284,28 @@ export function useKitAssetsIn(name: string | null): Asset[] {
   }, [read, name]);
   const plain = useMemo(() => kitAssetsOf(read), [read]);
   return shown && shown.read === read && shown.name === name ? shown.assets : plain;
+}
+
+/**
+ * What a menu of `projectId` writes for the common image `asset` (`commonImageRef`): its name
+ * alone, unless the module being edited or another module of the server holds that name. On a
+ * server older than the theme `artisan`, `kit:<name>`: the only spelling it reads.
+ */
+export function useCommonImageRef(projectId: string): (asset: Asset) => string {
+  const byName = useKitStore((s) => s.read?.byName === true);
+  const taken = useKitStore((s) => s.taken);
+  const own = useAssetStore((s) => s.assets);
+  return useCallback(
+    (asset: Asset) => {
+      const name = kitNameOf(asset.id);
+      if (name === null || !byName) return asset.id;
+      return commonImageRef(
+        name,
+        (n) => taken.has(n) || own.some((a) => a.projectId === projectId && a.id === n),
+      );
+    },
+    [byName, taken, own, projectId],
+  );
 }
 
 /** The module's assets and the kit's: what a title layer's image is looked up in. */

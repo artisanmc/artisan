@@ -7,9 +7,10 @@ import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
 
 /**
- * Answers the kit page's click on a piece (`useResourcesView.piece`) in the kit module: opens
- * the module's image of that piece in the atelier, copying Artisan's under the piece's name
- * first when the server has not redrawn it. Any other module drops the request.
+ * Answers a request for a common image (`useResourcesView.piece`) in the common images'
+ * Project: opens its image of that name in the atelier, copying Artisan's under the piece's
+ * name first when it is a piece of the base the server has not redrawn. Any other module drops
+ * the request, the one it was made in apart (`pieceFrom`): that one is on its way there.
  */
 export function useKitPieceAsked(projectId: string) {
   const piece = useResourcesView((s) => s.piece);
@@ -23,16 +24,23 @@ export function useKitPieceAsked(projectId: string) {
       return;
     }
     const slot = kitSlot(piece);
-    const { askPiece, openStudio } = useResourcesView.getState();
-    if (!slot || !isKitModule(projectId)) {
-      askPiece(null);
+    const { askPiece, openStudio, pieceFrom } = useResourcesView.getState();
+    if (!isKitModule(projectId)) {
+      if (pieceFrom !== projectId) askPiece(null);
       return;
     }
     if (loading) return;
-    const mine = ownKitPiece(assets, projectId, slot);
+    const mine = slot
+      ? ownKitPiece(assets, projectId, slot)
+      : assets.find((a) => a.projectId === projectId && a.id === piece && a.type !== "font");
     if (mine) {
       useAssetStore.getState().setSelectedId(mine.id);
       openStudio(mine.id);
+      askPiece(null);
+      return;
+    }
+    // An image the server added that is not there: the request names nothing.
+    if (!slot) {
       askPiece(null);
       return;
     }

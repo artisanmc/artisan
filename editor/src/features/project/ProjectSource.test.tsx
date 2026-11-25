@@ -1,12 +1,13 @@
 import type { Asset } from "@/domain/asset";
 import type { CapturedItem, Project, ProjectId } from "@/domain/types";
-import { AssetsTab } from "@/features/assets/AssetsTab";
+import { AssetsTab, useResourcesView } from "@/features/assets/AssetsTab";
 import { useAssetStore } from "@/features/assets/assetStore";
 import * as local from "@/features/assets/localAssets";
 import { CapturedItemsSection } from "@/features/canvas/CapturedItemsSection";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import * as userAssets from "@/lib/api/userAssets";
 import { mockOpenProjects } from "@/mock/fixtures";
+import { useKitStore } from "@/state/kitStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { render, screen } from "@testing-library/react";
@@ -68,6 +69,8 @@ beforeEach(() => {
   useAssetStore.getState().reset();
   useProjectLibraryStore.setState({ sourceId: null });
   useUiStore.getState().setArmedMaterial(null);
+  useKitStore.setState({ read: undefined, taken: new Set(), theme: undefined });
+  useResourcesView.setState({ piece: null, pieceFrom: null });
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -86,8 +89,9 @@ describe("using another project's resources", () => {
 
     await userEvent.click(screen.getByTestId("project-source"));
     const options = screen.getAllByRole("menuitemradio").map((o) => o.textContent);
-    // This module, all modules, then the one other module (the edited one's published copy is never offered).
-    expect(options).toHaveLength(3);
+    // This module, the common images, all modules, then the one other module (the edited one's
+    // published copy is never offered).
+    expect(options).toHaveLength(4);
     expect(options).toContain(shop.name);
     await userEvent.click(screen.getByRole("menuitemradio", { name: shop.name }));
 
@@ -211,5 +215,46 @@ describe("using another project's resources", () => {
     expect(screen.queryByTitle("Épée du marchand")).toBeNull();
     await userEvent.click(screen.getByTitle("Arc des quêtes"));
     expect(edited().capturedItems?.map((c) => c.id)).toEqual(["ci_shield", "ci_bow"]);
+  });
+
+  it("shows the common images apart from the other modules, named and opened where they live", async () => {
+    const { shop } = setup();
+    // The index lists the common images' Project too: it is not one of the other modules.
+    const theme = { ...shop, id: "p_artisan" as ProjectId, name: "artisan" } as Project;
+    useServerIndexStore.setState({
+      projects: [...useServerIndexStore.getState().projects, theme],
+    });
+    useKitStore.setState({
+      read: { projectId: "p_artisan", files: {}, binaries: [], byName: true },
+      taken: new Set(["close.1x1"]),
+    });
+    const onOpenCommon = vi.fn();
+    render(<AssetsTab projectId={EDITED} onOpenCommon={onOpenCommon} />);
+
+    await userEvent.click(screen.getByTestId("project-source"));
+    const options = screen.getAllByRole("menuitemradio").map((o) => o.textContent);
+    expect(options).toHaveLength(4);
+    expect(options).not.toContain("artisan");
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /images communes/i }));
+
+    // A piece of the base nobody else names: a menu writes its name alone.
+    await userEvent.click(await screen.findByTitle("button.3x1"));
+    expect(screen.getByTestId("common-asset-ref")).toHaveTextContent(/^button\.3x1$/);
+    // A module of the server holds this name: `artisan:` names the common one.
+    await userEvent.click(screen.getByRole("button", { name: "Retour aux ressources" }));
+    await userEvent.click(screen.getByTitle("close.1x1"));
+    expect(screen.getByTestId("common-asset-ref")).toHaveTextContent("artisan:close.1x1");
+
+    await userEvent.click(screen.getByRole("button", { name: /redessiner pour le serveur/i }));
+    expect(onOpenCommon).toHaveBeenCalled();
+    expect(useResourcesView.getState()).toMatchObject({ piece: "close.1x1", pieceFrom: EDITED });
+  });
+
+  it("has no entry for the common images in their own Project", async () => {
+    setup();
+    useKitStore.setState({ read: { projectId: EDITED, files: {}, binaries: [], byName: true } });
+    render(<AssetsTab projectId={EDITED} />);
+    await userEvent.click(screen.getByTestId("project-source"));
+    expect(screen.queryByRole("menuitemradio", { name: /images communes/i })).toBeNull();
   });
 });

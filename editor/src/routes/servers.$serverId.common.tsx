@@ -8,36 +8,49 @@ import { THEME_CONFIG_KEY, configuredTheme, isThemeName } from "@/lib/pack/theme
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { useServerFrame } from "@/features/serverPage/serverFrame";
-import { createProject } from "@/lib/api/servers";
-import { KIT_LEGACY_FOLDER, KIT_PREFIX } from "@/lib/pack/kit";
+import { KIT_SLOTS, assetNamesIn, imageRefsIn, namesCommonImage } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-export const Route = createFileRoute("/servers/$serverId/kit")({
+export const Route = createFileRoute("/servers/$serverId/common")({
   component: ServerKitTab,
   validateSearch: (search: Record<string, unknown>): { theme?: string } =>
     typeof search.theme === "string" && isThemeName(search.theme) ? { theme: search.theme } : {},
 });
 
-/** The UI kit tab: the images the server's menus share, read from its published kit module. */
+/** The common images tab: the images the server's menus share, read from the published theme `artisan`. */
 function ServerKitTab() {
   const { serverId, serverKeyId } = useServerFrame();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { theme } = Route.useSearch();
-  // The server index reads the kit module and the menus that name it.
+  // The server index reads the theme and the menus that name its images.
   useServerIndexLoader(serverId, serverKeyId !== null);
   const projects = useServerIndexStore((s) => s.projects);
-  const kitId = useKitStore((s) => s.read?.projectId);
-  const menusNaming = useMemo(
-    () =>
-      projects
-        .flatMap((p) => documentsOf(p, "menu"))
-        .filter((menu) => JSON.stringify(menu).includes(`"${KIT_PREFIX}`)).length,
-    [projects],
-  );
+  const read = useKitStore((s) => s.read);
+  const taken = useKitStore((s) => s.taken);
+  const kitId = read?.projectId;
+  const menusNaming = useMemo(() => {
+    const common = new Set([
+      ...KIT_SLOTS.map((slot) => slot.id),
+      ...(read
+        ? assetNamesIn([...read.binaries.map((b) => b.path), ...Object.keys(read.files)])
+        : []),
+    ]);
+    return projects
+      .flatMap((p) => documentsOf(p, "menu"))
+      .filter((menu) =>
+        imageRefsIn(menu).some((ref) =>
+          namesCommonImage(
+            ref,
+            (name) => taken.has(name),
+            (name) => common.has(name),
+          ),
+        ),
+      ).length;
+  }, [projects, read, taken]);
   if (!serverKeyId) return null;
   const openKit = (projectId: string) =>
     navigate({
@@ -47,7 +60,7 @@ function ServerKitTab() {
     });
   const showTheme = (name: string | undefined) =>
     navigate({
-      to: "/servers/$serverId/kit",
+      to: "/servers/$serverId/common",
       params: { serverId },
       search: name ? { theme: name } : {},
     });
@@ -86,11 +99,6 @@ function ServerKitTab() {
               : undefined
           }
           onOpenKit={kitId ? () => void openKit(kitId) : undefined}
-          // Only a server older than the theme `artisan` has none: there the images live in a module, which the update moves.
-          onCreateKit={async () => {
-            const project = await createProject(serverKeyId, KIT_LEGACY_FOLDER);
-            await openKit(project.id);
-          }}
         />
       </div>
     </div>

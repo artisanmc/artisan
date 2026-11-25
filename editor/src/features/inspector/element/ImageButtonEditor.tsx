@@ -6,7 +6,7 @@ import type { Appearance, Element, Menu, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { AssetPreview } from "@/features/assets/AssetPreview";
 import { KitPicker } from "@/features/assets/KitPicker";
-import { useImageAsset } from "@/features/assets/kitAssets";
+import { useCommonImageRef, useImageAsset } from "@/features/assets/kitAssets";
 import { colsFor, rowsFor } from "@/features/canvas/inventoryTypes";
 import { kitFootprint } from "@/lib/pack/kit";
 import { type ReactNode, useId, useState } from "react";
@@ -41,6 +41,7 @@ export function ImageButtonEditor({
   const [pickingKit, setPickingKit] = useState(false);
   const [error, setError] = useState("");
   const asset = useImageAsset(projectId, image?.asset);
+  const commonRef = useCommonImageRef(projectId);
   const type = menu.inventoryType ?? "chest";
   const rect = imageButtonRect(element.positions, type, menu.rows, menu.playerInventory);
   const perform = (action: () => void) => {
@@ -59,13 +60,13 @@ export function ImageButtonEditor({
       );
     });
   /** The image chosen: kept at the button's fit, or a first image at its natural size. */
-  const pick = (picked: Asset, done: () => void) => {
-    if (image) onImage({ ...image, asset: picked.id });
+  const pick = (picked: Asset, done: () => void, ref: string = picked.id) => {
+    if (image) onImage({ ...image, asset: ref });
     else {
       if (!rect) throw new Error(t("imageButton.rectangleRequired"));
       const size = footprint(picked);
       onImage(
-        { asset: picked.id, fit: "native" },
+        { asset: ref, fit: "native" },
         rectanglePositions(
           rect.slot,
           size.width,
@@ -217,7 +218,9 @@ export function ImageButtonEditor({
         onClose={() => setPickingKit(false)}
         // A window is a menu's background, not a button's image.
         only={(entry) => !entry.id.startsWith("kit:window.")}
-        onPick={(picked) => perform(() => pick(picked, () => setPickingKit(false)))}
+        onPick={(picked) =>
+          perform(() => pick(picked, () => setPickingKit(false), commonRef(picked)))
+        }
       />
     </div>
   );

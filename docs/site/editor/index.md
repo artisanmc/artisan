@@ -143,7 +143,7 @@ Classify images as **Button images** and/or **Menu images**; one image may have 
 uses without being duplicated. Only button images appear in **Buttons → Images**.
 **Open in the atelier**, under an image, gives it the whole page: a PNG is retouched with a
 pencil, an eraser, a colour picker (Alt+click) and a paint bucket, with the colours of the
-image and of the server's UI kit, zoom and undo. The image keeps its size, so the menus that
+image and of the server's common images, zoom and undo. The image keeps its size, so the menus that
 show it need nothing; **Save pixels** writes it into your draft. **New image** starts one sized
 by its use (a menu background, slots, an icon, or a size of your own); see
 [Image buttons](image-buttons/). It is a small tool for a detail or an icon: for more, import

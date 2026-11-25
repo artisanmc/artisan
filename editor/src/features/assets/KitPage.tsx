@@ -4,7 +4,7 @@ import type { Asset } from "@/domain/asset";
 import { AssetPreview } from "./AssetPreview";
 import { isKitBase, useKitAssets } from "./kitAssets";
 import { cx } from "@/lib/cx";
-import { KIT_PREFIX, KIT_SLOTS, type KitSlot } from "@/lib/pack/kit";
+import { KIT_PREFIX, KIT_SLOTS, type KitSlot, kitNameOf } from "@/lib/pack/kit";
 import { themeNames } from "@/lib/pack/theme";
 import { useKitStore } from "@/state/kitStore";
 import { type ReactNode, useMemo, useState } from "react";
@@ -69,26 +69,23 @@ function Card({
 }
 
 /**
- * The server's UI kit (`lib/pack/kit.ts`), a screen of the server: every piece of the base by
- * family with who drew it (Artisan, or this server), the kit module's other images, its themes,
- * and all the pieces set on one menu, as players see them. The page reads the published kit; a
- * piece is redrawn in the kit module, which a click on it opens (`onPiece`).
+ * The server's common images (`lib/pack/kit.ts`), a screen of the server: every piece of the base
+ * by family with who drew it (Artisan, or this server), the images the server added, its themes,
+ * and all the pieces set on one menu, as players see them. The page reads the published theme
+ * `artisan`; a piece is redrawn in its Project, which a click on it opens (`onPiece`).
  */
 export function KitPage({
   menusNaming,
   onPiece,
   onOpenKit,
-  onCreateKit,
   onTheme,
 }: {
-  /** How many of the server's menus name a kit image. */
+  /** How many of the server's menus name a common image. */
   menusNaming: number;
-  /** Opens the piece `id` in the kit module's atelier; absent while the server has no kit module. */
+  /** Opens the piece `id` in the atelier of the common images; absent on a server that has no theme `artisan`. */
   onPiece?: (id: string) => void;
-  /** Opens the kit module on its images. */
+  /** Opens the common images' Project on its images. */
   onOpenKit?: () => void;
-  /** Creates the kit module, then opens it. */
-  onCreateKit?: () => Promise<void>;
   /** Opens the theme `name`. */
   onTheme?: (name: string) => void;
 }) {
@@ -97,8 +94,6 @@ export function KitPage({
   const theme = useKitStore((s) => s.theme);
   const kit = useKitAssets();
   const [over, setOver] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const themes = useMemo(
     () =>
       read
@@ -113,19 +108,6 @@ export function KitPage({
   const others = kit.filter((a) => !isKitBase(a));
   const redrawn = KIT_SLOTS.filter((slot) => !!piece(slot)?.contentHash).length;
   const open = read && onPiece ? onPiece : undefined;
-
-  const create = async () => {
-    if (busy || !onCreateKit) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await onCreateKit();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <div className="flex flex-col gap-4" data-testid="kit-page">
@@ -142,17 +124,7 @@ export function KitPage({
             {t("kit.page.open")}
           </Button>
         ) : null}
-        {!read && onCreateKit ? (
-          <Button disabled={busy} onClick={() => void create()}>
-            {t("kit.page.create")}
-          </Button>
-        ) : null}
       </header>
-      {error ? (
-        <p role="alert" className="text-xs text-[var(--danger)]">
-          {t("kit.page.failed", { detail: error })}
-        </p>
-      ) : null}
 
       <div className="flex flex-wrap items-center gap-1.5" data-testid="kit-themes">
         <span className="field-label mr-1">{t("kit.page.themes")}</span>
@@ -198,7 +170,7 @@ export function KitPage({
                       onHover={(inside) => setOver(inside ? slot.id : null)}
                     >
                       <Picture asset={shown} width={slot.width} height={slot.height} />
-                      <span className="truncate text-xs font-medium" title={KIT_PREFIX + slot.id}>
+                      <span className="truncate text-xs font-medium" title={slot.id}>
                         {slot.id}
                       </span>
                       <span className="flex items-center justify-between gap-1 text-[11px] text-[var(--text-mut)]">
@@ -224,8 +196,11 @@ export function KitPage({
                 {others.map((asset) => (
                   <Card key={asset.id} testId={`kit-other-${asset.id}`} onOpen={onOpenKit}>
                     <Picture asset={asset} width={asset.width} height={asset.height} />
-                    <span className="truncate text-xs font-medium" title={asset.name}>
-                      {asset.name}
+                    <span
+                      className="truncate text-xs font-medium"
+                      title={kitNameOf(asset.id) ?? asset.name}
+                    >
+                      {kitNameOf(asset.id) ?? asset.name}
                     </span>
                     {asset.width > 0 ? (
                       <span className="text-[11px] text-[var(--text-mut)]">

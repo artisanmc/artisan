@@ -96,6 +96,49 @@ export function imageNamed<T extends { id: string }>(
   return images.find((a) => a.id === ref) ?? images.find((a) => a.id === KIT_PREFIX + ref);
 }
 
+const HELD =
+  /^(?:originals\/)?assets\/(?:(?:glyphs|textures)\/([^/]+)\.(?:png|ya?ml)|fonts\/([^/.]+))/;
+
+/** The names of the images and fonts among a module's `paths`: what a name alone reaches in the pack. */
+export function assetNamesIn(paths: Iterable<string>): string[] {
+  const names = new Set<string>();
+  for (const path of paths) {
+    const held = HELD.exec(path);
+    const name = held?.[1] ?? held?.[2];
+    if (name) names.add(name);
+  }
+  return [...names];
+}
+
+/**
+ * What a menu writes to name the common image `name`: the name alone, or `artisan:<name>` when
+ * a module of the server holds an image of that name (`taken`), which a name alone reaches first.
+ */
+export const commonImageRef = (name: string, taken: (name: string) => boolean): string =>
+  taken(name) ? KIT_ALIAS + name : name;
+
+/**
+ * Whether `ref`, written in a module, names a common image: `artisan:<name>` or `kit:<name>`,
+ * or a name that no module holds (`taken`) and a common image has (`common`).
+ */
+export function namesCommonImage(
+  ref: string,
+  taken: (name: string) => boolean,
+  common: (name: string) => boolean,
+): boolean {
+  if (kitNameOf(ref) !== null) return true;
+  return !ref.includes(":") && !taken(ref) && common(ref);
+}
+
+/** The image names a Document writes: every `asset` and `assetId` it holds, at any depth. */
+export function imageRefsIn(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(imageRefsIn);
+  if (value === null || typeof value !== "object") return [];
+  return Object.entries(value).flatMap(([key, held]) =>
+    (key === "asset" || key === "assetId") && typeof held === "string" ? [held] : imageRefsIn(held),
+  );
+}
+
 /** The slots a kit image covers when its name ends with them (`kit:button.3x1`: 3 wide, 1 high). */
 export function kitFootprint(asset: string): { width: number; height: number } | null {
   const m = kitNameOf(asset) === null ? null : /\.(\d+)x(\d+)$/.exec(asset);

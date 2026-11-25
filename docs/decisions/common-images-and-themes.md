@@ -196,6 +196,20 @@ working through a rewrite to `module:name` at load.
 - The MCP tools read the common images in the theme's Project (`survey_ui`'s `kit.project`), the
   base as the server holds it; their names and arguments did not change.
 
+**Step 2, third part: the common images in the editor** (`ProjectSource.tsx`, `AssetsTab.tsx`,
+`kitAssets.ts`, `servers.$serverId.common.tsx`).
+
+- The editor says "common images", never "UI kit". The server's tab is **Common images**
+  (`/servers/<id>/common`); it no longer offers to create a module, the theme being there from
+  the server's start.
+- The picker writes the name alone, or `artisan:<name>` when a module of the server (or the
+  open one, unpublished images included) holds that name. On a server that has no theme
+  `artisan` it still writes `kit:<name>`, the only spelling that server reads.
+- The Resources screen's module selector has an entry **Common images**: the published common
+  images, what a menu of the open module writes for each, and a way to the atelier of the
+  common images. The theme's Project is not one of its "other modules", nor part of "all
+  modules".
+
 Not there yet:
 
 - Against decision 3: a bare name still reaches **another module's** image before the common
@@ -204,9 +218,11 @@ Not there yet:
   the spelling that does not depend on it. `<module>:<name>` for an image that module does not
   hold falls on the bare name, then on the common image, instead of the visible fallback,
   because the asset index does not say who holds a bare id.
-- Against decision 1: the editor and the MCP tools still write `kit:<name>` and still say "UI
-  kit"; the server's "UI kit" tab is still there, opening the theme's Project. The Resources
-  screen has no "Common" scope yet.
+- Against decision 1: the MCP tools still write `kit:<name>` and still say "UI kit"
+  (`survey_ui`, `write_image`, the docs they serve). In the editor, a composed image's layers
+  still hold `kit:<name>`.
+- Against decision 12: the Resources screen is still a module's; its **Common images** entry
+  reads the published theme, so an image drawn in the theme's draft shows there once deployed.
 - Against decisions 5 and 6: a theme other than `artisan` is still a folder
   `themes/artisan/themes/<name>/`, one in place per server (`resource-pack.theme`).
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no

@@ -84,8 +84,19 @@ one as an `Asset` whose id is `kit:<name>` and whose `previewUrl` is the theme's
 the base; `useImageAsset` (buttons, inspector) and `useAssetsWithKit` (title layers) look an image
 up there through `imageNamed`: the module's own image, else the common one of that name, and
 `artisan:<name>` or `kit:<name>` the common one whatever the module holds. `KitPicker` chooses one
-and writes `kit:<name>`. The theme's files come from the server index through `state/kitStore`,
-so nothing here imports that feature.
+and the caller writes what `useCommonImageRef` gives: the name alone, `artisan:<name>` when the
+open module or another module of the server holds that name (`kitStore.taken`, the names the
+server index read in the modules' files, `assetNamesIn`), and `kit:<name>` on a server older
+than the theme, which reads nothing else (`KitRead.byName`). The theme's files come from the
+server index through `state/kitStore`, so nothing here imports that feature.
+The Resources screen's module selector (`features/project/ProjectSource.tsx`) never lists the
+common images' Project among the other modules; a library that gives it `common` (the Resources
+tab) gets an entry **Common images** (`COMMON_IMAGES`), drawn by `CommonAssets` in
+`AssetsTab.tsx`: the published common images, what a menu of the open module writes for the
+one selected, and a button that asks for it (`useResourcesView.askPiece(name, from)`) then opens
+the common images' Project (`onOpenCommon`, given by `ProjectCanvasPage`). `useKitPieceAsked`
+answers there: the module the request was made in leaves it alone, any other module drops it.
+The server page's tab is the route `servers.$serverId.common.tsx` (`KitPage`, `KitThemePage`).
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)
