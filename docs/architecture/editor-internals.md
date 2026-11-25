@@ -100,7 +100,10 @@ The server page's **Resources** tab is the route `servers.$serverId.resources.ts
 of the server (ADR `common-images-and-themes`, decision 12). `?show=` picks what it lists: the
 whole server by default (every module's published images and fonts, read by
 `useOtherProjectAssets`, with the common images), one module (`?show=<project id>`), or the
-common images alone (`?show=common`: `KitPage`, and `?theme=<name>` its `KitThemePage`). It
+common images alone (`?show=common`: `KitPage`), or the server's themes (`?show=themes`:
+`ThemesPage`, the stack in place the highest first, dragged to reorder, with the themes that
+are not in place; `themesMoved` turns a move on the screen into the server's list);
+`?theme=<name>` is one theme's `KitThemePage`, which goes back to the page named by `show`. It
 changes nothing itself: an image opens where it lives, in its module's Resources (the route
 sets the asset store's selection, then opens that module) or in the atelier of the common
 images (`useResourcesView.askPiece`).

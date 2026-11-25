@@ -91,6 +91,7 @@ export function KitPage({
   onPiece,
   onOpenKit,
   onTheme,
+  onThemes,
   newTheme,
 }: {
   /** How many of the server's menus name a common image. */
@@ -103,6 +104,8 @@ export function KitPage({
   onOpenKit?: () => void;
   /** Opens the theme `name`. */
   onTheme?: (name: string) => void;
+  /** Opens the server's themes: the stack in place and the others. */
+  onThemes?: () => void;
   /** What creates a theme on the server, given the names its themes have. */
   newTheme?: (themes: readonly string[]) => ReactNode;
 }) {
@@ -180,6 +183,11 @@ export function KitPage({
           </span>
         ) : null}
         {newTheme?.(themes)}
+        {onThemes ? (
+          <Button variant="ghost" size="sm" onClick={onThemes}>
+            {t("kit.themes.manage")}
+          </Button>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start">

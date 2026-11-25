@@ -442,6 +442,21 @@ its own folder at the server's next start); a theme's `scope` is still written b
 the assistant; a table written by hand that changes a ramp's shades without its main colour
 shows the ramp as unchanged, and picking a colour for it replaces those entries.
 
+**Step 4, seventh part: the Themes screen** (`ThemesPage.tsx`, decision 12).
+The server's Resources offer **Themes** beside the whole server and the common images
+(`?show=themes`): the stack in place, the highest first, over a fixed last row for Artisan's
+images and the server's, then the themes the server holds that are not in place. Each row
+says what the theme changes (colours replaced, images redrawn, the one module it is kept to)
+and opens its page. A theme is dragged to another place in the stack (`themesMoved` gives
+the server's order, the lowest first, written to `resource-pack.themes`), put in place or
+taken off; each change rebuilds the pack. A name the configuration puts in place that no
+folder of the server holds is listed as not found, to be taken off. On a server older than
+the list there is one theme in place at most and nothing to reorder. The common images' page
+keeps its row of themes as a shortcut and links to the screen; a theme's page goes back to
+the page it was opened from.
+Not in this part: deleting or renaming a theme (the server's folder operations reach modules
+only), and a theme's export and import.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -458,8 +473,7 @@ Not there yet:
   or a composed image's layer is not counted yet. The change of an original and a module's
   original show on the image in its module only, not in the server's list, and the module's
   list does not mark which images are the owner's versions (step 5). An image cannot be moved
-  or copied to another scope from the server's list. Themes have no screen of their own yet:
-  they are reached from the common images' page.
+  or copied to another scope from the server's list.
 - Against decision 4: the base's pieces take their measures from Artisan's own list, not from
   a declared function, and the slots a name ends with (`3x1`) are not read from the function.
   The MCP tools do not apply the rule: `render_menu` shows the owner's image where the pack
