@@ -172,22 +172,22 @@ give it that path. Only take images you have the right to reuse.
 
 **A consistent style: the UI kit.** Before it draws, the app looks at the images your modules
 already have, so a new menu matches the others. To keep a style over time, ask it for a UI kit:
-"Make a UI kit for this server from the guild menus." It creates a module named `ui-kit` that
-holds the shared images (buttons, windows, arrows) and a `data/ui-kit.yml` file: the list of
-those images, grouped as you like, and the style rules in plain words ("vanilla bevel, no black
-outline"). Any menu of the server can use the kit's images, and the app reads the kit at the
-start of each conversation, which is the only thing it remembers from the last one. The kit is
-a module like any other: you review and deploy what the app adds to it, and you can edit the
-file yourself.
+"Make a UI kit for this server from the guild menus." It fills the server's common images
+(`plugins/Artisan/themes/artisan/`, which every server has) with the shared images (buttons,
+windows, arrows) and a `data/ui-kit.yml` file: the list of those images, grouped as you like,
+and the style rules in plain words ("vanilla bevel, no black outline"). Any menu of the server
+can use these images, and the app reads the kit at the start of each conversation, which is the
+only thing it remembers from the last one. You review and deploy what the app adds there as you
+do for a module, and you can edit the file yourself.
 
 **The kit's base.** Every server has a few plain images under names that never change: two
 windows (`kit:window.6`, `kit:window.3`), four buttons (`kit:button.3x1` and its `danger`, `off`
 and `plain` forms), a panel, a card, two value boxes, arrows, close, back and two toggles. A
 menu that names them looks right on any server, which is what a module you share needs. Your
-`ui-kit` module restyles one with an image of the same name and size ("redraw `button.3x1` of
+server restyles one with a common image of the same name and size ("redraw `button.3x1` of
 the kit in the style of the guild menus"): every menu that names it follows. An image of another
-size is left out, so that no menu is thrown off. Any other image of the `ui-kit` module is
-`kit:<its name>` too.
+size is left out, so that no menu is thrown off. Any other common image of the server is
+`kit:<its name>` too. The base itself is on the server, in `themes/artisan/originals/`.
 
 **Composed images.** A window with its slots, or a card with its icon, does not have to be
 drawn pixel by pixel: the app can put it together from kit images and the module's own ("a
@@ -219,7 +219,7 @@ You can then move its layers by hand: the image's detail in the Resources page i
 
 **Themes.** A theme gives the whole kit another look, for a season or an event, without a menu
 being touched ("make a Christmas theme of the kit: red buttons, snow on the windows"). It is a
-folder of the `ui-kit` module:
+folder of the common images (`plugins/Artisan/themes/artisan/`):
 
 ```yaml
 # themes/noel/theme.yml: each colour of the kit's images, and what replaces it
