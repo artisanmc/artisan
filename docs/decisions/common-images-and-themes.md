@@ -234,6 +234,14 @@ builders; `ImageRefs.kt` did not change).
 - On a server that has no theme `artisan`, `survey_ui` still gives `kit:<name>` and says that
   this server reads nothing else.
 
+**Step 2, sixth part: where a common image is used** (decision 12, "where it is used").
+
+- The server's **Common images** tab says, under each image, how many deployed menus name it.
+- In a module's Resources, a common image lists the menus of the server that name it, each a
+  link to that menu; the open module's menus count as its draft holds them.
+- A menu names a common image by the rule it is read with (`commonNameOf`): `artisan:<name>`
+  and `kit:<name>` always, a name alone when its module holds no image of that name.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -246,6 +254,8 @@ Not there yet:
   `data/ui-kit.yml`. In the editor, a composed image's layers still hold `kit:<name>`.
 - Against decision 12: the Resources screen is still a module's; its **Common images** entry
   reads the published theme, so an image drawn in the theme's draft shows there once deployed.
+  The uses count menus only: a common image named by a dialog, an overlay or a composed
+  image's layer is not counted yet. An image cannot be moved or copied to another scope.
 - Against decisions 5 and 6: a theme other than `artisan` is still a folder
   `themes/artisan/themes/<name>/`, one in place per server (`resource-pack.theme`).
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no

@@ -10,7 +10,7 @@ import { mockOpenProjects } from "@/mock/fixtures";
 import { useKitStore } from "@/state/kitStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useProjectLibraryStore } from "./projectLibraryStore";
@@ -221,8 +221,20 @@ describe("using another project's resources", () => {
     const { shop } = setup();
     // The index lists the common images' Project too: it is not one of the other modules.
     const theme = { ...shop, id: "p_artisan" as ProjectId, name: "artisan" } as Project;
+    // A published menu of the shop names a piece of the base.
+    const naming = {
+      ...shop,
+      documents: {
+        ...shop.documents,
+        menu: [{ id: "vitrine", slots: { 0: { appearance: { image: { asset: "button.3x1" } } } } }],
+      },
+    } as unknown as Project;
     useServerIndexStore.setState({
-      projects: [...useServerIndexStore.getState().projects, theme],
+      projects: [
+        ...useServerIndexStore.getState().projects.filter((p) => p.id !== shop.id),
+        naming,
+        theme,
+      ],
     });
     useKitStore.setState({
       read: { projectId: "p_artisan", files: {}, binaries: [], byName: true },
@@ -232,7 +244,8 @@ describe("using another project's resources", () => {
       .getState()
       .setAssets([{ ...coin, id: "close.1x1", name: "close.1x1", projectId: EDITED }]);
     const onOpenCommon = vi.fn();
-    render(<AssetsTab projectId={EDITED} onOpenCommon={onOpenCommon} />);
+    const onOpenMenu = vi.fn();
+    render(<AssetsTab projectId={EDITED} onOpenCommon={onOpenCommon} onOpenMenu={onOpenMenu} />);
 
     await userEvent.click(screen.getByTestId("project-source"));
     const options = screen.getAllByRole("menuitemradio").map((o) => o.textContent);
@@ -243,10 +256,20 @@ describe("using another project's resources", () => {
     // A piece of the base nobody else names: a menu writes its name alone.
     await userEvent.click(await screen.findByTitle("button.3x1"));
     expect(screen.getByTestId("common-asset-ref")).toHaveTextContent(/^button\.3x1$/);
+    // The menus of the server that name it, each a way to that menu.
+    await userEvent.click(
+      within(screen.getByTestId("common-asset-uses")).getByRole("button", {
+        name: `vitrine · ${shop.name}`,
+      }),
+    );
+    expect(onOpenMenu).toHaveBeenCalledWith(shop.id, "vitrine");
     // The open module holds this name: `artisan:` names the common one.
     await userEvent.click(screen.getByRole("button", { name: "Retour aux ressources" }));
     await userEvent.click(screen.getByTitle("close.1x1"));
     expect(screen.getByTestId("common-asset-ref")).toHaveTextContent("artisan:close.1x1");
+    expect(screen.getByTestId("common-asset-uses")).toHaveTextContent(
+      "Aucun menu du serveur ne la nomme.",
+    );
 
     await userEvent.click(screen.getByRole("button", { name: /redessiner pour le serveur/i }));
     expect(onOpenCommon).toHaveBeenCalled();

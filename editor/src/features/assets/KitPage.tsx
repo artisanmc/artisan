@@ -68,6 +68,16 @@ function Card({
   );
 }
 
+/** How many menus name a common image, under its card. */
+function Uses({ count }: { count: number }) {
+  const { t } = useTranslation();
+  return (
+    <span className="text-[11px] text-[var(--text-faint)]" data-testid="kit-uses">
+      {count > 0 ? t("kit.page.usedBy", { count }) : t("kit.page.unused")}
+    </span>
+  );
+}
+
 /**
  * The server's common images (`lib/pack/kit.ts`), a screen of the server: every piece of the base
  * by family with who drew it (Artisan, or this server), the images the server added, its themes,
@@ -76,12 +86,15 @@ function Card({
  */
 export function KitPage({
   menusNaming,
+  usesOf,
   onPiece,
   onOpenKit,
   onTheme,
 }: {
   /** How many of the server's menus name a common image. */
   menusNaming: number;
+  /** How many menus name the common image `name`; absent = not shown. */
+  usesOf?: (name: string) => number;
   /** Opens the piece `id` in the atelier of the common images; absent on a server that has no theme `artisan`. */
   onPiece?: (id: string) => void;
   /** Opens the common images' Project on its images. */
@@ -181,6 +194,7 @@ export function KitPage({
                           {t(mine ? "kit.page.redrawn" : "kit.page.shipped")}
                         </Badge>
                       </span>
+                      {usesOf ? <Uses count={usesOf(slot.id)} /> : null}
                     </Card>
                   );
                 })}
@@ -207,6 +221,7 @@ export function KitPage({
                         {asset.width} × {asset.height} px
                       </span>
                     ) : null}
+                    {usesOf ? <Uses count={usesOf(kitNameOf(asset.id) ?? asset.name)} /> : null}
                   </Card>
                 ))}
               </div>

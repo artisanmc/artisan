@@ -7,6 +7,8 @@ import {
   KIT_SLOTS,
   assetNamesIn,
   commonImageRef,
+  commonImageUses,
+  commonNameOf,
   imageNamed,
   imageRefsIn,
   kitFolderAmong,
@@ -15,7 +17,6 @@ import {
   kitNameOf,
   kitShippedName,
   kitShippedPath,
-  namesCommonImage,
 } from "./kit";
 import { createImage, decodePng, encodePng } from "./png";
 
@@ -127,12 +128,45 @@ describe("UI kit", () => {
   test("a name written in a menu names a common image when its module holds none of that name", () => {
     const own = (name: string) => name === "gold";
     const common = (name: string) => name === "gold" || name === "panel";
-    expect(namesCommonImage("panel", own, common)).toBe(true);
-    expect(namesCommonImage("artisan:gold", own, common)).toBe(true);
-    expect(namesCommonImage("kit:ribbon", own, common)).toBe(true);
-    expect(namesCommonImage("gold", own, common)).toBe(false);
-    expect(namesCommonImage("ribbon", own, common)).toBe(false);
-    expect(namesCommonImage("guilds:panel", own, common)).toBe(false);
+    expect(commonNameOf("panel", own, common)).toBe("panel");
+    expect(commonNameOf("artisan:gold", own, common)).toBe("gold");
+    expect(commonNameOf("kit:ribbon", own, common)).toBe("ribbon");
+    expect(commonNameOf("gold", own, common)).toBeNull();
+    expect(commonNameOf("ribbon", own, common)).toBeNull();
+    expect(commonNameOf("guilds:panel", own, common)).toBeNull();
+  });
+
+  test("the menus naming each common image: once per menu, a module's own image left out", () => {
+    const common = (name: string) => name === "gold" || name === "panel";
+    const uses = commonImageUses(
+      [
+        {
+          id: "shop",
+          name: "Shop",
+          own: (name) => name === "gold",
+          menus: [
+            { id: "main", refs: ["panel", "panel", "gold", "artisan:gold"] },
+            { id: "sell", refs: ["gold", "coin"] },
+          ],
+        },
+        {
+          id: "guilds",
+          name: "Guilds",
+          own: () => false,
+          menus: [{ id: "list", refs: ["gold", "kit:panel"] }],
+        },
+      ],
+      common,
+    );
+    expect(uses.get("panel")).toEqual([
+      { projectId: "shop", projectName: "Shop", menuId: "main" },
+      { projectId: "guilds", projectName: "Guilds", menuId: "list" },
+    ]);
+    expect(uses.get("gold")).toEqual([
+      { projectId: "shop", projectName: "Shop", menuId: "main" },
+      { projectId: "guilds", projectName: "Guilds", menuId: "list" },
+    ]);
+    expect(uses.has("coin")).toBe(false);
   });
 
   test("a Document's image names are its asset and assetId values, at any depth", () => {

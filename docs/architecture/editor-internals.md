@@ -96,6 +96,12 @@ one selected, and a button that asks for it (`useResourcesView.askPiece(name, fr
 the common images' Project (`onOpenCommon`, given by `ProjectCanvasPage`). `useKitPieceAsked`
 answers there: the module the request was made in leaves it alone, any other module drops it.
 The server page's tab is the route `servers.$serverId.common.tsx` (`KitPage`, `KitThemePage`).
+Where a common image is used comes from `useCommonImageUses` (`features/project/commonImageUses.ts`,
+over `commonImageUses` of `lib/pack/kit.ts`): for each common name, the menus that name it, read
+from the server index (every module as published, its own image names from its files) with the
+open module as its draft holds it. A reference counts by the rule a menu is read with
+(`commonNameOf`): `artisan:` and `kit:` always, a name alone when the menu's module holds none.
+`CommonAssets` lists these menus (`onOpenMenu` opens one), `KitPage` shows their number per image.
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)

@@ -6,6 +6,7 @@ import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
 import type { Project, ProjectId } from "@/domain/types";
 import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
+import { useCommonImageUses } from "@/features/project/commonImageUses";
 import { cx } from "@/lib/cx";
 import { KIT_ALIAS, kitNameOf } from "@/lib/pack/kit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -141,11 +142,14 @@ export function AssetsTab({
   compact = false,
   capturedItems,
   onOpenCommon,
+  onOpenMenu,
 }: {
   projectId: ProjectId;
   compact?: boolean;
   /** Opens the Resources of the common images' Project; absent on a server that has none. */
   onOpenCommon?: () => void;
+  /** Opens the menu `menuId` of the module `projectId`, from a common image's uses. */
+  onOpenMenu?: (projectId: string, menuId: string) => void;
   /** The captured view's content, given by the page (the section lives with the canvas). */
   capturedItems?: ReactNode;
 }) {
@@ -211,7 +215,12 @@ export function AssetsTab({
         menuClassName="shrink-0 px-3 pt-3"
         common={
           <div className="min-h-0 flex-1">
-            <CommonAssets projectId={projectId} compact={compact} onOpen={onOpenCommon} />
+            <CommonAssets
+              projectId={projectId}
+              compact={compact}
+              onOpen={onOpenCommon}
+              onOpenMenu={onOpenMenu}
+            />
           </div>
         }
       >
@@ -407,16 +416,32 @@ function CommonAssets({
   projectId,
   compact,
   onOpen,
+  onOpenMenu,
 }: {
   projectId: ProjectId;
   compact: boolean;
   onOpen?: () => void;
+  onOpenMenu?: (projectId: string, menuId: string) => void;
 }) {
   const { t } = useTranslation();
   const isDesktop = useIsDesktop();
   const narrow = compact || !isDesktop;
   const assets = useKitAssets();
   const refOf = useCommonImageRef(projectId);
+  // This module's menus count as the draft holds them: a name written a moment ago shows here.
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((entry) => entry.id === projectId),
+  );
+  const ownAssets = useAssetStore((s) => s.assets);
+  const live = useMemo(
+    () =>
+      project && {
+        project,
+        own: ownAssets.filter((a) => a.projectId === projectId).map((a) => a.id),
+      },
+    [project, ownAssets, projectId],
+  );
+  const uses = useCommonImageUses(live);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const nameOf = (asset: Asset) => kitNameOf(asset.id) ?? asset.name;
@@ -426,6 +451,7 @@ function CommonAssets({
   const selected = assets.find((asset) => asset.id === selectedId) ?? null;
   const shipped = selected !== null && isKitBase(selected) && !selected.contentHash;
   const written = selected ? refOf(selected) : "";
+  const usedBy = selected ? (uses.get(nameOf(selected)) ?? []) : [];
   const open = () => {
     if (!selected || !onOpen) return;
     useResourcesView.getState().askPiece(nameOf(selected), projectId);
@@ -483,6 +509,36 @@ function CommonAssets({
         </code>
         {written.startsWith(KIT_ALIAS) && (
           <p className="text-[11px] text-[var(--text-faint)]">{t("resources.common.prefixed")}</p>
+        )}
+      </div>
+      <div className="flex flex-col gap-1" data-testid="common-asset-uses">
+        <span className="field-label">{t("resources.common.usedBy")}</span>
+        {usedBy.length === 0 ? (
+          <p className="text-xs text-[var(--text-mut)]">{t("resources.common.unused")}</p>
+        ) : (
+          <ul className="flex flex-col gap-0.5">
+            {usedBy.map((use) => {
+              const label =
+                use.projectId === projectId
+                  ? use.menuId
+                  : t("resources.common.usedIn", { menu: use.menuId, project: use.projectName });
+              return (
+                <li key={`${use.projectId}/${use.menuId}`} className="min-w-0">
+                  {onOpenMenu ? (
+                    <button
+                      type="button"
+                      className="max-w-full truncate text-left text-xs text-[var(--brand)] hover:underline"
+                      onClick={() => onOpenMenu(use.projectId, use.menuId)}
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <span className="block truncate text-xs">{label}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
       {onOpen && (
