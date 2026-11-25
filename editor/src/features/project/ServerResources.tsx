@@ -39,7 +39,9 @@ import { imageFolderOf, useImageUses } from "./imageUses";
 export const WHOLE_SERVER = "all";
 /** The common images alone, on their own page (`common`). */
 export const SERVER_COMMON = "common";
-/** What the server's Resources show: the whole server, the common images, or one module by its id. */
+/** The server's themes, on their own page (`themes`). */
+export const SERVER_THEMES = "themes";
+/** What the server's Resources show: the whole server, the common images, its themes, or one module by its id. */
 export type ServerResourcesScope = string;
 
 const keyOf = (asset: Asset) => `${asset.projectId}:${asset.id}`;
@@ -56,6 +58,7 @@ export function ServerResources({
   scope,
   onScope,
   common,
+  themes: themesPage,
   onOpenModule,
   onOpenCommon,
   onOpenMenu,
@@ -64,6 +67,8 @@ export function ServerResources({
   onScope: (scope: ServerResourcesScope) => void;
   /** The page of the common images alone. */
   common: ReactNode;
+  /** The page of the server's themes; absent: the screen does not offer it. */
+  themes?: ReactNode;
   /** Opens the Resources of the module `projectId` on its image or font `assetId`. */
   onOpenModule: (projectId: string, assetId: string) => void;
   /** Opens the common image `name` in the atelier; absent on a server that has no theme `artisan`. */
@@ -118,7 +123,9 @@ export function ServerResources({
           <span className="min-w-0 flex-1 truncate">
             {scope === SERVER_COMMON
               ? t("projectSource.common")
-              : (one?.name ?? t("serverResources.all"))}
+              : scope === SERVER_THEMES && themesPage
+                ? t("kit.themes.title")
+                : (one?.name ?? t("serverResources.all"))}
           </span>
           <ChevronDown className="size-3.5 shrink-0 text-[var(--text-mut)]" />
         </button>
@@ -128,7 +135,11 @@ export function ServerResources({
         className="max-h-80 overflow-y-auto border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
       >
         <DropdownMenuRadioGroup
-          value={scope === SERVER_COMMON || one ? scope : WHOLE_SERVER}
+          value={
+            scope === SERVER_COMMON || (scope === SERVER_THEMES && themesPage) || one
+              ? scope
+              : WHOLE_SERVER
+          }
           onValueChange={(value) => {
             setSelectedKey(null);
             onScope(value);
@@ -140,6 +151,11 @@ export function ServerResources({
           <DropdownMenuRadioItem value={SERVER_COMMON} className="text-xs">
             {t("projectSource.common")}
           </DropdownMenuRadioItem>
+          {themesPage ? (
+            <DropdownMenuRadioItem value={SERVER_THEMES} className="text-xs">
+              {t("kit.themes.title")}
+            </DropdownMenuRadioItem>
+          ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-[11px] text-[var(--text-mut)]">
             {t("serverResources.modules")}
@@ -154,12 +170,12 @@ export function ServerResources({
     </DropdownMenu>
   );
 
-  if (scope === SERVER_COMMON)
+  if (scope === SERVER_COMMON || (scope === SERVER_THEMES && themesPage))
     return (
       <div className="h-full overflow-auto" data-testid="server-resources">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-6">
           {menu}
-          {common}
+          {scope === SERVER_COMMON ? common : themesPage}
         </div>
       </div>
     );

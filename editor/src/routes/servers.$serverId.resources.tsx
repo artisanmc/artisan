@@ -1,11 +1,13 @@
 import { KitPage } from "@/features/assets/KitPage";
 import { KitThemePage } from "@/features/assets/KitThemePage";
 import { NewThemeDialog } from "@/features/assets/NewThemeDialog";
+import { ThemesPage } from "@/features/assets/ThemesPage";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useResourcesView } from "@/features/assets/resourcesView";
 import { saveThemeColors } from "@/features/assets/themeWrite";
 import {
   SERVER_COMMON,
+  SERVER_THEMES,
   ServerResources,
   type ServerResourcesScope,
   WHOLE_SERVER,
@@ -16,7 +18,7 @@ import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoade
 import { useServerFrame } from "@/features/serverPage/serverFrame";
 import { patchServerConfig } from "@/lib/api/serverConfig";
 import { commonImageKey } from "@/lib/pack/kit";
-import { isThemeName, themeChange } from "@/lib/pack/theme";
+import { THEMES_CONFIG_KEY, isThemeName, themeChange } from "@/lib/pack/theme";
 import { projectDestination } from "@/lib/projectNavigation";
 import { useKitStore } from "@/state/kitStore";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -38,7 +40,8 @@ export const Route = createFileRoute("/servers/$serverId/resources")({
 /**
  * The server's Resources tab: every module's images and fonts and the common images, read as
  * published (`ServerResources`). `?show=common` is the page of the common images alone,
- * `?show=<module>` one module's, `?theme=<name>` a theme of the common images.
+ * `?show=themes` the server's themes and their stack, `?show=<module>` one module's,
+ * `?theme=<name>` one theme's page, which goes back to the page it was opened from.
  */
 function ServerResourcesTab() {
   const { serverId, serverKeyId } = useServerFrame();
@@ -75,13 +78,37 @@ function ServerResourcesTab() {
         void openModule(kitId);
       }
     : undefined;
+  // The kit's images are shown in the server's themes from now on, and its pack rebuilt in them.
+  const stackSaved = (saved: Record<string, unknown>) => {
+    useKitStore.getState().readConfig(saved);
+    rebuildServerPackInBackground(t, serverKeyId);
+  };
+  const putInPlace = async (name: string, put: boolean) => {
+    const { themes, stacks } = useKitStore.getState();
+    stackSaved(await patchServerConfig(serverKeyId, themeChange(themes, stacks, name, put)));
+  };
+  const newTheme = (from: ServerResourcesScope) =>
+    kitId
+      ? (themes: readonly string[]) => (
+          <NewThemeDialog
+            serverKeyId={serverKeyId}
+            taken={themes}
+            onCreated={(name) => {
+              setRereads((count) => count + 1);
+              void showScope(from, name);
+            }}
+          />
+        )
+      : undefined;
+  const fromThemes = show === SERVER_THEMES;
   if (theme)
     return (
       <div className="h-full overflow-auto">
         <div className="mx-auto max-w-7xl px-6 py-6">
           <KitThemePage
             name={theme}
-            onBack={() => void showScope(SERVER_COMMON)}
+            onBack={() => void showScope(fromThemes ? SERVER_THEMES : SERVER_COMMON)}
+            backLabel={fromThemes ? t("kit.theme.backToThemes") : undefined}
             onOpenKit={kitId ? () => void openModule(kitId) : undefined}
             onOpenTheme={
               ownThemes[theme]
@@ -97,16 +124,7 @@ function ServerResourcesTab() {
               if (useKitStore.getState().themes.includes(name))
                 rebuildServerPackInBackground(t, serverKeyId);
             }}
-            onPutInPlace={async (name, put) => {
-              const { themes, stacks } = useKitStore.getState();
-              const saved = await patchServerConfig(
-                serverKeyId,
-                themeChange(themes, stacks, name, put),
-              );
-              // The kit's images are shown in the server's themes from now on, and its pack rebuilt in them.
-              useKitStore.getState().readConfig(saved);
-              rebuildServerPackInBackground(t, serverKeyId);
-            }}
+            onPutInPlace={putInPlace}
           />
         </div>
       </div>
@@ -124,27 +142,25 @@ function ServerResourcesTab() {
       onOpenMenu={(projectId, menuId) =>
         void navigate(projectDestination(projectId, serverId, menuId, "menu"))
       }
+      themes={
+        <ThemesPage
+          onTheme={(name) => void showScope(SERVER_THEMES, name)}
+          onOrder={async (names) =>
+            stackSaved(await patchServerConfig(serverKeyId, { [THEMES_CONFIG_KEY]: names }))
+          }
+          onPutInPlace={putInPlace}
+          newTheme={newTheme(SERVER_THEMES)}
+        />
+      }
       common={
         <KitPage
           onTheme={(name) => void showScope(SERVER_COMMON, name)}
+          onThemes={() => void showScope(SERVER_THEMES)}
           menusNaming={menusNamingCommon(uses)}
           usesOf={(name) => uses.get(commonImageKey(name))?.length ?? 0}
           onPiece={openCommon}
           onOpenKit={kitId ? () => void openModule(kitId) : undefined}
-          newTheme={
-            kitId
-              ? (themes) => (
-                  <NewThemeDialog
-                    serverKeyId={serverKeyId}
-                    taken={themes}
-                    onCreated={(name) => {
-                      setRereads((count) => count + 1);
-                      void showScope(SERVER_COMMON, name);
-                    }}
-                  />
-                )
-              : undefined
-          }
+          newTheme={newTheme(SERVER_COMMON)}
         />
       }
     />

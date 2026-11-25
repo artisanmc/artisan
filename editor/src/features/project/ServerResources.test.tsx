@@ -7,7 +7,7 @@ import { useKitStore } from "@/state/kitStore";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SERVER_COMMON, ServerResources, WHOLE_SERVER } from "./ServerResources";
+import { SERVER_COMMON, SERVER_THEMES, ServerResources, WHOLE_SERVER } from "./ServerResources";
 
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
@@ -172,6 +172,21 @@ describe("the server's Resources", () => {
     rerender(<ServerResources scope={SERVER_COMMON} common={<p>communes</p>} {...on} />);
     expect(screen.getByText("communes")).toBeInTheDocument();
     expect(screen.queryByTestId("server-asset-detail")).toBeNull();
+
+    // The themes have their own page, offered in the same list when the screen is given it.
+    rerender(
+      <ServerResources
+        scope={SERVER_THEMES}
+        common={<p>communes</p>}
+        themes={<p>les thèmes</p>}
+        {...on}
+      />,
+    );
+    expect(screen.getByText("les thèmes")).toBeInTheDocument();
+    expect(screen.getByTestId("server-resources-scope")).toHaveTextContent("Thèmes");
+    await userEvent.click(screen.getByTestId("server-resources-scope"));
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Images communes" }));
+    expect(on.onScope).toHaveBeenCalledWith(SERVER_COMMON);
   });
 
   it("shows Artisan's original beside a piece the server redrew, and says when it is not taken", async () => {

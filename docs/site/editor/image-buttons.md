@@ -111,6 +111,12 @@ images and is put in place. Its page says where its files are; the assistant fil
 asked ("make the buttons red in the theme noel"). A theme changes the common images, and may
 redraw a module's own image at its size; its page lists both.
 
+**Resources**, **Show: Themes** lists the server's themes: those in place, the highest first,
+and the others. The highest theme that redraws an image wins, and its colours repaint what
+the ones below show; drag a theme by its handle to change its place, **Take off** or **Put in
+place** to change the list. Each change rebuilds the server's pack. A click on a theme opens
+its page.
+
 On the page of a theme, **Artisan's colours** has one colour to pick per family: main
 (buttons), danger (delete, close), accent (highlights) and neutral (windows, frames). Pick
 what a family's colour becomes and its shades follow, darker ones darker, lighter ones

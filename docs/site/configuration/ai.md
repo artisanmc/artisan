@@ -273,7 +273,8 @@ The server's themes in place are a stack (`resource-pack.themes` of `config.yml`
 first): each changes what the ones below show, so the highest that redraws an image wins and
 its colours repaint what is below. Put a theme in place from its page (**Resources**, common
 images, the theme, **Put in place on the server**), which sets it above the others and rebuilds
-the pack; **Configuration**, **Resource pack**, **Themes in place** holds the list in order. The
+the pack; **Resources**, **Show: Themes** holds the list in order, where a theme is dragged to
+another place. The
 app cannot put a theme in place; it shows you a menu in a theme before you do.
 
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"

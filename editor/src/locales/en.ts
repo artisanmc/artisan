@@ -291,9 +291,41 @@ export default {
         create_failed: "Could not create the theme on the server. Try again.",
       },
     },
+    themes: {
+      title: "Themes",
+      intro:
+        "A theme is another look for the server's images, for a season or an event: other colours, or some images redrawn. The menus keep their layout.",
+      inPlace: "In place on the server",
+      inPlaceHint: "What players see: the theme in place over Artisan's images and yours.",
+      orderHint:
+        "From the highest to the lowest. The highest theme that redraws an image wins, and its colours repaint what the ones below show. Drag a theme to change its place: the server's pack is rebuilt.",
+      noneInPlace: "No theme in place: players see Artisan's images and yours as they are.",
+      base: "Artisan's images, and yours",
+      baseHint: "Always below every theme.",
+      installed: "On the server, not in place",
+      none: "The server has no theme yet.",
+      allInPlace: "Every theme of the server is in place.",
+      putHint:
+        "Putting a theme in place sets it above the others and rebuilds the server's pack: players receive it at their next connection.",
+      putInPlace: "Put in place",
+      takeOff: "Take off",
+      move: "Drag to change the theme's place",
+      colors_one: "{{count}} colour replaced",
+      colors_other: "{{count}} colours replaced",
+      drawings_one: "{{count}} image redrawn",
+      drawings_other: "{{count}} images redrawn",
+      scopeCommon: "common images only",
+      scopeModule: "module {{module}} only",
+      empty: "changes nothing yet",
+      missing:
+        "The server has no theme of this name: it changes nothing. Take it off, or create it.",
+      missingBadge: "Not found",
+      manage: "Manage the themes",
+    },
     theme: {
       failed: "That did not work: {{detail}}",
       back: "‹ Common images",
+      backToThemes: "‹ Themes",
       title: "Theme “{{name}}”",
       intro:
         "A theme changes the common images' colours, or redraws one. The menus keep their layout.",

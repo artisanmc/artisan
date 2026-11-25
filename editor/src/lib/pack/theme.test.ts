@@ -16,6 +16,7 @@ import {
   themeFile,
   themeNames,
   themeScope,
+  themesMoved,
 } from "./theme";
 
 const solid = (width: number, height: number, ...rgba: number[]): RgbaImage => {
@@ -473,5 +474,14 @@ describe("kit themes", () => {
     expect(await tried.moduleShown("guilds", "x", green, true)).toBe(green);
     // The theme itself keeps its table.
     expect(theme.colors.get(0x3c8527)).toBe(0xb3261e);
+  });
+  test("a theme moved on the screen, the highest first, gives the server's order, the lowest first", () => {
+    const inPlace = ["hiver", "noel", "nuit"];
+    // Shown as nuit, noel, hiver: the last one dragged to the top is now the highest.
+    expect(themesMoved(inPlace, 2, 0)).toEqual(["noel", "nuit", "hiver"]);
+    expect(themesMoved(inPlace, 0, 1)).toEqual(["hiver", "nuit", "noel"]);
+    expect(themesMoved(inPlace, 1, 1)).toEqual(inPlace);
+    expect(themesMoved(inPlace, 0, 5)).toEqual(inPlace);
+    expect(themesMoved([], 0, 0)).toEqual([]);
   });
 });

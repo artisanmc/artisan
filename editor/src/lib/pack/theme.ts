@@ -99,6 +99,18 @@ export function themeChange(
   return { [THEMES_CONFIG_KEY]: put ? [...others, name] : others };
 }
 
+/**
+ * The themes in place after one is moved, as a screen shows them: the highest first. `from`
+ * and `to` are places in that order; the list returned is the server's, the lowest first.
+ */
+export function themesMoved(inPlace: readonly string[], from: number, to: number): string[] {
+  const shown = [...inPlace].reverse();
+  if (from < 0 || from >= shown.length || to < 0 || to >= shown.length) return [...inPlace];
+  const [moved] = shown.splice(from, 1) as [string];
+  shown.splice(to, 0, moved);
+  return shown.reverse();
+}
+
 /** `0xRRGGBB` of `#rrggbb`; `null` for anything else. */
 export const themeColor = (text: unknown): number | null =>
   typeof text === "string" && COLOR.test(text) ? Number.parseInt(text.slice(1), 16) : null;

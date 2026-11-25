@@ -298,9 +298,43 @@ const fr: typeof en = {
         create_failed: "Impossible de créer le thème sur le serveur. Réessaie.",
       },
     },
+    themes: {
+      title: "Thèmes",
+      intro:
+        "Un thème est un autre habillage des images du serveur, pour une saison ou un événement : d'autres couleurs, ou des images redessinées. Les menus gardent leur mise en page.",
+      inPlace: "En place sur le serveur",
+      inPlaceHint:
+        "Ce que voient les joueurs : le thème en place par-dessus les images d'Artisan et les vôtres.",
+      orderHint:
+        "Du plus haut au plus bas. Le thème le plus haut qui redessine une image l'emporte, et ses couleurs repeignent ce que montrent ceux du dessous. Faites glisser un thème pour changer sa place : le pack du serveur est reconstruit.",
+      noneInPlace:
+        "Aucun thème en place : les joueurs voient les images d'Artisan et les vôtres telles quelles.",
+      base: "Les images d'Artisan, et les vôtres",
+      baseHint: "Toujours sous tous les thèmes.",
+      installed: "Sur le serveur, pas en place",
+      none: "Le serveur n'a pas encore de thème.",
+      allInPlace: "Tous les thèmes du serveur sont en place.",
+      putHint:
+        "Mettre un thème en place le pose au-dessus des autres et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion.",
+      putInPlace: "Mettre en place",
+      takeOff: "Retirer",
+      move: "Faire glisser pour changer la place du thème",
+      colors_one: "{{count}} couleur remplacée",
+      colors_other: "{{count}} couleurs remplacées",
+      drawings_one: "{{count}} image redessinée",
+      drawings_other: "{{count}} images redessinées",
+      scopeCommon: "images communes seulement",
+      scopeModule: "module {{module}} seulement",
+      empty: "ne change rien pour l'instant",
+      missing:
+        "Le serveur n'a pas de thème de ce nom : il ne change rien. Retirez-le, ou créez-le.",
+      missingBadge: "Introuvable",
+      manage: "Gérer les thèmes",
+    },
     theme: {
       failed: "Ça n'a pas marché : {{detail}}",
       back: "‹ Images communes",
+      backToThemes: "‹ Thèmes",
       title: "Thème « {{name}} »",
       intro:
         "Un thème change les couleurs des images communes, ou en redessine une. Les menus gardent leur mise en page.",
