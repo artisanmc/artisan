@@ -121,6 +121,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   const titleImages: { folder: string; ref: string }[] = [];
   const kitProject = projects.find(inKit);
   const kitImages = new Map<string, Uint8Array>();
+  // The server's common images that say they follow the ramps; the base's always do.
+  const kitRamps = new Set<string>();
   const kitBase = new Map<string, Uint8Array | null>();
   const kitImageOf = async (name: string) => {
     let base = kitBase.get(name);
@@ -133,6 +135,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     }
     return kitImage(name, kitImages.get(name), input.kitImage, base);
   };
+  // Whether what the common image `name` shows (`png`) is the server's own image, not the base's.
+  const serverOwn = (name: string, png: Uint8Array) => png === kitImages.get(name);
   const composed: {
     /** `null` for a common image, which has no row of its own: it is a `kit:<name>` once named. */
     row: AssetRow | null;
@@ -157,8 +161,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     for (const slot of KIT_SLOTS) names.common(slot.id);
   }
 
-  // The themes in place (`theme.ts`), the lowest first: they change the common images, and
-  // redraw the modules' images they name.
+  // The themes in place (`theme.ts`), the lowest first: they redraw the images they name, and
+  // their colours repaint the ones that follow the ramps.
   const theme = input.themes?.length
     ? readKitThemes(input.themes, kitProject, themeProjects)
     : null;
@@ -216,6 +220,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
         imagesByRef.push({ ref: `${project.id}:${a.row.name}`, bytes });
         own.set(a.row.name, bytes);
         kitImages.set(a.row.name, bytes);
+        if (a.row.ramps) kitRamps.add(a.row.name);
         continue;
       }
       allAssets.push(row);
@@ -226,12 +231,21 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
         }
         const disk = await project.binary(a.path);
         if (!disk) continue;
-        // A theme in place may redraw a module's image, at its size (`overrides/<module>/`).
-        const bytes = (await theme?.moduleDrawing(folder, a.row.name, disk)) ?? disk;
+        // A theme in place may redraw a module's image, at its size (`overrides/<module>/`),
+        // and repaints one that follows the ramps. A server older than the theme `artisan`
+        // keeps its common images in a module: they are repainted once, as common images.
+        const legacyCommon = folder === kitFolder;
+        const ramps = a.row.ramps === true;
+        const bytes = theme
+          ? await theme.moduleShown(folder, a.row.name, disk, ramps && !legacyCommon)
+          : disk;
         glyphPngs.set(row.id, bytes);
         imagesByRef.push({ ref: `${project.id}:${a.row.name}`, bytes });
         own.set(a.row.name, bytes);
-        if (folder === kitFolder) kitImages.set(a.row.name, bytes);
+        if (legacyCommon) {
+          kitImages.set(a.row.name, bytes);
+          if (ramps) kitRamps.add(a.row.name);
+        }
         continue;
       }
       if (row.type !== "font") continue;
@@ -252,8 +266,9 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   // The themes in place change the kit's PNGs, the base's and the server's: an image composed
   // with them follows, and is not themed a second time once assembled.
   const kitPng = async (name: string) => {
-    const png = (await kitImageOf(name))?.png;
-    return png && theme ? theme.shown(name, png) : png;
+    const image = await kitImageOf(name);
+    if (!image || !theme) return image?.png;
+    return theme.shown(name, image.png, serverOwn(name, image.png) ? kitRamps.has(name) : true);
   };
   const made: { c: (typeof composed)[number]; image: RgbaImage }[] = [];
   for (const c of composed) {
@@ -262,7 +277,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
       // In the kit module an image is a kit image under its bare name too.
       (name) => {
         const png = c.own.get(name);
-        return png && theme && inKit(c.project) ? theme.shown(name, png) : png;
+        return png && theme && inKit(c.project) ? theme.shown(name, png, kitRamps.has(name)) : png;
       },
       kitPng,
     );
@@ -326,9 +341,13 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     const png = !theme
       ? image.png
       : // Assembled from themed layers already: only the theme's own drawing of it replaces it.
-        image.png === kitImages.get(name) && kitComposed.has(name)
-        ? ((await theme.drawing(name, image.png)) ?? image.png)
-        : await theme.shown(name, image.png);
+        serverOwn(name, image.png) && kitComposed.has(name)
+        ? ((await theme.drawing(name, image.png, false)) ?? image.png)
+        : await theme.shown(
+            name,
+            image.png,
+            serverOwn(name, image.png) ? kitRamps.has(name) : true,
+          );
     const id = KIT_PREFIX + name;
     const glyph = inTitles.has(name);
     allAssets.push({

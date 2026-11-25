@@ -243,11 +243,23 @@ A theme may also redraw a module's own image, at its size
 (`overrides/guilds/banner.png` for the image `banner` of the module `guilds`): ask for it by
 the module's name ("in the theme noel, redraw the guilds banner with snow").
 
-Every common image a menu names is then shown as the theme draws it, else in the theme's
-colours, its transparency kept; an image composed from common images follows. A drawing of
-another size than the image it replaces is left out, so the menus keep their layout. A
-theme's colours never change a module's own PNG: the theme redraws it, or the image is
-composed from common images and follows them.
+An image a theme draws is shown as drawn. Otherwise the theme's colours repaint the images
+that follow them, their transparency kept: Artisan's own, and any image, common or a
+module's, that says so (`ramps: true` in its `.yml`, **Follows the themes' colours** in
+**Resources**; the assistant sets it when it draws an image in the base's colours and you can
+ask for it: "make the guilds banner follow the themes"). Any other image keeps its colours,
+so an icon that happens to share a green is not repainted. An image composed from others
+follows through its layers. A drawing of another size than the image it replaces is left out,
+so the menus keep their layout.
+
+A theme may be kept to one module:
+
+```yaml
+# overrides/colors.yml
+scope: guilds            # the colours change the images of guilds only; artisan: the common images only
+colors:
+  "#3c8527": "#b3261e"
+```
 A theme written before themes had their own folder (`themes/<name>/` inside the common
 images, with a `theme.yml`) moves to its own folder at the server's next start, its files put
 at the places above; it keeps its name and its place in the stack, and the pack does not

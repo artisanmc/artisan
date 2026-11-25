@@ -10,7 +10,7 @@ import {
   imageNamed,
   kitNameOf,
 } from "@/lib/pack/kit";
-import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
+import { diskAssetsFromTree, followsRamps } from "@/lib/pack/diskAssets";
 import { kitImageUrl } from "@/lib/pack/kitUrls";
 import type { KitTheme, ThemeLook } from "@/lib/pack/theme";
 import { type KitRead, useKitStore } from "@/state/kitStore";
@@ -37,6 +37,8 @@ interface OwnImage {
   hash: string;
   width: number | null;
   height: number | null;
+  /** The image says it follows the ramps: the themes' colours repaint it. */
+  ramps?: boolean;
 }
 
 const size = (value: unknown): number | null =>
@@ -66,13 +68,23 @@ function ownImages(read: KitRead | undefined): Map<string, OwnImage> {
       hash,
       width: size(descriptor?.width),
       height: size(descriptor?.height),
+      ...(followsRamps(descriptor) ? { ramps: true } : {}),
     });
   }
   return out;
 }
 
-function kitAsset(name: string, width: number, height: number, url: string, hash: string): Asset {
+/** `ramps`: the image follows the ramps, as the base's do and the server's own when they say so. */
+function kitAsset(
+  name: string,
+  width: number,
+  height: number,
+  url: string,
+  hash: string,
+  ramps: boolean,
+): Asset {
   return {
+    ...(ramps ? { ramps: true } : {}),
     id: KIT_PREFIX + name,
     projectId: KIT_FOLDER,
     type: "texture",
@@ -126,6 +138,10 @@ export async function composedKitImages(
       },
       theme,
       true,
+      (name) =>
+        disk.some(
+          (a) => !a.compose && a.row.type !== "font" && a.row.name === name && a.row.ramps === true,
+        ),
     ).catch(() => null);
     if (view?.previewUrl)
       out.set(asset.row.name, {
@@ -178,8 +194,8 @@ export async function themedKitAssets(
         const png = await assetBytes(asset);
         const assembled = composed.get(name)?.url === asset.previewUrl;
         const shown = assembled
-          ? ((await theme.drawing(name, png)) ?? png)
-          : await theme.shown(name, png);
+          ? ((await theme.drawing(name, png, false)) ?? png)
+          : await theme.shown(name, png, asset.ramps === true);
         return shown === png ? asset : { ...asset, previewUrl: toDataUrl(shown) };
       } catch {
         // An image that cannot be read is shown as it was.
@@ -205,14 +221,21 @@ export function kitAssetsOf(
   const base = KIT_SLOTS.map((slot) => {
     const mine = own.get(slot.id);
     return mine && fits(slot, mine)
-      ? kitAsset(slot.id, slot.width, slot.height, mine.url, mine.hash)
-      : kitAsset(slot.id, slot.width, slot.height, kitImageUrl(slot.id) ?? "", "");
+      ? kitAsset(slot.id, slot.width, slot.height, mine.url, mine.hash, mine.ramps === true)
+      : kitAsset(slot.id, slot.width, slot.height, kitImageUrl(slot.id) ?? "", "", true);
   });
   const slots = new Set(KIT_SLOTS.map((s) => s.id));
   const others = [...own]
     .filter(([name]) => !slots.has(name))
     .map(([name, image]) =>
-      kitAsset(name, image.width ?? 0, image.height ?? 0, image.url, image.hash),
+      kitAsset(
+        name,
+        image.width ?? 0,
+        image.height ?? 0,
+        image.url,
+        image.hash,
+        image.ramps === true,
+      ),
     );
   return [...base, ...others];
 }

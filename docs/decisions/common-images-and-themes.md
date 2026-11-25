@@ -386,6 +386,37 @@ decision 7's "follows the ramps"); the editor's canvas and a module's Resources,
 module's image as the module holds it, not as a theme in place redraws it; an add-on's
 original beside a theme's redraw.
 
+**Step 4, fifth part: which images a theme's colours repaint, and a theme of one module**
+(`KitTheme.shown` and `moduleShown` in `Theme.kt` and `theme.ts`, `DiskAsset.ramps`, both pack
+builders).
+An image follows the ramps when it is the base's (the theme `artisan`'s own drawing, as
+shipped) or when its descriptor says `ramps: true`, for a common image and a module's alike
+(decision 7). A theme's table of colours repaints those and no other: an image that does not
+follow is a theme's drawing of it, as drawn, or itself. The earlier parts repainted every
+common image and no module's image; no server had a theme in place. Through the stack an
+image that follows takes each theme in turn (its drawing, else its colours over what the ones
+below show); one that does not takes the highest theme's drawing. A composed image says
+nothing of the ramps: it follows its layers, and a theme's drawing of it is taken as drawn.
+The owner's version of an image a module ships reads the shipped descriptor unless it comes
+with its own (the rule of every descriptor), so it follows when the original does.
+`scope: <module>` beside `colors` in `overrides/colors.yml` keeps a theme's colours to the
+images of that one module, `scope: artisan` to the common images; without it they reach
+every image that follows the ramps. A scope narrows the colours only: what a theme redraws
+is named by its path. A scope that is not a text is no scope.
+In the editor an image's panel has **Follows the themes' colours**; the server's version of a
+base image, first drawn over the base in the atelier, has it set, an imported image does not,
+and a retouch or a rename keeps what the image said. A theme's page says what its colours
+reach. The MCP tools: `write_image` takes `ramps`, `survey_ui` marks the images that follow
+and gives a theme's `scope`, `render_menu` draws accordingly, and a theme's file is checked
+for its `scope`. The vector locks it in both builders and both packs (one case), with twin
+unit cases.
+Not in this part: the ramps themselves (the base declaring primary, danger, neutral and
+accent with their shades, the editor computing a theme's table from a colour picked per
+ramp: the table is still written by hand or by the assistant); an image made in the atelier
+from a base image under another name, which does not get the flag by itself; the editor's
+canvas and a module's Resources, which show a module's image as the module holds it, not in
+the colours of a theme in place.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -416,9 +447,10 @@ Not there yet:
   in between is not flagged. A menu keeps what module originals already gave it (compare with
   the original, back to the original, a merge at each update): it has no "the original
   changed" notice of its own.
-- Against decision 5: a theme other than `artisan` is still a folder
-  `themes/artisan/themes/<name>/`, which redraws common images only.
-- Against decision 6: a theme has no `scope`, and its colours touch every common image.
+- Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are not in the pack,
+  and a theme is not deleted or renamed from the editor.
+- Against decision 7: the base declares no ramps and the editor computes no shade: a theme's
+  table is written colour by colour.
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no
   module), so two modules asking for the same name at the same rise share one picture.
 - The editor draws the base from its own build, not from the server's `originals/`: the two

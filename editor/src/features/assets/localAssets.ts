@@ -24,7 +24,7 @@ import {
 } from "@/lib/pack/assetDiskWrite";
 import { type AssetUsage, parseAssetUsages } from "@/lib/pack/assetUsages";
 import { type ComposeRecipe, composeRecipe, composeYaml } from "@/lib/pack/compose";
-import { type DiskAsset, diskAssetsFromTree } from "@/lib/pack/diskAssets";
+import { type DiskAsset, diskAssetsFromTree, followsRamps } from "@/lib/pack/diskAssets";
 import { imageFunctionOf } from "@/lib/pack/imageFunction";
 import { isKitFolder, kitSlot } from "@/lib/pack/kit";
 import { FONT_DESCRIPTOR, fontDir, fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
@@ -91,7 +91,9 @@ export function assetJsonFields(fields: Record<string, string>): Record<string, 
         ? JSON.parse(value)
         : ["height", "ascent"].includes(key)
           ? Number(value)
-          : value,
+          : key === "ramps" && (value === "true" || value === "false")
+            ? value === "true"
+            : value,
     ]),
   );
 }
@@ -120,6 +122,7 @@ function serialize(row: AssetRow): Asset {
       fontMeta: row.fontMeta,
       usages: row.usages,
       function: row.function,
+      ramps: row.ramps,
       contentHash: row.contentHash,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -148,6 +151,27 @@ function kitOwn(
   };
 }
 
+/**
+ * Whether the server's own common image `name`, as published, says it follows the ramps
+ * (`ramps: true` in its descriptor). `own` answers for the kit module itself.
+ */
+function kitOwnRamps(projectId: string, own: (name: string) => boolean): (name: string) => boolean {
+  const kit = useKitStore.getState().read;
+  if (!kit) return () => false;
+  if (kit.projectId === projectId) return own;
+  return (name) => {
+    const stem = ["assets/textures", "assets/glyphs"]
+      .map((dir) => `${dir}/${name}`)
+      .find((p) => kit.binaries.some((b) => b.path === `${p}.png`));
+    if (!stem) return false;
+    try {
+      return followsRamps(parse(kit.files[`${stem}.yml`] ?? kit.files[`${stem}.yaml`] ?? ""));
+    } catch {
+      return false;
+    }
+  };
+}
+
 /** The pictures of `disk`'s composed images, by asset: assembled as the pack does it. */
 async function composedViews(
   projectId: string,
@@ -168,12 +192,19 @@ async function composedViews(
     const own = disk.find((a) => !a.compose && a.row.type !== "font" && a.row.name === name);
     return own ? read(own) : undefined;
   });
+  const kitRamps = kitOwnRamps(projectId, (name) =>
+    disk.some(
+      (a) => !a.compose && a.row.type !== "font" && a.row.name === name && a.row.ramps === true,
+    ),
+  );
   // The server's theme: the `kit:` layers are shown in it, and the kit module's own images too.
   const theme = activeKitTheme(readPublishedBinary);
   const inKit = useKitStore.getState().read?.projectId === projectId;
   for (const asset of disk) {
     if (!asset.compose) continue;
-    const view = await composedView(asset, disk, read, kit, theme, inKit).catch(() => null);
+    const view = await composedView(asset, disk, read, kit, theme, inKit, kitRamps).catch(
+      () => null,
+    );
     if (view) out.set(asset, view);
   }
   return out;
@@ -603,6 +634,10 @@ async function create(
   const previous = existingSame ? descriptorOf(disk.files, existingSame.path) : null;
   if (kept) usages = kept.usages;
   const fn = kept ? kept.function : (imageFunctionOf({ function: fields.function }) ?? undefined);
+  // An image keeps what it said of the ramps; the owner's version of a base image, first drawn
+  // over the base, follows them as the base does (ADR `common-images-and-themes`, decision 7).
+  const overBase = retouch && !existingSame && !!source && isKitModule(projectId);
+  const ramps = (kept ? kept.ramps || overBase : fields.ramps === "true") || undefined;
   const ascentValue = kept
     ? kept.ascent
     : type === "glyph"
@@ -628,6 +663,7 @@ async function create(
       content_width: contentWidth,
       usages,
       function: fn,
+      ramps,
     },
     baseHash: existingSame?.hash ?? null,
     ...(previous ? { previous: { path: previous.path, hash: textHash(previous.content) } } : {}),
@@ -646,6 +682,7 @@ async function create(
         fontMeta: null,
         usages,
         function: fn,
+        ramps,
         contentHash: sha256Hex(file),
         createdAt: now,
         updatedAt: now,
@@ -736,6 +773,11 @@ async function patch(
     fail(400, "function only valid for an image");
   const nextFunction =
     body.function === undefined ? row.function : (imageFunctionOf(body) ?? undefined);
+  if (body.ramps !== undefined && typeof body.ramps !== "boolean")
+    fail(400, "Invalid ramps (true or false)");
+  if (body.ramps !== undefined && (row.type === "font" || found.compose))
+    fail(400, "ramps only valid for a drawn image");
+  const nextRamps = body.ramps === undefined ? row.ramps : body.ramps || undefined;
   const nextName = typeof body.name === "string" ? body.name : row.name;
   if (typeof body.ascent === "number" && row.type !== "glyph")
     fail(400, "ascent only valid for glyph");
@@ -816,6 +858,7 @@ async function patch(
         content_width: nextContentWidth,
         usages: nextUsages,
         function: nextFunction,
+        ramps: nextRamps,
       },
       baseHash: renamed ? null : found.hash,
       ...(previous && !renamed
@@ -841,6 +884,7 @@ async function patch(
       contentWidth: nextContentWidth,
       usages: nextUsages,
       function: nextFunction,
+      ramps: nextRamps,
     }),
   };
 }
@@ -883,6 +927,7 @@ async function duplicate(overlay: DraftOverlay, id: string): Promise<Body> {
       content_width: src.contentWidth,
       usages: src.usages,
       function: src.function,
+      ramps: src.ramps,
     },
     baseHash: null,
   });

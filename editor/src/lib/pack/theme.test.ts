@@ -14,6 +14,7 @@ import {
   themeDrawings,
   themeFile,
   themeNames,
+  themeScope,
 } from "./theme";
 
 const solid = (width: number, height: number, ...rgba: number[]): RgbaImage => {
@@ -124,7 +125,7 @@ describe("kit themes", () => {
     image.data.set([
       0x3c, 0x85, 0x27, 255, 0x3c, 0x85, 0x27, 128, 0x3c, 0x85, 0x27, 0, 0xb3, 0x26, 0x1e, 255,
     ]);
-    const out = await theme.shown("button.3x1", encodePng(image));
+    const out = await theme.shown("button.3x1", encodePng(image), true);
     expect(pixel(out, 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
     expect(pixel(out, 1, 0)).toEqual([0xb3, 0x26, 0x1e, 128]);
     expect(pixel(out, 2, 0)).toEqual([0x3c, 0x85, 0x27, 0]);
@@ -132,9 +133,9 @@ describe("kit themes", () => {
     expect(pixel(out, 3, 0)).toEqual([255, 255, 255, 255]);
     // No colour of the table: the very same file, not one encoded again.
     const other = encodePng(solid(2, 2, 1, 2, 3, 255));
-    expect(await theme.shown("x", other)).toBe(other);
+    expect(await theme.shown("x", other, true)).toBe(other);
     const broken = new Uint8Array([1, 2, 3]);
-    expect(await theme.shown("x", broken)).toBe(broken);
+    expect(await theme.shown("x", broken, true)).toBe(broken);
   });
 
   test("an image the theme redraws at its size is taken as it is", async () => {
@@ -152,11 +153,11 @@ describe("kit themes", () => {
     expect([...theme.drawings].sort()).toEqual(["back", "broken", "close"]);
     const base = encodePng(solid(2, 2, 0x3c, 0x85, 0x27, 255));
     // Its own colours are not replaced: it is drawn in the theme already.
-    expect(await theme.shown("close", base)).toBe(drawn);
+    expect(await theme.shown("close", base, true)).toBe(drawn);
     expect(await theme.drawing("close", base)).toBe(drawn);
     // Another size, or unreadable: left out, the image takes the theme's colours.
     expect(await theme.drawing("back", base)).toBeNull();
-    expect(pixel(await theme.shown("back", base), 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
+    expect(pixel(await theme.shown("back", base, true), 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
     expect(await theme.drawing("broken", base)).toBeNull();
     expect(await theme.drawing("other", base)).toBeNull();
   });
@@ -213,28 +214,34 @@ describe("kit themes", () => {
     expect(stack()).toBeNull();
     expect(stack("nowhere")).toBeNull();
     // One theme: the theme itself.
-    expect(pixel(await stack("noel")!.shown("x", green), 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
+    expect(pixel(await stack("noel")!.shown("x", green, true), 0, 0)).toEqual([
+      0xb3, 0x26, 0x1e, 255,
+    ]);
     // `nuit` above `noel` repaints what `noel` shows; under it, it finds no red yet.
-    expect(pixel(await stack("noel", "nuit")!.shown("x", green), 0, 0)).toEqual([0, 0, 0, 255]);
-    expect(pixel(await stack("nuit", "noel")!.shown("x", green), 0, 0)).toEqual([
+    expect(pixel(await stack("noel", "nuit")!.shown("x", green, true), 0, 0)).toEqual([
+      0, 0, 0, 255,
+    ]);
+    expect(pixel(await stack("nuit", "noel")!.shown("x", green, true), 0, 0)).toEqual([
       0xb3, 0x26, 0x1e, 255,
     ]);
     // A theme the module does not hold is left out of the stack.
-    expect(pixel(await stack("noel", "nowhere", "nuit")!.shown("x", green), 0, 0)).toEqual([
+    expect(pixel(await stack("noel", "nowhere", "nuit")!.shown("x", green, true), 0, 0)).toEqual([
       0, 0, 0, 255,
     ]);
     // The highest theme that draws the image wins, as it is.
-    expect(await stack("noel", "haut")!.shown("close", green)).toBe(top);
-    expect(await stack("noel", "haut")!.drawing("close", green)).toBe(top);
-    expect(await stack("haut", "noel")!.drawing("close", green)).toBe(drawn);
+    expect(await stack("noel", "haut")!.shown("close", green, true)).toBe(top);
+    expect(await stack("noel", "haut")!.drawing("close", green, true)).toBe(top);
+    expect(await stack("haut", "noel")!.drawing("close", green, true)).toBe(drawn);
     // Colours above a drawing repaint it, in `shown` and in `drawing` alike.
-    expect(pixel(await stack("noel", "nuit")!.shown("close", green), 0, 0)).toEqual([0, 0, 0, 255]);
-    expect(pixel((await stack("noel", "nuit")!.drawing("close", green))!, 0, 0)).toEqual([
+    expect(pixel(await stack("noel", "nuit")!.shown("close", green, true), 0, 0)).toEqual([
+      0, 0, 0, 255,
+    ]);
+    expect(pixel((await stack("noel", "nuit")!.drawing("close", green, true))!, 0, 0)).toEqual([
       0, 0, 0, 255,
     ]);
     // Colours are no drawing.
-    expect(await stack("noel", "nuit")!.drawing("x", green)).toBeNull();
-    expect(await stack("nuit")!.drawing("close", green)).toBeNull();
+    expect(await stack("noel", "nuit")!.drawing("x", green, true)).toBeNull();
+    expect(await stack("nuit")!.drawing("close", green, true)).toBeNull();
   });
 
   test("a theme of its own folder holds its table and its redraws of the common images", async () => {
@@ -263,13 +270,13 @@ describe("kit themes", () => {
         binaries,
       ),
     );
-    expect(pixel(await theme.shown("x", green), 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
-    expect(await theme.shown("close", green)).toBe(drawn);
+    expect(pixel(await theme.shown("x", green, true), 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
+    expect(await theme.shown("close", green, true)).toBe(drawn);
     expect([...theme.drawings]).toEqual(["close"]);
     // `.yaml` alone is read; a folder that holds neither changes nothing.
     const yaml = readOwnTheme(kit({ "overrides/colors.yaml": table }));
-    expect(pixel(await yaml.shown("x", green), 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
-    expect(await readOwnTheme(kit({})).shown("x", green)).toBe(green);
+    expect(pixel(await yaml.shown("x", green, true), 0, 0)).toEqual([0xb3, 0x26, 0x1e, 255]);
+    expect(await readOwnTheme(kit({})).shown("x", green, true)).toBe(green);
   });
 
   test("a theme in place is the Project of its name, else the folder the common images keep", async () => {
@@ -281,10 +288,10 @@ describe("kit themes", () => {
     const own = new Map([["noel", kit({ "overrides/colors.yml": table })]]);
     // `noel` is read from its own folder, `nuit` where the common images keep it.
     const look = readKitThemes(["noel", "nuit", "nowhere"], common, own)!;
-    expect(pixel(await look.shown("x", green), 0, 0)).toEqual([0, 0, 0, 255]);
+    expect(pixel(await look.shown("x", green, true), 0, 0)).toEqual([0, 0, 0, 255]);
     // Without the common images' Project, the themes of their own folder are still read.
     expect(
-      pixel(await readKitThemes(["noel", "nuit"], undefined, own)!.shown("x", green), 0, 0),
+      pixel(await readKitThemes(["noel", "nuit"], undefined, own)!.shown("x", green, true), 0, 0),
     ).toEqual([0xb3, 0x26, 0x1e, 255]);
     expect(readKitThemes(["nuit"], undefined, own)).toBeNull();
     expect(readKitThemes(["Bad Name"], common, new Map([["Bad Name", kit({})]]))).toBeNull();
@@ -320,24 +327,105 @@ describe("kit themes", () => {
     expect(await theme.moduleDrawing("shop", "banner", image)).toBeNull();
     expect(await theme.moduleDrawing("guilds", "coin", image)).toBeNull();
     expect(await theme.moduleDrawing("guilds", "wide", image)).toBeNull();
-    // Its colours never touch a module's image: drawn, or left as it is.
     expect(await theme.moduleDrawing("guilds", "x", image)).toBeNull();
     // In a stack the highest that redraws it wins; one that does not gives way to the one below.
+    // The image does not follow the ramps: no colour touches it, drawn or not.
     const own = new Map([
       ["noel", noel],
       ["hiver", kit({}, { "overrides/guilds/banner.png": high })],
       ["nuit", kit({ "overrides/colors.yml": 'colors:\n  "#010101": "#ffffff"\n' })],
     ]);
     const stack = (names: string[]) => readKitThemes(names, undefined, own)!;
-    expect(await stack(["noel", "hiver"]).moduleDrawing("guilds", "banner", image)).toBe(high);
-    expect(await stack(["hiver", "noel"]).moduleDrawing("guilds", "banner", image)).toBe(low);
-    expect(await stack(["noel", "nuit"]).moduleDrawing("guilds", "banner", image)).toBe(low);
-    expect(await stack(["nuit", "hiver"]).moduleDrawing("shop", "banner", image)).toBeNull();
+    expect(await stack(["noel", "hiver"]).moduleShown("guilds", "banner", image, false)).toBe(high);
+    expect(await stack(["hiver", "noel"]).moduleShown("guilds", "banner", image, false)).toBe(low);
+    expect(await stack(["noel", "nuit"]).moduleShown("guilds", "banner", image, false)).toBe(low);
+    expect(await stack(["nuit", "hiver"]).moduleShown("shop", "banner", image, false)).toBe(image);
+    expect(await stack(["noel"]).moduleShown("guilds", "x", image, false)).toBe(image);
     // A theme the common images keep redraws no module's image.
     const former = readKitThemes(
       ["old"],
       kit({ "themes/old/theme.yml": table }, { "themes/old/overrides/guilds/banner.png": low }),
     )!;
-    expect(await former.moduleDrawing("guilds", "banner", image)).toBeNull();
+    expect(await former.moduleShown("guilds", "banner", image, false)).toBe(image);
+  });
+
+  test("colours repaint an image that follows the ramps, and no other", async () => {
+    const green = encodePng(solid(2, 2, 0x3c, 0x85, 0x27, 255));
+    const drawn = encodePng(solid(2, 2, 0xb3, 0x26, 0x1e, 255));
+    const RED = [0xb3, 0x26, 0x1e, 255];
+    const own = new Map([
+      // `noel`: green to red, and its own `close` and `guilds:banner`, in red.
+      [
+        "noel",
+        kit(
+          { "overrides/colors.yml": table },
+          { "overrides/artisan/close.png": drawn, "overrides/guilds/banner.png": drawn },
+        ),
+      ],
+      // `nuit`: red to black, colours alone.
+      ["nuit", kit({ "overrides/colors.yml": 'colors:\n  "#b3261e": "#000000"\n' })],
+    ]);
+    const stack = (...names: string[]) => readKitThemes(names, undefined, own)!;
+    // A common image that does not follow the ramps keeps its colours; a theme's drawing of it is taken as drawn.
+    expect(await stack("noel").shown("x", green, false)).toBe(green);
+    expect(await stack("noel", "nuit").shown("x", green, false)).toBe(green);
+    expect(await stack("noel", "nuit").shown("close", green, false)).toBe(drawn);
+    expect(await stack("noel", "nuit").drawing("close", green, false)).toBe(drawn);
+    expect(await stack("nuit").drawing("close", green, false)).toBeNull();
+    // A module's image that follows the ramps takes each theme in turn, like a common one.
+    expect(pixel(await stack("noel").moduleShown("shop", "coin", green, true), 0, 0)).toEqual(RED);
+    expect(
+      pixel(await stack("noel", "nuit").moduleShown("shop", "coin", green, true), 0, 0),
+    ).toEqual([0, 0, 0, 255]);
+    expect(await stack("noel").moduleShown("guilds", "banner", green, true)).toBe(drawn);
+    expect(
+      pixel(await stack("noel", "nuit").moduleShown("guilds", "banner", green, true), 0, 0),
+    ).toEqual([0, 0, 0, 255]);
+    // One that does not is drawn or left.
+    expect(await stack("noel", "nuit").moduleShown("shop", "coin", green, false)).toBe(green);
+    expect(await stack("noel", "nuit").moduleShown("guilds", "banner", green, false)).toBe(drawn);
+  });
+
+  test("a theme's scope keeps its colours to one module's images", async () => {
+    const green = encodePng(solid(2, 2, 0x3c, 0x85, 0x27, 255));
+    const RED = [0xb3, 0x26, 0x1e, 255];
+    expect(themeScope("scope: guilds\n")).toBe("guilds");
+    expect(themeScope(`scope: guilds\n${table}`)).toBe("guilds");
+    expect(themeScope(table)).toBeNull();
+    // Anything but a name is no scope: the colours reach every image that follows the ramps.
+    expect(themeScope("scope: 3\n")).toBeNull();
+    expect(themeScope('scope: ""\n')).toBeNull();
+    expect(themeScope("scope: [guilds]\n")).toBeNull();
+    expect(themeScope(": : :")).toBeNull();
+    const scoped = (scope: string) =>
+      readOwnTheme(kit({ "overrides/colors.yml": `scope: ${scope}\n${table}` }));
+    const guilds = scoped("guilds");
+    expect(guilds.scope).toBe("guilds");
+    expect(pixel(await guilds.moduleShown("guilds", "banner", green, true), 0, 0)).toEqual(RED);
+    expect(await guilds.moduleShown("shop", "coin", green, true)).toBe(green);
+    expect(await guilds.shown("button.3x1", green, true)).toBe(green);
+    // `artisan`: the common images alone.
+    const common = scoped("artisan");
+    expect(pixel(await common.shown("button.3x1", green, true), 0, 0)).toEqual(RED);
+    expect(await common.moduleShown("guilds", "banner", green, true)).toBe(green);
+    // In a stack, a theme of one module sits beside another: each paints what it reaches.
+    const own = new Map([
+      ["guilds-noel", kit({ "overrides/colors.yml": `scope: guilds\n${table}` })],
+      ["nuit", kit({ "overrides/colors.yml": 'colors:\n  "#3c8527": "#000000"\n' })],
+      // Draws `close`, which the scoped theme above it leaves as drawn.
+      ["dessin", kit({}, { "overrides/artisan/close.png": green })],
+    ]);
+    const stack = (...names: string[]) => readKitThemes(names, undefined, own)!;
+    expect(
+      pixel(await stack("guilds-noel", "nuit").moduleShown("guilds", "banner", green, true), 0, 0),
+    ).toEqual(RED);
+    expect(
+      pixel(await stack("guilds-noel", "nuit").moduleShown("shop", "coin", green, true), 0, 0),
+    ).toEqual([0, 0, 0, 255]);
+    expect(await stack("dessin", "guilds-noel").shown("close", green, true)).toBe(green);
+    expect(await stack("dessin", "guilds-noel").drawing("close", green, true)).toBe(green);
+    // A theme the common images keep reads its scope from its file too.
+    const former = readKitTheme("old", kit({ "themes/old/theme.yml": `scope: guilds\n${table}` }))!;
+    expect(await former.shown("button.3x1", green, true)).toBe(green);
   });
 });

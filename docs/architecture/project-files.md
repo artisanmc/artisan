@@ -19,7 +19,7 @@ plugins/Artisan/modules/
     data/<source_id>.yml           ← Project sources (schema data/v1, refs `pack:<id>`)
     templates/<id>.yml             ← schema template/v1, resolved at plugin load
     models/<id>.yml                ← schema model/v1; `<id>` = the source it types (owned model), otherwise the model id, the identity remains the internal `id:`
-    assets/{glyphs,textures,fonts}/ ← images and fonts (binaries, written by publication); an image's `<name>.yml` beside it says what the PNG cannot (ascent, codepoint, usages, and `function: menu | glyph | hud`, which fixes its measures: ADR `common-images-and-themes`, decision 4), and alone, with a `compose:` list, it is a composed image the pack assembles (ADR `mcp-server`, decision 15)
+    assets/{glyphs,textures,fonts}/ ← images and fonts (binaries, written by publication); an image's `<name>.yml` beside it says what the PNG cannot (ascent, codepoint, usages, `function: menu | glyph | hud`, which fixes its measures: ADR `common-images-and-themes`, decision 4, and `ramps: true`, which lets a theme's colours repaint the image: decision 7), and alone, with a `compose:` list, it is a composed image the pack assembles (ADR `mcp-server`, decision 15)
     .artisan/editor.yaml           ← editor board state (the only `.artisan*` the editor writes); `items:` legacy captured-item descriptors, kept as read
     .artisan/project-id            ← project UUID, written once by the plugin (keeps Versions and drafts across a rename); `addon:<folder>` in a module's own folder (`pluginFolder`, or a former `moduleFolder` under `modules/`), so the key holds before the module registers it at startup and across its move to the plugin's folder
     .artisan/drafts/<id>/          ← drafts from before the suite database, no longer read
@@ -39,7 +39,10 @@ of the server's.
 Every other folder of `themes/` is a theme of the server (`ServerThemes.register`, decision 5):
 `overrides/colors.yml` is its table of colours, `overrides/artisan/<image>.png` its redraw of
 a common image and `overrides/<module>/<image>.png` its redraw of a module's image, each at
-that image's size. Its name is lowercase letters, digits, `_` and `-`. It
+that image's size. The table repaints the images that follow the ramps: the base's, and any
+image, common or a module's, whose descriptor says `ramps: true`; `scope: <module>` beside
+`colors` keeps it to that one module's images (`scope: artisan`: the common images alone).
+Its name is lowercase letters, digits, `_` and `-`. It
 holds no Document: the server loads no menu, command or Trigger from it
 (`ProjectRoots.holdsDocuments`). A folder named like a module of the server is not registered
 (warning at start): the module keeps the name. The editor's **New theme** and the MCP tool

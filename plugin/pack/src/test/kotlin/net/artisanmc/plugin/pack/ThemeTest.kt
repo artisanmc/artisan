@@ -80,7 +80,7 @@ class ThemeTest {
         intArrayOf(0x3c, 0x85, 0x27, 255, 0x3c, 0x85, 0x27, 128, 0x3c, 0x85, 0x27, 0, 0xb3, 0x26, 0x1e, 255)
             .forEachIndexed { i, v -> image.data[i] = v.toByte() }
         val png = Png.encode(image)
-        val out = theme.shown("button.3x1", png)
+        val out = theme.shown("button.3x1", png, true)
         assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(out, 0, 0))
         assertEquals(listOf(0xb3, 0x26, 0x1e, 128), pixel(out, 1, 0))
         assertEquals(listOf(0x3c, 0x85, 0x27, 0), pixel(out, 2, 0))
@@ -88,9 +88,9 @@ class ThemeTest {
         assertEquals(listOf(255, 255, 255, 255), pixel(out, 3, 0))
         // No colour of the table: the very same file, not one encoded again.
         val other = Png.encode(solid(2, 2, 1, 2, 3, 255))
-        assertTrue(theme.shown("x", other) === other)
+        assertTrue(theme.shown("x", other, true) === other)
         val broken = byteArrayOf(1, 2, 3)
-        assertTrue(theme.shown("x", broken) === broken)
+        assertTrue(theme.shown("x", broken, true) === broken)
     }
 
     @Test
@@ -113,11 +113,11 @@ class ThemeTest {
         assertEquals(setOf("back", "broken", "close"), theme.drawings)
         val base = Png.encode(solid(2, 2, 0x3c, 0x85, 0x27, 255))
         // Its own colours are not replaced: it is drawn in the theme already.
-        assertTrue(theme.shown("close", base) === drawn)
+        assertTrue(theme.shown("close", base, true) === drawn)
         assertTrue(theme.drawing("close", base) === drawn)
         // Another size, or unreadable: left out, the image takes the theme's colours.
         assertNull(theme.drawing("back", base))
-        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(theme.shown("back", base), 0, 0))
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(theme.shown("back", base, true), 0, 0))
         assertNull(theme.drawing("broken", base))
         assertNull(theme.drawing("other", base))
     }
@@ -173,22 +173,22 @@ class ThemeTest {
         fun stack(vararg names: String) = KitTheme.stack(names.toList(), kit(files, binaries))
         assertNull(stack())
         assertNull(stack("nowhere"))
-        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(stack("noel")!!.shown("x", green), 0, 0))
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(stack("noel")!!.shown("x", green, true), 0, 0))
         // `nuit` above `noel` repaints what `noel` shows; under it, it finds no red yet.
-        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nuit")!!.shown("x", green), 0, 0))
-        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(stack("nuit", "noel")!!.shown("x", green), 0, 0))
+        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nuit")!!.shown("x", green, true), 0, 0))
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(stack("nuit", "noel")!!.shown("x", green, true), 0, 0))
         // A theme the module does not hold is left out of the stack.
-        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nowhere", "nuit")!!.shown("x", green), 0, 0))
+        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nowhere", "nuit")!!.shown("x", green, true), 0, 0))
         // The highest theme that draws the image wins, as it is.
-        assertTrue(stack("noel", "haut")!!.shown("close", green) === top)
-        assertTrue(stack("noel", "haut")!!.drawing("close", green) === top)
-        assertTrue(stack("haut", "noel")!!.drawing("close", green) === drawn)
+        assertTrue(stack("noel", "haut")!!.shown("close", green, true) === top)
+        assertTrue(stack("noel", "haut")!!.drawing("close", green, true) === top)
+        assertTrue(stack("haut", "noel")!!.drawing("close", green, true) === drawn)
         // Colours above a drawing repaint it, in `shown` and in `drawing` alike.
-        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nuit")!!.shown("close", green), 0, 0))
-        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nuit")!!.drawing("close", green)!!, 0, 0))
+        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nuit")!!.shown("close", green, true), 0, 0))
+        assertEquals(listOf(0, 0, 0, 255), pixel(stack("noel", "nuit")!!.drawing("close", green, true)!!, 0, 0))
         // Colours are no drawing.
-        assertNull(stack("noel", "nuit")!!.drawing("x", green))
-        assertNull(stack("nuit")!!.drawing("close", green))
+        assertNull(stack("noel", "nuit")!!.drawing("x", green, true))
+        assertNull(stack("nuit")!!.drawing("close", green, true))
     }
 
     @Test
@@ -211,12 +211,12 @@ class ThemeTest {
                 binaries,
             ),
         )
-        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(theme.shown("x", green), 0, 0))
-        assertTrue(theme.shown("close", green) === drawn)
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(theme.shown("x", green, true), 0, 0))
+        assertTrue(theme.shown("close", green, true) === drawn)
         assertEquals(setOf("close"), theme.drawings)
         // `.yaml` alone is read; a folder that holds neither changes nothing.
-        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(KitTheme.own(kit(mapOf("overrides/colors.yaml" to table))).shown("x", green), 0, 0))
-        assertTrue(KitTheme.own(kit(emptyMap())).shown("x", green) === green)
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(KitTheme.own(kit(mapOf("overrides/colors.yaml" to table))).shown("x", green, true), 0, 0))
+        assertTrue(KitTheme.own(kit(emptyMap())).shown("x", green, true) === green)
     }
 
     @Test
@@ -230,9 +230,9 @@ class ThemeTest {
         )
         val own = mapOf("noel" to kit(mapOf("overrides/colors.yml" to table)))
         // `noel` is read from its own folder, `nuit` where the common images keep it.
-        assertEquals(listOf(0, 0, 0, 255), pixel(KitTheme.stack(listOf("noel", "nuit", "nowhere"), common, own)!!.shown("x", green), 0, 0))
+        assertEquals(listOf(0, 0, 0, 255), pixel(KitTheme.stack(listOf("noel", "nuit", "nowhere"), common, own)!!.shown("x", green, true), 0, 0))
         // Without the common images' Project, the themes of their own folder are still read.
-        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(KitTheme.stack(listOf("noel", "nuit"), null, own)!!.shown("x", green), 0, 0))
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 255), pixel(KitTheme.stack(listOf("noel", "nuit"), null, own)!!.shown("x", green, true), 0, 0))
         assertNull(KitTheme.stack(listOf("nuit"), null, own))
         assertNull(KitTheme.stack(listOf("Bad Name"), common, mapOf("Bad Name" to kit(emptyMap()))))
     }
@@ -259,21 +259,93 @@ class ThemeTest {
         assertNull(theme.moduleDrawing("shop", "banner", image))
         assertNull(theme.moduleDrawing("guilds", "coin", image))
         assertNull(theme.moduleDrawing("guilds", "wide", image))
-        // Its colours never touch a module's image: drawn, or left as it is.
         assertNull(theme.moduleDrawing("guilds", "x", image))
         // In a stack the highest that redraws it wins; one that does not gives way to the one below.
+        // The image does not follow the ramps: no colour touches it, drawn or not.
         val own = mapOf(
             "noel" to noel,
             "hiver" to kit(emptyMap(), mapOf("overrides/guilds/banner.png" to high)),
             "nuit" to kit(mapOf("overrides/colors.yml" to "colors:\n  \"#010101\": \"#ffffff\"\n")),
         )
         fun stack(vararg names: String) = KitTheme.stack(names.toList(), null, own)!!
-        assertTrue(stack("noel", "hiver").moduleDrawing("guilds", "banner", image) === high)
-        assertTrue(stack("hiver", "noel").moduleDrawing("guilds", "banner", image) === low)
-        assertTrue(stack("noel", "nuit").moduleDrawing("guilds", "banner", image) === low)
-        assertNull(stack("nuit", "hiver").moduleDrawing("shop", "banner", image))
+        assertTrue(stack("noel", "hiver").moduleShown("guilds", "banner", image, false) === high)
+        assertTrue(stack("hiver", "noel").moduleShown("guilds", "banner", image, false) === low)
+        assertTrue(stack("noel", "nuit").moduleShown("guilds", "banner", image, false) === low)
+        assertTrue(stack("nuit", "hiver").moduleShown("shop", "banner", image, false) === image)
+        assertTrue(stack("noel").moduleShown("guilds", "x", image, false) === image)
         // A theme the common images keep redraws no module's image.
         val former = KitTheme.stack(listOf("old"), kit(mapOf("themes/old/theme.yml" to table), mapOf("themes/old/overrides/guilds/banner.png" to low)))!!
-        assertNull(former.moduleDrawing("guilds", "banner", image))
+        assertTrue(former.moduleShown("guilds", "banner", image, false) === image)
+    }
+
+    @Test
+    fun `colours repaint an image that follows the ramps, and no other`() {
+        val green = Png.encode(solid(2, 2, 0x3c, 0x85, 0x27, 255))
+        val drawn = Png.encode(solid(2, 2, 0xb3, 0x26, 0x1e, 255))
+        val red = listOf(0xb3, 0x26, 0x1e, 255)
+        val black = listOf(0, 0, 0, 255)
+        val own = mapOf(
+            // `noel`: green to red, and its own `close` and `guilds:banner`, in red.
+            "noel" to kit(mapOf("overrides/colors.yml" to table), mapOf("overrides/artisan/close.png" to drawn, "overrides/guilds/banner.png" to drawn)),
+            // `nuit`: red to black, colours alone.
+            "nuit" to kit(mapOf("overrides/colors.yml" to "colors:\n  \"#b3261e\": \"#000000\"\n")),
+        )
+        fun stack(vararg names: String) = KitTheme.stack(names.toList(), null, own)!!
+        // A common image that does not follow the ramps keeps its colours; a theme's drawing of it is taken as drawn.
+        assertTrue(stack("noel").shown("x", green, false) === green)
+        assertTrue(stack("noel", "nuit").shown("x", green, false) === green)
+        assertTrue(stack("noel", "nuit").shown("close", green, false) === drawn)
+        assertTrue(stack("noel", "nuit").drawing("close", green, false) === drawn)
+        assertNull(stack("nuit").drawing("close", green, false))
+        // A module's image that follows the ramps takes each theme in turn, like a common one.
+        assertEquals(red, pixel(stack("noel").moduleShown("shop", "coin", green, true), 0, 0))
+        assertEquals(black, pixel(stack("noel", "nuit").moduleShown("shop", "coin", green, true), 0, 0))
+        assertTrue(stack("noel").moduleShown("guilds", "banner", green, true) === drawn)
+        assertEquals(black, pixel(stack("noel", "nuit").moduleShown("guilds", "banner", green, true), 0, 0))
+        // One that does not is drawn or left.
+        assertTrue(stack("noel", "nuit").moduleShown("shop", "coin", green, false) === green)
+        assertTrue(stack("noel", "nuit").moduleShown("guilds", "banner", green, false) === drawn)
+    }
+
+    @Test
+    fun `a theme's scope keeps its colours to one module's images`() {
+        val green = Png.encode(solid(2, 2, 0x3c, 0x85, 0x27, 255))
+        val red = listOf(0xb3, 0x26, 0x1e, 255)
+        assertEquals("guilds", KitTheme.scope("scope: guilds\n"))
+        assertEquals("guilds", KitTheme.scope("scope: guilds\n$table"))
+        assertNull(KitTheme.scope(table))
+        // Anything but a name is no scope: the colours reach every image that follows the ramps.
+        assertNull(KitTheme.scope("scope: 3\n"))
+        assertNull(KitTheme.scope("scope: \"\"\n"))
+        assertNull(KitTheme.scope("scope: [guilds]\n"))
+        assertNull(KitTheme.scope(": : :"))
+        fun scoped(scope: String) = KitTheme.own(kit(mapOf("overrides/colors.yml" to "scope: $scope\n$table")))
+        val guilds = scoped("guilds")
+        assertEquals("guilds", guilds.scope)
+        assertEquals(red, pixel(guilds.moduleShown("guilds", "banner", green, true), 0, 0))
+        assertTrue(guilds.moduleShown("shop", "coin", green, true) === green)
+        assertTrue(guilds.shown("button.3x1", green, true) === green)
+        // `artisan`: the common images alone.
+        val common = scoped("artisan")
+        assertEquals(red, pixel(common.shown("button.3x1", green, true), 0, 0))
+        assertTrue(common.moduleShown("guilds", "banner", green, true) === green)
+        // In a stack, a theme of one module sits beside another: each paints what it reaches.
+        val own = mapOf(
+            "guilds-noel" to kit(mapOf("overrides/colors.yml" to "scope: guilds\n$table")),
+            "nuit" to kit(mapOf("overrides/colors.yml" to "colors:\n  \"#3c8527\": \"#000000\"\n")),
+            // Draws `close`, which the scoped theme above it leaves as drawn.
+            "dessin" to kit(emptyMap(), mapOf("overrides/artisan/close.png" to green)),
+        )
+        fun stack(vararg names: String) = KitTheme.stack(names.toList(), null, own)!!
+        assertEquals(red, pixel(stack("guilds-noel", "nuit").moduleShown("guilds", "banner", green, true), 0, 0))
+        assertEquals(listOf(0, 0, 0, 255), pixel(stack("guilds-noel", "nuit").moduleShown("shop", "coin", green, true), 0, 0))
+        assertTrue(stack("dessin", "guilds-noel").shown("close", green, true) === green)
+        assertTrue(stack("dessin", "guilds-noel").drawing("close", green, true) === green)
+        // A theme the common images keep reads its scope from its file too.
+        val former = KitTheme.read("old", kit(mapOf("themes/old/theme.yml" to "scope: guilds\n$table")))!!
+        assertTrue(former.shown("button.3x1", green, true) === green)
+        // A scope that is no name is said to whoever writes the file.
+        assertTrue("`scope`" in KitTheme.problems("scope: 3\ncolors: {}\n").single())
+        assertEquals(emptyList(), KitTheme.problems("scope: guilds\ncolors: {}\n"))
     }
 }

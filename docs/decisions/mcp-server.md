@@ -113,6 +113,13 @@ deployed.
      folder (`project_create` with `role: "theme"`, ADR `common-images-and-themes`, decision 5)
      under the same permission and the same reasoning as `create_module`: it changes nothing
      until a draft of it is deployed and the player puts it in place.
+   - **Which images a theme's colours repaint** (2026-11-25, same ADR, decision 7).
+     `write_image` takes `ramps` (true: the image is drawn in the base's colours and follows
+     a theme's; never said: it keeps its colours), `survey_ui` marks the images that follow
+     and gives a theme's `scope`, `render_menu` draws accordingly, and a theme's
+     `overrides/colors.yml` is checked for its `scope`. The default is "does not follow": a
+     table applied to an image whose colours were not chosen for it repaints an icon by
+     accident, and the assistant knows when it drew in the base's palette.
    - **Creating a module** (2026-10-30). `create_module(server, name)` makes an empty Project
      folder (`project_create`, as the editor's "New module"), for a principal with
      `artisan.editor.publish`, like the editor's route. Not destructive: the folder holds nothing,

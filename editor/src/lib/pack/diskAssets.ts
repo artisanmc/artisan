@@ -28,6 +28,10 @@ export interface DiskAsset {
   compose?: ComposeRecipe;
 }
 
+/** Whether a descriptor says its image follows the ramps: `ramps: true`, nothing else. */
+export const followsRamps = (meta: unknown): boolean =>
+  !!meta && typeof meta === "object" && (meta as { ramps?: unknown }).ramps === true;
+
 const TYPE_BY_DIR: Record<string, string> = {
   "assets/glyphs": "glyph",
   "assets/textures": "texture",
@@ -160,6 +164,7 @@ export function diskAssetsFromTree(
         name: nameOf(bin.path),
         usages: parseAssetUsages(meta.usages),
         ...(imageFunctionOf(meta) ? { function: imageFunctionOf(meta)! } : {}),
+        ...(followsRamps(meta) ? { ramps: true } : {}),
         width: num(meta.width, 0) ?? 0,
         height: num(meta.height, 0) ?? 0,
         ascent: num(meta.ascent, null),

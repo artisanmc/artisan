@@ -7,5 +7,5 @@
   place among the themes in place and the pack do not change.
 - **Added**: a theme may redraw a module's own image, at its size
   (`overrides/<module>/<image>.png` in the theme's folder). The highest theme in place that
-  redraws an image wins; a theme's colours still change the common images only. The assistant
-  writes such a redraw when asked, and a theme's page lists them.
+  redraws an image wins. The assistant writes such a redraw when asked, and a theme's page
+  lists them.

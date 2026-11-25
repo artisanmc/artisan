@@ -57,19 +57,21 @@ describe("the kit in the server's theme", () => {
   });
 
   test("a composed image's kit layers are in the theme, its own only in the kit module", async () => {
-    const disk = diskAssetsFromTree(
-      "p",
-      [
-        {
-          path: "assets/textures/card.yml",
-          content: "compose:\n  - use: 'kit:cell'\n  - image: icon\n    x: 1\n    y: 1\n",
-        },
-      ],
-      [{ path: "assets/textures/icon.png", hash: "h", size: 0 }],
-    );
-    const card = disk.find((asset) => asset.compose)!;
     const theme = kitTheme(table, new Map(), () => null);
-    const at = async (ownToo: boolean, x: number) => {
+    // `ramps`: the module's own layer says it follows the ramps.
+    const at = async (ownToo: boolean, x: number, ramps = true) => {
+      const disk = diskAssetsFromTree(
+        "p",
+        [
+          {
+            path: "assets/textures/card.yml",
+            content: "compose:\n  - use: 'kit:cell'\n  - image: icon\n    x: 1\n    y: 1\n",
+          },
+          ...(ramps ? [{ path: "assets/textures/icon.yml", content: "ramps: true\n" }] : []),
+        ],
+        [{ path: "assets/textures/icon.png", hash: "h", size: 0 }],
+      );
+      const card = disk.find((asset) => asset.compose)!;
       const view = await composedView(
         card,
         disk,
@@ -87,6 +89,36 @@ describe("the kit in the server's theme", () => {
     expect(await at(false, 0)).toEqual(RED);
     expect(await at(false, 1)).toEqual(GREEN);
     expect(await at(true, 1)).toEqual(RED);
+    // A common image of the server that does not say it follows the ramps keeps its colours.
+    expect(await at(true, 1, false)).toEqual(GREEN);
+  });
+
+  test("the server's own common image is in the theme's colours only when it follows the ramps", async () => {
+    const theme = kitTheme(table, new Map(), () => null);
+    const disk = diskAssetsFromTree(
+      "p",
+      [{ path: "assets/textures/card.yml", content: "compose:\n  - use: 'kit:mine'\n" }],
+      [],
+    );
+    const card = disk.find((asset) => asset.compose)!;
+    const own = solid(4, 4, GREEN);
+    const first3 = async (ramps: boolean) => {
+      const view = await composedView(
+        card,
+        disk,
+        () => null,
+        () => own,
+        theme,
+        false,
+        () => ramps,
+      );
+      const image = decodePng(
+        await assetBytes({ id: "card", previewUrl: view?.previewUrl } as never),
+      );
+      return [...image.data.slice(0, 3)];
+    };
+    expect(await first3(true)).toEqual(RED);
+    expect(await first3(false)).toEqual(GREEN);
   });
 
   test("the theme in place is the one the server names, when its kit module holds it", async () => {
@@ -99,7 +131,7 @@ describe("the kit in the server's theme", () => {
     };
     useKitStore.setState({ read, themes: ["noel"] });
     const theme = activeKitTheme(binary);
-    expect(first(decodePng(await theme!.shown("cell", solid(1, 1, GREEN))))).toEqual(RED);
+    expect(first(decodePng(await theme!.shown("cell", solid(1, 1, GREEN), true)))).toEqual(RED);
     // Read once for a kit module and its themes in place.
     expect(activeKitTheme(binary)).toBe(theme);
     useKitStore.setState({ themes: ["paques"] });
@@ -120,11 +152,11 @@ describe("the kit in the server's theme", () => {
     const binary = async () => null;
     // `nuit` repaints what `noel` shows.
     useKitStore.setState({ read, themes: ["noel", "nuit"] });
-    const stacked = await activeKitTheme(binary)!.shown("cell", solid(1, 1, GREEN));
+    const stacked = await activeKitTheme(binary)!.shown("cell", solid(1, 1, GREEN), true);
     expect(first(decodePng(stacked))).toEqual([1, 2, 3]);
     // The other way round, `nuit` finds no red yet, then `noel` paints the green red.
     useKitStore.setState({ themes: ["nuit", "noel"] });
-    const turned = await activeKitTheme(binary)!.shown("cell", solid(1, 1, GREEN));
+    const turned = await activeKitTheme(binary)!.shown("cell", solid(1, 1, GREEN), true);
     expect(first(decodePng(turned))).toEqual(RED);
     // The store reads the list from the server's config, the former key when the list is empty.
     useKitStore
@@ -163,14 +195,14 @@ describe("the kit in the server's theme", () => {
     expect(serverThemeNames(undefined, {})).toEqual([]);
     // The Project wins over the folder of that name the common images keep.
     const noel = serverTheme(read, own, "noel", binary)!;
-    expect(first(decodePng(await noel.shown("x", solid(1, 1, GREEN))))).toEqual(RED);
-    expect(await noel.shown("cell", solid(18, 18, GREEN))).toBe(drawn);
+    expect(first(decodePng(await noel.shown("x", solid(1, 1, GREEN), true)))).toEqual(RED);
+    expect(await noel.shown("cell", solid(18, 18, GREEN), true)).toBe(drawn);
     expect(asked).toEqual(["srv.noel/overrides/artisan/cell.png"]);
     expect(serverTheme(read, own, "nuit", binary)).not.toBeNull();
     expect(serverTheme(read, own, "gone", binary)).toBeNull();
     // In place: `nuit`, still kept by the common images, repaints what `noel` shows.
     useKitStore.setState({ read, own, themes: ["noel", "nuit"] });
-    const shown = await activeKitTheme(binary)!.shown("x", solid(1, 1, GREEN));
+    const shown = await activeKitTheme(binary)!.shown("x", solid(1, 1, GREEN), true);
     expect(first(decodePng(shown))).toEqual([1, 2, 3]);
     // A server whose themes are all of their own folder needs no theme kept by the common images.
     useKitStore.setState({ read: undefined, themes: ["noel"] });

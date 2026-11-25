@@ -154,7 +154,11 @@ theme that has its own folder, by name, filled by the server index from the Proj
 `theme` other than the common images'), `kitTheme.ts` reads those themes once per read, as one
 look (`serverTheme`: a theme's own Project, `overrides/colors.yml` and `overrides/artisan/`,
 else the folder the common images' Project keeps for that name; `serverThemeNames`: both
-places; `kitThemeStack`: each theme applied to what the ones below show). A theme's Project is
+places; `kitThemeStack`: each theme applied to what the ones below show). A theme's colours
+repaint an image only when it follows the ramps (decision 7): `Asset.ramps`, read from the
+descriptor's `ramps: true` (`diskAssets.ts`) and always set on the base's images
+(`kitAssets.ts`); `AssetDetailPanel` edits it, and `localAssets.ts` sets it on the server's
+version of a base image first drawn over the base. A theme's Project is
 no module: the pack assembly, the server's Resources and the Configuration page leave it out of
 the modules. `NewThemeDialog` creates one from the common images' page (`createProject` with
 the role `theme`), after which the route reads the server's Projects again. `useKitAssets` gives each kit

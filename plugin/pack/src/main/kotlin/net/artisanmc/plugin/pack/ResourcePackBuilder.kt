@@ -93,6 +93,8 @@ object ResourcePackBuilder {
         // The common images ([Kit]): the server's by name, and the base as the server holds it.
         val kitProject = projects.firstOrNull { it.folder == kitFolder }
         val kitImages = HashMap<String, ByteArray>()
+        // The server's common images that say they follow the ramps; the base's always do.
+        val kitRamps = HashSet<String>()
         val kitBase = HashMap<String, ByteArray?>()
         val kitImage = { name: String ->
             Kit.image(name, kitImages[name], kitBase.getOrPut(name) { kitProject?.takeIf { Kit.shippedPath(name) in it.binaries }?.binary(Kit.shippedPath(name)) })
@@ -108,8 +110,8 @@ object ResourcePackBuilder {
             for (name in shippedNames + Kit.slots.map { it.id }) names.common(name)
         }
 
-        // The themes in place ([ThemeStack]), the lowest first: they change the common images, and
-        // redraw the modules' images they name.
+        // The themes in place ([ThemeStack]), the lowest first: they redraw the images they name,
+        // and their colours repaint the ones that follow the ramps.
         val theme = KitTheme.stack(input.themes, kitProject, themeProjects)
 
         for (project in projects) {
@@ -152,6 +154,7 @@ object ResourcePackBuilder {
                         imagesByRef += "${project.id}:${a.row.name}" to bytes
                         own[a.row.name] = bytes
                         kitImages[a.row.name] = bytes
+                        if (a.ramps) kitRamps += a.row.name
                     }
                     continue
                 }
@@ -162,12 +165,18 @@ object ResourcePackBuilder {
                         continue
                     }
                     val disk = project.binary(a.path) ?: continue
-                    // A theme in place may redraw a module's image, at its size (`overrides/<module>/`).
-                    val bytes = theme?.moduleDrawing(project.folder, a.row.name, disk) ?: disk
+                    // A theme in place may redraw a module's image, at its size (`overrides/<module>/`),
+                    // and repaints one that follows the ramps. A server older than the theme `artisan`
+                    // keeps its common images in a module: they are repainted once, as common images.
+                    val legacyCommon = project.folder == kitFolder
+                    val bytes = theme?.moduleShown(project.folder, a.row.name, disk, a.ramps && !legacyCommon) ?: disk
                     glyphPngs[row.id] = bytes
                     imagesByRef += "${project.id}:${a.row.name}" to bytes
                     own[a.row.name] = bytes
-                    if (project.folder == kitFolder) kitImages[a.row.name] = bytes
+                    if (legacyCommon) {
+                        kitImages[a.row.name] = bytes
+                        if (a.ramps) kitRamps += a.row.name
+                    }
                     continue
                 }
                 if (row.type != "font") continue
@@ -184,11 +193,11 @@ object ResourcePackBuilder {
         // of the module or a kit image, never another composed image, so their order does not matter.
         // The themes in place change the kit's PNGs, the base's and the server's: an image
         // composed with them follows, and is not themed a second time once assembled.
-        val kitPng = { name: String -> kitImage(name)?.png?.let { theme?.shown(name, it) ?: it } }
+        val kitPng = { name: String -> kitImage(name)?.let { theme?.shown(name, it.png, it.shipped || name in kitRamps) ?: it.png } }
         val made = composed.mapNotNull { c ->
             // In the kit module an image is a kit image under its bare name too.
             val own: (String) -> ByteArray? =
-                if (theme != null && c.project.folder == kitFolder) { name -> c.own[name]?.let { theme.shown(name, it) } } else c.own::get
+                if (theme != null && c.project.folder == kitFolder) { name -> c.own[name]?.let { theme.shown(name, it, name in kitRamps) } } else c.own::get
             ComposedImages.render(c.recipe, own, kitPng)?.let { c to it }
         }
         val kitComposed = HashSet<String>()
@@ -234,8 +243,8 @@ object ResourcePackBuilder {
             glyphPngs[id] = when {
                 theme == null -> image.png
                 // Assembled from themed layers already: only the theme's own drawing of it replaces it.
-                !image.shipped && name in kitComposed -> theme.drawing(name, image.png) ?: image.png
-                else -> theme.shown(name, image.png)
+                !image.shipped && name in kitComposed -> theme.drawing(name, image.png, ramps = false) ?: image.png
+                else -> theme.shown(name, image.png, image.shipped || name in kitRamps)
             }
         }
         if (kitGlyphs.isNotEmpty()) contribs += Kit.FOLDER to kitGlyphs

@@ -37,6 +37,10 @@ export default {
       notTakenGlyph:
         "Not taken: this glyph has height {{height}} and ascent {{ascent}}, the original height {{originalHeight}} and ascent {{originalAscent}}. The original shows until they match.",
     },
+    ramps: {
+      label: "Follows the themes' colours",
+      hint: "A theme in place replaces this image's colours with its own. Tick it for an image drawn in Artisan's base colours; without it the image keeps its colours, as an imported one should.",
+    },
     originalChanged: {
       title: "The original changed since your version.",
       hint: "Menus keep showing yours. Keep it as it is, or restore the original and redraw from the new one.",
@@ -302,6 +306,10 @@ export default {
       missing: "The server has no theme “{{name}}” deployed.",
       colors: "Colours replaced",
       noColors: "This theme replaces no colour.",
+      scopeAll:
+        "In the images that follow the themes' colours: Artisan's, and the common images and the modules' images that say so.",
+      scopeCommon: "In the common images only (scope: artisan).",
+      scopeModule: "In the images of the module {{module}} only (scope: {{module}}).",
       becomes: "becomes",
       drawings: "Pieces redrawn for this theme",
       noDrawings: "This theme redraws no piece.",
