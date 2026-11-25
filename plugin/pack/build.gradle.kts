@@ -10,10 +10,17 @@ dependencies {
 // The vanilla textures the pack redraws or pads, from the editor's assets (one copy in git).
 val editorAssets: File = rootDir.resolve("../editor/src/assets/minecraft").canonicalFile
 
+// The UI kit's base (`Kit`): its images and their list, from the editor's assets too.
+val kitAssets: File = rootDir.resolve("../editor/src/assets/kit").canonicalFile
+
 tasks.processResources {
     from(editorAssets) {
         include("generic_54.png", "hopper.png", "dispenser.png", "font/*_up.png")
         into("net/artisanmc/plugin/pack/minecraft")
+    }
+    from(kitAssets) {
+        include("*.png", "slots.json")
+        into("net/artisanmc/plugin/pack/kit")
     }
 }
 

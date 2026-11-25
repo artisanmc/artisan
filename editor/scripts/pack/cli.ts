@@ -82,6 +82,9 @@ const asset = (path: string) =>
 
 const vanillaTexture = async (container: GuiContainer) => asset(`${VANILLA_FILE[container]}.png`);
 
+const kitImage = async (id: string) =>
+  new Uint8Array(readFileSync(resolve(EDITOR, "src/assets/kit", `${id}.png`)));
+
 const textUp = () =>
   Object.fromEntries(
     TEXT_UP_TEXTURES.map((name) => [name, asset(`font/${name}_up.png`)]),
@@ -149,6 +152,15 @@ function containerTextures(configPath: string | undefined): Partial<Record<GuiCo
   return out;
 }
 
+/** `resource-pack.theme` of a server's `config.yml`, nested or flat: the kit's theme. */
+function theme(configPath: string | undefined): string | undefined {
+  if (!configPath) return undefined;
+  const config = parse(readFileSync(configPath, "utf-8")) as Record<string, unknown> | null;
+  const nested = (config?.["resource-pack"] as Record<string, unknown> | undefined)?.theme;
+  const value = nested ?? config?.["resource-pack.theme"];
+  return typeof value === "string" && value !== "" ? value : undefined;
+}
+
 /** `resource-pack.hide-inventory-label` of a server's `config.yml`, nested or flat. */
 function hideInventoryLabel(configPath: string | undefined): boolean {
   if (!configPath) return false;
@@ -179,8 +191,10 @@ async function build(args: string[]): Promise<number> {
     projects,
     containerTextures: containerTextures(option(args, "--config")),
     hideInventoryLabel: hideInventoryLabel(option(args, "--config")),
+    theme: theme(option(args, "--config")),
     vanillaTexture,
     textUp: textUp(),
+    kitImage,
     ...(serverId ? { bedrock: { serverId } } : {}),
   });
   if (bedrock) {
@@ -217,6 +231,8 @@ export interface ConformanceCase {
   vanillaGui: boolean;
   /** `resource-pack.hide-inventory-label`; absent = false. */
   hideInventoryLabel?: boolean;
+  /** `resource-pack.theme`: the kit's theme; absent = none. */
+  theme?: string;
   entries: string[];
   /** SHA-256 of each entry listed in `entries`: says which file drifted when `sha1` does. */
   entryHashes?: Record<string, string>;
@@ -257,8 +273,10 @@ export function buildCase(c: ConformanceCase): Promise<ServerPacks> {
     containerTextures: c.containerTextures,
     vanillaTexture,
     textUp: textUp(),
+    kitImage,
     transparentContainers: c.vanillaGui,
     hideInventoryLabel: c.hideInventoryLabel === true,
+    ...(c.theme ? { theme: c.theme } : {}),
     ...(c.bedrock ? { bedrock: { serverId: c.bedrock.serverId } } : {}),
   });
 }

@@ -18,6 +18,10 @@ object EditorApi {
         aiProvider: AiProvider? = null,
         /** Where the assistant's conversations are kept; null: in memory, a restart ends them. */
         aiConversations: AiConversationStore? = null,
+        /** The paid tools each player always allows the assistant; null: in memory. */
+        aiPermissions: AiPermissionStore? = null,
+        /** The image model `generate_image` calls; null: the one the settings name (`ai.image`). */
+        aiImages: ((AiImageConfig) -> ImageModel?)? = null,
         version: String = "",
         /** The public ids of the sessions with an editor tab open here ([EditorChannel.online]). */
         online: () -> Set<String> = { emptySet() },
@@ -49,23 +53,32 @@ object EditorApi {
         stats?.let { StatsRoutes(servers, it, relay).register(router) }
         // An item's picture for render_menu: its 3D icon, else its flat texture.
         val itemPictures = vanilla?.let { v -> { id: String -> v.texture("icons/$id") ?: v.texture("item/$id") ?: v.texture("block/$id") } }
-        val tools = McpTools(McpProjects(servers, loaded, drafts, history), packs = packBuilder, items = itemPictures)
+        // The image model is the assistant's settings' (`ai.image`), which need the tools first: read at each call.
+        lateinit var setup: AiSetup
+        val tools = McpTools(McpProjects(servers, loaded, drafts, history), packs = packBuilder, items = itemPictures, images = { setup.current().images }, logger = logger)
         if (mcp != null) {
-            OAuthRoutes(mcp).register(router)
+            OAuthRoutes(mcp, images = { setup.current().images != null }).register(router)
             McpRoutes(tools, mcp, version, logger).register(router)
         }
         site?.let { SiteRoutes(servers, relay, it, logger).register(router) }
         ImportRoutes(servers, relay, logger).register(router)
-        AiRoutes(aiSetup(ai, aiSettings, aiProvider, tools, logger, aiConversations, site), site).register(router)
+        setup = aiSetup(ai, aiSettings, aiProvider, tools, logger, aiConversations, site, aiPermissions, aiImages ?: { AiImageConfig.service(it, site) })
+        AiRoutes(setup, site).register(router)
         return router
     }
 
     private fun aiSetup(
         ai: AiConfig, settings: AiSettingsStore?, given: AiProvider?, tools: McpTools, logger: Logger?, conversations: AiConversationStore?, site: SiteAccount?,
-    ): AiSetup =
-        when {
-            given == null -> AiSetup(ai, settings, tools, logger, providerFor = { AiSetup.defaultProvider(it, site) }, conversations = conversations)
-            settings == null -> AiSetup(AiConfig(provider = "given", apiKey = "given", model = given.model, maxSteps = ai.maxSteps), null, tools, logger, providerFor = { given }, conversations = conversations)
-            else -> AiSetup(ai, settings, tools, logger, providerFor = { given }, conversations = conversations)
+        permissions: AiPermissionStore?, imageFor: (AiImageConfig) -> ImageModel?,
+    ): AiSetup {
+        val always = permissions ?: MemoryAiPermissionStore()
+        return when {
+            given == null -> AiSetup(ai, settings, tools, logger, providerFor = { AiSetup.defaultProvider(it, site) }, conversations = conversations, permissions = always, imageFor = imageFor)
+            settings == null -> AiSetup(
+                AiConfig(provider = "given", apiKey = "given", model = given.model, maxSteps = ai.maxSteps, image = ai.image), null, tools, logger,
+                providerFor = { given }, conversations = conversations, permissions = always, imageFor = imageFor,
+            )
+            else -> AiSetup(ai, settings, tools, logger, providerFor = { given }, conversations = conversations, permissions = always, imageFor = imageFor)
         }
+    }
 }

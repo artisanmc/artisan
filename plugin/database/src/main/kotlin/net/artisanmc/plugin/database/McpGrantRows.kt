@@ -31,6 +31,8 @@ data class McpGrantRow(
     val refreshExpiresAt: Instant?,
     /** The player allowed this app to deploy their drafts (ADR `mcp-server`). */
     val allowPublish: Boolean = false,
+    /** The player allowed this app to call the server's image model, which its owner pays for. */
+    val allowImages: Boolean = false,
 )
 
 /** `artisan_mcp_clients` and `artisan_mcp_grants`: the MCP endpoint's OAuth, shared by the servers of a database. */
@@ -111,6 +113,13 @@ class McpGrantRows(private val dataSource: DataSource, private val t: ArtisanTab
         }
     }
 
+    /** Whether grant [id] of [playerId] may call the server's image model; false when no such grant. */
+    fun setImages(playerId: UUID, id: String, allow: Boolean): Boolean = dataSource.connection.use { c ->
+        c.prepareStatement("UPDATE ${t.mcpGrants} SET allow_images = ? WHERE id = ? AND player_id = ?").use {
+            it.setBoolean(1, allow); it.setString(2, id); it.setString(3, playerId.toString()); it.executeUpdate() == 1
+        }
+    }
+
     fun deletePlayer(playerId: UUID, origin: String?): Int = dataSource.connection.use { c ->
         val sql = "DELETE FROM ${t.mcpGrants} WHERE player_id = ?" + if (origin != null) " AND origin = ?" else ""
         c.prepareStatement(sql).use {
@@ -140,7 +149,7 @@ class McpGrantRows(private val dataSource: DataSource, private val t: ArtisanTab
         codeHash = rs.getString(10), codeChallenge = rs.getString(11), redirectUri = rs.getString(12), codeExpiresAt = rs.getTimestamp(13)?.toInstant(),
         accessHash = rs.getString(14), accessExpiresAt = rs.getTimestamp(15)?.toInstant(),
         refreshHash = rs.getString(16), refreshExpiresAt = rs.getTimestamp(17)?.toInstant(),
-        allowPublish = rs.getBoolean(18),
+        allowPublish = rs.getBoolean(18), allowImages = rs.getBoolean(19),
     )
 
     /** Binds [row]'s columns in [COLUMNS] order from parameter [from]; [skipId] leaves `id` out. Returns the next index. */
@@ -154,11 +163,12 @@ class McpGrantRows(private val dataSource: DataSource, private val t: ArtisanTab
         text(row.codeHash); text(row.codeChallenge); text(row.redirectUri); time(row.codeExpiresAt)
         text(row.accessHash); time(row.accessExpiresAt); text(row.refreshHash); time(row.refreshExpiresAt)
         s.setBoolean(i++, row.allowPublish)
+        s.setBoolean(i++, row.allowImages)
         return i
     }
 
     private companion object {
         const val COLUMNS = "id, client_id, client_name, player_id, player_name, origin, permissions, created_at, last_used_at, " +
-            "code_hash, code_challenge, redirect_uri, code_expires_at, access_hash, access_expires_at, refresh_hash, refresh_expires_at, allow_publish"
+            "code_hash, code_challenge, redirect_uri, code_expires_at, access_hash, access_expires_at, refresh_hash, refresh_expires_at, allow_publish, allow_images"
     }
 }

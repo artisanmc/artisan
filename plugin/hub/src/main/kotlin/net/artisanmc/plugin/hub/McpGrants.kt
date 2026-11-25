@@ -19,6 +19,8 @@ data class McpClient(val id: String, val name: String, val redirectUris: List<St
  * token, both rotated on each refresh. [permissions] follow the player's, like an editor session's,
  * less configuring the hub. Publishing is the player's only while [allowPublish]: tokens are
  * "draft only" until the player allows the app to deploy, at consent or in Settings → AI apps.
+ * [allowImages], the same way: the app may call the server's image model (`generate_image`), which
+ * the server's owner pays for.
  */
 data class McpGrant(
     val id: String,
@@ -40,6 +42,7 @@ data class McpGrant(
     val refreshHash: String? = null,
     val refreshExpiresAt: Instant? = null,
     val allowPublish: Boolean = false,
+    val allowImages: Boolean = false,
 ) {
     /** What the app acts with: the player's permissions, publishing only when the player allowed it. */
     val effectivePermissions: Set<String>
@@ -65,6 +68,8 @@ interface McpGrantStore {
     fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>)
     /** Allows or forbids grant [id] of [playerId] to deploy; false when no such grant. */
     fun setPublish(playerId: UUID, id: String, allow: Boolean): Boolean
+    /** Allows or forbids grant [id] of [playerId] to call the server's image model; false when no such grant. */
+    fun setImages(playerId: UUID, id: String, allow: Boolean): Boolean
     fun deletePlayer(playerId: UUID, origin: String?): Int
     /** Removes grants nothing can use any more: code and refresh token both expired. */
     fun purge(now: Instant)
@@ -108,6 +113,8 @@ class MemoryMcpGrantStore : McpGrantStore {
     }
     override fun setPublish(playerId: UUID, id: String, allow: Boolean): Boolean =
         grants.computeIfPresent(id) { _, g -> if (g.playerId == playerId) g.copy(allowPublish = allow) else g }?.let { it.playerId == playerId } ?: false
+    override fun setImages(playerId: UUID, id: String, allow: Boolean): Boolean =
+        grants.computeIfPresent(id) { _, g -> if (g.playerId == playerId) g.copy(allowImages = allow) else g }?.let { it.playerId == playerId } ?: false
     override fun deletePlayer(playerId: UUID, origin: String?): Int {
         val mine = grants.values.filter { it.playerId == playerId && (origin == null || it.origin == origin) }
         mine.forEach { grants.remove(it.id) }
@@ -160,9 +167,10 @@ class McpGrants(
 
     /**
      * [session]'s consent to [client]: the code to send back to [redirectUri]. Null: the session cannot edit.
-     * [publish] lets the app deploy, kept only when the player can publish themselves.
+     * [publish] lets the app deploy, kept only when the player can publish themselves. [images]
+     * lets it call the server's image model.
      */
-    fun approve(session: EditorSession, client: McpClient, redirectUri: String, codeChallenge: String, publish: Boolean = false): String? {
+    fun approve(session: EditorSession, client: McpClient, redirectUri: String, codeChallenge: String, publish: Boolean = false, images: Boolean = false): String? {
         if (!session.can(EditorPermissions.EDIT) || redirectUri !in client.redirectUris || !CHALLENGE.matches(codeChallenge)) return null
         val now = clock.instant()
         store.purge(now)
@@ -175,6 +183,7 @@ class McpGrants(
                 createdAt = now, lastUsedAt = now,
                 codeHash = hash(code), codeChallenge = codeChallenge, redirectUri = redirectUri, codeExpiresAt = now.plus(codeTtl),
                 allowPublish = publish && session.can(EditorPermissions.PUBLISH),
+                allowImages = images,
             ),
         )
         return code
@@ -237,6 +246,12 @@ class McpGrants(
     fun allowPublish(playerId: UUID, grantId: String, allow: Boolean): Boolean {
         if (grants(playerId).none { it.id == grantId }) return false
         return store.setPublish(playerId, grantId, allow)
+    }
+
+    /** Lets grant [grantId] of [playerId] call the server's image model, or not; false when it is not theirs. */
+    fun allowImages(playerId: UUID, grantId: String, allow: Boolean): Boolean {
+        if (grants(playerId).none { it.id == grantId }) return false
+        return store.setImages(playerId, grantId, allow)
     }
 
     /** [Sessions.refresh]'s report for one player: like its sessions, a player without view loses its grants. */

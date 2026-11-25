@@ -14,6 +14,7 @@ deploy, as with your own edits.
 | Who pays the model | You, with your API key or your artisanmc.net credits | The player's own AI subscription |
 | Turn it on | **Settings → Assistant**: model + key | `web.mcp: true` in `environment.yml` |
 | Can it deploy? | Never | Off by default; the player can allow it |
+| Pictures from an image model | Asks you before each one | Off by default; the player can allow it |
 
 Both are previews.
 
@@ -83,6 +84,43 @@ server first. The panel offers to open the draft in **Drafts**, where you review
 
 Every message of every player is billed to your key, or to the linked account's credits.
 
+### Generated pictures
+
+The assistant draws pixel art itself: buttons, icons, windows. What it cannot draw pixel by
+pixel (an illustration, a painted background, a detailed emblem) it can ask of an **image
+model**, when you set one. In **Settings → Assistant**, under **Image model**, pick OpenAI or
+Google and paste that vendor's API key. Or in `environment.yml`:
+
+```yaml
+ai:
+  image:
+    provider: "openai"
+    api-key: "${OPENAI_API_KEY}"
+```
+
+- **Each picture is paid on that key**, a few cents each depending on the model. So the
+  assistant asks first: a card in the conversation shows what it is about to ask for, with
+  **Allow once**, **Always allow** and **Deny**. "Always" is yours alone, for this tool; take it
+  back in **Settings → AI apps**. A question left unanswered for five minutes counts as a no.
+- **A player gets `ai.image.daily-limit` pictures a day** (40 unless you change it), the
+  assistant and their AI apps together.
+- **The picture is material, not a file.** It comes back at about a megapixel and shows in the
+  conversation. The assistant then measures it and cuts out what the menu needs, at the size it
+  needs, into a draft, the same way as from a screenshot you attach. The server keeps each
+  player's last 8 pictures while it runs.
+- **Pixel art from an image model is approximate**: its pixels are rarely on a true grid.
+  Buttons, slots and small icons come out better drawn by the assistant itself. Use an image
+  model for what is painted.
+- OpenAI's models make a transparent background when asked. Google's do not: the picture comes
+  on a flat colour, which is removed when it is cut.
+
+**Without a key: artisanmc.net credits.** When the network is linked to an artisanmc.net
+account, pick **artisanmc.net credits** under **Image model** instead (or `provider: "artisan"`
+in `environment.yml`, with no `api-key`). The site's image models are listed with their price
+in credits per picture, taken from the linked account's balance each time a picture is made; a
+refused or failed picture costs nothing. With no model picked, the first one the site offers is
+used. Everything above still applies: the question before each picture, the daily limit.
+
 ## AI clients (MCP)
 
 With `web.mcp: true` in `environment.yml`, the editor's address also answers the
@@ -97,6 +135,12 @@ With `web.mcp: true` in `environment.yml`, the editor's address also answers the
 The app then acts as you, with your editor permissions minus `artisan.editor.config`. It needs
 `artisan.editor.edit`. It can list servers and projects, read files and schemas, start a draft
 and write into it; each file is checked by the server before it enters the draft.
+
+Where the server has an image model ([Generated pictures](#generated-pictures)), the consent
+page offers one more box: **let it ask the server's image model for pictures**. Off unless you
+tick it, since the server's owner pays for each one; you switch it per app in
+**Settings → AI apps** ("Can generate pictures"). An app that does its own image generation
+does not need it: it can write the PNG it made with `write_image`.
 
 **Images.** The app can also draw the images of a menu into the draft: buttons, icons and window
 backgrounds, as pixel art it writes pixel by pixel or as a PNG it made on its side. It sees each
@@ -135,6 +179,66 @@ outline"). Any menu of the server can use the kit's images, and the app reads th
 start of each conversation, which is the only thing it remembers from the last one. The kit is
 a module like any other: you review and deploy what the app adds to it, and you can edit the
 file yourself.
+
+**The kit's base.** Every server has a few plain images under names that never change: two
+windows (`kit:window.6`, `kit:window.3`), four buttons (`kit:button.3x1` and its `danger`, `off`
+and `plain` forms), a panel, a card, two value boxes, arrows, close, back and two toggles. A
+menu that names them looks right on any server, which is what a module you share needs. Your
+`ui-kit` module restyles one with an image of the same name and size ("redraw `button.3x1` of
+the kit in the style of the guild menus"): every menu that names it follows. An image of another
+size is left out, so that no menu is thrown off. Any other image of the `ui-kit` module is
+`kit:<its name>` too.
+
+**Composed images.** A window with its slots, or a card with its icon, does not have to be
+drawn pixel by pixel: the app can put it together from kit images and the module's own ("a
+window of 6 rows from the kit, with the guild icon in the title"). Such an image is a short
+recipe (`compose:` in `assets/textures/<name>.yml`, no PNG beside it) that the resource pack
+assembles at each build. It is used like any image, and it follows its layers: redraw the
+kit's window, and every image composed with it changes at the next build. A layer is a kit
+image or a PNG of the same module; the image is as large as its first layer, unless the recipe
+gives a `width` and a `height`.
+
+```yaml
+# assets/glyphs/guild_window.yml
+ascent: 13
+codepoint: 57344
+compose:
+  - use: "kit:window.6"
+  - grid: "kit:cell"      # 9 columns by 6 rows of slots
+    x: 7
+    y: 17
+    columns: 9
+    rows: 6
+  - image: guild_icon     # a PNG of this module
+    x: 80
+    y: 4
+```
+
+You can then move its layers by hand: the image's detail in the Resources page is a composer
+(see [Image buttons](../../editor/image-buttons/), "Composed images").
+
+**Themes.** A theme gives the whole kit another look, for a season or an event, without a menu
+being touched ("make a Christmas theme of the kit: red buttons, snow on the windows"). It is a
+folder of the `ui-kit` module:
+
+```yaml
+# themes/noel/theme.yml: each colour of the kit's images, and what replaces it
+colors:
+  "#3c8527": "#b3261e"   # quoted: unquoted, # starts a comment
+  "#2a641c": "#7f1a14"
+```
+
+```text
+themes/noel/assets/textures/window.6.png   # an image the theme draws again, at its size
+```
+
+Every image a menu names `kit:<name>` is then shown as the theme draws it, else in the theme's
+colours, its transparency kept; an image composed from kit images follows. A drawing of
+another size than the image it replaces is left out, so the menus keep their layout. A
+module's own PNG never changes: to make an image follow the themes, compose it from kit images.
+The server shows one theme at a time: pick it in **Configuration**, **Resource pack**,
+**Theme of the UI kit** (`resource-pack.theme` of `config.yml`), which rebuilds the pack. The
+app cannot switch it; it shows you a menu in a theme before you do.
 
 **Deploying is off by default.** If you hold `artisan.editor.publish`, tick "Also let it deploy"
 on the consent page, or the "Can deploy" switch in **Settings → AI apps**. The app then shows

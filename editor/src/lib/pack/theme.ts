@@ -1,0 +1,216 @@
+import { parse } from "yaml";
+import { type RgbaImage, decodePng, encodePng } from "./png";
+
+/**
+ * A theme of the UI kit (`Theme.kt` in the hub's builder): the same images, under the same names
+ * and at the same sizes, with other pixels. It lives in the kit module (`kit.ts`), one folder per
+ * theme:
+ *
+ * ```
+ * themes/noel/theme.yml                         colors: {"#3c8527": "#b3261e"}
+ * themes/noel/assets/textures/button.3x1.png    this image redrawn, at its size
+ * ```
+ *
+ * The server's theme (`resource-pack.theme` of `config.yml`) changes what `kit:<name>` shows:
+ * the theme's own drawing of that image when it has one of the same size, else the image with
+ * each colour of the table replaced, its transparency kept. A theme holds no Document and moves
+ * nothing, so a menu laid out against the kit keeps its layout; at worst it is ugly.
+ */
+
+/** The folder of the themes, at the kit module's root. */
+export const THEMES_DIR = "themes";
+
+/** Colours a theme may replace. */
+export const THEME_MAX_COLORS = 256;
+
+const NAME = /^[a-z0-9][a-z0-9_-]*$/;
+const COLOR = /^#[0-9a-fA-F]{6}$/;
+const IMAGE_DIRS = ["assets/glyphs/", "assets/textures/"];
+
+/** The key of the server's theme in its `config.yml`. */
+export const THEME_CONFIG_KEY = "resource-pack.theme";
+
+export const isThemeName = (name: string): boolean => NAME.test(name);
+
+/** The theme a server's `config.yml` names, as its plugin reports it; `undefined` when none. */
+export function configuredTheme(
+  config: Record<string, unknown> | null | undefined,
+): string | undefined {
+  const value = config?.[THEME_CONFIG_KEY];
+  return typeof value === "string" && isThemeName(value) ? value : undefined;
+}
+
+/** `0xRRGGBB` of `#rrggbb`; `null` for anything else. */
+export const themeColor = (text: unknown): number | null =>
+  typeof text === "string" && COLOR.test(text) ? Number.parseInt(text.slice(1), 16) : null;
+
+/**
+ * The table a `theme.yml` holds: `colors`, a map of `"#rrggbb"` to `"#rrggbb"` (quoted, a `#`
+ * starts a comment otherwise). An entry that is not two such colours, or that changes nothing,
+ * is left out; an unreadable file has no table.
+ */
+export function themeColors(text: string): Map<number, number> {
+  const out = new Map<number, number>();
+  let table: unknown;
+  try {
+    table = (parse(text) as { colors?: unknown } | null)?.colors;
+  } catch {
+    return out;
+  }
+  if (!table || typeof table !== "object" || Array.isArray(table)) return out;
+  for (const [key, value] of Object.entries(table)) {
+    if (out.size >= THEME_MAX_COLORS) break;
+    const from = themeColor(key);
+    const to = themeColor(value);
+    if (from !== null && to !== null && from !== to) out.set(from, to);
+  }
+  return out;
+}
+
+/** The path of the theme `name`'s file among `paths`: `.yml` before `.yaml`. */
+export function themeFile(name: string, paths: readonly string[]): string | undefined {
+  return [`${THEMES_DIR}/${name}/theme.yml`, `${THEMES_DIR}/${name}/theme.yaml`].find((path) =>
+    paths.includes(path),
+  );
+}
+
+const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+/** The images the theme `name` redraws among `binaries`, by name: a texture wins over a glyph. */
+export function themeDrawings(name: string, binaries: readonly string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  const root = `${THEMES_DIR}/${name}/`;
+  for (const path of [...binaries].sort(byCodeUnit)) {
+    if (!path.startsWith(root)) continue;
+    const rest = path.slice(root.length);
+    const dir = IMAGE_DIRS.find((d) => rest.startsWith(d));
+    if (!dir) continue;
+    const file = rest.slice(dir.length);
+    if (file.includes("/") || !file.endsWith(".png") || file.length === ".png".length) continue;
+    out.set(file.slice(0, -".png".length), path);
+  }
+  return out;
+}
+
+/** The themes a kit module holds: every `themes/<name>/` with a `theme.yml` or a redrawn image. */
+export function themeNames(files: readonly string[], binaries: readonly string[]): string[] {
+  const names = new Set<string>();
+  for (const path of [...files, ...binaries]) {
+    if (!path.startsWith(`${THEMES_DIR}/`)) continue;
+    const name = path.slice(THEMES_DIR.length + 1).split("/")[0] as string;
+    if (isThemeName(name)) names.add(name);
+  }
+  return [...names]
+    .filter(
+      (name) => themeFile(name, files) !== undefined || themeDrawings(name, binaries).size > 0,
+    )
+    .sort(byCodeUnit);
+}
+
+/** Replaces the colours of `image` in place, whatever their alpha above zero; whether a pixel changed. */
+export function recolor(image: RgbaImage, colors: ReadonlyMap<number, number>): boolean {
+  let changed = false;
+  const { data } = image;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
+    const to = colors.get(
+      ((data[i] as number) << 16) | ((data[i + 1] as number) << 8) | (data[i + 2] as number),
+    );
+    if (to === undefined) continue;
+    data[i] = to >> 16;
+    data[i + 1] = (to >> 8) & 255;
+    data[i + 2] = to & 255;
+    changed = true;
+  }
+  return changed;
+}
+
+type Bytes = Uint8Array | null | undefined;
+
+export interface KitTheme {
+  /** A colour to its replacement, each as `0xRRGGBB`. */
+  colors: ReadonlyMap<number, number>;
+  /** The names of the images this theme redraws. */
+  drawings: readonly string[];
+  /** The kit image `name`, whose PNG is `png`, as the theme shows it. */
+  shown(name: string, png: Uint8Array): Promise<Uint8Array>;
+  /** The theme's own drawing of `name`, when it has one as large as `png`; `null` otherwise. */
+  drawing(name: string, png: Uint8Array): Promise<Uint8Array | null>;
+}
+
+const sizeOf = (png: Uint8Array) => {
+  try {
+    const { width, height } = decodePng(png);
+    return { width, height };
+  } catch {
+    return null;
+  }
+};
+
+/** `png` with the colours of `colors`; `png` itself when none of its pixels has one. */
+export function recolored(png: Uint8Array, colors: ReadonlyMap<number, number>): Uint8Array {
+  if (colors.size === 0) return png;
+  let image: RgbaImage;
+  try {
+    image = decodePng(png);
+  } catch {
+    return png;
+  }
+  return recolor(image, colors) ? encodePng(image) : png;
+}
+
+/** A theme from its table and the files of the images it redraws (`binary` reads one by path). */
+export function kitTheme(
+  colors: ReadonlyMap<number, number>,
+  redrawn: ReadonlyMap<string, string>,
+  binary: (path: string) => Bytes | Promise<Bytes>,
+): KitTheme {
+  const files = new Map<string, Promise<Bytes>>();
+  const drawing = async (name: string, png: Uint8Array) => {
+    const path = redrawn.get(name);
+    if (path === undefined) return null;
+    if (!files.has(path))
+      files.set(
+        path,
+        Promise.resolve()
+          .then(() => binary(path))
+          .catch(() => null),
+      );
+    const mine = await files.get(path);
+    if (!mine) return null;
+    const base = sizeOf(png);
+    const drawn = sizeOf(mine);
+    return base && drawn && drawn.width === base.width && drawn.height === base.height
+      ? mine
+      : null;
+  };
+  return {
+    colors,
+    drawings: [...redrawn.keys()],
+    drawing,
+    shown: async (name, png) => (await drawing(name, png)) ?? recolored(png, colors),
+  };
+}
+
+/** The theme `name` of a kit module; `null` when the module has no such theme. */
+export function readKitTheme(
+  name: string,
+  kit: {
+    files: readonly { path: string; content: string }[];
+    binaries: readonly { path: string }[];
+    binary: (path: string) => Bytes | Promise<Bytes>;
+  },
+): KitTheme | null {
+  if (!isThemeName(name)) return null;
+  const file = themeFile(
+    name,
+    kit.files.map((f) => f.path),
+  );
+  const redrawn = themeDrawings(
+    name,
+    kit.binaries.map((b) => b.path),
+  );
+  if (file === undefined && redrawn.size === 0) return null;
+  const text = file === undefined ? "" : (kit.files.find((f) => f.path === file)?.content ?? "");
+  return kitTheme(themeColors(text), redrawn, kit.binary);
+}

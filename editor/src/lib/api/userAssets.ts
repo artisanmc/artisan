@@ -11,6 +11,7 @@ import {
   trackDraftAssetPreparation,
 } from "@/features/project/persistedDrafts";
 import { ApiError, apiFetch, apiRequest, apiUrl } from "@/lib/api/client";
+import type { ComposeRecipe } from "@/lib/pack/compose";
 import { watchProjectPrincipal } from "@/lib/projectPrincipal";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import type { PersistedDraft } from "./projectDrafts";
@@ -69,12 +70,15 @@ export async function uploadAsset(
     ascent?: number;
     usages?: AssetUsage[];
     replace?: boolean;
+    /** The same image with other pixels, at the same size: what else it has is kept. */
+    retouch?: boolean;
   },
 ): Promise<Asset> {
   const result = await uploadFile(projectId, input.file, {
     type: input.type,
     name: input.name,
     ...(input.replace ? { replace: "true" } : {}),
+    ...(input.retouch ? { retouch: "true" } : {}),
     ...(input.usages === undefined ? {} : { usages: JSON.stringify(input.usages) }),
     ...(input.ascent === undefined ? {} : { ascent: String(input.ascent) }),
   });
@@ -133,10 +137,40 @@ export async function copyAsset(
   return { asset, outcome: asset.name === source.name ? "copied" : "renamed" };
 }
 
+/**
+ * Creates a composed image (`lib/pack/compose.ts`): a recipe the resource pack assembles, with
+ * no file. A glyph like every image made here, so that a menu's title may take it too.
+ */
+export async function composeAsset(
+  projectId: string,
+  input: { name: string; recipe: ComposeRecipe; usages?: AssetUsage[]; ascent?: number },
+): Promise<Asset> {
+  return (
+    await mutate(projectId, {
+      suffix: "",
+      method: "POST",
+      fields: {
+        type: "glyph",
+        name: input.name,
+        compose: JSON.stringify(input.recipe),
+        ...(input.usages === undefined ? {} : { usages: JSON.stringify(input.usages) }),
+        ...(input.ascent === undefined ? {} : { ascent: String(input.ascent) }),
+      },
+    })
+  ).asset!;
+}
+
 export async function patchAsset(
   projectId: string,
   id: string,
-  patch: { name?: string; ascent?: number; height?: number; usages?: AssetUsage[] },
+  patch: {
+    name?: string;
+    ascent?: number;
+    height?: number;
+    usages?: AssetUsage[];
+    /** A composed image's new recipe. */
+    compose?: ComposeRecipe;
+  },
 ): Promise<Asset> {
   return (
     await mutate(projectId, {
@@ -145,7 +179,10 @@ export async function patchAsset(
       fields: Object.fromEntries(
         Object.entries(patch)
           .filter((entry) => entry[1] !== undefined)
-          .map(([key, value]) => [key, key === "usages" ? JSON.stringify(value) : String(value)]),
+          .map(([key, value]) => [
+            key,
+            key === "usages" || key === "compose" ? JSON.stringify(value) : String(value),
+          ]),
       ),
     })
   ).asset!;

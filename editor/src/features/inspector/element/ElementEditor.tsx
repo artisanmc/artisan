@@ -5,7 +5,7 @@ import { addressedAppearances } from "@/domain/element";
 import { clampRefreshTicks } from "@/domain/elementRefresh";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Element, ElementId, Menu, MenuId, ProjectId } from "@/domain/types";
-import { useAssetStore } from "@/features/assets/assetStore";
+import { useImageAsset } from "@/features/assets/kitAssets";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -47,9 +47,7 @@ export function ElementEditor({
   const headerMaterialUrl = useTextureUrl(headerDisplay.material);
   const headerItemUrl =
     useHeadPreviewUrl(focusedState?.head ?? headerDisplay.head) ?? headerMaterialUrl;
-  const headerImage = useAssetStore((s) =>
-    s.assets.find((a) => a.projectId === projectId && a.id === focusedState?.image?.asset),
-  );
+  const headerImage = useImageAsset(projectId, focusedState?.image?.asset);
   const headerTextureUrl = headerImage ? assetPreviewUrl(headerImage) : headerItemUrl;
   const getText = useGetText(projectId);
   const headerTitle = getText(focusedState?.title);

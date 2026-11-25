@@ -241,6 +241,139 @@ deployed.
    - The ruler's picture is a PNG the JDK compresses, or a JPEG above 400 kB (the game's world
      behind a menu): it is looked at, never written.
 
+14. **The UI kit's base: `kit:<name>`** (2026-11-24, step 4 a of the same design). A module's
+    menus cannot be laid out against a server's own kit, which differs from one server to the
+    next. So Artisan ships a base: 19 images under names and sizes that are public and never
+    change (`editor/src/assets/kit`, listed in `slots.json`): `window.6`, `window.3`, `cell`,
+    four `button.*.3x1`, `panel.3x1`, `card.3x2`, two `value.*`, four `arrow.*.1x2`, `close.1x1`,
+    `back.1x1`, two `toggle.*.1x1`. A name ends with the slots the image covers, columns by rows.
+    - **A menu names an image `kit:<name>`** where it takes one: an element's `image`, a title's
+      `background` or `glyph` layer, a module's pack image. It is the image `<name>` of the
+      server's `ui-kit` module, else the base's. The kit module's image replaces a slot of the
+      base only at the slot's size: a menu laid out against `kit:button.3x1` keeps its place
+      whatever the server draws. A name outside the base is the kit module's own image, so a
+      server extends the kit by adding one.
+    - **The base ships in the jar, not on the server's disk.** The design said "through the
+      originals mechanism"; that needs a module on every server, a write at each start and a
+      Project to show in the editor, for files nobody edits. Both pack builders read the base
+      from their own resources (`Kit.kt`, `kit.ts`, one copy in git) and add an image only when
+      a menu or a module names it: a server that names none keeps its pack byte for byte. A kit
+      image a title is drawn with is a glyph of the menu font at the first codepoint no module's
+      glyph has; the others are textures. Its files sit under `kit/` in the pack (`:` cannot be
+      in a path), its key in the asset index is what the menu writes. The runtime did not
+      change: it already looks an image up by the name the menu gives.
+    - **For the model**: `survey_ui` returns `kit_base` (each image, its size, whether this
+      server drew it, on one more sheet), `render_menu` draws `kit:` images, and `write_image`
+      in the `ui-kit` module takes a base name, refused at another size than the slot's.
+    - **In the editor**: a menu's canvas, title and inspector show `kit:` images, from the kit
+      module's published files (`state/kitStore`, fed by the server index); **UI kit** beside
+      Item and Image picks one for a button, sized by the slots its name states, and the title
+      layer form picks one for a window. Nothing is copied into the module.
+15. **Composed images** (2026-11-24, step 4 b of the same design). Most of a module's images
+    are a kit image plus a detail: a window and its slots, a card and an icon. Kept as PNGs,
+    they would not follow a server that redraws its kit. So an image may be a recipe instead
+    of a file: a descriptor `assets/textures/<name>.yml` (or `assets/glyphs/`) with a `compose`
+    list and no PNG of its name, which both pack builders assemble (`Compose.kt`, `compose.ts`).
+    - **Layers, bottom first**: `use` or `image` places one image at `x`, `y`; `grid` repeats
+      it `columns` by `rows`, at its own size (the slots of a window: `kit:cell`). A layer is
+      `kit:<name>` or a PNG of the same module, never another composed image, so there is no
+      order to resolve and no cycle. The image is as large as `width` and `height` say (both),
+      else as far as its first layer reaches; what goes past is clipped. A layer whose file is
+      missing is left out; none drawn, there is no image. A PNG of the same name wins over the
+      recipe. At most 64 layers, 64 repeats, 512 pixels a side.
+    - **Same bytes in both builders**: layers are blended with whole-number alpha compositing,
+      and the result is an asset like a PNG's (same id, same place in the index, a title
+      background's `ascent` and `codepoint` read from the same descriptor). A composed image of
+      the `ui-kit` module is `kit:<its name>`, and replaces a slot of the base at its size.
+      A server with no recipe keeps its pack byte for byte.
+    - **For the model**: `write_image` takes `compose` ({layers: [{image, x, y, columns,
+      rows}], width, height}) in place of pixels, writes the descriptor and returns the picture
+      assembled. It is stricter than the pack: a layer that does not exist is refused, with what
+      to name instead. `read_image` on the `.yml` returns the picture and the layers,
+      `list_documents` lists them (`composed_images`), `render_menu` and `survey_ui` draw them
+      (`composed_of`). Written as pixels afterwards, the image keeps its place and loses its
+      recipe; composed again, its PNG.
+    - **In the editor**: a composed image is listed with the others, its picture assembled in
+      the browser (`features/assets/composedAssets.ts`, a `data:` URL). It is renamed,
+      duplicated and deleted through its descriptor; a PNG cannot be imported under its name,
+      and it is not offered for copying into another module, where its layers would be missing.
+    - **Composer** (step 4 c): the detail of a composed image in the Resources page lays its
+      layers out to be dragged, ordered, repeated, added from the kit or the module, and
+      removed; **Compose an image** starts one from a kit window or a kit button. The editor
+      writes the same descriptor as `write_image` (`use`, `image`, `grid`), and refuses a
+      recipe the pack would not read back as given, so a person and a model edit one file.
+    - **Pixel editor** (step 4 d): an image that has a PNG is retouched in the Resources page
+      (pencil, eraser, colour picker, paint bucket, the image's and the kit's colours, undo),
+      at its size, and **Draw an image** starts from an empty one. Kept small on purpose: no
+      layers, no selection, no resizing. It is the hand's counterpart of `write_image`'s
+      pixels: what the model drew is corrected there without leaving the editor, and beyond a
+      detail the answer stays an import or the model.
+16. **Themes of the kit** (2026-11-24, step 4 bis of the same design). A server wants another
+    look for a season or an event without rewriting a menu. A theme is the same images, under
+    the same names and at the same sizes, with other pixels: a folder `themes/<name>/` of the
+    `ui-kit` module, read by both pack builders (`Theme.kt`, `theme.ts`).
+    - **Two means, the cheap one first**: `theme.yml` holds `colors`, a table of `"#rrggbb"`
+      to `"#rrggbb"` (256 at most) applied to each pixel whose colour is in it, alpha kept, in
+      one pass; `assets/textures/<image>.png` (or `assets/glyphs/`) is the theme's own drawing
+      of an image, taken as it is when it has that image's size, left out otherwise. A theme
+      holds no Document and moves nothing, so a menu laid out against the kit keeps its
+      layout whatever the theme: at worst it is ugly.
+    - **What changes is what `kit:<name>` shows**: the base's images and the kit module's.
+      A composed image follows through its layers and is not themed a second time once
+      assembled (the theme's own drawing of a composed kit image still replaces it). A
+      module's own PNG is never recoloured: its colours were not chosen against the kit's,
+      and a table applied blindly would repaint an icon that happens to share a green.
+    - **One theme per server**, `resource-pack.theme` of `config.yml` (the Configuration
+      page lists the kit's themes; the plugin checks the name, `invalid_theme`), passed to
+      the pack builders as `PackInput.theme`. A theme the kit does not hold is no theme. A
+      server that names none keeps its pack byte for byte.
+    - **For the model**: `survey_ui` lists the kit's themes (`kit.themes`), the one in place,
+      how to write one (`themes_format`), and shows the base in the server's theme. The table
+      is written with `write_document`, checked by the hub (the server does not check a file
+      that is no Document): unquoted colours, which YAML reads as comments, are refused with
+      the reason. `write_image` with `theme` writes the theme's drawing of a kit image,
+      refused at another size. `render_menu` draws the kit in the server's theme, in another
+      with `theme` (`none` for none), and from a draft of the kit module with `kit_draft_id`,
+      so a theme is looked at on a real menu before it is deployed. Switching the server's
+      theme stays the player's, in the Configuration page.
+    - **In the editor**: kit images and composed images are shown in the server's theme
+      (`features/assets/kitTheme.ts`), as players see them.
+    - **Not in this step**: a theme per player, a module's own theme overlay (its PNGs
+      redrawn per theme), a `themed: true` on a module's image to have it recoloured, and a
+      screen to edit a theme's table by hand (it is a YAML file of the kit module).
+17. **A picture from an image model: `generate_image`** (2026-11-24, step 6 of the same
+    design). A chat model draws pixel art cell by cell; it cannot paint an illustration or a
+    background. `generate_image` asks an image model for one, on the admin's key (`ai.image`:
+    `openai`, the Images API with GPT Image models, or `google`, the Gemini API's image
+    models; `AiImages.kt`, behind `ImageModel`).
+    - **The picture is material, never a file.** It comes back at about a megapixel, kept in
+      the hub's memory under a name (`generated-<n>.png`, each player's last 8,
+      `GeneratedPictures`), with a compact copy for the model's eyes. `measure_image` and
+      `write_image`'s `from` take it by that name as `attachment`, so it enters a draft the
+      way a screenshot does: measured, cut, brought to the art's size, checked. Nothing new
+      is written to a server's disk nor to the database.
+    - **It spends the server owner's money, so it is off by default.** An MCP client is
+      offered the tool only when its grant carries `allow_images` (migration 55): a box on
+      the consent page, off unless ticked, and a switch per app in Settings → AI apps. It
+      takes `edit`, like the assistant's own question (ADR `editor-assistant`, decision 16).
+      Not listed and refused (`forbidden`) otherwise; `artisan_overview` says
+      `can_generate_images`. Without an image model the tool does not exist.
+    - **A number of pictures per player and per day** (`ai.image.daily-limit`, 40, UTC, in
+      memory), all clients and the assistant together: the guard against a model that loops
+      on a paid tool. A call the image model failed or refused is not counted.
+    - **Transparency**: a model that makes a transparent background is asked for one; one
+      that does not (Google's) gets a prompt that asks for a flat magenta ground, removed
+      when the picture is cut (`from.background`).
+    - **References** (4 at most): pictures the image model works from, an attachment or a
+      module's image, a small one enlarged pixel for pixel before it is sent.
+    - **Why not let the client generate on its side?** It can: `write_image` takes a
+      `png_base64` it made. `generate_image` is for clients that have no image model, and for
+      the editor's assistant, which has none.
+    - **Not verified against the vendors** when this was written: no key was at hand. The
+      requests follow the vendors' published API and are tested against a local stand-in;
+      the first real call may show a field to adjust. The quality of pixel art from an image
+      model is the open question of the design's benchmark.
+
 ## Consequences
 
 - A player who has `edit` can entrust their drafts to an AI; by default the worst it does is a wrong
@@ -262,9 +395,10 @@ deployed.
   `/ai` relay): next milestones of the proposal.
 - Detecting reuse of a refresh token (revoke the whole authorization): this would require keeping the
   old hashes.
-- Data tools (data sources), a server's UI kit and an image model: the next steps of the design
-  named in decision 10. For `render_menu`: a state chosen by the caller, sample values for
-  expressions, hover text (name and lore). For the kit: its fixed slots, themes, composed images
-  and its place in the editor's Resources page. For `measure_image`: a pixel size that is not
+- Data tools (data sources): a next step of the design named in decision 10. For
+  `generate_image`: a price shown before the call (the site's catalogue has it for
+  `image.provider: artisan`, ADR `editor-assistant` decision 16), other vendors, and pictures that outlive a restart. For `render_menu`: a state chosen by the caller, sample values for
+  expressions, hover text (name and lore). For the kit: a screen for a theme's colours, themes
+  for a module's own images, and its place in the editor's Resources page. For `measure_image`: a pixel size that is not
   whole found by itself (a mock-up from an image model), elements inside a dense menu, a WebP.
 - Deploying several Projects in one call, and a per-client limit on deploys.

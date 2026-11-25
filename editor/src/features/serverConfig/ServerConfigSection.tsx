@@ -8,6 +8,10 @@ import { type ServerConfig, getServerConfig, patchServerConfig } from "@/lib/api
 import type { ProjectSummary } from "@/lib/api/servers";
 import { listAssets } from "@/lib/api/userAssets";
 import { SERVER_PALETTE_KEYS, serverPaletteEntries, serverPaletteForm } from "@/lib/mm/palettes";
+import { KIT_FOLDER } from "@/lib/pack/kit";
+import { THEME_CONFIG_KEY, configuredTheme, themeNames } from "@/lib/pack/theme";
+import { projectClient } from "@/lib/projectClient";
+import { useKitStore } from "@/state/kitStore";
 import {
   MENU_VARIANTS_KEY,
   invalidateServerVariants,
@@ -46,6 +50,7 @@ export function ServerConfigSection({
   const [config, setConfig] = useState<ServerConfig | null | undefined>(undefined);
   const [changes, setChanges] = useState<ServerConfig>({});
   const [images, setImages] = useState<string[]>([]);
+  const [themes, setThemes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,6 +82,25 @@ export function ServerConfigSection({
     };
   }, [projects]);
 
+  // The themes the pack can be built in: the folders of the kit module's `themes/`.
+  const kitId = projects.find((p) => (p.externalId ?? p.id) === KIT_FOLDER)?.id;
+  useEffect(() => {
+    setThemes([]);
+    if (!kitId) return;
+    let cancelled = false;
+    projectClient(kitId)
+      .read()
+      .then((tree) => {
+        if (cancelled || !tree.ok || tree.unchanged) return;
+        const binaries = (tree.binaries ?? []).map((binary) => binary.path);
+        setThemes(themeNames(Object.keys(tree.files), binaries));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [kitId]);
+
   if (config === undefined)
     return <p className="text-[13px] text-[var(--text-mut)]">{t("serverConfig.loading")}</p>;
   if (config === null)
@@ -105,12 +129,19 @@ export function ServerConfigSection({
   const save = async () => {
     setSaving(true);
     try {
-      setConfig(await patchServerConfig(serverKeyId, changes));
+      const saved = await patchServerConfig(serverKeyId, changes);
+      setConfig(saved);
+      // The kit's images are shown in the server's theme from now on.
+      if (THEME_CONFIG_KEY in changes) useKitStore.getState().setTheme(configuredTheme(saved));
       setChanges({});
       if (Object.keys(changes).some((key) => key.startsWith(PALETTE))) invalidateServerPalette();
       if (MENU_VARIANTS_KEY in changes) invalidateServerVariants();
-      // Changing container textures or the inventory label requires rebuilding the pack.
-      if (Object.keys(changes).some((key) => key.startsWith(TEXTURES) || key === INVENTORY_LABEL))
+      // Changing container textures, the inventory label or the theme requires rebuilding the pack.
+      if (
+        Object.keys(changes).some(
+          (key) => key.startsWith(TEXTURES) || key === INVENTORY_LABEL || key === THEME_CONFIG_KEY,
+        )
+      )
         rebuildServerPackInBackground(t, serverKeyId);
     } catch (e) {
       setError(
@@ -140,6 +171,25 @@ export function ServerConfigSection({
             {options.map((ref) => (
               <option key={ref} value={ref}>
                 {ref}
+              </option>
+            ))}
+          </select>
+        </FormField>
+      );
+    }
+    if (key === THEME_CONFIG_KEY) {
+      const options = [...new Set([...themes, ...(current ? [String(current)] : [])])];
+      return (
+        <FormField key={key} label={label(key)} hint={t("serverConfig.hints.theme")}>
+          <select
+            className="input"
+            value={String(current ?? "")}
+            onChange={(e) => set(key, e.target.value)}
+          >
+            <option value="">{t("serverConfig.noTheme")}</option>
+            {options.map((name) => (
+              <option key={name} value={name}>
+                {name}
               </option>
             ))}
           </select>

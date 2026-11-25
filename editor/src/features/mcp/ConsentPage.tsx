@@ -35,6 +35,9 @@ export function ConsentPage({ query }: { query: string }) {
   // Off unless the player ticks it: a client is "draft only" by default.
   const [publish, setPublish] = useState(false);
   const publishId = useId();
+  // The same for the server's image model: its owner pays for each picture.
+  const [images, setImages] = useState(false);
+  const imagesId = useId();
 
   // Signed out: the in-game link opens another tab; this one waits for the cookie.
   useEffect(() => {
@@ -59,7 +62,7 @@ export function ConsentPage({ query }: { query: string }) {
     setBusy(true);
     setFailed(false);
     try {
-      const redirect = await answerConsent(params, approve, approve && publish);
+      const redirect = await answerConsent(params, approve, approve && publish, approve && images);
       setLeaving(true);
       window.location.assign(redirect);
     } catch {
@@ -114,6 +117,22 @@ export function ConsentPage({ query }: { query: string }) {
               {t("mcp.consent.publish")}
               <span className="text-[12px] text-[var(--text-mut)]">
                 {t("mcp.consent.publishHint", { client: request.client.name })}
+              </span>
+            </label>
+          </div>
+        )}
+        {request.canImages && request.canEdit && (
+          <div className="flex items-start gap-2.5 text-[13px] text-[var(--text)]">
+            <Checkbox
+              id={imagesId}
+              className="mt-0.5"
+              checked={images}
+              onCheckedChange={setImages}
+            />
+            <label htmlFor={imagesId} className="flex flex-col gap-0.5">
+              {t("mcp.consent.images")}
+              <span className="text-[12px] text-[var(--text-mut)]">
+                {t("mcp.consent.imagesHint", { client: request.client.name })}
               </span>
             </label>
           </div>

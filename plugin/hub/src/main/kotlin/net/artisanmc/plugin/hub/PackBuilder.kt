@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.hub
 
+import net.artisanmc.plugin.pack.KitTheme
 import net.artisanmc.plugin.pack.OverlayImageRequest
 import net.artisanmc.plugin.pack.PackFile
 import net.artisanmc.plugin.pack.PackInput
@@ -210,6 +211,7 @@ class PackBuilder(
                     projects,
                     containerTextures(config),
                     hideInventoryLabel = config?.get("resource-pack.hide-inventory-label") == true,
+                    theme = KitTheme.configured(config),
                     bedrockServerId = server.takeIf { bedrock != null },
                 )
             },

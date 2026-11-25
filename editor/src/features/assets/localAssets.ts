@@ -23,13 +23,17 @@ import {
   nextFreeCodepoint,
 } from "@/lib/pack/assetDiskWrite";
 import { type AssetUsage, parseAssetUsages } from "@/lib/pack/assetUsages";
+import { type ComposeRecipe, composeRecipe, composeYaml } from "@/lib/pack/compose";
 import { type DiskAsset, diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import { FONT_DESCRIPTOR, fontDir, fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
 import { type ParsedMcFont, parseMcFontsZip } from "@/lib/pack/mcFontsParser";
 import { readPngContentWidth, readPngDimensions } from "@/lib/pack/pngDimensions";
 import type { AssetRow } from "@/lib/pack/resourcePackBuilder";
 import { sha256Hex } from "@/lib/sha256";
+import { useKitStore } from "@/state/kitStore";
 import { parse, stringify } from "yaml";
+import { type ComposedView, composedView } from "./composedAssets";
+import { activeKitTheme } from "./kitTheme";
 
 /**
  * A Project's assets: the editor validates and stores them itself, on the
@@ -73,7 +77,7 @@ export function assetJsonFields(fields: Record<string, string>): Record<string, 
   return Object.fromEntries(
     Object.entries(fields).map(([key, value]) => [
       key,
-      key === "usages"
+      key === "usages" || key === "compose"
         ? JSON.parse(value)
         : ["height", "ascent"].includes(key)
           ? Number(value)
@@ -112,18 +116,76 @@ function serialize(row: AssetRow): Asset {
   ) as Asset;
 }
 
-/** List: the server draft's snapshot if there is one, otherwise the published disk. */
+/**
+ * The PNG of the server's kit module named `name`, as published: what a `kit:<name>` layer of a
+ * composed image is drawn with (`undefined`: the base's stands in). `own` answers for the kit
+ * module itself, whose images are the ones being read.
+ */
+function kitOwn(
+  projectId: string,
+  own: (name: string) => Promise<Uint8Array | null | undefined>,
+): (name: string) => Promise<Uint8Array | null | undefined> {
+  const kit = useKitStore.getState().read;
+  if (!kit) return async () => undefined;
+  if (kit.projectId === projectId) return own;
+  return async (name) => {
+    // A texture after a glyph of the same name, as the pack reads them: it wins.
+    const path = ["assets/textures", "assets/glyphs"]
+      .map((dir) => `${dir}/${name}.png`)
+      .find((p) => kit.binaries.some((b) => b.path === p));
+    return path ? readPublishedBinary(kit.projectId, path).catch(() => null) : undefined;
+  };
+}
+
+/** The pictures of `disk`'s composed images, by asset: assembled as the pack does it. */
+async function composedViews(
+  projectId: string,
+  disk: DiskAsset[],
+  bytes: (asset: DiskAsset) => Promise<Uint8Array | null>,
+): Promise<Map<DiskAsset, ComposedView>> {
+  const out = new Map<DiskAsset, ComposedView>();
+  const cache = new Map<DiskAsset, Promise<Uint8Array | null>>();
+  const read = (asset: DiskAsset) => {
+    if (!cache.has(asset))
+      cache.set(
+        asset,
+        bytes(asset).catch(() => null),
+      );
+    return cache.get(asset)!;
+  };
+  const kit = kitOwn(projectId, async (name) => {
+    const own = disk.find((a) => !a.compose && a.row.type !== "font" && a.row.name === name);
+    return own ? read(own) : undefined;
+  });
+  // The server's theme: the `kit:` layers are shown in it, and the kit module's own images too.
+  const theme = activeKitTheme(readPublishedBinary);
+  const inKit = useKitStore.getState().read?.projectId === projectId;
+  for (const asset of disk) {
+    if (!asset.compose) continue;
+    const view = await composedView(asset, disk, read, kit, theme, inKit).catch(() => null);
+    if (view) out.set(asset, view);
+  }
+  return out;
+}
+
+/**
+ * List: the server draft's snapshot if there is one, otherwise the published disk.
+ * `composed: false` leaves the composed images out: a caller that copies assets elsewhere
+ * cannot take one without its layers.
+ */
 export async function listLocalAssets(
   projectId: string,
-  filters: { type?: AssetType; search?: string },
+  filters: { type?: AssetType; search?: string; composed?: boolean },
   draftId?: string,
 ): Promise<Asset[]> {
   let files: Tree;
   let binaries: Binaries;
+  let baseline: Record<string, { hash: string }> | null = null;
   if (draftId) {
     const { snapshot } = await readDraft(projectId, draftId);
     files = Object.entries(snapshot.tree).map(([path, content]) => ({ path, content }));
     binaries = Object.entries(snapshot.binaryTree ?? {}).map(([path, meta]) => ({ path, ...meta }));
+    baseline = snapshot.binaryBaseline ?? {};
   } else {
     const read = await readProjectFiles(projectId);
     if (!read.ok || read.unchanged) throw new Error("Failed to load assets");
@@ -132,15 +194,28 @@ export async function listLocalAssets(
   }
   // What the module ships (`originals/assets/…`) is listed too, read-only: menus and module
   // previews pick their images here. Changes go through the owner's files alone (`DraftOverlay`).
-  return diskAssetsFromTree(projectId, files, binaries, { originals: true })
-    .map((a) => a.row)
-    .filter((r) => !filters.type || r.type === filters.type)
-    .filter((r) => !filters.search || r.name.toLowerCase().includes(filters.search.toLowerCase()))
-    .map(serialize);
+  const disk = diskAssetsFromTree(projectId, files, binaries, { originals: true });
+  const listed = disk
+    .filter((a) => filters.composed !== false || !a.compose)
+    .filter((a) => !filters.type || a.row.type === filters.type)
+    .filter(
+      (a) => !filters.search || a.row.name.toLowerCase().includes(filters.search.toLowerCase()),
+    );
+  if (!listed.some((a) => a.compose)) return listed.map((a) => serialize(a.row));
+  // A layer's PNG: the draft's blob when it changed there, the published file otherwise.
+  const views = await composedViews(projectId, disk, async (asset) => {
+    if (draftId && baseline && baseline[asset.path]?.hash !== asset.hash)
+      return readDraftBlob(projectId, draftId, asset.hash);
+    return readPublishedBinary(projectId, asset.path);
+  });
+  return listed.map((a) => ({ ...serialize(a.row), ...views.get(a) }));
 }
 
 /** A published binary of a Project, `null` when the disk does not have it. */
-async function readPublishedBinary(projectId: string, path: string): Promise<Uint8Array | null> {
+export async function readPublishedBinary(
+  projectId: string,
+  path: string,
+): Promise<Uint8Array | null> {
   const response = await apiRequest(
     `/api/v1/projects/${encodeURIComponent(projectId)}/binary?path=${encodeURIComponent(path)}`,
   ).catch(() => fail(503, "storage_unavailable"));
@@ -204,6 +279,8 @@ export async function readAssetFiles(
     const descriptor = files.find((f) => f.path === found.path)?.content ?? null;
     return { type: "font", name: found.row.name, descriptor, binaries: out };
   }
+  // Without its layers, which stay in this Project, a composed image would be an empty one there.
+  if (found.compose) fail(400, "A composed image cannot be copied to another module");
   const descriptor = descriptorOf(files, found.path)?.content ?? null;
   return {
     type: found.row.type as AssetType,
@@ -267,6 +344,12 @@ class DraftOverlay {
 
   private published(path: string): Promise<Uint8Array | null> {
     return readPublishedBinary(this.projectId, path);
+  }
+
+  /** What the composed image `asset` shows, from the draft's files: one of `disk`, or one about to be. */
+  async view(disk: DiskAssetsTree, asset: DiskAsset): Promise<ComposedView | undefined> {
+    const all = disk.assets.includes(asset) ? disk.assets : [...disk.assets, asset];
+    return (await composedViews(this.projectId, all, (layer) => this.bytes(layer))).get(asset);
   }
 
   /** All or nothing: base hashes checked, blobs written, then a single revision. */
@@ -378,6 +461,33 @@ async function create(
     if (type === "font" || usages === undefined)
       fail(400, "Invalid usages (images only; button, menu)");
   }
+  if (fields.compose !== undefined) {
+    // A composed image: a descriptor that holds its recipe, and no file.
+    if (type === "font") fail(400, "Invalid type (a composed image is a texture or a glyph)");
+    let recipe: ComposeRecipe;
+    try {
+      recipe = requestedRecipe(JSON.parse(fields.compose));
+    } catch (error) {
+      if (error instanceof DraftApiError) throw error;
+      fail(400, "Invalid compose");
+    }
+    const disk = overlay.read();
+    const id = assetFileName(name);
+    if (disk.assets.some((a) => a.row.id === id)) fail(409, "Asset name already exists");
+    const ascent = type === "glyph" ? Number.parseInt(ascentRaw ?? "8", 10) : null;
+    if (ascent !== null && !Number.isFinite(ascent)) fail(400, "Invalid ascent");
+    const codepoint = type === "glyph" ? nextFreeCodepoint(disk.assets) : null;
+    const path = descriptorPath(assetDiskPath(type, name));
+    const content = stringify({
+      ...(ascent === null ? {} : { ascent }),
+      ...(codepoint === null ? {} : { codepoint }),
+      usages,
+      ...recipeFields(recipe),
+    });
+    await overlay.commit({ files: [{ path, content, base_hash: null }], binaries: [] });
+    const made = diskAssetsFromTree(projectId, [{ path, content }], [])[0]!;
+    return { asset: { ...serialize(made.row), ...(await overlay.view(disk, made)) } };
+  }
   if (!file) fail(400, "Missing file");
   if (file.length > (type === "font" ? MAX_FONT_BYTES : MAX_RAW_BYTES))
     fail(400, `File too large (max ${type === "font" ? 5 : 2} MB)`);
@@ -433,12 +543,36 @@ async function create(
   }
 
   const path = assetDiskPath(type, name);
+  // A composed image of that name has no PNG to replace: its recipe would be shadowed.
+  if (disk.assets.some((a) => a.compose && a.row.type === type && a.row.id === assetFileName(name)))
+    fail(409, "Asset name already exists");
   const existingSame = disk.assets.find((a) => a.path === path);
   // `replace` = reimport: new pixels, same codepoint/ascent/usages.
-  const replace = fields.replace === "true";
+  // `retouch` = the same image with other pixels (the pixel editor): it also keeps its size.
+  const retouch = fields.retouch === "true";
+  const replace = retouch || fields.replace === "true";
   if (existingSame && !replace) fail(409, "Asset name already exists");
   if (!existingSame && replace) fail(404, "not_found");
   const kept = existingSame?.row;
+  if (retouch && existingSame && kept) {
+    const before = await overlay.bytes(existingSame);
+    if (!before) fail(503, "server_offline");
+    let drawn = { width: 0, height: 0 };
+    try {
+      drawn = readPngDimensions(before);
+    } catch {
+      // An unreadable file has no size to keep: refused below.
+    }
+    if (drawn.width !== width || drawn.height !== height)
+      fail(400, "A retouch keeps the image's size");
+    // A glyph shown at another height than its file's stays at that height.
+    if (kept.width > 0 && kept.height > 0 && kept.height !== height) {
+      if (typeof contentWidth === "number" && contentWidth > 0)
+        contentWidth = Math.max(1, Math.round(contentWidth * (kept.height / height)));
+      width = kept.width;
+      height = kept.height;
+    }
+  }
   const previous = existingSame ? descriptorOf(disk.files, existingSame.path) : null;
   if (kept) usages = kept.usages;
   const ascentValue = kept
@@ -494,6 +628,65 @@ function lookup(disk: DiskAssetsTree, id: string): DiskAsset {
   return disk.assets.find((a) => a.row.id === id) ?? fail(404, "Not found");
 }
 
+/**
+ * The recipe a request carries (`{layers, width, height}`, as `Asset.compose`), read as the pack
+ * reads a descriptor: refused unless the pack reads back that very recipe, with a layer at least.
+ */
+function requestedRecipe(value: unknown): ComposeRecipe {
+  const input = (value && typeof value === "object" ? value : {}) as Partial<ComposeRecipe>;
+  const layers = Array.isArray(input.layers) ? input.layers : [];
+  const invalid: () => never = () =>
+    fail(400, "Invalid compose (layers: image, x, y, columns, rows)");
+  if (
+    layers.some((layer) => !layer || typeof layer !== "object" || typeof layer.image !== "string")
+  )
+    invalid();
+  const [width, height] = [input.width ?? null, input.height ?? null];
+  const recipe = composeRecipe({
+    compose: composeYaml({ layers, width, height }),
+    width: width ?? undefined,
+    height: height ?? undefined,
+  });
+  const same = (a: ComposeRecipe["layers"][number], b: ComposeRecipe["layers"][number]) =>
+    a.image === b.image &&
+    a.x === b.x &&
+    a.y === b.y &&
+    a.columns === b.columns &&
+    a.rows === b.rows;
+  if (
+    !recipe ||
+    recipe.layers.length === 0 ||
+    recipe.layers.length !== layers.length ||
+    recipe.width !== width ||
+    recipe.height !== height ||
+    !recipe.layers.every((layer, i) => same(layer, layers[i] as ComposeRecipe["layers"][number]))
+  )
+    invalid();
+  return recipe;
+}
+
+/** What a descriptor holds of `recipe`: its layers, and its size when it gives one. */
+function recipeFields(recipe: ComposeRecipe): Record<string, unknown> {
+  return {
+    width: recipe.width ?? undefined,
+    height: recipe.height ?? undefined,
+    compose: composeYaml(recipe),
+  };
+}
+
+/** The descriptor of a composed image (its `path`): its text's hash, and what it holds. */
+function composedDescriptor(disk: DiskAssetsTree, asset: DiskAsset) {
+  const content = disk.files.find((f) => f.path === asset.path)?.content ?? fail(404, "Not found");
+  let parsed: Record<string, unknown> = {};
+  try {
+    const value = parse(content);
+    if (value && typeof value === "object" && !Array.isArray(value)) parsed = value;
+  } catch {
+    // It was read as a recipe a moment ago: unreachable, and nothing is kept if it happens.
+  }
+  return { hash: textHash(content), parsed };
+}
+
 async function patch(
   overlay: DraftOverlay,
   id: string,
@@ -530,10 +723,47 @@ async function patch(
   if (nextName !== row.name && disk.assets.some((a) => a.row.id === assetFileName(nextName)))
     fail(409, "Asset name already exists");
 
+  const renamed = nextName !== row.name;
+  if (found.compose) {
+    // A composed image is its descriptor: what changes is written there, the recipe kept as it is.
+    if (typeof body.height === "number") fail(400, "height only valid for a glyph with a PNG");
+    const current = composedDescriptor(disk, found);
+    const recipe = body.compose === undefined ? found.compose : requestedRecipe(body.compose);
+    const next: Record<string, unknown> = {
+      ...current.parsed,
+      ...(body.compose === undefined ? {} : recipeFields(recipe)),
+    };
+    if (nextAscent === null) next.ascent = undefined;
+    else next.ascent = nextAscent;
+    next.usages = nextUsages;
+    const to = renamed
+      ? found.path.replace(/[^/]+(\.ya?ml)$/, `${assetFileName(nextName)}$1`)
+      : found.path;
+    await overlay.commit({
+      files: [{ path: to, content: stringify(next), base_hash: renamed ? null : current.hash }],
+      binaries: [],
+      deletes: renamed ? [{ path: found.path, base_hash: current.hash }] : [],
+    });
+    return {
+      asset: {
+        ...serialize({
+          ...row,
+          id: assetFileName(nextName),
+          name: nextName,
+          ascent: nextAscent,
+          usages: nextUsages,
+        }),
+        ...(await overlay.view(
+          disk,
+          recipe === found.compose ? found : { ...found, compose: recipe },
+        )),
+      },
+    };
+  }
+  if (body.compose !== undefined) fail(400, "compose only valid for a composed image");
   const bytes = await overlay.bytes(found);
   if (!bytes) fail(503, "server_offline");
   const previous = descriptorOf(disk.files, found.path);
-  const renamed = nextName !== row.name;
   await overlay.writeAsset(
     {
       type: row.type,
@@ -582,10 +812,24 @@ async function duplicate(overlay: DraftOverlay, id: string): Promise<Body> {
   const taken = new Set(disk.assets.map((a) => a.row.id));
   let newName = `${src.name}_copy`;
   for (let n = 2; taken.has(assetFileName(newName)); n++) newName = `${src.name}_copy${n}`;
-  const bytes = await overlay.bytes(found);
-  if (!bytes) fail(503, "server_offline");
   // A copy never shares its original's codepoint.
   const codepoint = nextFreeCodepoint(disk.assets);
+  if (found.compose) {
+    const current = composedDescriptor(disk, found);
+    const to = found.path.replace(/[^/]+(\.ya?ml)$/, `${assetFileName(newName)}$1`);
+    await overlay.commit({
+      files: [{ path: to, content: stringify({ ...current.parsed, codepoint }), base_hash: null }],
+      binaries: [],
+    });
+    return {
+      asset: {
+        ...serialize({ ...src, id: assetFileName(newName), name: newName, codepoint }),
+        ...(await overlay.view(disk, found)),
+      },
+    };
+  }
+  const bytes = await overlay.bytes(found);
+  if (!bytes) fail(503, "server_offline");
   await overlay.writeAsset({
     type: src.type,
     name: newName,
@@ -625,6 +869,15 @@ async function remove(overlay: DraftOverlay, id: string): Promise<Body> {
           base_hash: textHash(disk.files.find((f) => f.path === found.path)?.content ?? ""),
         },
       ],
+    });
+    return {};
+  }
+  if (found.compose) {
+    // Its descriptor is the whole of it.
+    await overlay.commit({
+      files: [],
+      binaries: [],
+      deletes: [{ path: found.path, base_hash: composedDescriptor(disk, found).hash }],
     });
     return {};
   }

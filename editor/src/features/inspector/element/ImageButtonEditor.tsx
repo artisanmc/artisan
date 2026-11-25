@@ -1,13 +1,20 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { Asset } from "@/domain/asset";
 import { imageButtonRect, imageButtonSize, rectanglePositions } from "@/domain/imageButton";
 import type { Appearance, Element, Menu, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { AssetPreview } from "@/features/assets/AssetPreview";
-import { useAssetStore } from "@/features/assets/assetStore";
+import { KitPicker } from "@/features/assets/KitPicker";
+import { useImageAsset } from "@/features/assets/kitAssets";
 import { colsFor, rowsFor } from "@/features/canvas/inventoryTypes";
+import { kitFootprint } from "@/lib/pack/kit";
 import { type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+/** The slots an image covers: a kit image's name says them, another's size gives them. */
+const footprint = (asset: Asset) =>
+  kitFootprint(asset.id) ?? imageButtonSize(asset.width, asset.height);
 
 export function ImageButtonEditor({
   projectId,
@@ -31,9 +38,9 @@ export function ImageButtonEditor({
   const { t } = useTranslation();
   const controlId = useId();
   const [picking, setPicking] = useState(false);
+  const [pickingKit, setPickingKit] = useState(false);
   const [error, setError] = useState("");
-  const assets = useAssetStore((state) => state.assets);
-  const asset = assets.find((entry) => entry.id === image?.asset && entry.projectId === projectId);
+  const asset = useImageAsset(projectId, image?.asset);
   const type = menu.inventoryType ?? "chest";
   const rect = imageButtonRect(element.positions, type, menu.rows, menu.playerInventory);
   const perform = (action: () => void) => {
@@ -51,6 +58,26 @@ export function ImageButtonEditor({
         rectanglePositions(rect.slot, width, height, type, menu.rows, menu.playerInventory),
       );
     });
+  /** The image chosen: kept at the button's fit, or a first image at its natural size. */
+  const pick = (picked: Asset, done: () => void) => {
+    if (image) onImage({ ...image, asset: picked.id });
+    else {
+      if (!rect) throw new Error(t("imageButton.rectangleRequired"));
+      const size = footprint(picked);
+      onImage(
+        { asset: picked.id, fit: "native" },
+        rectanglePositions(
+          rect.slot,
+          size.width,
+          size.height,
+          type,
+          menu.rows,
+          menu.playerInventory,
+        ),
+      );
+    }
+    done();
+  };
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-1" aria-label={t("imageButton.appearance")}>
@@ -70,6 +97,14 @@ export function ImageButtonEditor({
           onClick={() => setPicking(true)}
         >
           {t("imageButton.image")}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={!!element.iterates || !!element.places}
+          onClick={() => setPickingKit(true)}
+        >
+          {t("kit.fromKit")}
         </Button>
       </div>
       {image && (
@@ -153,7 +188,7 @@ export function ImageButtonEditor({
               size="sm"
               variant="outline"
               onClick={() => {
-                const size = imageButtonSize(asset.width, asset.height);
+                const size = footprint(asset);
                 resize(size.width, size.height);
               }}
             >
@@ -175,27 +210,14 @@ export function ImageButtonEditor({
         projectId={projectId}
         onClose={() => setPicking(false)}
         title={t("imageButton.choose")}
-        onPick={(picked) =>
-          perform(() => {
-            if (image) onImage({ ...image, asset: picked.id });
-            else {
-              if (!rect) throw new Error(t("imageButton.rectangleRequired"));
-              const size = imageButtonSize(picked.width, picked.height);
-              onImage(
-                { asset: picked.id, fit: "native" },
-                rectanglePositions(
-                  rect.slot,
-                  size.width,
-                  size.height,
-                  type,
-                  menu.rows,
-                  menu.playerInventory,
-                ),
-              );
-            }
-            setPicking(false);
-          })
-        }
+        onPick={(picked) => perform(() => pick(picked, () => setPicking(false)))}
+      />
+      <KitPicker
+        open={pickingKit}
+        onClose={() => setPickingKit(false)}
+        // A window is a menu's background, not a button's image.
+        only={(entry) => !entry.id.startsWith("kit:window.")}
+        onPick={(picked) => perform(() => pick(picked, () => setPickingKit(false)))}
       />
     </div>
   );

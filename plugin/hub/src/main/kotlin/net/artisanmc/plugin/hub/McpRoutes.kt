@@ -55,7 +55,7 @@ class McpRoutes(
     private fun principal(call: Call): McpPrincipal? {
         val bearer = call.header("Authorization")?.takeIf { it.startsWith("Bearer ", ignoreCase = true) }?.substring(7)?.trim()
         val principal = when {
-            bearer != null -> grants.authenticate(bearer)?.let { McpPrincipal(it.playerId, it.playerName, it.effectivePermissions, it.id, it.clientName) }
+            bearer != null -> grants.authenticate(bearer)?.let { McpPrincipal(it.playerId, it.playerName, it.effectivePermissions, it.id, it.clientName, images = it.allowImages) }
             else -> call.session?.let { McpPrincipal(it.playerId, it.playerName, it.permissions - EditorPermissions.PUBLISH - EditorPermissions.CONFIG) }
         }
         if (principal == null) {

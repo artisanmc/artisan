@@ -186,6 +186,20 @@ object McpImages {
         return Picture(Base64.getEncoder().encodeToString(Png.encode(out)))
     }
 
+    /** [image] over a dark chequerboard of [cell] pixels where it is transparent, at its own size; itself when it is opaque. */
+    fun onChequer(image: RgbaImage, cell: Int = 16): RgbaImage {
+        if ((3 until image.data.size step 4).all { image.data[it] == 0xff.toByte() }) return image
+        val out = RgbaImage(image.width, image.height)
+        for (y in 0 until image.height) for (x in 0 until image.width) {
+            val at = (y * image.width + x) * 4
+            val alpha = image.data[at + 3].toInt() and 0xff
+            val under = if ((x / cell + y / cell) % 2 == 0) 0x3a else 0x4a
+            for (c in 0..2) out.data[at + c] = (((image.data[at + c].toInt() and 0xff) * alpha + under * (255 - alpha)) / 255).toByte()
+            out.data[at + 3] = 0xff.toByte()
+        }
+        return out
+    }
+
     fun scale(image: RgbaImage): Int = ceil(PREVIEW_SIDE.toDouble() / maxOf(image.width, image.height)).toInt().coerceIn(1, MAX_SCALE)
 
     /** What the pixels say that a model should know before it uses the image: size, colours, soft edges. */

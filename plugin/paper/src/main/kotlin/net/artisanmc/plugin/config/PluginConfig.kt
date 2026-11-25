@@ -143,6 +143,13 @@ data class PluginConfig(
                         effort = EnvironmentFile.string(environment, "ai.effort", "").trim().lowercase().ifEmpty { "medium" },
                         maxSteps = environment.getInt("ai.max-steps", 25).coerceIn(1, 100),
                         baseUrl = EnvironmentFile.string(environment, "ai.base-url", "").trim().trimEnd('/'),
+                        image = net.artisanmc.plugin.hub.AiImageConfig(
+                            provider = EnvironmentFile.string(environment, "ai.image.provider", "").trim().lowercase(),
+                            apiKey = EnvironmentFile.string(environment, "ai.image.api-key", "").trim(),
+                            model = EnvironmentFile.string(environment, "ai.image.model", "").trim(),
+                            baseUrl = EnvironmentFile.string(environment, "ai.image.base-url", "").trim().trimEnd('/'),
+                            dailyLimit = environment.getInt("ai.image.daily-limit", net.artisanmc.plugin.hub.AiImageConfig.DEFAULT_DAILY_LIMIT).coerceIn(0, 10_000),
+                        ),
                     ),
                     site = EnvironmentFile.string(environment, "site.url", "").trim().trimEnd('/').ifEmpty { net.artisanmc.plugin.hub.SiteAccount.DEFAULT_URL },
                 ),

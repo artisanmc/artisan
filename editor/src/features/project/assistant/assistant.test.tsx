@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   createAiConversation: vi.fn(),
   readAiConversation: vi.fn(),
   sendAiMessage: vi.fn(),
+  answerAiPermission: vi.fn(),
 }));
 vi.mock("@/lib/api/ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/ai")>()),
@@ -374,5 +375,75 @@ describe("assistant", () => {
         path: "menus/old.yml",
       },
     ]);
+  });
+  it("asks before a picture the server pays for, sends the answer, and shows the picture", async () => {
+    const asked = {
+      seq: 1,
+      type: "permission",
+      request: "call_1",
+      tool: "generate_image",
+      state: "asked",
+      detail: { prompt: "a painted night sky", shape: "wide" },
+    };
+    api.readAiConversation
+      .mockResolvedValueOnce(conversation([{ seq: 0, type: "user", text: "un fond" }, asked], true))
+      .mockResolvedValue(
+        conversation([
+          { seq: 2, type: "permission", request: "call_1", tool: "generate_image", state: "once" },
+          { seq: 3, type: "tool", name: "generate_image", ok: true, generated: "generated-1.png" },
+          { seq: 4, type: "text", text: "Voilà le fond." },
+          { seq: 5, type: "done", inputTokens: 1, outputTokens: 1 },
+        ]),
+      );
+    api.answerAiPermission.mockResolvedValue(undefined);
+    render(<Assistant />);
+    fireEvent.click(await screen.findByTestId("open-assistant"));
+    fireEvent.change(screen.getByLabelText("Demande à l’assistant…"), {
+      target: { value: "un fond" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+
+    const card = await screen.findByTestId("assistant-permission");
+    expect(card).toHaveTextContent("Autoriser : générer une image ?");
+    expect(card).toHaveTextContent("a painted night sky");
+    expect(card).toHaveTextContent("payée par le propriétaire du serveur");
+    expect(screen.getByRole("button", { name: "Toujours autoriser" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Refuser" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Autoriser une fois" }));
+
+    expect(await screen.findByText("Voilà le fond.")).toBeTruthy();
+    expect(api.answerAiPermission).toHaveBeenCalledWith("c1", "call_1", "once");
+    // Answered: the question is gone, its answer stays as a line, and the picture shows.
+    expect(screen.queryByTestId("assistant-permission")).toBeNull();
+    expect(screen.getByText("Autorisé une fois : générer une image")).toBeTruthy();
+    expect(screen.getByText("A généré une image")).toBeTruthy();
+    const picture = screen.getByAltText("L’image générée generated-1.png");
+    expect(picture.getAttribute("src")).toContain("/api/v1/ai/generated/generated-1.png");
+    // The hub no longer keeps it: a line instead of a broken image.
+    fireEvent.error(picture);
+    expect(screen.getByText(/Le serveur ne garde plus cette image/)).toBeTruthy();
+  });
+
+  it("does not ask again about a question a turn left unanswered", async () => {
+    api.readAiConversation.mockResolvedValueOnce(
+      conversation([
+        { seq: 0, type: "user", text: "un fond" },
+        { seq: 1, type: "permission", request: "call_1", tool: "generate_image", state: "asked" },
+        { seq: 2, type: "permission", request: "call_1", tool: "generate_image", state: "expired" },
+        { seq: 3, type: "permission", request: "call_2", tool: "generate_image", state: "asked" },
+        { seq: 4, type: "notice", code: "ai_interrupted" },
+        { seq: 5, type: "done", inputTokens: 1, outputTokens: 1 },
+      ]),
+    );
+    render(<Assistant />);
+    fireEvent.click(await screen.findByTestId("open-assistant"));
+    fireEvent.change(screen.getByLabelText("Demande à l’assistant…"), {
+      target: { value: "un fond" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+    expect(
+      await screen.findByText("Sans réponse, compté comme un refus : générer une image"),
+    ).toBeTruthy();
+    expect(screen.queryByTestId("assistant-permission")).toBeNull();
   });
 });

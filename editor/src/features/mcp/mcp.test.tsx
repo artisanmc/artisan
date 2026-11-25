@@ -2,6 +2,7 @@ import { ApiError } from "@/lib/api/client";
 import { useAuthStore } from "@/state/authStore";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AssistantAlwaysSection } from "./AssistantAlwaysSection";
 import { ConsentPage, consentParams } from "./ConsentPage";
 import { McpAppsSection } from "./McpAppsSection";
 
@@ -11,6 +12,12 @@ const api = vi.hoisted(() => ({
   listMcpGrants: vi.fn(),
   revokeMcpGrant: vi.fn(),
   setMcpGrantPublish: vi.fn(),
+  setMcpGrantImages: vi.fn(),
+}));
+const ai = vi.hoisted(() => ({ getAiPermissions: vi.fn(), revokeAiPermission: vi.fn() }));
+vi.mock("@/lib/api/ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/ai")>()),
+  ...ai,
 }));
 vi.mock("@/lib/api/mcp", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/mcp")>()),
@@ -72,6 +79,7 @@ describe("consent page", () => {
       expect.objectContaining({ client_id: "mcp_1" }),
       true,
       false,
+      false,
     );
     // A player who cannot deploy is not offered to let the client deploy.
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
@@ -96,7 +104,33 @@ describe("consent page", () => {
     fireEvent.click(box);
     fireEvent.click(screen.getByRole("button", { name: /Allow|Autoriser/ }));
     await waitFor(() =>
-      expect(api.answerConsent).toHaveBeenCalledWith(expect.anything(), true, true),
+      expect(api.answerConsent).toHaveBeenCalledWith(expect.anything(), true, true, false),
+    );
+  });
+
+  it("lets a client ask the server's image model only when the player ticks it", async () => {
+    signIn(["artisan.editor.view", "artisan.editor.edit"]);
+    api.getConsent.mockResolvedValue({
+      client: { name: "Claude", redirectHost: "claude.ai" },
+      player: "Iban",
+      canEdit: true,
+      canPublish: false,
+      canImages: true,
+    });
+    api.answerConsent.mockResolvedValue("https://claude.ai/cb?code=abc");
+    Object.defineProperty(window, "location", {
+      value: { ...window.location, assign: vi.fn() },
+      writable: true,
+    });
+    render(<ConsentPage query={query} />);
+    // The only box here: this player cannot deploy. It says who pays.
+    const box = await screen.findByRole("checkbox");
+    expect(box).not.toBeChecked();
+    expect(screen.getByText(/paid by the server's owner|payée par le propriétaire/)).toBeTruthy();
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole("button", { name: /Allow|Autoriser/ }));
+    await waitFor(() =>
+      expect(api.answerConsent).toHaveBeenCalledWith(expect.anything(), true, false, true),
     );
   });
 
@@ -157,6 +191,51 @@ describe("AI apps settings", () => {
     fireEvent.click(toggle);
     await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
     expect(api.setMcpGrantPublish).toHaveBeenCalledWith("g1", true);
+  });
+
+  it("switches a client's right to the server's image model, where there is one", async () => {
+    api.listMcpGrants.mockResolvedValue({
+      grants: [
+        {
+          id: "g1",
+          client: "Claude",
+          createdAt: "2026-10-25T10:00:00Z",
+          lastUsedAt: "2026-10-25T11:00:00Z",
+          publish: false,
+          images: false,
+        },
+      ],
+      canPublish: true,
+      canImages: true,
+    });
+    api.setMcpGrantImages.mockResolvedValue(undefined);
+    render(<McpAppsSection />);
+    const toggle = await screen.findByRole("switch", {
+      name: /Can generate pictures|Peut générer des images/,
+    });
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
+    expect(api.setMcpGrantImages).toHaveBeenCalledWith("g1", true);
+    expect(api.setMcpGrantPublish).not.toHaveBeenCalled();
+  });
+
+  it("shows what the assistant is always allowed, and takes it back", async () => {
+    ai.getAiPermissions.mockResolvedValue(["generate_image"]);
+    ai.revokeAiPermission.mockResolvedValue([]);
+    render(<AssistantAlwaysSection />);
+    expect(await screen.findByTestId("assistant-always")).toBeInTheDocument();
+    expect(screen.getByText(/generate a picture|générer une image/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Ask again|Redemander/ }));
+    await waitFor(() => expect(screen.queryByTestId("assistant-always")).not.toBeInTheDocument());
+    expect(ai.revokeAiPermission).toHaveBeenCalledWith("generate_image");
+  });
+
+  it("shows nothing of the assistant while nothing is always allowed", async () => {
+    ai.getAiPermissions.mockRejectedValue(new ApiError("not_found", 404));
+    const { container } = render(<AssistantAlwaysSection />);
+    await waitFor(() => expect(ai.getAiPermissions).toHaveBeenCalled());
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("says when the server has the MCP endpoint off", async () => {

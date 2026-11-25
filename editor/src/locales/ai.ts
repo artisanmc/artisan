@@ -67,10 +67,35 @@ export const aiEn = {
     read_image: "Looked at {{path}}",
     write_image: "Drew {{path}}",
     measure_image: "Measured a picture",
+    generate_image: "Generated a picture",
     render_menu: "Looked at the menu {{path}}",
     survey_ui: "Looked at the server’s images",
     list_versions: "Listed the versions",
   },
+  permission: {
+    title: "Allow: {{tool}}?",
+    tools: { generate_image: "generate a picture" },
+    why: {
+      generate_image:
+        "The assistant wants to ask the server's image model for this picture. Each picture is paid by the server's owner.",
+    },
+    whyDefault: "This tool is paid by the server's owner.",
+    once: "Allow once",
+    always: "Always allow",
+    alwaysHint:
+      "For you and this tool: the assistant no longer asks. Taken back in Settings, AI apps.",
+    deny: "Deny",
+    closed: "This question is closed: it was answered elsewhere, or the assistant stopped waiting.",
+    states: {
+      once: "Allowed once: {{tool}}",
+      always: "Always allowed from now on: {{tool}}",
+      denied: "Denied: {{tool}}",
+      expired: "No answer, counted as a no: {{tool}}",
+    },
+  },
+  generatedAlt: "The generated picture {{name}}",
+  generatedGone:
+    "The server no longer keeps this picture (it holds each player's last ones while it runs).",
   live: {
     writing: "Writing {{path}}",
     writingShort: "Writing…",
@@ -191,6 +216,29 @@ export const aiEn = {
     turnOff: "Turn off",
     turnOffConfirm:
       "Turn the assistant off and forget its key? Ongoing conversations end; their drafts stay.",
+    image: {
+      title: "Image model",
+      help: "What generate_image asks for a picture the assistant cannot draw pixel by pixel (an illustration, a painted background). Each picture is paid on this key, or on the linked account's credits. The assistant asks the player before each one; an AI app needs the player's consent.",
+      none: "None",
+      provider: "Image API",
+      providers: {
+        openai: "OpenAI (GPT Image)",
+        google: "Google (Gemini image)",
+        artisan: "artisanmc.net credits",
+      },
+      cloudHint:
+        "artisanmc.net's image models, paid per picture from the AI credits of the account this network is linked to: no key here.",
+      cloudPrice: "{{label}} · {{price}} credits a picture",
+      cloudNone: "artisanmc.net offers no image model yet.",
+      model: "Image model",
+      modelHint: "Empty: {{model}}.",
+      apiKey: "Image API key",
+      baseUrl: "Image API address",
+      baseUrlHint: "Empty: the vendor's own. Otherwise a proxy that speaks the same API.",
+      dailyLimit: "Pictures per player and per day",
+      dailyLimitHint: "The assistant and the AI apps together. 0: no limit.",
+      on: "Pictures are generated with {{model}}.",
+    },
     errors: {
       invalid_input: "Check this field: {{field}}.",
       ai_key_missing: "Enter the API key.",
@@ -275,10 +323,35 @@ export const aiFr: typeof aiEn = {
     read_image: "A regardé {{path}}",
     write_image: "A dessiné {{path}}",
     measure_image: "A mesuré une image",
+    generate_image: "A généré une image",
     render_menu: "A regardé le menu {{path}}",
     survey_ui: "A regardé les images du serveur",
     list_versions: "A listé les versions",
   },
+  permission: {
+    title: "Autoriser : {{tool}} ?",
+    tools: { generate_image: "générer une image" },
+    why: {
+      generate_image:
+        "L’assistant veut demander cette image au modèle d’image du serveur. Chaque image est payée par le propriétaire du serveur.",
+    },
+    whyDefault: "Cet outil est payé par le propriétaire du serveur.",
+    once: "Autoriser une fois",
+    always: "Toujours autoriser",
+    alwaysHint:
+      "Pour toi et cet outil : l’assistant ne demande plus. Se retire dans Réglages, Applications IA.",
+    deny: "Refuser",
+    closed: "Cette question est close : on y a répondu ailleurs, ou l’assistant n’attend plus.",
+    states: {
+      once: "Autorisé une fois : {{tool}}",
+      always: "Toujours autorisé désormais : {{tool}}",
+      denied: "Refusé : {{tool}}",
+      expired: "Sans réponse, compté comme un refus : {{tool}}",
+    },
+  },
+  generatedAlt: "L’image générée {{name}}",
+  generatedGone:
+    "Le serveur ne garde plus cette image (il garde les dernières de chaque joueur tant qu’il tourne).",
   live: {
     writing: "Écrit {{path}}",
     writingShort: "En cours…",
@@ -403,6 +476,29 @@ export const aiFr: typeof aiEn = {
     turnOff: "Désactiver",
     turnOffConfirm:
       "Désactiver l’assistant et oublier sa clé ? Les conversations en cours s’arrêtent ; leurs brouillons restent.",
+    image: {
+      title: "Modèle d’image",
+      help: "Ce que generate_image interroge pour une image que l’assistant ne peut pas dessiner pixel par pixel (une illustration, un fond peint). Chaque image est payée sur cette clé, ou sur les crédits du compte lié. L’assistant demande au joueur avant chacune ; une application IA a besoin de l’accord du joueur.",
+      none: "Aucun",
+      provider: "API d’image",
+      providers: {
+        openai: "OpenAI (GPT Image)",
+        google: "Google (Gemini image)",
+        artisan: "Crédits artisanmc.net",
+      },
+      cloudHint:
+        "Les modèles d’image d’artisanmc.net, payés à l’image sur les crédits IA du compte auquel ce réseau est lié : aucune clé ici.",
+      cloudPrice: "{{label}} · {{price}} crédits par image",
+      cloudNone: "artisanmc.net ne propose pas encore de modèle d’image.",
+      model: "Modèle d’image",
+      modelHint: "Vide : {{model}}.",
+      apiKey: "Clé de l’API d’image",
+      baseUrl: "Adresse de l’API d’image",
+      baseUrlHint: "Vide : celle du fournisseur. Sinon un proxy qui parle la même API.",
+      dailyLimit: "Images par joueur et par jour",
+      dailyLimitHint: "L’assistant et les applications IA ensemble. 0 : pas de limite.",
+      on: "Les images sont générées avec {{model}}.",
+    },
     errors: {
       invalid_input: "Vérifie ce champ : {{field}}.",
       ai_key_missing: "Saisis la clé d’API.",

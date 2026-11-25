@@ -18,6 +18,8 @@ import { AssetImportFontDialog } from "./AssetImportFontDialog";
 import { AssetImportNexoDialog } from "./AssetImportNexoDialog";
 import { AssetStage } from "./AssetStage";
 import { AssetUploadDialog } from "./AssetUploadDialog";
+import { ComposeNewDialog } from "./ComposeNewDialog";
+import { PixelNewDialog } from "./PixelNewDialog";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
@@ -398,6 +400,10 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
   const [uploadOpen, setUploadOpen] = useState(false);
   const [importFontOpen, setImportFontOpen] = useState(false);
   const [importNexoOpen, setImportNexoOpen] = useState(false);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [drawOpen, setDrawOpen] = useState(false);
+  /** The image just created to be drawn: its detail opens on the pixel editor. */
+  const [drawn, setDrawn] = useState<string | null>(null);
 
   const filtered = assets.filter((asset) =>
     matchesFilter(asset, projectId, project, search, category),
@@ -412,6 +418,12 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
         </Button>
         <Button variant="outline" onClick={() => setImportNexoOpen(true)}>
           {t("resources.importNexo")}
+        </Button>
+        <Button variant="outline" onClick={() => setComposeOpen(true)}>
+          {t("compose.new")}
+        </Button>
+        <Button variant="outline" onClick={() => setDrawOpen(true)}>
+          {t("pixel.new")}
         </Button>
         <Input
           aria-label={t("resources.search")}
@@ -450,7 +462,11 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
         list={list}
         detail={
           selectedId ? (
-            <AssetDetailPanel key={`${projectId}:${selectedId}`} projectId={projectId} />
+            <AssetDetailPanel
+              key={`${projectId}:${selectedId}`}
+              projectId={projectId}
+              retouch={selectedId === drawn}
+            />
           ) : null
         }
         onBack={() => setSelectedId(null)}
@@ -470,6 +486,21 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
         projectId={projectId}
         open={importNexoOpen}
         onClose={() => setImportNexoOpen(false)}
+      />
+      <ComposeNewDialog
+        projectId={projectId}
+        open={composeOpen}
+        onClose={() => setComposeOpen(false)}
+        onCreated={(asset) => setSelectedId(asset.id)}
+      />
+      <PixelNewDialog
+        projectId={projectId}
+        open={drawOpen}
+        onClose={() => setDrawOpen(false)}
+        onCreated={(asset) => {
+          setDrawn(asset.id);
+          setSelectedId(asset.id);
+        }}
       />
     </div>
   );

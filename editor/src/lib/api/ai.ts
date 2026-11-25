@@ -10,6 +10,8 @@ export interface AiStatus {
   attachments?: AiAttachmentKind[] | null;
   /** On artisanmc.net's models, paid from the linked site account's credits. */
   cloud?: boolean;
+  /** The image model `generate_image` asks, when the server has one: the assistant offers pictures. */
+  imageModel?: string | null;
 }
 
 export interface AiConversationSummary {
@@ -66,10 +68,28 @@ export type AiEvent =
       error?: string;
       problems?: number;
       draft?: AiDraftRef;
+      /** generate_image: the name the hub keeps its picture under, while it runs. */
+      generated?: string;
+    }
+  | {
+      seq: number;
+      type: "permission";
+      /** The question's id: its answer is another event with the same one. */
+      request: string;
+      tool: string;
+      /** `asked`: the assistant waits for the player; the others close the question. */
+      state: AiPermissionState;
+      /** What the tool is about to do: generate_image's prompt and shape. */
+      detail?: { prompt?: string; shape?: string; references?: number };
     }
   | { seq: number; type: "notice"; code: string; steps?: number }
   | { seq: number; type: "error"; code: string }
   | { seq: number; type: "done"; inputTokens: number; outputTokens: number };
+
+export type AiPermissionState = "asked" | "once" | "always" | "denied" | "expired";
+
+/** What the player answers when the assistant asks before a tool the server's owner pays for. */
+export type AiPermissionAnswer = "once" | "always" | "denied";
 
 /** A tool call the model is writing, or that runs: its input as raw JSON written so far. */
 export interface AiLiveTool {
@@ -141,6 +161,60 @@ export async function sendAiMessage(
   });
 }
 
+/** Rejects with `ai_permission_closed` when the question was answered or the assistant stopped waiting. */
+export async function answerAiPermission(
+  id: string,
+  request: string,
+  answer: AiPermissionAnswer,
+): Promise<void> {
+  await apiFetch(
+    `${CONVERSATIONS}/${encodeURIComponent(id)}/permissions/${encodeURIComponent(request)}`,
+    { method: "POST", json: { answer } },
+  );
+}
+
+const PERMISSIONS = "/api/v1/ai/permissions";
+
+/** The paid tools this player always allows the assistant (`generate_image`). */
+export async function getAiPermissions(): Promise<string[]> {
+  return (await apiFetch<{ always: string[] }>(PERMISSIONS)).always;
+}
+
+/** Takes an "always" back: the assistant asks again before that tool. */
+export async function revokeAiPermission(tool: string): Promise<string[]> {
+  return (
+    await apiFetch<{ always: string[] }>(`${PERMISSIONS}/${encodeURIComponent(tool)}`, {
+      method: "DELETE",
+    })
+  ).always;
+}
+
+/** Where the hub serves a picture generate_image made for this player, while it keeps it. */
+export const generatedImagePath = (name: string) =>
+  `/api/v1/ai/generated/${encodeURIComponent(name)}`;
+
+/** The image model `generate_image` asks, as the settings show it: its key never comes back. */
+export interface AiImageSettings {
+  enabled: boolean;
+  /** `openai` or `google`; null: none. */
+  provider: string | null;
+  /** Empty: the provider's default. */
+  model: string;
+  baseUrl: string;
+  /** Pictures a player may ask for in a day; 0: no limit. */
+  dailyLimit: number;
+  keyHint: string | null;
+}
+
+export interface AiImageSettingsInput {
+  provider: string;
+  model: string;
+  baseUrl: string;
+  dailyLimit: number;
+  /** Left out: the saved key stays, unless the provider or the address changes. */
+  apiKey?: string;
+}
+
 /**
  * The assistant's settings as the hub shows them to `artisan.editor.config` (ADR
  * `editor-assistant`): the key never comes back, only its last characters.
@@ -159,6 +233,10 @@ export interface AiSettings {
   providers: string[];
   efforts: string[];
   defaultModel: string;
+  /** Absent from an older hub: no image model there. */
+  image?: AiImageSettings;
+  imageProviders?: string[];
+  imageDefaultModels?: Record<string, string>;
 }
 
 export interface AiSettingsInput {
@@ -169,6 +247,8 @@ export interface AiSettingsInput {
   baseUrl: string;
   /** Left out: the saved key stays, unless the provider or the address changes. */
   apiKey?: string;
+  /** Null: no image model. Left out: the saved one stays. */
+  image?: AiImageSettingsInput | null;
 }
 
 const CONFIG = "/api/v1/ai/config";
@@ -181,10 +261,27 @@ export interface AiCloudModel {
   attachments: AiAttachmentKind[];
 }
 
-/** The linked site account's AI credits (ADR `editor-assistant`, `artisan` provider). */
+/** An image model artisanmc.net offers `generate_image`; `price`: credits per picture. */
+export interface AiCloudImageModel {
+  id: string;
+  label: string;
+  transparency: boolean;
+  price: number;
+}
+
+/**
+ * The linked site account's AI credits (ADR `editor-assistant`, `artisan` provider).
+ * `imageModels` is absent from a hub that does not know them.
+ */
 export type AiCloud =
   | { linked: false }
-  | { linked: true; balance: number; buy: string | null; models: AiCloudModel[] };
+  | {
+      linked: true;
+      balance: number;
+      buy: string | null;
+      models: AiCloudModel[];
+      imageModels?: AiCloudImageModel[];
+    };
 
 /** Asked of the site by the hub, which keeps it a minute; `fresh` asks again now. */
 export function getAiCloud(fresh = false): Promise<AiCloud> {

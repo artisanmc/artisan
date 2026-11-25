@@ -42,7 +42,19 @@ const DEFAULT_URL: Record<string, string> = {
   openai: "https://api.openai.com/v1",
 };
 
-type Form = Required<Omit<AiSettingsInput, "maxSteps">> & { maxSteps: string };
+/** The image model's fields; `provider` empty: none. */
+interface ImageForm {
+  provider: string;
+  model: string;
+  baseUrl: string;
+  apiKey: string;
+  dailyLimit: string;
+}
+
+type Form = Required<Omit<AiSettingsInput, "maxSteps" | "image">> & {
+  maxSteps: string;
+  image: ImageForm;
+};
 
 const formOf = (s: AiSettings): Form => ({
   provider: s.provider ?? s.providers[0] ?? "anthropic",
@@ -51,12 +63,21 @@ const formOf = (s: AiSettings): Form => ({
   maxSteps: String(s.maxSteps),
   baseUrl: s.baseUrl,
   apiKey: "",
+  image: {
+    provider: s.image?.provider ?? "",
+    model: s.image?.model ?? "",
+    baseUrl: s.image?.baseUrl ?? "",
+    apiKey: "",
+    dailyLimit: String(s.image?.dailyLimit ?? 40),
+  },
 });
 
 /**
  * The editor assistant's model and key, for those who may configure the hub (ADR
  * `editor-assistant`). Saved in the suite database, applied at once, the same for every
  * server of the network. environment.yml's `ai` section wins: then it is shown read-only.
+ * Below it, the image model `generate_image` asks (design `design-ia-menus-assets`): it may be
+ * set alone, for the AI apps, the assistant left without a key.
  */
 export function AssistantSettingsSection() {
   const { t } = useTranslation();
@@ -68,6 +89,7 @@ export function AssistantSettingsSection() {
   /** The site's models, asked once the `artisan` API is picked; null: could not be read. */
   const [cloud, setCloud] = useState<AiCloud | null | undefined>(undefined);
   const cloudPicked = form?.provider === CLOUD;
+  const imageCloudPicked = form?.image.provider === CLOUD;
 
   const show = (s: AiSettings) => {
     setSettings(s);
@@ -84,11 +106,11 @@ export function AssistantSettingsSection() {
   }, []);
 
   useEffect(() => {
-    if (!cloudPicked || cloud !== undefined) return;
+    if (!(cloudPicked || imageCloudPicked) || cloud !== undefined) return;
     getAiCloud()
       .then(setCloud)
       .catch(() => setCloud(null));
-  }, [cloudPicked, cloud]);
+  }, [cloudPicked, imageCloudPicked, cloud]);
 
   if (settings === undefined)
     return <p className="text-[13px] text-[var(--text-mut)]">{t("ai.settings.loading")}</p>;
@@ -117,12 +139,26 @@ export function AssistantSettingsSection() {
       setBusy(false);
     }
   };
+  const setImage = (patch: Partial<ImageForm>) => set({ image: { ...form.image, ...patch } });
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const apiKey = form.apiKey.trim();
+    const imageKey = form.image.apiKey.trim();
+    const image = form.image.provider
+      ? {
+          provider: form.image.provider,
+          model: form.image.model.trim(),
+          baseUrl: imageCloudPicked ? "" : form.image.baseUrl.trim(),
+          dailyLimit: Number.parseInt(form.image.dailyLimit, 10),
+          ...(imageKey && !imageCloudPicked ? { apiKey: imageKey } : {}),
+        }
+      : null;
+    // An image model alone: the assistant has no key, so the hub is told of no assistant.
+    const assistantSet = cloudPicked || !!apiKey || !!settings.keyHint || !image;
     void run(() =>
       saveAiSettings({
-        provider: form.provider,
+        ...(settings.image ? { image } : {}),
+        provider: assistantSet ? form.provider : "",
         model: form.model.trim(),
         effort: form.effort,
         maxSteps: Number.parseInt(form.maxSteps, 10),
@@ -140,6 +176,17 @@ export function AssistantSettingsSection() {
           : settings.enabled
             ? t("ai.settings.on", { model: settings.model })
             : t("ai.settings.off")}
+        {settings.image?.enabled && settings.image.provider && (
+          <>
+            {" "}
+            {t("ai.settings.image.on", {
+              model:
+                settings.image.model ||
+                settings.imageDefaultModels?.[settings.image.provider] ||
+                (settings.image.provider === CLOUD ? "artisanmc.net" : ""),
+            })}
+          </>
+        )}
       </p>
 
       <fieldset disabled={readOnly || busy} className="flex flex-col gap-5">
@@ -258,6 +305,98 @@ export function AssistantSettingsSection() {
             onChange={(e) => set({ maxSteps: e.target.value })}
           />
         </FormField>
+        {settings.image && (
+          <>
+            <div className="rule" />
+            <FormField
+              group
+              label={t("ai.settings.image.title")}
+              hint={t("ai.settings.image.help")}
+            >
+              <Segmented
+                label={t("ai.settings.image.title")}
+                options={[
+                  { value: "", label: t("ai.settings.image.none") },
+                  ...(settings.imageProviders ?? []).map((p) => ({
+                    value: p,
+                    label: t(`ai.settings.image.providers.${p}`, { defaultValue: p }),
+                  })),
+                ]}
+                value={form.image.provider}
+                // Another vendor's model and address mean nothing to this one.
+                onChange={(provider) => setImage({ provider, model: "", baseUrl: "" })}
+              />
+            </FormField>
+            {imageCloudPicked && (
+              <CloudImageModels
+                cloud={cloud}
+                model={form.image.model}
+                onPick={(model) => setImage({ model })}
+              />
+            )}
+            {form.image.provider && !imageCloudPicked && (
+              <>
+                <FormField
+                  label={t("ai.settings.image.model")}
+                  hint={t("ai.settings.image.modelHint", {
+                    model: settings.imageDefaultModels?.[form.image.provider] ?? "",
+                  })}
+                >
+                  <Input
+                    value={form.image.model}
+                    placeholder={settings.imageDefaultModels?.[form.image.provider] ?? ""}
+                    maxLength={128}
+                    onChange={(e) => setImage({ model: e.target.value })}
+                  />
+                </FormField>
+                <FormField
+                  label={t("ai.settings.image.apiKey")}
+                  hint={
+                    settings.image.keyHint && settings.image.provider === form.image.provider
+                      ? t("ai.settings.apiKeySaved", { hint: settings.image.keyHint })
+                      : t("ai.settings.apiKeyHint")
+                  }
+                >
+                  <Input
+                    type="password"
+                    autoComplete="off"
+                    value={form.image.apiKey}
+                    placeholder={settings.image.keyHint ?? ""}
+                    maxLength={500}
+                    onChange={(e) => setImage({ apiKey: e.target.value })}
+                  />
+                </FormField>
+                <FormField
+                  label={t("ai.settings.image.baseUrl")}
+                  hint={t("ai.settings.image.baseUrlHint")}
+                >
+                  <Input
+                    value={form.image.baseUrl}
+                    inputMode="url"
+                    maxLength={300}
+                    onChange={(e) => setImage({ baseUrl: e.target.value })}
+                  />
+                </FormField>
+              </>
+            )}
+            {form.image.provider && (
+              <FormField
+                label={t("ai.settings.image.dailyLimit")}
+                hint={t("ai.settings.image.dailyLimitHint")}
+              >
+                <Input
+                  type="number"
+                  min={0}
+                  max={10000}
+                  required
+                  value={form.image.dailyLimit}
+                  className="w-28"
+                  onChange={(e) => setImage({ dailyLimit: e.target.value })}
+                />
+              </FormField>
+            )}
+          </>
+        )}
       </fieldset>
 
       {!readOnly && (
@@ -284,6 +423,57 @@ export function AssistantSettingsSection() {
         </div>
       )}
     </form>
+  );
+}
+
+/**
+ * The `artisan` image API's models: artisanmc.net's image models with their price per picture,
+ * paid from the linked account's credits. None picked: the first one, as the hub asks it.
+ */
+function CloudImageModels({
+  cloud,
+  model,
+  onPick,
+}: {
+  cloud: AiCloud | null | undefined;
+  model: string;
+  onPick: (model: string) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const note = (text: string) => <p className="text-[13px] text-[var(--text-mut)]">{text}</p>;
+  if (cloud === undefined) return note(t("ai.settings.cloudLoading"));
+  if (cloud === null) return note(t("ai.settings.cloudFailed"));
+  if (!cloud.linked) return note(t("ai.settings.cloudUnlinked"));
+  const models = cloud.imageModels ?? [];
+  if (models.length === 0) return note(t("ai.settings.image.cloudNone"));
+  const number = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 3 });
+  return (
+    <FormField group label={t("ai.settings.image.model")} hint={t("ai.settings.image.cloudHint")}>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {models.map((m, index) => {
+            const active = model === m.id || (model === "" && index === 0);
+            return (
+              <button
+                key={m.id}
+                type="button"
+                className={cn("chip text-[12px]", active && "is-active")}
+                aria-pressed={active}
+                onClick={() => onPick(m.id)}
+              >
+                {t("ai.settings.image.cloudPrice", {
+                  label: m.label,
+                  price: number.format(m.price),
+                })}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[12px] text-[var(--text-mut)]">
+          {t("ai.settings.cloudBalance", { balance: number.format(cloud.balance) })}
+        </p>
+      </div>
+    </FormField>
   );
 }
 

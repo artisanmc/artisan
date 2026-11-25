@@ -57,6 +57,27 @@ internal object MenuReaders {
         return out
     }
 
+    /** The images the menus' titles are drawn with: the `background` and `glyph` layers' (`titleImagesFromMenus`). */
+    fun titleImages(files: List<PackFile>): List<String> {
+        val out = ArrayList<String>()
+        for (doc in menus(files)) {
+            val title = (doc as? Map<*, *>)?.get("title")
+            val layers = when (title) {
+                is List<*> -> title
+                is Map<*, *> -> listOf(title)
+                else -> emptyList()
+            }
+            for (layer in layers) {
+                if (layer !is Map<*, *>) continue
+                if (layer["kind"] != "background" && layer["kind"] != "glyph") continue
+                val asset = layer["asset"]
+                val assetId = if (asset is String) asset else layer["asset_id"]
+                if (assetId is String) out += assetId
+            }
+        }
+        return out
+    }
+
     private val MENU_CONTAINER = mapOf("chest" to GuiContainer.CHEST, "hopper" to GuiContainer.HOPPER, "dropper" to GuiContainer.DISPENSER)
 
     /** Containers whose menus turn their vanilla texture off (`vanilla_texture: false`). */

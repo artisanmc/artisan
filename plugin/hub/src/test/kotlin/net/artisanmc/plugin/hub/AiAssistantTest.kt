@@ -88,10 +88,14 @@ class AiAssistantTest {
         settings: AiSettingsStore? = null,
         ai: AiConfig = AiConfig(),
         conversations: AiConversationStore? = null,
+        images: ImageModel? = null,
     ) {
         hub = HubServer(
             WebConfig(port = 0, bind = "127.0.0.1"),
-            EditorApi.router(Servers(McpFixtures.server(sent)), sessions, null, drafts = drafts, ai = ai, aiSettings = settings, aiProvider = model, aiConversations = conversations),
+            EditorApi.router(
+                Servers(McpFixtures.server(sent)), sessions, null, drafts = drafts, ai = ai, aiSettings = settings, aiProvider = model,
+                aiConversations = conversations, aiImages = images?.let { given -> { _ -> given } },
+            ),
             sessions, EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
         ).also { it.start() }
         // Started again (a restart): the session stays.
@@ -591,6 +595,163 @@ class AiAssistantTest {
         val events = finished(id)
         assertEquals(listOf("user", "error", "done"), events.map { it["type"].asText() })
         assertEquals("ai_key_refused", events[1]["code"].asText())
+    }
+
+    /** An image model that counts what it is asked and answers a small picture. */
+    private class CountingImages : ImageModel {
+        val asked = CopyOnWriteArrayList<ImageRequest>()
+        override val model = "scripted-image"
+        override val transparency = true
+        val picture: ByteArray = net.artisanmc.plugin.pack.Png.encode(net.artisanmc.plugin.pack.RgbaImage(32, 32))
+        override fun generate(request: ImageRequest): GeneratedImage {
+            asked += request
+            return GeneratedImage(picture)
+        }
+    }
+
+    /** Waits for the [nth] question the assistant asked the player in conversation [id]. */
+    private fun question(id: String, nth: Int): JsonNode {
+        val deadline = System.currentTimeMillis() + 5000
+        while (System.currentTimeMillis() < deadline) {
+            val asked = editor("GET", "${AiRoutes.CONVERSATIONS}/$id").body!!["events"].filter { it["type"].asText() == "permission" && it["state"].asText() == "asked" }
+            if (asked.size >= nth) return asked[nth - 1]
+            Thread.sleep(20)
+        }
+        error("the assistant did not ask")
+    }
+
+    @Test
+    fun `the assistant asks the player before each picture the server pays for, unless they said always`() {
+        val images = CountingImages()
+        fun picture(prompt: String) = calls("generate_image" to mapOf("prompt" to prompt, "shape" to "wide"))
+        val model = ScriptedModel(
+            picture("a painted night sky, first"), picture("a painted night sky, second"), picture("a painted night sky, third"),
+            AiReply(listOf("Fait."), emptyList(), AiReply.END),
+            picture("a painted night sky, fourth"), AiReply(listOf("Encore."), emptyList(), AiReply.END),
+            picture("a painted night sky, fifth"), AiReply(listOf("Tant pis."), emptyList(), AiReply.END),
+        )
+        start(model, ai = AiConfig(image = AiImageConfig(provider = "openai", apiKey = "k")), images = images)
+        assertEquals("scripted-image", editor("GET", AiRoutes.STATUS).body!!["imageModel"].asText())
+        val id = conversation()
+        fun answer(request: String, answer: String, as_: String = cookie) =
+            editor("POST", "${AiRoutes.CONVERSATIONS}/$id/permissions/$request", mapOf("answer" to answer), as_ = as_)
+
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "un fond de ciel nocturne"))
+        val first = question(id, 1)
+        assertEquals("generate_image", first["tool"].asText())
+        assertEquals("""{"prompt":"a painted night sky, first","shape":"wide"}""", first["detail"].toString())
+        assertTrue("generate_image asks the server's image model" in model.systems.single())
+        // Nothing is asked of the image model before the player answers, and only they answer.
+        Thread.sleep(100)
+        assertTrue(images.asked.isEmpty())
+        val request = first["request"].asText()
+        assertEquals(422, answer(request, "maybe").status)
+        assertEquals(404, answer(request, "once", as_ = signIn(UUID.randomUUID(), "Steve", EditorPermissions.ALL.toSet())).status)
+        assertEquals(200, answer(request, "once").status)
+        assertEquals("ai_permission_closed", answer(request, "once").body!!["error"].asText())
+        // Once is once: the next call asks again. A refusal goes back to the model, which goes on.
+        assertEquals(200, answer(question(id, 2)["request"].asText(), "denied").status)
+        assertEquals(200, answer(question(id, 3)["request"].asText(), "always").status)
+        val events = finished(id)
+        assertEquals(listOf("asked", "once", "asked", "denied", "asked", "always"), events.filter { it["type"].asText() == "permission" }.map { it["state"].asText() })
+        val tools = events.filter { it["type"].asText() == "tool" }
+        assertEquals(listOf(true, false, true), tools.map { it["ok"].asBoolean() })
+        assertEquals("refused_by_player", tools[1]["error"].asText())
+        assertEquals(listOf("a painted night sky, first", "a painted night sky, third"), images.asked.map { it.prompt })
+        assertEquals(ImageRequest.Shape.WIDE, images.asked.first().shape)
+        val denied = model.inputs[2].filterIsInstance<AiInput.ToolResult>().single()
+        assertTrue(denied.error && "did not allow" in denied.json, denied.json)
+        // The picture it made is the player's to see, while the hub keeps it.
+        val generated = tools[0]["generated"].asText()
+        fun fetch(as_: String) = client.send(
+            HttpRequest.newBuilder(URI("$base${AiRoutes.GENERATED}/$generated")).header("Cookie", as_).build(), HttpResponse.BodyHandlers.ofByteArray(),
+        )
+        assertEquals("generated-1.png", generated)
+        assertTrue(fetch(cookie).let { it.statusCode() == 200 && it.body().contentEquals(images.picture) && it.headers().firstValue("Content-Type").get() == "image/png" })
+        assertEquals(404, fetch(signIn(UUID.randomUUID(), "Alex", EditorPermissions.ALL.toSet())).statusCode())
+
+        // Always, for this player and this tool: no question the next time.
+        assertEquals("""{"always":["generate_image"]}""", editor("GET", AiRoutes.PERMISSIONS).body.toString())
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "un autre"))
+        val again = finished(id)
+        assertEquals(6, again.count { it["type"].asText() == "permission" })
+        assertEquals(3, images.asked.size)
+        // Taken back in the settings, the question comes back.
+        assertEquals("""{"always":[]}""", editor("DELETE", "${AiRoutes.PERMISSIONS}/generate_image").body.toString())
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "un dernier"))
+        assertEquals(200, answer(question(id, 4)["request"].asText(), "denied").status)
+        assertEquals("Tant pis.", finished(id).last { it["type"].asText() == "text" }["text"].asText())
+        assertEquals(3, images.asked.size)
+    }
+
+    @Test
+    fun `a question the player leaves unanswered counts as a no, and no image model means no such tool`() {
+        val images = CountingImages()
+        val asking = ScriptedModel(calls("generate_image" to mapOf("prompt" to "a painted night sky")), AiReply(listOf("Sans image."), emptyList(), AiReply.END))
+        val tools = McpTools(McpProjects(Servers(McpFixtures.server(sent)), null, drafts), images = { ImageService(images, 0) })
+        val assistant = AiAssistant(asking, tools, askTimeout = java.time.Duration.ofMillis(150))
+        val token = (sessions.issueLink(UUID.randomUUID(), "Iban", EditorPermissions.ALL.toSet(), origin = "u-local") as Sessions.LinkResult.Issued).token
+        val session = sessions.redeem(token)!!
+        val conversation = assistant.start(session, null)
+        assistant.send(session, conversation.id, "dessine")
+        val deadline = System.currentTimeMillis() + 5000
+        while (conversation.running && System.currentTimeMillis() < deadline) Thread.sleep(20)
+        val events = conversation.after(0)
+        assertEquals(listOf("asked", "expired"), events.filter { it.type == AiAssistant.PERMISSION }.map { it.data["state"] })
+        assertEquals("refused_by_player", events.single { it.type == AiAssistant.TOOL }.data["error"])
+        assertFalse(conversation.answer("call_generate_image0", "once"), "too late")
+        assertTrue(images.asked.isEmpty())
+
+        // Without an image model the assistant is not told of the tool, and a call to it is to nothing.
+        val model = ScriptedModel(calls("generate_image" to mapOf("prompt" to "a painted night sky")), AiReply(listOf("Non."), emptyList(), AiReply.END))
+        start(model)
+        assertTrue(editor("GET", AiRoutes.STATUS).body!!["imageModel"].isNull)
+        val id = conversation()
+        editor("POST", "${AiRoutes.CONVERSATIONS}/$id/messages", mapOf("text" to "dessine"))
+        val done = finished(id)
+        assertEquals("unknown_tool", done.single { it["type"].asText() == "tool" }["error"].asText())
+        assertTrue(done.none { it["type"].asText() == "permission" })
+        assertFalse("generate_image asks" in model.systems.single())
+    }
+
+    @Test
+    fun `the image model is set with the assistant or alone, and its key never comes back`() {
+        val store = MemoryAiSettingsStore()
+        start(null, settings = store)
+        val shown = editor("GET", AiRoutes.CONFIG_PATH).body!!
+        assertEquals(listOf("artisan", "google", "openai"), shown["imageProviders"].map { it.asText() })
+        assertEquals("gpt-image-1", shown["imageDefaultModels"]["openai"].asText())
+        assertTrue(shown["image"]["provider"].isNull)
+
+        // Alone: no assistant, generate_image for the apps the players allow.
+        assertEquals("ai_key_missing", editor("PUT", AiRoutes.CONFIG_PATH, mapOf("provider" to "", "image" to mapOf("provider" to "openai"))).body!!["error"].asText())
+        assertEquals(422, editor("PUT", AiRoutes.CONFIG_PATH, mapOf("provider" to "", "image" to mapOf("provider" to "midjourney", "apiKey" to "k"))).status)
+        assertEquals(422, editor("PUT", AiRoutes.CONFIG_PATH, mapOf("provider" to "", "image" to mapOf("provider" to "openai", "apiKey" to "k", "dailyLimit" to -1))).status)
+        val alone = editor("PUT", AiRoutes.CONFIG_PATH, mapOf("provider" to "", "image" to mapOf("provider" to "openai", "apiKey" to "sk-image-key-12345", "dailyLimit" to 5)))
+        assertEquals(200, alone.status, alone.body.toString())
+        assertEquals("""{"enabled":true,"provider":"openai","model":"","baseUrl":"","dailyLimit":5,"keyHint":"…2345"}""", alone.body!!["image"].toString())
+        assertFalse("sk-image" in alone.body.toString())
+        assertEquals(AiImageConfig("openai", "sk-image-key-12345", "", "", 5), store.read()!!.image)
+        val status = editor("GET", AiRoutes.STATUS).body!!
+        assertEquals(false to "gpt-image-1", status["enabled"].asBoolean() to status["imageModel"].asText())
+
+        // With the assistant: an editor that says nothing of the image keeps it, and its key stays when left out.
+        assertEquals(200, editor("PUT", AiRoutes.CONFIG_PATH, settings("apiKey" to "sk-secret-123456789")).status)
+        assertEquals("sk-image-key-12345", store.read()!!.image.apiKey)
+        val changed = editor("PUT", AiRoutes.CONFIG_PATH, settings("image" to mapOf("provider" to "openai", "model" to "gpt-image-2")))
+        assertEquals(200, changed.status, changed.body.toString())
+        assertEquals(AiImageConfig("openai", "sk-image-key-12345", "gpt-image-2", "", AiImageConfig.DEFAULT_DAILY_LIMIT), store.read()!!.image)
+        assertEquals("sk-secret-123456789", store.read()!!.apiKey)
+        // Another provider is another key; none turns it off, the assistant staying.
+        assertEquals("ai_key_required", editor("PUT", AiRoutes.CONFIG_PATH, settings("image" to mapOf("provider" to "google"))).body!!["error"].asText())
+        // artisanmc.net's image models: no key, no address. No site account here, so no image model in service.
+        val cloud = editor("PUT", AiRoutes.CONFIG_PATH, settings("image" to mapOf("provider" to "artisan", "model" to "nano", "baseUrl" to "https://ignored.example", "dailyLimit" to 3)))
+        assertEquals(200, cloud.status, cloud.body.toString())
+        assertEquals(AiImageConfig("artisan", "", "nano", "", 3), store.read()!!.image)
+        assertEquals("""{"enabled":false,"provider":"artisan","model":"nano","baseUrl":"","dailyLimit":3,"keyHint":null}""", cloud.body!!["image"].toString())
+        assertEquals(200, editor("PUT", AiRoutes.CONFIG_PATH, settings("image" to null)).status)
+        assertEquals(AiImageConfig(), store.read()!!.image)
+        assertTrue(editor("GET", AiRoutes.STATUS).body!!.let { it["enabled"].asBoolean() && it["imageModel"].isNull })
     }
 
     private fun settings(vararg fields: Pair<String, Any?>) = mapOf(

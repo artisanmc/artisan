@@ -52,6 +52,8 @@ const fr: typeof en = {
     addImage: "Ajouter une image",
     inMenus: "Utilisée dans : {{menus}}",
     unused: "Cette image n’est utilisée dans aucun menu.",
+    composed:
+      "Image composée : le pack de ressources l’assemble à partir de {{layers}}. Elle n’a pas de fichier à elle et change quand ces images changent.",
   },
   elementLabel: {
     text: "Libellé",
@@ -61,6 +63,80 @@ const fr: typeof en = {
     center: "Centre",
     right: "Droite",
     remove: "Retirer le libellé",
+  },
+  compose: {
+    new: "Composer une image",
+    newTitle: "Composer une image",
+    newHint:
+      "Une image assemblée à partir de pièces du kit et d’images de ce module. Le pack de ressources l’assemble, donc elle suit le kit du serveur.",
+    newFor: "À quoi elle sert",
+    newWindow: "La fenêtre d’un menu",
+    newButton: "Un bouton",
+    newCreate: "Créer",
+    layers: "Calques",
+    layerLabel: "Calque {{n}} : {{name}}",
+    addKit: "Pièce du kit",
+    addImage: "Image du module",
+    chooseImage: "Choisir une image de ce module",
+    chooseImageHint:
+      "Un PNG de ce module. Une image composée ne peut pas être le calque d’une autre.",
+    noImage: "Ce module n’a pas encore d’image.",
+    missing: "absente",
+    up: "Avancer {{name}}",
+    down: "Reculer {{name}}",
+    remove: "Retirer {{name}}",
+    x: "X",
+    y: "Y",
+    columns: "Colonnes",
+    rows: "Lignes",
+    fixedSize: "Taille fixe",
+    width: "Largeur",
+    height: "Hauteur",
+    sizeHint: "Sans taille fixe, l’image a la taille de son calque du dessous.",
+    dragHint:
+      "Glissez un calque ; Maj le déplace d’une case. Les flèches déplacent le calque sélectionné.",
+    nothing: "Aucun calque ne peut être dessiné.",
+    save: "Enregistrer les calques",
+    saving: "Enregistrement…",
+    reset: "Annuler les changements",
+  },
+  pixel: {
+    edit: "Retoucher les pixels",
+    tools: "Outil",
+    pencil: "Crayon",
+    eraser: "Gomme",
+    pipette: "Prendre une couleur",
+    fill: "Pot de peinture",
+    undo: "Annuler",
+    redo: "Rétablir",
+    zoomIn: "Agrandir",
+    zoomOut: "Réduire",
+    canvas: "Pixels de {{name}}",
+    hint: "Alt+clic prend une couleur. B, E, I, G choisissent l’outil.",
+    colour: "Couleur",
+    anyColour: "Une autre couleur",
+    ownColours: "Couleurs de cette image",
+    kitColours: "Couleurs du kit",
+    save: "Enregistrer les pixels",
+    discard: "Annuler les changements",
+    close: "Fermer",
+    loading: "Lecture de l’image…",
+    unreadable: "Cette image ne peut pas être lue.",
+    new: "Dessiner une image",
+    newTitle: "Dessiner une image",
+    newHint:
+      "Une image vide de la taille choisie, dessinée pixel par pixel. Pour une fenêtre ou un bouton, composez plutôt une image à partir du kit.",
+    newSize: "Taille",
+    newIcon: "Icône 16 × 16",
+    newSlot: "Case 18 × 18",
+    newButton: "Bouton 54 × 18",
+    newCustom: "Autre",
+    newCreate: "Créer",
+  },
+  kit: {
+    fromKit: "Kit d'interface",
+    choose: "Choisir une image du kit",
+    hint: "Les images que tout serveur possède, et celles du kit de ce serveur. Le menu nomme l'image : elle suit le kit quand le serveur le redessine.",
   },
   imageButton: {
     search: "Rechercher une image…",
@@ -2099,6 +2175,7 @@ const fr: typeof en = {
       unsafe_path: "le chemin doit rester dans le dossier du serveur.",
       invalid_reference: "choisir une image au format module:image.",
       invalid_palette_entry: "chaque entrée a un nom et des couleurs #rrggbb.",
+      invalid_theme: "choisir un thème du module du kit d'interface.",
       invalid_menu_variants: "une variante a un nom invalide ou un parent non déclaré.",
     },
     variants: {
@@ -2126,6 +2203,7 @@ const fr: typeof en = {
     },
     listHint: "Valeurs séparées par des virgules.",
     vanillaTexture: "Texture vanilla",
+    noTheme: "Aucun thème",
     palette: {
       colors: "Couleurs",
       gradients: "Dégradés",
@@ -2175,6 +2253,7 @@ const fr: typeof en = {
         "delegate-reload-command": "Commande de rechargement après délégation",
         "hide-inventory-label":
           "Masquer le libellé « Inventaire » sous les menus (tous les conteneurs, toutes les langues)",
+        theme: "Thème du kit d'interface",
         "container-textures": {
           chest: "Coffres",
           hopper: "Entonnoirs",
@@ -2183,6 +2262,8 @@ const fr: typeof en = {
       },
     },
     hints: {
+      theme:
+        "Un dossier du module du kit d'interface (ui-kit/themes/<nom>/). Chaque image du kit est alors montrée aux couleurs du thème, ou telle qu'il la redessine ; les menus gardent leur mise en page.",
       chest:
         "Image au format generic_54.png (256×256, ou un multiple pour un pack HD). Quand un menu désactive sa texture vanilla, les autres coffres du serveur sont redessinés avec elle.",
       hopper:

@@ -58,3 +58,22 @@ it("converts an item with the image's natural footprint and edits pixel offsets"
   fireEvent.click(screen.getByRole("button", { name: "Recentrer" }));
   expect(onImage).toHaveBeenCalledWith({ asset: "buy", fit: "native", offset_x: 0, offset_y: 0 });
 });
+
+it("takes a kit image by its kit name, at its natural footprint", () => {
+  const onImage = vi.fn();
+  render(
+    <ImageButtonEditor
+      projectId={"p" as never}
+      menu={{ rows: 3, inventoryType: "chest" } as never}
+      element={{ positions: "1" } as never}
+      onImage={onImage}
+      onPositions={vi.fn()}
+      onItem={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Kit d'interface" }));
+  // The base is there without a kit module; a window is no button's image.
+  expect(screen.queryByTitle(/^kit:window\.6/)).toBeNull();
+  fireEvent.click(screen.getByTitle(/^kit:button\.3x1 /));
+  expect(onImage).toHaveBeenCalledWith({ asset: "kit:button.3x1", fit: "native" }, "1-3");
+});

@@ -1,7 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ApiError } from "@/lib/api/client";
-import { type McpGrants, listMcpGrants, revokeMcpGrant, setMcpGrantPublish } from "@/lib/api/mcp";
+import {
+  type McpGrants,
+  listMcpGrants,
+  revokeMcpGrant,
+  setMcpGrantImages,
+  setMcpGrantPublish,
+} from "@/lib/api/mcp";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -9,7 +15,8 @@ import { useTranslation } from "react-i18next";
  * The AI clients the player connected through the MCP endpoint (ADR
  * `mcp-server`), each one revocable: its next call is refused. A client
  * prepares drafts; it deploys only once the player switches that on, which
- * takes the player's own right to deploy.
+ * takes the player's own right to deploy. Where the server has an image model,
+ * a client asks it for pictures only once the player switches that on too.
  */
 export function McpAppsSection() {
   const { t, i18n } = useTranslation();
@@ -25,7 +32,7 @@ export function McpAppsSection() {
         setState(
           e instanceof ApiError && e.code === "not_found"
             ? "disabled"
-            : { grants: [], canPublish: false },
+            : { grants: [], canPublish: false, canImages: false },
         ),
       );
   }, []);
@@ -68,11 +75,28 @@ export function McpAppsSection() {
     }
   };
 
+  const allowImages = async (id: string, images: boolean) => {
+    setFailed(false);
+    try {
+      await setMcpGrantImages(id, images);
+      setState((current) =>
+        typeof current === "object"
+          ? {
+              ...current,
+              grants: current.grants.map((g) => (g.id === id ? { ...g, images } : g)),
+            }
+          : current,
+      );
+    } catch {
+      setFailed(true);
+    }
+  };
+
   if (state === undefined)
     return <p className="text-[13px] text-[var(--text-mut)]">{t("mcp.apps.loading")}</p>;
   if (state === "disabled")
     return <p className="text-[13px] text-[var(--text-mut)]">{t("mcp.apps.disabled")}</p>;
-  const { grants, canPublish } = state;
+  const { grants, canPublish, canImages } = state;
 
   return (
     <section className="flex flex-col gap-6">
@@ -121,6 +145,17 @@ export function McpAppsSection() {
                   />
                   <label htmlFor={`publish-${grant.id}`}>{t("mcp.apps.publish")}</label>
                 </div>
+                {(canImages || grant.images) && (
+                  <div className="flex items-center gap-2 text-[12px] text-[var(--text-mut)]">
+                    <Switch
+                      id={`images-${grant.id}`}
+                      checked={grant.images}
+                      title={t("mcp.apps.imagesHint")}
+                      onCheckedChange={(images) => void allowImages(grant.id, images)}
+                    />
+                    <label htmlFor={`images-${grant.id}`}>{t("mcp.apps.images")}</label>
+                  </div>
+                )}
                 <Button variant="destructive" size="sm" onClick={() => void revoke(grant.id)}>
                   {t("mcp.apps.revoke")}
                 </Button>

@@ -29,15 +29,43 @@ class McpTest {
     private val sent: MutableList<Map<String, Any?>> = Collections.synchronizedList(mutableListOf())
     private val history = McpFixtures.History()
     private val modules = java.util.concurrent.ConcurrentHashMap<String, McpFixtures.Module>()
-    private val server = McpFixtures.server(sent, history, modules)
+    private val config = java.util.concurrent.ConcurrentHashMap<String, Any?>()
+    private val server = McpFixtures.server(sent, history, modules, config)
 
+    /** The image model generate_image calls: it records what it was asked and answers one picture, or fails. */
+    private class ScriptedImages : ImageModel {
+        val asked = java.util.concurrent.CopyOnWriteArrayList<ImageRequest>()
+        @Volatile var failure: AiFailure? = null
+        @Volatile override var transparency = false
+        override val model = "scripted-image"
+
+        /** A square of 8x8 art pixels, two reds in a chequer, drawn four times its size in the middle of a magenta ground. */
+        val picture: ByteArray = net.artisanmc.plugin.pack.RgbaImage(64, 64).let { image ->
+            for (y in 0 until 64) for (x in 0 until 64) {
+                val inside = x in 16 until 48 && y in 16 until 48
+                java.nio.ByteBuffer.wrap(image.data, (y * 64 + x) * 4, 4).putInt(if (!inside) 0xff00ffff.toInt() else if ((x / 4 + y / 4) % 2 == 0) 0xc03030ff.toInt() else 0x801818ff.toInt())
+            }
+            net.artisanmc.plugin.pack.Png.encode(image)
+        }
+
+        override fun generate(request: ImageRequest): GeneratedImage {
+            asked += request
+            failure?.let { throw it }
+            return GeneratedImage(picture)
+        }
+    }
+
+    private val imageModel = ScriptedImages()
     private val drafts = McpFixtures.Drafts()
     private val sessions = Sessions()
     private val grants = McpGrants()
     private val player = UUID.randomUUID()
     private val hub = HubServer(
         WebConfig(port = 0, bind = "127.0.0.1"),
-        EditorApi.router(Servers(server), sessions, null, history = history, drafts = drafts, mcp = grants, version = "2.0.0"),
+        EditorApi.router(
+            Servers(server), sessions, null, history = history, drafts = drafts, mcp = grants, version = "2.0.0",
+            ai = AiConfig(image = AiImageConfig(provider = "openai", apiKey = "k", dailyLimit = 4)), aiImages = { imageModel },
+        ),
         sessions, EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
     )
     private val client = HttpClient.newHttpClient()
@@ -97,14 +125,14 @@ class McpTest {
     }
 
     /** Register, authorize, consent, code: what a client and the player do, in that order. */
-    private fun code(clientId: String = registerClient(), challenge: String = McpGrants.challenge(verifier), publish: Boolean = false): String {
+    private fun code(clientId: String = registerClient(), challenge: String = McpGrants.challenge(verifier), publish: Boolean = false, images: Boolean = false): String {
         val authorize = http("GET", "${OAuthRoutes.AUTHORIZE}?response_type=code&client_id=$clientId&redirect_uri=${URLEncoder.encode(redirect, Charsets.UTF_8)}&state=xyz&code_challenge=$challenge&code_challenge_method=S256")
         assertEquals(302, authorize.status)
         val consent = authorize.headers.firstValue("Location").get()
         assertTrue(consent.startsWith(OAuthRoutes.CONSENT_PAGE + "?"), consent)
         val query = consent.substringAfter('?').split('&').associate { it.substringBefore('=') to URLDecoder.decode(it.substringAfter('='), Charsets.UTF_8) }
         assertEquals("Claude", editor("GET", "${OAuthRoutes.CONSENT}?client_id=$clientId&redirect_uri=${URLEncoder.encode(redirect, Charsets.UTF_8)}").body!!["client"]["name"].asText())
-        val approved = editor("POST", OAuthRoutes.CONSENT, query + ("approve" to true) + ("publish" to publish))
+        val approved = editor("POST", OAuthRoutes.CONSENT, query + ("approve" to true) + ("publish" to publish) + ("images" to images))
         assertEquals(200, approved.status)
         val back = approved.body!!["redirect"].asText()
         assertTrue(back.startsWith("$redirect?code="), back)
@@ -112,8 +140,8 @@ class McpTest {
         return back.substringAfter("code=").substringBefore('&')
     }
 
-    private fun tokens(clientId: String = registerClient(), publish: Boolean = false): Pair<String, String> {
-        val code = code(clientId, publish = publish)
+    private fun tokens(clientId: String = registerClient(), publish: Boolean = false, images: Boolean = false): Pair<String, String> {
+        val code = code(clientId, publish = publish, images = images)
         val answer = form(OAuthRoutes.TOKEN, "grant_type" to "authorization_code", "code" to code, "client_id" to clientId, "redirect_uri" to redirect, "code_verifier" to verifier)
         assertEquals(200, answer.status, answer.body.toString())
         assertEquals("Bearer", answer.body!!["token_type"].asText())
@@ -263,7 +291,7 @@ class McpTest {
         assertEquals("#c6c6c6", facts["colours"][0]["colour"].asText(), "the colour most pixels have")
         assertTrue("Vanilla bevel" in facts["kit"]["content"].asText())
         assertEquals("u-local.ui-kit", facts["kit"]["project"].asText())
-        assertEquals(listOf("text", "image", "image"), survey["content"].map { it["type"].asText() }, "one sheet per module")
+        assertEquals(listOf("text", "image", "image", "image"), survey["content"].map { it["type"].asText() }, "one sheet per module, one for the base")
 
         // A menu of the shop that names the kit's button draws it: an image is found on the whole server.
         val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: kit")["structuredContent"]["draft_id"].asText()
@@ -280,6 +308,274 @@ class McpTest {
         modules.remove("ui-kit")
         assertTrue("create_module" in tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"]["how"].asText())
         assertTrue(tool(access, "survey_ui", "server" to "nowhere")["isError"].asBoolean())
+    }
+
+    @Test
+    fun `the kit's base is on every server under kit names, and the kit module's image of the same size replaces one`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/shop_icon.png" to solid(16, 16, 0x3366cc)))
+        val (access, _) = tokens()
+
+        // A server without a kit module has the base as Artisan ships it, numbered after its own images.
+        val base = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit_base"]
+        assertEquals(net.artisanmc.plugin.pack.Kit.slots.map { "kit:${it.id}" }, base["images"].map { it["image"].asText() })
+        assertEquals((2..20).toList(), base["images"].map { it["n"].asInt() })
+        assertEquals(setOf("artisan"), base["images"].map { it["drawn_by"].asText() }.toSet())
+        assertEquals(54 to 18, base["images"][3].let { it["width"].asInt() to it["height"].asInt() })
+
+        // A menu draws a base image as an element's and as its window.
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: base")["structuredContent"]["draft_id"].asText()
+        val menu = "schema: menu/v1\nsize: 27\nvanilla_texture: false\ntitle:\n  - { kind: background, asset: \"kit:window.3\" }\n" +
+            "elements:\n  - positions: \"0-2\"\n    image: { asset: \"kit:button.3x1\", fit: native }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/base.yml", "content" to menu).has("isError"))
+        fun pixels(): Pair<List<Int>, List<Int>> {
+            val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/base.yml", "draft_id" to draftId, "scale" to 1)
+            assertTrue(rendered["structuredContent"]["notes"].none { "kit:" in it.asText() }, rendered["structuredContent"].toString())
+            val window = rendered["structuredContent"]["window"]
+            val shown = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+            fun at(x: Int, y: Int) = ((window["y"].asInt() + y) * shown.width + window["x"].asInt() + x) * 4
+            fun rgb(at: Int) = shown.data.slice(at until at + 3).map { it.toInt() and 0xff }
+            // The middle of the button over the first three slots; the window's corner pixel that is not empty.
+            return rgb(at(7 + 27, 17 + 9)) to rgb(at(3, 3))
+        }
+        fun shipped(id: String, x: Int, y: Int): List<Int> {
+            val image = net.artisanmc.plugin.pack.Png.decode(net.artisanmc.plugin.pack.Kit.shipped(net.artisanmc.plugin.pack.Kit.slot(id)!!))
+            return image.data.slice((y * image.width + x) * 4 until (y * image.width + x) * 4 + 3).map { it.toInt() and 0xff }
+        }
+        assertEquals(shipped("button.3x1", 27, 9) to shipped("window.3", 3, 3), pixels())
+
+        // The kit module restyles a slot with an image of its name and size; another size or another module is refused.
+        modules["ui-kit"] = McpFixtures.Module()
+        val kitDraft = tool(access, "start_draft", "project" to "u-local.ui-kit", "name" to "AI: kit")["structuredContent"]["draft_id"].asText()
+        fun png(width: Int, height: Int) = java.util.Base64.getEncoder().encodeToString(solid(width, height, 0xcc2020))
+        val small = tool(access, "write_image", "project" to "u-local.ui-kit", "draft_id" to kitDraft, "name" to "button.3x1", "png_base64" to png(20, 10))
+        assertTrue(small["isError"].asBoolean() && "54x18" in small["structuredContent"]["message"].asText(), small.toString())
+        val written = tool(access, "write_image", "project" to "u-local.ui-kit", "draft_id" to kitDraft, "name" to "button.3x1", "use" to "background", "png_base64" to png(54, 18))
+        assertFalse(written.has("isError"), written.toString())
+        assertEquals("assets/textures/button.3x1.png", written["structuredContent"]["path"].asText())
+        assertTrue("kit:button.3x1" in written["structuredContent"]["use_it"].asText())
+        assertTrue(tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "button.3x1", "png_base64" to png(54, 18))["isError"].asBoolean())
+        val other = tool(access, "write_image", "project" to "u-local.ui-kit", "draft_id" to kitDraft, "name" to "banner", "png_base64" to png(20, 10))
+        assertTrue("kit:banner" in other["structuredContent"]["use_it"].asText(), other.toString())
+
+        // Deployed, the server's image is what every menu naming the slot shows; one of another size is left out.
+        modules["ui-kit"] = McpFixtures.Module(
+            images = mapOf("assets/textures/button.3x1.png" to solid(54, 18, 0xcc2020), "assets/textures/window.3.png" to solid(20, 20, 0x00ff00)),
+        )
+        assertEquals(listOf(0xcc, 0x20, 0x20) to shipped("window.3", 3, 3), pixels())
+        val restyled = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit_base"]["images"].associateBy { it["image"].asText() }
+        assertEquals("this server", restyled.getValue("kit:button.3x1")["drawn_by"].asText())
+        assertEquals("artisan", restyled.getValue("kit:window.3")["drawn_by"].asText())
+        assertTrue(restyled.getValue("kit:window.3").has("ignored"))
+        assertFalse(restyled.getValue("kit:cell").has("ignored"))
+    }
+
+    @Test
+    fun `a theme of the kit recolours what kit names show, redraws an image at its size, and a menu is rendered in it`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        fun png(width: Int, height: Int, rgb: Int) = java.util.Base64.getEncoder().encodeToString(solid(width, height, rgb))
+        fun shipped(id: String, x: Int, y: Int): List<Int> {
+            val image = net.artisanmc.plugin.pack.Png.decode(net.artisanmc.plugin.pack.Kit.shipped(net.artisanmc.plugin.pack.Kit.slot(id)!!))
+            return image.data.slice((y * image.width + x) * 4 until (y * image.width + x) * 4 + 3).map { it.toInt() and 0xff }
+        }
+        val button = shipped("button.3x1", 27, 9)
+        val red = listOf(0xb3, 0x26, 0x1e)
+        val navy = listOf(0x11, 0x22, 0x33)
+        val table = "colors:\n  \"#%02x%02x%02x\": \"#b3261e\"\n".format(button[0], button[1], button[2])
+        modules["ui-kit"] = McpFixtures.Module()
+        val (access, _) = tokens()
+        val kitDraft = tool(access, "start_draft", "project" to "u-local.ui-kit", "name" to "AI: noel")["structuredContent"]["draft_id"].asText()
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: themed")["structuredContent"]["draft_id"].asText()
+        fun kit(tool: String, vararg args: Pair<String, Any?>) = tool(access, tool, "project" to "u-local.ui-kit", "draft_id" to kitDraft, *args)
+
+        // The theme's table: colours quoted, or the write is refused with the reason (unquoted, `#` starts a comment).
+        val unquoted = kit("write_document", "path" to "themes/noel/theme.yml", "content" to "colors:\n  #3c8527: #b3261e\n")
+        assertFalse(unquoted["structuredContent"]["written"].asBoolean(), unquoted.toString())
+        assertTrue("Quote" in unquoted["structuredContent"]["problems"][0]["message"].asText())
+        val wrong = kit("write_document", "path" to "themes/noel/theme.yml", "content" to "colors:\n  \"#3c8527\": \"red\"\n")
+        assertTrue("'red'" in wrong["structuredContent"]["problems"][0]["message"].asText(), wrong.toString())
+        assertTrue(kit("write_document", "path" to "themes/noel/theme.yml", "content" to table)["structuredContent"]["written"].asBoolean())
+
+        // The theme's own drawing of a kit image: of its size, in the kit module, of an image the kit has.
+        val small = kit("write_image", "name" to "cell", "theme" to "noel", "png_base64" to png(10, 10, 0x112233))
+        assertTrue(small["isError"].asBoolean() && "18x18" in small["structuredContent"]["message"].asText(), small.toString())
+        assertTrue("No kit image" in kit("write_image", "name" to "nothing", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["message"].asText())
+        val elsewhere = tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
+        assertTrue(elsewhere["isError"].asBoolean() && "ui-kit" in elsewhere["structuredContent"]["message"].asText(), elsewhere.toString())
+        val drawn = kit("write_image", "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
+        assertFalse(drawn.has("isError"), drawn.toString())
+        assertEquals("themes/noel/assets/textures/cell.png", drawn["structuredContent"]["path"].asText())
+        val snapshot = mapper.readTree(drafts.rows.getValue(kitDraft))["snapshot"]
+        assertEquals(listOf("themes/noel/assets/textures/cell.png"), snapshot["binaryTree"].fieldNames().asSequence().toList())
+        assertEquals(listOf("themes/noel/theme.yml"), snapshot["tree"].fieldNames().asSequence().filter { it.startsWith("themes/") }.toList())
+
+        // A menu of another module, with a button and a slot's frame of the kit.
+        val menu = "schema: menu/v1\nsize: 27\nelements:\n  - positions: \"0-2\"\n    image: { asset: \"kit:button.3x1\", fit: native }\n" +
+            "  - positions: \"4\"\n    image: { asset: \"kit:cell\", fit: native }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/themed.yml", "content" to menu).has("isError"))
+        fun render(vararg args: Pair<String, Any?>) = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/themed.yml", "draft_id" to draftId, "scale" to 1, *args)
+        // The middle of the button over the first three slots, and of the frame over the fifth; the theme it was drawn in.
+        fun shown(rendered: JsonNode): Triple<List<Int>, List<Int>, String?> {
+            assertFalse(rendered.has("isError"), rendered.toString())
+            val window = rendered["structuredContent"]["window"]
+            val picture = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+            fun rgb(x: Int, y: Int) = ((window["y"].asInt() + y) * picture.width + window["x"].asInt() + x).let { picture.data.slice(it * 4 until it * 4 + 3).map { b -> b.toInt() and 0xff } }
+            return Triple(rgb(7 + 27, 17 + 9), rgb(7 + 4 * 18 + 9, 17 + 9), rendered["structuredContent"]["theme"]?.asText())
+        }
+        val plain = Triple(button, shipped("cell", 9, 9), null)
+        assertEquals(plain, shown(render()))
+        // Not deployed: the theme is in the kit's draft only, which render_menu reads when given.
+        val absent = render("theme" to "noel")
+        assertTrue(absent["isError"].asBoolean() && "No theme 'noel'" in absent["structuredContent"]["message"].asText(), absent.toString())
+        assertEquals(Triple(red, navy, "noel"), shown(render("theme" to "noel", "kit_draft_id" to kitDraft)))
+        assertEquals(plain, shown(render("kit_draft_id" to kitDraft)))
+
+        // Deployed, and picked as the server's theme: every view of the kit is in it, unless asked without.
+        modules["ui-kit"] = McpFixtures.Module(
+            files = mapOf("themes/noel/theme.yml" to table),
+            images = mapOf("themes/noel/assets/textures/cell.png" to solid(18, 18, 0x112233), "themes/noel/assets/textures/window.3.png" to solid(20, 20, 0x00ff00)),
+        )
+        assertEquals(plain, shown(render()))
+        config["resource-pack.theme"] = "noel"
+        assertEquals(Triple(red, navy, "noel"), shown(render()))
+        assertEquals(plain, shown(render("theme" to "none")))
+        val survey = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
+        assertEquals("noel", survey["kit"]["theme"].asText())
+        assertEquals(1, survey["kit"]["themes"].size())
+        assertEquals(1, survey["kit"]["themes"][0]["colors"].asInt())
+        assertEquals(listOf("cell", "window.3"), survey["kit"]["themes"][0]["redraws"].map { it.asText() })
+        assertEquals("noel", survey["kit_base"]["theme"].asText())
+        assertTrue("theme.yml" in survey["themes_format"].asText())
+        // The colours a table replaces are the kit's own, whatever the theme in place.
+        assertTrue("#%02x%02x%02x".format(button[0], button[1], button[2]) in survey["kit_colours"].map { it.asText() }, survey["kit_colours"].toString())
+        assertFalse("#b3261e" in survey["kit_colours"].map { it.asText() })
+        // No image of the theme folders is one of the kit module's own.
+        assertTrue(survey["modules"].none { it["project"].asText() == "u-local.ui-kit" }, survey["modules"].toString())
+
+        // A theme the kit does not hold is no theme, as in the pack.
+        config["resource-pack.theme"] = "gone"
+        assertEquals(plain, shown(render()))
+        assertFalse(tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"].has("theme"))
+    }
+
+    @Test
+    fun `a composed image is written as a recipe, shown as the pack assembles it, and follows the kit`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        fun rgb(image: net.artisanmc.plugin.pack.RgbaImage, x: Int, y: Int) = image.data.slice((y * image.width + x) * 4 until (y * image.width + x) * 4 + 3).map { it.toInt() and 0xff }
+        fun picture(result: com.fasterxml.jackson.databind.JsonNode) =
+            net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(result["content"][1]["data"].asText()))
+        fun shipped(id: String, x: Int, y: Int) =
+            rgb(net.artisanmc.plugin.pack.Png.decode(net.artisanmc.plugin.pack.Kit.shipped(net.artisanmc.plugin.pack.Kit.slot(id)!!)), x, y)
+        val blue = listOf(0x33, 0x66, 0xcc)
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/shop_icon.png" to solid(16, 16, 0x3366cc)))
+        val (access, _) = tokens()
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: composed")["structuredContent"]["draft_id"].asText()
+        fun write(vararg args: Pair<String, Any?>) = tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, *args)
+        val snapshot = { mapper.readTree(drafts.rows.getValue(draftId))["snapshot"] }
+        val layers = listOf(
+            mapOf("image" to "kit:window.3"),
+            mapOf("image" to "kit:cell", "x" to 7, "y" to 17, "columns" to 9, "rows" to 3),
+            mapOf("image" to "shop_icon", "x" to 80, "y" to 1),
+        )
+
+        // A window put together from the kit and the module's icon: a descriptor, and no PNG.
+        val written = write("name" to "shop_window", "use" to "background", "compose" to mapOf("layers" to layers))
+        assertFalse(written.has("isError"), written.toString())
+        val facts = written["structuredContent"]
+        assertEquals("assets/glyphs/shop_window.yml", facts["path"].asText())
+        assertEquals(176 to 166, facts["width"].asInt() to facts["height"].asInt())
+        assertEquals(
+            "ascent: 13\ncodepoint: 57344\nusages: [menu]\ncompose:\n  - use: \"kit:window.3\"\n  - grid: \"kit:cell\"\n    x: 7\n    y: 17\n" +
+                "    columns: 9\n    rows: 3\n  - image: \"shop_icon\"\n    x: 80\n    y: 1\n",
+            snapshot()["tree"]["assets/glyphs/shop_window.yml"].asText(),
+        )
+        assertEquals(listOf("assets/textures/shop_icon.png"), snapshot()["binaryTree"].fieldNames().asSequence().toList())
+        // The picture as assembled, kept beside the draft for the editor's assistant to show.
+        assertEquals(176, net.artisanmc.plugin.pack.Png.decode(drafts.blobs.getValue(facts["preview_hash"].asText())).width)
+        // The picture the model looks at, twice the size: the icon over the window, a slot's frame, the window under them.
+        val shown = picture(written)
+        assertEquals(176 * 2, shown.width)
+        assertEquals(blue, rgb(shown, 2 * 85, 2 * 5))
+        assertEquals(shipped("cell", 9, 9), rgb(shown, 2 * (7 + 18 + 9), 2 * (17 + 18 + 9)))
+        assertEquals(shipped("window.3", 3, 150), rgb(shown, 2 * 3, 2 * 150))
+
+        // Read back, it is its layers; a draft lists it apart from its PNGs.
+        val read = tool(access, "read_image", "project" to "u-local.shop", "path" to "assets/glyphs/shop_window.yml", "draft_id" to draftId)
+        assertEquals(mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(layers), read["structuredContent"]["compose"]["layers"])
+        assertEquals(176, read["structuredContent"]["width"].asInt())
+        assertEquals(blue, rgb(picture(read), 2 * 85, 2 * 5))
+        val listed = tool(access, "list_documents", "project" to "u-local.shop", "draft_id" to draftId)["structuredContent"]
+        assertEquals(listOf("assets/glyphs/shop_window.yml"), listed["composed_images"].map { it.asText() })
+        assertTrue(tool(access, "read_image", "project" to "u-local.shop", "path" to "assets/glyphs/shop_window.yml")["isError"].asBoolean(), "not deployed yet")
+
+        // A menu of the draft draws it as its window.
+        val menu = "schema: menu/v1\nsize: 27\nvanilla_texture: false\ntitle:\n  - { kind: background, asset: shop_window }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/composed.yml", "content" to menu).has("isError"))
+        val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/composed.yml", "draft_id" to draftId, "scale" to 1)
+        assertTrue(rendered["structuredContent"]["notes"].none { "shop_window" in it.asText() }, rendered["structuredContent"].toString())
+        val window = rendered["structuredContent"]["window"]
+        assertEquals(blue, rgb(picture(rendered), window["x"].asInt() + 85, window["y"].asInt() + 5))
+
+        // A layer the pack would leave out is refused here, with what to name instead.
+        val revision = mapper.readTree(drafts.rows.getValue(draftId))["revision"].asInt()
+        fun refused(vararg args: Pair<String, Any?>): String = write(*args).also { assertTrue(it["isError"].asBoolean(), it.toString()) }["structuredContent"]["message"].asText()
+        assertTrue("no image 'gone'" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "gone")))))
+        assertTrue("kit:gone" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "kit:gone")))))
+        assertTrue("itself a composed image" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "shop_window")))))
+        assertTrue("layer of itself" in refused("name" to "shop_icon", "compose" to mapOf("layers" to listOf(mapOf("image" to "shop_icon")))))
+        assertTrue("together" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "shop_icon")), "width" to 20)))
+        assertTrue("columns" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "shop_icon", "columns" to 65)))))
+        assertTrue("at least one" in refused("name" to "card", "compose" to mapOf("layers" to emptyList<Any>())))
+        assertEquals(revision, mapper.readTree(drafts.rows.getValue(draftId))["revision"].asInt())
+
+        // A given size clips the layers; written as pixels, the image keeps its place and loses its recipe; composed again, its PNG.
+        val card = write("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "kit:card.3x2"), mapOf("image" to "shop_icon", "x" to 19, "y" to 4)), "width" to 30, "height" to 12))
+        assertEquals(30 to 12, card["structuredContent"]["width"].asInt() to card["structuredContent"]["height"].asInt())
+        assertEquals(
+            "width: 30\nheight: 12\nusages: [button]\ncompose:\n  - use: \"kit:card.3x2\"\n  - image: \"shop_icon\"\n    x: 19\n    y: 4\n",
+            snapshot()["tree"]["assets/textures/card.yml"].asText(),
+        )
+        val pixels = mapOf("palette" to mapOf("#" to "#373737"), "rows" to listOf("##", "##"))
+        val drawn = write("name" to "shop_window", "pixels" to pixels)
+        assertEquals("assets/glyphs/shop_window.png", drawn["structuredContent"]["path"].asText())
+        assertTrue(drawn["structuredContent"]["replaced"].asBoolean())
+        assertEquals("ascent: 13\ncodepoint: 57344\nusages: [menu]\nwidth: 2\nheight: 2\n", snapshot()["tree"]["assets/glyphs/shop_window.yml"].asText())
+        val again = write("name" to "shop_window", "compose" to mapOf("layers" to listOf(mapOf("image" to "kit:window.3"))))
+        assertTrue(again["structuredContent"]["replaced"].asBoolean())
+        assertNull(snapshot()["binaryTree"]["assets/glyphs/shop_window.png"])
+        assertEquals("ascent: 13\ncodepoint: 57344\nusages: [menu]\ncompose:\n  - use: \"kit:window.3\"\n", snapshot()["tree"]["assets/glyphs/shop_window.yml"].asText())
+        assertTrue(write("name" to "card", "delete" to true)["structuredContent"]["deleted"].asBoolean())
+        assertNull(snapshot()["tree"]["assets/textures/card.yml"])
+
+        // Deployed in another module, it is surveyed with what it is made of, and it follows the server's kit:
+        // the window redrawn in the kit module is the one under the icon.
+        modules["guilds"] = McpFixtures.Module(
+            files = mapOf(
+                "assets/glyphs/guild_window.yml" to "ascent: 13\ncodepoint: 57344\ncompose:\n  - use: 'kit:window.3'\n  - image: guild_icon\n    x: 80\n    y: 1\n",
+                "menus/guild.yml" to "schema: menu/v1\nsize: 27\nvanilla_texture: false\ntitle:\n  - { kind: background, asset: guild_window }\n",
+            ),
+            images = mapOf("assets/textures/guild_icon.png" to solid(16, 16, 0x3366cc)),
+        )
+        fun deployed(): Pair<List<Int>, List<Int>> {
+            val shownMenu = tool(access, "render_menu", "project" to "u-local.guilds", "path" to "menus/guild.yml", "scale" to 1)
+            val at = shownMenu["structuredContent"]["window"]
+            return rgb(picture(shownMenu), at["x"].asInt() + 85, at["y"].asInt() + 5) to rgb(picture(shownMenu), at["x"].asInt() + 3, at["y"].asInt() + 150)
+        }
+        assertEquals(blue to shipped("window.3", 3, 150), deployed())
+        val surveyed = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["modules"].first { it["project"].asText() == "u-local.guilds" }["images"]
+        assertEquals(listOf("guild_window" to "assets/glyphs/guild_window.yml", "guild_icon" to "assets/textures/guild_icon.png"), surveyed.map { it["name"].asText() to it["path"].asText() })
+        assertEquals(listOf("kit:window.3", "guild_icon"), surveyed[0]["composed_of"].map { it.asText() })
+        assertEquals(176 to 166, surveyed[0]["width"].asInt() to surveyed[0]["height"].asInt())
+        modules["ui-kit"] = McpFixtures.Module(images = mapOf("assets/textures/window.3.png" to solid(176, 166, 0xcc2020)))
+        assertEquals(blue to listOf(0xcc, 0x20, 0x20), deployed())
+        assertEquals(listOf("assets/glyphs/guild_window.yml"), tool(access, "list_documents", "project" to "u-local.guilds")["structuredContent"]["composed_images"].map { it.asText() })
+        assertTrue(sent.none { it["type"] == "project_write" || it["type"] == "project_draft_publish" })
     }
 
     @Test
@@ -600,6 +896,100 @@ class McpTest {
         assertEquals("invalid_name", tool(access, "create_module", "server" to "u-local", "name" to "../x")["structuredContent"]["error"].asText())
         assertEquals("unknown_server", tool(access, "create_module", "server" to "nope", "name" to "x")["structuredContent"]["error"].asText())
         assertEquals(2, sent.count { it["type"] == "project_create" })
+    }
+
+    @Test
+    fun `an app asks the server's image model only once the player allowed it, and cuts the picture it got`() {
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/gem.png" to net.artisanmc.plugin.pack.Png.encode(net.artisanmc.plugin.pack.RgbaImage(8, 8))))
+        val (access, _) = tokens()
+        fun names() = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
+        fun generate(vararg args: Pair<String, Any?>) = tool(access, "generate_image", *args)
+
+        // Not offered, and refused when called anyway: the server's owner pays for each picture.
+        assertFalse("generate_image" in names())
+        val refused = generate("prompt" to "a red square on nothing")
+        assertEquals("forbidden", refused["structuredContent"]["error"].asText())
+        assertTrue("Settings → AI apps" in refused["structuredContent"]["message"].asText())
+        assertFalse(tool(access, "artisan_overview")["structuredContent"]["can_generate_images"].asBoolean())
+        assertTrue(imageModel.asked.isEmpty())
+
+        val listed = editor("GET", OAuthRoutes.GRANTS).body!!
+        assertTrue(listed["canImages"].asBoolean())
+        assertFalse(listed["grants"][0]["images"].asBoolean())
+        val grant = listed["grants"][0]["id"].asText()
+        val allowed = editor("PATCH", "${OAuthRoutes.GRANTS}/$grant", mapOf("images" to true))
+        assertEquals(200 to """{"ok":true,"images":true}""", allowed.status to allowed.body.toString())
+        assertTrue(editor("GET", OAuthRoutes.GRANTS).body!!["grants"][0]["images"].asBoolean())
+        assertFalse(editor("GET", OAuthRoutes.GRANTS).body!!["grants"][0]["publish"].asBoolean(), "one choice does not move the other")
+        assertTrue("generate_image" in names())
+        assertTrue(tool(access, "artisan_overview")["structuredContent"]["can_generate_images"].asBoolean())
+
+        // A model that makes no transparent background is asked for a flat one; a small reference is enlarged for it.
+        val made = generate(
+            "prompt" to "a red square, pixel art", "shape" to "wide", "transparent" to true,
+            "references" to listOf(mapOf("project" to "u-local.shop", "path" to "assets/textures/gem.png")),
+        )
+        assertFalse(made.has("isError"), made.toString())
+        val facts = made["structuredContent"]
+        assertEquals(listOf("generated-1.png", "64", "64", "scripted-image"), listOf("picture", "width", "height", "model").map { facts[it].asText() })
+        assertTrue("magenta" in facts["background"].asText())
+        assertEquals("image", made["content"][1]["type"].asText())
+        val request = imageModel.asked.single()
+        assertTrue(request.prompt.startsWith("a red square, pixel art\n\n") && "#ff00ff" in request.prompt, request.prompt)
+        assertEquals(ImageRequest.Shape.WIDE to false, request.shape to request.transparent)
+        assertEquals("reference-1.png", request.references.single().name)
+        assertEquals(128, net.artisanmc.plugin.pack.Png.decode(request.references.single().png).width)
+
+        // The picture is no module's file: it is measured and cut by the name it came back under.
+        val measured = tool(access, "measure_image", "attachment" to "generated-1.png")
+        assertEquals("""[{"n":1,"x":16,"y":16,"width":32,"height":32,"art_size":"8x8"}]""", measured["structuredContent"]["elements"].toString())
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: picture")["structuredContent"]["draft_id"].asText()
+        val cut = tool(
+            access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "red_square",
+            "from" to mapOf("attachment" to "generated-1.png", "x" to 8, "y" to 8, "width" to 48, "height" to 48, "background" to "remove"),
+        )
+        assertFalse(cut.has("isError"), cut.toString())
+        assertEquals(listOf(8, 8), listOf("width", "height").map { cut["structuredContent"][it].asInt() })
+        assertTrue("assets/textures/red_square.png" in mapper.readTree(drafts.rows.getValue(draftId))["snapshot"]["binaryTree"].fieldNames().asSequence().toList())
+
+        // A model that makes one is asked for it, with the prompt as written.
+        imageModel.transparency = true
+        assertEquals("transparent", generate("prompt" to "a blue circle, alone", "transparent" to true)["structuredContent"]["background"].asText())
+        assertEquals(Triple("a blue circle, alone", ImageRequest.Shape.SQUARE, true), imageModel.asked.last().let { Triple(it.prompt, it.shape, it.transparent) })
+        assertEquals("filled", generate("prompt" to "a painted night sky")["structuredContent"]["background"].asText())
+
+        // What is wrong in the call never reaches the model; a picture the model did not make is not counted.
+        assertTrue(generate("prompt" to "short")["isError"].asBoolean())
+        assertTrue(generate("prompt" to "a red square on nothing", "shape" to "round")["isError"].asBoolean())
+        assertTrue(generate("prompt" to "a red square on nothing", "references" to List(5) { mapOf("attachment" to "generated-1.png") })["isError"].asBoolean())
+        assertTrue(generate("prompt" to "a red square on nothing", "references" to listOf(mapOf("attachment" to "nope.png")))["isError"].asBoolean())
+        assertEquals(3, imageModel.asked.size)
+        imageModel.failure = AiFailure("ai_image_refused", "api.example refused the request: not that")
+        val failed = generate("prompt" to "something it refuses")
+        assertEquals("ai_image_refused" to "api.example refused the request: not that", failed["structuredContent"].let { it["error"].asText() to it["message"].asText() })
+        imageModel.failure = null
+
+        // Four pictures a day here: the fifth waits for tomorrow, whichever app asks.
+        assertFalse(generate("prompt" to "the last of the day").has("isError"))
+        val limited = generate("prompt" to "one picture too many")
+        assertEquals("ai_image_limit", limited["structuredContent"]["error"].asText())
+        assertEquals(5, imageModel.asked.size)
+        val (other, _) = tokens(images = true)
+        assertEquals("ai_image_limit", tool(other, "generate_image", "prompt" to "from another app")["structuredContent"]["error"].asText())
+        assertEquals(listOf("generated-1.png", "generated-2.png", "generated-3.png", "generated-4.png"), hubPictures())
+
+        // Taken back, the app is refused on its next call.
+        assertEquals(200, editor("PATCH", "${OAuthRoutes.GRANTS}/$grant", mapOf("images" to false)).status)
+        assertFalse("generate_image" in names())
+        assertEquals("forbidden", generate("prompt" to "a red square on nothing")["structuredContent"]["error"].asText())
+        assertEquals(422, editor("PATCH", "${OAuthRoutes.GRANTS}/$grant", mapOf("images" to "yes")).status)
+    }
+
+    /** The names of the pictures the hub keeps for the player, as the editor asks for them. */
+    private fun hubPictures(): List<String> = (1..5).map { "generated-$it.png" }.filter {
+        client.send(
+            HttpRequest.newBuilder(URI("$base${AiRoutes.GENERATED}/$it")).header("Cookie", cookie).build(), HttpResponse.BodyHandlers.ofByteArray(),
+        ).statusCode() == 200
     }
 
     @Test

@@ -24,6 +24,28 @@ and 3 × 2 or 2 × 3 covers six. Drag the image to move the entire button: the p
 button you hold lands on the slot under the pointer. Release it over another menu of the
 project to move it there.
 
+**UI kit.** Beside **Item** and **Image**, **UI kit** lists the images every server has
+(`kit:button.3x1`, `kit:close.1x1`, arrows, toggles…) and the images of this server's `ui-kit`
+module. The menu names the image instead of copying it: when the server redraws the kit's
+button, every menu that names it follows. A kit image whose name ends with its slots (`3x1`)
+takes that area. A title's image layer offers the same list, with the kit's windows
+(`kit:window.6`, `kit:window.3`). When the server's pack is built in a theme of the kit
+(see [AI](../../configuration/ai/), "Themes"), the editor shows these images in that theme, as
+players see them.
+
+**Composed images.** An image may be a recipe instead of a PNG: a `compose:` list in its
+`.yml`, which stacks kit images and PNGs of the module (see
+[AI](../../configuration/ai/), "Composed images"). The Resources page lists it with its picture
+and says what it is made of; you rename, duplicate or delete it there. It has no file to
+reimport, and it stays in its module: another module cannot copy it.
+
+**Compose an image** in the Resources page starts one from a kit window or a kit button. Its
+detail is a composer: drag a layer to move it (hold Shift to move by one slot, or use the arrow
+keys for one pixel), reorder or remove layers in the list, add a **Kit piece** or a
+**Module image**. A layer repeats with **Columns** and **Rows** (the slots of a window: a grid
+of `kit:cell`). The image is as large as its bottom layer reaches unless you give it a
+**Fixed size**; what goes past is cut. **Save layers** writes the recipe into your draft.
+
 **Natural size** is the default for new buttons: an 8×8 PNG stays 8×8 and is centered.
 Use **Horizontal/Vertical offset (px)** to move it within the area, or **Center image**
 to reset both offsets. Pixels outside the area are clipped; the clickable slots stay fixed.

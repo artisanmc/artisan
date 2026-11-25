@@ -74,6 +74,23 @@ class McpGrantRowsTest {
     }
 
     @Test
+    fun `the server's image model is off until the player allows it, and the two choices are apart`() {
+        rows.insert(grant())
+        assertFalse(rows.grants(player).single().allowImages)
+        assertFalse(rows.setImages(UUID.randomUUID(), grant().id, true))
+        assertTrue(rows.setImages(player, grant().id, true))
+        val allowed = rows.grants(player).single()
+        assertTrue(allowed.allowImages && !allowed.allowPublish)
+        // A token rotation keeps the choice, and an approval that came with it starts with it.
+        assertTrue(rows.replace(allowed, allowed.copy(codeHash = null, refreshHash = "r".repeat(64))))
+        assertTrue(rows.grants(player).single().allowImages)
+        assertTrue(rows.setImages(player, grant().id, false))
+        assertFalse(rows.grants(player).single().allowImages)
+        rows.insert(grant("00000000-0000-0000-0000-000000000003").copy(allowImages = true))
+        assertTrue(rows.grants(player).last().allowImages)
+    }
+
+    @Test
     fun `permissions follow the issuing server, and a player's grants go with their view`() {
         rows.insert(grant())
         rows.insert(grant("00000000-0000-0000-0000-000000000002").copy(origin = "lobby"))

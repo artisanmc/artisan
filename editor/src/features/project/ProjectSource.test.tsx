@@ -92,7 +92,7 @@ describe("using another project's resources", () => {
     await userEvent.click(screen.getByRole("menuitemradio", { name: shop.name }));
 
     // Read from the source's published disk, never a draft.
-    expect(listed).toHaveBeenCalledWith("p_shop_system", {});
+    expect(listed).toHaveBeenCalledWith("p_shop_system", { composed: false });
     await userEvent.click(await screen.findByTitle("coin"));
     await userEvent.click(screen.getByRole("button", { name: /copier dans ce module|copy into/i }));
 

@@ -1,3 +1,4 @@
+import { AssistantAlwaysSection } from "@/features/mcp/AssistantAlwaysSection";
 import { McpAppsSection } from "@/features/mcp/McpAppsSection";
 import { AppearanceSection } from "@/features/settings/AppearanceSection";
 import { AssistantSettingsSection } from "@/features/settings/AssistantSettingsSection";
@@ -97,7 +98,10 @@ export function SettingsRoute() {
             ) : current === "assistant" ? (
               <AssistantSettingsSection />
             ) : current === "ai" ? (
-              <McpAppsSection />
+              <div className="flex flex-col gap-6">
+                <AssistantAlwaysSection />
+                <McpAppsSection />
+              </div>
             ) : (
               <AppearanceSection />
             )}

@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import type { Asset } from "@/domain/asset";
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
-import { useAssetStore } from "@/features/assets/assetStore";
+import { useAssetsWithKit } from "@/features/assets/kitAssets";
 import { cn } from "@/lib/cx";
 import { getText } from "@/lib/i18n";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -48,7 +48,7 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
   const applyLayerDeleted = useUiStore((s) => s.applyLayerDeleted);
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
-  const assets = useAssetStore((s) => s.assets);
+  const assets = useAssetsWithKit();
 
   const name = deriveAutoName(layer, assets, project, activeLang, t);
 

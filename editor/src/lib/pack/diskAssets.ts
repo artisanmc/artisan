@@ -2,6 +2,7 @@ import { yamlStem } from "@/lib/yamlFiles";
 import { parse } from "yaml";
 import { sha256Hex } from "../sha256";
 import { parseAssetUsages } from "./assetUsages";
+import { type ComposeRecipe, composeRecipe } from "./compose";
 import { FONT_DIR, FONT_STEM, fontFromDisk } from "./fontOnDisk";
 import type { AssetRow } from "./resourcePackBuilder";
 import { shippedView } from "./shippedView";
@@ -22,6 +23,8 @@ export interface DiskAsset {
   row: AssetRow;
   path: string;
   hash: string;
+  /** A composed image (`compose.ts`): `path` is its descriptor's, it has no PNG. */
+  compose?: ComposeRecipe;
 }
 
 const TYPE_BY_DIR: Record<string, string> = {
@@ -71,6 +74,7 @@ export function diskAssetsFromTree(
     ? shippedView(ownBinaries).map(({ entry, at }) => ({ ...entry, path: at, real: entry.path }))
     : ownBinaries.map((b) => ({ ...b, real: b.path }));
   const descriptors = new Map<string, Record<string, unknown>>();
+  const descriptorFiles = new Map<string, { real: string; content: string }>();
   for (const f of files) {
     const stem = f.path.startsWith("assets/") ? yamlStem(f.path) : null;
     if (stem === null || (descriptors.has(stem) && !f.path.endsWith(".yml"))) continue;
@@ -78,6 +82,7 @@ export function diskAssetsFromTree(
       const parsed = parse(f.content);
       if (parsed && typeof parsed === "object") {
         descriptors.set(stem, parsed as Record<string, unknown>);
+        descriptorFiles.set(stem, { real: f.real, content: f.content });
       }
     } catch {
       // Unreadable descriptor: the image stays usable with defaults. Making it
@@ -142,6 +147,39 @@ export function diskAssetsFromTree(
         contentWidth: num(meta.content_width, null),
         fontMeta: (meta.font_meta as AssetRow["fontMeta"]) ?? null,
         contentHash: bin.hash,
+        createdAt: now,
+        updatedAt: now,
+      } as AssetRow,
+    });
+  }
+  // A composed image: a descriptor with a recipe and no file of its name beside it.
+  const drawn = new Set(binaries.map((bin) => bin.path.replace(/\.[^.]+$/, "")));
+  for (const [stem, meta] of descriptors) {
+    const type = TYPE_BY_DIR[stem.slice(0, stem.lastIndexOf("/"))] ?? null;
+    if (type === null || drawn.has(stem)) continue;
+    // A YAML list is an object too, as for any descriptor: no recipe in it.
+    const compose = composeRecipe(meta);
+    if (!compose) continue;
+    const file = descriptorFiles.get(stem)!;
+    const name = stem.slice(stem.lastIndexOf("/") + 1);
+    const now = new Date();
+    out.push({
+      path: file.real,
+      hash: sha256(file.content),
+      compose,
+      row: {
+        id: name,
+        projectId: anchorProjectId,
+        type,
+        name,
+        usages: parseAssetUsages(meta.usages),
+        width: num(meta.width, 0) ?? 0,
+        height: num(meta.height, 0) ?? 0,
+        ascent: num(meta.ascent, null),
+        codepoint: num(meta.codepoint, null),
+        contentWidth: num(meta.content_width, null),
+        fontMeta: (meta.font_meta as AssetRow["fontMeta"]) ?? null,
+        contentHash: sha256(file.content),
         createdAt: now,
         updatedAt: now,
       } as AssetRow,

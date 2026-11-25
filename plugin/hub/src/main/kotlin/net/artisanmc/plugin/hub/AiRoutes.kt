@@ -22,6 +22,8 @@ class AiRoutes(
                     "attachments" to assistant?.attachments?.map { it.id }?.sorted(),
                     // On the linked account's credits: the editor shows the balance.
                     "cloud" to (setup.current().config.provider == AiConfig.ARTISAN),
+                    // The image model generate_image calls, when one is set: the assistant then offers pictures.
+                    "imageModel" to setup.current().images?.model?.model,
                 ),
             )
         }
@@ -37,6 +39,8 @@ class AiRoutes(
                         mapOf(
                             "linked" to true, "balance" to ai.balance, "buy" to ai.buy,
                             "models" to ai.models.map { mapOf("id" to it.id, "label" to it.label, "protocol" to it.protocol, "attachments" to it.attachments.map { k -> k.id }.sorted()) },
+                            // The image models generate_image may ask through the site, with their price in credits per picture.
+                            "imageModels" to ai.imageModels.map { mapOf("id" to it.id, "label" to it.label, "transparency" to it.transparency, "price" to it.price) },
                         ),
                     )
                 } catch (e: SiteFailure) {
@@ -117,6 +121,34 @@ class AiRoutes(
                 AiAssistant.Sent.TooLarge -> call.error(413, "ai_conversation_full")
             }
         }
+        // The player's answer to a question the assistant asked before a paid tool (generate_image): once, always or denied.
+        router.on("POST", "$CONVERSATIONS/:conversation/permissions/:request", EDIT) { call ->
+            val assistant = setup.assistant() ?: return@on call.error(404, "not_found")
+            val conversation = assistant.get(call.session!!, call.params.getValue("conversation")) ?: return@on call.error(404, "not_found")
+            val answer = call.body()?.path("answer")?.asText("")?.takeIf { it in AiAssistant.ANSWERS } ?: return@on call.error(422, "invalid_input", "answer")
+            if (conversation.answer(call.params.getValue("request"), answer)) call.json(mapOf("ok" to true)) else call.error(409, "ai_permission_closed")
+        }
+        // The paid tools the player always allows the assistant, and taking one back.
+        router.on("GET", PERMISSIONS, EDIT) { call ->
+            try {
+                call.json(mapOf("always" to setup.permissions.allowed(call.session!!.playerId).sorted()))
+            } catch (e: Exception) {
+                call.error(503, "database_unavailable")
+            }
+        }
+        router.on("DELETE", "$PERMISSIONS/:tool", EDIT) { call ->
+            try {
+                setup.permissions.set(call.session!!.playerId, call.params.getValue("tool"), false)
+                call.json(mapOf("always" to setup.permissions.allowed(call.session!!.playerId).sorted()))
+            } catch (e: Exception) {
+                call.error(503, "database_unavailable")
+            }
+        }
+        // A picture generate_image made for this player, while the hub keeps it: shown in the conversation.
+        router.on("GET", "$GENERATED/:name", EDIT) { call ->
+            val bytes = setup.generated.of(call.session!!.playerId)[call.params.getValue("name")] ?: return@on call.error(404, "not_found")
+            call.send(200, if (McpImages.lossy(bytes)) "image/jpeg" else "image/png", bytes)
+        }
         router.on("DELETE", "$CONVERSATIONS/:conversation", EDIT) { call ->
             val assistant = setup.assistant() ?: return@on call.error(404, "not_found")
             if (assistant.delete(call.session!!, call.params.getValue("conversation"))) call.json(mapOf("ok" to true))
@@ -142,6 +174,17 @@ class AiRoutes(
             "providers" to AiConfig.PROVIDERS.sorted(),
             "efforts" to EFFORTS,
             "defaultModel" to AiConfig.DEFAULT_MODEL,
+            // The image model generate_image calls; `provider` null: none.
+            "image" to mapOf(
+                "enabled" to (current.images != null),
+                "provider" to c.image.provider.ifBlank { null },
+                "model" to c.image.model,
+                "baseUrl" to c.image.baseUrl,
+                "dailyLimit" to c.image.dailyLimit,
+                "keyHint" to c.image.apiKey.takeIf { it.isNotBlank() }?.let { if (it.length >= 12) "…" + it.takeLast(4) else "…" },
+            ),
+            "imageProviders" to AiImageConfig.PROVIDERS.sorted(),
+            "imageDefaultModels" to AiImageConfig.DEFAULT_MODELS,
         )
     }
 
@@ -163,7 +206,14 @@ class AiRoutes(
      */
     private fun parse(body: com.fasterxml.jackson.databind.JsonNode, saved: AiConfig?): Parsed {
         fun text(field: String) = body.path(field).takeIf { it.isTextual }?.asText()?.trim()
+        // `image` left out (an editor that does not know it): the saved one stays.
+        val image = when (val parsed = if (body.has("image")) image(body.get("image"), saved?.image) else ParsedImage.Valid(saved?.image ?: AiImageConfig())) {
+            is ParsedImage.Invalid -> return Parsed.Invalid(parsed.code, parsed.field)
+            is ParsedImage.Valid -> parsed.config
+        }
         val provider = text("provider")?.lowercase().orEmpty()
+        // No assistant, an image model alone: what an MCP app's generate_image needs.
+        if (provider.isEmpty() && image.provider.isNotEmpty()) return Parsed.Valid(AiConfig(image = image))
         if (provider !in AiConfig.PROVIDERS) return Parsed.Invalid("invalid_input", "provider")
         val model = text("model").orEmpty()
         if (model.isEmpty() || model.length > 128 || model.any { it.isWhitespace() }) return Parsed.Invalid("invalid_input", "model")
@@ -172,14 +222,40 @@ class AiRoutes(
         val maxSteps = body.path("maxSteps").takeIf { it.isInt }?.asInt() ?: return Parsed.Invalid("invalid_input", "maxSteps")
         if (maxSteps !in 1..100) return Parsed.Invalid("invalid_input", "maxSteps")
         // artisanmc.net's models: no key, no address, the site link pays.
-        if (provider == AiConfig.ARTISAN) return Parsed.Valid(AiConfig(provider, "", model, effort, maxSteps, ""))
+        if (provider == AiConfig.ARTISAN) return Parsed.Valid(AiConfig(provider, "", model, effort, maxSteps, "", image))
         val baseUrl = text("baseUrl").orEmpty().trimEnd('/')
         if (baseUrl.isNotEmpty() && !validUrl(baseUrl)) return Parsed.Invalid("invalid_input", "baseUrl")
         val key = text("apiKey")?.takeIf { it.isNotEmpty() }
         if (key != null && (key.length > 500 || key.any { it.isWhitespace() })) return Parsed.Invalid("invalid_input", "apiKey")
         val kept = saved?.takeIf { it.provider == provider && it.baseUrl == baseUrl }?.apiKey?.takeIf { it.isNotBlank() }
         val apiKey = key ?: kept ?: return Parsed.Invalid(if (saved?.apiKey.isNullOrBlank()) "ai_key_missing" else "ai_key_required", "apiKey")
-        return Parsed.Valid(AiConfig(provider, apiKey, model, effort, maxSteps, baseUrl))
+        return Parsed.Valid(AiConfig(provider, apiKey, model, effort, maxSteps, baseUrl, image))
+    }
+
+    private sealed interface ParsedImage {
+        data class Valid(val config: AiImageConfig) : ParsedImage
+        data class Invalid(val code: String, val field: String) : ParsedImage
+    }
+
+    /** The `image` settings in [node] over the [saved] ones, its key kept like the assistant's; null or no provider: none. */
+    private fun image(node: com.fasterxml.jackson.databind.JsonNode, saved: AiImageConfig?): ParsedImage {
+        fun text(field: String) = node.path(field).takeIf { it.isTextual }?.asText()?.trim()
+        val provider = text("provider")?.lowercase().orEmpty()
+        if (node.isNull || provider.isEmpty()) return ParsedImage.Valid(AiImageConfig())
+        if (provider !in AiImageConfig.PROVIDERS) return ParsedImage.Invalid("invalid_input", "image.provider")
+        val model = text("model").orEmpty()
+        if (model.length > 128 || model.any { it.isWhitespace() }) return ParsedImage.Invalid("invalid_input", "image.model")
+        val baseUrl = text("baseUrl").orEmpty().trimEnd('/')
+        if (baseUrl.isNotEmpty() && !validUrl(baseUrl)) return ParsedImage.Invalid("invalid_input", "image.baseUrl")
+        val limit = node.get("dailyLimit")?.let { it.takeIf { n -> n.isInt }?.asInt()?.takeIf { n -> n in 0..10_000 } ?: return ParsedImage.Invalid("invalid_input", "image.dailyLimit") }
+            ?: AiImageConfig.DEFAULT_DAILY_LIMIT
+        // artisanmc.net's image models: no key, no address, the site link pays.
+        if (provider == AiImageConfig.ARTISAN) return ParsedImage.Valid(AiImageConfig(provider, "", model, "", limit))
+        val key = text("apiKey")?.takeIf { it.isNotEmpty() }
+        if (key != null && (key.length > 500 || key.any { it.isWhitespace() })) return ParsedImage.Invalid("invalid_input", "image.apiKey")
+        val kept = saved?.takeIf { it.provider == provider && it.baseUrl == baseUrl }?.apiKey?.takeIf { it.isNotBlank() }
+        val apiKey = key ?: kept ?: return ParsedImage.Invalid(if (saved?.apiKey.isNullOrBlank()) "ai_key_missing" else "ai_key_required", "image.apiKey")
+        return ParsedImage.Valid(AiImageConfig(provider, apiKey, model, baseUrl, limit))
     }
 
     /** A translation request within [AiTranslator]'s limits, or null. */
@@ -217,6 +293,8 @@ class AiRoutes(
         const val CONVERSATIONS = "/api/v1/ai/conversations"
         const val TRANSLATE = "/api/v1/ai/translate"
         const val CLOUD = "/api/v1/ai/cloud"
+        const val PERMISSIONS = "/api/v1/ai/permissions"
+        const val GENERATED = "/api/v1/ai/generated"
         const val MAX_MESSAGE = 8000
         /** A message with its files in base64 ([AiAttachment.MAX_MESSAGE]), and room for the JSON around them. */
         const val MAX_MESSAGE_BODY = 8_500_000

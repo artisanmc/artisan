@@ -76,6 +76,47 @@ appearance card; width and height edit the Element's existing `positions` into
 one complete rectangle. States share that footprint but keep independent images,
 conditions, title/lore and actions. Iteration and explicit placements are excluded.
 `domain/imageButton.ts` validates resize/move operations and rejects collisions.
+An image named `kit:<name>` is a UI kit image (`lib/pack/kit.ts`, ADR `mcp-server`, decision 14):
+no file of the module, never copied into it. `features/assets/kitAssets.ts` gives each one as an
+`Asset` whose id is that reference and whose `previewUrl` is the kit module's published file or
+the base Artisan ships; `useImageAsset` (buttons, inspector) and `useAssetsWithKit` (title
+layers) look an image up there, `KitPicker` chooses one. The kit module's files come from the
+server index through `state/kitStore`, so nothing here imports that feature.
+A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
+`compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
+descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)
+and gives it as `Asset.previewUrl` (a `data:` URL) with its size and its recipe
+(`Asset.compose`), so canvases and lists draw it like a PNG. `localAssets.ts` renames,
+duplicates and deletes it through its descriptor alone, and writes its recipe: a `compose`
+field on the create and patch requests (`composeAsset`, `patchAsset`), refused unless the pack
+reads back that very recipe (`requestedRecipe`). The kit module's composed images are assembled
+once per read of the module (`kitAssets.ts`, `composedKitImages`).
+The kit is shown in the theme the server's pack is built in (`lib/pack/theme.ts`, ADR
+`mcp-server`, decision 16): the server index loader reads `resource-pack.theme` into
+`state/kitStore` (the Configuration page updates it on save), `kitTheme.ts` reads that theme from
+the kit module's published files once per read, `useKitAssets` gives each kit image as the theme
+shows it (`themedKitAssets`: a `data:` URL where the picture changes, the same size, name and
+order), and a composed image is assembled over themed `kit:` layers (`composedView`). A
+module's own PNG is never recoloured, as in the pack.
+Its detail pane is the composer (`ComposedImageEditor.tsx`) in place of the plain stage: each
+layer is an element laid at its place in game pixels (a grid as a repeated background, so the
+browser draws what the pack will), dragged with the pointer (Shift: steps of one slot, 18 px)
+or nudged with the arrow keys; the list beside it orders, removes and adds layers (`KitPicker`
+for a kit image, `ImageChoiceDialog` for a PNG of the module). The size shown is `composeSize`,
+the pack's rule on the layers' sizes alone. Nothing is written before **Save layers**, one patch.
+`ComposeNewDialog` (Resources page, **Compose an image**) creates one from a kit window or a
+kit button.
+An image that has a PNG is retouched in the same pane (`PixelEditor.tsx`, **Retouch pixels**):
+its bytes are read once (`assetBytes.ts`) and decoded by the pack's own `decodePng`, never
+through a canvas, whose premultiplied alpha would change translucent pixels. The tools are pure
+functions on that `RgbaImage` (`pixelTools.ts`: `paint`, `paintLine` so a fast stroke leaves no
+gap, `fill` by four neighbours, `colours`); the picture shown is the PNG encoded again after
+each change, as a `data:` URL. Undo keeps one copy of the image per stroke (50 at most). The
+palette is the image's colours and a few from each kit image (`useKitColours`). Saving is an
+upload under the same name with `retouch` (`localAssets.ts`): like a reimport it keeps
+codepoint, ascent and usages, and it also keeps the size the image is shown at (a glyph scaled
+to another height), refusing a file of another size. `PixelNewDialog` (**Draw an image**)
+uploads an empty PNG of the chosen size and opens the editor on it.
 `ImageButtonsRender` draws the display image once and drags the whole rectangle. On release,
 the slot under the pointer (`hitTestSlot`, any menu of the Project) receives the cell of the
 button held at mouse-down (`imageButtonOrigin`, in grid cells so the gaps above the player rows
