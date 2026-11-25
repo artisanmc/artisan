@@ -25,12 +25,14 @@ import {
 import { type AssetUsage, parseAssetUsages } from "@/lib/pack/assetUsages";
 import { type ComposeRecipe, composeRecipe, composeYaml } from "@/lib/pack/compose";
 import { type DiskAsset, diskAssetsFromTree } from "@/lib/pack/diskAssets";
+import { KIT_FOLDER, kitSlot } from "@/lib/pack/kit";
 import { FONT_DESCRIPTOR, fontDir, fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
 import { type ParsedMcFont, parseMcFontsZip } from "@/lib/pack/mcFontsParser";
 import { readPngContentWidth, readPngDimensions } from "@/lib/pack/pngDimensions";
 import type { AssetRow } from "@/lib/pack/resourcePackBuilder";
 import { sha256Hex } from "@/lib/sha256";
 import { useKitStore } from "@/state/kitStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { parse, stringify } from "yaml";
 import { type ComposedView, composedView } from "./composedAssets";
 import { activeKitTheme } from "./kitTheme";
@@ -41,6 +43,13 @@ import { activeKitTheme } from "./kitTheme";
  */
 
 const NAME_RE = /^[a-z0-9_-]+$/;
+
+/** Whether `projectId` is the server's UI kit module (`ui-kit`), published or still a draft. */
+export function isKitModule(projectId: string): boolean {
+  if (useKitStore.getState().read?.projectId === projectId) return true;
+  const open = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
+  return !!open && (open.diskId ?? open.id) === KIT_FOLDER;
+}
 const MAX_RAW_BYTES = 2 * 1024 * 1024;
 const MAX_FONT_BYTES = 5 * 1024 * 1024;
 const WRITE_ERRORS = [
@@ -450,7 +459,9 @@ async function create(
   const ascentRaw = fields.ascent ?? null;
   if (!["texture", "glyph", "font"].includes(type))
     fail(400, "Invalid type (must be texture, glyph, or font)");
-  if (!NAME_RE.test(name)) fail(400, "Invalid name (must match [a-z0-9_-]+)");
+  // In the kit module, an image named as a slot of the base replaces it on this server.
+  if (!NAME_RE.test(name) && !(isKitModule(projectId) && kitSlot(name)))
+    fail(400, "Invalid name (must match [a-z0-9_-]+)");
   let usages: AssetUsage[] | undefined;
   if (fields.usages !== undefined) {
     try {

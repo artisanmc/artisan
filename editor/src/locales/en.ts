@@ -15,7 +15,7 @@ import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
-    view: { files: "Images and fonts", captured: "Captured items" },
+    view: { files: "Images and fonts", kit: "UI kit", captured: "Captured items" },
     capturedHint:
       "Items captured in game. Place one on a menu from the Buttons panel of the canvas, or pick it in an item field.",
     all: "All",
@@ -74,6 +74,10 @@ export default {
     layerLabel: "Layer {{n}}: {{name}}",
     addKit: "Kit piece",
     addImage: "Module image",
+    addDrawn: "Draw a layer",
+    retouchLayer: "Retouch this layer",
+    drawing:
+      "Drawing the layer {{name}}, among the other layers. The ones above it are shown through.",
     chooseImage: "Choose an image of this module",
     chooseImageHint: "A PNG of this module. A composed image cannot be a layer of another.",
     noImage: "This module has no image yet.",
@@ -132,6 +136,30 @@ export default {
     fromKit: "UI kit",
     choose: "Choose a kit image",
     hint: "Images every server has, and this server's own kit images. The menu names the image: it follows the kit when the server restyles it.",
+    panel: {
+      intro:
+        "The images the server's menus share. A menu names one kit:<name>; redraw it once and every menu that names it follows.",
+      here: "This module is the server's kit. Redraw a piece to restyle it everywhere; its size stays the same, so the menus keep their layout. Changes reach players when you deploy.",
+      elsewhere: "The pieces are redrawn in the server's kit module.",
+      none: "This server has no kit module yet: every piece is Artisan's.",
+      open: "Open the kit module",
+      create: "Create the kit module",
+      failed: "That did not work: {{detail}}",
+      base: "Base",
+      shipped: "Artisan",
+      redrawn: "Redrawn",
+      redraw: "Redraw",
+      retouch: "Retouch",
+      restore: "Back to Artisan's",
+      others: "This server's other kit images",
+      noOthers: "None yet. An image added to the kit module is named kit:<its name> by any menu.",
+      show: "Open",
+      themes: "Themes",
+      noThemes: "No theme yet.",
+      themeInPlace: "{{name}} (in place)",
+      themesHint:
+        "A theme is a folder of the kit module (themes/<name>/). The one the pack is built in is chosen in the server's settings.",
+    },
   },
   imageButton: {
     search: "Search images…",

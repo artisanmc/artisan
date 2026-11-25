@@ -17,7 +17,7 @@ import { variablesFr } from "./variables";
 const fr: typeof en = {
   onboarding: onboardingFr,
   resources: {
-    view: { files: "Images et polices", captured: "Items capturés" },
+    view: { files: "Images et polices", kit: "Kit d'interface", captured: "Items capturés" },
     capturedHint:
       "Items capturés en jeu. Pose-en un sur un menu depuis le panneau Boutons du canvas, ou choisis-le dans un champ item.",
     all: "Tout",
@@ -77,6 +77,10 @@ const fr: typeof en = {
     layerLabel: "Calque {{n}} : {{name}}",
     addKit: "Pièce du kit",
     addImage: "Image du module",
+    addDrawn: "Dessiner un calque",
+    retouchLayer: "Retoucher ce calque",
+    drawing:
+      "Dessin du calque {{name}}, parmi les autres calques. Ceux du dessus sont montrés en transparence.",
     chooseImage: "Choisir une image de ce module",
     chooseImageHint:
       "Un PNG de ce module. Une image composée ne peut pas être le calque d’une autre.",
@@ -137,6 +141,31 @@ const fr: typeof en = {
     fromKit: "Kit d'interface",
     choose: "Choisir une image du kit",
     hint: "Les images que tout serveur possède, et celles du kit de ce serveur. Le menu nomme l'image : elle suit le kit quand le serveur le redessine.",
+    panel: {
+      intro:
+        "Les images que les menus du serveur partagent. Un menu en nomme une kit:<nom> ; redessinez-la une fois et tous les menus qui la nomment suivent.",
+      here: "Ce module est le kit du serveur. Redessinez une pièce pour la changer partout ; sa taille reste la même, donc les menus gardent leur mise en page. Les joueurs voient le changement au déploiement.",
+      elsewhere: "Les pièces se redessinent dans le module du kit du serveur.",
+      none: "Ce serveur n'a pas encore de module de kit : chaque pièce est celle d'Artisan.",
+      open: "Ouvrir le module du kit",
+      create: "Créer le module du kit",
+      failed: "Cela n'a pas fonctionné : {{detail}}",
+      base: "Socle",
+      shipped: "Artisan",
+      redrawn: "Redessinée",
+      redraw: "Redessiner",
+      retouch: "Retoucher",
+      restore: "Remettre celle d'Artisan",
+      others: "Les autres images du kit de ce serveur",
+      noOthers:
+        "Aucune pour l'instant. Une image ajoutée au module du kit se nomme kit:<son nom> dans n'importe quel menu.",
+      show: "Ouvrir",
+      themes: "Thèmes",
+      noThemes: "Aucun thème pour l'instant.",
+      themeInPlace: "{{name}} (en place)",
+      themesHint:
+        "Un thème est un dossier du module du kit (themes/<nom>/). Celui dans lequel le pack est construit se choisit dans les réglages du serveur.",
+    },
   },
   imageButton: {
     search: "Rechercher une image…",

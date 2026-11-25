@@ -204,6 +204,17 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           <AssetsTab
             projectId={pId}
             capturedItems={<CapturedItemsSection projectId={pId} onPick={NO_PICK} />}
+            serverId={runtime?.serverId ?? undefined}
+            onOpenProject={
+              serverId
+                ? (target) =>
+                    navigate({
+                      to: "/servers/$serverId/projects/$projectId",
+                      params: { serverId, projectId: target },
+                      search: { tab: "resources" },
+                    })
+                : undefined
+            }
           />
         </WorkspaceView>
         <WorkspaceView

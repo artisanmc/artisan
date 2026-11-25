@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type Asset, assetPreviewUrl } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
-import { patchAsset } from "@/lib/api/userAssets";
+import { patchAsset, uploadAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
 import {
   COMPOSE_MAX_LAYERS,
@@ -13,6 +13,7 @@ import {
   composeSize,
 } from "@/lib/pack/compose";
 import { KIT_PREFIX, kitNameOf } from "@/lib/pack/kit";
+import { createImage, encodePng } from "@/lib/pack/png";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
 import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
@@ -27,6 +28,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { ImageChoiceDialog, KitPicker } from "./KitPicker";
+import { PixelEditor } from "./PixelEditor";
 import { useAssetStore } from "./assetStore";
 import { useKitAssets } from "./kitAssets";
 import { type ImageSize, assetSize, useAssetSize, useMeasuredAssetSizes } from "./measuredSize";
@@ -96,6 +98,45 @@ function StageLayer({
   );
 }
 
+/**
+ * A layer shown around the one being drawn (`PixelEditor`'s `around`): placed from that layer's
+ * top left corner, at the pixel editor's zoom, and out of the pointer's way.
+ */
+function AroundLayer({
+  asset,
+  layer,
+  from,
+  zoom,
+  faint,
+}: {
+  asset: Asset;
+  layer: ComposeLayer;
+  from: ComposeLayer;
+  zoom: number;
+  faint: boolean;
+}) {
+  const url = useAuthenticatedImageUrl(assetPreviewUrl(asset));
+  const size = useAssetSize(asset, url);
+  if (!size) return null;
+  return (
+    <span
+      aria-hidden
+      data-testid="compose-around"
+      className={cx("pointer-events-none absolute", faint && "opacity-50")}
+      style={{
+        left: (layer.x - from.x) * zoom,
+        top: (layer.y - from.y) * zoom,
+        width: layer.columns * size.width * zoom,
+        height: layer.rows * size.height * zoom,
+        backgroundImage: url ? `url("${url}")` : undefined,
+        backgroundSize: `${size.width * zoom}px ${size.height * zoom}px`,
+        backgroundRepeat: "repeat",
+        imageRendering: "pixelated",
+      }}
+    />
+  );
+}
+
 function NumberField({
   label,
   value,
@@ -132,8 +173,10 @@ function NumberField({
  * A composed image edited with the mouse (`lib/pack/compose.ts`): its layers on a stage at a
  * whole number of times the game's pixels, and listed from the top one down. A layer is dragged
  * (Shift: by one slot), nudged with the arrow keys, repeated as a grid, reordered and removed;
- * a new one is a kit image or a PNG of the module. What is saved is the recipe itself, so what
- * an AI app composed is edited here, and the other way round.
+ * a new one is a kit image, a PNG of the module, or one drawn here: an empty PNG of the image's
+ * size added on top and opened in the pixel editor among the other layers, as any PNG layer of
+ * the module is retouched. What is saved is the recipe itself, so what an AI app composed is
+ * edited here, and the other way round.
  */
 export function ComposedImageEditor({ projectId, asset }: { projectId: ProjectId; asset: Asset }) {
   const { t } = useTranslation();
@@ -150,6 +193,8 @@ export function ComposedImageEditor({ projectId, asset }: { projectId: ProjectId
   const [picker, setPicker] = useState<"kit" | "module" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The layer being drawn pixel by pixel, in place of the stage. */
+  const [drawing, setDrawing] = useState<number | null>(null);
   // Another recipe under this asset (saved, or changed by someone else): start again from it.
   useEffect(() => {
     setRecipe(saved);
@@ -270,10 +315,84 @@ export function ComposedImageEditor({ projectId, asset }: { projectId: ProjectId
     }
   };
 
+  /**
+   * A layer to draw: an empty PNG of the image's size, a file of the module, on top of the
+   * others. The recipe is saved with it, so the file never stays without the layer that shows it.
+   */
+  const draw = async () => {
+    if (!user || busy || recipe.layers.length >= COMPOSE_MAX_LAYERS) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const taken = new Set(all.filter((a) => a.projectId === projectId).map((a) => a.name));
+      let name = `${asset.name}_layer`;
+      for (let n = 2; taken.has(name); n++) name = `${asset.name}_layer_${n}`;
+      const png = encodePng(createImage(size?.width ?? SLOT, size?.height ?? SLOT));
+      const made = await uploadAsset(projectId, {
+        file: new File([png as Uint8Array<ArrayBuffer>], `${name}.png`, { type: "image/png" }),
+        type: "glyph",
+        name,
+        usages: [],
+      });
+      upsertAsset(made);
+      const next = {
+        ...recipe,
+        layers: [...recipe.layers, { image: made.name, x: 0, y: 0, columns: 1, rows: 1 }],
+      };
+      setRecipe(next);
+      upsertAsset(await patchAsset(projectId, asset.id, { compose: next }));
+      setDrawing(next.layers.length - 1);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const labelOf = (layer: ComposeLayer) =>
     kitNameOf(layer.image) !== null ? layer.image.slice(KIT_PREFIX.length) : layer.image;
   const current = selected === null ? undefined : recipe.layers[selected];
   const fixed = recipe.width !== null && recipe.height !== null;
+
+  const drawn = drawing === null ? undefined : recipe.layers[drawing];
+  const drawnImage = drawn && kitNameOf(drawn.image) === null ? imageOf(drawn.image) : undefined;
+  if (drawn && drawnImage && drawing !== null) {
+    const around = (zoom: number) => {
+      const shown = (from: number, to: number, faint: boolean) =>
+        recipe.layers.slice(from, to).map((layer, i) => {
+          const image = imageOf(layer.image);
+          return image ? (
+            <AroundLayer
+              // biome-ignore lint/suspicious/noArrayIndexKey: layers have no identity but their place in the stack
+              key={from + i}
+              asset={image}
+              layer={layer}
+              from={drawn}
+              zoom={zoom}
+              faint={faint}
+            />
+          ) : null;
+        });
+      // The layers above are shown through, so what is drawn under them stays visible.
+      return {
+        under: shown(0, drawing, false),
+        over: shown(drawing + 1, recipe.layers.length, true),
+      };
+    };
+    return (
+      <div className="flex flex-col gap-2" data-testid="compose-drawing">
+        <p className="text-xs text-[var(--text-mut)]">
+          {t("compose.drawing", { name: drawn.image })}
+        </p>
+        <PixelEditor
+          projectId={projectId}
+          asset={drawnImage}
+          onClose={() => setDrawing(null)}
+          around={around}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3" data-testid="compose-editor">
@@ -322,12 +441,20 @@ export function ComposedImageEditor({ projectId, asset }: { projectId: ProjectId
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-2">
           <span className="field-label">{t("compose.layers")}</span>
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap justify-end gap-1.5">
             <Button size="sm" variant="outline" onClick={() => setPicker("kit")}>
               {t("compose.addKit")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setPicker("module")}>
               {t("compose.addImage")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!user || busy || recipe.layers.length >= COMPOSE_MAX_LAYERS}
+              onClick={() => void draw()}
+            >
+              {t("compose.addDrawn")}
             </Button>
           </div>
         </div>
@@ -430,6 +557,17 @@ export function ComposedImageEditor({ projectId, asset }: { projectId: ProjectId
             max={COMPOSE_MAX_REPEAT}
             onChange={(rows) => update(selected, { rows })}
           />
+          {kitNameOf(current.image) === null && imageOf(current.image) ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="self-end"
+              disabled={!user}
+              onClick={() => setDrawing(selected)}
+            >
+              {t("compose.retouchLayer")}
+            </Button>
+          ) : null}
         </div>
       )}
 

@@ -19,6 +19,7 @@ import { AssetImportNexoDialog } from "./AssetImportNexoDialog";
 import { AssetStage } from "./AssetStage";
 import { AssetUploadDialog } from "./AssetUploadDialog";
 import { ComposeNewDialog } from "./ComposeNewDialog";
+import { KitPanel } from "./KitPanel";
 import { PixelNewDialog } from "./PixelNewDialog";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
@@ -45,14 +46,26 @@ function matchesFilter(
   return true;
 }
 
-/** What the Resources tab shows: the module's files (images, fonts) or its captured items. */
-export type ResourcesView = "files" | "captured";
+/**
+ * What the Resources tab shows: the module's files (images, fonts), the server's UI kit, or the
+ * module's captured items.
+ */
+export type ResourcesView = "files" | "kit" | "captured";
 
 /** The tab's view, settable from elsewhere (the module home opens it on the captured items). */
 export const useResourcesView = create<{
   view: ResourcesView;
   setView: (view: ResourcesView) => void;
-}>((set) => ({ view: "files", setView: (view) => set({ view }) }));
+  /** The image whose detail opens on the pixel editor: one the kit view just made to be redrawn. */
+  retouch: string | null;
+  /** Opens the files on `id`, in the pixel editor. */
+  retouchImage: (id: string) => void;
+}>((set) => ({
+  view: "files",
+  setView: (view) => set({ view }),
+  retouch: null,
+  retouchImage: (retouch) => set({ view: "files", retouch }),
+}));
 
 const DETAIL_WIDTH = 400;
 const MIN_DETAIL = 260;
@@ -142,11 +155,17 @@ export function AssetsTab({
   projectId,
   compact = false,
   capturedItems,
+  serverId,
+  onOpenProject,
 }: {
   projectId: ProjectId;
   compact?: boolean;
   /** The captured view's content, given by the page (the section lives with the canvas). */
   capturedItems?: ReactNode;
+  /** The server being edited: where the kit view creates the kit module. */
+  serverId?: string;
+  /** Opens another module of the server on its resources: the kit view's way to the kit module. */
+  onOpenProject?: (projectId: string) => void;
 }) {
   const { t } = useTranslation();
   const [sourceId, setSourceId] = useState<ProjectSourceId>(null);
@@ -155,9 +174,10 @@ export function AssetsTab({
   const captured = useProjectsStore(
     (s) => s.openProjects.projects.find((p) => p.id === projectId)?.capturedItems?.length ?? 0,
   );
-  const tabs = capturedItems ? (
+  const views: ResourcesView[] = capturedItems ? ["files", "kit", "captured"] : ["files", "kit"];
+  const tabs = (
     <div className="flex shrink-0 gap-1 px-3 pt-3" role="tablist" data-testid="resources-views">
-      {(["files", "captured"] as const).map((entry) => (
+      {views.map((entry) => (
         <button
           key={entry}
           type="button"
@@ -173,7 +193,17 @@ export function AssetsTab({
         </button>
       ))}
     </div>
-  ) : null;
+  );
+  if (view === "kit") {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        {tabs}
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <KitPanel projectId={projectId} serverId={serverId} onOpenProject={onOpenProject} />
+        </div>
+      </div>
+    );
+  }
   if (view === "captured" && capturedItems) {
     return (
       <div className="flex h-full min-h-0 flex-col">
@@ -404,6 +434,7 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
   const [drawOpen, setDrawOpen] = useState(false);
   /** The image just created to be drawn: its detail opens on the pixel editor. */
   const [drawn, setDrawn] = useState<string | null>(null);
+  const retouch = useResourcesView((s) => s.retouch);
 
   const filtered = assets.filter((asset) =>
     matchesFilter(asset, projectId, project, search, category),
@@ -465,7 +496,7 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
             <AssetDetailPanel
               key={`${projectId}:${selectedId}`}
               projectId={projectId}
-              retouch={selectedId === drawn}
+              retouch={selectedId === drawn || selectedId === retouch}
             />
           ) : null
         }

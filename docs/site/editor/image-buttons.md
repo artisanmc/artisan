@@ -33,6 +33,15 @@ takes that area. A title's image layer offers the same list, with the kit's wind
 (see [AI](../../configuration/ai/), "Themes"), the editor shows these images in that theme, as
 players see them.
 
+**The kit in the Resources page.** The **UI kit** view of a module's Resources page shows every
+piece of the base with its name and size, and who drew it: **Artisan**, or this server
+(**Redrawn**). Below are the server's other kit images and the themes of its kit, the one in
+place marked. From any module, **Open the kit module** leads to the `ui-kit` module, and
+**Create the kit module** makes it on a server that has none. In the kit module, **Redraw**
+copies Artisan's image under the piece's name and opens it in the pixel editor; the size stays
+the piece's, so the menus keep their layout. **Back to Artisan's** removes your image. Like any
+change, a redrawn piece reaches players when the draft is deployed and the pack rebuilt.
+
 **Composed images.** An image may be a recipe instead of a PNG: a `compose:` list in its
 `.yml`, which stacks kit images and PNGs of the module (see
 [AI](../../configuration/ai/), "Composed images"). The Resources page lists it with its picture
@@ -45,6 +54,12 @@ keys for one pixel), reorder or remove layers in the list, add a **Kit piece** o
 **Module image**. A layer repeats with **Columns** and **Rows** (the slots of a window: a grid
 of `kit:cell`). The image is as large as its bottom layer reaches unless you give it a
 **Fixed size**; what goes past is cut. **Save layers** writes the recipe into your draft.
+
+**Draw a layer** adds an empty image of the composed image's size on top of the others, saves
+the recipe, and opens the pixel editor on it: you draw among the other layers, the ones above
+shown through. The layer is a PNG of the module (`<image>_layer`), and the image stays a
+recipe, so it still follows the kit. **Retouch this layer** does the same for any layer that is
+a PNG of the module; a kit piece is redrawn in the kit module.
 
 **Natural size** is the default for new buttons: an 8×8 PNG stays 8×8 and is centered.
 Use **Horizontal/Vertical offset (px)** to move it within the area, or **Center image**

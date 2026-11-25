@@ -8,7 +8,15 @@ import { cx } from "@/lib/cx";
 import { type RgbaImage, decodePng, encodePng } from "@/lib/pack/png";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { Eraser, PaintBucket, Pencil, Pipette, Redo2, Undo2, ZoomIn, ZoomOut } from "lucide-react";
-import { type KeyboardEvent, type PointerEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { assetBytes } from "./assetBytes";
 import { useAssetStore } from "./assetStore";
@@ -136,10 +144,16 @@ export function PixelEditor({
   projectId,
   asset,
   onClose,
+  around,
 }: {
   projectId: ProjectId;
   asset: Asset;
   onClose: () => void;
+  /**
+   * What the image is drawn among, at the editor's zoom: `under` it and `over` it, each placed
+   * from the image's top left corner and cut to its area. A composed image's other layers.
+   */
+  around?: (zoom: number) => { under: ReactNode; over: ReactNode };
 }) {
   const { t } = useTranslation();
   const user = useProjectPrincipalId(projectId);
@@ -356,6 +370,7 @@ export function PixelEditor({
   };
 
   const side = { width: current.width * zoom, height: current.height * zoom };
+  const context = around?.(zoom);
   return (
     <div className="flex flex-col gap-3" data-testid="pixel-editor" onKeyDown={onKeyDown}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -429,20 +444,22 @@ export function PixelEditor({
             type="button"
             aria-label={t("pixel.canvas", { name: asset.name })}
             data-testid="pixel-canvas"
-            className="relative m-auto block shrink-0 cursor-crosshair touch-none border-0 bg-transparent p-0 outline outline-1 outline-[var(--border-strong)] focus-visible:outline-[var(--brand)]"
+            className="relative m-auto block shrink-0 cursor-crosshair touch-none overflow-hidden border-0 bg-transparent p-0 outline outline-1 outline-[var(--border-strong)] focus-visible:outline-[var(--brand)]"
             style={side}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
           >
+            {context?.under}
             <img
               src={picture}
               alt=""
               draggable={false}
-              className="pointer-events-none block max-w-none select-none"
+              className="pointer-events-none relative block max-w-none select-none"
               style={{ ...side, imageRendering: "pixelated" }}
             />
+            {context?.over}
             {zoom >= GRID_FROM && (
               <span
                 aria-hidden

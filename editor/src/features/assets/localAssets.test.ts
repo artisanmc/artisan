@@ -5,6 +5,7 @@ import { DraftApiError } from "@/lib/api/projectDrafts";
 import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import { createImage, decodePng, encodePng } from "@/lib/pack/png";
 import { sha256Hex } from "@/lib/sha256";
+import { useKitStore } from "@/state/kitStore";
 import { strToU8, zipSync } from "fflate";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
@@ -222,6 +223,35 @@ describe("performLocalAssetMutation", () => {
     );
     expect(badPng.code).toBe("Invalid PNG");
     expect(hub.calls.filter((call) => !call.startsWith("GET"))).toEqual([]);
+  });
+
+  it("takes a name of the kit's base in the kit module only", async () => {
+    const hub = fakeHub(empty());
+    const refused = await rejection(
+      performLocalAssetMutation(
+        "p",
+        createOp(hub, { type: "glyph", name: "button.3x1" }, png(54, 18)),
+      ),
+    );
+    expect(refused.code).toBe("Invalid name (must match [a-z0-9_-]+)");
+
+    useKitStore.setState({ read: { projectId: "p", files: {}, binaries: [] } });
+    try {
+      const result = await performLocalAssetMutation(
+        "p",
+        createOp(hub, { type: "glyph", name: "button.3x1" }, png(54, 18)),
+      );
+      expect(result.asset).toMatchObject({ id: "button.3x1", width: 54, height: 18 });
+      const other = await rejection(
+        performLocalAssetMutation(
+          "p",
+          createOp(hub, { type: "glyph", name: "my.logo" }, png(4, 4)),
+        ),
+      );
+      expect(other.status).toBe(400);
+    } finally {
+      useKitStore.setState({ read: undefined });
+    }
   });
 
   it("unpacks a font zip into one PNG per glyph plus font.yml", async () => {

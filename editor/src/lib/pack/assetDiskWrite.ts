@@ -3,6 +3,7 @@ import { parse, stringify } from "yaml";
 import type { AssetUsage } from "./assetUsages";
 import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
 import type { DiskAsset } from "./diskAssets";
+import { kitSlot } from "./kit";
 
 /** Pure asset descriptors and discovery types; ProjectAssets owns storage operations. */
 
@@ -12,8 +13,12 @@ const DIR_BY_TYPE: Record<string, string> = {
   font: "assets/fonts",
 };
 
-/** File name = identity. An asset name is already constrained; this confirms it. */
+/**
+ * File name = identity. An asset name is already constrained; this confirms it. A name of the
+ * kit's base (`button.3x1`, taken in the kit module only) is kept with its dots.
+ */
 export function assetFileName(name: string): string {
+  if (kitSlot(name)) return name;
   return (
     name
       .toLowerCase()
