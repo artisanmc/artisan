@@ -36,8 +36,9 @@ export interface ProjectSummary {
    *  Groups the project under "Installed modules" instead of the flat list. */
   ownerModule?: string | null;
   /** `config`: a module's configuration root (`registerConfig`), listed under the
-   *  module and not among Projects. Absent for content. */
-  role?: "config" | null;
+   *  module and not among Projects. `theme`: a theme (`themes/<name>/`, ADR
+   *  `common-images-and-themes`), which is no module. Absent for content. */
+  role?: "config" | "theme" | null;
 }
 
 /** The hub's servers, its own first: ids, labels, presence and versions. Rejects with an `ApiError`. */

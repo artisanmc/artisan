@@ -8,7 +8,7 @@ import { type ServerConfig, getServerConfig, patchServerConfig } from "@/lib/api
 import type { ProjectSummary } from "@/lib/api/servers";
 import { listAssets } from "@/lib/api/userAssets";
 import { SERVER_PALETTE_KEYS, serverPaletteEntries, serverPaletteForm } from "@/lib/mm/palettes";
-import { KIT_FOLDER } from "@/lib/pack/kit";
+import { kitProjectAmong } from "@/lib/pack/kit";
 import { THEME_CONFIG_KEY, configuredTheme, themeNames } from "@/lib/pack/theme";
 import { projectClient } from "@/lib/projectClient";
 import { useKitStore } from "@/state/kitStore";
@@ -82,8 +82,8 @@ export function ServerConfigSection({
     };
   }, [projects]);
 
-  // The themes the pack can be built in: the folders of the kit module's `themes/`.
-  const kitId = projects.find((p) => (p.externalId ?? p.id) === KIT_FOLDER)?.id;
+  // The themes the pack can be built in: the folders of `themes/` in the common images' Project.
+  const kitId = kitProjectAmong(projects, (p) => p.externalId ?? p.id)?.id;
   useEffect(() => {
     setThemes([]);
     if (!kitId) return;

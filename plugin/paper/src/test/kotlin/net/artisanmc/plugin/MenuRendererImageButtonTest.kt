@@ -72,7 +72,8 @@ class MenuRendererImageButtonTest {
             val session = MenuRenderer.open(player, menu, "en", lookupAsset = { key ->
                 keys.add(key); AssetEntry(key, "glyph", 0xe000, -4, 36, 54, "artisan:$key")
             })
-            assertEquals(setOf(layout.assetKey(ImageButtonYaml(asset))), keys)
+            // The name itself is asked first: a name no module holds is a common image's ([ImageRefs]).
+            assertEquals(setOf(asset, layout.assetKey(ImageButtonYaml(asset))), keys)
             assertEquals(setOf(0, 1, 2, 9, 10, 11), session.activeClicks.keys)
             session.activeClicks.values.forEach { assertEquals(setOf(click), it.keys) }
         }

@@ -9,7 +9,7 @@ import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { useServerFrame } from "@/features/serverPage/serverFrame";
 import { createProject } from "@/lib/api/servers";
-import { KIT_FOLDER, KIT_PREFIX } from "@/lib/pack/kit";
+import { KIT_LEGACY_FOLDER, KIT_PREFIX } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
@@ -86,8 +86,9 @@ function ServerKitTab() {
               : undefined
           }
           onOpenKit={kitId ? () => void openKit(kitId) : undefined}
+          // Only a server older than the theme `artisan` has none: there the images live in a module, which the update moves.
           onCreateKit={async () => {
-            const project = await createProject(serverKeyId, KIT_FOLDER);
+            const project = await createProject(serverKeyId, KIT_LEGACY_FOLDER);
             await openKit(project.id);
           }}
         />

@@ -270,7 +270,7 @@ class McpTest {
             for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
         }.let(net.artisanmc.plugin.pack.Png::encode)
         modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/shop_icon.png" to solid(16, 16, 0x3366cc)))
-        modules["ui-kit"] = McpFixtures.Module(
+        modules["artisan"] = McpFixtures.Module(
             files = mapOf("data/ui-kit.yml" to "notes: Vanilla bevel, no black outline.\n", "menus/demo.yml" to "schema: menu/v1\nsize: 9\nelements:\n  - positions: \"0\"\n    image: { asset: kit_button }\n"),
             images = mapOf(
                 "assets/textures/kit_button.png" to solid(54, 18, 0x20c040), "originals/assets/textures/kit_button.png" to solid(54, 18, 0x000000),
@@ -282,7 +282,7 @@ class McpTest {
         val survey = tool(access, "survey_ui", "server" to "u-local")
         assertFalse(survey.has("isError"), survey.toString())
         val facts = survey["structuredContent"]
-        assertEquals(listOf("u-local.shop", "u-local.ui-kit"), facts["modules"].map { it["project"].asText() })
+        assertEquals(listOf("u-local.shop", "u-local.artisan"), facts["modules"].map { it["project"].asText() })
         // The kit's own button, not the one it shipped with; numbered across the modules.
         val kitImages = facts["modules"][1]["images"]
         assertEquals(listOf("kit_window" to "background", "kit_button" to "button"), kitImages.map { it["name"].asText() to it["use"].asText() })
@@ -290,7 +290,7 @@ class McpTest {
         assertEquals(listOf("menus/demo.yml"), facts["modules"][1]["menus_with_images"].map { it.asText() })
         assertEquals("#c6c6c6", facts["colours"][0]["colour"].asText(), "the colour most pixels have")
         assertTrue("Vanilla bevel" in facts["kit"]["content"].asText())
-        assertEquals("u-local.ui-kit", facts["kit"]["project"].asText())
+        assertEquals("u-local.artisan", facts["kit"]["project"].asText())
         assertEquals(listOf("text", "image", "image", "image"), survey["content"].map { it["type"].asText() }, "one sheet per module, one for the base")
 
         // A menu of the shop that names the kit's button draws it: an image is found on the whole server.
@@ -304,10 +304,55 @@ class McpTest {
         val at = ((window["y"].asInt() + 17 + 9) * shown.width + window["x"].asInt() + 7 + 27) * 4
         assertEquals(listOf(0x20, 0xc0, 0x40), shown.data.slice(at until at + 3).map { it.toInt() and 0xff })
 
-        // A server without a kit is told how one is made.
-        modules.remove("ui-kit")
-        assertTrue("create_module" in tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"]["how"].asText())
+        // A server whose Artisan is older than the theme `artisan` has no common images of its own.
+        modules.remove("artisan")
+        assertTrue("older" in tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"]["how"].asText())
         assertTrue(tool(access, "survey_ui", "server" to "nowhere")["isError"].asBoolean())
+    }
+
+    @Test
+    fun `the base is the one the theme artisan holds, and a menu reaches a common image by its name alone`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/panel.3x1.png" to solid(54, 18, 0x3366cc)))
+        modules["artisan"] = McpFixtures.Module(
+            images = mapOf(
+                // The base as this server holds it, and an image the server added.
+                "originals/assets/textures/button.3x1.png" to solid(54, 18, 0x20c040),
+                "originals/assets/textures/panel.3x1.png" to solid(54, 18, 0x804020),
+                "assets/textures/ribbon.png" to solid(54, 18, 0xc020a0),
+            ),
+        )
+        val (access, _) = tokens()
+
+        // The base is no image of the theme's own: it is listed once, as Artisan's.
+        val facts = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
+        val common = facts["modules"].first { it["project"].asText() == "u-local.artisan" }
+        assertEquals(listOf("ribbon"), common["images"].map { it["name"].asText() })
+        val button = facts["kit_base"]["images"].first { it["image"].asText() == "kit:button.3x1" }
+        assertEquals("artisan", button["drawn_by"].asText())
+
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: common")["structuredContent"]["draft_id"].asText()
+        val menu = "schema: menu/v1\nsize: 18\nvanilla_texture: false\nelements:\n" +
+            "  - positions: \"0-2\"\n    image: { asset: button.3x1 }\n" +
+            "  - positions: \"3-5\"\n    image: { asset: ribbon }\n" +
+            "  - positions: \"6-8\"\n    image: { asset: panel.3x1 }\n" +
+            "  - positions: \"9-11\"\n    image: { asset: 'artisan:panel.3x1' }\n" +
+            "  - positions: \"12-14\"\n    image: { asset: 'kit:ribbon' }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/common.yml", "content" to menu).has("isError"))
+        val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/common.yml", "draft_id" to draftId, "scale" to 1)
+        val window = rendered["structuredContent"]["window"]
+        val shown = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+        fun colour(column: Int, row: Int): Int {
+            val at = ((window["y"].asInt() + 17 + 9 + row * 18) * shown.width + window["x"].asInt() + 7 + 27 + column * 18) * 4
+            return shown.data.slice(at until at + 3).fold(0) { rgb, byte -> (rgb shl 8) or (byte.toInt() and 0xff) }
+        }
+        assertEquals(0x20c040, colour(0, 0), "a base image by its name, as the server holds it")
+        assertEquals(0xc020a0, colour(3, 0), "an image the server added, by its name")
+        assertEquals(0x3366cc, colour(6, 0), "the module's own image first")
+        assertEquals(0x804020, colour(0, 1), "artisan:<name> is the common one though the module holds one")
+        assertEquals(0xc020a0, colour(3, 1), "kit:<name> is still read")
     }
 
     @Test
@@ -347,21 +392,21 @@ class McpTest {
         assertEquals(shipped("button.3x1", 27, 9) to shipped("window.3", 3, 3), pixels())
 
         // The kit module restyles a slot with an image of its name and size; another size or another module is refused.
-        modules["ui-kit"] = McpFixtures.Module()
-        val kitDraft = tool(access, "start_draft", "project" to "u-local.ui-kit", "name" to "AI: kit")["structuredContent"]["draft_id"].asText()
+        modules["artisan"] = McpFixtures.Module()
+        val kitDraft = tool(access, "start_draft", "project" to "u-local.artisan", "name" to "AI: kit")["structuredContent"]["draft_id"].asText()
         fun png(width: Int, height: Int) = java.util.Base64.getEncoder().encodeToString(solid(width, height, 0xcc2020))
-        val small = tool(access, "write_image", "project" to "u-local.ui-kit", "draft_id" to kitDraft, "name" to "button.3x1", "png_base64" to png(20, 10))
+        val small = tool(access, "write_image", "project" to "u-local.artisan", "draft_id" to kitDraft, "name" to "button.3x1", "png_base64" to png(20, 10))
         assertTrue(small["isError"].asBoolean() && "54x18" in small["structuredContent"]["message"].asText(), small.toString())
-        val written = tool(access, "write_image", "project" to "u-local.ui-kit", "draft_id" to kitDraft, "name" to "button.3x1", "use" to "background", "png_base64" to png(54, 18))
+        val written = tool(access, "write_image", "project" to "u-local.artisan", "draft_id" to kitDraft, "name" to "button.3x1", "use" to "background", "png_base64" to png(54, 18))
         assertFalse(written.has("isError"), written.toString())
         assertEquals("assets/textures/button.3x1.png", written["structuredContent"]["path"].asText())
         assertTrue("kit:button.3x1" in written["structuredContent"]["use_it"].asText())
         assertTrue(tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "button.3x1", "png_base64" to png(54, 18))["isError"].asBoolean())
-        val other = tool(access, "write_image", "project" to "u-local.ui-kit", "draft_id" to kitDraft, "name" to "banner", "png_base64" to png(20, 10))
+        val other = tool(access, "write_image", "project" to "u-local.artisan", "draft_id" to kitDraft, "name" to "banner", "png_base64" to png(20, 10))
         assertTrue("kit:banner" in other["structuredContent"]["use_it"].asText(), other.toString())
 
         // Deployed, the server's image is what every menu naming the slot shows; one of another size is left out.
-        modules["ui-kit"] = McpFixtures.Module(
+        modules["artisan"] = McpFixtures.Module(
             images = mapOf("assets/textures/button.3x1.png" to solid(54, 18, 0xcc2020), "assets/textures/window.3.png" to solid(20, 20, 0x00ff00)),
         )
         assertEquals(listOf(0xcc, 0x20, 0x20) to shipped("window.3", 3, 3), pixels())
@@ -386,11 +431,11 @@ class McpTest {
         val red = listOf(0xb3, 0x26, 0x1e)
         val navy = listOf(0x11, 0x22, 0x33)
         val table = "colors:\n  \"#%02x%02x%02x\": \"#b3261e\"\n".format(button[0], button[1], button[2])
-        modules["ui-kit"] = McpFixtures.Module()
+        modules["artisan"] = McpFixtures.Module()
         val (access, _) = tokens()
-        val kitDraft = tool(access, "start_draft", "project" to "u-local.ui-kit", "name" to "AI: noel")["structuredContent"]["draft_id"].asText()
+        val kitDraft = tool(access, "start_draft", "project" to "u-local.artisan", "name" to "AI: noel")["structuredContent"]["draft_id"].asText()
         val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: themed")["structuredContent"]["draft_id"].asText()
-        fun kit(tool: String, vararg args: Pair<String, Any?>) = tool(access, tool, "project" to "u-local.ui-kit", "draft_id" to kitDraft, *args)
+        fun kit(tool: String, vararg args: Pair<String, Any?>) = tool(access, tool, "project" to "u-local.artisan", "draft_id" to kitDraft, *args)
 
         // The theme's table: colours quoted, or the write is refused with the reason (unquoted, `#` starts a comment).
         val unquoted = kit("write_document", "path" to "themes/noel/theme.yml", "content" to "colors:\n  #3c8527: #b3261e\n")
@@ -405,7 +450,7 @@ class McpTest {
         assertTrue(small["isError"].asBoolean() && "18x18" in small["structuredContent"]["message"].asText(), small.toString())
         assertTrue("No kit image" in kit("write_image", "name" to "nothing", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["message"].asText())
         val elsewhere = tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
-        assertTrue(elsewhere["isError"].asBoolean() && "ui-kit" in elsewhere["structuredContent"]["message"].asText(), elsewhere.toString())
+        assertTrue(elsewhere["isError"].asBoolean() && "artisan" in elsewhere["structuredContent"]["message"].asText(), elsewhere.toString())
         val drawn = kit("write_image", "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
         assertFalse(drawn.has("isError"), drawn.toString())
         assertEquals("themes/noel/assets/textures/cell.png", drawn["structuredContent"]["path"].asText())
@@ -435,7 +480,7 @@ class McpTest {
         assertEquals(plain, shown(render("kit_draft_id" to kitDraft)))
 
         // Deployed, and picked as the server's theme: every view of the kit is in it, unless asked without.
-        modules["ui-kit"] = McpFixtures.Module(
+        modules["artisan"] = McpFixtures.Module(
             files = mapOf("themes/noel/theme.yml" to table),
             images = mapOf("themes/noel/assets/textures/cell.png" to solid(18, 18, 0x112233), "themes/noel/assets/textures/window.3.png" to solid(20, 20, 0x00ff00)),
         )
@@ -454,7 +499,7 @@ class McpTest {
         assertTrue("#%02x%02x%02x".format(button[0], button[1], button[2]) in survey["kit_colours"].map { it.asText() }, survey["kit_colours"].toString())
         assertFalse("#b3261e" in survey["kit_colours"].map { it.asText() })
         // No image of the theme folders is one of the kit module's own.
-        assertTrue(survey["modules"].none { it["project"].asText() == "u-local.ui-kit" }, survey["modules"].toString())
+        assertTrue(survey["modules"].none { it["project"].asText() == "u-local.artisan" }, survey["modules"].toString())
 
         // A theme the kit does not hold is no theme, as in the pack.
         config["resource-pack.theme"] = "gone"
@@ -572,7 +617,7 @@ class McpTest {
         assertEquals(listOf("guild_window" to "assets/glyphs/guild_window.yml", "guild_icon" to "assets/textures/guild_icon.png"), surveyed.map { it["name"].asText() to it["path"].asText() })
         assertEquals(listOf("kit:window.3", "guild_icon"), surveyed[0]["composed_of"].map { it.asText() })
         assertEquals(176 to 166, surveyed[0]["width"].asInt() to surveyed[0]["height"].asInt())
-        modules["ui-kit"] = McpFixtures.Module(images = mapOf("assets/textures/window.3.png" to solid(176, 166, 0xcc2020)))
+        modules["artisan"] = McpFixtures.Module(images = mapOf("assets/textures/window.3.png" to solid(176, 166, 0xcc2020)))
         assertEquals(blue to listOf(0xcc, 0x20, 0x20), deployed())
         assertEquals(listOf("assets/glyphs/guild_window.yml"), tool(access, "list_documents", "project" to "u-local.guilds")["structuredContent"]["composed_images"].map { it.asText() })
         assertTrue(sent.none { it["type"] == "project_write" || it["type"] == "project_draft_publish" })

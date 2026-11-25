@@ -7,7 +7,18 @@ import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
 import { ImageNames, namedImageRow } from "./imageNames";
-import { KIT_ASCENT, KIT_FILES, KIT_FOLDER, KIT_PREFIX, kitImage, kitNameOf } from "./kit";
+import {
+  KIT_ASCENT,
+  KIT_FILES,
+  KIT_FOLDER,
+  KIT_PREFIX,
+  KIT_SLOTS,
+  kitFolderAmong,
+  kitImage,
+  kitNameOf,
+  kitShippedName,
+  kitShippedPath,
+} from "./kit";
 import { readKitTheme } from "./theme";
 import {
   type GlyphPlacement,
@@ -91,10 +102,28 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   const transparent = new Set<GuiContainer>();
   const imagesByRef: { ref: string; bytes: Uint8Array }[] = [];
   const texts: string[] = [];
-  const titleImages: string[] = [];
+  const titleImages: { folder: string; ref: string }[] = [];
+  // The common images (`kit.ts`): the server's by name, and the base as the server holds it.
+  const folderOf = (project: PackProject) => project.folder ?? project.id;
+  const kitFolder = kitFolderAmong(projects.map(folderOf));
+  const inKit = (project: PackProject) => folderOf(project) === kitFolder;
+  const kitProject = projects.find(inKit);
   const kitImages = new Map<string, Uint8Array>();
+  const kitBase = new Map<string, Uint8Array | null>();
+  const kitImageOf = async (name: string) => {
+    let base = kitBase.get(name);
+    if (base === undefined) {
+      const path = kitShippedPath(name);
+      base = kitProject?.binaries.some((b) => b.path === path)
+        ? ((await kitProject.binary(path)) ?? null)
+        : null;
+      kitBase.set(name, base);
+    }
+    return kitImage(name, kitImages.get(name), input.kitImage, base);
+  };
   const composed: {
-    row: AssetRow;
+    /** `null` for a common image, which has no row of its own: it is a `kit:<name>` once named. */
+    row: AssetRow | null;
     project: PackProject;
     recipe: ComposeRecipe;
     own: Map<string, Uint8Array>;
@@ -104,37 +133,53 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
 
   for (const project of projects) {
     const { files } = project;
-    const folder = project.folder ?? project.id;
+    const folder = folderOf(project);
     // Any text of the Project may reach a title (menus, lang files, data rows): its symbols ride along.
     for (const f of files) texts.push(f.content);
     for (const placement of glyphPlacementsFromMenus(files))
       placedGlyphs.push({ folder, placement });
-    titleImages.push(...titleImagesFromMenus(files));
+    for (const ref of titleImagesFromMenus(files)) titleImages.push({ folder, ref });
     for (const button of imageButtonsFromMenus(files)) placedButtons.push({ folder, button });
     textPlacements.push(...textPlacementsFromMenus(files));
     for (const request of project.overlayImages ?? []) askedOverlays.push({ folder, request });
     for (const c of transparentContainersFromMenus(files)) transparent.add(c);
+    // The theme `artisan` holds the common images: one enters the pack as `kit:<name>` when a
+    // menu names it, never as an image of the theme's own; its originals are the base.
+    const common = folder === KIT_FOLDER;
     const fromDisk: DiskAsset[] = diskAssetsFromTree(project.id, files, project.binaries, {
-      originals: true,
+      originals: !common,
     });
 
     // An image the module is not the first to hold under that name gets its module's id (`imageNames.ts`).
     const rows = fromDisk.map((a) => {
-      if (a.row.type === "glyph" || a.row.type === "texture")
-        return namedImageRow(a.row, names.claim(folder, a.row.id), folder);
+      const image = a.row.type === "glyph" || a.row.type === "texture";
+      if (image && common) return a.row;
+      if (image) return namedImageRow(a.row, names.claim(folder, a.row.id), folder);
       names.take(a.row.id);
       return a.row;
     });
     contribs.push({
       projectId: project.id,
       glyphs: rows
-        .filter((row) => row.type === "glyph" && row.codepoint !== null)
+        .filter((row) => row.type === "glyph" && row.codepoint !== null && !common)
         .map((row) => ({ assetId: row.id, codepoint: row.codepoint! })),
     });
     // The module's own PNGs by name: what its composed images are made of.
     const own = new Map<string, Uint8Array>();
     for (const [i, a] of fromDisk.entries()) {
       const row = rows[i]!;
+      if (common && (row.type === "glyph" || row.type === "texture")) {
+        if (a.compose) {
+          composed.push({ row: null, project, recipe: a.compose, own, name: a.row.name });
+          continue;
+        }
+        const bytes = await project.binary(a.path);
+        if (!bytes) continue;
+        imagesByRef.push({ ref: `${project.id}:${a.row.name}`, bytes });
+        own.set(a.row.name, bytes);
+        kitImages.set(a.row.name, bytes);
+        continue;
+      }
       allAssets.push(row);
       if ((row.type === "glyph" && row.codepoint !== null) || row.type === "texture") {
         if (a.compose) {
@@ -146,7 +191,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
         glyphPngs.set(row.id, bytes);
         imagesByRef.push({ ref: `${project.id}:${a.row.name}`, bytes });
         own.set(a.row.name, bytes);
-        if (folder === KIT_FOLDER) kitImages.set(a.row.name, bytes);
+        if (folder === kitFolder) kitImages.set(a.row.name, bytes);
         continue;
       }
       if (row.type !== "font") continue;
@@ -166,11 +211,9 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   // module or a kit image, never another composed image, so their order does not matter.
   // The kit's theme (`theme.ts`) changes the kit's PNGs, the base's and the server's: an image
   // composed with them follows, and is not themed a second time once assembled.
-  const inKit = (project: PackProject) => (project.folder ?? project.id) === KIT_FOLDER;
-  const kitProject = input.theme ? projects.find(inKit) : undefined;
   const theme = input.theme && kitProject ? readKitTheme(input.theme, kitProject) : null;
   const kitPng = async (name: string) => {
-    const png = (await kitImage(name, kitImages.get(name), input.kitImage))?.png;
+    const png = (await kitImageOf(name))?.png;
     return png && theme ? theme.shown(name, png) : png;
   };
   const made: { c: (typeof composed)[number]; image: RgbaImage }[] = [];
@@ -188,16 +231,26 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   }
   const kitComposed = new Set<string>();
   for (const { c, image } of made) {
-    c.row.width = image.width;
-    c.row.height = image.height;
     const bytes = encodePng(image);
-    glyphPngs.set(c.row.id, bytes);
+    if (c.row) {
+      c.row.width = image.width;
+      c.row.height = image.height;
+      glyphPngs.set(c.row.id, bytes);
+    }
     imagesByRef.push({ ref: `${c.project.id}:${c.name}`, bytes });
     if (inKit(c.project)) {
       kitImages.set(c.name, bytes);
       kitComposed.add(c.name);
     }
   }
+
+  // A name no module holds reaches the common image of that name (`resolveImageRef`).
+  for (const name of kitImages.keys()) names.take(KIT_PREFIX + name);
+  for (const { path } of kitProject?.binaries ?? []) {
+    const name = kitShippedName(path);
+    if (name) names.take(KIT_PREFIX + name);
+  }
+  for (const slot of KIT_SLOTS) names.take(KIT_PREFIX + slot.id);
 
   const glyphPlacements = placedGlyphs.map(({ folder, placement }) => ({
     ...placement,
@@ -218,18 +271,18 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   // none keeps the pack it had. One a title is drawn with is a glyph of the menu font, at the
   // first codepoint no module's glyph has; the others are textures.
   const inTitles = new Set<string>();
-  for (const asset of titleImages) {
-    const name = kitNameOf(asset);
+  for (const { folder, ref } of titleImages) {
+    const name = kitNameOf(names.resolve(folder, ref));
     if (name) inTitles.add(name);
   }
   const asked = new Set(inTitles);
-  for (const { asset } of [...imageButtons, ...overlayImages]) {
-    const name = kitNameOf(asset);
+  for (const asset of [...imageButtons.map((b) => b.asset), ...overlayImages.map((o) => o.image)]) {
+    const name = asset === undefined ? null : kitNameOf(asset);
     if (name) asked.add(name);
   }
   const kitGlyphs: GlyphContribution["glyphs"] = [];
   for (const name of [...asked].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
-    const image = await kitImage(name, kitImages.get(name), input.kitImage);
+    const image = await kitImageOf(name);
     if (!image) continue;
     const png = !theme
       ? image.png
@@ -294,7 +347,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   }
   // Keyed by the folder name: the plugin names a menu's Project that way.
   const bedrockMenus: BedrockMenu[] = projects.flatMap((project) => {
-    const folder = project.folder ?? project.id;
+    const folder = folderOf(project);
     return bedrockMenusFromProject(folder, project.files, (ref) => names.resolve(folder, ref));
   });
   const bedrock = buildBedrockPack({

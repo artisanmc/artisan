@@ -67,8 +67,8 @@ resource-pack:
   # from every other chest, furnace… for players with the pack. Not written
   # when delegating (only `assets/artisan/` is).
   hide-inventory-label: false
-  # The theme of the UI kit the pack is built in: the name of a folder of the
-  # kit module (`ui-kit/themes/<name>/`). Every `kit:<name>` image is then
+  # The theme the common images are shown in: the name of a folder of
+  # `themes/artisan/themes/`. Every common image (`kit:<name>`) is then
   # shown in the theme's colours, or as the theme redraws it. Empty: no theme.
   theme: ""
   # Textures drawn back on the other windows when a menu turns its vanilla

@@ -59,6 +59,15 @@ describe("buildProjectGroups", () => {
       ["boutique", ["boutique:rewards"]],
     ]);
   });
+  it("leaves a theme out of the list: the server's common images are no module", () => {
+    const { projects } = buildProjectGroups({
+      projects: [project("hub"), project("artisan", { role: "theme" })],
+      screens: [],
+      mountedModuleIds: [],
+      localProjects: [],
+    });
+    expect(projects.map((p) => p.id)).toEqual(["hub"]);
+  });
   it("keeps ordinary projects in the list, without a module group", () => {
     const { projects, moduleGroups } = buildProjectGroups({
       projects: [project("hub"), project("lobby")],

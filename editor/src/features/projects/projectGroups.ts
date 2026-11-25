@@ -84,7 +84,8 @@ export interface ProjectGroupsInput {
  *   `module-config-screens`) and its configuration route. A module with neither
  *   has no group. A module's configuration root (`role: "config"`) is reached
  *   through these screens only: it holds settings, not content, so it is left out
- *   of `projects`.
+ *   of `projects`. A theme (`role: "theme"`, ADR `common-images-and-themes`) is no
+ *   module either: the server's common images have their own tab.
  *
  * Pure, shared function: the sidebar and a server's page show the same thing
  * because they read the same list, not because the rule was copied twice.
@@ -140,7 +141,10 @@ export function buildProjectGroups({
     })
     .filter((g) => g.entries.length > 0);
 
-  return { projects: rows.filter((p) => p.role !== "config"), moduleGroups };
+  return {
+    projects: rows.filter((p) => p.role !== "config" && p.role !== "theme"),
+    moduleGroups,
+  };
 }
 
 /**

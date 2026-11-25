@@ -21,6 +21,8 @@ import java.util.concurrent.ConcurrentHashMap
  * `onEnable`, `api.project.list`) never waits behind a reload.
  */
 private const val KEY_FILE = ".artisan/project-id"
+private const val THEMES = "themes"
+private const val ROLE_THEME = "theme"
 private val FOLDER = Regex("^[a-z0-9][a-z0-9_-]*$")
 
 class ProjectRoots(
@@ -36,6 +38,11 @@ class ProjectRoots(
     private val owners = ConcurrentHashMap<String, String>()
     /** Registered roots that hold a module's configuration, not content (ADR `module-config-screens`). */
     private val configRoots = ConcurrentHashMap.newKeySet<String>()
+    /** Registered roots that are themes, under [themesRoot] (ADR `common-images-and-themes`). */
+    private val themeRoots = ConcurrentHashMap.newKeySet<String>()
+
+    /** `plugins/Artisan/themes/`, beside the modules root: one folder per theme. */
+    val themesRoot: File get() = File(coreRoot.absoluteFile.parentFile, THEMES)
     /** Project dirs whose interrupted publications were replayed: a commit replays its own, so only a crash leaves one. */
     private val recovered = ConcurrentHashMap.newKeySet<String>()
     /** Folders of the modules root already moved to `.yml` by this start ([YmlMigration]). */
@@ -62,9 +69,28 @@ class ProjectRoots(
         val identity = mapOf(
             "project_id" to projectId, "identity" to if (isRegistered(projectId)) "addon" else "folder", "project_key" to key(projectId),
         )
+        // A theme is listed on its own screen, not among the modules.
+        if (projectId in themeRoots) return identity + ("role" to ROLE_THEME)
         val owner = owners[projectId] ?: return identity
         val role = if (projectId in configRoots) mapOf("role" to "config") else emptyMap()
         return identity + ("module_id" to owner) + role
+    }
+
+    fun isTheme(projectId: String): Boolean = projectId in themeRoots
+
+    /**
+     * `themes/<name>/`, registered as the Project [name]: a theme shares the modules' namespace,
+     * so `<name>:<image>` names its image as it names a module's, and it travels to the hub, the
+     * drafts and the Versions as a module's folder does. A folder of the same name in the modules
+     * root is shadowed ([register] says so).
+     */
+    fun theme(name: String): File = synchronized(registryLock) {
+        require(FOLDER.matches(name)) { "invalid theme name '$name'" }
+        val target = File(themesRoot, name)
+        target.mkdirs()
+        themeRoots.add(name)
+        register(name, target)
+        return@synchronized target
     }
 
     /**

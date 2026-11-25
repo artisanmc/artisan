@@ -4,6 +4,7 @@ import { menusOf } from "@/domain/documents";
 import { elementLabels } from "@/domain/imageButton";
 import type { MenuId, MenuTitleLayer, Project, ProjectId } from "@/domain/types";
 import { useAssetsWithKit } from "@/features/assets/kitAssets";
+import { imageNamed } from "@/lib/pack/kit";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { getText } from "@/lib/i18n";
 import { plainTextFromMiniMessage } from "@/lib/miniMessage";
@@ -303,7 +304,7 @@ function layerInputs(
 ) {
   const asset =
     layer.kind === "background" || layer.kind === "glyph"
-      ? assets.find((a) => a.id === layer.assetId)
+      ? imageNamed(assets, layer.assetId)
       : undefined;
   const fontAsset =
     (layer.kind === "text" || layer.kind === "textarea") && layer.fontAssetId

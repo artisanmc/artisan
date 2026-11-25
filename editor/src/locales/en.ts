@@ -185,8 +185,8 @@ export default {
       title: "UI kit",
       intro:
         "The images every menu of the server shares. A menu names one kit:<name>; redraw a piece once and every menu that names it follows.",
-      none: "This server has no kit module yet: every piece is Artisan's. Create it to redraw one.",
-      open: "Open the kit module",
+      none: "This server's Artisan is older than the common images: every piece is Artisan's. Update it, or create the kit module to redraw one.",
+      open: "Open the server's images",
       create: "Create the kit module",
       failed: "That did not work: {{detail}}",
       themes: "Themes",
@@ -202,10 +202,11 @@ export default {
       shipped: "Artisan",
       redrawn: "Redrawn",
       others: "This server's own images",
-      noOthers: "None yet. An image added to the kit module is named kit:<its name> by any menu.",
+      noOthers:
+        "None yet. An image added to the server's common images is named kit:<its name> by any menu.",
       inMenu: "The kit in a menu",
       inMenuHint:
-        "Every piece set on one window, as players see it. Click a piece to open it in the atelier of the kit module.",
+        "Every piece set on one window, as players see it. Click a piece to open it in the atelier of the server's common images.",
       inMenuHintNoKit: "Every piece set on one window, as players see it.",
       redrawnCount_one: "{{count}} piece redrawn out of {{total}}",
       redrawnCount_other: "{{count}} pieces redrawn out of {{total}}",
@@ -220,14 +221,14 @@ export default {
       notInPlace: "Not in place",
       putInPlace: "Put in place on the server",
       takeOff: "Take off the server",
-      missing: "The server's kit module has no theme “{{name}}” deployed.",
+      missing: "The server has no theme “{{name}}” deployed.",
       colors: "Colours replaced",
       noColors: "This theme replaces no colour.",
       becomes: "becomes",
       drawings: "Pieces redrawn for this theme",
       noDrawings: "This theme redraws no piece.",
       files:
-        "A theme is a folder of the kit module: themes/{{name}}/theme.yml holds its colours, themes/{{name}}/assets/textures/<piece>.png a piece redrawn at the piece's size. It is read here once deployed.",
+        "A theme is a folder of the server's common images (themes/artisan/): themes/{{name}}/theme.yml holds its colours, themes/{{name}}/assets/textures/<piece>.png a piece redrawn at the piece's size. It is read here once deployed.",
       compare: "Without and with, in a menu",
       putHint:
         "Putting a theme in place rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
@@ -2235,7 +2236,7 @@ export default {
       unsafe_path: "the path must stay inside the server folder.",
       invalid_reference: "pick an image as module:image.",
       invalid_palette_entry: "each entry needs a name and #rrggbb colors.",
-      invalid_theme: "pick a theme of the UI kit module.",
+      invalid_theme: "pick a theme the server holds.",
       invalid_menu_variants: "a variant has a bad name or a parent that is not declared.",
     },
     variants: {
@@ -2321,7 +2322,7 @@ export default {
     },
     hints: {
       theme:
-        "A folder of the UI kit module (ui-kit/themes/<name>/). Every kit image is then shown in the theme's colors, or as the theme redraws it; the menus keep their layout.",
+        "A folder of the server's common images (themes/artisan/themes/<name>/). Every kit image is then shown in the theme's colors, or as the theme redraws it; the menus keep their layout.",
       chest:
         "A generic_54.png layout (256×256, or a multiple for an HD pack). When a menu turns its vanilla texture off, every other chest on the server is drawn back with it.",
       hopper:

@@ -6,6 +6,7 @@ import {
   KIT_PREFIX,
   KIT_SLOTS,
   type KitSlot,
+  imageNamed,
   kitNameOf,
 } from "@/lib/pack/kit";
 import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
@@ -291,12 +292,15 @@ export function useAssetsWithKit(): Asset[] {
   return useMemo(() => [...own, ...kit], [own, kit]);
 }
 
-/** The image a menu of `projectId` names: one of its own, or a kit image (`kit:<name>`). */
+/**
+ * The image a menu of `projectId` names: one of its own, else the common image of that name;
+ * `artisan:<name>` or `kit:<name>` is the common one whatever the module holds (`imageNamed`).
+ */
 export function useImageAsset(projectId: string, name: string | undefined): Asset | undefined {
   const isKit = !!name && kitNameOf(name) !== null;
   const own = useAssetStore((s) =>
     name && !isKit ? s.assets.find((a) => a.projectId === projectId && a.id === name) : undefined,
   );
   const kit = useKitAssets();
-  return isKit ? kit.find((a) => a.id === name) : own;
+  return name ? (own ?? imageNamed(kit, name)) : undefined;
 }

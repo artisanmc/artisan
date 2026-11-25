@@ -632,6 +632,16 @@ class SyncedMenuProvider(
                         .onFailure { logger?.warning("[Artisan] Template '$moduleId/${template.id}' not seeded: ${it.message}") }
                 }
             }
+            // The base Artisan ships, as the originals of the theme `artisan`.
+            runCatching {
+                val theme = net.artisanmc.plugin.project.ArtisanTheme
+                val dir = roots.all()[theme.NAME]?.takeIf { roots.isTheme(theme.NAME) }
+                val written = dir?.let { theme.sync(it, net.artisanmc.plugin.hub.UiBase.images()) }.orEmpty()
+                if (written.isNotEmpty()) {
+                    wrote = true
+                    logger?.info("[Artisan] The base of the theme '${theme.NAME}' was updated: ${describeChanges(dir!!, written)}.")
+                }
+            }.onFailure { logger?.warning("[Artisan] The base of the theme 'artisan' was not written: ${it.message}") }
             // Before the system files: a command's file holds its overrides before it is written as shipped.
             runCatching { if (migrateCommandOverrides()) wrote = true }
                 .onFailure { logger?.warning("[Artisan] Command overrides not migrated: ${it.message}") }

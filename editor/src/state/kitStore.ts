@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-/** The server's UI kit module (`ui-kit`) as it is published: the files its kit images are read from. */
+/** The Project of the server's common images (the theme `artisan`) as it is published: the files its kit images are read from. */
 export interface KitRead {
   /** The module's project id, which its binaries are fetched under. */
   projectId: string;

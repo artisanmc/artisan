@@ -192,8 +192,8 @@ const fr: typeof en = {
       title: "Kit d'interface",
       intro:
         "Les images que tous les menus du serveur partagent. Un menu en nomme une kit:<nom> ; redessinez une pièce une fois, chaque menu qui la nomme suit.",
-      none: "Ce serveur n'a pas encore de module de kit : chaque pièce est celle d'Artisan. Créez-le pour en redessiner une.",
-      open: "Ouvrir le module du kit",
+      none: "L'Artisan de ce serveur est plus ancien que les images communes : chaque pièce est celle d'Artisan. Mettez-le à jour, ou créez le module du kit pour en redessiner une.",
+      open: "Ouvrir les images du serveur",
       create: "Créer le module du kit",
       failed: "Ça n'a pas marché : {{detail}}",
       themes: "Thèmes",
@@ -210,10 +210,10 @@ const fr: typeof en = {
       redrawn: "Redessinée",
       others: "Les images de ce serveur",
       noOthers:
-        "Aucune pour l'instant. Une image ajoutée au module du kit se nomme kit:<son nom> dans n'importe quel menu.",
+        "Aucune pour l'instant. Une image ajoutée aux images communes du serveur se nomme kit:<son nom> dans n'importe quel menu.",
       inMenu: "Le kit dans un menu",
       inMenuHint:
-        "Toutes les pièces posées sur une fenêtre, comme les joueurs les voient. Cliquez une pièce pour l'ouvrir dans l'atelier du module du kit.",
+        "Toutes les pièces posées sur une fenêtre, comme les joueurs les voient. Cliquez une pièce pour l'ouvrir dans l'atelier des images communes du serveur.",
       inMenuHintNoKit: "Toutes les pièces posées sur une fenêtre, comme les joueurs les voient.",
       redrawnCount_one: "{{count}} pièce redessinée sur {{total}}",
       redrawnCount_other: "{{count}} pièces redessinées sur {{total}}",
@@ -229,14 +229,14 @@ const fr: typeof en = {
       notInPlace: "Pas en place",
       putInPlace: "Mettre en place sur le serveur",
       takeOff: "Retirer du serveur",
-      missing: "Le module du kit du serveur n'a pas de thème « {{name}} » déployé.",
+      missing: "Le serveur n'a pas de thème « {{name}} » déployé.",
       colors: "Couleurs remplacées",
       noColors: "Ce thème ne remplace aucune couleur.",
       becomes: "devient",
       drawings: "Pièces redessinées pour ce thème",
       noDrawings: "Ce thème ne redessine aucune pièce.",
       files:
-        "Un thème est un dossier du module du kit : themes/{{name}}/theme.yml porte ses couleurs, themes/{{name}}/assets/textures/<pièce>.png une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
+        "Un thème est un dossier des images communes du serveur (themes/artisan/) : themes/{{name}}/theme.yml porte ses couleurs, themes/{{name}}/assets/textures/<pièce>.png une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
       compare: "Sans et avec, dans un menu",
       putHint:
         "Mettre en place reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
@@ -2279,7 +2279,7 @@ const fr: typeof en = {
       unsafe_path: "le chemin doit rester dans le dossier du serveur.",
       invalid_reference: "choisir une image au format module:image.",
       invalid_palette_entry: "chaque entrée a un nom et des couleurs #rrggbb.",
-      invalid_theme: "choisir un thème du module du kit d'interface.",
+      invalid_theme: "choisir un thème que le serveur a.",
       invalid_menu_variants: "une variante a un nom invalide ou un parent non déclaré.",
     },
     variants: {
@@ -2367,7 +2367,7 @@ const fr: typeof en = {
     },
     hints: {
       theme:
-        "Un dossier du module du kit d'interface (ui-kit/themes/<nom>/). Chaque image du kit est alors montrée aux couleurs du thème, ou telle qu'il la redessine ; les menus gardent leur mise en page.",
+        "Un dossier des images communes du serveur (themes/artisan/themes/<nom>/). Chaque image du kit est alors montrée aux couleurs du thème, ou telle qu'il la redessine ; les menus gardent leur mise en page.",
       chest:
         "Image au format generic_54.png (256×256, ou un multiple pour un pack HD). Quand un menu désactive sa texture vanilla, les autres coffres du serveur sont redessinés avec elle.",
       hopper:
