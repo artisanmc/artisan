@@ -351,9 +351,11 @@ class ResourcePackManagerTest {
     private class RecordingDelegator : ResourcePackDelegator(targetDir = java.io.File("."), logger = null) {
         data class Call(val url: String, val hash: String)
         val calls = mutableListOf<Call>()
+        var held = true
         override fun apply(downloadUrl: String, expectedHash: String) {
             calls += Call(downloadUrl, expectedHash)
         }
+        override fun present() = held
     }
 
     /** Runs the delegate action inline and records host reloads, for race-free assertions. */
@@ -362,7 +364,10 @@ class ResourcePackManagerTest {
         config: ResourcePackConfig,
         logger: Logger?,
         delegator: ResourcePackDelegator?,
-    ) : ResourcePackManager(plugin = plugin, config = config, logger = logger, delegator = delegator) {
+        cacheFile: java.io.File? = null,
+    ) : ResourcePackManager(
+        plugin = plugin, config = config, logger = logger, delegator = delegator, cacheFile = cacheFile,
+    ) {
         var reloads = 0
         override fun runDelegate(action: () -> Unit) { action() }
         override fun runMainThread(action: () -> Unit) { reloads++ }
@@ -381,6 +386,33 @@ class ResourcePackManagerTest {
         assertEquals(1, mgr.reloads)
         assertEquals(info, mgr.currentPackInfo)
         assertTrue(handler.records.none { it.level == Level.WARNING })
+    }
+
+    @Test
+    fun `after a restart the pack the host already holds is neither written nor reloaded again`() {
+        val cache = java.io.File(java.nio.file.Files.createTempDirectory("artisan-rp").toFile(), "resource-pack.json")
+        val info = ResourcePackInfo.from("http://player", "http://internal", SAMPLE_HASH)
+        InlineManager(plugin, config(reloadCommand = "n reload"), null, RecordingDelegator(), cache).onUpdate(info)
+
+        // The server restarts: the hub announces the same pack while the host builds its own.
+        val delegator = RecordingDelegator()
+        val restarted = InlineManager(plugin, config(reloadCommand = "n reload"), null, delegator, cache)
+        restarted.loadFromDisk()
+        restarted.onUpdate(info)
+        assertTrue(delegator.calls.isEmpty())
+        assertEquals(0, restarted.reloads)
+
+        // Another pack built meanwhile is handed over.
+        restarted.onUpdate(ResourcePackInfo.from("http://player", "http://internal", OTHER_HASH))
+        assertEquals(listOf(OTHER_HASH), delegator.calls.map { it.hash })
+        assertEquals(1, restarted.reloads)
+
+        // The host's folder emptied since: the pack is written again.
+        val emptied = RecordingDelegator().apply { held = false }
+        val again = InlineManager(plugin, config(reloadCommand = "n reload"), null, emptied, cache)
+        again.loadFromDisk()
+        again.onUpdate(ResourcePackInfo.from("http://player", "http://internal", OTHER_HASH))
+        assertEquals(listOf(OTHER_HASH), emptied.calls.map { it.hash })
     }
 
     @Test

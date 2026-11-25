@@ -39,6 +39,13 @@ open class ResourcePackDelegator(
     private val emitZip: Boolean = targetDir.name.endsWith(".zip", ignoreCase = true)
 
     /**
+     * Whether the target still holds a pack written here: the zip, or the `assets/artisan/`
+     * folder. False once the host's folder was emptied or `delegate-to-dir` points elsewhere.
+     */
+    open fun present(): Boolean =
+        if (emitZip) targetDir.isFile else File(targetDir, "assets/artisan").isDirectory
+
+    /**
      * Download the zip from [downloadUrl], verify its SHA-1 matches
      * [expectedHash], then extract.
      *
