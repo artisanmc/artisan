@@ -114,11 +114,13 @@ object MenuRenderer {
         // renderer resolves `{…}` and `%papi%` in one pass (ADR `expression-parity` §5).
         val papi = evaluator.deps.papi
         val interpolate: (String) -> String = { raw -> renderCtx.render(raw, papi) { k -> langMap[k] } }
-        val images = imageButtons(menu, renderCtx, evaluator, lookupAsset)
+        // A name in this menu is its module's image first ([MenuImages]).
+        val named = MenuImages(menu.projectId, lookupAsset)
+        val images = imageButtons(menu, renderCtx, evaluator, lookupAsset, named)
         // The slots are filled before the title: a row-bound element (iterates/places)
         // showing an image adds its glyph per slot, known only once each row is chosen.
         val fill = SlotFill(content, menu.compiledAppearances, evaluator, menu.yaml,
-            rowImages = if (bedrock(player)) null else lookupAsset)
+            rowImages = if (bedrock(player)) null else lookupAsset, named = named)
         layout(menu, renderCtx, images, fill)
         val labels = if (bedrock(player)) emptyList() else labels(menu, renderCtx, images, fill)
         val title = if (bedrock(player) && BedrockTitle.supports(menu.yaml)) {
@@ -126,7 +128,7 @@ object MenuRenderer {
                 interpolate(TitleCompiler.resolveLText(value, langMap, lang, menu.defaultLang))
             })
         } else TitleCompiler.compileTitle(
-            layers = menu.title + images.layers + fill.rowGlyphs + labels,
+            layers = named.title(menu.title) + images.layers + fill.rowGlyphs + labels,
             lang = lang,
             langMap = langMap,
             lookupAsset = lookupAsset,
@@ -266,6 +268,7 @@ object MenuRenderer {
         val choices: Map<String, CompiledAppearance?>,
         val layouts: Map<String, ImageButtonLayout?>,
         val layers: List<MenuTitleLayer.Glyph>,
+        val named: MenuImages,
     )
 
     private fun imageButtons(
@@ -273,6 +276,7 @@ object MenuRenderer {
         ctx: ExecutionContext,
         evaluator: ConditionEvaluator,
         lookupAsset: (String) -> AssetEntry?,
+        named: MenuImages,
     ): ImageButtons {
         // Row-bound elements (iterates/places) draw their images slot by slot ([SlotFill.placeRow]).
         val imageElements = menu.yaml.allElements.filter { el ->
@@ -284,17 +288,17 @@ object MenuRenderer {
             val image = choices[el.id]?.yaml?.image ?: return@mapNotNull null
             val layout = layouts[el.id] ?: return@mapNotNull null
             if (image.asset.isBlank() || image.fit !in listOf("contain", "stretch", "native")) return@mapNotNull null
-            val key = layout.assetKey(image)
+            val key = named.key(layout, image)
             if (lookupAsset(key) == null) return@mapNotNull null
             MenuTitleLayer.Glyph(assetId = key, x = layout.x, y = layout.y)
         }
-        return ImageButtons(choices, layouts, layers)
+        return ImageButtons(choices, layouts, layers, named)
     }
 
     private fun labels(menu: RuntimeMenu, ctx: ExecutionContext, images: ImageButtons, fill: SlotFill): List<MenuTitleLayer> =
         labelLayers(menu.yaml,
             chosen = { el -> (if (el.id in images.choices) images.choices[el.id] else fill.choose(el.id, ctx))?.yaml },
-            drawn = { key -> images.layers.any { it.assetId == key } })
+            drawn = { key -> images.layers.any { it.assetId == key } }, key = images.named::key)
 
     /**
      * The label of each fixed element's [chosen] appearance, as a title text over its slot
@@ -304,6 +308,7 @@ object MenuRenderer {
         menu: MenuYaml,
         chosen: (ElementYaml) -> AppearanceYaml?,
         drawn: (String) -> Boolean,
+        key: (ImageButtonLayout, ImageButtonYaml) -> String = { layout, image -> layout.assetKey(image) },
     ): List<MenuTitleLayer> = menu.allElements.mapNotNull { el ->
         if (el.iterates != null || el.places != null) return@mapNotNull null
         if ((listOf(el.display) + el.states).none { it.label != null }) return@mapNotNull null
@@ -311,7 +316,7 @@ object MenuRenderer {
         val label = look.label ?: return@mapNotNull null
         val layout = ImageButtonLayout.rectangle(menu, el) ?: return@mapNotNull null
         val image = look.image
-        if (image != null && !drawn(layout.assetKey(image))) return@mapNotNull null
+        if (image != null && !drawn(key(layout, image))) return@mapNotNull null
         layout.labelLayer(label)
     }
 
@@ -356,6 +361,7 @@ object MenuRenderer {
         val menu: MenuYaml,
         /** The pack's assets, for a row's image; null: no image (a Bedrock player), the appearance's item instead. */
         val rowImages: ((String) -> AssetEntry?)?,
+        val named: MenuImages,
     ) {
         /** The title glyph of each row-bound slot showing an image, in slot order. */
         val rowGlyphs = mutableListOf<MenuTitleLayer.Glyph>()
@@ -483,7 +489,7 @@ object MenuRenderer {
             val lookup = rowImages ?: return null
             if (image.asset.isBlank() || image.fit !in listOf("contain", "stretch", "native")) return null
             val layout = ImageButtonLayout.slot(menu, slot) ?: return null
-            val key = layout.assetKey(image)
+            val key = named.key(layout, image)
             if (lookup(key) == null) return null
             return MenuTitleLayer.Glyph(assetId = key, x = layout.x, y = layout.y)
         }
@@ -498,7 +504,7 @@ object MenuRenderer {
                 val chosen = images.choices[element.id] ?: continue
                 val layout = images.layouts[element.id] ?: continue
                 val image = chosen.yaml.image
-                if (image != null && images.layers.none { it.assetId == layout.assetKey(image) }) continue
+                if (image != null && images.layers.none { it.assetId == images.named.key(layout, image) }) continue
                 val item = if (image == null) fill.build(chosen, ctx)
                     else buildImageHitItem(chosen.yaml, ctx, fill.evaluator.deps, chosen.i18nBase)
                 fill.place(element.id, layout.slots, chosen, item, hit = image != null)

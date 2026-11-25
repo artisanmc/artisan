@@ -192,6 +192,13 @@ mappings:
       - "docs/architecture/testing.md"
     reason: "The Kotlin pack builder is a port of the editor's: a behaviour change goes into both, the shared vector proves they still agree"
 
+  - touches: "{plugin/core/src/main/kotlin/**/render/ImageRefs.kt,plugin/pack/src/main/kotlin/**/ImageNames.kt,editor/src/lib/pack/imageNames.ts}"
+    updates:
+      - "testdata/image-ref-conformance.json"
+      - "docs/architecture/editor-internals.md"
+      - "docs/decisions/common-images-and-themes.md"
+    reason: "Which image a name in a module's file is: one rule in three places (hub builder, editor builder, the game from the asset index), locked by a shared vector. A change goes into the three"
+
   # --- Module API surface (2 layers: plugin + editor) ---
 
   - touches: "plugin/api/src/main/"

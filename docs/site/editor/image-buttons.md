@@ -33,6 +33,11 @@ takes that area. A title's image layer offers the same list, with the kit's wind
 (see [AI](../../configuration/ai/), "Themes"), the editor shows these images in that theme, as
 players see them.
 
+**The same name in two modules.** A menu shows the image of its own module. When two modules
+each hold a `gold.png`, each one's menus show their own. To show another module's image, name
+it with its module in the menu's file: `image: { asset: "guilds:gold" }`. The editor's picker
+lists the open module's images and the kit.
+
 **The kit, a tab of the server.** The server page's **UI kit** tab shows the kit as the server
 has it deployed: every piece of the base by family (buttons; windows, panels and values; arrows
 and controls) with its size and who drew it, **Artisan** or this server (**Redrawn**), then the

@@ -201,8 +201,10 @@ class ArtisanCommand(
 
         // Walk the assembled string and pretty-print each offset run + each
         // <font:text_y{Y}>…</font> body, with the running cursor X.
+        // The menu's images under their pack ids, as the renderer reads them.
+        val title = net.artisanmc.plugin.render.menu.MenuImages(menu.projectId, plugin.assetCatalog::lookup).title(menu.title)
         val result = TitleCompiler.compileTitle(
-            layers = menu.title,
+            layers = title,
             lang = resolvedLang,
             langMap = langMap,
             lookupAsset = plugin.assetCatalog::lookup,
@@ -219,11 +221,11 @@ class ArtisanCommand(
         }
 
         out("─── dump-title $menuId (lang=$resolvedLang) ───")
-        out("Title layers (input order): ${menu.title.size}")
-        for ((i, l) in menu.title.withIndex()) out("  [$i] $l")
+        out("Title layers (input order): ${title.size}")
+        for ((i, l) in title.withIndex()) out("  [$i] $l")
 
         out("─── cursor walk (initial currentX=${TitleCompiler.TITLE_LABEL_X}) ───")
-        val sorted = menu.title.sortedWith(compareBy {
+        val sorted = title.sortedWith(compareBy {
             when (it) {
                 is net.artisanmc.plugin.model.MenuTitleLayer.Text,
                 is net.artisanmc.plugin.model.MenuTitleLayer.Textarea -> 1

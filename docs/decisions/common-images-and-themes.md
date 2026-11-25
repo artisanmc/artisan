@@ -1,6 +1,7 @@
 # An image belongs to a module or to the server, and a theme redraws it
 
-**Status:** accepted (2026-11-25), **not built yet**. Replaces decisions 12 (the kit as a module),
+**Status:** accepted (2026-11-25), **being built**: of step 2, the image keyed by its module is in
+the code (see "Built so far"); the rest is not. Replaces decisions 12 (the kit as a module),
 14 and 16 of `mcp-server`: those three still describe the code until the steps below land. Nothing
 this ADR removes shipped in a release. Design note: `Images partagées, thèmes et originaux`
 (project files). Follows `addon-owned-project-roots`, `project-qualified-refs` and the design
@@ -156,6 +157,26 @@ working through a rewrite to `module:name` at load.
    migration of today's themes (which keep working until this step).
 5. Originals shown: side by side, restore, "the original changed".
 6. Export and import with dependencies and embedded common images.
+
+## Built so far
+
+**Step 2, first part: an image is keyed by its module** (`ImageNames.kt`, `imageNames.ts`,
+`ImageRefs.kt`, `testdata/image-ref-conformance.json`).
+
+- The first module, by Project order, that holds an image of a name keeps the bare name as its
+  id in the pack: a server where no two modules share a name keeps its pack byte for byte. A
+  later module's image of that name is `<folder>:<name>`, its files under `modules/<folder>/`.
+- A name in a menu is read with the menu's module: its own image, then the bare id.
+  `<module>:<name>` reaches that module's image. Both pack builders, the game (titles, image
+  buttons, row images, `dump-title`) and `render_menu` follow the one rule, computed from the
+  ids alone so the game needs nothing but the asset index.
+- Not there yet, against decision 3: a bare name still reaches another module's image when the
+  menu's module holds none (no rewrite to `module:name` at load, no "common" scope to fall on);
+  `<module>:<name>` for an image that module does not hold falls on the bare name instead of
+  the visible fallback, because the asset index does not say who holds a bare id; there is no
+  `artisan:` prefix. An overlay image keeps its key on the name the add-on asks with
+  (`OverlayApi.image` has no module), so two modules asking for the same name at the same rise
+  share one picture. The editor's canvas shows the open module's images and the kit, as before.
 
 ## Consequences
 

@@ -1,0 +1,50 @@
+{
+  "description": "Which image a name in a module's file is, on a server where modules hold images of the same name (ADR common-images-and-themes, decision 3). Read by both pack builders (ImageNamesTest in plugin/pack, imageNames.test.ts in the editor) and by the plugin's lookup (ImageRefConformanceTest in plugin/core). `modules` are in Project order; each one's fonts are read before its images. `ids`: the pack id of each module's image, the bare name for the first module that holds one, `<folder>:<name>` after. `cases`: a name written in a file of the module `from` (null: no module) and the id it reaches, computed from the set of ids alone, so the game finds from the pack's asset index what the builder wrote. `also` adds ids the index holds beyond the modules' (a `kit:` image a menu asked for). Known limit of this step: the index does not say who holds a bare id, so `<module>:<name>` for an image that module does not hold falls on the bare name.",
+  "modules": [
+    { "folder": "core", "fonts": ["title"], "images": ["gold", "frame"] },
+    { "folder": "guilds", "fonts": [], "images": ["gold", "banner", "title"] },
+    { "folder": "kit", "fonts": [], "images": ["gold", "close"] },
+    { "folder": "shop", "fonts": [], "images": ["gold", "banner", "coin"] }
+  ],
+  "ids": {
+    "core": { "gold": "gold", "frame": "frame" },
+    "guilds": { "gold": "guilds:gold", "banner": "banner", "title": "guilds:title" },
+    "kit": { "gold": "gold", "close": "close" },
+    "shop": { "gold": "shop:gold", "banner": "shop:banner", "coin": "coin" }
+  },
+  "also": ["kit:close", "kit:gold"],
+  "cases": [
+    { "from": "core", "ref": "gold", "expect": "gold" },
+    { "from": "core", "ref": "core:gold", "expect": "gold" },
+    { "from": "core", "ref": "guilds:gold", "expect": "guilds:gold" },
+    { "from": "core", "ref": "banner", "expect": "banner" },
+    { "from": "core", "ref": "guilds:banner", "expect": "banner" },
+    { "from": "core", "ref": "shop:banner", "expect": "shop:banner" },
+    { "from": "core", "ref": "coin", "expect": "coin" },
+    { "from": "core", "ref": "title", "expect": "title" },
+    { "from": "core", "ref": "kit:close", "expect": "kit:close" },
+    { "from": "core", "ref": "kit:absent", "expect": "kit:absent" },
+    { "from": "core", "ref": "absent", "expect": "absent" },
+    { "from": "core", "ref": "guilds:absent", "expect": "absent" },
+    { "from": "core", "ref": "nope:gold", "expect": "gold" },
+    { "from": "guilds", "ref": "gold", "expect": "guilds:gold" },
+    { "from": "guilds", "ref": "guilds:gold", "expect": "guilds:gold" },
+    { "from": "guilds", "ref": "core:gold", "expect": "gold" },
+    { "from": "guilds", "ref": "shop:gold", "expect": "shop:gold" },
+    { "from": "guilds", "ref": "banner", "expect": "banner" },
+    { "from": "guilds", "ref": "title", "expect": "guilds:title" },
+    { "from": "guilds", "ref": "frame", "expect": "frame" },
+    { "from": "shop", "ref": "gold", "expect": "shop:gold" },
+    { "from": "shop", "ref": "banner", "expect": "shop:banner" },
+    { "from": "shop", "ref": "guilds:banner", "expect": "banner" },
+    { "from": "shop", "ref": "coin", "expect": "coin" },
+    { "from": "shop", "ref": "shop:coin", "expect": "coin" },
+    { "from": "kit", "ref": "gold", "expect": "gold" },
+    { "from": "kit", "ref": "close", "expect": "close" },
+    { "from": "kit", "ref": "kit:close", "expect": "kit:close" },
+    { "from": "kit", "ref": "guilds:gold", "expect": "guilds:gold" },
+    { "from": null, "ref": "gold", "expect": "gold" },
+    { "from": null, "ref": "guilds:gold", "expect": "guilds:gold" },
+    { "from": null, "ref": "shop:coin", "expect": "coin" }
+  ]
+}

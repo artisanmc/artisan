@@ -18,7 +18,7 @@ import { type ImageButtonPlacement, buildImageButtons } from "./imageButtons";
 import { inventoryLabelFiles } from "./inventoryLabel";
 import type { GlyphPlacement } from "./menuGlyphPlacements";
 import { TEXT_SIZES, TEXT_Y_MAX, type TextPlacement } from "./menuTextPlacements";
-import { type OverlayImageRequest, buildOverlayImages } from "./overlayImages";
+import { type OverlayAsk, buildOverlayImages } from "./overlayImages";
 import { encodePng } from "./png";
 import { SYMBOLS_UP_FULL_MAX, symbolRows, symbolSheet } from "./symbols";
 import { type TextSheet, allTextSheets, textSheetFiles } from "./textChars";
@@ -82,7 +82,7 @@ export function buildResourcePackZip(
   /** The padded vanilla font textures (`assets/minecraft/font/*_up.png`), for `artisan:text_up{R}`. */
   textUp?: Record<TextUpTexture, Uint8Array>,
   /** Module images at a height (`pack.images`, SDK 1.13), as `artisan:overlay/…` fonts. */
-  overlayImages: OverlayImageRequest[] = [],
+  overlayImages: OverlayAsk[] = [],
   /** Empty the client's "Inventory" label (`resource-pack.hide-inventory-label`, cf. inventoryLabel.ts). */
   hideInventoryLabel = false,
   /** The symbols the Projects' texts use (`usedSymbols`), drawn by the text fonts. */

@@ -13,7 +13,7 @@ class PackProject(
     /** A binary's bytes; null skips it, a throw fails the whole build. */
     val binary: (String) -> ByteArray?,
     val overlayImages: List<OverlayImageRequest> = emptyList(),
-    /** The Project's folder, which names it on the plugin side (Bedrock menu keys); defaults to [id]. */
+    /** The Project's folder, which names it on the plugin side (Bedrock menu keys, `<folder>:<name>` of an image, [ImageNames]); defaults to [id]. */
     val folder: String = id,
 )
 
@@ -70,13 +70,14 @@ object ResourcePackBuilder {
         val contribs = ArrayList<Pair<String, List<Pair<String, Double>>>>()
         val glyphPngs = HashMap<String, ByteArray>()
         val fontGlyphPngs = HashMap<String, Map<String, ByteArray>>()
-        val glyphPlacements = ArrayList<GlyphPlacement>()
-        val imageButtons = ArrayList<ImageButtonPlacement>()
+        // A menu's image names are read with its module's folder, once every module's images are known.
+        val names = ImageNames()
+        val placedGlyphs = ArrayList<Pair<String, GlyphPlacement>>()
+        val placedButtons = ArrayList<Pair<String, ImageButtonPlacement>>()
+        val askedOverlays = ArrayList<Pair<String, OverlayImageRequest>>()
         val textPlacements = ArrayList<TextPlacement>()
         val transparent = LinkedHashSet<GuiContainer>()
         val imagesByRef = ArrayList<Pair<String, ByteArray>>()
-        val overlayImages = ArrayList<OverlayImageRequest>()
-        val bedrockMenus = ArrayList<BedrockMenu>()
         val texts = ArrayList<String>()
         val titleImages = ArrayList<String>()
         val kitImages = HashMap<String, ByteArray>()
@@ -86,41 +87,45 @@ object ResourcePackBuilder {
             val files = project.files
             // Any text of the Project may reach a title (menus, lang files, data rows): its symbols ride along.
             files.mapTo(texts) { it.content }
-            glyphPlacements += MenuReaders.glyphPlacements(files)
+            MenuReaders.glyphPlacements(files).mapTo(placedGlyphs) { project.folder to it }
             titleImages += MenuReaders.titleImages(files)
-            imageButtons += MenuReaders.imageButtons(files)
+            MenuReaders.imageButtons(files).mapTo(placedButtons) { project.folder to it }
             textPlacements += MenuReaders.textPlacements(files)
-            overlayImages += project.overlayImages
+            project.overlayImages.mapTo(askedOverlays) { project.folder to it }
             transparent += MenuReaders.transparentContainers(files)
-            // Keyed by the folder name: the plugin names a menu's Project that way.
-            if (input.bedrockServerId != null) bedrockMenus += BedrockMenus.fromProject(project.folder, files)
             val fromDisk = DiskAssets.fromTree(project.id, files, project.binaries, originals = true)
-            contribs += project.id to fromDisk
-                .filter { it.row.type == "glyph" && it.row.codepoint != null }
-                .map { it.row.id to it.row.codepoint!! }
+            // An image the module is not the first to hold under that name gets its module's id ([ImageNames]).
+            val rows = fromDisk.map { a ->
+                if (a.row.type == "glyph" || a.row.type == "texture") ImageNames.named(a.row, names.claim(project.folder, a.row.id), project.folder)
+                else a.row.also { names.take(it.id) }
+            }
+            contribs += project.id to rows
+                .filter { it.type == "glyph" && it.codepoint != null }
+                .map { it.id to it.codepoint!! }
             // The module's own PNGs by name: what its composed images are made of.
             val own = HashMap<String, ByteArray>()
-            for (a in fromDisk) {
-                allAssets += a.row
-                if ((a.row.type == "glyph" && a.row.codepoint != null) || a.row.type == "texture") {
+            for ((i, a) in fromDisk.withIndex()) {
+                val row = rows[i]
+                allAssets += row
+                if ((row.type == "glyph" && row.codepoint != null) || row.type == "texture") {
                     if (a.recipe != null) {
-                        composed += Composed(allAssets.lastIndex, project, a.recipe, own)
+                        composed += Composed(allAssets.lastIndex, project, a.recipe, own, a.row.name)
                         continue
                     }
                     val bytes = project.binary(a.path) ?: continue
-                    glyphPngs[a.row.id] = bytes
+                    glyphPngs[row.id] = bytes
                     imagesByRef += "${project.id}:${a.row.name}" to bytes
                     own[a.row.name] = bytes
                     if (project.folder == Kit.FOLDER) kitImages[a.row.name] = bytes
                     continue
                 }
-                if (a.row.type != "font") continue
+                if (row.type != "font") continue
                 // A font is unpacked on disk: its glyphs are sibling files of the descriptor.
-                val meta = a.row.fontMeta as? FontMeta
+                val meta = row.fontMeta as? FontMeta
                 val dir = a.path.substringBeforeLast('/')
                 val fontMap = LinkedHashMap<String, ByteArray>()
                 for (g in meta?.glyphMap.orEmpty()) project.binary("$dir/${g.texture}")?.let { fontMap[g.texture] = it }
-                if (fontMap.isNotEmpty()) fontGlyphPngs[a.row.id] = fontMap
+                if (fontMap.isNotEmpty()) fontGlyphPngs[row.id] = fontMap
             }
         }
 
@@ -142,18 +147,24 @@ object ResourcePackBuilder {
             val bytes = Png.encode(image)
             allAssets[c.index] = row
             glyphPngs[row.id] = bytes
-            imagesByRef += "${c.project.id}:${row.name}" to bytes
+            imagesByRef += "${c.project.id}:${c.name}" to bytes
             if (c.project.folder == Kit.FOLDER) {
-                kitImages[row.name] = bytes
-                kitComposed += row.name
+                kitImages[c.name] = bytes
+                kitComposed += c.name
             }
         }
+
+        val glyphPlacements = placedGlyphs.map { (folder, p) -> p.copy(assetId = names.resolve(folder, p.assetId)) }
+        val imageButtons = placedButtons.map { (folder, b) -> b.copy(asset = names.resolve(folder, b.asset)) }
+        // The plugin asks for a module's image by its name alone (`OverlayApi.image`): the key keeps
+        // the name, the picture is the asking module's own.
+        val overlayImages = askedOverlays.map { (folder, r) -> OverlayAsk(r, names.resolve(folder, r.asset)) }
 
         // `kit:<name>` ([Kit]): only the ones a menu or a module asks for, so a server that names
         // none keeps the pack it had. One a title is drawn with is a glyph of the menu font, at
         // the first codepoint no module's glyph has; the others are textures.
         val inTitles = titleImages.mapNotNullTo(HashSet(), Kit::nameOf)
-        val asked = (inTitles + (imageButtons.map { it.asset } + overlayImages.map { it.asset }).mapNotNull(Kit::nameOf)).distinct().sorted()
+        val asked = (inTitles + (imageButtons.map { it.asset } + overlayImages.map { it.request.asset }).mapNotNull(Kit::nameOf)).distinct().sorted()
         val kitGlyphs = ArrayList<Pair<String, Double>>()
         for (name in asked) {
             val image = Kit.image(name, kitImages[name]) ?: continue
@@ -198,12 +209,14 @@ object ResourcePackBuilder {
         // By id, what a menu writes: a file's name, `kit:<name>` for a kit image.
         val pngsByName = LinkedHashMap<String, ByteArray>()
         for (a in allAssets) glyphPngs[a.id]?.let { pngsByName.putIfAbsent(a.id, it) }
+        // Keyed by the folder name: the plugin names a menu's Project that way.
+        val bedrockMenus = projects.flatMap { p -> BedrockMenus.fromProject(p.folder, p.files) { names.resolve(p.folder, it) } }
         val bedrock = BedrockPack.build(serverId, bedrockMenus, pngsByName, allAssets, sources.getValue(GuiContainer.CHEST))
         return PackResult(java.zip, java.sha1, bedrock)
     }
 
-    /** A composed image waiting for its layers: its row's place, its module and that module's PNGs. */
-    private class Composed(val index: Int, val project: PackProject, val recipe: ComposedImages.Recipe, val own: Map<String, ByteArray>)
+    /** A composed image waiting for its layers: its row's place, its module, that module's PNGs and its [name] there. */
+    private class Composed(val index: Int, val project: PackProject, val recipe: ComposedImages.Recipe, val own: Map<String, ByteArray>, val name: String)
 
     /** First Project wins a codepoint; a later one taking it again moves to the first free one. */
     private fun mergeCodepoints(contribs: List<Pair<String, List<Pair<String, Double>>>>): Map<String, Double> {
@@ -232,7 +245,7 @@ object ResourcePackBuilder {
         imageButtons: List<ImageButtonPlacement>,
         sources: Map<GuiContainer, ByteArray>,
         transparent: Set<GuiContainer>,
-        overlayImages: List<OverlayImageRequest>,
+        overlayImages: List<OverlayAsk>,
         hideInventoryLabel: Boolean,
         symbols: List<Int>,
         textPlacements: List<TextPlacement>,

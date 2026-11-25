@@ -1156,12 +1156,18 @@ class McpTools(
         // A theme asked for and not there is refused, never drawn without.
         if (asked != null) kit.theme
         // An image by its name, as the pack finds it: `kit:<name>` is the kit module's (this draft's, when the
-        // menu is the kit's own), else the base's, in the theme; another name is the module's own, then another module's.
+        // menu is the kit's own), else the base's, in the theme; another name is the module's own, then another
+        // module's; `<module>:<name>` is that module's, else the name alone in the first module that holds it
+        // (ADR `common-images-and-themes`, decision 3; `ImageNames` in the pack).
         fun image(name: String): MenuPictureImage? {
             val inKit = Kit.nameOf(name)
             if (inKit != null) return kit.image(inKit)?.let { MenuPictureImage(it.png, Kit.ASCENT) }
-            return mine.image(name, kit)
+            val colon = name.indexOf(':')
+            if (colon < 0) return mine.image(name, kit)
                 ?: folders(project.server).firstNotNullOfOrNull { if (it == project.folder) null else module(it)?.image(name, kit) }
+            val bare = name.substring(colon + 1)
+            return module(name.substring(0, colon))?.image(bare, kit)
+                ?: folders(project.server).firstNotNullOfOrNull { module(it)?.image(bare, kit) }
         }
         val picture = try {
             MenuPictures.render(MenuPictureInput(content, ::image, { id -> items?.invoke(id) }, args.get("lang")?.takeIf { it.isTextual }?.asText()))
@@ -1832,7 +1838,7 @@ class McpTools(
         private const val MAX_PROMPT = 4000
         const val NOT_ALLOWED_TO_SPEND = "This app may not use the server's image model, which the server's owner pays for: the player can allow it in Settings → AI apps."
         private const val IMAGES_HOWTO = "Images: a menu with its own look is drawn with images (write_image). Before the first one, call " +
-            "survey_ui on the server: reuse an image that fits (a menu may name any module's image), and draw what is missing in the " +
+            "survey_ui on the server: reuse an image that fits (a menu may name any module's image: `<module>:<name>` for another module's), and draw what is missing in the " +
             "style of what is there. For a plain button, panel, arrow or window, name an image of the kit's base (`kit:button.3x1`, " +
             "survey_ui's kit_base): every server has them. When the server has a UI kit (the module `ui-kit`), follow its notes and " +
             "file there each reusable image you add. A window with its slots, or a card with its icon, is better put together than " +
