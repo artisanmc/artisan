@@ -4,6 +4,8 @@
 `editor-web-server`, `editor-tunnel` and `server-identity-and-versions` (drafts in the database).
 **Revised 2026-10-29** (decision 9): a client the player allowed may deploy; decisions 2 and 5 say
 what holds by default.
+**Decisions 12 (the kit as a module), 14 and 16 are replaced** by `common-images-and-themes`
+(2026-11-25): they describe the code until that ADR's steps land.
 
 ## Context
 
@@ -178,7 +180,7 @@ deployed.
      same geometry. Not locked by shared vectors, unlike the pack build.
    - Read-only, offered to every principal with `edit`, the editor's assistant included.
 
-12. **A server's images, and its UI kit** (2026-11-24, fourth step of the same design).
+12. **A server's images, and its UI kit** (2026-11-24, fourth step of the same design). *The kit as a module is replaced by `common-images-and-themes`, not built yet.*
    `survey_ui(server)` shows what the server's menus are drawn with, before a model draws
    anything new: each module's images on a numbered sheet (`ImageSheets`, one picture per module,
    a module's own image over the one it shipped with), each image's name, use and size, the
@@ -241,7 +243,7 @@ deployed.
    - The ruler's picture is a PNG the JDK compresses, or a JPEG above 400 kB (the game's world
      behind a menu): it is looked at, never written.
 
-14. **The UI kit's base: `kit:<name>`** (2026-11-24, step 4 a of the same design). A module's
+14. **The UI kit's base: `kit:<name>`** (2026-11-24, step 4 a of the same design). *Replaced by `common-images-and-themes`, not built yet.* A module's
     menus cannot be laid out against a server's own kit, which differs from one server to the
     next. So Artisan ships a base: 19 images under names and sizes that are public and never
     change (`editor/src/assets/kit`, listed in `slots.json`): `window.6`, `window.3`, `cell`,
@@ -308,7 +310,7 @@ deployed.
       layers, no selection, no resizing. It is the hand's counterpart of `write_image`'s
       pixels: what the model drew is corrected there without leaving the editor, and beyond a
       detail the answer stays an import or the model.
-16. **Themes of the kit** (2026-11-24, step 4 bis of the same design). A server wants another
+16. **Themes of the kit** (2026-11-24, step 4 bis of the same design). *Replaced by `common-images-and-themes`, not built yet.* A server wants another
     look for a season or an event without rewriting a menu. A theme is the same images, under
     the same names and at the same sizes, with other pixels: a folder `themes/<name>/` of the
     `ui-kit` module, read by both pack builders (`Theme.kt`, `theme.ts`).
