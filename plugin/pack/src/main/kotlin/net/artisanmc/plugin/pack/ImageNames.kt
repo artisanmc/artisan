@@ -2,11 +2,13 @@ package net.artisanmc.plugin.pack
 
 /**
  * Which image a menu's name is (ADR `common-images-and-themes`, decision 3): a module's own image
- * first, another module's as `<folder>:<name>`.
+ * first, then the server's common image of that name, then another module's.
  *
  * An image's id in the pack stays its bare name for the first module that holds it, by Project
- * order: a server where no two modules share a name keeps its pack byte for byte. A later
- * module's image of the same name is `<folder>:<name>`, its files under `modules/<folder>/`.
+ * order, when no common image has that name: a server where no two modules share a name, and
+ * none takes a common image's, keeps its pack byte for byte. Any other module's image is
+ * `<folder>:<name>`, its files under `modules/<folder>/`. So a bare id is never an image whose
+ * name a common image has, and a name alone reaches the common one before another module's.
  *
  * [resolve] reads the ids alone, so the plugin finds the same image from the pack's asset index
  * (`ImageRefs` in core) and the editor from its own build (`imageNames.ts`):
@@ -15,18 +17,28 @@ package net.artisanmc.plugin.pack
 internal class ImageNames {
     private val ids = HashSet<String>()
     private val owned = HashMap<String, HashMap<String, String>>()
+    private val commons = HashSet<String>()
 
     /** An id that is no module's image (a font): an image of that name in a later module is qualified. */
     fun take(id: String) {
         ids += id
     }
 
-    /** The id of [folder]'s image [name]: the bare name for the first module that holds one. */
+    /**
+     * A common image's name ([Kit]), told before any module's image is named: a module's image
+     * of that name is qualified, so the bare name stays the common image's for the other modules.
+     */
+    fun common(name: String) {
+        commons += name
+        ids += Kit.PREFIX + name
+    }
+
+    /** The id of [folder]'s image [name]: the bare name for the first module that holds one no common image has. */
     fun claim(folder: String, name: String): String {
         val mine = owned.getOrPut(folder) { HashMap() }
         mine[name]?.let { return it }
         // `kit:<name>` and `artisan:<name>` are common images: such a folder keeps bare names.
-        val id = if (name in ids && !reserved(folder)) "$folder:$name" else name
+        val id = if ((name in ids || name in commons) && !reserved(folder)) "$folder:$name" else name
         ids += id
         mine[name] = id
         return id
@@ -38,13 +50,13 @@ internal class ImageNames {
     companion object {
         /**
          * [ref] as an id, among the ids [has] knows: `kit:<name>` for `artisan:<name>` (a
-         * common image, [Kit]); else the module's own image when it is not the first of that name,
-         * then `<module>:<name>` when that id exists, else the name after the colon (the first
-         * module's image keeps the bare id), else the common image of that name, else the name.
+         * common image, [Kit]); else the module's own image under its qualified id, then the bare
+         * id (the module's own or another's, never one a common image shares its name with),
+         * then `<module>:<name>` when that id exists, else the name after the colon, else the
+         * common image of that name, else the name.
          *
          * The ids do not say who holds a bare one: `<module>:<name>` for an image that module
-         * does not hold reaches the bare name. The asset index gains the holder with the common
-         * images (step 2 of the ADR).
+         * does not hold reaches the bare name, then the common image.
          */
         fun resolve(has: (String) -> Boolean, folder: String, ref: String): String {
             if (ref.startsWith(Kit.PREFIX)) return ref

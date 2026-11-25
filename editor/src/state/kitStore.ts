@@ -6,6 +6,11 @@ export interface KitRead {
   projectId: string;
   files: Record<string, string>;
   binaries: { path: string; hash: string }[];
+  /**
+   * Whether the server reads a common image by its name alone: it has the theme `artisan`. An
+   * older one, whose common images are the module `ui-kit`, reads `kit:<name>` only.
+   */
+  byName?: boolean;
 }
 
 interface KitState {

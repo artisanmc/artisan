@@ -1,3 +1,5 @@
+import { useAssetStore } from "@/features/assets/assetStore";
+import { useKitStore } from "@/state/kitStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { ImageButtonEditor } from "./ImageButtonEditor";
@@ -59,7 +61,7 @@ it("converts an item with the image's natural footprint and edits pixel offsets"
   expect(onImage).toHaveBeenCalledWith({ asset: "buy", fit: "native", offset_x: 0, offset_y: 0 });
 });
 
-it("takes a kit image by its kit name, at its natural footprint", () => {
+const pickCommon = () => {
   const onImage = vi.fn();
   render(
     <ImageButtonEditor
@@ -71,9 +73,32 @@ it("takes a kit image by its kit name, at its natural footprint", () => {
       onItem={vi.fn()}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Kit d'interface" }));
-  // The base is there without a kit module; a window is no button's image.
-  expect(screen.queryByTitle(/^kit:window\.6/)).toBeNull();
-  fireEvent.click(screen.getByTitle(/^kit:button\.3x1 /));
-  expect(onImage).toHaveBeenCalledWith({ asset: "kit:button.3x1", fit: "native" }, "1-3");
+  fireEvent.click(screen.getByRole("button", { name: "Communes" }));
+  // The base is there on any server; a window is no button's image.
+  expect(screen.queryByTitle(/^window\.6/)).toBeNull();
+  fireEvent.click(screen.getByTitle(/^button\.3x1 /));
+  return onImage;
+};
+
+it("takes a common image by its name alone, at its natural footprint", () => {
+  useKitStore.setState({ read: { projectId: "artisan", files: {}, binaries: [], byName: true } });
+  useAssetStore.getState().reset();
+  expect(pickCommon()).toHaveBeenCalledWith({ asset: "button.3x1", fit: "native" }, "1-3");
+});
+
+it("names the common image with artisan: when the module holds an image of that name", () => {
+  useKitStore.setState({ read: { projectId: "artisan", files: {}, binaries: [], byName: true } });
+  useAssetStore.getState().reset();
+  useAssetStore
+    .getState()
+    .setAssets([
+      { id: "button.3x1", projectId: "p", type: "texture", name: "button.3x1" } as never,
+    ]);
+  expect(pickCommon()).toHaveBeenCalledWith({ asset: "artisan:button.3x1", fit: "native" }, "1-3");
+  useAssetStore.getState().reset();
+});
+
+it("keeps kit: on a server older than the common images", () => {
+  useKitStore.setState({ read: undefined });
+  expect(pickCommon()).toHaveBeenCalledWith({ asset: "kit:button.3x1", fit: "native" }, "1-3");
 });

@@ -91,7 +91,7 @@ export function KitThemePage({
       </header>
       {error ? (
         <p role="alert" className="text-xs text-[var(--danger)]">
-          {t("kit.page.failed", { detail: error })}
+          {t("kit.theme.failed", { detail: error })}
         </p>
       ) : null}
       {!theme ? (

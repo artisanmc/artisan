@@ -24,33 +24,44 @@ and 3 × 2 or 2 × 3 covers six. Drag the image to move the entire button: the p
 button you hold lands on the slot under the pointer. Release it over another menu of the
 project to move it there.
 
-**UI kit.** Beside **Item** and **Image**, **UI kit** lists the images every server has
-(`kit:button.3x1`, `kit:close.1x1`, arrows, toggles…) and this server's common images, kept in
-`plugins/Artisan/themes/artisan/`. The menu names the image instead of copying it: when the server redraws the kit's
-button, every menu that names it follows. A kit image whose name ends with its slots (`3x1`)
-takes that area. A title's image layer offers the same list, with the kit's windows
-(`kit:window.6`, `kit:window.3`). When the server's pack is built in a theme of the kit
+**Common images.** Beside **Item** and **Image**, **Common** lists the images every server has
+(`button.3x1`, `close.1x1`, arrows, toggles…) and the ones this server added, kept in
+`plugins/Artisan/themes/artisan/`. The menu names the image instead of copying it: when the
+server redraws the common button, every menu that names it follows. A common image whose name
+ends with its slots (`3x1`) takes that area. A title's image layer offers the same list, with
+the common windows (`window.6`, `window.3`). When the server's pack is built in a theme
 (see [AI](../../configuration/ai/), "Themes"), the editor shows these images in that theme, as
 players see them.
 
 **The same name in two modules.** A menu shows the image of its own module. When two modules
 each hold a `gold.png`, each one's menus show their own. To show another module's image, name
 it with its module in the menu's file: `image: { asset: "guilds:gold" }`. The editor's picker
-lists the open module's images and the kit.
+lists the open module's images and the common ones.
 
-**Common images by their name.** A name no module holds is a common image: `button.3x1` shows
-the server's common image of that name. `artisan:button.3x1` shows it even when the menu's
-module holds a `button.3x1` of its own. `kit:button.3x1`, which the picker writes, means the
-same and stays read.
+**Common images by their name.** A name the menu's module holds no image of is a common image:
+`button.3x1` shows the server's common image of that name, even when another module holds a
+`button.3x1` of its own. A module that draws its own `button.3x1` shows it in its own menus
+only; `artisan:button.3x1` shows the common one there too. The picker writes the name alone,
+and `artisan:<name>` when the open module holds an image of that name. `kit:button.3x1`, which
+older menus hold, means the same and stays read. A name that neither the menu's module nor the
+common images hold still reaches another module's image of that name, as before.
 
-**The kit, a tab of the server.** The server page's **UI kit** tab shows the kit as the server
-has it deployed: every piece of the base by family (buttons; windows, panels and values; arrows
-and controls) with its size and who drew it, **Artisan** or this server (**Redrawn**), then the
-server's own kit images. **The kit in a menu** sets every piece on one window, as players see
-it. Click a piece, on its card or on that menu, to open it in the atelier of the common images
-(the theme `artisan`, which is not in the module list): a piece still Artisan's is first copied
-under the piece's name, at the piece's size, so the menus keep their layout. Deleting that image
-gives the piece back to Artisan: the base Artisan ships stays beside it, in
+**Common images in a module's Resources.** The **Module** selector of the Resources screen has
+an entry **Common images**, beside this module, all modules and the other modules. It lists
+every common image as the server has it deployed; one selected shows its size, who drew it
+(**Artisan**, **Redrawn** or **This server's**) and what a menu of the open module writes to
+name it. Nothing is copied into the module. **Redraw for the server** (a piece still Artisan's)
+or **Open in the common images** opens the image in the atelier of the common images. The
+common images are not one of the other modules of that selector.
+
+**Common images, a tab of the server.** The server page's **Common images** tab shows them as
+the server has them deployed: every piece of the base by family (buttons; windows, panels and
+values; arrows and controls) with its size and who drew it, **Artisan** or this server
+(**Redrawn**), then the images the server added. **In a menu** sets every piece on one window,
+as players see it. Click a piece, on its card or on that menu, to open it in the atelier of the
+common images (the theme `artisan`, which is not in the module list): a piece still Artisan's
+is first copied under the piece's name, at the piece's size, so the menus keep their layout.
+Deleting that image gives the piece back to Artisan: the base Artisan ships stays beside it, in
 `themes/artisan/originals/`, rewritten when an update of Artisan changes it. Like any change, a
 redrawn piece reaches players when the draft is deployed and the pack rebuilt.
 
@@ -58,7 +69,7 @@ A server that had a `ui-kit` module keeps its images: at the first start after t
 module's folder moves to `plugins/Artisan/themes/artisan/`, and the menus that name its images
 keep working.
 
-**Themes.** The tab lists the kit's themes, the one in place marked. A theme opens on what it
+**Themes.** The tab lists the themes, the one in place marked. A theme opens on what it
 changes (the colours it replaces, the pieces it redraws) and on the same menu without it and
 with it. **Put in place on the server** sets the server's theme and rebuilds its pack: players
 receive it at their next connection. **Take off the server** goes back to no theme. A theme's

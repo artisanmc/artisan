@@ -1,4 +1,5 @@
 import { SplitPane } from "@/components/SplitPane";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
@@ -6,6 +7,7 @@ import { assetUsages } from "@/domain/assetUsage";
 import type { Project, ProjectId } from "@/domain/types";
 import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
 import { cx } from "@/lib/cx";
+import { KIT_ALIAS, kitNameOf } from "@/lib/pack/kit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useProjectsStore } from "@/state/projectsStore";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -22,6 +24,7 @@ import { ImageNewDialog } from "./ImageNewDialog";
 import { ImageStudio } from "./ImageStudio";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
+import { isKitBase, useCommonImageRef, useKitAssets } from "./kitAssets";
 import { type ResourcesView, useResourcesView } from "./resourcesView";
 import { useKitPieceAsked } from "./useKitPieceAsked";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
@@ -137,9 +140,12 @@ export function AssetsTab({
   projectId,
   compact = false,
   capturedItems,
+  onOpenCommon,
 }: {
   projectId: ProjectId;
   compact?: boolean;
+  /** Opens the Resources of the common images' Project; absent on a server that has none. */
+  onOpenCommon?: () => void;
   /** The captured view's content, given by the page (the section lives with the canvas). */
   capturedItems?: ReactNode;
 }) {
@@ -203,6 +209,11 @@ export function AssetsTab({
         sourceId={sourceId}
         onSourceChange={setSourceId}
         menuClassName="shrink-0 px-3 pt-3"
+        common={
+          <div className="min-h-0 flex-1">
+            <CommonAssets projectId={projectId} compact={compact} onOpen={onOpenCommon} />
+          </div>
+        }
       >
         {(sources) => (
           <div className="min-h-0 flex-1">
@@ -375,6 +386,111 @@ function OtherProjectAssets({
       {!mine && (
         <p className="text-[11px] text-[var(--text-faint)]">{t("projectSource.snapshotHint")}</p>
       )}
+    </div>
+  ) : null;
+  return (
+    <ResourcesSplit
+      narrow={narrow}
+      list={list}
+      detail={detail}
+      onBack={() => setSelectedId(null)}
+    />
+  );
+}
+
+/**
+ * The server's common images in a module's Resources: the base and what the server added, as
+ * published. A menu names one, nothing is copied; one is redrawn in the common images'
+ * Project, which `onOpen` opens on it.
+ */
+function CommonAssets({
+  projectId,
+  compact,
+  onOpen,
+}: {
+  projectId: ProjectId;
+  compact: boolean;
+  onOpen?: () => void;
+}) {
+  const { t } = useTranslation();
+  const isDesktop = useIsDesktop();
+  const narrow = compact || !isDesktop;
+  const assets = useKitAssets();
+  const refOf = useCommonImageRef(projectId);
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const nameOf = (asset: Asset) => kitNameOf(asset.id) ?? asset.name;
+  const filtered = assets.filter((asset) =>
+    nameOf(asset).toLowerCase().includes(search.toLowerCase()),
+  );
+  const selected = assets.find((asset) => asset.id === selectedId) ?? null;
+  const shipped = selected !== null && isKitBase(selected) && !selected.contentHash;
+  const written = selected ? refOf(selected) : "";
+  const open = () => {
+    if (!selected || !onOpen) return;
+    useResourcesView.getState().askPiece(nameOf(selected), projectId);
+    onOpen();
+  };
+  const list = (
+    <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
+      <p className="text-xs text-[var(--text-mut)]">{t("resources.common.hint")}</p>
+      <Input
+        aria-label={t("resources.search")}
+        placeholder={t("resources.search")}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      {filtered.length === 0 ? (
+        <output className="block py-8 text-center text-sm text-[var(--text-mut)]">
+          {t("resources.noResults")}
+        </output>
+      ) : (
+        <AssetGrid
+          assets={filtered}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          titleOf={nameOf}
+        />
+      )}
+    </div>
+  );
+  const detail = selected ? (
+    <div className="flex flex-col gap-3 p-3" data-testid="common-asset-detail">
+      {selected.type !== "font" && <AssetStage asset={selected} />}
+      <div className="flex min-w-0 items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium">{nameOf(selected)}</div>
+          {selected.width > 0 && (
+            <div className="text-xs text-[var(--text-mut)]">
+              {selected.width} × {selected.height} px
+            </div>
+          )}
+        </div>
+        <Badge variant={shipped ? "sage" : "amber"}>
+          {t(
+            shipped
+              ? "kit.page.shipped"
+              : isKitBase(selected)
+                ? "kit.page.redrawn"
+                : "resources.common.added",
+          )}
+        </Badge>
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="field-label">{t("resources.common.written")}</span>
+        <code className="truncate text-xs" data-testid="common-asset-ref">
+          {written}
+        </code>
+        {written.startsWith(KIT_ALIAS) && (
+          <p className="text-[11px] text-[var(--text-faint)]">{t("resources.common.prefixed")}</p>
+        )}
+      </div>
+      {onOpen && (
+        <Button onClick={open}>
+          {t(shipped ? "resources.common.redraw" : "resources.common.open")}
+        </Button>
+      )}
+      <p className="text-[11px] text-[var(--text-faint)]">{t("resources.common.followHint")}</p>
     </div>
   ) : null;
   return (

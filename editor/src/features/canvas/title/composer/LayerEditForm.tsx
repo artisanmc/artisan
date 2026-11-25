@@ -14,7 +14,7 @@ import type { AssetId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { KitPicker } from "@/features/assets/KitPicker";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { useAssetsWithKit } from "@/features/assets/kitAssets";
+import { useAssetsWithKit, useCommonImageRef } from "@/features/assets/kitAssets";
 import { imageNamed } from "@/lib/pack/kit";
 import { duplicateAsset } from "@/lib/api/userAssets";
 import { cn } from "@/lib/cx";
@@ -127,6 +127,7 @@ interface ImageLayerFormProps {
 
 function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps) {
   const asset = imageNamed(useAssetsWithKit(), layer.assetId);
+  const commonRef = useCommonImageRef(projectId);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
   const updateLayer = useProjectsStore((s) => s.updateMenuTitleLayer);
   const user = useAuthStore((s) => s.currentUser);
@@ -266,7 +267,11 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
         onPick={onPick}
         title={t("layerEditForm.pickerTitle")}
       />
-      <KitPicker open={kitOpen} onClose={() => setKitOpen(false)} onPick={onPick} />
+      <KitPicker
+        open={kitOpen}
+        onClose={() => setKitOpen(false)}
+        onPick={(picked) => onPick({ ...picked, id: commonRef(picked) })}
+      />
     </div>
   );
 }

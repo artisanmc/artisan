@@ -131,6 +131,20 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     name: string;
   }[] = [];
 
+  // The common images' names, before any module's image is named (`ImageNames.common`). A
+  // server older than the theme `artisan` keeps the ids it had.
+  if (kitProject && kitFolder === KIT_FOLDER) {
+    for (const a of diskAssetsFromTree(kitProject.id, kitProject.files, kitProject.binaries, {
+      originals: false,
+    }))
+      if (a.row.type === "glyph" || a.row.type === "texture") names.common(a.row.id);
+    for (const { path } of kitProject.binaries) {
+      const name = kitShippedName(path);
+      if (name) names.common(name);
+    }
+    for (const slot of KIT_SLOTS) names.common(slot.id);
+  }
+
   for (const project of projects) {
     const { files } = project;
     const folder = folderOf(project);

@@ -10,9 +10,10 @@ import {
 import type { Project, ProjectId } from "@/domain/types";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useOtherServerProjects } from "@/features/serverIndex/useOtherServerProjects";
+import { useKitStore } from "@/state/kitStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { ChevronDown } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 const HERE = "__here__";
@@ -21,8 +22,10 @@ const HERE = "__here__";
  * know where a resource lives.
  */
 export const ALL_PROJECTS = "__all__";
-/** What a library shows: the edited project (`null`), one other project, or all of them. */
-export type ProjectSourceId = ProjectId | typeof ALL_PROJECTS | null;
+/** The server's common images (the theme `artisan`), in a library that shows them (`common`). */
+export const COMMON_IMAGES = "__common__";
+/** What a library shows: the edited project (`null`), one other project, all of them, or the common images. */
+export type ProjectSourceId = ProjectId | typeof ALL_PROJECTS | typeof COMMON_IMAGES | null;
 
 /**
  * Lets a library show the images and items of the other projects of the same
@@ -30,13 +33,16 @@ export type ProjectSourceId = ProjectId | typeof ALL_PROJECTS | null;
  * the project view already loads (their published state): nothing is read
  * twice. "All modules" also lists the edited project, first and read live from
  * the projects store: a child tells it apart by its id (`projectId`) and uses
- * its resources in place instead of copying them.
+ * its resources in place instead of copying them. The common images' Project is
+ * never one of the other modules: a library that shows the common images gives
+ * `common`, which gets an entry of its own ("Common images").
  */
 export function ProjectSource({
   projectId,
   sourceId,
   onSourceChange,
   children,
+  common,
   menuClassName,
 }: {
   projectId: ProjectId;
@@ -49,15 +55,22 @@ export function ProjectSource({
    * first; never empty).
    */
   children: (sources: Project[] | null) => ReactNode;
+  /** What to show for the common images; without it the menu has no such entry. */
+  common?: ReactNode;
   /** Classes of the menu's own row. */
   menuClassName?: string;
 }) {
   const { t } = useTranslation();
-  const others = useOtherServerProjects(projectId);
+  const kitId = useKitStore((s) => s.read?.projectId);
+  const everyOther = useOtherServerProjects(projectId);
+  const others = useMemo(() => everyOther.filter((p) => p.id !== kitId), [everyOther, kitId]);
+  // The common images' own Project shows them as its files.
+  const offersCommon = common !== undefined && kitId !== projectId;
+  const shared = offersCommon && sourceId === COMMON_IMAGES;
   const here = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const status = useServerIndexStore((s) => s.status);
   const all = sourceId === ALL_PROJECTS;
-  const source = sourceId && !all ? others.find((p) => p.id === sourceId) : undefined;
+  const source = sourceId && !all && !shared ? others.find((p) => p.id === sourceId) : undefined;
   const sources = all ? (here ? [here, ...others] : others) : source ? [source] : [];
   const loading = status === "loading";
   return (
@@ -72,7 +85,11 @@ export function ProjectSource({
             >
               <span className="text-[var(--text-mut)]">{t("projectSource.label")}</span>
               <span className="min-w-0 flex-1 truncate">
-                {all ? t("projectSource.all") : (source?.name ?? t("projectSource.here"))}
+                {shared
+                  ? t("projectSource.common")
+                  : all
+                    ? t("projectSource.all")
+                    : (source?.name ?? t("projectSource.here"))}
               </span>
               <ChevronDown className="size-3.5 shrink-0 text-[var(--text-mut)]" />
             </button>
@@ -82,7 +99,7 @@ export function ProjectSource({
             className="max-h-80 overflow-y-auto border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
           >
             <DropdownMenuRadioGroup
-              value={all ? ALL_PROJECTS : source ? source.id : HERE}
+              value={shared ? COMMON_IMAGES : all ? ALL_PROJECTS : source ? source.id : HERE}
               onValueChange={(value) =>
                 onSourceChange(value === HERE ? null : (value as ProjectSourceId))
               }
@@ -90,6 +107,11 @@ export function ProjectSource({
               <DropdownMenuRadioItem value={HERE} className="text-xs">
                 {t("projectSource.here")}
               </DropdownMenuRadioItem>
+              {offersCommon && (
+                <DropdownMenuRadioItem value={COMMON_IMAGES} className="text-xs">
+                  {t("projectSource.common")}
+                </DropdownMenuRadioItem>
+              )}
               {others.length > 0 && (
                 <DropdownMenuRadioItem value={ALL_PROJECTS} className="text-xs">
                   {t("projectSource.all")}
@@ -121,7 +143,9 @@ export function ProjectSource({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {sourceId === null ? (
+      {shared ? (
+        common
+      ) : sourceId === null ? (
         children(null)
       ) : sources.length > 0 ? (
         children(sources)

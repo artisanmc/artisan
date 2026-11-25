@@ -5,13 +5,17 @@ import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 import {
   KIT_SLOTS,
+  assetNamesIn,
+  commonImageRef,
   imageNamed,
+  imageRefsIn,
   kitFolderAmong,
   kitFootprint,
   kitImage,
   kitNameOf,
   kitShippedName,
   kitShippedPath,
+  namesCommonImage,
 } from "./kit";
 import { createImage, decodePng, encodePng } from "./png";
 
@@ -97,5 +101,52 @@ describe("UI kit", () => {
     expect(kitFootprint("kit:arrow.next.off.1x2")).toEqual({ width: 1, height: 2 });
     expect(kitFootprint("kit:cell")).toBeNull();
     expect(kitFootprint("button.3x1")).toBeNull();
+  });
+
+  test("a module's files say which names it holds", () => {
+    expect(
+      assetNamesIn([
+        "assets/glyphs/gold.png",
+        "assets/glyphs/gold.yml",
+        "assets/textures/panel.yaml",
+        "assets/fonts/title/font.yml",
+        "assets/fonts/title/a.png",
+        "originals/assets/textures/button.3x1.png",
+        "themes/noel/assets/textures/ribbon.png",
+        "menus/main.yml",
+      ]).sort(),
+    ).toEqual(["button.3x1", "gold", "panel", "title"]);
+  });
+
+  test("a menu writes a common image's name alone, artisan: when its module holds the name", () => {
+    const own = (name: string) => name === "gold";
+    expect(commonImageRef("panel", own)).toBe("panel");
+    expect(commonImageRef("gold", own)).toBe("artisan:gold");
+  });
+
+  test("a name written in a menu names a common image when its module holds none of that name", () => {
+    const own = (name: string) => name === "gold";
+    const common = (name: string) => name === "gold" || name === "panel";
+    expect(namesCommonImage("panel", own, common)).toBe(true);
+    expect(namesCommonImage("artisan:gold", own, common)).toBe(true);
+    expect(namesCommonImage("kit:ribbon", own, common)).toBe(true);
+    expect(namesCommonImage("gold", own, common)).toBe(false);
+    expect(namesCommonImage("ribbon", own, common)).toBe(false);
+    expect(namesCommonImage("guilds:panel", own, common)).toBe(false);
+  });
+
+  test("a Document's image names are its asset and assetId values, at any depth", () => {
+    expect(
+      imageRefsIn({
+        title: {
+          layers: [
+            { kind: "glyph", assetId: "panel", x: 0 },
+            { kind: "text", text: "asset" },
+          ],
+        },
+        slots: { 4: { appearance: { image: { asset: "artisan:button.3x1", width: 3 } } } },
+        asset: 12,
+      }),
+    ).toEqual(["panel", "artisan:button.3x1"]);
   });
 });

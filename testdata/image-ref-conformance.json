@@ -1,20 +1,19 @@
 {
-  "description": "Which image a name in a module's file is (ADR common-images-and-themes, decision 3). Read by both pack builders (ImageNamesTest in plugin/pack, imageNames.test.ts in the editor) and by the plugin's lookup (ImageRefConformanceTest in plugin/core). `modules` are in Project order; each one's fonts are read before its images. `ids`: the pack id of each module's image, the bare name for the first module that holds one, `<folder>:<name>` after; the theme `artisan` and a module named `kit` keep bare names, their `<folder>:` naming the common images. `cases`: a name written in a file of the module `from` (null: no module) and the id it reaches, computed from the set of ids alone, so the game finds from the pack's asset index what the builder wrote: the module's own image, another module's, else the common image of that name, whose id in the pack is `kit:<name>` (`artisan:<name>` names it whatever the module holds; `kit:<name>` is the former spelling). `also` adds the ids the index holds beyond the modules': the common images a menu asked for. Known limit of this step: the index does not say who holds a bare id, so `<module>:<name>` for an image that module does not hold falls on the bare name, then on the common image.",
+  "description": "Which image a name in a module's file is (ADR common-images-and-themes, decision 3). Read by both pack builders (ImageNamesTest in plugin/pack, imageNames.test.ts in the editor) and by the plugin's lookup (ImageRefConformanceTest in plugin/core). `common`: the names of the server's common images (the theme `artisan`'s and the base), told to a builder before any module's image is named. `modules` are in Project order; each one's fonts are read before its images. `ids`: the pack id of each module's image, the bare name for the first module that holds one when no common image has that name, `<folder>:<name>` otherwise; a module named `kit` keeps bare names, its `<folder>:` naming the common images. `cases`: a name written in a file of the module `from` (null: no module; `artisan`: the theme, which holds no image of the pack) and the id it reaches, computed from the set of ids alone, so the game finds from the pack's asset index what the builder wrote: the module's own image, then the common image of that name, whose id in the pack is `kit:<name>` (`artisan:<name>` names it whatever the module holds; `kit:<name>` is the former spelling), then another module's. `also` adds the ids the index holds beyond the modules': the common images a menu asked for. Known limit: the index does not say who holds a bare id, so `<module>:<name>` for an image that module does not hold falls on the bare name, then on the common image.",
+  "common": ["badge", "close", "panel"],
   "modules": [
-    { "folder": "artisan", "fonts": [], "images": ["badge"] },
-    { "folder": "core", "fonts": ["title"], "images": ["gold", "frame"] },
+    { "folder": "core", "fonts": ["title"], "images": ["gold", "frame", "panel"] },
     { "folder": "guilds", "fonts": [], "images": ["gold", "banner", "title"] },
     { "folder": "kit", "fonts": [], "images": ["gold", "close"] },
     { "folder": "shop", "fonts": [], "images": ["gold", "banner", "coin"] }
   ],
   "ids": {
-    "artisan": { "badge": "badge" },
-    "core": { "gold": "gold", "frame": "frame" },
+    "core": { "gold": "gold", "frame": "frame", "panel": "core:panel" },
     "guilds": { "gold": "guilds:gold", "banner": "banner", "title": "guilds:title" },
     "kit": { "gold": "gold", "close": "close" },
     "shop": { "gold": "shop:gold", "banner": "shop:banner", "coin": "coin" }
   },
-  "also": ["kit:badge", "kit:close", "kit:gold", "kit:panel"],
+  "also": ["kit:badge", "kit:close", "kit:panel"],
   "cases": [
     { "from": "core", "ref": "gold", "expect": "gold" },
     { "from": "core", "ref": "core:gold", "expect": "gold" },
@@ -48,7 +47,7 @@
     { "from": null, "ref": "gold", "expect": "gold" },
     { "from": null, "ref": "guilds:gold", "expect": "guilds:gold" },
     { "from": null, "ref": "shop:coin", "expect": "coin" },
-    { "from": "core", "ref": "panel", "expect": "kit:panel" },
+    { "from": "core", "ref": "panel", "expect": "core:panel" },
     { "from": "guilds", "ref": "panel", "expect": "kit:panel" },
     { "from": null, "ref": "panel", "expect": "kit:panel" },
     { "from": "core", "ref": "artisan:panel", "expect": "kit:panel" },
@@ -57,11 +56,15 @@
     { "from": "core", "ref": "artisan:absent", "expect": "kit:absent" },
     { "from": "core", "ref": "artisan:gold", "expect": "kit:gold" },
     { "from": "guilds", "ref": "artisan:gold", "expect": "kit:gold" },
-    { "from": "core", "ref": "badge", "expect": "badge" },
+    { "from": "core", "ref": "badge", "expect": "kit:badge" },
     { "from": "core", "ref": "artisan:badge", "expect": "kit:badge" },
-    { "from": "artisan", "ref": "badge", "expect": "badge" },
+    { "from": "artisan", "ref": "badge", "expect": "kit:badge" },
     { "from": "artisan", "ref": "gold", "expect": "gold" },
     { "from": "artisan", "ref": "panel", "expect": "kit:panel" },
-    { "from": "artisan", "ref": "artisan:panel", "expect": "kit:panel" }
+    { "from": "artisan", "ref": "artisan:panel", "expect": "kit:panel" },
+    { "from": "guilds", "ref": "core:panel", "expect": "core:panel" },
+    { "from": "shop", "ref": "panel", "expect": "kit:panel" },
+    { "from": null, "ref": "core:panel", "expect": "core:panel" },
+    { "from": "core", "ref": "core:panel", "expect": "core:panel" }
   ]
 }

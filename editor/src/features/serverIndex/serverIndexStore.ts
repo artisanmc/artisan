@@ -63,7 +63,12 @@ export const useServerIndexStore = create<ServerIndexState>((set, get) => ({
 useServerIndexStore.subscribe((state, previous) => {
   if (state.reads === previous.reads) return;
   const read = kitProjectAmong(state.reads, (r) => r.summary.externalId ?? r.summary.id);
-  useKitStore
-    .getState()
-    .setRead(read && { projectId: read.summary.id, files: read.files, binaries: read.binaries });
+  useKitStore.getState().setRead(
+    read && {
+      projectId: read.summary.id,
+      files: read.files,
+      binaries: read.binaries,
+      byName: read.summary.role === "theme",
+    },
+  );
 });

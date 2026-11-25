@@ -15,6 +15,16 @@ import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
+    common: {
+      hint: "The images every menu of the server shares. A menu names one by its name: nothing is copied into this module.",
+      added: "This server's",
+      written: "A menu of this module writes",
+      prefixed: "This module holds an image of this name: artisan: names the common one.",
+      redraw: "Redraw for the server",
+      open: "Open in the common images",
+      followHint:
+        "A common image is redrawn in the server's common images: every menu that names it follows.",
+    },
     view: { files: "Images and fonts", captured: "Captured items" },
     capturedHint:
       "Items captured in game. Place one on a menu from the Buttons panel of the canvas, or pick it in an item field.",
@@ -65,14 +75,14 @@ export default {
     new: "Compose an image",
     newTitle: "Compose an image",
     newHint:
-      "An image put together from kit pieces and this module's images. The resource pack assembles it, so it follows the server's kit.",
+      "An image put together from common images and this module's images. The resource pack assembles it, so it follows the server's common images.",
     newFor: "What it is for",
     newWindow: "A menu's window",
     newButton: "A button",
     newCreate: "Create",
     layers: "Layers",
     layerLabel: "Layer {{n}}: {{name}}",
-    addKit: "Kit piece",
+    addKit: "Common image",
     addImage: "Module image",
     addDrawn: "Draw a layer",
     retouchLayer: "Retouch this layer",
@@ -115,7 +125,7 @@ export default {
     colour: "Colour",
     anyColour: "Any colour",
     ownColours: "Colours of this image",
-    kitColours: "Colours of the kit",
+    kitColours: "Colours of the common images",
     save: "Save pixels",
     discard: "Undo changes",
     close: "Close",
@@ -124,7 +134,7 @@ export default {
     new: "Draw an image",
     newTitle: "Draw an image",
     newHint:
-      "An empty image of the size you choose, drawn pixel by pixel. For a window or a button, compose an image from the kit instead.",
+      "An empty image of the size you choose, drawn pixel by pixel. For a window or a button, compose an image from the common images instead.",
     newSize: "Size",
     newIcon: "Icon 16 × 16",
     newSlot: "Slot 18 × 18",
@@ -145,7 +155,7 @@ export default {
     start: "Start from",
     empty: "Empty",
     emptyHint: "An empty image of that size, drawn pixel by pixel.",
-    noPiece: "The kit has no piece of that size: the image starts empty, drawn pixel by pixel.",
+    noPiece: "No common image has that size: the image starts empty, drawn pixel by pixel.",
     kitHint:
       "The image follows this piece when the server redraws it. You add and draw layers over it.",
     create: "Create and open the atelier",
@@ -159,14 +169,14 @@ export default {
     single: "One slot or less",
     layers_one: "{{count}} layer",
     layers_other: "{{count}} layers",
-    situation: "As a player sees it: on the kit's window, at twice the game's pixels.",
+    situation: "As a player sees it: on the common window, at twice the game's pixels.",
     toLayers: "Add layers",
     toLayersHint:
-      "The image becomes layers: this drawing is the first, and you add kit pieces or other drawings over it. It keeps its name, so the menus that show it follow.",
+      "The image becomes layers: this drawing is the first, and you add common images or other drawings over it. It keeps its name, so the menus that show it follow.",
     flatten: "Flatten",
     flattenConfirm: "Flatten into one drawing?",
     flattenHint:
-      "The layers become a single drawing of the same name. It no longer follows the kit; the layers stay in the module as images.",
+      "The layers become a single drawing of the same name. It no longer follows the common images; the layers stay in the module as images.",
     failed: "That did not work: {{detail}}",
     guides: {
       label: "Guides",
@@ -178,17 +188,15 @@ export default {
     },
   },
   kit: {
-    fromKit: "UI kit",
-    choose: "Choose a kit image",
-    hint: "Images every server has, and this server's own kit images. The menu names the image: it follows the kit when the server restyles it.",
+    fromKit: "Common",
+    choose: "Choose a common image",
+    hint: "Images every server has, and the ones this server made common. The menu names the image: it follows when the server redraws it.",
     page: {
-      title: "UI kit",
+      title: "Common images",
       intro:
-        "The images every menu of the server shares. A menu names one kit:<name>; redraw a piece once and every menu that names it follows.",
-      none: "This server's Artisan is older than the common images: every piece is Artisan's. Update it, or create the kit module to redraw one.",
+        "The images every menu of the server shares. A menu names one by its name; redraw one and every menu that names it follows.",
+      none: "This server's Artisan is older than the common images: every piece is Artisan's. Update it to redraw one.",
       open: "Open the server's images",
-      create: "Create the kit module",
-      failed: "That did not work: {{detail}}",
       themes: "Themes",
       noTheme: "No theme",
       noThemeInPlace: "No theme (in place)",
@@ -202,21 +210,22 @@ export default {
       shipped: "Artisan",
       redrawn: "Redrawn",
       others: "This server's own images",
-      noOthers:
-        "None yet. An image added to the server's common images is named kit:<its name> by any menu.",
-      inMenu: "The kit in a menu",
+      noOthers: "None yet. An image added here is named by its name in any menu of the server.",
+      inMenu: "In a menu",
       inMenuHint:
         "Every piece set on one window, as players see it. Click a piece to open it in the atelier of the server's common images.",
       inMenuHintNoKit: "Every piece set on one window, as players see it.",
       redrawnCount_one: "{{count}} piece redrawn out of {{total}}",
       redrawnCount_other: "{{count}} pieces redrawn out of {{total}}",
-      menusNaming_one: "{{count}} menu names the kit",
-      menusNaming_other: "{{count}} menus name the kit",
+      menusNaming_one: "{{count}} menu names a common image",
+      menusNaming_other: "{{count}} menus name a common image",
     },
     theme: {
-      back: "‹ Kit",
+      failed: "That did not work: {{detail}}",
+      back: "‹ Common images",
       title: "Theme “{{name}}”",
-      intro: "A theme changes the kit's colours, or redraws a piece. The menus keep their layout.",
+      intro:
+        "A theme changes the common images' colours, or redraws one. The menus keep their layout.",
       inPlace: "In place",
       notInPlace: "Not in place",
       putInPlace: "Put in place on the server",
@@ -288,6 +297,7 @@ export default {
     resize: "Resize navigation (double-click: default width)",
   },
   projectSource: {
+    common: "Common images",
     all: "All modules",
     from: "In module {{project}}",
     searchItems: "Search items…",
@@ -2312,7 +2322,7 @@ export default {
         "delegate-reload-command": "Reload command after delegation",
         "hide-inventory-label":
           "Hide the “Inventory” label under menus (every container, every language)",
-        theme: "Theme of the UI kit",
+        theme: "Theme of the common images",
         "container-textures": {
           chest: "Chests",
           hopper: "Hoppers",
@@ -2322,7 +2332,7 @@ export default {
     },
     hints: {
       theme:
-        "A folder of the server's common images (themes/artisan/themes/<name>/). Every kit image is then shown in the theme's colors, or as the theme redraws it; the menus keep their layout.",
+        "A folder of the server's common images (themes/artisan/themes/<name>/). Every common image is then shown in the theme's colors, or as the theme redraws it; the menus keep their layout.",
       chest:
         "A generic_54.png layout (256×256, or a multiple for an HD pack). When a menu turns its vanilla texture off, every other chest on the server is drawn back with it.",
       hopper:
@@ -2346,7 +2356,7 @@ export default {
     tabs: {
       label: "Server sections",
       overview: "Overview",
-      kit: "UI kit",
+      common: "Common images",
       play: "Play",
       assistant: "Assistant",
       data: "Data sources",

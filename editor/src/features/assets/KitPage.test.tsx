@@ -1,5 +1,5 @@
 import { useKitStore } from "@/state/kitStore";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { KitPage } from "./KitPage";
 
@@ -18,18 +18,16 @@ describe("KitPage", () => {
     useKitStore.setState({ read: undefined, theme: undefined });
   });
 
-  it("shows every piece as Artisan's and offers to create the kit module", async () => {
-    const onCreateKit = vi.fn().mockResolvedValue(undefined);
-    render(<KitPage menusNaming={0} onCreateKit={onCreateKit} />);
+  it("shows every piece as Artisan's on a server that has no theme yet", () => {
+    render(<KitPage menusNaming={0} />);
     const slot = screen.getByTestId("kit-slot-button.3x1");
     expect(within(slot).getByText("54 × 18 px")).toBeInTheDocument();
     expect(within(slot).getByText("Artisan")).toBeInTheDocument();
-    // No kit module: a piece is looked at, nothing opens.
+    // No theme on the server: a piece is looked at, nothing opens.
     expect(slot.tagName).toBe("DIV");
     expect(screen.getByTestId("kit-trial-close.1x1").tagName).toBe("SPAN");
     expect(screen.getByText("0 pièce redessinée sur 19")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Créer le module du kit" }));
-    await waitFor(() => expect(onCreateKit).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: /Ouvrir/ })).toBeNull();
   });
 
   it("tells a redrawn piece, and opens a piece from its card or from the trial menu", () => {
@@ -46,7 +44,7 @@ describe("KitPage", () => {
       within(screen.getByTestId("kit-slot-button.3x1")).getByText("Redessinée"),
     ).toBeInTheDocument();
     expect(screen.getByText("1 pièce redessinée sur 19")).toBeInTheDocument();
-    expect(screen.getByText("14 menus nomment le kit")).toBeInTheDocument();
+    expect(screen.getByText("14 menus nomment une image commune")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("kit-slot-card.3x2"));
     expect(onPiece).toHaveBeenLastCalledWith("card.3x2");
     fireEvent.click(screen.getByTestId("kit-trial-close.1x1"));

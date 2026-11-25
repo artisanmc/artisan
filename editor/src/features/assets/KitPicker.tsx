@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Asset } from "@/domain/asset";
 import { cx } from "@/lib/cx";
-import { KIT_PREFIX } from "@/lib/pack/kit";
+import { kitNameOf } from "@/lib/pack/kit";
 import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
 import { useKitAssets } from "./kitAssets";
@@ -48,7 +48,9 @@ export function ImageChoiceDialog({
               key={asset.id}
               type="button"
               title={
-                asset.width > 0 ? `${asset.name} · ${asset.width} × ${asset.height} px` : asset.name
+                asset.width > 0
+                  ? `${nameOf(asset)} · ${asset.width} × ${asset.height} px`
+                  : nameOf(asset)
               }
               onClick={() => onPick(asset)}
               className={cx(
@@ -72,8 +74,8 @@ export function ImageChoiceDialog({
 }
 
 /**
- * Chooses an image of the UI kit (`kit:<name>`): the base every server has, then the server's
- * own kit images. The image stays the kit's: the menu names it, nothing is copied.
+ * Chooses a common image: the base every server has, then the ones this server added. The
+ * image stays common: the menu names it (`useCommonImageRef`), nothing is copied.
  */
 export function KitPicker({
   open,
@@ -97,7 +99,7 @@ export function KitPicker({
       title={t("kit.choose")}
       hint={t("kit.hint")}
       assets={assets}
-      nameOf={(asset) => asset.name.slice(KIT_PREFIX.length)}
+      nameOf={(asset) => kitNameOf(asset.id) ?? asset.name}
     />
   );
 }

@@ -316,6 +316,8 @@ class McpTest {
             for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
         }.let(net.artisanmc.plugin.pack.Png::encode)
         modules["shop"] = McpFixtures.Module(images = mapOf("assets/textures/panel.3x1.png" to solid(54, 18, 0x3366cc)))
+        // Another module's image under a common image's name: its own menus' only.
+        modules["guilds"] = McpFixtures.Module(images = mapOf("assets/textures/ribbon.png" to solid(54, 18, 0x101010)))
         modules["artisan"] = McpFixtures.Module(
             images = mapOf(
                 // The base as this server holds it, and an image the server added.
@@ -339,7 +341,8 @@ class McpTest {
             "  - positions: \"3-5\"\n    image: { asset: ribbon }\n" +
             "  - positions: \"6-8\"\n    image: { asset: panel.3x1 }\n" +
             "  - positions: \"9-11\"\n    image: { asset: 'artisan:panel.3x1' }\n" +
-            "  - positions: \"12-14\"\n    image: { asset: 'kit:ribbon' }\n"
+            "  - positions: \"12-14\"\n    image: { asset: 'kit:ribbon' }\n" +
+            "  - positions: \"15-17\"\n    image: { asset: 'guilds:ribbon' }\n"
         assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/common.yml", "content" to menu).has("isError"))
         val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/common.yml", "draft_id" to draftId, "scale" to 1)
         val window = rendered["structuredContent"]["window"]
@@ -349,7 +352,8 @@ class McpTest {
             return shown.data.slice(at until at + 3).fold(0) { rgb, byte -> (rgb shl 8) or (byte.toInt() and 0xff) }
         }
         assertEquals(0x20c040, colour(0, 0), "a base image by its name, as the server holds it")
-        assertEquals(0xc020a0, colour(3, 0), "an image the server added, by its name")
+        assertEquals(0xc020a0, colour(3, 0), "an image the server added, by its name, before another module's")
+        assertEquals(0x101010, colour(6, 1), "another module's image by module and name")
         assertEquals(0x3366cc, colour(6, 0), "the module's own image first")
         assertEquals(0x804020, colour(0, 1), "artisan:<name> is the common one though the module holds one")
         assertEquals(0xc020a0, colour(3, 1), "kit:<name> is still read")

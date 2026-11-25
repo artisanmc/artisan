@@ -37,7 +37,7 @@ describe("useKitPieceAsked", () => {
     uploadAsset.mockReset();
     useAssetStore.getState().reset();
     useKitStore.setState({ read: { projectId: "kit", files: {}, binaries: [] }, theme: undefined });
-    useResourcesView.setState({ view: "files", studio: null, piece: null });
+    useResourcesView.setState({ view: "files", studio: null, piece: null, pieceFrom: null });
   });
 
   it("opens the kit module's image of the piece asked for", () => {
@@ -68,5 +68,25 @@ describe("useKitPieceAsked", () => {
     unmount();
     renderHook(() => useKitPieceAsked("shop"));
     expect(useResourcesView.getState().piece).toBeNull();
+  });
+
+  it("leaves a request made in a module for the common images it then opens", () => {
+    useAssetStore.getState().setAssets([image("blason", 32, 32)]);
+    useResourcesView.getState().askPiece("blason", "shop");
+    const { unmount } = renderHook(() => useKitPieceAsked("shop"));
+    expect(useResourcesView.getState().piece).toBe("blason");
+    unmount();
+    // An image the server added: opened as it is, never copied from Artisan's.
+    renderHook(() => useKitPieceAsked("kit"));
+    expect(useResourcesView.getState().studio).toBe("blason");
+    expect(useResourcesView.getState().piece).toBeNull();
+    expect(uploadAsset).not.toHaveBeenCalled();
+  });
+
+  it("drops a request for an image the common images do not hold", () => {
+    useResourcesView.getState().askPiece("ribbon", "shop");
+    renderHook(() => useKitPieceAsked("kit"));
+    expect(useResourcesView.getState().piece).toBeNull();
+    expect(useResourcesView.getState().studio).toBeNull();
   });
 });

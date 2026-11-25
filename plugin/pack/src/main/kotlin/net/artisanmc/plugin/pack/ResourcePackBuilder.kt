@@ -89,6 +89,15 @@ object ResourcePackBuilder {
             Kit.image(name, kitImages[name], kitBase.getOrPut(name) { kitProject?.takeIf { Kit.shippedPath(name) in it.binaries }?.binary(Kit.shippedPath(name)) })
         }
         val composed = ArrayList<Composed>()
+        // The common images' names, before any module's image is named ([ImageNames.common]). A
+        // server older than the theme `artisan` keeps the ids it had.
+        val shippedNames = kitProject?.binaries.orEmpty().mapNotNull(Kit::shippedName)
+        if (kitProject?.folder == Kit.FOLDER) {
+            DiskAssets.fromTree(kitProject.id, kitProject.files, kitProject.binaries, originals = false)
+                .filter { it.row.type == "glyph" || it.row.type == "texture" }
+                .forEach { names.common(it.row.id) }
+            for (name in shippedNames + Kit.slots.map { it.id }) names.common(name)
+        }
 
         for (project in projects) {
             val files = project.files
@@ -181,7 +190,6 @@ object ResourcePackBuilder {
         }
 
         // A name no module holds reaches the common image of that name ([ImageNames.resolve]).
-        val shippedNames = kitProject?.binaries.orEmpty().mapNotNull(Kit::shippedName)
         for (name in kitImages.keys + shippedNames + Kit.slots.map { it.id }) names.take(Kit.PREFIX + name)
 
         val glyphPlacements = placedGlyphs.map { (folder, p) -> p.copy(assetId = names.resolve(folder, p.assetId)) }
