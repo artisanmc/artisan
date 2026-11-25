@@ -15,6 +15,16 @@ import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
+    original: {
+      label: "The module's original",
+      alt: "{{name}} as its module ships it",
+      confirmRestore:
+        "Delete your version of {{name}}? Menus show the module's original again once deployed.",
+      asShipped:
+        "Shipped by the module, as it is. Editing it in the atelier makes your version, shown in its place.",
+      asShippedCommon:
+        "Artisan's, as shipped. Editing it in the atelier makes this server's version, shown in its place.",
+    },
     originalChanged: {
       title: "The original changed since your version.",
       hint: "Menus keep showing yours. Keep it as it is, or restore the original and redraw from the new one.",

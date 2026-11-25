@@ -48,28 +48,58 @@ export function CommonImageMisfit({ asset, misfit }: { asset: Asset; misfit?: Ki
 const ORIGINAL_MAX = 160;
 
 /**
- * The piece `slot` as Artisan ships it, shown beside the server's version of it (ADR
+ * An image as it is shipped, shown beside the owner's version of it (ADR
  * `common-images-and-themes`, decision 8): what "restore the original" comes back to.
+ * `width` and `height` are the box it is drawn in, enlarged while it stays small.
  */
-export function CommonImageOriginal({ slot }: { slot: KitSlot }) {
-  const { t } = useTranslation();
-  const url = kitImageUrl(slot.id);
-  if (!url) return null;
-  const scale = Math.max(1, Math.min(3, Math.floor(ORIGINAL_MAX / slot.width)));
+export function OriginalImage({
+  url,
+  label,
+  alt,
+  width,
+  height,
+  testId,
+}: {
+  url: string;
+  label: string;
+  alt: string;
+  width: number;
+  height: number;
+  testId: string;
+}) {
+  const sized = width > 0 && height > 0;
+  const scale = Math.max(1, Math.min(3, Math.floor(ORIGINAL_MAX / Math.max(1, width))));
   return (
-    <div className="flex flex-col gap-1" data-testid="common-image-original">
-      <span className="field-label">{t("kit.page.original")}</span>
+    <div className="flex flex-col gap-1" data-testid={testId}>
+      <span className="field-label">{label}</span>
       <div className="flex justify-center rounded-[var(--r-md)] bg-[var(--surface-inset)] p-3">
         <img
           src={url}
-          alt={t("kit.page.originalAlt", { name: slot.id })}
-          width={slot.width * scale}
-          height={slot.height * scale}
-          className="max-w-full object-contain"
+          alt={alt}
+          width={sized ? width * scale : undefined}
+          height={sized ? height * scale : undefined}
+          className="max-h-40 max-w-full object-contain"
           style={{ imageRendering: "pixelated" }}
           decoding="async"
         />
       </div>
     </div>
+  );
+}
+
+/** The piece `slot` as Artisan ships it (this build's image), beside the server's version of it. */
+export function CommonImageOriginal({ slot }: { slot: KitSlot }) {
+  const { t } = useTranslation();
+  const url = kitImageUrl(slot.id);
+  if (!url) return null;
+  return (
+    <OriginalImage
+      url={url}
+      label={t("kit.page.original")}
+      alt={t("kit.page.originalAlt", { name: slot.id })}
+      width={slot.width}
+      height={slot.height}
+      testId="common-image-original"
+    />
   );
 }

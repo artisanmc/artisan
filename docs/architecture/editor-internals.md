@@ -123,7 +123,13 @@ image changed since the owner's version: `originalChanged` (`projectTemplatesSto
 in the origins the server recorded, the hash beside the image's path and the one beside
 `originals/<path>`; **Keep mine** is the store's `keep` (`POST …/origins/keep`), which then
 holds what the server wrote. The origins are read by the module's tree, and by the notice
-when the tree has not.
+when the tree has not. `imageStanding` (`imageStanding.ts`) reads, in the module's binary tree
+(draft, else published), whether an image is the owner's file, the module's (`originals/`) or
+both: both, `AssetDetailPanel` draws the module's file beside the owner's (`OriginalImage`) and
+its delete is "Restore the original"; the module's alone, the panel offers nothing that would
+write (the owner holds no file) but the atelier, whose save (`retouch`) writes the owner's
+version beside the original with the original's codepoint, ascent, size and uses
+(`DraftOverlay.shipped`, `localAssets.ts`).
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)

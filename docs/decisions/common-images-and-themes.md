@@ -284,6 +284,16 @@ builders; `ImageRefs.kt` did not change).
   (a start or a reload), not when it is deployed. An original that changes between the
   deploy and that sync is not flagged.
 
+**Step 5, third part: a module's images** (`imageStanding.ts`, `localAssets.ts`).
+
+- Saving, in the atelier, an image the module ships and the owner does not hold writes the
+  owner's version beside the original: same name, size, codepoint, ascent and uses. It was
+  refused (`not_found`), so a shipped image could not be redrawn from the editor.
+- The owner's version of a shipped image shows the module's original beside it, and its delete
+  is **Restore the original**. An image as shipped offers nothing to rename or delete: the
+  owner holds no file. The same holds in the common images' Project, where a piece of the
+  base as shipped was offered a restore that could only fail.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -297,18 +307,21 @@ Not there yet:
 - Against decision 12: the server's Resources and a module's are two components, the first
   read-only. Both read the common images as published, so an image drawn in the theme's draft
   shows there once deployed. The uses count menus only: an image named by a dialog, an overlay
-  or a composed image's layer is not counted yet. The change of an original shows on the image
-  in its module only, not in the server's list, and a module's image shows no original beside
-  it (step 5). An image cannot be moved or copied to another scope from the server's list. Themes have
-  no screen of their own yet: they are reached from the common images' page.
+  or a composed image's layer is not counted yet. The change of an original and a module's
+  original show on the image in its module only, not in the server's list, and the module's
+  list does not mark which images are the owner's versions (step 5). An image cannot be moved
+  or copied to another scope from the server's list. Themes have no screen of their own yet:
+  they are reached from the common images' page.
 - Against decision 4: an image does not declare its function yet. Only the base's pieces
   have fixed measures (their pixel size, from Artisan's own list); a module's image that
   replaces its original (`originals/`) at other measures is still taken, and nothing is said
   of a glyph's height and ascent or of a HUD image. The editor reads a redrawn piece's size
   from its descriptor, the pack from the PNG.
-- Against decision 8: "the original changed since your redraw" is not there (a redrawn image
-  records no origin), and neither the side by side nor the restore reach an add-on module's
-  images or a menu.
+- Against decision 8: the original an owner's image was made against is recorded at the first
+  originals sync that sees the image, not when it is deployed, so an original that changes
+  in between is not flagged. A menu keeps what module originals already gave it (compare with
+  the original, back to the original, a merge at each update): it has no "the original
+  changed" notice of its own.
 - Against decisions 5 and 6: a theme other than `artisan` is still a folder
   `themes/artisan/themes/<name>/`, one in place per server (`resource-pack.theme`).
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no
@@ -334,8 +347,9 @@ Not there yet:
   `themes/<name>/` needs no new mechanism.
 - `SystemFiles` keeps where an owner's file came from (`.artisan/origins.yaml`, the version and
   its hash) and merges YAML files only; a file that is not YAML stays as the owner left it. An
-  image the owner redraws has no origin today: decision 8's "the original changed" records one
-  when the redraw is written.
+  owner's image at a shipped path gets its origin at the first sync that sees it (read again
+  for step 5: the first reading, "no origin today", was wrong), which is what decision 8's
+  "the original changed" reads.
 
 ## Still to check
 

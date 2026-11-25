@@ -328,6 +328,16 @@ class DraftOverlay {
     return { files, binaries, assets: diskAssetsFromTree(this.projectId, files, binaries) };
   }
 
+  /**
+   * The image `id` as its module ships it (`originals/…`), when the owner holds none of that
+   * name: what a first retouch draws the owner's version over.
+   */
+  shipped(disk: DiskAssetsTree, type: string, id: string): DiskAsset | undefined {
+    return diskAssetsFromTree(this.projectId, disk.files, disk.binaries, { originals: true }).find(
+      (a) => a.row.type === type && a.row.id === id && a.path.startsWith("originals/"),
+    );
+  }
+
   /** Verified bytes of an asset: published if unchanged, otherwise the draft blob. */
   async bytes(asset: DiskAsset): Promise<Uint8Array | null> {
     const meta = this.snapshot.binaryTree?.[asset.path];
@@ -563,10 +573,14 @@ async function create(
   const retouch = fields.retouch === "true";
   const replace = retouch || fields.replace === "true";
   if (existingSame && !replace) fail(409, "Asset name already exists");
-  if (!existingSame && replace) fail(404, "not_found");
-  const kept = existingSame?.row;
-  if (retouch && existingSame && kept) {
-    const before = await overlay.bytes(existingSame);
+  // A retouch of an image the module ships and the owner does not hold: the owner's version
+  // is written beside the original, with what the original says of itself.
+  const source =
+    existingSame ?? (retouch ? overlay.shipped(disk, type, assetFileName(name)) : undefined);
+  if (!source && replace) fail(404, "not_found");
+  const kept = source?.row;
+  if (retouch && source && kept) {
+    const before = await overlay.bytes(source);
     if (!before) fail(503, "server_offline");
     let drawn = { width: 0, height: 0 };
     try {

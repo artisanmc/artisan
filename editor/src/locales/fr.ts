@@ -17,6 +17,16 @@ import { variablesFr } from "./variables";
 const fr: typeof en = {
   onboarding: onboardingFr,
   resources: {
+    original: {
+      label: "Original du module",
+      alt: "{{name}} telle que son module la livre",
+      confirmRestore:
+        "Supprimer ta version de {{name}} ? Les menus montrent de nouveau l'original du module une fois déployé.",
+      asShipped:
+        "Livrée par le module, telle quelle. La modifier dans l'atelier en fait ta version, montrée à sa place.",
+      asShippedCommon:
+        "Celle d'Artisan, telle que livrée. La modifier dans l'atelier en fait la version de ce serveur, montrée à sa place.",
+    },
     originalChanged: {
       title: "L'original a changé depuis ta version.",
       hint: "Les menus continuent de montrer la tienne. Garde-la telle quelle, ou restaure l'original pour repartir du nouveau.",
