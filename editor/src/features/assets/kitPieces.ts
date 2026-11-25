@@ -46,3 +46,26 @@ export async function redrawKitPiece(projectId: string, slot: KitSlot): Promise<
     ...(isKitWindow(slot) ? { ascent: KIT_ASCENT } : {}),
   });
 }
+
+/**
+ * Where each piece sits on the page's trial menu (a six-row chest), by slot: column and row of
+ * its top-left slot. The window is the menu itself and the cell its grid, so neither is placed.
+ */
+export const TRIAL_MENU: Readonly<Record<string, { column: number; row: number }>> = {
+  "button.3x1": { column: 0, row: 0 },
+  "button.danger.3x1": { column: 3, row: 0 },
+  "button.off.3x1": { column: 6, row: 0 },
+  "button.plain.3x1": { column: 0, row: 1 },
+  "panel.3x1": { column: 3, row: 1 },
+  "value.3x1": { column: 6, row: 1 },
+  "arrow.prev.1x2": { column: 0, row: 2 },
+  "card.3x2": { column: 1, row: 2 },
+  "arrow.next.1x2": { column: 4, row: 2 },
+  "arrow.prev.off.1x2": { column: 5, row: 2 },
+  "arrow.next.off.1x2": { column: 6, row: 2 },
+  "value.2x1": { column: 7, row: 2 },
+  "back.1x1": { column: 0, row: 5 },
+  "toggle.on.1x1": { column: 3, row: 5 },
+  "toggle.off.1x1": { column: 5, row: 5 },
+  "close.1x1": { column: 8, row: 5 },
+};

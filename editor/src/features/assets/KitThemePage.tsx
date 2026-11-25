@@ -5,7 +5,7 @@ import { useKitStore } from "@/state/kitStore";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
-import { KitSheet } from "./KitSheet";
+import { KitTrialMenu } from "./KitTrialMenu";
 import { publishedKitTheme, useKitAssetsIn } from "./kitAssets";
 
 const hex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
@@ -22,7 +22,7 @@ function Swatch({ color }: { color: number }) {
 
 /**
  * One theme of the server's kit (`lib/pack/theme.ts`), read from the published kit module: the
- * colours it replaces, the pieces it redraws, and every piece of the kit without it and with it. A theme
+ * colours it replaces, the pieces it redraws, and the same menu without it and with it. A theme
  * is put in place from here (`onPutInPlace`: the server's `resource-pack.theme`, then its pack
  * rebuilt), and taken off the same way.
  */
@@ -161,18 +161,18 @@ export function KitThemePage({
           </div>
           <section className="card flex min-w-0 flex-1 flex-col gap-3 p-4">
             <h3 className="eyebrow">{t("kit.theme.compare")}</h3>
-            <div className="flex flex-col gap-6 rounded-[var(--r-md)] bg-[var(--surface-inset)] p-4">
-              <figure className="flex flex-col gap-2" data-testid="kit-theme-before">
+            <div className="flex flex-wrap justify-center gap-6 rounded-[var(--r-md)] bg-[var(--surface-inset)] p-4">
+              <figure className="flex flex-col items-center gap-2" data-testid="kit-theme-before">
                 <figcaption className="text-xs font-medium text-[var(--text-mut)]">
                   {t("kit.page.noTheme")}
                 </figcaption>
-                <KitSheet kit={plain} />
+                <KitTrialMenu kit={plain} />
               </figure>
-              <figure className="flex flex-col gap-2" data-testid="kit-theme-after">
+              <figure className="flex flex-col items-center gap-2" data-testid="kit-theme-after">
                 <figcaption className="text-xs font-medium text-[var(--text-mut)]">
                   {name}
                 </figcaption>
-                <KitSheet kit={themed} />
+                <KitTrialMenu kit={themed} />
               </figure>
             </div>
             <p className="text-[12px] text-[var(--text-mut)]">{t("kit.theme.putHint")}</p>
