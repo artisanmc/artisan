@@ -470,6 +470,26 @@ type OwnThemes = Readonly<Record<string, KitRead>>;
 const NO_IMAGES: Asset[] = [];
 
 /**
+ * The own images of every theme of the server as published, by theme then by name: what a
+ * menu may name `<theme>:<image>`. None on a server whose common images are not the theme
+ * `artisan`, where no name is read by that rule.
+ */
+export function useThemesOwnImages(): Asset[] {
+  const byName = useKitStore((s) => s.read?.byName === true);
+  const themes = useKitStore((s) => s.own);
+  const modules = useKitStore((s) => s.modules);
+  return useMemo(() => {
+    if (!byName) return NO_IMAGES;
+    const images = themesBeside(themes, modules).flatMap(([folder, read]) =>
+      [...themeImages(folder, read).values()].sort((a, b) =>
+        a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+      ),
+    );
+    return images.length === 0 ? NO_IMAGES : images;
+  }, [byName, themes, modules]);
+}
+
+/**
  * The own images of the theme `name` as published, by name: what a menu writes
  * `<name>:<image>` for. None for a theme the common images' Project keeps (no folder of its
  * own), nor for one whose folder is a module's.
