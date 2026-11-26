@@ -314,6 +314,15 @@ builders; `ImageRefs.kt` did not change).
   owner holds no file. The same holds in the common images' Project, where a piece of the
   base as shipped was offered a restore that could only fail.
 
+**Step 5, fourth part: the module's list marks its images** (`imageMarks` in
+`imageStanding.ts`, `AssetGrid`'s `markOf`, `McpTools.listDocuments`).
+
+- In a module's **Resources**, the tile of the owner's version of a shipped image carries a
+  dot, and its tooltip says so. The dot is the warning's when the pack does not take the
+  image (decision 4): the list says it before the image is opened.
+- `list_documents` lists the images that are not taken (`images_not_taken`: the path, the
+  original that shows, its function, the measures to draw at), as `read_image` says of one.
+
 **Step 4, first part: the themes in place are a stack** (`ThemeStack` in `Theme.kt`,
 `kitThemeStack` in `theme.ts`, `EditableConfig.kt`).
 `resource-pack.themes` of `config.yml` is the ordered list of decision 6, the lowest first, on
@@ -603,8 +612,8 @@ Not there yet:
   shows there once deployed. The uses count the menus, the composed images' layers and the
   files of the kinds that ask the pack for images; a file of the open module's kind is read as
   published, not from its draft, and a name the pack does not read (in a text) counts nowhere. The change of an original and a module's
-  original show on the image in its module only, not in the server's list, and the module's
-  list does not mark which images are the owner's versions (step 5). A module's own image or
+  original show on the image in its module only, not in the server's list (the module's
+  list marks the owner's versions, step 5, fourth part). A module's own image or
   font is copied to the common images from its panel in the module (**Copy to the common
   images**: `useResourcesView.askShare`, answered in the common images' Project by
   `useCommonCopyAsked` with the copy the picker already makes, into that Project's draft); it
@@ -614,10 +623,10 @@ Not there yet:
   a declared function, and the slots a name ends with (`3x1`) are not read from the function.
   The MCP tools apply the rule to a module's images (`OwnerImages.notTaken`): `render_menu` and
   `survey_ui` show the original where the pack does, `write_image` and `read_image` say of an
-  image that it is not taken (`not_taken`). `list_documents` does not. A
-  composed image over an original is not measured. The module's list does not mark an image
-  that is not taken: only its panel does. The editor reads a size from the descriptor, the
-  pack from the PNG.
+  image that it is not taken (`not_taken`), `list_documents` lists them (`images_not_taken`). A
+  composed image over an original is not measured. The editor reads a size from the
+  descriptor, the pack from the PNG: the module's list and the image's panel may call taken
+  an image whose descriptor states another size than its pixels.
 - Against decision 8: the original an owner's image was made against is recorded at the first
   originals sync that sees the image, not when it is deployed, so an original that changes
   in between is not flagged. A menu keeps what module originals already gave it (compare with

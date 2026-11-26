@@ -15,6 +15,13 @@ interface AssetGridProps {
   keyOf?: (asset: Asset) => string;
   /** A tile's tooltip, the asset's name by default. */
   titleOf?: (asset: Asset) => string;
+  /** What a tile says of its image beside its name: a dot in its corner, its label in the tooltip. */
+  markOf?: (asset: Asset) => AssetMark | null;
+}
+
+export interface AssetMark {
+  tone: "warning" | "brand";
+  label: string;
 }
 
 export function AssetGrid({
@@ -23,6 +30,7 @@ export function AssetGrid({
   onSelect,
   keyOf = (asset) => asset.id,
   titleOf = (asset) => asset.name,
+  markOf,
 }: AssetGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(280);
@@ -68,30 +76,45 @@ export function AssetGrid({
               paddingBottom: GAP,
             }}
           >
-            {(rows[vr.index] ?? []).map((asset) => (
-              <button
-                key={keyOf(asset)}
-                type="button"
-                onClick={() => onSelect(keyOf(asset))}
-                title={titleOf(asset)}
-                style={{ width: TILE_SIZE, height: TILE_SIZE }}
-                className={cx(
-                  "shrink-0 rounded-[8px] border bg-[var(--surface-raised)] hover:border-[var(--border-strong)]",
-                  selectedId === keyOf(asset)
-                    ? "border-[var(--brand)] ring-1 ring-[var(--brand)]"
-                    : "border-[var(--border)]",
-                )}
-              >
-                <img
-                  src={assetPreviewUrl(asset)}
-                  alt={asset.name}
-                  draggable={false}
-                  className="h-full w-full object-contain p-1"
-                  style={{ imageRendering: "pixelated" }}
-                  loading="lazy"
-                />
-              </button>
-            ))}
+            {(rows[vr.index] ?? []).map((asset) => {
+              const mark = markOf?.(asset) ?? null;
+              return (
+                <button
+                  key={keyOf(asset)}
+                  type="button"
+                  onClick={() => onSelect(keyOf(asset))}
+                  title={mark ? `${titleOf(asset)} · ${mark.label}` : titleOf(asset)}
+                  style={{ width: TILE_SIZE, height: TILE_SIZE }}
+                  className={cx(
+                    "relative shrink-0 rounded-[8px] border bg-[var(--surface-raised)] hover:border-[var(--border-strong)]",
+                    selectedId === keyOf(asset)
+                      ? "border-[var(--brand)] ring-1 ring-[var(--brand)]"
+                      : "border-[var(--border)]",
+                  )}
+                >
+                  <img
+                    src={assetPreviewUrl(asset)}
+                    alt={asset.name}
+                    draggable={false}
+                    className="h-full w-full object-contain p-1"
+                    style={{ imageRendering: "pixelated" }}
+                    loading="lazy"
+                  />
+                  {mark && (
+                    <span
+                      data-testid="asset-mark"
+                      data-tone={mark.tone}
+                      className="dot absolute right-1 top-1"
+                      style={{
+                        background: `var(--${mark.tone})`,
+                        // Its own edge, for an image of the dot's colour.
+                        boxShadow: "0 0 0 1.5px var(--surface-raised)",
+                      }}
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
         ))}
       </div>

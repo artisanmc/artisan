@@ -1,4 +1,5 @@
 import type { Asset } from "@/domain/asset";
+import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -87,6 +88,35 @@ describe("AssetsTab", () => {
     render(<AssetsTab projectId={"p1" as never} />);
     expect(screen.getByTitle("bg_one")).toBeTruthy();
     expect(screen.getByTitle("ico_one")).toBeTruthy();
+  });
+
+  it("marks in the list the owner's version of a shipped image, and the one the pack does not take", () => {
+    const image = (id: string): Asset => ({ ...A1, id, name: id, usages: ["button"] });
+    useAssetStore.getState().setAssets([image("crest"), image("banner"), image("mine")]);
+    useProjectBaselineStore.setState({
+      baselines: {
+        p1: {
+          "originals/assets/textures/crest.yml": "function: menu\nwidth: 54\nheight: 18\n",
+          "assets/textures/crest.yml": "width: 20\nheight: 20\n",
+        },
+      },
+      binaryBaselines: {
+        p1: {
+          "originals/assets/textures/crest.png": { hash: "o1", size: 1 },
+          "assets/textures/crest.png": { hash: "m1", size: 1 },
+          "originals/assets/textures/banner.png": { hash: "o2", size: 1 },
+          "assets/textures/banner.png": { hash: "m2", size: 1 },
+          "assets/textures/mine.png": { hash: "m3", size: 1 },
+        },
+      },
+    });
+    render(<AssetsTab projectId={"p1" as never} />);
+    const mark = (title: RegExp) =>
+      screen.getByTitle(title).querySelector("[data-testid=asset-mark]")?.getAttribute("data-tone");
+    expect(mark(/^crest · Non prise/)).toBe("warning");
+    expect(mark(/^banner · Votre version/)).toBe("brand");
+    expect(screen.getByTitle("mine").querySelector("[data-testid=asset-mark]")).toBeNull();
+    useProjectBaselineStore.setState({ baselines: {}, binaryBaselines: {} });
   });
 
   it("opens the upload dialog when clicking Upload", () => {

@@ -70,7 +70,9 @@ class McpTools(
         Tool(
             "list_documents", "List documents",
             "Lists the files of a Project, as the server loaded them, or as a draft has them when draft_id is given: each Document with " +
-                "its kind, the other files (translations under lang/, data), the images (read_image shows one), and the files the server could not load with the reason.",
+                "its kind, the other files (translations under lang/, data), the images (read_image shows one), those the pack does not take " +
+                "(images_not_taken: an owner's image at other measures than the original the module ships, which shows in its place), " +
+                "and the files the server could not load with the reason.",
             schema("project" to PROJECT, "draft_id" to DRAFT_OPTIONAL), readOnly = true, ::listDocuments,
         ),
         Tool(
@@ -570,6 +572,7 @@ class McpTools(
         val drafts = runCatching { projects.draft(principal, project, "list") }.getOrNull()
             ?.let { (it["drafts"] as? List<*>)?.filterIsInstance<Map<*, *>>() }
             ?.map { mapOf("draft_id" to it["id"], "name" to it["name"], "revision" to it["revision"], "source" to it["source"], "updated_at" to it["updatedAt"]) }
+        val own = Images(project, read, draft)
         return mapOf(
             "project" to project.id,
             "draft_id" to draftId,
@@ -587,7 +590,11 @@ class McpTools(
             ),
             "other_files" to tree.keys.filter { it !in listed }.sorted(),
             "images" to images,
-            "composed_images" to Images(project, read, draft).recipes.values.sorted().ifEmpty { null },
+            // The owner's images the pack leaves out, as read_image says of each.
+            "images_not_taken" to own.notTaken.values.sortedBy { it.path }
+                .map { mapOf("path" to it.path, "original" to it.original, "function" to it.function, "measures" to it.measures) }
+                .ifEmpty { null },
+            "composed_images" to own.recipes.values.sorted().ifEmpty { null },
             "not_loaded" to if (draftId == null) failed else emptyList(),
             "your_drafts" to drafts,
         )

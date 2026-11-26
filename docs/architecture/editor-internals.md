@@ -180,7 +180,11 @@ by every write of the descriptor (`descriptorYaml`) and set from the panel's adv
 (`patchAsset`'s `function`, `""` to clear). `refusedImages` is the rule both pack builders
 apply: the owner's image of an original that declares a function is left out at other
 measures. `imageNotTaken` (`imageStanding.ts`) applies it to the open module from what the
-descriptors state, and `AssetDetailPanel` reports it on the image.
+descriptors state, and `AssetDetailPanel` reports it on the image. `imageMarks` gives both
+standings for the whole module at once (`not_taken`, `own_version`, by the stem of the file):
+the module's list (`OwnAssets`) draws them as a dot on the tile and a line in its tooltip
+(`AssetGrid`'s `markOf`). The common images' Project has no marks: it says who drew a piece
+its own way (`CommonImageState`).
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)
