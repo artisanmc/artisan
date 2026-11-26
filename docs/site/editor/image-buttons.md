@@ -75,7 +75,8 @@ images** opens the common images with a copy of it under the same name, in their
 them and every module can name it. The module keeps its own image, which its menus still
 show; delete it there afterwards and its menus take the common one, with nothing to rewrite
 since the name is the same. The button is off when the common images already have an image of
-that name, and is not offered for a composed image, whose layers are the module's.
+that name, and is not offered for a composed image, whose layers are the module's. The
+server's **Resources** tab has the same button on a module's own image or font.
 
 **Resources, a tab of the server.** The server page's **Resources** tab is the Resources screen
 for the whole server: the images and fonts of every module and the common images in one list,

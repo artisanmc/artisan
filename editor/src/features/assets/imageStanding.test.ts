@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { imageMarks, imageNotTaken } from "./imageStanding";
+import { imageMarks, imageNotTaken, ownerHolds } from "./imageStanding";
 
 const h = (hash: string) => ({ hash });
 
@@ -126,5 +126,22 @@ describe("imageMarks", () => {
 
   it("marks nothing in a module that ships no image", () => {
     expect(imageMarks({}, { "assets/textures/mine.png": h("m") }).size).toBe(0);
+  });
+});
+
+describe("ownerHolds", () => {
+  it("tells the owner's own file from what the module ships alone", () => {
+    const paths = [
+      "assets/textures/crest.png",
+      "originals/assets/textures/crest.png",
+      "originals/assets/textures/frame.png",
+      "assets/fonts/title/font.yaml",
+      "originals/assets/fonts/body/font.yaml",
+    ];
+    expect(ownerHolds(paths, { id: "crest", type: "texture" })).toBe(true);
+    expect(ownerHolds(paths, { id: "frame", type: "texture" })).toBe(false);
+    expect(ownerHolds(paths, { id: "crest", type: "glyph" })).toBe(false);
+    expect(ownerHolds(paths, { id: "title", type: "font" })).toBe(true);
+    expect(ownerHolds(paths, { id: "body", type: "font" })).toBe(false);
   });
 });

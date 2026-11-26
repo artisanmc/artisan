@@ -391,6 +391,14 @@ decisions 8 and 12).
   read of the module, when it holds such a version. A server that does not answer leaves the
   marks its files give. The image's panel there says the mark in words.
 
+**Step 5, sixth part: a module's image is copied to the common images from the server's
+list** (`ownerHolds`, `useServerOwnerHolds`, `ServerResources`' `onShare`; decision 12). The
+panel of a module's image or font in the server's **Resources** has the module panel's
+**Copy to the common images**: the same request (`useResourcesView.askShare`), answered the
+same way in the common images' Project. It is offered for a file the owner holds
+(`useKitStore.modules`, as published), not for what the module ships alone nor for a
+composed image, and it is off when the common images have that name already.
+
 **Step 4, first part: the themes in place are a stack** (`ThemeStack` in `Theme.kt`,
 `kitThemeStack` in `theme.ts`, `EditableConfig.kt`).
 `resource-pack.themes` of `config.yml` is the ordered list of decision 6, the lowest first, on
@@ -717,8 +725,9 @@ Not there yet:
   font is copied to the common images from its panel in the module (**Copy to the common
   images**: `useResourcesView.askShare`, answered in the common images' Project by
   `useCommonCopyAsked` with the copy the picker already makes, into that Project's draft); it
-  is not moved in one action (the module keeps its own until the owner deletes it there), a
-  composed image is not copied, and nothing is copied or moved from the server's list.
+  is not moved in one action (the module keeps its own until the owner deletes it there), and
+  a composed image is not copied. The server's list offers the same copy (step 5, sixth
+  part), and nothing else is changed from it.
 - Against decision 4: the base's pieces take their measures from Artisan's own list, not from
   a declared function, and the slots a name ends with (`3x1`) are not read from the function.
   The MCP tools apply the rule to a module's images (`OwnerImages.notTaken`): `render_menu` and

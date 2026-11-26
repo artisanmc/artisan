@@ -111,6 +111,79 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("the server's Resources", () => {
+  it("offers to copy a module's own image to the common images, not what it ships alone", async () => {
+    setup();
+    const held = (paths: string[]) => paths.map((path) => ({ path, hash: path }));
+    useKitStore.setState({
+      modules: [
+        {
+          projectId: "shop",
+          folder: "shop",
+          files: {},
+          binaries: held(["assets/textures/coin.png"]),
+        },
+        {
+          projectId: "guilds",
+          folder: "guilds",
+          files: {},
+          // Shipped by its add-on, left as it is: the owner holds no file of it.
+          binaries: held(["originals/assets/textures/blason.png"]),
+        },
+      ],
+    });
+    const onShare = vi.fn();
+    const user = userEvent.setup();
+    const view = render(
+      <ServerResources scope={WHOLE_SERVER} common={null} {...callbacks()} onShare={onShare} />,
+    );
+
+    await user.click(await screen.findByTitle("blason · Guildes"));
+    expect(screen.queryByTestId("server-asset-share")).toBeNull();
+    view.unmount();
+
+    render(
+      <ServerResources scope={WHOLE_SERVER} common={null} {...callbacks()} onShare={onShare} />,
+    );
+    await user.click(await screen.findByTitle("coin · Boutique"));
+    const share = within(screen.getByTestId("server-asset-share"));
+    await user.click(share.getByRole("button"));
+    expect(onShare).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "coin", projectId: "shop" }),
+    );
+  });
+
+  it("offers no copy without the common images' Project, and says when they have the name", async () => {
+    setup();
+    const held = (paths: string[]) => paths.map((path) => ({ path, hash: path }));
+    useKitStore.setState({
+      // The common images hold a `coin` already.
+      read: {
+        projectId: "p_artisan",
+        files: {},
+        binaries: held(["assets/textures/coin.png"]),
+        byName: true,
+      },
+      modules: [
+        {
+          projectId: "shop",
+          folder: "shop",
+          files: {},
+          binaries: held(["assets/textures/coin.png"]),
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    const view = render(<ServerResources scope="shop" common={null} {...callbacks()} />);
+    await user.click(await screen.findByTitle("coin · Boutique"));
+    expect(screen.queryByTestId("server-asset-share")).toBeNull();
+    view.unmount();
+
+    render(<ServerResources scope="shop" common={null} {...callbacks()} onShare={vi.fn()} />);
+    await user.click(await screen.findByTitle("coin · Boutique"));
+    const share = within(screen.getByTestId("server-asset-share"));
+    expect((share.getByRole("button") as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it("marks a module's image as its module's list does: the owner's version, a changed original", async () => {
     setup();
     const held = (paths: string[]) => paths.map((path) => ({ path, hash: path }));
