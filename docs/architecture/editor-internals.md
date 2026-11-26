@@ -1306,6 +1306,22 @@ on its validity (anti-lock-in promise, ADR `files-first-source-of-truth`).
 Network required: with no reachable server the export fails, there is no fallback to
 `projectToFiles()` (a fallback would produce an *almost* faithful archive without saying so).
 
+A module's archive also says what the module names elsewhere (ADR `common-images-and-themes`,
+decision 10; `features/export/exportElsewhere.ts` over the pure `lib/pack/elsewhere.ts`). The
+names are read as the pack reads them (`imageRefsWritten`: title layers, image buttons, what
+its kinds ask the pack for, composed layers) and told apart with who holds each image
+(`namedElsewhere`, the answer of `resolveImageRef`): Artisan's base, a common image the server
+added, another module. A module that names its own images only costs no other read and its
+archive is its folder, byte for byte as before. Otherwise the archive gains
+`artisan-export.yml` at its root (`schema: export/v1`: `artisan` the origin's version, `base`,
+`common` the copies made, `requires.common`, `requires.modules`), and for each common image
+the server added that a name alone reaches, a copy at the same path as in the theme `artisan`
+(PNG and descriptor; a glyph takes a codepoint free in the module). A common image named as
+`artisan:<name>`, or a composed one, is not answered by a copy: it goes to `requires.common`.
+Another module is read only when a name may be its image. When the server cannot be read for
+this, the folder is exported alone and the toast says so (`ExportZipResult.alone`): getting the
+files out never depends on it.
+
 **Import** (`features/import/runImportZip.ts`) — `zip → files → projectFromFiles`,
 with no intermediate format. `normalizeProjectFiles` (`projectZip.ts`) re-routes
 the entries onto one internal prefix whatever the received shape:
@@ -1315,6 +1331,17 @@ extra folder. The root is the folder of the **shallowest** module file; the id i
 `project_id` in the manifest is ignored), or, when the module file is at the archive's root, the zip's
 file name (`folderFromZipName`: `daily.zip`, `daily (1).zip` → `daily`; `project_id_required` when it
 is not a valid folder name). That is how an import finds the module it updates on another server. Typed errors `not_a_zip` / `no_manifest`.
+
+`artisan-export.yml` is read there and never written to the server (`readExportNote`: text from
+elsewhere, a name that is no image's name is left out). `settleElsewhere` reads the server's
+common images and settles the copies the note marks as common without a question
+(`settleCopies`): a copy whose PNG is the server's common image of that name leaves the
+import, descriptor included; any other stays in the module, where **Copy to the common images**
+makes it common. What the server lacks is listed in `ImportPreview.elsewhere` (base images its
+Artisan does not have, common images named as common, a module absent or without the image)
+and shown before anything is written, even with no conflict (`lacksElsewhere`,
+`ElsewhereNotice`). The common images that cannot be read fail the import (`read_error`,
+`server_offline`); a module that cannot be read is not said to lack anything.
 
 > The JSON export/import (`projectFileIo.ts`, `.artisan.json`) was removed on
 > 2026-07-30: it serialized the in-memory domain, a second representation of the

@@ -1,11 +1,13 @@
 import type { Project } from "@/domain/types";
 import { projectTree } from "@/features/project/saveProjectToDisk";
 import { readDraftBlob } from "@/lib/api/projectDrafts";
+import { EXPORT_NOTE } from "@/lib/pack/elsewhere";
 import { themeArchiveName } from "@/lib/pack/themeArchive";
 import { projectClient } from "@/lib/projectClient";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { buildZip } from "./buildZip";
+import { type ElsewhereExport, exportElsewhere } from "./exportElsewhere";
 
 /**
  * The archive is the module's root as is: its files at the top, no folder and
@@ -22,6 +24,13 @@ export interface ExportZipResult {
   ok: boolean;
   /** Set when the export could not be produced. */
   error?: "not_signed_in" | "server_offline" | "transport";
+  /** The server's common images copied into the archive, when it has any (`exportElsewhere`). */
+  copied?: string[];
+  /**
+   * The module's folder was exported alone: what it names elsewhere could not be read, so its
+   * archive has no note and no copy of a common image.
+   */
+  alone?: true;
 }
 
 /**
@@ -39,7 +48,7 @@ export interface ExportZipResult {
  */
 export async function runExportZip(project: Project, hasUser: boolean): Promise<ExportZipResult> {
   if (!hasUser) return { ok: false, error: "not_signed_in" };
-  return exportDisk(project.id, archiveName(project.diskId ?? project.id));
+  return exportDisk(project.id, archiveName(project.diskId ?? project.id), project);
 }
 
 /**
@@ -51,8 +60,17 @@ export function runExportThemeZip(projectId: string, name: string): Promise<Expo
   return exportDisk(projectId, themeArchiveName(name));
 }
 
-/** The Project's files as its server's disk holds them, zipped under `fileName`. */
-async function exportDisk(projectId: string, fileName: string): Promise<ExportZipResult> {
+/**
+ * The Project's files as its server's disk holds them, zipped under `fileName`. A `module`
+ * also takes what it names elsewhere (`exportElsewhere`): a note, and the server's common
+ * images a name alone reaches. Getting the folder out never depends on that: when it cannot be
+ * read, the folder is exported alone (`alone`).
+ */
+async function exportDisk(
+  projectId: string,
+  fileName: string,
+  module?: Project,
+): Promise<ExportZipResult> {
   try {
     const client = projectClient(projectId);
     const disk = await client.read();
@@ -72,8 +90,28 @@ async function exportDisk(projectId: string, fileName: string): Promise<ExportZi
     for (const binary of disk.binaries ?? []) {
       canonical[binary.path] = await client.binary(binary.path);
     }
+    if (!module) {
+      await download(canonical, fileName);
+      return { ok: true };
+    }
+    // A note left by an archive unzipped by hand speaks of another server.
+    delete canonical[EXPORT_NOTE];
+    let elsewhere: ElsewhereExport | null = null;
+    let alone = false;
+    try {
+      elsewhere = await exportElsewhere(module, disk);
+    } catch {
+      alone = true;
+    }
+    // A copy never replaces a file of the module: it is made only for a name the module does not hold.
+    for (const [path, content] of Object.entries(elsewhere?.files ?? {}))
+      if (!(path in canonical)) canonical[path] = content;
     await download(canonical, fileName);
-    return { ok: true };
+    return {
+      ok: true,
+      ...(elsewhere?.copied.length ? { copied: elsewhere.copied } : {}),
+      ...(alone ? { alone: true as const } : {}),
+    };
   } catch {
     return { ok: false, error: "transport" };
   }

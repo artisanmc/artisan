@@ -89,6 +89,18 @@ private draft, so nothing changes until you deploy.
 
 Exports and imports never include private drafts or operation journals.
 
+**Images the module names elsewhere.** A menu can show an image its module does not hold: one
+of Artisan's base, a common image of the server, another module's. The export takes care of
+the common images your server added: each one a menu reaches by its name alone is copied into
+the archive under that name, and the archive notes it (`artisan-export.yml`, at its root). On
+the server the module arrives on, the import settles each copy without asking: left out when
+that server has the same common image under that name, kept in the module otherwise, where
+**Copy to the common images** (in its Resources) makes it common there too. Base images and
+images of another module are not copied: the import tells you, before it writes anything,
+which ones the server lacks (a base image means Artisan is older there; a module means it is
+not installed, or has no image of that name). You can still import: those images show nothing
+until the server has them.
+
 ## Content that comes from a module
 
 Add-ons can ship menus, commands and examples. They sit in the project like your own files,

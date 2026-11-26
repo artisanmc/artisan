@@ -15,9 +15,11 @@ import { useTranslation } from "react-i18next";
 import { allConflictsResolved, withChoice, withChoiceForRemaining } from "./importChoices";
 import type { ImportChoice, ImportMode } from "./importMerge";
 import {
+  type ImportElsewhere,
   type ImportError,
   type ImportPreview,
   applyImportZip,
+  lacksElsewhere,
   prepareImportZip,
 } from "./runImportZip";
 
@@ -90,7 +92,8 @@ export function ImportProjectDialog({
     }
     const { conflicts, serverOnly } = result.preview.diff;
     const destructive = result.preview.mode === "overwrite" && serverOnly.length > 0;
-    if (conflicts.length === 0 && !destructive) {
+    // What the server lacks of the images the module names is said before anything is written.
+    if (conflicts.length === 0 && !destructive && !lacksElsewhere(result.preview.elsewhere)) {
       await apply(result.preview, {});
       return;
     }
@@ -113,6 +116,8 @@ export function ImportProjectDialog({
   };
 
   const ready = overwrite || allConflictsResolved(choices, conflicts);
+  // Shown for what the server lacks alone: nothing to resolve, nothing deleted.
+  const lackOnly = !!preview && conflicts.length === 0 && !(overwrite && serverOnly.length > 0);
 
   return (
     <Dialog
@@ -126,17 +131,27 @@ export function ImportProjectDialog({
           <>
             <DialogHeader>
               <DialogTitle>
-                {t(overwrite ? "importProject.overwriteTitle" : "importProject.conflictsTitle")}
+                {t(
+                  lackOnly
+                    ? "importProject.elsewhere.title"
+                    : overwrite
+                      ? "importProject.overwriteTitle"
+                      : "importProject.conflictsTitle",
+                )}
               </DialogTitle>
               <DialogDescription>
                 {t(
-                  overwrite
-                    ? "importProject.overwriteDescription"
-                    : "importProject.conflictsDescription",
+                  lackOnly
+                    ? "importProject.elsewhere.description"
+                    : overwrite
+                      ? "importProject.overwriteDescription"
+                      : "importProject.conflictsDescription",
                   { count: conflicts.length },
                 )}
               </DialogDescription>
             </DialogHeader>
+
+            {preview.elsewhere ? <ElsewhereNotice elsewhere={preview.elsewhere} /> : null}
 
             <div className="flex flex-col gap-2 text-[12px] text-[var(--text-mut)]">
               <span>{t("importProject.summaryAdditions", { count: additions.length })}</span>
@@ -205,7 +220,7 @@ export function ImportProjectDialog({
               ))}
             </div>
 
-            {!overwrite && (
+            {!overwrite && conflicts.length > 0 && (
               <div className="flex items-center gap-2 text-[13px] text-[var(--text)]">
                 <Checkbox
                   id="import-apply-to-rest"
@@ -300,5 +315,55 @@ export function ImportProjectDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** What became of the images the module names elsewhere: the copies settled, and what the server lacks. */
+function ElsewhereNotice({ elsewhere }: { elsewhere: ImportElsewhere }) {
+  const { t } = useTranslation();
+  const list = (names: string[]) => names.join(", ");
+  const settled = [
+    elsewhere.dropped.length > 0 &&
+      t("importProject.elsewhere.dropped", {
+        count: elsewhere.dropped.length,
+        names: list(elsewhere.dropped),
+      }),
+    elsewhere.kept.length > 0 &&
+      t("importProject.elsewhere.kept", {
+        count: elsewhere.kept.length,
+        names: list(elsewhere.kept),
+      }),
+  ].filter((line): line is string => !!line);
+  const lacking = [
+    elsewhere.base.length > 0 &&
+      t(elsewhere.artisan ? "importProject.elsewhere.baseSince" : "importProject.elsewhere.base", {
+        names: list(elsewhere.base),
+        version: elsewhere.artisan,
+      }),
+    elsewhere.common.length > 0 &&
+      t("importProject.elsewhere.common", { names: list(elsewhere.common) }),
+    ...elsewhere.modules.map((module) =>
+      t(
+        module.absent
+          ? "importProject.elsewhere.moduleAbsent"
+          : "importProject.elsewhere.moduleLacks",
+        { folder: module.folder, names: list(module.images) },
+      ),
+    ),
+  ].filter((line): line is string => !!line);
+  if (settled.length === 0 && lacking.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5 text-[12px]" data-testid="import-elsewhere">
+      {lacking.map((line) => (
+        <span key={line} className="text-[var(--danger)]">
+          {line}
+        </span>
+      ))}
+      {settled.map((line) => (
+        <span key={line} className="text-[var(--text-mut)]">
+          {line}
+        </span>
+      ))}
+    </div>
   );
 }

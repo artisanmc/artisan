@@ -323,7 +323,15 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
               );
               return;
             }
-            toast.success(t("export.success"));
+            if (res.alone) toast.warning(t("export.alone"));
+            else if (res.copied?.length)
+              toast.success(
+                t("export.successCopied", {
+                  count: res.copied.length,
+                  names: res.copied.join(", "),
+                }),
+              );
+            else toast.success(t("export.success"));
           }}
           onOpenPatterns={() => setPatternsOpen(true)}
           tourCanResume={!!tourState.progress && !tourState.progress.completed}

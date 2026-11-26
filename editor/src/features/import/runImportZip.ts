@@ -9,7 +9,15 @@ import {
   listServerProjects,
   readProjectFiles,
 } from "@/lib/api/projectFiles";
-import { createProject } from "@/lib/api/servers";
+import { type ProjectSummary, createProject } from "@/lib/api/servers";
+import {
+  EXPORT_NOTE,
+  type ExportNote,
+  imagePathOf,
+  readExportNote,
+  settleCopies,
+} from "@/lib/pack/elsewhere";
+import { KIT_SLOTS, assetNamesIn, kitProjectAmong, kitShippedName } from "@/lib/pack/kit";
 import { loadUserProject } from "@/lib/api/userProjects";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import {
@@ -77,7 +85,34 @@ export interface ImportPreview {
   diff: ImportDiff;
   input: ImportTree;
   reference: ImportReference;
+  /** Present when the archive says what the module names elsewhere (`artisan-export.yml`). */
+  elsewhere?: ImportElsewhere;
 }
+
+/**
+ * What became of the images a module names elsewhere, on the server it arrives on (ADR
+ * `common-images-and-themes`, decision 10). The copies the archive marks as common are settled
+ * without a question; what the server lacks is told before anything is written.
+ */
+export interface ImportElsewhere {
+  /** Copies left out: the server has the same common image under that name. */
+  dropped: string[];
+  /** Copies kept in the module: the server has no common image of that name, or another one. */
+  kept: string[];
+  /** The version of Artisan the module was exported from, when the archive says it. */
+  artisan: string | null;
+  /** Images of Artisan's base the module names and this server's Artisan does not have. */
+  base: string[];
+  /** Common images the module names as common and this server does not have. */
+  common: string[];
+  /** Images of other modules the server does not have: the module is absent, or holds none of that name. */
+  modules: { folder: string; images: string[]; absent: boolean }[];
+}
+
+/** Whether the server lacks something the module names: said before the import is applied. */
+export const lacksElsewhere = (elsewhere: ImportElsewhere | undefined): boolean =>
+  !!elsewhere &&
+  (elsewhere.base.length > 0 || elsewhere.common.length > 0 || elsewhere.modules.length > 0);
 
 export type PrepareImportResult =
   | { ok: true; preview: ImportPreview }
@@ -157,6 +192,10 @@ export async function prepareImportZip(
   for (const [key, content] of Object.entries(normalized.files)) {
     if (key.startsWith(prefix)) relative[key.slice(prefix.length)] = content;
   }
+  // The archive's note is about the archive: it is read here and never written to the server.
+  const noteText = relative[EXPORT_NOTE];
+  const note = typeof noteText === "string" ? readExportNote(noteText) : null;
+  delete relative[EXPORT_NOTE];
   const kept: Record<string, string | Uint8Array> = {};
   for (const [path, content] of Object.entries(relative)) {
     if (isDraftPath(path)) kept[path] = content;
@@ -177,6 +216,20 @@ export async function prepareImportZip(
   // diskId).
   const projectRef = summary?.id ?? null;
   if (exists && !projectRef) return { ok: false, error: "read_error" };
+
+  let elsewhere: ImportElsewhere | undefined;
+  if (note) {
+    const settled = await settleElsewhere(
+      note,
+      input,
+      target,
+      normalized.projectId,
+      listing.projects ?? [],
+      listing.projectIds,
+    );
+    if (!settled.ok) return settled;
+    elsewhere = settled.elsewhere;
+  }
 
   let reference = EMPTY_REFERENCE;
   if (exists) {
@@ -200,6 +253,86 @@ export async function prepareImportZip(
       diff: diffImport(input, reference),
       input,
       reference,
+      ...(elsewhere ? { elsewhere } : {}),
+    },
+  };
+}
+
+const folderOf = (summary: ProjectSummary): string => summary.externalId ?? summary.id;
+
+/**
+ * Settles what the archive's `note` says against the server: the copies of common images it
+ * already has leave `input`, and what it lacks is listed. Reads the common images' Project,
+ * and each module the note names that the server has.
+ */
+async function settleElsewhere(
+  note: ExportNote,
+  input: ImportTree,
+  target: ImportTarget,
+  moduleId: string,
+  summaries: ProjectSummary[],
+  folders: string[],
+): Promise<{ ok: true; elsewhere: ImportElsewhere } | { ok: false; error: ImportError }> {
+  const base = new Set(KIT_SLOTS.map((slot) => slot.id));
+  const hashes = new Map<string, string>();
+  const kit = kitProjectAmong(summaries, folderOf);
+  if (kit) {
+    const read = await readProjectFiles({ serverId: target.serverId, diskId: folderOf(kit) });
+    if (!read.ok) return { ok: false, error: filesError(read.error) };
+    if (read.unchanged) return { ok: false, error: "read_error" };
+    const binaries = new Map((read.binaries ?? []).map((b) => [b.path, b.hash]));
+    for (const path of binaries.keys()) {
+      const name = kitShippedName(path);
+      if (name) base.add(name);
+    }
+    for (const name of [...note.common, ...note.requires.common]) {
+      const path = imagePathOf(name, (p) => binaries.has(p));
+      if (path) hashes.set(name, binaries.get(path)!);
+    }
+    // A composed common image has no PNG: its descriptor is what holds its name.
+    for (const name of assetNamesIn(Object.keys(read.files).filter((p) => p.startsWith("assets/"))))
+      if (!hashes.has(name)) hashes.set(name, "");
+  }
+
+  const settled = settleCopies(
+    note,
+    input.binaries,
+    Object.keys(input.files),
+    (name) => hashes.get(name) || null,
+  );
+  for (const { paths } of settled.dropped)
+    for (const path of paths) {
+      delete input.binaries[path];
+      delete input.files[path];
+    }
+
+  const modules: ImportElsewhere["modules"] = [];
+  for (const [folder, images] of Object.entries(note.requires.modules)) {
+    if (folder === moduleId) continue;
+    const summary = summaries.find((s) => folderOf(s) === folder);
+    if (!summary && !folders.includes(folder)) {
+      modules.push({ folder, images, absent: true });
+      continue;
+    }
+    const read = await readProjectFiles({ serverId: target.serverId, diskId: folder });
+    // A module that cannot be read is not said to lack anything: the import does not depend on it.
+    if (!read.ok || read.unchanged) continue;
+    const held = new Set(
+      assetNamesIn([...Object.keys(read.files), ...(read.binaries ?? []).map((b) => b.path)]),
+    );
+    const lacking = images.filter((name) => !held.has(name));
+    if (lacking.length > 0) modules.push({ folder, images: lacking, absent: false });
+  }
+
+  return {
+    ok: true,
+    elsewhere: {
+      dropped: settled.dropped.map((copy) => copy.name),
+      kept: settled.kept,
+      artisan: note.artisan,
+      base: note.base.filter((name) => !base.has(name)),
+      common: note.requires.common.filter((name) => !hashes.has(name) && !base.has(name)),
+      modules,
     },
   };
 }
