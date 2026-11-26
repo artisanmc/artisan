@@ -139,7 +139,7 @@ Nothing below shipped in a release; only test servers hold it.
 | `ui-kit/themes/<name>/` | the theme `themes/<name>/` |
 | `resource-pack.theme` | `resource-pack.themes`, a list; the old key stays read |
 | `ui-kit/data/ui-kit.yml` | the same file in `themes/artisan/data/` |
-| MCP tools `survey_ui`, `write_image`, `render_menu` | same names and arguments, reading the new places |
+| MCP tools `survey_ui`, `write_image`, `render_menu` | same tools, reading the new places; what they return and take says `common` and `base` (`kit_draft_id` is still read as `common_draft_id`) |
 
 A module's existing images do not move, and the menus that name them stay valid. One visible
 change: on a server where two modules hold an image of the same name, each module's menus now
@@ -193,7 +193,7 @@ working through a rewrite to `module:name` at load.
   that name (the three places, `image-ref-conformance.json`). `kit:<name>` stays read.
 - The theme's own images are not rows of the pack: one enters it as `kit:<name>` when a menu
   or a module names it (decision 11), the base included.
-- The MCP tools read the common images in the theme's Project (`survey_ui`'s `kit.project`), the
+- The MCP tools read the common images in the theme's Project (`survey_ui`'s `common.project`), the
   base as the server holds it; their names and arguments did not change.
 
 **Step 2, third part: the common images in the editor** (`ProjectSource.tsx`, `AssetsTab.tsx`,
@@ -233,6 +233,10 @@ builders; `ImageRefs.kt` did not change).
   image it wrote. A composed image's layer is `artisan:<name>` (`kit:<name>` stays read).
 - On a server that has no theme `artisan`, `survey_ui` still gives `kit:<name>` and says that
   this server reads nothing else.
+- What `survey_ui` returns is named for what it is: `common` (the common images' Project, its
+  notes and the themes), `common_format`, `common_colours`, `ramps` and `base`, formerly `kit`,
+  `kit_format`, `kit_colours`, `kit_ramps` and `kit_base`. `render_menu` takes
+  `common_draft_id`; `kit_draft_id`, its former name, is still read.
 
 **Step 2, sixth part: where a common image is used** (decision 12, "where it is used").
 
@@ -325,7 +329,7 @@ theme; the first write of either key leaves the list alone in the file. In the e
 theme's page puts a theme on top of the stack or takes it off (`themeChange`), the common
 images' page lists the themes in place first, numbered from the lowest, and the Configuration
 page holds the list in order; against a server older than the list, the former key is written.
-The MCP tools show the server's images in its stack (`kit.in_place` in `survey_ui`, `themes` on
+The MCP tools show the server's images in its stack (`common.in_place` in `survey_ui`, `themes` on
 a render) and draw one theme alone when asked for it.
 Not in this part: a theme as its own folder `themes/<name>/` with `overrides/` (decision 5), a
 theme's redraw of a module's image and `scope`, colour ramps (decision 7), ordering the stack
@@ -344,7 +348,7 @@ unregistered, with a warning: the module keeps the name. A name of the stack is 
 theme's own Project when the server has one, else from the folder the common images keep for
 it (`themes/artisan/themes/<name>/`), so a server's themes and its pack are unchanged (the
 vector locks the same stack in either place to the same bytes). The editor lists both, shows
-and stacks them alike, and the MCP tools draw them alike (`kit.themes[].project` in
+and stacks them alike, and the MCP tools draw them alike (`common.themes[].project` in
 `survey_ui` names a theme's own Project).
 A theme's folder is read at start: one added by hand shows after a restart.
 
@@ -379,7 +383,7 @@ redraws the image wins, as drawn. No theme's colours touch a module's image, dra
 or not: which images follow the colours is decision 7's (ramps), not built. A module's
 composed image follows the redraw of its own layers and is not redrawn itself. The vector
 locks it in both builders and both packs. The MCP tools write one (`write_image` in a draft
-of the theme, `name` as `<module>:<image>`), list them (`kit.themes[].module_redraws` in
+of the theme, `name` as `<module>:<image>`), list them (`common.themes[].module_redraws` in
 `survey_ui`) and draw a menu with them (`render_menu`); a theme's page lists them.
 Not in this part: `scope` (a theme of one module, whose colours touch that module: it needs
 decision 7's "follows the ramps"); the editor's canvas and a module's Resources, which show a
@@ -436,7 +440,7 @@ as `scope`, are kept, a file changed since it was read is refused), and rebuilds
 when the theme is in place. The page also opens the theme's Project, where a draft of it is
 deployed. The MCP tool `theme_colours` computes the same table from the same picks
 (`Ramps.table`, checked against the editor's on `testdata/ramp-shades-conformance.json`), and
-`survey_ui` gives the ramps (`kit_ramps`).
+`survey_ui` gives the ramps (`ramps`).
 Not in this part: a theme the common images' Project still keeps has no picker (it moves to
 its own folder at the server's next start); a theme's `scope` is still written by hand or by
 the assistant; a table written by hand that changes a ramp's shades without its main colour
@@ -527,9 +531,9 @@ Not there yet:
   layer is not checked. `<module>:<name>` for an image that module does not hold falls
   on the bare name, then on the common image, instead of the visible fallback, because the
   asset index does not say who holds a bare id.
-- Against decision 1: the MCP tools keep the names `kit`, `kit_base`, `kit_format`,
-  `kit_colours` and `kit_draft_id` in what they take and return, and the notes file is still
-  `data/ui-kit.yml`. In the editor, a composed image's layers still hold `kit:<name>`.
+- Against decision 1: the notes file is still `data/ui-kit.yml`, and `render_menu` still reads
+  `kit_draft_id` beside `common_draft_id`. In the editor, a composed image's layers still hold
+  `kit:<name>`.
 - Against decision 12: the server's Resources and a module's are two components, the first
   read-only. Both read the common images as published, so an image drawn in the theme's draft
   shows there once deployed. The uses count the menus, the composed images' layers and the

@@ -122,7 +122,7 @@ deployed.
      accident, and the assistant knows when it drew in the base's palette.
    - **A theme's table from one colour per ramp** (2026-11-25, same decision).
      `theme_colours(ramps)` computes the table a theme's file holds from what the main colour
-     of each ramp becomes, and `survey_ui` gives the ramps (`kit_ramps`). It is read-only and
+     of each ramp becomes, and `survey_ui` gives the ramps (`ramps`). It is read-only and
      writes nothing: the model writes the file with `write_document`, where it is checked. A
      model asked for "a red theme" otherwise invents some forty shades one by one, and gets
      another result than the editor's theme page; the hub computes the editor's
@@ -282,7 +282,7 @@ deployed.
       glyph has; the others are textures. Its files sit under `kit/` in the pack (`:` cannot be
       in a path), its key in the asset index is what the menu writes. The runtime did not
       change: it already looks an image up by the name the menu gives.
-    - **For the model**: `survey_ui` returns `kit_base` (each image, its size, whether this
+    - **For the model**: `survey_ui` returns `base` (each image, its size, whether this
       server drew it, on one more sheet), `render_menu` draws `kit:` images, and `write_image`
       in the `ui-kit` module takes a base name, refused at another size than the slot's.
     - **In the editor**: a menu's canvas, title and inspector show `kit:` images, from the kit
@@ -349,14 +349,14 @@ deployed.
       server that names none keeps its pack byte for byte. *Replaced on 2026-11-25 by a
       stack of themes in place, `resource-pack.themes` and `PackInput.themes` (ADR
       `common-images-and-themes`, decision 6, "Step 4, first part"): `survey_ui` gives the
-      stack as `kit.in_place`, a render says the themes it was drawn in as `themes`.*
-    - **For the model**: `survey_ui` lists the kit's themes (`kit.themes`), the one in place,
+      stack as `common.in_place`, a render says the themes it was drawn in as `themes`.*
+    - **For the model**: `survey_ui` lists the kit's themes (`common.themes`), the one in place,
       how to write one (`themes_format`), and shows the base in the server's theme. The table
       is written with `write_document`, checked by the hub (the server does not check a file
       that is no Document): unquoted colours, which YAML reads as comments, are refused with
       the reason. `write_image` with `theme` writes the theme's drawing of a kit image,
       refused at another size. `render_menu` draws the kit in the server's theme, in another
-      with `theme` (`none` for none), and from a draft of the kit module with `kit_draft_id`,
+      with `theme` (`none` for none), and from a draft of the kit module with `common_draft_id` (`kit_draft_id`, its former name, is still read),
       so a theme is looked at on a real menu before it is deployed. Switching the server's
       theme stays the player's, in the Configuration page.
     - **In the editor**: kit images and composed images are shown in the server's theme
