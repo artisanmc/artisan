@@ -503,8 +503,12 @@ Not there yet:
   shows there once deployed. The uses count menus only: an image named by a dialog, an overlay
   or a composed image's layer is not counted yet. The change of an original and a module's
   original show on the image in its module only, not in the server's list, and the module's
-  list does not mark which images are the owner's versions (step 5). An image cannot be moved
-  or copied to another scope from the server's list.
+  list does not mark which images are the owner's versions (step 5). A module's own image or
+  font is copied to the common images from its panel in the module (**Copy to the common
+  images**: `useResourcesView.askShare`, answered in the common images' Project by
+  `useCommonCopyAsked` with the copy the picker already makes, into that Project's draft); it
+  is not moved in one action (the module keeps its own until the owner deletes it there), a
+  composed image is not copied, and nothing is copied or moved from the server's list.
 - Against decision 4: the base's pieces take their measures from Artisan's own list, not from
   a declared function, and the slots a name ends with (`3x1`) are not read from the function.
   The MCP tools do not apply the rule: `render_menu` shows the owner's image where the pack

@@ -57,6 +57,13 @@ the menus of the whole server that show this image, each a link to that menu: th
 modules' menus as deployed, the open module's as you are editing them. A menu whose module
 holds an image of the same name is not listed, since it shows its own.
 
+**Making a module's image common.** On an image or a font of the module, **Copy to the common
+images** opens the common images with a copy of it under the same name, in their draft: deploy
+them and every module can name it. The module keeps its own image, which its menus still
+show; delete it there afterwards and its menus take the common one, with nothing to rewrite
+since the name is the same. The button is off when the common images already have an image of
+that name, and is not offered for a composed image, whose layers are the module's.
+
 **Resources, a tab of the server.** The server page's **Resources** tab is the Resources screen
 for the whole server: the images and fonts of every module and the common images in one list,
 as deployed. **Show** narrows it to one module or to the common images. An image selected

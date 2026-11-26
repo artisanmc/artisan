@@ -27,6 +27,7 @@ import { copyAssetInto } from "./copyAssetInto";
 import { CommonImageBadge, CommonImageMisfit, CommonImageOriginal } from "./CommonImageState";
 import { isKitBase, useCommonImageRef, useKitAssets, useKitMisfits } from "./kitAssets";
 import { type ResourcesView, useResourcesView } from "./resourcesView";
+import { useCommonCopyAsked } from "./useCommonCopyAsked";
 import { useKitPieceAsked } from "./useKitPieceAsked";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
 
@@ -170,6 +171,7 @@ export function AssetsTab({
   // The atelier belongs to the module it was opened in: another module shows its library.
   useEffect(() => () => useResourcesView.getState().openStudio(null), []);
   useKitPieceAsked(projectId);
+  useCommonCopyAsked(projectId);
   const views: ResourcesView[] = ["files", "captured"];
   const tabs = !capturedItems ? null : (
     <div className="flex shrink-0 gap-1 px-3 pt-3" role="tablist" data-testid="resources-views">
@@ -238,7 +240,7 @@ export function AssetsTab({
                 }}
               />
             ) : (
-              <OwnAssets projectId={projectId} compact={compact} />
+              <OwnAssets projectId={projectId} compact={compact} onOpenCommon={onOpenCommon} />
             )}
           </div>
         )}
@@ -559,7 +561,16 @@ function CommonAssets({
   );
 }
 
-function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: boolean }) {
+function OwnAssets({
+  projectId,
+  compact,
+  onOpenCommon,
+}: {
+  projectId: ProjectId;
+  compact: boolean;
+  /** Opens the Resources of the common images' Project, where an image made common is copied. */
+  onOpenCommon?: () => void;
+}) {
   const { t } = useTranslation();
   const isDesktop = useIsDesktop();
   const narrow = compact || !isDesktop;
@@ -639,7 +650,18 @@ function OwnAssets({ projectId, compact }: { projectId: ProjectId; compact: bool
         list={list}
         detail={
           selectedId ? (
-            <AssetDetailPanel key={`${projectId}:${selectedId}`} projectId={projectId} />
+            <AssetDetailPanel
+              key={`${projectId}:${selectedId}`}
+              projectId={projectId}
+              onShare={
+                onOpenCommon
+                  ? (asset) => {
+                      useResourcesView.getState().askShare(asset, projectId);
+                      onOpenCommon();
+                    }
+                  : undefined
+              }
+            />
           ) : null
         }
         onBack={() => setSelectedId(null)}
