@@ -8,6 +8,7 @@ import { AssetPreview } from "@/features/assets/AssetPreview";
 import { useImageAsset } from "@/features/assets/kitAssets";
 import { colsFor, rowsFor } from "@/features/canvas/inventoryTypes";
 import { TextSizeSelector } from "@/features/canvas/title/composer/TextSizeSelector";
+import { cx } from "@/lib/cx";
 import { kitFootprint } from "@/lib/pack/kit";
 import type { PartsEdit } from "@/state/projects/elementsSlice";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
@@ -34,6 +35,8 @@ export function PartsEditor({
   textOf,
   onEdit,
   onPositions,
+  selected,
+  onSelect,
 }: {
   projectId: ProjectId;
   menu: Menu;
@@ -44,6 +47,9 @@ export function PartsEditor({
   textOf: (text: LText) => string;
   onEdit: (op: PartsEdit) => void;
   onPositions: (positions: string) => void;
+  /** The piece in hand where pieces are moved on a scene (a component's page). */
+  selected?: number | null;
+  onSelect?: (index: number) => void;
 }) {
   const { t } = useTranslation();
   const id = useId();
@@ -151,6 +157,8 @@ export function PartsEditor({
               onEdit={(op) => perform(() => onEdit(op))}
               onText={(value) => onEdit({ type: "text", index, lang, value })}
               onChoose={() => setPicking(index)}
+              selected={selected === index}
+              onSelect={onSelect ? () => onSelect(index) : undefined}
             />
           ))}
       </ol>
@@ -186,9 +194,13 @@ function PartRow({
   onEdit,
   onText,
   onChoose,
+  selected,
+  onSelect,
 }: {
   projectId: ProjectId;
   part: Part;
+  selected?: boolean;
+  onSelect?: () => void;
   index: number;
   count: number;
   text: string;
@@ -203,12 +215,25 @@ function PartRow({
   const patch = (value: Extract<PartsEdit, { type: "patch" }>["patch"]) =>
     onEdit({ type: "patch", index, patch: value });
   const limit = isImage ? 4096 : 256;
+  const title = isImage ? `${t("parts.image")} · ${asset?.name ?? part.image}` : t("parts.text");
   return (
-    <li className="card flex flex-col gap-2 p-2" data-testid="part-row">
+    <li
+      className={cx("card flex flex-col gap-2 p-2", selected && "!border-[var(--brand)]")}
+      data-testid="part-row"
+    >
       <div className="flex items-center gap-1">
-        <span className="eyebrow flex-1 truncate">
-          {isImage ? `${t("parts.image")} · ${asset?.name ?? part.image}` : t("parts.text")}
-        </span>
+        {onSelect ? (
+          <button
+            type="button"
+            aria-pressed={!!selected}
+            className="eyebrow min-w-0 flex-1 cursor-pointer truncate border-0 bg-transparent p-0 text-left"
+            onClick={onSelect}
+          >
+            {title}
+          </button>
+        ) : (
+          <span className="eyebrow flex-1 truncate">{title}</span>
+        )}
         <Button
           size="icon"
           variant="ghost"

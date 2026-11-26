@@ -184,9 +184,11 @@ export function StudioFrame({
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">{parts.actions}</div>
       </header>
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex shrink-0 justify-center border-b border-[var(--border-soft)] bg-[var(--surface)] p-1.5 lg:border-r lg:border-b-0">
-          {parts.rail}
-        </div>
+        {parts.rail ? (
+          <div className="flex shrink-0 justify-center border-b border-[var(--border-soft)] bg-[var(--surface)] p-1.5 lg:border-r lg:border-b-0">
+            {parts.rail}
+          </div>
+        ) : null}
         <div className="flex min-h-[340px] min-w-0 flex-1 flex-col bg-[var(--surface-inset)]">
           {parts.stage}
           <div className="flex shrink-0 justify-between gap-3 border-t border-[var(--border-soft)] bg-[var(--surface)] px-3 py-1 text-[11px] text-[var(--text-faint)]">
