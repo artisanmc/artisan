@@ -26,6 +26,8 @@ const fr: typeof en = {
       notTaken: "Non prise : l'original du module s'affiche",
       ownVersion: "Votre version d'une image livrée par le module",
       originalChanged: "Votre version : l'original du module a changé depuis",
+      addedHere: "Ajoutée ici",
+      replacesBase: "Remplace la base",
     },
     original: {
       label: "Original du module",
@@ -448,7 +450,7 @@ const fr: typeof en = {
       files:
         "Un thème est un dossier des images communes du serveur (themes/artisan/) : themes/{{name}}/assets/textures/<pièce>.png est une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
       filesOwn:
-        "Ce thème est un dossier du serveur, themes/{{name}}/ : overrides/artisan/<image>.png est une image commune redessinée à la taille de cette image, assets/ contient ses propres images. Il se lit ici une fois déployé.",
+        "Ce thème est un dossier du serveur, themes/{{name}}/ : assets/ contient ses images ; celle qui porte le nom d'une image commune la remplace, à la taille de cette image. Il se lit ici une fois déployé.",
       compare: "Sans et avec, dans un menu",
       putHint:
         "Mettre en place pose le thème au-dessus de ceux qui y sont déjà et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
@@ -572,6 +574,10 @@ const fr: typeof en = {
     noModules: "Aucun module sur ce serveur.",
     base: "Base",
     baseHint: "en dernier, lecture seule",
+    themeSettings: "Aperçu et réglages du thème",
+    themeAway: "rangé",
+    themeInPlace: "en place",
+    themeBar: "Thème « {{name}} »",
   },
   projectSource: {
     common: "Images communes",

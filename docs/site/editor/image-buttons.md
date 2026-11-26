@@ -91,8 +91,12 @@ the same list of places on the left, in the order an image's name is looked up:
   its menus, whatever the themes hold.
 - **Base**: the images Artisan ships, looked up last, read only.
 
-A click opens the place on the right: a theme on its page, a module or the server's theme on
-its own Resources, where its images and fonts are changed.
+A click opens the place on the right: a theme, a module or the server's theme on its own
+Resources, where its images and fonts are changed. A theme holds its images like a module: in
+its Resources an image named like one of a place below says **Replaces the base**, any other
+**Added here**. The bar above a theme's Resources says whether it is in place and leads to its
+page (**Preview and settings of the theme**: the same menu without it and with it, put in
+place, rename, delete, export).
 
 **Base** is the page of the common images, as the server has them
 deployed: every piece of the base by family (buttons; windows, panels and
@@ -135,9 +139,10 @@ here once deployed. **New theme** creates one, empty, as a folder of its own on 
 images and is put in place. Its page says where its files are; the assistant fills it when
 asked ("make the buttons red in the theme noel"). A theme changes the common images only.
 
-A theme may also hold images of its own, under `assets/` of its folder (`assets/textures/`,
-`assets/glyphs/`): a garland for the winter look, say. A menu names one with its theme,
-`noel:garland`, never by its name alone. It is in the pack as long as the server has the
+A theme's images are under `assets/` of its folder (`assets/textures/`, `assets/glyphs/`). One
+named like a common image replaces it while the theme is in place, at that image's size. One
+of another name is the theme's alone, a garland for the winter look, say: a menu names it with
+its theme, `noel:garland`, never by its name alone. It is in the pack as long as the server has the
 theme, in place or not, and shows as drawn: no theme repaints it. The theme's page lists
 them under **Its own images**, each as a menu writes it, and **Common** (on a button's image
 or a title layer) offers them after the common images: the menu names the one you pick,

@@ -149,7 +149,7 @@ describe("kit themes", () => {
     expect(await stack("noel", "nowhere")!.shown("close", green)).toBe(drawn);
   });
 
-  test("a theme of its own folder holds its redraws of the common images, and nothing else is read", async () => {
+  test("a theme of its own folder holds images under names, in assets/ or the former overrides/artisan/", async () => {
     const green = encodePng(solid(2, 2, 0x3c, 0x85, 0x27, 255));
     const drawn = encodePng(solid(2, 2, 9, 9, 9, 255));
     const paths = [
@@ -159,17 +159,27 @@ describe("kit themes", () => {
       "overrides/artisan/notes.txt",
       "overrides/guilds/banner.png",
       "overrides/close.png",
-      "assets/textures/close.png",
+      "assets/glyphs/star.png",
+      "assets/textures/star.png",
+      "assets/textures/deep/star.png",
     ];
     const binaries = Object.fromEntries(paths.map((path) => [path, drawn]));
-    expect([...ownThemeDrawings(paths)]).toEqual([["close", "overrides/artisan/close.png"]]);
+    // An image under `assets/` is the theme's image of that name, a texture before a glyph.
+    expect([...ownThemeDrawings(paths)]).toEqual([
+      ["close", "overrides/artisan/close.png"],
+      ["star", "assets/textures/star.png"],
+    ]);
+    // It wins over the former place of a redraw.
+    expect([
+      ...ownThemeDrawings(["overrides/artisan/close.png", "assets/glyphs/close.png"]),
+    ]).toEqual([["close", "assets/glyphs/close.png"]]);
     // The table of colours a theme once held repaints nothing.
     const theme = readOwnTheme(kit({ "overrides/colors.yml": table }, binaries));
     expect(await theme.shown("x", green)).toBe(green);
     expect(await theme.shown("close", green)).toBe(drawn);
     // Its redraw aimed at a module is no drawing of the common image of that name.
     expect(await theme.shown("banner", green)).toBe(green);
-    expect(theme.drawings).toEqual(["close"]);
+    expect(theme.drawings).toEqual(["close", "star"]);
     expect(await readOwnTheme(kit({})).shown("x", green)).toBe(green);
     // What it holds that is no longer read is named, for the editor to say.
     expect(themeUnread(["overrides/colors.yml", ...paths])).toEqual([

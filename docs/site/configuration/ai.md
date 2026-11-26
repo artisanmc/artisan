@@ -236,7 +236,7 @@ assistant creates when you ask for a new theme (or you, with **New theme** in **
 common images):
 
 ```text
-overrides/artisan/window.6.png   # an image the theme draws again, at its size
+assets/textures/window.6.png   # the theme's image of that name: it replaces the common one, at its size
 ```
 
 The assistant writes it into a draft of the theme, which you deploy like any other draft.

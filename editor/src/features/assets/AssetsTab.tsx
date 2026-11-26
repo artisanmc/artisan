@@ -31,6 +31,7 @@ import { isKitBase, useCommonImageRef, useKitAssets, useKitMisfits } from "./kit
 import { sizedAsPiece } from "./kitPieces";
 import { isKitModule } from "./localAssets";
 import { type ResourcesView, useResourcesView } from "./resourcesView";
+import { useThemePlaceMark } from "./themePlaceMark";
 import { useCommonCopyAsked } from "./useCommonCopyAsked";
 import { useKitPieceAsked } from "./useKitPieceAsked";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
@@ -628,9 +629,13 @@ function OwnAssets({
   const openStudio = useResourcesView((s) => s.openStudio);
   // The common images say who drew each one their own way (`CommonImageState`).
   const marks = useImageMarks(projectId);
+  // In a theme, an image says what it does to the places below (ADR `resources-one-screen`, decision 6).
+  const themePlace = useThemePlaceMark(projectId);
   const markOf = (asset: Asset): AssetMark | null => {
     const mark = marks(asset);
-    return mark ? imageMarkShown(mark, t) : null;
+    if (mark) return imageMarkShown(mark, t);
+    const place = themePlace(asset);
+    return place ? { tone: "brand", label: t(`resources.mark.${place}`) } : null;
   };
 
   const filtered = assets.filter((asset) =>

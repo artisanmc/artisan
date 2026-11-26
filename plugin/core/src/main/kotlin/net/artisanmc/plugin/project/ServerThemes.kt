@@ -14,8 +14,10 @@ import java.util.logging.Logger
  * folder of `plugins/Artisan/themes/` is a theme, a Project of its name with the role `theme`.
  *
  * ```
- * themes/noel/overrides/artisan/button.3x1.png    this common image redrawn, at its size
+ * themes/noel/assets/textures/button.3x1.png    the theme's image of that name, at its size
  * ```
+ *
+ * A redraw at its former place, `overrides/artisan/<image>.png`, moves there at start ([settle]).
  *
  * A theme holds no Document: the server loads no menu, command or Trigger from its folder
  * ([ProjectRoots.holdsDocuments]). Its name is not a module's: a folder of `themes/` named like
@@ -62,15 +64,43 @@ object ServerThemes {
                     "Rename its folder, then restart.",
             ) else {
                 roots.theme(name)
+                settle(File(roots.themesRoot, name), logger)
                 val unread = unread(File(roots.themesRoot, name))
                 if (unread.isNotEmpty()) logger?.warning(
                     "[Artisan] The theme '$name' holds files that are no longer read: ${unread.joinToString(", ")}. A theme changes an image " +
-                        "by holding an image under the common image's name ($COMMON/): its colours repaint nothing, and a module's own image " +
+                        "by holding an image under the common image's name (${FORMER_IMAGE_DIRS.first()}/): its colours repaint nothing, and a module's own image " +
                         "is changed in the module. Delete them.",
                 )
             }
             free
         }
+    }
+
+    /**
+     * Puts the theme's redraws where a theme holds its images (ADR `resources-one-screen`,
+     * decision 2): each `overrides/artisan/<image>.png` of [dir] moves to
+     * `assets/textures/<image>.png`, like a module's image. One whose name the theme's `assets/`
+     * already has stays: the pack reads the one in `assets/`. Returns the names moved, sorted.
+     */
+    fun settle(dir: File, logger: Logger? = null): List<String> {
+        val former = File(dir, COMMON)
+        val moved = ArrayList<String>()
+        for (file in former.listFiles().orEmpty().filter { it.isFile && it.name.endsWith(".png") && it.name.length > ".png".length }.sortedBy { it.name }) {
+            if (FORMER_IMAGE_DIRS.any { File(File(dir, it), file.name).exists() }) {
+                logger?.warning("[Artisan] The theme '${dir.name}' holds ${file.name} twice: the one in ${FORMER_IMAGE_DIRS.first()}/ is read, $COMMON/${file.name} is not. Delete it.")
+                continue
+            }
+            val target = File(File(dir, FORMER_IMAGE_DIRS.first()).apply { mkdirs() }, file.name)
+            try {
+                Files.move(file.toPath(), target.toPath(), ATOMIC_MOVE)
+                moved += file.name.removeSuffix(".png")
+            } catch (e: IOException) {
+                logger?.warning("[Artisan] The theme '${dir.name}' keeps $COMMON/${file.name}, still read there: ${e.message}")
+            }
+        }
+        if (former.list()?.isEmpty() == true) former.delete()
+        if (File(dir, OVERRIDES).list()?.isEmpty() == true) File(dir, OVERRIDES).delete()
+        return moved
     }
 
     /**
@@ -159,9 +189,8 @@ object ServerThemes {
 
     /**
      * Moves each `themes/artisan/themes/<name>/` to `themes/<name>/`, in a theme's layout: its
-     * `theme.yml` becomes `overrides/colors.yml` and its redraws (`assets/textures/<image>.png`,
-     * then `assets/glyphs/` for a name no texture has) `overrides/artisan/<image>.png`; any other
-     * file keeps its place in the folder. A theme whose name is taken (a module, or a theme's
+     * `theme.yml` becomes `overrides/colors.yml` (no longer read); its images keep their place,
+     * `assets/`, where a theme holds them, as does any other file. A theme whose name is taken (a module, or a theme's
      * folder that holds files) stays where it is, where the pack still reads it. Returns the
      * names moved.
      */
@@ -207,15 +236,5 @@ object ServerThemes {
         }
         // `theme.yaml` beside a `theme.yml` was never read.
         table.drop(1).forEach { if (File(dir, COLORS).isFile) it.delete() }
-        for (images in FORMER_IMAGE_DIRS.map { File(dir, it) }) {
-            for (png in images.listFiles().orEmpty().filter { it.isFile && it.name.endsWith(".png") }.sortedBy { it.name }) {
-                val target = File(dir, "$COMMON/${png.name}")
-                if (target.exists()) continue
-                target.parentFile.mkdirs()
-                ModulesRootMigration.move(png, target)
-            }
-            if (images.isDirectory && images.list().isNullOrEmpty()) images.delete()
-        }
-        File(dir, "assets").let { if (it.isDirectory && it.list().isNullOrEmpty()) it.delete() }
     }
 }

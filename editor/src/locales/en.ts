@@ -24,6 +24,8 @@ export default {
       notTaken: "Not taken: the module's original shows",
       ownVersion: "Your version of an image the module ships",
       originalChanged: "Your version: the module's original changed since",
+      addedHere: "Added here",
+      replacesBase: "Replaces the base",
     },
     original: {
       label: "The module's original",
@@ -441,7 +443,7 @@ export default {
       files:
         "A theme is a folder of the server's common images (themes/artisan/): themes/{{name}}/assets/textures/<piece>.png is a piece redrawn at the piece's size. It is read here once deployed.",
       filesOwn:
-        "This theme is a folder of the server, themes/{{name}}/: overrides/artisan/<image>.png is a common image redrawn at that image's size, assets/ holds its own images. It is read here once deployed.",
+        "This theme is a folder of the server, themes/{{name}}/: assets/ holds its images; one named like a common image replaces it, at that image's size. It is read here once deployed.",
       compare: "Without and with, in a menu",
       putHint:
         "Putting a theme in place sets it above the ones already there and rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
@@ -565,6 +567,10 @@ export default {
     noModules: "No module on this server.",
     base: "Base",
     baseHint: "last, read only",
+    themeSettings: "Preview and settings of the theme",
+    themeAway: "put away",
+    themeInPlace: "in place",
+    themeBar: "Theme “{{name}}”",
   },
   projectSource: {
     common: "Common images",

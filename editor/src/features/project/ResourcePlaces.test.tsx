@@ -3,7 +3,7 @@ import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useKitStore } from "@/state/kitStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ResourcePlaces } from "./ResourcePlaces";
+import { ResourcePlaces, ThemeBar } from "./ResourcePlaces";
 
 const api = vi.hoisted(() => ({ patchServerConfig: vi.fn(), navigate: vi.fn() }));
 vi.mock("@/lib/api/serverConfig", async (importOriginal) => ({
@@ -74,7 +74,7 @@ describe("ResourcePlaces", () => {
     expect(screen.getByTestId("place-server")).not.toHaveAttribute("aria-current");
   });
 
-  it("opens a theme on its page, a module and the server's theme in their Project", () => {
+  it("opens a theme, a module and the server's theme in their Project, a theme the common images keep on its page", async () => {
     render(
       <ResourcePlaces
         serverId="s"
@@ -83,11 +83,12 @@ describe("ResourcePlaces", () => {
       />,
     );
     expect(screen.getByTestId("place-module-srv.shop")).toHaveAttribute("aria-current", "true");
+    // A theme of its own folder is edited in its Project, like a module.
     fireEvent.click(within(screen.getByTestId("place-theme-noel")).getByText("noel"));
     expect(api.navigate).toHaveBeenLastCalledWith({
-      to: "/servers/$serverId/resources",
-      params: { serverId: "s" },
-      search: { theme: "noel" },
+      to: "/servers/$serverId/projects/$projectId",
+      params: { serverId: "s", projectId: "srv.noel" },
+      search: { tab: "resources" },
     });
     fireEvent.click(within(screen.getByTestId("place-module-srv.guilds")).getByText("Guildes"));
     expect(api.navigate).toHaveBeenLastCalledWith({
@@ -99,6 +100,20 @@ describe("ResourcePlaces", () => {
     expect(api.navigate).toHaveBeenLastCalledWith(
       expect.objectContaining({ params: { serverId: "s", projectId: "srv.artisan" } }),
     );
+    // A theme the common images' Project still keeps has no Project of its own: its page.
+    useKitStore.setState({
+      read: {
+        projectId: "srv.artisan",
+        files: {},
+        binaries: [{ path: "themes/hiver/assets/textures/close.1x1.png", hash: "h" }],
+      },
+    });
+    fireEvent.click(await screen.findByText("hiver"));
+    expect(api.navigate).toHaveBeenLastCalledWith({
+      to: "/servers/$serverId/resources",
+      params: { serverId: "s" },
+      search: { theme: "hiver" },
+    });
     fireEvent.click(within(screen.getByTestId("place-base")).getByText("Artisan"));
     expect(api.navigate).toHaveBeenLastCalledWith({
       to: "/servers/$serverId/resources",
@@ -140,5 +155,16 @@ describe("ResourcePlaces", () => {
     expect(gone.getByText("Introuvable")).toBeInTheDocument();
     fireEvent.click(gone.getByRole("button", { name: "Ranger" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("server_offline");
+  });
+
+  it("says above a theme's Resources whether it is in place, and leads to its page", () => {
+    const onSettings = vi.fn();
+    const { rerender } = render(<ThemeBar name="noel" onSettings={onSettings} />);
+    expect(screen.getByTestId("theme-bar")).toHaveTextContent("Thème « noel »");
+    expect(screen.getByText("en place")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Aperçu et réglages du thème" }));
+    expect(onSettings).toHaveBeenCalledWith("noel");
+    rerender(<ThemeBar name="ete" onSettings={onSettings} />);
+    expect(screen.getByText("rangé")).toBeInTheDocument();
   });
 });
