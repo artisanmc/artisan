@@ -3617,6 +3617,146 @@
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYSized": []
+    },
+    {
+      "name": "a theme's own images: assets/ of a theme's Project are <theme>:<name>, in the pack when a menu names one (a button, a title glyph with its descriptor, its codepoint after the modules'), from a theme in place or not, as their files are (the theme's colours do not repaint them); one no menu names stays out, a name alone never reaches one, a name the theme does not hold shows nothing",
+      "projects": [
+        {
+          "id": "survival.shop",
+          "folder": "shop",
+          "files": {
+            "assets/glyphs/banner.yml": "codepoint: 57344\nascent: 7\nwidth: 16\nheight: 16\n",
+            "menus/shop.yml": "size: 27\ntitle:\n  - kind: glyph\n    asset: banner\n    x: 10\n    y: 5\n  - kind: glyph\n    asset: \"noel:garland\"\n    x: 40\n    y: 9\nelements:\n  - id: star\n    positions: \"3-5\"\n    image: { asset: \"noel:star\", fit: stretch }\n  - id: pumpkin\n    positions: \"12-14\"\n    image: { asset: \"halloween:pumpkin\", fit: contain }\n  - id: alone\n    positions: \"21-23\"\n    image: { asset: star, fit: stretch }\n  - id: absent\n    positions: \"24-26\"\n    image: { asset: \"noel:ghost\", fit: stretch }\n"
+          },
+          "binaries": {
+            "assets/glyphs/banner.png": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR42mNQcDjwnxLMMGrAqAGjBgwXAwCuEx8fbRY76AAAAABJRU5ErkJggg=="
+          }
+        },
+        {
+          "id": "survival.artisan",
+          "folder": "artisan",
+          "role": "theme",
+          "files": {},
+          "binaries": {}
+        },
+        {
+          "id": "survival.noel",
+          "folder": "noel",
+          "role": "theme",
+          "files": {
+            "overrides/colors.yml": "colors:\n  \"#3c8527\": \"#b3261e\"\n",
+            "assets/textures/star.yml": "width: 12\nheight: 12\nramps: true\n",
+            "assets/glyphs/garland.yml": "codepoint: 57344\nascent: 9\nwidth: 20\nheight: 12\n"
+          },
+          "binaries": {
+            "assets/textures/star.png": "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAFklEQVR42mOwaVX/TwpmGNUwqgE7BgAkOhIA5ujs3QAAAABJRU5ErkJggg==",
+            "assets/textures/unused.png": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAD0lEQVR42mP4TwAwjAwFAIS1/wHNOWXHAAAAAElFTkSuQmCC",
+            "assets/glyphs/garland.png": "iVBORw0KGgoAAAANSUhEUgAAABQAAAAMCAYAAABiDJ37AAAAGUlEQVR42mOwaVX/T03MMGrgqIGjBg6EgQARwsigquNqlwAAAABJRU5ErkJggg=="
+          }
+        },
+        {
+          "id": "survival.halloween",
+          "folder": "halloween",
+          "role": "theme",
+          "files": {},
+          "binaries": {
+            "assets/textures/pumpkin.png": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAICAYAAADA+m62AAAAFElEQVR42mP4X8XwnxjMMKoQHwYAobrFgUTEnwwAAAAASUVORK5CYII="
+          }
+        }
+      ],
+      "bedrock": {
+        "serverId": "survival",
+        "entries": [
+          "font/glyph_F8.png",
+          "manifest.json",
+          "textures/artisan/b/11c1f46372e91f67.png",
+          "textures/artisan/b/6d03c795e9babe29.png",
+          "textures/artisan/m/f24cafec2cb0f966.png",
+          "textures/item_texture.json",
+          "textures/items/artisan_hit_area.png",
+          "ui/chest_screen.json"
+        ],
+        "entryHashes": {
+          "font/glyph_F8.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+          "manifest.json": "4bfbff5b3caad33acc4a478943da0373f14e80e9b423bf3d59ee57f6b388ddd0",
+          "textures/artisan/b/11c1f46372e91f67.png": "f6bc4baa6949d540c6f15695515dada4b829e49b1694fde6008b36dff700f37f",
+          "textures/artisan/b/6d03c795e9babe29.png": "ae8d316333f9337a4d9d6e71722dd64f020197f804a3b2bc09955a23ef0e92a0",
+          "textures/artisan/m/f24cafec2cb0f966.png": "937f7339be2c68049fdf82583357c09fb2464e9dd95a97a5925f959f2d301160",
+          "textures/item_texture.json": "e92840b8dfe4a3742dbbe6928e287b39be6b80fe187a3874f4dd2373406e23c5",
+          "textures/items/artisan_hit_area.png": "c1ccd6abeb4908889bd726ab86450635b7898607cd6fcbc20c37c5e5607455de",
+          "ui/chest_screen.json": "38c838a5f9f8bd239a52eafd155809a2ebea1cfbc718422bdf256f2f2c8e2307"
+        },
+        "sha1": "0c67a4507774692ccb20cdffd64e53f51cef9e5e"
+      },
+      "containerTextures": {},
+      "vanillaGui": true,
+      "themes": [
+        "noel"
+      ],
+      "entries": [
+        "assets/artisan/asset-index.json",
+        "assets/artisan/font/buttons/e247b1096f89b57d4568dfb669d2417962fa73356712f70ba8ba68a28354ef74_54_18_stretch_17.json",
+        "assets/artisan/font/buttons/f4dd358fabccb9a67fc9848f8433e48c5e201107d9e6e70feb1154413333cd06_54_18_contain_35.json",
+        "assets/artisan/font/default.json",
+        "assets/artisan/font/glyph_y5.json",
+        "assets/artisan/font/glyph_y9.json",
+        "assets/artisan/font/vanilla_gui.json",
+        "assets/artisan/items/buttons/hit_area.json",
+        "assets/artisan/textures/buttons/e247b1096f89b57d4568dfb669d2417962fa73356712f70ba8ba68a28354ef74_54_18_stretch_17.png",
+        "assets/artisan/textures/buttons/f4dd358fabccb9a67fc9848f8433e48c5e201107d9e6e70feb1154413333cd06_54_18_contain_35.png",
+        "assets/artisan/textures/font/accented_up.png",
+        "assets/artisan/textures/font/ascii_up.png",
+        "assets/artisan/textures/font/banner.png",
+        "assets/artisan/textures/font/nonlatin_european_up.png",
+        "assets/artisan/textures/font/text_accented.png",
+        "assets/artisan/textures/font/text_ascii.png",
+        "assets/artisan/textures/font/text_nonlatin_european.png",
+        "assets/artisan/textures/font/themes/noel/garland.png",
+        "assets/artisan/textures/gui/dispenser.png",
+        "assets/artisan/textures/gui/generic_9x1.png",
+        "assets/artisan/textures/gui/generic_9x2.png",
+        "assets/artisan/textures/gui/generic_9x3.png",
+        "assets/artisan/textures/gui/generic_9x4.png",
+        "assets/artisan/textures/gui/generic_9x5.png",
+        "assets/artisan/textures/gui/generic_9x6.png",
+        "assets/artisan/textures/gui/hopper.png",
+        "pack.mcmeta",
+        "pack.png"
+      ],
+      "textYFonts": 168,
+      "textUpFonts": 129,
+      "sha1": "afd82fd21b96626bc0771621fdbe752ad297a425",
+      "entryHashes": {
+        "assets/artisan/asset-index.json": "e2949511a2eb8b7ed3d3146aaf4f1dd9e94cbe43c423eade4130c039dcf37e05",
+        "assets/artisan/font/buttons/e247b1096f89b57d4568dfb669d2417962fa73356712f70ba8ba68a28354ef74_54_18_stretch_17.json": "45a8feac462aaac3fbe3a8c85d99848aa00770f6375c6642bb547a0716cab4eb",
+        "assets/artisan/font/buttons/f4dd358fabccb9a67fc9848f8433e48c5e201107d9e6e70feb1154413333cd06_54_18_contain_35.json": "2b82d80691424abc98b002ccc77743ba5db101273b35f7d57498a7401618213d",
+        "assets/artisan/font/default.json": "f108339e856bc9d1c49eeb5a4914bb56debe89e8fbdb164e518c418681f7283b",
+        "assets/artisan/font/glyph_y5.json": "e35b5dc9f65fc0d2ff815d04761f4d932352f99557b48e1d35e25b727063f23f",
+        "assets/artisan/font/glyph_y9.json": "70ff64601058760dae403cfaf10dac60f7ff8ddace71792d6046397414925176",
+        "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
+        "assets/artisan/items/buttons/hit_area.json": "640b1ffd4b0f72ba22d7609e6adda9db80cef06419d273aa8ac528631a8ef135",
+        "assets/artisan/textures/buttons/e247b1096f89b57d4568dfb669d2417962fa73356712f70ba8ba68a28354ef74_54_18_stretch_17.png": "ae8d316333f9337a4d9d6e71722dd64f020197f804a3b2bc09955a23ef0e92a0",
+        "assets/artisan/textures/buttons/f4dd358fabccb9a67fc9848f8433e48c5e201107d9e6e70feb1154413333cd06_54_18_contain_35.png": "f6bc4baa6949d540c6f15695515dada4b829e49b1694fde6008b36dff700f37f",
+        "assets/artisan/textures/font/accented_up.png": "454c174ce9e1aeefde41326f571561130bfc4cf5b1c39e26554bd7e34f1e6a18",
+        "assets/artisan/textures/font/ascii_up.png": "a2ca25208d39ab01617fc5d855f6e8e3f4d00100d114f19b5f79adcceb58a238",
+        "assets/artisan/textures/font/banner.png": "ac71556560f890d0e026309c4b18d6f0f3a82afbfd7a0423651d1864693e1125",
+        "assets/artisan/textures/font/nonlatin_european_up.png": "210a35d91ac279d37b6f2f2162926acc7a46953d80fa8133b7ea83b11631bae0",
+        "assets/artisan/textures/font/text_accented.png": "0c4946dabaaedc7198be189b99e64c17be55c2bfe08bd53d947b7ee59cb7a569",
+        "assets/artisan/textures/font/text_ascii.png": "a2861a21e3ff5edcdc9e033c14fa31773136a0d54754c9bdf11d3cd4e0e5d000",
+        "assets/artisan/textures/font/text_nonlatin_european.png": "de2955e6ac0a6d24c852bb412721a2701d00c642f6e52e1205624fcc614f1b7e",
+        "assets/artisan/textures/font/themes/noel/garland.png": "69a16cd9b334c681aa54295c3832edc62f8f2b014c0b2e14586d6197e362ed1d",
+        "assets/artisan/textures/gui/dispenser.png": "437f4c4c7cc98af96577d01a62aba607cf999bdc6ad032fa6cdf6ad47f44b718",
+        "assets/artisan/textures/gui/generic_9x1.png": "898d282a843d306f23652f10f78e8bf765f25d5095f60e8cab8db8543b2fee02",
+        "assets/artisan/textures/gui/generic_9x2.png": "fcb46d8c1adfb5c510e2f6560a037854c580e74059a57525bfd56b81f5a21a19",
+        "assets/artisan/textures/gui/generic_9x3.png": "6a5e5e3951556e6b87c73bf26096997afe63dd6da00116c97bbb2782e0a77da0",
+        "assets/artisan/textures/gui/generic_9x4.png": "bcb32b11964ab9aac32c6b8711618b94918461a73ffee7b9dc3f0073931337ef",
+        "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
+        "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
+        "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
+        "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
+      },
+      "textYSized": []
     }
   ]
 }

@@ -492,6 +492,23 @@ again. Nothing new on the server or in the protocol.
 Not in this part: importing over a theme the server has (the name must be free: no update,
 no merge, no version of a theme), and an MCP tool for either.
 
+**Step 4, tenth part: a theme's own images in the pack** (`ImageNames.themeOwn` in both
+builders, `packAssembly.ts`, `ResourcePackBuilder.kt`; decisions 5 and 11).
+An image under `assets/` of a theme's Project (any theme but `artisan`, whose `assets/` are
+the common images) is `<theme>:<name>`, while the server holds the theme, in place or not.
+The id never is the bare name, so a name alone does not reach one: a menu, a title or a
+module's kind writes `<theme>:<name>`. It is in the pack only when named (decision 11), its
+files under `themes/<theme>/`, shown as its file is: the themes in place neither repaint nor
+redraw it. A glyph keeps its descriptor, its codepoint after the modules' and the common
+images'. The game finds it by the asset index like any id (`ImageRefs`, unchanged). A theme
+whose folder is a module's gives none (`<folder>:<name>` is that module's), and of two images
+of one name in a theme the first read keeps the id. The two vectors lock it
+(`image-ref-conformance.json`: `themes`; `resource-pack-conformance.json`: one case).
+Not in this part: a composed image of a theme (not taken); the editor, which neither draws
+nor offers a theme's own image and reads `<theme>:<name>` as a name no image answers
+(`reachOf`); the MCP tools, which do not write one; the archive's note, which does not say a
+module names one.
+
 **Step 6, first part: a module's archive says what it names elsewhere** (`lib/pack/elsewhere.ts`,
 `exportElsewhere.ts`, `runImportZip.ts`; decision 10). The export reads the image names the
 module writes as the pack reads them and tells who holds each one. A common image the server
@@ -564,14 +581,18 @@ Not there yet:
   changed" notice of its own.
 - Against decision 10: an image of another module is embedded only where a menu of the
   module's own names it (not from a kind's file, a composed layer or a shipped menu), and a
-  composed one never is. A theme's own images are not in the pack, so none is a dependency
-  yet. The note lives in the archive only: a module's folder copied by hand
+  composed one never is. A theme's own image a menu names is no dependency of the archive
+  yet: the note does not say it. The note lives in the archive only: a module's folder copied by hand
   carries no dependency, and nothing at load reports an image it names and the server lacks
   (the editor's deploy review does, for the names its menus write: `image_missing`).
   The copies are compared by their PNG alone (a descriptor that differs does not keep a
   copy). A font named elsewhere is neither copied nor noted. The version of Artisan in the
   note is the origin's, shown when a base image is missing, never compared.
-- Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are not in the pack.
+- Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are in the pack when
+  named, and nowhere else yet: the editor does not draw or offer one and says of
+  `<theme>:<name>` that no image answers it (under the image and in the deploy review), the
+  MCP tools do not write one, a composed one is not taken. `<theme>:<name>` for an image the
+  theme does not hold falls on the bare name like a module's.
   A theme has no versions and no update: an archive is imported under a free name only.
 - Against decision 7: an image of the server that follows the ramps is repainted by its
   colours as they are, so one drawn in other colours than the base's is not reached by a pick.

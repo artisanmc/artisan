@@ -2,12 +2,13 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "vitest";
 import type { AssetRow } from "./fontJsonBuilder";
-import { ImageNames, namedImageRow, resolveImageRef } from "./imageNames";
+import { ImageNames, namedImageRow, resolveImageRef, themeImagePath } from "./imageNames";
 
 interface Vector {
   common: string[];
   modules: { folder: string; fonts: string[]; images: string[] }[];
   ids: Record<string, Record<string, string>>;
+  themes: { folder: string; images: string[] }[];
   also: string[];
   cases: { from: string | null; ref: string; expect: string }[];
 }
@@ -38,8 +39,26 @@ test("the first module keeps the bare name, a later one is qualified, and one th
   expect(built.claim("core", "panel")).toBe("core:panel");
 });
 
+test("a theme's own image is `<theme>:<name>`, once, and none for a reserved folder", () => {
+  const built = names();
+  for (const theme of vector.themes)
+    for (const image of theme.images) {
+      expect(built.themeOwn(theme.folder, image)).toBe(`${theme.folder}:${image}`);
+      // Asked twice (a glyph and a texture of one name): the first one keeps the id.
+      expect(built.themeOwn(theme.folder, image)).toBeNull();
+    }
+  // `guilds:gold` is the module's image: a theme of that folder gives none.
+  expect(built.themeOwn("guilds", "gold")).toBeNull();
+  // `artisan:<name>` and `kit:<name>` name the common images.
+  expect(built.themeOwn("artisan", "star")).toBeNull();
+  expect(built.themeOwn("kit", "star")).toBeNull();
+  expect(themeImagePath("noel", "star")).toBe("themes/noel/star");
+});
+
 test("a name reaches the id the shared cases say", () => {
   const built = names();
+  for (const theme of vector.themes)
+    for (const image of theme.images) built.themeOwn(theme.folder, image);
   for (const id of vector.also) built.take(id);
   for (const c of vector.cases)
     expect(built.resolve(c.from ?? "", c.ref), `ref=${c.ref} from=${c.from}`).toBe(c.expect);

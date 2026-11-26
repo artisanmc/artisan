@@ -216,6 +216,20 @@ object ResourcePackBuilder {
             }
         }
 
+        // A theme's own images (`assets/` of its Project, decision 5): `<theme>:<name>` while the
+        // server holds the theme, in place or not. One enters the pack when a menu or a module names
+        // it. A theme of a module's name gives none: `<folder>:<name>` is that module's.
+        val themeOwn = HashMap<String, Triple<PackProject, String, DiskAsset>>()
+        val moduleFolders = projects.mapTo(HashSet()) { it.folder }
+        for (folder in themeProjects.keys.sorted()) {
+            if (folder in moduleFolders) continue
+            val project = themeProjects.getValue(folder)
+            for (asset in DiskAssets.fromTree(project.id, project.files, project.binaries, originals = false)) {
+                if (asset.recipe != null || (asset.row.type != "glyph" && asset.row.type != "texture")) continue
+                names.themeOwn(folder, asset.row.name)?.let { themeOwn[it] = Triple(project, folder, asset) }
+            }
+        }
+
         // A name no module holds reaches the common image of that name ([ImageNames.resolve]).
         for (name in kitImages.keys + shippedNames + Kit.slots.map { it.id }) names.take(Kit.PREFIX + name)
 
@@ -248,6 +262,25 @@ object ResourcePackBuilder {
             }
         }
         if (kitGlyphs.isNotEmpty()) contribs += Kit.FOLDER to kitGlyphs
+
+        // The themes' own images that are named, as their files are: a glyph keeps its descriptor,
+        // and its codepoint comes after the modules' and the common images'.
+        val namedOwn = (
+            glyphPlacements.map { it.assetId } + titleImages.map { (folder, ref) -> names.resolve(folder, ref) } +
+                imageButtons.map { it.asset } + overlayImages.map { it.image }
+            ).filterTo(HashSet()) { it in themeOwn }
+        val themeGlyphs = LinkedHashMap<String, ArrayList<Pair<String, Double>>>()
+        for (id in namedOwn.sorted()) {
+            val (project, folder, asset) = themeOwn.getValue(id)
+            val row = asset.row.copy(id = id, name = ImageNames.themePath(folder, asset.row.name))
+            allAssets += row
+            // As a module's: a glyph without a codepoint is in the index, and no PNG of the pack.
+            val codepoint = row.codepoint
+            if (row.type == "glyph" && codepoint == null) continue
+            glyphPngs[id] = project.binary(asset.path) ?: continue
+            if (row.type == "glyph" && codepoint != null) themeGlyphs.getOrPut(project.id) { ArrayList() } += id to codepoint
+        }
+        for ((projectId, glyphs) in themeGlyphs) contribs += projectId to glyphs
 
         val finalCodepoints = mergeCodepoints(contribs)
         val sources = GuiContainer.entries.associateWith { c ->
