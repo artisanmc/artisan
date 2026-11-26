@@ -28,6 +28,7 @@ The code wins over any doc. A doc that contradicts the code is a bug: fix the do
 | How player metrics reach a website (rankings, profiles), and the push protocol a website implements | `decisions/stats-export.md` (then `StatsExport`, `MetricRows`, `StatsExportHost`) |
 | How a module imports another plugin's data (dry run, batches, rollback, `/artisan import`) | `decisions/data-imports.md` (then `ImportRegistry`, `ImportRuns`, `ImportRunRows`) |
 | Where an image lives (a module's, common to the server), how a menu names it, what a theme is | `decisions/common-images-and-themes.md` (decided, not built yet; today's code: `decisions/mcp-server.md`, decisions 12 to 16) |
+| How a button is made of several pieces (background, icon, labels) and drawn at any width | `decisions/element-parts-and-sliced-images.md` (proposed, not built; today: `image` and `label` of `schema/menu/v1/`) |
 | Schema versions, protocol version, changelog rules | `architecture/versioning.md`, `changelog.d/README.md` |
 | The JSON schema of a Document kind | `schema/<kind>/v1/` (+ `architecture/schemas-codegen.md`) |
 | What the tests cover, conformance vectors | `architecture/testing.md` |
