@@ -35,7 +35,8 @@ import java.util.logging.Logger
  * `/artisan reload`) reaches every player. [java] false skips the Java pack.
  *
  * A build also says which image names the server's menus and kinds write that reach no image
- * ([Status.missingImages]): logged at WARNING when they change, since nothing else at load
+ * ([Status.missingImages]), and which layers of its composed images take nothing
+ * ([Status.missingLayers]): logged at WARNING when they change, since nothing else at load
  * tells a module copied by hand that it names an image the server lacks.
  *
  * One build at a time on a thread of its own (never Jetty's), at most one waiting per server:
@@ -74,6 +75,8 @@ class PackBuilder(
         val javaHash: String? = null,
         /** By module folder, the image names written that reach no image of the server (`PackResult.missingImages`). */
         val missingImages: Map<String, List<String>> = emptyMap(),
+        /** By module folder, then by composed image, the layers that take nothing (`PackResult.missingLayers`). */
+        val missingLayers: Map<String, Map<String, List<String>>> = emptyMap(),
     ) {
         val matches: Boolean? get() = if (hubHash == null || editorHash == null) null else hubHash == editorHash
     }
@@ -117,11 +120,17 @@ class PackBuilder(
             if (pack == null) return@onSuccess
             val bedrockHash = pack.bedrock?.let { applyBedrock(server, it.zip, previous?.bedrockHash) } ?: previous?.bedrockHash
             val javaHash = if (appliesJava) applyJava(server, pack.zip, previous?.javaHash) else previous?.javaHash
-            status[server] = Status(pack.sha1.takeIf { java }, previous?.editorHash, started, null, bedrockHash, javaHash, pack.missingImages)
+            status[server] = Status(pack.sha1.takeIf { java }, previous?.editorHash, started, null, bedrockHash, javaHash, pack.missingImages, pack.missingLayers)
             // Said when it changes: a server rebuilds its pack at each reload.
             if (pack.missingImages.isNotEmpty() && pack.missingImages != previous?.missingImages) {
                 val named = pack.missingImages.entries.joinToString("; ") { (folder, names) -> "$folder: ${names.joinToString(", ")}" }
                 logger?.warning("[Artisan] Pack of $server: image names that reach no image of the server, nothing is drawn for them ($named)")
+            }
+            if (pack.missingLayers.isNotEmpty() && pack.missingLayers != previous?.missingLayers) {
+                val named = pack.missingLayers.entries.joinToString("; ") { (folder, images) ->
+                    "$folder: " + images.entries.joinToString(", ") { (image, layers) -> "$image (${layers.joinToString(", ")})" }
+                }
+                logger?.warning("[Artisan] Pack of $server: layers of composed images that take nothing, the images are assembled without them ($named)")
             }
             logger?.fine { "[Artisan] Pack of $server built by the hub in ${System.currentTimeMillis() - started} ms: ${pack.sha1}" }
             if (java && previous?.editorHash == pack.sha1) logger?.fine { "[Artisan] Pack of $server: the hub's build matches the editor's" }

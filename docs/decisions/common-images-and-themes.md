@@ -687,7 +687,10 @@ pack reads a name with. A placeholder is not a name (`isWrittenName`'s rule). Th
 them at WARNING when they change from one build to the next, so a reload does not repeat
 them, and `resource_pack_status` gives them (`missing_images`). This is the check at load
 for a folder copied by hand: the pack is rebuilt after each load. The zip does not change.
-Not in this part: the layers of a composed image, and a font.
+The layers of a composed image that take nothing are said the same way, apart
+(`PackResult.missingLayers`, `missing_layers`): a layer is a PNG of the module or a common
+image, looked up as the image is assembled.
+Not in this part: a font.
 
 **Step 6, sixth part: an image a name alone reaches is embedded whoever writes the name**
 (`aloneImageRefs`; decision 10). A copy under the name written needs no rewrite: the module's
@@ -746,8 +749,9 @@ Not there yet:
   embedded. A theme's own image is noted, and its theme is exported and
   imported apart. The note lives in the archive only: a module's folder copied by hand
   carries no dependency. The pack's build reports the images it names and the server lacks
-  (step 6, fifth part), as the editor's deploy review does (`image_missing`); neither
-  reports a composed image's layer or a font from the server's side.
+  (step 6, fifth part) and the layers of its composed images that take nothing, as the
+  editor's deploy review does (`image_missing`, `layer_missing`); a font the server lacks is
+  not reported from the server's side.
   The copies are compared by their PNG alone (a descriptor that differs does not keep a
   copy). A font named elsewhere is noted and checked at import (step 6, fourth part), never copied. The version of Artisan in the
   note is the origin's, shown when a base image is missing, never compared.

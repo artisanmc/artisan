@@ -44,12 +44,15 @@ class PackInput(
  * The Java pack, and the Bedrock one when [PackInput.bedrockServerId] asked for it.
  * [missingImages]: by module folder, the image names its menus and its kinds' files write that
  * reach no image of the server, each once, in order. Nothing is drawn for them.
+ * [missingLayers]: by module folder, then by composed image, the layers that take nothing (a
+ * layer is a PNG of the module or a common image): the image is assembled without them.
  */
 class PackResult(
     val zip: ByteArray,
     val sha1: String,
     val bedrock: BedrockPackResult? = null,
     val missingImages: Map<String, List<String>> = emptyMap(),
+    val missingLayers: Map<String, Map<String, List<String>>> = emptyMap(),
 )
 
 /**
@@ -209,10 +212,17 @@ object ResourcePackBuilder {
         // The themes in place change the kit's PNGs, the base's and the server's: an image
         // composed with them follows, and is not themed a second time once assembled.
         val kitPng = { name: String -> kitImage(name)?.let { theme?.shown(name, it.png, it.shipped || name in kitRamps) ?: it.png } }
+        val missingLayers = TreeMap<String, TreeMap<String, List<String>>>()
         val made = composed.mapNotNull { c ->
             // In the kit module an image is a kit image under its bare name too.
             val own: (String) -> ByteArray? =
                 if (theme != null && c.project.folder == kitFolder) { name -> c.own[name]?.let { theme.shown(name, it, name in kitRamps) } } else c.own::get
+            // The layers that take nothing ([PackResult.missingLayers]), as [ComposedImages.render] looks them up.
+            val lacking = c.recipe.layers.map { it.image }.distinct().filter { name ->
+                val common = Kit.nameOf(name)
+                (if (common != null) kitPng(common) else own(name)) == null
+            }
+            if (lacking.isNotEmpty()) missingLayers.getOrPut(c.project.folder) { TreeMap() }[c.name] = lacking
             ComposedImages.render(c.recipe, own, kitPng)?.let { c to it }
         }
         val kitComposed = HashSet<String>()
@@ -327,7 +337,7 @@ object ResourcePackBuilder {
             TextDecorations.used(texts),
             TextChars.sheets(TextChars.used(texts)),
         )
-        val serverId = input.bedrockServerId ?: return PackResult(java.zip, java.sha1, null, missingImages)
+        val serverId = input.bedrockServerId ?: return PackResult(java.zip, java.sha1, null, missingImages, missingLayers)
         // Asset names collide across Projects as the Java pack resolves them: the first Project (by id) wins.
         // By id, what a menu writes: a file's name, `kit:<name>` for a kit image.
         val pngsByName = LinkedHashMap<String, ByteArray>()
@@ -335,7 +345,7 @@ object ResourcePackBuilder {
         // Keyed by the folder name: the plugin names a menu's Project that way.
         val bedrockMenus = projects.flatMap { p -> BedrockMenus.fromProject(p.folder, p.files) { names.resolve(p.folder, it) } }
         val bedrock = BedrockPack.build(serverId, bedrockMenus, pngsByName, allAssets, sources.getValue(GuiContainer.CHEST))
-        return PackResult(java.zip, java.sha1, bedrock, missingImages)
+        return PackResult(java.zip, java.sha1, bedrock, missingImages, missingLayers)
     }
 
     /** A composed image waiting for its layers: its row's place, its module, that module's PNGs and its [name] there. */

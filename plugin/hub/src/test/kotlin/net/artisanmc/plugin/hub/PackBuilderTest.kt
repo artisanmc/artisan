@@ -106,6 +106,16 @@ class PackBuilderTest {
         builder.request("u-local").get()
         assertEquals(1, warnings.size)
 
+        // The layers of a composed image that take nothing are said the same way, apart.
+        warnings.clear()
+        val composing = PackBuilder(servers, loadedOf(case("composed images")), logger, direct)
+        val layers = composing.request("u-local").get()?.missingLayers
+        assertEquals(listOf("nothing", "kit:nothing"), layers?.get("guilds")?.get("empty"))
+        assertEquals(1, warnings.count { "layers of composed images" in it }, warnings.toString())
+        assertTrue(warnings.any { "empty (nothing, kit:nothing)" in it }, warnings.toString())
+        composing.request("u-local").get()
+        assertEquals(1, warnings.count { "layers of composed images" in it })
+
         // A server whose names all reach an image says nothing.
         warnings.clear()
         assertEquals(emptyMap(), PackBuilder(servers, loaded, logger, direct).request("u-local").get()?.missingImages)
@@ -170,6 +180,7 @@ class PackBuilderTest {
         val lacking = McpTools(McpProjects(servers), packs = PackBuilder(servers, loadedOf(case("ui kit")), logger, direct))
         val named = lacking.invoke(deployer, lacking.find("resource_pack_rebuild")!!, mapper.valueToTree(mapOf("server" to "u-local"))).body as Map<*, *>
         assertEquals(mapOf("shop" to listOf("kit:", "kit:nothing", "kit:nowhere")), named["missing_images"])
+        assertEquals(emptyMap<String, Any>(), named["missing_layers"])
         assertTrue(call(draftsOnly, "resource_pack_rebuild", "server" to "u-local").error, "deploying is the player's call")
         assertEquals("unknown_server", (call(deployer, "resource_pack_status", "server" to "nope").body as Map<*, *>)["error"])
 

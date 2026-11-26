@@ -51,6 +51,20 @@ class MissingImagesTest {
     }
 
     @Test
+    fun `a build names the layers of a composed image that take nothing`() {
+        val composed = ResourcePackBuilder.build(inputOf(vectors["cases"].first { it["name"].asText().startsWith("composed images") }))
+        // A PNG the module lacks, a common image nobody holds, and another composed image: no layer takes one.
+        assertEquals(
+            mapOf("guilds" to mapOf("empty" to listOf("nothing", "kit:nothing"), "of_composed" to listOf("card_members"), "sized" to listOf("missing"))),
+            composed.missingLayers,
+        )
+        // Themes change what a layer shows, not whether it takes something.
+        for (name in listOf("theme:", "themes in place stack", "ramps and scope", "ui kit")) {
+            assertEquals(emptyMap(), ResourcePackBuilder.build(inputOf(vectors["cases"].first { it["name"].asText().startsWith(name) })).missingLayers, name)
+        }
+    }
+
+    @Test
     fun `a placeholder is filled in game and a name written twice is named once`() {
         val menu = """
             id: shop
