@@ -145,6 +145,7 @@ export function AssetsTab({
   projectId,
   compact = false,
   capturedItems,
+  components,
   onOpenCommon,
   onOpenMenu,
 }: {
@@ -156,6 +157,8 @@ export function AssetsTab({
   onOpenMenu?: (projectId: string, menuId: string) => void;
   /** The captured view's content, given by the page (the section lives with the canvas). */
   capturedItems?: ReactNode;
+  /** The components view's content, given by the page (it is drawn by the canvas and the inspector). */
+  components?: ReactNode;
 }) {
   const { t } = useTranslation();
   const [sourceId, setSourceId] = useState<ProjectSourceId>(null);
@@ -175,7 +178,12 @@ export function AssetsTab({
   useEffect(() => () => useResourcesView.getState().openStudio(null), []);
   useKitPieceAsked(projectId);
   useCommonCopyAsked(projectId);
-  const views: ResourcesView[] = ["files", "captured"];
+  // The components are a module's own: the common images' Project and a picker show none.
+  const views: ResourcesView[] = [
+    "files",
+    ...(components ? (["components"] as const) : []),
+    "captured",
+  ];
   const tabs = !capturedItems ? null : (
     <div className="flex shrink-0 gap-1 px-3 pt-3" role="tablist" data-testid="resources-views">
       {views.map((entry) => (
@@ -197,6 +205,14 @@ export function AssetsTab({
   );
   if (edited)
     return <ImageStudio projectId={projectId} asset={edited} onClose={() => openStudio(null)} />;
+  if (view === "components" && components && capturedItems) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        {tabs}
+        <div className="min-h-0 flex-1">{components}</div>
+      </div>
+    );
+  }
   if (view === "captured" && capturedItems) {
     return (
       <div className="flex h-full min-h-0 flex-col">

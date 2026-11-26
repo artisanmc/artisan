@@ -8,6 +8,7 @@ import { Stage } from "@/features/canvas/Stage";
 import { useEmbedAsk } from "@/features/export/EmbedImagesDialog";
 import { runExportZip } from "@/features/export/runExportZip";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
+import { ComponentsView } from "@/features/inspector/components/ComponentsView";
 import { EditorTour } from "@/features/onboarding/EditorTour";
 import {
   editorTourController,
@@ -209,6 +210,17 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           <AssetsTab
             projectId={pId}
             capturedItems={<CapturedItemsSection projectId={pId} onPick={NO_PICK} />}
+            components={
+              <ComponentsView
+                projectId={pId}
+                onOpenMenu={
+                  serverId
+                    ? (owner, menuId) =>
+                        void navigate(projectDestination(owner, serverId, menuId, "menu"))
+                    : undefined
+                }
+              />
+            }
             onOpenCommon={
               serverId && commonId
                 ? () =>

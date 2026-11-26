@@ -420,6 +420,12 @@ drops the link; **Remove** leaves the button without a look. On a button made of
 image, label or parts, **Save** moves them to a new component of the module, which the
 button then names: the next button takes it from the list.
 
+A module's **Resources** have a **Components** view: the list of its components, and the
+one selected shown as a menu draws it, on the slots picked with the width and height of its
+parts. Its **Parameters** are declared there (a name, a text or an image, a default), its
+parts are edited as a button's, and the buttons of the module that name it are listed. A
+component that buttons still name cannot be deleted.
+
 **Hover area.** A button with neither image nor item (no `image`, `material` nor `item`) is
 invisible: its slots show nothing but keep its title, lore and clicks. Use it to explain a
 part of a background image on hover, or to put a label on the background.
