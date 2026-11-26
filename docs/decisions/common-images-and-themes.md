@@ -640,8 +640,8 @@ Not there yet:
 - Against decision 12: the server's Resources and a module's are two components, the first
   read-only. Both read the common images as published, so an image drawn in the theme's draft
   shows there once deployed. The uses count the menus, the composed images' layers and the
-  files of the kinds that ask the pack for images; a file of the open module's kind is read as
-  published, not from its draft, and a name the pack does not read (in a text) counts nowhere. The change of an original and a module's
+  files of the kinds that ask the pack for images, the open module's as its draft holds
+  them; a name the pack does not read (in a text) counts nowhere. The change of an original and a module's
   original show on the image in its module only, not in the server's list (the module's
   list marks the owner's versions, step 5, fourth part). A module's own image or
   font is copied to the common images from its panel in the module (**Copy to the common

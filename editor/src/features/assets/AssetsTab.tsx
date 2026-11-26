@@ -6,6 +6,7 @@ import { assetUsages } from "@/domain/assetUsage";
 import type { Project, ProjectId } from "@/domain/types";
 import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
 import { imageUseKey, imageUseName, useImageUses } from "@/features/project/imageUses";
+import { projectTree } from "@/features/project/saveProjectToDisk";
 import { cx } from "@/lib/cx";
 import { KIT_ALIAS, commonImageKey, kitNameOf, kitSlot } from "@/lib/pack/kit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -447,6 +448,8 @@ function CommonAssets({
             ? [{ name: a.name, refs: a.compose.layers.map((layer) => layer.image) }]
             : [],
         ),
+        // Its kinds' files as the draft holds them, like its menus.
+        files: projectTree(project),
       },
     [project, ownAssets, projectId],
   );
