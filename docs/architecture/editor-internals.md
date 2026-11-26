@@ -242,7 +242,18 @@ disk with `writeProjectFiles`, the file's other keys kept (`themeColorsText`) an
 against the content read, then the server's Projects are read again and the pack rebuilt when
 the theme is in place. The page is changed only while the picked table differs from the
 published one, so it settles by itself once the write is read back.
-Its detail pane is the composer (`ComposedImageEditor.tsx`) in place of the plain stage: each
+An image is edited in the atelier (`ImageStudio.tsx`), a page laid out as a drawing program
+(`StudioFrame.tsx`): tools on the left (`StudioTools` over `components/ui/tool-rail.tsx`: move,
+pencil, eraser, pipette, paint bucket; the tool in hand is `ImageStudio`'s), the image in the
+middle, and on the right the layers (`LayersPanel.tsx`), the selected layer's fields, the
+colours, the image's size, the guides and the preview. The two editors render nothing by
+themselves: each gives its parts (`StudioParts`, `PixelParts`) to a `layout` callback, and
+shows the image at the zoom of `useStageZoom` (fitted to the room, or `useStudioView`'s
+choice). A PNG is listed as its one layer, and a layer added to it makes it a composed image
+first (`toLayers`). With a drawing tool on a composed image, the selected layer, when it is a
+PNG of the module, is drawn by `PixelEditor` inside the whole image (`within`, the other
+layers through `around`); what leaves that layer (another one selected, the move tool, a
+layer added or removed) saves its pixels first. The composer (`ComposedImageEditor.tsx`) lays the layers out: each
 layer is an element laid at its place in game pixels (a grid as a repeated background, so the
 browser draws what the pack will), dragged with the pointer (Shift: steps of one slot, 18 px)
 or nudged with the arrow keys; the list beside it orders, removes and adds layers (`KitPicker`

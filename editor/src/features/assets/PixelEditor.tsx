@@ -1,13 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Segmented } from "@/components/ui/segmented";
 import type { Asset } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { uploadAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
 import { type RgbaImage, decodePng, encodePng } from "@/lib/pack/png";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
-import { Eraser, PaintBucket, Pencil, Pipette, Redo2, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+import { Redo2, Undo2 } from "lucide-react";
 import {
   type KeyboardEvent,
   type PointerEvent,
@@ -18,6 +17,15 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  type DrawTool,
+  StageMessage,
+  type StudioTool,
+  StudioTools,
+  ZoomControls,
+  toolOfKey,
+  useStageZoom,
+} from "./StudioFrame";
 import { assetBytes } from "./assetBytes";
 import { useAssetStore } from "./assetStore";
 import { toDataUrl } from "./composedAssets";
@@ -38,20 +46,8 @@ import {
   toHex,
 } from "./pixelTools";
 
-type Tool = "pencil" | "eraser" | "pipette" | "fill";
-
-const TOOLS: readonly { tool: Tool; key: string; icon: typeof Pencil }[] = [
-  { tool: "pencil", key: "b", icon: Pencil },
-  { tool: "eraser", key: "e", icon: Eraser },
-  { tool: "pipette", key: "i", icon: Pipette },
-  { tool: "fill", key: "g", icon: PaintBucket },
-];
-
-const MAX_ZOOM = 32;
 /** From this zoom on, the pixels are outlined. */
 const GRID_FROM = 6;
-/** How much of the window's height the image may take. */
-const STAGE_HEIGHT = 0.6;
 /** Strokes kept to undo. */
 const HISTORY = 50;
 const IMAGE_COLOURS = 24;
@@ -134,29 +130,63 @@ function Swatches({
   );
 }
 
+/** What the pixel editor gives the atelier to place (`StudioFrame`), and to save with. */
+export interface PixelParts {
+  rail: ReactNode;
+  stage: ReactNode;
+  status: ReactNode;
+  /** Undo, redo, zoom. */
+  controls: ReactNode;
+  /** The colour drawn with and the palettes: the content of a section. */
+  colour: ReactNode;
+  keys?: (event: KeyboardEvent<HTMLDivElement>) => void;
+  /** The image as it is drawn now, a data URL; empty while it is read. */
+  picture: string;
+  dirty: boolean;
+  busy: boolean;
+  error: string | null;
+  /** Saves the pixels when they changed. `false` when the save failed: they are kept here. */
+  save: () => Promise<boolean>;
+  discard: () => void;
+}
+
 /**
- * An image retouched pixel by pixel, in place of its plain view: pencil, eraser, pipette, paint
- * bucket, a palette of its own colours and the kit's, zoom, undo. Modest on purpose: no layers,
- * no selection, and the image keeps its size. What is saved is a PNG of the same size under the
- * same name (`uploadAsset`'s `retouch`), so the menus that show it need nothing.
+ * An image drawn pixel by pixel in the atelier: pencil, eraser, pipette, paint bucket, a
+ * palette of its own colours and the common images', zoom, undo. The image keeps its size.
+ * What is saved is a PNG of the same size under the same name (`uploadAsset`'s `retouch`), so
+ * the menus that show it need nothing. It renders nothing by itself: `layout` places its
+ * parts, and the tool in hand is the atelier's.
  */
 export function PixelEditor({
   projectId,
   asset,
-  onClose,
+  tool,
+  onTool,
+  move,
+  within,
   around,
-  below,
+  layout,
 }: {
   projectId: ProjectId;
   asset: Asset;
-  onClose: () => void;
+  /** The tool in hand. */
+  tool: DrawTool;
+  /** Another tool is asked for; `move` once the pixels are saved, since it leaves the drawing. */
+  onTool: (tool: StudioTool) => void;
+  /** Why the image cannot be moved: it is not a layer among others. */
+  move?: string;
   /**
-   * What the image is drawn among, at the editor's zoom: `under` it and `over` it, each placed
-   * from the image's top left corner and cut to its area. A composed image's other layers.
+   * The image this one is a layer of, and where it sits in it: the whole image is shown, and
+   * only the layer's area is drawn on.
    */
-  around?: (zoom: number) => { under: ReactNode; over: ReactNode };
-  /** Shown under the canvas, given the picture as it is drawn now: the image where a player sees it. */
-  below?: (picture: string) => ReactNode;
+  within?: { width: number; height: number; x: number; y: number };
+  /**
+   * What the image is drawn among, at the editor's zoom: `under` it and `over` it, placed from
+   * the top left corner of the image shown (`within`, else this one) and out of the pointer's
+   * way. `picture` is the image as it is drawn now.
+   */
+  around?: (zoom: number, picture: string) => { under: ReactNode; over: ReactNode };
+  layout: (parts: PixelParts) => ReactNode;
 }) {
   const { t } = useTranslation();
   const user = useProjectPrincipalId(projectId);
@@ -178,10 +208,8 @@ export function PixelEditor({
   const written = useRef<string | null>(null);
   const [version, setVersion] = useState(0);
   const [failed, setFailed] = useState(false);
-  const [tool, setTool] = useState<Tool>("pencil");
   const [colour, setColour] = useState<Rgba>(BLACK);
   const [hex, setHex] = useState(toHex(BLACK));
-  const [zoomChoice, setZoomChoice] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bump = () => setVersion((n) => n + 1);
@@ -212,19 +240,13 @@ export function PixelEditor({
     };
   }, [asset.projectId, asset.id, asset.contentHash]);
 
-  // The frame is not there while the image is read: measured once it is.
-  const [frame, setFrame] = useState<HTMLDivElement | null>(null);
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    if (!frame || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(entry.contentRect.width);
-    });
-    observer.observe(frame);
-    return () => observer.disconnect();
-  }, [frame]);
-
   const current = image.current;
+  // The whole image when this one is a layer of it: moving and drawing show it at one size.
+  const shown = within ?? (current ? { width: current.width, height: current.height } : null);
+  const view = useStageZoom(shown, {
+    fallback: shown ? 256 / Math.max(shown.width, shown.height) : 1,
+    whole: true,
+  });
   // biome-ignore lint/correctness/useExhaustiveDependencies: `version` is what says the pixels changed
   const picture = useMemo(() => (current ? toDataUrl(encodePng(current)) : ""), [current, version]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: same
@@ -240,13 +262,28 @@ export function PixelEditor({
     setHex(toHex(next));
   }
 
-  if (failed) return <p className="text-xs text-[var(--danger)]">{t("pixel.unreadable")}</p>;
-  if (!current) return <p className="text-xs text-[var(--text-mut)]">{t("pixel.loading")}</p>;
+  if (failed || !current) {
+    // Nothing to draw on yet: the atelier's page stays, with the way back.
+    return layout({
+      rail: <StudioTools value={tool} onChange={onTool} move={move} />,
+      stage: (
+        <StageMessage danger={failed}>
+          {t(failed ? "pixel.unreadable" : "pixel.loading")}
+        </StageMessage>
+      ),
+      status: null,
+      controls: null,
+      colour: null,
+      picture: "",
+      dirty: false,
+      busy: false,
+      error: null,
+      save: async () => true,
+      discard: () => {},
+    });
+  }
 
-  const fit = width
-    ? Math.min(width / current.width, (window.innerHeight * STAGE_HEIGHT) / current.height)
-    : 256 / Math.max(current.width, current.height);
-  const zoom = zoomChoice ?? Math.min(MAX_ZOOM, Math.max(1, Math.floor(fit)));
+  const zoom = view.zoom;
 
   const record = (before: RgbaImage) => {
     undone.current = [...undone.current.slice(1 - HISTORY), before];
@@ -283,10 +320,10 @@ export function PixelEditor({
       if (!inside(current, point.x, point.y)) return;
       const found = pixelAt(current, point.x, point.y);
       // Nothing to pick on a transparent pixel but the eraser.
-      if (found[3] === 0) setTool("eraser");
+      if (found[3] === 0) onTool("eraser");
       else {
         pick(found);
-        if (tool === "pipette") setTool("pencil");
+        if (tool === "pipette") onTool("pencil");
       }
       return;
     }
@@ -337,12 +374,13 @@ export function PixelEditor({
       event.stopPropagation();
       return;
     }
-    const chosen = TOOLS.find((entry) => entry.key === key);
-    if (chosen) setTool(chosen.tool);
+    const chosen = toolOfKey(key);
+    if (chosen) void choose(chosen);
   };
 
-  const save = async () => {
-    if (!user || busy || !dirty) return;
+  const save = async (): Promise<boolean> => {
+    if (!dirty) return true;
+    if (!user || busy) return false;
     setBusy(true);
     setError(null);
     try {
@@ -359,11 +397,20 @@ export function PixelEditor({
       saved.current = copyImage(current);
       upsertAsset(next);
       bump();
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+      return false;
     } finally {
       setBusy(false);
     }
+  };
+  /** Moving leaves the drawing: what was drawn is saved first, and kept here if that fails. */
+  const choose = async (next: StudioTool) => {
+    if (next === "move") {
+      if (move || !(await save())) return;
+    }
+    onTool(next);
   };
   const discard = () => {
     if (!saved.current) return;
@@ -373,88 +420,92 @@ export function PixelEditor({
   };
 
   const side = { width: current.width * zoom, height: current.height * zoom };
-  const context = around?.(zoom);
-  return (
-    <div className="flex flex-col gap-3" data-testid="pixel-editor" onKeyDown={onKeyDown}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Segmented
-          label={t("pixel.tools")}
-          value={tool}
-          onChange={setTool}
-          options={TOOLS.map(({ tool: value, key, icon: Icon }) => ({
-            value,
-            title: `${t(`pixel.${value}`)} (${key.toUpperCase()})`,
-            label: (
-              <>
-                <Icon className="size-4" aria-hidden />
-                <span className="sr-only">{t(`pixel.${value}`)}</span>
-              </>
-            ),
-          }))}
-        />
-        <div className="flex items-center gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-7"
-            aria-label={t("pixel.undo")}
-            title={`${t("pixel.undo")} (Ctrl+Z)`}
-            disabled={undone.current.length === 0}
-            onClick={undo}
-          >
-            <Undo2 className="size-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-7"
-            aria-label={t("pixel.redo")}
-            title={`${t("pixel.redo")} (Ctrl+Y)`}
-            disabled={redone.current.length === 0}
-            onClick={redo}
-          >
-            <Redo2 className="size-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-7"
-            aria-label={t("pixel.zoomOut")}
-            disabled={zoom <= 1}
-            onClick={() => setZoomChoice(Math.max(1, zoom - (zoom > 8 ? 2 : 1)))}
-          >
-            <ZoomOut className="size-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-7"
-            aria-label={t("pixel.zoomIn")}
-            disabled={zoom >= MAX_ZOOM}
-            onClick={() => setZoomChoice(Math.min(MAX_ZOOM, zoom + (zoom >= 8 ? 2 : 1)))}
-          >
-            <ZoomIn className="size-4" />
-          </Button>
-        </div>
-      </div>
-
-      <figure className="flex flex-col gap-1">
-        <div
-          ref={setFrame}
-          className="checker flex max-h-[60vh] min-h-32 w-full overflow-auto rounded-[var(--r-md)] border border-[var(--border-soft)] p-3"
+  const box = within ?? { width: current.width, height: current.height, x: 0, y: 0 };
+  const context = around?.(zoom, picture);
+  return layout({
+    keys: onKeyDown,
+    picture,
+    dirty,
+    busy,
+    error,
+    save,
+    discard,
+    rail: (
+      <StudioTools
+        value={tool}
+        onChange={(next) => void choose(next)}
+        move={move}
+        footer={
+          <input
+            type="color"
+            aria-label={t("pixel.anyColour")}
+            title={t("pixel.anyColour")}
+            value={toHex(colour).slice(0, 7)}
+            onChange={(event) => {
+              const chosen = fromHex(event.target.value);
+              if (chosen) pick(chosen);
+            }}
+            className="mt-1 size-8 cursor-pointer rounded-[6px] border border-[var(--border)] bg-transparent p-0"
+          />
+        }
+      />
+    ),
+    controls: (
+      <div className="flex items-center gap-1">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-7"
+          aria-label={t("pixel.undo")}
+          title={`${t("pixel.undo")} (Ctrl+Z)`}
+          disabled={undone.current.length === 0}
+          onClick={undo}
         >
+          <Undo2 className="size-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-7"
+          aria-label={t("pixel.redo")}
+          title={`${t("pixel.redo")} (Ctrl+Y)`}
+          disabled={redone.current.length === 0}
+          onClick={redo}
+        >
+          <Redo2 className="size-4" />
+        </Button>
+        <span aria-hidden className="mx-1 h-4 w-px bg-[var(--border)]" />
+        <ZoomControls view={view} />
+      </div>
+    ),
+    stage: (
+      <div
+        ref={view.ref}
+        className="checker flex min-h-0 flex-1 overflow-auto p-4"
+        data-testid="pixel-editor"
+      >
+        <div
+          className="relative m-auto shrink-0 overflow-hidden outline outline-1 outline-[var(--border-strong)]"
+          style={{ width: box.width * zoom, height: box.height * zoom }}
+        >
+          {context?.under}
           <button
             type="button"
             aria-label={t("pixel.canvas", { name: asset.name })}
             data-testid="pixel-canvas"
-            className="relative m-auto block shrink-0 cursor-crosshair touch-none overflow-hidden border-0 bg-transparent p-0 outline outline-1 outline-[var(--border-strong)] focus-visible:outline-[var(--brand)]"
-            style={side}
+            className={cx(
+              "absolute block cursor-crosshair touch-none border-0 bg-transparent p-0 outline-offset-0 focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--brand)]",
+              // A layer smaller than its image: where it can be drawn on is outlined.
+              within &&
+                (current.width !== within.width || current.height !== within.height) &&
+                "outline outline-1 outline-dashed outline-[var(--text)]",
+            )}
+            style={{ ...side, left: box.x * zoom, top: box.y * zoom }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
           >
-            {context?.under}
             <img
               src={picture}
               alt=""
@@ -462,7 +513,6 @@ export function PixelEditor({
               className="pointer-events-none relative block max-w-none select-none"
               style={{ ...side, imageRendering: "pixelated" }}
             />
-            {context?.over}
             {zoom >= GRID_FROM && (
               <span
                 aria-hidden
@@ -475,74 +525,49 @@ export function PixelEditor({
               />
             )}
           </button>
+          {context?.over}
         </div>
-        <figcaption className="flex justify-between gap-2 text-[11px] text-[var(--text-faint)]">
-          <span>{t("pixel.hint")}</span>
-          <span className="shrink-0">
-            {current.width} × {current.height} px · {t("resources.zoom", { scale: zoom })}
+      </div>
+    ),
+    status: (
+      <>
+        <span>{t("pixel.hint")}</span>
+        <span className="shrink-0">
+          {box.width} × {box.height} px · {t("resources.zoom", { scale: zoom })}
+        </span>
+      </>
+    ),
+    colour: (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-1.5">
+          <span
+            className="checker block size-7 shrink-0 overflow-hidden rounded-[6px] border border-[var(--border)]"
+            data-testid="pixel-colour"
+            title={toHex(colour)}
+          >
+            <span className="block size-full" style={{ backgroundColor: toHex(colour) }} />
           </span>
-        </figcaption>
-      </figure>
-      {below?.(picture)}
-
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="flex flex-col gap-1">
-          <span className="field-label">{t("pixel.colour")}</span>
-          <div className="flex items-center gap-1.5">
-            <span
-              className="checker block size-7 shrink-0 overflow-hidden rounded-[6px] border border-[var(--border)]"
-              data-testid="pixel-colour"
-              title={toHex(colour)}
-            >
-              <span className="block size-full" style={{ backgroundColor: toHex(colour) }} />
-            </span>
-            <Input
-              aria-label={t("pixel.colour")}
-              value={hex}
-              spellCheck={false}
-              onChange={(event) => {
-                setHex(event.target.value);
-                const typed = fromHex(event.target.value);
-                if (typed) setColour(typed);
-              }}
-              onBlur={() => setHex(toHex(colour))}
-              className="h-7 w-24 font-mono text-xs"
-            />
-            <input
-              type="color"
-              aria-label={t("pixel.anyColour")}
-              title={t("pixel.anyColour")}
-              value={toHex(colour).slice(0, 7)}
-              onChange={(event) => {
-                const chosen = fromHex(event.target.value);
-                if (chosen) pick(chosen);
-              }}
-              className="size-7 cursor-pointer rounded-[6px] border border-[var(--border)] bg-transparent p-0"
-            />
-          </div>
+          <Input
+            aria-label={t("pixel.colour")}
+            value={hex}
+            spellCheck={false}
+            onChange={(event) => {
+              setHex(event.target.value);
+              const typed = fromHex(event.target.value);
+              if (typed) setColour(typed);
+            }}
+            onBlur={() => setHex(toHex(colour))}
+            className="h-7 w-24 font-mono text-xs"
+          />
         </div>
+        <Swatches label={t("pixel.ownColours")} palette={own} current={colour} onPick={pick} />
+        <Swatches
+          label={t("pixel.kitColours")}
+          palette={kitColours}
+          current={colour}
+          onPick={pick}
+        />
       </div>
-      <Swatches label={t("pixel.ownColours")} palette={own} current={colour} onPick={pick} />
-      <Swatches label={t("pixel.kitColours")} palette={kitColours} current={colour} onPick={pick} />
-
-      {error && (
-        <p role="alert" className="text-xs text-[var(--danger)]">
-          {error}
-        </p>
-      )}
-      <div className="flex justify-end gap-2">
-        {dirty && (
-          <Button size="sm" variant="ghost" disabled={busy} onClick={discard}>
-            {t("pixel.discard")}
-          </Button>
-        )}
-        <Button size="sm" variant="outline" disabled={busy} onClick={onClose}>
-          {t("pixel.close")}
-        </Button>
-        <Button size="sm" disabled={busy || !dirty || !user} onClick={() => void save()}>
-          {t(busy ? "compose.saving" : "pixel.save")}
-        </Button>
-      </div>
-    </div>
-  );
+    ),
+  });
 }

@@ -1,5 +1,7 @@
 import type { Asset } from "@/domain/asset";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import * as userAssetsApi from "@/lib/api/userAssets";
+import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ImageStudio, useStudioPrefs } from "./ImageStudio";
 import { useAssetStore } from "./assetStore";
@@ -40,7 +42,11 @@ const composed = (name: string, width: number, height: number, image: string): A
 
 describe("ImageStudio", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
+    toLayers.mockReset();
+    flatten.mockReset();
     useAssetStore.getState().reset();
+    useProjectBaselineStore.setState({ binaryBaselines: {} } as never);
     useStudioPrefs.setState({ hidden: [], situation: true });
   });
 
@@ -83,30 +89,78 @@ describe("ImageStudio", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("gives a PNG layers under its name, and flattens layers after a second click", async () => {
+  it("adds a layer to a PNG, which becomes layers under its name, and flattens layers after a second click", async () => {
     const png = { ...composed("go", 54, 18, "x"), compose: undefined } as Asset;
     const layered = composed("go", 54, 18, "go_layer");
     toLayers.mockResolvedValue({
       layer: { ...png, id: "go_layer", name: "go_layer" },
       image: layered,
     });
+    const patched = vi
+      .spyOn(userAssetsApi, "patchAsset")
+      .mockImplementation(
+        async (_project, _id, patch) => ({ ...layered, compose: patch.compose }) as Asset,
+      );
+    useAssetStore.getState().setAssets([png, { ...png, id: "icon", name: "icon" }]);
     const { unmount } = render(
       <ImageStudio projectId={"p1" as never} asset={png} onClose={() => {}} />,
     );
+    // A PNG is listed as its one layer, with nothing to flatten.
+    expect(within(screen.getByTestId("studio-layers")).getAllByRole("listitem")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Aplatir" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Ajouter des calques" }));
+    expect(
+      within(screen.getByRole("group", { name: "Outil" })).getByRole("button", {
+        name: "Déplacer le calque",
+      }),
+    ).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Image du module" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByTitle(/^icon/));
+    await waitFor(() => expect(patched).toHaveBeenCalledTimes(1));
+    // The owner holds the PNG: it is renamed as the first layer, the picked image set over it.
+    expect(toLayers.mock.calls[0]?.slice(1)).toEqual([png, new Set(["go", "icon"]), false]);
+    expect(patched.mock.calls[0]?.slice(1)).toEqual([
+      "go",
+      {
+        compose: {
+          ...layered.compose,
+          layers: [
+            ...(layered.compose?.layers ?? []),
+            { image: "icon", x: 0, y: 0, columns: 1, rows: 1 },
+          ],
+        },
+      },
+    ]);
     await waitFor(() =>
-      expect(useAssetStore.getState().assets.map((a) => a.id)).toEqual(["go_layer", "go"]),
+      expect(
+        useAssetStore.getState().assets.find((a) => a.id === "go")?.compose?.layers,
+      ).toHaveLength(2),
     );
-    expect(toLayers.mock.calls[0]?.[1]).toBe(png);
     unmount();
 
     flatten.mockResolvedValue(png);
     render(<ImageStudio projectId={"p1" as never} asset={layered} onClose={() => {}} />);
-    expect(screen.queryByRole("button", { name: "Ajouter des calques" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Aplatir" }));
     expect(flatten).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Aplatir en un seul dessin ?" }));
     await waitFor(() => expect(flatten).toHaveBeenCalledWith("p1", layered));
+  });
+
+  it("copies an image the module ships as the first layer, the owner holding no file of it", async () => {
+    const png = { ...composed("go", 54, 18, "x"), compose: undefined } as Asset;
+    const layered = composed("go", 54, 18, "go_layer");
+    toLayers.mockResolvedValue({
+      layer: { ...png, id: "go_layer", name: "go_layer" },
+      image: layered,
+    });
+    vi.spyOn(userAssetsApi, "patchAsset").mockResolvedValue(layered);
+    useProjectBaselineStore.setState({
+      binaryBaselines: { p1: { "originals/assets/glyphs/go.png": { hash: "h", size: 1 } } },
+    } as never);
+    useAssetStore.getState().setAssets([png, { ...png, id: "icon", name: "icon" }]);
+    render(<ImageStudio projectId={"p1" as never} asset={png} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Image du module" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByTitle(/^icon/));
+    await waitFor(() => expect(toLayers).toHaveBeenCalledTimes(1));
+    expect(toLayers.mock.calls[0]?.[3]).toBe(true);
   });
 });

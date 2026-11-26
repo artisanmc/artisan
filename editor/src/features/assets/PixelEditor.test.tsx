@@ -2,8 +2,10 @@ import type { Asset } from "@/domain/asset";
 import * as userAssetsApi from "@/lib/api/userAssets";
 import { type RgbaImage, createImage, decodePng, encodePng } from "@/lib/pack/png";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PixelEditor } from "./PixelEditor";
+import { SaveActions, type StudioTool } from "./StudioFrame";
 import { useAssetStore } from "./assetStore";
 import { type Rgba, paint, pixelAt, toHex } from "./pixelTools";
 
@@ -70,10 +72,41 @@ const bytesOf = (file: File) =>
     reader.readAsArrayBuffer(file);
   });
 
-async function open(onClose = vi.fn()) {
-  render(<PixelEditor projectId={"p1" as never} asset={icon} onClose={onClose} />);
+/** The editor's parts one under the other, the tool held as the atelier holds it. */
+function Stand({ image = icon, move }: { image?: Asset; move?: string }) {
+  const [tool, setTool] = useState<StudioTool>("pencil");
+  return (
+    <PixelEditor
+      projectId={"p1" as never}
+      asset={image}
+      tool={tool === "move" ? "pencil" : tool}
+      onTool={setTool}
+      move={move}
+      layout={(parts) => (
+        <div onKeyDown={parts.keys}>
+          {parts.rail}
+          {parts.controls}
+          {parts.stage}
+          {parts.status}
+          {parts.colour}
+          <SaveActions
+            dirty={parts.dirty}
+            busy={parts.busy}
+            canSave
+            error={parts.error}
+            onSave={() => void parts.save()}
+            onDiscard={parts.discard}
+          />
+          <output data-testid="held">{tool}</output>
+        </div>
+      )}
+    />
+  );
+}
+
+async function open(move?: string) {
+  render(<Stand move={move} />);
   await screen.findByTestId("pixel-canvas");
-  return onClose;
 }
 
 describe("PixelEditor", () => {
@@ -95,7 +128,7 @@ describe("PixelEditor", () => {
     await open();
     // It opens on the colour the image uses most, with nothing to save or undo.
     expect(screen.getByTestId("pixel-colour").title).toBe("#ff0000");
-    expect(screen.getByRole("button", { name: "Enregistrer les pixels" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Annuler" })).toBeDisabled();
 
     const canvas = screen.getByTestId("pixel-canvas");
@@ -108,11 +141,11 @@ describe("PixelEditor", () => {
     // One stroke, one step back; then forward again.
     fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
     expect(at(decoded(), 2, 2)).toBe("#00000000");
-    expect(screen.getByRole("button", { name: "Enregistrer les pixels" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
     fireEvent.keyDown(canvas, { key: "y", ctrlKey: true });
     expect(at(decoded(), 2, 2)).toBe("#ff0000");
 
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les pixels" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
     const [project, input] = upload.mock.calls[0]!;
     expect(project).toBe("p1");
@@ -127,7 +160,7 @@ describe("PixelEditor", () => {
     await waitFor(() =>
       expect(useAssetStore.getState().assets.map((a) => a.contentHash)).toEqual(["after"]),
     );
-    expect(screen.getByRole("button", { name: "Enregistrer les pixels" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
   });
 
   it("erases, fills, picks a colour from the image and from the kit", async () => {
@@ -175,18 +208,31 @@ describe("PixelEditor", () => {
     expect(screen.queryByRole("button", { name: "Annuler les changements" })).toBeNull();
   });
 
-  it("says so when the image cannot be read, and closes on demand", async () => {
-    const onClose = await open();
-    fireEvent.click(screen.getByRole("button", { name: "Fermer" }));
-    expect(onClose).toHaveBeenCalled();
+  it("says so when the image cannot be read", async () => {
     files.icon = undefined;
-    render(
-      <PixelEditor
-        projectId={"p1" as never}
-        asset={asset("icon", { contentHash: "x" })}
-        onClose={onClose}
-      />,
-    );
+    render(<Stand image={asset("icon", { contentHash: "x" })} />);
     expect(await screen.findByText("Cette image ne peut pas être lue.")).toBeInTheDocument();
+    // The tools stay in place, with nothing to draw on.
+    expect(tool("Crayon")).toBeInTheDocument();
+    expect(screen.queryByTestId("pixel-canvas")).toBeNull();
+  });
+
+  it("saves what was drawn before the move tool takes over, and keeps to drawing on a lone image", async () => {
+    const upload = vi
+      .spyOn(userAssetsApi, "uploadAsset")
+      .mockImplementation(async () => asset("icon", { contentHash: "after" }));
+    await open();
+    press(1, 2);
+    fireEvent.click(tool("Déplacer le calque"));
+    await waitFor(() => expect(screen.getByTestId("held")).toHaveTextContent("move"));
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not offer to move an image that is not a layer among others", async () => {
+    await open("Un seul calque");
+    expect(tool("Déplacer le calque")).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(tool("Déplacer le calque"));
+    fireEvent.keyDown(screen.getByTestId("pixel-canvas"), { key: "v" });
+    expect(screen.getByTestId("held")).toHaveTextContent("pencil");
   });
 });

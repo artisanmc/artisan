@@ -3,9 +3,12 @@ import * as userAssetsApi from "@/lib/api/userAssets";
 import type { ComposeRecipe } from "@/lib/pack/compose";
 import { decodePng } from "@/lib/pack/png";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ComposedImageEditor, layerName } from "./ComposedImageEditor";
+import { ComposedImageEditor } from "./ComposedImageEditor";
+import type { StudioTool } from "./StudioFrame";
 import { useAssetStore } from "./assetStore";
+import { layerRef } from "./imageLayers";
 
 vi.mock("@/state/authStore", () => ({
   useAuthStore: (sel: (s: { currentUser: { id: string } | null }) => unknown) =>
@@ -44,6 +47,33 @@ const recipe: ComposeRecipe = {
 const composed = image("hall", 176, 166, { compose: recipe, previewUrl: "data:," });
 
 const layers = () => screen.getAllByTestId("compose-layer");
+const tool = (name: string) =>
+  within(screen.getByRole("group", { name: "Outil" })).getByRole("button", { name });
+
+/** The editor's parts one under the other, the tool held as the atelier holds it. */
+function Stand({ asset = composed }: { asset?: Asset }) {
+  const [held, setHeld] = useState<StudioTool>("move");
+  const current = useAssetStore((s) => s.assets.find((a) => a.id === asset.id)) ?? asset;
+  return (
+    <ComposedImageEditor
+      projectId={"p1" as never}
+      asset={asset === composed ? current : asset}
+      tool={held}
+      onTool={setHeld}
+      layout={(parts) => (
+        <div onKeyDown={parts.keys}>
+          {parts.rail}
+          {parts.controls}
+          {parts.stage}
+          {parts.status}
+          {parts.panels}
+          {parts.actions}
+          {parts.preview}
+        </div>
+      )}
+    />
+  );
+}
 const px = (value: string) => Number.parseFloat(value);
 
 describe("ComposedImageEditor", () => {
@@ -56,7 +86,7 @@ describe("ComposedImageEditor", () => {
   });
 
   it("lays the layers out at the game's pixels, a grid repeating its image", () => {
-    render(<ComposedImageEditor projectId={"p1" as never} asset={composed} />);
+    render(<Stand />);
     const stage = screen.getByTestId("compose-stage");
     // As large as its bottom layer, the kit's window of 3 rows, twice the size here.
     expect([px(stage.style.width), px(stage.style.height)]).toEqual([352, 332]);
@@ -69,8 +99,8 @@ describe("ComposedImageEditor", () => {
     const items = screen.getAllByRole("listitem");
     expect(items.map((item) => within(item).getAllByRole("button")[0]!.textContent)).toEqual([
       "icon",
-      "cell9 × 3",
-      "window.3",
+      "cell9 × 3commune",
+      "window.3commune",
     ]);
   });
 
@@ -81,8 +111,8 @@ describe("ComposedImageEditor", () => {
         ...composed,
         compose: patch.compose,
       }));
-    render(<ComposedImageEditor projectId={"p1" as never} asset={composed} />);
-    expect(screen.queryByRole("button", { name: "Enregistrer les calques" })).toBeNull();
+    render(<Stand />);
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
 
     const icon = layers()[2]!;
     fireEvent.pointerDown(icon, { clientX: 100, clientY: 100, pointerId: 1 });
@@ -102,7 +132,7 @@ describe("ComposedImageEditor", () => {
     fireEvent.click(within(screen.getAllByRole("listitem")[1]!).getAllByRole("button")[0]!);
     fireEvent.change(screen.getByLabelText("Lignes"), { target: { value: "4" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les calques" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() => expect(saved).toHaveBeenCalledTimes(1));
     expect(saved.mock.calls[0]).toEqual([
       "p1",
@@ -123,7 +153,7 @@ describe("ComposedImageEditor", () => {
   });
 
   it("reorders and removes layers, and adds a module image that is not a composed one", () => {
-    render(<ComposedImageEditor projectId={"p1" as never} asset={composed} />);
+    render(<Stand />);
     fireEvent.click(screen.getByRole("button", { name: "Reculer icon" }));
     fireEvent.click(screen.getByRole("button", { name: "Retirer window.3" }));
     expect(layers().map((layer) => layer.getAttribute("aria-label"))).toEqual([
@@ -148,7 +178,7 @@ describe("ComposedImageEditor", () => {
   });
 
   it("gives the image a fixed size, which clips its layers", () => {
-    render(<ComposedImageEditor projectId={"p1" as never} asset={composed} />);
+    render(<Stand />);
     fireEvent.click(screen.getByRole("checkbox", { name: "Taille fixe" }));
     fireEvent.change(screen.getByLabelText("Largeur"), { target: { value: "54" } });
     fireEvent.change(screen.getByLabelText("Hauteur"), { target: { value: "36" } });
@@ -165,13 +195,15 @@ describe("ComposedImageEditor", () => {
         ...composed,
         compose: patch.compose as ComposeRecipe,
       }));
-    const Shown = () => {
-      const asset = useAssetStore((s) => s.assets.find((a) => a.id === "hall")) ?? composed;
-      return <ComposedImageEditor projectId={"p1" as never} asset={asset} />;
-    };
-    render(<Shown />);
-    fireEvent.click(screen.getByRole("button", { name: "Dessiner un calque" }));
-    await waitFor(() => expect(screen.getByTestId("compose-drawing")).toBeInTheDocument());
+    render(<Stand />);
+    fireEvent.click(screen.getByRole("button", { name: "Dessin" }));
+    // The new layer is selected with a pencil in hand: it is drawn among the others.
+    await waitFor(() => expect(tool("Crayon")).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.queryByTestId("compose-stage")).toBeNull();
+    expect(within(screen.getAllByRole("listitem")[0]!).getAllByRole("button")[0]).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(uploaded.mock.calls[0]?.[1]).toMatchObject({ name: "hall_layer", type: "glyph" });
     const file = uploaded.mock.calls[0]?.[1].file as File;
     const { width, height } = decodePng(new Uint8Array(await file.arrayBuffer()));
@@ -195,12 +227,7 @@ describe("ComposedImageEditor", () => {
         recipe.layers[2]!,
       ],
     };
-    render(
-      <ComposedImageEditor
-        projectId={"p1" as never}
-        asset={image("hall", 176, 166, { compose: written, previewUrl: "data:," })}
-      />,
-    );
+    render(<Stand asset={image("hall", 176, 166, { compose: written, previewUrl: "data:," })} />);
     const stage = screen.getByTestId("compose-stage");
     expect([px(stage.style.width), px(stage.style.height)]).toEqual([352, 332]);
     expect(layers().map((layer) => layer.getAttribute("aria-label"))).toEqual([
@@ -213,17 +240,41 @@ describe("ComposedImageEditor", () => {
   });
 
   it("writes a common image as `artisan:<name>`, a PNG of the module by its name", () => {
-    expect(layerName({ name: "kit:button.3x1" })).toBe("artisan:button.3x1");
-    expect(layerName({ name: "artisan:button.3x1" })).toBe("artisan:button.3x1");
-    expect(layerName({ name: "icon" })).toBe("icon");
+    expect(layerRef({ name: "kit:button.3x1" })).toBe("artisan:button.3x1");
+    expect(layerRef({ name: "artisan:button.3x1" })).toBe("artisan:button.3x1");
+    expect(layerRef({ name: "icon" })).toBe("icon");
   });
 
-  it("retouches a PNG layer of the module, never a kit piece", () => {
-    render(<ComposedImageEditor projectId={"p1" as never} asset={composed} />);
+  it("draws on a PNG layer of the module, never on a common image", async () => {
+    render(<Stand />);
     fireEvent.pointerDown(layers()[0] as HTMLElement);
-    expect(screen.queryByRole("button", { name: "Retoucher ce calque" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Dessiner sur ce calque" })).toBeNull();
     fireEvent.pointerDown(layers()[2] as HTMLElement);
-    fireEvent.click(screen.getByRole("button", { name: "Retoucher ce calque" }));
-    expect(screen.getByTestId("compose-drawing")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dessiner sur ce calque" }));
+    expect(tool("Crayon")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByTestId("compose-stage")).toBeNull();
+    // A common image selected is moved: the move tool takes over, the layers on the stage again.
+    fireEvent.click(within(screen.getAllByRole("listitem")[2]!).getAllByRole("button")[0]!);
+    await waitFor(() => expect(tool("Déplacer le calque")).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByTestId("compose-stage")).toBeInTheDocument();
+  });
+
+  it("gives a drawing tool the top drawing of the module, and none when the layers hold no drawing", () => {
+    const { unmount } = render(<Stand />);
+    fireEvent.click(tool("Gomme"));
+    expect(tool("Gomme")).toHaveAttribute("aria-pressed", "true");
+    // The icon, the one layer that is a PNG of the module, is the one drawn on.
+    expect(within(screen.getAllByRole("listitem")[0]!).getAllByRole("button")[0]).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    unmount();
+
+    const common: ComposeRecipe = { ...recipe, layers: recipe.layers.slice(0, 2) };
+    render(<Stand asset={image("frame", 176, 166, { compose: common, previewUrl: "data:," })} />);
+    expect(tool("Crayon")).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(tool("Crayon"));
+    expect(tool("Déplacer le calque")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("compose-stage")).toBeInTheDocument();
   });
 });
