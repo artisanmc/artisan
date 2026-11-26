@@ -63,8 +63,8 @@ or **Open in the common images** opens the image in the atelier of the common im
 common images are not one of the other modules of that selector. **What names it** lists what
 shows this image on the whole server: the menus, each a link to that menu, the composed images
 built over it, and the files of a module that draw it on screen (a conversation's HUD, for
-example). The other modules are read as deployed, the open module's menus and composed images
-as you are editing them. A menu whose module holds an image of the same name is not listed,
+example). The other modules are read as deployed, the open module's menus, composed images
+and files as you are editing them. A menu whose module holds an image of the same name is not listed,
 since it shows its own.
 
 **Making a module's image common.** On an image or a font of the module, **Copy to the common

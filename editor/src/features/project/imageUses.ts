@@ -104,14 +104,18 @@ export interface LiveModule {
   own: string[];
   /** Its composed images as the draft holds them, with the images their layers name. */
   composed?: { name: string; refs: string[] }[];
+  /**
+   * Its files as the draft holds them (`projectTree`), for the files of its kinds that ask
+   * the pack for images; without them these files are read as published.
+   */
+  files?: Record<string, string>;
 }
 
 /**
  * What names each image of the server, by the image's key (`imageUses`: a common image's
  * `commonImageKey`, a module's `moduleImageKey`): the menus, the composed images' layers and
  * the files of the modules' kinds that ask the pack for images. Every module as published,
- * read from the server index, and `live` as its draft holds it in place of its published self
- * (its kinds' files as published: the draft's are not read here).
+ * read from the server index, and `live` as its draft holds it in place of its published self.
  */
 export function useImageUses(live?: LiveModule): Map<string, ImageUse[]> {
   const projects = useServerIndexStore((s) => s.projects);
@@ -147,7 +151,11 @@ export function useImageUses(live?: LiveModule): Map<string, ImageUse[]> {
             menus: menusOf(live.project),
             others: [
               ...(live.composed ?? []).map((image) => ({ kind: "image" as const, ...image })),
-              ...(liveHeld ? filesNaming(liveHeld) : []),
+              ...(live.files
+                ? filesNaming({ files: live.files, binaries: [] })
+                : liveHeld
+                  ? filesNaming(liveHeld)
+                  : []),
             ],
           },
           ...published,

@@ -142,3 +142,17 @@ it("reads from a module's tree what names images beside its menus, and the PNGs 
   // Its own PNG and the one it ships; a composed image is no layer of another.
   expect(["gold", "coin", "banner", "frame"].map(written.png)).toEqual([true, true, false, false]);
 });
+
+it("reads the open module's kinds' files as its draft holds them", () => {
+  const live = {
+    project: { ...shop, documents: {} },
+    own: [],
+    files: { "conversation_modes/hud.yml": "box: panel\n" },
+  };
+  const { result } = renderHook(() => useImageUses(live));
+  const byFile = (name: string) =>
+    (result.current.get(commonImageKey(name)) ?? []).filter((use) => use.by?.kind === "file");
+  // Published, the file names `frame`; the draft names `panel`.
+  expect(byFile("frame")).toEqual([]);
+  expect(byFile("panel").map((use) => use.by?.name)).toEqual(["conversation_modes/hud.yml"]);
+});
