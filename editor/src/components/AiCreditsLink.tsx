@@ -1,5 +1,6 @@
 import { type AiCloud, getAiCloud } from "@/lib/api/ai";
 import { cn } from "@/lib/cx";
+import { visibleInterval } from "@/lib/visibleInterval";
 import { useAiStatus } from "@/state/aiStatus";
 import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -27,10 +28,10 @@ export function AiCreditsLink() {
         .then((c) => live && setCloud(c))
         .catch(() => undefined);
     void load();
-    const timer = window.setInterval(load, REFRESH_MS);
+    const stop = visibleInterval(load, REFRESH_MS);
     return () => {
       live = false;
-      window.clearInterval(timer);
+      stop();
     };
   }, [on]);
 

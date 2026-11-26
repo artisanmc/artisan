@@ -35,6 +35,7 @@ import { type ProjectSummary, type ServerSummary, listServers } from "@/lib/api/
 import { cx } from "@/lib/cx";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { redirectToFullServerId } from "@/lib/shortServerIds";
+import { visibleInterval } from "@/lib/visibleInterval";
 import { useAuthStore } from "@/state/authStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -537,10 +538,10 @@ function useOnlinePlayerCount(serverKeyId: string | null, online: boolean): numb
         if (!cancelled) setCount(players.length);
       });
     void read();
-    const timer = window.setInterval(read, 30_000);
+    const stop = visibleInterval(read, 30_000);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      stop();
     };
   }, [serverKeyId, online]);
   return count;
