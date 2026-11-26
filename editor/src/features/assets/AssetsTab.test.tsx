@@ -176,8 +176,8 @@ describe("AssetsTab", () => {
     for (const name of ["bg_one", "logo", "frame"]) expect(screen.getByTitle(name)).toBeTruthy();
     expect(screen.queryByTitle("ico_one")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^Importer une image$/ }));
-    expect(screen.getByRole("checkbox", { name: /^Images du menu$/ })).toBeChecked();
-    expect(screen.getAllByRole("checkbox")).toHaveLength(2);
+    // The import files the image under the part shown: nothing to tick.
+    expect(screen.queryByRole("checkbox")).toBeNull();
   });
   it("keeps unclassified images accessible and separates no-results from load failures", () => {
     useAssetStore.getState().setAssets([{ ...A1, usages: [] }, A2]);

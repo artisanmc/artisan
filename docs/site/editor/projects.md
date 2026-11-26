@@ -160,8 +160,11 @@ all. Whatever you use is **copied** into your project first, so each project sta
 - The copy is a snapshot: if the original changes, copy it again.
 
 The **Resources** tab manages the project's images and fonts. Filter by **Button images**,
-**Menu images** (backgrounds, logos, frames), **Fonts** or **Unclassified**; **Use as** in an
-image's details changes its classification without touching menus that already use it.
+**Menu images** (backgrounds, logos, frames), **Fonts** or **Unclassified**. Nobody files an
+image by hand: choosing it for a button or for a menu files it, and an image filed nowhere
+yet is offered in every list. When the module ships images, the list has two parts: **This
+server's** (what you added or redrew, a dot on a redrawn one) and **Shipped with the module**
+(or **with Artisan**, for the common images), folded until you open it or search.
 
 ## Organize the board
 

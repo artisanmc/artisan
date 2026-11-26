@@ -304,10 +304,9 @@ describe("ServerDetailPage", () => {
       "serverDetail.tabs.resources",
       "serverDetail.tabs.play",
       "serverDetail.tabs.assistant",
-      "serverDetail.tabs.data",
-      "serverDetail.tabs.updates",
-      "serverDetail.tabs.settings",
     ]);
+    // The tabs opened now and then are under More (`ServerTabs.test.tsx`).
+    expect(within(nav).getByRole("button", { name: "serverDetail.tabs.more" })).toBeTruthy();
     expect(tabs[0]).toHaveAttribute("aria-current", "page");
     expect(await screen.findByText("serverDetail.stateOnline")).toBeInTheDocument();
   });
@@ -322,7 +321,8 @@ describe("ServerDetailPage", () => {
     routerState.childMatches = [{ id: "child", routeId: "/servers/$serverId/settings" }];
     render(<ServerDetailPage />);
     expect(await screen.findByText("child-route")).toBeInTheDocument();
-    const settings = screen.getByRole("link", { name: "serverDetail.tabs.settings" });
+    // A tab of More: its button names it.
+    const settings = screen.getByRole("button", { name: "serverDetail.tabs.settings" });
     expect(settings).toHaveAttribute("aria-current", "page");
     expect(listServerProjects).not.toHaveBeenCalled();
   });

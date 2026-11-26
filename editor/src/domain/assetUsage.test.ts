@@ -1,7 +1,7 @@
 import { menusOf } from "@/domain/documents";
 import { describe, expect, it } from "vitest";
 import type { Asset } from "./asset";
-import { assetMenuReferences, assetUsages } from "./assetUsage";
+import { assetMenuReferences, assetOfferedFor, assetUsages } from "./assetUsage";
 import type { Project } from "./types";
 
 const asset = { id: "image", projectId: "p", type: "glyph" } as Asset;
@@ -44,5 +44,24 @@ describe("asset classification", () => {
       },
     } as unknown as Project;
     expect(assetUsages(asset, decorated)).toEqual(["button", "menu"]);
+  });
+});
+
+describe("assetOfferedFor", () => {
+  it("offers an image filed under no use everywhere, a filed one under its uses only", () => {
+    const fresh = { id: "new", projectId: "p", type: "glyph" } as Asset;
+    expect([assetOfferedFor(fresh, "button"), assetOfferedFor(fresh, "menu")]).toEqual([
+      true,
+      true,
+    ]);
+    const window = { ...fresh, usages: ["menu"] } as Asset;
+    expect([assetOfferedFor(window, "button"), assetOfferedFor(window, "menu")]).toEqual([
+      false,
+      true,
+    ]);
+    // An older editor's container texture has no use left: offered everywhere too.
+    const legacy = { ...fresh, usages: ["chest_texture"] } as unknown as Asset;
+    expect(assetUsages(legacy)).toEqual([]);
+    expect(assetOfferedFor(legacy, "button")).toBe(true);
   });
 });

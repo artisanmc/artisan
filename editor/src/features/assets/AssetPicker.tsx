@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { Asset, AssetType, AssetUsage } from "@/domain/asset";
-import { assetUsages } from "@/domain/assetUsage";
+import { assetOfferedFor, assetUsages } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
 import { patchAsset } from "@/lib/api/userAssets";
@@ -170,7 +170,7 @@ export function AssetPicker({
         : !projectId || a.projectId === projectId,
     )
     .filter((a) => allowedTypes.includes(a.type))
-    .filter((a) => !usage || showAll || assetUsages(a, project).includes(usage))
+    .filter((a) => !usage || showAll || assetOfferedFor(a, usage, project))
     .filter((a) => a.name.toLowerCase().includes(search.toLowerCase()));
 
   return (

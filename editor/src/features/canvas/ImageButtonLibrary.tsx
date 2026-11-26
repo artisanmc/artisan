@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
-import { assetUsages } from "@/domain/assetUsage";
+import { assetOfferedFor } from "@/domain/assetUsage";
 import { imageButtonSize } from "@/domain/imageButton";
 import type { Project, ProjectId } from "@/domain/types";
 import { AssetPreview } from "@/features/assets/AssetPreview";
@@ -102,7 +102,7 @@ function ImageGrid({ projectId, sources }: { projectId: ProjectId; sources: Proj
     (asset) =>
       (source ? owners.has(asset.projectId) : asset.projectId === projectId) &&
       asset.type !== "font" &&
-      assetUsages(asset, owners.get(asset.projectId)).includes("button") &&
+      assetOfferedFor(asset, "button", owners.get(asset.projectId)) &&
       asset.width > 0 &&
       asset.height > 0 &&
       asset.name.toLowerCase().includes(search.toLowerCase()),

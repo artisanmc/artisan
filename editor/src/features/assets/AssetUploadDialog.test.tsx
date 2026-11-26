@@ -12,23 +12,18 @@ vi.mock("@/state/authStore", () => ({
 }));
 
 describe("AssetUploadDialog", () => {
-  it("preselects the context role and lets an image have multiple uses", async () => {
+  it("files the image under the use it is imported for, with nothing to tick", async () => {
     const upload = vi
       .spyOn(userAssetsApi, "uploadAsset")
       .mockResolvedValue({ id: "bg", projectId: "p1" } as never);
     render(<AssetUploadDialog projectId={"p1" as never} open onClose={() => {}} usage="menu" />);
-    expect(screen.getByRole("checkbox", { name: /^Images du menu$/ })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: /^Images du menu$/ })).toBeDisabled();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Images de boutons/ }));
+    expect(screen.queryByRole("checkbox")).toBeNull();
     fireEvent.change(screen.getByLabelText(/fichier/i), {
       target: { files: [new File(["png"], "bg.png", { type: "image/png" })] },
     });
     fireEvent.click(screen.getByRole("button", { name: /^Importer$/ }));
     await waitFor(() =>
-      expect(upload).toHaveBeenCalledWith(
-        "p1",
-        expect.objectContaining({ usages: ["button", "menu"] }),
-      ),
+      expect(upload).toHaveBeenCalledWith("p1", expect.objectContaining({ usages: ["menu"] })),
     );
   });
   beforeEach(() => {

@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { type Asset, type AssetUsage, assetPreviewUrl } from "@/domain/asset";
-import { assetMenuReferences, assetUsages } from "@/domain/assetUsage";
+import { type Asset, assetPreviewUrl } from "@/domain/asset";
+import { assetMenuReferences } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { deleteAsset, patchAsset } from "@/lib/api/userAssets";
 import { IMAGE_FUNCTIONS, type ImageFunction } from "@/lib/pack/imageFunction";
@@ -12,7 +12,6 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetStage } from "./AssetStage";
-import { AssetUsageFields } from "./AssetUsageFields";
 import { CommonImageOriginal, OriginalImage } from "./CommonImageState";
 import { OriginalChanged } from "./OriginalChanged";
 import { useAssetStore } from "./assetStore";
@@ -56,7 +55,6 @@ export function AssetDetailPanel({
   const [name, setName] = useState("");
   const [ascent, setAscent] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [usages, setUsages] = useState<AssetUsage[]>([]);
   const [fn, setFn] = useState<ImageFunction | "">("");
   const [ramps, setRamps] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -72,7 +70,6 @@ export function AssetDetailPanel({
 
   const savedName = asset?.name ?? "";
   const savedAscent = asset?.ascent ?? "";
-  const savedUsages = JSON.stringify(asset ? assetUsages(asset, project) : []);
   const savedFunction = asset?.function ?? "";
   useEffect(() => {
     setFn(savedFunction);
@@ -86,9 +83,6 @@ export function AssetDetailPanel({
     setAscent(String(savedAscent));
     setError(null);
   }, [savedName, savedAscent]);
-  useEffect(() => {
-    setUsages(JSON.parse(savedUsages));
-  }, [savedUsages]);
 
   if (!asset) return null;
 
@@ -116,17 +110,11 @@ export function AssetDetailPanel({
       const patch: {
         name?: string;
         ascent?: number;
-        usages?: AssetUsage[];
         function?: ImageFunction | "";
         ramps?: boolean;
       } = {};
       if (asset.type !== "font" && fn !== savedFunction) patch.function = fn;
       if (ramps !== savedRamps) patch.ramps = ramps;
-      if (
-        asset.type !== "font" &&
-        JSON.stringify(usages) !== JSON.stringify(assetUsages(asset, project))
-      )
-        patch.usages = usages;
       if (name !== asset.name) patch.name = name;
       if (asset.type === "glyph" && ascent !== String(asset.ascent ?? "")) {
         const n = Number.parseInt(ascent, 10);
@@ -254,14 +242,11 @@ export function AssetDetailPanel({
         />
       </label>
       {asset.type !== "font" && (
-        <>
-          {!asShipped && <AssetUsageFields value={usages} onChange={setUsages} />}
-          <p className="text-xs text-[var(--text-mut)]">
-            {assetMenuReferences(asset, project).length
-              ? t("resources.inMenus", { menus: assetMenuReferences(asset, project).join(", ") })
-              : t("resources.unused")}
-          </p>
-        </>
+        <p className="text-xs text-[var(--text-mut)]">
+          {assetMenuReferences(asset, project).length
+            ? t("resources.inMenus", { menus: assetMenuReferences(asset, project).join(", ") })
+            : t("resources.unused")}
+        </p>
       )}
       <details className="text-xs text-[var(--text-mut)]">
         <summary className="cursor-pointer">{t("resources.advanced")}</summary>

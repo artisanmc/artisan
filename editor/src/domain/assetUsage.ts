@@ -44,6 +44,16 @@ export function assetUsages(asset: Asset, project?: Project): AssetUsage[] {
   return ASSET_USAGES.filter((usage) => inferred.has(usage));
 }
 
+/**
+ * Whether a list of images for `usage` offers `asset`: it is filed under that use (by a
+ * choice made in a menu, or by an older editor's checkbox), or under none yet. Nobody files
+ * an image by hand: choosing it for a button or a menu does.
+ */
+export function assetOfferedFor(asset: Asset, usage: AssetUsage, project?: Project): boolean {
+  const usages = assetUsages(asset, project);
+  return usages.length === 0 || usages.includes(usage);
+}
+
 export function assetMenuReferences(asset: Asset, project?: Project): string[] {
   if (!project || asset.projectId !== project.id) return [];
   return menusOf(project)
