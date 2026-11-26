@@ -7,12 +7,16 @@ import type { ProjectId } from "@/domain/types";
 import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
 import { patchAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
+import { pixelSize } from "@/lib/pack/imageFunction";
+import { moduleImageKey } from "@/lib/pack/kit";
+import { useKitStore } from "@/state/kitStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
 import { AssetUploadDialog } from "./AssetUploadDialog";
+import { assetBytes } from "./assetBytes";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
@@ -34,6 +38,13 @@ interface AssetPickerProps {
   /** Offers uploading a new image, picked as soon as it lands. */
   projectId?: ProjectId;
   usage?: AssetUsage;
+  /**
+   * The caller writes the picked image's `id` where the pack reads a name (a button's image, a
+   * title layer): another module's image may then be named where it is, `<module>:<name>`,
+   * instead of copied in (ADR `common-images-and-themes`, decision 3). The copy stays the
+   * default.
+   */
+  named?: boolean;
 }
 
 // What we show when no `typeFilter` is provided. Excludes `font` because
@@ -48,6 +59,7 @@ export function AssetPicker({
   title,
   projectId,
   usage,
+  named,
 }: AssetPickerProps) {
   const { t } = useTranslation();
   const all = useAssetStore((s) => s.assets);
@@ -64,6 +76,12 @@ export function AssetPicker({
     [sourceIds, projectId],
   );
   const other = useOtherProjectAssets(otherIds);
+  // Naming in place needs the rule that reads `<module>:<name>` (a server with the theme
+  // `artisan`) and the module's folder, as the editor draws such a name (`useImageAsset`).
+  const modules = useKitStore((s) => s.modules);
+  const byName = useKitStore((s) => s.read?.byName === true);
+  const canName = Boolean(named && projectId && byName && otherIds.length > 0);
+  const [inPlace, setInPlace] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loading = useAssetStore((s) => s.loading);
   const loadError = useAssetStore((s) => s.error);
@@ -77,6 +95,7 @@ export function AssetPicker({
     setBusy(false);
     setError(null);
     setShowAll(false);
+    setInPlace(false);
     return () => {
       selectionEpoch.current += 1;
     };
@@ -85,8 +104,26 @@ export function AssetPicker({
     if (busy) return;
     setError(null);
     let asset = picked;
-    // Another project's image: copied in first, then picked like one of ours.
     if (projectId && picked.projectId !== projectId) {
+      // Named where it is: nothing is copied, and the image keeps its uses in its module.
+      const folder =
+        canName && inPlace
+          ? modules.find((m) => m.projectId === picked.projectId)?.folder
+          : undefined;
+      if (folder) {
+        setBusy(true);
+        const epoch = selectionEpoch.current;
+        const size =
+          picked.width > 0 && picked.height > 0
+            ? null
+            : await assetBytes(picked).then(pixelSize, () => null);
+        if (selectionEpoch.current !== epoch) return;
+        setBusy(false);
+        onPick({ ...picked, ...size, id: moduleImageKey(folder, picked.name) });
+        onClose();
+        return;
+      }
+      // Another project's image: copied in first, then picked like one of ours.
       setBusy(true);
       const epoch = selectionEpoch.current;
       const copied = await copyAssetInto(projectId, picked);
@@ -163,6 +200,21 @@ export function AssetPicker({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        {canName && sourceId && (
+          <>
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={inPlace}
+                onChange={(event) => setInPlace(event.target.checked)}
+              />
+              {t("assetPicker.inPlace")}
+            </label>
+            <p className="text-xs text-[var(--text-mut)]">
+              {t(inPlace ? "assetPicker.inPlaceHint" : "assetPicker.copyHint")}
+            </p>
+          </>
+        )}
         {usage && (
           <>
             <label className="flex items-center gap-2 text-xs">

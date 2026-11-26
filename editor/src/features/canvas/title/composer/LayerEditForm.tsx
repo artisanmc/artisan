@@ -271,6 +271,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
 
       <AssetPicker
         usage="menu"
+        named
         open={pickerOpen}
         projectId={projectId}
         // No typeFilter → shows every image asset (texture + glyph). The

@@ -185,6 +185,11 @@ standings for the whole module at once (`not_taken`, `own_version`, by the stem 
 the module's list (`OwnAssets`) draws them as a dot on the tile and a line in its tooltip
 (`AssetGrid`'s `markOf`). The common images' Project has no marks: it says who drew a piece
 its own way (`CommonImageState`).
+`AssetPicker` copies another module's image into the open one (`copyAssetInto`) before it
+gives it to its caller. With `named` (the button's image, a title layer: callers that write
+the picked `id` where the pack resolves a name), a checkbox gives the image under
+`<module>:<name>` (`moduleImageKey`, the folder from `useKitStore.modules`) without a copy,
+on a server that reads names by the rule (`byName`).
 A composed image (`lib/pack/compose.ts`, ADR `mcp-server`, decision 15) is a descriptor with a
 `compose:` list and no PNG. `diskAssetsFromTree` lists it (`DiskAsset.compose`, its `path` the
 descriptor's); `listLocalAssets` assembles its picture as the pack does (`composedAssets.ts`)

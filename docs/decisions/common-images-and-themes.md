@@ -259,6 +259,18 @@ builders; `ImageRefs.kt` did not change).
 - Both are read as the draft holds them. In the common images' Project, an image the draft
   adds counts as common: it is one once deployed.
 
+**Step 2, eighth part: the picker names another module's image where it is**
+(`AssetPicker`'s `named`).
+
+- The picker of a button's image and of a title layer, shown another module, offers **Name it
+  in its module, without a copy**: the image picked is written `<module>:<name>`, nothing
+  enters the open module, and the menu follows what that module deploys.
+- Unticked, which is the default, the image is copied as before: a module that copies does not
+  depend on another. The choice is offered only where the caller writes a name the pack
+  resolves (`named`), on a server that reads names by this rule, for a module the editor can
+  draw from (`useKitStore.modules`).
+- An image whose descriptor states no size is measured from its PNG, as in the common picker.
+
 **Decision 12, first part: the server's Resources** (`ServerResources.tsx`, `imageUses.ts`,
 `servers.$serverId.resources.tsx`).
 
@@ -613,8 +625,9 @@ Not there yet:
   (`checkImageIssues`: a warning per name, with the menus and the kinds' files that write
   it, and the layers of a composed image that take nothing), both read against
   the other modules and the common images as published. The editor draws another module's image from its
-  published file: not a composed one, and not as a theme redraws it. Its picker copies
-  another module's image into the open module; it does not name it where it is. `<module>:<name>` for an image that
+  published file: not a composed one, and not as a theme redraws it. Its picker names
+  another module's image where it is on request only (step 2, eighth part): the copy stays
+  the default, and dragging a thumbnail of another module still copies. `<module>:<name>` for an image that
   module does not hold falls on the bare name, then on the common image, instead of the
   visible fallback, because the asset index does not say who holds a bare id.
 - Against decision 1: the notes file is still `data/ui-kit.yml`, and `render_menu` still reads

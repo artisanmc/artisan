@@ -35,10 +35,12 @@ players see them.
 
 **The same name in two modules.** A menu shows the image of its own module. When two modules
 each hold a `gold.png`, each one's menus show their own. To show another module's image, name
-it with its module in the menu's file: `image: { asset: "guilds:gold" }`. The editor draws it
-in the menu as that module has it deployed, and says under the image whose it is. Its picker
-lists the open module's images and the common ones; an image picked from another module is
-copied into the open one.
+it with its module: `image: { asset: "guilds:gold" }`. The editor draws it in the menu as that
+module has it deployed, and says under the image whose it is. In the picker of a button's
+image or of a title layer, choose the other module in the menu above the thumbnails: the image
+you pick is copied into the open module, unless you tick **Name it in its module, without a
+copy**. The menu then writes `guilds:gold`, follows what that module deploys, and needs that
+module on the server.
 
 **Common images by their name.** A name the menu's module holds no image of is a common image:
 `button.3x1` shows the server's common image of that name, even when another module holds a

@@ -2028,6 +2028,11 @@ export default {
     submit: "Upload",
   },
   assetPicker: {
+    inPlace: "Name it in its module, without a copy",
+    inPlaceHint:
+      "The menu writes module:image and shows that module's image as deployed: it follows its changes, and needs that module on the server.",
+    copyHint:
+      "The image is copied into this module: the copy is yours and no longer follows the other module.",
     upload: "Upload",
   },
   patterns: {

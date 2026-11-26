@@ -2068,6 +2068,11 @@ const fr: typeof en = {
     submit: "Importer",
   },
   assetPicker: {
+    inPlace: "La nommer dans son module, sans copie",
+    inPlaceHint:
+      "Le menu écrit module:image et montre l’image de ce module telle que déployée : il suit ses changements, et a besoin de ce module sur le serveur.",
+    copyHint:
+      "L’image est copiée dans ce module : la copie est à toi et ne suit plus l’autre module.",
     upload: "Importer",
   },
   patterns: {
