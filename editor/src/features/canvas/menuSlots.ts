@@ -234,7 +234,7 @@ export function resolveMenuSlots({
         ...(project ? previewItem(appearance, enhancedCtx, project, activeLang) : {}),
         elementId: el.id,
         multiPos: elSlots.length > 1,
-        image: appearanceImages(appearance).length > 0,
+        image: appearanceImages(appearance, project?.id).length > 0,
       };
       for (const s of elSlots) {
         elementsByPosition.set(s.position, info);

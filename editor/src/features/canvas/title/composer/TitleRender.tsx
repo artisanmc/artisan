@@ -4,10 +4,11 @@ import { menusOf } from "@/domain/documents";
 import { elementLabels } from "@/domain/imageButton";
 import type { MenuId, MenuTitleLayer, Project, ProjectId } from "@/domain/types";
 import { useAssetsWithKit } from "@/features/assets/kitAssets";
-import { imageNamed } from "@/lib/pack/kit";
+import { useComponentsFeed } from "@/features/assets/useComponentsFeed";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { getText } from "@/lib/i18n";
 import { plainTextFromMiniMessage } from "@/lib/miniMessage";
+import { imageNamed } from "@/lib/pack/kit";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
 import { useImageButtonDragStore } from "@/state/imageButtonDragStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -409,6 +410,8 @@ export function TitleRender({
   const menu = menusOf(project).find((m) => m.id === menuId);
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetsWithKit();
+  // A component's texts are labels too: read again when the components change.
+  useComponentsFeed();
   const buttonDrag = useImageButtonDragStore((s) =>
     pass !== "visual" && s.drag?.menuId === menuId ? s.drag : null,
   );
@@ -540,7 +543,14 @@ export function TitleRender({
                   index={-1 - idx}
                   scale={scale}
                   text={renderPreview(
-                    getText(project, layer.value, activeLang),
+                    layer.literal === undefined
+                      ? getText(project, layer.value, activeLang)
+                      : typeof layer.literal === "string"
+                        ? layer.literal
+                        : (layer.literal[activeLang] ??
+                          layer.literal[project.defaultLang] ??
+                          Object.values(layer.literal)[0] ??
+                          ""),
                     previewCtx,
                     project,
                     activeLang,
