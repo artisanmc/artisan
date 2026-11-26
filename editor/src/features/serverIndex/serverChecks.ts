@@ -1,7 +1,7 @@
 import { commandsOf, dialogsOf, menusOf, parseDocKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { deriveServerGraph } from "@/features/canvas/serverGraph";
-import { type ElsewhereWhere, reachOf } from "@/lib/pack/elsewhere";
+import { type ElsewhereWhere, isWrittenName, reachOf } from "@/lib/pack/elsewhere";
 import { imageRefsIn } from "@/lib/pack/kit";
 import { namespaceOf } from "./serverIndex";
 
@@ -182,9 +182,6 @@ function brokenLinks(edited: Project, all: Project[]): ServerIssue[] {
     .sort((a, b) => byText(a.from.docId, b.from.docId) || byText(a.targetId, b.targetId));
 }
 
-/** A name the pack can look up as written: a placeholder is resolved in game, not here. */
-const WRITTEN_NAME = /^[A-Za-z0-9_.:-]+$/;
-
 /**
  * The images the menus of `edited` name that no one holds (`image_missing`), and the ones a
  * name alone finds in another module (`image_elsewhere`), by the rule the pack reads a name
@@ -195,7 +192,7 @@ export function checkImageIssues(edited: Project, where: ElsewhereWhere): Server
   const elsewhere = new Map<string, { module: string; menus: Set<string> }>();
   for (const menu of menusOf(edited)) {
     for (const ref of new Set(imageRefsIn(menu))) {
-      if (!WRITTEN_NAME.test(ref)) continue;
+      if (!isWrittenName(ref)) continue;
       const reach = reachOf(ref, where);
       if (reach.kind === "none") {
         missing.set(ref, (missing.get(ref) ?? new Set()).add(menu.id));

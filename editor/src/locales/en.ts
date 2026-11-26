@@ -455,6 +455,12 @@ export default {
       },
     },
   },
+  imageReach: {
+    none: "No image “{{name}}”: neither this module, nor the common images, nor another deployed module holds one. Nothing will show in game.",
+    module: "Image of the module {{module}}.",
+    elsewhere: "“{{name}}” is an image of the module {{module}}, named by its name alone.",
+    write: "Write {{ref}}",
+  },
   imageButton: {
     search: "Search images…",
     native: "Natural size",

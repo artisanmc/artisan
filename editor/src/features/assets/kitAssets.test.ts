@@ -1,10 +1,18 @@
 import type { Asset } from "@/domain/asset";
 import { KIT_SLOTS } from "@/lib/pack/kit";
-import { type KitRead, useKitStore } from "@/state/kitStore";
+import { type KitRead, type ModuleRead, useKitStore } from "@/state/kitStore";
 import { renderHook } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test } from "vitest";
 import { useAssetStore } from "./assetStore";
-import { isKitBase, kitAssetsOf, kitMisfits, useCommonImageRef } from "./kitAssets";
+import {
+  isKitBase,
+  kitAssetsOf,
+  kitMisfits,
+  useAssetsWithKit,
+  useCommonImageRef,
+  useImageAsset,
+  useImageReach,
+} from "./kitAssets";
 
 const read = (files: Record<string, string>, binaries: string[]): KitRead => ({
   projectId: "srv.ui-kit",
@@ -91,5 +99,90 @@ describe("kit images in the editor", () => {
     expect(result.current(button)).toBe("kit:button.3x1");
     useKitStore.setState({ read: undefined });
     useAssetStore.getState().reset();
+  });
+});
+
+describe("the images a menu names beyond its module", () => {
+  const module = (folder: string, binaries: string[], files: Record<string, string> = {}) =>
+    ({
+      projectId: `srv.${folder}`,
+      folder,
+      files,
+      binaries: binaries.map((path) => ({ path, hash: `h-${path}` })),
+    }) satisfies ModuleRead;
+  const own = (id: string) => ({ id, projectId: "srv.core", name: id, type: "texture" }) as Asset;
+  const common: KitRead = {
+    ...read({}, ["assets/textures/ribbon.png", "originals/assets/textures/ornament.png"]),
+    projectId: "srv.artisan",
+    byName: true,
+  };
+  const bank = module("bank", ["assets/textures/gold.png", "originals/assets/glyphs/vault.png"], {
+    "originals/assets/glyphs/vault.yml": "ascent: 9\nheight: 12\ncodepoint: 57350\n",
+    "assets/textures/statement.yml": "compose:\n  layers:\n    - image: gold\n",
+  });
+  const guilds = module("guilds", ["assets/textures/gold.png", "assets/textures/crest.png"]);
+  const core = module("core", ["assets/textures/logo.png"]);
+
+  beforeEach(() => {
+    useAssetStore.setState({ assets: [own("logo"), own("crest")] });
+    useKitStore.setState({ read: common, modules: [bank, core, guilds], modulesUnread: false });
+  });
+
+  const asset = (ref: string) => renderHook(() => useImageAsset("srv.core", ref)).result.current;
+  const reach = (ref: string) => renderHook(() => useImageReach("srv.core")).result.current(ref);
+
+  test("another module's image is drawn from its published file, its own or the one it ships", () => {
+    const gold = asset("bank:gold");
+    expect(gold).toMatchObject({ id: "bank:gold", projectId: "srv.bank", type: "texture" });
+    expect(gold?.previewUrl).toContain(
+      "/api/v1/projects/srv.bank/binary?path=assets%2Ftextures%2Fgold.png&h=h-assets/textures/gold.png",
+    );
+    const vault = asset("bank:vault");
+    expect(vault).toMatchObject({ id: "bank:vault", type: "glyph", ascent: 9, height: 12 });
+    expect(vault?.previewUrl).toContain("path=originals%2Fassets%2Fglyphs%2Fvault.png");
+    expect(asset("guilds:gold")?.projectId).toBe("srv.guilds");
+  });
+
+  test("a name alone is the module's own, then the common image, then the first module holding it", () => {
+    expect(asset("logo")).toMatchObject({ id: "logo", projectId: "srv.core" });
+    // Its own `crest`, not the one of `guilds`.
+    expect(asset("crest")?.projectId).toBe("srv.core");
+    expect(asset("core:logo")?.id).toBe("logo");
+    expect(asset("ribbon")?.id).toBe("kit:ribbon");
+    expect(asset("artisan:ribbon")?.id).toBe("kit:ribbon");
+    expect(asset("gold")?.id).toBe("bank:gold");
+    expect(asset("ghost")).toBeUndefined();
+    // A composed image of another module has a name and no picture here.
+    expect(asset("bank:statement")).toBeUndefined();
+    expect(reach("bank:statement")).toEqual({ kind: "module", folder: "bank", name: "statement" });
+  });
+
+  test("what a name reaches is told by the pack's rule, and left unsaid where it is not known", () => {
+    expect(reach("logo")).toEqual({ kind: "own" });
+    expect(reach("ribbon")).toEqual({ kind: "common", name: "ribbon" });
+    expect(reach("ornament")).toEqual({ kind: "base", name: "ornament" });
+    expect(reach("gold")).toEqual({ kind: "module", folder: "bank", name: "gold" });
+    expect(reach("ghost")).toEqual({ kind: "none" });
+    expect(reach("{{row.icon}}")).toBeNull();
+    // A module could not be read: its images may answer a name.
+    useKitStore.setState({ modulesUnread: true });
+    expect(reach("ghost")).toBeNull();
+    // An older server: its common images are a module, a name alone is not read by this rule.
+    useKitStore.setState({ read: { ...common, byName: false }, modulesUnread: false });
+    expect(reach("ghost")).toBeNull();
+    // Its images are drawn all the same: the module's own, the common one, another module's.
+    expect(asset("logo")?.projectId).toBe("srv.core");
+    expect(asset("kit:ribbon")?.id).toBe("kit:ribbon");
+    expect(asset("gold")?.id).toBe("bank:gold");
+  });
+
+  test("a title looks its images up among the module's, the common ones and the other modules'", () => {
+    const ids = renderHook(() => useAssetsWithKit()).result.current.map((a) => a.id);
+    expect(ids.slice(0, 2)).toEqual(["logo", "crest"]);
+    expect(ids).toContain("kit:ribbon");
+    // The open module's published images are not listed twice; the modules come in the pack's order.
+    const others = ids.filter((id) => /^(bank|guilds|core):/.test(id));
+    expect([...others].sort()).toEqual(["bank:gold", "bank:vault", "guilds:crest", "guilds:gold"]);
+    expect(others.map((id) => id.split(":")[0])).toEqual(["bank", "bank", "guilds", "guilds"]);
   });
 });

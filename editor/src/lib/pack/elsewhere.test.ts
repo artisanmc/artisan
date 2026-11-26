@@ -8,11 +8,13 @@ import {
   type ExportNote,
   codepointsOf,
   commonCopy,
+  commonHolders,
   embedNames,
   emptyNote,
   exportNoteYaml,
   imageCopy,
   imageRefsWritten,
+  isWrittenName,
   menuImageRefs,
   namedElsewhere,
   readExportNote,
@@ -118,6 +120,33 @@ describe("namedElsewhere", () => {
       where({ common: (name) => name === "close.1x1" }),
     );
     expect(named).toEqual({ base: ["close.1x1"], common: [], asCommon: [], modules: {} });
+  });
+});
+
+describe("commonHolders", () => {
+  it("tells the base (the editor's list and what the server ships) from what the server added", () => {
+    const held = commonHolders([
+      "originals/assets/textures/ornament.png",
+      "assets/textures/ribbon.png",
+      "assets/textures/window.yml",
+      "assets/fonts/title/font.yml",
+      "data/ui-kit.yml",
+    ]);
+    expect(["button.3x1", "ornament", "ribbon"].map(held.base)).toEqual([true, true, false]);
+    expect(["ribbon", "window", "title", "ornament", "ui-kit"].map(held.common)).toEqual([
+      true,
+      true,
+      true,
+      false,
+      false,
+    ]);
+  });
+});
+
+describe("isWrittenName", () => {
+  it("is a name the pack can look up: a placeholder is filled in game", () => {
+    expect(["gold", "guilds:gold", "button.3x1", "a-b_c"].every(isWrittenName)).toBe(true);
+    expect(["", "{{row.icon}}", "%rank%", "<icon>", "a b"].some(isWrittenName)).toBe(false);
   });
 });
 

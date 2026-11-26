@@ -85,7 +85,9 @@ export function kitNameOf(asset: string): string | null {
 /**
  * The image `ref` names among `images`, a module's own and the common ones by their ids
  * (`kit:<name>`): `artisan:<name>` and `kit:<name>` are the common one, another name the module's
- * own, else the common one of that name (`resolveImageRef`, without the other modules' images).
+ * own, else the common one of that name, else the first image of another module of that name,
+ * when `images` holds some by their keys (`moduleImageKey`), in the pack's order
+ * (`resolveImageRef`).
  */
 export function imageNamed<T extends { id: string }>(
   images: readonly T[],
@@ -93,7 +95,13 @@ export function imageNamed<T extends { id: string }>(
 ): T | undefined {
   const common = kitNameOf(ref);
   if (common !== null) return images.find((a) => a.id === KIT_PREFIX + common);
-  return images.find((a) => a.id === ref) ?? images.find((a) => a.id === KIT_PREFIX + ref);
+  return (
+    images.find((a) => a.id === ref) ??
+    images.find((a) => a.id === KIT_PREFIX + ref) ??
+    (ref.includes(":")
+      ? undefined
+      : images.find((a) => kitNameOf(a.id) === null && a.id.endsWith(`:${ref}`)))
+  );
 }
 
 const HELD =

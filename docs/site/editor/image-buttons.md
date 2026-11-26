@@ -35,8 +35,10 @@ players see them.
 
 **The same name in two modules.** A menu shows the image of its own module. When two modules
 each hold a `gold.png`, each one's menus show their own. To show another module's image, name
-it with its module in the menu's file: `image: { asset: "guilds:gold" }`. The editor's picker
-lists the open module's images and the common ones.
+it with its module in the menu's file: `image: { asset: "guilds:gold" }`. The editor draws it
+in the menu as that module has it deployed, and says under the image whose it is. Its picker
+lists the open module's images and the common ones; an image picked from another module is
+copied into the open one.
 
 **Common images by their name.** A name the menu's module holds no image of is a common image:
 `button.3x1` shows the server's common image of that name, even when another module holds a
@@ -44,9 +46,10 @@ lists the open module's images and the common ones.
 only; `artisan:button.3x1` shows the common one there too. The picker writes the name alone,
 and `artisan:<name>` when the open module holds an image of that name. `kit:button.3x1`, which
 older menus hold, means the same and stays read. A name that neither the menu's module nor the
-common images hold still reaches another module's image of that name, as before. The deploy
-review warns about it and says what to write instead (`guilds:gold`); it also warns about a
-name no image answers on the server, which shows nothing in game.
+common images hold still reaches another module's image of that name, as before. The editor
+says so under the image, with a button that writes the name with its module (`guilds:gold`),
+and the deploy review warns about it. Both also flag a name no image answers on the server,
+which shows nothing in game.
 
 **Common images in a module's Resources.** The **Module** selector of the Resources screen has
 an entry **Common images**, beside this module, all modules and the other modules. It lists

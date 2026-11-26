@@ -15,7 +15,7 @@ const read = (folder: string, summary: Record<string, unknown> = {}): Read =>
 describe("the server index, as the kit store reads it", () => {
   beforeEach(() => {
     useServerIndexStore.getState().reset();
-    useKitStore.setState({ read: undefined, own: {} });
+    useKitStore.setState({ read: undefined, own: {}, modules: [], modulesUnread: false });
   });
 
   test("the common images' theme and the themes of their own folder, movable when the server says so", () => {
@@ -39,5 +39,34 @@ describe("the server index, as the kit store reads it", () => {
     expect(own.noel).toMatchObject({ projectId: "srv.noel", canMove: true });
     expect(own.hiver?.canMove).toBe(false);
     expect(own.nuit?.canMove).toBe(false);
+  });
+
+  test("the modules in the pack's order, without the common images nor the themes", () => {
+    const finish = (failed: string[]) => {
+      useServerIndexStore.getState().begin("srv");
+      useServerIndexStore.getState().finish("srv", {
+        status: "ready",
+        projects: [],
+        failed,
+        reads: [
+          read("warps", { role: undefined }),
+          read("artisan"),
+          read("noel"),
+          read("guilds", { role: undefined }),
+        ],
+      } as unknown as ServerProjectsResult);
+    };
+    finish([]);
+    const { modules, modulesUnread } = useKitStore.getState();
+    expect(modules.map((m) => [m.projectId, m.folder])).toEqual([
+      ["srv.guilds", "guilds"],
+      ["srv.warps", "warps"],
+    ]);
+    expect(modulesUnread).toBe(false);
+    // A module that could not be read: the list is not all of them.
+    finish(["shop"]);
+    expect(useKitStore.getState().modulesUnread).toBe(true);
+    useServerIndexStore.getState().reset();
+    expect(useKitStore.getState().modules).toEqual([]);
   });
 });
