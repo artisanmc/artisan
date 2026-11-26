@@ -72,6 +72,58 @@ describe("imageMarks", () => {
     });
   });
 
+  it("measures a menu image by its pixels when they are read, whatever its descriptor states", () => {
+    const files = {
+      "originals/assets/textures/crest.yml": "function: menu\nwidth: 54\nheight: 18\n",
+      // Written without its size: the descriptors alone would call it taken.
+      "assets/textures/crest.yml": "ramps: true\n",
+      "originals/assets/textures/banner.yml": "function: menu\nwidth: 54\nheight: 18\n",
+      // States another size than its pixels: the descriptors alone would call it not taken.
+      "assets/textures/banner.yml": "width: 20\nheight: 20\n",
+      "originals/assets/textures/seal.yml": "function: menu\nwidth: 54\nheight: 18\n",
+      "assets/textures/seal.yml": "width: 20\nheight: 20\n",
+    };
+    const binaries = {
+      "originals/assets/textures/crest.png": h("o1"),
+      "assets/textures/crest.png": h("m1"),
+      "originals/assets/textures/banner.png": h("o2"),
+      "assets/textures/banner.png": h("m2"),
+      "originals/assets/textures/seal.png": h("o3"),
+      "assets/textures/seal.png": h("m3"),
+    };
+    expect(Object.fromEntries(imageMarks(files, binaries))).toEqual({
+      "assets/textures/crest": "own_version",
+      "assets/textures/banner": "not_taken",
+      "assets/textures/seal": "not_taken",
+    });
+    const pixels: Record<string, { width: number; height: number }> = {
+      "originals/assets/textures/crest.png": { width: 54, height: 18 },
+      "assets/textures/crest.png": { width: 60, height: 18 },
+      "originals/assets/textures/banner.png": { width: 54, height: 18 },
+      "assets/textures/banner.png": { width: 54, height: 18 },
+    };
+    // The seal is not measured yet: its descriptors still speak for it.
+    const measured = (path: string) => pixels[path];
+    expect(Object.fromEntries(imageMarks(files, binaries, undefined, measured))).toEqual({
+      "assets/textures/crest": "not_taken",
+      "assets/textures/banner": "own_version",
+      "assets/textures/seal": "not_taken",
+    });
+    // The panel reports the pixels it was refused at.
+    expect(imageNotTaken(files, binaries, { id: "crest", type: "texture" }, measured)).toEqual({
+      function: "menu",
+      mine: { width: 60, height: 18, ascent: null },
+      original: { width: 54, height: 18, ascent: null },
+    });
+    expect(imageNotTaken(files, binaries, { id: "banner", type: "texture" }, measured)).toBeNull();
+    // A file that is no image is not taken, as in the pack.
+    expect(
+      imageMarks(files, binaries, undefined, (path) =>
+        path === "assets/textures/banner.png" ? null : pixels[path],
+      ).get("assets/textures/banner"),
+    ).toBe("not_taken");
+  });
+
   it("marks nothing in a module that ships no image", () => {
     expect(imageMarks({}, { "assets/textures/mine.png": h("m") }).size).toBe(0);
   });

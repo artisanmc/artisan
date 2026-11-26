@@ -179,8 +179,10 @@ version beside the original with the original's codepoint, ascent, size and uses
 by every write of the descriptor (`descriptorYaml`) and set from the panel's advanced fields
 (`patchAsset`'s `function`, `""` to clear). `refusedImages` is the rule both pack builders
 apply: the owner's image of an original that declares a function is left out at other
-measures. `imageNotTaken` (`imageStanding.ts`) applies it to the open module from what the
-descriptors state, and `AssetDetailPanel` reports it on the image. `imageMarks` gives the
+measures. `imageNotTaken` (`imageStanding.ts`) applies it to the open module, by the pixels
+of the files the rule measures (`usePixelSizes` in `pixelSizes.ts`: read once per content hash,
+the draft's blob or the published file) and by what the descriptors state until they are read,
+and `AssetDetailPanel` reports it on the image. `imageMarks` gives the
 standings for the whole module at once (`not_taken`, `original_changed`, `own_version`, by the
 stem of the file; `original_changed` needs the origins the server recorded, read by
 `useProjectOrigins` when the module holds a version over an original):

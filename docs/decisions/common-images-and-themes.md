@@ -318,6 +318,20 @@ builders; `ImageRefs.kt` did not change).
   measures. It measures a menu or HUD image by the size its descriptor states (an image that
   states none is taken as fitting), the pack by the PNG.
 
+**Step 3, third part: the editor measures a module's image by its pixels** (`pixelSizes.ts`,
+`sizesOf` in `imageStanding.ts`; decision 4).
+
+- The pack measures a menu or HUD image by the pixels of its PNG; the editor read the size its
+  descriptor states, and took an image that states none as fitting. An image written without
+  its size (by hand, by a tool) at other pixels than the original's was said taken in the
+  editor and left out of the pack.
+- The files the rule measures (`measuredPaths`: the owner's image and its original, for a
+  function other than a glyph's) are read once per content (`usePixelSizes`, by hash: the
+  draft's blob when the file changed there, the published file otherwise). The lists' marks
+  and the image's panel then follow the pixels, and the panel reports them. Until a file is
+  read, or when it cannot be fetched, the descriptors speak as before.
+- The server's Resources measure the modules as published.
+
 **Step 5, first part: the original beside a redrawn piece** (`CommonImageState.tsx`).
 
 - A piece of the base the server drew its own version of shows Artisan's original beside it:
@@ -690,9 +704,9 @@ Not there yet:
   The MCP tools apply the rule to a module's images (`OwnerImages.notTaken`): `render_menu` and
   `survey_ui` show the original where the pack does, `write_image` and `read_image` say of an
   image that it is not taken (`not_taken`), `list_documents` lists them (`images_not_taken`). A
-  composed image over an original is not measured. The editor reads a size from the
-  descriptor, the pack from the PNG: the module's list and the image's panel may call taken
-  an image whose descriptor states another size than its pixels.
+  composed image over an original is not measured. The editor measures a module's image by
+  its pixels once its files are read (step 3, third part): until then, and for a file it
+  cannot fetch, it goes by what the descriptors state.
 - Against decision 8: a file written in the folder by hand, without a deploy, takes its
   origin at the first originals sync that sees it. A menu keeps what module originals already gave it (compare with
   the original, back to the original, a merge at each update): it has no "the original

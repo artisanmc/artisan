@@ -6,6 +6,7 @@ import {
   type ImageOverOriginal,
   type PixelSize,
   imagesOverOriginals,
+  measuredPaths,
   refusedImages,
 } from "@/lib/pack/imageFunction";
 import type { ProjectId } from "@/domain/types";
@@ -15,6 +16,7 @@ import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useKitStore } from "@/state/kitStore";
 import { originalChanged } from "@/state/projectTemplatesStore";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { type MeasuredFile, usePixelSizes } from "./pixelSizes";
 import { useProjectOrigins } from "./useProjectOrigins";
 
 type BinaryTree = Record<string, { hash: string }>;
@@ -121,6 +123,29 @@ function statedSizes(overs: readonly ImageOverOriginal[]): (path: string) => Pix
   return (path) => sizes.get(path) ?? null;
 }
 
+/**
+ * The pixels of a file by its path, read from the file itself (`usePixelSizes`): `undefined`
+ * while it is not measured, `null` for a file that is no image.
+ */
+export type MeasuredPixels = (path: string) => PixelSize | null | undefined;
+
+/**
+ * The size of a file for `refusedImages`: its pixels as `measured` read them, which is how the
+ * pack measures a menu or HUD image; what the descriptors state ([statedSizes]) for a file not
+ * measured yet, or when nothing measures.
+ */
+function sizesOf(
+  overs: readonly ImageOverOriginal[],
+  measured?: MeasuredPixels,
+): (path: string) => PixelSize | null {
+  const fromDescriptors = statedSizes(overs);
+  if (!measured) return fromDescriptors;
+  return (path) => {
+    const pixels = measured(path);
+    return pixels === undefined ? fromDescriptors(path) : pixels;
+  };
+}
+
 const lists = (files: Record<string, string>, binaries: BinaryTree) => ({
   fileList: Object.entries(files).map(([path, content]) => ({ path, content })) as FileList,
   binaryList: Object.keys(binaries).map((path) => ({ path })),
@@ -128,12 +153,14 @@ const lists = (files: Record<string, string>, binaries: BinaryTree) => ({
 
 /**
  * Whether the owner's image `asset` is left out of the pack: it stands over an original that
- * declares a function, at other measures (`imageFunction.ts`), read as [statedSizes] says.
+ * declares a function, at other measures (`imageFunction.ts`), read as [sizesOf] says. The
+ * measures reported are the pixels when `measured` read them.
  */
 export function imageNotTaken(
   files: Record<string, string>,
   binaries: BinaryTree,
   asset: Pick<Asset, "id" | "type">,
+  measured?: MeasuredPixels,
 ): ImageNotTaken | null {
   if (asset.type === "font") return null;
   const stem = assetDiskPath(asset.type, asset.id).replace(/\.png$/, "");
@@ -141,9 +168,19 @@ export function imageNotTaken(
   const overs = imagesOverOriginals(fileList, binaryList);
   const over = overs.find((image) => image.stem === stem);
   if (!over) return null;
-  if (!refusedImages(fileList, binaryList, statedSizes(overs)).some((image) => image.stem === stem))
+  if (
+    !refusedImages(fileList, binaryList, sizesOf(overs, measured)).some(
+      (image) => image.stem === stem,
+    )
+  )
     return null;
-  return { function: over.function, mine: stated(over.meta), original: stated(over.originalMeta) };
+  // A glyph is measured by its descriptor; a menu or HUD image by its pixels, when read.
+  const pixels = (path: string) => (over.function === "glyph" ? null : (measured?.(path) ?? null));
+  return {
+    function: over.function,
+    mine: { ...stated(over.meta), ...pixels(over.path) },
+    original: { ...stated(over.originalMeta), ...pixels(over.original) },
+  };
 }
 
 /**
@@ -161,12 +198,13 @@ export const imageStem = (asset: Pick<Asset, "id" | "type">): string =>
 /**
  * The marks of a module's images, by the stem of their file (`assets/textures/crest`).
  * `origins`: what the server recorded of the module's files (`fetchProjectOrigins`); without
- * them no image is said to have a changed original.
+ * them no image is said to have a changed original. `measured`: the files' pixels ([sizesOf]).
  */
 export function imageMarks(
   files: Record<string, string>,
   binaries: BinaryTree,
   origins?: Record<string, FileOrigin>,
+  measured?: MeasuredPixels,
 ): Map<string, ImageMark> {
   const stemOf = (path: string) => path.replace(/\.[^./]+$/, "");
   const shipped = new Set(
@@ -183,9 +221,47 @@ export function imageMarks(
   }
   const { fileList, binaryList } = lists(files, binaries);
   const overs = imagesOverOriginals(fileList, binaryList);
-  for (const image of refusedImages(fileList, binaryList, statedSizes(overs)))
+  for (const image of refusedImages(fileList, binaryList, sizesOf(overs, measured)))
     marks.set(image.stem, "not_taken");
   return marks;
+}
+
+const NO_FILES: readonly MeasuredFile[] = [];
+
+/** The files of a module whose pixels the rule asks for (`measuredPaths`), to be measured. */
+function filesToMeasure(
+  projectId: string,
+  files: Record<string, string> | undefined,
+  binaries: BinaryTree | undefined,
+  published = false,
+): readonly MeasuredFile[] {
+  if (!files || !binaries) return NO_FILES;
+  const { fileList, binaryList } = lists(files, binaries);
+  const wanted = measuredPaths(fileList, binaryList).flatMap((path) => {
+    const hash = binaries[path]?.hash;
+    return hash ? [{ projectId, path, hash, published }] : [];
+  });
+  return wanted.length === 0 ? NO_FILES : wanted;
+}
+
+/** The pixels of the files of the open module a function measures, as its draft holds them. */
+function useMeasuredPixels(
+  projectId: string,
+  files: Record<string, string> | undefined,
+  binaries: BinaryTree | undefined,
+): MeasuredPixels {
+  const wanted = useMemo(
+    () => filesToMeasure(projectId, files, binaries),
+    [projectId, files, binaries],
+  );
+  const sizeOf = usePixelSizes(wanted);
+  return useMemo(
+    () => (path: string) => {
+      const hash = binaries?.[path]?.hash;
+      return hash ? sizeOf(hash) : undefined;
+    },
+    [binaries, sizeOf],
+  );
 }
 
 /**
@@ -201,15 +277,20 @@ export function useImageMarks(
   const publishedBinaries = useProjectBaselineStore((s) => s.binaryBaselines[projectId]);
   const files = draft?.tree ?? publishedFiles;
   const binaries = draft?.binaryTree ?? draft?.binaryBaseline ?? publishedBinaries;
+  const measured = useMeasuredPixels(projectId, files, binaries);
   const plain = useMemo(
-    () => (files && binaries ? imageMarks(files, binaries) : new Map<string, ImageMark>()),
-    [files, binaries],
+    () =>
+      files && binaries
+        ? imageMarks(files, binaries, undefined, measured)
+        : new Map<string, ImageMark>(),
+    [files, binaries, measured],
   );
   const origins = useProjectOrigins(projectId as ProjectId, plain.size > 0).entry?.origins;
   return useMemo(() => {
-    const marks = files && binaries && origins ? imageMarks(files, binaries, origins) : plain;
+    const marks =
+      files && binaries && origins ? imageMarks(files, binaries, origins, measured) : plain;
     return (asset) => (asset.type === "font" ? null : (marks.get(imageStem(asset)) ?? null));
-  }, [files, binaries, origins, plain]);
+  }, [files, binaries, origins, plain, measured]);
 }
 
 /** [imageNotTaken] of an image of the open module, as its draft holds it, else as published. */
@@ -222,11 +303,15 @@ export function useImageNotTaken(
   const publishedBinaries = useProjectBaselineStore((s) => s.binaryBaselines[projectId]);
   const files = draft?.tree ?? publishedFiles;
   const binaries = draft?.binaryTree ?? draft?.binaryBaseline ?? publishedBinaries;
+  const measured = useMeasuredPixels(projectId, files, binaries);
   const id = asset?.id;
   const type = asset?.type;
   return useMemo(
-    () => (files && binaries && id && type ? imageNotTaken(files, binaries, { id, type }) : null),
-    [files, binaries, id, type],
+    () =>
+      files && binaries && id && type
+        ? imageNotTaken(files, binaries, { id, type }, measured)
+        : null,
+    [files, binaries, id, type, measured],
   );
 }
 
@@ -252,9 +337,28 @@ export function useServerImageMarks(
         binaries: Object.fromEntries(m.binaries.map((b) => [b.path, { hash: b.hash }])),
       }));
   }, [modules, projectIds]);
-  const plain = useMemo(
-    () => new Map(shown.map((m) => [m.id, imageMarks(m.files, m.binaries)] as const)),
+  // Measured as published: a draft of a module is not what the server's list shows.
+  const wanted = useMemo(
+    () => shown.flatMap((m) => filesToMeasure(m.id, m.files, m.binaries, true)),
     [shown],
+  );
+  const sizeOf = usePixelSizes(wanted);
+  const measuredIn = useMemo(
+    () => (binaries: BinaryTree) => (path: string) => {
+      const hash = binaries[path]?.hash;
+      return hash ? sizeOf(hash) : undefined;
+    },
+    [sizeOf],
+  );
+  const plain = useMemo(
+    () =>
+      new Map(
+        shown.map(
+          (m) =>
+            [m.id, imageMarks(m.files, m.binaries, undefined, measuredIn(m.binaries))] as const,
+        ),
+      ),
+    [shown, measuredIn],
   );
   // Asked again when the module is read again: a deploy or an update may have changed them.
   const asked = useRef(new WeakSet<object>());
@@ -271,10 +375,13 @@ export function useServerImageMarks(
     const marks = new Map(
       shown.map((m) => {
         const read = origins[m.id];
-        return [m.id, read ? imageMarks(m.files, m.binaries, read) : plain.get(m.id)] as const;
+        return [
+          m.id,
+          read ? imageMarks(m.files, m.binaries, read, measuredIn(m.binaries)) : plain.get(m.id),
+        ] as const;
       }),
     );
     return (asset) =>
       asset.type === "font" ? null : (marks.get(asset.projectId)?.get(imageStem(asset)) ?? null);
-  }, [shown, origins, plain]);
+  }, [shown, origins, plain, measuredIn]);
 }
