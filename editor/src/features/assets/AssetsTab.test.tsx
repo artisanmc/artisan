@@ -1,5 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -90,9 +91,27 @@ describe("AssetsTab", () => {
     expect(screen.getByTitle("ico_one")).toBeTruthy();
   });
 
-  it("marks in the list the owner's version of a shipped image, and the one the pack does not take", () => {
+  it("marks in the list the owner's version of a shipped image, the one whose original changed and the one the pack does not take", () => {
     const image = (id: string): Asset => ({ ...A1, id, name: id, usages: ["button"] });
-    useAssetStore.getState().setAssets([image("crest"), image("banner"), image("mine")]);
+    useAssetStore
+      .getState()
+      .setAssets([image("crest"), image("banner"), image("seal"), image("mine")]);
+    const origin = (hash: string) => ({ module: "guilds", template: "base", version: 1, hash });
+    // What the server recorded: the seal was drawn against an original the module replaced since.
+    useProjectTemplatesStore.setState({
+      entries: {
+        p1: {
+          status: "ready",
+          hashes: {},
+          origins: {
+            "assets/textures/banner.png": origin("o2"),
+            "originals/assets/textures/banner.png": origin("o2"),
+            "assets/textures/seal.png": origin("o4"),
+            "originals/assets/textures/seal.png": origin("o4b"),
+          },
+        },
+      },
+    });
     useProjectBaselineStore.setState({
       baselines: {
         p1: {
@@ -106,6 +125,8 @@ describe("AssetsTab", () => {
           "assets/textures/crest.png": { hash: "m1", size: 1 },
           "originals/assets/textures/banner.png": { hash: "o2", size: 1 },
           "assets/textures/banner.png": { hash: "m2", size: 1 },
+          "originals/assets/textures/seal.png": { hash: "o4b", size: 1 },
+          "assets/textures/seal.png": { hash: "m4", size: 1 },
           "assets/textures/mine.png": { hash: "m3", size: 1 },
         },
       },
@@ -113,10 +134,12 @@ describe("AssetsTab", () => {
     render(<AssetsTab projectId={"p1" as never} />);
     const mark = (title: RegExp) =>
       screen.getByTitle(title).querySelector("[data-testid=asset-mark]")?.getAttribute("data-tone");
-    expect(mark(/^crest · Non prise/)).toBe("warning");
-    expect(mark(/^banner · Votre version/)).toBe("brand");
+    expect(mark(/^crest · Non prise/)).toBe("danger");
+    expect(mark(/^banner · Votre version d'une image/)).toBe("brand");
+    expect(mark(/^seal · Votre version : l'original du module a changé/)).toBe("warning");
     expect(screen.getByTitle("mine").querySelector("[data-testid=asset-mark]")).toBeNull();
     useProjectBaselineStore.setState({ baselines: {}, binaryBaselines: {} });
+    useProjectTemplatesStore.setState({ entries: {} });
   });
 
   it("opens the upload dialog when clicking Upload", () => {

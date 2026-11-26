@@ -2,12 +2,10 @@ import { Button } from "@/components/ui/button";
 import type { Asset } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { assetDiskPath } from "@/lib/pack/assetDiskWrite";
-import { useProjectBaselineStore } from "@/state/projectBaselineStore";
-import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { originalChanged, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
-import { useProjectsStore } from "@/state/projectsStore";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useProjectOrigins } from "./useProjectOrigins";
 
 /**
  * Says that the original of the image changed since the owner's version of it, and lets them
@@ -17,24 +15,10 @@ import { useTranslation } from "react-i18next";
  */
 export function OriginalChanged({ projectId, asset }: { projectId: ProjectId; asset: Asset }) {
   const { t } = useTranslation();
-  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
-  const serverId = useProjectRuntime(projectId)?.serverId ?? project?.serverKeyId ?? null;
-  const diskId = project ? (project.diskId ?? project.id) : null;
-  const target = useMemo(
-    () => (serverId && diskId ? { serverId, diskId } : null),
-    [serverId, diskId],
-  );
-  const entry = useProjectTemplatesStore((s) => s.entries[projectId]);
-  const baseline = useProjectBaselineStore((s) => s.baselines[projectId]);
+  // The module's tree reads the origins when it is shown; here when it has not.
+  const { entry, target } = useProjectOrigins(projectId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // The module's tree reads the origins when it is shown; here when it has not.
-  const unread = !entry;
-  useEffect(() => {
-    if (!target || !baseline || !unread) return;
-    void useProjectTemplatesStore.getState().load(projectId, target, baseline);
-  }, [projectId, target, baseline, unread]);
 
   const path = assetDiskPath(asset.type, asset.id);
   if (asset.type === "font" || !entry || !originalChanged(entry.origins, path)) return null;

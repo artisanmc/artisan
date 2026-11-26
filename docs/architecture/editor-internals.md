@@ -180,10 +180,13 @@ by every write of the descriptor (`descriptorYaml`) and set from the panel's adv
 (`patchAsset`'s `function`, `""` to clear). `refusedImages` is the rule both pack builders
 apply: the owner's image of an original that declares a function is left out at other
 measures. `imageNotTaken` (`imageStanding.ts`) applies it to the open module from what the
-descriptors state, and `AssetDetailPanel` reports it on the image. `imageMarks` gives both
-standings for the whole module at once (`not_taken`, `own_version`, by the stem of the file):
+descriptors state, and `AssetDetailPanel` reports it on the image. `imageMarks` gives the
+standings for the whole module at once (`not_taken`, `original_changed`, `own_version`, by the
+stem of the file; `original_changed` needs the origins the server recorded, read by
+`useProjectOrigins` when the module holds a version over an original):
 the module's list (`OwnAssets`) draws them as a dot on the tile and a line in its tooltip
-(`AssetGrid`'s `markOf`). The common images' Project has no marks: it says who drew a piece
+(`AssetGrid`'s `markOf`, `imageMarkShown`). The server's Resources draw the same marks from the
+modules as published (`useServerImageMarks`), asking each module's origins once per read. The common images' Project has no marks: it says who drew a piece
 its own way (`CommonImageState`).
 `AssetPicker` copies another module's image into the open one (`copyAssetInto`) before it
 gives it to its caller. With `named` (the button's image, a title layer: callers that write

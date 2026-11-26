@@ -54,8 +54,9 @@ image is taken at those measures only: at others the module's original keeps sho
 editor and in the game, and the image says **Not taken** with both measures.
 
 In the list, a dot in the corner of an image marks your version of an image the module ships.
-The dot turns to the warning colour when that version is not taken; hover the image to read
-which.
+The dot turns to the warning colour when the module's original changed since your version, and
+to red when your version is not taken; hover the image to read which. The server's
+**Resources** carry the same dots on every module's images.
 
 ## Removing a shipped document
 

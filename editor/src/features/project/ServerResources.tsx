@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
 import type { Project } from "@/domain/types";
-import { AssetGrid } from "@/features/assets/AssetGrid";
+import { AssetGrid, type AssetMark, imageMarkShown } from "@/features/assets/AssetGrid";
 import { AssetStage } from "@/features/assets/AssetStage";
 import { ResourcesSplit } from "@/features/assets/AssetsTab";
 import {
@@ -25,6 +25,7 @@ import {
   useKitAssets,
   useKitMisfits,
 } from "@/features/assets/kitAssets";
+import { useServerImageMarks } from "@/features/assets/imageStanding";
 import { useOtherProjectAssets } from "@/features/assets/useOtherProjectAssets";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { type ImageUse, commonImageKey, kitNameOf, kitSlot, moduleImageKey } from "@/lib/pack/kit";
@@ -97,6 +98,8 @@ export function ServerResources({
   const kit = useKitAssets();
   const uses = useImageUses();
   const misfits = useKitMisfits();
+  // A module's image says what its module's list says of it; a common image has its badge.
+  const marks = useServerImageMarks(shownIds);
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
@@ -110,6 +113,10 @@ export function ServerResources({
     nameOf(asset).toLowerCase().includes(search.toLowerCase()),
   );
   const selected = assets.find((asset) => keyOf(asset) === selectedKey) ?? null;
+  const markOf = (asset: Asset): AssetMark | null => {
+    const mark = ownerOf(asset) ? marks(asset) : null;
+    return mark ? imageMarkShown(mark, t) : null;
+  };
 
   const menu = (
     <DropdownMenu>
@@ -216,6 +223,7 @@ export function ServerResources({
             const owner = ownerOf(asset);
             return `${nameOf(asset)} · ${owner ? owner.name : t("projectSource.common")}`;
           }}
+          markOf={markOf}
         />
       )}
     </div>
@@ -227,6 +235,7 @@ export function ServerResources({
       name={nameOf(selected)}
       owner={ownerOf(selected)}
       misfit={ownerOf(selected) ? undefined : misfits.get(nameOf(selected))}
+      mark={markOf(selected)}
       usedBy={
         selected.type === "font"
           ? null
@@ -260,6 +269,7 @@ function ServerAssetDetail({
   name,
   owner,
   misfit,
+  mark,
   usedBy,
   onOpenModule,
   onOpenCommon,
@@ -267,6 +277,8 @@ function ServerAssetDetail({
 }: {
   asset: Asset;
   name: string;
+  /** What its module's list says of a module's image: the owner's version, a changed original, not taken. */
+  mark: AssetMark | null;
   /** Set when the server holds an image of this piece's name at another size, which is not taken. */
   misfit?: KitMisfit;
   /** The module that holds it; `null` for a common image. */
@@ -298,6 +310,15 @@ function ServerAssetDetail({
         {owner ? null : <CommonImageBadge asset={asset} misfit={misfit} />}
       </div>
       {owner ? null : <CommonImageMisfit asset={asset} misfit={misfit} />}
+      {mark ? (
+        <p
+          className="text-xs"
+          style={{ color: mark.tone === "brand" ? "var(--text-mut)" : `var(--${mark.tone})` }}
+          data-testid="server-asset-mark"
+        >
+          {mark.label}
+        </p>
+      ) : null}
       {redrawnPiece && <CommonImageOriginal slot={redrawnPiece} />}
       <div className="flex flex-col gap-1">
         <span className="field-label">{t("serverResources.provider")}</span>

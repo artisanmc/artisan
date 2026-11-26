@@ -20,6 +20,7 @@ const fr: typeof en = {
     mark: {
       notTaken: "Non prise : l'original du module s'affiche",
       ownVersion: "Votre version d'une image livrée par le module",
+      originalChanged: "Votre version : l'original du module a changé depuis",
     },
     original: {
       label: "Original du module",

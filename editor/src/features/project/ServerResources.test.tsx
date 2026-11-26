@@ -1,6 +1,7 @@
 import type { Asset } from "@/domain/asset";
 import type { Project, ProjectId } from "@/domain/types";
 import * as local from "@/features/assets/localAssets";
+import * as templates from "@/lib/api/templates";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { mockOpenProjects } from "@/mock/fixtures";
 import { useKitStore } from "@/state/kitStore";
@@ -104,12 +105,67 @@ const callbacks = () => ({
 });
 
 beforeEach(() => {
-  useKitStore.setState({ read: undefined, themes: [], stacks: false });
+  useKitStore.setState({ read: undefined, themes: [], stacks: false, modules: [] });
   useServerIndexStore.getState().reset();
 });
 afterEach(() => vi.restoreAllMocks());
 
 describe("the server's Resources", () => {
+  it("marks a module's image as its module's list does: the owner's version, a changed original", async () => {
+    setup();
+    const held = (paths: string[]) => paths.map((path) => ({ path, hash: path }));
+    useKitStore.setState({
+      modules: [
+        {
+          projectId: "shop",
+          folder: "shop",
+          files: {},
+          binaries: held(["assets/textures/coin.png", "originals/assets/textures/coin.png"]),
+        },
+        {
+          projectId: "guilds",
+          folder: "guilds",
+          files: {},
+          binaries: held(["assets/textures/blason.png", "originals/assets/textures/blason.png"]),
+        },
+      ],
+    });
+    const origin = (hash: string) => ({ module: "m", template: "base", version: 1, hash });
+    const asked = vi.spyOn(templates, "fetchProjectOrigins").mockImplementation(async (target) =>
+      target === "shop"
+        ? {
+            ok: true,
+            origins: {
+              "assets/textures/coin.png": origin("v1"),
+              "originals/assets/textures/coin.png": origin("v2"),
+            },
+          }
+        : // The guilds' server does not answer: what its files say is still marked.
+          { ok: false, error: "fetch_error" },
+    );
+    render(<ServerResources scope={WHOLE_SERVER} common={<p>communes</p>} {...callbacks()} />);
+    const changed = await screen.findByTitle(
+      "coin · Boutique · Votre version : l'original du module a changé depuis",
+    );
+    expect(changed.querySelector("[data-testid=asset-mark]")?.getAttribute("data-tone")).toBe(
+      "warning",
+    );
+    const own = screen.getByTitle(
+      "blason · Guildes · Votre version d'une image livrée par le module",
+    );
+    expect(own.querySelector("[data-testid=asset-mark]")?.getAttribute("data-tone")).toBe("brand");
+    // A common image has its own badge, never a module's mark.
+    expect(
+      screen.getByTitle("button.3x1 · Images communes").querySelector("[data-testid=asset-mark]"),
+    ).toBeNull();
+    // Asked once per module that holds a version of its own, and said in the image's panel too.
+    expect(asked.mock.calls.map(([target]) => target).sort()).toEqual(["guilds", "shop"]);
+    await userEvent.click(changed);
+    expect(screen.getByTestId("server-asset-mark")).toHaveTextContent(
+      "Votre version : l'original du module a changé depuis",
+    );
+  });
+
   it("lists every module's images with the common ones, each with its provider and its menus", async () => {
     setup();
     const on = callbacks();
