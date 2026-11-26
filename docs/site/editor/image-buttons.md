@@ -62,7 +62,9 @@ an entry **Common images**, beside this module, all modules and the other module
 every common image as the server has it deployed; one selected shows its size, who drew it
 (**Artisan**, **Redrawn** or **This server's**) and what a menu of the open module writes to
 name it. Nothing is copied into the module. **Redraw for the server** (a piece still Artisan's)
-or **Open in the common images** opens the image in the atelier of the common images. The
+or **Open in the common images** opens the image in the atelier of the common images. A piece
+still Artisan's opens as shipped: the server's own version is written when you first save, and
+nothing is added to the common images if you leave without drawing. The
 common images are not one of the other modules of that selector. **What names it** lists what
 shows this image on the whole server: the menus, each a link to that menu, the composed images
 built over it, and the files of a module that draw it on screen (a conversation's HUD, for
@@ -207,10 +209,12 @@ what changed, pixels and layers, into your draft.
 **Layers.** Every image is one or several layers, listed from the top one down; the selected
 one is what the tools act on. Add one with **Common image**, **Module image** or **Drawing**
 (an empty image of the same size, on top, to draw on). With the move tool, drag a layer (hold
-Shift to move by one slot, or use the arrow keys for one pixel), reorder or remove layers in
-the list, and repeat one with **Columns** and **Rows** (the slots of a window: a grid of
+Shift to put it on the slots' grid, wherever it started; the arrow keys move it by one pixel,
+and with Shift to the next slot that way), reorder or remove layers in the list, and repeat one with **Columns** and **Rows** (the slots of a window: a grid of
 `artisan:cell`). With a drawing tool, you draw on the selected layer among the others, the
-ones above shown through; switching layer or tool saves what you drew. Only a drawing of the
+ones above shown through; switching layer or tool saves what you drew. **Ctrl+Z** undoes and
+**Ctrl+Y** (or **Ctrl+Shift+Z**) redoes, wherever the focus is: a stroke while you draw, a
+move, a resize or any other change of a layer otherwise. Only a drawing of the
 module can be drawn on: a common image is placed here and redrawn among the common images. A
 common image is written `artisan:<name>` in the recipe; `kit:<name>`, the former spelling, is
 read the same and stays as written until the layer is replaced. The image is as large as its
@@ -447,7 +451,7 @@ in the theme `artisan`'s `components/` folder: it is read first. Since the base 
 their edges at any width, a component placed on four or five slots stays sharp.
 
 A module's **Resources** have a **Components** view: the list of its components, and the
-one selected shown as a menu draws it, on the slots picked with the width and height of its
+one selected shown as a menu draws it in a chest of six rows, on the slots picked with the width and height of its
 parts. Its **Parameters** are declared there (a name, a text or an image, a default), its
 parts are edited as a button's, and the buttons of the module that name it are listed. A
 component that buttons still name cannot be deleted.

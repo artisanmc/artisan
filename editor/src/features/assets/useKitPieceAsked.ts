@@ -2,14 +2,15 @@ import { kitSlot } from "@/lib/pack/kit";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useEffect, useRef } from "react";
 import { useAssetStore } from "./assetStore";
-import { ownKitPiece, redrawKitPiece } from "./kitPieces";
+import { ownKitPiece, redrawKitPiece, shippedKitPiece } from "./kitPieces";
 import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
 
 /**
  * Answers a request for a common image (`useResourcesView.piece`) in the common images'
- * Project: opens its image of that name in the atelier, copying Artisan's under the piece's
- * name first when it is a piece of the base the server has not redrawn. Any other module drops
+ * Project: opens its image of that name in the atelier. A piece of the base the server has not
+ * redrawn opens as the theme lists it (`originals/`), and nothing is written before the first
+ * save; only a server that lists no original of it (an older one) gets Artisan's copied first. Any other module drops
  * the request, the one it was made in apart (`pieceFrom`): that one is on its way there.
  */
 export function useKitPieceAsked(projectId: string) {
@@ -30,8 +31,10 @@ export function useKitPieceAsked(projectId: string) {
       return;
     }
     if (loading) return;
+    // The server's own image of the piece, else the base's as the theme lists it: redrawn
+    // in place, the server's file written at the first save and not before.
     const mine = slot
-      ? ownKitPiece(assets, projectId, slot)
+      ? (ownKitPiece(assets, projectId, slot) ?? shippedKitPiece(assets, projectId, slot))
       : assets.find((a) => a.projectId === projectId && a.id === piece && a.type !== "font");
     if (mine) {
       useAssetStore.getState().setSelectedId(mine.id);

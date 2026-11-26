@@ -49,7 +49,17 @@ describe("useKitPieceAsked", () => {
     expect(uploadAsset).not.toHaveBeenCalled();
   });
 
-  it("copies Artisan's image first when the piece is not redrawn, once", async () => {
+  it("opens the base's image as the theme lists it, and writes nothing before a save", () => {
+    // `originals/assets/textures/close.1x1.png`: listed without a descriptor, so without a size.
+    useAssetStore.getState().setAssets([image("close.1x1", 0, 0)]);
+    useResourcesView.getState().askPiece("close.1x1");
+    renderHook(() => useKitPieceAsked("kit"));
+    expect(useResourcesView.getState().studio).toBe("close.1x1");
+    expect(useResourcesView.getState().piece).toBeNull();
+    expect(uploadAsset).not.toHaveBeenCalled();
+  });
+
+  it("copies Artisan's image first on a server that lists no original of the piece, once", async () => {
     uploadAsset.mockResolvedValue(image("close.1x1", 16, 16));
     useResourcesView.getState().askPiece("close.1x1");
     renderHook(() => useKitPieceAsked("kit"));

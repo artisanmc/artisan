@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { type RailTool, ToolRail } from "@/components/ui/tool-rail";
+import { isTypingTarget } from "@/lib/keyboard";
 import {
   ChevronLeft,
   Eraser,
@@ -7,10 +8,12 @@ import {
   PaintBucket,
   Pencil,
   Pipette,
+  Redo2,
+  Undo2,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { type KeyboardEvent, type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 
@@ -68,6 +71,19 @@ export function StudioTools({
   );
 }
 
+/** A key pressed in the atelier: what its editors read of it. */
+export type StudioKeyEvent = Pick<
+  globalThis.KeyboardEvent,
+  | "key"
+  | "ctrlKey"
+  | "metaKey"
+  | "shiftKey"
+  | "altKey"
+  | "target"
+  | "preventDefault"
+  | "stopPropagation"
+>;
+
 /** What an editor of the atelier gives the frame to place (`StudioFrame`). */
 export interface StudioParts {
   /** The tools, on the left. */
@@ -84,8 +100,8 @@ export interface StudioParts {
   panels: ReactNode;
   /** The image as a player sees it, last in the right column. */
   preview: ReactNode;
-  /** The atelier's keys: tools, undo. */
-  keys?: (event: KeyboardEvent<HTMLDivElement>) => void;
+  /** The atelier's keys: tools, undo. Heard on the whole page while the atelier is open. */
+  keys?: (event: StudioKeyEvent) => void;
 }
 
 /** One section of the atelier's right column. */
@@ -136,11 +152,24 @@ export function StudioFrame({
   /** The guides' section, placed before the preview. */
   guides?: ReactNode;
 }) {
+  // The keys are the atelier's wherever the focus is, a click on the page's edge included:
+  // heard before the project's own undo (capture), which they replace while it is open.
+  const keys = useRef(parts.keys);
+  keys.current = parts.keys;
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (isTypingTarget(event.target)) return;
+      // A dialog over the atelier keeps its keys.
+      if ((event.target as HTMLElement | null)?.closest?.('[role="dialog"]')) return;
+      keys.current?.(event);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
   return (
     <div
       className="flex h-full min-h-0 flex-col overflow-y-auto lg:overflow-hidden"
       data-testid="image-studio"
-      onKeyDown={parts.keys}
     >
       <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2">
         <Button variant="outline" size="sm" onClick={onBack}>
@@ -325,4 +354,61 @@ export function ZoomControls({ view }: { view: StageZoom }) {
       </Button>
     </div>
   );
+}
+
+/** Undo and redo, in the atelier's bar, before the zoom. */
+export function UndoControls({
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+}: { canUndo: boolean; canRedo: boolean; onUndo: () => void; onRedo: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="size-7"
+        aria-label={t("pixel.undo")}
+        title={`${t("pixel.undo")} (Ctrl+Z)`}
+        disabled={!canUndo}
+        onClick={onUndo}
+      >
+        <Undo2 className="size-4" />
+      </Button>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="size-7"
+        aria-label={t("pixel.redo")}
+        title={`${t("pixel.redo")} (Ctrl+Y)`}
+        disabled={!canRedo}
+        onClick={onRedo}
+      >
+        <Redo2 className="size-4" />
+      </Button>
+      <span aria-hidden className="mx-1 h-4 w-px bg-[var(--border)]" />
+    </>
+  );
+}
+
+/**
+ * Whether a key is the atelier's undo (Ctrl+Z) or redo (Ctrl+Y, Ctrl+Shift+Z); the key is then
+ * the atelier's alone, the project's undo does not hear it.
+ */
+export function undoKey(event: StudioKeyEvent): "undo" | "redo" | null {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
+  const key = event.key.toLowerCase();
+  const which =
+    key === "z" && !event.shiftKey
+      ? "undo"
+      : key === "y" || (key === "z" && event.shiftKey)
+        ? "redo"
+        : null;
+  if (which) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  return which;
 }

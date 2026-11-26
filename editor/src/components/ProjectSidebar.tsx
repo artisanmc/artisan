@@ -18,8 +18,10 @@ import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
+import { isKitFolder } from "@/lib/pack/kit";
 import { projectDestination, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
+import { useKitStore } from "@/state/kitStore";
 import { useUpdatesAvailable } from "@/state/updatesAvailableStore";
 import {
   DndContext,
@@ -492,7 +494,9 @@ function ActiveProjectDocuments({
 /**
  * The open project when no row of the list holds it: the demo (no server) or
  * a project the server's list does not show. Without this block its Documents
- * would have nowhere to go.
+ * would have nowhere to go. A theme has no Documents (its images are redrawn from the
+ * server's Resources): it gets no block, so redrawing an image does not look like opening
+ * a module.
  */
 function UnlistedOpenProject({
   urlId,
@@ -504,7 +508,13 @@ function UnlistedOpenProject({
   const project = useProjectsStore((s) =>
     s.openProjects.projects.find((p) => p.id === urlId || projectUrlId(p) === urlId),
   );
-  if (!project) return null;
+  const theme = useKitStore(
+    (s) =>
+      !!project &&
+      (s.read?.projectId === project.id ||
+        Object.values(s.own).some((own) => own.projectId === project.id)),
+  );
+  if (!project || theme || isKitFolder(project.diskId ?? project.id)) return null;
   return (
     <div className="mb-3 flex flex-col">
       <div className="flex items-center gap-1 rounded-[10px] px-2.5 py-0.5">

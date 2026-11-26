@@ -225,7 +225,8 @@ export default {
     width: "Width",
     height: "Height",
     sizeHint: "Without a fixed size, the image is as large as its bottom layer.",
-    dragHint: "Drag a layer; Shift moves it by one slot. Arrow keys move the selected layer.",
+    dragHint:
+      "Drag a layer; Shift puts it on the slots. Arrow keys move the selected layer, with Shift to the next slot.",
     nothing: "None of the layers can be drawn.",
     saving: "Saving…",
   },

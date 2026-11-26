@@ -232,7 +232,7 @@ const fr: typeof en = {
     height: "Hauteur",
     sizeHint: "Sans taille fixe, l’image a la taille de son calque du dessous.",
     dragHint:
-      "Glissez un calque ; Maj le déplace d’une case. Les flèches déplacent le calque sélectionné.",
+      "Glissez un calque ; Maj le pose sur les cases. Les flèches déplacent le calque sélectionné, avec Maj jusqu’à la case suivante.",
     nothing: "Aucun calque ne peut être dessiné.",
     saving: "Enregistrement…",
   },

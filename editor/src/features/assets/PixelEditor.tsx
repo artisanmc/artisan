@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
@@ -6,24 +5,18 @@ import { uploadAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
 import { type RgbaImage, decodePng, encodePng } from "@/lib/pack/png";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
-import { Redo2, Undo2 } from "lucide-react";
-import {
-  type KeyboardEvent,
-  type PointerEvent,
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type PointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   type DrawTool,
   StageMessage,
+  type StudioKeyEvent,
   type StudioTool,
   StudioTools,
+  UndoControls,
   ZoomControls,
   toolOfKey,
+  undoKey,
   useStageZoom,
 } from "./StudioFrame";
 import { assetBytes } from "./assetBytes";
@@ -139,7 +132,7 @@ export interface PixelParts {
   controls: ReactNode;
   /** The colour drawn with and the palettes: the content of a section. */
   colour: ReactNode;
-  keys?: (event: KeyboardEvent<HTMLDivElement>) => void;
+  keys?: (event: StudioKeyEvent) => void;
   /** The image as it is drawn now, a data URL; empty while it is read. */
   picture: string;
   dirty: boolean;
@@ -362,19 +355,13 @@ export function PixelEditor({
     }
   };
 
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).tagName === "INPUT") return;
-    const key = event.key.toLowerCase();
-    if (event.ctrlKey || event.metaKey) {
-      if (key === "z" && !event.shiftKey) undo();
-      else if (key === "y" || (key === "z" && event.shiftKey)) redo();
-      else return;
-      // The editor's own undo, not the project's.
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-    const chosen = toolOfKey(key);
+  const onKeyDown = (event: StudioKeyEvent) => {
+    // The editor's own undo, not the project's.
+    const history = undoKey(event);
+    if (history === "undo") undo();
+    else if (history === "redo") redo();
+    if (history || event.ctrlKey || event.metaKey || event.altKey) return;
+    const chosen = toolOfKey(event.key);
     if (chosen) void choose(chosen);
   };
 
@@ -452,29 +439,12 @@ export function PixelEditor({
     ),
     controls: (
       <div className="flex items-center gap-1">
-        <Button
-          size="icon"
-          variant="ghost"
-          className="size-7"
-          aria-label={t("pixel.undo")}
-          title={`${t("pixel.undo")} (Ctrl+Z)`}
-          disabled={undone.current.length === 0}
-          onClick={undo}
-        >
-          <Undo2 className="size-4" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="size-7"
-          aria-label={t("pixel.redo")}
-          title={`${t("pixel.redo")} (Ctrl+Y)`}
-          disabled={redone.current.length === 0}
-          onClick={redo}
-        >
-          <Redo2 className="size-4" />
-        </Button>
-        <span aria-hidden className="mx-1 h-4 w-px bg-[var(--border)]" />
+        <UndoControls
+          canUndo={undone.current.length > 0}
+          canRedo={redone.current.length > 0}
+          onUndo={undo}
+          onRedo={redo}
+        />
         <ZoomControls view={view} />
       </div>
     ),

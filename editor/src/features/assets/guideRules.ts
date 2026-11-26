@@ -81,3 +81,22 @@ export function guideNames(width: number, height: number): GuideName[] {
   if (!guides) return [];
   return guides.kind === "window" ? ["slots", "inventory", "title"] : ["slots"];
 }
+
+/** Where the slots' grid starts in an image of that size: a window's first slot, else its corner. */
+export function slotOrigin(width: number, height: number): { x: number; y: number } {
+  return imageGuides(width, height)?.kind === "window" ? { ...FIRST_SLOT } : { x: 0, y: 0 };
+}
+
+/** `value` on the nearest line of the slots' grid that starts at `origin`. */
+export const snapToSlot = (value: number, origin: number) =>
+  origin + Math.round((value - origin) / SLOT) * SLOT;
+
+/**
+ * One slot further from `value` in the direction of `sign`, on the grid that starts at
+ * `origin`: a layer that sits between two lines goes to the next one, not a slot away.
+ */
+export function nextSlot(value: number, origin: number, sign: 1 | -1): number {
+  const at = (value - origin) / SLOT;
+  const line = sign > 0 ? Math.floor(at) + 1 : Math.ceil(at) - 1;
+  return origin + line * SLOT;
+}

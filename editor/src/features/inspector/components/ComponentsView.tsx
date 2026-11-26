@@ -22,8 +22,8 @@ import {
   writeComponentFile,
 } from "./componentFile";
 
-/** The rows of the chest a component is shown in. */
-const ROWS = 3;
+/** The rows of the chest a component is shown in: the tallest, so one of six rows fits. */
+const ROWS = 6;
 
 /**
  * The Project's components (ADR `element-parts-and-sliced-images`, decision 7): their list,
