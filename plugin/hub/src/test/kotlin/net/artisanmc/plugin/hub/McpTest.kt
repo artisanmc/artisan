@@ -946,6 +946,63 @@ class McpTest {
     }
 
     @Test
+    fun `an owner's image at other measures than its original's is not taken, the original shows, and the tools say so`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        // The module ships `crest` as a menu image, 54x18; the owner's is 20x20.
+        modules["guilds"] = McpFixtures.Module(
+            files = mapOf(
+                "originals/assets/textures/crest.yml" to "function: menu\n",
+                "assets/textures/crest.yml" to "width: 20\nheight: 20\nusages: [button]\n",
+                "menus/hall.yml" to "schema: menu/v1\nsize: 27\ntitle: Hall\nelements:\n" +
+                    "  - id: crest\n    positions: \"3-5\"\n    image: { asset: crest }\n",
+            ),
+            images = mapOf(
+                "originals/assets/textures/crest.png" to solid(54, 18, 0x3366cc),
+                "assets/textures/crest.png" to solid(20, 20, 0xcc2020),
+            ),
+        )
+        val (access, _) = tokens()
+        // The middle of the button over columns 3 to 5 of the first row.
+        fun shown(vararg args: Pair<String, Any?>): List<Int> {
+            val rendered = tool(access, "render_menu", "project" to "u-local.guilds", "path" to "menus/hall.yml", "scale" to 1, *args)
+            assertFalse(rendered.has("isError"), rendered.toString())
+            val window = rendered["structuredContent"]["window"]
+            val picture = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+            val at = ((window["y"].asInt() + 17 + 9) * picture.width + window["x"].asInt() + 7 + 4 * 18) * 4
+            return picture.data.slice(at until at + 3).map { it.toInt() and 0xff }
+        }
+        assertEquals(listOf(0x33, 0x66, 0xcc), shown(), "the original, as the pack shows it")
+
+        // The image is still read where it is, and says it is not taken.
+        fun read(path: String, draft: String? = null) =
+            tool(access, "read_image", *listOfNotNull("project" to "u-local.guilds", "path" to path, draft?.let { "draft_id" to it }).toTypedArray())["structuredContent"]
+        val note = read("assets/textures/crest.png")["not_taken"].asText()
+        assertTrue("54x18" in note && "originals/assets/textures/crest.png" in note, note)
+        assertFalse(read("originals/assets/textures/crest.png").has("not_taken"))
+        // The survey lists what the pack shows: the original.
+        val surveyed = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["modules"].first { it["project"].asText() == "u-local.guilds" }
+        assertEquals(listOf("originals/assets/textures/crest.png"), surveyed["images"].map { it["path"].asText() })
+
+        // Written at other measures, the image enters the draft and the result says it is not taken; at the original's, it is.
+        val draftId = tool(access, "start_draft", "project" to "u-local.guilds", "name" to "AI: crest")["structuredContent"]["draft_id"].asText()
+        fun write(png: ByteArray) = tool(
+            access, "write_image", "project" to "u-local.guilds", "draft_id" to draftId, "name" to "crest",
+            "png_base64" to java.util.Base64.getEncoder().encodeToString(png),
+        )
+        val small = write(solid(30, 18, 0x20c040))
+        assertFalse(small.has("isError"), small.toString())
+        assertTrue("54x18" in small["structuredContent"]["not_taken"].asText())
+        assertEquals(listOf(0x33, 0x66, 0xcc), shown("draft_id" to draftId))
+        assertTrue(read("assets/textures/crest.png", draftId).has("not_taken"))
+        val sized = write(solid(54, 18, 0x20c040))
+        assertFalse(sized["structuredContent"].has("not_taken"), sized.toString())
+        assertEquals(listOf(0x20, 0xc0, 0x40), shown("draft_id" to draftId))
+        assertFalse(read("assets/textures/crest.png", draftId).has("not_taken"))
+    }
+
+    @Test
     fun `an image is cut out of a picture, at the art's own size and without its ground`() {
         // A round button drawn four times its size on a plain ground, as a screenshot or a sprite sheet shows it.
         val rows = listOf("_kkkkkk_", "kwwwwwgk", "kwrrrrgk", "kwrbbrgk", "kgggggGk", "_kkkkkk_")

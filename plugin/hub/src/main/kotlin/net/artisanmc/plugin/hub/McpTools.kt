@@ -13,6 +13,7 @@ import net.artisanmc.plugin.pack.Kit
 import net.artisanmc.plugin.pack.KitTheme
 import net.artisanmc.plugin.pack.ThemeStack
 import net.artisanmc.plugin.pack.MenuPictures
+import net.artisanmc.plugin.pack.OwnerImages
 import net.artisanmc.plugin.pack.PixelArt
 import net.artisanmc.plugin.pack.PixelRect
 import net.artisanmc.plugin.pack.Png
@@ -840,12 +841,20 @@ class McpTools(
         val draft = draftId?.let { draftSnapshot(principal, project, it) }
         if (composed) return readComposed(project, path, draft)
         val image = McpImages.fromPng(imageBytes(project, path, draft))
+        val notTaken = if (path.startsWith("${Originals.DIR}/")) null else Images(project, projects.read(project), draft).notTaken[path]
         return Shown(
             mapOf("project" to project.id, "path" to path, "shown_at" to "x${McpImages.scale(image)}") + McpImages.facts(image) +
-                ("pixels" to McpImages.grid(image)),
+                ("pixels" to McpImages.grid(image)) + mapOf("not_taken" to notTaken?.let(::notTakenNote)).filterValues { it != null },
             listOf(McpImages.preview(image)),
         )
     }
+
+    /** What a tool says of an owner's image the pack does not take ([Images.notTaken]). */
+    private fun notTakenNote(image: OwnerImages.NotTaken): String =
+        "Not taken: the module ships `${image.original}` as a ${image.function} image, whose measures are fixed" +
+            (if (image.measures.isEmpty()) "" else " (${image.measures})") +
+            ". This image has others, so the pack, the game and render_menu show the module's original. " +
+            "Draw it at those measures to replace the original, or give it another name."
 
     /** A composed image, shown as the pack assembles it, with its layers as write_image's `compose` takes them. */
     private fun readComposed(project: ProjectRef, path: String, draft: DraftSnapshot?): Any {
@@ -894,9 +903,19 @@ class McpTools(
          */
         private val roots = if (project.folder == KIT_FOLDER) IMAGE_DIRS.values.toList() else IMAGE_ROOTS
 
+        /**
+         * The owner's images the pack does not take, by path: one that stands over an original
+         * whose function fixes other measures (ADR `common-images-and-themes`, decision 4). The
+         * original shows in its place, here as in the pack.
+         */
+        val notTaken: Map<String, OwnerImages.NotTaken> by lazy {
+            if (project.folder == KIT_FOLDER) emptyMap()
+            else OwnerImages.notTaken(tree, hashes.filterValues { it != null }.keys, ::bytes).associateBy { it.path }
+        }
+
         /** The module's PNGs, its own over the one it shipped with, name for name. */
         val pngs: List<String> by lazy {
-            hashes.keys.filter { it.endsWith(".png") && it.substringBeforeLast('/') in roots && hashes[it] != null }
+            hashes.keys.filter { it.endsWith(".png") && it.substringBeforeLast('/') in roots && hashes[it] != null && it !in notTaken }
                 .groupBy { it.substringAfterLast('/') }.values.map { same -> same.minBy { roots.indexOf(it.substringBeforeLast('/')) } }.sorted()
         }
 
@@ -917,7 +936,7 @@ class McpTools(
         }
 
         fun png(name: String): MenuPictureImage? {
-            val at = roots.map { "$it/$name.png" }.firstOrNull { hashes[it] != null } ?: return null
+            val at = roots.map { "$it/$name.png" }.firstOrNull { hashes[it] != null && it !in notTaken } ?: return null
             return bytes(at)?.let { MenuPictureImage(it, descriptor(at.removeSuffix(".png"))?.let(::ascent)) }
         }
 
@@ -937,7 +956,7 @@ class McpTools(
          * the owner's before the one the module shipped with): a theme's colours then repaint it.
          */
         fun ramps(name: String): Boolean {
-            val stem = roots.map { "$it/$name" }.firstOrNull { hashes["$it.png"] != null } ?: return false
+            val stem = roots.map { "$it/$name" }.firstOrNull { hashes["$it.png"] != null && "$it.png" !in notTaken } ?: return false
             val shipped = "${Originals.DIR}/$stem".takeIf { !stem.startsWith("${Originals.DIR}/") }
             return KitTheme.followsRamps(descriptor(stem) ?: shipped?.let(::descriptor))
         }
@@ -1601,6 +1620,10 @@ class McpTools(
             "hash" to hash, "content_base64" to java.util.Base64.getEncoder().encodeToString(bytes),
         ))
         val descriptor = descriptor(draft.tree[descriptorPath], image.width to image.height, path, draft.tree, ramps)
+        // Over an original whose function fixes other measures, the image is written and not taken: said, not refused.
+        val notTaken = if (project.folder == KIT_FOLDER) null else OwnerImages.notTaken(
+            draft.tree + (descriptorPath to descriptor), binaryTree.keys + path,
+        ) { if (it == path) bytes else view.bytes(it) }.firstOrNull { it.path == path }
         val revision = updateDraft(
             principal, project, draftId, draft, draft.tree + (descriptorPath to descriptor),
             binaryTree + (path to Call.mapper.valueToTree<JsonNode>(mapOf("hash" to hash, "size" to bytes.size))),
@@ -1611,7 +1634,7 @@ class McpTools(
                 "hash" to hash, "shown_at" to "x${McpImages.scale(image)}", "use_it" to useIt,
                 // What the image now says of a theme's colours: they repaint it, or it keeps its own.
                 "ramps" to KitTheme.followsRamps(descriptor),
-            ) + McpImages.facts(image) + cut?.facts.orEmpty(),
+            ) + mapOf("not_taken" to notTaken?.let(::notTakenNote)).filterValues { it != null } + McpImages.facts(image) + cut?.facts.orEmpty(),
             listOf(McpImages.preview(image)),
         )
     }

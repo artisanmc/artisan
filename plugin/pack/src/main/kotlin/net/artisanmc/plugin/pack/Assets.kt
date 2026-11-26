@@ -151,6 +151,41 @@ internal object ImageFunctions {
 }
 
 /**
+ * The owner's images of a module that the pack does not take ([ImageFunctions]), for whoever
+ * shows the module's images as the pack does without building it (the MCP tools).
+ */
+object OwnerImages {
+    /**
+     * An owner's image left out: its [path], the [original] that shows in its place, the original's
+     * [function] and the [measures] that function fixes (`16x16`, or `height 8, ascent 7` for a glyph).
+     */
+    class NotTaken(val path: String, val original: String, val function: String, val measures: String)
+
+    /**
+     * The owner's images among [files] (path → text) and [binaries] that are not taken; [bytes]
+     * reads a binary. The theme `artisan` is not a module: its base has its own rule ([Kit.image]).
+     */
+    fun notTaken(files: Map<String, String>, binaries: Collection<String>, bytes: (String) -> ByteArray?): List<NotTaken> {
+        val sizes = HashMap<String, Pair<Int, Int>?>()
+        val sizeOf = { path: String -> sizes.getOrPut(path) { ImageFunctions.pixelSize(bytes(path)) } }
+        return ImageFunctions.refused(files.map { PackFile(it.key, it.value) }, binaries.toList(), sizeOf).map { image ->
+            val measures = if (image.function == "glyph") {
+                listOfNotNull(
+                    "height ${number(image.originalMeta["height"]) ?: "0"}",
+                    number(image.originalMeta["ascent"])?.let { "ascent $it" },
+                ).joinToString(", ")
+            } else {
+                sizeOf(image.original)?.let { "${it.first}x${it.second}" } ?: ""
+            }
+            NotTaken(image.path, image.original, image.function, measures)
+        }
+    }
+
+    private fun number(value: Any?): String? = (value as? Number)?.toDouble()?.takeIf { !it.isNaN() && !it.isInfinite() }
+        ?.let { if (it == Math.floor(it)) it.toLong().toString() else it.toString() }
+}
+
+/**
  * A Project's assets read from its files (`diskAssets.ts`): an image's identity is its file name,
  * its sibling descriptor gives what the PNG cannot say. An unreadable descriptor leaves the image
  * usable with defaults; a font is a folder with a `font.yml` and one PNG per glyph.

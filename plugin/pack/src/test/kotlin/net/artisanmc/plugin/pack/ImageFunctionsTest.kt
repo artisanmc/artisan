@@ -70,6 +70,19 @@ class ImageFunctionsTest {
     }
 
     @Test
+    fun `what is not taken is told with the measures its original fixes`() {
+        val pngs = binaries.associateWith { path -> (sizes[path] ?: (8 to 8)).let { (w, h) -> Png.encode(RgbaImage(w, h)) } }
+        val left = OwnerImages.notTaken(files.associate { it.path to it.content }, binaries) { pngs[it] }
+        assertEquals(
+            listOf(
+                listOf("assets/textures/badge.png", "originals/assets/textures/badge.png", "hud", "12x12"),
+                listOf("assets/glyphs/gem.png", "originals/assets/glyphs/gem.png", "glyph", "height 8, ascent 7"),
+            ),
+            left.map { listOf(it.path, it.original, it.function, it.measures) },
+        )
+    }
+
+    @Test
     fun `the pack's read shows the original, descriptor included, in place of an image not taken`() {
         val read = DiskAssets.fromTree("p", files, binaries, originals = true) { sizes[it] }
         val at = read.associateBy { "${it.row.type}/${it.row.id}" }
