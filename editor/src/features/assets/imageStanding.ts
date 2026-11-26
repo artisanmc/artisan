@@ -1,8 +1,9 @@
 import type { Asset } from "@/domain/asset";
+import type { ProjectId } from "@/domain/types";
 import { API_URL } from "@/lib/api/client";
+import { type FileOrigin, fetchProjectOrigins } from "@/lib/api/templates";
 import { assetDiskPath } from "@/lib/pack/assetDiskWrite";
 import { composeRecipe } from "@/lib/pack/compose";
-import { yamlStem } from "@/lib/yamlFiles";
 import {
   type ImageFunction,
   type ImageOverOriginal,
@@ -11,14 +12,13 @@ import {
   measuredPaths,
   refusedImages,
 } from "@/lib/pack/imageFunction";
-import type { ProjectId } from "@/domain/types";
-import { type FileOrigin, fetchProjectOrigins } from "@/lib/api/templates";
+import { yamlStem } from "@/lib/yamlFiles";
+import { useKitStore } from "@/state/kitStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { useKitStore } from "@/state/kitStore";
 import { originalChanged } from "@/state/projectTemplatesStore";
-import { parse } from "yaml";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { parse } from "yaml";
 import { type MeasuredFile, usePixelSizes } from "./pixelSizes";
 import { useProjectOrigins } from "./useProjectOrigins";
 

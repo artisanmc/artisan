@@ -1,3 +1,4 @@
+import type { Slice } from "@/lib/pack/slice";
 import { useTranslation } from "react-i18next";
 import { type GuideName, type Rect, SLOT, imageGuides } from "./guideRules";
 
@@ -25,28 +26,40 @@ export function ImageGuides({
   height,
   scale,
   shown,
+  slice,
 }: {
   width: number;
   height: number;
   scale: number;
   shown: readonly GuideName[];
+  /** The margins of a sliced image (`SlicePanel`): a line at each, always shown. */
+  slice?: Slice;
 }) {
   const { t } = useTranslation();
   const guides = imageGuides(width, height);
-  if (!guides || shown.length === 0) return null;
+  const margins = slice ? (
+    <SliceLines width={width} height={height} scale={scale} slice={slice} />
+  ) : null;
+  if (!guides || shown.length === 0) return margins;
   const frame = "pointer-events-none absolute box-border";
   if (guides.kind === "area") {
-    return shown.includes("slots") ? (
-      <span
-        aria-hidden
-        data-testid="guide-slots"
-        className={`${frame} inset-0 border-r border-b border-[var(--brand)]`}
-        style={lines(scale)}
-      />
-    ) : null;
+    return (
+      <>
+        {shown.includes("slots") ? (
+          <span
+            aria-hidden
+            data-testid="guide-slots"
+            className={`${frame} inset-0 border-r border-b border-[var(--brand)]`}
+            style={lines(scale)}
+          />
+        ) : null}
+        {margins}
+      </>
+    );
   }
   return (
     <>
+      {margins}
       {shown.includes("slots") && (
         <span
           aria-hidden
@@ -83,6 +96,45 @@ export function ImageGuides({
           }}
         />
       )}
+    </>
+  );
+}
+
+/** A dashed line at each margin of a sliced image: what is outside them stays as drawn. */
+function SliceLines({
+  width,
+  height,
+  scale,
+  slice,
+}: {
+  width: number;
+  height: number;
+  scale: number;
+  slice: Slice;
+}) {
+  const line = "pointer-events-none absolute box-border border-dashed border-[var(--kind-menu)]";
+  const vertical = [slice.left, width - slice.right].filter((x) => x > 0 && x < width);
+  const horizontal = [slice.top, height - slice.bottom].filter((y) => y > 0 && y < height);
+  return (
+    <>
+      {vertical.map((x) => (
+        <span
+          key={`x${x}`}
+          aria-hidden
+          data-testid="guide-slice"
+          className={`${line} inset-y-0 border-l`}
+          style={{ left: x * scale }}
+        />
+      ))}
+      {horizontal.map((y) => (
+        <span
+          key={`y${y}`}
+          aria-hidden
+          data-testid="guide-slice"
+          className={`${line} inset-x-0 border-t`}
+          style={{ top: y * scale }}
+        />
+      ))}
     </>
   );
 }

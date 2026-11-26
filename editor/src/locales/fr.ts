@@ -243,6 +243,17 @@ const fr: typeof en = {
     flattenHint:
       "Les calques deviennent un seul dessin du même nom. Il ne suit plus les images communes ; les calques restent dans le module comme images.",
     failed: "Ça n'a pas marché : {{detail}}",
+    slice: {
+      label: "Bords fixes",
+      left: "Gauche",
+      right: "Droite",
+      top: "Haut",
+      bottom: "Bas",
+      hint: "Ces pixels de chaque bord restent tels que dessinés. Le reste se répète pour remplir les cases du bouton, à n'importe quelle largeur.",
+      whole: "Un nombre entier de pixels, 0 ou plus.",
+      tooLarge:
+        "Les marges ne laissent rien à répéter : gauche + droite et haut + bas doivent rester sous la taille de l'image.",
+    },
     guides: {
       label: "Repères",
       slots: "Slots",

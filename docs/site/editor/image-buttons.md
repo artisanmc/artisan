@@ -296,8 +296,11 @@ slice: { left: 4, right: 4, top: 4, bottom: 4 }
 Each margin is a whole number of pixels, 0 when left out. The margins must leave pixels to
 repeat (left + right below the image's width, top + bottom below its height) and fit in the
 button's slots; otherwise the image is drawn by its `fit` as any other. The editor's canvas
-shows the button as the game does. The margins are written in the file for now: the atelier
-does not set them yet, and it keeps them when it saves the image.
+shows the button as the game does.
+
+In the atelier, **Fixed edges** (right column) sets the four margins in pixels; a dashed line
+shows each on the image. A margin is written when you leave its field, and all at 0 give
+the image back to its `fit`.
 
 **Label.** Any button that does not repeat (no `iterates`/`places`) can carry a **Label**:
 a text drawn in the menu's title over the button's slots. It is centred in the button by

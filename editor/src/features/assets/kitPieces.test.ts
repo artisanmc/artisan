@@ -1,4 +1,4 @@
-import { KIT_SLOTS, kitFootprint, KIT_PREFIX } from "@/lib/pack/kit";
+import { KIT_PREFIX, KIT_SLOTS, kitFootprint } from "@/lib/pack/kit";
 import { describe, expect, it } from "vitest";
 import { KIT_FAMILIES, TRIAL_MENU, kitPiecesOf } from "./kitPieces";
 

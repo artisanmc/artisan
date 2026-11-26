@@ -1,8 +1,8 @@
-import { ownKitPiece, redrawKitPiece } from "./kitPieces";
 import { kitSlot } from "@/lib/pack/kit";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useEffect, useRef } from "react";
 import { useAssetStore } from "./assetStore";
+import { ownKitPiece, redrawKitPiece } from "./kitPieces";
 import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
 

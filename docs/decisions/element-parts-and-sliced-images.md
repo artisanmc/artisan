@@ -1,6 +1,7 @@
-# Element parts and sliced images: a button made of several pieces, at any width
+# Element parts, sliced images and components: a button made of several pieces, at any width, drawn once for the server
 
-**Status:** proposed (2026-11-26); step 1 partly built (see *Built so far*)
+**Status:** direction accepted (2026-11-26: components are linked, per module and common to
+the server, edited in a menu and in the atelier); step 1 built (see *Built so far*)
 
 **Extends:** `common-images-and-themes.md` (decision 4, an image's function), `menu/v1`
 (`Appearance.image`, `Appearance.label`), `element-display-and-states.md`
@@ -17,9 +18,9 @@ What `menu/v1` already holds:
   `stretch` or `native`, with offsets (`imageButtonGeometry.ts`, `Menus.kt`).
 - `label`: one text drawn in the title over that rectangle, aligned, at a size from 8 to 32,
   with expressions evaluated per player.
-- `template_ref: { id, vars, overrides }`: an Element written once and placed with parameters.
-- The atelier composes an image from layers (`compose:`), which covers an icon that never
-  changes.
+- No shared button. `template_ref` of the format's types is read by nothing and is not about
+  this: it named how a row of data (a quest) renders, and the Item template it came with was
+  removed on 2026-07-31 (`item-templates-and-data-library`).
 
 What is missing, and nothing else:
 
@@ -28,7 +29,7 @@ What is missing, and nothing else:
 2. **Several pieces in one look.** One image and one label: an icon has to be baked into the
    background, so a button with ten icons is ten images, and a button with a name and a price
    cannot be written.
-3. **The icon as a parameter** of a template.
+3. **A button made once and placed again**, in another menu, with another icon and text.
 
 What the client draws sets the limits of any answer. An image is a glyph baked in the pack, the
 same for every player. An item sits in an 18 px slot. A text is drawn in the title at a height
@@ -36,12 +37,11 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
 
 ## Decisions
 
-1. **No new kind, no `menu/v2`.** The reusable button is a template; the three gaps are closed by
-   additive keys. A menu written today is read and built as today, byte for byte.
+1. **No `menu/v2`.** Sliced images and parts are additive keys; the shared button is a new
+   kind of file, the component (decision 6), which a menu names. A menu written today is read and built as today, byte for byte.
    *Rejected:* a markup tree with a layout engine (rows, columns, flex). The client measures
    nothing, so the engine would run at build time on sizes that are already fixed by the slots,
-   and give the owner a second way to say what `positions` says. *Rejected:* a `component` kind:
-   it would duplicate `template_ref`.
+   and give the owner a second way to say what `positions` says.
 
 2. **A sliced image.** An image's `<name>.yml` may declare the margins that stay as drawn:
 
@@ -92,11 +92,61 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
    The count of glyphs per menu does not grow with the number of parts, and Bedrock gets the
    same picture. Labels stay title text, one area each.
 
-5. **An image's name is known at build time.** A part's `image` is a literal, or a template's
-   `vars` value, which is written in the menu's file. A name computed per player is refused,
-   as today (the row-bound Element and its 18 px image per slot keep their own rule).
+5. **An image's name is known at build time.** A part's `image` is a literal. A name computed
+   per player is refused, as today (the row-bound Element and its 18 px image per slot keep
+   their own rule).
 
-6. **A width that follows the text is not built now.** It is possible (left edge, a repeated
+6. **A component is a named look, linked.** A file `components/<name>.yml` of a module or of
+   the common scope holds a list of parts and the parameters it takes:
+
+   ```yaml
+   # components/confirm.yml
+   params:
+     text: { type: text, default: "{i18n:common.confirm}" }
+     icon: { type: image, default: icon.check }
+   parts:
+     - image: button.primary          # sliced
+     - image: "{icon}"
+       anchor: left
+       offset_x: 3
+     - label: "{text}"
+   ```
+
+   An Element's look names it, and gives its parameters:
+
+   ```yaml
+   - id: confirm
+     positions: 20-22
+     component: { name: confirm, text: "{i18n:shop.buy}" }
+     click:
+       left: buy_item {item.id}
+   ```
+
+   Positions, conditions, clicks, title and lore stay the Element's: a component is a look.
+   The link is kept: a component that changes changes every Element that names it, which is
+   what a shared UI needs (the server's redraw, a theme). A look writes `component`, or
+   `parts`, or `image`/`label`, one of the three.
+   **Scopes are an image's** (`common-images-and-themes`, decisions 1, 3, 6, 8): a bare name is
+   the menu's module's component, else the common one; `guilds:confirm` and `artisan:confirm`
+   as for images; Artisan's base ships components, which are originals the server redraws
+   under the same name and a theme replaces (`overrides/`). A name nothing answers shows a
+   visible fallback in game and a problem in the editor.
+   **Parameters are resolved where their part is drawn.** An `image` parameter is a literal
+   in the menu's file, known at build time (decision 5). A `text` parameter is the label's
+   text, with its expressions evaluated per player.
+   *Not the Item template again:* that one bound a look to rows of data and lived beside a
+   second, self-sufficient model. A component binds nothing to data and replaces no model:
+   an Element without `component` is as today.
+   *Accepted cost:* a button's look is no longer read in its menu's file; the editor shows
+   where a component is used before a change to it is saved.
+
+7. **One editor of parts, two ways in.** The list of parts is edited by one panel. In a menu,
+   on the canvas, the owner assembles a look on a real Element and may "Save as component"
+   (the look moves to a file, the Element names it). In the atelier, a component opens alone,
+   at a width the owner picks, with sample values for its parameters. The atelier keeps
+   drawing pixels for images; a component there is an arrangement of images and texts.
+
+8. **A width that follows the text is not built now.** It is possible (left edge, a repeated
    middle glyph, right edge, written as text, the way a conversation's HUD is composed), costs a
    font and a width computation per player, and no menu asks for it yet. The width is a count of
    slots.
@@ -109,11 +159,15 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
 2. **Parts.** Schema and types, validation (`imageButtonErrors` and its Kotlin twin), both
    builders, the editor's Element panel (a list of parts with anchor and offsets, on the
    canvas).
-3. **Templates.** An image part named by a `vars` value; the base ships a button template
-   (background, icon, label).
+3. **Components.** The kind and its scopes, `component` on a look, both pack builders (the
+   baked picture of a component at a rectangle) and the runtime (its labels), with shared
+   cases; "Save as component" and the parameters' fields in the Element panel.
+4. **The component in the atelier**, opened alone; where it is used.
+5. **Artisan's base components** (confirm, cancel, tab…), and a theme's replacement of one.
 
-Done when the same template, placed on 2 slots and on 4, shows its background intact, its icon
-at the left and its label centred, in game on Java and Bedrock.
+Done when the base's `confirm`, placed on 2 slots and on 4 in two menus, shows its background
+intact, its icon at the left and its label centred, in game on Java and Bedrock, and a change
+to the component shows in both menus.
 
 ## Built so far
 
@@ -129,7 +183,14 @@ editor's writes of a descriptor keep `slice` (upload over an image, patch, dupli
 `PATCH` of an image takes `slice` (an object, or `null` to take it off) for a menu image.
 Shared case in `testdata/resource-pack-conformance.json`.
 
-Not built: the margins as guides in the atelier, `render_menu` (it draws a sliced image by
+**Step 1, second part (2026-11-26): the margins in the atelier.** `SlicePanel`, a section of
+the atelier's right column for an image laid on slots (not a window): four fields in pixels,
+written by `patchAsset({ slice })` when a field is left, `null` when all are 0; margins that
+leave nothing to repeat are refused before any write. `ImageGuides` draws a dashed line at
+each margin, whatever guides are shown. `slice` is accepted for any image, with or without a
+function. The lines are not dragged yet.
+
+Not built: `render_menu` (it draws a sliced image by
 its fit), the base's buttons declared sliced, the rule that a redraw or a theme keeps the
 margins (the margins are the descriptor's of the image that is shown; a theme's
 `overrides/` PNG is drawn with the margins of the image it redraws).
@@ -138,14 +199,16 @@ margins (the margins are the descriptor's of the image that is shown; a theme's
 
 - The base can retire the per-width button drawings once its menus name the sliced one; the old
   names stay answered until then.
-- A theme redraws one button instead of one per width.
+- A theme redraws one button instead of one per width, and may replace a component.
+- The plugin reads components: one more kind in every Project root, loaded and reloaded as
+  images are named today.
 - A long label still overflows its button: the server knows the width and could shorten the
   text, which is a separate decision.
 
 ## Still to check in the code
 
-- Whether a template's `vars` are resolved when the menu is read (build time) or per player; if
-  per player, decision 5 needs a literal-only rule for image parts.
-- Whether the pack shares one glyph between two Elements that bake the same picture.
+- The key of a baked picture: today `imageButtonKey` names one image, the rectangle, the fit
+  and the offsets, and two Elements with the same ones share a glyph. A look of several image
+  parts needs a key over the whole list, computed the same way by the runtime.
 - How `labelFrame` and `ImageButtonLayout.labelLayer` take nine anchors (today: three
   alignments, vertically centred).

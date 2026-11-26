@@ -13,6 +13,7 @@ import {
 import { ApiError, apiFetch, apiRequest, apiUrl } from "@/lib/api/client";
 import type { ComposeRecipe } from "@/lib/pack/compose";
 import type { ImageFunction } from "@/lib/pack/imageFunction";
+import type { Slice } from "@/lib/pack/slice";
 import { watchProjectPrincipal } from "@/lib/projectPrincipal";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import type { PersistedDraft } from "./projectDrafts";
@@ -178,6 +179,8 @@ export async function patchAsset(
     ramps?: boolean;
     /** A composed image's new recipe. */
     compose?: ComposeRecipe;
+    /** The margins of a sliced image (`lib/pack/slice.ts`); `null` takes them off. */
+    slice?: Slice | null;
   },
 ): Promise<Asset> {
   return (
@@ -189,7 +192,9 @@ export async function patchAsset(
           .filter((entry) => entry[1] !== undefined)
           .map(([key, value]) => [
             key,
-            key === "usages" || key === "compose" ? JSON.stringify(value) : String(value),
+            key === "usages" || key === "compose" || key === "slice"
+              ? JSON.stringify(value)
+              : String(value),
           ]),
       ),
     })

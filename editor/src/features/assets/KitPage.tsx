@@ -1,17 +1,17 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Asset } from "@/domain/asset";
-import { AssetPreview } from "./AssetPreview";
-import { CommonImageBadge, CommonImageMisfit } from "./CommonImageState";
-import { isKitBase, useKitAssets, useKitMisfits } from "./kitAssets";
-import { serverThemeNames } from "./kitTheme";
 import { cx } from "@/lib/cx";
 import { KIT_PREFIX, KIT_SLOTS, type KitSlot, kitNameOf } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
 import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AssetPreview } from "./AssetPreview";
+import { CommonImageBadge, CommonImageMisfit } from "./CommonImageState";
 import { KitTrialMenu } from "./KitTrialMenu";
+import { isKitBase, useKitAssets, useKitMisfits } from "./kitAssets";
 import { KIT_FAMILIES, kitPiecesOf } from "./kitPieces";
+import { serverThemeNames } from "./kitTheme";
 
 /** The room a piece's picture has on its card, in pixels. */
 const ROOM = { width: 120, height: 64 };

@@ -1,17 +1,5 @@
 import type { Asset } from "@/domain/asset";
 import { API_URL } from "@/lib/api/client";
-import {
-  KIT_ASCENT,
-  KIT_FOLDER,
-  KIT_PREFIX,
-  KIT_SLOTS,
-  type KitSlot,
-  commonImageRef,
-  assetNamesIn,
-  imageNamed,
-  kitNameOf,
-  moduleImageKey,
-} from "@/lib/pack/kit";
 import { diskAssetsFromTree, followsRamps } from "@/lib/pack/diskAssets";
 import {
   type ElsewhereWhere,
@@ -20,6 +8,18 @@ import {
   isWrittenName,
   reachOf,
 } from "@/lib/pack/elsewhere";
+import {
+  KIT_ASCENT,
+  KIT_FOLDER,
+  KIT_PREFIX,
+  KIT_SLOTS,
+  type KitSlot,
+  assetNamesIn,
+  commonImageRef,
+  imageNamed,
+  kitNameOf,
+  moduleImageKey,
+} from "@/lib/pack/kit";
 import { kitImageUrl } from "@/lib/pack/kitUrls";
 import type { KitTheme, ThemeLook } from "@/lib/pack/theme";
 import { type KitRead, type ModuleRead, useKitStore } from "@/state/kitStore";

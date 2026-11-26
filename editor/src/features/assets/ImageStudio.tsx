@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button";
 import type { Asset } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { patchAsset } from "@/lib/api/userAssets";
-import type { ComposeRecipe } from "@/lib/pack/compose";
 import { cx } from "@/lib/cx";
+import type { ComposeRecipe } from "@/lib/pack/compose";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,6 +15,7 @@ import { ImageChoiceDialog, KitPicker } from "./KitPicker";
 import { LayersPanel } from "./LayersPanel";
 import { PixelEditor } from "./PixelEditor";
 import { SITUATION_SCALE, SituationPreview } from "./SituationPreview";
+import { SlicePanel } from "./SlicePanel";
 import {
   SaveActions,
   StudioFrame,
@@ -203,27 +204,30 @@ export function ImageStudio({
       }`}
       parts={parts}
       guides={
-        offered.length > 0 || inMenu ? (
-          <StudioSection title={t("studio.guides.label")}>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {offered.map((guide) => (
-                <Toggle
-                  key={guide}
-                  pressed={shown.includes(guide)}
-                  onClick={() => prefs.toggleGuide(guide)}
-                  colour={GUIDE_COLOUR[guide]}
-                >
-                  {t(`studio.guides.${guide}`)}
-                </Toggle>
-              ))}
-              {inMenu && (
-                <Toggle pressed={situation} onClick={prefs.toggleSituation}>
-                  {t("studio.guides.situation")}
-                </Toggle>
-              )}
-            </div>
-          </StudioSection>
-        ) : null
+        <>
+          {inMenu ? <SlicePanel projectId={projectId} asset={asset} disabled={!user} /> : null}
+          {offered.length > 0 || inMenu ? (
+            <StudioSection title={t("studio.guides.label")}>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {offered.map((guide) => (
+                  <Toggle
+                    key={guide}
+                    pressed={shown.includes(guide)}
+                    onClick={() => prefs.toggleGuide(guide)}
+                    colour={GUIDE_COLOUR[guide]}
+                  >
+                    {t(`studio.guides.${guide}`)}
+                  </Toggle>
+                ))}
+                {inMenu && (
+                  <Toggle pressed={situation} onClick={prefs.toggleSituation}>
+                    {t("studio.guides.situation")}
+                  </Toggle>
+                )}
+              </div>
+            </StudioSection>
+          ) : null}
+        </>
       }
     />
   );
@@ -282,7 +286,13 @@ export function ImageStudio({
         around={(zoom) => ({
           under: null,
           over: (
-            <ImageGuides width={asset.width} height={asset.height} scale={zoom} shown={shown} />
+            <ImageGuides
+              width={asset.width}
+              height={asset.height}
+              scale={zoom}
+              shown={shown}
+              slice={asset.slice}
+            />
           ),
         })}
         layout={(pixels) => {
