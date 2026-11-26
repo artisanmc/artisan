@@ -6,6 +6,7 @@ import { asLoadNormalization } from "@/features/project/loadNormalization";
 import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
 import { useDraftSync } from "@/features/project/useDraftSync";
 import { EditorWs } from "@/lib/editorWs";
+import { visibleInterval } from "@/lib/visibleInterval";
 import { useAuthStore } from "@/state/authStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -44,9 +45,9 @@ export function RootLayout() {
       void catalog.load(scope);
     };
     refresh();
-    const timer = setInterval(refresh, 15_000);
+    const stop = visibleInterval(refresh, 15_000);
     return () => {
-      clearInterval(timer);
+      stop();
       catalog.clear();
     };
   }, [userId, activeServerId]);

@@ -1,6 +1,7 @@
 import { ApiError } from "@/lib/api/client";
 import { type SiteModule, listSiteModules } from "@/lib/api/site";
 import { channelOf, followedModules, pendingUpdates, savedChannels } from "@/lib/updateChannels";
+import { visibleInterval } from "@/lib/visibleInterval";
 import { useEffect } from "react";
 import { create } from "zustand";
 
@@ -96,8 +97,7 @@ export function useUpdatesAvailable(serverId: string | null, reachable: boolean)
   useEffect(() => {
     if (!serverId || !reachable) return;
     void checkUpdates(serverId);
-    const timer = setInterval(() => void checkUpdates(serverId), WATCH_MS);
-    return () => clearInterval(timer);
+    return visibleInterval(() => void checkUpdates(serverId), WATCH_MS);
   }, [serverId, reachable]);
   return count;
 }

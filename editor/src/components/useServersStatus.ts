@@ -1,4 +1,5 @@
 import { type ServerSummary, listServers } from "@/lib/api/servers";
+import { visibleInterval } from "@/lib/visibleInterval";
 import { useCallback, useEffect, useState } from "react";
 
 const POLL_MS = 15_000;
@@ -20,8 +21,7 @@ export function useServersStatus(): {
 
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, POLL_MS);
-    return () => clearInterval(id);
+    return visibleInterval(refresh, POLL_MS);
   }, [refresh]);
 
   return { data, refresh };
