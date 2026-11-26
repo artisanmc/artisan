@@ -122,10 +122,37 @@ describe("the images a menu names beyond its module", () => {
   });
   const guilds = module("guilds", ["assets/textures/gold.png", "assets/textures/crest.png"]);
   const core = module("core", ["assets/textures/logo.png"]);
+  const theme = (
+    folder: string,
+    binaries: string[],
+    files: Record<string, string> = {},
+  ): KitRead => ({
+    ...read(files, binaries),
+    projectId: `srv.${folder}`,
+  });
+  const noel = theme(
+    "noel",
+    [
+      "assets/textures/star.png",
+      "assets/glyphs/garland.png",
+      "assets/textures/logo.png",
+      "overrides/artisan/ribbon.png",
+      "originals/assets/textures/shipped.png",
+    ],
+    {
+      "assets/glyphs/garland.yml": "ascent: 9\nheight: 12\ncodepoint: 57344\n",
+      "assets/textures/wreath.yml": "compose:\n  layers:\n    - image: star\n",
+    },
+  );
 
   beforeEach(() => {
     useAssetStore.setState({ assets: [own("logo"), own("crest")] });
-    useKitStore.setState({ read: common, modules: [bank, core, guilds], modulesUnread: false });
+    useKitStore.setState({
+      read: common,
+      modules: [bank, core, guilds],
+      modulesUnread: false,
+      own: {},
+    });
   });
 
   const asset = (ref: string) => renderHook(() => useImageAsset("srv.core", ref)).result.current;
@@ -174,6 +201,46 @@ describe("the images a menu names beyond its module", () => {
     expect(asset("logo")?.projectId).toBe("srv.core");
     expect(asset("kit:ribbon")?.id).toBe("kit:ribbon");
     expect(asset("gold")?.id).toBe("bank:gold");
+  });
+
+  test("a theme's own image is drawn from its published file, by its whole name only", () => {
+    // A theme of a module's folder gives none: `guilds:<name>` is the module's.
+    useKitStore.setState({
+      own: { noel, guilds: theme("guilds", ["assets/textures/tinsel.png"]) },
+    });
+    const star = asset("noel:star");
+    expect(star).toMatchObject({
+      id: "noel:star",
+      projectId: "srv.noel",
+      type: "texture",
+      qualifiedOnly: true,
+    });
+    expect(star?.previewUrl).toContain(
+      "/api/v1/projects/srv.noel/binary?path=assets%2Ftextures%2Fstar.png&h=h-assets/textures/star.png",
+    );
+    expect(asset("noel:garland")).toMatchObject({ type: "glyph", ascent: 9, codepoint: 57344 });
+    expect(reach("noel:star")).toEqual({ kind: "theme", folder: "noel", name: "star" });
+    // The module's own `logo` does not hide the theme's, and the name alone stays the module's.
+    expect(asset("noel:logo")?.projectId).toBe("srv.noel");
+    expect(asset("logo")?.projectId).toBe("srv.core");
+    // Never by the name alone, nor what the theme redraws, ships or composes.
+    expect(asset("star")).toBeUndefined();
+    expect(reach("star")).toEqual({ kind: "none" });
+    for (const ref of ["noel:ribbon", "noel:shipped", "noel:wreath", "guilds:tinsel"])
+      expect(asset(ref)?.projectId, ref).not.toBe("srv.noel");
+    expect(reach("noel:wreath")).toEqual({ kind: "none" });
+    expect(asset("guilds:tinsel")).toBeUndefined();
+
+    const ids = renderHook(() => useAssetsWithKit()).result.current.map((a) => a.id);
+    expect(ids.filter((id) => id.startsWith("noel:")).sort()).toEqual([
+      "noel:garland",
+      "noel:logo",
+      "noel:star",
+    ]);
+    expect(ids).not.toContain("guilds:tinsel");
+    // An older server reads no name by this rule: a theme's own image is not drawn there.
+    useKitStore.setState({ read: { ...common, byName: false } });
+    expect(asset("noel:star")).toBeUndefined();
   });
 
   test("a title looks its images up among the module's, the common ones and the other modules'", () => {

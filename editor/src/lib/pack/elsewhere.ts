@@ -63,6 +63,26 @@ export interface ElsewhereWhere {
   common: (name: string) => boolean;
   /** The server's other modules in the pack's order (by Project id), the first holding a name alone. */
   modules: readonly { folder: string; own: (name: string) => boolean }[];
+  /**
+   * The server's themes other than `artisan`, each with its own images (`themeOwnNames`):
+   * what `<theme>:<name>` names (decision 5). Absent: not known here, no name reaches one.
+   */
+  themes?: readonly { folder: string; own: (name: string) => boolean }[];
+}
+
+/**
+ * The names of a theme's own images, from its Project's tree: the PNGs under `assets/`, as
+ * the pack takes them (`packAssembly.ts`), a composed one left out.
+ */
+export function themeOwnNames(tree: {
+  files: { path: string; content: string }[];
+  binaries: { path: string; hash: string; size: number }[];
+}): Set<string> {
+  const names = new Set<string>();
+  for (const asset of diskAssetsFromTree("", tree.files, tree.binaries, { originals: false }))
+    if (!asset.compose && (asset.row.type === "glyph" || asset.row.type === "texture"))
+      names.add(asset.row.name);
+  return names;
 }
 
 /**
@@ -86,7 +106,9 @@ export const isWrittenName = (ref: string): boolean => /^[A-Za-z0-9_.:-]+$/.test
 export type Reach =
   | { kind: "own" | "none" }
   | { kind: "base" | "common" | "asCommon"; name: string }
-  | { kind: "module"; folder: string; name: string };
+  | { kind: "module"; folder: string; name: string }
+  /** A theme's own image, named `<theme>:<name>`: a name alone never reaches one. */
+  | { kind: "theme"; folder: string; name: string };
 
 /**
  * What `ref`, written in a module, reaches: the same answer as the pack's (`resolveImageRef`),
@@ -102,8 +124,11 @@ export function reachOf(ref: string, where: ElsewhereWhere): Reach {
   const name = colon < 0 ? ref : ref.slice(colon + 1);
   if (colon >= 0 && ref.slice(0, colon) !== where.folder) {
     const folder = ref.slice(0, colon);
-    if (where.modules.find((m) => m.folder === folder)?.own(name))
-      return { kind: "module", folder, name };
+    const module = where.modules.find((m) => m.folder === folder);
+    if (module?.own(name)) return { kind: "module", folder, name };
+    // A theme of a module's folder gives none: `<folder>:<name>` is that module's.
+    if (!module && where.themes?.find((t) => t.folder === folder)?.own(name))
+      return { kind: "theme", folder, name };
   }
   // A name alone, or one whose module does not hold it: the module's own, then the common one.
   if (where.own(name)) return { kind: "own" };

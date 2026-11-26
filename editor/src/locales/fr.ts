@@ -402,10 +402,15 @@ const fr: typeof en = {
       drawings: "Pièces redessinées pour ce thème",
       noDrawings: "Ce thème ne redessine aucune pièce.",
       moduleDrawings: "Images de modules redessinées",
+      ownImages: "Ses propres images",
+      ownImagesHint:
+        "Un menu en nomme une comme écrit ici. Elle s'affiche telle que dessinée, dans le pack tant que le serveur a ce thème, en place ou non.",
+      noOwnImages:
+        "Aucune. Une image ajoutée aux fichiers de ce thème (assets/) est la sienne : un menu la nomme {{name}}:<son nom>.",
       files:
         "Un thème est un dossier des images communes du serveur (themes/artisan/) : themes/{{name}}/theme.yml porte ses couleurs, themes/{{name}}/assets/textures/<pièce>.png une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
       filesOwn:
-        "Ce thème est un dossier du serveur, themes/{{name}}/ : overrides/colors.yml porte ses couleurs, overrides/artisan/<image>.png une image commune redessinée à la taille de cette image, overrides/<module>/<image>.png l'image d'un module redessinée à sa taille. Il se lit ici une fois déployé.",
+        "Ce thème est un dossier du serveur, themes/{{name}}/ : overrides/colors.yml porte ses couleurs, overrides/artisan/<image>.png une image commune redessinée à la taille de cette image, overrides/<module>/<image>.png l'image d'un module redessinée à sa taille, assets/ ses propres images. Il se lit ici une fois déployé.",
       compare: "Sans et avec, dans un menu",
       putHint:
         "Mettre en place pose le thème au-dessus de ceux qui y sont déjà et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
@@ -469,6 +474,8 @@ const fr: typeof en = {
   imageReach: {
     none: "Aucune image « {{name}} » : ni ce module, ni les images communes, ni un autre module déployé n'en a. Rien ne s'affichera en jeu.",
     module: "Image du module {{module}}.",
+    theme:
+      "Image du thème {{theme}} : elle s'affiche tant que le serveur a ce thème, en place ou non.",
     elsewhere: "« {{name}} » est une image du module {{module}}, nommée par son nom seul.",
     write: "Écrire {{ref}}",
   },

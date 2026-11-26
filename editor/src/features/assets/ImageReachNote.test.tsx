@@ -23,7 +23,18 @@ describe("ImageReachNote", () => {
     useAssetStore.setState({
       assets: [{ id: "logo", projectId: "srv.core", name: "logo", type: "texture" } as Asset],
     });
-    useKitStore.setState({ read: common, modules: [bank], modulesUnread: false });
+    useKitStore.setState({
+      read: common,
+      modules: [bank],
+      modulesUnread: false,
+      own: {
+        noel: {
+          projectId: "srv.noel",
+          files: {},
+          binaries: [{ path: "assets/textures/star.png", hash: "h" }],
+        },
+      },
+    });
   });
 
   const note = (name: string, onRename = vi.fn()) => {
@@ -47,6 +58,15 @@ describe("ImageReachNote", () => {
     expect(screen.getByText(/gold.*bank/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /bank:gold/ }));
     expect(onRename).toHaveBeenCalledWith("bank:gold");
+  });
+
+  test("a theme's own image says which theme it is, and its name alone reaches nothing", () => {
+    note("noel:star");
+    expect(screen.getByText(/noel/)).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    note("star");
+    expect(screen.getByRole("alert").textContent).toMatch(/star/);
   });
 
   test("an image named with its module only says whose it is", () => {

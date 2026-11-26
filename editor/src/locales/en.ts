@@ -391,10 +391,15 @@ export default {
       drawings: "Pieces redrawn for this theme",
       noDrawings: "This theme redraws no piece.",
       moduleDrawings: "Module images redrawn",
+      ownImages: "Its own images",
+      ownImagesHint:
+        "A menu names one as written here. It shows as drawn, in the pack as long as the server has this theme, in place or not.",
+      noOwnImages:
+        "None. An image added to this theme's files (assets/) is its own: a menu names it {{name}}:<its name>.",
       files:
         "A theme is a folder of the server's common images (themes/artisan/): themes/{{name}}/theme.yml holds its colours, themes/{{name}}/assets/textures/<piece>.png a piece redrawn at the piece's size. It is read here once deployed.",
       filesOwn:
-        "This theme is a folder of the server, themes/{{name}}/: overrides/colors.yml holds its colours, overrides/artisan/<image>.png a common image redrawn at that image's size, overrides/<module>/<image>.png a module's image redrawn at its size. It is read here once deployed.",
+        "This theme is a folder of the server, themes/{{name}}/: overrides/colors.yml holds its colours, overrides/artisan/<image>.png a common image redrawn at that image's size, overrides/<module>/<image>.png a module's image redrawn at its size, assets/ its own images. It is read here once deployed.",
       compare: "Without and with, in a menu",
       putHint:
         "Putting a theme in place sets it above the ones already there and rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
@@ -458,6 +463,8 @@ export default {
   imageReach: {
     none: "No image “{{name}}”: neither this module, nor the common images, nor another deployed module holds one. Nothing will show in game.",
     module: "Image of the module {{module}}.",
+    theme:
+      "Image of the theme {{theme}}: it shows as long as the server has that theme, in place or not.",
     elsewhere: "“{{name}}” is an image of the module {{module}}, named by its name alone.",
     write: "Write {{ref}}",
   },

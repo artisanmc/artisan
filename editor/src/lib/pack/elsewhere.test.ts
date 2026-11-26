@@ -17,9 +17,11 @@ import {
   isWrittenName,
   menuImageRefs,
   namedElsewhere,
+  reachOf,
   readExportNote,
   renameImageRefs,
   settleCopies,
+  themeOwnNames,
 } from "./elsewhere";
 
 const MENU = `
@@ -120,6 +122,65 @@ describe("namedElsewhere", () => {
       where({ common: (name) => name === "close.1x1" }),
     );
     expect(named).toEqual({ base: ["close.1x1"], common: [], asCommon: [], modules: {} });
+  });
+});
+
+describe("a theme's own image", () => {
+  const themed = where({
+    themes: [
+      { folder: "noel", own: (name) => name === "star" || name === "logo" },
+      // A theme of a module's folder gives none: `guilds:<name>` is the module's.
+      { folder: "guilds", own: (name) => name === "tinsel" },
+    ],
+  });
+
+  it("is reached by `<theme>:<name>`, and never by its name alone", () => {
+    expect(reachOf("noel:star", themed)).toEqual({ kind: "theme", folder: "noel", name: "star" });
+    expect(reachOf("star", themed)).toEqual({ kind: "none" });
+    // The module's own image of that name does not hide the theme's.
+    expect(reachOf("noel:logo", themed)).toEqual({ kind: "theme", folder: "noel", name: "logo" });
+    expect(reachOf("logo", themed)).toEqual({ kind: "own" });
+  });
+
+  it("falls on the name alone when the theme does not hold it, like a module's", () => {
+    expect(reachOf("noel:ghost", themed)).toEqual({ kind: "none" });
+    expect(reachOf("noel:frame", themed)).toEqual({ kind: "common", name: "frame" });
+    expect(reachOf("guilds:tinsel", themed)).toEqual({ kind: "none" });
+    expect(reachOf("guilds:crest", themed)).toEqual({
+      kind: "module",
+      folder: "guilds",
+      name: "crest",
+    });
+    // Where the themes are not known, no name reaches one.
+    expect(reachOf("noel:star", where())).toEqual({ kind: "none" });
+  });
+
+  it("is not in the archive's note", () => {
+    expect(namedElsewhere(["noel:star", "frame"], themed)).toEqual({
+      base: [],
+      common: ["frame"],
+      asCommon: [],
+      modules: {},
+    });
+  });
+
+  it("is a PNG under assets/: neither a composed image, a font, nor an original", () => {
+    const binary = (path: string) => ({ path, hash: path, size: 1 });
+    const names = themeOwnNames({
+      files: [
+        { path: "overrides/colors.yml", content: "colors: {}\n" },
+        { path: "assets/glyphs/garland.yml", content: "codepoint: 57344\nascent: 9\n" },
+        { path: "assets/textures/wreath.yml", content: "compose:\n  layers:\n    - image: star\n" },
+      ],
+      binaries: [
+        binary("assets/textures/star.png"),
+        binary("assets/glyphs/garland.png"),
+        binary("originals/assets/textures/shipped.png"),
+        binary("overrides/artisan/panel.png"),
+        binary("overrides/guilds/crest.png"),
+      ],
+    });
+    expect([...names].sort()).toEqual(["garland", "star"]);
   });
 });
 
