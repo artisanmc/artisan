@@ -9,6 +9,7 @@ import {
   codepointsOf,
   commonCopy,
   commonHolders,
+  aloneImageRefs,
   embedNames,
   emptyNote,
   exportNoteYaml,
@@ -411,6 +412,23 @@ describe("embedding another module's images", () => {
         },
       ]).sort(),
     ).toEqual(["artisan:blason", "close.1x1", "frame", "guilds:crest"]);
+  });
+
+  it("reads the names written alone, shipped menus and the kinds' requests included", () => {
+    expect(
+      aloneImageRefs(
+        [
+          { path: "menus/main.yml", content: MENU },
+          {
+            path: "originals/menus/top.yml",
+            content: "size: 9\ntitle: { kind: background, asset: shipped }\n",
+          },
+          // A composed image's layer takes no other module's image.
+          { path: "assets/textures/badge.yml", content: "compose:\n  - { use: seal }\n" },
+        ],
+        [{ asset: "box" }, { asset: "guilds:box" }],
+      ).sort(),
+    ).toEqual(["box", "close.1x1", "frame", "shipped"]);
   });
 
   it("copies a module's image under the name it takes, what the module ships included", () => {

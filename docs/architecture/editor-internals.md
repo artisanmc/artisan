@@ -1370,7 +1370,8 @@ this, the folder is exported alone and the toast says so (`ExportZipResult.alone
 files out never depends on it.
 
 An image of another module of the server is embedded on request. When the module's own menus
-name some (`menuImageRefs`, `reachOf`; an add-on's module, `ownerModule` in its summary, is a
+name some, or a name alone reaches one from a menu it ships or a file of its kinds
+(`menuImageRefs`, `aloneImageRefs`, `reachOf`; an add-on's module, `ownerModule` in its summary, is a
 dependency and is never offered), `runExportZip` asks through its `ask` argument
 (`useEmbedAsk`, `EmbedImagesDialog`: copy and export, export without, or give the export up,
 `error: "given_up"`). On yes each image is copied as an image of the module (`imageCopy`,
@@ -1379,8 +1380,8 @@ a name alone reached it or when that name is free in the module and among the co
 else `<name>_2`… The menus that wrote `<folder>:<name>` are written with the new name **in the
 archive only** (`renameImageRefs`: the `asset:` and `asset_id:` values, nothing else;
 `ElsewhereExport.rewritten`), so the module's own image answers on any server whatever its
-other modules hold. What is embedded leaves `requires.modules`; a name written by a kind's
-file, a composed layer or a shipped menu is not rewritten and stays noted.
+other modules hold. What is embedded leaves `requires.modules`; a name a kind's file or a shipped
+menu writes with its module is not rewritten and stays noted.
 
 **Import** (`features/import/runImportZip.ts`) — `zip → files → projectFromFiles`,
 with no intermediate format. `normalizeProjectFiles` (`projectZip.ts`) re-routes

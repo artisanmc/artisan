@@ -6,6 +6,7 @@ import { parse } from "yaml";
 import { ExportGivenUp, exportElsewhere } from "./exportElsewhere";
 
 const mocks = vi.hoisted(() => ({
+  kinds: vi.fn((): unknown[] => []),
   read: vi.fn(),
   binary: vi.fn(),
   listServerProjects: vi.fn(),
@@ -19,6 +20,10 @@ vi.mock("@/lib/projectClient", () => ({
 }));
 vi.mock("@/lib/api/projectFiles", () => ({ listServerProjects: mocks.listServerProjects }));
 vi.mock("@/lib/api/servers", () => ({ listServers: mocks.listServers }));
+vi.mock("@artisan/editor-sdk", async (original) => ({
+  ...(await original<typeof import("@artisan/editor-sdk")>()),
+  listDocumentKindContributions: mocks.kinds,
+}));
 
 const project: Project = {
   ...mockOpenProjects().projects[0]!,
@@ -62,6 +67,7 @@ const trees: Record<string, { files: Record<string, string>; binaries: object[] 
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.kinds.mockReturnValue([]);
   mocks.read.mockImplementation(async (id: string) =>
     trees[id] ? { ok: true, unchanged: false, ...trees[id] } : { ok: false, error: "read_error" },
   );
@@ -251,6 +257,71 @@ it("gives an archive with no note when everything named elsewhere was embedded",
   const out = await exportElsewhere(project, disk(["guilds:crest"]), async () => true);
   expect(Object.keys(out!.files)).toEqual(["assets/textures/crest.png"]);
   expect(out!.rewritten["menus/main.yml"]).toBe(menu(["crest"]));
+});
+
+it("embeds what a name alone reaches from a shipped menu or a kind's file, under that name", async () => {
+  // A kind whose files ask the pack for the image they name.
+  mocks.kinds.mockReturnValue([
+    {
+      kind: "hud",
+      dir: "huds",
+      pack: {
+        images: (src: Record<string, unknown>) =>
+          typeof src.image === "string" ? [{ asset: src.image, rise: 0 }] : [],
+      },
+    },
+  ]);
+  trees.proj_warps = {
+    files: { "assets/textures/panel.yml": "compose:\n  - { use: kit:frame }\n" },
+    binaries: [
+      { path: "assets/textures/pin.png", hash: "p", size: 1 },
+      { path: "assets/textures/flag.png", hash: "f", size: 1 },
+      { path: "assets/textures/seal.png", hash: "s", size: 1 },
+    ],
+  };
+  mocks.listServerProjects.mockResolvedValue({
+    ok: true,
+    projectIds: ["artisan", "shop", "warps"],
+    projects: [
+      { id: "proj_kit", externalId: "artisan", name: "artisan", role: "theme" },
+      { id: "proj_shop", externalId: "shop", name: "shop" },
+      { id: "proj_warps", externalId: "warps", name: "warps" },
+    ],
+  });
+  const module = disk(["coin"]);
+  const files: Record<string, string> = {
+    ...module.files,
+    // A file of the kind names an image of another module by its name alone, and one with its module.
+    "huds/top.yml": "image: pin\n",
+    "huds/side.yml": "image: warps:seal\n",
+    // A menu the module ships does too.
+    "originals/menus/gift.yml": menu(["flag"]),
+    // A composed image's layer never takes another module's image: nothing to embed.
+    "assets/textures/badge.yml": "compose:\n  - { use: seal }\n",
+  };
+  const ask = vi.fn(async () => true);
+
+  const out = await exportElsewhere(project, { ...module, files }, ask);
+  expect(ask).toHaveBeenCalledWith(["warps:flag", "warps:pin"]);
+  expect(out?.embedded.sort()).toEqual(["warps:flag", "warps:pin"]);
+  expect(Object.keys(out!.files).sort()).toEqual([
+    "artisan-export.yml",
+    "assets/textures/flag.png",
+    "assets/textures/pin.png",
+  ]);
+  // Nothing is rewritten: the names alone now reach the copies.
+  expect(out!.rewritten).toEqual({});
+  // What the kind's file names with its module stays a dependency.
+  expect(readExportNote(out!.files["artisan-export.yml"] as string)?.requires.modules).toEqual({
+    warps: ["seal"],
+  });
+
+  // Declined: the three are noted.
+  const without = await exportElsewhere(project, { ...module, files }, async () => false);
+  expect(readExportNote(without!.files["artisan-export.yml"] as string)?.requires.modules).toEqual({
+    warps: ["flag", "pin", "seal"],
+  });
+  Reflect.deleteProperty(trees, "proj_warps");
 });
 
 /** The server's trees with `files` added to some Projects, for one test. */

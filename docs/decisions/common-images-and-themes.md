@@ -681,6 +681,15 @@ them, and `resource_pack_status` gives them (`missing_images`). This is the chec
 for a folder copied by hand: the pack is rebuilt after each load. The zip does not change.
 Not in this part: the layers of a composed image, and a font.
 
+**Step 6, sixth part: an image a name alone reaches is embedded whoever writes the name**
+(`aloneImageRefs`; decision 10). A copy under the name written needs no rewrite: the module's
+own image is read first. So the export also offers the images of other modules a name alone
+reaches from a menu the module ships or from a file of its kinds that asks the pack for
+images, and copies them under that name. A name such a file writes with its module
+(`<folder>:<name>`) stays a dependency: only the module's own menus are rewritten. A
+composed image's layer never takes another module's image, so there is nothing to embed
+for it.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -722,9 +731,10 @@ Not there yet:
   origin at the first originals sync that sees it. A menu keeps what module originals already gave it (compare with
   the original, back to the original, a merge at each update): it has no "the original
   changed" notice of its own.
-- Against decision 10: an image of another module is embedded only where a menu of the
-  module's own names it (not from a kind's file, a composed layer or a shipped menu), and a
-  composed one never is. A theme's own image is noted, and its theme is exported and
+- Against decision 10: an image of another module is embedded where a menu of the module's
+  own names it, or where a name alone reaches it (step 6, sixth part); one a kind's file or
+  a shipped menu names with its module stays a dependency, and a composed one never is
+  embedded. A theme's own image is noted, and its theme is exported and
   imported apart. The note lives in the archive only: a module's folder copied by hand
   carries no dependency. The pack's build reports the images it names and the server lacks
   (step 6, fifth part), as the editor's deploy review does (`image_missing`); neither

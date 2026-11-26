@@ -52,6 +52,22 @@ export function menuImageRefs(files: Tree["files"]): string[] {
 }
 
 /**
+ * The image names a copy alone answers, with nothing to rewrite: the ones written without a
+ * module, in the menus the module holds or ships and in what its kinds ask the pack for
+ * (`overlays`). A copy under that name is the module's own image, read first. A composed
+ * image's layer is not among them: it never takes another module's image.
+ */
+export function aloneImageRefs(
+  files: Tree["files"],
+  overlays: readonly { asset: string }[] = [],
+): string[] {
+  const refs = new Set<string>(titleImagesFromMenus(files));
+  for (const button of imageButtonsFromMenus(files)) refs.add(button.asset);
+  for (const asked of overlays) refs.add(asked.asset);
+  return [...refs].filter((ref) => !ref.includes(":"));
+}
+
+/**
  * The fonts a module's menus write their titles' texts in, by their names. A font is the
  * server's, whoever holds it: one the module does not hold is a dependency of its archive.
  */
