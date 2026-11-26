@@ -651,6 +651,10 @@ export default {
       themeAbsent:
         "The theme {{folder}} is not on this server. Its images named: {{names}}. Import it from the Themes screen (Import a theme).",
       themeLacks: "The theme {{folder}} does not have these images of its own: {{names}}.",
+      fonts_one:
+        "A font the module's titles write in is not on this server: {{names}}. Those texts show in the game's font until a module or the common images hold a font of that name.",
+      fonts_other:
+        "Fonts the module's titles write in are not on this server: {{names}}. Those texts show in the game's font until a module or the common images hold fonts of those names.",
     },
     errors: {
       not_a_zip: "That file is not a readable .zip.",

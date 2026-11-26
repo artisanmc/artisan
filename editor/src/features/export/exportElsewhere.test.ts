@@ -252,3 +252,58 @@ it("gives an archive with no note when everything named elsewhere was embedded",
   expect(Object.keys(out!.files)).toEqual(["assets/textures/crest.png"]);
   expect(out!.rewritten["menus/main.yml"]).toBe(menu(["crest"]));
 });
+
+/** The server's trees with `files` added to some Projects, for one test. */
+const withFiles = (added: Record<string, Record<string, string>>) =>
+  mocks.read.mockImplementation(async (id: string) =>
+    trees[id]
+      ? {
+          ok: true,
+          unchanged: false,
+          ...trees[id],
+          files: { ...trees[id].files, ...added[id] },
+        }
+      : { ok: false, error: "read_error" },
+  );
+
+it("notes the fonts the titles write in that the module does not hold, common or another module's", async () => {
+  const title = (fonts: string[]) =>
+    `size: 27\ntitle:\n${fonts.map((font) => `  - { kind: text, value: Shop, font: ${font} }\n`).join("")}`;
+  withFiles({
+    proj_kit: { "assets/fonts/pixel/font.yml": "height: 8\n" },
+    proj_guilds: { "assets/fonts/runes/font.yml": "height: 9\n" },
+  });
+  const module = disk(["coin"]);
+  const out = await exportElsewhere(project, {
+    ...module,
+    files: {
+      ...module.files,
+      "menus/main.yml": title(["pixel", "runes", "mine", "nowhere"]),
+      "assets/fonts/mine/font.yml": "height: 8\n",
+    },
+  });
+  // Its own font needs no note, and one the server holds nowhere is left out like an image.
+  expect(readExportNote(out!.files["artisan-export.yml"] as string)?.requires.fonts).toEqual([
+    "pixel",
+    "runes",
+  ]);
+  // Noted, never copied.
+  expect(Object.keys(out!.files)).toEqual(["artisan-export.yml"]);
+});
+
+it("reads no other module for a font the common fonts hold", async () => {
+  withFiles({ proj_kit: { "assets/fonts/pixel/font.yml": "height: 8\n" } });
+  const module = disk(["coin"]);
+  const out = await exportElsewhere(project, {
+    ...module,
+    files: {
+      ...module.files,
+      "menus/main.yml":
+        "size: 27\ntitle:\n  - { kind: textarea, value: Shop, font_asset_id: pixel }\n",
+    },
+  });
+  expect(readExportNote(out!.files["artisan-export.yml"] as string)?.requires.fonts).toEqual([
+    "pixel",
+  ]);
+  expect(mocks.read.mock.calls.map(([id]) => id)).toEqual(["proj_kit"]);
+});

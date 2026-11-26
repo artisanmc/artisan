@@ -645,6 +645,17 @@ theme), or without an image of that name, is said before anything is written, wi
 to import the theme. A note written before this part has no `themes` and reads as before.
 Not in this part: exporting the theme along with the module (two archives, two imports).
 
+**Step 6, fourth part: a font the module does not hold is a dependency of the archive**
+(`fontRefsWritten`, `fontNamesIn`, `ExportNote.requires.fonts`, `settleElsewhere`; decision
+10). A title's text is written in a font by its name alone (`font`), and a font is the
+server's, whoever holds it: the common fonts', or any module's. The export notes the fonts
+the module's titles write in and the module does not hold (`requires.fonts`), when the
+server holds them; another module is read for this only when no common font answers. At
+import each is looked for in the archive, the common fonts and the server's modules, read
+until all are found: the ones no Project holds are said before anything is written (those
+texts show in the game's font). A note written before this part has no `fonts`.
+Not in this part: copying a font into the archive.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -693,7 +704,7 @@ Not there yet:
   carries no dependency, and nothing at load reports an image it names and the server lacks
   (the editor's deploy review does, for the names its menus write: `image_missing`).
   The copies are compared by their PNG alone (a descriptor that differs does not keep a
-  copy). A font named elsewhere is neither copied nor noted. The version of Artisan in the
+  copy). A font named elsewhere is noted and checked at import (step 6, fourth part), never copied. The version of Artisan in the
   note is the origin's, shown when a base image is missing, never compared.
 - Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are in the pack when
   named, the editor draws one a menu names, as published, and the MCP tools write and draw

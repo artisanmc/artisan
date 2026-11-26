@@ -31,7 +31,7 @@ vi.mock("@/lib/api/projectFiles", () => ({
 vi.mock("@/lib/api/userProjects", () => ({ loadUserProject: mocks.loadUserProject }));
 
 import { hashBytes } from "@/lib/contentHash";
-import { applyImportZip, prepareImportZip } from "./runImportZip";
+import { applyImportZip, lacksElsewhere, prepareImportZip } from "./runImportZip";
 
 const target = { serverId: "sk1" };
 const file = new Blob(["zip"]);
@@ -334,6 +334,7 @@ describe("an archive that says what the module names elsewhere", () => {
         { folder: "warps", images: ["pin"], absent: true },
       ],
       themes: [],
+      fonts: [],
     });
     // The note is about the archive, and the dropped copy goes with its descriptor.
     expect(Object.keys(preview.input.files).sort()).toEqual([
@@ -403,6 +404,44 @@ describe("an archive that says what the module names elsewhere", () => {
       { folder: "guilds", images: ["crest"], absent: true },
     ]);
     expect(result.preview.elsewhere?.modules).toEqual([]);
+  });
+
+  it("lists the fonts no Project of the server holds, the archive's own and another module's found", async () => {
+    mocks.readProjectZip.mockResolvedValue({});
+    mocks.normalizeProjectFiles.mockReturnValue(
+      normalized({
+        [`${P}artisan-module.yml`]: "schema: module/v1\n",
+        [`${P}artisan-export.yml`]: [
+          "schema: export/v1",
+          "requires:",
+          "  fonts: [carved, mine, pixel, runes]",
+          "",
+        ].join("\n"),
+        // A font of the archive itself answers its name.
+        [`${P}assets/fonts/mine/font.yml`]: "height: 8\n",
+      }),
+    );
+    mocks.listServerProjects.mockResolvedValue({
+      ok: true,
+      projectIds: ["artisan", "guilds"],
+      projects: [kitSummary, guildsSummary],
+    });
+    mocks.readProjectFiles.mockImplementation(async ({ diskId }: { diskId: string }) => ({
+      ok: true,
+      // A common font, and one another module holds: a font is the server's, whoever holds it.
+      files:
+        diskId === "artisan"
+          ? { "assets/fonts/pixel/font.yml": "height: 8\n" }
+          : { "assets/fonts/runes.yml": "height: 9\n" },
+      binaries: [],
+      failed: [],
+      hash: "h",
+    }));
+
+    const result = await prepareImportZip(file, target, "merge");
+    if (!result.ok) throw new Error("expected preview");
+    expect(result.preview.elsewhere?.fonts).toEqual(["carved"]);
+    expect(lacksElsewhere(result.preview.elsewhere)).toBe(true);
   });
 
   it("drops a note that is not one, without settling anything", async () => {
