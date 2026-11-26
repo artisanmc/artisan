@@ -37,7 +37,7 @@ const sameTable = (a: ReadonlyMap<number, number>, b: ReadonlyMap<number, number
  * A theme of its own folder has its colours picked here (`onColors`): one colour per ramp of
  * the base (`lib/pack/ramps.ts`), the shades computed, the menu shown with them before they
  * are written. Such a theme is renamed and deleted from here too (`onRename`, `onDelete`),
- * when the server moves a theme's folder.
+ * when the server moves a theme's folder, and exported as an archive (`onExport`).
  */
 export function KitThemePage({
   name,
@@ -49,6 +49,7 @@ export function KitThemePage({
   onColors,
   onRename,
   onDelete,
+  onExport,
 }: {
   name: string;
   onBack: () => void;
@@ -66,6 +67,11 @@ export function KitThemePage({
   onRename?: (name: string, target: string) => Promise<void>;
   /** Takes the theme `name`, a theme of its own folder, off the server. */
   onDelete?: (name: string) => Promise<void>;
+  /**
+   * Downloads the archive of the theme `name`, a theme of its own folder; rejects with why it
+   * could not (`server_offline`, `transport`).
+   */
+  onExport?: (name: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const read = useKitStore((s) => s.read);
@@ -111,6 +117,19 @@ export function KitThemePage({
     }
   };
 
+  const exportIt = async () => {
+    if (busy || !onExport) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onExport(name);
+    } catch (cause) {
+      setError(`export:${cause instanceof Error ? cause.message : "transport"}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const colors = table ? [...table] : [];
   return (
     <div className="flex flex-col gap-4" data-testid="kit-theme-page">
@@ -143,7 +162,11 @@ export function KitThemePage({
         <p role="alert" className="text-xs text-[var(--danger)]">
           {error === "conflict"
             ? t("kit.theme.ramps.conflict")
-            : t("kit.theme.failed", { detail: error })}
+            : error.startsWith("export:")
+              ? t(`kit.theme.exportFailed.${error.slice(7)}`, {
+                  defaultValue: t("kit.theme.exportFailed.transport"),
+                })
+              : t("kit.theme.failed", { detail: error })}
         </p>
       ) : null}
       {inPlace && stack.length > 1 ? (
@@ -299,11 +322,23 @@ export function KitThemePage({
                   </Button>
                 </div>
               ) : null}
-              {onOpenTheme && name in own ? (
-                <div>
-                  <Button variant="outline" size="sm" onClick={onOpenTheme}>
-                    {t("kit.theme.open")}
-                  </Button>
+              {name in own && (onOpenTheme || onExport) ? (
+                <div className="flex flex-wrap gap-2">
+                  {onOpenTheme ? (
+                    <Button variant="outline" size="sm" onClick={onOpenTheme}>
+                      {t("kit.theme.open")}
+                    </Button>
+                  ) : null}
+                  {onExport ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => void exportIt()}
+                    >
+                      {t("kit.theme.export")}
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
               {moves ? (

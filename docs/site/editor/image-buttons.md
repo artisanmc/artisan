@@ -125,6 +125,13 @@ moving the folder back into `themes/` under the theme's name restores it at the 
 next start. The common images
 (`artisan`) are neither renamed nor deleted. Both need the server's plugin to be up to date.
 
+**Export** on that page downloads the theme as an archive (`<name>.theme.zip`): its folder as
+the server holds it, colours and redrawn images. On another server, **Resources**, **Show:
+Themes**, **Import a theme** reads the archive, proposes the theme's name (change it when the
+server already has a theme of that name) and creates the theme with its files. An imported
+theme is not put in place: open it, look at the menu with it, then put it in place. A
+module's archive is not a theme's: it is imported from the server's modules.
+
 On the page of a theme, **Artisan's colours** has one colour to pick per family: main
 (buttons), danger (delete, close), accent (highlights) and neutral (windows, frames). Pick
 what a family's colour becomes and its shades follow, darker ones darker, lighter ones

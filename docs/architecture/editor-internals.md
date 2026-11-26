@@ -107,7 +107,12 @@ are not in place; `themesMoved` turns a move on the screen into the server's lis
 That page renames and deletes a theme of its own folder (`ThemeMoves`, offered when the
 theme's `KitRead.canMove` is set, the server's `capabilities.canRename`): the route moves the
 folder (`renameProject`, `deleteUserProject`), then writes the themes in place when the theme
-was among them (`themesRenamed`) and rebuilds the pack. The list
+was among them (`themesRenamed`) and rebuilds the pack. It exports the theme too
+(`runExportThemeZip`: the folder as the server holds it, `<name>.theme.zip`), and the Themes
+screen imports one (`ImportThemeDialog`, `features/import/runImportTheme.ts`: the archive
+read by `themeArchiveFiles` of `lib/pack/themeArchive.ts`, then `createProject` with the role
+`theme` and `writeProjectFiles` with the files and the images, under a name no theme has).
+The list
 changes nothing itself: an image opens where it lives, in its module's Resources (the route
 sets the asset store's selection, then opens that module) or in the atelier of the common
 images (`useResourcesView.askPiece`).

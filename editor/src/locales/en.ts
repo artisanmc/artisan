@@ -291,6 +291,40 @@ export default {
         create_failed: "Could not create the theme on the server. Try again.",
       },
     },
+    importTheme: {
+      open: "Import a theme",
+      title: "Import a theme",
+      intro:
+        "Brings a theme exported from another server (<name>.theme.zip). It arrives on the server without being put in place: it changes nothing until you put it in place.",
+      file: "Theme archive",
+      drop: "Drop a theme's archive, or click to pick one",
+      dropHint: "A .zip exported from a theme's page",
+      holds_one: "{{count}} image, no colours.",
+      holds_other: "{{count}} images, no colours.",
+      holdsColours_one: "A table of colours and {{count}} image.",
+      holdsColours_other: "A table of colours and {{count}} images.",
+      holdsColoursOnly: "A table of colours, no image.",
+      holdsNeither: "Neither colours nor images: drawing notes only.",
+      submit: "Import",
+      errors: {
+        not_a_zip: "This file is not a .zip archive.",
+        not_a_theme:
+          "This archive holds no theme: a theme's files are under overrides/, assets/ or data/.",
+        is_module: "This archive is a module's. Import it from the server's modules.",
+        too_large: "This archive is too heavy for a theme (8 MB at most).",
+        invalid_name:
+          "Lowercase letters, digits, “_” and “-”, starting with a letter or a digit. “artisan” is the name of the common images.",
+        project_exists:
+          "A theme or a module already has this name on this server. Pick another name, or delete that theme first.",
+        server_offline: "The server is offline. Connect it to import the theme.",
+        fetch_timeout:
+          "The server did not answer in time. Check the list of themes before trying again.",
+        forbidden: "You are not allowed to add a theme to this server.",
+        plugin_update_required:
+          "This server runs an older Artisan. Update its plugin to import themes.",
+        import_failed: "Could not write the theme on the server. Try again.",
+      },
+    },
     themes: {
       title: "Themes",
       intro:
@@ -354,6 +388,11 @@ export default {
       putHint:
         "Putting a theme in place sets it above the ones already there and rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
       open: "Open the theme's folder",
+      export: "Export",
+      exportFailed: {
+        server_offline: "The server is offline: the theme cannot be exported.",
+        transport: "The theme could not be read from the server. Try again.",
+      },
       moves: {
         rename: "Rename",
         delete: "Delete",

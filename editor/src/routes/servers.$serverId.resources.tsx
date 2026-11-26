@@ -5,6 +5,8 @@ import { ThemesPage } from "@/features/assets/ThemesPage";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useResourcesView } from "@/features/assets/resourcesView";
 import { saveThemeColors } from "@/features/assets/themeWrite";
+import { runExportThemeZip } from "@/features/export/runExportZip";
+import { ImportThemeDialog } from "@/features/import/ImportThemeDialog";
 import {
   SERVER_COMMON,
   SERVER_THEMES,
@@ -126,19 +128,30 @@ function ServerResourcesTab() {
     const { themes } = useKitStore.getState();
     await stackFollows(themes.includes(name) ? themes.filter((other) => other !== name) : null);
   };
+  // A theme created or imported here is read with the server's Projects again, then shown.
+  const themeArrived = (from: ServerResourcesScope) => (name: string) => {
+    setRereads((count) => count + 1);
+    void showScope(from, name);
+  };
   const newTheme = (from: ServerResourcesScope) =>
     kitId
       ? (themes: readonly string[]) => (
-          <NewThemeDialog
-            serverKeyId={serverKeyId}
-            taken={themes}
-            onCreated={(name) => {
-              setRereads((count) => count + 1);
-              void showScope(from, name);
-            }}
-          />
+          <NewThemeDialog serverKeyId={serverKeyId} taken={themes} onCreated={themeArrived(from)} />
         )
       : undefined;
+  /** What the Themes screen offers to add a theme: one from an archive, or an empty one. */
+  const addTheme = kitId
+    ? (themes: readonly string[]) => (
+        <div className="flex flex-wrap gap-2">
+          <ImportThemeDialog
+            serverKeyId={serverKeyId}
+            taken={themes}
+            onImported={themeArrived(SERVER_THEMES)}
+          />
+          {newTheme(SERVER_THEMES)?.(themes)}
+        </div>
+      )
+    : undefined;
   if (theme)
     return (
       <div className="h-full overflow-auto">
@@ -165,6 +178,12 @@ function ServerResourcesTab() {
             onPutInPlace={putInPlace}
             onRename={renameTheme}
             onDelete={deleteTheme}
+            onExport={async (name) => {
+              const mine = useKitStore.getState().own[name];
+              if (!mine) throw new Error("transport");
+              const result = await runExportThemeZip(mine.projectId, name);
+              if (!result.ok) throw new Error(result.error ?? "transport");
+            }}
           />
         </div>
       </div>
@@ -189,7 +208,7 @@ function ServerResourcesTab() {
             stackSaved(await patchServerConfig(serverKeyId, { [THEMES_CONFIG_KEY]: names }))
           }
           onPutInPlace={putInPlace}
-          newTheme={newTheme(SERVER_THEMES)}
+          newTheme={addTheme}
         />
       }
       common={

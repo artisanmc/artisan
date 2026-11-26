@@ -38,6 +38,7 @@ class ProjectFolderRequestsTest {
             is EditorRequest.ProjectCreate -> writes.create(request)
             is EditorRequest.ProjectDelete -> writes.delete(request)
             is EditorRequest.ProjectRename -> writes.rename(request)
+            is EditorRequest.ProjectWrite -> writes.write(request)
             else -> error("not a folder request: $json")
         }
         return sent.removeLast()
@@ -71,6 +72,22 @@ class ProjectFolderRequestsTest {
         assertEquals("project_exists", dispatch("""{"type":"project_create","request_id":"r3","project_id":"noel"}""")["error"])
         assertEquals("invalid_name", dispatch("""{"type":"project_create","request_id":"r4","project_id":"Noel","role":"theme"}""")["error"])
         assertEquals("invalid_input", dispatch("""{"type":"project_create","request_id":"r5","project_id":"x","role":"config"}""")["error"])
+    }
+
+    @Test fun `a theme created empty takes an archive's files in one write, its images included`() {
+        // What the editor's import of a theme sends: the folder, then its files.
+        dispatch("""{"type":"project_create","request_id":"r1","project_id":"noel","role":"theme"}""")
+        val png = byteArrayOf(-119, 80, 78, 71, 0, 1, 2)
+        val written = dispatch(
+            """{"type":"project_write","request_id":"r2","project_id":"noel","operation_id":"op-1",
+               "files":[{"path":"overrides/colors.yml","content":"colors: {}\n","base_hash":null}],
+               "binaries":[{"path":"overrides/artisan/close.1x1.png","content_base64":"${java.util.Base64.getEncoder().encodeToString(png)}","base_hash":null}]}""",
+        )
+        assertEquals(true, written["ok"], written.toString())
+        val theme = File(coreRoot.parentFile, "themes/noel")
+        assertEquals("colors: {}\n", File(theme, "overrides/colors.yml").readText())
+        assertTrue(File(theme, "overrides/artisan/close.1x1.png").readBytes().contentEquals(png))
+        assertFalse(File(coreRoot, "noel").exists(), "written in the theme's folder, not in a module's")
     }
 
     @Test fun `a theme is renamed and deleted as a theme, the theme artisan never`() {

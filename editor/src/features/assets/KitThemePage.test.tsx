@@ -215,4 +215,28 @@ describe("KitThemePage", () => {
     // The dialog stays open on a refusal.
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
+
+  it("exports a theme of its own folder, and says when the server could not be read", async () => {
+    useKitStore.setState({
+      own: { printemps: { projectId: "srv.printemps", files: {}, binaries: [] } },
+    });
+    const onExport = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValue(new Error("server_offline"));
+    const { rerender } = render(
+      <KitThemePage name="printemps" onBack={() => {}} onExport={onExport} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Exporter" }));
+    await waitFor(() => expect(onExport).toHaveBeenCalledWith("printemps"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Exporter" })).toBeEnabled());
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Exporter" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Le serveur est hors ligne : le thème ne peut pas être exporté.",
+    );
+    // A theme the common images still keep has no archive of its own.
+    rerender(<KitThemePage name="noel" onBack={() => {}} onExport={onExport} />);
+    expect(screen.queryByRole("button", { name: "Exporter" })).toBeNull();
+  });
 });

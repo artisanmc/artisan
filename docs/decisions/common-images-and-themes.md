@@ -472,6 +472,22 @@ left in the list with no folder changes nothing and shows as not found on the Th
 Not in this part: a theme's export and import; putting a deleted theme back from the trash
 is done in the server's files.
 
+**Step 4, ninth part: a theme is exported and imported** (`themeArchive.ts`,
+`runExportThemeZip`, `runImportTheme.ts`, `ImportThemeDialog.tsx`; decisions 5 and 10).
+A theme's archive is its folder as the server holds it, its files at the top, named
+`<name>.theme.zip`: a theme is exported alone, it holds no menu and embeds nothing of a
+module. The page of a theme of its own folder has **Export**. The Themes screen has
+**Import a theme**: the archive is read in the browser (`themeArchiveFiles`: what is under
+`overrides/`, `assets/` and `data/` of the shallowest folder that has one of them, 8 MB at
+most; an archive that holds a module's file is refused as a module's, one that holds several
+themes side by side as no theme's), the name proposed is the file's, and the theme is made
+on the server by what already exists: `project_create` with `role: "theme"`, then
+`project_write` with the files, the images among them (in batches of 2 MB). It arrives
+installed and not in place. When a write is refused the folder just created is deleted
+again. Nothing new on the server or in the protocol.
+Not in this part: importing over a theme the server has (the name must be free: no update,
+no merge, no version of a theme), and an MCP tool for either.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -502,6 +518,7 @@ Not there yet:
   the original, back to the original, a merge at each update): it has no "the original
   changed" notice of its own.
 - Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are not in the pack.
+  A theme has no versions and no update: an archive is imported under a free name only.
 - Against decision 7: an image of the server that follows the ramps is repainted by its
   colours as they are, so one drawn in other colours than the base's is not reached by a pick;
   the editor does not say which of an image's colours are in no ramp.
