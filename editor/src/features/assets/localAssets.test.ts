@@ -438,6 +438,50 @@ describe("performLocalAssetMutation", () => {
     });
   });
 
+  it("keeps an image's margins across a retouch and a rename, sets them on a menu image and takes them off", async () => {
+    const hub = fakeHub(empty());
+    await performLocalAssetMutation(
+      "p",
+      createOp(hub, { type: "texture", name: "panel", function: "menu" }, png(8, 8)),
+    );
+    await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/panel", method: "PATCH", fields: { slice: '{"left":2,"right":3}' } }),
+    );
+    const slice = { left: 2, right: 3, top: 0, bottom: 0 };
+    const retouched = await performLocalAssetMutation(
+      "p",
+      createOp(hub, { type: "texture", name: "panel", retouch: "true" }, png(8, 8, 2)),
+    );
+    expect(retouched.asset).toMatchObject({ slice });
+    const renamed = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/panel", method: "PATCH", fields: { name: "frame" } }),
+    );
+    expect(renamed.asset).toMatchObject({ id: "frame", slice });
+    expect(parse(hub.draft.snapshot.tree["assets/textures/frame.yml"]!)).toMatchObject({ slice });
+    const set = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/frame", method: "PATCH", fields: { slice: '{"top":1}' } }),
+    );
+    expect(set.asset).toMatchObject({ slice: { left: 0, right: 0, top: 1, bottom: 0 } });
+    const refused = await rejection(
+      performLocalAssetMutation(
+        "p",
+        op(hub, { suffix: "/frame", method: "PATCH", fields: { slice: '{"top":1.5}' } }),
+      ),
+    );
+    expect(refused.status).toBe(400);
+    const cleared = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: "/frame", method: "PATCH", fields: { slice: "null" } }),
+    );
+    expect(cleared.asset?.slice).toBeUndefined();
+    expect(parse(hub.draft.snapshot.tree["assets/textures/frame.yml"]!)).not.toHaveProperty(
+      "slice",
+    );
+  });
+
   it("the server's version of a base image, first drawn over the base, follows the ramps", async () => {
     const original = png(8, 8, 6);
     const snapshot = empty();

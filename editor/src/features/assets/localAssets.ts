@@ -25,12 +25,13 @@ import {
 import { type AssetUsage, parseAssetUsages } from "@/lib/pack/assetUsages";
 import { type ComposeRecipe, composeRecipe, composeYaml } from "@/lib/pack/compose";
 import { type DiskAsset, diskAssetsFromTree, followsRamps } from "@/lib/pack/diskAssets";
+import { FONT_DESCRIPTOR, fontDir, fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
 import { imageFunctionOf } from "@/lib/pack/imageFunction";
 import { isKitFolder, kitSlot } from "@/lib/pack/kit";
-import { FONT_DESCRIPTOR, fontDir, fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
 import { type ParsedMcFont, parseMcFontsZip } from "@/lib/pack/mcFontsParser";
 import { readPngContentWidth, readPngDimensions } from "@/lib/pack/pngDimensions";
 import type { AssetRow } from "@/lib/pack/resourcePackBuilder";
+import { sliceOf } from "@/lib/pack/slice";
 import { sha256Hex } from "@/lib/sha256";
 import { useKitStore } from "@/state/kitStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -87,7 +88,7 @@ export function assetJsonFields(fields: Record<string, string>): Record<string, 
   return Object.fromEntries(
     Object.entries(fields).map(([key, value]) => [
       key,
-      key === "usages" || key === "compose"
+      key === "usages" || key === "compose" || key === "slice"
         ? JSON.parse(value)
         : ["height", "ascent"].includes(key)
           ? Number(value)
@@ -123,6 +124,7 @@ function serialize(row: AssetRow): Asset {
       usages: row.usages,
       function: row.function,
       ramps: row.ramps,
+      slice: row.slice,
       contentHash: row.contentHash,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -664,6 +666,7 @@ async function create(
       usages,
       function: fn,
       ramps,
+      slice: kept?.slice,
     },
     baseHash: existingSame?.hash ?? null,
     ...(previous ? { previous: { path: previous.path, hash: textHash(previous.content) } } : {}),
@@ -683,6 +686,7 @@ async function create(
         usages,
         function: fn,
         ramps,
+        slice: kept?.slice,
         contentHash: sha256Hex(file),
         createdAt: now,
         updatedAt: now,
@@ -778,6 +782,13 @@ async function patch(
   if (body.ramps !== undefined && (row.type === "font" || found.compose))
     fail(400, "ramps only valid for a drawn image");
   const nextRamps = body.ramps === undefined ? row.ramps : body.ramps || undefined;
+  // `slice: null` takes the margins off; margins that are not whole numbers ≥ 0 are refused.
+  if (body.slice !== undefined && body.slice !== null && !sliceOf({ slice: body.slice }))
+    fail(400, "Invalid slice (left, right, top, bottom: whole numbers, one above 0)");
+  if (body.slice && (row.type === "font" || nextFunction !== "menu"))
+    fail(400, "slice only valid for a menu image");
+  const nextSlice =
+    body.slice === undefined ? row.slice : (sliceOf({ slice: body.slice }) ?? undefined);
   const nextName = typeof body.name === "string" ? body.name : row.name;
   if (typeof body.ascent === "number" && row.type !== "glyph")
     fail(400, "ascent only valid for glyph");
@@ -816,6 +827,7 @@ async function patch(
     else next.ascent = nextAscent;
     next.usages = nextUsages;
     next.function = nextFunction;
+    next.slice = nextSlice;
     const to = renamed
       ? found.path.replace(/[^/]+(\.ya?ml)$/, `${assetFileName(nextName)}$1`)
       : found.path;
@@ -859,6 +871,7 @@ async function patch(
         usages: nextUsages,
         function: nextFunction,
         ramps: nextRamps,
+        slice: nextSlice,
       },
       baseHash: renamed ? null : found.hash,
       ...(previous && !renamed
@@ -885,6 +898,7 @@ async function patch(
       usages: nextUsages,
       function: nextFunction,
       ramps: nextRamps,
+      slice: nextSlice,
     }),
   };
 }
@@ -928,6 +942,7 @@ async function duplicate(overlay: DraftOverlay, id: string): Promise<Body> {
       usages: src.usages,
       function: src.function,
       ramps: src.ramps,
+      slice: src.slice,
     },
     baseHash: null,
   });

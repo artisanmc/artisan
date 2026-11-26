@@ -113,7 +113,7 @@ export function buildResourcePackZip(
     Object.assign(files, buildVanillaGuiFiles(vanillaGui.sources, vanillaGui.transparent));
   if (hideInventoryLabel)
     for (const [path, json] of Object.entries(inventoryLabelFiles())) files[path] = strToU8(json);
-  buildImageButtons(files, assetIndex, glyphPngs, imageButtons);
+  buildImageButtons(files, assetIndex, glyphPngs, imageButtons, remapped);
   buildOverlayImages(files, assetIndex, glyphPngs, overlayImages);
   files["assets/artisan/asset-index.json"] = strToU8(JSON.stringify(assetIndex, null, 2));
 

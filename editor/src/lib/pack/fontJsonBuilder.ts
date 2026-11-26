@@ -1,5 +1,6 @@
 import type { AssetUsage } from "./assetUsages";
 import type { ImageFunction } from "./imageFunction";
+import type { Slice } from "./slice";
 import { spaceOffsetTable } from "./spaceOffsets";
 import { SYMBOLS_FONT, SYMBOLS_UP_FULL_MAX } from "./symbols";
 import { type TextSheet, allTextSheets } from "./textChars";
@@ -24,6 +25,8 @@ export interface AssetRow {
    * follows its layers instead.
    */
   ramps?: boolean;
+  /** The margins of a sliced image (`slice.ts`): an image button repeats what is between them. */
+  slice?: Slice;
   width: number;
   height: number;
   ascent: number | null;

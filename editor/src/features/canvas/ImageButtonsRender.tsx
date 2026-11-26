@@ -8,6 +8,7 @@ import {
 } from "@/domain/imageButton";
 import type { Element, Menu, MenuId, ProjectId } from "@/domain/types";
 import { useImageAsset } from "@/features/assets/kitAssets";
+import { type Slice, drawSliced, slicesAt } from "@/lib/pack/slice";
 import { useCssVar } from "@/lib/themeColors";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
 import { useHoverStore } from "@/state/hoverStore";
@@ -16,7 +17,7 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { isElementSelected, useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { Group, Image, Rect, Text } from "react-konva";
 import { toast } from "sonner";
 import { hitTestSlot } from "./hitTest";
@@ -88,16 +89,27 @@ function ImageButtonRender({
     menu.rows,
     menu.playerInventory,
   );
+  // A sliced image fills the rectangle as the pack draws it (`slice.ts`).
+  const columns = rect?.width ?? 0;
+  const rows = rect?.height ?? 0;
+  const sliced = useMemo(
+    () =>
+      image && asset?.slice && columns && rows
+        ? slicedPicture(image, asset.slice, columns, rows)
+        : null,
+    [image, asset?.slice, columns, rows],
+  );
   if (!rect || !hasImageButton(element)) return null;
   const x = rect.x * TEX_SCALE;
   const y = rect.y * TEX_SCALE;
   const width = rect.width * 18 * TEX_SCALE;
   const height = rect.height * 18 * TEX_SCALE;
   const selected = isElementSelected(ids, selectedMenu, element.id, menu.id);
+  const picture = sliced ?? image;
   const draw = imageButtonGeometry(
-    appearance.image!,
-    image?.width ?? 1,
-    image?.height ?? 1,
+    sliced ? { ...appearance.image!, fit: "native" } : appearance.image!,
+    picture?.width ?? 1,
+    picture?.height ?? 1,
     width / TEX_SCALE,
     height / TEX_SCALE,
   );
@@ -193,9 +205,10 @@ function ImageButtonRender({
     >
       <Rect width={width} height={height} fill="rgba(0,0,0,0.001)" />
       <Group clipX={0} clipY={0} clipWidth={width} clipHeight={height} listening={false}>
-        {image ? (
+        {picture ? (
           <Image
-            image={image}
+            image={picture}
+            imageSmoothingEnabled={false}
             x={draw.x * TEX_SCALE}
             y={draw.y * TEX_SCALE}
             width={draw.width * TEX_SCALE}
@@ -222,3 +235,41 @@ function ImageButtonRender({
 }
 
 const clamp = (index: number, size: number) => Math.min(Math.max(index, 0), size - 1);
+
+/**
+ * `image` as the pack draws a sliced image over that many slots: corners copied, edges and middle
+ * repeated. `null` when the margins do not hold there, or without a canvas to draw on.
+ */
+function slicedPicture(
+  image: HTMLImageElement,
+  slice: Slice,
+  columns: number,
+  rows: number,
+): HTMLCanvasElement | null {
+  const width = columns * 18;
+  const height = rows * 18;
+  const source = { width: image.naturalWidth, height: image.naturalHeight };
+  if (!source.width || !source.height || !slicesAt(slice, source, width, height)) return null;
+  const read = document.createElement("canvas");
+  read.width = source.width;
+  read.height = source.height;
+  const from = read.getContext("2d");
+  if (!from) return null;
+  from.drawImage(image, 0, 0);
+  const pixels = from.getImageData(0, 0, source.width, source.height);
+  const drawn = drawSliced(
+    { ...source, data: new Uint8Array(pixels.data.buffer) },
+    slice,
+    width,
+    height,
+  );
+  const out = document.createElement("canvas");
+  out.width = width;
+  out.height = height;
+  const to = out.getContext("2d");
+  if (!to) return null;
+  const target = to.createImageData(width, height);
+  target.data.set(drawn.data);
+  to.putImageData(target, 0, 0);
+  return out;
+}

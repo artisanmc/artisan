@@ -280,6 +280,25 @@ Bedrock players, and rows whose image is not in the pack yet see that item inste
 ```
 Choose **Item** to return to a material-based appearance.
 
+**One drawing for every width.** An image whose file `<name>.yml` declares margins is a
+*sliced* image: on a button it fills the button's slots, whatever its `fit`. The pixels inside
+the margins stay as drawn (the four corners), and what is between them is repeated, never
+scaled, so a button drawn once at 20 × 18 serves on 2, 3 or 5 slots without blurring.
+
+```yaml
+# assets/textures/button.yml
+width: 20
+height: 18
+function: menu
+slice: { left: 4, right: 4, top: 4, bottom: 4 }
+```
+
+Each margin is a whole number of pixels, 0 when left out. The margins must leave pixels to
+repeat (left + right below the image's width, top + bottom below its height) and fit in the
+button's slots; otherwise the image is drawn by its `fit` as any other. The editor's canvas
+shows the button as the game does. The margins are written in the file for now: the atelier
+does not set them yet, and it keeps them when it saves the image.
+
 **Label.** Any button that does not repeat (no `iterates`/`places`) can carry a **Label**:
 a text drawn in the menu's title over the button's slots. It is centred in the button by
 default; **Alignment**, the text size and the offsets (in pixels) move it inside the area.

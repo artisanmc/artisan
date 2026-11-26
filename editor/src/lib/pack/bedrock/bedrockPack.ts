@@ -2,7 +2,12 @@ import { strToU8, zipSync } from "fflate";
 import { sha1Hex } from "../../sha1";
 import { sha256Hex } from "../../sha256";
 import type { AssetRow } from "../fontJsonBuilder";
-import { type ImageButtonPlacement, imageButtonKey, renderImageButton } from "../imageButtons";
+import {
+  type ImageButtonPlacement,
+  imageButtonKey,
+  imageSlices,
+  renderImageButton,
+} from "../imageButtons";
 import { type RgbaImage, bitblt, createImage, decodePng, encodePng } from "../png";
 import type { BedrockMenu } from "./bedrockMenus";
 import {
@@ -186,6 +191,7 @@ export function buildBedrockPack(input: BedrockPackInput): BedrockPackResult {
     backgrounds.set(menu.key, png);
     files[`${backgroundTexture(menu)}.png`] = encodePng(png);
   }
+  const slices = imageSlices(input.assets);
   const buttonKeys = new Map<string, string>();
   const keyOf = (menu: BedrockMenu, button: BedrockMenu["buttons"][number], state: number) => {
     const id = `${menu.key}/${button.index}/${state}`;
@@ -198,7 +204,11 @@ export function buildBedrockPack(input: BedrockPackInput): BedrockPackResult {
     if (!files[path] && source) {
       try {
         files[path] = encodePng(
-          renderImageButton(decodePng(source), placement(button, state)).image,
+          renderImageButton(
+            decodePng(source),
+            placement(button, state),
+            slices.get(placement(button, state).asset),
+          ).image,
         );
       } catch {
         // Unreadable PNG: the Java pack skips it the same way.

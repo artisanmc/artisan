@@ -5,6 +5,7 @@ import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
 import type { DiskAsset } from "./diskAssets";
 import type { ImageFunction } from "./imageFunction";
 import { kitSlot } from "./kit";
+import type { Slice } from "./slice";
 
 /** Pure asset descriptors and discovery types; ProjectAssets owns storage operations. */
 
@@ -39,6 +40,8 @@ export interface DiskAssetDescriptor {
   function?: ImageFunction | null;
   /** The image follows the ramps: a theme's colours repaint it (`theme.ts`). */
   ramps?: boolean;
+  /** The margins of a sliced image (`slice.ts`). */
+  slice?: Slice | null;
   ascent?: number | null;
   codepoint?: number | null;
   width?: number;
@@ -57,6 +60,7 @@ export function descriptorYaml(d: DiskAssetDescriptor): string {
   if (d.usages !== undefined) out.usages = d.usages;
   if (d.function) out.function = d.function;
   if (d.ramps) out.ramps = true;
+  if (d.slice) out.slice = d.slice;
   return stringify(out);
 }
 

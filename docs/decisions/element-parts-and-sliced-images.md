@@ -1,6 +1,6 @@
 # Element parts and sliced images: a button made of several pieces, at any width
 
-**Status:** proposed (2026-11-26), nothing built
+**Status:** proposed (2026-11-26); step 1 partly built (see *Built so far*)
 
 **Extends:** `common-images-and-themes.md` (decision 4, an image's function), `menu/v1`
 (`Appearance.image`, `Appearance.label`), `element-display-and-states.md`
@@ -114,6 +114,25 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
 
 Done when the same template, placed on 2 slots and on 4, shows its background intact, its icon
 at the left and its label centred, in game on Java and Bedrock.
+
+## Built so far
+
+**Step 1, first part (2026-11-26): the pack draws a sliced image.** `slice` is read from an
+image's descriptor (`sliceOf` in `lib/pack/slice.ts`, `Slices.of` in `Images.kt`) and carried
+on its row (`AssetRow.slice`). `renderImageButton` / `ImageButtons.render` draw a sliced image
+at the button's rectangle (`drawSliced` / `Slices.draw`), then shift it by the offsets, for
+the Java glyph and the Bedrock texture alike; margins the image or the rectangle cannot hold
+leave the `fit`. The glyph's key does not change (it names the image, the rectangle and the
+fit), so the runtime needs nothing. A server's own common image carries its margins to the
+common row. The editor's canvas draws the same picture (`ImageButtonsRender`), and the
+editor's writes of a descriptor keep `slice` (upload over an image, patch, duplicate); a
+`PATCH` of an image takes `slice` (an object, or `null` to take it off) for a menu image.
+Shared case in `testdata/resource-pack-conformance.json`.
+
+Not built: the margins as guides in the atelier, `render_menu` (it draws a sliced image by
+its fit), the base's buttons declared sliced, the rule that a redraw or a theme keeps the
+margins (the margins are the descriptor's of the image that is shown; a theme's
+`overrides/` PNG is drawn with the margins of the image it redraws).
 
 ## Consequences
 
