@@ -387,6 +387,46 @@ describe("checkImageIssues", () => {
     });
     expect(checkImageIssues(edited, holders())).toEqual([]);
   });
+
+  it("reads the names a kind's file writes as a menu's, and says which files write them", () => {
+    const edited = project("core", { menus: [drawn("main", ["ghost"], ["logo"])] });
+    const writers = {
+      files: [
+        { name: "huds/main.yml", refs: ["ghost", "anvil", "logo", "jobs:anvil", "{{row.icon}}"] },
+        { name: "huds/boss.yml", refs: ["anvil"] },
+      ],
+      composed: [],
+      png: () => true,
+    };
+    expect(checkImageIssues(edited, holders(), writers)).toEqual([
+      { kind: "image_missing", ref: "ghost", menus: ["main"], files: ["huds/main.yml"] },
+      {
+        kind: "image_elsewhere",
+        ref: "anvil",
+        module: "jobs",
+        menus: [],
+        files: ["huds/boss.yml", "huds/main.yml"],
+      },
+    ]);
+  });
+
+  it("flags the layers of a composed image that take nothing: no PNG of the module, no common image", () => {
+    const edited = project("core", { menus: [] });
+    const writers = {
+      files: [],
+      composed: [
+        // Another module's image and the module's own composed image are no layer.
+        { name: "window", refs: ["frame", "anvil", "kit:panel", "artisan:ribbon", "kit:ghost"] },
+        { name: "card", refs: ["frame", "frame"] },
+        { name: "badge", refs: ["window", "window"] },
+      ],
+      png: (name: string) => name === "frame",
+    };
+    expect(checkImageIssues(edited, holders(), writers)).toEqual([
+      { kind: "layer_missing", image: "badge", refs: ["window"] },
+      { kind: "layer_missing", image: "window", refs: ["anvil", "kit:ghost"] },
+    ]);
+  });
 });
 
 describe("serverChecksFor — images", () => {

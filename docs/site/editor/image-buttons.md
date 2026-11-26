@@ -49,7 +49,8 @@ older menus hold, means the same and stays read. A name that neither the menu's 
 common images hold still reaches another module's image of that name, as before. The editor
 says so under the image, with a button that writes the name with its module (`guilds:gold`),
 and the deploy review warns about it. Both also flag a name no image answers on the server,
-which shows nothing in game.
+which shows nothing in game. The review reads the same way the names an add-on's files write
+(a HUD's images), and says which file writes them.
 
 **Common images in a module's Resources.** The **Module** selector of the Resources screen has
 an entry **Common images**, beside this module, all modules and the other modules. It lists
@@ -179,7 +180,10 @@ page says what its colours reach.
 `.yml`, which stacks kit images and PNGs of the module (see
 [AI](../../configuration/ai/), "Composed images"). The Resources page lists it with its picture
 and says what it is made of; you rename, duplicate or delete it there. It has no file to
-reimport, and it stays in its module: another module cannot copy it.
+reimport, and it stays in its module: another module cannot copy it. A layer takes a common
+image (`artisan:<name>`) or a PNG of its own module, nothing else: a layer that names another
+module's image, another composed image or a deleted one is left out of the picture, and the
+deploy review lists such layers.
 
 **New image** in the Resources page asks what the image is for, which gives its size: a
 **menu background** (a window of 1 to 6 rows), **slots** (pick the area on a 9 × 6 grid: 3 × 1

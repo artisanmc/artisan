@@ -62,7 +62,20 @@ function issueKey(issue: ServerIssue): string {
     case "image_missing":
     case "image_elsewhere":
       return `${issue.kind}:${issue.ref}`;
+    case "layer_missing":
+      return `layer:${issue.image}`;
   }
+}
+
+/** Who writes an image's name, as a sentence lists them: the menus, then the kinds' files. */
+function writers(
+  issue: { menus: string[]; files?: string[] },
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
+  return [
+    ...issue.menus.map((name) => t("deploy.checks.by.menu", { name })),
+    ...(issue.files ?? []).map((name) => t("deploy.checks.by.file", { name })),
+  ].join(", ");
 }
 
 function describe(issue: ServerIssue, t: (key: string, opts?: Record<string, unknown>) => string) {
@@ -89,17 +102,18 @@ function describe(issue: ServerIssue, t: (key: string, opts?: Record<string, unk
         },
       );
     case "image_missing":
-      return t("deploy.checks.imageMissing", {
-        count: issue.menus.length,
-        ref: issue.ref,
-        menus: issue.menus.join(", "),
-      });
+      return t("deploy.checks.imageMissing", { ref: issue.ref, writers: writers(issue, t) });
     case "image_elsewhere":
       return t("deploy.checks.imageElsewhere", {
-        count: issue.menus.length,
         ref: issue.ref,
         module: issue.module,
-        menus: issue.menus.join(", "),
+        writers: writers(issue, t),
+      });
+    case "layer_missing":
+      return t("deploy.checks.layerMissing", {
+        count: issue.refs.length,
+        image: issue.image,
+        refs: issue.refs.join(", "),
       });
   }
 }
