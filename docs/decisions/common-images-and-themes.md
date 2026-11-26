@@ -532,7 +532,7 @@ refused: the pack takes one drawn PNG and shows it as drawn. `render_menu` draws
 `<theme>:<name>` as the theme's file is, deployed or as `theme_draft_id` has it, the theme in
 place or not, and no theme's redraw applies to it. `survey_ui` lists them
 (`common.themes[].own_images`, each as a menu names it) and `themes_format` says how.
-Not in this part: the archive's note.
+Not in this part: the archive's note (Step 6, third part).
 
 **Step 6, first part: a module's archive says what it names elsewhere** (`lib/pack/elsewhere.ts`,
 `exportElsewhere.ts`, `runImportZip.ts`; decision 10). The export reads the image names the
@@ -562,6 +562,16 @@ images are noted, never offered. What is embedded leaves the note.
 Not in this part: an image named by a kind's file, a composed image's layer or a menu the
 module ships is not rewritten, so it stays a dependency even when the menus' one is embedded;
 a composed image of another module is not copied.
+
+**Step 6, third part: a theme's own image is a dependency of the archive** (`namedElsewhere`,
+`ExportNote.requires.themes`, `exportElsewhere.ts`, `settleElsewhere` in `runImportZip.ts`;
+decisions 5 and 10). A module that names `<theme>:<name>` depends on that theme: the image
+is never copied nor offered for embedding, it comes with the theme. The note lists such
+images by theme (`requires.themes`), read from the themes a name qualifies. At import, each
+is checked against the server's themes: the theme absent (a module of that folder is no
+theme), or without an image of that name, is said before anything is written, with the way
+to import the theme. A note written before this part has no `themes` and reads as before.
+Not in this part: exporting the theme along with the module (two archives, two imports).
 
 Not there yet:
 
@@ -606,8 +616,8 @@ Not there yet:
   changed" notice of its own.
 - Against decision 10: an image of another module is embedded only where a menu of the
   module's own names it (not from a kind's file, a composed layer or a shipped menu), and a
-  composed one never is. A theme's own image a menu names is no dependency of the archive
-  yet: the note does not say it. The note lives in the archive only: a module's folder copied by hand
+  composed one never is. A theme's own image is noted, and its theme is exported and
+  imported apart. The note lives in the archive only: a module's folder copied by hand
   carries no dependency, and nothing at load reports an image it names and the server lacks
   (the editor's deploy review does, for the names its menus write: `image_missing`).
   The copies are compared by their PNG alone (a descriptor that differs does not keep a
@@ -615,8 +625,8 @@ Not there yet:
   note is the origin's, shown when a base image is missing, never compared.
 - Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are in the pack when
   named, the editor draws one a menu names, as published, and the MCP tools write and draw
-  one. The image picker does not offer one (the name is typed, read on the theme's page), a
-  composed one is not taken, and a module's archive does not note one. `<theme>:<name>` for
+  one. The image picker does not offer one (the name is typed, read on the theme's page)
+  and a composed one is not taken. `<theme>:<name>` for
   an image the theme does not hold falls on the bare name like a module's.
   A theme has no versions and no update: an archive is imported under a free name only.
 - Against decision 7: an image of the server that follows the ramps is repainted by its

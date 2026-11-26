@@ -641,6 +641,9 @@ export default {
       common: "Common images the module names and this server does not have: {{names}}.",
       moduleAbsent: "The module {{folder}} is not on this server. Images named: {{names}}.",
       moduleLacks: "The module {{folder}} does not have these images: {{names}}.",
+      themeAbsent:
+        "The theme {{folder}} is not on this server. Its images named: {{names}}. Import it from the Themes screen (Import a theme).",
+      themeLacks: "The theme {{folder}} does not have these images of its own: {{names}}.",
     },
     errors: {
       not_a_zip: "That file is not a readable .zip.",

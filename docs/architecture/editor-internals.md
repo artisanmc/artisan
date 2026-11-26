@@ -1341,11 +1341,13 @@ its kinds ask the pack for, composed layers) and told apart with who holds each 
 added, another module. A module that names its own images only costs no other read and its
 archive is its folder, byte for byte as before. Otherwise the archive gains
 `artisan-export.yml` at its root (`schema: export/v1`: `artisan` the origin's version, `base`,
-`common` the copies made, `requires.common`, `requires.modules`), and for each common image
+`common` the copies made, `requires.common`, `requires.modules`, `requires.themes` for the
+themes' own images named `<theme>:<name>`), and for each common image
 the server added that a name alone reaches, a copy at the same path as in the theme `artisan`
 (PNG and descriptor; a glyph takes a codepoint free in the module). A common image named as
 `artisan:<name>`, or a composed one, is not answered by a copy: it goes to `requires.common`.
-Another module is read only when a name may be its image. When the server cannot be read for
+Another module is read only when a name may be its image, a theme only when a name is
+qualified by its folder. When the server cannot be read for
 this, the folder is exported alone and the toast says so (`ExportZipResult.alone`): getting the
 files out never depends on it.
 

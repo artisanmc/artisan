@@ -109,6 +109,10 @@ tells you, before it writes anything, which ones the server lacks (a base image 
 is older there; a module means it is not installed, or has no image of that name). You can
 still import: those images show nothing until the server has them.
 
+An image of a theme (`noel:garland`) comes with its theme, never with the module: the archive
+notes it, and the import tells you when the server has no such theme, or a theme without
+that image. Export the theme from its page and import it from the Themes screen.
+
 ## Content that comes from a module
 
 Add-ons can ship menus, commands and examples. They sit in the project like your own files,

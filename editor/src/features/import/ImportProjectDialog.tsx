@@ -350,6 +350,12 @@ function ElsewhereNotice({ elsewhere }: { elsewhere: ImportElsewhere }) {
         { folder: module.folder, names: list(module.images) },
       ),
     ),
+    ...elsewhere.themes.map((theme) =>
+      t(
+        theme.absent ? "importProject.elsewhere.themeAbsent" : "importProject.elsewhere.themeLacks",
+        { folder: theme.folder, names: list(theme.images) },
+      ),
+    ),
   ].filter((line): line is string => !!line);
   if (settled.length === 0 && lacking.length === 0) return null;
   return (

@@ -135,6 +135,44 @@ it("finds the module a name alone reaches when the common images do not have it"
   });
 });
 
+it("notes a theme's own image by its theme, and reads only the theme a name qualifies", async () => {
+  trees.proj_noel = {
+    files: { "assets/textures/wreath.yml": "compose:\n  layers:\n    - image: star\n" },
+    binaries: [
+      { path: "assets/textures/star.png", hash: "s", size: 1 },
+      { path: "overrides/artisan/frame.png", hash: "o", size: 1 },
+    ],
+  };
+  trees.proj_ete = {
+    files: {},
+    binaries: [{ path: "assets/textures/sun.png", hash: "u", size: 1 }],
+  };
+  mocks.listServerProjects.mockResolvedValue({
+    ok: true,
+    projectIds: ["artisan", "guilds", "shop", "noel", "ete"],
+    projects: [
+      { id: "proj_kit", externalId: "artisan", name: "artisan", role: "theme" },
+      { id: "proj_guilds", externalId: "guilds", name: "guilds" },
+      { id: "proj_shop", externalId: "shop", name: "shop" },
+      { id: "proj_noel", externalId: "noel", name: "noel", role: "theme" },
+      { id: "proj_ete", externalId: "ete", name: "ete", role: "theme" },
+    ],
+  });
+  const ask = vi.fn();
+  // `star` alone reaches nothing; a composed image of a theme is not its own image.
+  const out = await exportElsewhere(project, disk(["noel:star", "star", "noel:wreath"]), ask);
+  expect(out?.copied).toEqual([]);
+  expect(out?.embedded).toEqual([]);
+  expect(parse(out!.files["artisan-export.yml"] as string)).toEqual({
+    schema: "export/v1",
+    requires: { themes: { noel: ["star"] } },
+  });
+  // A theme's image is a dependency: nothing is asked, nothing embedded.
+  expect(ask).not.toHaveBeenCalled();
+  // The modules are read for `star` alone, which may be one's image; of the themes, only `noel`.
+  expect(mocks.read.mock.calls.map(([id]) => id)).toEqual(["proj_kit", "proj_guilds", "proj_noel"]);
+});
+
 it("rejects when the server cannot be read, and says nothing for a name that reaches no image", async () => {
   expect(await exportElsewhere(project, disk(["nothing"]))).toBeNull();
   mocks.listServerProjects.mockResolvedValue({ ok: false, error: "server_offline" });
