@@ -1,0 +1,521 @@
+{
+  "description": "A look that names a component is read as the component's parts, its parameters put in (componentParts, expandMenuComponents, findComponent in docs/schema/menu/v1/components.ts; Components.kt in plugin/pack; MenuComponents.kt in plugin/core). `components`: the files by module, \"\" the common ones. `module`: the menu's module. `expanded`: the menu as it is drawn.",
+  "cases": [
+    {
+      "name": "defaults: the component's own images are its owner's, a text default per language stays a map",
+      "module": "shop",
+      "components": {
+        "": {
+          "confirm": {
+            "params": {
+              "text": {
+                "type": "text",
+                "default": {
+                  "en": "Confirm",
+                  "fr": "Confirmer"
+                }
+              },
+              "icon": {
+                "type": "image",
+                "default": "icon_check"
+              }
+            },
+            "parts": [
+              {
+                "image": "button_primary"
+              },
+              {
+                "image": "{icon}",
+                "anchor": "left",
+                "offset_x": 3
+              },
+              {
+                "label": "{text}"
+              }
+            ]
+          }
+        }
+      },
+      "menu": {
+        "id": "m",
+        "size": 27,
+        "elements": [
+          {
+            "id": "ok",
+            "positions": "0-2",
+            "component": "confirm",
+            "click": {
+              "left": "close"
+            }
+          }
+        ]
+      },
+      "expanded": {
+        "id": "m",
+        "size": 27,
+        "elements": [
+          {
+            "id": "ok",
+            "positions": "0-2",
+            "click": {
+              "left": "close"
+            },
+            "parts": [
+              {
+                "image": "artisan:button_primary"
+              },
+              {
+                "image": "artisan:icon_check",
+                "anchor": "left",
+                "offset_x": 3
+              },
+              {
+                "label": {
+                  "en": "Confirm",
+                  "fr": "Confirmer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "parameters given by the look: a text as written, an image read in the look's module; image, label and parts beside the component are dropped; a state has its own component",
+      "module": "shop",
+      "components": {
+        "": {
+          "confirm": {
+            "params": {
+              "text": {
+                "type": "text",
+                "default": {
+                  "en": "Confirm",
+                  "fr": "Confirmer"
+                }
+              },
+              "icon": {
+                "type": "image",
+                "default": "icon_check"
+              }
+            },
+            "parts": [
+              {
+                "image": "button_primary"
+              },
+              {
+                "image": "{icon}",
+                "anchor": "left",
+                "offset_x": 3
+              },
+              {
+                "label": "{text}"
+              }
+            ]
+          }
+        }
+      },
+      "menu": {
+        "id": "m",
+        "size": 27,
+        "elements": [
+          {
+            "id": "buy",
+            "positions": "0-2",
+            "image": {
+              "asset": "x"
+            },
+            "label": {
+              "text": "y"
+            },
+            "parts": [
+              {
+                "image": "z"
+              }
+            ],
+            "component": {
+              "name": "confirm",
+              "text": "{i18n:shop.buy}",
+              "icon": "coin"
+            },
+            "states": [
+              {
+                "if": [
+                  {
+                    "type": "has_permission",
+                    "perm": "vip"
+                  }
+                ],
+                "component": {
+                  "name": "artisan:confirm",
+                  "text": {
+                    "en": "VIP"
+                  }
+                }
+              },
+              {
+                "material": "STONE"
+              }
+            ]
+          }
+        ]
+      },
+      "expanded": {
+        "id": "m",
+        "size": 27,
+        "elements": [
+          {
+            "id": "buy",
+            "positions": "0-2",
+            "states": [
+              {
+                "if": [
+                  {
+                    "type": "has_permission",
+                    "perm": "vip"
+                  }
+                ],
+                "parts": [
+                  {
+                    "image": "artisan:button_primary"
+                  },
+                  {
+                    "image": "artisan:icon_check",
+                    "anchor": "left",
+                    "offset_x": 3
+                  },
+                  {
+                    "label": {
+                      "en": "VIP"
+                    }
+                  }
+                ]
+              },
+              {
+                "material": "STONE"
+              }
+            ],
+            "parts": [
+              {
+                "image": "artisan:button_primary"
+              },
+              {
+                "image": "coin",
+                "anchor": "left",
+                "offset_x": 3
+              },
+              {
+                "label": "{i18n:shop.buy}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "scopes: the module's component before the common one, another module's by its name; a name nothing answers leaves the look as written",
+      "module": "shop",
+      "components": {
+        "": {
+          "confirm": {
+            "params": {
+              "text": {
+                "type": "text",
+                "default": {
+                  "en": "Confirm",
+                  "fr": "Confirmer"
+                }
+              },
+              "icon": {
+                "type": "image",
+                "default": "icon_check"
+              }
+            },
+            "parts": [
+              {
+                "image": "button_primary"
+              },
+              {
+                "image": "{icon}",
+                "anchor": "left",
+                "offset_x": 3
+              },
+              {
+                "label": "{text}"
+              }
+            ]
+          }
+        },
+        "shop": {
+          "confirm": {
+            "parts": [
+              {
+                "image": "mine"
+              }
+            ]
+          }
+        },
+        "guilds": {
+          "banner": {
+            "parts": [
+              {
+                "image": "flag"
+              },
+              {
+                "image": "other:crest"
+              }
+            ]
+          }
+        }
+      },
+      "menu": {
+        "id": "m",
+        "size": 27,
+        "layers": [
+          {
+            "elements": [
+              {
+                "id": "a",
+                "positions": "0",
+                "component": "confirm"
+              },
+              {
+                "id": "b",
+                "positions": "1",
+                "component": "artisan:confirm"
+              },
+              {
+                "id": "c",
+                "positions": "2",
+                "component": {
+                  "name": "guilds:banner"
+                }
+              },
+              {
+                "id": "d",
+                "positions": "3",
+                "component": "missing"
+              },
+              {
+                "id": "e",
+                "positions": "4",
+                "component": "guilds:confirm"
+              },
+              {
+                "id": "f",
+                "positions": "5",
+                "material": "STONE"
+              }
+            ]
+          }
+        ]
+      },
+      "expanded": {
+        "id": "m",
+        "size": 27,
+        "layers": [
+          {
+            "elements": [
+              {
+                "id": "a",
+                "positions": "0",
+                "parts": [
+                  {
+                    "image": "shop:mine"
+                  }
+                ]
+              },
+              {
+                "id": "b",
+                "positions": "1",
+                "parts": [
+                  {
+                    "image": "artisan:button_primary"
+                  },
+                  {
+                    "image": "artisan:icon_check",
+                    "anchor": "left",
+                    "offset_x": 3
+                  },
+                  {
+                    "label": {
+                      "en": "Confirm",
+                      "fr": "Confirmer"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "c",
+                "positions": "2",
+                "parts": [
+                  {
+                    "image": "guilds:flag"
+                  },
+                  {
+                    "image": "other:crest"
+                  }
+                ]
+              },
+              {
+                "id": "d",
+                "positions": "3",
+                "component": "missing"
+              },
+              {
+                "id": "e",
+                "positions": "4",
+                "component": "guilds:confirm"
+              },
+              {
+                "id": "f",
+                "positions": "5",
+                "material": "STONE"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "texts: a parameter inside a longer text, a player's expression left alone, a text written per language, an image without value left out, `name` is never a parameter given",
+      "module": "shop",
+      "components": {
+        "shop": {
+          "price": {
+            "params": {
+              "amount": {
+                "type": "text",
+                "default": "0"
+              },
+              "unit": {
+                "type": "text"
+              },
+              "badge": {
+                "type": "image"
+              }
+            },
+            "parts": [
+              {
+                "image": "artisan:panel"
+              },
+              {
+                "image": "{badge}",
+                "anchor": "top_right"
+              },
+              {
+                "label": "<gold>{amount}</gold> {unit} {item.price}",
+                "anchor": "right"
+              },
+              {
+                "label": {
+                  "en": "Price: {amount}",
+                  "fr": "Prix : {amount}"
+                },
+                "anchor": "top"
+              },
+              {
+                "label": "{name}"
+              },
+              "junk",
+              {
+                "image": "{nothing}"
+              }
+            ]
+          }
+        }
+      },
+      "menu": {
+        "id": "m",
+        "size": 27,
+        "elements": [
+          {
+            "id": "p",
+            "positions": "0-2",
+            "component": {
+              "name": "price",
+              "amount": 12,
+              "unit": {
+                "en": "coins",
+                "fr": "pièces"
+              }
+            }
+          },
+          {
+            "id": "q",
+            "positions": "9-11",
+            "component": {
+              "name": "price",
+              "badge": "artisan:star"
+            }
+          }
+        ]
+      },
+      "expanded": {
+        "id": "m",
+        "size": 27,
+        "elements": [
+          {
+            "id": "p",
+            "positions": "0-2",
+            "parts": [
+              {
+                "image": "artisan:panel"
+              },
+              {
+                "label": {
+                  "en": "<gold>12</gold> coins {item.price}",
+                  "fr": "<gold>12</gold> pièces {item.price}"
+                },
+                "anchor": "right"
+              },
+              {
+                "label": {
+                  "en": "Price: 12",
+                  "fr": "Prix : 12"
+                },
+                "anchor": "top"
+              },
+              {
+                "label": "{name}"
+              },
+              {
+                "image": "shop:{nothing}"
+              }
+            ]
+          },
+          {
+            "id": "q",
+            "positions": "9-11",
+            "parts": [
+              {
+                "image": "artisan:panel"
+              },
+              {
+                "image": "artisan:star",
+                "anchor": "top_right"
+              },
+              {
+                "label": "<gold>0</gold>  {item.price}",
+                "anchor": "right"
+              },
+              {
+                "label": {
+                  "en": "Price: 0",
+                  "fr": "Prix : 0"
+                },
+                "anchor": "top"
+              },
+              {
+                "label": "{name}"
+              },
+              {
+                "image": "shop:{nothing}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

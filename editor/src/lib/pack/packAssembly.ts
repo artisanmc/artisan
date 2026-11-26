@@ -2,6 +2,7 @@ import { sha256Hex } from "@/lib/sha256";
 import { type BedrockMenu, bedrockMenusFromProject } from "./bedrock/bedrockMenus";
 import { buildBedrockPack } from "./bedrock/bedrockPack";
 import { CODEPOINT_MIN } from "./codepoints";
+import { packComponents } from "./components";
 import { type ComposeRecipe, renderComposed } from "./compose";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
@@ -172,16 +173,22 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     ? readKitThemes(input.themes, kitProject, themeProjects)
     : null;
 
+  // A look that names a component is read as that component's parts (`components.ts`).
+  const expandOf = packComponents(
+    projects.map((project) => ({ folder: folderOf(project), files: project.files })),
+  );
   for (const project of projects) {
     const { files } = project;
     const folder = folderOf(project);
+    const expand = expandOf(folder);
     // Any text of the Project may reach a title (menus, lang files, data rows): its symbols ride along.
     for (const f of files) texts.push(f.content);
     for (const placement of glyphPlacementsFromMenus(files))
       placedGlyphs.push({ folder, placement });
     for (const ref of titleImagesFromMenus(files)) titleImages.push({ folder, ref });
-    for (const button of imageButtonsFromMenus(files)) placedButtons.push({ folder, button });
-    textPlacements.push(...textPlacementsFromMenus(files));
+    for (const button of imageButtonsFromMenus(files, expand))
+      placedButtons.push({ folder, button });
+    textPlacements.push(...textPlacementsFromMenus(files, expand));
     for (const request of project.overlayImages ?? []) askedOverlays.push({ folder, request });
     for (const c of transparentContainersFromMenus(files)) transparent.add(c);
     // The theme `artisan` holds the common images: one enters the pack as `kit:<name>` when a
@@ -474,7 +481,12 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   // Keyed by the folder name: the plugin names a menu's Project that way.
   const bedrockMenus: BedrockMenu[] = projects.flatMap((project) => {
     const folder = folderOf(project);
-    return bedrockMenusFromProject(folder, project.files, (ref) => names.resolve(folder, ref));
+    return bedrockMenusFromProject(
+      folder,
+      project.files,
+      (ref) => names.resolve(folder, ref),
+      expandOf(folder),
+    );
   });
   const bedrock = buildBedrockPack({
     serverId: input.bedrock.serverId,

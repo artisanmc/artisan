@@ -437,6 +437,11 @@ export interface Appearance {
   label?: import("../../../docs/schema/menu/v1/imageButtonGeometry").ElementLabel<LText>;
   /** The look as pieces, bottom to top, instead of `image` and `label` (ADR `element-parts-and-sliced-images`). */
   parts?: import("../../../docs/schema/menu/v1/imageButtonGeometry").LookPart<LText>[];
+  /**
+   * The look is a component, linked (`components/<name>.yml`): its name, or its name and its
+   * parameters, as the file writes them. Written instead of `image`, `label` and `parts`.
+   */
+  component?: string | ({ name: string } & Record<string, unknown>);
   /** Complete item from data; distinct from a literal material. */
   item?: string;
   if?: Condition[];

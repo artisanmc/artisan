@@ -1,3 +1,4 @@
+import { componentName } from "./components";
 import { PART_ANCHORS, lookImages } from "./imageButtonGeometry";
 
 /** Semantic constraints shared by the editor and backend gates. JSON Schema handles field types. */
@@ -15,8 +16,25 @@ export function imageButtonErrors(menu: unknown): string[] {
   for (const el of elements) {
     if (!el) continue;
     for (const app of looksOf(el)) {
-      if (!app || app.parts === undefined) continue;
+      if (!app) continue;
       const label = `Element "${el.id}"`;
+      // A look that is a component: the component's parts are the look.
+      if (app.component !== undefined) {
+        if (app.image || app.label || app.parts !== undefined)
+          errors.push(
+            `${label} names a component and writes an image, a label or parts in one look: keep the component.`,
+          );
+        if (app.item !== undefined || app.material || app.head)
+          errors.push(`${label} names a component and an item in one look: keep one of the two.`);
+        if (el.iterates || el.places)
+          errors.push(`${label} iterates or places rows: its look cannot be a component.`);
+        const name = componentName(app);
+        if (!name || !/^([a-z0-9][a-z0-9_-]*:)?[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(name))
+          errors.push(
+            `${label}: a component is named \`<name>\`, \`<module>:<name>\` or \`artisan:<name>\`.`,
+          );
+      }
+      if (app.parts === undefined) continue;
       if (app.image || app.label)
         errors.push(`${label} writes parts and an image or a label in one look: keep the parts.`);
       if (el.iterates || el.places)

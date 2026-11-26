@@ -9,13 +9,19 @@ import { type FieldTextOf, actionTextCodec, fieldTextOf, loreWire } from "./fiel
 /** A Document as its writer returns it: the canonical file object, `id` included. */
 export type DocumentV1 = { id: string } & Record<string, unknown>;
 
-function serializeAppearance(app: Appearance, project: Project): Record<string, unknown> {
+function serializeAppearance(look: Appearance, project: Project): Record<string, unknown> {
+  // A component is the whole look. A read strips what a file writes beside it, so an image, a
+  // piece or an item found here was set in the editor since: it replaces the component.
+  const replaced =
+    look.image || look.label || look.parts || look.item !== undefined || look.material;
+  const app = look.component !== undefined && replaced ? { ...look, component: undefined } : look;
   const out: Record<string, unknown> = {};
   if (app.if && app.if.length > 0) out.if = conditionsToStructured(app.if, app.ifJoins);
   const t = fieldTextOf(project);
+  if (app.component !== undefined) out.component = app.component;
   const images = !!app.parts?.some((part) => "image" in part);
   if (app.image && !app.parts) out.image = app.image;
-  else if (images) {
+  else if (images || app.component !== undefined) {
     // A look that draws images names no item: its slots hold the invisible hit item.
   } else if (app.item !== undefined) out.item = app.item;
   else if (app.material) out.material = app.material;

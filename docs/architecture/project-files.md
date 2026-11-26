@@ -17,6 +17,7 @@ plugins/Artisan/modules/
     lang/<lang>.yml                ← YAML tree (see below)
     items/<captured_item_id>.yml   ← captured ItemStacks (material refs `item:<id>`), Bukkit YAML verbatim under `item:`; a root `display:` when the stack does not express the editor's descriptor (plugin ignores it)
     data/<source_id>.yml           ← Project sources (schema data/v1, refs `pack:<id>`)
+    components/<name>.yml          ← a component: a named list of parts and its parameters, which a menu's look names with `component:` (ADR `element-parts-and-sliced-images`, decision 6); not a Document, read when a menu that names it is
     templates/<id>.yml             ← schema template/v1, resolved at plugin load
     models/<id>.yml                ← schema model/v1; `<id>` = the source it types (owned model), otherwise the model id, the identity remains the internal `id:`
     assets/{glyphs,textures,fonts}/ ← images and fonts (binaries, written by publication); an image's `<name>.yml` beside it says what the PNG cannot (ascent, codepoint, usages, `function: menu | glyph | hud`, which fixes its measures: ADR `common-images-and-themes`, decision 4, `ramps: true`, which lets a theme's colours repaint the image: decision 7, and `slice: { left, right, top, bottom }`, the margins an image button keeps while it repeats the rest to fill its slots: ADR `element-parts-and-sliced-images`, decision 2), and alone, with a `compose:` list, it is a composed image the pack assembles (ADR `mcp-server`, decision 15)

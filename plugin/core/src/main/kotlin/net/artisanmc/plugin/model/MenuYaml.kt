@@ -165,6 +165,8 @@ data class AppearanceYaml(
      * [image] and [label] (ADR `element-parts-and-sliced-images`). Read through [images] and [labels].
      */
     val parts: List<PartYaml>? = null,
+    /** A component's name, or `{name, …its parameters}`: only still there when no such component was found ([MenuComponents] reads the others into [parts]). */
+    val component: Any? = null,
     val extends: Any? = null,
     @JsonProperty("lore_mode") val loreMode: String? = null,
     val item: String? = null,

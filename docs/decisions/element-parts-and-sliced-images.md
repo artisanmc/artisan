@@ -1,7 +1,7 @@
 # Element parts, sliced images and components: a button made of several pieces, at any width, drawn once for the server
 
 **Status:** direction accepted (2026-11-26: components are linked, per module and common to
-the server, edited in a menu and in the atelier); steps 1 and 2 (format) built (see *Built so far*)
+the server, edited in a menu and in the atelier); steps 1, 2 and the format of step 3 built (see *Built so far*)
 
 **Extends:** `common-images-and-themes.md` (decision 4, an image's function), `menu/v1`
 (`Appearance.image`, `Appearance.label`), `element-display-and-states.md`
@@ -227,6 +227,28 @@ free rectangle as an image button does, removing the last piece removes `parts`,
 look given an item loses its image pieces. A copied look gets its own label texts
 (`cloneAppearanceLTextsInto`, which left the label shared). Not built: moving a piece by
 dragging it on the canvas.
+
+**Step 3, the format end to end (2026-11-26).** `component` on a look is in `menu/v1`
+(schema, types, `imageButtonErrors`: a component beside an image, a label, parts or an
+item, on a row-bound element, a name that is not `<name>`, `<module>:<name>` or
+`artisan:<name>`). A component is a file `components/<name>.yml` (`params`, `parts`), not a
+Document. A look that names one is read as that file's parts with the parameters put in,
+by an expansion of the menu's file before anything reads it as a menu: `components.ts`
+for the editor's pack builder, `Components.kt` for the hub's, `MenuComponents.kt` for the
+runtime (`ProjectReader.readMenu`), the three held to one answer by
+`testdata/component-expansion.json`, and both builders by a case of the conformance
+vector. After the expansion a component is parts: glyphs, text fonts and the runtime's
+layers are step 2's, unchanged. Scopes as decided: the menu's module, then the common ones
+(the theme `artisan`'s `components/`, then its `originals/components/`, which is where
+the base will ship its own); `<module>:<name>` and `artisan:<name>` name one scope. A bare
+image name in a component's file is its owner's image; an image the look gives is read as
+the menu writes it. A text parameter may be one text per language. The editor keeps
+`component` as written through a save. Not built: the visible fallback and the editor's
+problem for a name nothing answers (the look draws nothing), the canvas and `render_menu`
+(a component look shows empty there), the picker and the parameters' fields in the Element
+panel, "Save as component", where a component is used, a theme's `overrides/` of a
+component, and the reload of the menus of other modules when a component they name
+changes (a full reload reads them; a reload of one module reads only its own menus).
 
 Not built: `render_menu` (it draws a sliced image by
 its fit), the base's buttons declared sliced, the rule that a redraw or a theme keeps the

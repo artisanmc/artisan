@@ -134,14 +134,17 @@ object ResourcePackBuilder {
         // and their colours repaint the ones that follow the ramps.
         val theme = KitTheme.stack(input.themes, kitProject, themeProjects)
 
+        // A look that names a component is read as that component's parts ([Components]).
+        val expandOf = Components.ofProjects(projects.map { it.folder to it.files })
         for (project in projects) {
             val files = project.files
+            val expand = expandOf(project.folder)
             // Any text of the Project may reach a title (menus, lang files, data rows): its symbols ride along.
             files.mapTo(texts) { it.content }
             MenuReaders.glyphPlacements(files).mapTo(placedGlyphs) { project.folder to it }
             MenuReaders.titleImages(files).mapTo(titleImages) { project.folder to it }
-            MenuReaders.imageButtons(files).mapTo(placedButtons) { project.folder to it }
-            textPlacements += MenuReaders.textPlacements(files)
+            MenuReaders.imageButtons(files, expand).mapTo(placedButtons) { project.folder to it }
+            textPlacements += MenuReaders.textPlacements(files, expand)
             project.overlayImages.mapTo(askedOverlays) { project.folder to it }
             transparent += MenuReaders.transparentContainers(files)
             // The theme `artisan` holds the common images: one enters the pack as `kit:<name>` when a
@@ -351,7 +354,7 @@ object ResourcePackBuilder {
         val pngsByName = LinkedHashMap<String, ByteArray>()
         for (a in allAssets) glyphPngs[a.id]?.let { pngsByName.putIfAbsent(a.id, it) }
         // Keyed by the folder name: the plugin names a menu's Project that way.
-        val bedrockMenus = projects.flatMap { p -> BedrockMenus.fromProject(p.folder, p.files) { names.resolve(p.folder, it) } }
+        val bedrockMenus = projects.flatMap { p -> BedrockMenus.fromProject(p.folder, p.files, expandOf(p.folder)) { names.resolve(p.folder, it) } }
         val bedrock = BedrockPack.build(serverId, bedrockMenus, pngsByName, allAssets, sources.getValue(GuiContainer.CHEST))
         return PackResult(java.zip, java.sha1, bedrock, missingImages, missingLayers)
     }

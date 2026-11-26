@@ -184,6 +184,12 @@ export interface Appearance {
    * an anchor and offsets), written instead of `image` and `label` (fixed elements only).
    */
   parts?: import("./imageButtonGeometry").LookPart<LText>[];
+  /**
+   * The look is a component, linked: `components/<name>.yml` of this module, of another
+   * (`<module>:<name>`) or of the common ones (`artisan:<name>`), read as its parts with the
+   * parameters put in (`components.ts`). The name alone, or `name` and the parameters.
+   */
+  component?: string | ({ name: string } & Record<string, string | number | boolean | Record<string, string>>);
   /** ANDed conditions. If absent, always matches (fallback, put it last). */
   if?: Condition[];
   asset?: string;

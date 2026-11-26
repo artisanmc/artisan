@@ -162,6 +162,8 @@ export function bedrockMenusFromProject(
   files: { path: string; content: string }[],
   /** The id of the image a name of these files is (`imageNames.ts`). */
   resolve: (ref: string) => string = (ref) => ref,
+  /** A menu as it is drawn: its components put in (`components.ts`). */
+  expand: (menu: unknown) => unknown = (menu) => menu,
 ): BedrockMenu[] {
   const out: BedrockMenu[] = [];
   // The id is the file name, wherever the menu sits (themed folders included), as the
@@ -179,7 +181,7 @@ export function bedrockMenusFromProject(
     // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
     let doc: any;
     try {
-      doc = parse(file.content);
+      doc = expand(parse(file.content));
     } catch {
       continue;
     }

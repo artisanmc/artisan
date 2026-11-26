@@ -677,6 +677,44 @@
           },
           "description": "The look as a list of pieces drawn bottom to top over the element's slot rectangle: images (each at its own size unless `fit` says otherwise) and texts, each placed by an anchor and offsets. Written instead of `image` and `label`, which mean a list of those two. Only on an element that neither iterates nor places. A Bedrock player sees the first image."
         },
+        "component": {
+          "description": "The look is a component, linked: a file `components/<name>.yml` of this module (`<name>`), of another (`<module>:<name>`) or of the server's common ones (`artisan:<name>`; a bare name falls back on them). Written as the name alone, or as a mapping of `name` and the component's parameters. Read as the component's parts with the parameters put in; written instead of `image`, `label` and `parts`. Only on an element that neither iterates nor places.",
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
         "if": {
           "type": "array",
           "minItems": 1,

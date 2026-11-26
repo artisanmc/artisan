@@ -4180,6 +4180,190 @@
       ],
       "textUpFonts": 129,
       "sha1": "4eceabd51103892b4733ed6a28b13655009fb8b4"
+    },
+    {
+      "name": "components: a look that names a component is read as its parts, parameters put in; the module's component before the common one, the server's common one before the one Artisan ships, another module's by its name; a component's own images are its owner's, an image the look gives is the look's module's; a name nothing answers draws nothing",
+      "projects": [
+        {
+          "id": "survival.shop",
+          "folder": "shop",
+          "files": {
+            "assets/textures/coin.yml": "width: 12\nheight: 10\n",
+            "assets/textures/back.yml": "width: 12\nheight: 10\nfunction: menu\nslice: { left: 3, right: 4, top: 2, bottom: 3 }\n",
+            "components/price.yml": "params:\n  amount: { type: text, default: '0' }\nparts:\n  - image: back\n  - image: coin\n    anchor: left\n  - label: '{amount}'\n    anchor: right\n    size: 12\n",
+            "originals/components/ghost.yml": "parts:\n  - image: coin\n",
+            "menus/shop.yaml": "id: shop\nsize: 54\nelements:\n  - id: ok\n    positions: 0-2\n    component: confirm\n  - id: buy\n    positions: 9-11\n    component: { name: confirm, text: Buy, icon: coin }\n    states:\n      - if: [{ type: has_level, level: 3 }]\n        component: { name: price, amount: '{item.price}' }\n  - id: flag\n    positions: 18-19\n    component: guilds:banner\n  - id: shipped\n    positions: 27-29\n    component: cancel\n  - id: none\n    positions: 36-38\n    component: missing\n  - id: ghost\n    positions: 45-47\n    component: ghost\n"
+          },
+          "binaries": {
+            "assets/textures/coin.png": "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAKCAYAAACALL/6AAABhUlEQVR4nCXROa9IQRyG8elUVEcxaFA4V2GZ2BIHubZghEHsa/jbiTUcYiyxJQyJJRNLYTRomOaofIH5EKc5n+Rxcu9Tv7/qVWqsUjOo1SwaNRun5iFqIa1aTFDLSWoNndpAUVtRU+mZVLqi1nNp9AKcnkD0Mlq9mqDXk/QWOr2TovfR6yMjMnOozHxqU9OYpTizCjHraM1mgrEks5fOHKaYU/Tm/AjsIiq7hNqupLENzm5C7A5au4dgD5HsSTp7jmKv0tvbI5AVVLKWWjbSyHacOEQO0soJgpwlyRU6uUWR+/TyZAR+kspvo/a7afwBnD+OeKH1lwn+Jsnfo/OPKf4lvX87griLKu6njsdo4hlcvITEG7SxJcRHpPiCLr6hxI/08esI8lGqfJo6X6TJ13H5LpIf0ubnhBxI+QNd/kLJ3+nzrxGUC1TlGnW5Q1M8rjxDymva8p5QPpNKois/KeUPffk7/UU1PKAentIMr3DDO2T4RDt8Iww/SMNvuqGjDP+mxv8B1nMEYkYaP3cAAAAASUVORK5CYII=",
+            "assets/textures/back.png": "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAKCAYAAACALL/6AAABhUlEQVR4nCXROa9IQRyG8elUVEcxaFA4V2GZ2BIHubZghEHsa/jbiTUcYiyxJQyJJRNLYTRomOaofIH5EKc5n+Rxcu9Tv7/qVWqsUjOo1SwaNRun5iFqIa1aTFDLSWoNndpAUVtRU+mZVLqi1nNp9AKcnkD0Mlq9mqDXk/QWOr2TovfR6yMjMnOozHxqU9OYpTizCjHraM1mgrEks5fOHKaYU/Tm/AjsIiq7hNqupLENzm5C7A5au4dgD5HsSTp7jmKv0tvbI5AVVLKWWjbSyHacOEQO0soJgpwlyRU6uUWR+/TyZAR+kspvo/a7afwBnD+OeKH1lwn+Jsnfo/OPKf4lvX87griLKu6njsdo4hlcvITEG7SxJcRHpPiCLr6hxI/08esI8lGqfJo6X6TJ13H5LpIf0ubnhBxI+QNd/kLJ3+nzrxGUC1TlGnW5Q1M8rjxDymva8p5QPpNKois/KeUPffk7/UU1PKAentIMr3DDO2T4RDt8Iww/SMNvuqGjDP+mxv8B1nMEYkYaP3cAAAAASUVORK5CYII="
+          }
+        },
+        {
+          "id": "survival.guilds",
+          "folder": "guilds",
+          "files": {
+            "assets/textures/flag.yml": "width: 12\nheight: 10\n",
+            "components/banner.yml": "parts:\n  - image: flag\n    anchor: top_left\n  - label: Guild\n    anchor: bottom\n",
+            "menus/guild.yaml": "id: guild\nsize: 27\nelements:\n  - id: mine\n    positions: 0-1\n    component: banner\n"
+          },
+          "binaries": {
+            "assets/textures/flag.png": "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAKCAYAAACALL/6AAABhUlEQVR4nCXROa9IQRyG8elUVEcxaFA4V2GZ2BIHubZghEHsa/jbiTUcYiyxJQyJJRNLYTRomOaofIH5EKc5n+Rxcu9Tv7/qVWqsUjOo1SwaNRun5iFqIa1aTFDLSWoNndpAUVtRU+mZVLqi1nNp9AKcnkD0Mlq9mqDXk/QWOr2TovfR6yMjMnOozHxqU9OYpTizCjHraM1mgrEks5fOHKaYU/Tm/AjsIiq7hNqupLENzm5C7A5au4dgD5HsSTp7jmKv0tvbI5AVVLKWWjbSyHacOEQO0soJgpwlyRU6uUWR+/TyZAR+kspvo/a7afwBnD+OeKH1lwn+Jsnfo/OPKf4lvX87griLKu6njsdo4hlcvITEG7SxJcRHpPiCLr6hxI/08esI8lGqfJo6X6TJ13H5LpIf0ubnhBxI+QNd/kLJ3+nzrxGUC1TlGnW5Q1M8rjxDymva8p5QPpNKois/KeUPffk7/UU1PKAentIMr3DDO2T4RDt8Iww/SMNvuqGjDP+mxv8B1nMEYkYaP3cAAAAASUVORK5CYII="
+          }
+        },
+        {
+          "id": "survival.artisan",
+          "folder": "artisan",
+          "files": {
+            "assets/textures/button.yml": "width: 12\nheight: 10\nfunction: menu\nslice: { left: 3, right: 4, top: 2, bottom: 3 }\n",
+            "assets/textures/check.yml": "width: 12\nheight: 10\n",
+            "components/confirm.yml": "params:\n  text: { type: text, default: { en: Confirm, fr: Confirmer } }\n  icon: { type: image, default: check }\nparts:\n  - image: button\n  - image: '{icon}'\n    anchor: left\n    offset_x: 3\n  - label: '{text}'\n",
+            "originals/components/confirm.yml": "parts:\n  - image: check\n    anchor: bottom_right\n",
+            "originals/components/cancel.yml": "parts:\n  - image: button\n  - label: Cancel\n    size: 16\n"
+          },
+          "binaries": {
+            "assets/textures/button.png": "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAKCAYAAACALL/6AAABhUlEQVR4nCXROa9IQRyG8elUVEcxaFA4V2GZ2BIHubZghEHsa/jbiTUcYiyxJQyJJRNLYTRomOaofIH5EKc5n+Rxcu9Tv7/qVWqsUjOo1SwaNRun5iFqIa1aTFDLSWoNndpAUVtRU+mZVLqi1nNp9AKcnkD0Mlq9mqDXk/QWOr2TovfR6yMjMnOozHxqU9OYpTizCjHraM1mgrEks5fOHKaYU/Tm/AjsIiq7hNqupLENzm5C7A5au4dgD5HsSTp7jmKv0tvbI5AVVLKWWjbSyHacOEQO0soJgpwlyRU6uUWR+/TyZAR+kspvo/a7afwBnD+OeKH1lwn+Jsnfo/OPKf4lvX87griLKu6njsdo4hlcvITEG7SxJcRHpPiCLr6hxI/08esI8lGqfJo6X6TJ13H5LpIf0ubnhBxI+QNd/kLJ3+nzrxGUC1TlGnW5Q1M8rjxDymva8p5QPpNKois/KeUPffk7/UU1PKAentIMr3DDO2T4RDt8Iww/SMNvuqGjDP+mxv8B1nMEYkYaP3cAAAAASUVORK5CYII=",
+            "assets/textures/check.png": "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAKCAYAAACALL/6AAABhUlEQVR4nCXROa9IQRyG8elUVEcxaFA4V2GZ2BIHubZghEHsa/jbiTUcYiyxJQyJJRNLYTRomOaofIH5EKc5n+Rxcu9Tv7/qVWqsUjOo1SwaNRun5iFqIa1aTFDLSWoNndpAUVtRU+mZVLqi1nNp9AKcnkD0Mlq9mqDXk/QWOr2TovfR6yMjMnOozHxqU9OYpTizCjHraM1mgrEks5fOHKaYU/Tm/AjsIiq7hNqupLENzm5C7A5au4dgD5HsSTp7jmKv0tvbI5AVVLKWWjbSyHacOEQO0soJgpwlyRU6uUWR+/TyZAR+kspvo/a7afwBnD+OeKH1lwn+Jsnfo/OPKf4lvX87griLKu6njsdo4hlcvITEG7SxJcRHpPiCLr6hxI/08esI8lGqfJo6X6TJ13H5LpIf0ubnhBxI+QNd/kLJ3+nzrxGUC1TlGnW5Q1M8rjxDymva8p5QPpNKois/KeUPffk7/UU1PKAentIMr3DDO2T4RDt8Iww/SMNvuqGjDP+mxv8B1nMEYkYaP3cAAAAASUVORK5CYII="
+          }
+        }
+      ],
+      "containerTextures": {},
+      "vanillaGui": false,
+      "bedrock": {
+        "serverId": "u-local",
+        "entries": [
+          "font/glyph_F8.png",
+          "manifest.json",
+          "textures/artisan/b/45e0d640ad140734.png",
+          "textures/artisan/b/7e0ffbf3eaa4a0e2.png",
+          "textures/artisan/b/8a3892a59f9ee4f5.png",
+          "textures/artisan/b/8c80bf00dcca32d4.png",
+          "textures/artisan/b/e8a0cbbb1bc2a474.png",
+          "textures/artisan/b/ef24a522a75ccbb7.png",
+          "textures/artisan/m/11398b75392319aa.png",
+          "textures/artisan/m/f24cafec2cb0f966.png",
+          "textures/item_texture.json",
+          "textures/items/artisan_hit_area.png",
+          "ui/chest_screen.json"
+        ],
+        "entryHashes": {
+          "font/glyph_F8.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+          "manifest.json": "dd4208bd51fd74081f2f23e0cf8010330a9131ea509db5bfa1d84ffd027a1609",
+          "textures/artisan/b/45e0d640ad140734.png": "d4390f24e4a7559935fd5aae2abefca56f4a53900d88153e2ada3791e977f1af",
+          "textures/artisan/b/7e0ffbf3eaa4a0e2.png": "8a97c36946ccc3044440cbbfa2bdb87a7feffde0a1a5b11c5b6a9e0571e3efda",
+          "textures/artisan/b/8a3892a59f9ee4f5.png": "d4390f24e4a7559935fd5aae2abefca56f4a53900d88153e2ada3791e977f1af",
+          "textures/artisan/b/8c80bf00dcca32d4.png": "8a97c36946ccc3044440cbbfa2bdb87a7feffde0a1a5b11c5b6a9e0571e3efda",
+          "textures/artisan/b/e8a0cbbb1bc2a474.png": "d4390f24e4a7559935fd5aae2abefca56f4a53900d88153e2ada3791e977f1af",
+          "textures/artisan/b/ef24a522a75ccbb7.png": "d4390f24e4a7559935fd5aae2abefca56f4a53900d88153e2ada3791e977f1af",
+          "textures/artisan/m/11398b75392319aa.png": "5b65a6744607c18e9973f9c98e3fa21440d88031e5e3a4b7aa2077c50cb09262",
+          "textures/artisan/m/f24cafec2cb0f966.png": "2d9838aba960cd1efa7391d4849a7defb4aad4c428c0cc267bcdb090dd9d5176",
+          "textures/item_texture.json": "e92840b8dfe4a3742dbbe6928e287b39be6b80fe187a3874f4dd2373406e23c5",
+          "textures/items/artisan_hit_area.png": "c1ccd6abeb4908889bd726ab86450635b7898607cd6fcbc20c37c5e5607455de",
+          "ui/chest_screen.json": "2ae2017f5f90986990a62a58b90aad427e674494feb04ba3ebabe2bd6268b08c"
+        },
+        "sha1": "38cd7dfde58cfb4e31087e7de2c7dce7122d8a6e"
+      },
+      "entries": [
+        "assets/artisan/asset-index.json",
+        "assets/artisan/font/buttons/1e3c32330dd1526422913d7f2a050fe219bcaff454a70bc94e721bce73505501_54_18_native_17_3_0_left.json",
+        "assets/artisan/font/buttons/3c482346f375027677fa8a0d6830a32714d4f13f9e94c2d9e215e0ac205ad4e5_54_18_native_35.json",
+        "assets/artisan/font/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_17.json",
+        "assets/artisan/font/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_35.json",
+        "assets/artisan/font/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_71.json",
+        "assets/artisan/font/buttons/807d0fbcae7c4b20518d4d85664f6820aafdf936104122c5073e7744c46c4b87_36_18_native_17_top_left.json",
+        "assets/artisan/font/buttons/807d0fbcae7c4b20518d4d85664f6820aafdf936104122c5073e7744c46c4b87_36_18_native_53_top_left.json",
+        "assets/artisan/font/buttons/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_54_18_native_35_3_0_left.json",
+        "assets/artisan/font/buttons/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_54_18_native_35_left.json",
+        "assets/artisan/font/default.json",
+        "assets/artisan/font/vanilla_gui.json",
+        "assets/artisan/items/buttons/hit_area.json",
+        "assets/artisan/textures/buttons/1e3c32330dd1526422913d7f2a050fe219bcaff454a70bc94e721bce73505501_54_18_native_17_3_0_left.png",
+        "assets/artisan/textures/buttons/3c482346f375027677fa8a0d6830a32714d4f13f9e94c2d9e215e0ac205ad4e5_54_18_native_35.png",
+        "assets/artisan/textures/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_17.png",
+        "assets/artisan/textures/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_35.png",
+        "assets/artisan/textures/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_71.png",
+        "assets/artisan/textures/buttons/807d0fbcae7c4b20518d4d85664f6820aafdf936104122c5073e7744c46c4b87_36_18_native_17_top_left.png",
+        "assets/artisan/textures/buttons/807d0fbcae7c4b20518d4d85664f6820aafdf936104122c5073e7744c46c4b87_36_18_native_53_top_left.png",
+        "assets/artisan/textures/buttons/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_54_18_native_35_3_0_left.png",
+        "assets/artisan/textures/buttons/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_54_18_native_35_left.png",
+        "assets/artisan/textures/font/accented_up.png",
+        "assets/artisan/textures/font/ascii_up.png",
+        "assets/artisan/textures/font/nonlatin_european_up.png",
+        "assets/artisan/textures/font/text_accented.png",
+        "assets/artisan/textures/font/text_ascii.png",
+        "assets/artisan/textures/font/text_nonlatin_european.png",
+        "assets/artisan/textures/gui/dispenser.png",
+        "assets/artisan/textures/gui/generic_9x1.png",
+        "assets/artisan/textures/gui/generic_9x2.png",
+        "assets/artisan/textures/gui/generic_9x3.png",
+        "assets/artisan/textures/gui/generic_9x4.png",
+        "assets/artisan/textures/gui/generic_9x5.png",
+        "assets/artisan/textures/gui/generic_9x6.png",
+        "assets/artisan/textures/gui/hopper.png",
+        "pack.mcmeta",
+        "pack.png"
+      ],
+      "entryHashes": {
+        "assets/artisan/asset-index.json": "07177a2b0a4944c389a1c18b7fcad59cee1c7b5eb69def792f1a14184aa1a773",
+        "assets/artisan/font/buttons/1e3c32330dd1526422913d7f2a050fe219bcaff454a70bc94e721bce73505501_54_18_native_17_3_0_left.json": "fd0abec729e00ee59b33696a8d3cd871c9981266c035ca7be5d67aeb47ef1a9c",
+        "assets/artisan/font/buttons/3c482346f375027677fa8a0d6830a32714d4f13f9e94c2d9e215e0ac205ad4e5_54_18_native_35.json": "d326b6d31424855712e8a4d531d94322102f7d56d13fb6ce317414aff0634ee2",
+        "assets/artisan/font/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_17.json": "6aea7a14cb1e57770bc2b26820f2897fb7bfd0409471a00166ef9f3d97906c1f",
+        "assets/artisan/font/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_35.json": "8875646169fd9f9c93d11d9dd841a4f420ca7bcf9f388c811113ec6ea7dd9798",
+        "assets/artisan/font/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_71.json": "98f08277584060ea0433e671fb7db2acc58db1b8b59660c2a9b31a43d36b7bf9",
+        "assets/artisan/font/buttons/807d0fbcae7c4b20518d4d85664f6820aafdf936104122c5073e7744c46c4b87_36_18_native_17_top_left.json": "4146cd253f4bb27205dd0fee4228b1276e59d25922cc9a0392fa37a1f393059e",
+        "assets/artisan/font/buttons/807d0fbcae7c4b20518d4d85664f6820aafdf936104122c5073e7744c46c4b87_36_18_native_53_top_left.json": "aafb3682f96faeef8af54e65ec0a9b505a83c30834be969c165cb71a466b2e95",
+        "assets/artisan/font/buttons/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_54_18_native_35_3_0_left.json": "31951a780b93f9f6e501bc703c9e23f726f1ddae4e98c7ba259390870d343144",
+        "assets/artisan/font/buttons/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_54_18_native_35_left.json": "e3e3e0c90154d2551e3e375799ffd50981e224f521d7111d8d1f493f5abcc5c7",
+        "assets/artisan/font/default.json": "b5f2753c7c38eac17fb8d8d5e4fcd0758c1ebfaa3e3e6337dcdf491300aa1a3c",
+        "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
+        "assets/artisan/items/buttons/hit_area.json": "640b1ffd4b0f72ba22d7609e6adda9db80cef06419d273aa8ac528631a8ef135",
+        "assets/artisan/textures/buttons/1e3c32330dd1526422913d7f2a050fe219bcaff454a70bc94e721bce73505501_54_18_native_17_3_0_left.png": "1b7d8df0fe3eb33ed630023068ae9085217bd803fc2e2b413c51450bf7ba911e",
+        "assets/artisan/textures/buttons/3c482346f375027677fa8a0d6830a32714d4f13f9e94c2d9e215e0ac205ad4e5_54_18_native_35.png": "d4390f24e4a7559935fd5aae2abefca56f4a53900d88153e2ada3791e977f1af",
+        "assets/artisan/textures/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_17.png": "d4390f24e4a7559935fd5aae2abefca56f4a53900d88153e2ada3791e977f1af",
+        "assets/artisan/textures/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_35.png": "d4390f24e4a7559935fd5aae2abefca56f4a53900d88153e2ada3791e977f1af",
+        "assets/artisan/textures/buttons/7b4a9f49e1f850781c83f078533d8ca4d5a6ff96df2d2fc948972d382690ac08_54_18_native_71.png": "d4390f24e4a7559935fd5aae2abefca56f4a53900d88153e2ada3791e977f1af",
+        "assets/artisan/textures/buttons/807d0fbcae7c4b20518d4d85664f6820aafdf936104122c5073e7744c46c4b87_36_18_native_17_top_left.png": "8a97c36946ccc3044440cbbfa2bdb87a7feffde0a1a5b11c5b6a9e0571e3efda",
+        "assets/artisan/textures/buttons/807d0fbcae7c4b20518d4d85664f6820aafdf936104122c5073e7744c46c4b87_36_18_native_53_top_left.png": "8a97c36946ccc3044440cbbfa2bdb87a7feffde0a1a5b11c5b6a9e0571e3efda",
+        "assets/artisan/textures/buttons/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_54_18_native_35_3_0_left.png": "1b7d8df0fe3eb33ed630023068ae9085217bd803fc2e2b413c51450bf7ba911e",
+        "assets/artisan/textures/buttons/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_54_18_native_35_left.png": "1f57afd243452c6115b02315529fa11e9772ed2e1925887fdbe1243ea672da99",
+        "assets/artisan/textures/font/accented_up.png": "454c174ce9e1aeefde41326f571561130bfc4cf5b1c39e26554bd7e34f1e6a18",
+        "assets/artisan/textures/font/ascii_up.png": "a2ca25208d39ab01617fc5d855f6e8e3f4d00100d114f19b5f79adcceb58a238",
+        "assets/artisan/textures/font/nonlatin_european_up.png": "210a35d91ac279d37b6f2f2162926acc7a46953d80fa8133b7ea83b11631bae0",
+        "assets/artisan/textures/font/text_accented.png": "0c4946dabaaedc7198be189b99e64c17be55c2bfe08bd53d947b7ee59cb7a569",
+        "assets/artisan/textures/font/text_ascii.png": "a2861a21e3ff5edcdc9e033c14fa31773136a0d54754c9bdf11d3cd4e0e5d000",
+        "assets/artisan/textures/font/text_nonlatin_european.png": "de2955e6ac0a6d24c852bb412721a2701d00c642f6e52e1205624fcc614f1b7e",
+        "assets/artisan/textures/gui/dispenser.png": "437f4c4c7cc98af96577d01a62aba607cf999bdc6ad032fa6cdf6ad47f44b718",
+        "assets/artisan/textures/gui/generic_9x1.png": "898d282a843d306f23652f10f78e8bf765f25d5095f60e8cab8db8543b2fee02",
+        "assets/artisan/textures/gui/generic_9x2.png": "fcb46d8c1adfb5c510e2f6560a037854c580e74059a57525bfd56b81f5a21a19",
+        "assets/artisan/textures/gui/generic_9x3.png": "6a5e5e3951556e6b87c73bf26096997afe63dd6da00116c97bbb2782e0a77da0",
+        "assets/artisan/textures/gui/generic_9x4.png": "bcb32b11964ab9aac32c6b8711618b94918461a73ffee7b9dc3f0073931337ef",
+        "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
+        "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
+        "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
+        "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
+      },
+      "textYFonts": 184,
+      "textYSized": [
+        "assets/artisan/font/text_y109_h12.json",
+        "assets/artisan/font/text_y109_h16.json",
+        "assets/artisan/font/text_y123_h12.json",
+        "assets/artisan/font/text_y127_h16.json",
+        "assets/artisan/font/text_y137_h12.json",
+        "assets/artisan/font/text_y145_h16.json",
+        "assets/artisan/font/text_y151_h12.json",
+        "assets/artisan/font/text_y163_h16.json",
+        "assets/artisan/font/text_y165_h12.json",
+        "assets/artisan/font/text_y39_h12.json",
+        "assets/artisan/font/text_y53_h12.json",
+        "assets/artisan/font/text_y67_h12.json",
+        "assets/artisan/font/text_y73_h16.json",
+        "assets/artisan/font/text_y81_h12.json",
+        "assets/artisan/font/text_y91_h16.json",
+        "assets/artisan/font/text_y95_h12.json"
+      ],
+      "textUpFonts": 129,
+      "sha1": "3d57e4c1c35cd5d2461ebf360a3a9a63c20d719b"
     }
   ]
 }
