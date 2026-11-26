@@ -797,9 +797,11 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 5px;
+    flex-shrink: 0;
     height: 19px;
     padding: 0 7px;
     border-radius: var(--r-pill);
+    white-space: nowrap;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: .03em;
