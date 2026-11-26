@@ -608,6 +608,25 @@ export default {
     summaryAdditions: "{{count}} new file(s) will be added",
     summaryDeletions: "{{count}} server file(s) will be deleted",
     summaryKept: "{{count}} server file(s) not in the archive are kept",
+    elsewhere: {
+      title: "Some images are missing on this server",
+      description:
+        "The module names images this server does not have. The import can still go ahead: they show nothing until the server has them.",
+      dropped_one:
+        "{{count}} common image of the server it comes from is already here, the same: {{names}}. The module does not keep it.",
+      dropped_other:
+        "{{count}} common images of the server it comes from are already here, the same: {{names}}. The module does not keep them.",
+      kept_one:
+        "{{count}} common image of the server it comes from stays in the module: {{names}}. In its Resources, Copy to the common images makes it common here.",
+      kept_other:
+        "{{count}} common images of the server it comes from stay in the module: {{names}}. In its Resources, Copy to the common images makes them common here.",
+      base: "Images of Artisan's base this server does not have: {{names}}. Update Artisan.",
+      baseSince:
+        "Images of Artisan's base this server does not have: {{names}}. The module comes from Artisan {{version}}: update Artisan.",
+      common: "Common images the module names and this server does not have: {{names}}.",
+      moduleAbsent: "The module {{folder}} is not on this server. Images named: {{names}}.",
+      moduleLacks: "The module {{folder}} does not have these images: {{names}}.",
+    },
     errors: {
       not_a_zip: "That file is not a readable .zip.",
       no_manifest: "No artisan-module.yml or manifest.yaml found — this is not a module archive.",
@@ -1577,6 +1596,12 @@ export default {
   export: {
     success: "Exported — the archive is the file tree exactly as stored on the server.",
     failed: "Export failed",
+    successCopied_one:
+      "Exported, with {{count}} common image of the server the module names: {{names}}.",
+    successCopied_other:
+      "Exported, with {{count}} common images of the server the module names: {{names}}.",
+    alone:
+      "Exported, the module's folder alone: what it names elsewhere (common images, other modules) could not be read.",
     needsAccount: "Sign in to export — the archive is the tree as stored on the server.",
   },
   playerPicker: {

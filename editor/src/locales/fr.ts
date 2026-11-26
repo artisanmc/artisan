@@ -622,6 +622,25 @@ const fr: typeof en = {
     summaryAdditions: "{{count}} nouveau(x) fichier(s) seront ajoutés",
     summaryDeletions: "{{count}} fichier(s) du serveur seront supprimés",
     summaryKept: "{{count}} fichier(s) du serveur absents de l'archive sont conservés",
+    elsewhere: {
+      title: "Des images manquent sur ce serveur",
+      description:
+        "Le module nomme des images que ce serveur n'a pas. L'import reste possible : elles ne s'afficheront pas tant que le serveur ne les a pas.",
+      dropped_one:
+        "{{count}} image commune du serveur d'origine est déjà ici, à l'identique : {{names}}. Le module ne la garde pas.",
+      dropped_other:
+        "{{count}} images communes du serveur d'origine sont déjà ici, à l'identique : {{names}}. Le module ne les garde pas.",
+      kept_one:
+        "{{count}} image commune du serveur d'origine reste dans le module : {{names}}. Depuis ses Ressources, « Copier dans les images communes » la rend commune ici.",
+      kept_other:
+        "{{count}} images communes du serveur d'origine restent dans le module : {{names}}. Depuis ses Ressources, « Copier dans les images communes » les rend communes ici.",
+      base: "Images de base d'Artisan absentes de ce serveur : {{names}}. Mets Artisan à jour.",
+      baseSince:
+        "Images de base d'Artisan absentes de ce serveur : {{names}}. Le module vient d'Artisan {{version}} : mets Artisan à jour.",
+      common: "Images communes nommées par le module et absentes de ce serveur : {{names}}.",
+      moduleAbsent: "Le module {{folder}} n'est pas sur ce serveur. Images nommées : {{names}}.",
+      moduleLacks: "Le module {{folder}} n'a pas ces images : {{names}}.",
+    },
     errors: {
       not_a_zip: "Ce fichier n'est pas un .zip lisible.",
       no_manifest:
@@ -1608,6 +1627,12 @@ const fr: typeof en = {
   export: {
     success: "Exporté — l'archive est l'arbre de fichiers tel qu'il est stocké sur le serveur.",
     failed: "Export échoué",
+    successCopied_one:
+      "Exporté, avec {{count}} image commune du serveur que le module nomme : {{names}}.",
+    successCopied_other:
+      "Exporté, avec {{count}} images communes du serveur que le module nomme : {{names}}.",
+    alone:
+      "Exporté, le dossier du module seul : ce qu'il nomme ailleurs (images communes, autres modules) n'a pas pu être lu.",
     needsAccount:
       "Connectez-vous pour exporter — l'archive est l'arbre tel qu'il est stocké sur le serveur.",
   },

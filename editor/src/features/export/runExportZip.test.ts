@@ -1,7 +1,7 @@
 import type { Project } from "@/domain/types";
 import { themeArchiveFiles, themeNameFromArchive } from "@/lib/pack/themeArchive";
 import { mockOpenProjects } from "@/mock/fixtures";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as zip from "./buildZip";
 import { folderFromZipName, normalizeProjectFiles } from "./projectZip";
 import { runExportThemeZip, runExportZip } from "./runExportZip";
@@ -9,7 +9,12 @@ import { runExportThemeZip, runExportZip } from "./runExportZip";
 const read = vi.fn();
 const binary = vi.fn(async (path: string) => new TextEncoder().encode(`bytes:${path}`));
 vi.mock("@/lib/projectClient", () => ({ projectClient: () => ({ read, binary }) }));
+const exportElsewhere = vi.hoisted(() => vi.fn());
+vi.mock("./exportElsewhere", () => ({ exportElsewhere }));
 
+beforeEach(() => {
+  exportElsewhere.mockReset().mockResolvedValue(null);
+});
 afterEach(() => vi.restoreAllMocks());
 
 it("exports an add-on's module as its root, named after its folder", async () => {
@@ -93,4 +98,46 @@ it("exports a theme as its folder, named after the theme", async () => {
     ok: false,
     error: "server_offline",
   });
+});
+
+it("adds to a module's archive what it names elsewhere, and exports the folder alone when that cannot be read", async () => {
+  const project: Project = { ...mockOpenProjects().projects[0]!, diskId: "shop" };
+  read.mockResolvedValue({
+    ok: true,
+    unchanged: false,
+    files: {
+      "artisan-module.yml": "schema: module/v1\n",
+      // Left by an archive unzipped by hand: it speaks of another server.
+      "artisan-export.yml": "schema: export/v1\ncommon: [old]\n",
+      "assets/textures/logo.yml": "ramps: true\n",
+    },
+    binaries: [],
+  });
+  const files: Record<string, string | Uint8Array> = {};
+  vi.spyOn(zip, "buildZip").mockImplementation(async (entries) => {
+    for (const key of Object.keys(files)) delete files[key];
+    Object.assign(files, entries);
+    return new Blob();
+  });
+  URL.createObjectURL = vi.fn(() => "blob:x");
+  URL.revokeObjectURL = vi.fn();
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+  exportElsewhere.mockResolvedValue({
+    files: {
+      "artisan-export.yml": "schema: export/v1\ncommon: [frame]\n",
+      "assets/textures/frame.png": new Uint8Array([1]),
+      // Never over a file of the module.
+      "assets/textures/logo.yml": "ramps: false\n",
+    },
+    copied: ["frame"],
+  });
+  expect(await runExportZip(project, true)).toEqual({ ok: true, copied: ["frame"] });
+  expect(files["artisan-export.yml"]).toBe("schema: export/v1\ncommon: [frame]\n");
+  expect(files["assets/textures/frame.png"]).toEqual(new Uint8Array([1]));
+  expect(files["assets/textures/logo.yml"]).toBe("ramps: true\n");
+
+  exportElsewhere.mockRejectedValue(new Error("server_offline"));
+  expect(await runExportZip(project, true)).toEqual({ ok: true, alone: true });
+  expect(Object.keys(files).sort()).toEqual(["artisan-module.yml", "assets/textures/logo.yml"]);
 });

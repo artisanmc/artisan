@@ -488,6 +488,22 @@ again. Nothing new on the server or in the protocol.
 Not in this part: importing over a theme the server has (the name must be free: no update,
 no merge, no version of a theme), and an MCP tool for either.
 
+**Step 6, first part: a module's archive says what it names elsewhere** (`lib/pack/elsewhere.ts`,
+`exportElsewhere.ts`, `runImportZip.ts`; decision 10). The export reads the image names the
+module writes as the pack reads them and tells who holds each one. A common image the server
+added, reached by its name alone, is copied into the archive at the path it has in the theme
+`artisan`, and the archive's note (`artisan-export.yml`, `schema: export/v1`) marks it as
+common at the origin; no menu is rewritten, the module's copy answers first. The note also
+records the base images named with the origin's version of Artisan, and what a copy cannot
+answer: a common image named as `artisan:<name>` or composed, and the images of other modules
+by folder. A module that names its own images only keeps the archive it had. At import the
+note is read and never written; a copy is dropped when the server's common image of that name
+is the same PNG, kept in the module otherwise, without a question; the base images, common
+images and modules the server lacks are listed before anything is written. Nothing new on the
+server or in the protocol.
+Not in this part: embedding another module's images on request (they are noted, never
+copied), a declared dependency the server checks at load, fonts, and the MCP tools.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -521,6 +537,13 @@ Not there yet:
   in between is not flagged. A menu keeps what module originals already gave it (compare with
   the original, back to the original, a merge at each update): it has no "the original
   changed" notice of its own.
+- Against decision 10: an image of another module of the server is noted in the archive and
+  never embedded, on request or not; an add-on's module and a theme are not told apart from
+  another module there. The note lives in the archive only: a module's folder copied by hand
+  carries no dependency, and nothing at load reports an image it names and the server lacks.
+  The copies are compared by their PNG alone (a descriptor that differs does not keep a
+  copy). A font named elsewhere is neither copied nor noted. The version of Artisan in the
+  note is the origin's, shown when a base image is missing, never compared.
 - Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are not in the pack.
   A theme has no versions and no update: an archive is imported under a free name only.
 - Against decision 7: an image of the server that follows the ramps is repainted by its

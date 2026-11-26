@@ -6,7 +6,8 @@ const mocks = vi.hoisted(() => ({
   applyImportZip: vi.fn(),
 }));
 
-vi.mock("./runImportZip", () => ({
+vi.mock("./runImportZip", async (importOriginal) => ({
+  lacksElsewhere: (await importOriginal<typeof import("./runImportZip")>()).lacksElsewhere,
   prepareImportZip: mocks.prepareImportZip,
   applyImportZip: mocks.applyImportZip,
 }));
@@ -148,5 +149,70 @@ describe("ImportProjectDialog", () => {
 
     expect(await screen.findByText("menus/old.yaml")).toBeInTheDocument();
     expect(mocks.applyImportZip).not.toHaveBeenCalled();
+  });
+
+  it("says what the server lacks of the images the module names before applying", async () => {
+    mocks.prepareImportZip.mockResolvedValue({
+      ok: true,
+      preview: {
+        ...basePreview,
+        diff: { additions: ["menus/a.yaml"], identical: [], conflicts: [], serverOnly: [] },
+        elsewhere: {
+          dropped: ["frame"],
+          kept: ["blason"],
+          artisan: "1.4.0",
+          base: ["medal.1x1"],
+          common: [],
+          modules: [{ folder: "guilds", images: ["crest"], absent: true }],
+        },
+      },
+    });
+    mocks.applyImportZip.mockResolvedValue({
+      ok: true,
+      projectId: "shop",
+      created: true,
+      conflicts: 0,
+    });
+    render(<ImportProjectDialog serverKeyId="sk1" open onClose={() => {}} />);
+    pickFile();
+    fireEvent.click(screen.getByRole("button", { name: /^import/i }));
+
+    const notice = await screen.findByTestId("import-elsewhere");
+    expect(mocks.applyImportZip).not.toHaveBeenCalled();
+    expect(notice.textContent).toContain("medal.1x1");
+    expect(notice.textContent).toContain("1.4.0");
+    expect(notice.textContent).toContain("guilds");
+    expect(notice.textContent).toContain("frame");
+    expect(notice.textContent).toContain("blason");
+    fireEvent.click(screen.getByRole("button", { name: /appliqu|apply/i }));
+    await waitFor(() => expect(mocks.applyImportZip).toHaveBeenCalledWith(expect.anything(), {}));
+  });
+
+  it("applies directly when the copies are settled and the server lacks nothing", async () => {
+    mocks.prepareImportZip.mockResolvedValue({
+      ok: true,
+      preview: {
+        ...basePreview,
+        diff: { additions: ["menus/a.yaml"], identical: [], conflicts: [], serverOnly: [] },
+        elsewhere: {
+          dropped: ["frame"],
+          kept: [],
+          artisan: null,
+          base: [],
+          common: [],
+          modules: [],
+        },
+      },
+    });
+    mocks.applyImportZip.mockResolvedValue({
+      ok: true,
+      projectId: "shop",
+      created: true,
+      conflicts: 0,
+    });
+    render(<ImportProjectDialog serverKeyId="sk1" open onClose={() => {}} />);
+    pickFile();
+    fireEvent.click(screen.getByRole("button", { name: /^import/i }));
+    await waitFor(() => expect(mocks.applyImportZip).toHaveBeenCalled());
   });
 });

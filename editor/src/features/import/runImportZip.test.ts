@@ -258,3 +258,131 @@ describe("applyImportZip", () => {
     expect(mocks.updateDraft.mock.calls[0]![4].binaryTree).toEqual({});
   });
 });
+
+describe("an archive that says what the module names elsewhere", () => {
+  const P = "plugins/Artisan/projects/shop/";
+  const frame = new Uint8Array([1, 2, 3]);
+  const blason = new Uint8Array([4, 5, 6]);
+  const note = [
+    "schema: export/v1",
+    "artisan: 1.4.0",
+    "base: [close.1x1, medal.1x1]",
+    "common: [blason, frame]",
+    "requires:",
+    "  common: [ribbon]",
+    "  modules:",
+    "    guilds: [crest, banner]",
+    "    warps: [pin]",
+    "",
+  ].join("\n");
+  const archive = () =>
+    normalized({
+      [`${P}artisan-module.yml`]: "schema: module/v1\n",
+      [`${P}artisan-export.yml`]: note,
+      [`${P}menus/a.yml`]: "name: a\n",
+      [`${P}assets/textures/frame.png`]: frame,
+      [`${P}assets/textures/frame.yml`]: "ramps: true\n",
+      [`${P}assets/glyphs/blason.png`]: blason,
+      [`${P}assets/glyphs/blason.yml`]: "codepoint: 57345\n",
+    });
+  const kitSummary = { id: "proj_kit", externalId: "artisan", name: "artisan", role: "theme" };
+  const guildsSummary = { id: "proj_guilds", externalId: "guilds", name: "guilds" };
+
+  it("leaves out the copies the server has the same common image for, keeps the others, and lists what the server lacks", async () => {
+    mocks.readProjectZip.mockResolvedValue({});
+    mocks.normalizeProjectFiles.mockReturnValue(archive());
+    mocks.listServerProjects.mockResolvedValue({
+      ok: true,
+      projectIds: ["artisan", "guilds"],
+      projects: [kitSummary, guildsSummary],
+    });
+    const frameHash = await hashBytes(frame);
+    mocks.readProjectFiles.mockImplementation(async ({ diskId }: { diskId: string }) =>
+      diskId === "artisan"
+        ? {
+            ok: true,
+            files: {},
+            binaries: [
+              { path: "assets/textures/frame.png", hash: frameHash, size: 3 },
+              // The server's own image under that name: the module keeps the origin's.
+              { path: "assets/textures/blason.png", hash: "another", size: 3 },
+              { path: "originals/assets/textures/close.1x1.png", hash: "c", size: 1 },
+            ],
+            failed: [],
+            hash: "h",
+          }
+        : {
+            ok: true,
+            files: {},
+            binaries: [{ path: "assets/textures/crest.png", hash: "x", size: 1 }],
+            failed: [],
+            hash: "h",
+          },
+    );
+
+    const result = await prepareImportZip(file, target, "merge");
+    if (!result.ok) throw new Error("expected preview");
+    const { preview } = result;
+    expect(preview.elsewhere).toEqual({
+      dropped: ["frame"],
+      kept: ["blason"],
+      artisan: "1.4.0",
+      base: ["medal.1x1"],
+      common: ["ribbon"],
+      modules: [
+        { folder: "guilds", images: ["banner"], absent: false },
+        { folder: "warps", images: ["pin"], absent: true },
+      ],
+    });
+    // The note is about the archive, and the dropped copy goes with its descriptor.
+    expect(Object.keys(preview.input.files).sort()).toEqual([
+      "artisan-module.yml",
+      "assets/glyphs/blason.yml",
+      "menus/a.yml",
+    ]);
+    expect(Object.keys(preview.input.binaries)).toEqual(["assets/glyphs/blason.png"]);
+    expect(preview.diff.additions).not.toContain("assets/textures/frame.png");
+  });
+
+  it("keeps every copy on a server without common images, and never writes the note", async () => {
+    mocks.readProjectZip.mockResolvedValue({});
+    mocks.normalizeProjectFiles.mockReturnValue(archive());
+    mocks.listServerProjects.mockResolvedValue({ ok: true, projectIds: [], projects: [] });
+
+    const result = await prepareImportZip(file, target, "merge");
+    if (!result.ok) throw new Error("expected preview");
+    expect(result.preview.elsewhere).toMatchObject({ dropped: [], kept: ["blason", "frame"] });
+    expect(result.preview.input.files["artisan-export.yml"]).toBeUndefined();
+    expect(mocks.readProjectFiles).not.toHaveBeenCalled();
+  });
+
+  it("drops a note that is not one, without settling anything", async () => {
+    mocks.readProjectZip.mockResolvedValue({});
+    mocks.normalizeProjectFiles.mockReturnValue(
+      normalized({
+        [`${P}artisan-module.yml`]: "schema: module/v1\n",
+        [`${P}artisan-export.yml`]: "schema: other/v9\n",
+      }),
+    );
+    mocks.listServerProjects.mockResolvedValue({ ok: true, projectIds: [], projects: [] });
+    const result = await prepareImportZip(file, target, "merge");
+    if (!result.ok) throw new Error("expected preview");
+    expect(result.preview.elsewhere).toBeUndefined();
+    expect(Object.keys(result.preview.input.files)).toEqual(["artisan-module.yml"]);
+  });
+
+  it("fails when the server's common images cannot be read: nothing is settled blind", async () => {
+    mocks.readProjectZip.mockResolvedValue({});
+    mocks.normalizeProjectFiles.mockReturnValue(archive());
+    mocks.listServerProjects.mockResolvedValue({
+      ok: true,
+      projectIds: ["artisan"],
+      projects: [kitSummary],
+    });
+    mocks.readProjectFiles.mockResolvedValue({ ok: false, error: "server_offline" });
+    expect(await prepareImportZip(file, target, "merge")).toEqual({
+      ok: false,
+      error: "server_offline",
+    });
+  });
+});
