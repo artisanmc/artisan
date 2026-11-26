@@ -70,9 +70,11 @@ const fr: typeof en = {
       prefixed: "Ce module a une image de ce nom : artisan: désigne la commune.",
       redraw: "Redessiner pour le serveur",
       open: "Ouvrir dans les images communes",
-      usedBy: "Menus qui la nomment",
-      unused: "Aucun menu du serveur ne la nomme.",
+      usedBy: "Ce qui la nomme",
+      unused: "Rien sur le serveur ne la nomme.",
       usedIn: "{{menu}} · {{project}}",
+      byImage: "image composée {{name}}",
+      byFile: "fichier {{name}}",
       followHint:
         "Une image commune se redessine dans les images communes du serveur : chaque menu qui la nomme suit.",
     },

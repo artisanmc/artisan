@@ -122,12 +122,16 @@ sets the asset store's selection, then opens that module) or in the atelier of t
 images (`useResourcesView.askPiece`).
 Where an image is used comes from `useImageUses` (`features/project/imageUses.ts`, over
 `imageUses` of `lib/pack/kit.ts`): for each image of the server, by its key (`commonImageKey`,
-`moduleImageKey`), the menus that name it, read from the server index (every module as
-published, its own image names from its files) with the open module as its draft holds it. A
+`moduleImageKey`), what names it, read from the server index (every module as published, its
+own image names from its files) with the open module as its draft holds it: the menus, the
+composed images by their layers (`diskAssetsFromTree`; the draft's from the asset store) and
+the files of the kinds that ask the pack for images (`overlayImageSources`, the request with
+its file; the open module's as published). A use that is no menu carries `ImageUse.by` (a
+composed image's name, a file's path) and is listed without a link (`imageUseName`). A
 reference counts by the rule a menu is read with (`imageNamedBy`): `artisan:` and `kit:` are
 the common image, a name alone the module's own image then the common one, `<folder>:<name>`
-the image of the module in that folder. `CommonAssets` and `ServerResources` list these menus
-(`onOpenMenu` opens one), `KitPage` shows their number per common image.
+the image of the module in that folder. `CommonAssets` and `ServerResources` list these uses
+(`onOpenMenu` opens a menu), `KitPage` shows the number of menus per common image.
 A server's image of a base piece's name at another size than the piece's is not taken (the
 pack and `kitAssetsOf` show the base's); `kitMisfits` (`kitAssets.ts`) lists these with their
 size, and `CommonImageBadge` / `CommonImageMisfit` (`CommonImageState.tsx`) say it wherever a

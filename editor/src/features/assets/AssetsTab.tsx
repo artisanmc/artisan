@@ -5,7 +5,7 @@ import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
 import type { Project, ProjectId } from "@/domain/types";
 import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
-import { useImageUses } from "@/features/project/imageUses";
+import { imageUseKey, imageUseName, useImageUses } from "@/features/project/imageUses";
 import { cx } from "@/lib/cx";
 import { KIT_ALIAS, commonImageKey, kitNameOf, kitSlot } from "@/lib/pack/kit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -440,6 +440,11 @@ function CommonAssets({
       project && {
         project,
         own: ownAssets.filter((a) => a.projectId === projectId).map((a) => a.id),
+        composed: ownAssets.flatMap((a) =>
+          a.projectId === projectId && a.compose
+            ? [{ name: a.name, refs: a.compose.layers.map((layer) => layer.image) }]
+            : [],
+        ),
       },
     [project, ownAssets, projectId],
   );
@@ -520,13 +525,14 @@ function CommonAssets({
         ) : (
           <ul className="flex flex-col gap-0.5">
             {usedBy.map((use) => {
+              const named = imageUseName(use, t);
               const label =
                 use.projectId === projectId
-                  ? use.menuId
-                  : t("resources.common.usedIn", { menu: use.menuId, project: use.projectName });
+                  ? named
+                  : t("resources.common.usedIn", { menu: named, project: use.projectName });
               return (
-                <li key={`${use.projectId}/${use.menuId}`} className="min-w-0">
-                  {onOpenMenu ? (
+                <li key={imageUseKey(use)} className="min-w-0">
+                  {onOpenMenu && !use.by ? (
                     <button
                       type="button"
                       className="max-w-full truncate text-left text-xs text-[var(--brand)] hover:underline"

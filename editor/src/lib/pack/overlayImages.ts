@@ -63,7 +63,15 @@ export function overlayImagesFromFiles(
   files: { path: string; content: string }[],
   kinds: readonly DocumentKindContribution[],
 ): OverlayImageRequest[] {
-  const out: OverlayImageRequest[] = [];
+  return overlayImageSources(files, kinds).map(({ image }) => image);
+}
+
+/** What `overlayImagesFromFiles` gives, each request with the file that asks for it. */
+export function overlayImageSources(
+  files: { path: string; content: string }[],
+  kinds: readonly DocumentKindContribution[],
+): { path: string; image: OverlayImageRequest }[] {
+  const out: { path: string; image: OverlayImageRequest }[] = [];
   const byDir = new Map<string, NonNullable<DocumentKindContribution["pack"]>["images"]>();
   for (const kind of kinds) {
     const images = kind.pack?.images;
@@ -106,11 +114,13 @@ export function overlayImagesFromFiles(
       if (!src || typeof src !== "object" || Array.isArray(src)) continue;
       for (const image of images({ ...(src as Record<string, unknown>), id: match[2] }, context)) {
         if (!valid(image)) continue;
-        out.push(
-          "bottom" in image
-            ? { asset: image.asset, bottom: image.bottom }
-            : { asset: image.asset, rise: image.rise },
-        );
+        out.push({
+          path: file.path,
+          image:
+            "bottom" in image
+              ? { asset: image.asset, bottom: image.bottom }
+              : { asset: image.asset, rise: image.rise },
+        });
       }
     } catch {
       // A module's bug: no image from this file.

@@ -268,7 +268,7 @@ describe("using another project's resources", () => {
     await userEvent.click(screen.getByTitle("close.1x1"));
     expect(screen.getByTestId("common-asset-ref")).toHaveTextContent("artisan:close.1x1");
     expect(screen.getByTestId("common-asset-uses")).toHaveTextContent(
-      "Aucun menu du serveur ne la nomme.",
+      "Rien sur le serveur ne la nomme.",
     );
 
     await userEvent.click(screen.getByRole("button", { name: /redessiner pour le serveur/i }));

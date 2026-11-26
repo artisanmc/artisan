@@ -132,11 +132,19 @@ export function commonNameOf(
   return !ref.includes(":") && !own(ref) && common(ref) ? ref : null;
 }
 
-/** A menu that names an image. */
+/** What names an image: a menu, or (`by`) a composed image or a file of a module's kind. */
 export interface ImageUse {
   projectId: string;
   projectName: string;
+  /** The menu; empty when what names the image is not one (`by`). */
   menuId: string;
+  by?: ImageUser;
+}
+
+/** What names an image and is no menu: a composed image by its name, a file by its path. */
+export interface ImageUser {
+  kind: "image" | "file";
+  name: string;
 }
 
 /** A module as `imageUses` reads it: its folder, its own image names, and what each menu writes. */
@@ -147,6 +155,8 @@ export interface ImageReader {
   folder: string;
   own: (name: string) => boolean;
   menus: { id: string; refs: string[] }[];
+  /** What else names images in it: its composed images' layers, the files of its kinds. */
+  others?: (ImageUser & { refs: string[] })[];
 }
 
 /** The key of the common image `name` in what `imageUses` gives. */
@@ -177,9 +187,9 @@ export function imageNamedBy(
 }
 
 /**
- * The menus that name each image of the server, by the image's key (`commonImageKey`,
- * `moduleImageKey`), in the order of `modules` then of their menus. A menu counts once per
- * image, however many of its buttons name it.
+ * What names each image of the server, by the image's key (`commonImageKey`,
+ * `moduleImageKey`), in the order of `modules`, each one's menus first. A menu, a composed
+ * image or a file counts once per image, however many times it names it.
  */
 export function imageUses(
   modules: ImageReader[],
@@ -188,15 +198,25 @@ export function imageUses(
   const byFolder = new Map(modules.map((module) => [module.folder, module]));
   const uses = new Map<string, ImageUse[]>();
   for (const module of modules) {
-    for (const menu of module.menus) {
+    const users: { refs: string[]; use: ImageUse }[] = [
+      ...module.menus.map((menu) => ({
+        refs: menu.refs,
+        use: { projectId: module.id, projectName: module.name, menuId: menu.id },
+      })),
+      ...(module.others ?? []).map(({ refs, ...by }) => ({
+        refs,
+        use: { projectId: module.id, projectName: module.name, menuId: "", by },
+      })),
+    ];
+    for (const { refs, use } of users) {
       const keys = new Set<string>();
-      for (const ref of menu.refs) {
+      for (const ref of refs) {
         const key = imageNamedBy(ref, module, byFolder, common);
         if (key !== null) keys.add(key);
       }
       for (const key of keys) {
         const held = uses.get(key) ?? [];
-        held.push({ projectId: module.id, projectName: module.name, menuId: menu.id });
+        held.push(use);
         uses.set(key, held);
       }
     }

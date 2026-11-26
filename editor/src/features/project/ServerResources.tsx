@@ -27,13 +27,13 @@ import {
 } from "@/features/assets/kitAssets";
 import { useOtherProjectAssets } from "@/features/assets/useOtherProjectAssets";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
-import { commonImageKey, kitNameOf, kitSlot, moduleImageKey } from "@/lib/pack/kit";
+import { type ImageUse, commonImageKey, kitNameOf, kitSlot, moduleImageKey } from "@/lib/pack/kit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useKitStore } from "@/state/kitStore";
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { imageFolderOf, useImageUses } from "./imageUses";
+import { imageFolderOf, imageUseKey, imageUseName, useImageUses } from "./imageUses";
 
 /** The whole server: every module's images and fonts, and the common images. */
 export const WHOLE_SERVER = "all";
@@ -272,7 +272,7 @@ function ServerAssetDetail({
   /** The module that holds it; `null` for a common image. */
   owner: Project | null;
   /** The menus that name it; `null` for a font, which no menu names this way. */
-  usedBy: { projectId: string; projectName: string; menuId: string }[] | null;
+  usedBy: ImageUse[] | null;
   onOpenModule: (projectId: string, assetId: string) => void;
   onOpenCommon?: (name: string) => void;
   onOpenMenu: (projectId: string, menuId: string) => void;
@@ -312,17 +312,27 @@ function ServerAssetDetail({
             <p className="text-xs text-[var(--text-mut)]">{t("resources.common.unused")}</p>
           ) : (
             <ul className="flex flex-col gap-0.5">
-              {usedBy.map((use) => (
-                <li key={`${use.projectId}/${use.menuId}`} className="min-w-0">
-                  <button
-                    type="button"
-                    className="max-w-full truncate text-left text-xs text-[var(--brand)] hover:underline"
-                    onClick={() => onOpenMenu(use.projectId, use.menuId)}
-                  >
-                    {t("resources.common.usedIn", { menu: use.menuId, project: use.projectName })}
-                  </button>
-                </li>
-              ))}
+              {usedBy.map((use) => {
+                const label = t("resources.common.usedIn", {
+                  menu: imageUseName(use, t),
+                  project: use.projectName,
+                });
+                return (
+                  <li key={imageUseKey(use)} className="min-w-0">
+                    {use.by ? (
+                      <span className="block truncate text-xs">{label}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="max-w-full truncate text-left text-xs text-[var(--brand)] hover:underline"
+                        onClick={() => onOpenMenu(use.projectId, use.menuId)}
+                      >
+                        {label}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
