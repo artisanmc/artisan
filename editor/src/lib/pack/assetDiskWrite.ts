@@ -38,8 +38,6 @@ export interface DiskAssetDescriptor {
   usages?: AssetUsage[];
   /** What the image is for (`imageFunction.ts`); absent or null for none. */
   function?: ImageFunction | null;
-  /** The image follows the ramps: a theme's colours repaint it (`theme.ts`). */
-  ramps?: boolean;
   /** The margins of a sliced image (`slice.ts`). */
   slice?: Slice | null;
   ascent?: number | null;
@@ -59,7 +57,6 @@ export function descriptorYaml(d: DiskAssetDescriptor): string {
     out.content_width = d.content_width;
   if (d.usages !== undefined) out.usages = d.usages;
   if (d.function) out.function = d.function;
-  if (d.ramps) out.ramps = true;
   if (d.slice) out.slice = d.slice;
   return stringify(out);
 }

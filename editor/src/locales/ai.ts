@@ -71,7 +71,6 @@ export const aiEn = {
     generate_image: "Generated a picture",
     render_menu: "Looked at the menu {{path}}",
     survey_ui: "Looked at the server’s images",
-    theme_colours: "Computed a theme’s colours",
     list_versions: "Listed the versions",
   },
   permission: {
@@ -329,7 +328,6 @@ export const aiFr: typeof aiEn = {
     generate_image: "A généré une image",
     render_menu: "A regardé le menu {{path}}",
     survey_ui: "A regardé les images du serveur",
-    theme_colours: "A calculé les couleurs d’un thème",
     list_versions: "A listé les versions",
   },
   permission: {

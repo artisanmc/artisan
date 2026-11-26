@@ -29,10 +29,8 @@ internal data class AssetRow(
 
 /**
  * [recipe]: a composed image ([ComposedImages]), whose [path] is its descriptor's: it has no PNG.
- * [ramps]: the image says it follows the ramps (`ramps: true` in its descriptor), so a theme's
- * colours repaint it ([KitTheme]); a composed image follows its layers instead.
  */
-internal class DiskAsset(val row: AssetRow, val path: String, val recipe: ComposedImages.Recipe? = null, val ramps: Boolean = false)
+internal class DiskAsset(val row: AssetRow, val path: String, val recipe: ComposedImages.Recipe? = null)
 
 internal fun sha256Hex(bytes: ByteArray): String =
     MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
@@ -90,9 +88,6 @@ internal object ImageFunctions {
     class Over(val path: String, val stem: String, val original: String, val function: String, val originalMeta: Map<*, *>, val meta: Map<*, *>)
 
     fun of(meta: Map<*, *>?): String? = (meta?.get("function") as? String)?.takeIf { it in FUNCTIONS }
-
-    /** Whether a descriptor says its image follows the ramps: `ramps: true`, nothing else. */
-    fun ramps(meta: Map<*, *>?): Boolean = meta?.get("ramps") == true
 
     /** The pixel size of a PNG, as the pack measures it; null for no file or one that is no image. */
     fun pixelSize(png: ByteArray?): Pair<Int, Int>? = png?.let { bytes -> runCatching { Png.decode(bytes) }.getOrNull()?.let { it.width to it.height } }
@@ -300,7 +295,6 @@ internal object DiskAssets {
                     slice = Slices.of(meta),
                 ),
                 real,
-                ramps = ImageFunctions.ramps(meta),
             )
         }
         // A composed image: a descriptor with a recipe and no file of its name beside it.

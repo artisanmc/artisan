@@ -1,7 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import * as templatesApi from "@/lib/api/templates";
 import * as userAssetsApi from "@/lib/api/userAssets";
-import { createImage, encodePng } from "@/lib/pack/png";
 import { useKitStore } from "@/state/kitStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
@@ -238,51 +237,6 @@ describe("AssetDetailPanel", () => {
     act(() => useAssetStore.getState().setSelectedId("coin"));
     expect(screen.getByTestId("asset-not-taken")).toHaveTextContent(
       "Non prise : ce glyphe a une hauteur de 9 et un ascent de 9, l'original une hauteur de 9 et un ascent de 7.",
-    );
-  });
-
-  it("says whether an image follows the themes' colours", async () => {
-    const image = { ...A, id: "frame", name: "frame", type: "texture" as const };
-    useAssetStore.getState().setAssets([image]);
-    useAssetStore.getState().setSelectedId("frame");
-    const patch = vi
-      .spyOn(userAssetsApi, "patchAsset")
-      .mockResolvedValue({ ...image, ramps: true });
-    render(<AssetDetailPanel projectId={"p1" as never} />);
-    const box = screen.getByRole("checkbox", { name: "Suit les couleurs des thèmes" });
-    expect(box).not.toBeChecked();
-    fireEvent.click(box);
-    fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
-    await waitFor(() => expect(patch).toHaveBeenCalledWith("p1", "frame", { ramps: true }));
-    await waitFor(() => expect(box).toBeChecked());
-  });
-
-  it("tells the colours of an image that no theme repaints, once it follows the themes", async () => {
-    const image = { ...A, id: "frame", name: "frame", type: "texture" as const, ramps: true };
-    useAssetStore.getState().setAssets([image]);
-    useAssetStore.getState().setSelectedId("frame");
-    // The main green of the base, and two colours no ramp has.
-    const drawn = createImage(3, 1);
-    drawn.data.set([0x3c, 0x85, 0x27, 255, 0x12, 0x34, 0x56, 255, 0xab, 0xcd, 0xef, 255]);
-    assetBytes.mockResolvedValue(encodePng(drawn));
-    const { unmount } = render(<AssetDetailPanel projectId={"p1" as never} />);
-    const off = await screen.findByTestId("off-ramp");
-    expect(off).toHaveTextContent("2 couleurs de cette image ne sont pas des couleurs d'Artisan");
-    expect(screen.getByLabelText("#123456")).toBeInTheDocument();
-    expect(screen.getByLabelText("#abcdef")).toBeInTheDocument();
-    // Unticked, nothing is said of its colours.
-    fireEvent.click(screen.getByRole("checkbox", { name: "Suit les couleurs des thèmes" }));
-    expect(screen.queryByTestId("off-ramp")).toBeNull();
-    unmount();
-
-    // An image drawn in Artisan's colours alone is repainted whole.
-    const base = createImage(1, 1);
-    base.data.set([0x3c, 0x85, 0x27, 255]);
-    assetBytes.mockResolvedValue(encodePng(base));
-    useAssetStore.getState().setAssets([{ ...image, contentHash: "h2" }]);
-    render(<AssetDetailPanel projectId={"p1" as never} />);
-    expect(await screen.findByTestId("off-ramp-none")).toHaveTextContent(
-      "un thème les repeint toutes",
     );
   });
 

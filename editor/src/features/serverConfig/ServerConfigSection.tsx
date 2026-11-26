@@ -11,7 +11,6 @@ import { SERVER_PALETTE_KEYS, serverPaletteEntries, serverPaletteForm } from "@/
 import { kitProjectAmong } from "@/lib/pack/kit";
 import { THEMES_CONFIG_KEY, THEME_CONFIG_KEY, themeNames } from "@/lib/pack/theme";
 import { projectClient } from "@/lib/projectClient";
-import { useKitStore } from "@/state/kitStore";
 import {
   MENU_VARIANTS_KEY,
   invalidateServerVariants,
@@ -19,6 +18,7 @@ import {
   serverVariantsFromConfig,
   serverVariantsToConfig,
 } from "@/lib/variants/serverVariants";
+import { useKitStore } from "@/state/kitStore";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type ConditionsEditor, MenuVariantsFields } from "./MenuVariantsFields";
@@ -100,7 +100,7 @@ export function ServerConfigSection({
       .then((tree) => {
         if (cancelled || !tree.ok || tree.unchanged) return;
         const binaries = (tree.binaries ?? []).map((binary) => binary.path);
-        setThemes([...new Set([...own, ...themeNames(Object.keys(tree.files), binaries)])].sort());
+        setThemes([...new Set([...own, ...themeNames(binaries)])].sort());
       })
       .catch(() => {});
     return () => {

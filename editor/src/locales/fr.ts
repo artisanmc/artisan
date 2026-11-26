@@ -54,16 +54,6 @@ const fr: typeof en = {
       hint: "Une copie part dans les images communes du serveur sous le même nom, dans leur brouillon : une fois déployée, tous les modules peuvent la nommer. Ce module garde la sienne, que ses menus montrent toujours ; supprime-la ici ensuite pour qu'ils prennent l'image commune.",
       taken: "Les images communes ont déjà une image de ce nom.",
     },
-    ramps: {
-      allIn:
-        "Toutes les couleurs de cette image sont celles d'Artisan : un thème les repeint toutes.",
-      off_one:
-        "{{count}} couleur de cette image n'est pas une couleur d'Artisan : un thème la laisse telle quelle.",
-      off_other:
-        "{{count}} couleurs de cette image ne sont pas des couleurs d'Artisan : un thème les laisse telles quelles.",
-      label: "Suit les couleurs des thèmes",
-      hint: "Un thème en place remplace les couleurs de cette image par les siennes. À cocher pour une image dessinée dans les couleurs de base d'Artisan ; sans cela l'image garde ses couleurs, comme il convient à une image importée.",
-    },
     originalChanged: {
       title: "L'original a changé depuis ta version.",
       hint: "Les menus continuent de montrer la tienne. Garde-la telle quelle, ou restaure l'original pour repartir du nouveau.",
@@ -392,7 +382,7 @@ const fr: typeof en = {
       open: "Nouveau thème",
       title: "Nouveau thème",
       intro:
-        "Un thème donne un autre aspect aux images communes, pour une saison ou un événement, sans toucher aux menus. Il est créé vide : il ne change rien tant qu'il n'a ni couleurs ni images redessinées, et tant qu'il n'est pas mis en place.",
+        "Un thème donne un autre aspect aux images communes, pour une saison ou un événement, sans toucher aux menus. Il est créé vide : il ne change rien tant qu'il n'a pas d'images redessinées, et tant qu'il n'est pas mis en place.",
       name: "Nom du thème",
       placeholder: "noel",
       errors: {
@@ -416,12 +406,9 @@ const fr: typeof en = {
       file: "Archive du thème",
       drop: "Dépose l'archive d'un thème, ou clique pour en choisir une",
       dropHint: "Un .zip exporté depuis la page d'un thème",
-      holds_one: "{{count}} image, pas de couleurs.",
-      holds_other: "{{count}} images, pas de couleurs.",
-      holdsColours_one: "Une table de couleurs et {{count}} image.",
-      holdsColours_other: "Une table de couleurs et {{count}} images.",
-      holdsColoursOnly: "Une table de couleurs, aucune image.",
-      holdsNeither: "Ni couleurs ni images : seulement des notes de dessin.",
+      holds_one: "{{count}} image.",
+      holds_other: "{{count}} images.",
+      holdsNeither: "Aucune image : seulement des notes de dessin.",
       submit: "Importer",
       errors: {
         not_a_zip: "Ce fichier n'est pas une archive .zip.",
@@ -445,12 +432,12 @@ const fr: typeof en = {
     themes: {
       title: "Thèmes",
       intro:
-        "Un thème est un autre habillage des images du serveur, pour une saison ou un événement : d'autres couleurs, ou des images redessinées. Les menus gardent leur mise en page.",
+        "Un thème est un autre habillage des images communes du serveur, pour une saison ou un événement : certaines y sont redessinées. Les menus gardent leur mise en page.",
       inPlace: "En place sur le serveur",
       inPlaceHint:
         "Ce que voient les joueurs : le thème en place par-dessus les images d'Artisan et les vôtres.",
       orderHint:
-        "Du plus haut au plus bas. Le thème le plus haut qui redessine une image l'emporte, et ses couleurs repeignent ce que montrent ceux du dessous. Faites glisser un thème pour changer sa place : le pack du serveur est reconstruit.",
+        "Du plus haut au plus bas. Le thème le plus haut qui redessine une image l'emporte. Faites glisser un thème pour changer sa place : le pack du serveur est reconstruit.",
       noneInPlace:
         "Aucun thème en place : les joueurs voient les images d'Artisan et les vôtres telles quelles.",
       base: "Les images d'Artisan, et les vôtres",
@@ -463,12 +450,8 @@ const fr: typeof en = {
       putInPlace: "Mettre en place",
       takeOff: "Retirer",
       move: "Faire glisser pour changer la place du thème",
-      colors_one: "{{count}} couleur remplacée",
-      colors_other: "{{count}} couleurs remplacées",
       drawings_one: "{{count}} image redessinée",
       drawings_other: "{{count}} images redessinées",
-      scopeCommon: "images communes seulement",
-      scopeModule: "module {{module}} seulement",
       empty: "ne change rien pour l'instant",
       missing:
         "Le serveur n'a pas de thème de ce nom : il ne change rien. Retirez-le, ou créez-le.",
@@ -481,33 +464,28 @@ const fr: typeof en = {
       backToThemes: "‹ Thèmes",
       title: "Thème « {{name}} »",
       intro:
-        "Un thème change les couleurs des images communes, ou en redessine une. Les menus gardent leur mise en page.",
+        "Un thème redessine des images communes. Les menus gardent leur mise en page, et l'image propre à un module reste celle du module.",
       inPlace: "En place",
       notInPlace: "Pas en place",
       putInPlace: "Mettre en place sur le serveur",
       takeOff: "Retirer du serveur",
       stack:
-        "Thèmes en place, du plus bas au plus haut : {{themes}}. Le plus haut qui redessine une image l'emporte ; ses couleurs s'appliquent à ce que montrent ceux du dessous.",
+        "Thèmes en place, du plus bas au plus haut : {{themes}}. Le plus haut qui redessine une image l'emporte.",
       missing: "Le serveur n'a pas de thème « {{name}} » déployé.",
-      colors: "Couleurs remplacées",
-      noColors: "Ce thème ne remplace aucune couleur.",
-      scopeAll:
-        "Dans les images qui suivent les couleurs des thèmes : celles d'Artisan, et celles des images communes et des modules qui le disent.",
-      scopeCommon: "Dans les images communes seulement (scope: artisan).",
-      scopeModule: "Dans les images du module {{module}} seulement (scope: {{module}}).",
-      becomes: "devient",
       drawings: "Pièces redessinées pour ce thème",
       noDrawings: "Ce thème ne redessine aucune pièce.",
-      moduleDrawings: "Images de modules redessinées",
+      unread: "Fichiers qui ne sont plus lus",
+      unreadHint:
+        "Un thème change une image en contenant une image : ses couleurs ne repeignent plus rien, et l'image propre à un module se change dans le module. Ces fichiers du thème peuvent être supprimés.",
       ownImages: "Ses propres images",
       ownImagesHint:
         "Un menu en nomme une comme écrit ici. Elle s'affiche telle que dessinée, dans le pack tant que le serveur a ce thème, en place ou non.",
       noOwnImages:
         "Aucune. Une image ajoutée aux fichiers de ce thème (assets/) est la sienne : un menu la nomme {{name}}:<son nom>.",
       files:
-        "Un thème est un dossier des images communes du serveur (themes/artisan/) : themes/{{name}}/theme.yml porte ses couleurs, themes/{{name}}/assets/textures/<pièce>.png une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
+        "Un thème est un dossier des images communes du serveur (themes/artisan/) : themes/{{name}}/assets/textures/<pièce>.png est une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
       filesOwn:
-        "Ce thème est un dossier du serveur, themes/{{name}}/ : overrides/colors.yml porte ses couleurs, overrides/artisan/<image>.png une image commune redessinée à la taille de cette image, overrides/<module>/<image>.png l'image d'un module redessinée à sa taille, assets/ ses propres images. Il se lit ici une fois déployé.",
+        "Ce thème est un dossier du serveur, themes/{{name}}/ : overrides/artisan/<image>.png est une image commune redessinée à la taille de cette image, assets/ contient ses propres images. Il se lit ici une fois déployé.",
       compare: "Sans et avec, dans un menu",
       putHint:
         "Mettre en place pose le thème au-dessus de ceux qui y sont déjà et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
@@ -522,7 +500,7 @@ const fr: typeof en = {
         delete: "Supprimer",
         renameTitle: "Renommer le thème {{name}}",
         renameIntro:
-          "Le dossier du thème est renommé sur le serveur, avec ses brouillons et son historique. Ses couleurs et ses images restent telles quelles.",
+          "Le dossier du thème est renommé sur le serveur, avec ses brouillons et son historique. Ses images restent telles quelles.",
         renameInPlace:
           "Le dossier du thème est renommé sur le serveur, avec ses brouillons et son historique. Le thème garde sa place parmi les thèmes en place, et le pack du serveur est reconstruit.",
         deleteTitle: "Supprimer le thème {{name}}",
@@ -546,25 +524,6 @@ const fr: typeof en = {
             "Le dossier du thème a été déplacé, mais la liste des thèmes en place n'a pas pu être écrite. Corrige-la sur l'écran Thèmes.",
           failed: "Le serveur a refusé. Réessaie.",
         },
-      },
-      ramps: {
-        title: "Couleurs d'Artisan",
-        hint: "Choisissez ce que devient chaque couleur des images d'Artisan dans ce thème : ses nuances suivent. Le menu à côté montre le résultat avant toute écriture.",
-        primary: "Principale (boutons)",
-        danger: "Danger (supprimer, fermer)",
-        accent: "Accent (mises en avant)",
-        neutral: "Neutre (fenêtres, cadres)",
-        pick: "Couleur de : {{ramp}}",
-        reset: "Revenir à la couleur d'Artisan",
-        save: "Enregistrer les couleurs",
-        discard: "Annuler",
-        saveHint:
-          "Écrit dans le fichier du thème sur le serveur. Les joueurs ne voient rien tant que le thème n'est pas mis en place.",
-        saveInPlace:
-          "Ce thème est en place : enregistrer reconstruit le pack du serveur, et les joueurs le reçoivent à leur prochaine connexion.",
-        trying: "{{name}}, pas encore enregistré",
-        conflict:
-          "Le fichier du thème a changé sur le serveur entre-temps. Rechargez la page et choisissez à nouveau.",
       },
     },
   },
@@ -2766,9 +2725,9 @@ const fr: typeof en = {
     },
     hints: {
       themes:
-        "Du plus bas au plus haut, séparés par des virgules : le plus haut qui redessine une image l'emporte, et ses couleurs s'appliquent à ce que montrent ceux du dessous. Thèmes du serveur : {{themes}}.",
+        "Du plus bas au plus haut, séparés par des virgules : le plus haut qui redessine une image l'emporte. Thèmes du serveur : {{themes}}.",
       theme:
-        "Un dossier des images communes du serveur (themes/artisan/themes/<nom>/). Chaque image commune est alors montrée aux couleurs du thème, ou telle qu'il la redessine ; les menus gardent leur mise en page.",
+        "Un dossier des images communes du serveur (themes/artisan/themes/<nom>/). Chaque image commune est alors montrée telle que le thème la redessine ; les menus gardent leur mise en page.",
       chest:
         "Image au format generic_54.png (256×256, ou un multiple pour un pack HD). Quand un menu désactive sa texture vanilla, les autres coffres du serveur sont redessinés avec elle.",
       hopper:

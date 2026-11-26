@@ -1,9 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ResetButton } from "@/components/ui/reset-button";
-import { KIT_FOLDER, KIT_PREFIX } from "@/lib/pack/kit";
-import { KIT_RAMPS, rampPicked, withRamp } from "@/lib/pack/ramps";
-import { themeColor } from "@/lib/pack/theme";
+import { KIT_PREFIX } from "@/lib/pack/kit";
+import { themeUnread } from "@/lib/pack/theme";
 import { useKitStore } from "@/state/kitStore";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,32 +11,17 @@ import { ThemeMoves } from "./ThemeMoves";
 import { publishedKitTheme, useKitAssetsIn, useThemeOwnImages } from "./kitAssets";
 import { serverThemeNames } from "./kitTheme";
 
-const hex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
-
-function Swatch({ color }: { color: number }) {
-  return (
-    <span
-      aria-hidden
-      className="h-7 w-7 shrink-0 rounded-[var(--r-sm)] border border-[var(--border)]"
-      style={{ background: hex(color) }}
-    />
-  );
-}
-
-const sameTable = (a: ReadonlyMap<number, number>, b: ReadonlyMap<number, number>) =>
-  a.size === b.size && [...a].every(([from, to]) => b.get(from) === to);
-
 /**
  * One theme of the server's kit (`lib/pack/theme.ts`), read from the published kit module: the
- * colours it replaces, the pieces it redraws, its own images (what a menu writes
+ * pieces it redraws, its own images (what a menu writes
  * `<theme>:<name>` for) and the same menu without it and with it. A theme is put in place
  * from here (`onPutInPlace`: on top of the server's `resource-pack.themes`, then its pack
  * rebuilt), and taken off the same way.
  *
- * A theme of its own folder has its colours picked here (`onColors`): one colour per ramp of
- * the base (`lib/pack/ramps.ts`), the shades computed, the menu shown with them before they
- * are written. Such a theme is renamed and deleted from here too (`onRename`, `onDelete`),
- * when the server moves a theme's folder, and exported as an archive (`onExport`).
+ * A theme of its own folder is renamed and deleted from here too (`onRename`, `onDelete`),
+ * when the server moves a theme's folder, and exported as an archive (`onExport`). What it
+ * still holds that is no longer read (a table of colours, a redraw aimed at a module:
+ * `themeUnread`) is said.
  */
 export function KitThemePage({
   name,
@@ -47,7 +30,6 @@ export function KitThemePage({
   onPutInPlace,
   onOpenKit,
   onOpenTheme,
-  onColors,
   onRename,
   onDelete,
   onExport,
@@ -62,8 +44,6 @@ export function KitThemePage({
   onOpenKit?: () => void;
   /** Opens the Project of a theme of its own folder: its files, and a draft of it to deploy. */
   onOpenTheme?: () => void;
-  /** Writes the table `colors` in the file of the theme `name`, a theme of its own folder. */
-  onColors?: (name: string, colors: ReadonlyMap<number, number>) => Promise<void>;
   /** Renames the theme `name`, a theme of its own folder, to `target`. */
   onRename?: (name: string, target: string) => Promise<void>;
   /** Takes the theme `name`, a theme of its own folder, off the server. */
@@ -80,15 +60,16 @@ export function KitThemePage({
   const stack = useKitStore((s) => s.themes);
   const inPlace = stack.includes(name);
   const theme = useMemo(() => publishedKitTheme(read, name, own), [read, own, name]);
-  // The table as it is being picked; `null`: the theme's own, as published.
-  const [picked, setPicked] = useState<ReadonlyMap<number, number> | null>(null);
-  const changed = picked !== null && !!theme && !sameTable(picked, theme.colors);
-  const table = changed ? picked : (theme?.colors ?? null);
   const plain = useKitAssetsIn(null);
-  const themed = useKitAssetsIn(name, changed ? picked : null);
+  const themed = useKitAssetsIn(name);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const picks = !!onColors && name in own;
+  const mine = own[name];
+  const unread = useMemo(
+    () =>
+      mine ? themeUnread([...Object.keys(mine.files), ...mine.binaries.map((b) => b.path)]) : [],
+    [mine],
+  );
   const moves = own[name]?.canMove === true;
   const taken = useMemo(() => serverThemeNames(read, own), [read, own]);
   const ownImages = useThemeOwnImages(name);
@@ -99,19 +80,6 @@ export function KitThemePage({
     setError(null);
     try {
       await onPutInPlace(name, next);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const save = async () => {
-    if (busy || !onColors || !changed) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await onColors(name, picked);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -132,7 +100,6 @@ export function KitThemePage({
     }
   };
 
-  const colors = table ? [...table] : [];
   return (
     <div className="flex flex-col gap-4" data-testid="kit-theme-page">
       <header className="flex flex-wrap items-center gap-3">
@@ -162,13 +129,11 @@ export function KitThemePage({
       </header>
       {error ? (
         <p role="alert" className="text-xs text-[var(--danger)]">
-          {error === "conflict"
-            ? t("kit.theme.ramps.conflict")
-            : error.startsWith("export:")
-              ? t(`kit.theme.exportFailed.${error.slice(7)}`, {
-                  defaultValue: t("kit.theme.exportFailed.transport"),
-                })
-              : t("kit.theme.failed", { detail: error })}
+          {error.startsWith("export:")
+            ? t(`kit.theme.exportFailed.${error.slice(7)}`, {
+                defaultValue: t("kit.theme.exportFailed.transport"),
+              })
+            : t("kit.theme.failed", { detail: error })}
         </p>
       ) : null}
       {inPlace && stack.length > 1 ? (
@@ -181,99 +146,10 @@ export function KitThemePage({
       ) : (
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
           <div className="flex w-full shrink-0 flex-col gap-4 xl:w-[340px]">
-            {picks && table ? (
-              <section className="card flex flex-col gap-2 p-4" data-testid="kit-theme-ramps">
-                <h3 className="eyebrow">{t("kit.theme.ramps.title")}</h3>
-                <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.ramps.hint")}</p>
-                <ul className="flex flex-col gap-1.5">
-                  {KIT_RAMPS.map((ramp) => {
-                    const now = rampPicked(ramp, table);
-                    const label = t(`kit.theme.ramps.${ramp.id}`, { defaultValue: ramp.id });
-                    return (
-                      <li
-                        key={ramp.id}
-                        className="flex items-center gap-2 rounded-[var(--r-md)] bg-[var(--surface-inset)] p-1.5 text-xs"
-                      >
-                        <Swatch color={ramp.main} />
-                        <span className="min-w-0 flex-1 truncate">{label}</span>
-                        <input
-                          type="color"
-                          aria-label={t("kit.theme.ramps.pick", { ramp: label })}
-                          value={hex(now)}
-                          disabled={busy}
-                          onChange={(event) => {
-                            const next = themeColor(event.target.value);
-                            if (next !== null) setPicked(withRamp(table, ramp, next));
-                          }}
-                          className="size-8 shrink-0 cursor-pointer rounded border border-[var(--border)] bg-transparent p-0"
-                        />
-                        <ResetButton
-                          modified={now !== ramp.main}
-                          onReset={() => setPicked(withRamp(table, ramp, ramp.main))}
-                          label={t("kit.theme.ramps.reset")}
-                        />
-                      </li>
-                    );
-                  })}
-                </ul>
-                {changed ? (
-                  <>
-                    <div className="flex gap-2">
-                      <Button size="sm" disabled={busy} onClick={() => void save()}>
-                        {t("kit.theme.ramps.save")}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => setPicked(null)}
-                      >
-                        {t("kit.theme.ramps.discard")}
-                      </Button>
-                    </div>
-                    <p className="text-[12px] text-[var(--text-mut)]">
-                      {t(inPlace ? "kit.theme.ramps.saveInPlace" : "kit.theme.ramps.saveHint")}
-                    </p>
-                  </>
-                ) : null}
-              </section>
-            ) : null}
-            <section className="card flex flex-col gap-2 p-4">
-              <h3 className="eyebrow">{t("kit.theme.colors")}</h3>
-              {colors.length > 0 ? (
-                <p className="text-xs text-[var(--text-mut)]" data-testid="kit-theme-scope">
-                  {theme.scope === null
-                    ? t("kit.theme.scopeAll")
-                    : theme.scope === KIT_FOLDER
-                      ? t("kit.theme.scopeCommon")
-                      : t("kit.theme.scopeModule", { module: theme.scope })}
-                </p>
-              ) : null}
-              {colors.length === 0 ? (
-                <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.noColors")}</p>
-              ) : (
-                <ul className="flex flex-col gap-1.5" data-testid="kit-theme-colors">
-                  {colors.map(([from, to]) => (
-                    <li
-                      key={from}
-                      className="flex items-center gap-2 rounded-[var(--r-md)] bg-[var(--surface-inset)] p-1.5 text-xs"
-                    >
-                      <Swatch color={from} />
-                      <code>{hex(from)}</code>
-                      <span className="text-[var(--text-mut)]">{t("kit.theme.becomes")}</span>
-                      <Swatch color={to} />
-                      <code>{hex(to)}</code>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
             <section className="card flex flex-col gap-2 p-4">
               <h3 className="eyebrow">{t("kit.theme.drawings")}</h3>
               {theme.drawings.length === 0 ? (
-                theme.moduleDrawings.length === 0 ? (
-                  <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.noDrawings")}</p>
-                ) : null
+                <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.noDrawings")}</p>
               ) : (
                 <ul className="flex flex-col gap-1.5" data-testid="kit-theme-drawings">
                   {theme.drawings.map((piece) => {
@@ -297,22 +173,23 @@ export function KitThemePage({
                   })}
                 </ul>
               )}
-              {theme.moduleDrawings.length > 0 ? (
-                <>
-                  <h4 className="field-label">{t("kit.theme.moduleDrawings")}</h4>
-                  <ul className="flex flex-col gap-1" data-testid="kit-theme-module-drawings">
-                    {theme.moduleDrawings.map((key) => (
-                      <li
-                        key={key}
-                        className="rounded-[var(--r-md)] bg-[var(--surface-inset)] p-1.5 text-xs"
-                      >
-                        <code className="truncate">{key}</code>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : null}
             </section>
+            {unread.length > 0 ? (
+              <section className="card flex flex-col gap-2 p-4" data-testid="kit-theme-unread">
+                <h3 className="eyebrow">{t("kit.theme.unread")}</h3>
+                <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.unreadHint")}</p>
+                <ul className="flex flex-col gap-1">
+                  {unread.map((path) => (
+                    <li
+                      key={path}
+                      className="rounded-[var(--r-md)] bg-[var(--surface-inset)] p-1.5 text-xs"
+                    >
+                      <code className="truncate">{path}</code>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
             {name in own ? (
               <section className="card flex flex-col gap-2 p-4">
                 <h3 className="eyebrow">{t("kit.theme.ownImages")}</h3>
@@ -393,7 +270,7 @@ export function KitThemePage({
               </figure>
               <figure className="flex flex-col items-center gap-2" data-testid="kit-theme-after">
                 <figcaption className="text-xs font-medium text-[var(--text-mut)]">
-                  {changed ? t("kit.theme.ramps.trying", { name }) : name}
+                  {name}
                 </figcaption>
                 <KitTrialMenu kit={themed} />
               </figure>

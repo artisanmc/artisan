@@ -59,7 +59,7 @@ class MissingImagesTest {
             composed.missingLayers,
         )
         // Themes change what a layer shows, not whether it takes something.
-        for (name in listOf("theme:", "themes in place stack", "ramps and scope", "ui kit")) {
+        for (name in listOf("theme:", "themes in place stack", "ramps and scope are no longer read", "ui kit")) {
             assertEquals(emptyMap(), ResourcePackBuilder.build(inputOf(vectors["cases"].first { it["name"].asText().startsWith(name) })).missingLayers, name)
         }
     }

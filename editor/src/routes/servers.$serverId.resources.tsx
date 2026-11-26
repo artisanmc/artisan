@@ -4,7 +4,6 @@ import { NewThemeDialog } from "@/features/assets/NewThemeDialog";
 import { ThemesPage } from "@/features/assets/ThemesPage";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useResourcesView } from "@/features/assets/resourcesView";
-import { saveThemeColors } from "@/features/assets/themeWrite";
 import { runExportThemeZip } from "@/features/export/runExportZip";
 import { ImportThemeDialog } from "@/features/import/ImportThemeDialog";
 import {
@@ -166,15 +165,6 @@ function ServerResourcesTab() {
                 ? () => void openModule((ownThemes[theme] as { projectId: string }).projectId)
                 : undefined
             }
-            onColors={async (name, colors) => {
-              const mine = useKitStore.getState().own[name];
-              if (!mine) throw new Error("unknown_project");
-              if (!(await saveThemeColors(mine, colors))) return;
-              // The theme is read again as the server holds it, and its pack rebuilt when it is in place.
-              setRereads((count) => count + 1);
-              if (useKitStore.getState().themes.includes(name))
-                rebuildServerPackInBackground(t, serverKeyId);
-            }}
             onPutInPlace={putInPlace}
             onRename={renameTheme}
             onDelete={deleteTheme}

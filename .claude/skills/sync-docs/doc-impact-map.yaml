@@ -207,13 +207,6 @@ mappings:
       - "docs/decisions/common-images-and-themes.md"
     reason: "Which image a name in a module's file is: one rule in three places (hub builder, editor builder, the game from the asset index), locked by a shared vector. A change goes into the three"
 
-  - touches: "{plugin/pack/src/main/kotlin/**/Ramps.kt,editor/src/lib/pack/ramps.ts,editor/src/assets/kit/ramps.json}"
-    updates:
-      - "testdata/ramp-shades-conformance.json"
-      - "docs/decisions/common-images-and-themes.md"
-      - "docs/architecture/testing.md"
-    reason: "The base's colour ramps and what a shade becomes when a ramp's colour is picked: one rule on both sides (the editor's theme page, the MCP tool theme_colours), locked by a shared vector. A new colour in a base image needs its ramp in ramps.json"
-
   - touches: "{plugin/core/src/main/kotlin/**/project/ArtisanTheme.kt,plugin/pack/src/main/kotlin/**/Kit.kt,editor/src/lib/pack/kit.ts}"
     updates:
       - "docs/decisions/common-images-and-themes.md"

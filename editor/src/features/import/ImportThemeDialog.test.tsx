@@ -43,9 +43,7 @@ describe("ImportThemeDialog", () => {
         "overrides/artisan/back.1x1.png": PNG,
       }),
     );
-    expect(await screen.findByTestId("import-theme-holds")).toHaveTextContent(
-      "Une table de couleurs et 2 images.",
-    );
+    expect(await screen.findByTestId("import-theme-holds")).toHaveTextContent("2 images.");
     const field = screen.getByLabelText("Nom du thème");
     expect(field).toHaveValue("noel");
     // A name the server has is refused before anything is sent.
@@ -69,7 +67,7 @@ describe("ImportThemeDialog", () => {
     // Another archive replaces the first; its name is no theme's, so it is asked.
     pick(await zipFile("Mon thème.zip", { "overrides/colors.yml": "colors: {}\n" }));
     expect(await screen.findByTestId("import-theme-holds")).toHaveTextContent(
-      "Une table de couleurs, aucune image.",
+      "Aucune image : seulement des notes de dessin.",
     );
     expect(screen.getByLabelText("Nom du thème")).toHaveValue("");
     fireEvent.change(screen.getByLabelText("Nom du thème"), { target: { value: "noel" } });

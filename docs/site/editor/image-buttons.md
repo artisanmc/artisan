@@ -143,13 +143,12 @@ or a title layer) offers them after the common images: the menu names the one yo
 nothing is copied.
 
 **Resources**, **Show: Themes** lists the server's themes: those in place, the highest first,
-and the others. The highest theme that redraws an image wins, and its colours repaint what
-the ones below show; drag a theme by its handle to change its place, **Take off** or **Put in
+and the others. The highest theme that redraws an image wins; drag a theme by its handle to change its place, **Take off** or **Put in
 place** to change the list. Each change rebuilds the server's pack. A click on a theme opens
 its page.
 
 A theme created as a folder of its own is renamed and deleted from its page (**Rename**,
-**Delete**, under where its files are). A renamed theme keeps its colours, its images and its
+**Delete**, under where its files are). A renamed theme keeps its images and its
 place among the themes in place. A deleted theme is taken off the server and its folder moved
 to the server's trash (`plugins/Artisan/themes/.artisan-trash/`): nothing is erased, and
 moving the folder back into `themes/` under the theme's name restores it at the server's
@@ -157,32 +156,17 @@ next start. The common images
 (`artisan`) are neither renamed nor deleted. Both need the server's plugin to be up to date.
 
 **Export** on that page downloads the theme as an archive (`<name>.theme.zip`): its folder as
-the server holds it, colours and redrawn images. On another server, **Resources**, **Show:
+the server holds it, with its images. On another server, **Resources**, **Show:
 Themes**, **Import a theme** reads the archive, proposes the theme's name (change it when the
 server already has a theme of that name) and creates the theme with its files. An imported
 theme is not put in place: open it, look at the menu with it, then put it in place. A
 module's archive is not a theme's: it is imported from the server's modules.
 
-On the page of a theme, **Artisan's colours** has one colour to pick per family: main
-(buttons), danger (delete, close), accent (highlights) and neutral (windows, frames). Pick
-what a family's colour becomes and its shades follow, darker ones darker, lighter ones
-lighter; the menu beside shows the result before anything is written. **Save the colours**
-writes them in the theme's `overrides/colors.yml` on the server, as the exact list of colours
-replaced, which you may still edit by hand. A theme in place has its pack rebuilt at once, so
-players receive the new colours at their next connection; a theme that is not in place changes
-nothing for them. The arrow beside a family puts Artisan's colour back.
-
-A theme's colours repaint the images that follow them, and leave the others alone. Artisan's
-own images always follow. An image of yours, common or a module's, follows when **Follows the
-themes' colours** is ticked on it in **Resources**: tick it for an image drawn in Artisan's
-base colours (the server's version of a base image, first drawn in the atelier, has it
-ticked), and leave it for an icon or an imported picture, which would otherwise lose a green
-it merely shares with the buttons. Once ticked, the image's panel shows which of its colours
-are none of Artisan's: a theme leaves those as drawn, so redraw them in Artisan's colours if
-the whole image is meant to change with the theme. A theme may be kept to one module: with `scope: guilds` in
-its `overrides/colors.yml`, its colours change the images of `guilds` only, so a "Christmas
-for Guilds" sits beside another theme (`scope: artisan`: the common images only). The theme's
-page says what its colours reach.
+A theme changes an image by holding an image of the same name. It no longer repaints colours,
+and it no longer aims at one module: a colour table (`overrides/colors.yml`), a `scope` or a
+redraw aimed at a module (`overrides/<module>/`) that a theme still holds is listed on its
+page under **No longer read**, and changes nothing for players. An image a module holds
+itself is changed in that module.
 
 **Composed images.** An image may be a recipe instead of a PNG: a `compose:` list in its
 `.yml`, which stacks common images and PNGs of the module (see

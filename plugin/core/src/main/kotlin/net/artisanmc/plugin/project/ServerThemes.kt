@@ -14,13 +14,16 @@ import java.util.logging.Logger
  * folder of `plugins/Artisan/themes/` is a theme, a Project of its name with the role `theme`.
  *
  * ```
- * themes/noel/overrides/colors.yml                colors: {"#3c8527": "#b3261e"}
  * themes/noel/overrides/artisan/button.3x1.png    this common image redrawn, at its size
  * ```
  *
  * A theme holds no Document: the server loads no menu, command or Trigger from its folder
  * ([ProjectRoots.holdsDocuments]). Its name is not a module's: a folder of `themes/` named like
  * a module of the server is left unregistered, the module stays what the name means.
+ *
+ * A theme changes an image by holding an image (ADR `resources-one-screen`, decisions 2 and 3):
+ * the table of colours and the redraws aimed at a module it once held are no longer read, and
+ * [register] says so for each one found ([unread]).
  */
 object ServerThemes {
     /** A theme's `role` in the Project roots, and in the `project_create` that makes one. */
@@ -29,7 +32,7 @@ object ServerThemes {
     /** In a theme's folder, what it changes in images that exist elsewhere. */
     const val OVERRIDES = "overrides"
 
-    /** Its table of colours. */
+    /** The table of colours it once held: no longer read ([unread]). */
     const val COLORS = "$OVERRIDES/colors.yml"
 
     /** Its redraws of the common images. */
@@ -57,10 +60,29 @@ object ServerThemes {
             if (!free) logger?.warning(
                 "[Artisan] The theme ${File(roots.themesRoot, name).path} has the name of a module of this server: it is not read. " +
                     "Rename its folder, then restart.",
-            ) else roots.theme(name)
+            ) else {
+                roots.theme(name)
+                val unread = unread(File(roots.themesRoot, name))
+                if (unread.isNotEmpty()) logger?.warning(
+                    "[Artisan] The theme '$name' holds files that are no longer read: ${unread.joinToString(", ")}. A theme changes an image " +
+                        "by holding an image under the common image's name ($COMMON/): its colours repaint nothing, and a module's own image " +
+                        "is changed in the module. Delete them.",
+                )
+            }
             free
         }
     }
+
+    /**
+     * What the theme's folder [dir] holds that is no longer read: everything in its `overrides/`
+     * but its redraws of the common images (a table of colours, a folder aimed at a module),
+     * each by its path in the theme, a folder ending with `/`, sorted.
+     */
+    fun unread(dir: File): List<String> =
+        File(dir, OVERRIDES).listFiles().orEmpty()
+            .filter { it.name != ArtisanTheme.NAME && !it.name.startsWith(".") }
+            .map { "$OVERRIDES/${it.name}" + if (it.isDirectory) "/" else "" }
+            .sorted()
 
     /**
      * A new, empty theme [name], registered at once (`project_create` with `role: "theme"`).

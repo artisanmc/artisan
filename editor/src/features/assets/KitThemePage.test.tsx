@@ -24,16 +24,12 @@ describe("KitThemePage", () => {
   it("shows what the theme changes and puts it in place", async () => {
     const onPutInPlace = vi.fn().mockResolvedValue(undefined);
     render(<KitThemePage name="noel" onBack={() => {}} onPutInPlace={onPutInPlace} />);
-    const colors = screen.getByTestId("kit-theme-colors");
-    expect(within(colors).getByText("#3c8527")).toBeInTheDocument();
-    expect(within(colors).getByText("#b3261e")).toBeInTheDocument();
+    // The table of colours it once held is shown nowhere: a theme changes an image by holding one.
+    expect(screen.queryByTestId("kit-theme-colors")).toBeNull();
+    expect(screen.queryByTestId("kit-theme-ramps")).toBeNull();
     expect(
       within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
     ).toBeInTheDocument();
-    // Without a scope its colours reach every image that follows them.
-    expect(screen.getByTestId("kit-theme-scope")).toHaveTextContent(
-      "Dans les images qui suivent les couleurs des thèmes",
-    );
     expect(screen.getByText("Pas en place")).toBeInTheDocument();
     expect(screen.getByTestId("kit-theme-before")).toBeInTheDocument();
     expect(screen.getByTestId("kit-theme-after")).toBeInTheDocument();
@@ -73,20 +69,17 @@ describe("KitThemePage", () => {
     });
     const onOpenKit = vi.fn();
     render(<KitThemePage name="printemps" onBack={() => {}} onOpenKit={onOpenKit} />);
-    expect(within(screen.getByTestId("kit-theme-colors")).getByText("#ffb7c5")).toBeInTheDocument();
-    // A theme of one module says which.
-    expect(screen.getByTestId("kit-theme-scope")).toHaveTextContent(
-      "Dans les images du module guilds seulement",
-    );
     expect(
       within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
     ).toBeInTheDocument();
-    // A module's image it redraws is named with its module.
-    expect(
-      within(screen.getByTestId("kit-theme-module-drawings")).getByText("guilds:banner"),
-    ).toBeInTheDocument();
+    // Its table of colours and its redraw aimed at a module are no longer read, and said so.
+    const unread = within(screen.getByTestId("kit-theme-unread"));
+    expect(unread.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "overrides/colors.yml",
+      "overrides/guilds/banner.png",
+    ]);
     // Its files are its own folder's, not the common images'.
-    expect(screen.getByText(/themes\/printemps\/ : overrides\/colors.yml/)).toBeInTheDocument();
+    expect(screen.getByText(/themes\/printemps\/ : overrides\/artisan/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ouvrir les images du serveur" })).toBeNull();
   });
 
@@ -127,68 +120,21 @@ describe("KitThemePage", () => {
     expect(screen.queryByText("Ses propres images")).toBeNull();
   });
 
-  it("picks one colour per ramp for a theme of its own folder, and writes the table", async () => {
+  it("says nothing of unread files for a theme that holds none", () => {
     useKitStore.setState({
       own: {
         printemps: {
           projectId: "srv.printemps",
-          files: { "overrides/colors.yml": 'colors: {"#a02824": "#102030"}\n' },
-          binaries: [],
+          files: {},
+          binaries: [{ path: "overrides/artisan/close.1x1.png", hash: "h" }],
         },
       },
     });
-    const onColors = vi.fn().mockResolvedValue(undefined);
     const onOpenTheme = vi.fn();
-    render(
-      <KitThemePage
-        name="printemps"
-        onBack={() => {}}
-        onColors={onColors}
-        onOpenTheme={onOpenTheme}
-      />,
-    );
-    const ramps = within(screen.getByTestId("kit-theme-ramps"));
-    // Each ramp shows what its main colour becomes in the theme.
-    const main = ramps.getByLabelText("Couleur de : Principale (boutons)") as HTMLInputElement;
-    expect(main.value).toBe("#3c8527");
-    const danger = ramps.getByLabelText("Couleur de : Danger (supprimer, fermer)");
-    expect((danger as HTMLInputElement).value).toBe("#102030");
-    expect(screen.queryByRole("button", { name: "Enregistrer les couleurs" })).toBeNull();
-    fireEvent.change(main, { target: { value: "#b3261e" } });
-    // The shades follow, shown before anything is written.
-    expect(within(screen.getByTestId("kit-theme-colors")).getByText("#3c8527")).toBeInTheDocument();
-    expect(screen.getByTestId("kit-theme-after")).toHaveTextContent("pas encore enregistré");
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les couleurs" }));
-    await waitFor(() => expect(onColors).toHaveBeenCalledTimes(1));
-    const [name, table] = onColors.mock.calls[0] as [string, Map<number, number>];
-    expect(name).toBe("printemps");
-    expect(table.get(0x3c8527)).toBe(0xb3261e);
-    expect(table.get(0xa02824)).toBe(0x102030);
-    expect(table.size).toBeGreaterThan(2);
-    // Cancelled, the theme's own table is back.
-    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
-    expect(main.value).toBe("#3c8527");
-    expect(screen.queryByRole("button", { name: "Enregistrer les couleurs" })).toBeNull();
+    render(<KitThemePage name="printemps" onBack={() => {}} onOpenTheme={onOpenTheme} />);
+    expect(screen.queryByTestId("kit-theme-unread")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Ouvrir le dossier du thème" }));
     expect(onOpenTheme).toHaveBeenCalled();
-  });
-
-  it("says a write was refused, and offers no picker for a theme the common images keep", async () => {
-    useKitStore.setState({
-      own: { printemps: { projectId: "srv.printemps", files: {}, binaries: [] } },
-    });
-    const onColors = vi.fn().mockRejectedValue(new Error("conflict"));
-    const { unmount } = render(
-      <KitThemePage name="printemps" onBack={() => {}} onColors={onColors} />,
-    );
-    fireEvent.change(screen.getByLabelText("Couleur de : Neutre (fenêtres, cadres)"), {
-      target: { value: "#4a5a8c" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les couleurs" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("a changé sur le serveur");
-    unmount();
-    render(<KitThemePage name="noel" onBack={() => {}} onColors={onColors} />);
-    expect(screen.queryByTestId("kit-theme-ramps")).toBeNull();
   });
 
   it("renames and deletes a theme of its own folder the server moves", async () => {

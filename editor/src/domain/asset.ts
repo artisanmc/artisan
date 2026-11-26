@@ -34,8 +34,6 @@ export interface Asset {
   usages?: (AssetUsage | LegacyAssetUsage)[];
   /** What the image is for, which fixes its measures (`lib/pack/imageFunction.ts`); absent for none. */
   function?: ImageFunction;
-  /** The image follows the ramps: a theme's colours repaint it (`lib/pack/theme.ts`). */
-  ramps?: boolean;
   /** The margins of a sliced image (`lib/pack/slice.ts`); absent for an image drawn by its fit. */
   slice?: Slice;
   /** A theme's own image (`<theme>:<name>`): a name alone never reaches it (`imageNamed`). */

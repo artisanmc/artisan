@@ -1010,11 +1010,13 @@ Non-examples:
 ## Theme
 
 A folder of images under `themes/<name>/`, in the format of a module, that changes how images
-look and never what a menu does: its redraws of images that exist elsewhere, its colour table,
+look and never what a menu does: its drawings of the common images
 and its own images (`<theme>:<name>`). It holds no Document. The theme `artisan` is Artisan's
 base: it alone fixes the names and measures of the **Common images**, is always in place and
 below the others. The other themes in place are a stack the server orders
-(`resource-pack.themes`). A module draws what it owns; a theme redraws what others own. Decided
+(`resource-pack.themes`). A module draws what it owns; a theme redraws the common images, by holding an image of the
+same name, and never a module's own (ADR `resources-one-screen`, 2026-11-26: no colour table,
+no scope, no redraw aimed at a module). Decided
 2026-11-25 (ADR `common-images-and-themes`), being built: the theme `artisan` exists
 (`plugins/Artisan/themes/artisan/`); until step 4 another theme is a folder `themes/<name>/` of
 that theme, one in place per server (`resource-pack.theme`, ADR `mcp-server`, decision 16).

@@ -6,6 +6,9 @@
 what holds by default.
 **Decisions 12 (the kit as a module), 14 and 16 are replaced** by `common-images-and-themes`
 (2026-11-25): they describe the code until that ADR's steps land.
+**What this ADR says of a theme's colours, ramps, `scope` and redraws aimed at a module**
+(`write_image` with `ramps`, `theme_colours`, `overrides/colors.yml`) **is removed** by
+`resources-one-screen` (2026-11-26): a theme holds images, and those tools and arguments are gone.
 
 ## Context
 

@@ -235,21 +235,13 @@ folder of its own beside the common images, `plugins/Artisan/themes/noel/`, whic
 assistant creates when you ask for a new theme (or you, with **New theme** in **Resources**,
 common images):
 
-```yaml
-# overrides/colors.yml: each colour of the common images, and what replaces it
-colors:
-  "#3c8527": "#b3261e"   # quoted: unquoted, # starts a comment
-  "#2a641c": "#7f1a14"
-```
-
 ```text
 overrides/artisan/window.6.png   # an image the theme draws again, at its size
 ```
 
-The assistant writes both into a draft of the theme, which you deploy like any other draft.
-A theme may also redraw a module's own image, at its size
-(`overrides/guilds/banner.png` for the image `banner` of the module `guilds`): ask for it by
-the module's name ("in the theme noel, redraw the guilds banner with snow").
+The assistant writes it into a draft of the theme, which you deploy like any other draft.
+A theme changes the common images only: an image a module holds itself is changed in that
+module ("redraw the guilds banner with snow" goes into a draft of `guilds`).
 
 A theme may hold images of its own too, which no module and no common image has: a garland
 for the winter look ("draw a garland in the theme noel and put it at the top of the shop").
@@ -257,35 +249,17 @@ The assistant writes it in the theme's draft (`assets/textures/garland.png`) and
 with the theme in the menu, `noel:garland`. It shows as drawn while the server has the
 theme, in place or not.
 
-Ask for a theme by its colours ("a Christmas theme: red buttons, dark blue windows"): the
-assistant picks one colour per family of Artisan's images (main, danger, accent, neutral) and
-the shades of each family are computed for it, the same ones the theme's page computes when
-you pick the colour yourself.
+An image a theme draws is shown as drawn. A theme no longer repaints colours: a colour table
+(`overrides/colors.yml`), its `scope` and `ramps: true` on an image are no longer read. A
+drawing of another size than the image it replaces is left out, so the menus keep their
+layout.
 
-An image a theme draws is shown as drawn. Otherwise the theme's colours repaint the images
-that follow them, their transparency kept: Artisan's own, and any image, common or a
-module's, that says so (`ramps: true` in its `.yml`, **Follows the themes' colours** in
-**Resources**; the assistant sets it when it draws an image in the base's colours and you can
-ask for it: "make the guilds banner follow the themes"). Any other image keeps its colours,
-so an icon that happens to share a green is not repainted. An image composed from others
-follows through its layers. A drawing of another size than the image it replaces is left out,
-so the menus keep their layout.
-
-A theme may be kept to one module:
-
-```yaml
-# overrides/colors.yml
-scope: guilds            # the colours change the images of guilds only; artisan: the common images only
-colors:
-  "#3c8527": "#b3261e"
-```
 A theme written before themes had their own folder (`themes/<name>/` inside the common
 images, with a `theme.yml`) moves to its own folder at the server's next start, its files put
 at the places above; it keeps its name and its place in the stack, and the pack does not
 change. A theme's folder holds no menu, command or Trigger: the server reads none from it.
 The server's themes in place are a stack (`resource-pack.themes` of `config.yml`, the lowest
-first): each changes what the ones below show, so the highest that redraws an image wins and
-its colours repaint what is below. Put a theme in place from its page (**Resources**, common
+first): each changes what the ones below show, so the highest that redraws an image wins. Put a theme in place from its page (**Resources**, common
 images, the theme, **Put in place on the server**), which sets it above the others and rebuilds
 the pack; **Resources**, **Show: Themes** holds the list in order, where a theme is dragged to
 another place. The

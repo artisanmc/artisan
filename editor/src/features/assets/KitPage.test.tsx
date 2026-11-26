@@ -36,12 +36,12 @@ describe("KitPage", () => {
         "assets/glyphs/button.3x1.png",
         "assets/textures/blason.png",
         "assets/textures/back.1x1.png",
+        "themes/noel/assets/textures/close.1x1.png",
       ],
       {
         "assets/glyphs/button.3x1.yml": "width: 54\nheight: 18\n",
         // Not the piece's size: the image is not taken, and the card says so.
         "assets/textures/back.1x1.yml": "width: 20\nheight: 16\n",
-        "themes/noel/theme.yml": 'colors: {"#3c8527": "#b3261e"}\n',
       },
     );
     useKitStore.setState({ themes: ["noel"] });
@@ -90,11 +90,11 @@ describe("KitPage", () => {
   });
 
   it("lists the themes in place first, in their order, then the others", () => {
-    published([], {
-      "themes/automne/theme.yml": "colors: {}\n",
-      "themes/hiver/theme.yml": "colors: {}\n",
-      "themes/noel/theme.yml": "colors: {}\n",
-    });
+    published([
+      "themes/automne/assets/textures/close.1x1.png",
+      "themes/hiver/assets/textures/close.1x1.png",
+      "themes/noel/assets/textures/close.1x1.png",
+    ]);
     // `gone` is in place on the server and no longer among its themes: it shows nothing.
     // `printemps` is a theme of its own folder, a Project of its name.
     useKitStore.setState({
@@ -113,7 +113,7 @@ describe("KitPage", () => {
   });
 
   it("offers what creates a theme beside the themes, with the names they have", () => {
-    published([], { "themes/hiver/theme.yml": "colors: {}\n" });
+    published(["themes/hiver/assets/textures/close.1x1.png"]);
     useKitStore.setState({
       own: { printemps: { projectId: "srv.printemps", files: {}, binaries: [] } },
     });

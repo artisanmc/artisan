@@ -1,6 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import { API_URL } from "@/lib/api/client";
-import { diskAssetsFromTree, followsRamps } from "@/lib/pack/diskAssets";
+import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import {
   type ElsewhereWhere,
   type Reach,
@@ -47,8 +47,6 @@ interface OwnImage {
   hash: string;
   width: number | null;
   height: number | null;
-  /** The image says it follows the ramps: the themes' colours repaint it. */
-  ramps?: boolean;
   /** The margins its descriptor declares (`slice`). */
   slice?: Slice;
 }
@@ -80,25 +78,21 @@ function ownImages(read: KitRead | undefined): Map<string, OwnImage> {
       hash,
       width: size(descriptor?.width),
       height: size(descriptor?.height),
-      ...(followsRamps(descriptor) ? { ramps: true } : {}),
       ...(sliceOf(descriptor) ? { slice: sliceOf(descriptor)! } : {}),
     });
   }
   return out;
 }
 
-/** `ramps`: the image follows the ramps, as the base's do and the server's own when they say so. */
 function kitAsset(
   name: string,
   width: number,
   height: number,
   url: string,
   hash: string,
-  ramps: boolean,
   slice?: Slice,
 ): Asset {
   return {
-    ...(ramps ? { ramps: true } : {}),
     // The margins a button larger than the image keeps: the canvas draws it as the pack does.
     ...(slice ? { slice } : {}),
     id: KIT_PREFIX + name,
@@ -155,10 +149,6 @@ export async function composedKitImages(
       theme,
       true,
       (name) =>
-        disk.some(
-          (a) => !a.compose && a.row.type !== "font" && a.row.name === name && a.row.ramps === true,
-        ),
-      (name) =>
         disk.find((a) => !a.compose && a.row.type !== "font" && a.row.name === name)?.row.slice,
     ).catch(() => null);
     if (view?.previewUrl)
@@ -196,24 +186,16 @@ let showing: { read: KitRead; themes: readonly string[]; own: unknown } | undefi
 
 /**
  * The kit images `assets` as the theme shows them (`lib/pack/theme.ts`), like the pack: the
- * theme's own drawing of an image, else the image in the theme's colours; one assembled from
- * themed layers already (`composed`) is only replaced by the theme's drawing of it.
+ * theme's own drawing of an image, else the image itself.
  */
-export async function themedKitAssets(
-  assets: Asset[],
-  composed: Map<string, OwnImage>,
-  theme: ThemeLook,
-): Promise<Asset[]> {
+export async function themedKitAssets(assets: Asset[], theme: ThemeLook): Promise<Asset[]> {
   return Promise.all(
     assets.map(async (asset) => {
       const name = kitNameOf(asset.id);
       if (name === null) return asset;
       try {
         const png = await assetBytes(asset);
-        const assembled = composed.get(name)?.url === asset.previewUrl;
-        const shown = assembled
-          ? ((await theme.drawing(name, png, false)) ?? png)
-          : await theme.shown(name, png, asset.ramps === true);
+        const shown = await theme.shown(name, png);
         return shown === png ? asset : { ...asset, previewUrl: toDataUrl(shown) };
       } catch {
         // An image that cannot be read is shown as it was.
@@ -239,38 +221,14 @@ export function kitAssetsOf(
   const base = KIT_SLOTS.map((slot) => {
     const mine = own.get(slot.id);
     return mine && fits(slot, mine)
-      ? kitAsset(
-          slot.id,
-          slot.width,
-          slot.height,
-          mine.url,
-          mine.hash,
-          mine.ramps === true,
-          mine.slice,
-        )
-      : kitAsset(
-          slot.id,
-          slot.width,
-          slot.height,
-          kitImageUrl(slot.id) ?? "",
-          "",
-          true,
-          slot.slice,
-        );
+      ? kitAsset(slot.id, slot.width, slot.height, mine.url, mine.hash, mine.slice)
+      : kitAsset(slot.id, slot.width, slot.height, kitImageUrl(slot.id) ?? "", "", slot.slice);
   });
   const slots = new Set(KIT_SLOTS.map((s) => s.id));
   const others = [...own]
     .filter(([name]) => !slots.has(name))
     .map(([name, image]) =>
-      kitAsset(
-        name,
-        image.width ?? 0,
-        image.height ?? 0,
-        image.url,
-        image.hash,
-        image.ramps === true,
-        image.slice,
-      ),
+      kitAsset(name, image.width ?? 0, image.height ?? 0, image.url, image.hash, image.slice),
     );
   return [...base, ...others];
 }
@@ -332,7 +290,7 @@ export function useKitAssets(): Asset[] {
     void composedKitImages(read, inTheme)
       .then(async (images) => ({
         images,
-        themed: inTheme ? await themedKitAssets(kitAssetsOf(read, images), images, inTheme) : null,
+        themed: inTheme ? await themedKitAssets(kitAssetsOf(read, images), inTheme) : null,
       }))
       .then(({ images, themed }) => {
         if (showing === mine) useShownKit.setState({ read, themes, own, images, themed });
@@ -357,38 +315,32 @@ export const publishedKitTheme = (
  * The server's kit images in its theme `name` alone, whatever themes its pack is built in;
  * `null`: in no theme. What a theme is judged on before it is put in place.
  */
-export function useKitAssetsIn(
-  name: string | null,
-  /** The theme's table as it is being changed, not written yet: the theme is shown with it. */
-  colors: ReadonlyMap<number, number> | null = null,
-): Asset[] {
+export function useKitAssetsIn(name: string | null): Asset[] {
   const read = useKitStore((s) => s.read);
   const own = useKitStore((s) => s.own);
   const [shown, setShown] = useState<{
     read: KitRead;
     name: string | null;
-    colors: ReadonlyMap<number, number> | null;
     assets: Asset[];
   } | null>(null);
   useEffect(() => {
     if (!read) return;
     let cancelled = false;
-    const published = name === null ? null : publishedKitTheme(read, name, own);
-    const theme = published && colors ? published.withColors(colors) : published;
+    const theme = name === null ? null : publishedKitTheme(read, name, own);
     void composedKitImages(read, theme)
       .then((images) => {
         const plain = kitAssetsOf(read, images);
-        return theme ? themedKitAssets(plain, images, theme) : plain;
+        return theme ? themedKitAssets(plain, theme) : plain;
       })
       .then((assets) => {
-        if (!cancelled) setShown({ read, name, colors, assets });
+        if (!cancelled) setShown({ read, name, assets });
       });
     return () => {
       cancelled = true;
     };
-  }, [read, own, name, colors]);
+  }, [read, own, name]);
   const plain = useMemo(() => kitAssetsOf(read), [read]);
-  // While another table is being read, the last one stays: the menu does not blink to the base.
+  // While another theme is being read, the last one stays: the menu does not blink to the base.
   return shown && shown.read === read && shown.name === name ? shown.assets : plain;
 }
 
@@ -456,7 +408,6 @@ function publishedImages(read: KitRead, folder: string, originals: boolean): Map
     if (!originals && images.has(row.name)) continue;
     const key = moduleImageKey(folder, row.name);
     images.set(row.name, {
-      ...(row.ramps ? { ramps: true } : {}),
       ...(originals ? {} : { qualifiedOnly: true }),
       id: key,
       projectId: read.projectId,

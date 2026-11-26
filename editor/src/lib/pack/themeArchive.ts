@@ -12,7 +12,7 @@ const SUFFIX = ".theme.zip";
 /** The folders a theme holds: its redraws and colours, its own images, its drawing notes. */
 const THEME_DIRS = ["overrides", "assets", "data"];
 
-/** A theme's archive is small: pixel-art images and a table of colours. */
+/** A theme's archive is small: pixel-art images. */
 export const THEME_ARCHIVE_MAX_BYTES = 8 * 1024 * 1024;
 
 export const themeArchiveName = (name: string): string => `${name}${SUFFIX}`;

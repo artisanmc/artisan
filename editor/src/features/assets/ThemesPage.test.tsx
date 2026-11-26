@@ -17,6 +17,7 @@ describe("ThemesPage", () => {
         noel: theme("srv.noel", 'colors: {"#3c8527": "#b3261e", "#1e5214": "#6f120d"}\n', [
           "overrides/artisan/close.1x1.png",
         ]),
+        // A table of colours alone, which is no longer read: the theme changes nothing.
         nuit: theme("srv.nuit", 'scope: guilds\ncolors: {"#c6c6c6": "#2a3350"}\n'),
         vide: theme("srv.vide", ""),
       },
@@ -33,8 +34,8 @@ describe("ThemesPage", () => {
       .map((b) => b.textContent);
     expect(names).toEqual(["nuit", "noel"]);
     // What each changes, in a few words.
-    expect(inPlace.getByText("1 couleur remplacée · module guilds seulement")).toBeInTheDocument();
-    expect(inPlace.getByText("2 couleurs remplacées · 1 image redessinée")).toBeInTheDocument();
+    expect(inPlace.getByText("ne change rien pour l'instant")).toBeInTheDocument();
+    expect(inPlace.getByText("1 image redessinée")).toBeInTheDocument();
     expect(screen.getByTestId("themes-base")).toHaveTextContent("Toujours sous tous les thèmes");
     // The ones that are not in place are apart.
     const installed = within(screen.getByTestId("themes-installed"));

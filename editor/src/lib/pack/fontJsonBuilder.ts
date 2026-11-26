@@ -19,12 +19,6 @@ export interface AssetRow {
   usages?: AssetUsage[];
   /** What the image is for, which fixes its measures (`imageFunction.ts`); absent for none. */
   function?: ImageFunction;
-  /**
-   * The image says it follows the ramps (`ramps: true` in its descriptor), so a theme's colours
-   * repaint it (`theme.ts`); absent for an image that keeps its colours. A composed image
-   * follows its layers instead.
-   */
-  ramps?: boolean;
   /** The margins of a sliced image (`slice.ts`): an image button repeats what is between them. */
   slice?: Slice;
   width: number;
