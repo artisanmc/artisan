@@ -1,7 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SortableList } from "@/components/ui/sortable-list";
-import { KIT_FOLDER } from "@/lib/pack/kit";
 import { themesMoved } from "@/lib/pack/theme";
 import { useKitStore } from "@/state/kitStore";
 import { type ReactNode, useMemo, useState } from "react";
@@ -62,17 +61,9 @@ export function ThemesPage({
   const summary = (name: string): string | null => {
     const theme = publishedKitTheme(read, name, own);
     if (!theme) return null;
-    const parts: string[] = [];
-    if (theme.colors.size > 0) parts.push(t("kit.themes.colors", { count: theme.colors.size }));
-    const drawn = theme.drawings.length + theme.moduleDrawings.length;
-    if (drawn > 0) parts.push(t("kit.themes.drawings", { count: drawn }));
-    if (theme.scope !== null)
-      parts.push(
-        theme.scope === KIT_FOLDER
-          ? t("kit.themes.scopeCommon")
-          : t("kit.themes.scopeModule", { module: theme.scope }),
-      );
-    return parts.length > 0 ? parts.join(" · ") : t("kit.themes.empty");
+    return theme.drawings.length > 0
+      ? t("kit.themes.drawings", { count: theme.drawings.length })
+      : t("kit.themes.empty");
   };
 
   const row = (name: string, handle: ReactNode, action: ReactNode, rank?: number) => {

@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { type Asset, assetPreviewUrl } from "@/domain/asset";
 import { assetMenuReferences } from "@/domain/assetUsage";
@@ -18,11 +17,7 @@ import { useAssetStore } from "./assetStore";
 import { originalImageUrl, useImageNotTaken, useImageStanding } from "./imageStanding";
 import { useKitAssets } from "./kitAssets";
 import { isKitModule } from "./localAssets";
-import { useOffRampColors } from "./offRamp";
 import { useResourcesView } from "./resourcesView";
-
-/** How many colours outside the ramps the panel shows before counting the rest. */
-const OFF_RAMP_SHOWN = 12;
 
 /**
  * The selected resource in the library's column: its picture, what it is and where it is used.
@@ -56,17 +51,11 @@ export function AssetDetailPanel({
   const [ascent, setAscent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [fn, setFn] = useState<ImageFunction | "">("");
-  const [ramps, setRamps] = useState(false);
   const [busy, setBusy] = useState(false);
   const openStudio = useResourcesView((s) => s.openStudio);
   const standing = useImageStanding(projectId, asset);
   const notTaken = useImageNotTaken(projectId, asset);
   const common = useKitAssets();
-  // Asked only of an image that may follow the ramps, once it says so.
-  const offRamp = useOffRampColors(
-    asset,
-    ramps && !!asset && asset.type !== "font" && !asset.compose,
-  );
 
   const savedName = asset?.name ?? "";
   const savedAscent = asset?.ascent ?? "";
@@ -74,10 +63,6 @@ export function AssetDetailPanel({
   useEffect(() => {
     setFn(savedFunction);
   }, [savedFunction]);
-  const savedRamps = asset?.ramps === true;
-  useEffect(() => {
-    setRamps(savedRamps);
-  }, [savedRamps]);
   useEffect(() => {
     setName(savedName);
     setAscent(String(savedAscent));
@@ -111,10 +96,8 @@ export function AssetDetailPanel({
         name?: string;
         ascent?: number;
         function?: ImageFunction | "";
-        ramps?: boolean;
       } = {};
       if (asset.type !== "font" && fn !== savedFunction) patch.function = fn;
-      if (ramps !== savedRamps) patch.ramps = ramps;
       if (name !== asset.name) patch.name = name;
       if (asset.type === "glyph" && ascent !== String(asset.ascent ?? "")) {
         const n = Number.parseInt(ascent, 10);
@@ -285,43 +268,6 @@ export function AssetDetailPanel({
             </select>
             <span className="text-[var(--text-mut)]">{t("resources.function.hint")}</span>
           </label>
-        )}
-        {asset.type !== "font" && !asset.compose && !asShipped && (
-          <div className="mt-2 flex flex-col gap-1 text-xs">
-            <label className="flex items-center gap-2" htmlFor={`${inputId}-ramps`}>
-              <Checkbox id={`${inputId}-ramps`} checked={ramps} onCheckedChange={setRamps} />
-              {t("resources.ramps.label")}
-            </label>
-            <span className="text-[var(--text-mut)]">{t("resources.ramps.hint")}</span>
-            {ramps && offRamp ? (
-              offRamp.length === 0 ? (
-                <span className="text-[var(--text-mut)]" data-testid="off-ramp-none">
-                  {t("resources.ramps.allIn")}
-                </span>
-              ) : (
-                <div className="flex flex-col gap-1" data-testid="off-ramp">
-                  <span>{t("resources.ramps.off", { count: offRamp.length })}</span>
-                  <ul className="flex flex-wrap items-center gap-1">
-                    {offRamp.slice(0, OFF_RAMP_SHOWN).map((color) => {
-                      const code = `#${color.toString(16).padStart(6, "0")}`;
-                      return (
-                        <li
-                          key={color}
-                          title={code}
-                          aria-label={code}
-                          className="size-4 rounded-[var(--r-sm)] border border-[var(--border)]"
-                          style={{ background: code }}
-                        />
-                      );
-                    })}
-                    {offRamp.length > OFF_RAMP_SHOWN ? (
-                      <li className="text-[var(--text-mut)]">+{offRamp.length - OFF_RAMP_SHOWN}</li>
-                    ) : null}
-                  </ul>
-                </div>
-              )
-            ) : null}
-          </div>
         )}
         {asset.type === "glyph" && (
           <label className="text-xs" htmlFor={`${inputId}-ascent`}>

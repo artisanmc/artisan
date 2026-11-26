@@ -1,6 +1,7 @@
 # Resources: one rule to find an image, one screen to see it
 
-**Status:** accepted (2026-11-26), not built. Amends `common-images-and-themes` (2026-11-25):
+**Status:** accepted (2026-11-26), being built: step 2 (the removal) is in the code, steps 3
+to 5 are not. Amends `common-images-and-themes` (2026-11-25):
 replaces its decisions 4 (measures), 6 for the part on a theme's scope, 7 (colour ramps) and 12
 (the Resources screen as it was built), and narrows decision 5 (what a theme may redraw). Its
 decisions 1 to 3 and 8 to 11 stand. Mock-up: `Maquette Ressources du serveur` (project files).

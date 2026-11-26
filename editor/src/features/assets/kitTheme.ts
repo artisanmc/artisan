@@ -23,12 +23,7 @@ const filesOf = (read: KitRead, binary: Binary): ThemeFiles => ({
  * images' Project `read` still keeps.
  */
 export function serverThemeNames(read: KitRead | undefined, own: Own): string[] {
-  const kept = read
-    ? themeNames(
-        Object.keys(read.files),
-        read.binaries.map((b) => b.path),
-      )
-    : [];
+  const kept = read ? themeNames(read.binaries.map((b) => b.path)) : [];
   return [...new Set([...Object.keys(own), ...kept])].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 

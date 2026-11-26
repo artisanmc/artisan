@@ -52,14 +52,6 @@ export default {
       hint: "A copy goes to the server's common images under the same name, in their draft: once deployed, every module can name it. This module keeps its own, which its menus still show; delete it here afterwards for them to take the common one.",
       taken: "The common images already have an image of this name.",
     },
-    ramps: {
-      allIn: "Every colour of this image is one of Artisan's: a theme repaints them all.",
-      off_one: "{{count}} colour of this image is none of Artisan's: a theme leaves it as it is.",
-      off_other:
-        "{{count}} colours of this image are none of Artisan's: a theme leaves them as they are.",
-      label: "Follows the themes' colours",
-      hint: "A theme in place replaces this image's colours with its own. Tick it for an image drawn in Artisan's base colours; without it the image keeps its colours, as an imported one should.",
-    },
     originalChanged: {
       title: "The original changed since your version.",
       hint: "Menus keep showing yours. Keep it as it is, or restore the original and redraw from the new one.",
@@ -383,7 +375,7 @@ export default {
       open: "New theme",
       title: "New theme",
       intro:
-        "A theme gives the common images another look, for a season or an event, without a menu being touched. It is created empty: it changes nothing until it holds colours or redrawn images, and until it is put in place.",
+        "A theme gives the common images another look, for a season or an event, without a menu being touched. It is created empty: it changes nothing until it holds redrawn images, and until it is put in place.",
       name: "Theme name",
       placeholder: "noel",
       errors: {
@@ -407,12 +399,9 @@ export default {
       file: "Theme archive",
       drop: "Drop a theme's archive, or click to pick one",
       dropHint: "A .zip exported from a theme's page",
-      holds_one: "{{count}} image, no colours.",
-      holds_other: "{{count}} images, no colours.",
-      holdsColours_one: "A table of colours and {{count}} image.",
-      holdsColours_other: "A table of colours and {{count}} images.",
-      holdsColoursOnly: "A table of colours, no image.",
-      holdsNeither: "Neither colours nor images: drawing notes only.",
+      holds_one: "{{count}} image.",
+      holds_other: "{{count}} images.",
+      holdsNeither: "No image: drawing notes only.",
       submit: "Import",
       errors: {
         not_a_zip: "This file is not a .zip archive.",
@@ -436,11 +425,11 @@ export default {
     themes: {
       title: "Themes",
       intro:
-        "A theme is another look for the server's images, for a season or an event: other colours, or some images redrawn. The menus keep their layout.",
+        "A theme is another look for the server's common images, for a season or an event: some of them redrawn. The menus keep their layout.",
       inPlace: "In place on the server",
       inPlaceHint: "What players see: the theme in place over Artisan's images and yours.",
       orderHint:
-        "From the highest to the lowest. The highest theme that redraws an image wins, and its colours repaint what the ones below show. Drag a theme to change its place: the server's pack is rebuilt.",
+        "From the highest to the lowest. The highest theme that redraws an image wins. Drag a theme to change its place: the server's pack is rebuilt.",
       noneInPlace: "No theme in place: players see Artisan's images and yours as they are.",
       base: "Artisan's images, and yours",
       baseHint: "Always below every theme.",
@@ -452,12 +441,8 @@ export default {
       putInPlace: "Put in place",
       takeOff: "Take off",
       move: "Drag to change the theme's place",
-      colors_one: "{{count}} colour replaced",
-      colors_other: "{{count}} colours replaced",
       drawings_one: "{{count}} image redrawn",
       drawings_other: "{{count}} images redrawn",
-      scopeCommon: "common images only",
-      scopeModule: "module {{module}} only",
       empty: "changes nothing yet",
       missing:
         "The server has no theme of this name: it changes nothing. Take it off, or create it.",
@@ -470,33 +455,28 @@ export default {
       backToThemes: "‹ Themes",
       title: "Theme “{{name}}”",
       intro:
-        "A theme changes the common images' colours, or redraws one. The menus keep their layout.",
+        "A theme redraws common images. The menus keep their layout, and a module's own image stays the module's.",
       inPlace: "In place",
       notInPlace: "Not in place",
       putInPlace: "Put in place on the server",
       takeOff: "Take off the server",
       stack:
-        "Themes in place, from the lowest to the highest: {{themes}}. The highest that redraws an image wins; its colours apply to what the ones below show.",
+        "Themes in place, from the lowest to the highest: {{themes}}. The highest that redraws an image wins.",
       missing: "The server has no theme “{{name}}” deployed.",
-      colors: "Colours replaced",
-      noColors: "This theme replaces no colour.",
-      scopeAll:
-        "In the images that follow the themes' colours: Artisan's, and the common images and the modules' images that say so.",
-      scopeCommon: "In the common images only (scope: artisan).",
-      scopeModule: "In the images of the module {{module}} only (scope: {{module}}).",
-      becomes: "becomes",
       drawings: "Pieces redrawn for this theme",
       noDrawings: "This theme redraws no piece.",
-      moduleDrawings: "Module images redrawn",
+      unread: "No longer read",
+      unreadHint:
+        "A theme changes an image by holding an image: its colours repaint nothing, and a module's own image is changed in the module. These files of the theme can be deleted.",
       ownImages: "Its own images",
       ownImagesHint:
         "A menu names one as written here. It shows as drawn, in the pack as long as the server has this theme, in place or not.",
       noOwnImages:
         "None. An image added to this theme's files (assets/) is its own: a menu names it {{name}}:<its name>.",
       files:
-        "A theme is a folder of the server's common images (themes/artisan/): themes/{{name}}/theme.yml holds its colours, themes/{{name}}/assets/textures/<piece>.png a piece redrawn at the piece's size. It is read here once deployed.",
+        "A theme is a folder of the server's common images (themes/artisan/): themes/{{name}}/assets/textures/<piece>.png is a piece redrawn at the piece's size. It is read here once deployed.",
       filesOwn:
-        "This theme is a folder of the server, themes/{{name}}/: overrides/colors.yml holds its colours, overrides/artisan/<image>.png a common image redrawn at that image's size, overrides/<module>/<image>.png a module's image redrawn at its size, assets/ its own images. It is read here once deployed.",
+        "This theme is a folder of the server, themes/{{name}}/: overrides/artisan/<image>.png is a common image redrawn at that image's size, assets/ holds its own images. It is read here once deployed.",
       compare: "Without and with, in a menu",
       putHint:
         "Putting a theme in place sets it above the ones already there and rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
@@ -511,7 +491,7 @@ export default {
         delete: "Delete",
         renameTitle: "Rename the theme {{name}}",
         renameIntro:
-          "The theme's folder is renamed on the server, with its drafts and its history. Its colours and its images stay as they are.",
+          "The theme's folder is renamed on the server, with its drafts and its history. Its images stay as they are.",
         renameInPlace:
           "The theme's folder is renamed on the server, with its drafts and its history. The theme keeps its place among the themes in place, and the server's pack is rebuilt.",
         deleteTitle: "Delete the theme {{name}}",
@@ -535,25 +515,6 @@ export default {
             "The theme's folder was moved, but the list of themes in place could not be written. Fix it on the Themes screen.",
           failed: "The server refused. Try again.",
         },
-      },
-      ramps: {
-        title: "Artisan's colours",
-        hint: "Pick what each colour of Artisan's images becomes in this theme: its shades follow. The menu beside shows the result before anything is written.",
-        primary: "Main (buttons)",
-        danger: "Danger (delete, close)",
-        accent: "Accent (highlights)",
-        neutral: "Neutral (windows, frames)",
-        pick: "Colour of: {{ramp}}",
-        reset: "Back to Artisan's colour",
-        save: "Save the colours",
-        discard: "Cancel",
-        saveHint:
-          "Written in the theme's file on the server. Players see nothing until the theme is put in place.",
-        saveInPlace:
-          "This theme is in place: saving rebuilds the server's pack, and players receive it at their next connection.",
-        trying: "{{name}}, not saved yet",
-        conflict:
-          "The theme's file changed on the server in the meantime. Reload the page and pick again.",
       },
     },
   },
@@ -2717,9 +2678,9 @@ export default {
     },
     hints: {
       themes:
-        "From the lowest to the highest, separated by commas: the highest that redraws an image wins, and its colours apply to what the ones below show. The server's themes: {{themes}}.",
+        "From the lowest to the highest, separated by commas: the highest that redraws an image wins. The server's themes: {{themes}}.",
       theme:
-        "A folder of the server's common images (themes/artisan/themes/<name>/). Every common image is then shown in the theme's colors, or as the theme redraws it; the menus keep their layout.",
+        "A folder of the server's common images (themes/artisan/themes/<name>/). Every common image is then shown as the theme redraws it; the menus keep their layout.",
       chest:
         "A generic_54.png layout (256×256, or a multiple for an HD pack). When a menu turns its vanilla texture off, every other chest on the server is drawn back with it.",
       hopper:

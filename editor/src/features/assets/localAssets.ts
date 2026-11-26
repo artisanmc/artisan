@@ -24,7 +24,7 @@ import {
 } from "@/lib/pack/assetDiskWrite";
 import { type AssetUsage, parseAssetUsages } from "@/lib/pack/assetUsages";
 import { type ComposeRecipe, composeRecipe, composeYaml } from "@/lib/pack/compose";
-import { type DiskAsset, diskAssetsFromTree, followsRamps } from "@/lib/pack/diskAssets";
+import { type DiskAsset, diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import { FONT_DESCRIPTOR, fontDir, fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
 import { imageFunctionOf } from "@/lib/pack/imageFunction";
 import { isKitFolder, kitSlot } from "@/lib/pack/kit";
@@ -92,9 +92,7 @@ export function assetJsonFields(fields: Record<string, string>): Record<string, 
         ? JSON.parse(value)
         : ["height", "ascent"].includes(key)
           ? Number(value)
-          : key === "ramps" && (value === "true" || value === "false")
-            ? value === "true"
-            : value,
+          : value,
     ]),
   );
 }
@@ -123,7 +121,6 @@ function serialize(row: AssetRow): Asset {
       fontMeta: row.fontMeta,
       usages: row.usages,
       function: row.function,
-      ramps: row.ramps,
       slice: row.slice,
       contentHash: row.contentHash,
       createdAt: row.createdAt.toISOString(),
@@ -150,27 +147,6 @@ function kitOwn(
       .map((dir) => `${dir}/${name}.png`)
       .find((p) => kit.binaries.some((b) => b.path === p));
     return path ? readPublishedBinary(kit.projectId, path).catch(() => null) : undefined;
-  };
-}
-
-/**
- * Whether the server's own common image `name`, as published, says it follows the ramps
- * (`ramps: true` in its descriptor). `own` answers for the kit module itself.
- */
-function kitOwnRamps(projectId: string, own: (name: string) => boolean): (name: string) => boolean {
-  const kit = useKitStore.getState().read;
-  if (!kit) return () => false;
-  if (kit.projectId === projectId) return own;
-  return (name) => {
-    const stem = ["assets/textures", "assets/glyphs"]
-      .map((dir) => `${dir}/${name}`)
-      .find((p) => kit.binaries.some((b) => b.path === `${p}.png`));
-    if (!stem) return false;
-    try {
-      return followsRamps(parse(kit.files[`${stem}.yml`] ?? kit.files[`${stem}.yaml`] ?? ""));
-    } catch {
-      return false;
-    }
   };
 }
 
@@ -220,11 +196,6 @@ async function composedViews(
     const own = disk.find((a) => !a.compose && a.row.type !== "font" && a.row.name === name);
     return own ? read(own) : undefined;
   });
-  const kitRamps = kitOwnRamps(projectId, (name) =>
-    disk.some(
-      (a) => !a.compose && a.row.type !== "font" && a.row.name === name && a.row.ramps === true,
-    ),
-  );
   const kitSlice = kitOwnSlice(
     projectId,
     (name) =>
@@ -235,7 +206,7 @@ async function composedViews(
   const inKit = useKitStore.getState().read?.projectId === projectId;
   for (const asset of disk) {
     if (!asset.compose) continue;
-    const view = await composedView(asset, disk, read, kit, theme, inKit, kitRamps, kitSlice).catch(
+    const view = await composedView(asset, disk, read, kit, theme, inKit, kitSlice).catch(
       () => null,
     );
     if (view) out.set(asset, view);
@@ -667,10 +638,6 @@ async function create(
   const previous = existingSame ? descriptorOf(disk.files, existingSame.path) : null;
   if (kept) usages = kept.usages;
   const fn = kept ? kept.function : (imageFunctionOf({ function: fields.function }) ?? undefined);
-  // An image keeps what it said of the ramps; the owner's version of a base image, first drawn
-  // over the base, follows them as the base does (ADR `common-images-and-themes`, decision 7).
-  const overBase = retouch && !existingSame && !!source && isKitModule(projectId);
-  const ramps = (kept ? kept.ramps || overBase : fields.ramps === "true") || undefined;
   const ascentValue = kept
     ? kept.ascent
     : type === "glyph"
@@ -696,7 +663,6 @@ async function create(
       content_width: contentWidth,
       usages,
       function: fn,
-      ramps,
       slice: kept?.slice,
     },
     baseHash: existingSame?.hash ?? null,
@@ -716,7 +682,6 @@ async function create(
         fontMeta: null,
         usages,
         function: fn,
-        ramps,
         slice: kept?.slice,
         contentHash: sha256Hex(file),
         createdAt: now,
@@ -810,11 +775,6 @@ async function patch(
     fail(400, "function only valid for an image");
   const nextFunction =
     body.function === undefined ? row.function : (imageFunctionOf(body) ?? undefined);
-  if (body.ramps !== undefined && typeof body.ramps !== "boolean")
-    fail(400, "Invalid ramps (true or false)");
-  if (body.ramps !== undefined && (row.type === "font" || found.compose))
-    fail(400, "ramps only valid for a drawn image");
-  const nextRamps = body.ramps === undefined ? row.ramps : body.ramps || undefined;
   // `slice: null` takes the margins off; margins that are not whole numbers ≥ 0 are refused.
   if (body.slice !== undefined && body.slice !== null && !sliceOf({ slice: body.slice }))
     fail(400, "Invalid slice (left, right, top, bottom: whole numbers, one above 0)");
@@ -902,7 +862,6 @@ async function patch(
         content_width: nextContentWidth,
         usages: nextUsages,
         function: nextFunction,
-        ramps: nextRamps,
         slice: nextSlice,
       },
       baseHash: renamed ? null : found.hash,
@@ -929,7 +888,6 @@ async function patch(
       contentWidth: nextContentWidth,
       usages: nextUsages,
       function: nextFunction,
-      ramps: nextRamps,
       slice: nextSlice,
     }),
   };
@@ -973,7 +931,6 @@ async function duplicate(overlay: DraftOverlay, id: string): Promise<Body> {
       content_width: src.contentWidth,
       usages: src.usages,
       function: src.function,
-      ramps: src.ramps,
       slice: src.slice,
     },
     baseHash: null,

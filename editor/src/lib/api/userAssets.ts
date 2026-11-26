@@ -74,8 +74,6 @@ export async function uploadAsset(
     replace?: boolean;
     /** The same image with other pixels, at the same size: what else it has is kept. */
     retouch?: boolean;
-    /** A new image that follows the ramps: a theme's colours repaint it. */
-    ramps?: boolean;
   },
 ): Promise<Asset> {
   const result = await uploadFile(projectId, input.file, {
@@ -83,7 +81,6 @@ export async function uploadAsset(
     name: input.name,
     ...(input.replace ? { replace: "true" } : {}),
     ...(input.retouch ? { retouch: "true" } : {}),
-    ...(input.ramps ? { ramps: "true" } : {}),
     ...(input.usages === undefined ? {} : { usages: JSON.stringify(input.usages) }),
     ...(input.ascent === undefined ? {} : { ascent: String(input.ascent) }),
   });
@@ -175,8 +172,6 @@ export async function patchAsset(
     usages?: AssetUsage[];
     /** What the image is for (`imageFunction.ts`); `""` clears it. */
     function?: ImageFunction | "";
-    /** Whether the image follows the ramps: a theme's colours repaint it. */
-    ramps?: boolean;
     /** A composed image's new recipe. */
     compose?: ComposeRecipe;
     /** The margins of a sliced image (`lib/pack/slice.ts`); `null` takes them off. */

@@ -10,17 +10,17 @@ import {
   readProjectFiles,
 } from "@/lib/api/projectFiles";
 import { type ProjectSummary, createProject } from "@/lib/api/servers";
+import { loadUserProject } from "@/lib/api/userProjects";
 import {
   EXPORT_NOTE,
   type ExportNote,
   fontNamesIn,
   imagePathOf,
   readExportNote,
-  themeOwnNames,
   settleCopies,
+  themeOwnNames,
 } from "@/lib/pack/elsewhere";
 import { KIT_SLOTS, assetNamesIn, kitProjectAmong, kitShippedName } from "@/lib/pack/kit";
-import { loadUserProject } from "@/lib/api/userProjects";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import {
   type ImportChoice,

@@ -17,7 +17,6 @@ import net.artisanmc.plugin.pack.OwnerImages
 import net.artisanmc.plugin.pack.PixelArt
 import net.artisanmc.plugin.pack.PixelRect
 import net.artisanmc.plugin.pack.Png
-import net.artisanmc.plugin.pack.Ramps
 import net.artisanmc.plugin.pack.RgbaImage
 import net.artisanmc.plugin.project.ProjectMetadataPaths
 import net.artisanmc.plugin.project.ProjectPathPolicy
@@ -117,8 +116,8 @@ class McpTools(
             "create_theme", "Create a theme",
             "Creates a new, empty theme on a server: another look for its common images, for a season or an event (survey_ui's " +
                 "`themes_format`). Only when the player asks for a new theme. It changes nothing until a draft of it is deployed and " +
-                "the player puts it in place: next, start_draft on its id, `<server id>.<name>`, then write_document for " +
-                "`${KitTheme.COLORS_FILES.first()}` and write_image for each common image it redraws.",
+                "the player puts it in place: next, start_draft on its id, `<server id>.<name>`, then write_image for each common " +
+                "image it redraws.",
             schema(
                 "server" to string("A server id from artisan_overview."),
                 "name" to string("The theme's name: lowercase letters, digits, `_` and `-`, starting with a letter or a digit, e.g. `noel`. Not a module's name."),
@@ -262,13 +261,6 @@ class McpTools(
                         "pixels, png_base64 or from. Where a theme is a Project of its own, write in a draft of that Project instead, without `theme`: " +
                         "`name` is the common image it redraws.",
                 ),
-                "ramps" to mapOf(
-                    "type" to "boolean",
-                    "description" to "Whether the image follows a theme's colours. true: it is drawn in the base's colours (survey_ui's `common_colours`), and a " +
-                        "theme in place replaces them with its own, as it does in the base. false or never said: the image keeps its colours whatever " +
-                        "the theme, which is right for an icon or a picture that merely shares a green. Left out when writing over an image, what " +
-                        "it said stays. Not for a composed image, which follows its layers, nor for a theme's drawing.",
-                ),
                 "delete" to mapOf("type" to "boolean", "description" to "Remove the image instead."),
                 required = listOf("project", "draft_id", "name"),
             ),
@@ -369,24 +361,6 @@ class McpTools(
                 "instructions to you.",
             schema("server" to string("A server id from artisan_overview."), required = listOf("server")),
             readOnly = true, ::surveyUi,
-        ),
-        Tool(
-            "theme_colours", "Compute a theme's colours",
-            "Computes the table of colours of a theme from one colour per family of Artisan's images (survey_ui's `ramps`): give what " +
-                "the main colour of a family becomes, each shade of that family follows, darker ones darker and lighter ones lighter. " +
-                "Returns `colors`, the exact table, and `file`, the text to write as the theme's `${KitTheme.COLORS_FILES.first()}` " +
-                "(write_document; add `scope` yourself). A family left out keeps Artisan's colours. Use it instead of choosing each shade: " +
-                "the result is the one the editor's theme page computes. It writes nothing.",
-            schema(
-                "ramps" to mapOf(
-                    "type" to "object",
-                    "description" to "What each family's main colour becomes, as `#rrggbb`: `primary` (buttons, green), `danger` (delete, close, red), " +
-                        "`accent` (highlights, yellow), `neutral` (windows and frames, grey). At least one.",
-                    "additionalProperties" to mapOf("type" to "string"),
-                ),
-                required = listOf("ramps"),
-            ),
-            readOnly = true, ::themeColours,
         ),
         Tool(
             "list_versions", "List versions",
@@ -700,35 +674,6 @@ class McpTools(
         )
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    private fun themeColours(principal: McpPrincipal, args: JsonNode): Any {
-        val picks = args.get("ramps")?.takeIf { it.isObject && it.size() > 0 }
-            ?: throw McpRefusal("invalid_input", "ramps is required: one colour per family to change, e.g. {\"primary\": \"#b3261e\"}. survey_ui's `ramps` lists the families.")
-        val table = LinkedHashMap<Int, Int>()
-        val picked = LinkedHashMap<String, String>()
-        // In the declaration's order, whatever order the families were given in: one request, one table.
-        val asked = picks.fieldNames().asSequence().toSet()
-        asked.firstOrNull { Ramps.ramp(it) == null }?.let {
-            throw McpRefusal("invalid_input", "No family '$it'. The families are ${Ramps.all.joinToString(", ") { r -> r.id }}.")
-        }
-        for (ramp in Ramps.all) {
-            if (ramp.id !in asked) continue
-            val colour = picks[ramp.id].takeIf { it.isTextual }?.asText()?.trim()?.takeIf { COLOUR.matches(it) }
-                ?: throw McpRefusal("invalid_input", "ramps.${ramp.id} is a colour as `#rrggbb`.")
-            picked[ramp.id] = colour.lowercase()
-            table.putAll(Ramps.table(ramp, colour.substring(1).toInt(16)))
-        }
-        val colors = table.entries.associate { "#%06x".format(it.key) to "#%06x".format(it.value) }
-        return mapOf(
-            "ramps" to picked,
-            "colors" to colors,
-            "file" to if (colors.isEmpty()) "" else "colors:\n" + colors.entries.joinToString("") { "  \"${it.key}\": \"${it.value}\"\n" },
-            "path" to KitTheme.COLORS_FILES.first(),
-            "next" to (if (colors.isEmpty()) "These are Artisan's own colours: the theme needs no table for them."
-            else "Write `file` as `path` in a draft of the theme's Project (write_document), keeping the file's other keys such as `scope`; render_menu with `theme_draft_id` shows a menu in it."),
-        )
-    }
-
     private fun createTheme(principal: McpPrincipal, args: JsonNode): Any {
         val serverId = text(args, "server")
         val server = projects.servers().firstOrNull { it.id == serverId }
@@ -739,8 +684,8 @@ class McpTools(
         val created = projects.create(principal, server, name, theme = true)
         return mapOf(
             "project" to created.id, "created" to true, "theme" to name,
-            "next" to "start_draft on ${created.id}; write_document `${KitTheme.COLORS_FILES.first()}` for its colours, write_image (name: the common image) for " +
-                "each image it redraws; render_menu with theme: \"$name\" and theme_draft_id shows a menu in it. The player deploys the draft, then puts the theme in place.",
+            "next" to "start_draft on ${created.id}; write_image (name: the common image) for each image it redraws; " +
+                " render_menu with theme: \"$name\" and theme_draft_id shows a menu in it. The player deploys the draft, then puts the theme in place.",
         )
     }
 
@@ -748,7 +693,7 @@ class McpTools(
     private fun readsThemeFolders(server: EditorServer): Boolean =
         ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.THEME_FOLDERS
 
-    /** Whether [project] is a theme of its own folder: its table of colours and its drawings, no Document. */
+    /** Whether [project] is a theme of its own folder: its drawings, no Document. */
     private fun isOwnTheme(project: ProjectRef): Boolean = project.folder != KIT_FOLDER && project.folder in themeFolders(project.server)
 
     private fun startDraft(principal: McpPrincipal, args: JsonNode): Any {
@@ -786,29 +731,12 @@ class McpTools(
         if (!contentPath(path)) throw McpRefusal("invalid_path", "'$path' is not a path a Project file can have.")
         if (Originals.isOriginal(path)) throw McpRefusal("originals_read_only", ORIGINALS_HOWTO)
         if (content != null && content.length > MAX_FILE) throw McpRefusal("too_large", "A file is at most $MAX_FILE characters.")
-        // A theme's table ([KitTheme]) is no Document, so the server does not check it: checked here.
+        // A theme holds images and no Document: a file it still has can only be removed.
         val ownTheme = isOwnTheme(project)
-        val colours = KitTheme.COLORS_FILES.first()
-        if (ownTheme && path != colours) throw McpRefusal(
+        if (ownTheme && !delete) throw McpRefusal(
             "invalid_path",
-            "A theme holds its table of colours, `$colours`, and its drawings of the common images (write_image): the server reads no other file from it.",
+            "A theme holds its drawings of the common images (write_image): the server reads no other file from it.",
         )
-        val theme = if (content != null && project.folder == KIT_FOLDER) KitTheme.nameOfFile(path) else null
-        if (theme != null && readsThemeFolders(project.server)) throw McpRefusal(
-            "invalid_path",
-            "On this server a theme is a Project of its own, not a folder of the common images: create_theme, then write `$colours` in a draft of it " +
-                "(survey_ui's `themes_format`).",
-        )
-        if (theme != null || (ownTheme && content != null)) {
-            val problems = (if (theme == null || KitTheme.isName(theme)) emptyList() else listOf("A theme's name is lowercase letters, digits, `_` and `-`: '$theme' is not one.")) +
-                KitTheme.problems(content!!)
-            if (problems.isNotEmpty()) return Refused(mapOf(
-                "written" to false,
-                "path" to path,
-                "problems" to problems.map { mapOf("path" to path, "code" to "invalid_theme", "message" to it) },
-                "hint" to "The draft is unchanged. Fix these problems and call write_document again; survey_ui's `themes_format` tells how a theme is written.",
-            ))
-        }
         val draft = draftSnapshot(principal, project, draftId)
         if (delete && path !in draft.tree) throw McpRefusal("not_found", "No file '$path' in draft $draftId.")
         val tree = if (content == null) draft.tree - path else draft.tree + (path to content)
@@ -965,16 +893,6 @@ class McpTools(
         }
 
         /**
-         * Whether the module's PNG [name] says it follows the ramps (`ramps: true` in its descriptor,
-         * the owner's before the one the module shipped with): a theme's colours then repaint it.
-         */
-        fun ramps(name: String): Boolean {
-            val stem = roots.map { "$it/$name" }.firstOrNull { hashes["$it.png"] != null && "$it.png" !in notTaken } ?: return false
-            val shipped = "${Originals.DIR}/$stem".takeIf { !stem.startsWith("${Originals.DIR}/") }
-            return KitTheme.followsRamps(descriptor(stem) ?: shipped?.let(::descriptor))
-        }
-
-        /**
          * A theme's own image [name] (`assets/` of its folder, ADR `common-images-and-themes`,
          * decision 5), as its file is: no theme repaints or redraws it, and a composed one is not
          * taken. Of a glyph and a texture of one name, the first read, as in the pack.
@@ -989,16 +907,8 @@ class McpTools(
             hashes.keys.filter { it.endsWith(".png") && it.substringBeforeLast('/') in OWN_ROOTS && hashes[it] != null }
                 .map { it.substringAfterLast('/').removeSuffix(".png") }.distinct().sorted()
 
-        /** The image [name], drawn when it is a composed one ([composed]). */
-        fun image(name: String, kit: KitView): MenuPictureImage? = png(name)?.let { own -> redrawn(name, own.png, kit)?.let { MenuPictureImage(it, own.ascent) } ?: own }
-            ?: composed(name, kit)
-
-        /**
-         * A module's PNG [name] as the themes [kit] is shown in change it ([ThemeStack.moduleShown]): a
-         * theme's drawing of it at its size, or their colours when it follows the ramps; null when they leave it.
-         */
-        private fun redrawn(name: String, png: ByteArray, kit: KitView): ByteArray? =
-            if (project.folder == KIT_FOLDER) null else kit.theme?.moduleShown(project.folder, name, png, ramps(name))?.takeIf { it !== png }
+        /** The image [name], drawn when it is a composed one ([composed]). A module's own image is the module's: no theme changes it. */
+        fun image(name: String, kit: KitView): MenuPictureImage? = png(name) ?: composed(name, kit)
 
         /**
          * The composed image [name] as the pack assembles it: its `kit:` layers as [kit] shows them,
@@ -1006,8 +916,7 @@ class McpTools(
          */
         fun composed(name: String, kit: KitView): MenuPictureImage? = recipe(name)?.let { (at, recipe) ->
             val theme = if (project.folder == KIT_FOLDER) kit.theme else null
-            // A module's own layer follows the theme's redraw of it, as in the pack.
-            ComposedImages.render(recipe, { layer -> png(layer)?.png?.let { theme?.shown(layer, it, ramps(layer)) ?: redrawn(layer, it, kit) ?: it } }, kit::layer)
+            ComposedImages.render(recipe, { layer -> png(layer)?.png?.let { theme?.shown(layer, it) ?: it } }, kit::layer)
                 ?.let { MenuPictureImage(net.artisanmc.plugin.pack.Png.encode(it), ascent(tree.getValue(at))) }
         }
 
@@ -1015,12 +924,12 @@ class McpTools(
         private val binaryPaths: Set<String> get() = hashes.filterValues { it != null }.keys
 
         /** The themes the module holds, when it is the kit module ([KitTheme]). */
-        val themes: List<String> get() = KitTheme.names(tree.keys, binaryPaths)
+        val themes: List<String> get() = KitTheme.names(binaryPaths)
 
-        fun theme(name: String): KitTheme? = KitTheme.of(name, tree, binaryPaths, ::bytes)
+        fun theme(name: String): KitTheme? = KitTheme.of(name, binaryPaths, ::bytes)
 
         /** The theme this Project is, when it is a theme's own folder ([KitTheme.own]). */
-        fun ownTheme(): KitTheme = KitTheme.ownOf(tree, binaryPaths, ::bytes)
+        fun ownTheme(): KitTheme = KitTheme.ownOf(binaryPaths, ::bytes)
 
         private fun descriptor(stem: String): String? = listOf(".yml", ".yaml").firstNotNullOfOrNull { tree[stem + it] }
         private fun ascent(descriptor: String): Double? = ASCENT_LINE.find(descriptor)?.groupValues?.get(1)?.toDoubleOrNull()
@@ -1067,18 +976,14 @@ class McpTools(
         /** A layer `kit:<name>` of a composed image: a PNG of the kit module or the base's, never a composed image. */
         fun layer(name: String): ByteArray? =
             Kit.image(name, if (name == except) null else module?.png(name)?.png, module?.shipped(name))
-                ?.let { theme?.shown(name, it.png, follows(name, it)) ?: it.png }
-
-        /** Whether the common image [name], shown as [image], follows the ramps: the base's do, the server's own when it says so. */
-        private fun follows(name: String, image: Kit.Image): Boolean = image.shipped || module?.ramps(name) == true
+                ?.let { theme?.shown(name, it.png) ?: it.png }
 
         /** What a menu shows for `kit:<name>`: a composed image of the kit module as well. */
         fun image(name: String): Kit.Image? {
             val png = module?.png(name)?.png
             val image = Kit.image(name, png ?: module?.composed(name, this)?.png, module?.shipped(name)) ?: return null
             val theme = theme ?: return image
-            // Assembled from themed layers already: only the theme's own drawing of it replaces it.
-            val shown = if (!image.shipped && png == null) theme.drawing(name, image.png, ramps = false) ?: image.png else theme.shown(name, image.png, follows(name, image))
+            val shown = theme.shown(name, image.png)
             return if (shown === image.png) image else Kit.Image(shown, image.width, image.height, image.shipped)
         }
     }
@@ -1450,7 +1355,7 @@ class McpTools(
         val themes = ownThemes(server)
         val plain = KitView({ kitModule }, emptyList())
         val themed = KitView({ kitModule }, KitTheme.configured(server.serverConfig()), own = themes)
-        // The colours of what `kit:<name>` shows without a theme: what a theme's table replaces.
+        // The colours of what `kit:<name>` shows without a theme.
         val kitColours = HashMap<Int, Long>()
         for (folder in folders) {
             // A theme of its own folder holds no image a menu names: it is listed with the themes.
@@ -1462,11 +1367,7 @@ class McpTools(
                 "themes" to themed.themes.mapNotNull { name ->
                     themed.themeNamed(name)?.let {
                         mapOf(
-                            "name" to name, "colors" to it.colorCount, "redraws" to it.drawings.sorted().ifEmpty { null },
-                            // The one module its colours are kept to (`artisan`: the common images); absent, every image that follows them.
-                            "scope" to it.scope,
-                            // The modules' images it redraws, each `<module>:<image>`.
-                            "module_redraws" to it.moduleDrawings.sorted().ifEmpty { null },
+                            "name" to name, "redraws" to it.drawings.sorted().ifEmpty { null },
                             // A theme of its own folder is a Project of its name.
                             "project" to name.takeIf { n -> n in themes }?.let { n -> ProjectRef.id(server.id, n) },
                             // Its own images, each as a menu names it (`<theme>:<image>`).
@@ -1500,8 +1401,6 @@ class McpTools(
                     "n" to number, "name" to name, "path" to path,
                     "use" to (if ("/glyphs/" in "/$path") "background" else "button"), "width" to image.width, "height" to image.height,
                     "composed_of" to recipe?.layers?.map { it.image }?.distinct(),
-                    // It says it follows a theme's colours: they repaint it, as they do the base.
-                    "ramps" to true.takeIf { recipe == null && view.ramps(name) },
                 ).filterValues { it != null }
             }
             val textured = tree.filter { (path, content) -> MENU_PATH.containsMatchIn(path) && USES_IMAGE.containsMatchIn(content) }.keys.sorted()
@@ -1548,10 +1447,6 @@ class McpTools(
                 "themes_format" to if (readsThemeFolders(server)) KIT_THEMES else KIT_THEMES_FORMER,
                 "common_colours" to kitColours.entries.sortedWith(compareByDescending<Map.Entry<Int, Long>> { it.value }.thenBy { it.key })
                     .take(SURVEY_KIT_COLOURS).map { "#%06x".format(it.key) },
-                "ramps" to mapOf(
-                    "how" to KIT_RAMPS,
-                    "ramps" to Ramps.all.map { ramp -> mapOf("id" to ramp.id, "main" to "#%06x".format(ramp.main), "shades" to ramp.shades.map { "#%06x".format(it) }) },
-                ),
                 "base" to mapOf("how" to (if (kit != null) KIT_BASE else KIT_BASE_BEFORE), "themes" to themed.themed, "images" to base.map { it.second }).filterValues { it != null },
                 "left_out" to left.takeIf { it > 0 }?.let { "$it more image(s) are not shown: read_image shows one, list_documents lists a module's." },
             ).filterValues { it != null },
@@ -1565,7 +1460,7 @@ class McpTools(
         val draftId = text(args, "draft_id")
         val asked = text(args, "name").trim()
         val theme = args.get("theme")?.takeIf { it.isTextual && it.asText().isNotBlank() }?.asText()?.trim()
-        // In a theme's own Project, an image is its drawing of the common image of that name, or of a module's;
+        // In a theme's own Project, an image is its drawing of the common image of that name;
         // named with the theme (`noel:garland`), it is the theme's own image, written like a module's.
         val ownTheme = isOwnTheme(project)
         val ownImage = if (ownTheme) asked.removePrefix("${project.folder}:").takeIf { it != asked } else null
@@ -1574,9 +1469,6 @@ class McpTools(
             if (ownImage == null) return writeThemeImage(principal, args, attached, project, draftId, asked, project.folder, own = true)
             if (args.path("compose").isObject) throw McpRefusal(
                 "invalid_input", "A theme's own image is one drawn PNG (pixels, png_base64 or from): the pack does not assemble a composed image of a theme.",
-            )
-            if (args.has("ramps")) throw McpRefusal(
-                "invalid_input", "A theme's own image shows as drawn, whatever themes are in place: `ramps` says nothing on it.",
             )
         }
         val name = ownImage ?: asked
@@ -1606,16 +1498,11 @@ class McpTools(
             return mapOf("written" to true, "deleted" to true, "path" to (existing ?: composed), "draft_id" to draftId, "revision" to revision)
         }
         val recipe = args.get("compose")?.takeIf { it.isObject }?.let { recipe(it, name, view) }
-        // Whether the image follows the ramps, when the call says: a theme's colours then repaint it ([KitTheme]).
-        val ramps = args.get("ramps")?.takeIf { it.isBoolean }?.asBoolean()
-        if (ramps != null && recipe != null) throw McpRefusal(
-            "invalid_input", "A composed image follows its layers through a theme: say `ramps` on the PNGs it is made of.",
-        )
         // The kit module composing one of its own images over the base's: the PNG it replaces is not a layer.
         val kit = kitView(view, except = name.takeIf { project.folder == KIT_FOLDER })
         val cut = if (recipe != null) null else args.get("from")?.takeIf { it.isObject }?.let { cut(it, attached, project, draft) }
         val image = when {
-            recipe != null -> ComposedImages.render(recipe, { layer -> view.png(layer)?.png?.let { png -> kit.theme?.takeIf { project.folder == KIT_FOLDER }?.shown(layer, png, view.ramps(layer)) ?: png } }, kit::layer)
+            recipe != null -> ComposedImages.render(recipe, { layer -> view.png(layer)?.png?.let { png -> kit.theme?.takeIf { project.folder == KIT_FOLDER }?.shown(layer, png) ?: png } }, kit::layer)
                 ?: throw McpRefusal("invalid_image", "None of the layers could be read as a PNG.")
             cut != null -> cut.image
             args.path("pixels").isObject -> McpImages.fromPixels(args["pixels"])
@@ -1672,7 +1559,7 @@ class McpTools(
             "draft_id" to draftId, "expected_revision" to draft.revision, "operation_id" to UUID.randomUUID().toString(),
             "hash" to hash, "content_base64" to java.util.Base64.getEncoder().encodeToString(bytes),
         ))
-        val descriptor = descriptor(draft.tree[descriptorPath], image.width to image.height, path, draft.tree, ramps)
+        val descriptor = descriptor(draft.tree[descriptorPath], image.width to image.height, path, draft.tree)
         // Over an original whose function fixes other measures, the image is written and not taken: said, not refused.
         val notTaken = if (project.folder == KIT_FOLDER) null else OwnerImages.notTaken(
             draft.tree + (descriptorPath to descriptor), binaryTree.keys + path,
@@ -1685,8 +1572,6 @@ class McpTools(
             mapOf(
                 "written" to true, "path" to path, "replaced" to (existing != null || composed != null), "draft_id" to draftId, "revision" to revision,
                 "hash" to hash, "shown_at" to "x${McpImages.scale(image)}", "use_it" to useIt,
-                // What the image now says of a theme's colours: they repaint it, or it keeps its own.
-                "ramps" to KitTheme.followsRamps(descriptor),
             ) + mapOf("not_taken" to notTaken?.let(::notTakenNote)).filterValues { it != null } + McpImages.facts(image) + cut?.facts.orEmpty(),
             listOf(McpImages.preview(image)),
         )
@@ -1712,15 +1597,18 @@ class McpTools(
         if (args.path("compose").isObject) throw McpRefusal(
             "invalid_input", "A theme's image is drawn (pixels, png_base64 or from): a composed common image follows the theme through its layers already.",
         )
-        if (args.has("ramps")) throw McpRefusal(
-            "invalid_input", "`ramps` is said on the image a theme redraws, in its own Project: a theme's drawing is taken as drawn.",
-        )
         val draft = draftSnapshot(principal, project, draftId)
         val binaryTree = draft.json.path("binaryTree").fields().asSequence().associate { it.key to it.value }
-        // In its own Project a theme redraws a module's image too, named `<module>:<image>`; `artisan:<image>` is the common one.
+        // `artisan:<image>` is the common image too. A redraw aimed at a module (`<module>:<image>`), which a theme
+        // once held, is no longer read: it can only be removed.
         val common = if (own) Kit.nameOf(name) else null
         val module = if (own && common == null && ':' in name) name.substringBefore(':').takeIf { it.isNotEmpty() } else null
         val image = common ?: if (module != null) name.substringAfter(':') else name
+        if (module != null && !args.path("delete").asBoolean(false)) throw McpRefusal(
+            "invalid_input",
+            "A theme changes the common images, by their name alone: the image `$image` of the module `$module` is the module's, " +
+                "so write it in a draft of that module (write_image, project: the module).",
+        )
         // In the common images, a texture wins over a glyph of the same name: written there, and the other leaves.
         val paths = when {
             module != null -> listOf("${KitTheme.OVERRIDES_DIR}$module/$image.png")
@@ -1733,27 +1621,15 @@ class McpTools(
             val revision = updateDraft(principal, project, draftId, draft, draft.tree, binaryTree - existing.toSet())
             return mapOf("written" to true, "deleted" to true, "path" to existing.first(), "theme" to theme, "draft_id" to draftId, "revision" to revision)
         }
-        // The image redrawn, for its size: a module's as deployed; the common images' as deployed, or as this draft of them has it.
-        val what = if (module != null) "image `$image` of the module `$module`" else "common image `$image`"
-        val (width, height) = if (module != null) {
-            if (module !in folders(project.server) || module in themeFolders(project.server))
-                throw McpRefusal("not_found", "No module '$module' on the server: a theme redraws `<module>:<image>`, or a common image by its name alone.")
-            val view = deployed(project.server, module)
-            val png = view?.png(image)?.png ?: throw McpRefusal(
+        // The image redrawn, for its size: the common images' as deployed, or as this draft of them has it.
+        val what = "common image `$image`"
+        val (width, height) = KitView({ if (own) deployed(project.server, KIT_FOLDER) else Images(project, projects.read(project), draft) }, emptyList()).image(image)
+            ?.let { it.width to it.height }
+            ?: throw McpRefusal(
                 "not_found",
-                if (view?.recipe(image) != null) "`$name` is a composed image: it follows its layers, so redraw those."
-                else "The module `$module` holds no image '$image' (deployed): a theme redraws an image that exists.",
+                "No common image '$image' to redraw: a theme redraws an image of the base (survey_ui's `base`) or one " +
+                    (if (own) "the server's common images hold, once deployed, by its name alone." else "written here, by its name alone."),
             )
-            Png.decode(png).let { it.width to it.height }
-        } else {
-            KitView({ if (own) deployed(project.server, KIT_FOLDER) else Images(project, projects.read(project), draft) }, emptyList()).image(image)
-                ?.let { it.width to it.height }
-                ?: throw McpRefusal(
-                    "not_found",
-                    "No common image '$image' to redraw: a theme redraws an image of the base (survey_ui's `base`) or one " +
-                        (if (own) "the server's common images hold, once deployed, by its name alone; a module's image is named `<module>:<image>`." else "written here, by its name alone."),
-                )
-        }
         val cut = args.get("from")?.takeIf { it.isObject }?.let { cut(it, attached, project, draft) }
         val drawn = when {
             cut != null -> cut.image
@@ -1866,11 +1742,10 @@ class McpTools(
      * background gets the first codepoint no image of the draft has, as the editor offers it.
      * [size]: null for a composed image that takes its first layer's.
      */
-    private fun descriptor(current: String?, size: Pair<Int, Int>?, path: String, tree: Map<String, String>, ramps: Boolean? = null): String {
-        // [ramps]: what the call says of the ramps; null keeps what the descriptor said.
-        val sized = size?.let { (width, height) -> listOf("width: $width", "height: $height") }.orEmpty() + listOfNotNull("ramps: true".takeIf { ramps == true })
+    private fun descriptor(current: String?, size: Pair<Int, Int>?, path: String, tree: Map<String, String>): String {
+        val sized = size?.let { (width, height) -> listOf("width: $width", "height: $height") }.orEmpty()
         if (current != null) {
-            val kept = withoutRecipe(current).filter { it.isNotBlank() && !SIZE_LINE.containsMatchIn(it) && !(ramps != null && RAMPS_LINE.containsMatchIn(it)) }
+            val kept = withoutRecipe(current).filter { it.isNotBlank() && !SIZE_LINE.containsMatchIn(it) }
             return (kept + sized).joinToString("\n", postfix = "\n")
         }
         if (!path.startsWith(IMAGE_DIRS.getValue("background"))) return (sized + "usages: [button]").joinToString("\n", postfix = "\n")
@@ -2152,7 +2027,6 @@ class McpTools(
         /** Where an image goes by its use, as the editor files them: a title image is a glyph of the menu font. */
         private val IMAGE_DIRS = mapOf("button" to "assets/textures", "background" to "assets/glyphs")
         private val SIZE_LINE = Regex("^(width|height):")
-        private val RAMPS_LINE = Regex("^ramps:")
         private val ASCENT_LINE = Regex("(?m)^ascent:\\s*(-?[0-9.]+)")
         /** A menu of a module, or of one of its variants. */
         private val MENU_PATH = Regex("(^|/)menus/.+\\.ya?ml$")
@@ -2217,40 +2091,28 @@ class McpTools(
             "with the slots it covers, columns by rows (`3x1`: three slots wide, one high); `window.6` and `window.3` are whole windows of " +
             "6 and 3 rows with the player's inventory; `cell` is one slot's frame. Prefer these to a new image for a plain button, panel, " +
             "arrow or window."
-        private val COLOUR = Regex("#[0-9a-fA-F]{6}")
-        /** survey_ui's `ramps`: what the families of colours are for. */
-        private const val KIT_RAMPS = "The colours of Artisan's images, by family: each has a main colour (a button's face, a window's body) and its shades. " +
-            "An image that follows a theme's colours is drawn in these. A theme changes a family as a whole: theme_colours computes the table from the " +
-            "colour its main one becomes."
         /** render_menu's `theme` for the common images without one. */
         private const val NO_THEME = "none"
-        private val KIT_THEMES = "A theme restyles the server's common images at once, for a season or an event, without a menu being touched: a Project " +
-            "of its own, of the theme's name (create_theme makes one; survey_ui's `common.themes` gives each one's `project`). Its " +
-            "`${KitTheme.COLORS_FILES.first()}` (write_document, in a draft of the theme's Project) replaces colours, each one quoted: " +
-            "`colors: {\"#3c8527\": \"#b3261e\"}` turns every pixel of the first colour into the second in the common images, its transparency kept " +
-            "(survey_ui's `common_colours` lists the colours they use without a theme, the most used first; theme_colours computes the whole table from one colour per " +
-            "family of `ramps`, which is how a theme is usually made). An image a recolour does not do justice to gets the theme's own " +
-            "drawing: write_image in that draft, `name` the common image's, at the image's size. Its colours repaint the images that follow them: the base, " +
-            "and any image, common or a module's, written with `ramps: true` (write_image; survey_ui's `ramps` on an image), with what is composed from them. " +
-            "Any other image keeps its colours. `scope: guilds` beside `colors` keeps the theme's colours to that one module's images (`scope: $KIT_FOLDER`: " +
-            "the common images alone). A theme may redraw a module's image, at its size: write_image in that draft with `name` as " +
-            "`<module>:<image>` (survey_ui's `common.themes[].module_redraws`). A theme may hold images of its own, which no module nor the " +
+        private const val KIT_THEMES = "A theme restyles the server's common images at once, for a season or an event, without a menu being touched: a Project " +
+            "of its own, of the theme's name (create_theme makes one; survey_ui's `common.themes` gives each one's `project`). It holds its own drawing of " +
+            "each common image it changes: write_image in a draft of the theme's Project, `name` the common image's, at the image's size " +
+            "(survey_ui's `common_colours` lists the colours the common images use without a theme, the most used first). What is composed from a " +
+            "common image follows. A theme changes no pixel by a table of colours, and no image a module holds under its own name: that one is " +
+            "changed in the module. A theme may hold images of its own, which no module nor the " +
             "common images have (a garland for a winter look): write_image in that draft with `name` as `<theme>:<image>`, and a menu names it " +
             "the same way, never by the name alone (survey_ui's `common.themes[].own_images`); it shows as drawn while the server holds the " +
             "theme, in place or not. A server has its themes in place as a stack (`resource-pack.themes`, the " +
-            "lowest first; survey_ui's `common.in_place`): each changes what the ones below show, so the highest that redraws an image wins and its " +
-            "colours repaint what is below. The player deploys the theme's draft, then puts the theme in place, above the others, from the theme's page " +
+            "lowest first; survey_ui's `common.in_place`): the highest that redraws an image wins. " +
+            "The player deploys the theme's draft, then puts the theme in place, above the others, from the theme's page " +
             "in the editor: you cannot. render_menu with `theme` shows a menu in one theme alone before that, and with `theme_draft_id` as its draft has it."
 
         /** [KIT_THEMES] on a server older than themes of their own folder: a theme is a folder of the common images. */
         private const val KIT_THEMES_FORMER = "A theme restyles the server's common images at once, for a season or an event, without a menu being touched: a folder " +
-            "`themes/<name>/` of the server's common images ($KIT_PROJECT). Its `theme.yml` (write_document) replaces colours, each one quoted: " +
-            "`colors: {\"#3c8527\": \"#b3261e\"}` turns every pixel of the first colour into the second in the common images, its transparency kept " +
-            "(survey_ui's `common_colours` lists the colours they use without a theme, the most used first). An image a recolour does not do justice to gets the theme's own " +
-            "drawing: write_image with `theme`, at the image's size. Its colours repaint the images that follow them: the base, and any image written with " +
-            "`ramps: true` (write_image), with what is composed from them; any other keeps its colours. A server has its themes in place as a stack (`resource-pack.themes`, the " +
-            "lowest first; survey_ui's `common.in_place`): each changes what the ones below show, so the highest that redraws an image wins and its " +
-            "colours repaint what is below. The player puts a theme in place, above the others, from the theme's page in the editor: you cannot. " +
+            "`themes/<name>/` of the server's common images ($KIT_PROJECT). It holds its own drawing of each common image it changes: write_image with " +
+            "`theme`, at the image's size (survey_ui's `common_colours` lists the colours the common images use without a theme, the most used first). " +
+            "What is composed from a common image follows. A server has its themes in place as a stack (`resource-pack.themes`, the " +
+            "lowest first; survey_ui's `common.in_place`): the highest that redraws an image wins. " +
+            "The player puts a theme in place, above the others, from the theme's page in the editor: you cannot. " +
             "render_menu with `theme` shows a menu in one theme alone before that."
         private val CODEPOINT_LINE = Regex("(?m)^codepoint:\\s*(\\d+)")
         /** The private use range a Project's glyphs take (the editor's `codepoints.ts`). */

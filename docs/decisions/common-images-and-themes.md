@@ -8,7 +8,9 @@ this ADR removes shipped in a release. Design note: `Images partagées, thèmes 
 (project files). Follows `addon-owned-project-roots`, `project-qualified-refs` and the design
 `originaux-modules`. **Amended on 2026-11-26 by `resources-one-screen`**: decisions 4, 7 and
 12 and a theme's scope and redraws aimed at a module (decisions 5 and 6) are replaced there;
-they describe the code until its step 2.
+its step 2 removed colour tables, ramps, `scope` and the redraws aimed at a module from the
+code (what "Built so far" says of them is history); decisions 4 and 12 describe the code until
+its steps 3 and 5.
 
 ## Context
 

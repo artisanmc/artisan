@@ -35,6 +35,31 @@ class ServerThemesTest {
     }
 
     @Test
+    fun `what a theme holds that is no longer read is said when it is registered`() {
+        val roots = roots()
+        file("themes/noel/overrides/colors.yml")
+        file("themes/noel/overrides/guilds/banner.png")
+        file("themes/noel/overrides/artisan/button.3x1.png")
+        file("themes/noel/assets/textures/garland.png")
+        file("themes/hiver/overrides/artisan/close.1x1.png")
+        assertEquals(listOf("overrides/colors.yml", "overrides/guilds/"), ServerThemes.unread(File(data, "themes/noel")))
+        assertEquals(emptyList(), ServerThemes.unread(File(data, "themes/hiver")))
+        assertEquals(emptyList(), ServerThemes.unread(File(data, "themes/nowhere")))
+        val said = ArrayList<String>()
+        val logger = java.util.logging.Logger.getAnonymousLogger().apply {
+            useParentHandlers = false
+            addHandler(object : java.util.logging.Handler() {
+                override fun publish(record: java.util.logging.LogRecord) { said += record.message }
+                override fun flush() {}
+                override fun close() {}
+            })
+        }
+        assertEquals(listOf("hiver", "noel"), ServerThemes.register(roots, logger))
+        assertEquals(1, said.size, said.toString())
+        assertTrue("'noel'" in said[0] && "overrides/colors.yml, overrides/guilds/" in said[0], said[0])
+    }
+
+    @Test
     fun `a theme never hides a module of its name`() {
         val roots = roots()
         File(roots.coreRoot, "guilds/menus").mkdirs()

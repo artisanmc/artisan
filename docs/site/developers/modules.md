@@ -243,17 +243,6 @@ A server's own version of that image is then taken at those measures only: at ot
 keeps showing, so a menu or a HUD laid out against it does not break. Without `function`, a
 server's version replaces yours at any size.
 
-An image drawn in Artisan's base colours may say that it follows the themes:
-
-```yaml
-# assets/textures/panel.yml
-ramps: true   # a theme in place on the server replaces its colours, as in Artisan's own images
-```
-
-Without it, a theme's colours leave your image alone (a theme can still redraw it). A
-server's own version of the image follows too, unless it comes with a descriptor of its own
-that does not say so.
-
 ## Migrate your own YAML
 
 If your plugin reads its own versioned YAML documents (with a `schema:` key

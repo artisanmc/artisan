@@ -20,7 +20,7 @@ plugins/Artisan/modules/
     components/<name>.yml          ← a component: a named list of parts and its parameters, which a menu's look names with `component:` (ADR `element-parts-and-sliced-images`, decision 6); not a Document, read when a menu that names it is
     templates/<id>.yml             ← schema template/v1, resolved at plugin load
     models/<id>.yml                ← schema model/v1; `<id>` = the source it types (owned model), otherwise the model id, the identity remains the internal `id:`
-    assets/{glyphs,textures,fonts}/ ← images and fonts (binaries, written by publication); an image's `<name>.yml` beside it says what the PNG cannot (ascent, codepoint, usages, `function: menu | glyph | hud`, which fixes its measures: ADR `common-images-and-themes`, decision 4, `ramps: true`, which lets a theme's colours repaint the image: decision 7, and `slice: { left, right, top, bottom }`, the margins an image button keeps while it repeats the rest to fill its slots: ADR `element-parts-and-sliced-images`, decision 2), and alone, with a `compose:` list, it is a composed image the pack assembles (ADR `mcp-server`, decision 15)
+    assets/{glyphs,textures,fonts}/ ← images and fonts (binaries, written by publication); an image's `<name>.yml` beside it says what the PNG cannot (ascent, codepoint, usages, `function: menu | glyph | hud`, which fixes its measures: ADR `common-images-and-themes`, decision 4, and `slice: { left, right, top, bottom }`, the margins an image button keeps while it repeats the rest to fill its slots: ADR `element-parts-and-sliced-images`, decision 2), and alone, with a `compose:` list, it is a composed image the pack assembles (ADR `mcp-server`, decision 15)
     .artisan/editor.yaml           ← editor board state (the only `.artisan*` the editor writes); `items:` legacy captured-item descriptors, kept as read
     .artisan/project-id            ← project UUID, written once by the plugin (keeps Versions and drafts across a rename); `addon:<folder>` in a module's own folder (`pluginFolder`, or a former `moduleFolder` under `modules/`), so the key holds before the module registers it at startup and across its move to the plugin's folder
     .artisan/drafts/<id>/          ← drafts from before the suite database, no longer read
@@ -39,14 +39,10 @@ same sync), `components/` the server's common ones, read first. A former `module
 of the server's.
 
 Every other folder of `themes/` is a theme of the server (`ServerThemes.register`, decision 5):
-`overrides/colors.yml` is its table of colours, `overrides/artisan/<image>.png` its redraw of
-a common image and `overrides/<module>/<image>.png` its redraw of a module's image, each at
-that image's size. The table repaints the images that follow the ramps: the base's, and any
-image, common or a module's, whose descriptor says `ramps: true`; `scope: <module>` beside
-`colors` keeps it to that one module's images (`scope: artisan`: the common images alone).
-The table is exact, colour to colour: the editor's theme page and the MCP tool
-`theme_colours` compute it from one colour picked per ramp of the base (`kit/ramps.json`,
-`ramps.ts`, `Ramps.kt`) and write it; the builders compute no colour.
+`overrides/artisan/<image>.png` is its drawing of the common image of that name, taken when it
+has that image's size. A theme changes an image by holding an image (ADR `resources-one-screen`):
+`overrides/colors.yml`, `scope:` in it and `overrides/<module>/` (a redraw aimed at a module)
+are no longer read, and the load says which of them a theme still holds (`ServerThemes.unread`).
 Its name is lowercase letters, digits, `_` and `-`. It
 holds no Document: the server loads no menu, command or Trigger from it
 (`ProjectRoots.holdsDocuments`). A folder named like a module of the server is not registered
@@ -59,7 +55,7 @@ never erased). The theme `artisan` is neither renamed nor deleted. `resource-pac
 not the server's to follow: the editor writes it after the move.
 A theme the common images' folder kept (`themes/artisan/themes/<name>/`, `theme.yml` and
 `assets/`) moves to its own folder at start (`ServerThemes.migrate`): `theme.yml` becomes
-`overrides/colors.yml`, `assets/textures/<image>.png` (then `assets/glyphs/` for a name no
+`overrides/colors.yml` (no longer read since), `assets/textures/<image>.png` (then `assets/glyphs/` for a name no
 texture has) `overrides/artisan/<image>.png`, any other file keeps its place. One whose name
 a module has, or whose folder holds files already, stays where it is, where it is still read
 (warning at start).

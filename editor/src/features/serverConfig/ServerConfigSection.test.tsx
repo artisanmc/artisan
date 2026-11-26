@@ -107,8 +107,11 @@ describe("ServerConfigSection", () => {
     });
     api.readProject.mockResolvedValue({
       ok: true,
-      files: { "themes/noel/theme.yml": "colors: {}", "menus/shop.yml": "" },
-      binaries: [{ path: "themes/halloween/assets/textures/button.3x1.png", hash: "h" }],
+      files: { "menus/shop.yml": "" },
+      binaries: [
+        { path: "themes/noel/assets/textures/close.1x1.png", hash: "h" },
+        { path: "themes/halloween/assets/textures/button.3x1.png", hash: "h" },
+      ],
     });
     api.patchServerConfig.mockImplementation(async (_id, changes) => ({ ...config, ...changes }));
     const kit = { id: "p2", externalId: "ui-kit", name: "ui-kit" } as ProjectSummary;
@@ -141,8 +144,11 @@ describe("ServerConfigSection", () => {
     });
     api.readProject.mockResolvedValue({
       ok: true,
-      files: { "themes/noel/theme.yml": "colors: {}", "themes/nuit/theme.yml": "colors: {}" },
-      binaries: [],
+      files: {},
+      binaries: [
+        { path: "themes/noel/assets/textures/close.1x1.png", hash: "h" },
+        { path: "themes/nuit/assets/textures/close.1x1.png", hash: "h" },
+      ],
     });
     api.patchServerConfig.mockImplementation(async (_id, changes) => ({ ...config, ...changes }));
     const kit = { id: "p2", externalId: "ui-kit", name: "ui-kit" } as ProjectSummary;

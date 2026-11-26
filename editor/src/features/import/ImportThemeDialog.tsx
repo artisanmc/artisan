@@ -10,7 +10,7 @@ import {
 import { FileDropzone } from "@/components/ui/file-dropzone";
 import { Input } from "@/components/ui/input";
 import { KIT_FOLDER } from "@/lib/pack/kit";
-import { THEME_COLORS_FILES, isThemeName } from "@/lib/pack/theme";
+import { isThemeName } from "@/lib/pack/theme";
 import type { ThemeArchive } from "@/lib/pack/themeArchive";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -83,7 +83,6 @@ export function ImportThemeDialog({
   };
 
   const images = archive ? Object.keys(archive.binaries).length : 0;
-  const colours = !!archive && THEME_COLORS_FILES.some((path) => path in archive.files);
   return (
     <Dialog
       open={open}
@@ -123,10 +122,8 @@ export function ImportThemeDialog({
             <>
               <p className="text-[13px] text-[var(--text-mut)]" data-testid="import-theme-holds">
                 {images === 0
-                  ? t(colours ? "kit.importTheme.holdsColoursOnly" : "kit.importTheme.holdsNeither")
-                  : t(colours ? "kit.importTheme.holdsColours" : "kit.importTheme.holds", {
-                      count: images,
-                    })}
+                  ? t("kit.importTheme.holdsNeither")
+                  : t("kit.importTheme.holds", { count: images })}
               </p>
               <label htmlFor={fieldId} className="field-label flex flex-col gap-1.5">
                 {t("kit.newTheme.name")}
