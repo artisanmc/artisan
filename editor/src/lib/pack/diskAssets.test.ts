@@ -104,4 +104,29 @@ describe("diskAssetsFromTree", () => {
       "assets/textures/frame.png",
     ]);
   });
+
+  test("the owner's composed image takes its name from the PNG the module ships", () => {
+    const recipe = "compose:\n  - image: window_layer\n";
+    const files = [
+      { path: "originals/assets/glyphs/window.yml", content: "ascent: 13\n" },
+      { path: "assets/glyphs/window.yml", content: `ascent: 13\n${recipe}` },
+      // A descriptor without a recipe changes what the shipped image says, and keeps its PNG.
+      { path: "assets/glyphs/icon.yml", content: "ascent: 9\n" },
+      // A recipe the module ships beside its own PNG is no image: the PNG is.
+      { path: "originals/assets/glyphs/both.yml", content: recipe },
+    ];
+    const binaries = [
+      bin("originals/assets/glyphs/window.png", "shipped"),
+      bin("assets/glyphs/window_layer.png", "layer"),
+      bin("originals/assets/glyphs/icon.png", "icon"),
+      bin("originals/assets/glyphs/both.png", "both"),
+    ];
+    const read = diskAssetsFromTree("p1", files, binaries, { originals: true });
+    expect(read.map((a) => [a.row.id, a.path, !!a.compose, a.row.ascent])).toEqual([
+      ["window", "assets/glyphs/window.yml", true, 13],
+      ["window_layer", "assets/glyphs/window_layer.png", false, null],
+      ["both", "originals/assets/glyphs/both.png", false, null],
+      ["icon", "originals/assets/glyphs/icon.png", false, 9],
+    ]);
+  });
 });

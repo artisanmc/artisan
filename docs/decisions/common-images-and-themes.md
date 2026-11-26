@@ -399,6 +399,19 @@ same way in the common images' Project. It is offered for a file the owner holds
 (`useKitStore.modules`, as published), not for what the module ships alone nor for a
 composed image, and it is off when the common images have that name already.
 
+**Step 5, seventh part: layers over an image the module ships** (`diskAssets.ts`,
+`DiskAssets.fromTree` in `Assets.kt`, `toLayers` in `imageLayers.ts`, `imageStanding.ts`).
+The owner's file wins name for name, and a composed image's file is its descriptor: the
+owner's descriptor that holds a recipe takes the name from the PNG the module ships, which is
+then no image of the module (both pack builders, one case in the vector). It was read the
+other way round, the shipped PNG winning, so layers set over a shipped image showed nothing.
+In the atelier, **Add layers** on an image as shipped copies its pixels as the owner's first
+layer (`<image>_layer`) and writes the composed image under the shipped name; it used to ask
+for a rename of a file the owner does not hold, refused with "Not found". That composed image
+is the owner's version (marked so in the list, the original shown beside it, its delete is
+**Restore the original**). A descriptor without a recipe still only says something of the
+shipped PNG.
+
 **Step 4, first part: the themes in place are a stack** (`ThemeStack` in `Theme.kt`,
 `kitThemeStack` in `theme.ts`, `EditableConfig.kt`).
 `resource-pack.themes` of `config.yml` is the ordered list of decision 6, the lowest first, on

@@ -529,6 +529,59 @@ describe("performLocalAssetMutation", () => {
     expect([resized.status, resized.code]).toEqual([400, "A retouch keeps the image's size"]);
   });
 
+  it("gives layers to an image the module ships: the owner's composed image takes its name", async () => {
+    const original = png(8, 8, 6);
+    const snapshot = empty();
+    snapshot.tree["originals/assets/glyphs/gem.yml"] = "ascent: 7\ncodepoint: 57350\n";
+    snapshot.binaryTree = {
+      "originals/assets/glyphs/gem.png": { hash: sha256Hex(original), size: original.length },
+    };
+    snapshot.binaryBaseline = { ...snapshot.binaryTree };
+    const hub = fakeHub(snapshot, { "originals/assets/glyphs/gem.png": original });
+    // The owner holds no file of that name: nothing to rename (what the atelier used to ask).
+    const renamed = await rejection(
+      performLocalAssetMutation(
+        "p",
+        op(hub, { suffix: "/gem", method: "PATCH", fields: { name: "gem_layer" } }),
+      ),
+    );
+    expect(renamed.status).toBe(404);
+    // Its pixels are copied as a layer of the owner's, then composed under the shipped name.
+    await performLocalAssetMutation(
+      "p",
+      createOp(hub, { type: "glyph", name: "gem_layer", usages: "[]", ascent: "7" }, original),
+    );
+    const made = await performLocalAssetMutation(
+      "p",
+      op(hub, {
+        suffix: "",
+        method: "POST",
+        fields: {
+          type: "glyph",
+          name: "gem",
+          ascent: "7",
+          compose: JSON.stringify({
+            layers: [{ image: "gem_layer", x: 0, y: 0, columns: 1, rows: 1 }],
+            width: null,
+            height: null,
+          }),
+        },
+      }),
+    );
+    expect(made.asset).toMatchObject({ id: "gem", ascent: 7, width: 8, height: 8 });
+    expect(made.asset?.compose?.layers).toHaveLength(1);
+    // The library lists the name once, as the composed image; the original stays on the disk.
+    const listed = await listLocalAssets("p", {}, "d1");
+    expect(listed.map((a) => [a.id, !!a.compose])).toEqual([
+      ["gem", true],
+      ["gem_layer", false],
+    ]);
+    expect(Object.keys(made.draft.snapshot.binaryTree!).sort()).toEqual([
+      "assets/glyphs/gem_layer.png",
+      "originals/assets/glyphs/gem.png",
+    ]);
+  });
+
   it("retouches an image: other pixels under the same name, at the size it is shown", async () => {
     const hub = fakeHub(empty());
     await performLocalAssetMutation(

@@ -1,6 +1,8 @@
 import type { Asset } from "@/domain/asset";
 import { API_URL } from "@/lib/api/client";
 import { assetDiskPath } from "@/lib/pack/assetDiskWrite";
+import { composeRecipe } from "@/lib/pack/compose";
+import { yamlStem } from "@/lib/yamlFiles";
 import {
   type ImageFunction,
   type ImageOverOriginal,
@@ -15,6 +17,7 @@ import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useKitStore } from "@/state/kitStore";
 import { originalChanged } from "@/state/projectTemplatesStore";
+import { parse } from "yaml";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type MeasuredFile, usePixelSizes } from "./pixelSizes";
 import { useProjectOrigins } from "./useProjectOrigins";
@@ -45,11 +48,24 @@ function fileOf(paths: string[], dir: string, id: string): string | undefined {
   );
 }
 
-export function imageStanding(tree: BinaryTree, asset: Pick<Asset, "id" | "type">): ImageStanding {
+export function imageStanding(
+  tree: BinaryTree,
+  asset: Pick<Asset, "id" | "type" | "compose">,
+  /** The module's text files (their paths): where a composed image, which has no PNG, is held. */
+  files: Iterable<string> = [],
+): ImageStanding {
   if (asset.type === "font") return {};
   const dir = assetDiskPath(asset.type, asset.id).replace(/\/[^/]*$/, "/");
   const paths = Object.keys(tree);
-  const own = fileOf(paths, dir, asset.id);
+  // A composed image's file is its descriptor: the owner's when it is not under `originals/`.
+  const recipe = asset.compose
+    ? fileOf(
+        [...files].filter((p) => yamlStem(p) !== null),
+        dir,
+        asset.id,
+      )
+    : undefined;
+  const own = fileOf(paths, dir, asset.id) ?? recipe;
   const original = fileOf(paths, `${ORIGINALS}${dir}`, asset.id);
   return {
     ...(own ? { own } : {}),
@@ -60,16 +76,22 @@ export function imageStanding(tree: BinaryTree, asset: Pick<Asset, "id" | "type"
 /** [imageStanding] of an image of the open module, as its draft holds it, else as published. */
 export function useImageStanding(
   projectId: string,
-  asset: Pick<Asset, "id" | "type"> | null,
+  asset: Pick<Asset, "id" | "type" | "compose"> | null,
 ): ImageStanding {
   const draft = useProjectDraftStore((s) => s.drafts[projectId]);
   const published = useProjectBaselineStore((s) => s.binaryBaselines[projectId]);
+  const publishedFiles = useProjectBaselineStore((s) => s.baselines[projectId]);
   const tree = draft?.binaryTree ?? draft?.binaryBaseline ?? published;
+  const files = draft?.tree ?? publishedFiles;
   const id = asset?.id;
   const type = asset?.type;
+  const compose = asset?.compose;
   return useMemo(
-    () => (tree && id && type ? imageStanding(tree, { id, type }) : {}),
-    [tree, id, type],
+    () =>
+      tree && id && type
+        ? imageStanding(tree, { id, type, compose }, files ? Object.keys(files) : [])
+        : {},
+    [tree, files, id, type, compose],
   );
 }
 
@@ -219,11 +241,29 @@ export function imageMarks(
     if (path.startsWith(ORIGINALS) || !shipped.has(stem)) continue;
     marks.set(stem, origins && originalChanged(origins, path) ? "original_changed" : "own_version");
   }
+  // The owner's composed image of a shipped PNG's name: its file is its descriptor.
+  for (const [path, content] of Object.entries(files)) {
+    const stem = yamlStem(path);
+    if (stem === null || path.startsWith(ORIGINALS) || !shipped.has(stem) || marks.has(stem))
+      continue;
+    if (!holdsRecipe(content)) continue;
+    marks.set(stem, origins && originalChanged(origins, path) ? "original_changed" : "own_version");
+  }
   const { fileList, binaryList } = lists(files, binaries);
   const overs = imagesOverOriginals(fileList, binaryList);
   for (const image of refusedImages(fileList, binaryList, sizesOf(overs, measured)))
     marks.set(image.stem, "not_taken");
   return marks;
+}
+
+/** Whether a descriptor holds a recipe the pack reads (`compose:`). */
+function holdsRecipe(content: string): boolean {
+  try {
+    const value = parse(content);
+    return !!value && typeof value === "object" && !Array.isArray(value) && !!composeRecipe(value);
+  } catch {
+    return false;
+  }
 }
 
 const NO_FILES: readonly MeasuredFile[] = [];

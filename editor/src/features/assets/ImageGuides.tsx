@@ -74,8 +74,13 @@ export function ImageGuides({
         <span
           aria-hidden
           data-testid="guide-title"
-          className={`${frame} border border-dashed border-[var(--kind-module)]`}
-          style={box(guides.title, scale)}
+          // A plain line and a hatch in a colour that stands out on a window's light grey.
+          className={`${frame} border border-[var(--kind-trigger)]`}
+          style={{
+            ...box(guides.title, scale),
+            backgroundImage:
+              "repeating-linear-gradient(135deg, var(--kind-trigger-line) 0 4px, transparent 4px 12px)",
+          }}
         />
       )}
     </>
