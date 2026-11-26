@@ -21,7 +21,7 @@ export default {
       shippedModule: "Shipped with the module",
     },
     mark: {
-      notTaken: "Not taken: the module's original shows",
+      otherSize: "Other size than the module's original it replaces",
       ownVersion: "Your version of an image the module ships",
       originalChanged: "Your version: the module's original changed since",
       addedHere: "Added here",
@@ -40,14 +40,14 @@ export default {
     function: {
       label: "Function",
       none: "None",
-      menu: "Menu image (its pixel size is fixed)",
-      glyph: "Glyph (its height and ascent are fixed)",
-      hud: "HUD image (its pixel size is fixed)",
-      hint: "An image that replaces this one at other measures is not taken: this one keeps showing.",
-      notTaken:
-        "Not taken: this image is {{width}} × {{height}} px, the original {{originalWidth}} × {{originalHeight}} px. The original shows until this image has its size.",
-      notTakenGlyph:
-        "Not taken: this glyph has height {{height}} and ascent {{ascent}}, the original height {{originalHeight}} and ascent {{originalAscent}}. The original shows until they match.",
+      menu: "Menu image",
+      glyph: "Glyph",
+      hud: "HUD image",
+      hint: "An image that replaces this one at other measures is taken as it is: the editor says so, and refuses nothing.",
+      otherSize:
+        "Other size than the one it replaces: this image is {{width}} × {{height}} px, the original {{originalWidth}} × {{originalHeight}} px. It is taken as it is: a menu laid out for the original may look off.",
+      otherSizeGlyph:
+        "Other measures than the one it replaces: this glyph has height {{height}} and ascent {{ascent}}, the original height {{originalHeight}} and ascent {{originalAscent}}. It is taken as it is.",
     },
     originalChanged: {
       title: "The original changed since your version.",
@@ -373,14 +373,14 @@ export default {
       },
       shipped: "Artisan",
       redrawn: "Redrawn",
-      misfit: "Not taken",
+      misfit: "Other size",
       original: "Artisan's original",
       originalAlt: "{{name}} as Artisan ships it",
       restore: "Restore the original",
       confirmRestore:
         "Delete this server's {{name}}? Menus show Artisan's original again once deployed.",
       misfitDetail:
-        "This image is {{width}} × {{height}} px, the piece is {{pieceWidth}} × {{pieceHeight}} px: menus keep the original until this image has the piece's size.",
+        "Other size than the one it replaces: this image is {{width}} × {{height}} px, the piece {{pieceWidth}} × {{pieceHeight}} px. It is taken as it is: a menu laid out for the piece may look off.",
       others: "This server's own images",
       noOthers: "None yet. An image added here is named by its name in any menu of the server.",
       inMenu: "In a menu",

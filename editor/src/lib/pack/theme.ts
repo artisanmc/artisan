@@ -141,7 +141,7 @@ export interface KitTheme {
   /** The kit image `name`, whose PNG is `png`, as the theme shows it: its own drawing, else `png`. */
   shown(name: string, png: Uint8Array): Promise<Uint8Array>;
   /** The theme's own drawing of `name`, when it has one as large as `png`; `null` otherwise. */
-  drawing(name: string, png: Uint8Array): Promise<Uint8Array | null>;
+  drawing(name: string): Promise<Uint8Array | null>;
 }
 
 const sizeOf = (png: Uint8Array) => {
@@ -159,8 +159,9 @@ export function kitTheme(
   binary: (path: string) => Bytes | Promise<Bytes>,
 ): KitTheme {
   const files = new Map<string, Promise<Bytes>>();
-  // The theme's file of `name`, when it is as large as `png`: a drawing of another size is left out.
-  const drawing = async (name: string, png: Uint8Array) => {
+  // The theme's file of `name`, whatever its size (ADR `resources-one-screen`, decision 4);
+  // one that is no PNG is left out.
+  const drawing = async (name: string) => {
     const path = redrawn.get(name);
     if (path === undefined) return null;
     if (!files.has(path))
@@ -171,17 +172,12 @@ export function kitTheme(
           .catch(() => null),
       );
     const mine = await files.get(path);
-    if (!mine) return null;
-    const base = sizeOf(png);
-    const drawn = sizeOf(mine);
-    return base && drawn && drawn.width === base.width && drawn.height === base.height
-      ? mine
-      : null;
+    return mine && sizeOf(mine) ? mine : null;
   };
   return {
     drawings: [...redrawn.keys()],
     drawing,
-    shown: async (name, png) => (await drawing(name, png)) ?? png,
+    shown: async (name, png) => (await drawing(name)) ?? png,
   };
 }
 
@@ -246,7 +242,7 @@ export interface ThemeLook {
   /** The kit image `name`, whose PNG is `png`, as the themes show it. */
   shown(name: string, png: Uint8Array): Promise<Uint8Array>;
   /** The themes' drawing of `name`: `null` unless one draws it at `png`'s size. */
-  drawing(name: string, png: Uint8Array): Promise<Uint8Array | null>;
+  drawing(name: string): Promise<Uint8Array | null>;
 }
 
 /**
@@ -255,14 +251,14 @@ export interface ThemeLook {
  */
 export function kitThemeStack(themes: readonly KitTheme[]): ThemeLook | null {
   if (themes.length === 0) return null;
-  const drawing = async (name: string, png: Uint8Array) => {
+  const drawing = async (name: string) => {
     for (const theme of [...themes].reverse()) {
-      const drawn = await theme.drawing(name, png);
+      const drawn = await theme.drawing(name);
       if (drawn) return drawn;
     }
     return null;
   };
-  return { drawing, shown: async (name, png) => (await drawing(name, png)) ?? png };
+  return { drawing, shown: async (name, png) => (await drawing(name)) ?? png };
 }
 
 /**

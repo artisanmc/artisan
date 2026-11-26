@@ -91,7 +91,7 @@ describe("AssetsTab", () => {
     expect(screen.getByTitle("ico_one")).toBeTruthy();
   });
 
-  it("marks in the list the owner's version of a shipped image, the one whose original changed and the one the pack does not take", () => {
+  it("marks in the list the owner's version of a shipped image, the one whose original changed and the one of another size", () => {
     const image = (id: string): Asset => ({ ...A1, id, name: id, usages: ["button"] });
     useAssetStore
       .getState()
@@ -134,7 +134,7 @@ describe("AssetsTab", () => {
     render(<AssetsTab projectId={"p1" as never} />);
     const mark = (title: RegExp) =>
       screen.getByTitle(title).querySelector("[data-testid=asset-mark]")?.getAttribute("data-tone");
-    expect(mark(/^crest · Non prise/)).toBe("danger");
+    expect(mark(/^crest · Autre taille/)).toBe("warning");
     expect(mark(/^banner · Votre version d'une image/)).toBe("brand");
     expect(mark(/^seal · Votre version : l'original du module a changé/)).toBe("warning");
     expect(screen.getByTitle("mine").querySelector("[data-testid=asset-mark]")).toBeNull();

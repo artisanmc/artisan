@@ -23,7 +23,7 @@ const fr: typeof en = {
       shippedModule: "Livrées avec le module",
     },
     mark: {
-      notTaken: "Non prise : l'original du module s'affiche",
+      otherSize: "Autre taille que l'original du module qu'elle remplace",
       ownVersion: "Votre version d'une image livrée par le module",
       originalChanged: "Votre version : l'original du module a changé depuis",
       addedHere: "Ajoutée ici",
@@ -42,14 +42,14 @@ const fr: typeof en = {
     function: {
       label: "Fonction",
       none: "Aucune",
-      menu: "Image de menu (sa taille en pixels est fixée)",
-      glyph: "Glyphe (sa hauteur et son ascent sont fixés)",
-      hud: "Image de HUD (sa taille en pixels est fixée)",
-      hint: "Une image qui remplace celle-ci à d'autres mesures n'est pas prise : celle-ci reste montrée.",
-      notTaken:
-        "Non prise : cette image fait {{width}} × {{height}} px, l'original {{originalWidth}} × {{originalHeight}} px. L'original reste montré tant que cette image n'a pas sa taille.",
-      notTakenGlyph:
-        "Non prise : ce glyphe a une hauteur de {{height}} et un ascent de {{ascent}}, l'original une hauteur de {{originalHeight}} et un ascent de {{originalAscent}}. L'original reste montré tant qu'ils diffèrent.",
+      menu: "Image de menu",
+      glyph: "Glyphe",
+      hud: "Image de HUD",
+      hint: "Une image qui remplace celle-ci à d'autres mesures est prise telle quelle : l'éditeur le signale, sans rien refuser.",
+      otherSize:
+        "Autre taille que celle qu'elle remplace : cette image fait {{width}} × {{height}} px, l'original {{originalWidth}} × {{originalHeight}} px. Elle est prise telle quelle : un menu disposé pour l'original peut être décalé.",
+      otherSizeGlyph:
+        "Autres mesures que celui qu'il remplace : ce glyphe a une hauteur de {{height}} et un ascent de {{ascent}}, l'original une hauteur de {{originalHeight}} et un ascent de {{originalAscent}}. Il est pris tel quel.",
     },
     originalChanged: {
       title: "L'original a changé depuis ta version.",
@@ -379,14 +379,14 @@ const fr: typeof en = {
       },
       shipped: "Artisan",
       redrawn: "Redessinée",
-      misfit: "Non prise",
+      misfit: "Autre taille",
       original: "Original d'Artisan",
       originalAlt: "{{name}} telle qu'Artisan la livre",
       restore: "Restaurer l'original",
       confirmRestore:
         "Supprimer le {{name}} de ce serveur ? Les menus montrent de nouveau l'original d'Artisan une fois déployé.",
       misfitDetail:
-        "Cette image fait {{width}} × {{height}} px, la pièce {{pieceWidth}} × {{pieceHeight}} px : les menus gardent l'original tant que cette image n'a pas la taille de la pièce.",
+        "Autre taille que celle qu'elle remplace : cette image fait {{width}} × {{height}} px, la pièce {{pieceWidth}} × {{pieceHeight}} px. Elle est prise telle quelle : un menu disposé pour la pièce peut être décalé.",
       others: "Les images de ce serveur",
       noOthers:
         "Aucune pour l'instant. Une image ajoutée ici se nomme par son nom dans n'importe quel menu du serveur.",

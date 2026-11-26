@@ -37,15 +37,16 @@ class KitTheme internal constructor(
     val drawings: Set<String> get() = redrawn.keys
 
     /** The kit image [name], whose PNG is [png], as the theme shows it: its own drawing, else [png]. */
-    fun shown(name: String, png: ByteArray): ByteArray = drawing(name, png) ?: png
+    fun shown(name: String, png: ByteArray): ByteArray = drawing(name) ?: png
 
-    /** The theme's own drawing of [name], when it has one as large as [png]; null otherwise. */
-    fun drawing(name: String, png: ByteArray): ByteArray? {
+    /**
+     * The theme's own drawing of [name], whatever its size (ADR `resources-one-screen`,
+     * decision 4); null when it has none, or one that is no PNG.
+     */
+    fun drawing(name: String): ByteArray? {
         val path = redrawn[name] ?: return null
         val mine = files.getOrPut(path) { binary(path) } ?: return null
-        val base = runCatching { Png.decode(png) }.getOrNull() ?: return null
-        val drawn = runCatching { Png.decode(mine) }.getOrNull() ?: return null
-        return mine.takeIf { drawn.width == base.width && drawn.height == base.height }
+        return mine.takeIf { runCatching { Png.decode(it) }.isSuccess }
     }
 
     companion object {
@@ -158,10 +159,10 @@ class KitTheme internal constructor(
  */
 class ThemeStack private constructor(private val themes: List<KitTheme>) {
     /** The kit image [name], whose PNG is [png], as the themes show it. */
-    fun shown(name: String, png: ByteArray): ByteArray = drawing(name, png) ?: png
+    fun shown(name: String, png: ByteArray): ByteArray = drawing(name) ?: png
 
-    /** The themes' drawing of [name]: null unless one draws it at [png]'s size. */
-    fun drawing(name: String, png: ByteArray): ByteArray? = themes.asReversed().firstNotNullOfOrNull { it.drawing(name, png) }
+    /** The themes' drawing of [name], the highest theme's first; null when none draws it. */
+    fun drawing(name: String): ByteArray? = themes.asReversed().firstNotNullOfOrNull { it.drawing(name) }
 
     companion object {
         /** Null for no theme. */

@@ -363,7 +363,7 @@ class McpTest {
     }
 
     @Test
-    fun `the kit's base is on every server under kit names, and the kit module's image of the same size replaces one`() {
+    fun `the kit's base is on every server under kit names, and the kit module's image of the same name replaces one`() {
         fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
             for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
         }.let(net.artisanmc.plugin.pack.Png::encode)
@@ -398,34 +398,37 @@ class McpTest {
         }
         assertEquals(shipped("button.3x1", 27, 9) to shipped("window.3", 3, 3), pixels())
 
-        // The kit module restyles a slot with an image of its name and size; another size or another module is refused.
+        // The kit module restyles a slot with an image of its name; another size is written and said, another module is refused.
         modules["artisan"] = McpFixtures.Module()
         val kitDraft = tool(access, "start_draft", "project" to "u-local.artisan", "name" to "AI: kit")["structuredContent"]["draft_id"].asText()
         fun png(width: Int, height: Int) = java.util.Base64.getEncoder().encodeToString(solid(width, height, 0xcc2020))
         val small = tool(access, "write_image", "project" to "u-local.artisan", "draft_id" to kitDraft, "name" to "button.3x1", "png_base64" to png(20, 10))
-        assertTrue(small["isError"].asBoolean() && "54x18" in small["structuredContent"]["message"].asText(), small.toString())
+        assertFalse(small.has("isError"), small.toString())
+        assertTrue("54x18" in small["structuredContent"]["other_size"].asText(), small.toString())
         val written = tool(access, "write_image", "project" to "u-local.artisan", "draft_id" to kitDraft, "name" to "button.3x1", "use" to "background", "png_base64" to png(54, 18))
         assertFalse(written.has("isError"), written.toString())
+        assertFalse(written["structuredContent"].has("other_size"), written.toString())
         assertEquals("assets/textures/button.3x1.png", written["structuredContent"]["path"].asText())
         assertTrue("names `button.3x1`" in written["structuredContent"]["use_it"].asText())
         assertTrue(tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "button.3x1", "png_base64" to png(54, 18))["isError"].asBoolean())
         val other = tool(access, "write_image", "project" to "u-local.artisan", "draft_id" to kitDraft, "name" to "banner", "png_base64" to png(20, 10))
         assertTrue("{asset: banner, fit: native}" in other["structuredContent"]["use_it"].asText(), other.toString())
 
-        // Deployed, the server's image is what every menu naming the slot shows; one of another size is left out.
+        // Deployed, the server's image is what every menu naming the slot shows, one of another size too.
         modules["artisan"] = McpFixtures.Module(
             images = mapOf("assets/textures/button.3x1.png" to solid(54, 18, 0xcc2020), "assets/textures/window.3.png" to solid(20, 20, 0x00ff00)),
         )
-        assertEquals(listOf(0xcc, 0x20, 0x20) to shipped("window.3", 3, 3), pixels())
+        assertEquals(listOf(0xcc, 0x20, 0x20) to listOf(0x00, 0xff, 0x00), pixels())
         val restyled = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["base"]["images"].associateBy { it["image"].asText() }
         assertEquals("this server", restyled.getValue("button.3x1")["drawn_by"].asText())
-        assertEquals("artisan", restyled.getValue("window.3")["drawn_by"].asText())
-        assertTrue(restyled.getValue("window.3").has("ignored"))
-        assertFalse(restyled.getValue("cell").has("ignored"))
+        assertEquals("this server", restyled.getValue("window.3")["drawn_by"].asText())
+        assertTrue("20x20" in restyled.getValue("window.3")["other_size"].asText())
+        assertFalse(restyled.getValue("button.3x1").has("other_size"))
+        assertFalse(restyled.getValue("cell").has("other_size"))
     }
 
     @Test
-    fun `a theme of the kit redraws an image at its size, repaints nothing, and a menu is rendered in it`() {
+    fun `a theme of the kit redraws an image, repaints nothing, and a menu is rendered in it`() {
         fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
             for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
         }.let(net.artisanmc.plugin.pack.Png::encode)
@@ -446,9 +449,10 @@ class McpTest {
         val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: themed")["structuredContent"]["draft_id"].asText()
         fun kit(tool: String, vararg args: Pair<String, Any?>) = tool(access, tool, "project" to "u-local.artisan", "draft_id" to kitDraft, *args)
 
-        // The theme's own drawing of a kit image: of its size, in the kit module, of an image the kit has.
+        // The theme's own drawing of a kit image: in the kit module, of an image the kit has; another size is said.
         val small = kit("write_image", "name" to "cell", "theme" to "noel", "png_base64" to png(10, 10, 0x112233))
-        assertTrue(small["isError"].asBoolean() && "18x18" in small["structuredContent"]["message"].asText(), small.toString())
+        assertFalse(small.has("isError"), small.toString())
+        assertTrue("18x18" in small["structuredContent"]["other_size"].asText(), small.toString())
         assertTrue("No common image" in kit("write_image", "name" to "nothing", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["message"].asText())
         val elsewhere = tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
         assertTrue(elsewhere["isError"].asBoolean() && "common images" in elsewhere["structuredContent"]["message"].asText(), elsewhere.toString())
@@ -596,9 +600,10 @@ class McpTest {
         val formerImage = kit("write_image", "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
         assertTrue(formerImage["isError"].asBoolean() && "Project of its own" in formerImage["structuredContent"]["message"].asText(), formerImage.toString())
 
-        // Its drawing of a common image: named as that image, at its size.
+        // Its drawing of a common image: named as that image; another size is said.
         val small = theme("write_image", "name" to "cell", "png_base64" to png(10, 10, 0x112233))
-        assertTrue(small["isError"].asBoolean() && "18x18" in small["structuredContent"]["message"].asText(), small.toString())
+        assertFalse(small.has("isError"), small.toString())
+        assertTrue("18x18" in small["structuredContent"]["other_size"].asText(), small.toString())
         assertTrue("No common image" in theme("write_image", "name" to "nothing", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["message"].asText())
         assertTrue(theme("write_image", "name" to "cell", "theme" to "paques", "png_base64" to png(18, 18, 0x112233))["isError"].asBoolean())
         val drawn = theme("write_image", "name" to "cell", "png_base64" to png(18, 18, 0x112233))
@@ -861,7 +866,7 @@ class McpTest {
     }
 
     @Test
-    fun `an owner's image at other measures than its original's is not taken, the original shows, and the tools say so`() {
+    fun `an owner's image at other measures than its original's is taken as it is, and the tools say so`() {
         fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
             for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
         }.let(net.artisanmc.plugin.pack.Png::encode)
@@ -888,17 +893,17 @@ class McpTest {
             val at = ((window["y"].asInt() + 17 + 9) * picture.width + window["x"].asInt() + 7 + 4 * 18) * 4
             return picture.data.slice(at until at + 3).map { it.toInt() and 0xff }
         }
-        assertEquals(listOf(0x33, 0x66, 0xcc), shown(), "the original, as the pack shows it")
+        assertEquals(listOf(0xcc, 0x20, 0x20), shown(), "the owner's image, as the pack shows it")
 
-        // The image is still read where it is, and says it is not taken.
+        // The image is read where it is, and says it has another size.
         fun read(path: String, draft: String? = null) =
             tool(access, "read_image", *listOfNotNull("project" to "u-local.guilds", "path" to path, draft?.let { "draft_id" to it }).toTypedArray())["structuredContent"]
-        val note = read("assets/textures/crest.png")["not_taken"].asText()
+        val note = read("assets/textures/crest.png")["other_size"].asText()
         assertTrue("54x18" in note && "originals/assets/textures/crest.png" in note, note)
-        assertFalse(read("originals/assets/textures/crest.png").has("not_taken"))
-        // The list of the module's files says it too, with the original that shows and the measures to draw at.
+        assertFalse(read("originals/assets/textures/crest.png").has("other_size"))
+        // The list of the module's files says it too, with the original and its measures.
         fun listed(draft: String? = null) =
-            tool(access, "list_documents", *listOfNotNull("project" to "u-local.guilds", draft?.let { "draft_id" to it }).toTypedArray())["structuredContent"]["images_not_taken"]
+            tool(access, "list_documents", *listOfNotNull("project" to "u-local.guilds", draft?.let { "draft_id" to it }).toTypedArray())["structuredContent"]["images_other_size"]
                 ?.takeUnless { it.isNull }?.toList().orEmpty()
         assertEquals(
             listOf("assets/textures/crest.png" to "originals/assets/textures/crest.png"),
@@ -906,27 +911,27 @@ class McpTest {
         )
         assertEquals("menu", listed()[0]["function"].asText())
         assertEquals("54x18", listed()[0]["measures"].asText())
-        // The survey lists what the pack shows: the original.
+        // The survey lists what the pack shows: the owner's image.
         val surveyed = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["modules"].first { it["project"].asText() == "u-local.guilds" }
-        assertEquals(listOf("originals/assets/textures/crest.png"), surveyed["images"].map { it["path"].asText() })
+        assertEquals(listOf("assets/textures/crest.png"), surveyed["images"].map { it["path"].asText() })
 
-        // Written at other measures, the image enters the draft and the result says it is not taken; at the original's, it is.
+        // Written at other measures, the image enters the draft, is shown, and the result says its size differs; at the original's, nothing is said.
         val draftId = tool(access, "start_draft", "project" to "u-local.guilds", "name" to "AI: crest")["structuredContent"]["draft_id"].asText()
         fun write(png: ByteArray) = tool(
             access, "write_image", "project" to "u-local.guilds", "draft_id" to draftId, "name" to "crest",
             "png_base64" to java.util.Base64.getEncoder().encodeToString(png),
         )
-        val small = write(solid(30, 18, 0x20c040))
+        val small = write(solid(54, 20, 0x2040c0))
         assertFalse(small.has("isError"), small.toString())
-        assertTrue("54x18" in small["structuredContent"]["not_taken"].asText())
-        assertEquals(listOf(0x33, 0x66, 0xcc), shown("draft_id" to draftId))
-        assertTrue(read("assets/textures/crest.png", draftId).has("not_taken"))
+        assertTrue("54x18" in small["structuredContent"]["other_size"].asText())
+        assertEquals(listOf(0x20, 0x40, 0xc0), shown("draft_id" to draftId))
+        assertTrue(read("assets/textures/crest.png", draftId).has("other_size"))
         assertEquals(1, listed(draftId).size)
         val sized = write(solid(54, 18, 0x20c040))
-        assertFalse(sized["structuredContent"].has("not_taken"), sized.toString())
+        assertFalse(sized["structuredContent"].has("other_size"), sized.toString())
         assertEquals(listOf(0x20, 0xc0, 0x40), shown("draft_id" to draftId))
-        assertFalse(read("assets/textures/crest.png", draftId).has("not_taken"))
-        assertTrue(listed(draftId).isEmpty(), "nothing left out once the image has the original's size")
+        assertFalse(read("assets/textures/crest.png", draftId).has("other_size"))
+        assertTrue(listed(draftId).isEmpty(), "nothing said once the image has the original's size")
     }
 
     @Test

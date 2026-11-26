@@ -50,11 +50,12 @@ describe("UI kit", () => {
     }
   });
 
-  test("the kit module's image wins at the base's size, the base's stays at another", async () => {
+  test("the kit module's image wins at any size, the base's stays when it is unreadable", async () => {
     const own = png(16, 16);
     expect((await kitImage("close.1x1", own, shipped))?.png).toBe(own);
     const base = await shipped("close.1x1");
-    expect((await kitImage("close.1x1", png(10, 10), shipped))?.png).toEqual(base);
+    const other = png(10, 10);
+    expect(await kitImage("close.1x1", other, shipped)).toMatchObject({ png: other, width: 10 });
     expect((await kitImage("close.1x1", new Uint8Array([1, 2, 3]), shipped))?.png).toEqual(base);
     expect((await kitImage("close.1x1", undefined, shipped))?.png).toEqual(base);
   });
@@ -67,11 +68,12 @@ describe("UI kit", () => {
 
   test("the base is the one the server holds, when it holds one", async () => {
     const held = png(20, 12);
-    // Another version of Artisan's than this build's: its size is the one a redraw has to match.
+    // Another version of Artisan's than this build's.
     expect((await kitImage("close.1x1", undefined, shipped, held))?.png).toBe(held);
     const own = png(20, 12);
     expect((await kitImage("close.1x1", own, shipped, held))?.png).toBe(own);
-    expect((await kitImage("close.1x1", png(16, 16), shipped, held))?.png).toBe(held);
+    const sized = png(16, 16);
+    expect((await kitImage("close.1x1", sized, shipped, held))?.png).toBe(sized);
     expect((await kitImage("later", undefined, shipped, held))?.png).toBe(held);
     const base = await shipped("close.1x1");
     expect((await kitImage("close.1x1", undefined, shipped, new Uint8Array([1])))?.png).toEqual(

@@ -84,8 +84,9 @@ object Kit {
     class Image(val png: ByteArray, val width: Int, val height: Int, val shipped: Boolean)
 
     /**
-     * What the common image [name] shows: [own] (the server's image of that name) unless it is
-     * unreadable or has another size than the base's, then the base's; null when neither exists.
+     * What the common image [name] shows: [own] (the server's image of that name), whatever its
+     * size (ADR `resources-one-screen`, decision 4), unless it is unreadable, then the base's;
+     * null when neither exists.
      * [base] is the base image the server holds (`themes/artisan/originals/`), which may be
      * another version of Artisan's than this builder's; without it, the builder's own.
      */
@@ -93,7 +94,6 @@ object Kit {
         val shipped = base?.let { png -> runCatching { Png.decode(png) }.getOrNull()?.let { Image(png, it.width, it.height, true) } }
             ?: slot(name)?.let { Image(shipped(it), it.width, it.height, true) }
         val mine = own?.let { png -> runCatching { Png.decode(png) }.getOrNull()?.let { Image(png, it.width, it.height, false) } }
-            ?.takeIf { shipped == null || (it.width == shipped.width && it.height == shipped.height) }
         return mine ?: shipped
     }
 

@@ -196,10 +196,10 @@ which it wrote before, is still read. The base itself is on the server, in
 
 **An add-on's images.** A module that comes from an add-on ships its images, and the app may
 redraw one under the same name. When the module says what the image is for (a menu image of a
-fixed size, a glyph of a fixed height), a redraw at other measures is left out and the
-module's own shows, as for the base. The app is told so when it writes such an image, with the
-measures to draw it at, the list of a module's files names the images left out, and the menus
-it shows you are drawn with what the game shows.
+fixed size, a glyph of a fixed height), a redraw at other measures is taken as it is, as for
+the base and for a theme. The app is told so when it writes such an image, with the measures
+of the one it replaces, the list of a module's files names the images of another size, and the
+menus it shows you are drawn with what the game shows.
 
 **Composed images.** A window with its slots, or a card with its icon, does not have to be
 drawn pixel by pixel: the app can put it together from common images and the module's own ("a
@@ -236,7 +236,7 @@ assistant creates when you ask for a new theme (or you, with **New theme** in **
 common images):
 
 ```text
-assets/textures/window.6.png   # the theme's image of that name: it replaces the common one, at its size
+assets/textures/window.6.png   # the theme's image of that name: it replaces the common one, at any size
 ```
 
 The assistant writes it into a draft of the theme, which you deploy like any other draft.

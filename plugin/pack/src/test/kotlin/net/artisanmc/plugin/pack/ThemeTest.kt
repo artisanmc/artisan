@@ -65,14 +65,13 @@ class ThemeTest {
         assertEquals(setOf("back", "broken", "close"), theme.drawings)
         val base = Png.encode(solid(2, 2, 0x3c, 0x85, 0x27, 255))
         assertTrue(theme.shown("close", base) === drawn)
-        assertTrue(theme.drawing("close", base) === drawn)
-        // Another size, or unreadable: left out, the image stays the very same file.
-        assertNull(theme.drawing("back", base))
-        assertTrue(theme.shown("back", base) === base)
-        assertNull(theme.drawing("broken", base))
-        assertNull(theme.drawing("other", base))
-        val broken = byteArrayOf(1, 2, 3)
-        assertTrue(theme.shown("close", broken) === broken)
+        assertTrue(theme.drawing("close") === drawn)
+        // Another size is taken as it is; an unreadable file is left out, the image stays the very same file.
+        assertTrue(theme.drawing("back") === small)
+        assertTrue(theme.shown("back", base) === small)
+        assertNull(theme.drawing("broken"))
+        assertTrue(theme.shown("broken", base) === base)
+        assertNull(theme.drawing("other"))
     }
 
     @Test
@@ -103,10 +102,10 @@ class ThemeTest {
         assertNull(stack())
         assertNull(stack("nowhere"))
         assertTrue(stack("noel")!!.shown("x", green) === green)
-        assertNull(stack("noel")!!.drawing("x", green))
+        assertNull(stack("noel")!!.drawing("x"))
         assertTrue(stack("noel", "haut")!!.shown("close", green) === top)
-        assertTrue(stack("noel", "haut")!!.drawing("close", green) === top)
-        assertTrue(stack("haut", "noel")!!.drawing("close", green) === drawn)
+        assertTrue(stack("noel", "haut")!!.drawing("close") === top)
+        assertTrue(stack("haut", "noel")!!.drawing("close") === drawn)
         // A theme the module does not hold is left out of the stack.
         assertTrue(stack("noel", "nowhere")!!.shown("close", green) === drawn)
     }

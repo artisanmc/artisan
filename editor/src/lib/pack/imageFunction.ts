@@ -101,7 +101,7 @@ export function imagesOverOriginals(
   return out;
 }
 
-/** The files whose pixel size [refusedImages] asks for: both sides of a menu or HUD image. */
+/** The files whose pixel size [imagesAtOtherMeasures] asks for: both sides of a menu or HUD image. */
 export function measuredPaths(
   files: readonly { path: string; content: string }[],
   binaries: readonly { path: string }[],
@@ -112,12 +112,13 @@ export function measuredPaths(
 }
 
 /**
- * The owner's images that are not taken: at other measures than the original they stand over.
- * A glyph is measured by its descriptor (height and ascent). A menu or HUD image by its pixels,
- * through `sizeOf` (`null` for a file that is no image): without `sizeOf` it is taken, and so
- * is one whose original cannot be measured.
+ * The owner's images at other measures than the original they stand over. The pack takes them
+ * as they are (ADR `resources-one-screen`, decision 4): this is what the editor marks. A glyph
+ * is measured by its descriptor (height and ascent). A menu or HUD image by its pixels, through
+ * `sizeOf` (`null` for a file that is no image): without `sizeOf` it is not counted, nor is one
+ * whose original cannot be measured.
  */
-export function refusedImages(
+export function imagesAtOtherMeasures(
   files: readonly { path: string; content: string }[],
   binaries: readonly { path: string }[],
   sizeOf?: (path: string) => PixelSize | null,

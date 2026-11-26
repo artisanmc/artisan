@@ -104,6 +104,6 @@ describe("useImageMarks", () => {
     const crest = { id: "crest", type: "texture" as const };
     // Before the files are read, the descriptors speak: nothing says it is refused.
     expect(result.current(crest)).toBe("own_version");
-    await waitFor(() => expect(result.current(crest)).toBe("not_taken"));
+    await waitFor(() => expect(result.current(crest)).toBe("other_size"));
   });
 });

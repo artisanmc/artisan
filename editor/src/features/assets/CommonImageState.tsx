@@ -7,12 +7,12 @@ import { type KitMisfit, isKitBase } from "./kitAssets";
 
 /**
  * Who drew a common image, as a badge: Artisan (a piece of the base as shipped), the server
- * (a piece redrawn, or an image it added), or "Not taken" when the server holds an image of a
- * piece's name at another size (`misfit`), which menus do not show.
+ * (a piece redrawn, or an image it added), or "Other size" when the server holds an image of a
+ * piece's name at another size (`misfit`), which menus show as it is.
  */
 export function CommonImageBadge({ asset, misfit }: { asset: Asset; misfit?: KitMisfit }) {
   const { t } = useTranslation();
-  if (misfit) return <Badge variant="brick">{t("kit.page.misfit")}</Badge>;
+  if (misfit) return <Badge variant="amber">{t("kit.page.misfit")}</Badge>;
   const shipped = isKitBase(asset) && !asset.contentHash;
   return (
     <Badge variant={shipped ? "sage" : "amber"}>
@@ -27,13 +27,13 @@ export function CommonImageBadge({ asset, misfit }: { asset: Asset; misfit?: Kit
   );
 }
 
-/** The problem of a common image that is not taken: its size against the piece's. */
+/** What is said of a common image of another size than the piece it replaces. */
 export function CommonImageMisfit({ asset, misfit }: { asset: Asset; misfit?: KitMisfit }) {
   const { t } = useTranslation();
   const slot = kitSlot(kitNameOf(asset.id) ?? asset.id);
   if (!misfit || !slot) return null;
   return (
-    <p role="alert" className="text-xs text-[var(--danger)]" data-testid="common-image-misfit">
+    <p className="text-xs text-[var(--warning)]" data-testid="common-image-misfit">
       {t("kit.page.misfitDetail", {
         width: misfit.width,
         height: misfit.height,

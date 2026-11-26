@@ -53,13 +53,13 @@ class KitTest {
     }
 
     @Test
-    fun `the kit module's image wins at the base's size, the base's stays at another`() {
+    fun `the kit module's image wins at any size, the base's stays when it is unreadable`() {
         val own = png(16, 16)
         assertFalse(Kit.image("close.1x1", own)!!.shipped)
         assertTrue(Kit.image("close.1x1", own)!!.png === own)
-        val wrong = Kit.image("close.1x1", png(10, 10))!!
-        assertTrue(wrong.shipped)
-        assertEquals(16 to 16, wrong.width to wrong.height)
+        val other = Kit.image("close.1x1", png(10, 10))!!
+        assertFalse(other.shipped)
+        assertEquals(10 to 10, other.width to other.height)
         assertTrue(Kit.image("close.1x1", byteArrayOf(1, 2, 3))!!.shipped)
         assertTrue(Kit.image("close.1x1", null)!!.shipped)
     }
@@ -75,11 +75,12 @@ class KitTest {
     @Test
     fun `the base is the one the server holds, when it holds one`() {
         val held = png(20, 12)
-        // Another version of Artisan's than this builder's: its size is the one a redraw has to match.
+        // Another version of Artisan's than this builder's.
         assertTrue(Kit.image("close.1x1", null, held)!!.let { it.png === held && it.shipped })
         val own = png(20, 12)
         assertTrue(Kit.image("close.1x1", own, held)!!.let { it.png === own && !it.shipped })
-        assertTrue(Kit.image("close.1x1", png(16, 16), held)!!.png === held)
+        val sized = png(16, 16)
+        assertTrue(Kit.image("close.1x1", sized, held)!!.png === sized)
         assertTrue(Kit.image("later", null, held)!!.png === held)
         assertEquals(16, Kit.image("close.1x1", null, byteArrayOf(1))!!.width)
     }

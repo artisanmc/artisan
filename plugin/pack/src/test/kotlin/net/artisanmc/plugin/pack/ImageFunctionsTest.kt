@@ -53,26 +53,26 @@ class ImageFunctionsTest {
     }
 
     @Test
-    fun `the owner's image at other measures than its original's is not taken`() {
+    fun `the owner's image at other measures than its original's is told`() {
         assertEquals(
             listOf("assets/textures/badge.png", "assets/glyphs/gem.png"),
-            ImageFunctions.refused(files, binaries) { sizes[it] }.map { it.path },
+            ImageFunctions.otherMeasures(files, binaries) { sizes[it] }.map { it.path },
         )
-        // Without the pixels, a menu or HUD image is taken; a glyph is still measured.
-        assertEquals(listOf("assets/glyphs/gem.png"), ImageFunctions.refused(files, binaries, null).map { it.path })
-        // An owner's file that is no image is not taken; an original that is none measures nothing.
+        // Without the pixels, a menu or HUD image is not counted; a glyph is still measured.
+        assertEquals(listOf("assets/glyphs/gem.png"), ImageFunctions.otherMeasures(files, binaries, null).map { it.path })
+        // An owner's file that is no image counts; an original that is none measures nothing.
         assertEquals(
             listOf("assets/textures/panel.png", "assets/glyphs/gem.png"),
-            ImageFunctions.refused(files, binaries) { path ->
+            ImageFunctions.otherMeasures(files, binaries) { path ->
                 if (path == "assets/textures/panel.png" || path == "originals/assets/textures/badge.png") null else sizes[path]
             }.map { it.path },
         )
     }
 
     @Test
-    fun `what is not taken is told with the measures its original fixes`() {
+    fun `an image at other measures is told with the measures of its original`() {
         val pngs = binaries.associateWith { path -> (sizes[path] ?: (8 to 8)).let { (w, h) -> Png.encode(RgbaImage(w, h)) } }
-        val left = OwnerImages.notTaken(files.associate { it.path to it.content }, binaries) { pngs[it] }
+        val left = OwnerImages.otherMeasures(files.associate { it.path to it.content }, binaries) { pngs[it] }
         assertEquals(
             listOf(
                 listOf("assets/textures/badge.png", "originals/assets/textures/badge.png", "hud", "12x12"),
@@ -112,16 +112,16 @@ class ImageFunctionsTest {
     }
 
     @Test
-    fun `the pack's read shows the original, descriptor included, in place of an image not taken`() {
-        val read = DiskAssets.fromTree("p", files, binaries, originals = true) { sizes[it] }
+    fun `the pack's read takes the owner's image at other measures than its original's`() {
+        val read = DiskAssets.fromTree("p", files, binaries, originals = true)
         val at = read.associateBy { "${it.row.type}/${it.row.id}" }
         assertEquals("assets/textures/panel.png", at.getValue("texture/panel").path)
-        assertEquals("originals/assets/textures/badge.png", at.getValue("texture/badge").path)
+        assertEquals("assets/textures/badge.png", at.getValue("texture/badge").path)
         assertEquals("assets/textures/free.png", at.getValue("texture/free").path)
         assertEquals("assets/textures/mine.png", at.getValue("texture/mine").path)
         assertEquals("assets/glyphs/coin.png", at.getValue("glyph/coin").path)
-        assertEquals("originals/assets/glyphs/gem.png", at.getValue("glyph/gem").path)
-        assertEquals(7.0, at.getValue("glyph/gem").row.ascent)
+        assertEquals("assets/glyphs/gem.png", at.getValue("glyph/gem").path)
+        assertEquals(9.0, at.getValue("glyph/gem").row.ascent)
         assertEquals("assets/glyphs/star.png", at.getValue("glyph/star").path)
         assertEquals(7, read.size)
         // A read without originals leaves the owner's files.
