@@ -290,6 +290,10 @@ guilds/
   are required; a seed into the module's own folder (`TemplateCopies.ownFolderSeed`) goes the same
   way with `required = false`, and an example the owner had deleted before is added to the
   exclusions. A seed or `template_copy` into another project stays a plain copy.
+  A deploy (`project_write`, `project_draft_publish`) that creates an owner's file over an
+  original records its origin in the same commit (`SystemFiles.madeAgainst`): the original as
+  the folder holds it then, with the base of a YAML file. The sync only gives an origin to a
+  file it finds without one (written by hand).
 - Nobody else writes `originals/`: `EditorPaths.isWritable` refuses it (`isReadable` allows it),
   `DraftPublication` skips it, `DocumentCheck` and MCP `write_document` refuse it
   (`McpTools.ORIGINALS_HOWTO`). It stays in the content hash: a module update makes a Version.

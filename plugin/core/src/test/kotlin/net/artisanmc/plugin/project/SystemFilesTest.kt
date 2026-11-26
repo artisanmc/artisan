@@ -148,6 +148,44 @@ class SystemFilesTest {
     }
 
     @Test
+    fun `a file deployed over an original names the original it was made against, before any sync`() {
+        fun base(version: Int, pixels: String) =
+            TemplateDeclaration.builder("base", version).system()
+                .file("assets/textures/button.png", pixels.toByteArray())
+                .file("menus/shop_main.yaml", "title: Shop v$version\n".toByteArray())
+                .build()
+        fun deploy(changes: Map<String, ByteArray?>) = ProjectPublisher(folder).commit(
+            java.util.UUID.randomUUID().toString(), java.util.UUID.randomUUID().toString(),
+            changes + SystemFiles.madeAgainst(folder, changes),
+            com.fasterxml.jackson.databind.ObjectMapper().valueToTree(mapOf("ok" to true)),
+        )
+        fun changed(path: String) = origins()[path] != origins()["originals/$path"]
+
+        SystemFiles.sync(folder, "artisan", base(1, "v1"))
+        // Nothing to record for a file that stands over no original, nor for a delete.
+        assertEquals(emptyMap(), SystemFiles.madeAgainst(folder, mapOf("assets/textures/mine.png" to "x".toByteArray(), "menus/gone.yml" to null)))
+
+        deploy(mapOf("assets/textures/button.png" to "mine".toByteArray(), "menus/shop_main.yml" to "title: Mine\n".toByteArray()))
+        assertEquals(hash("v1"), origins().getValue("assets/textures/button.png").hash)
+        assertEquals(hash("title: Shop v1\n"), origin().hash)
+        assertTrue(File(folder, "${SystemFiles.BASES}/${hash("title: Shop v1\n")}").isFile, "the menu's base is kept for the merge")
+
+        // The module ships another original before any sync saw the owner's files: it is said.
+        SystemFiles.sync(folder, "artisan", base(2, "v2"))
+        assertEquals("mine", File(folder, "assets/textures/button.png").readText())
+        assertTrue(changed("assets/textures/button.png"), "made against v1, and the original is v2")
+
+        // A file already there keeps its origin when it is deployed again.
+        deploy(mapOf("assets/textures/button.png" to "mine again".toByteArray()))
+        assertEquals(hash("v1"), origins().getValue("assets/textures/button.png").hash)
+
+        // Restored then redrawn before a sync: the stale origin is replaced by the original of now.
+        File(folder, "assets/textures/button.png").delete()
+        deploy(mapOf("assets/textures/button.png" to "redrawn".toByteArray()))
+        assertTrue(!changed("assets/textures/button.png"))
+    }
+
+    @Test
     fun `without a kept base an edited file stays as it is`() {
         edit("title: Shop\n", "title: Mine\n")
         File(folder, SystemFiles.BASES).deleteRecursively()

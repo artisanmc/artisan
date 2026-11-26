@@ -38,6 +38,19 @@ class DraftPublicationTest {
     }
 
     @Test
+    fun `an image published over an original records the original it was made against`() {
+        val template = net.artisanmc.modules.api.template.TemplateDeclaration.builder("base", 1).system()
+            .file("logo.png", "shipped".toByteArray()).build()
+        SystemFiles.sync(root, "guilds", template)
+        val result = DraftPublication(root).publish(message("op-1"))
+        assertEquals(true, result["ok"].asBoolean())
+        // The files of the draft alone are counted.
+        assertEquals(2, result["wrote"].asInt())
+        val origins = ProjectOrigins.read(root)
+        assertEquals(origins.getValue("originals/logo.png"), origins.getValue("logo.png"))
+    }
+
+    @Test
     fun `a file the editor only reformatted keeps its bytes, even changed on disk since`() {
         val shipped = "title: { en: \"Buy\", fr: \"Acheter\" }\r\nclose: true\r\n"
         File(root, "a.yml").writeText(shipped)

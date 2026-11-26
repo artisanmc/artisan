@@ -195,6 +195,38 @@ object SystemFiles {
     }
 
     /**
+     * What a deploy of [changes] (path → bytes, null for a delete) writes beside them: the
+     * origin of each file the owner makes over an original the folder holds (ADR
+     * `common-images-and-themes`, decision 8). The origin is that original's as it is on disk
+     * now, the one the owner saw: when the module ships another before the next sync, "the
+     * original changed since your version" is said, where [sync] would have recorded the new
+     * one as what the file was made against. A YAML file's base is kept too, so that it merges.
+     * A file already there with an origin keeps it; a rename loses the link as before.
+     * Empty when there is nothing to record.
+     */
+    fun madeAgainst(projectDir: File, changes: Map<String, ByteArray?>): Map<String, ByteArray?> {
+        val origins = ProjectOrigins.read(projectDir)
+        if (origins.keys.none(Originals::isOriginal)) return emptyMap()
+        val made = linkedMapOf<String, FileOrigin>()
+        val out = linkedMapOf<String, ByteArray?>()
+        for ((path, bytes) in changes) {
+            if (bytes == null || Originals.isOriginal(path) || path.startsWith(".artisan")) continue
+            val original = originalPath(path)
+            val shipped = origins[original] ?: continue
+            // A file already there keeps the origin it has; a stale one (the file was deleted) is replaced.
+            if (origins[path] == shipped || (origins[path] != null && ProjectPathPolicy.resolve(projectDir, path).isFile)) continue
+            made[path] = shipped
+            if (YamlFiles.isYaml(path) && !base(projectDir, shipped.hash).isFile) {
+                val content = ProjectPathPolicy.resolve(projectDir, original).takeIf { it.isFile }?.readBytes()
+                if (content != null && ContentHash.hashBytes(content) == shipped.hash) out["$BASES/${shipped.hash}"] = content
+            }
+        }
+        if (made.isEmpty()) return emptyMap()
+        out[ProjectOrigins.PATH] = ProjectOrigins.serialize(origins + made)
+        return out
+    }
+
+    /**
      * The owner's file [ours] merged with [shipped] from the base [baseHash]: the bytes to write
      * (null when the merge is the owner's file as is) and the conflicts; null when it cannot be
      * merged (not YAML, no base, a document that is not a map).
