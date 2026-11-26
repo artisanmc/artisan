@@ -34,6 +34,10 @@ import java.util.logging.Logger
  * sends it to the server when its hash changed. So a publication made without an editor tab (MCP,
  * `/artisan reload`) reaches every player. [java] false skips the Java pack.
  *
+ * A build also says which image names the server's menus and kinds write that reach no image
+ * ([Status.missingImages]): logged at WARNING when they change, since nothing else at load
+ * tells a module copied by hand that it names an image the server lacks.
+ *
  * One build at a time on a thread of its own (never Jetty's), at most one waiting per server:
  * requests arriving while one runs share the next, which reads the latest state.
  */
@@ -68,6 +72,8 @@ class PackBuilder(
         val error: String?,
         val bedrockHash: String? = null,
         val javaHash: String? = null,
+        /** By module folder, the image names written that reach no image of the server (`PackResult.missingImages`). */
+        val missingImages: Map<String, List<String>> = emptyMap(),
     ) {
         val matches: Boolean? get() = if (hubHash == null || editorHash == null) null else hubHash == editorHash
     }
@@ -111,7 +117,12 @@ class PackBuilder(
             if (pack == null) return@onSuccess
             val bedrockHash = pack.bedrock?.let { applyBedrock(server, it.zip, previous?.bedrockHash) } ?: previous?.bedrockHash
             val javaHash = if (appliesJava) applyJava(server, pack.zip, previous?.javaHash) else previous?.javaHash
-            status[server] = Status(pack.sha1.takeIf { java }, previous?.editorHash, started, null, bedrockHash, javaHash)
+            status[server] = Status(pack.sha1.takeIf { java }, previous?.editorHash, started, null, bedrockHash, javaHash, pack.missingImages)
+            // Said when it changes: a server rebuilds its pack at each reload.
+            if (pack.missingImages.isNotEmpty() && pack.missingImages != previous?.missingImages) {
+                val named = pack.missingImages.entries.joinToString("; ") { (folder, names) -> "$folder: ${names.joinToString(", ")}" }
+                logger?.warning("[Artisan] Pack of $server: image names that reach no image of the server, nothing is drawn for them ($named)")
+            }
             logger?.fine { "[Artisan] Pack of $server built by the hub in ${System.currentTimeMillis() - started} ms: ${pack.sha1}" }
             if (java && previous?.editorHash == pack.sha1) logger?.fine { "[Artisan] Pack of $server: the hub's build matches the editor's" }
         }.onFailure { error ->

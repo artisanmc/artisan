@@ -138,7 +138,8 @@ deployed.
      player calls a Project a module (the overview's add-on list is `addons`).
    - **The resource pack** (2026-10-31), when the hub builds packs (`PackBuilder`): `resource_pack_status(server)` (read only,
      everyone) returns the hub's Java SHA-1, the editor's, whether they match, the applied Bedrock
-     SHA-1 (`bedrock_sha1`), when, and the build error; `resource_pack_rebuild(server, wait_seconds)`
+     SHA-1 (`bedrock_sha1`), when, the build error, and the image names written that reach no
+     image of the server (`missing_images`, by module); `resource_pack_rebuild(server, wait_seconds)`
      asks `PackBuilder.request` and waits up to 120 s (default 30) for the build, a build still
      running answering `done: false` (read `resource_pack_status` later). Rebuilding is
      destructive: deploying tools only, because a changed Bedrock pack reaches every Bedrock player

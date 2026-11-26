@@ -1,5 +1,8 @@
 package net.artisanmc.plugin.pack
 
+import java.util.TreeMap
+import java.util.TreeSet
+
 /** A Project text file (YAML descriptors, menus…). */
 data class PackFile(val path: String, val content: String)
 
@@ -37,8 +40,17 @@ class PackInput(
     val themes: List<String> = emptyList(),
 )
 
-/** The Java pack, and the Bedrock one when [PackInput.bedrockServerId] asked for it. */
-class PackResult(val zip: ByteArray, val sha1: String, val bedrock: BedrockPackResult? = null)
+/**
+ * The Java pack, and the Bedrock one when [PackInput.bedrockServerId] asked for it.
+ * [missingImages]: by module folder, the image names its menus and its kinds' files write that
+ * reach no image of the server, each once, in order. Nothing is drawn for them.
+ */
+class PackResult(
+    val zip: ByteArray,
+    val sha1: String,
+    val bedrock: BedrockPackResult? = null,
+    val missingImages: Map<String, List<String>> = emptyMap(),
+)
 
 /**
  * The server's Java resource pack, port of the editor's `packAssembly.ts` and
@@ -48,6 +60,9 @@ class PackResult(val zip: ByteArray, val sha1: String, val bedrock: BedrockPackR
 object ResourcePackBuilder {
     private const val CODEPOINT_MIN = 0xe000
     private const val CODEPOINT_MAX = 0xf7ff
+
+    /** A name the pack can look up as written (`isWrittenName`): a placeholder is filled in game, not here. */
+    private val WRITTEN_NAME = Regex("^[A-Za-z0-9_.:-]+$")
 
     private val PACK_MCMETA = mapOf(
         "pack" to mapOf(
@@ -282,6 +297,16 @@ object ResourcePackBuilder {
         }
         for ((projectId, glyphs) in themeGlyphs) contribs += projectId to glyphs
 
+        // The names written that reach no image of the server, once every image is in ([PackResult.missingImages]).
+        val images = allAssets.mapNotNullTo(HashSet()) { a -> a.id.takeIf { a.type == "glyph" || a.type == "texture" } }
+        val written = placedGlyphs.map { (folder, p) -> folder to p.assetId } + titleImages +
+            placedButtons.map { (folder, b) -> folder to b.asset } + askedOverlays.map { (folder, r) -> folder to r.asset }
+        val missing = TreeMap<String, TreeSet<String>>()
+        for ((folder, ref) in written) {
+            if (WRITTEN_NAME.matches(ref) && names.resolve(folder, ref) !in images) missing.getOrPut(folder) { TreeSet() } += ref
+        }
+        val missingImages = missing.mapValues { it.value.toList() }
+
         val finalCodepoints = mergeCodepoints(contribs)
         val sources = GuiContainer.entries.associateWith { c ->
             VanillaGui.textureSource(imagesByRef, input.containerTextures[c.key]) ?: vanillaResource("${c.textureFile}.png")
@@ -302,7 +327,7 @@ object ResourcePackBuilder {
             TextDecorations.used(texts),
             TextChars.sheets(TextChars.used(texts)),
         )
-        val serverId = input.bedrockServerId ?: return java
+        val serverId = input.bedrockServerId ?: return PackResult(java.zip, java.sha1, null, missingImages)
         // Asset names collide across Projects as the Java pack resolves them: the first Project (by id) wins.
         // By id, what a menu writes: a file's name, `kit:<name>` for a kit image.
         val pngsByName = LinkedHashMap<String, ByteArray>()
@@ -310,7 +335,7 @@ object ResourcePackBuilder {
         // Keyed by the folder name: the plugin names a menu's Project that way.
         val bedrockMenus = projects.flatMap { p -> BedrockMenus.fromProject(p.folder, p.files) { names.resolve(p.folder, it) } }
         val bedrock = BedrockPack.build(serverId, bedrockMenus, pngsByName, allAssets, sources.getValue(GuiContainer.CHEST))
-        return PackResult(java.zip, java.sha1, bedrock)
+        return PackResult(java.zip, java.sha1, bedrock, missingImages)
     }
 
     /** A composed image waiting for its layers: its row's place, its module, that module's PNGs and its [name] there. */
