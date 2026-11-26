@@ -129,7 +129,14 @@ editor's writes of a descriptor keep `slice` (upload over an image, patch, dupli
 `PATCH` of an image takes `slice` (an object, or `null` to take it off) for a menu image.
 Shared case in `testdata/resource-pack-conformance.json`.
 
-Not built: the margins as guides in the atelier, `render_menu` (it draws a sliced image by
+**Step 1, second part (2026-11-26): the margins in the atelier.** `SlicePanel`, a section of
+the atelier's right column for an image laid on slots (not a window): four fields in pixels,
+written by `patchAsset({ slice })` when a field is left, `null` when all are 0; margins that
+leave nothing to repeat are refused before any write. `ImageGuides` draws a dashed line at
+each margin, whatever guides are shown. `slice` is accepted for any image, with or without a
+function. The lines are not dragged yet.
+
+Not built: `render_menu` (it draws a sliced image by
 its fit), the base's buttons declared sliced, the rule that a redraw or a theme keeps the
 margins (the margins are the descriptor's of the image that is shown; a theme's
 `overrides/` PNG is drawn with the margins of the image it redraws).

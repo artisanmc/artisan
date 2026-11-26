@@ -234,6 +234,17 @@ export default {
     flattenHint:
       "The layers become a single drawing of the same name. It no longer follows the common images; the layers stay in the module as images.",
     failed: "That did not work: {{detail}}",
+    slice: {
+      label: "Fixed edges",
+      left: "Left",
+      right: "Right",
+      top: "Top",
+      bottom: "Bottom",
+      hint: "These pixels of each edge stay as drawn. The rest is repeated to fill the button's slots, at any width.",
+      whole: "A whole number of pixels, 0 or more.",
+      tooLarge:
+        "The margins leave nothing to repeat: left + right and top + bottom must stay below the image's size.",
+    },
     guides: {
       label: "Guides",
       slots: "Slots",

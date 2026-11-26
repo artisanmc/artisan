@@ -785,8 +785,7 @@ async function patch(
   // `slice: null` takes the margins off; margins that are not whole numbers ≥ 0 are refused.
   if (body.slice !== undefined && body.slice !== null && !sliceOf({ slice: body.slice }))
     fail(400, "Invalid slice (left, right, top, bottom: whole numbers, one above 0)");
-  if (body.slice && (row.type === "font" || nextFunction !== "menu"))
-    fail(400, "slice only valid for a menu image");
+  if (body.slice && row.type === "font") fail(400, "slice only valid for an image");
   const nextSlice =
     body.slice === undefined ? row.slice : (sliceOf({ slice: body.slice }) ?? undefined);
   const nextName = typeof body.name === "string" ? body.name : row.name;

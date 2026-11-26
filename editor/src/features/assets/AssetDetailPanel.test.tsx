@@ -1,14 +1,14 @@
 import type { Asset } from "@/domain/asset";
 import * as templatesApi from "@/lib/api/templates";
 import * as userAssetsApi from "@/lib/api/userAssets";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createImage, encodePng } from "@/lib/pack/png";
-import { AssetDetailPanel } from "./AssetDetailPanel";
 import { useKitStore } from "@/state/kitStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AssetDetailPanel } from "./AssetDetailPanel";
 import { useAssetStore } from "./assetStore";
 
 let mockCurrentUser: { id: string } | null = { id: "u1" };

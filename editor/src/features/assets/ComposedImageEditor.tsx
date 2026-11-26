@@ -599,7 +599,13 @@ export function ComposedImageEditor({
         <>
           {shown(target + 1, recipe.layers.length, zoom, true)}
           {size && (
-            <ImageGuides width={size.width} height={size.height} scale={zoom} shown={guides} />
+            <ImageGuides
+              width={size.width}
+              height={size.height}
+              scale={zoom}
+              shown={guides}
+              slice={asset.slice}
+            />
           )}
         </>
       ),
@@ -690,7 +696,13 @@ export function ComposedImageEditor({
                     />
                   ) : null;
                 })}
-                <ImageGuides width={size.width} height={size.height} scale={scale} shown={guides} />
+                <ImageGuides
+                  width={size.width}
+                  height={size.height}
+                  scale={scale}
+                  shown={guides}
+                  slice={asset.slice}
+                />
               </div>
             ) : (
               <p className="m-auto text-center text-xs text-[var(--text-mut)]">
