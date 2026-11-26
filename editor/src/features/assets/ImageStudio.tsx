@@ -15,6 +15,7 @@ import { SITUATION_SCALE, SituationPreview } from "./SituationPreview";
 import { useAssetStore } from "./assetStore";
 import { type GuideName, guideNames, imageGuides } from "./guideRules";
 import { canHaveLayers, flatten, toLayers } from "./imageLayers";
+import { useImageStanding } from "./imageStanding";
 
 /** The guides and the preview the atelier shows, kept between images and sessions. */
 export const useStudioPrefs = create<{
@@ -77,6 +78,9 @@ export function ImageStudio({
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const standing = useImageStanding(projectId, asset);
+  // The module's image as shipped: the owner holds no file of it, its layers are theirs.
+  const shipped = !!standing.original && !standing.own;
   const run = async (work: () => Promise<void>) => {
     if (busy) return;
     setBusy(true);
@@ -95,7 +99,7 @@ export function ImageStudio({
     run(async () => {
       const { assets, upsertAsset } = useAssetStore.getState();
       const taken = new Set(assets.filter((a) => a.projectId === projectId).map((a) => a.name));
-      const { layer, image } = await toLayers(projectId, asset, taken);
+      const { layer, image } = await toLayers(projectId, asset, taken, shipped);
       upsertAsset(layer);
       upsertAsset(image);
     });

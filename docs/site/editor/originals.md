@@ -42,6 +42,8 @@ An image a module ships shows in the module's **Resources** like yours. Select i
 - **As shipped**: the panel says the module ships it, and there is nothing to rename or delete.
   Open it in the atelier and save: your version is written in your module folder under the
   same name, at the same size, with the same settings, so the menus that show it need nothing.
+  **Add layers** does the same with a composed image: the module's drawing becomes your first
+  layer, and you set common images or other drawings over it.
 - **Your version**: the module's original shows beside it. **Restore the original** deletes
   your version; menus show the module's again once deployed.
 - When a module update changes an original you drew over, the image says **The original changed

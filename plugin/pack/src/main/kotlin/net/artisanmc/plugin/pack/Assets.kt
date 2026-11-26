@@ -248,7 +248,7 @@ internal object DiskAssets {
         // (path in the module's folder, real path)
         val files = if (originals) ShippedView.of(keptFiles) { it.path }.map { (f, at) -> PackFile(at, f.content) to f.path }
         else keptFiles.map { it to it.path }
-        val binaries = if (originals) ShippedView.of(keptBinaries) { it }.map { (real, at) -> at to real }
+        val everyBinary = if (originals) ShippedView.of(keptBinaries) { it }.map { (real, at) -> at to real }
         else keptBinaries.map { it to it }
         val descriptors = HashMap<String, Map<*, *>>()
         val descriptorPaths = HashMap<String, String>()
@@ -261,6 +261,14 @@ internal object DiskAssets {
                 else -> continue
             }
             descriptorPaths[stem] = real
+        }
+        // The owner's composed image takes its name from the PNG the module ships: a composed
+        // image's file is its descriptor, and the owner's file wins name for name.
+        val composedOver = descriptors.filterTo(HashMap()) { (stem, meta) ->
+            !descriptorPaths.getValue(stem).startsWith("originals/") && ComposedImages.recipe(meta) != null
+        }.keys
+        val binaries = everyBinary.filter { (path, real) ->
+            !real.startsWith("originals/") || path.replace(Regex("\\.[^.]+$"), "") !in composedOver
         }
 
         val out = ArrayList<DiskAsset>()

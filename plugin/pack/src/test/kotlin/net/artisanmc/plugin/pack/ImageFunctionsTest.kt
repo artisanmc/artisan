@@ -83,6 +83,35 @@ class ImageFunctionsTest {
     }
 
     @Test
+    fun `the owner's composed image takes its name from the PNG the module ships`() {
+        val recipe = "compose:\n  - image: window_layer\n"
+        val files = listOf(
+            PackFile("originals/assets/glyphs/window.yml", "ascent: 13\n"),
+            PackFile("assets/glyphs/window.yml", "ascent: 13\n$recipe"),
+            // A descriptor without a recipe changes what the shipped image says, and keeps its PNG.
+            PackFile("assets/glyphs/icon.yml", "ascent: 9\n"),
+            // A recipe the module ships beside its own PNG is no image: the PNG is.
+            PackFile("originals/assets/glyphs/both.yml", recipe),
+        )
+        val binaries = listOf(
+            "originals/assets/glyphs/window.png",
+            "assets/glyphs/window_layer.png",
+            "originals/assets/glyphs/icon.png",
+            "originals/assets/glyphs/both.png",
+        )
+        val read = DiskAssets.fromTree("p", files, binaries, originals = true)
+        assertEquals(
+            listOf(
+                listOf("window", "assets/glyphs/window.yml", true, 13.0),
+                listOf("window_layer", "assets/glyphs/window_layer.png", false, null),
+                listOf("both", "originals/assets/glyphs/both.png", false, null),
+                listOf("icon", "originals/assets/glyphs/icon.png", false, 9.0),
+            ),
+            read.map { listOf(it.row.id, it.path, it.recipe != null, it.row.ascent) },
+        )
+    }
+
+    @Test
     fun `the pack's read shows the original, descriptor included, in place of an image not taken`() {
         val read = DiskAssets.fromTree("p", files, binaries, originals = true) { sizes[it] }
         val at = read.associateBy { "${it.row.type}/${it.row.id}" }

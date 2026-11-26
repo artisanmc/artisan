@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { imageMarks, imageNotTaken, ownerHolds } from "./imageStanding";
+import { imageMarks, imageNotTaken, imageStanding, ownerHolds } from "./imageStanding";
 
 const h = (hash: string) => ({ hash });
 
@@ -35,6 +35,35 @@ describe("imageMarks", () => {
     // The list and the panel agree on what is not taken.
     expect(imageNotTaken(files, binaries, { id: "crest", type: "texture" })).not.toBeNull();
     expect(imageNotTaken(files, binaries, { id: "banner", type: "texture" })).toBeNull();
+  });
+
+  it("takes the owner's composed image of a shipped PNG's name as the owner's version", () => {
+    const recipe = "compose:\n  - image: window_layer\n";
+    const files = {
+      "originals/assets/glyphs/window.yml": "ascent: 13\n",
+      "assets/glyphs/window.yml": `ascent: 13\n${recipe}`,
+      // A descriptor without a recipe says something of the shipped image, which stays the one shown.
+      "assets/glyphs/icon.yml": "ascent: 9\n",
+    };
+    const binaries = {
+      "originals/assets/glyphs/window.png": h("o1"),
+      "assets/glyphs/window_layer.png": h("m1"),
+      "originals/assets/glyphs/icon.png": h("o2"),
+    };
+    expect(Object.fromEntries(imageMarks(files, binaries))).toEqual({
+      "assets/glyphs/window": "own_version",
+    });
+    const composed = { width: null, height: null, layers: [] };
+    const paths = Object.keys(files);
+    expect(
+      imageStanding(binaries, { id: "window", type: "glyph", compose: composed }, paths),
+    ).toEqual({
+      own: "assets/glyphs/window.yml",
+      original: { path: "originals/assets/glyphs/window.png", hash: "o1" },
+    });
+    expect(imageStanding(binaries, { id: "icon", type: "glyph" }, paths)).toEqual({
+      original: { path: "originals/assets/glyphs/icon.png", hash: "o2" },
+    });
   });
 
   it("says that an original changed since the owner's version, from the origins the server recorded", () => {

@@ -68,6 +68,28 @@ describe("image layers", () => {
     expect(made.image.compose).toBeDefined();
   });
 
+  it("copies an image the module ships as the layer, the owner holding no file to rename", async () => {
+    const shipped = image("go", { previewUrl: "data:image/png;base64,AQID" });
+    uploadAsset.mockResolvedValue(image("go_layer", { usages: [] }));
+    composeAsset.mockResolvedValue(image("go", { compose: recipe }));
+    const made = await toLayers("p1", shipped, new Set(["go"]), true);
+    expect(patchAsset).not.toHaveBeenCalled();
+    const sent = uploadAsset.mock.calls[0]?.[1] as { file: File };
+    expect(sent).toMatchObject({ name: "go_layer", type: "glyph", usages: [], ascent: 8 });
+    expect([...new Uint8Array(await sent.file.arrayBuffer())]).toEqual([1, 2, 3]);
+    expect(composeAsset.mock.calls[0]?.[1]).toMatchObject({
+      name: "go",
+      recipe: { layers: [{ image: "go_layer", x: 0, y: 0, columns: 1, rows: 1 }] },
+      usages: ["button"],
+    });
+    expect(made.image.compose).toBeDefined();
+
+    composeAsset.mockRejectedValue(new Error("refused"));
+    deleteAsset.mockResolvedValue(undefined);
+    await expect(toLayers("p1", shipped, new Set(), true)).rejects.toThrow("refused");
+    expect(deleteAsset).toHaveBeenCalledWith("p1", "go_layer");
+  });
+
   it("gives the PNG its name back when the recipe is refused", async () => {
     patchAsset.mockResolvedValue(image("go_layer", { usages: [] }));
     composeAsset.mockRejectedValue(new Error("refused"));

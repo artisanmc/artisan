@@ -93,7 +93,7 @@ export function diskAssetsFromTree(
   const files = options.originals
     ? shippedView(keptFiles).map(({ entry, at }) => ({ ...entry, path: at, real: entry.path }))
     : keptFiles.map((f) => ({ ...f, real: f.path }));
-  const binaries = options.originals
+  const everyBinary = options.originals
     ? shippedView(keptBinaries).map(({ entry, at }) => ({ ...entry, path: at, real: entry.path }))
     : keptBinaries.map((b) => ({ ...b, real: b.path }));
   const descriptors = new Map<string, Record<string, unknown>>();
@@ -112,6 +112,21 @@ export function diskAssetsFromTree(
       // disappear for a typo would punish the wrong thing.
     }
   }
+
+  // The owner's composed image takes its name from the PNG the module ships: a composed
+  // image's file is its descriptor, and the owner's file wins name for name.
+  const composedOver = new Set(
+    [...descriptors]
+      .filter(
+        ([stem, meta]) =>
+          !descriptorFiles.get(stem)!.real.startsWith("originals/") && composeRecipe(meta),
+      )
+      .map(([stem]) => stem),
+  );
+  const binaries = everyBinary.filter(
+    (bin) =>
+      !bin.real.startsWith("originals/") || !composedOver.has(bin.path.replace(/\.[^.]+$/, "")),
+  );
 
   const out: DiskAsset[] = [];
 

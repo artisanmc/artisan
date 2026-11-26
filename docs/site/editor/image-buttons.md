@@ -214,7 +214,9 @@ while you draw.
 drawing (kept in the module as `<image>_layer`): the menus that show it keep showing it, and
 you set common images or other drawings over it. **Flatten**, on a composed image, does the
 reverse: its layers become one PNG of the same name, which no longer follows the common images; the
-layers stay in the module as images.
+layers stay in the module as images. An image a module ships takes layers the same way: its
+drawing is copied into your files as the first layer, and the composed image is your version
+of that name. **Restore the original** on it gives the module's image back.
 
 **Draw a layer** adds an empty image of the composed image's size on top of the others, saves
 the recipe, and opens the pixel editor on it: you draw among the other layers, the ones above

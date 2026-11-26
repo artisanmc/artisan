@@ -24,17 +24,33 @@ export function layerName(asset: Asset, taken: ReadonlySet<string>): string {
 /**
  * `asset`, a PNG, becomes a composed image of the same name whose one layer is that PNG, renamed
  * (`layerName`). Returns the layer and the image. A failure puts the PNG back under its name.
+ *
+ * `shipped`: the PNG is the module's as shipped (`originals/`), and the owner holds no file to
+ * rename. Its pixels are copied as the layer, an image of the owner's, and the composed image
+ * is the owner's version of the name, over the original. A failure deletes the copy.
  */
 export async function toLayers(
   projectId: string,
   asset: Asset,
   taken: ReadonlySet<string>,
+  shipped = false,
 ): Promise<{ layer: Asset; image: Asset }> {
   const usages = assetUsages(asset);
-  const layer = await patchAsset(projectId, asset.id, {
-    name: layerName(asset, taken),
-    usages: [],
-  });
+  const ascent = asset.ascent === null ? {} : { ascent: asset.ascent };
+  const name = layerName(asset, taken);
+  let layer: Asset;
+  if (shipped) {
+    const png = await assetBytes(asset);
+    layer = await uploadAsset(projectId, {
+      file: new File([png as Uint8Array<ArrayBuffer>], `${name}.png`, { type: "image/png" }),
+      type: "glyph",
+      name,
+      usages: [],
+      ...ascent,
+    });
+  } else {
+    layer = await patchAsset(projectId, asset.id, { name, usages: [] });
+  }
   try {
     const image = await composeAsset(projectId, {
       name: asset.name,
@@ -44,11 +60,12 @@ export async function toLayers(
         layers: [{ image: layer.name, x: 0, y: 0, columns: 1, rows: 1 }],
       },
       usages,
-      ...(asset.ascent === null ? {} : { ascent: asset.ascent }),
+      ...ascent,
     });
     return { layer, image };
   } catch (cause) {
-    await patchAsset(projectId, layer.id, { name: asset.name, usages }).catch(() => {});
+    if (shipped) await deleteAsset(projectId, layer.id).catch(() => {});
+    else await patchAsset(projectId, layer.id, { name: asset.name, usages }).catch(() => {});
     throw cause;
   }
 }

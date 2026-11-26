@@ -176,7 +176,10 @@ both: both, `AssetDetailPanel` draws the module's file beside the owner's (`Orig
 its delete is "Restore the original"; the module's alone, the panel offers nothing that would
 write (the owner holds no file) but the atelier, whose save (`retouch`) writes the owner's
 version beside the original with the original's codepoint, ascent, size and uses
-(`DraftOverlay.shipped`, `localAssets.ts`). An image's `function` (`lib/pack/imageFunction.ts`:
+(`DraftOverlay.shipped`, `localAssets.ts`). Layers given to an image as shipped (`toLayers`'
+`shipped`) copy its pixels as the owner's layer and write the composed image under the shipped
+name: the owner's descriptor with a recipe takes the name from the shipped PNG
+(`diskAssetsFromTree`), and `imageStanding` reads that descriptor as the owner's file. An image's `function` (`lib/pack/imageFunction.ts`:
 `menu`, `glyph`, `hud`, or none) is a key of its descriptor, read into `Asset.function`, kept
 by every write of the descriptor (`descriptorYaml`) and set from the panel's advanced fields
 (`patchAsset`'s `function`, `""` to clear). `refusedImages` is the rule both pack builders
