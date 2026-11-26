@@ -66,9 +66,11 @@ export default {
       prefixed: "This module holds an image of this name: artisan: names the common one.",
       redraw: "Redraw for the server",
       open: "Open in the common images",
-      usedBy: "Menus that name it",
-      unused: "No menu of the server names it.",
+      usedBy: "What names it",
+      unused: "Nothing on the server names it.",
       usedIn: "{{menu}} · {{project}}",
+      byImage: "composed image {{name}}",
+      byFile: "file {{name}}",
       followHint:
         "A common image is redrawn in the server's common images: every menu that names it follows.",
     },

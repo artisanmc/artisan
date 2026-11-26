@@ -52,10 +52,12 @@ every common image as the server has it deployed; one selected shows its size, w
 (**Artisan**, **Redrawn** or **This server's**) and what a menu of the open module writes to
 name it. Nothing is copied into the module. **Redraw for the server** (a piece still Artisan's)
 or **Open in the common images** opens the image in the atelier of the common images. The
-common images are not one of the other modules of that selector. **Menus that name it** lists
-the menus of the whole server that show this image, each a link to that menu: the other
-modules' menus as deployed, the open module's as you are editing them. A menu whose module
-holds an image of the same name is not listed, since it shows its own.
+common images are not one of the other modules of that selector. **What names it** lists what
+shows this image on the whole server: the menus, each a link to that menu, the composed images
+built over it, and the files of a module that draw it on screen (a conversation's HUD, for
+example). The other modules are read as deployed, the open module's menus and composed images
+as you are editing them. A menu whose module holds an image of the same name is not listed,
+since it shows its own.
 
 **Making a module's image common.** On an image or a font of the module, **Copy to the common
 images** opens the common images with a copy of it under the same name, in their draft: deploy

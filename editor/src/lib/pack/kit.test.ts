@@ -176,6 +176,60 @@ describe("UI kit", () => {
     expect([...uses.keys()].sort()).toEqual(["artisan:gold", "artisan:panel", "shop:gold"]);
   });
 
+  test("a composed image's layers and a kind's file count as what names an image, once each", () => {
+    const common = (name: string) => name === "frame" || name === "panel";
+    const uses = imageUses(
+      [
+        {
+          id: "p_shop",
+          name: "Shop",
+          folder: "shop",
+          own: (name) => name === "gold",
+          menus: [{ id: "main", refs: ["panel"] }],
+          others: [
+            { kind: "image", name: "banner", refs: ["kit:frame", "frame", "gold"] },
+            { kind: "file", name: "conversation_modes/hud.yml", refs: ["panel", "nothing"] },
+          ],
+        },
+        {
+          // The common images' Project: a composed common image names the others by their names.
+          id: "p_kit",
+          name: "artisan",
+          folder: "artisan",
+          own: (name) => name === "frame" || name === "panel",
+          menus: [],
+          others: [{ kind: "image", name: "panel", refs: ["frame"] }],
+        },
+      ],
+      common,
+    );
+    const banner = {
+      projectId: "p_shop",
+      projectName: "Shop",
+      menuId: "",
+      by: { kind: "image", name: "banner" },
+    };
+    expect(uses.get(commonImageKey("frame"))).toEqual([
+      banner,
+      {
+        projectId: "p_kit",
+        projectName: "artisan",
+        menuId: "",
+        by: { kind: "image", name: "panel" },
+      },
+    ]);
+    expect(uses.get(moduleImageKey("shop", "gold"))).toEqual([banner]);
+    expect(uses.get(commonImageKey("panel"))).toEqual([
+      { projectId: "p_shop", projectName: "Shop", menuId: "main" },
+      {
+        projectId: "p_shop",
+        projectName: "Shop",
+        menuId: "",
+        by: { kind: "file", name: "conversation_modes/hud.yml" },
+      },
+    ]);
+  });
+
   test("a Document's image names are its asset and assetId values, at any depth", () => {
     expect(
       imageRefsIn({

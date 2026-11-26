@@ -216,7 +216,7 @@ function ServerResourcesTab() {
           onTheme={(name) => void showScope(SERVER_COMMON, name)}
           onThemes={() => void showScope(SERVER_THEMES)}
           menusNaming={menusNamingCommon(uses)}
-          usesOf={(name) => uses.get(commonImageKey(name))?.length ?? 0}
+          usesOf={(name) => uses.get(commonImageKey(name))?.filter((use) => !use.by).length ?? 0}
           onPiece={openCommon}
           onOpenKit={kitId ? () => void openModule(kitId) : undefined}
           newTheme={newTheme(SERVER_COMMON)}

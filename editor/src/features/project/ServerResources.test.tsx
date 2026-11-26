@@ -62,8 +62,8 @@ function moduleNaming(base: Project, id: string, name: string, menu: string, ref
   } as unknown as Project;
 }
 
-const read = (id: string, paths: string[]) =>
-  ({ summary: { id }, files: {}, binaries: paths.map((path) => ({ path, hash: "h" })) }) as never;
+const read = (id: string, paths: string[], files: Record<string, string> = {}) =>
+  ({ summary: { id }, files, binaries: paths.map((path) => ({ path, hash: "h" })) }) as never;
 
 function setup() {
   const base = mockOpenProjects().projects[0]!;
@@ -81,7 +81,10 @@ function setup() {
     projects: [shop, guilds, theme],
     reads: [
       read("shop", ["assets/textures/coin.png"]),
-      read("guilds", ["assets/textures/blason.png"]),
+      read("guilds", ["assets/textures/blason.png"], {
+        // A composed image of the guilds, drawn over the shop's coin.
+        "assets/textures/emblem.yml": "width: 16\nheight: 16\ncompose:\n  - { image: shop:coin }\n",
+      }),
     ],
     failed: [],
   });
@@ -117,6 +120,9 @@ describe("the server's Resources", () => {
     expect(screen.getByTestId("server-asset-provider")).toHaveTextContent("Boutique");
     const uses = within(screen.getByTestId("server-asset-uses"));
     expect(uses.getByRole("button", { name: "vitrine · Boutique" })).toBeInTheDocument();
+    // A composed image that names it counts too: said, with no menu to open.
+    expect(uses.getByText("image composée emblem · Guildes")).toBeInTheDocument();
+    expect(uses.queryByRole("button", { name: /emblem/ })).toBeNull();
     await userEvent.click(uses.getByRole("button", { name: "liste · Guildes" }));
     expect(on.onOpenMenu).toHaveBeenCalledWith("guilds", "liste");
     await userEvent.click(screen.getByRole("button", { name: "Ouvrir dans Boutique" }));
