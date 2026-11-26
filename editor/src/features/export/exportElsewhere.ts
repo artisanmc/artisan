@@ -7,6 +7,7 @@ import {
   type ElsewhereWhere,
   type Embeddable,
   type ExportNote,
+  aloneImageRefs,
   codepointsOf,
   commonCopy,
   embedNames,
@@ -53,8 +54,8 @@ export interface ElsewhereExport {
 }
 
 /**
- * Asked when the module's menus name images of other modules of the server (`<folder>:<name>`):
- * whether the archive takes them. `null` gives the export up.
+ * Asked when the module names images of other modules of the server the archive can take
+ * (`<folder>:<name>`): whether it takes them. `null` gives the export up.
  */
 export type AskEmbed = (images: string[]) => Promise<boolean | null>;
 
@@ -85,7 +86,9 @@ async function readDisk(projectId: string): Promise<Disk | null> {
  * the images it names elsewhere (ADR `common-images-and-themes`, decision 10): the note, and a
  * copy of each common image the server added that a name alone reaches. An image of another
  * module of the server its menus name is embedded on request (`ask`): copied as an image of
- * the module, the menus of the archive naming it so; an add-on's module is a dependency,
+ * the module, the menus of the archive naming it so. One a name alone reaches from a menu the
+ * module ships or a file of its kinds is embedded too, under that name, nothing rewritten; one
+ * such a file names with its module stays a dependency. An add-on's module is a dependency,
  * never embedded, and so is a theme's own image (`<theme>:<name>`), noted by theme. `null` when the module names nothing elsewhere: its archive is its folder
  * and nothing else. Rejects when the server cannot be read (the caller exports the folder
  * alone and says so), and with `ExportGivenUp` when `ask` answers `null`.
@@ -196,10 +199,15 @@ export async function exportElsewhere(
   const rewritten: Record<string, string> = {};
   const used = codepointsOf(tree);
 
-  // The images of other modules the module's own menus name: embedded on request.
-  const fromMenus = menuImageRefs(tree.files);
+  // The images of other modules the archive can answer itself, embedded on request: the ones
+  // its own menus name (rewritten when a module qualifies them), and the ones a name alone
+  // reaches from a menu it ships or a file of its kinds (copied under that name).
+  const answerable = new Set([
+    ...menuImageRefs(tree.files),
+    ...aloneImageRefs(tree.files, overlays),
+  ]);
   const embeddable = new Map<string, Embeddable>();
-  for (const ref of fromMenus) {
+  for (const ref of answerable) {
     const reach = reachOf(ref, where);
     if (reach.kind !== "module") continue;
     const holder = modules.find((m) => m.folder === reach.folder);

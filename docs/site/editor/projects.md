@@ -97,10 +97,12 @@ the server the module arrives on, the import settles each copy without asking: l
 that server has the same common image under that name, kept in the module otherwise, where
 **Copy to the common images** (in its Resources) makes it common there too.
 
-When its menus name images of another module of your server (`guilds:crest`), the export asks
-whether to take them. **Copy and export** copies each one into the archive as an image of the
-module, and the menus in the archive name it so: the module then shows the same picture on a
-server that has no such module. Your server's files do not change. **Export without** leaves
+When the module names images of another module of your server (`guilds:crest`, or a name
+alone that only another module holds), the export asks whether to take them. **Copy and
+export** copies each one into the archive as an image of the module, and the menus in the
+archive name it so: the module then shows the same picture on a server that has no such
+module. An image an add-on's file (a HUD) names with its module is not copied: it stays
+noted as needed. Your server's files do not change. **Export without** leaves
 them out and notes that they are needed. Images of a module an add-on installs are never
 copied: install the add-on on the other server.
 

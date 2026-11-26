@@ -1629,9 +1629,8 @@ export default {
     successWith_other: "Exported, with {{count}} images the module names elsewhere: {{names}}.",
     embed: {
       title: "Images of other modules",
-      description_one: "This module's menus name {{count}} image of another module of the server.",
-      description_other:
-        "This module's menus name {{count}} images of other modules of the server.",
+      description_one: "This module names {{count}} image of another module of the server.",
+      description_other: "This module names {{count}} images of other modules of the server.",
       hint: "Copied into the archive, they become images of the module, and the archive's menus name them so. Nothing changes on this server. Without them, the archive only notes that they are needed.",
       with: "Copy and export",
       without: "Export without",

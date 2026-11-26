@@ -1660,10 +1660,8 @@ const fr: typeof en = {
     successWith_other: "Exporté, avec {{count}} images que le module nomme ailleurs : {{names}}.",
     embed: {
       title: "Images d'autres modules",
-      description_one:
-        "Les menus de ce module nomment {{count}} image d'un autre module du serveur.",
-      description_other:
-        "Les menus de ce module nomment {{count}} images d'autres modules du serveur.",
+      description_one: "Ce module nomme {{count}} image d'un autre module du serveur.",
+      description_other: "Ce module nomme {{count}} images d'autres modules du serveur.",
       hint: "Copiées dans l'archive, elles deviennent des images du module, et les menus de l'archive les nomment ainsi. Rien ne change sur ce serveur. Sans elles, l'archive note seulement qu'il les faut.",
       with: "Copier et exporter",
       without: "Exporter sans",
