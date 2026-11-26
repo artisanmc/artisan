@@ -96,6 +96,23 @@ class PackBuilderTest {
     }
 
     @Test
+    fun `a build warns once of the images written that the server lacks`() {
+        val builder = PackBuilder(servers, loadedOf(case("ui kit")), logger, direct)
+        val missing = mapOf("shop" to listOf("kit:", "kit:nothing", "kit:nowhere"))
+        assertEquals(missing, builder.request("u-local").get()?.missingImages)
+        assertEquals(1, warnings.size)
+        assertTrue(warnings.single().contains("shop: kit:, kit:nothing, kit:nowhere"), warnings.single())
+        // The same names at the next reload are not said again.
+        builder.request("u-local").get()
+        assertEquals(1, warnings.size)
+
+        // A server whose names all reach an image says nothing.
+        warnings.clear()
+        assertEquals(emptyMap(), PackBuilder(servers, loaded, logger, direct).request("u-local").get()?.missingImages)
+        assertTrue(warnings.isEmpty(), warnings.toString())
+    }
+
+    @Test
     fun `requests made while one waits share its build and its result`() {
         val queue = java.util.concurrent.LinkedBlockingQueue<Runnable>()
         val held = object : AbstractExecutorService() {
@@ -149,6 +166,10 @@ class PackBuilderTest {
         assertEquals(case["sha1"].asText(), rebuilt["hub_sha1"])
         assertEquals("shadow", rebuilt["mode"])
         assertTrue(rebuilt.containsKey("bedrock_sha1"))
+        assertEquals(emptyMap<String, Any>(), rebuilt["missing_images"])
+        val lacking = McpTools(McpProjects(servers), packs = PackBuilder(servers, loadedOf(case("ui kit")), logger, direct))
+        val named = lacking.invoke(deployer, lacking.find("resource_pack_rebuild")!!, mapper.valueToTree(mapOf("server" to "u-local"))).body as Map<*, *>
+        assertEquals(mapOf("shop" to listOf("kit:", "kit:nothing", "kit:nowhere")), named["missing_images"])
         assertTrue(call(draftsOnly, "resource_pack_rebuild", "server" to "u-local").error, "deploying is the player's call")
         assertEquals("unknown_server", (call(deployer, "resource_pack_status", "server" to "nope").body as Map<*, *>)["error"])
 
@@ -204,7 +225,8 @@ class PackBuilderTest {
         assertEquals(bedrockCase["bedrock"]["sha1"].asText(), status?.bedrockHash)
         builder.editorUploaded("u-local", "0".repeat(40))
         assertNull(builder.status("u-local")?.matches)
-        assertTrue(warnings.isEmpty(), warnings.toString())
+        // The case's menus name an image the server lacks: that is said, a pack that differs is not.
+        assertEquals(listOf(true), warnings.map { "reach no image" in it }, warnings.toString())
     }
 
     /** A server recording the Java packs it receives: (hash, path, url). */

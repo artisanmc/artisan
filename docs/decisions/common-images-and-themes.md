@@ -670,6 +670,17 @@ until all are found: the ones no Project holds are said before anything is writt
 texts show in the game's font). A note written before this part has no `fonts`.
 Not in this part: copying a font into the archive.
 
+**Step 6, fifth part: the server says which images its modules name and it lacks**
+(`PackResult.missingImages`, `PackBuilder.Status.missingImages`; decision 10). The pack is
+built from what the server loaded, with every Project: once every image is in, the build
+keeps, by module, the names its menus and its kinds' files write (a title's image, an image
+button, a `pack.images` request) that reach no image of the server, read by the rule the
+pack reads a name with. A placeholder is not a name (`isWrittenName`'s rule). The hub logs
+them at WARNING when they change from one build to the next, so a reload does not repeat
+them, and `resource_pack_status` gives them (`missing_images`). This is the check at load
+for a folder copied by hand: the pack is rebuilt after each load. The zip does not change.
+Not in this part: the layers of a composed image, and a font.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -715,8 +726,9 @@ Not there yet:
   module's own names it (not from a kind's file, a composed layer or a shipped menu), and a
   composed one never is. A theme's own image is noted, and its theme is exported and
   imported apart. The note lives in the archive only: a module's folder copied by hand
-  carries no dependency, and nothing at load reports an image it names and the server lacks
-  (the editor's deploy review does, for the names its menus write: `image_missing`).
+  carries no dependency. The pack's build reports the images it names and the server lacks
+  (step 6, fifth part), as the editor's deploy review does (`image_missing`); neither
+  reports a composed image's layer or a font from the server's side.
   The copies are compared by their PNG alone (a descriptor that differs does not keep a
   copy). A font named elsewhere is noted and checked at import (step 6, fourth part), never copied. The version of Artisan in the
   note is the origin's, shown when a base image is missing, never compared.

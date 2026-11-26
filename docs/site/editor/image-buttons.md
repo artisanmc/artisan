@@ -52,7 +52,10 @@ common images hold still reaches another module's image of that name, as before.
 says so under the image, with a button that writes the name with its module (`guilds:gold`),
 and the deploy review warns about it. Both also flag a name no image answers on the server,
 which shows nothing in game. The review reads the same way the names an add-on's files write
-(a HUD's images), and says which file writes them.
+(a HUD's images), and says which file writes them. The server says it too: each time it
+rebuilds its pack, its console names, module by module, the images written that no image
+answers, once until the list changes. That is how a module's folder copied by hand from
+another server tells what it lacks.
 
 **Common images in a module's Resources.** The **Module** selector of the Resources screen has
 an entry **Common images**, beside this module, all modules and the other modules. It lists
