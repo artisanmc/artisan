@@ -164,6 +164,10 @@ describe("ImportProjectDialog", () => {
           base: ["medal.1x1"],
           common: [],
           modules: [{ folder: "guilds", images: ["crest"], absent: true }],
+          themes: [
+            { folder: "noel", images: ["garland"], absent: true },
+            { folder: "ete", images: ["sun"], absent: false },
+          ],
         },
       },
     });
@@ -182,6 +186,8 @@ describe("ImportProjectDialog", () => {
     expect(notice.textContent).toContain("medal.1x1");
     expect(notice.textContent).toContain("1.4.0");
     expect(notice.textContent).toContain("guilds");
+    expect(notice.textContent).toContain("Le thème noel n'est pas sur ce serveur");
+    expect(notice.textContent).toContain("Le thème ete n'a pas ces images propres : sun");
     expect(notice.textContent).toContain("frame");
     expect(notice.textContent).toContain("blason");
     fireEvent.click(screen.getByRole("button", { name: /appliqu|apply/i }));
@@ -201,6 +207,7 @@ describe("ImportProjectDialog", () => {
           base: [],
           common: [],
           modules: [],
+          themes: [],
         },
       },
     });

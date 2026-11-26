@@ -655,6 +655,9 @@ const fr: typeof en = {
       common: "Images communes nommées par le module et absentes de ce serveur : {{names}}.",
       moduleAbsent: "Le module {{folder}} n'est pas sur ce serveur. Images nommées : {{names}}.",
       moduleLacks: "Le module {{folder}} n'a pas ces images : {{names}}.",
+      themeAbsent:
+        "Le thème {{folder}} n'est pas sur ce serveur. Ses images nommées : {{names}}. Importez-le depuis l'écran Thèmes (Importer un thème).",
+      themeLacks: "Le thème {{folder}} n'a pas ces images propres : {{names}}.",
     },
     errors: {
       not_a_zip: "Ce fichier n'est pas un .zip lisible.",

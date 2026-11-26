@@ -93,6 +93,7 @@ describe("namedElsewhere", () => {
       common: ["frame"],
       asCommon: ["blason"],
       modules: { guilds: ["crest"] },
+      themes: {},
     });
   });
 
@@ -103,6 +104,7 @@ describe("namedElsewhere", () => {
       common: [],
       asCommon: [],
       modules: {},
+      themes: {},
     });
     expect(namedElsewhere(["banner"], where()).modules).toEqual({ guilds: ["banner"] });
   });
@@ -113,6 +115,7 @@ describe("namedElsewhere", () => {
       common: ["frame"],
       asCommon: [],
       modules: {},
+      themes: {},
     });
   });
 
@@ -121,7 +124,13 @@ describe("namedElsewhere", () => {
       ["close.1x1", "kit:close.1x1"],
       where({ common: (name) => name === "close.1x1" }),
     );
-    expect(named).toEqual({ base: ["close.1x1"], common: [], asCommon: [], modules: {} });
+    expect(named).toEqual({
+      base: ["close.1x1"],
+      common: [],
+      asCommon: [],
+      modules: {},
+      themes: {},
+    });
   });
 });
 
@@ -155,12 +164,13 @@ describe("a theme's own image", () => {
     expect(reachOf("noel:star", where())).toEqual({ kind: "none" });
   });
 
-  it("is not in the archive's note", () => {
-    expect(namedElsewhere(["noel:star", "frame"], themed)).toEqual({
+  it("is named by its theme in what the module names elsewhere", () => {
+    expect(namedElsewhere(["noel:star", "noel:logo", "frame", "star"], themed)).toEqual({
       base: [],
       common: ["frame"],
       asCommon: [],
       modules: {},
+      themes: { noel: ["logo", "star"] },
     });
   });
 
@@ -265,6 +275,29 @@ describe("the archive's note", () => {
     const text = exportNoteYaml(note);
     expect(parse(text).schema).toBe(EXPORT_NOTE_SCHEMA);
     expect(readExportNote(text)).toEqual(note);
+  });
+
+  it("says the themes' own images by theme, and nothing of themes when it names none", () => {
+    const themed: ExportNote = {
+      artisan: null,
+      base: [],
+      common: [],
+      requires: { common: [], modules: {}, themes: { noel: ["garland", "star"] } },
+    };
+    expect(emptyNote(themed)).toBe(false);
+    const text = exportNoteYaml(themed);
+    expect(parse(text)).toEqual({
+      schema: EXPORT_NOTE_SCHEMA,
+      requires: { themes: { noel: ["garland", "star"] } },
+    });
+    expect(readExportNote(text)).toEqual(themed);
+    // A note written before them, or with none, has no `themes`.
+    expect(readExportNote(exportNoteYaml(note))?.requires).not.toHaveProperty("themes");
+    expect(
+      readExportNote(
+        `schema: ${EXPORT_NOTE_SCHEMA}\nrequires:\n  themes:\n    "../x": [a]\n    noel: ["a/b", star]\n    empty: []\n`,
+      )?.requires.themes,
+    ).toEqual({ noel: ["star"] });
   });
 
   it("writes only what it has to say", () => {

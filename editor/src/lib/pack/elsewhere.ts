@@ -9,7 +9,7 @@ import { titleImagesFromMenus } from "./menuGlyphPlacements";
 /**
  * What a module names that it does not hold, and what its archive says of it (ADR
  * `common-images-and-themes`, decision 10): an image of Artisan's base, a common image the
- * server added, an image of another module. The archive of a module that names any carries a
+ * server added, an image of another module, a theme's own image. The archive of a module that names any carries a
  * note at its root (`EXPORT_NOTE`), and a copy of each common image the server added, under
  * the same name, so that a name alone reaches it on the server the module arrives on.
  */
@@ -147,6 +147,8 @@ export interface NamedElsewhere {
   asCommon: string[];
   /** Images of other modules, by folder. */
   modules: Record<string, string[]>;
+  /** Themes' own images (`<theme>:<name>`), by theme. */
+  themes: Record<string, string[]>;
 }
 
 const sorted = (names: Iterable<string>): string[] =>
@@ -161,25 +163,28 @@ export function namedElsewhere(refs: readonly string[], where: ElsewhereWhere): 
   const common = new Set<string>();
   const asCommon = new Set<string>();
   const modules = new Map<string, Set<string>>();
-  const ofModule = (folder: string, name: string) => {
-    const held = modules.get(folder) ?? new Set<string>();
+  const themes = new Map<string, Set<string>>();
+  const add = (to: Map<string, Set<string>>, folder: string, name: string) => {
+    const held = to.get(folder) ?? new Set<string>();
     held.add(name);
-    modules.set(folder, held);
+    to.set(folder, held);
   };
+  const byFolder = (from: Map<string, Set<string>>) =>
+    Object.fromEntries(sorted(from.keys()).map((folder) => [folder, sorted(from.get(folder)!)]));
   for (const ref of refs) {
     const reach = reachOf(ref, where);
     if (reach.kind === "base") base.add(reach.name);
     else if (reach.kind === "common") common.add(reach.name);
     else if (reach.kind === "asCommon") asCommon.add(reach.name);
-    else if (reach.kind === "module") ofModule(reach.folder, reach.name);
+    else if (reach.kind === "module") add(modules, reach.folder, reach.name);
+    else if (reach.kind === "theme") add(themes, reach.folder, reach.name);
   }
   return {
     base: sorted(base),
     common: sorted(common),
     asCommon: sorted(asCommon),
-    modules: Object.fromEntries(
-      sorted(modules.keys()).map((folder) => [folder, sorted(modules.get(folder)!)]),
-    ),
+    modules: byFolder(modules),
+    themes: byFolder(themes),
   };
 }
 
@@ -315,6 +320,8 @@ export interface ExportNote {
     common: string[];
     /** The images of other modules, by folder. */
     modules: Record<string, string[]>;
+    /** The themes' own images (`<theme>:<name>`), by theme; absent in a note written before them. */
+    themes?: Record<string, string[]>;
   };
 }
 
@@ -323,13 +330,15 @@ export const emptyNote = (note: ExportNote): boolean =>
   note.base.length === 0 &&
   note.common.length === 0 &&
   note.requires.common.length === 0 &&
-  Object.keys(note.requires.modules).length === 0;
+  Object.keys(note.requires.modules).length === 0 &&
+  Object.keys(note.requires.themes ?? {}).length === 0;
 
 /** The note as the archive holds it; only what it has to say is written. */
 export function exportNoteYaml(note: ExportNote): string {
   const requires = {
     ...(note.requires.common.length ? { common: note.requires.common } : {}),
     ...(Object.keys(note.requires.modules).length ? { modules: note.requires.modules } : {}),
+    ...(Object.keys(note.requires.themes ?? {}).length ? { themes: note.requires.themes } : {}),
   };
   return stringify({
     schema: EXPORT_NOTE_SCHEMA,
@@ -370,17 +379,25 @@ export function readExportNote(text: string): ExportNote | null {
     note.requires && typeof note.requires === "object" && !Array.isArray(note.requires)
       ? (note.requires as Record<string, unknown>)
       : {};
-  const modules: Record<string, string[]> = {};
-  if (requires.modules && typeof requires.modules === "object" && !Array.isArray(requires.modules))
-    for (const [folder, images] of Object.entries(requires.modules).slice(0, NOTE_MAX)) {
-      const held = names(images);
-      if (FOLDER.test(folder) && held.length) modules[folder] = held;
-    }
+  const byFolder = (value: unknown): Record<string, string[]> => {
+    const out: Record<string, string[]> = {};
+    if (value && typeof value === "object" && !Array.isArray(value))
+      for (const [folder, images] of Object.entries(value).slice(0, NOTE_MAX)) {
+        const held = names(images);
+        if (FOLDER.test(folder) && held.length) out[folder] = held;
+      }
+    return out;
+  };
+  const themes = byFolder(requires.themes);
   return {
     artisan: typeof note.artisan === "string" && note.artisan.length <= 64 ? note.artisan : null,
     base: names(note.base),
     common: names(note.common),
-    requires: { common: names(requires.common), modules },
+    requires: {
+      common: names(requires.common),
+      modules: byFolder(requires.modules),
+      ...(Object.keys(themes).length ? { themes } : {}),
+    },
   };
 }
 

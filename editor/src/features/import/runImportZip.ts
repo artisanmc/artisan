@@ -15,6 +15,7 @@ import {
   type ExportNote,
   imagePathOf,
   readExportNote,
+  themeOwnNames,
   settleCopies,
 } from "@/lib/pack/elsewhere";
 import { KIT_SLOTS, assetNamesIn, kitProjectAmong, kitShippedName } from "@/lib/pack/kit";
@@ -107,12 +108,17 @@ export interface ImportElsewhere {
   common: string[];
   /** Images of other modules the server does not have: the module is absent, or holds none of that name. */
   modules: { folder: string; images: string[]; absent: boolean }[];
+  /** Themes' own images the server does not have: the theme is absent, or holds none of that name. */
+  themes: { folder: string; images: string[]; absent: boolean }[];
 }
 
 /** Whether the server lacks something the module names: said before the import is applied. */
 export const lacksElsewhere = (elsewhere: ImportElsewhere | undefined): boolean =>
   !!elsewhere &&
-  (elsewhere.base.length > 0 || elsewhere.common.length > 0 || elsewhere.modules.length > 0);
+  (elsewhere.base.length > 0 ||
+    elsewhere.common.length > 0 ||
+    elsewhere.modules.length > 0 ||
+    elsewhere.themes.length > 0);
 
 export type PrepareImportResult =
   | { ok: true; preview: ImportPreview }
@@ -263,7 +269,7 @@ const folderOf = (summary: ProjectSummary): string => summary.externalId ?? summ
 /**
  * Settles what the archive's `note` says against the server: the copies of common images it
  * already has leave `input`, and what it lacks is listed. Reads the common images' Project,
- * and each module the note names that the server has.
+ * and each module and theme the note names that the server has.
  */
 async function settleElsewhere(
   note: ExportNote,
@@ -324,6 +330,25 @@ async function settleElsewhere(
     if (lacking.length > 0) modules.push({ folder, images: lacking, absent: false });
   }
 
+  // A theme's own image is `<theme>:<name>` where a theme of that folder holds it.
+  const themes: ImportElsewhere["themes"] = [];
+  for (const [folder, images] of Object.entries(note.requires.themes ?? {})) {
+    const summary = summaries.find((s) => folderOf(s) === folder && s.role === "theme");
+    if (!summary || summary.id === kit?.id) {
+      themes.push({ folder, images, absent: true });
+      continue;
+    }
+    const read = await readProjectFiles({ serverId: target.serverId, diskId: folder });
+    // A theme that cannot be read is not said to lack anything.
+    if (!read.ok || read.unchanged) continue;
+    const held = themeOwnNames({
+      files: Object.entries(read.files).map(([path, content]) => ({ path, content })),
+      binaries: (read.binaries ?? []).map((b) => ({ ...b, size: 0 })),
+    });
+    const lacking = images.filter((name) => !held.has(name));
+    if (lacking.length > 0) themes.push({ folder, images: lacking, absent: false });
+  }
+
   return {
     ok: true,
     elsewhere: {
@@ -333,6 +358,7 @@ async function settleElsewhere(
       base: note.base.filter((name) => !base.has(name)),
       common: note.requires.common.filter((name) => !hashes.has(name) && !base.has(name)),
       modules,
+      themes,
     },
   };
 }

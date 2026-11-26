@@ -18,6 +18,7 @@ import {
   namedElsewhere,
   reachOf,
   renameImageRefs,
+  themeOwnNames,
 } from "@/lib/pack/elsewhere";
 import {
   KIT_SLOTS,
@@ -83,7 +84,7 @@ async function readDisk(projectId: string): Promise<Disk | null> {
  * copy of each common image the server added that a name alone reaches. An image of another
  * module of the server its menus name is embedded on request (`ask`): copied as an image of
  * the module, the menus of the archive naming it so; an add-on's module is a dependency,
- * never embedded. `null` when the module names nothing elsewhere: its archive is its folder
+ * never embedded, and so is a theme's own image (`<theme>:<name>`), noted by theme. `null` when the module names nothing elsewhere: its archive is its folder
  * and nothing else. Rejects when the server cannot be read (the caller exports the folder
  * alone and says so), and with `ExportGivenUp` when `ask` answers `null`.
  */
@@ -161,12 +162,25 @@ export async function exportElsewhere(
     });
   }
 
+  // A theme is read only when a name is qualified by its folder: `<theme>:<name>` alone
+  // names its own image. One that cannot be read is left out, like a module.
+  const themes: { folder: string; own: (name: string) => boolean }[] = [];
+  for (const summary of summaries) {
+    if (summary.role !== "theme" || summary.id === kit?.id) continue;
+    if (!qualified.has(folderOf(summary))) continue;
+    const read = await readDisk(summary.id);
+    if (!read) continue;
+    const held = themeOwnNames(treeOf(read));
+    themes.push({ folder: folderOf(summary), own: (name) => held.has(name) });
+  }
+
   const where: ElsewhereWhere = {
     folder,
     own: (name) => own.has(name),
     base: (name) => base.has(name),
     common: (name) => common.has(name),
     modules,
+    themes,
   };
   const files: Record<string, string | Uint8Array> = {};
   const rewritten: Record<string, string> = {};
@@ -251,6 +265,7 @@ export async function exportElsewhere(
     requires: {
       common: [...new Set([...named.asCommon, ...uncopied])].sort(),
       modules: named.modules,
+      ...(Object.keys(named.themes).length ? { themes: named.themes } : {}),
     },
   };
   if (emptyNote(note) && embedded.length === 0) return null;

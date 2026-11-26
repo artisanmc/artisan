@@ -333,6 +333,7 @@ describe("an archive that says what the module names elsewhere", () => {
         { folder: "guilds", images: ["banner"], absent: false },
         { folder: "warps", images: ["pin"], absent: true },
       ],
+      themes: [],
     });
     // The note is about the archive, and the dropped copy goes with its descriptor.
     expect(Object.keys(preview.input.files).sort()).toEqual([
@@ -354,6 +355,54 @@ describe("an archive that says what the module names elsewhere", () => {
     expect(result.preview.elsewhere).toMatchObject({ dropped: [], kept: ["blason", "frame"] });
     expect(result.preview.input.files["artisan-export.yml"]).toBeUndefined();
     expect(mocks.readProjectFiles).not.toHaveBeenCalled();
+  });
+
+  it("lists the themes' own images the server lacks: the theme absent, or without that image", async () => {
+    mocks.readProjectZip.mockResolvedValue({});
+    mocks.normalizeProjectFiles.mockReturnValue(
+      normalized({
+        [`${P}artisan-module.yml`]: "schema: module/v1\n",
+        [`${P}artisan-export.yml`]: [
+          "schema: export/v1",
+          "requires:",
+          "  themes:",
+          "    noel: [star, garland]",
+          "    ete: [sun]",
+          "    guilds: [crest]",
+          "",
+        ].join("\n"),
+      }),
+    );
+    mocks.listServerProjects.mockResolvedValue({
+      ok: true,
+      projectIds: ["artisan", "guilds", "noel"],
+      projects: [
+        kitSummary,
+        guildsSummary,
+        { id: "proj_noel", externalId: "noel", name: "noel", role: "theme" },
+      ],
+    });
+    mocks.readProjectFiles.mockImplementation(async ({ diskId }: { diskId: string }) => ({
+      ok: true,
+      files:
+        diskId === "noel"
+          ? { "assets/textures/garland.yml": "compose:\n  layers:\n    - image: star\n" }
+          : {},
+      binaries: diskId === "noel" ? [{ path: "assets/textures/star.png", hash: "s", size: 1 }] : [],
+      failed: [],
+      hash: "h",
+    }));
+
+    const result = await prepareImportZip(file, target, "merge");
+    if (!result.ok) throw new Error("expected preview");
+    expect(result.preview.elsewhere?.themes).toEqual([
+      // A composed image of the theme is not its own image.
+      { folder: "noel", images: ["garland"], absent: false },
+      { folder: "ete", images: ["sun"], absent: true },
+      // A module of that folder is no theme: `guilds:crest` is not a theme's image here.
+      { folder: "guilds", images: ["crest"], absent: true },
+    ]);
+    expect(result.preview.elsewhere?.modules).toEqual([]);
   });
 
   it("drops a note that is not one, without settling anything", async () => {
