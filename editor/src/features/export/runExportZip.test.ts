@@ -10,7 +10,10 @@ const read = vi.fn();
 const binary = vi.fn(async (path: string) => new TextEncoder().encode(`bytes:${path}`));
 vi.mock("@/lib/projectClient", () => ({ projectClient: () => ({ read, binary }) }));
 const exportElsewhere = vi.hoisted(() => vi.fn());
-vi.mock("./exportElsewhere", () => ({ exportElsewhere }));
+vi.mock("./exportElsewhere", async (importOriginal) => ({
+  ExportGivenUp: (await importOriginal<typeof import("./exportElsewhere")>()).ExportGivenUp,
+  exportElsewhere,
+}));
 
 beforeEach(() => {
   exportElsewhere.mockReset().mockResolvedValue(null);
@@ -131,6 +134,8 @@ it("adds to a module's archive what it names elsewhere, and exports the folder a
       "assets/textures/logo.yml": "ramps: false\n",
     },
     copied: ["frame"],
+    rewritten: {},
+    embedded: [],
   });
   expect(await runExportZip(project, true)).toEqual({ ok: true, copied: ["frame"] });
   expect(files["artisan-export.yml"]).toBe("schema: export/v1\ncommon: [frame]\n");
@@ -140,4 +145,42 @@ it("adds to a module's archive what it names elsewhere, and exports the folder a
   exportElsewhere.mockRejectedValue(new Error("server_offline"));
   expect(await runExportZip(project, true)).toEqual({ ok: true, alone: true });
   expect(Object.keys(files).sort()).toEqual(["artisan-module.yml", "assets/textures/logo.yml"]);
+});
+
+it("writes the menus that name an embedded image as the archive names it, and downloads nothing once given up", async () => {
+  const project: Project = { ...mockOpenProjects().projects[0]!, diskId: "shop" };
+  read.mockResolvedValue({
+    ok: true,
+    unchanged: false,
+    files: { "menus/main.yml": "image: { asset: guilds:crest }\n" },
+    binaries: [],
+  });
+  const files: Record<string, string | Uint8Array> = {};
+  const built = vi.spyOn(zip, "buildZip").mockImplementation(async (entries) => {
+    Object.assign(files, entries);
+    return new Blob();
+  });
+  URL.createObjectURL = vi.fn(() => "blob:x");
+  URL.revokeObjectURL = vi.fn();
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  const ask = vi.fn();
+
+  exportElsewhere.mockResolvedValue({
+    files: { "assets/textures/crest.png": new Uint8Array([1]) },
+    copied: [],
+    rewritten: { "menus/main.yml": "image: { asset: crest }\n", "menus/gone.yml": "x\n" },
+    embedded: ["guilds:crest"],
+  });
+  expect(await runExportZip(project, true, ask)).toEqual({ ok: true, embedded: ["guilds:crest"] });
+  expect(exportElsewhere).toHaveBeenCalledWith(project, expect.anything(), ask);
+  expect(files).toEqual({
+    "menus/main.yml": "image: { asset: crest }\n",
+    "assets/textures/crest.png": new Uint8Array([1]),
+  });
+
+  built.mockClear();
+  const { ExportGivenUp } = await import("./exportElsewhere");
+  exportElsewhere.mockRejectedValue(new ExportGivenUp());
+  expect(await runExportZip(project, true, ask)).toEqual({ ok: false, error: "given_up" });
+  expect(built).not.toHaveBeenCalled();
 });

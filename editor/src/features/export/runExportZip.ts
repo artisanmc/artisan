@@ -7,7 +7,12 @@ import { projectClient } from "@/lib/projectClient";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { buildZip } from "./buildZip";
-import { type ElsewhereExport, exportElsewhere } from "./exportElsewhere";
+import {
+  type AskEmbed,
+  type ElsewhereExport,
+  ExportGivenUp,
+  exportElsewhere,
+} from "./exportElsewhere";
 
 /**
  * The archive is the module's root as is: its files at the top, no folder and
@@ -23,9 +28,11 @@ export function archiveName(diskId: string): string {
 export interface ExportZipResult {
   ok: boolean;
   /** Set when the export could not be produced. */
-  error?: "not_signed_in" | "server_offline" | "transport";
+  error?: "not_signed_in" | "server_offline" | "transport" | "given_up";
   /** The server's common images copied into the archive, when it has any (`exportElsewhere`). */
   copied?: string[];
+  /** The images of other modules embedded on request, as `<folder>:<name>`. */
+  embedded?: string[];
   /**
    * The module's folder was exported alone: what it names elsewhere could not be read, so its
    * archive has no note and no copy of a common image.
@@ -46,9 +53,14 @@ export interface ExportZipResult {
  * is a snapshot of what the server actually runs. Unsaved edits are not in it,
  * for the same reason they are not in the game.
  */
-export async function runExportZip(project: Project, hasUser: boolean): Promise<ExportZipResult> {
+export async function runExportZip(
+  project: Project,
+  hasUser: boolean,
+  /** Asked when the module's menus name images of other modules: whether the archive takes them. */
+  ask?: AskEmbed,
+): Promise<ExportZipResult> {
   if (!hasUser) return { ok: false, error: "not_signed_in" };
-  return exportDisk(project.id, archiveName(project.diskId ?? project.id), project);
+  return exportDisk(project.id, archiveName(project.diskId ?? project.id), project, ask);
 }
 
 /**
@@ -70,6 +82,7 @@ async function exportDisk(
   projectId: string,
   fileName: string,
   module?: Project,
+  ask?: AskEmbed,
 ): Promise<ExportZipResult> {
   try {
     const client = projectClient(projectId);
@@ -99,17 +112,22 @@ async function exportDisk(
     let elsewhere: ElsewhereExport | null = null;
     let alone = false;
     try {
-      elsewhere = await exportElsewhere(module, disk);
-    } catch {
+      elsewhere = await exportElsewhere(module, disk, ask);
+    } catch (error) {
+      if (error instanceof ExportGivenUp) return { ok: false, error: "given_up" };
       alone = true;
     }
     // A copy never replaces a file of the module: it is made only for a name the module does not hold.
     for (const [path, content] of Object.entries(elsewhere?.files ?? {}))
       if (!(path in canonical)) canonical[path] = content;
+    // The menus that named an embedded image name it as the module's own, in the archive only.
+    for (const [path, content] of Object.entries(elsewhere?.rewritten ?? {}))
+      if (path in canonical) canonical[path] = content;
     await download(canonical, fileName);
     return {
       ok: true,
       ...(elsewhere?.copied.length ? { copied: elsewhere.copied } : {}),
+      ...(elsewhere?.embedded.length ? { embedded: elsewhere.embedded } : {}),
       ...(alone ? { alone: true as const } : {}),
     };
   } catch {

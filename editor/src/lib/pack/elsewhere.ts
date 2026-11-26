@@ -39,6 +39,18 @@ export function imageRefsWritten(
   return [...refs];
 }
 
+/**
+ * The image names a module's own menus write (title layers, image buttons): the ones an
+ * archive can write otherwise (`renameImageRefs`). What the module ships (`originals/`) is
+ * not its owner's to rewrite.
+ */
+export function menuImageRefs(files: Tree["files"]): string[] {
+  const own = files.filter((f) => !f.path.startsWith("originals/"));
+  const refs = new Set<string>(titleImagesFromMenus(own));
+  for (const button of imageButtonsFromMenus(own)) refs.add(button.asset);
+  return [...refs];
+}
+
 /** Where a module's names are read: itself, the common images, the server's other modules. */
 export interface ElsewhereWhere {
   /** The module's folder: what `<folder>:<name>` names its own images with. */
@@ -51,6 +63,37 @@ export interface ElsewhereWhere {
   common: (name: string) => boolean;
   /** The server's other modules in the pack's order (by Project id), the first holding a name alone. */
   modules: readonly { folder: string; own: (name: string) => boolean }[];
+}
+
+/** The image a name written in a module reaches, and who holds it. */
+export type Reach =
+  | { kind: "own" | "none" }
+  | { kind: "base" | "common" | "asCommon"; name: string }
+  | { kind: "module"; folder: string; name: string };
+
+/**
+ * What `ref`, written in a module, reaches: the same answer as the pack's (`resolveImageRef`),
+ * with who holds the image.
+ */
+export function reachOf(ref: string, where: ElsewhereWhere): Reach {
+  const named = kitNameOf(ref);
+  if (named !== null) {
+    if (where.base(named)) return { kind: "base", name: named };
+    return where.common(named) ? { kind: "asCommon", name: named } : { kind: "none" };
+  }
+  const colon = ref.indexOf(":");
+  const name = colon < 0 ? ref : ref.slice(colon + 1);
+  if (colon >= 0 && ref.slice(0, colon) !== where.folder) {
+    const folder = ref.slice(0, colon);
+    if (where.modules.find((m) => m.folder === folder)?.own(name))
+      return { kind: "module", folder, name };
+  }
+  // A name alone, or one whose module does not hold it: the module's own, then the common one.
+  if (where.own(name)) return { kind: "own" };
+  if (where.base(name)) return { kind: "base", name };
+  if (where.common(name)) return { kind: "common", name };
+  const holder = where.modules.find((m) => m.own(name));
+  return holder ? { kind: "module", folder: holder.folder, name } : { kind: "none" };
 }
 
 export interface NamedElsewhere {
@@ -68,9 +111,8 @@ const sorted = (names: Iterable<string>): string[] =>
   [...new Set(names)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
 /**
- * What `refs`, written in a module, name outside it: the same answer as the pack's
- * (`resolveImageRef`), with who holds each image. A name that reaches no image is left out: it
- * shows nothing where the module is, and nothing more where it goes.
+ * What `refs`, written in a module, name outside it (`reachOf`). A name that reaches no image
+ * is left out: it shows nothing where the module is, and nothing more where it goes.
  */
 export function namedElsewhere(refs: readonly string[], where: ElsewhereWhere): NamedElsewhere {
   const base = new Set<string>();
@@ -83,29 +125,11 @@ export function namedElsewhere(refs: readonly string[], where: ElsewhereWhere): 
     modules.set(folder, held);
   };
   for (const ref of refs) {
-    const named = kitNameOf(ref);
-    if (named !== null) {
-      if (where.base(named)) base.add(named);
-      else if (where.common(named)) asCommon.add(named);
-      continue;
-    }
-    const colon = ref.indexOf(":");
-    const name = colon < 0 ? ref : ref.slice(colon + 1);
-    if (colon >= 0 && ref.slice(0, colon) !== where.folder) {
-      const folder = ref.slice(0, colon);
-      if (where.modules.find((m) => m.folder === folder)?.own(name)) {
-        ofModule(folder, name);
-        continue;
-      }
-    }
-    // A name alone, or one whose module does not hold it: the module's own, then the common one.
-    if (where.own(name)) continue;
-    if (where.base(name)) base.add(name);
-    else if (where.common(name)) common.add(name);
-    else {
-      const holder = where.modules.find((m) => m.own(name));
-      if (holder) ofModule(holder.folder, name);
-    }
+    const reach = reachOf(ref, where);
+    if (reach.kind === "base") base.add(reach.name);
+    else if (reach.kind === "common") common.add(reach.name);
+    else if (reach.kind === "asCommon") asCommon.add(reach.name);
+    else if (reach.kind === "module") ofModule(reach.folder, reach.name);
   }
   return {
     base: sorted(base),
@@ -117,11 +141,11 @@ export function namedElsewhere(refs: readonly string[], where: ElsewhereWhere): 
   };
 }
 
-/** A common image as the archive takes it: its PNG, read at `from` in the common images' Project. */
-export interface CommonCopy {
+/** An image as the archive takes it: its PNG, read at `from` in the Project that holds it. */
+export interface ImageCopy {
   name: string;
   from: string;
-  /** Its path in the module, the same as in the common images' folder. */
+  /** Its path in the module. */
   to: string;
   descriptor: { path: string; content: string } | null;
 }
@@ -135,17 +159,24 @@ export function codepointsOf(tree: Tree): Set<number> {
 }
 
 /**
- * The copy of the server's common image `name` for a module's archive: the PNG and its
- * descriptor as they are, a glyph with a codepoint out of `used` (the module's and the copies
- * already made, which it joins). `null` for an image that is not one PNG (a composed image,
- * which names other common images): it stays a dependency.
+ * The copy of the image `name` of `source` for a module's archive: the PNG and its descriptor
+ * as they are, a glyph with a codepoint out of `used` (the module's and the copies already
+ * made, which it joins). `shipped`: what the module ships counts (`originals/`), which is not
+ * so in the common images' folder, where it is the base. `as`: the name the copy takes.
+ * `null` for an image that is not one PNG (a composed image, which names other images): it
+ * stays a dependency.
  */
-export function commonCopy(name: string, common: Tree, used: Set<number>): CommonCopy | null {
-  const asset = diskAssetsFromTree("", common.files, common.binaries, { originals: false }).find(
-    (a) => a.row.name === name && (a.row.type === "glyph" || a.row.type === "texture"),
-  );
+export function imageCopy(
+  name: string,
+  source: Tree,
+  used: Set<number>,
+  options: { shipped?: boolean; as?: string } = {},
+): ImageCopy | null {
+  const asset = diskAssetsFromTree("", source.files, source.binaries, {
+    originals: options.shipped === true,
+  }).find((a) => a.row.name === name && (a.row.type === "glyph" || a.row.type === "texture"));
   if (!asset || asset.compose) return null;
-  const described = descriptorOf(common.files, asset.path)?.parsed ?? null;
+  const described = descriptorOf(source.files, asset.path)?.parsed ?? null;
   let parsed = described;
   if (asset.row.type === "glyph") {
     let codepoint = CODEPOINT_MIN;
@@ -154,15 +185,79 @@ export function commonCopy(name: string, common: Tree, used: Set<number>): Commo
     used.add(codepoint);
     parsed = { ...(described ?? {}), codepoint };
   }
+  const dir = asset.row.type === "glyph" ? "assets/glyphs" : "assets/textures";
+  const to = `${dir}/${options.as ?? name}.png`;
   return {
-    name,
+    name: options.as ?? name,
     from: asset.path,
-    to: asset.path,
+    to,
     descriptor:
       parsed && Object.keys(parsed).length > 0
-        ? { path: descriptorPath(asset.path), content: stringify(parsed) }
+        ? { path: descriptorPath(to), content: stringify(parsed) }
         : null,
   };
+}
+
+/** The copy of the server's common image `name` (`imageCopy`), under the same name. */
+export const commonCopy = (name: string, common: Tree, used: Set<number>): ImageCopy | null =>
+  imageCopy(name, common, used);
+
+/** An image of another module a module's own menus name: what an archive may take on request. */
+export interface Embeddable {
+  folder: string;
+  name: string;
+  /** What the menus write to name it: `<folder>:<name>`, or the name alone. */
+  refs: string[];
+}
+
+/** An image of another module, as the archive takes it. */
+export interface Embedded extends Embeddable {
+  /** The name it takes in the module. */
+  as: string;
+}
+
+/**
+ * The names the images of other modules take in the module that embeds them (`free`: no
+ * image of the module, no common image has that name). One a name alone reaches keeps its
+ * name: nothing is rewritten for it. One named `<folder>:<name>` takes its name when it is
+ * free, else `<name>_2`, `<name>_3`…, and the menus of the archive name it so.
+ */
+export function embedNames(
+  images: readonly Embeddable[],
+  free: (name: string) => boolean,
+): Embedded[] {
+  const taken = new Set<string>();
+  const out: Embedded[] = [];
+  const alone = (image: Embeddable) => image.refs.includes(image.name);
+  for (const image of [...images.filter(alone), ...images.filter((i) => !alone(i))]) {
+    let as = image.name;
+    for (let n = 2; !alone(image) && (taken.has(as) || !free(as)); n++) as = `${image.name}_${n}`;
+    if (taken.has(as)) continue;
+    taken.add(as);
+    out.push({ ...image, as });
+  }
+  return out;
+}
+
+const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * A menu's text with each image name of `renames` written as its new name, where a menu names
+ * an image (`asset:`, `asset_id:`), and nothing else touched.
+ */
+export function renameImageRefs(content: string, renames: ReadonlyMap<string, string>): string {
+  let out = content;
+  for (const [from, to] of renames) {
+    if (from === to) continue;
+    out = out.replace(
+      new RegExp(
+        `(\\basset(?:_id)?["']?\\s*:\\s*)(["']?)${escaped(from)}\\2(?=\\s*(?:[,}#\\r\\n]|$))`,
+        "g",
+      ),
+      (_match, key: string, quote: string) => `${key}${quote}${to}${quote}`,
+    );
+  }
+  return out;
 }
 
 /** The note of a module's archive. */

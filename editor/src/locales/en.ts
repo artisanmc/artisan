@@ -1596,10 +1596,17 @@ export default {
   export: {
     success: "Exported — the archive is the file tree exactly as stored on the server.",
     failed: "Export failed",
-    successCopied_one:
-      "Exported, with {{count}} common image of the server the module names: {{names}}.",
-    successCopied_other:
-      "Exported, with {{count}} common images of the server the module names: {{names}}.",
+    successWith_one: "Exported, with {{count}} image the module names elsewhere: {{names}}.",
+    successWith_other: "Exported, with {{count}} images the module names elsewhere: {{names}}.",
+    embed: {
+      title: "Images of other modules",
+      description_one: "This module's menus name {{count}} image of another module of the server.",
+      description_other:
+        "This module's menus name {{count}} images of other modules of the server.",
+      hint: "Copied into the archive, they become images of the module, and the archive's menus name them so. Nothing changes on this server. Without them, the archive only notes that they are needed.",
+      with: "Copy and export",
+      without: "Export without",
+    },
     alone:
       "Exported, the module's folder alone: what it names elsewhere (common images, other modules) could not be read.",
     needsAccount: "Sign in to export — the archive is the tree as stored on the server.",
