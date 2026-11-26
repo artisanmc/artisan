@@ -2,7 +2,7 @@ import { commandsOf, dialogsOf, menusOf, parseDocKey } from "@/domain/documents"
 import type { Project } from "@/domain/types";
 import { deriveServerGraph } from "@/features/canvas/serverGraph";
 import { type ElsewhereWhere, isWrittenName, reachOf } from "@/lib/pack/elsewhere";
-import { imageRefsIn } from "@/lib/pack/kit";
+import { imageRefsIn, kitNameOf } from "@/lib/pack/kit";
 import { namespaceOf } from "./serverIndex";
 
 export interface IssueOwner {
@@ -23,13 +23,31 @@ export type ServerIssue =
       targetId: string;
       from: { docId: string; docKind: "menu" | "command" | "dialog" };
     }
-  /** Menus of the edited project name an image no one on the server holds: it shows nothing. */
-  | { kind: "image_missing"; ref: string; menus: string[] }
   /**
-   * Menus of the edited project name by its name alone an image another module holds (ADR
-   * `common-images-and-themes`, decision 3): `<module>:<name>` says whose it is.
+   * Menus of the edited project, or files of its kinds that ask the pack for images (`files`,
+   * when some do), name an image no one on the server holds: it shows nothing.
    */
-  | { kind: "image_elsewhere"; ref: string; module: string; menus: string[] };
+  | { kind: "image_missing"; ref: string; menus: string[]; files?: string[] }
+  /**
+   * Menus or such files of the edited project name by its name alone an image another module
+   * holds (ADR `common-images-and-themes`, decision 3): `<module>:<name>` says whose it is.
+   */
+  | { kind: "image_elsewhere"; ref: string; module: string; menus: string[]; files?: string[] }
+  /**
+   * Layers of a composed image of the edited project name what no layer can take: a layer is
+   * a PNG of the module or a common image, and is left out without one.
+   */
+  | { kind: "layer_missing"; image: string; refs: string[] };
+
+/** What names images in the edited module beside its menus, as its draft holds it. */
+export interface ImageWriters {
+  /** The files of its kinds that ask the pack for images: their names are read as a menu's. */
+  files: readonly { name: string; refs: readonly string[] }[];
+  /** Its composed images, with the names their layers write. */
+  composed: readonly { name: string; refs: readonly string[] }[];
+  /** Whether the module holds a PNG of that name: what a layer takes when it names no common image. */
+  png: (name: string) => boolean;
+}
 
 export interface ServerChecks {
   /**
@@ -55,6 +73,8 @@ export function serverChecksFor(
    * Nor are they when a module could not be read: its images may answer a name.
    */
   images?: ElsewhereWhere | null,
+  /** What else names images in the edited module; absent: its menus alone are checked. */
+  writers?: ImageWriters,
 ): ServerChecks {
   switch (index.status) {
     case "ready":
@@ -62,7 +82,7 @@ export function serverChecksFor(
         status: "ready",
         issues: [
           ...checkServerIssues(edited, index.projects),
-          ...(images && index.failed.length === 0 ? checkImageIssues(edited, images) : []),
+          ...(images && index.failed.length === 0 ? checkImageIssues(edited, images, writers) : []),
         ],
         unreadable: index.failed,
       };
@@ -183,41 +203,63 @@ function brokenLinks(edited: Project, all: Project[]): ServerIssue[] {
 }
 
 /**
- * The images the menus of `edited` name that no one holds (`image_missing`), and the ones a
- * name alone finds in another module (`image_elsewhere`), by the rule the pack reads a name
- * with (`reachOf`). One issue per name, with the menus that write it.
+ * The images the menus of `edited` and the files of its kinds (`writers.files`) name that no
+ * one holds (`image_missing`), and the ones a name alone finds in another module
+ * (`image_elsewhere`), by the rule the pack reads a name with (`reachOf`). One issue per name,
+ * with the menus and the files that write it. Then the layers of its composed images that
+ * take nothing (`layer_missing`), one issue per composed image: a layer is read by another
+ * rule (`renderComposed`), a common image by its whole name or a PNG of the module.
  */
-export function checkImageIssues(edited: Project, where: ElsewhereWhere): ServerIssue[] {
-  const missing = new Map<string, Set<string>>();
-  const elsewhere = new Map<string, { module: string; menus: Set<string> }>();
-  for (const menu of menusOf(edited)) {
-    for (const ref of new Set(imageRefsIn(menu))) {
+export function checkImageIssues(
+  edited: Project,
+  where: ElsewhereWhere,
+  writers?: ImageWriters,
+): ServerIssue[] {
+  type Writers = { menus: Set<string>; files: Set<string> };
+  const none = (): Writers => ({ menus: new Set(), files: new Set() });
+  const missing = new Map<string, Writers>();
+  const elsewhere = new Map<string, Writers & { module: string }>();
+  const read = (refs: Iterable<string>, into: "menus" | "files", writer: string) => {
+    for (const ref of new Set(refs)) {
       if (!isWrittenName(ref)) continue;
       const reach = reachOf(ref, where);
       if (reach.kind === "none") {
-        missing.set(ref, (missing.get(ref) ?? new Set()).add(menu.id));
+        const held = missing.get(ref) ?? none();
+        held[into].add(writer);
+        missing.set(ref, held);
       } else if (reach.kind === "module" && !ref.includes(":")) {
-        const held = elsewhere.get(ref) ?? { module: reach.folder, menus: new Set<string>() };
-        held.menus.add(menu.id);
+        const held = elsewhere.get(ref) ?? { module: reach.folder, ...none() };
+        held[into].add(writer);
         elsewhere.set(ref, held);
       }
     }
+  };
+  for (const menu of menusOf(edited)) read(imageRefsIn(menu), "menus", menu.id);
+  for (const file of writers?.files ?? []) read(file.refs, "files", file.name);
+  const written = (held: Writers) => ({
+    menus: [...held.menus].sort(byText),
+    ...(held.files.size > 0 ? { files: [...held.files].sort(byText) } : {}),
+  });
+  const layers: ServerIssue[] = [];
+  for (const image of [...(writers?.composed ?? [])].sort((a, b) => byText(a.name, b.name))) {
+    const refs = [...new Set(image.refs)].filter((ref) => {
+      const common = kitNameOf(ref);
+      return common === null ? !writers?.png(ref) : !where.base(common) && !where.common(common);
+    });
+    if (refs.length > 0) layers.push({ kind: "layer_missing", image: image.name, refs });
   }
   return [
     ...[...missing.entries()]
       .sort(([a], [b]) => byText(a, b))
-      .map(([ref, menus]) => ({
-        kind: "image_missing" as const,
-        ref,
-        menus: [...menus].sort(byText),
-      })),
+      .map(([ref, held]) => ({ kind: "image_missing" as const, ref, ...written(held) })),
     ...[...elsewhere.entries()]
       .sort(([a], [b]) => byText(a, b))
       .map(([ref, held]) => ({
         kind: "image_elsewhere" as const,
         ref,
         module: held.module,
-        menus: [...held.menus].sort(byText),
+        ...written(held),
       })),
+    ...layers,
   ];
 }

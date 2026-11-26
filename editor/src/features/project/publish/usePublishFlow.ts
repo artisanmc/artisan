@@ -11,6 +11,7 @@
  * live in `publishReducer` (pure).
  */
 import type { ProjectId } from "@/domain/types";
+import { isKitModule } from "@/features/assets/localAssets";
 import { OPEN_DEPLOY_REVIEW } from "@/features/project/ProjectHistory";
 import { hasDraftChanges } from "@/features/project/draft";
 import { flushDraftEdits } from "@/features/project/draftFlush";
@@ -29,6 +30,7 @@ import {
   projectTree,
   saveProjectToDisk,
 } from "@/features/project/saveProjectToDisk";
+import { imageWriters } from "@/features/project/imageUses";
 import { imageHolders } from "@/features/serverIndex/imageHolders";
 import { serverChecksFor } from "@/features/serverIndex/serverChecks";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
@@ -205,14 +207,25 @@ export function usePublishFlow(
       current?.binaryBaseline ??
       useProjectBaselineStore.getState().binaryBaselines[projectId];
     const images = held && Object.keys(held);
+    // The images its menus name, against the module's own as this draft holds them.
+    const holders = imageHolders(live ?? project, {
+      files: Object.keys(changes.after),
+      binaries: images,
+    });
+    // Its kinds' files and its composed images' layers, as the draft holds them too.
+    const written = holders && held ? imageWriters(changes.after, held) : undefined;
+    // In the common images' Project, the draft's own images are the common ones this deployment gives.
+    const inCommon = holders && written && isKitModule(projectId);
     dispatch({
       type: "reviewOpened",
       // Checks against the other projects' published state, read at review time.
       checks: serverChecksFor(
         live ?? project,
         useServerIndexStore.getState(),
-        // The images its menus name, against the module's own as this draft holds them.
-        imageHolders(live ?? project, { files: Object.keys(changes.after), binaries: images }),
+        inCommon
+          ? { ...holders, common: (name) => holders.common(name) || written.png(name) }
+          : holders,
+        inCommon ? { ...written, png: (name) => written.png(name) || holders.base(name) } : written,
       ),
       changes,
     });

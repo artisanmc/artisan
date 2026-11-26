@@ -1,7 +1,9 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { OPEN_DEPLOY_REVIEW } from "@/features/project/ProjectHistory";
 import { saveProjectToDisk } from "@/features/project/saveProjectToDisk";
+import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useAuthStore } from "@/state/authStore";
+import { useKitStore } from "@/state/kitStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -94,6 +96,45 @@ describe("usePublishFlow", () => {
     expect(result.current.state.lastError).toContain("Rien n’a été déployé");
     expect(result.current.state.lastError).toContain("menus/vip.yml: unknown property 'tittle'");
     expect(result.current.state.lastError).toContain("commands/shop.yml: required property 'name'");
+  });
+
+  it("reviews the layers of the draft's composed images against its PNGs and the common images", () => {
+    useServerIndexStore.setState({ status: "ready", projects: [], failed: [], reads: [] } as never);
+    useKitStore.setState({
+      read: { projectId: "kit", files: {}, binaries: [], byName: true },
+    } as never);
+    useProjectsStore.setState({
+      openProjects: {
+        projects: [
+          {
+            ...project(),
+            moduleData: {
+              assets: {
+                __files: {
+                  "textures/window.yml":
+                    "width: 32\nheight: 16\ncompose:\n  - { image: frame }\n  - { image: gone }\n  - { use: kit:ghost }\n",
+                },
+              },
+            },
+          },
+        ],
+        projectOrder: [ID],
+      },
+    } as never);
+    useProjectDraftStore.getState().save(ID, {
+      baseline: {},
+      initialTree: {},
+      tree: { "artisan-module.yml": "changed" },
+      binaryTree: { "assets/textures/frame.png": { hash: "f", size: 1 } },
+      at: 0,
+    } as never);
+    const { result } = renderHook(() => usePublishFlow(ID, false));
+    act(() => result.current.openReview());
+    expect(result.current.state.review?.checks?.issues).toEqual([
+      { kind: "layer_missing", image: "window", refs: ["gone", "kit:ghost"] },
+    ]);
+    useKitStore.setState({ read: undefined } as never);
+    useServerIndexStore.setState({ status: "idle", projects: [], failed: [], reads: [] } as never);
   });
 
   it("opens no review while the server is offline", () => {

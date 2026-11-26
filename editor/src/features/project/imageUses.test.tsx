@@ -3,7 +3,7 @@ import { commonImageKey, moduleImageKey } from "@/lib/pack/kit";
 import { mockOpenProjects } from "@/mock/fixtures";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import { imageUseName, menusNamingCommon, useImageUses } from "./imageUses";
+import { imageUseName, imageWriters, menusNamingCommon, useImageUses } from "./imageUses";
 
 // A module's kind that asks the pack for the images its files name.
 vi.mock("@artisan/editor-sdk", async (importOriginal) => ({
@@ -123,4 +123,22 @@ it("says what names an image", () => {
   expect(imageUseName({ ...use, menuId: "", by: { kind: "file", name: "a/b.yml" } }, t)).toBe(
     "resources.common.byFile:a/b.yml",
   );
+});
+
+it("reads from a module's tree what names images beside its menus, and the PNGs a layer may take", () => {
+  const written = imageWriters(
+    {
+      "conversation_modes/hud.yml": "box: frame\n",
+      "assets/textures/banner.yml":
+        "width: 32\nheight: 16\ncompose:\n  - { use: kit:frame }\n  - { image: gold }\n",
+    },
+    {
+      "assets/textures/gold.png": { hash: "g" },
+      "originals/assets/glyphs/coin.png": { hash: "c" },
+    },
+  );
+  expect(written.files).toEqual([{ name: "conversation_modes/hud.yml", refs: ["frame"] }]);
+  expect(written.composed).toEqual([{ name: "banner", refs: ["kit:frame", "gold"] }]);
+  // Its own PNG and the one it ships; a composed image is no layer of another.
+  expect(["gold", "coin", "banner", "frame"].map(written.png)).toEqual([true, true, false, false]);
 });

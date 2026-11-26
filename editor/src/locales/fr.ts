@@ -2501,14 +2501,15 @@ const fr: typeof en = {
       brokenMissing: "{{kind}} {{from}} : lien vers {{target}} introuvable sur le serveur.",
       brokenAmbiguous:
         "{{kind}} {{from}} : lien vers {{target}} ambigu, plusieurs modules le définissent.",
-      imageMissing_one:
-        "Le menu {{menus}} nomme l'image {{ref}} : ni ce module, ni les images communes, ni un autre module déployé ne l'a. Elle ne s'affichera pas.",
-      imageMissing_other:
-        "Les menus {{menus}} nomment l'image {{ref}} : ni ce module, ni les images communes, ni un autre module déployé ne l'a. Elle ne s'affichera pas.",
-      imageElsewhere_one:
-        "Le menu {{menus}} nomme {{ref}} par son nom seul : c'est une image du module {{module}}. Écris {{module}}:{{ref}} pour le dire.",
-      imageElsewhere_other:
-        "Les menus {{menus}} nomment {{ref}} par son nom seul : c'est une image du module {{module}}. Écris {{module}}:{{ref}} pour le dire.",
+      imageMissing:
+        "L'image {{ref}} est nommée par {{writers}} : ni ce module, ni les images communes, ni un autre module déployé ne l'a. Elle ne s'affichera pas.",
+      imageElsewhere:
+        "{{ref}} est nommée par son nom seul par {{writers}} : c'est une image du module {{module}}. Écris {{module}}:{{ref}} pour le dire.",
+      layerMissing_one:
+        "L'image composée {{image}} a un calque qui nomme {{refs}} : un calque prend un PNG de ce module ou une image commune (artisan:nom), et aucun des deux ne l'a. Le calque est laissé de côté.",
+      layerMissing_other:
+        "L'image composée {{image}} a des calques qui nomment {{refs}} : un calque prend un PNG de ce module ou une image commune (artisan:nom), et aucun des deux ne les a. Ces calques sont laissés de côté.",
+      by: { menu: "le menu {{name}}", file: "le fichier {{name}}" },
       kind: { menu: "Menu", command: "Commande", dialog: "Dialogue" },
     },
   },

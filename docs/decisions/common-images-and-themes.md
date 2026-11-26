@@ -246,6 +246,19 @@ builders; `ImageRefs.kt` did not change).
 - A menu names a common image by the rule it is read with (`commonNameOf`): `artisan:<name>`
   and `kit:<name>` always, a name alone when its module holds no image of that name.
 
+**Step 2, seventh part: the deploy review reads every name the module writes**
+(`checkImageIssues` and `ImageWriters` in `serverChecks.ts`, `imageWriters` in `imageUses.ts`).
+
+- The review read the menus alone. It also reads the files of the module's kinds that ask the
+  pack for images (a HUD of an add-on), by the menus' rule: a name no one holds, and a name
+  alone that reaches another module's image, are said with the files that write them.
+- A composed image's layer is read by another rule (`renderComposed`): a common image by its
+  whole name (`artisan:<name>`, `kit:<name>`), else a PNG of the module, never another
+  module's image nor another composed image. A layer that takes nothing is left out of the
+  picture without a word; the review now says so, one line per composed image.
+- Both are read as the draft holds them. In the common images' Project, an image the draft
+  adds counts as common: it is one once deployed.
+
 **Decision 12, first part: the server's Resources** (`ServerResources.tsx`, `imageUses.ts`,
 `servers.$serverId.resources.tsx`).
 
@@ -597,9 +610,9 @@ Not there yet:
   reaches **another module's** image of that name (no rewrite to `module:name` at load). The
   editor says so where the name is written (`ImageReachNote`: the button editor and a title
   layer's form, with a button that writes `<module>:<name>`) and in the deploy review
-  (`checkImageIssues`: a warning per name, with the menus that write it), both read against
-  the other modules and the common images as published; a name written in a kind's file or a
-  composed image's layer is not checked. The editor draws another module's image from its
+  (`checkImageIssues`: a warning per name, with the menus and the kinds' files that write
+  it, and the layers of a composed image that take nothing), both read against
+  the other modules and the common images as published. The editor draws another module's image from its
   published file: not a composed one, and not as a theme redraws it. Its picker copies
   another module's image into the open module; it does not name it where it is. `<module>:<name>` for an image that
   module does not hold falls on the bare name, then on the common image, instead of the

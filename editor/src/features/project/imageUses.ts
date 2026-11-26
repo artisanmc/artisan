@@ -58,6 +58,41 @@ function composedNaming(held: Held): Others {
   );
 }
 
+/**
+ * What names images in a module beside its menus, from its tree (the deploy review's
+ * `ImageWriters`): the files of its kinds that ask the pack for images, its composed images
+ * with their layers' names, and the PNGs a layer may take (the module's own and the ones it
+ * ships, a composed image never).
+ */
+export function imageWriters(
+  files: Record<string, string>,
+  binaries: Record<string, { hash: string }>,
+): {
+  files: { name: string; refs: string[] }[];
+  composed: { name: string; refs: string[] }[];
+  png: (name: string) => boolean;
+} {
+  const held: Held = {
+    files,
+    binaries: Object.entries(binaries).map(([path, { hash }]) => ({ path, hash })),
+  };
+  const list = Object.entries(files).map(([path, content]) => ({ path, content }));
+  const pngs = new Set<string>();
+  for (const asset of diskAssetsFromTree(
+    "",
+    list,
+    held.binaries.map((b) => ({ ...b, size: 0 })),
+    { originals: true },
+  ))
+    if (!asset.compose && (asset.row.type === "glyph" || asset.row.type === "texture"))
+      pngs.add(asset.row.name);
+  return {
+    files: filesNaming(held).map(({ name, refs }) => ({ name, refs })),
+    composed: composedNaming(held).map(({ name, refs }) => ({ name, refs })),
+    png: (name) => pngs.has(name),
+  };
+}
+
 /** The folder that qualifies a module's images from another module (`<folder>:<name>`). */
 export const imageFolderOf = (project: { id: string; diskId?: string }): string =>
   projectNamespace({ id: project.id, diskId: project.diskId });

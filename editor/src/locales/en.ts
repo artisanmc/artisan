@@ -2453,14 +2453,15 @@ export default {
       brokenMissing: "{{kind}} {{from}}: link to {{target}} not found on the server.",
       brokenAmbiguous:
         "{{kind}} {{from}}: link to {{target}} is ambiguous, several modules define it.",
-      imageMissing_one:
-        "Menu {{menus}} names the image {{ref}}: neither this module, nor the common images, nor another deployed module holds it. It will show nothing.",
-      imageMissing_other:
-        "Menus {{menus}} name the image {{ref}}: neither this module, nor the common images, nor another deployed module holds it. It will show nothing.",
-      imageElsewhere_one:
-        "Menu {{menus}} names {{ref}} by its name alone: it is an image of the module {{module}}. Write {{module}}:{{ref}} to say so.",
-      imageElsewhere_other:
-        "Menus {{menus}} name {{ref}} by its name alone: it is an image of the module {{module}}. Write {{module}}:{{ref}} to say so.",
+      imageMissing:
+        "The image {{ref}} is named by {{writers}}: neither this module, nor the common images, nor another deployed module holds it. It will show nothing.",
+      imageElsewhere:
+        "{{ref}} is named by its name alone by {{writers}}: it is an image of the module {{module}}. Write {{module}}:{{ref}} to say so.",
+      layerMissing_one:
+        "The composed image {{image}} has a layer that names {{refs}}: a layer takes a PNG of this module or a common image (artisan:name), and neither holds it. The layer is left out.",
+      layerMissing_other:
+        "The composed image {{image}} has layers that name {{refs}}: a layer takes a PNG of this module or a common image (artisan:name), and neither holds them. These layers are left out.",
+      by: { menu: "the menu {{name}}", file: "the file {{name}}" },
       kind: { menu: "Menu", command: "Command", dialog: "Dialog" },
     },
   },
