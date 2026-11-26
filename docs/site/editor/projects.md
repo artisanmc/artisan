@@ -95,11 +95,19 @@ the common images your server added: each one a menu reaches by its name alone i
 the archive under that name, and the archive notes it (`artisan-export.yml`, at its root). On
 the server the module arrives on, the import settles each copy without asking: left out when
 that server has the same common image under that name, kept in the module otherwise, where
-**Copy to the common images** (in its Resources) makes it common there too. Base images and
-images of another module are not copied: the import tells you, before it writes anything,
-which ones the server lacks (a base image means Artisan is older there; a module means it is
-not installed, or has no image of that name). You can still import: those images show nothing
-until the server has them.
+**Copy to the common images** (in its Resources) makes it common there too.
+
+When its menus name images of another module of your server (`guilds:crest`), the export asks
+whether to take them. **Copy and export** copies each one into the archive as an image of the
+module, and the menus in the archive name it so: the module then shows the same picture on a
+server that has no such module. Your server's files do not change. **Export without** leaves
+them out and notes that they are needed. Images of a module an add-on installs are never
+copied: install the add-on on the other server.
+
+Base images, and the images of other modules left out, are not in the archive: the import
+tells you, before it writes anything, which ones the server lacks (a base image means Artisan
+is older there; a module means it is not installed, or has no image of that name). You can
+still import: those images show nothing until the server has them.
 
 ## Content that comes from a module
 

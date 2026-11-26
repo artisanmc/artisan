@@ -4,13 +4,20 @@ import { type ProjectSummary, listServers } from "@/lib/api/servers";
 import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import {
   EXPORT_NOTE,
+  type ElsewhereWhere,
+  type Embeddable,
   type ExportNote,
   codepointsOf,
   commonCopy,
+  embedNames,
   emptyNote,
   exportNoteYaml,
+  imageCopy,
   imageRefsWritten,
+  menuImageRefs,
   namedElsewhere,
+  reachOf,
+  renameImageRefs,
 } from "@/lib/pack/elsewhere";
 import {
   KIT_SLOTS,
@@ -19,6 +26,7 @@ import {
   kitProjectAmong,
   kitShippedName,
 } from "@/lib/pack/kit";
+import { menuPaths } from "@/lib/pack/menuPaths";
 import { overlayImagesFromFiles } from "@/lib/pack/overlayImages";
 import { filesWithOriginals } from "@/lib/pack/shippedView";
 import { projectClient } from "@/lib/projectClient";
@@ -35,6 +43,23 @@ export interface ElsewhereExport {
   files: Record<string, string | Uint8Array>;
   /** The server's common images copied into the archive. */
   copied: string[];
+  /** The module's menus as the archive writes them: the images embedded named as the module's own. */
+  rewritten: Record<string, string>;
+  /** The images of other modules embedded, as `<folder>:<name>`. */
+  embedded: string[];
+}
+
+/**
+ * Asked when the module's menus name images of other modules of the server (`<folder>:<name>`):
+ * whether the archive takes them. `null` gives the export up.
+ */
+export type AskEmbed = (images: string[]) => Promise<boolean | null>;
+
+/** The export was given up where it asked. */
+export class ExportGivenUp extends Error {
+  constructor() {
+    super("given_up");
+  }
 }
 
 const folderOf = (summary: ProjectSummary): string => summary.externalId ?? summary.id;
@@ -55,13 +80,17 @@ async function readDisk(projectId: string): Promise<Disk | null> {
 /**
  * What the archive of the module `project` (`disk`: its files as its server holds them) says of
  * the images it names elsewhere (ADR `common-images-and-themes`, decision 10): the note, and a
- * copy of each common image the server added that a name alone reaches. `null` when it names
- * none: its archive is its folder and nothing else. Rejects when the server cannot be read:
- * the caller exports the folder alone and says so.
+ * copy of each common image the server added that a name alone reaches. An image of another
+ * module of the server its menus name is embedded on request (`ask`): copied as an image of
+ * the module, the menus of the archive naming it so; an add-on's module is a dependency,
+ * never embedded. `null` when the module names nothing elsewhere: its archive is its folder
+ * and nothing else. Rejects when the server cannot be read (the caller exports the folder
+ * alone and says so), and with `ExportGivenUp` when `ask` answers `null`.
  */
 export async function exportElsewhere(
   project: Project,
   disk: Disk,
+  ask?: AskEmbed,
 ): Promise<ElsewhereExport | null> {
   const folder = project.diskId ?? project.id;
   const tree = treeOf(disk);
@@ -110,27 +139,100 @@ export async function exportElsewhere(
       .filter((ref) => ref.includes(":") && kitNameOf(ref) === null)
       .map((ref) => ref.slice(0, ref.indexOf(":"))),
   );
-  const modules: { folder: string; own: (name: string) => boolean }[] = [];
+  const modules: {
+    folder: string;
+    id: string;
+    disk: Disk;
+    /** An add-on's module: a dependency, installed with its add-on. */
+    addon: boolean;
+    own: (name: string) => boolean;
+  }[] = [];
   for (const summary of others) {
     if (!anyone && !qualified.has(folderOf(summary))) continue;
     const read = await readDisk(summary.id);
     if (!read) continue;
     const held = new Set(assetNamesIn(pathsOf(read)));
-    modules.push({ folder: folderOf(summary), own: (name) => held.has(name) });
+    modules.push({
+      folder: folderOf(summary),
+      id: summary.id,
+      disk: read,
+      addon: !!summary.ownerModule,
+      own: (name) => held.has(name),
+    });
   }
 
-  const named = namedElsewhere(refs, {
+  const where: ElsewhereWhere = {
     folder,
     own: (name) => own.has(name),
     base: (name) => base.has(name),
     common: (name) => common.has(name),
     modules,
+  };
+  const files: Record<string, string | Uint8Array> = {};
+  const rewritten: Record<string, string> = {};
+  const used = codepointsOf(tree);
+
+  // The images of other modules the module's own menus name: embedded on request.
+  const fromMenus = menuImageRefs(tree.files);
+  const embeddable = new Map<string, Embeddable>();
+  for (const ref of fromMenus) {
+    const reach = reachOf(ref, where);
+    if (reach.kind !== "module") continue;
+    const holder = modules.find((m) => m.folder === reach.folder);
+    if (!holder || holder.addon) continue;
+    const key = `${reach.folder}:${reach.name}`;
+    const image = embeddable.get(key) ?? { folder: reach.folder, name: reach.name, refs: [] };
+    image.refs.push(ref);
+    embeddable.set(key, image);
+  }
+  const embedded: string[] = [];
+  const renamed = new Map<string, string>();
+  if (ask && embeddable.size > 0) {
+    const answer = await ask([...embeddable.keys()].sort());
+    if (answer === null) throw new ExportGivenUp();
+    if (answer) {
+      const free = (name: string) => !own.has(name) && !base.has(name) && !common.has(name);
+      for (const image of embedNames([...embeddable.values()], free)) {
+        const holder = modules.find((m) => m.folder === image.folder)!;
+        const copy = imageCopy(image.name, treeOf(holder.disk), used, {
+          shipped: true,
+          as: image.as,
+        });
+        // Not one PNG (a composed image): it stays a dependency.
+        if (!copy) continue;
+        files[copy.to] = await projectClient(holder.id).binary(copy.from);
+        if (copy.descriptor) files[copy.descriptor.path] = copy.descriptor.content;
+        embedded.push(`${image.folder}:${image.name}`);
+        for (const ref of image.refs) renamed.set(ref, image.as);
+      }
+      // The module's own menus alone: the names were read there, and nowhere else are they rewritten.
+      const menus = menuPaths(tree.files);
+      for (const file of tree.files) {
+        if (file.path.startsWith("originals/") || !menus.has(file.path)) continue;
+        const text = renameImageRefs(file.content, renamed);
+        if (text !== file.content) rewritten[file.path] = text;
+      }
+    }
+  }
+
+  // What is left to name elsewhere: every name but the menus' ones the archive now answers itself.
+  const elsewhere = imageRefsWritten(
+    {
+      files: tree.files.map((f) =>
+        f.path in rewritten ? { ...f, content: rewritten[f.path]! } : f,
+      ),
+      binaries: tree.binaries,
+    },
+    overlays,
+  );
+  const embeddedAs = new Set(renamed.values());
+  const named = namedElsewhere(elsewhere, {
+    ...where,
+    own: (name) => own.has(name) || embeddedAs.has(name),
   });
 
-  const files: Record<string, string | Uint8Array> = {};
   const copied: string[] = [];
   const uncopied: string[] = [];
-  const used = codepointsOf(tree);
   for (const name of named.common) {
     const copy = kit && kitDisk ? commonCopy(name, treeOf(kitDisk), used) : null;
     if (!kit || !copy) {
@@ -151,9 +253,9 @@ export async function exportElsewhere(
       modules: named.modules,
     },
   };
-  if (emptyNote(note)) return null;
-  files[EXPORT_NOTE] = exportNoteYaml(note);
-  return { files, copied };
+  if (emptyNote(note) && embedded.length === 0) return null;
+  if (!emptyNote(note)) files[EXPORT_NOTE] = exportNoteYaml(note);
+  return { files, copied, rewritten, embedded };
 }
 
 /** The version of Artisan the server runs, when the hub knows it. */

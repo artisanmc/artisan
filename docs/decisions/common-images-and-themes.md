@@ -504,6 +504,19 @@ server or in the protocol.
 Not in this part: embedding another module's images on request (they are noted, never
 copied), a declared dependency the server checks at load, fonts, and the MCP tools.
 
+**Step 6, second part: another module's images are embedded on request** (`reachOf`,
+`imageCopy`, `embedNames`, `renameImageRefs` in `elsewhere.ts`; `EmbedImagesDialog.tsx`;
+decision 10). When the module's own menus name images of another module of the server, the
+export asks. On yes each image is copied into the archive as an image of the module, under
+its name when a name alone reached it or when that name is free there, else `<name>_2`…, and
+the menus of the archive that wrote `<folder>:<name>` write the new name. Only the archive is
+rewritten, never the server's files: here a rewrite is what makes the module's own image
+answer, where a common image's copy needs none. An add-on's module is a dependency: its
+images are noted, never offered. What is embedded leaves the note.
+Not in this part: an image named by a kind's file, a composed image's layer or a menu the
+module ships is not rewritten, so it stays a dependency even when the menus' one is embedded;
+a composed image of another module is not copied.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -537,9 +550,10 @@ Not there yet:
   in between is not flagged. A menu keeps what module originals already gave it (compare with
   the original, back to the original, a merge at each update): it has no "the original
   changed" notice of its own.
-- Against decision 10: an image of another module of the server is noted in the archive and
-  never embedded, on request or not; an add-on's module and a theme are not told apart from
-  another module there. The note lives in the archive only: a module's folder copied by hand
+- Against decision 10: an image of another module is embedded only where a menu of the
+  module's own names it (not from a kind's file, a composed layer or a shipped menu), and a
+  composed one never is. A theme's own images are not in the pack, so none is a dependency
+  yet. The note lives in the archive only: a module's folder copied by hand
   carries no dependency, and nothing at load reports an image it names and the server lacks.
   The copies are compared by their PNG alone (a descriptor that differs does not keep a
   copy). A font named elsewhere is neither copied nor noted. The version of Artisan in the

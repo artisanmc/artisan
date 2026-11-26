@@ -3,7 +3,7 @@ import { readExportNote } from "@/lib/pack/elsewhere";
 import { mockOpenProjects } from "@/mock/fixtures";
 import { beforeEach, expect, it, vi } from "vitest";
 import { parse } from "yaml";
-import { exportElsewhere } from "./exportElsewhere";
+import { ExportGivenUp, exportElsewhere } from "./exportElsewhere";
 
 const mocks = vi.hoisted(() => ({
   read: vi.fn(),
@@ -139,4 +139,78 @@ it("rejects when the server cannot be read, and says nothing for a name that rea
   expect(await exportElsewhere(project, disk(["nothing"]))).toBeNull();
   mocks.listServerProjects.mockResolvedValue({ ok: false, error: "server_offline" });
   await expect(exportElsewhere(project, disk(["frame"]))).rejects.toThrow("server_offline");
+});
+
+it("embeds the images of other modules on request, named as the module's own in the archive's menus", async () => {
+  trees.proj_warps = {
+    files: { "assets/glyphs/pin.yml": "ascent: 7\ncodepoint: 57344\n" },
+    binaries: [
+      { path: "assets/glyphs/pin.png", hash: "p", size: 1 },
+      // The module holds an image named `coin`, as the one exported does.
+      { path: "assets/textures/coin.png", hash: "k", size: 1 },
+    ],
+  };
+  mocks.listServerProjects.mockResolvedValue({
+    ok: true,
+    projectIds: ["artisan", "daily", "guilds", "shop", "warps"],
+    projects: [
+      { id: "proj_kit", externalId: "artisan", name: "artisan", role: "theme" },
+      // An add-on's module: installed with its add-on, never embedded.
+      { id: "proj_guilds", externalId: "guilds", name: "guilds", ownerModule: "guilds" },
+      { id: "proj_shop", externalId: "shop", name: "shop" },
+      { id: "proj_warps", externalId: "warps", name: "warps" },
+    ],
+  });
+  const module = disk(["coin", "guilds:crest", "warps:pin", "warps:coin", "pin"]);
+  const ask = vi.fn(async () => true);
+
+  const out = await exportElsewhere(project, module, ask);
+  expect(ask).toHaveBeenCalledWith(["warps:coin", "warps:pin"]);
+  expect(out?.embedded.sort()).toEqual(["warps:coin", "warps:pin"]);
+  // `pin` keeps its name (a name alone reaches it); `coin` is the module's own already.
+  expect(Object.keys(out!.files).sort()).toEqual([
+    "artisan-export.yml",
+    "assets/glyphs/pin.png",
+    "assets/glyphs/pin.yml",
+    "assets/textures/coin_2.png",
+  ]);
+  expect(parse(out!.files["assets/glyphs/pin.yml"] as string)).toEqual({
+    ascent: 7,
+    codepoint: 57345,
+  });
+  expect(out!.rewritten["menus/main.yml"]).toBe(
+    menu(["coin", "guilds:crest", "pin", "coin_2", "pin"]),
+  );
+  // The add-on's image stays a dependency.
+  expect(readExportNote(out!.files["artisan-export.yml"] as string)?.requires.modules).toEqual({
+    guilds: ["crest"],
+  });
+
+  // Declined: nothing is copied, nothing rewritten, the archive notes them.
+  const without = await exportElsewhere(project, module, async () => false);
+  expect(without?.embedded).toEqual([]);
+  expect(without?.rewritten).toEqual({});
+  expect(readExportNote(without!.files["artisan-export.yml"] as string)?.requires.modules).toEqual({
+    guilds: ["crest"],
+    warps: ["coin", "pin"],
+  });
+
+  await expect(exportElsewhere(project, module, async () => null)).rejects.toBeInstanceOf(
+    ExportGivenUp,
+  );
+  Reflect.deleteProperty(trees, "proj_warps");
+});
+
+it("gives an archive with no note when everything named elsewhere was embedded", async () => {
+  mocks.listServerProjects.mockResolvedValue({
+    ok: true,
+    projectIds: ["guilds", "shop"],
+    projects: [
+      { id: "proj_guilds", externalId: "guilds", name: "guilds" },
+      { id: "proj_shop", externalId: "shop", name: "shop" },
+    ],
+  });
+  const out = await exportElsewhere(project, disk(["guilds:crest"]), async () => true);
+  expect(Object.keys(out!.files)).toEqual(["assets/textures/crest.png"]);
+  expect(out!.rewritten["menus/main.yml"]).toBe(menu(["crest"]));
 });

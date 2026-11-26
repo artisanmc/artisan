@@ -8,11 +8,15 @@ import {
   type ExportNote,
   codepointsOf,
   commonCopy,
+  embedNames,
   emptyNote,
   exportNoteYaml,
+  imageCopy,
   imageRefsWritten,
+  menuImageRefs,
   namedElsewhere,
   readExportNote,
+  renameImageRefs,
   settleCopies,
 } from "./elsewhere";
 
@@ -226,5 +230,87 @@ describe("settleCopies", () => {
       ],
       kept: ["blason", "ribbon"],
     });
+  });
+});
+
+describe("embedding another module's images", () => {
+  it("reads the names the module's own menus write, not what it ships", () => {
+    expect(
+      menuImageRefs([
+        { path: "menus/main.yml", content: MENU },
+        {
+          path: "originals/menus/top.yml",
+          content: "size: 9\ntitle: { kind: background, asset: shipped }\n",
+        },
+      ]).sort(),
+    ).toEqual(["artisan:blason", "close.1x1", "frame", "guilds:crest"]);
+  });
+
+  it("copies a module's image under the name it takes, what the module ships included", () => {
+    const source = {
+      files: [{ path: "originals/assets/textures/crest.yml", content: "ramps: true\n" }],
+      binaries: [{ path: "originals/assets/textures/crest.png", hash: "c", size: 1 }],
+    };
+    expect(imageCopy("crest", source, new Set(), { shipped: true, as: "crest_2" })).toEqual({
+      name: "crest_2",
+      from: "originals/assets/textures/crest.png",
+      to: "assets/textures/crest_2.png",
+      descriptor: { path: "assets/textures/crest_2.yml", content: "ramps: true\n" },
+    });
+    expect(imageCopy("crest", source, new Set())).toBeNull();
+  });
+
+  it("keeps the name of an image a name alone reaches, and finds a free one for the others", () => {
+    const free = (name: string) => name !== "logo" && name !== "frame";
+    expect(
+      embedNames(
+        [
+          { folder: "guilds", name: "logo", refs: ["guilds:logo"] },
+          { folder: "warps", name: "pin", refs: ["warps:pin"] },
+          { folder: "guilds", name: "pin", refs: ["pin", "guilds:pin"] },
+          { folder: "guilds", name: "crest", refs: ["guilds:crest"] },
+        ],
+        free,
+      ).map((image) => `${image.folder}:${image.name}=${image.as}`),
+    ).toEqual(["guilds:pin=pin", "guilds:logo=logo_2", "warps:pin=pin_2", "guilds:crest=crest"]);
+  });
+
+  it("rewrites the names where a menu names an image, and nothing else", () => {
+    const renames = new Map([
+      ["guilds:crest", "crest"],
+      ["warps:pin", "pin_2"],
+    ]);
+    const text = [
+      "title:",
+      '  - { kind: glyph, asset: "guilds:crest", y: 4 }',
+      "  - kind: background",
+      "    asset_id: warps:pin # the map",
+      "elements:",
+      "  - image: { asset: guilds:crest }",
+      "    source: guilds:crest",
+      "    name: 'warps:pin'",
+      "    image_asset: warps:pin",
+      "  - image: { asset: guilds:crest_big, fit: native }",
+      "  - image:",
+      "      asset: 'warps:pin'",
+      "",
+    ].join("\n");
+    expect(renameImageRefs(text, renames)).toBe(
+      [
+        "title:",
+        '  - { kind: glyph, asset: "crest", y: 4 }',
+        "  - kind: background",
+        "    asset_id: pin_2 # the map",
+        "elements:",
+        "  - image: { asset: crest }",
+        "    source: guilds:crest",
+        "    name: 'warps:pin'",
+        "    image_asset: warps:pin",
+        "  - image: { asset: guilds:crest_big, fit: native }",
+        "  - image:",
+        "      asset: 'pin_2'",
+        "",
+      ].join("\n"),
+    );
   });
 });

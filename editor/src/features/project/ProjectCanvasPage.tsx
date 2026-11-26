@@ -5,6 +5,7 @@ import { VARIANT_NAME } from "@/domain/variants";
 import { AssetsTab } from "@/features/assets/AssetsTab";
 import { CapturedItemsSection } from "@/features/canvas/CapturedItemsSection";
 import { Stage } from "@/features/canvas/Stage";
+import { useEmbedAsk } from "@/features/export/EmbedImagesDialog";
 import { runExportZip } from "@/features/export/runExportZip";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { EditorTour } from "@/features/onboarding/EditorTour";
@@ -155,6 +156,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
 
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const embedAsk = useEmbedAsk();
   const { sensors, onDragStart, onDragEnd, onDragCancel } = useWorkspaceDnd(pId);
 
   useEffect(() => {
@@ -312,7 +314,9 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           project={project}
           projectId={pId}
           onExportZip={async () => {
-            const res = await runExportZip(project, !!principalId);
+            const res = await runExportZip(project, !!principalId, embedAsk.ask);
+            // Given up where it asked: nothing was downloaded, nothing to say.
+            if (res.error === "given_up") return;
             if (!res.ok) {
               toast.error(
                 res.error === "not_signed_in"
@@ -323,13 +327,11 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
               );
               return;
             }
+            const taken = [...(res.copied ?? []), ...(res.embedded ?? [])];
             if (res.alone) toast.warning(t("export.alone"));
-            else if (res.copied?.length)
+            else if (taken.length)
               toast.success(
-                t("export.successCopied", {
-                  count: res.copied.length,
-                  names: res.copied.join(", "),
-                }),
+                t("export.successWith", { count: taken.length, names: taken.join(", ") }),
               );
             else toast.success(t("export.success"));
           }}
@@ -371,6 +373,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">{mainContent}</div>
 
           <PatternsGallery open={patternsOpen} onOpenChange={setPatternsOpen} />
+          {embedAsk.dialog}
         </div>
 
         <WorkspaceDragOverlay />
