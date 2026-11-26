@@ -104,6 +104,33 @@ describe("ComposedImageEditor", () => {
     ]);
   });
 
+  it("undoes and redoes what was done to the layers, a drag as one step", () => {
+    render(<Stand />);
+    const place = () => [layers()[2]!.style.left, layers()[2]!.style.top];
+    const start = place();
+    fireEvent.pointerDown(layers()[2]!, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(layers()[2]!, { clientX: 104, clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(layers()[2]!, { clientX: 110, clientY: 100, pointerId: 1 });
+    fireEvent.pointerUp(layers()[2]!, { pointerId: 1 });
+    const dragged = place();
+    fireEvent.keyDown(layers()[2]!, { key: "ArrowDown" });
+    const nudged = place();
+    expect(nudged).not.toEqual(dragged);
+
+    const stage = screen.getByTestId("compose-stage");
+    fireEvent.keyDown(stage, { key: "z", ctrlKey: true });
+    expect(place()).toEqual(dragged);
+    fireEvent.keyDown(stage, { key: "z", ctrlKey: true });
+    expect(place()).toEqual(start);
+    expect(screen.getByRole("button", { name: "Annuler" })).toBeDisabled();
+    fireEvent.keyDown(stage, { key: "y", ctrlKey: true });
+    expect(place()).toEqual(dragged);
+    fireEvent.click(screen.getByRole("button", { name: "Rétablir" }));
+    expect(place()).toEqual(nudged);
+    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(place()).toEqual(dragged);
+  });
+
   it("moves a layer with the pointer and the keys, by pixels or by slots, and saves the recipe", async () => {
     const saved = vi
       .spyOn(userAssetsApi, "patchAsset")
@@ -123,9 +150,19 @@ describe("ComposedImageEditor", () => {
     fireEvent.pointerDown(layers()[2]!, { clientX: 0, clientY: 0, pointerId: 1 });
     fireEvent.pointerMove(layers()[2]!, { clientX: 40, clientY: 0, pointerId: 1, shiftKey: true });
     fireEvent.pointerUp(layers()[2]!, { pointerId: 1 });
-    // Twenty of the game's pixels with Shift: one whole slot.
-    expect(layers()[2]!.style.left).toBe(`${(84 + 18) * 2}px`);
+    // With Shift the layer lands on the window's slots (from 7, 17), though it started off them.
+    expect([layers()[2]!.style.left, layers()[2]!.style.top]).toEqual([
+      `${(7 + 5 * 18) * 2}px`,
+      `${(17 - 18) * 2}px`,
+    ]);
     fireEvent.keyDown(layers()[2]!, { key: "ArrowDown" });
+    // On a line: Shift and an arrow go one slot.
+    fireEvent.keyDown(layers()[2]!, { key: "ArrowLeft", shiftKey: true });
+    expect(layers()[2]!.style.left).toBe(`${(7 + 4 * 18) * 2}px`);
+    // Between two lines: to the next one that way.
+    fireEvent.keyDown(layers()[2]!, { key: "ArrowRight" });
+    fireEvent.keyDown(layers()[2]!, { key: "ArrowRight", shiftKey: true });
+    expect(layers()[2]!.style.left).toBe(`${(7 + 5 * 18) * 2}px`);
     fireEvent.keyDown(layers()[2]!, { key: "ArrowLeft", shiftKey: true });
 
     // The selected layer's fields: the grid gets a row.
@@ -143,7 +180,7 @@ describe("ComposedImageEditor", () => {
           layers: [
             recipe.layers[0],
             { ...recipe.layers[1], rows: 4 },
-            { ...recipe.layers[2], x: 84, y: 3 },
+            { ...recipe.layers[2], x: 7 + 4 * 18, y: 0 },
           ],
         },
       },

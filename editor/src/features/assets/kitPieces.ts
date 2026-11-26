@@ -35,6 +35,33 @@ export const ownKitPiece = (
       a.height === slot.height,
   );
 
+/**
+ * The base's image of `slot` as the theme `artisan` lists it (`originals/`, no descriptor, so
+ * no size said): what the atelier opens to redraw a piece the server has not redrawn. Nothing
+ * is written until the first save, which draws the server's version over it.
+ */
+export const shippedKitPiece = (
+  assets: readonly Asset[],
+  projectId: string,
+  slot: KitSlot,
+): Asset | undefined =>
+  assets.find(
+    (a) =>
+      a.projectId === projectId &&
+      a.type !== "font" &&
+      !a.compose &&
+      a.name === slot.id &&
+      a.width === 0 &&
+      a.height === 0,
+  );
+
+/** `asset` with the size of the base's piece of its name, when it says none of its own. */
+export function sizedAsPiece(asset: Asset): Asset {
+  if (asset.width > 0 && asset.height > 0) return asset;
+  const slot = KIT_SLOTS.find((s) => s.id === asset.name);
+  return slot ? { ...asset, width: slot.width, height: slot.height } : asset;
+}
+
 /** Artisan's image of the piece becomes the kit module's, under the piece's name, ready to be redrawn. */
 export async function redrawKitPiece(projectId: string, slot: KitSlot): Promise<Asset> {
   const png = await kitImageBytes(slot.id);

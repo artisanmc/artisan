@@ -39,19 +39,79 @@ import {
   StudioSection,
   type StudioTool,
   StudioTools,
+  UndoControls,
   ZoomControls,
   toolOfKey,
+  undoKey,
   useStageZoom,
 } from "./StudioFrame";
 import { useAssetStore } from "./assetStore";
-import type { GuideName } from "./guideRules";
+import { type GuideName, SLOT, nextSlot, slotOrigin, snapToSlot } from "./guideRules";
 import { addDrawnLayer, layerOf, layerRef } from "./imageLayers";
 import { useKitAssets } from "./kitAssets";
 import { type ImageSize, assetSize, useAssetSize, useMeasuredAssetSizes } from "./measuredSize";
 import { useSlicedUrl } from "./slicedUrl";
 
-/** One slot of a menu, in pixels: what Shift moves a layer by. */
-const SLOT = 18;
+/** The recipes kept to undo. */
+const HISTORY = 100;
+
+/**
+ * A recipe being edited, with what it was before each change: `set` records the recipe it
+ * replaces, unless `gesture` names the same gesture as the change before (a drag, a field
+ * being typed in), which is then one step to undo. `reset` starts again from a recipe.
+ */
+function useRecipeHistory(first: ComposeRecipe) {
+  const [state, setState] = useState<{
+    past: ComposeRecipe[];
+    now: ComposeRecipe;
+    next: ComposeRecipe[];
+  }>({ past: [], now: first, next: [] });
+  const last = useRef<string | null>(null);
+  const set = (
+    change: ComposeRecipe | ((recipe: ComposeRecipe) => ComposeRecipe),
+    gesture?: string,
+  ) => {
+    const merged = gesture !== undefined && last.current === gesture;
+    last.current = gesture ?? null;
+    setState((s) => {
+      const now = typeof change === "function" ? change(s.now) : change;
+      if (sameRecipe(now, s.now)) return s;
+      return merged && s.past.length > 0
+        ? { ...s, now, next: [] }
+        : { past: [...s.past.slice(1 - HISTORY), s.now], now, next: [] };
+    });
+  };
+  const undo = () => {
+    last.current = null;
+    setState((s) => {
+      const back = s.past.at(-1);
+      return back ? { past: s.past.slice(0, -1), now: back, next: [s.now, ...s.next] } : s;
+    });
+  };
+  const redo = () => {
+    last.current = null;
+    setState((s) => {
+      const [forth, ...next] = s.next;
+      return forth ? { past: [...s.past, s.now], now: forth, next } : s;
+    });
+  };
+  const reset = (recipe: ComposeRecipe) => {
+    last.current = null;
+    setState((s) =>
+      // The recipe just saved is the one in hand: what led to it can still be undone.
+      sameRecipe(recipe, s.now) ? s : { past: [], now: recipe, next: [] },
+    );
+  };
+  return {
+    recipe: state.now,
+    set,
+    undo,
+    redo,
+    reset,
+    canUndo: state.past.length > 0,
+    canRedo: state.next.length > 0,
+  };
+}
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -94,6 +154,7 @@ function StageLayer({
   onPointerUp,
   onKeyDown,
   onResize,
+  onResizeStart,
   resizeLabel,
 }: {
   asset: Asset;
@@ -103,6 +164,8 @@ function StageLayer({
   label: string;
   /** Asks for another size, in the image's pixels: only for a layer that can take one. */
   onResize?: (width: number, height: number) => void;
+  /** The handle is taken: what follows is one gesture. */
+  onResizeStart?: () => void;
   resizeLabel?: string;
   onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
   onPointerMove: (event: PointerEvent<HTMLButtonElement>) => void;
@@ -162,6 +225,7 @@ function StageLayer({
           }}
           onPointerDown={(event) => {
             event.stopPropagation();
+            onResizeStart?.();
             grip.current = { x: event.clientX, y: event.clientY, ...box };
             event.currentTarget.setPointerCapture?.(event.pointerId);
           }}
@@ -313,14 +377,17 @@ export function ComposedImageEditor({
   const measured = useMeasuredAssetSizes();
 
   const saved = asset.compose as ComposeRecipe;
-  const [recipe, setRecipe] = useState(saved);
+  const history = useRecipeHistory(saved);
+  const recipe = history.recipe;
+  const setRecipe = history.set;
   const [selected, setSelected] = useState<number | null>(null);
   const [picker, setPicker] = useState<"kit" | "module" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Another recipe under this asset (saved, or changed by someone else): start again from it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the saved recipe, not the history's functions
   useEffect(() => {
-    setRecipe(saved);
+    history.reset(saved);
     setSelected((held) => (held !== null && held < saved.layers.length ? held : null));
     setError(null);
   }, [saved]);
@@ -358,27 +425,40 @@ export function ComposedImageEditor({
   const view = useStageZoom(size ?? null, { fallback: 2 });
   const scale = view.zoom;
 
-  const update = (index: number, patch: Partial<ComposeLayer>) =>
-    setRecipe((r) => ({
-      ...r,
-      layers: r.layers.map((layer, i) => (i === index ? { ...layer, ...patch } : layer)),
-    }));
+  const update = (index: number, patch: Partial<ComposeLayer>, gesture?: string) =>
+    setRecipe(
+      (r) => ({
+        ...r,
+        layers: r.layers.map((layer, i) => (i === index ? { ...layer, ...patch } : layer)),
+      }),
+      gesture,
+    );
   /** Gives the layer at `index` a size its sliced image holds, kept inside what an image may be. */
-  const resize = (index: number, width: number, height: number) => {
+  const resize = (index: number, width: number, height: number, gesture?: string) => {
     const layer = recipe.layers[index];
     const image = layer && imageOf(layer.image);
     const slice = image?.slice;
     if (!layer || !slice) return;
-    update(index, {
-      width: clamp(Math.round(width), Math.max(1, slice.left + slice.right), COMPOSE_MAX_SIDE),
-      height: clamp(Math.round(height), Math.max(1, slice.top + slice.bottom), COMPOSE_MAX_SIDE),
-    });
+    update(
+      index,
+      {
+        width: clamp(Math.round(width), Math.max(1, slice.left + slice.right), COMPOSE_MAX_SIDE),
+        height: clamp(Math.round(height), Math.max(1, slice.top + slice.bottom), COMPOSE_MAX_SIDE),
+      },
+      gesture,
+    );
   };
-  const place = (index: number, x: number, y: number) =>
-    update(index, {
-      x: clamp(Math.round(x), -COMPOSE_MAX_SIDE, COMPOSE_MAX_SIDE),
-      y: clamp(Math.round(y), -COMPOSE_MAX_SIDE, COMPOSE_MAX_SIDE),
-    });
+  const place = (index: number, x: number, y: number, gesture?: string) =>
+    update(
+      index,
+      {
+        x: clamp(Math.round(x), -COMPOSE_MAX_SIDE, COMPOSE_MAX_SIDE),
+        y: clamp(Math.round(y), -COMPOSE_MAX_SIDE, COMPOSE_MAX_SIDE),
+      },
+      gesture,
+    );
+  // The slots' grid of the image: what Shift lines a layer up with.
+  const grid = slotOrigin(size?.width ?? 0, size?.height ?? 0);
   /** The layer the tools act on. One that cannot be drawn on is moved: the move tool takes over. */
   const select = (index: number) => {
     setSelected(index);
@@ -412,25 +492,41 @@ export function ComposedImageEditor({
     if (held !== "move") onTool("move");
   };
 
-  const drag = useRef<{ index: number; x: number; y: number; left: number; top: number } | null>(
-    null,
-  );
+  const drag = useRef<{
+    index: number;
+    x: number;
+    y: number;
+    left: number;
+    top: number;
+    gesture: string;
+  } | null>(null);
+  const drags = useRef(0);
   const handlers = (index: number, layer: ComposeLayer) => ({
     onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
       setSelected(index);
-      drag.current = { index, x: event.clientX, y: event.clientY, left: layer.x, top: layer.y };
+      drags.current += 1;
+      drag.current = {
+        index,
+        x: event.clientX,
+        y: event.clientY,
+        left: layer.x,
+        top: layer.y,
+        // One drag is one step to undo.
+        gesture: `drag:${drags.current}`,
+      };
       event.currentTarget.setPointerCapture?.(event.pointerId);
     },
     onPointerMove: (event: PointerEvent<HTMLButtonElement>) => {
       const dragged = drag.current;
       if (!dragged || dragged.index !== index) return;
-      // Whole pixels of the game; Shift keeps to whole slots from where the layer was.
-      const step = event.shiftKey ? SLOT : 1;
-      const by = (delta: number) => Math.round(delta / scale / step) * step;
+      // Whole pixels of the game; Shift puts the layer on the slots' grid, wherever it was.
+      const x = dragged.left + Math.round((event.clientX - dragged.x) / scale);
+      const y = dragged.top + Math.round((event.clientY - dragged.y) / scale);
       place(
         index,
-        dragged.left + by(event.clientX - dragged.x),
-        dragged.top + by(event.clientY - dragged.y),
+        event.shiftKey ? snapToSlot(x, grid.x) : x,
+        event.shiftKey ? snapToSlot(y, grid.y) : y,
+        dragged.gesture,
       );
     },
     onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
@@ -438,17 +534,19 @@ export function ComposedImageEditor({
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     },
     onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
-      const step = event.shiftKey ? SLOT : 1;
-      const by: Record<string, [number, number]> = {
-        ArrowLeft: [-step, 0],
-        ArrowRight: [step, 0],
-        ArrowUp: [0, -step],
-        ArrowDown: [0, step],
+      const by: Record<string, [1 | -1 | 0, 1 | -1 | 0]> = {
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
       };
       const delta = by[event.key];
       if (!delta) return;
       event.preventDefault();
-      place(index, layer.x + delta[0], layer.y + delta[1]);
+      // A pixel; with Shift, the next line of the slots' grid that way.
+      const to = (value: number, sign: 1 | -1 | 0, origin: number) =>
+        sign === 0 ? value : event.shiftKey ? nextSlot(value, origin, sign) : value + sign;
+      place(index, to(layer.x, delta[0], grid.x), to(layer.y, delta[1], grid.y));
     },
   });
 
@@ -573,14 +671,14 @@ export function ComposedImageEditor({
                 value={current.x}
                 min={-COMPOSE_MAX_SIDE}
                 max={COMPOSE_MAX_SIDE}
-                onChange={(x) => update(selected, { x })}
+                onChange={(x) => update(selected, { x }, `field:${selected}:x`)}
               />
               <NumberField
                 label={t("compose.y")}
                 value={current.y}
                 min={-COMPOSE_MAX_SIDE}
                 max={COMPOSE_MAX_SIDE}
-                onChange={(y) => update(selected, { y })}
+                onChange={(y) => update(selected, { y }, `field:${selected}:y`)}
               />
               {stretches ? (
                 <>
@@ -606,14 +704,16 @@ export function ComposedImageEditor({
                     value={current.columns}
                     min={1}
                     max={COMPOSE_MAX_REPEAT}
-                    onChange={(columns) => update(selected, { columns })}
+                    onChange={(columns) =>
+                      update(selected, { columns }, `field:${selected}:columns`)
+                    }
                   />
                   <NumberField
                     label={t("compose.rows")}
                     value={current.rows}
                     min={1}
                     max={COMPOSE_MAX_REPEAT}
-                    onChange={(rows) => update(selected, { rows })}
+                    onChange={(rows) => update(selected, { rows }, `field:${selected}:rows`)}
                   />
                 </>
               )}
@@ -664,14 +764,14 @@ export function ComposedImageEditor({
                 value={recipe.width ?? 1}
                 min={1}
                 max={COMPOSE_MAX_SIDE}
-                onChange={(width) => setRecipe((r) => ({ ...r, width }))}
+                onChange={(width) => setRecipe((r) => ({ ...r, width }), "field:width")}
               />
               <NumberField
                 label={t("compose.height")}
                 value={recipe.height ?? 1}
                 min={1}
                 max={COMPOSE_MAX_SIDE}
-                onChange={(height) => setRecipe((r) => ({ ...r, height }))}
+                onChange={(height) => setRecipe((r) => ({ ...r, height }), "field:height")}
               />
             </div>
           )}
@@ -776,8 +876,10 @@ export function ComposedImageEditor({
     <>
       {layout({
         keys: (event) => {
-          if ((event.target as HTMLElement).tagName === "INPUT") return;
-          if (event.ctrlKey || event.metaKey || event.altKey) return;
+          const step = undoKey(event);
+          if (step === "undo") history.undo();
+          else if (step === "redo") history.redo();
+          if (step || event.ctrlKey || event.metaKey || event.altKey) return;
           const chosen = toolOfKey(event.key);
           if (chosen && (chosen === "move" || topDrawing >= 0)) pickTool(chosen);
         },
@@ -788,7 +890,17 @@ export function ComposedImageEditor({
             draw={topDrawing < 0 ? t("studio.noDrawing") : undefined}
           />
         ),
-        controls: <ZoomControls view={view} />,
+        controls: (
+          <div className="flex items-center gap-1">
+            <UndoControls
+              canUndo={history.canUndo}
+              canRedo={history.canRedo}
+              onUndo={history.undo}
+              onRedo={history.redo}
+            />
+            <ZoomControls view={view} />
+          </div>
+        ),
         stage: (
           <div
             ref={view.ref}
@@ -815,9 +927,13 @@ export function ComposedImageEditor({
                       {...handlers(index, layer)}
                       onResize={
                         held === "move" && resizable(image, layer)
-                          ? (width, height) => resize(index, width, height)
+                          ? (width, height) =>
+                              resize(index, width, height, `resize:${drags.current}`)
                           : undefined
                       }
+                      onResizeStart={() => {
+                        drags.current += 1;
+                      }}
                       resizeLabel={t("compose.resize", { name: labelOf(layer) })}
                     />
                   ) : null;

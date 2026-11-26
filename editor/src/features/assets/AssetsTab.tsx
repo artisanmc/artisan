@@ -28,6 +28,7 @@ import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
 import { useImageMarks } from "./imageStanding";
 import { isKitBase, useCommonImageRef, useKitAssets, useKitMisfits } from "./kitAssets";
+import { sizedAsPiece } from "./kitPieces";
 import { isKitModule } from "./localAssets";
 import { type ResourcesView, useResourcesView } from "./resourcesView";
 import { useCommonCopyAsked } from "./useCommonCopyAsked";
@@ -169,10 +170,15 @@ export function AssetsTab({
   );
   const studio = useResourcesView((s) => s.studio);
   const openStudio = useResourcesView((s) => s.openStudio);
-  const edited = useAssetStore((s) =>
+  const listed = useAssetStore((s) =>
     studio === null
       ? undefined
       : s.assets.find((a) => a.projectId === projectId && a.id === studio && a.type !== "font"),
+  );
+  // A base image the theme lists without a size is its piece's size (`kitPieces.ts`).
+  const edited = useMemo(
+    () => (listed && isKitModule(projectId) ? sizedAsPiece(listed) : listed),
+    [listed, projectId],
   );
   // The atelier belongs to the module it was opened in: another module shows its library.
   useEffect(() => () => useResourcesView.getState().openStudio(null), []);
