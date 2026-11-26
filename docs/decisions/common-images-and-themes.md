@@ -548,8 +548,9 @@ Not there yet:
   composed image is not copied, and nothing is copied or moved from the server's list.
 - Against decision 4: the base's pieces take their measures from Artisan's own list, not from
   a declared function, and the slots a name ends with (`3x1`) are not read from the function.
-  The MCP tools do not apply the rule: `render_menu` shows the owner's image where the pack
-  shows the original, and `write_image` does not say that what it wrote is not taken. A
+  The MCP tools apply the rule to a module's images (`OwnerImages.notTaken`): `render_menu` and
+  `survey_ui` show the original where the pack does, `write_image` and `read_image` say of an
+  image that it is not taken (`not_taken`). `list_documents` does not. A
   composed image over an original is not measured. The module's list does not mark an image
   that is not taken: only its panel does. The editor reads a size from the descriptor, the
   pack from the PNG.
