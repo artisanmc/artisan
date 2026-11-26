@@ -24,16 +24,17 @@ import { AssetUploadDialog } from "./AssetUploadDialog";
 import { CommonImageBadge, CommonImageMisfit, CommonImageOriginal } from "./CommonImageState";
 import { ImageNewDialog } from "./ImageNewDialog";
 import { ImageStudio } from "./ImageStudio";
+import type { SaveAsServer } from "./SaveAsDialog";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
 import { useImageMarks, useShippedUntouched } from "./imageStanding";
-import { isKitBase, useCommonImageRef, useKitAssets, useKitMisfits } from "./kitAssets";
+import { useCommonImageRef, useKitAssets, useKitMisfits } from "./kitAssets";
 import { sizedAsPiece } from "./kitPieces";
 import { isKitModule } from "./localAssets";
 import { type ResourcesView, useResourcesView } from "./resourcesView";
 import { useThemePlaceMark } from "./themePlaceMark";
-import { useCommonCopyAsked } from "./useCommonCopyAsked";
 import { useKitPieceAsked } from "./useKitPieceAsked";
+import { useSaveAsAsked } from "./useSaveAsAsked";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
 
 export { type ResourcesView, useResourcesView } from "./resourcesView";
@@ -150,9 +151,12 @@ export function AssetsTab({
   components,
   onOpenCommon,
   onOpenMenu,
+  server,
 }: {
   projectId: ProjectId;
   compact?: boolean;
+  /** The server the Project is on, for the atelier's "Save as" (`SaveAsDialog`). */
+  server?: SaveAsServer;
   /** Opens the Resources of the common images' Project; absent on a server that has none. */
   onOpenCommon?: () => void;
   /** Opens the menu `menuId` of the module `projectId`, from a common image's uses. */
@@ -184,7 +188,7 @@ export function AssetsTab({
   // The atelier belongs to the module it was opened in: another module shows its library.
   useEffect(() => () => useResourcesView.getState().openStudio(null), []);
   useKitPieceAsked(projectId);
-  useCommonCopyAsked(projectId);
+  useSaveAsAsked(projectId);
   // The components are a module's own: the common images' Project and a picker show none.
   const views: ResourcesView[] = [
     "files",
@@ -211,7 +215,14 @@ export function AssetsTab({
     </div>
   );
   if (edited)
-    return <ImageStudio projectId={projectId} asset={edited} onClose={() => openStudio(null)} />;
+    return (
+      <ImageStudio
+        projectId={projectId}
+        asset={edited}
+        onClose={() => openStudio(null)}
+        server={server}
+      />
+    );
   if (view === "components" && components && capturedItems) {
     return (
       <div className="flex h-full min-h-0 flex-col">
@@ -266,7 +277,7 @@ export function AssetsTab({
                 }}
               />
             ) : (
-              <OwnAssets projectId={projectId} compact={compact} onOpenCommon={onOpenCommon} />
+              <OwnAssets projectId={projectId} compact={compact} />
             )}
           </div>
         )}
@@ -485,7 +496,6 @@ function CommonAssets({
     nameOf(asset).toLowerCase().includes(search.toLowerCase()),
   );
   const selected = assets.find((asset) => asset.id === selectedId) ?? null;
-  const shipped = selected !== null && isKitBase(selected) && !selected.contentHash;
   const written = selected ? refOf(selected) : "";
   // A piece the server drew its own version of: the original shows beside it.
   const redrawnPiece =
@@ -577,11 +587,7 @@ function CommonAssets({
           </ul>
         )}
       </div>
-      {onOpen && (
-        <Button onClick={open}>
-          {t(shipped ? "resources.common.redraw" : "resources.common.open")}
-        </Button>
-      )}
+      {onOpen && <Button onClick={open}>{t("resources.common.open")}</Button>}
       <p className="text-[11px] text-[var(--text-faint)]">{t("resources.common.followHint")}</p>
     </div>
   ) : null;
@@ -598,12 +604,9 @@ function CommonAssets({
 function OwnAssets({
   projectId,
   compact,
-  onOpenCommon,
 }: {
   projectId: ProjectId;
   compact: boolean;
-  /** Opens the Resources of the common images' Project, where an image made common is copied. */
-  onOpenCommon?: () => void;
 }) {
   const { t } = useTranslation();
   const isDesktop = useIsDesktop();
@@ -726,18 +729,7 @@ function OwnAssets({
         list={list}
         detail={
           selectedId ? (
-            <AssetDetailPanel
-              key={`${projectId}:${selectedId}`}
-              projectId={projectId}
-              onShare={
-                onOpenCommon
-                  ? (asset) => {
-                      useResourcesView.getState().askShare(asset, projectId);
-                      onOpenCommon();
-                    }
-                  : undefined
-              }
-            />
+            <AssetDetailPanel key={`${projectId}:${selectedId}`} projectId={projectId} />
           ) : null
         }
         onBack={() => setSelectedId(null)}

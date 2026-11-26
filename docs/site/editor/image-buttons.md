@@ -61,8 +61,8 @@ another server tells what it lacks.
 an entry **Common images**, beside this module, all modules and the other modules. It lists
 every common image as the server has it deployed; one selected shows its size, who drew it
 (**Artisan**, **Redrawn** or **This server's**) and what a menu of the open module writes to
-name it. Nothing is copied into the module. **Redraw for the server** (a piece still Artisan's)
-or **Open in the common images** opens the image in the atelier of the common images. A piece
+name it. Nothing is copied into the module. **Open in the atelier** opens the image in the
+atelier of the server's theme. A piece
 still Artisan's opens as shipped: the server's own version is written when you first save, and
 nothing is added to the common images if you leave without drawing. The
 common images are not one of the other modules of that selector. **What names it** lists what
@@ -72,12 +72,17 @@ example). The other modules are read as deployed, the open module's menus, compo
 and files as you are editing them. A menu whose module holds an image of the same name is not listed,
 since it shows its own.
 
-**Making a module's image common.** On an image or a font of the module, **Copy to the common
-images** opens the common images with a copy of it under the same name, in their draft: deploy
-them and every module can name it. The module keeps its own image, which its menus still
-show; delete it there afterwards and its menus take the common one, with nothing to rewrite
-since the name is the same. The button is off when the common images already have an image of
-that name, and is not offered for a composed image, whose layers are the module's.
+**Save as.** In the atelier, under the layers, **Save as** copies the image open under a name
+into another place: a theme of the server, the server's own theme, a module, or a new theme
+created on the way. Only a name and a place are asked. Before you confirm, the dialog says what
+the copy changes: how many menus of how many modules show it in place of the image of that
+name, that nothing changes in game while the theme is put away, and that the place already
+has an image of that name, which is then replaced. The copy is the image as saved (save
+first), flat even when the image is made of layers, and it goes to the place's draft: deploy
+that place for the server to take it. The image you started from does not change. To make a
+module's image common, save it as into the server's theme, then delete it in the module: its
+menus take the common one, with nothing to rewrite since the name is the same. A name of
+Artisan's base (`button.3x1`) can be held by a theme only. A font is not saved as.
 
 **Resources, one screen.** The server's **Resources** tab and a module's **Resources** show
 the same list of places on the left, in the order an image's name is looked up:

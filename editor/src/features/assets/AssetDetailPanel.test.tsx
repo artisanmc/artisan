@@ -240,31 +240,6 @@ describe("AssetDetailPanel", () => {
     );
   });
 
-  it("offers to copy a module's image to the common images, unless they hold that name", () => {
-    const image = { ...A, id: "banner", name: "banner", type: "texture" as const };
-    useAssetStore.getState().setAssets([image]);
-    useAssetStore.getState().setSelectedId("banner");
-    useKitStore.setState({ read: { projectId: "kit", files: {}, binaries: [] }, themes: [] });
-    const onShare = vi.fn();
-    const { unmount } = render(<AssetDetailPanel projectId={"p1" as never} onShare={onShare} />);
-    fireEvent.click(screen.getByRole("button", { name: "Copier dans les images communes" }));
-    expect(onShare).toHaveBeenCalledWith(image);
-    unmount();
-
-    // A name of Artisan's base is already a common image's.
-    const piece = { ...image, id: "close.1x1", name: "close.1x1" };
-    useAssetStore.getState().setAssets([piece]);
-    useAssetStore.getState().setSelectedId("close.1x1");
-    const taken = render(<AssetDetailPanel projectId={"p1" as never} onShare={onShare} />);
-    expect(screen.getByRole("button", { name: "Copier dans les images communes" })).toBeDisabled();
-    expect(screen.getByTestId("asset-share")).toHaveTextContent("ont déjà une image de ce nom");
-    taken.unmount();
-
-    // Not offered without a way to the common images, nor in their own Project.
-    render(<AssetDetailPanel projectId={"p1" as never} />);
-    expect(screen.queryByTestId("asset-share")).toBeNull();
-  });
-
   it("renders nothing when no asset is selected", () => {
     useAssetStore.getState().setSelectedId(null);
     const { container } = render(<AssetDetailPanel projectId={"p1" as never} />);

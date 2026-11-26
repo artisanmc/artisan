@@ -397,6 +397,9 @@ decisions 8 and 12).
   read of the module, when it holds such a version. A server that does not answer leaves the
   marks its files give. The image's panel there says the mark in words.
 
+*(Superseded by `resources-one-screen`, decision 7: **Copy to the common images**,
+`askShare` and `useCommonCopyAsked` are gone, **Save as** in the atelier replaces them.)*
+
 **Step 5, sixth part: a module's image is copied to the common images from the server's
 list** (`ownerHolds`, `useServerOwnerHolds`, `ServerResources`' `onShare`; decision 12). The
 panel of a module's image or font in the server's **Resources** has the module panel's

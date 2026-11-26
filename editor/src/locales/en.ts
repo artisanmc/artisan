@@ -49,11 +49,6 @@ export default {
       notTakenGlyph:
         "Not taken: this glyph has height {{height}} and ascent {{ascent}}, the original height {{originalHeight}} and ascent {{originalAscent}}. The original shows until they match.",
     },
-    share: {
-      button: "Copy to the common images",
-      hint: "A copy goes to the server's common images under the same name, in their draft: once deployed, every module can name it. This module keeps its own, which its menus still show; delete it here afterwards for them to take the common one.",
-      taken: "The common images already have an image of this name.",
-    },
     originalChanged: {
       title: "The original changed since your version.",
       hint: "Menus keep showing yours. Keep it as it is, or restore the original and redraw from the new one.",
@@ -68,8 +63,7 @@ export default {
       added: "This server's",
       written: "A menu of this module writes",
       prefixed: "This module holds an image of this name: artisan: names the common one.",
-      redraw: "Redraw for the server",
-      open: "Open in the common images",
+      open: "Open in the atelier",
       usedBy: "What names it",
       unused: "Nothing on the server names it.",
       usedIn: "{{menu}} · {{project}}",
@@ -277,6 +271,40 @@ export default {
     kitHint:
       "The image follows this piece when the server redraws it. You add and draw layers over it.",
     create: "Create and open the atelier",
+  },
+  saveAs: {
+    title: "Save as",
+    button: "Save as…",
+    hint: "A copy under a name, in a theme or a module. The image you started from does not change.",
+    saveFirst: "Save your changes first: the copy is made of the saved image.",
+    name: "Name",
+    place: "Where",
+    save: "Save",
+    theme: "Theme “{{name}}”",
+    themeAway: "Theme “{{name}}” (put away)",
+    module: "Module “{{name}}”",
+    newTheme: "New theme…",
+    replaces_one: "Replaces the image of this name in {{count}} menu of {{modules}}.",
+    replaces_other: "Replaces the image of this name in {{count}} menus of {{modules}}.",
+    modules_one: "{{count}} module",
+    modules_other: "{{count}} modules",
+    replacesInModule_one:
+      "{{count}} menu of this module showed the common image of this name: it will show this one.",
+    replacesInModule_other:
+      "{{count}} menus of this module showed the common image of this name: they will show this one.",
+    addedTheme:
+      "No menu writes this name yet: the image is added to the theme, nothing else changes.",
+    addedModule:
+      "No menu of this module writes this name yet: the image is added to the module, nothing else changes.",
+    away: "This theme is put away: nothing changes in game until it is put in place.",
+    overwrites: "This place already has an image of this name: it will be replaced.",
+    saved: "“{{name}}” saved here, in the draft.",
+    failed: "The image could not be saved: {{detail}}",
+    errors: {
+      invalid_name: "Lowercase letters, digits, “_” and “-” only.",
+      base_name_in_module:
+        "Only a theme may hold a name of Artisan's base. Pick a theme, or another name.",
+    },
   },
   studio: {
     open: "Open in the atelier",
@@ -673,9 +701,9 @@ export default {
       dropped_other:
         "{{count}} common images of the server it comes from are already here, the same: {{names}}. The module does not keep them.",
       kept_one:
-        "{{count}} common image of the server it comes from stays in the module: {{names}}. In its Resources, Copy to the common images makes it common here.",
+        "{{count}} common image of the server it comes from stays in the module: {{names}}. In the atelier, Save as puts it in the server's theme to make it common here.",
       kept_other:
-        "{{count}} common images of the server it comes from stay in the module: {{names}}. In its Resources, Copy to the common images makes them common here.",
+        "{{count}} common images of the server it comes from stay in the module: {{names}}. In the atelier, Save as puts each in the server's theme to make it common here.",
       base: "Images of Artisan's base this server does not have: {{names}}. Update Artisan.",
       baseSince:
         "Images of Artisan's base this server does not have: {{names}}. The module comes from Artisan {{version}}: update Artisan.",

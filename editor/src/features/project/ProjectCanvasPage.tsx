@@ -283,6 +283,20 @@ export function ProjectCanvasPage({
                           void navigate(projectDestination(owner, serverId, menuId, "menu"))
                       : undefined
                   }
+                  server={
+                    serverId && runtime?.serverId
+                      ? {
+                          serverKeyId: runtime.serverId,
+                          open: (projectId) =>
+                            void navigate({
+                              to: "/servers/$serverId/projects/$projectId",
+                              params: { serverId, projectId },
+                              search: { tab: "resources" },
+                            }),
+                          reread: () => useServerIndexRereads.getState().bump(),
+                        }
+                      : undefined
+                  }
                 />
               </div>
             </div>

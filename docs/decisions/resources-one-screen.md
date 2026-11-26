@@ -5,7 +5,10 @@ step 3, the places on the left of both Resources (`ResourcePlaces`), the **Show:
 read-only list of the whole server and the Themes screen gone, a theme holding its images
 under `assets/` like a module and edited in its Project, with the marks of decision 6. Not
 built: who provides a name under an image, a name alone reaching an image only a theme holds
-(it is still written `<theme>:<name>`), steps 4 and 5. Amends `common-images-and-themes` (2026-11-25):
+(it is still written `<theme>:<name>`), step 5. Step 4 is in the code: **Save as** in the
+atelier (`SaveAsDialog`, `saveAsPlaces.ts`, answered in the place's Project by
+`useSaveAsAsked`), an image only (a font is not saved as), **Copy to the common images**
+gone and **Redraw for the server** renamed **Open in the atelier**. Amends `common-images-and-themes` (2026-11-25):
 replaces its decisions 4 (measures), 6 for the part on a theme's scope, 7 (colour ramps) and 12
 (the Resources screen as it was built), and narrows decision 5 (what a theme may redraw). Its
 decisions 1 to 3 and 8 to 11 stand. Mock-up: `Maquette Ressources du serveur` (project files).
