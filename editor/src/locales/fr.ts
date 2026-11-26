@@ -121,6 +121,21 @@ const fr: typeof en = {
     composed:
       "Image composée : le pack de ressources l’assemble à partir de {{layers}}. Elle n’a pas de fichier à elle et change quand ces images changent.",
   },
+  component: {
+    title: "Composant",
+    use: "Utiliser un composant…",
+    common: "{{name}} (commun)",
+    saveName: "Enregistrer ces pièces comme composant",
+    save: "Enregistrer",
+    saveHint:
+      "Les pièces passent dans un composant de ce module : chaque bouton qui le nomme les dessine, et le modifier les modifie tous.",
+    named: "Composant : {{name}}",
+    detach: "Détacher",
+    detachHint: "Garder ce que dessine le composant comme pièces propres à ce bouton",
+    remove: "Retirer",
+    unknown: "Aucun composant de ce nom : ce bouton ne dessine rien.",
+    linked: "Lié : modifier le composant modifie ce bouton.",
+  },
   parts: {
     title: "Pièces",
     hint: "Plusieurs images et textes sur ce bouton : un fond, une icône, un texte. Chacun a sa place dans le bouton.",

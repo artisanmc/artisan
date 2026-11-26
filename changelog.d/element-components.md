@@ -4,3 +4,5 @@
   changes all of them. A component can belong to a module or be common to the server (the
   theme `artisan`). The editor keeps a button's component as written and draws it on the
   canvas.
+  In the editor, the **Component** section of a button's properties chooses a component,
+  fills its parameters, detaches it, and saves a button's own parts as a new component.

@@ -50,6 +50,7 @@ import { ElementClickHandlers } from "../chain/ElementClickHandlers";
 import { conditionsSummary } from "../chain/labels";
 import { FieldLabel } from "../layout";
 import { ConditionListEditor } from "../properties/ConditionListEditor";
+import { ComponentEditor } from "./ComponentEditor";
 import { ImageButtonEditor } from "./ImageButtonEditor";
 import { LabelEditor } from "./LabelEditor";
 import { PartsEditor } from "./PartsEditor";
@@ -754,23 +755,58 @@ function StateCard({
           )}
 
           {translations && !element.iterates && !element.places && (
-            <PartsEditor
+            <ComponentEditor
               projectId={projectId}
-              menu={menu}
-              element={element}
               appearance={appearance}
               lang={translations.activeLang}
-              textOf={(text) => ownText(text, translations.activeLang) ?? ""}
-              onEdit={(op) =>
+              onComponent={(component) =>
+                useProjectsStore.getState().setAppearanceComponent({
+                  projectId,
+                  ...target,
+                  appearanceIndex: stateIndex,
+                  component,
+                })
+              }
+              onDetach={(look) =>
+                useProjectsStore.getState().detachAppearanceComponent({
+                  projectId,
+                  ...target,
+                  appearanceIndex: stateIndex,
+                  look,
+                  lang: translations.activeLang,
+                })
+              }
+              onSave={(name) =>
                 useProjectsStore
                   .getState()
-                  .editAppearanceParts({ projectId, ...target, appearanceIndex: stateIndex, op })
-              }
-              onPositions={(positions) =>
-                useProjectsStore.getState().setElementPositions({ projectId, ...target, positions })
+                  .saveLookAsComponent({ projectId, ...target, appearanceIndex: stateIndex, name })
               }
             />
           )}
+
+          {translations &&
+            !element.iterates &&
+            !element.places &&
+            appearance.component === undefined && (
+              <PartsEditor
+                projectId={projectId}
+                menu={menu}
+                element={element}
+                appearance={appearance}
+                lang={translations.activeLang}
+                textOf={(text) => ownText(text, translations.activeLang) ?? ""}
+                onEdit={(op) =>
+                  useProjectsStore
+                    .getState()
+                    .editAppearanceParts({ projectId, ...target, appearanceIndex: stateIndex, op })
+                }
+                onPositions={(positions) =>
+                  useProjectsStore
+                    .getState()
+                    .setElementPositions({ projectId, ...target, positions })
+                }
+              />
+            )}
 
           {/* Visibility conditions */}
           <div className="overflow-x-auto">

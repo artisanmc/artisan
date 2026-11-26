@@ -14,6 +14,23 @@ const FILE = /^(originals\/)?components\/([^/]+)\.ya?ml$/;
 export function packComponents(
   projects: readonly { folder: string; files: readonly { path: string; content: string }[] }[],
 ): (folder: string) => (menu: unknown) => unknown {
+  const byFolder = componentFiles(projects);
+  if (!byFolder.size) return () => (menu) => menu;
+  return (folder) => (menu) =>
+    expandMenuComponents(menu, (name) =>
+      findComponent(
+        folder,
+        name,
+        (module, bare) => byFolder.get(module === "" ? COMMON : module)?.get(bare),
+        COMMON,
+      ),
+    );
+}
+
+/** Each folder's components by name, as read: the common ones under the folder `artisan`. */
+export function componentFiles(
+  projects: readonly { folder: string; files: readonly { path: string; content: string }[] }[],
+): Map<string, Map<string, unknown>> {
   const byFolder = new Map<string, Map<string, unknown>>();
   for (const project of projects) {
     const own = new Map<string, unknown>();
@@ -35,14 +52,5 @@ export function packComponents(
     for (const [name, doc] of shipped) if (!own.has(name)) own.set(name, doc);
     if (own.size) byFolder.set(project.folder, own);
   }
-  if (!byFolder.size) return () => (menu) => menu;
-  return (folder) => (menu) =>
-    expandMenuComponents(menu, (name) =>
-      findComponent(
-        folder,
-        name,
-        (module, bare) => byFolder.get(module === "" ? COMMON : module)?.get(bare),
-        COMMON,
-      ),
-    );
+  return byFolder;
 }

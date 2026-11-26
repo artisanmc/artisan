@@ -29,7 +29,7 @@ const feed = () => {
       ],
     },
   ]);
-  setComponents(new Map([["p1", { folder: "shop", expand: expandOf("shop") }]]));
+  setComponents(new Map([["p1", { folder: "shop", expand: expandOf("shop"), list: [] }]]));
 };
 
 it("draws a look's component as its parts, its own images named without their module", () => {

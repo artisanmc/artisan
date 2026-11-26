@@ -1,3 +1,4 @@
+import type { componentLook } from "@/domain/components";
 import { docKey, mutableCommands, mutableMenus } from "@/domain/documents";
 import { addressedAppearances, appearanceAt } from "@/domain/element";
 import { clampRefreshTicks } from "@/domain/elementRefresh";
@@ -38,6 +39,7 @@ import {
   removePosition,
 } from "@/lib/positions";
 import { current } from "immer";
+import { stringify } from "yaml";
 import type { PartAnchor } from "../../../../docs/schema/menu/v1/imageButtonGeometry";
 import {
   allocStepLTexts,
@@ -228,6 +230,40 @@ export interface ElementsSlice {
       projectId: ProjectId;
       appearanceIndex?: number;
       op: PartsEdit;
+    } & AppearanceTarget,
+  ) => void;
+  /**
+   * The look names a component (its name, or its name and its parameters), which replaces
+   * its image, label, pieces and item; `null` leaves the look without one. Fixed elements only.
+   */
+  setAppearanceComponent: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex?: number;
+      component: NonNullable<Appearance["component"]> | null;
+    } & AppearanceTarget,
+  ) => void;
+  /**
+   * The look stops naming its component and keeps what it draws as its own pieces
+   * (`look`: what `componentLook` reads; its texts become the look's, in `lang` when single).
+   */
+  detachAppearanceComponent: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex?: number;
+      look: NonNullable<ReturnType<typeof componentLook>>;
+      lang: string;
+    } & AppearanceTarget,
+  ) => void;
+  /**
+   * The look's pieces move to the file `components/<name>.yml` of the Project and the look
+   * names it. Refused when the name is taken or is not a file's name, or the look draws nothing.
+   */
+  saveLookAsComponent: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex?: number;
+      name: string;
     } & AppearanceTarget,
   ) => void;
   /** Set the lore value (multi-line string, `\n`-separated lines) for an appearance. */
@@ -724,6 +760,88 @@ export const createElementsSlice = ({
         appearance.label = next;
       });
     },
+    setAppearanceComponent: (input) =>
+      mutateElement(input.projectId, input.menuId, input.elementId, (element) => {
+        const appearance = appearanceAt(element, input.appearanceIndex ?? 0);
+        if (!appearance) return false;
+        if (input.component === null) {
+          Reflect.deleteProperty(appearance, "component");
+          return;
+        }
+        if (element.iterates || element.places)
+          throw new Error("A component needs a fixed element.");
+        appearance.component = input.component;
+        for (const key of ["image", "label", "parts", "item", "material", "head"] as const)
+          Reflect.deleteProperty(appearance, key);
+      }),
+    detachAppearanceComponent: (input) =>
+      mutateElement(input.projectId, input.menuId, input.elementId, (element, _menu, project) => {
+        const appearance = appearanceAt(element, input.appearanceIndex ?? 0);
+        if (!appearance || appearance.component === undefined) return false;
+        const parts: LookParts = [];
+        for (const image of input.look.images)
+          parts.push({
+            image: image.asset,
+            ...((image.fit ?? "native") !== "native" ? { fit: image.fit } : {}),
+            ...(image.anchor && image.anchor !== "center" ? { anchor: image.anchor } : {}),
+            ...(image.offset_x ? { offset_x: image.offset_x } : {}),
+            ...(image.offset_y ? { offset_y: image.offset_y } : {}),
+          });
+        for (const label of input.look.labels) {
+          const texts =
+            typeof label.text === "string" ? { [input.lang]: label.text } : { ...label.text };
+          const [first, ...rest] = Object.entries(texts);
+          const text = createLText(project, first?.[1] ?? "", first?.[0] ?? input.lang);
+          for (const [lang, value] of rest) setLText(project, text, lang, value);
+          const h = label.align ?? "center";
+          const v = label.valign ?? "center";
+          const anchor = (v === "center" ? h : h === "center" ? v : `${v}_${h}`) as PartAnchor;
+          parts.push({
+            label: text,
+            ...(anchor !== "center" ? { anchor } : {}),
+            ...(label.size ? { size: label.size } : {}),
+            ...(label.offset_x ? { offset_x: label.offset_x } : {}),
+            ...(label.offset_y ? { offset_y: label.offset_y } : {}),
+          });
+        }
+        Reflect.deleteProperty(appearance, "component");
+        if (parts.length) appearance.parts = parts;
+      }),
+    saveLookAsComponent: (input) =>
+      mutateElement(input.projectId, input.menuId, input.elementId, (element, _menu, project) => {
+        const appearance = appearanceAt(element, input.appearanceIndex ?? 0);
+        if (!appearance || appearance.component !== undefined) return false;
+        if (!/^[a-z0-9][a-z0-9_.-]*$/.test(input.name))
+          throw new Error("A component's name is lowercase letters, digits, `_`, `-` and `.`.");
+        const parts = appearance.parts ?? partsOfLook(appearance);
+        if (!parts.length) throw new Error("This look draws nothing to save.");
+        if (!project.moduleData) project.moduleData = {};
+        const data = project.moduleData as Record<
+          string,
+          { __files?: Record<string, string> } | undefined
+        >;
+        if (!data.components) data.components = {};
+        if (!data.components.__files) data.components.__files = {};
+        const files = data.components.__files;
+        if (`${input.name}.yml` in files || `${input.name}.yaml` in files)
+          throw new Error(`A component "${input.name}" already exists.`);
+        const written = parts.map((part) => {
+          if ("image" in part) return part;
+          const { label, ...placement } = part;
+          const texts = Object.entries(project.i18nKeys[label.key] ?? {}).filter(
+            ([, value]) => typeof value === "string" && value !== "",
+          );
+          deleteLText(project, label);
+          return {
+            label: texts.length <= 1 ? (texts[0]?.[1] ?? "") : Object.fromEntries(texts),
+            ...placement,
+          };
+        });
+        files[`${input.name}.yml`] = stringify({ parts: written });
+        appearance.component = input.name;
+        for (const key of ["image", "label", "parts"] as const)
+          Reflect.deleteProperty(appearance, key);
+      }),
     editAppearanceParts: (input) =>
       mutateElement(input.projectId, input.menuId, input.elementId, (element, menu, project) => {
         const appearance = appearanceAt(element, input.appearanceIndex ?? 0);

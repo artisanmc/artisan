@@ -1,6 +1,12 @@
-import { componentsVersion, setComponents, subscribeComponents } from "@/domain/components";
+import {
+  type KnownComponent,
+  componentParams,
+  componentsVersion,
+  setComponents,
+  subscribeComponents,
+} from "@/domain/components";
 import type { Project } from "@/domain/types";
-import { packComponents } from "@/lib/pack/components";
+import { componentFiles, packComponents } from "@/lib/pack/components";
 import { useKitStore } from "@/state/kitStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useSyncExternalStore } from "react";
@@ -44,12 +50,28 @@ export function useComponentsFeed(): number {
       );
       folders.set(folder, [...list(ownFiles(project), "components/"), ...published]);
     }
-    const expandOf = packComponents([...folders].map(([folder, files]) => ({ folder, files })));
+    const all = [...folders].map(([folder, files]) => ({ folder, files }));
+    const expandOf = packComponents(all);
+    const files = componentFiles(all);
     setComponents(
       new Map(
         projects.map((project) => {
           const folder = project.diskId ?? project.id;
-          return [project.id, { folder, expand: expandOf(folder) }];
+          const own = files.get(folder) ?? new Map<string, unknown>();
+          const list: KnownComponent[] = [...own].map(([name, file]) => ({
+            name,
+            common: folder === COMMON,
+            params: componentParams(file),
+          }));
+          // A common one a component of the module hides is named with `artisan:`.
+          if (folder !== COMMON)
+            for (const [name, file] of files.get(COMMON) ?? [])
+              list.push({
+                name: own.has(name) ? `${COMMON}:${name}` : name,
+                common: true,
+                params: componentParams(file),
+              });
+          return [project.id, { folder, expand: expandOf(folder), list }];
         }),
       ),
     );

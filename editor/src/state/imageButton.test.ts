@@ -292,3 +292,56 @@ it("a first image part needs a free rectangle, and an item drops the image parts
   expect(look().parts).toHaveLength(1);
   expect("label" in look().parts![0]!).toBe(true);
 });
+
+it("saves a look's pieces as a component, names one, and detaches it again", async () => {
+  const project = () =>
+    useProjectsStore.getState().openProjects.projects.find((entry) => entry.id === p)!;
+  const look = () =>
+    current()
+      .layers.flatMap((layer) => layer.elements)
+      .find((element) => element.id === e)!.display;
+  const { parse } = await import("yaml");
+  const { packComponents } = await import("@/lib/pack/components");
+  const { componentLook, setComponents } = await import("@/domain/components");
+  const store = useProjectsStore.getState();
+  store.setAppearanceImage({ ...target(), image: { asset: "panel", fit: "native" } });
+  store.setElementPositions({ ...target(), positions: "0-2" });
+  store.setAppearanceLabelText({ ...target(), lang: "en", value: "Buy" });
+  store.setAppearanceLabel({ ...target(), patch: { align: "right" } });
+  const labelKey = look().label!.text.key;
+
+  expect(() => store.saveLookAsComponent({ ...target(), name: "Buy Now" })).toThrow(/name/);
+  store.saveLookAsComponent({ ...target(), name: "buy" });
+  expect(look()).toEqual({ component: "buy" });
+  expect(project().i18nKeys[labelKey]).toBeUndefined();
+  const files = (project().moduleData!.components as { __files: Record<string, string> }).__files;
+  expect(parse(files["buy.yml"]!)).toEqual({
+    parts: [{ image: "panel" }, { label: "Buy", anchor: "right" }],
+  });
+
+  // Another look names it with a parameter; an item it had goes.
+  store.setAppearanceComponent({ ...target(), component: { name: "buy", text: "Sell" } });
+  expect(look()).toEqual({ component: { name: "buy", text: "Sell" } });
+
+  // Detached: what the component draws becomes the look's own pieces, its text a translation.
+  const expandOf = packComponents([
+    {
+      folder: "shop",
+      files: [{ path: "components/buy.yml", content: files["buy.yml"]! }],
+    },
+  ]);
+  setComponents(new Map([[p, { folder: "shop", expand: expandOf("shop"), list: [] }]]));
+  const drawn = componentLook(look(), p)!;
+  store.detachAppearanceComponent({ ...target(), look: drawn, lang: "en" });
+  setComponents(new Map());
+  const parts = look().parts!;
+  expect(look().component).toBeUndefined();
+  expect(parts[0]).toEqual({ image: "panel" });
+  const text = parts[1] as { label: { key: string }; anchor: string };
+  expect(text.anchor).toBe("right");
+  expect(project().i18nKeys[text.label.key as never]).toEqual({ en: "Buy" });
+
+  store.setAppearanceComponent({ ...target(), component: "buy" });
+  store.setAppearanceComponent({ ...target(), component: null });
+  expect(look()).toEqual({});
+});

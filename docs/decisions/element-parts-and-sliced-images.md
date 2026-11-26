@@ -247,10 +247,21 @@ the menu writes it. A text parameter may be one text per language. The editor ke
 (`useComponentsFeed`, `domain/components.ts`: the open Project's `components/` as edited,
 the other modules and the theme as published). Not built: the visible fallback and the
 editor's problem for a name nothing answers (the look draws nothing), `render_menu`
-(a component look shows empty there), the picker and the parameters' fields in the Element
-panel, "Save as component", where a component is used, a theme's `overrides/` of a
+(a component look shows empty there), where a component is used, a theme's `overrides/` of a
 component, and the reload of the menus of other modules when a component they name
 changes (a full reload reads them; a reload of one module reads only its own menus).
+
+**Step 3, the Element panel (2026-11-26).** `ComponentEditor`, a section of each state's
+card for a fixed element. A look that names no component chooses one among the Project's
+and the common ones (`knownComponents`, fed with the components' parameters), or saves its
+own pieces as a new one (`saveLookAsComponent`: the file `components/<name>.yml` is written
+into the Project, the labels' texts move into it, one text or one per language, and the
+look names it). A look that names one edits the parameters its file declares (a text, per
+language when it was written so; an image, picked like any image), detaches it
+(`detachAppearanceComponent`: what the component draws becomes the look's own pieces, its
+texts translations of the Project) or removes it. Not built: a parameter made from a
+saved piece (a saved component takes none until its file is edited), the editing of a
+component's file in the editor (step 4), where a component is used.
 
 Not built: `render_menu` (it draws a sliced image by
 its fit), the base's buttons declared sliced, the rule that a redraw or a theme keeps the

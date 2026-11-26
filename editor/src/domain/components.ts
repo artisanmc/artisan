@@ -15,7 +15,35 @@ interface ProjectComponents {
   /** The Project's folder on the server: what its own images are named with in a component. */
   folder: string;
   expand: (menu: unknown) => unknown;
+  /** The components a look of this Project may name, its own first, by the name it writes. */
+  list: readonly KnownComponent[];
 }
+
+/** A component a look may name: the name to write and the parameters its file declares. */
+export interface KnownComponent {
+  name: string;
+  /** Whether it is one of the server's common ones (the theme `artisan`). */
+  common: boolean;
+  params: readonly { name: string; type: "text" | "image"; default?: unknown }[];
+}
+
+/** The parameters a component's file declares (`params`), in the file's order. */
+export function componentParams(file: unknown): KnownComponent["params"] {
+  const params = (file as { params?: unknown } | null)?.params;
+  if (!params || typeof params !== "object" || Array.isArray(params)) return [];
+  return Object.entries(params as Record<string, unknown>).map(([name, raw]) => {
+    const spec = (raw ?? {}) as { type?: unknown; default?: unknown };
+    return {
+      name,
+      type: spec.type === "image" ? ("image" as const) : ("text" as const),
+      ...(spec.default !== undefined ? { default: spec.default } : {}),
+    };
+  });
+}
+
+/** The components a look of the Project may name; none while they are not known. */
+export const knownComponents = (projectId: string | undefined): readonly KnownComponent[] =>
+  (projectId !== undefined ? byProject.get(projectId)?.list : undefined) ?? [];
 
 let byProject: ReadonlyMap<string, ProjectComponents> = new Map();
 let version = 0;
