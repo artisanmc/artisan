@@ -134,4 +134,19 @@ class PluginConfigTest {
         assertEquals(mapOf("quests" to "/srv/ui.js"), PluginConfig.from(YamlConfiguration(), env).devEditorBundles)
         assertEquals(emptyMap(), PluginConfig.from(YamlConfiguration(), YamlConfiguration()).devEditorBundles)
     }
+
+    @Test
+    fun `the test properties win over environment yml, so no test reaches the production tunnel or pack host`() {
+        val environment = YamlConfiguration()
+        environment.loadFromString("""
+            web:
+              tunnel: "connect.artisanmc.app"
+              pack-cdn: "cdn.artisanmc.net"
+        """.trimIndent())
+        // Set to "" for every Gradle test (plugin/build.gradle.kts).
+        assertEquals("", System.getProperty(net.artisanmc.plugin.hub.WebConfig.TUNNEL_PROPERTY))
+        val web = PluginConfig.from(YamlConfiguration(), environment).web
+        assertEquals("", web.tunnel)
+        assertEquals("", web.packCdn)
+    }
 }

@@ -47,7 +47,11 @@ data class WebConfig(
     companion object {
         /** `web.tunnel` when environment.yml does not set it: no port to open by default. */
         const val DEFAULT_TUNNEL = "connect.artisanmc.app"
-        /** Replaces [DEFAULT_TUNNEL] when set: the Gradle tests set it empty, so no test opens a real tunnel. */
+        /**
+         * Wins over `web.tunnel`, environment.yml included, when set: the Gradle tests set it empty, so no
+         * test opens a real tunnel. environment.yml's template writes `connect.artisanmc.app`: a default
+         * only would let every test that prepares a data folder open one to production.
+         */
         const val TUNNEL_PROPERTY = "artisan.web.tunnel"
     }
 }

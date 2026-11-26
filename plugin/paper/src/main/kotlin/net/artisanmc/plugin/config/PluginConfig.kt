@@ -132,9 +132,9 @@ data class PluginConfig(
                     hubUrl = hubWebSocketUrl(EnvironmentFile.string(environment, "web.hub", "")),
                     secret = EnvironmentFile.string(environment, "web.secret", ""),
                     sessionDays = environment.getInt("web.session-days", 7).coerceAtLeast(1),
-                    tunnel = EnvironmentFile.string(environment, "web.tunnel", System.getProperty(WebConfig.TUNNEL_PROPERTY, WebConfig.DEFAULT_TUNNEL)).trim(),
+                    tunnel = (System.getProperty(WebConfig.TUNNEL_PROPERTY) ?: EnvironmentFile.string(environment, "web.tunnel", WebConfig.DEFAULT_TUNNEL)).trim(),
                     tunnelAccess = EnvironmentFile.string(environment, "web.tunnel-access", ""),
-                    packCdn = EnvironmentFile.string(environment, "web.pack-cdn", System.getProperty(PackCdn.HOST_PROPERTY, PackCdn.DEFAULT_HOST)).trim(),
+                    packCdn = (System.getProperty(PackCdn.HOST_PROPERTY) ?: EnvironmentFile.string(environment, "web.pack-cdn", PackCdn.DEFAULT_HOST)).trim(),
                     mcp = environment.getBoolean("web.mcp", false),
                     ai = AiConfig(
                         provider = EnvironmentFile.string(environment, "ai.provider", "").trim().lowercase(),

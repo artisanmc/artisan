@@ -77,7 +77,7 @@ class PackCdn(
     companion object {
         /** `web.pack-cdn` when environment.yml does not set it. */
         const val DEFAULT_HOST = "cdn.artisanmc.net"
-        /** Replaces [DEFAULT_HOST] when set: the Gradle tests set it empty, so no test uploads a pack. */
+        /** Wins over `web.pack-cdn`, environment.yml included, when set: the Gradle tests set it empty, so no test uploads a pack. */
         const val HOST_PROPERTY = "artisan.web.pack-cdn"
         private const val MAX_REASON = 200
         private val ZIP = "application/zip".toMediaType()
