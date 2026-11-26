@@ -77,7 +77,9 @@ describe("KitThemePage", () => {
       "overrides/guilds/banner.png",
     ]);
     // Its files are its own folder's, not the common images'.
-    expect(screen.getByText(/themes\/printemps\/ : assets\/ contient ses images/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/themes\/printemps\/ : assets\/ contient ses images/),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ouvrir les images du serveur" })).toBeNull();
   });
 
