@@ -60,6 +60,28 @@ class ServerThemesTest {
     }
 
     @Test
+    fun `a redraw at its former place moves to the theme's images, unless the theme has one of that name`() {
+        val roots = roots()
+        file("themes/noel/overrides/artisan/button.3x1.png")
+        file("themes/noel/overrides/artisan/close.1x1.png")
+        file("themes/noel/overrides/artisan/notes.txt")
+        file("themes/noel/assets/glyphs/close.1x1.png")
+        file("themes/hiver/overrides/artisan/back.1x1.png")
+        assertEquals(listOf("hiver", "noel"), ServerThemes.register(roots))
+        assertTrue(File(data, "themes/noel/assets/textures/button.3x1.png").isFile)
+        assertFalse(File(data, "themes/noel/overrides/artisan/button.3x1.png").exists())
+        // The theme's own image of that name is the one read: the former redraw stays, untouched.
+        assertTrue(File(data, "themes/noel/overrides/artisan/close.1x1.png").isFile)
+        assertFalse(File(data, "themes/noel/assets/textures/close.1x1.png").exists())
+        assertTrue(File(data, "themes/noel/overrides/artisan/notes.txt").isFile)
+        // Nothing left in the former place: its folders go.
+        assertTrue(File(data, "themes/hiver/assets/textures/back.1x1.png").isFile)
+        assertFalse(File(data, "themes/hiver/overrides").exists())
+        // Done once: a second start moves nothing.
+        assertEquals(emptyList(), ServerThemes.settle(File(data, "themes/hiver")))
+    }
+
+    @Test
     fun `a theme never hides a module of its name`() {
         val roots = roots()
         File(roots.coreRoot, "guilds/menus").mkdirs()
@@ -95,15 +117,14 @@ class ServerThemesTest {
 
         val noel = File(data, "themes/noel")
         assertEquals("colors: {\"#3c8527\": \"#b3261e\"}\n", File(noel, "overrides/colors.yml").readText())
-        // A texture wins over a glyph of the same name, as it did when the theme was read in place.
-        assertContentEquals(byteArrayOf(2), File(noel, "overrides/artisan/button.3x1.png").readBytes())
-        assertContentEquals(byteArrayOf(4), File(noel, "overrides/artisan/star.png").readBytes())
+        // Its images keep their place: a theme holds them under `assets/`, a texture before a glyph.
+        assertContentEquals(byteArrayOf(2), File(noel, "assets/textures/button.3x1.png").readBytes())
+        assertContentEquals(byteArrayOf(4), File(noel, "assets/glyphs/star.png").readBytes())
+        assertContentEquals(byteArrayOf(3), File(noel, "assets/glyphs/button.3x1.png").readBytes())
+        assertFalse(File(noel, "overrides/artisan").exists())
         assertEquals("red", File(noel, "notes.txt").readText())
         assertFalse(File(noel, "theme.yml").exists())
         assertFalse(File(noel, "theme.yaml").exists())
-        assertFalse(File(noel, "assets/textures").exists())
-        // The glyph a texture hid stays where it was: nothing is deleted that was never read as lost.
-        assertContentEquals(byteArrayOf(3), File(noel, "assets/glyphs/button.3x1.png").readBytes())
         assertFalse(File(data, "themes/artisan/themes").exists())
         // The common images do not move.
         assertContentEquals(byteArrayOf(9), File(data, "themes/artisan/assets/textures/button.3x1.png").readBytes())

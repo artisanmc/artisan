@@ -1580,7 +1580,7 @@ class McpTools(
     /**
      * A theme's own drawing of the common image [name] ([KitTheme]), a PNG of that image's size with
      * no descriptor: the image it redraws has one. [own]: in a draft of the theme's own Project
-     * (`overrides/artisan/<name>.png`); otherwise write_image's `theme` in a draft of the common
+     * (`assets/textures/<name>.png`, the theme's image of that name); otherwise write_image's `theme` in a draft of the common
      * images, on a server that keeps its themes there (`themes/<theme>/assets/`).
      */
     private fun writeThemeImage(
@@ -1612,7 +1612,8 @@ class McpTools(
         // In the common images, a texture wins over a glyph of the same name: written there, and the other leaves.
         val paths = when {
             module != null -> listOf("${KitTheme.OVERRIDES_DIR}$module/$image.png")
-            own -> listOf(KitTheme.drawingPath(image))
+            // The theme's image of that name, like a module's; what the former place of a redraw holds leaves with it.
+            own -> listOf("textures", "glyphs").map { "assets/$it/$image.png" } + KitTheme.drawingPath(image)
             else -> listOf("textures", "glyphs").map { "${KitTheme.DIR}/$theme/assets/$it/$name.png" }
         }
         val existing = paths.filter { it in binaryTree }

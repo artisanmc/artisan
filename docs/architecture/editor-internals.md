@@ -132,8 +132,9 @@ name is looked up, beside the place that is open. It is drawn by the server page
 to reorder: `themesMoved` turns a move on the screen into the server's list; put away or put
 in place: `themeChange`), the server's own theme (`artisan`), the themes put away, the
 modules, the base. It writes `resource-pack.themes` itself and rebuilds the pack. A click
-navigates: a theme to `?theme=<name>` of the server's route (its `KitThemePage`), a module or
-the server's theme to its Project's Resources, the base to the server's route without
+navigates: a theme of its own folder, a module or the server's theme to its Project's Resources (a
+theme the common images still keep to `?theme=<name>` of the server's route, its
+`KitThemePage`, which `ThemeBar` also leads to), the base to the server's route without
 `?theme` (`KitPage`). What imports a theme is given by the route (`themeImporter`, a
 `ThemeImporter`), since `features/project` does not import `features/import`. A theme created
 or imported bumps `useServerIndexRereads`, which both pages add to their re-read of the
@@ -219,32 +220,21 @@ first, else the former `resource-pack.theme`; `stacks`, whether the server holds
 Configuration page and the theme's page update it on save; `own`, the published read of each
 theme that has its own folder, by name, filled by the server index from the Projects of role
 `theme` other than the common images'), `kitTheme.ts` reads those themes once per read, as one
-look (`serverTheme`: a theme's own Project, `overrides/colors.yml` and `overrides/artisan/`,
-else the folder the common images' Project keeps for that name; `serverThemeNames`: both
-places; `kitThemeStack`: each theme applied to what the ones below show). A theme's colours
-repaint an image only when it follows the ramps (decision 7): `Asset.ramps`, read from the
-descriptor's `ramps: true` (`diskAssets.ts`) and always set on the base's images
-(`kitAssets.ts`); `AssetDetailPanel` edits it, and `localAssets.ts` sets it on the server's
-version of a base image first drawn over the base. On an image that says so, the panel tells
-which of its colours are in no ramp (`useOffRampColors`, over `offRampColors` of `ramps.ts`,
-read from the image's pixels): a theme's table names the base's shades, so those stay as drawn. A theme's Project is
+look (`serverTheme`: a theme's own Project, its images under `assets/` and the former
+`overrides/artisan/` (`ownThemeDrawings`), else the folder the common images' Project keeps for
+that name; `serverThemeNames`: both places; `kitThemeStack`: each theme applied to what the
+ones below show). A theme changes an image by holding one of its name (ADR
+`resources-one-screen`): no colour is repainted. In the Resources of a theme's Project an
+image says **Replaces the base** or **Added here** (`themePlaceMark`), and `ThemeBar` leads to
+the theme's page. A theme's Project is
 no module: the pack assembly, the server's Resources and the Configuration page leave it out of
 the modules. `NewThemeDialog` creates one from the common images' page (`createProject` with
 the role `theme`), after which the route reads the server's Projects again. `useKitAssets` gives each kit
 image as they show it (`themedKitAssets`: a `data:` URL where the picture changes, the same
 size, name and order), and a composed image is assembled over themed `kit:` layers
-(`composedView`). A module's own PNG is never recoloured, as in the pack. Putting a theme in
+(`composedView`). A module's own PNG is the module's, as in the pack. Putting a theme in
 place or taking it off writes `themeChange`: the list with the theme on top or without it, or
 the former key on a server older than the list.
-The base's ramps (`lib/pack/ramps.ts`, declared in `assets/kit/ramps.json`): `KitThemePage`
-offers, for a theme of its own folder, one colour per ramp. `withRamp` gives the theme's table
-with that ramp's shades recomputed (`rampShade`), `useKitAssetsIn(name, colors)` shows the kit
-in the theme with the table being picked (`KitTheme.withColors`), and saving is the route's
-`onColors`: `saveThemeColors` (`themeWrite.ts`) writes `overrides/colors.yml` on the server's
-disk with `writeProjectFiles`, the file's other keys kept (`themeColorsText`) and checked
-against the content read, then the server's Projects are read again and the pack rebuilt when
-the theme is in place. The page is changed only while the picked table differs from the
-published one, so it settles by itself once the write is read back.
 An image is edited in the atelier (`ImageStudio.tsx`), a page laid out as a drawing program
 (`StudioFrame.tsx`): tools on the left (`StudioTools` over `components/ui/tool-rail.tsx`: move,
 pencil, eraser, pipette, paint bucket; the tool in hand is `ImageStudio`'s), the image in the

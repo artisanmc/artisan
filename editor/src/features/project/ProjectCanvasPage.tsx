@@ -25,6 +25,7 @@ import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanel
 import {
   type ResourcePlace,
   ResourcePlaces,
+  ThemeBar,
   type ThemeImporter,
 } from "@/features/project/ResourcePlaces";
 import { useKnownVersionsFromIndex } from "@/features/project/seedProjectCache";
@@ -238,38 +239,52 @@ export function ProjectCanvasPage({
                 importTheme={importTheme}
               />
             ) : null}
-            <div className="min-h-0 min-w-0 flex-1">
-              <AssetsTab
-                projectId={pId}
-                capturedItems={<CapturedItemsSection projectId={pId} onPick={NO_PICK} />}
-                components={
-                  <ComponentsView
-                    projectId={pId}
-                    onOpenMenu={
-                      serverId
-                        ? (owner, menuId) =>
-                            void navigate(projectDestination(owner, serverId, menuId, "menu"))
-                        : undefined
-                    }
-                  />
-                }
-                onOpenCommon={
-                  serverId && commonId
-                    ? () =>
-                        void navigate({
-                          to: "/servers/$serverId/projects/$projectId",
-                          params: { serverId, projectId: commonId },
-                          search: { tab: "resources" },
-                        })
-                    : undefined
-                }
-                onOpenMenu={
-                  serverId
-                    ? (owner, menuId) =>
-                        void navigate(projectDestination(owner, serverId, menuId, "menu"))
-                    : undefined
-                }
-              />
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              {serverId && placeOf(pId).kind === "theme" ? (
+                <ThemeBar
+                  name={(placeOf(pId) as { name: string }).name}
+                  onSettings={(name) =>
+                    void navigate({
+                      to: "/servers/$serverId/resources",
+                      params: { serverId },
+                      search: { theme: name },
+                    })
+                  }
+                />
+              ) : null}
+              <div className="min-h-0 flex-1">
+                <AssetsTab
+                  projectId={pId}
+                  capturedItems={<CapturedItemsSection projectId={pId} onPick={NO_PICK} />}
+                  components={
+                    <ComponentsView
+                      projectId={pId}
+                      onOpenMenu={
+                        serverId
+                          ? (owner, menuId) =>
+                              void navigate(projectDestination(owner, serverId, menuId, "menu"))
+                          : undefined
+                      }
+                    />
+                  }
+                  onOpenCommon={
+                    serverId && commonId
+                      ? () =>
+                          void navigate({
+                            to: "/servers/$serverId/projects/$projectId",
+                            params: { serverId, projectId: commonId },
+                            search: { tab: "resources" },
+                          })
+                      : undefined
+                  }
+                  onOpenMenu={
+                    serverId
+                      ? (owner, menuId) =>
+                          void navigate(projectDestination(owner, serverId, menuId, "menu"))
+                      : undefined
+                  }
+                />
+              </div>
             </div>
           </div>
         </WorkspaceView>

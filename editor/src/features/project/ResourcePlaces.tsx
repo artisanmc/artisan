@@ -40,7 +40,7 @@ const ACTION =
  * `resources-one-screen`, decision 5): its themes in place from the highest down (reordered by
  * dragging), the server's own theme under them, the themes put away, then the modules and
  * Artisan's base. The same list from the server's Resources and from a module's: a click opens
- * the place. A theme is put in place, put away, created and imported from here.
+ * the place (a theme of its own folder, a module and the server's theme in their Project). A theme is put in place, put away, created and imported from here.
  */
 export function ResourcePlaces({
   serverId,
@@ -75,7 +75,10 @@ export function ResourcePlaces({
   }, [every, read, own]);
 
   const open = (place: ResourcePlace) => {
-    if (place.kind === "theme")
+    // A theme of its own folder is edited in its Project, like a module; one the common images
+    // still keep has its page alone.
+    const mine = place.kind === "theme" ? own[place.name]?.projectId : undefined;
+    if (place.kind === "theme" && !mine)
       return void navigate({
         to: "/servers/$serverId/resources",
         params: { serverId },
@@ -83,7 +86,8 @@ export function ResourcePlaces({
       });
     if (place.kind === "base")
       return void navigate({ to: "/servers/$serverId/resources", params: { serverId } });
-    const projectId = place.kind === "server" ? read?.projectId : place.id;
+    const projectId =
+      place.kind === "theme" ? mine : place.kind === "server" ? read?.projectId : place.id;
     if (!projectId) return;
     void navigate({
       to: "/servers/$serverId/projects/$projectId",
@@ -119,9 +123,14 @@ export function ResourcePlaces({
       const { themes, stacks: lists } = useKitStore.getState();
       return patchServerConfig(serverKeyId, themeChange(themes, lists, name, on));
     });
+  // A theme just made is not read yet: its page says so until it is, and leads to its files.
   const arrived = (name: string) => {
     useServerIndexRereads.getState().bump();
-    open({ kind: "theme", name });
+    void navigate({
+      to: "/servers/$serverId/resources",
+      params: { serverId },
+      search: { theme: name },
+    });
   };
 
   const entry = (
@@ -254,5 +263,35 @@ export function ResourcePlaces({
         {entry({ kind: "base" }, "Artisan", t("places.baseHint"))}
       </section>
     </nav>
+  );
+}
+
+/**
+ * Above the Resources of a theme's Project: which theme this is, whether it is in place, and
+ * the way to its page (what it looks like in a menu, put in place, rename, delete, export).
+ */
+export function ThemeBar({
+  name,
+  onSettings,
+}: { name: string; onSettings: (name: string) => void }) {
+  const { t } = useTranslation();
+  const inPlace = useKitStore((s) => s.themes.includes(name));
+  return (
+    <div
+      className="flex shrink-0 flex-wrap items-center gap-2 border-[var(--border)] border-b px-3 py-2 text-[13px]"
+      data-testid="theme-bar"
+    >
+      <span className="font-medium">{t("places.themeBar", { name })}</span>
+      <Badge variant={inPlace ? "sage" : "amber"}>
+        {t(inPlace ? "places.themeInPlace" : "places.themeAway")}
+      </Badge>
+      <button
+        type="button"
+        className="ml-auto text-[12px] text-[var(--brand)] hover:underline"
+        onClick={() => onSettings(name)}
+      >
+        {t("places.themeSettings")}
+      </button>
+    </div>
   );
 }

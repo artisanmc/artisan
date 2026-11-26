@@ -1,10 +1,11 @@
 # Resources: one rule to find an image, one screen to see it
 
 **Status:** accepted (2026-11-26), being built: step 2 (the removal) is in the code; of
-step 3, the places on the left of both Resources (`ResourcePlaces`), with the **Show:** filter,
-the read-only list of the whole server and the Themes screen gone. Not built: a theme edited
-on the right like a module (its page still opens its files apart), who provides a name under
-an image, the words of decision 6 on an image, steps 4 and 5. Amends `common-images-and-themes` (2026-11-25):
+step 3, the places on the left of both Resources (`ResourcePlaces`), the **Show:** filter, the
+read-only list of the whole server and the Themes screen gone, a theme holding its images
+under `assets/` like a module and edited in its Project, with the marks of decision 6. Not
+built: who provides a name under an image, a name alone reaching an image only a theme holds
+(it is still written `<theme>:<name>`), steps 4 and 5. Amends `common-images-and-themes` (2026-11-25):
 replaces its decisions 4 (measures), 6 for the part on a theme's scope, 7 (colour ramps) and 12
 (the Resources screen as it was built), and narrows decision 5 (what a theme may redraw). Its
 decisions 1 to 3 and 8 to 11 stand. Mock-up: `Maquette Ressources du serveur` (project files).

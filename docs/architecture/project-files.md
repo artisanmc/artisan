@@ -39,8 +39,10 @@ same sync), `components/` the server's common ones, read first. A former `module
 of the server's.
 
 Every other folder of `themes/` is a theme of the server (`ServerThemes.register`, decision 5):
-`overrides/artisan/<image>.png` is its drawing of the common image of that name, taken when it
-has that image's size. A theme changes an image by holding an image (ADR `resources-one-screen`):
+it holds its images like a module, under `assets/` (`assets/textures/<image>.png`, then
+`assets/glyphs/`): one named like a common image is its drawing of it, taken when it has that
+image's size. A redraw at its former place, `overrides/artisan/<image>.png`, is still read (the
+one in `assets/` wins) and moves to `assets/textures/` at start (`ServerThemes.settle`). A theme changes an image by holding an image (ADR `resources-one-screen`):
 `overrides/colors.yml`, `scope:` in it and `overrides/<module>/` (a redraw aimed at a module)
 are no longer read, and the load says which of them a theme still holds (`ServerThemes.unread`).
 Its name is lowercase letters, digits, `_` and `-`. It
@@ -55,8 +57,7 @@ never erased). The theme `artisan` is neither renamed nor deleted. `resource-pac
 not the server's to follow: the editor writes it after the move.
 A theme the common images' folder kept (`themes/artisan/themes/<name>/`, `theme.yml` and
 `assets/`) moves to its own folder at start (`ServerThemes.migrate`): `theme.yml` becomes
-`overrides/colors.yml` (no longer read since), `assets/textures/<image>.png` (then `assets/glyphs/` for a name no
-texture has) `overrides/artisan/<image>.png`, any other file keeps its place. One whose name
+`overrides/colors.yml` (no longer read since), its images and any other file keep their place. One whose name
 a module has, or whose folder holds files already, stays where it is, where it is still read
 (warning at start).
 

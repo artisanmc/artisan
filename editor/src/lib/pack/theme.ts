@@ -202,14 +202,25 @@ export function readKitTheme(name: string, kit: ThemeFiles): KitTheme | null {
   return redrawn.size === 0 ? null : kitTheme(redrawn, kit.binary);
 }
 
-/** The common images a theme of its own folder redraws among its `binaries`, by name. */
+/** Where a theme of its own folder holds an image: the former place of a redraw, then `assets/`, a texture last. */
+const OWN_IMAGE_DIRS = [THEME_COMMON_DIR, "assets/glyphs/", "assets/textures/"];
+
+/**
+ * The images a theme of its own folder holds among its `binaries`, by name: what it shows in
+ * place of the image of that name below it (ADR `resources-one-screen`, decision 2). Its image
+ * is a file of `assets/` like a module's (a texture wins over a glyph), which wins over the
+ * former place of a redraw, `overrides/artisan/`.
+ */
 export function ownThemeDrawings(binaries: readonly string[]): Map<string, string> {
   const out = new Map<string, string>();
-  for (const path of [...binaries].sort(byCodeUnit)) {
-    if (!path.startsWith(THEME_COMMON_DIR)) continue;
-    const file = path.slice(THEME_COMMON_DIR.length);
-    if (file.includes("/") || !file.endsWith(".png") || file.length === ".png".length) continue;
-    out.set(file.slice(0, -".png".length), path);
+  const sorted = [...binaries].sort(byCodeUnit);
+  for (const dir of OWN_IMAGE_DIRS) {
+    for (const path of sorted) {
+      if (!path.startsWith(dir)) continue;
+      const file = path.slice(dir.length);
+      if (file.includes("/") || !file.endsWith(".png") || file.length === ".png".length) continue;
+      out.set(file.slice(0, -".png".length), path);
+    }
   }
   return out;
 }

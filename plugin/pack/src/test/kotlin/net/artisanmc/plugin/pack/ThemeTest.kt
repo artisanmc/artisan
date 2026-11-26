@@ -112,21 +112,30 @@ class ThemeTest {
     }
 
     @Test
-    fun `a theme of its own folder holds its redraws of the common images, and nothing else is read`() {
+    fun `a theme of its own folder holds images under names, in assets or the former overrides artisan`() {
         val green = Png.encode(solid(2, 2, 0x3c, 0x85, 0x27, 255))
         val drawn = Png.encode(solid(2, 2, 9, 9, 9, 255))
         val binaries = listOf(
             "overrides/artisan/close.png", "overrides/artisan/deep/close.png", "overrides/artisan/.png", "overrides/artisan/notes.txt",
-            "overrides/guilds/banner.png", "overrides/close.png", "assets/textures/close.png",
+            "overrides/guilds/banner.png", "overrides/close.png", "assets/glyphs/star.png", "assets/textures/star.png", "assets/textures/deep/star.png",
         ).associateWith { drawn }
-        assertEquals(mapOf("close" to "overrides/artisan/close.png"), KitTheme.ownDrawings(binaries.keys))
+        // An image under `assets/` is the theme's image of that name, a texture before a glyph.
+        assertEquals(
+            mapOf("close" to "overrides/artisan/close.png", "star" to "assets/textures/star.png"),
+            KitTheme.ownDrawings(binaries.keys),
+        )
+        // It wins over the former place of a redraw.
+        assertEquals(
+            mapOf("close" to "assets/glyphs/close.png"),
+            KitTheme.ownDrawings(listOf("overrides/artisan/close.png", "assets/glyphs/close.png")),
+        )
         // The table of colours a theme once held repaints nothing.
         val theme = KitTheme.own(kit(mapOf("overrides/colors.yml" to "colors:\n  \"#3c8527\": \"#b3261e\"\n"), binaries))
         assertTrue(theme.shown("x", green) === green)
         assertTrue(theme.shown("close", green) === drawn)
         // Its redraw aimed at a module is no drawing of the common image of that name.
         assertTrue(theme.shown("banner", green) === green)
-        assertEquals(setOf("close"), theme.drawings)
+        assertEquals(setOf("close", "star"), theme.drawings)
         assertTrue(KitTheme.own(kit(emptyMap())).shown("x", green) === green)
     }
 

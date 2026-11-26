@@ -532,8 +532,9 @@ class McpTest {
         modules["nuit"] = McpFixtures.Module(images = mapOf("overrides/artisan/cell.png" to solid(18, 18, 0x040506)))
         config["resource-pack.themes"] = listOf("nuit", "noel")
         // `nuit` is a module here, and the common images still keep a theme of that name: that one is read, under `noel`.
-        assertEquals(Triple(button, listOf(0x77, 0x88, 0x99), "nuit,noel"), shown(render()))
-        assertEquals(Triple(button, listOf(0x77, 0x88, 0x99), "noel"), shown(render("theme" to "noel")))
+        // The theme's image under `assets/` wins over the former place of a redraw.
+        assertEquals(Triple(button, listOf(0x00, 0xff, 0x00), "nuit,noel"), shown(render()))
+        assertEquals(Triple(button, listOf(0x00, 0xff, 0x00), "noel"), shown(render("theme" to "noel")))
         val own = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
         assertEquals(listOf("noel", "nuit"), own["common"]["themes"].map { it["name"].asText() })
         assertEquals("u-local.noel", own["common"]["themes"][0]["project"].asText())
@@ -602,11 +603,11 @@ class McpTest {
         assertTrue(theme("write_image", "name" to "cell", "theme" to "paques", "png_base64" to png(18, 18, 0x112233))["isError"].asBoolean())
         val drawn = theme("write_image", "name" to "cell", "png_base64" to png(18, 18, 0x112233))
         assertFalse(drawn.has("isError"), drawn.toString())
-        assertEquals("overrides/artisan/cell.png", drawn["structuredContent"]["path"].asText())
+        assertEquals("assets/textures/cell.png", drawn["structuredContent"]["path"].asText())
         assertEquals("noel", drawn["structuredContent"]["theme"].asText())
         assertTrue("theme_draft_id" in drawn["structuredContent"]["use_it"].asText())
         val snapshot = mapper.readTree(drafts.rows.getValue(themeDraft))["snapshot"]
-        assertEquals(listOf("overrides/artisan/cell.png"), snapshot["binaryTree"].fieldNames().asSequence().toList())
+        assertEquals(listOf("assets/textures/cell.png"), snapshot["binaryTree"].fieldNames().asSequence().toList())
         assertEquals(emptyList(), snapshot["tree"].fieldNames().asSequence().toList())
 
         // A menu of a module, seen in the theme as deployed (it changes nothing yet), then as its draft has it.
@@ -637,7 +638,7 @@ class McpTest {
         modules["guilds"] = McpFixtures.Module(images = mapOf("assets/textures/crest.png" to solid(18, 18, 0x101010)))
         val aimed = theme("write_image", "name" to "guilds:crest", "png_base64" to png(18, 18, 0xaabbcc))
         assertTrue(aimed["isError"].asBoolean() && "in a draft of that module" in aimed["structuredContent"]["message"].asText(), aimed.toString())
-        assertEquals("overrides/artisan/cell.png", theme("write_image", "name" to "artisan:cell", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["path"].asText())
+        assertEquals("assets/textures/cell.png", theme("write_image", "name" to "artisan:cell", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["path"].asText())
         val crestMenu = "schema: menu/v1\nsize: 27\nelements:\n  - positions: \"0\"\n    image: { asset: \"guilds:crest\", fit: native }\n"
         assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/crest.yml", "content" to crestMenu).has("isError"))
         modules["noel"] = McpFixtures.Module(images = mapOf("overrides/guilds/crest.png" to solid(18, 18, 0xaabbcc)), role = "theme")

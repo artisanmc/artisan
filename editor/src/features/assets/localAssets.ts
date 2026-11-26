@@ -52,6 +52,14 @@ export function isKitModule(projectId: string): boolean {
   const open = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
   return !!open && isKitFolder(open.diskId ?? open.id);
 }
+/** Whether `projectId` is a theme of the server of its own folder, as published. */
+export function isThemeProject(projectId: string): boolean {
+  return Object.values(useKitStore.getState().own).some((theme) => theme.projectId === projectId);
+}
+
+/** Whether `projectId` holds images under the names of the common ones: the server's theme, or another theme. */
+export const holdsCommonNames = (projectId: string): boolean =>
+  isKitModule(projectId) || isThemeProject(projectId);
 const MAX_RAW_BYTES = 2 * 1024 * 1024;
 const MAX_FONT_BYTES = 5 * 1024 * 1024;
 const WRITE_ERRORS = [
@@ -506,8 +514,8 @@ async function create(
   const ascentRaw = fields.ascent ?? null;
   if (!["texture", "glyph", "font"].includes(type))
     fail(400, "Invalid type (must be texture, glyph, or font)");
-  // In the kit module, an image named as a slot of the base replaces it on this server.
-  if (!NAME_RE.test(name) && !(isKitModule(projectId) && kitSlot(name)))
+  // In a theme (the server's, or another), an image named as a slot of the base replaces it.
+  if (!NAME_RE.test(name) && !(holdsCommonNames(projectId) && kitSlot(name)))
     fail(400, "Invalid name (must match [a-z0-9_-]+)");
   let usages: AssetUsage[] | undefined;
   if (fields.usages !== undefined) {

@@ -6,7 +6,8 @@ package net.artisanmc.plugin.pack
  * `common-images-and-themes`, decision 5; ADR `resources-one-screen`):
  *
  * ```
- * themes/noel/overrides/artisan/button.3x1.png    this common image redrawn, at its size
+ * themes/noel/assets/textures/button.3x1.png      the theme's image of that name, at its size
+ * themes/noel/overrides/artisan/button.3x1.png    the former place of the same, still read
  * ```
  *
  * A server whose Artisan is older than that keeps its themes in the common images' Project
@@ -89,18 +90,25 @@ class KitTheme internal constructor(
             names.filter(::isName).mapNotNull { name -> own[name]?.let(::own) ?: kit?.let { read(name, it) } },
         )
 
-        /** The common images a theme of its own folder redraws among its [binaries], by name. */
+        /**
+         * The images a theme of its own folder holds among its [binaries], by name: what it shows
+         * in place of the image of that name below it (ADR `resources-one-screen`, decision 2). Its
+         * image is a file of `assets/` like a module's (a texture wins over a glyph), which wins over
+         * the former place of a redraw, `overrides/artisan/`.
+         */
         fun ownDrawings(binaries: Collection<String>): Map<String, String> {
             val out = LinkedHashMap<String, String>()
-            for (path in binaries.sorted()) {
-                val file = path.removePrefix(COMMON_DIR).takeIf { it.length < path.length } ?: continue
-                if ('/' in file || !file.endsWith(".png") || file.length == ".png".length) continue
-                out[file.dropLast(".png".length)] = path
+            for (dir in listOf(COMMON_DIR) + IMAGE_DIRS) {
+                for (path in binaries.sorted()) {
+                    val file = path.removePrefix(dir).takeIf { it.length < path.length } ?: continue
+                    if ('/' in file || !file.endsWith(".png") || file.length == ".png".length) continue
+                    out[file.dropLast(".png".length)] = path
+                }
             }
             return out
         }
 
-        /** A theme that is its own Project: its redraws of the common images. One that holds none changes nothing. */
+        /** A theme that is its own Project: its images, which replace the common ones of their names. One that holds none changes nothing. */
         fun own(theme: PackProject): KitTheme = ownOf(theme.binaries, theme.binary)
 
         /** [own] of a theme given as the paths of its [binaries] and what reads one. */
