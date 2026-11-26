@@ -373,6 +373,14 @@ describe("checkImageIssues", () => {
     expect(checkImageIssues(edited, holders())).toEqual([]);
   });
 
+  it("says nothing of a theme's own image, and flags its name alone", () => {
+    const edited = project("core", { menus: [drawn("main", ["noel:star"], ["star"])] });
+    const themed = { ...holders(), themes: [{ folder: "noel", own: (n: string) => n === "star" }] };
+    expect(checkImageIssues(edited, themed)).toEqual([
+      { kind: "image_missing", ref: "star", menus: ["main"] },
+    ]);
+  });
+
   it("leaves a name the game fills in alone", () => {
     const edited = project("core", {
       menus: [drawn("main", [], ["{{row.icon}}", "%player_rank%", ""])],

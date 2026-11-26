@@ -125,6 +125,12 @@ images and is put in place. Its page says where its files are; the assistant fil
 asked ("make the buttons red in the theme noel"). A theme changes the common images, and may
 redraw a module's own image at its size; its page lists both.
 
+A theme may also hold images of its own, under `assets/` of its folder (`assets/textures/`,
+`assets/glyphs/`): a garland for the winter look, say. A menu names one with its theme,
+`noel:garland`, never by its name alone. It is in the pack as long as the server has the
+theme, in place or not, and shows as drawn: no theme repaints it. The theme's page lists
+them under **Its own images**, each as a menu writes it.
+
 **Resources**, **Show: Themes** lists the server's themes: those in place, the highest first,
 and the others. The highest theme that redraws an image wins, and its colours repaint what
 the ones below show; drag a theme by its handle to change its place, **Take off** or **Put in

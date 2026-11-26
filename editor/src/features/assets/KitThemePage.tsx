@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
 import { KitTrialMenu } from "./KitTrialMenu";
 import { ThemeMoves } from "./ThemeMoves";
-import { publishedKitTheme, useKitAssetsIn } from "./kitAssets";
+import { publishedKitTheme, useKitAssetsIn, useThemeOwnImages } from "./kitAssets";
 import { serverThemeNames } from "./kitTheme";
 
 const hex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
@@ -30,9 +30,10 @@ const sameTable = (a: ReadonlyMap<number, number>, b: ReadonlyMap<number, number
 
 /**
  * One theme of the server's kit (`lib/pack/theme.ts`), read from the published kit module: the
- * colours it replaces, the pieces it redraws, and the same menu without it and with it. A theme
- * is put in place from here (`onPutInPlace`: on top of the server's `resource-pack.themes`,
- * then its pack rebuilt), and taken off the same way.
+ * colours it replaces, the pieces it redraws, its own images (what a menu writes
+ * `<theme>:<name>` for) and the same menu without it and with it. A theme is put in place
+ * from here (`onPutInPlace`: on top of the server's `resource-pack.themes`, then its pack
+ * rebuilt), and taken off the same way.
  *
  * A theme of its own folder has its colours picked here (`onColors`): one colour per ramp of
  * the base (`lib/pack/ramps.ts`), the shades computed, the menu shown with them before they
@@ -90,6 +91,7 @@ export function KitThemePage({
   const picks = !!onColors && name in own;
   const moves = own[name]?.canMove === true;
   const taken = useMemo(() => serverThemeNames(read, own), [read, own]);
+  const ownImages = useThemeOwnImages(name);
 
   const put = async (next: boolean) => {
     if (busy || !onPutInPlace) return;
@@ -311,6 +313,34 @@ export function KitThemePage({
                 </>
               ) : null}
             </section>
+            {name in own ? (
+              <section className="card flex flex-col gap-2 p-4">
+                <h3 className="eyebrow">{t("kit.theme.ownImages")}</h3>
+                <p className="text-xs text-[var(--text-mut)]">
+                  {t(ownImages.length > 0 ? "kit.theme.ownImagesHint" : "kit.theme.noOwnImages", {
+                    name,
+                  })}
+                </p>
+                {ownImages.length > 0 ? (
+                  <ul className="flex flex-col gap-1.5" data-testid="kit-theme-own-images">
+                    {ownImages.map((image) => (
+                      <li
+                        key={image.id}
+                        className="flex items-center gap-2 rounded-[var(--r-md)] bg-[var(--surface-inset)] p-1.5 text-xs"
+                      >
+                        <span className="flex h-9 w-14 shrink-0 items-center justify-center">
+                          <AssetPreview
+                            asset={image}
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        </span>
+                        <code className="truncate">{image.id}</code>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+            ) : null}
             <section className="flex flex-col gap-2">
               <p className="text-[12px] text-[var(--text-mut)]">
                 {t(name in own ? "kit.theme.filesOwn" : "kit.theme.files", { name })}

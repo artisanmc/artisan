@@ -87,9 +87,9 @@ export function kitNameOf(asset: string): string | null {
  * (`kit:<name>`): `artisan:<name>` and `kit:<name>` are the common one, another name the module's
  * own, else the common one of that name, else the first image of another module of that name,
  * when `images` holds some by their keys (`moduleImageKey`), in the pack's order
- * (`resolveImageRef`).
+ * (`resolveImageRef`). A theme's own image (`qualifiedOnly`) answers its whole name only.
  */
-export function imageNamed<T extends { id: string }>(
+export function imageNamed<T extends { id: string; qualifiedOnly?: boolean }>(
   images: readonly T[],
   ref: string,
 ): T | undefined {
@@ -100,7 +100,9 @@ export function imageNamed<T extends { id: string }>(
     images.find((a) => a.id === KIT_PREFIX + ref) ??
     (ref.includes(":")
       ? undefined
-      : images.find((a) => kitNameOf(a.id) === null && a.id.endsWith(`:${ref}`)))
+      : images.find(
+          (a) => kitNameOf(a.id) === null && !a.qualifiedOnly && a.id.endsWith(`:${ref}`),
+        ))
   );
 }
 

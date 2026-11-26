@@ -102,6 +102,14 @@ module is not assembled, and a theme's redraw of a module's image is not shown.
 with a button that writes `<folder>:<name>` when the name alone found it. It says nothing where
 the rule is not known (a server older than the theme `artisan`, a module that could not be
 read, a name the game fills in).
+**A theme's own image** (`<theme>:<name>`, decision 5) is read the same way: `kitStore.own`
+holds the themes of their own folder as published, `kitAssets.ts` gives each PNG under their
+`assets/` as an `Asset` under `<theme>:<name>` (`themeImages`, flagged `qualifiedOnly`: a name
+alone never finds it in `imageNamed`), `reachOf` answers `{ kind: "theme" }` when
+`ElsewhereWhere.themes` holds the name and no module has the theme's folder, `ImageReachNote`
+says which theme it is, and the deploy review does not flag it (`imageHolders` gives the
+themes' names by `themeOwnNames`). The theme's page lists them (`useThemeOwnImages`), each as
+a menu writes it. On a server older than the theme `artisan` none is drawn.
 The Resources screen's module selector (`features/project/ProjectSource.tsx`) never lists the
 common images' Project among the other modules; a library that gives it `common` (the Resources
 tab) gets an entry **Common images** (`COMMON_IMAGES`), drawn by `CommonAssets` in

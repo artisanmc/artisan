@@ -85,6 +85,28 @@ describe("imageHolders", () => {
     expect(reachOf("ghost", where)).toEqual({ kind: "none" });
   });
 
+  test("a theme's own images are its PNGs under assets/, reached by `<theme>:<name>`", () => {
+    serverHolds([
+      common,
+      read(
+        "noel",
+        ["assets/textures/star.png", "overrides/artisan/panel.png"],
+        { role: "theme" },
+        { "assets/textures/wreath.yml": "compose:\n  layers:\n    - image: star\n" },
+      ),
+      // A theme of a module's folder gives none.
+      read("jobs", ["assets/textures/anvil.png"]),
+      read("jobs-theme", ["assets/textures/tinsel.png"], { role: "theme", externalId: "jobs" }),
+    ]);
+    const where = imageHolders(edited, { files: [] })!;
+    expect(where.themes?.map((t) => t.folder).sort()).toEqual(["jobs", "noel"]);
+    expect(reachOf("noel:star", where)).toEqual({ kind: "theme", folder: "noel", name: "star" });
+    expect(reachOf("star", where)).toEqual({ kind: "none" });
+    expect(reachOf("noel:panel", where)).toEqual({ kind: "base", name: "panel" });
+    expect(reachOf("noel:wreath", where)).toEqual({ kind: "none" });
+    expect(reachOf("jobs:tinsel", where)).toEqual({ kind: "none" });
+  });
+
   test("no answer on a server whose common images are not the theme artisan, or not read yet", () => {
     expect(imageHolders(edited, { files: [] })).toBeNull();
     // An older server: its common images are the module `ui-kit`, read as `kit:<name>` only.

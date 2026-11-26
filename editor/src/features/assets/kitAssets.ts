@@ -405,17 +405,33 @@ const heldByModule = new WeakMap<ModuleRead, HeldByModule>();
 function heldBy(read: ModuleRead): HeldByModule {
   let held = heldByModule.get(read);
   if (held) return held;
+  held = {
+    names: new Set(assetNamesIn(pathsOf(read))),
+    images: publishedImages(read, read.folder, true),
+  };
+  heldByModule.set(read, held);
+  return held;
+}
+
+/**
+ * The PNGs of the Project `read` as assets, by name, each under `<folder>:<name>`, drawn from
+ * its published file. `originals`: what it ships counts (a module's, not a theme's).
+ */
+function publishedImages(read: KitRead, folder: string, originals: boolean): Map<string, Asset> {
   const images = new Map<string, Asset>();
   const project = encodeURIComponent(read.projectId);
   const files = Object.entries(read.files).map(([path, content]) => ({ path, content }));
   const binaries = read.binaries.map((b) => ({ ...b, size: 0 }));
   for (const { row, path, hash, compose } of diskAssetsFromTree(read.projectId, files, binaries, {
-    originals: true,
+    originals,
   })) {
     if (compose || (row.type !== "glyph" && row.type !== "texture")) continue;
-    const key = moduleImageKey(read.folder, row.name);
+    // The first of a name keeps it, as in the pack (`ImageNames.themeOwn`).
+    if (!originals && images.has(row.name)) continue;
+    const key = moduleImageKey(folder, row.name);
     images.set(row.name, {
       ...(row.ramps ? { ramps: true } : {}),
+      ...(originals ? {} : { qualifiedOnly: true }),
       id: key,
       projectId: read.projectId,
       type: row.type,
@@ -432,15 +448,56 @@ function heldBy(read: ModuleRead): HeldByModule {
       previewUrl: `${API_URL}/api/v1/projects/${project}/binary?path=${encodeURIComponent(path)}&h=${hash}`,
     });
   }
-  held = { names: new Set(assetNamesIn(pathsOf(read))), images };
-  heldByModule.set(read, held);
-  return held;
+  return images;
+}
+
+const heldByTheme = new WeakMap<KitRead, Map<string, Asset>>();
+
+/**
+ * A theme's own images (`assets/` of its Project, decision 5) as published, by name, each
+ * under `<theme>:<name>`: shown as its file is, like the pack.
+ */
+function themeImages(folder: string, read: KitRead): Map<string, Asset> {
+  let images = heldByTheme.get(read);
+  if (!images) {
+    images = publishedImages(read, folder, false);
+    heldByTheme.set(read, images);
+  }
+  return images;
+}
+
+type OwnThemes = Readonly<Record<string, KitRead>>;
+const NO_IMAGES: Asset[] = [];
+
+/**
+ * The own images of the theme `name` as published, by name: what a menu writes
+ * `<name>:<image>` for. None for a theme the common images' Project keeps (no folder of its
+ * own), nor for one whose folder is a module's.
+ */
+export function useThemeOwnImages(name: string): Asset[] {
+  const read = useKitStore((s) => s.own[name]);
+  const taken = useKitStore((s) => s.modules.some((m) => m.folder === name));
+  return useMemo(() => {
+    if (!read || taken) return NO_IMAGES;
+    return [...themeImages(name, read).values()].sort((a, b) =>
+      a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+    );
+  }, [name, read, taken]);
+}
+
+/** The themes whose own images a menu names: a theme of a module's folder gives none. */
+function themesBeside(themes: OwnThemes, modules: readonly ModuleRead[]): [string, KitRead][] {
+  const folders = new Set(modules.map((m) => m.folder));
+  return Object.entries(themes)
+    .filter(([folder]) => !folders.has(folder))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 let lastHolders:
   | {
       kit: KitRead;
       modules: readonly ModuleRead[];
+      themes: OwnThemes;
       assets: readonly Asset[];
       projectId: string;
       where: ElsewhereWhere;
@@ -449,14 +506,15 @@ let lastHolders:
 
 /**
  * Who holds which image for the names a menu of `projectId` writes (`reachOf`): the module's
- * own as the editor holds them (`assets`), the common images and the other modules as
- * published. `null` on a server whose common images are not the theme `artisan`, or not read
+ * own as the editor holds them (`assets`), the common images, the other modules and the
+ * themes' own images as published. `null` on a server whose common images are not the theme `artisan`, or not read
  * yet: a name alone is not read by this rule there. Kept for the last call: every image of a
  * menu asks with the same arguments.
  */
 function holdersOf(
   kit: KitRead | undefined,
   modules: readonly ModuleRead[],
+  themes: OwnThemes,
   assets: readonly Asset[],
   projectId: string,
 ): ElsewhereWhere | null {
@@ -465,6 +523,7 @@ function holdersOf(
     lastHolders &&
     lastHolders.kit === kit &&
     lastHolders.modules === modules &&
+    lastHolders.themes === themes &&
     lastHolders.assets === assets &&
     lastHolders.projectId === projectId
   )
@@ -477,14 +536,18 @@ function holdersOf(
     modules: modules
       .filter((m) => m.projectId !== projectId)
       .map((m) => ({ folder: m.folder, own: (name: string) => heldBy(m).names.has(name) })),
+    themes: themesBeside(themes, modules).map(([folder, read]) => ({
+      folder,
+      own: (name: string) => themeImages(folder, read).has(name),
+    })),
   };
-  lastHolders = { kit, modules, assets, projectId, where };
+  lastHolders = { kit, modules, themes, assets, projectId, where };
   return where;
 }
 
 /**
  * What a name written in a menu of `projectId` reaches (`reachOf`): the module's own image,
- * a common one, another module's, or none. `null`: not known, on a server that does not read
+ * a common one, another module's, a theme's own, or none. `null`: not known, on a server that does not read
  * a name by this rule (`holdersOf`) or one of whose modules could not be read, and for a name
  * the game fills in (`isWrittenName`).
  */
@@ -492,8 +555,9 @@ export function useImageReach(projectId: string): (ref: string) => Reach | null 
   const kit = useKitStore((s) => s.read);
   const modules = useKitStore((s) => s.modules);
   const unread = useKitStore((s) => s.modulesUnread);
+  const themes = useKitStore((s) => s.own);
   const assets = useAssetStore((s) => s.assets);
-  const where = unread ? null : holdersOf(kit, modules, assets, projectId);
+  const where = unread ? null : holdersOf(kit, modules, themes, assets, projectId);
   return useMemo(
     () => (ref: string) => (where && isWrittenName(ref) ? reachOf(ref, where) : null),
     [where],
@@ -508,33 +572,43 @@ function otherImages(modules: readonly ModuleRead[], projectId: string | undefin
 }
 
 /**
- * The module's assets, the common images and the other modules' images: what a title layer's
- * image is looked up in (`imageNamed`).
+ * The module's assets, the common images, the other modules' images and the themes' own: what
+ * a title layer's image is looked up in (`imageNamed`).
  */
 export function useAssetsWithKit(): Asset[] {
   const own = useAssetStore((s) => s.assets);
   const kit = useKitAssets();
   const modules = useKitStore((s) => s.modules);
+  const themes = useKitStore((s) => s.own);
   return useMemo(
-    () => [...own, ...kit, ...otherImages(modules, own[0]?.projectId)],
-    [own, kit, modules],
+    () => [
+      ...own,
+      ...kit,
+      ...otherImages(modules, own[0]?.projectId),
+      ...themesBeside(themes, modules).flatMap(([folder, read]) => [
+        ...themeImages(folder, read).values(),
+      ]),
+    ],
+    [own, kit, modules, themes],
   );
 }
 
 /**
  * The image a menu of `projectId` names, by the pack's rule (`reachOf`): one of its own, else
  * the common image of that name, else another module's; `artisan:<name>` or `kit:<name>` is
- * the common one whatever the module holds, `<folder>:<name>` the image of that module.
+ * the common one whatever the module holds, `<folder>:<name>` the image of that module, or a
+ * theme's own (`<theme>:<name>`).
  */
 export function useImageAsset(projectId: string, name: string | undefined): Asset | undefined {
   const assets = useAssetStore((s) => s.assets);
   const kit = useKitAssets();
   const read = useKitStore((s) => s.read);
   const modules = useKitStore((s) => s.modules);
+  const themes = useKitStore((s) => s.own);
   return useMemo(() => {
     if (!name) return undefined;
     const mine = (id: string) => assets.find((a) => a.projectId === projectId && a.id === id);
-    const where = holdersOf(read, modules, assets, projectId);
+    const where = holdersOf(read, modules, themes, assets, projectId);
     if (!where) {
       // An older server: the module's own, the common one, then another module's of that name.
       const own = kitNameOf(name) === null ? mine(name) : undefined;
@@ -546,6 +620,10 @@ export function useImageAsset(projectId: string, name: string | undefined): Asse
       const holder = modules.find((m) => m.folder === reach.folder && m.projectId !== projectId);
       return holder && heldBy(holder).images.get(reach.name);
     }
+    if (reach.kind === "theme") {
+      const theme = themes[reach.folder];
+      return theme && themeImages(reach.folder, theme).get(reach.name);
+    }
     return imageNamed(kit, name);
-  }, [assets, kit, read, modules, projectId, name]);
+  }, [assets, kit, read, modules, themes, projectId, name]);
 }

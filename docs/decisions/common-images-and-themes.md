@@ -509,6 +509,19 @@ nor offers a theme's own image and reads `<theme>:<name>` as a name no image ans
 (`reachOf`); the MCP tools, which do not write one; the archive's note, which does not say a
 module names one.
 
+**Step 4, eleventh part: the editor reads a theme's own image** (`reachOf` and `themeOwnNames`
+in `lib/pack/elsewhere.ts`, `kitAssets.ts`, `ImageReachNote.tsx`, `imageHolders.ts`,
+`KitThemePage.tsx`).
+`reachOf` answers `{ kind: "theme" }` for `<theme>:<name>` when the theme holds that image
+and no module has the theme's folder, as the pack does. The editor draws it in a menu (a
+button, a title layer, the inspector) from the theme's published file, says under the name
+which theme it is, and no longer flags it in the deploy review; its name alone still reaches
+nothing and is flagged. The page of a theme of its own folder lists its own images, each as
+a menu writes it. A theme's own images are its PNGs under `assets/`, the first of a name,
+a composed one left out, as in the pack.
+Not in this part: choosing one in the image picker (the name is typed); a draft of the
+theme (the images are the published ones); the MCP tools; the archive's note.
+
 **Step 6, first part: a module's archive says what it names elsewhere** (`lib/pack/elsewhere.ts`,
 `exportElsewhere.ts`, `runImportZip.ts`; decision 10). The export reads the image names the
 module writes as the pack reads them and tells who holds each one. A common image the server
@@ -589,10 +602,10 @@ Not there yet:
   copy). A font named elsewhere is neither copied nor noted. The version of Artisan in the
   note is the origin's, shown when a base image is missing, never compared.
 - Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are in the pack when
-  named, and nowhere else yet: the editor does not draw or offer one and says of
-  `<theme>:<name>` that no image answers it (under the image and in the deploy review), the
-  MCP tools do not write one, a composed one is not taken. `<theme>:<name>` for an image the
-  theme does not hold falls on the bare name like a module's.
+  named, and the editor draws one a menu names, as published. The image picker does not
+  offer one (the name is typed, read on the theme's page), the MCP tools do not write one, a
+  composed one is not taken, and a module's archive does not note one. `<theme>:<name>` for
+  an image the theme does not hold falls on the bare name like a module's.
   A theme has no versions and no update: an archive is imported under a free name only.
 - Against decision 7: an image of the server that follows the ramps is repainted by its
   colours as they are, so one drawn in other colours than the base's is not reached by a pick.

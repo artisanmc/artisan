@@ -95,6 +95,38 @@ describe("KitThemePage", () => {
     render(<KitThemePage name="noel" onBack={() => {}} />);
     expect(screen.getByTestId("kit-theme-stack")).toHaveTextContent("hiver, noel");
   });
+  it("lists the own images of a theme of its own folder, each as a menu names it", () => {
+    useKitStore.setState({
+      own: {
+        printemps: {
+          projectId: "srv.printemps",
+          files: { "assets/textures/bouquet.yml": "compose:\n  layers:\n    - image: tulipe\n" },
+          binaries: [
+            { path: "assets/textures/tulipe.png", hash: "h1" },
+            { path: "assets/glyphs/abeille.png", hash: "h2" },
+            { path: "overrides/artisan/panel.png", hash: "h3" },
+          ],
+        },
+        ete: { projectId: "srv.ete", files: {}, binaries: [] },
+      },
+    });
+    const first = render(<KitThemePage name="printemps" onBack={() => {}} />);
+    const list = within(screen.getByTestId("kit-theme-own-images"));
+    expect(list.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "printemps:abeille",
+      "printemps:tulipe",
+    ]);
+    first.unmount();
+    // A theme with none says how one is named.
+    const second = render(<KitThemePage name="ete" onBack={() => {}} />);
+    expect(screen.queryByTestId("kit-theme-own-images")).toBeNull();
+    expect(screen.getByText(/ete:<son nom>/)).toBeInTheDocument();
+    second.unmount();
+    // A theme the common images keep has no folder of its own: nothing is said.
+    render(<KitThemePage name="noel" onBack={() => {}} />);
+    expect(screen.queryByText("Ses propres images")).toBeNull();
+  });
+
   it("picks one colour per ramp for a theme of its own folder, and writes the table", async () => {
     useKitStore.setState({
       own: {

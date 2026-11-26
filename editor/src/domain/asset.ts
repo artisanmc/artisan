@@ -35,6 +35,8 @@ export interface Asset {
   function?: ImageFunction;
   /** The image follows the ramps: a theme's colours repaint it (`lib/pack/theme.ts`). */
   ramps?: boolean;
+  /** A theme's own image (`<theme>:<name>`): a name alone never reaches it (`imageNamed`). */
+  qualifiedOnly?: boolean;
   draftId?: string;
   id: AssetId;
   projectId: string;

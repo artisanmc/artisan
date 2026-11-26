@@ -121,6 +121,15 @@ describe("UI kit", () => {
     expect(imageNamed(images, "warps:coin")).toBeUndefined();
   });
 
+  test("a theme's own image answers its whole name, never the name alone", () => {
+    const images = [{ id: "kit:panel" }, { id: "noel:star", qualifiedOnly: true }];
+    expect(imageNamed(images, "noel:star")).toBe(images[1]);
+    expect(imageNamed(images, "star")).toBeUndefined();
+    // A module's image of that name is still reached by the name alone.
+    const withModule = [...images, { id: "bank:star" }];
+    expect(imageNamed(withModule, "star")).toBe(withModule[2]);
+  });
+
   test("a name ending with its slots says the area the image covers", () => {
     expect(kitFootprint("kit:button.3x1")).toEqual({ width: 3, height: 1 });
     expect(kitFootprint("kit:arrow.next.off.1x2")).toEqual({ width: 1, height: 2 });

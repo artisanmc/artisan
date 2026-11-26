@@ -6,7 +6,7 @@ import { useImageReach } from "./kitAssets";
  * What an image name written in a menu of `projectId` reaches, said where it is written (ADR
  * `common-images-and-themes`, decision 3): nothing when it is the module's own image or a
  * common one; an alert when no image answers it; whose it is when it is another module's,
- * with what to write (`onRename`) when the name alone found it.
+ * with what to write (`onRename`) when the name alone found it, or a theme's own.
  */
 export function ImageReachNote({
   projectId,
@@ -24,6 +24,12 @@ export function ImageReachNote({
     return (
       <p role="alert" className="text-xs text-[var(--danger)]">
         {t("imageReach.none", { name })}
+      </p>
+    );
+  if (reach.kind === "theme")
+    return (
+      <p className="text-xs text-[var(--text-mut)]">
+        {t("imageReach.theme", { theme: reach.folder })}
       </p>
     );
   if (reach.kind !== "module") return null;
