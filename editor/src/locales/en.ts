@@ -116,6 +116,21 @@ export default {
     composed:
       "Composed image: the resource pack assembles it from {{layers}}. It has no file of its own and changes when they do.",
   },
+  component: {
+    title: "Component",
+    use: "Use a component…",
+    common: "{{name}} (common)",
+    saveName: "Save these parts as a component",
+    save: "Save",
+    saveHint:
+      "The parts move to a component of this module: every button that names it draws them, and a change to it changes them all.",
+    named: "Component: {{name}}",
+    detach: "Detach",
+    detachHint: "Keep what the component draws as parts of this button alone",
+    remove: "Remove",
+    unknown: "No component of that name: this button draws nothing.",
+    linked: "Linked: a change to the component changes this button.",
+  },
   parts: {
     title: "Parts",
     hint: "Several images and texts on this button: a background, an icon, a text. Each has its place in the button.",

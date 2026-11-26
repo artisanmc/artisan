@@ -413,6 +413,13 @@ module; an image the button gives is read from the button's. A button writes `co
 component. A name no component answers draws nothing. The editor's canvas draws a
 button's component as the game does.
 
+In the editor, the **Component** section of a button's properties offers the module's
+components and the server's common ones (**Use a component…**), then a field per parameter
+of the one named. **Detach** keeps what the component draws as the button's own parts and
+drops the link; **Remove** leaves the button without a look. On a button made of its own
+image, label or parts, **Save** moves them to a new component of the module, which the
+button then names: the next button takes it from the list.
+
 **Hover area.** A button with neither image nor item (no `image`, `material` nor `item`) is
 invisible: its slots show nothing but keep its title, lore and clicks. Use it to explain a
 part of a background image on hover, or to put a label on the background.
