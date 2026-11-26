@@ -74,10 +74,10 @@ internal object YamlPaths {
 /**
  * What an image is for, declared in its descriptor (`function: menu | glyph | hud`, ADR
  * `common-images-and-themes`, decision 4): the function fixes the image's measures, its pixel
- * size for a menu or HUD image, its height and ascent for a glyph. The owner's image of the
- * name of one the module ships (`originals/…`) with a function is taken only at the original's
- * measures; otherwise the original shows, descriptor included (`imageFunction.ts`). The common
- * images' base has the same rule from its own list ([Kit.image]).
+ * size for a menu or HUD image, its height and ascent for a glyph. Nothing is refused on it
+ * (ADR `resources-one-screen`, decision 4): the owner's image of the name of one the module
+ * ships (`originals/…`) is taken at any measures, and [otherMeasures] is what a tool says of
+ * one that differs (`imageFunction.ts`).
  */
 internal object ImageFunctions {
     private const val ORIGINALS = "originals/"
@@ -129,11 +129,13 @@ internal object ImageFunctions {
     }
 
     /**
-     * The owner's images that are not taken. A glyph is measured by its descriptor (height and
-     * ascent); a menu or HUD image by its pixels, through [sizeOf] (null for a file that is no
-     * image): without [sizeOf] it is taken, and so is one whose original cannot be measured.
+     * The owner's images that have other measures than the original they replace. They are taken
+     * as they are (ADR `resources-one-screen`, decision 4): this is what a tool says of them. A
+     * glyph is measured by its descriptor (height and ascent); a menu or HUD image by its pixels,
+     * through [sizeOf] (null for a file that is no image): without [sizeOf] it is not counted, nor
+     * is one whose original cannot be measured.
      */
-    fun refused(files: List<PackFile>, binaries: List<String>, sizeOf: ((String) -> Pair<Int, Int>?)?): List<Over> =
+    fun otherMeasures(files: List<PackFile>, binaries: List<String>, sizeOf: ((String) -> Pair<Int, Int>?)?): List<Over> =
         over(files, binaries).filter { image ->
             if (image.function == "glyph") {
                 num(image.meta["height"], 0.0) != num(image.originalMeta["height"], 0.0) ||
@@ -148,24 +150,24 @@ internal object ImageFunctions {
 }
 
 /**
- * The owner's images of a module that the pack does not take ([ImageFunctions]), for whoever
- * shows the module's images as the pack does without building it (the MCP tools).
+ * The owner's images of a module that have other measures than the original they replace
+ * ([ImageFunctions]), for whoever says so without building the pack (the MCP tools).
  */
 object OwnerImages {
     /**
-     * An owner's image left out: its [path], the [original] that shows in its place, the original's
-     * [function] and the [measures] that function fixes (`16x16`, or `height 8, ascent 7` for a glyph).
+     * An owner's image at other measures: its [path], the [original] it replaces, the original's
+     * [function] and the original's [measures] (`16x16`, or `height 8, ascent 7` for a glyph).
      */
-    class NotTaken(val path: String, val original: String, val function: String, val measures: String)
+    class OtherMeasures(val path: String, val original: String, val function: String, val measures: String)
 
     /**
-     * The owner's images among [files] (path → text) and [binaries] that are not taken; [bytes]
-     * reads a binary. The theme `artisan` is not a module: its base has its own rule ([Kit.image]).
+     * The owner's images among [files] (path → text) and [binaries] at other measures than their
+     * original; [bytes] reads a binary. The theme `artisan` is not a module ([Kit.image]).
      */
-    fun notTaken(files: Map<String, String>, binaries: Collection<String>, bytes: (String) -> ByteArray?): List<NotTaken> {
+    fun otherMeasures(files: Map<String, String>, binaries: Collection<String>, bytes: (String) -> ByteArray?): List<OtherMeasures> {
         val sizes = HashMap<String, Pair<Int, Int>?>()
         val sizeOf = { path: String -> sizes.getOrPut(path) { ImageFunctions.pixelSize(bytes(path)) } }
-        return ImageFunctions.refused(files.map { PackFile(it.key, it.value) }, binaries.toList(), sizeOf).map { image ->
+        return ImageFunctions.otherMeasures(files.map { PackFile(it.key, it.value) }, binaries.toList(), sizeOf).map { image ->
             val measures = if (image.function == "glyph") {
                 listOfNotNull(
                     "height ${number(image.originalMeta["height"]) ?: "0"}",
@@ -174,7 +176,7 @@ object OwnerImages {
             } else {
                 sizeOf(image.original)?.let { "${it.first}x${it.second}" } ?: ""
             }
-            NotTaken(image.path, image.original, image.function, measures)
+            OtherMeasures(image.path, image.original, image.function, measures)
         }
     }
 
@@ -224,29 +226,18 @@ internal object DiskAssets {
     /**
      * [originals]: the pack's read, the module's assets (`originals/assets/…`) too, the owner's file
      * winning name for name ([ShippedView]). A returned path stays the file's real one, to read its bytes.
-     * [sizeOf]: the pixel size of a file, for the pack ([ImageFunctions.refused]).
      */
     fun fromTree(
         anchorProjectId: String,
         ownFiles: List<PackFile>,
         ownBinaries: List<String>,
         originals: Boolean = false,
-        sizeOf: ((String) -> Pair<Int, Int>?)? = null,
     ): List<DiskAsset> {
-        // The owner's images that are not taken go, descriptor included: the original's show ([ImageFunctions]).
-        val refused = if (originals) ImageFunctions.refused(ownFiles, ownBinaries, sizeOf) else emptyList()
-        val leftOut = refused.mapTo(HashSet()) { it.path }
-        val leftOutStems = refused.mapTo(HashSet()) { it.stem }
-        val keptFiles = if (leftOut.isEmpty()) ownFiles else ownFiles.filter { f ->
-            val stem = if (f.path.startsWith("originals/")) null else YamlPaths.stem(f.path)
-            stem == null || stem !in leftOutStems
-        }
-        val keptBinaries = if (leftOut.isEmpty()) ownBinaries else ownBinaries.filter { it !in leftOut }
-        // (path in the module's folder, real path)
-        val files = if (originals) ShippedView.of(keptFiles) { it.path }.map { (f, at) -> PackFile(at, f.content) to f.path }
-        else keptFiles.map { it to it.path }
-        val everyBinary = if (originals) ShippedView.of(keptBinaries) { it }.map { (real, at) -> at to real }
-        else keptBinaries.map { it to it }
+                // (path in the module's folder, real path)
+        val files = if (originals) ShippedView.of(ownFiles) { it.path }.map { (f, at) -> PackFile(at, f.content) to f.path }
+        else ownFiles.map { it to it.path }
+        val everyBinary = if (originals) ShippedView.of(ownBinaries) { it }.map { (real, at) -> at to real }
+        else ownBinaries.map { it to it }
         val descriptors = HashMap<String, Map<*, *>>()
         val descriptorPaths = HashMap<String, String>()
         for ((f, real) in files) {

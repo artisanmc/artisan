@@ -95,7 +95,7 @@ describe("AssetDetailPanel", () => {
     useAssetStore.getState().setSelectedId("button.3x1");
     const { unmount } = render(<AssetDetailPanel projectId={"p1" as never} />);
     expect(screen.getByTestId("asset-misfit")).toHaveTextContent(
-      "Cette image fait 60 × 18 px, la pièce 54 × 18 px",
+      "cette image fait 60 × 18 px, la pièce 54 × 18 px",
     );
     // Artisan's original shows beside it, and deleting the image is restoring the original.
     expect(screen.getByTestId("common-image-original")).toBeInTheDocument();
@@ -198,7 +198,7 @@ describe("AssetDetailPanel", () => {
     expect(screen.getByRole("button", { name: /atelier/i })).toBeEnabled();
   });
 
-  it("states an image's function, and reports the owner's version that is not taken", async () => {
+  it("states an image's function, and reports the owner's version at another size", async () => {
     const image = { ...A, id: "frame", name: "frame", type: "texture" as const, width: 24 };
     const glyph = { ...A, id: "coin", name: "coin", ascent: 9 };
     useAssetStore.getState().setAssets([image, glyph]);
@@ -225,8 +225,8 @@ describe("AssetDetailPanel", () => {
       .spyOn(userAssetsApi, "patchAsset")
       .mockResolvedValue({ ...image, function: "hud" });
     render(<AssetDetailPanel projectId={"p1" as never} />);
-    expect(screen.getByTestId("asset-not-taken")).toHaveTextContent(
-      "Non prise : cette image fait 24 × 9 px, l'original 20 × 9 px.",
+    expect(screen.getByTestId("asset-other-size")).toHaveTextContent(
+      "Autre taille que celle qu'elle remplace : cette image fait 24 × 9 px, l'original 20 × 9 px.",
     );
     fireEvent.change(screen.getByLabelText(/^Fonction/), { target: { value: "hud" } });
     fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
@@ -235,8 +235,8 @@ describe("AssetDetailPanel", () => {
       expect((screen.getByLabelText(/^Fonction/) as HTMLSelectElement).value).toBe("hud"),
     );
     act(() => useAssetStore.getState().setSelectedId("coin"));
-    expect(screen.getByTestId("asset-not-taken")).toHaveTextContent(
-      "Non prise : ce glyphe a une hauteur de 9 et un ascent de 9, l'original une hauteur de 9 et un ascent de 7.",
+    expect(screen.getByTestId("asset-other-size")).toHaveTextContent(
+      "ce glyphe a une hauteur de 9 et un ascent de 9, l'original une hauteur de 9 et un ascent de 7.",
     );
   });
 

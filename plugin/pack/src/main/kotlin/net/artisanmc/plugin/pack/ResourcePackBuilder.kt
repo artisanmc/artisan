@@ -147,11 +147,7 @@ object ResourcePackBuilder {
             // The theme `artisan` holds the common images: one enters the pack as `kit:<name>` when a
             // menu names it, never as an image of the theme's own; its originals are the base.
             val common = project.folder == Kit.FOLDER
-            // The owner's image of an original that declares a function is taken at its measures only.
-            val sizes = HashMap<String, Pair<Int, Int>?>()
-            val fromDisk = DiskAssets.fromTree(project.id, files, project.binaries, originals = !common) { path ->
-                sizes.getOrPut(path) { ImageFunctions.pixelSize(project.binary(path)) }
-            }
+            val fromDisk = DiskAssets.fromTree(project.id, files, project.binaries, originals = !common)
             // An image the module is not the first to hold under that name gets its module's id ([ImageNames]).
             val rows = fromDisk.map { a ->
                 val image = a.row.type == "glyph" || a.row.type == "texture"
@@ -273,14 +269,17 @@ object ResourcePackBuilder {
             val image = kitImage(name) ?: continue
             val id = Kit.PREFIX + name
             val glyph = name in inTitles
+            val png = theme?.shown(name, image.png) ?: image.png
+            // A theme's drawing of another size is taken as it is, with its own size.
+            val (width, height) = (if (png === image.png) null else ImageFunctions.pixelSize(png)) ?: (image.width to image.height)
             allAssets += AssetRow(
-                id, Kit.FOLDER, if (glyph) "glyph" else "texture", Kit.FILES + name, image.width.toDouble(), image.height.toDouble(),
+                id, Kit.FOLDER, if (glyph) "glyph" else "texture", Kit.FILES + name, width.toDouble(), height.toDouble(),
                 if (glyph) Kit.ASCENT else null, if (glyph) CODEPOINT_MIN.toDouble() else null, null, null,
                 // The margins the server's common image declares, else the ones of the base's own drawing.
                 kitSlices[name] ?: Kit.slot(name)?.slice?.takeIf { image.shipped },
             )
             if (glyph) kitGlyphs += id to CODEPOINT_MIN.toDouble()
-            glyphPngs[id] = theme?.shown(name, image.png) ?: image.png
+            glyphPngs[id] = png
         }
         if (kitGlyphs.isNotEmpty()) contribs += Kit.FOLDER to kitGlyphs
 

@@ -50,14 +50,15 @@ An image a module ships shows in the module's **Resources** like yours. Select i
   since your version**: **Keep mine** clears the notice, **Restore the original** gives the
   image back to the module.
 
-A module may fix the measures of an image it ships (its pixel size for a menu or HUD image, its
-height and ascent for a glyph), so that its menus keep their layout. Your version of such an
-image is taken at those measures only: at others the module's original keeps showing, in the
-editor and in the game, and the image says **Not taken** with both measures.
+A module may state what an image it ships is for (a menu or HUD image, a glyph), which says the
+measures its menus were laid out for: its pixel size, or its height and ascent for a glyph.
+Your version of such an image is taken as it is, at any measures. At others than the
+original's the image says **Other size than the one it replaces**, with both measures: a menu
+laid out for the original may look off, and that is yours to judge. Nothing is refused.
 
 In the list, a dot in the corner of an image marks your version of an image the module ships.
 The dot turns to the warning colour when the module's original changed since your version, and
-to red when your version is not taken; hover the image to read which. The server's
+as well when your version has another size than the original; hover the image to read which. The server's
 **Resources** carry the same dots on every module's images.
 
 ## Removing a shipped document

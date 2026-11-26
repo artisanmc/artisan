@@ -38,7 +38,7 @@ describe("kit images in the editor", () => {
     expect(button?.previewUrl).toBeTruthy();
   });
 
-  test("the kit module's image replaces a slot at its size, not at another, and adds its own", () => {
+  test("the kit module's image replaces a slot at its size and at another, and adds its own", () => {
     const assets = kitAssetsOf(
       read(
         {
@@ -59,7 +59,8 @@ describe("kit images in the editor", () => {
     expect(by.get("kit:button.3x1")?.previewUrl).toContain(
       "/api/v1/projects/srv.ui-kit/binary?path=assets%2Ftextures%2Fbutton.3x1.png",
     );
-    expect(by.get("kit:close.1x1")).toMatchObject({ width: 16, height: 16, contentHash: "" });
+    expect(by.get("kit:close.1x1")).toMatchObject({ width: 10, height: 10 });
+    expect(by.get("kit:close.1x1")?.contentHash).not.toBe("");
     expect(by.get("kit:banner")).toMatchObject({ width: 20, height: 12 });
     expect(isKitBase(by.get("kit:banner")!)).toBe(false);
     expect(assets).toHaveLength(KIT_SLOTS.length + 1);

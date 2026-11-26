@@ -287,11 +287,7 @@ export async function kitImage(
         ? { png: await shipped(slot.id), width: slot.width, height: slot.height }
         : null;
   const mine = size(own);
-  if (
-    own &&
-    mine &&
-    (!original || (mine.width === original.width && mine.height === original.height))
-  )
-    return { png: own, width: mine.width, height: mine.height };
+  // The server's image is taken at any size (ADR `resources-one-screen`, decision 4).
+  if (own && mine) return { png: own, width: mine.width, height: mine.height };
   return original;
 }

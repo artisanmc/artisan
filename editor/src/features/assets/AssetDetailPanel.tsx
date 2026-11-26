@@ -14,7 +14,7 @@ import { AssetStage } from "./AssetStage";
 import { CommonImageOriginal, OriginalImage } from "./CommonImageState";
 import { OriginalChanged } from "./OriginalChanged";
 import { useAssetStore } from "./assetStore";
-import { originalImageUrl, useImageNotTaken, useImageStanding } from "./imageStanding";
+import { originalImageUrl, useImageOtherSize, useImageStanding } from "./imageStanding";
 import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
 
@@ -47,7 +47,7 @@ export function AssetDetailPanel({
   const [busy, setBusy] = useState(false);
   const openStudio = useResourcesView((s) => s.openStudio);
   const standing = useImageStanding(projectId, asset);
-  const notTaken = useImageNotTaken(projectId, asset);
+  const otherSize = useImageOtherSize(projectId, asset);
 
   const savedName = asset?.name ?? "";
   const savedAscent = asset?.ascent ?? "";
@@ -63,7 +63,7 @@ export function AssetDetailPanel({
 
   if (!asset) return null;
 
-  // In the common images' Project, an image named as a piece of the base replaces it only at the piece's size.
+  // In the common images' Project, an image named as a piece of the base replaces it, at any size.
   const piece = asset.type !== "font" && isKitModule(projectId) ? kitSlot(asset.id) : undefined;
   const misfit =
     piece && asset.width > 0 && (asset.width !== piece.width || asset.height !== piece.height)
@@ -166,7 +166,7 @@ export function AssetDetailPanel({
       )}
       <OriginalChanged projectId={projectId} asset={asset} />
       {misfit && (
-        <p role="alert" className="text-xs text-[var(--danger)]" data-testid="asset-misfit">
+        <p className="text-xs text-[var(--warning)]" data-testid="asset-misfit">
           {t("kit.page.misfitDetail", {
             width: asset.width,
             height: asset.height,
@@ -175,20 +175,20 @@ export function AssetDetailPanel({
           })}
         </p>
       )}
-      {notTaken && !piece && (
-        <p role="alert" className="text-xs text-[var(--danger)]" data-testid="asset-not-taken">
-          {notTaken.function === "glyph"
-            ? t("resources.function.notTakenGlyph", {
-                height: notTaken.mine.height,
-                ascent: notTaken.mine.ascent ?? "–",
-                originalHeight: notTaken.original.height,
-                originalAscent: notTaken.original.ascent ?? "–",
+      {otherSize && !piece && (
+        <p className="text-xs text-[var(--warning)]" data-testid="asset-other-size">
+          {otherSize.function === "glyph"
+            ? t("resources.function.otherSizeGlyph", {
+                height: otherSize.mine.height,
+                ascent: otherSize.mine.ascent ?? "–",
+                originalHeight: otherSize.original.height,
+                originalAscent: otherSize.original.ascent ?? "–",
               })
-            : t("resources.function.notTaken", {
-                width: notTaken.mine.width,
-                height: notTaken.mine.height,
-                originalWidth: notTaken.original.width,
-                originalHeight: notTaken.original.height,
+            : t("resources.function.otherSize", {
+                width: otherSize.mine.width,
+                height: otherSize.mine.height,
+                originalWidth: otherSize.original.width,
+                originalHeight: otherSize.original.height,
               })}
         </p>
       )}

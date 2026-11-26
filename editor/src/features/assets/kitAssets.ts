@@ -13,7 +13,6 @@ import {
   KIT_FOLDER,
   KIT_PREFIX,
   KIT_SLOTS,
-  type KitSlot,
   assetNamesIn,
   commonImageRef,
   imageNamed,
@@ -207,7 +206,7 @@ export async function themedKitAssets(assets: Asset[], theme: ThemeLook): Promis
 
 /**
  * Every kit image of a server: the base first, in its order (the kit module's image where it
- * has one of the slot's size, as its descriptor says; Artisan's otherwise), then the kit
+ * has one of the slot's name, at the size its descriptor says; Artisan's otherwise), then the kit
  * module's other images. `composed`: its composed images, which a PNG of the same name hides.
  */
 export function kitAssetsOf(
@@ -216,12 +215,18 @@ export function kitAssetsOf(
 ): Asset[] {
   const own = ownImages(read);
   for (const [name, image] of composed) if (!own.has(name)) own.set(name, image);
-  const fits = (slot: KitSlot, image: OwnImage) =>
-    (image.width ?? slot.width) === slot.width && (image.height ?? slot.height) === slot.height;
   const base = KIT_SLOTS.map((slot) => {
     const mine = own.get(slot.id);
-    return mine && fits(slot, mine)
-      ? kitAsset(slot.id, slot.width, slot.height, mine.url, mine.hash, mine.slice)
+    // The server's image is taken at any size (ADR `resources-one-screen`, decision 4).
+    return mine
+      ? kitAsset(
+          slot.id,
+          mine.width ?? slot.width,
+          mine.height ?? slot.height,
+          mine.url,
+          mine.hash,
+          mine.slice,
+        )
       : kitAsset(slot.id, slot.width, slot.height, kitImageUrl(slot.id) ?? "", "", slot.slice);
   });
   const slots = new Set(KIT_SLOTS.map((s) => s.id));
@@ -233,7 +238,7 @@ export function kitAssetsOf(
   return [...base, ...others];
 }
 
-/** The size of a server's image that is not taken for a piece of the base. */
+/** The size of a server's image that replaces a piece of the base at another size. */
 export interface KitMisfit {
   width: number;
   height: number;
@@ -241,8 +246,8 @@ export interface KitMisfit {
 
 /**
  * The pieces of the base the server holds an image of at another size than the piece's, by
- * name, with that image's size (ADR `common-images-and-themes`, decision 4): it is not taken,
- * the base's shows, and the editor says so on the image.
+ * name, with that image's size (ADR `resources-one-screen`, decision 4): it is taken as it is,
+ * and the editor says so on the image.
  */
 export function kitMisfits(read: KitRead | undefined): Map<string, KitMisfit> {
   const out = new Map<string, KitMisfit>();

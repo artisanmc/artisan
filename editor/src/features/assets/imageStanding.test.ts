@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { imageMarks, imageNotTaken, imageStanding, shippedUntouched } from "./imageStanding";
+import { imageMarks, imageOtherSize, imageStanding, shippedUntouched } from "./imageStanding";
 
 const h = (hash: string) => ({ hash });
 
@@ -27,14 +27,14 @@ describe("imageMarks", () => {
       "assets/textures/plain.png": h("m6"),
     };
     expect(Object.fromEntries(imageMarks(files, binaries))).toEqual({
-      "assets/textures/crest": "not_taken",
+      "assets/textures/crest": "other_size",
       "assets/textures/banner": "own_version",
-      "assets/glyphs/coin": "not_taken",
+      "assets/glyphs/coin": "other_size",
       "assets/textures/plain": "own_version",
     });
     // The list and the panel agree on what is not taken.
-    expect(imageNotTaken(files, binaries, { id: "crest", type: "texture" })).not.toBeNull();
-    expect(imageNotTaken(files, binaries, { id: "banner", type: "texture" })).toBeNull();
+    expect(imageOtherSize(files, binaries, { id: "crest", type: "texture" })).not.toBeNull();
+    expect(imageOtherSize(files, binaries, { id: "banner", type: "texture" })).toBeNull();
   });
 
   it("takes the owner's composed image of a shipped PNG's name as the owner's version", () => {
@@ -94,7 +94,7 @@ describe("imageMarks", () => {
     };
     expect(Object.fromEntries(imageMarks(files, binaries, origins))).toEqual({
       // Left out of the pack: said before its original's change.
-      "assets/textures/crest": "not_taken",
+      "assets/textures/crest": "other_size",
       "assets/textures/banner": "original_changed",
       "assets/textures/seal": "own_version",
       "assets/textures/flag": "own_version",
@@ -122,8 +122,8 @@ describe("imageMarks", () => {
     };
     expect(Object.fromEntries(imageMarks(files, binaries))).toEqual({
       "assets/textures/crest": "own_version",
-      "assets/textures/banner": "not_taken",
-      "assets/textures/seal": "not_taken",
+      "assets/textures/banner": "other_size",
+      "assets/textures/seal": "other_size",
     });
     const pixels: Record<string, { width: number; height: number }> = {
       "originals/assets/textures/crest.png": { width: 54, height: 18 },
@@ -134,23 +134,23 @@ describe("imageMarks", () => {
     // The seal is not measured yet: its descriptors still speak for it.
     const measured = (path: string) => pixels[path];
     expect(Object.fromEntries(imageMarks(files, binaries, undefined, measured))).toEqual({
-      "assets/textures/crest": "not_taken",
+      "assets/textures/crest": "other_size",
       "assets/textures/banner": "own_version",
-      "assets/textures/seal": "not_taken",
+      "assets/textures/seal": "other_size",
     });
     // The panel reports the pixels it was refused at.
-    expect(imageNotTaken(files, binaries, { id: "crest", type: "texture" }, measured)).toEqual({
+    expect(imageOtherSize(files, binaries, { id: "crest", type: "texture" }, measured)).toEqual({
       function: "menu",
       mine: { width: 60, height: 18, ascent: null },
       original: { width: 54, height: 18, ascent: null },
     });
-    expect(imageNotTaken(files, binaries, { id: "banner", type: "texture" }, measured)).toBeNull();
+    expect(imageOtherSize(files, binaries, { id: "banner", type: "texture" }, measured)).toBeNull();
     // A file that is no image is not taken, as in the pack.
     expect(
       imageMarks(files, binaries, undefined, (path) =>
         path === "assets/textures/banner.png" ? null : pixels[path],
       ).get("assets/textures/banner"),
-    ).toBe("not_taken");
+    ).toBe("other_size");
   });
 
   it("marks nothing in a module that ships no image", () => {

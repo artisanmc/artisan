@@ -10,7 +10,7 @@ import {
   type PixelSize,
   imagesOverOriginals,
   measuredPaths,
-  refusedImages,
+  imagesAtOtherMeasures,
 } from "@/lib/pack/imageFunction";
 import { yamlStem } from "@/lib/yamlFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
@@ -106,8 +106,8 @@ export interface StatedMeasures {
   ascent: number | null;
 }
 
-/** The owner's image that is not taken, with its measures and those of the original it stands over. */
-export interface ImageNotTaken {
+/** The owner's image at other measures than the original it stands over, with both measures. */
+export interface ImageOtherSize {
   function: ImageFunction;
   mine: StatedMeasures;
   original: StatedMeasures;
@@ -131,7 +131,7 @@ const statedSize = (meta: Record<string, unknown>): PixelSize | null => {
 };
 
 /**
- * The size of a file as descriptors state it, for `refusedImages`: the pack measures a menu or
+ * The size of a file as descriptors state it, for `imagesAtOtherMeasures`: the pack measures a menu or
  * HUD image by its pixels; here by what its descriptor states, an image that states no size
  * being taken as fitting.
  */
@@ -151,7 +151,7 @@ function statedSizes(overs: readonly ImageOverOriginal[]): (path: string) => Pix
 export type MeasuredPixels = (path: string) => PixelSize | null | undefined;
 
 /**
- * The size of a file for `refusedImages`: its pixels as `measured` read them, which is how the
+ * The size of a file for `imagesAtOtherMeasures`: its pixels as `measured` read them, which is how the
  * pack measures a menu or HUD image; what the descriptors state ([statedSizes]) for a file not
  * measured yet, or when nothing measures.
  */
@@ -173,16 +173,16 @@ const lists = (files: Record<string, string>, binaries: BinaryTree) => ({
 });
 
 /**
- * Whether the owner's image `asset` is left out of the pack: it stands over an original that
+ * Whether the owner's image `asset` has other measures than its original: it stands over one that
  * declares a function, at other measures (`imageFunction.ts`), read as [sizesOf] says. The
  * measures reported are the pixels when `measured` read them.
  */
-export function imageNotTaken(
+export function imageOtherSize(
   files: Record<string, string>,
   binaries: BinaryTree,
   asset: Pick<Asset, "id" | "type">,
   measured?: MeasuredPixels,
-): ImageNotTaken | null {
+): ImageOtherSize | null {
   if (asset.type === "font") return null;
   const stem = assetDiskPath(asset.type, asset.id).replace(/\.png$/, "");
   const { fileList, binaryList } = lists(files, binaries);
@@ -190,7 +190,7 @@ export function imageNotTaken(
   const over = overs.find((image) => image.stem === stem);
   if (!over) return null;
   if (
-    !refusedImages(fileList, binaryList, sizesOf(overs, measured)).some(
+    !imagesAtOtherMeasures(fileList, binaryList, sizesOf(overs, measured)).some(
       (image) => image.stem === stem,
     )
   )
@@ -205,12 +205,12 @@ export function imageNotTaken(
 }
 
 /**
- * What a list marks on a module's image: `not_taken`, the pack leaves it out ([imageNotTaken]);
+ * What a list marks on a module's image: `other_size`, it has other measures than its original and is taken as it is ([imageOtherSize]);
  * `own_version`, the owner's file stands over one the module ships (decision 8);
  * `original_changed`, that original changed since the owner's version, which stays the one
- * shown. An image the pack leaves out says that first.
+ * shown. An image of other measures says that first.
  */
-export type ImageMark = "not_taken" | "original_changed" | "own_version";
+export type ImageMark = "other_size" | "original_changed" | "own_version";
 
 /** The stem of the file of an image, which [imageMarks] keys by. */
 export const imageStem = (asset: Pick<Asset, "id" | "type">): string =>
@@ -250,8 +250,8 @@ export function imageMarks(
   }
   const { fileList, binaryList } = lists(files, binaries);
   const overs = imagesOverOriginals(fileList, binaryList);
-  for (const image of refusedImages(fileList, binaryList, sizesOf(overs, measured)))
-    marks.set(image.stem, "not_taken");
+  for (const image of imagesAtOtherMeasures(fileList, binaryList, sizesOf(overs, measured)))
+    marks.set(image.stem, "other_size");
   return marks;
 }
 
@@ -371,11 +371,11 @@ export function useShippedUntouched(
   }, [files, binaries]);
 }
 
-/** [imageNotTaken] of an image of the open module, as its draft holds it, else as published. */
-export function useImageNotTaken(
+/** [imageOtherSize] of an image of the open module, as its draft holds it, else as published. */
+export function useImageOtherSize(
   projectId: string,
   asset: Pick<Asset, "id" | "type"> | null,
-): ImageNotTaken | null {
+): ImageOtherSize | null {
   const draft = useProjectDraftStore((s) => s.drafts[projectId]);
   const publishedFiles = useProjectBaselineStore((s) => s.baselines[projectId]);
   const publishedBinaries = useProjectBaselineStore((s) => s.binaryBaselines[projectId]);
@@ -387,7 +387,7 @@ export function useImageNotTaken(
   return useMemo(
     () =>
       files && binaries && id && type
-        ? imageNotTaken(files, binaries, { id, type }, measured)
+        ? imageOtherSize(files, binaries, { id, type }, measured)
         : null,
     [files, binaries, id, type, measured],
   );

@@ -7,7 +7,7 @@ import { type ComposeRecipe, renderComposed } from "./compose";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
-import { type PixelSize, measuredPaths, pixelSize } from "./imageFunction";
+import { pixelSize } from "./imageFunction";
 import { ImageNames, namedImageRow, themeImagePath } from "./imageNames";
 import {
   KIT_ASCENT,
@@ -192,14 +192,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     // The theme `artisan` holds the common images: one enters the pack as `kit:<name>` when a
     // menu names it, never as an image of the theme's own; its originals are the base.
     const common = folder === KIT_FOLDER;
-    // The owner's image of an original that declares a function is taken at its measures only.
-    const sizes = new Map<string, PixelSize | null>();
-    if (!common)
-      for (const path of measuredPaths(files, project.binaries))
-        sizes.set(path, pixelSize(await project.binary(path)));
     const fromDisk: DiskAsset[] = diskAssetsFromTree(project.id, files, project.binaries, {
       originals: !common,
-      sizeOf: (path) => sizes.get(path) ?? null,
     });
 
     // An image the module is not the first to hold under that name gets its module's id (`imageNames.ts`).
@@ -370,6 +364,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     const image = await kitImageOf(name);
     if (!image) continue;
     const png = theme ? await theme.shown(name, image.png) : image.png;
+    // A theme's drawing of another size is taken as it is, with its own size.
+    const size = (png === image.png ? null : pixelSize(png)) ?? image;
     const id = KIT_PREFIX + name;
     const glyph = inTitles.has(name);
     allAssets.push({
@@ -377,8 +373,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
       projectId: KIT_FOLDER,
       type: glyph ? "glyph" : "texture",
       name: KIT_FILES + name,
-      width: image.width,
-      height: image.height,
+      width: size.width,
+      height: size.height,
       ascent: glyph ? KIT_ASCENT : null,
       codepoint: glyph ? CODEPOINT_MIN : null,
       contentWidth: null,

@@ -85,14 +85,13 @@ describe("kit themes", () => {
     expect([...theme.drawings].sort()).toEqual(["back", "broken", "close"]);
     const base = encodePng(solid(2, 2, 0x3c, 0x85, 0x27, 255));
     expect(await theme.shown("close", base)).toBe(drawn);
-    expect(await theme.drawing("close", base)).toBe(drawn);
-    // Another size, or unreadable: left out, the image stays the very same file.
-    expect(await theme.drawing("back", base)).toBeNull();
-    expect(await theme.shown("back", base)).toBe(base);
-    expect(await theme.drawing("broken", base)).toBeNull();
-    expect(await theme.drawing("other", base)).toBeNull();
-    const broken = new Uint8Array([1, 2, 3]);
-    expect(await theme.shown("close", broken)).toBe(broken);
+    expect(await theme.drawing("close")).toBe(drawn);
+    // Another size is taken as it is; an unreadable file is left out, the image stays the very same file.
+    expect(await theme.drawing("back")).toBe(small);
+    expect(await theme.shown("back", base)).toBe(small);
+    expect(await theme.drawing("broken")).toBeNull();
+    expect(await theme.shown("broken", base)).toBe(base);
+    expect(await theme.drawing("other")).toBeNull();
   });
 
   test("the themes in place are the list, the lowest first, else the former single theme", () => {
@@ -141,10 +140,10 @@ describe("kit themes", () => {
     expect(stack()).toBeNull();
     expect(stack("nowhere")).toBeNull();
     expect(await stack("noel")!.shown("x", green)).toBe(green);
-    expect(await stack("noel")!.drawing("x", green)).toBeNull();
+    expect(await stack("noel")!.drawing("x")).toBeNull();
     expect(await stack("noel", "haut")!.shown("close", green)).toBe(top);
-    expect(await stack("noel", "haut")!.drawing("close", green)).toBe(top);
-    expect(await stack("haut", "noel")!.drawing("close", green)).toBe(drawn);
+    expect(await stack("noel", "haut")!.drawing("close")).toBe(top);
+    expect(await stack("haut", "noel")!.drawing("close")).toBe(drawn);
     // A theme the module does not hold is left out of the stack.
     expect(await stack("noel", "nowhere")!.shown("close", green)).toBe(drawn);
   });

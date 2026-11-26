@@ -40,7 +40,7 @@ describe("KitPage", () => {
       ],
       {
         "assets/glyphs/button.3x1.yml": "width: 54\nheight: 18\n",
-        // Not the piece's size: the image is not taken, and the card says so.
+        // Not the piece's size: the image is taken as it is, and the card says so.
         "assets/textures/back.1x1.yml": "width: 20\nheight: 16\n",
       },
     );
@@ -56,9 +56,9 @@ describe("KitPage", () => {
       />,
     );
     const misfit = within(screen.getByTestId("kit-slot-back.1x1"));
-    expect(misfit.getByText("Non prise")).toBeInTheDocument();
-    expect(misfit.getByRole("alert")).toHaveTextContent(
-      "Cette image fait 20 × 16 px, la pièce 16 × 16 px",
+    expect(misfit.getByText("Autre taille")).toBeInTheDocument();
+    expect(misfit.getByTestId("common-image-misfit")).toHaveTextContent(
+      "cette image fait 20 × 16 px, la pièce 16 × 16 px",
     );
     // Each image says how many menus name it.
     expect(
@@ -73,7 +73,7 @@ describe("KitPage", () => {
     expect(
       within(screen.getByTestId("kit-slot-button.3x1")).getByText("Redessinée"),
     ).toBeInTheDocument();
-    expect(screen.getByText("1 pièce redessinée sur 19")).toBeInTheDocument();
+    expect(screen.getByText("2 pièces redessinées sur 19")).toBeInTheDocument();
     expect(screen.getByText("14 menus nomment une image commune")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("kit-slot-card.3x2"));
     expect(onPiece).toHaveBeenLastCalledWith("card.3x2");

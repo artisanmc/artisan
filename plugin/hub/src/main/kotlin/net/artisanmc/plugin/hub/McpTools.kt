@@ -69,8 +69,8 @@ class McpTools(
         Tool(
             "list_documents", "List documents",
             "Lists the files of a Project, as the server loaded them, or as a draft has them when draft_id is given: each Document with " +
-                "its kind, the other files (translations under lang/, data), the images (read_image shows one), those the pack does not take " +
-                "(images_not_taken: an owner's image at other measures than the original the module ships, which shows in its place), " +
+                "its kind, the other files (translations under lang/, data), the images (read_image shows one), those of another size than the one they replace " +
+                "(images_other_size: an owner's image at other measures than the original the module ships; it is taken as it is), " +
                 "and the files the server could not load with the reason.",
             schema("project" to PROJECT, "draft_id" to DRAFT_OPTIONAL), readOnly = true, ::listDocuments,
         ),
@@ -178,8 +178,8 @@ class McpTools(
                 "name" to string(
                     "The image's name, which Documents refer to: lowercase letters, digits, `_` and `-`, e.g. `shop_button`. In the " +
                         "server's common images ($KIT_PROJECT), also a name of the base (`button.3x1`, from survey_ui's `base`): the image " +
-                        "then replaces it on this server, and has to be of its size. In a draft of a theme's own Project: the common image the " +
-                        "theme redraws (`button.3x1`), or a module's image as `<module>:<image>` (`guilds:banner`), at that image's size; or an " +
+                        "then replaces it on this server (at another size it is taken as it is, and the result says so). In a draft of a theme's own Project: the common image the " +
+                        "theme redraws (`button.3x1`), or a module's image as `<module>:<image>` (`guilds:banner`); or an " +
                         "image of the theme's own, named with the theme (`noel:garland` in the theme `noel`), of any size, which a menu names so.",
                 ),
                 "use" to mapOf("type" to "string", "enum" to listOf("button", "background"), "description" to "button (default) or background."),
@@ -567,8 +567,8 @@ class McpTools(
             ),
             "other_files" to tree.keys.filter { it !in listed }.sorted(),
             "images" to images,
-            // The owner's images the pack leaves out, as read_image says of each.
-            "images_not_taken" to own.notTaken.values.sortedBy { it.path }
+            // The owner's images at other measures than the original they replace, as read_image says of each.
+            "images_other_size" to own.otherMeasures.values.sortedBy { it.path }
                 .map { mapOf("path" to it.path, "original" to it.original, "function" to it.function, "measures" to it.measures) }
                 .ifEmpty { null },
             "composed_images" to own.recipes.values.sorted().ifEmpty { null },
@@ -782,20 +782,20 @@ class McpTools(
         val draft = draftId?.let { draftSnapshot(principal, project, it) }
         if (composed) return readComposed(project, path, draft)
         val image = McpImages.fromPng(imageBytes(project, path, draft))
-        val notTaken = if (path.startsWith("${Originals.DIR}/")) null else Images(project, projects.read(project), draft).notTaken[path]
+        val other = if (path.startsWith("${Originals.DIR}/")) null else Images(project, projects.read(project), draft).otherMeasures[path]
         return Shown(
             mapOf("project" to project.id, "path" to path, "shown_at" to "x${McpImages.scale(image)}") + McpImages.facts(image) +
-                ("pixels" to McpImages.grid(image)) + mapOf("not_taken" to notTaken?.let(::notTakenNote)).filterValues { it != null },
+                ("pixels" to McpImages.grid(image)) + mapOf("other_size" to other?.let(::otherSizeNote)).filterValues { it != null },
             listOf(McpImages.preview(image)),
         )
     }
 
-    /** What a tool says of an owner's image the pack does not take ([Images.notTaken]). */
-    private fun notTakenNote(image: OwnerImages.NotTaken): String =
-        "Not taken: the module ships `${image.original}` as a ${image.function} image, whose measures are fixed" +
+    /** What a tool says of an owner's image at other measures than its original ([Images.otherMeasures]). */
+    private fun otherSizeNote(image: OwnerImages.OtherMeasures): String =
+        "Other size than the one it replaces: the module ships `${image.original}` as a ${image.function} image" +
             (if (image.measures.isEmpty()) "" else " (${image.measures})") +
-            ". This image has others, so the pack, the game and render_menu show the module's original. " +
-            "Draw it at those measures to replace the original, or give it another name."
+            ". This image is taken as it is, in the pack, the game and render_menu: a menu laid out for the original may look off. " +
+            "Draw it at those measures to keep the layout."
 
     /** A composed image, shown as the pack assembles it, with its layers as write_image's `compose` takes them. */
     private fun readComposed(project: ProjectRef, path: String, draft: DraftSnapshot?): Any {
@@ -845,18 +845,17 @@ class McpTools(
         private val roots = if (project.folder == KIT_FOLDER) IMAGE_DIRS.values.toList() else IMAGE_ROOTS
 
         /**
-         * The owner's images the pack does not take, by path: one that stands over an original
-         * whose function fixes other measures (ADR `common-images-and-themes`, decision 4). The
-         * original shows in its place, here as in the pack.
+         * The owner's images at other measures than the original they stand over, by path. They
+         * are taken as they are, here as in the pack (ADR `resources-one-screen`, decision 4).
          */
-        val notTaken: Map<String, OwnerImages.NotTaken> by lazy {
+        val otherMeasures: Map<String, OwnerImages.OtherMeasures> by lazy {
             if (project.folder == KIT_FOLDER) emptyMap()
-            else OwnerImages.notTaken(tree, hashes.filterValues { it != null }.keys, ::bytes).associateBy { it.path }
+            else OwnerImages.otherMeasures(tree, hashes.filterValues { it != null }.keys, ::bytes).associateBy { it.path }
         }
 
         /** The module's PNGs, its own over the one it shipped with, name for name. */
         val pngs: List<String> by lazy {
-            hashes.keys.filter { it.endsWith(".png") && it.substringBeforeLast('/') in roots && hashes[it] != null && it !in notTaken }
+            hashes.keys.filter { it.endsWith(".png") && it.substringBeforeLast('/') in roots && hashes[it] != null }
                 .groupBy { it.substringAfterLast('/') }.values.map { same -> same.minBy { roots.indexOf(it.substringBeforeLast('/')) } }.sorted()
         }
 
@@ -877,7 +876,7 @@ class McpTools(
         }
 
         fun png(name: String): MenuPictureImage? {
-            val at = roots.map { "$it/$name.png" }.firstOrNull { hashes[it] != null && it !in notTaken } ?: return null
+            val at = roots.map { "$it/$name.png" }.firstOrNull { hashes[it] != null } ?: return null
             return bytes(at)?.let { MenuPictureImage(it, descriptor(at.removeSuffix(".png"))?.let(::ascent)) }
         }
 
@@ -984,7 +983,10 @@ class McpTools(
             val image = Kit.image(name, png ?: module?.composed(name, this)?.png, module?.shipped(name)) ?: return null
             val theme = theme ?: return image
             val shown = theme.shown(name, image.png)
-            return if (shown === image.png) image else Kit.Image(shown, image.width, image.height, image.shipped)
+            if (shown === image.png) return image
+            // A theme's drawing of another size is shown as it is, with its own size.
+            val size = runCatching { net.artisanmc.plugin.pack.Png.decode(shown) }.getOrNull()
+            return Kit.Image(shown, size?.width ?: image.width, size?.height ?: image.height, image.shipped)
         }
     }
 
@@ -1410,7 +1412,7 @@ class McpTools(
                 java.util.Base64.getEncoder().encodeToString(net.artisanmc.plugin.pack.Png.encode(net.artisanmc.plugin.pack.ImageSheets.sheet(shown, first))),
             )
         }
-        // The base last, as this server shows it: its own image where the kit module has one of the slot's size.
+        // The base last, as this server shows it: its own image where the kit module has one of the slot's name.
         val base = Kit.slots.mapNotNull { slot ->
             val own = kitModule?.let { it.png(slot.id) ?: it.recipe(slot.id) }
             val image = themed.image(slot.id) ?: return@mapNotNull null
@@ -1422,7 +1424,8 @@ class McpTools(
             drawn to mapOf(
                 "n" to number, "image" to (if (kit != null) slot.id else Kit.PREFIX + slot.id), "width" to slot.width, "height" to slot.height,
                 "drawn_by" to (if (image.shipped) "artisan" else "this server"),
-                "ignored" to "The server's image of this name has another size: the base's is shown.".takeIf { image.shipped && own != null },
+                "other_size" to "The server's image of this name is ${image.width}x${image.height}, another size than the base's: it is shown as it is."
+                    .takeIf { !image.shipped && (image.width != slot.width || image.height != slot.height) },
             ).filterValues { it != null }
         }
         if (base.isNotEmpty()) sheets += McpImages.Picture(
@@ -1509,11 +1512,11 @@ class McpTools(
             args.path("png_base64").isTextual -> McpImages.fromBase64(args["png_base64"].asText())
             else -> throw McpRefusal("invalid_input", "pixels, png_base64, from or compose is required, unless delete is true.")
         }
-        if (slot != null && (image.width != slot.width || image.height != slot.height)) throw McpRefusal(
-            "invalid_image",
-            "The common image `${slot.id}` is ${slot.width}x${slot.height} on every server, so that the menus laid out against it keep their place; " +
-                "this image is ${image.width}x${image.height}. Draw it at that size, or give it another name: any image written here is common to the server.",
-        )
+        // A piece of the base at another size is written and taken as it is: said, not refused.
+        val slotNote = slot?.takeIf { image.width != it.width || image.height != it.height }?.let {
+            "Other size than the one it replaces: the common image `${it.id}` is ${it.width}x${it.height} in Artisan's base, this image is " +
+                "${image.width}x${image.height}. It is taken as it is: a menu laid out against the base's may look off."
+        }
         val background = path.startsWith(IMAGE_DIRS.getValue("background"))
         // A theme's own image is named with its theme, never by the name alone.
         val ref = if (ownImage != null) "${project.folder}:$name" else name
@@ -1560,8 +1563,8 @@ class McpTools(
             "hash" to hash, "content_base64" to java.util.Base64.getEncoder().encodeToString(bytes),
         ))
         val descriptor = descriptor(draft.tree[descriptorPath], image.width to image.height, path, draft.tree)
-        // Over an original whose function fixes other measures, the image is written and not taken: said, not refused.
-        val notTaken = if (project.folder == KIT_FOLDER) null else OwnerImages.notTaken(
+        // Over an original of other measures, the image is written and taken as it is: said, not refused.
+        val other = if (project.folder == KIT_FOLDER) null else OwnerImages.otherMeasures(
             draft.tree + (descriptorPath to descriptor), binaryTree.keys + path,
         ) { if (it == path) bytes else view.bytes(it) }.firstOrNull { it.path == path }
         val revision = updateDraft(
@@ -1572,7 +1575,7 @@ class McpTools(
             mapOf(
                 "written" to true, "path" to path, "replaced" to (existing != null || composed != null), "draft_id" to draftId, "revision" to revision,
                 "hash" to hash, "shown_at" to "x${McpImages.scale(image)}", "use_it" to useIt,
-            ) + mapOf("not_taken" to notTaken?.let(::notTakenNote)).filterValues { it != null } + McpImages.facts(image) + cut?.facts.orEmpty(),
+            ) + mapOf("other_size" to (other?.let(::otherSizeNote) ?: slotNote)).filterValues { it != null } + McpImages.facts(image) + cut?.facts.orEmpty(),
             listOf(McpImages.preview(image)),
         )
     }
@@ -1638,11 +1641,10 @@ class McpTools(
             args.path("png_base64").isTextual -> McpImages.fromBase64(args["png_base64"].asText())
             else -> throw McpRefusal("invalid_input", "pixels, png_base64 or from is required, unless delete is true.")
         }
-        if (drawn.width != width || drawn.height != height) throw McpRefusal(
-            "invalid_image",
-            "The $what is ${width}x$height, and a theme redraws an image at its size, so that the menus keep their layout; " +
-                "this image is ${drawn.width}x${drawn.height}.",
-        )
+        // Another size than the image redrawn is written and taken as it is: said, not refused.
+        val otherSize = if (drawn.width == width && drawn.height == height) null else
+            "Other size than the one it replaces: the $what is ${width}x$height, this image is ${drawn.width}x${drawn.height}. " +
+                "It is taken as it is: a menu laid out against the other may look off."
         val bytes = net.artisanmc.plugin.pack.Png.encode(drawn)
         val hash = net.artisanmc.plugin.project.ContentHash.hashBytes(bytes)
         refuseDraft(projects.draft(
@@ -1660,7 +1662,7 @@ class McpTools(
                 "hash" to hash, "shown_at" to "x${McpImages.scale(drawn)}",
                 "use_it" to "Every menu that names the $what shows this image while the theme `$theme` is in place on the server, unless a theme above it redraws the image too: the player puts " +
                     "the theme in place from its page in the editor, once the draft is deployed. render_menu with theme: \"$theme\" and ${if (own) "theme_draft_id" else "common_draft_id"}: \"$draftId\" shows a menu in it now.",
-            ) + McpImages.facts(drawn) + cut?.facts.orEmpty(),
+            ) + mapOf("other_size" to otherSize).filterValues { it != null } + McpImages.facts(drawn) + cut?.facts.orEmpty(),
             listOf(McpImages.preview(drawn)),
         )
     }

@@ -5,7 +5,10 @@ step 3, the places on the left of both Resources (`ResourcePlaces`), the **Show:
 read-only list of the whole server and the Themes screen gone, a theme holding its images
 under `assets/` like a module and edited in its Project, with the marks of decision 6. Not
 built: who provides a name under an image, a name alone reaching an image only a theme holds
-(it is still written `<theme>:<name>`), step 5. Step 4 is in the code: **Save as** in the
+(it is still written `<theme>:<name>`). Step 5 is in the code: nothing is refused on a size
+(`KitTheme.drawing`, `Kit.image`, `DiskAssets.fromTree` and their twins take an image at any
+measures; MCP `write_image` writes it), and the editor and the tools mark it "other size than
+the one it replaces". Step 4 is in the code: **Save as** in the
 atelier (`SaveAsDialog`, `saveAsPlaces.ts`, answered in the place's Project by
 `useSaveAsAsked`), an image only (a font is not saved as), **Copy to the common images**
 gone and **Redraw for the server** renamed **Open in the atelier**. Amends `common-images-and-themes` (2026-11-25):

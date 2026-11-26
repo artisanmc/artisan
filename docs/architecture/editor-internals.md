@@ -163,8 +163,9 @@ reference counts by the rule a menu is read with (`imageNamedBy`): `artisan:` an
 the common image, a name alone the module's own image then the common one, `<folder>:<name>`
 the image of the module in that folder. `CommonAssets` lists these uses
 (`onOpenMenu` opens a menu), `KitPage` shows the number of menus per common image.
-A server's image of a base piece's name at another size than the piece's is not taken (the
-pack and `kitAssetsOf` show the base's); `kitMisfits` (`kitAssets.ts`) lists these with their
+A server's image of a base piece's name at another size than the piece's is taken as it is
+(ADR `resources-one-screen`, decision 4: the pack and `kitAssetsOf` show it, at its own size);
+`kitMisfits` (`kitAssets.ts`) lists these with their
 size, and `CommonImageBadge` / `CommonImageMisfit` (`CommonImageState.tsx`) say it wherever a
 common image shows its state. In the common images' own Project, `AssetDetailPanel` reports
 the same on the image, from the draft. `CommonImageOriginal` draws the piece as Artisan ships
@@ -186,13 +187,14 @@ name: the owner's descriptor with a recipe takes the name from the shipped PNG
 (`diskAssetsFromTree`), and `imageStanding` reads that descriptor as the owner's file. An image's `function` (`lib/pack/imageFunction.ts`:
 `menu`, `glyph`, `hud`, or none) is a key of its descriptor, read into `Asset.function`, kept
 by every write of the descriptor (`descriptorYaml`) and set from the panel's advanced fields
-(`patchAsset`'s `function`, `""` to clear). `refusedImages` is the rule both pack builders
-apply: the owner's image of an original that declares a function is left out at other
-measures. `imageNotTaken` (`imageStanding.ts`) applies it to the open module, by the pixels
+(`patchAsset`'s `function`, `""` to clear). Neither pack builder refuses anything on it (ADR
+`resources-one-screen`, decision 4). `imagesAtOtherMeasures` lists the owner's images of an
+original that declares a function at other measures, which are taken as they are.
+`imageOtherSize` (`imageStanding.ts`) applies it to the open module, by the pixels
 of the files the rule measures (`usePixelSizes` in `pixelSizes.ts`: read once per content hash,
 the draft's blob or the published file) and by what the descriptors state until they are read,
 and `AssetDetailPanel` reports it on the image. `imageMarks` gives the
-standings for the whole module at once (`not_taken`, `original_changed`, `own_version`, by the
+standings for the whole module at once (`other_size`, `original_changed`, `own_version`, by the
 stem of the file; `original_changed` needs the origins the server recorded, read by
 `useProjectOrigins` when the module holds a version over an original):
 the module's list (`OwnAssets`) draws them as a dot on the tile and a line in its tooltip

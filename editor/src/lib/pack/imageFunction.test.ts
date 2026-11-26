@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { diskAssetsFromTree } from "./diskAssets";
-import { imageFunctionOf, measuredPaths, refusedImages } from "./imageFunction";
+import { imageFunctionOf, measuredPaths, imagesAtOtherMeasures } from "./imageFunction";
 
 const files = (entries: Record<string, string>) =>
   Object.entries(entries).map(([path, content]) => ({ path, content }));
@@ -66,39 +66,39 @@ describe("an image's function", () => {
     ]);
   });
 
-  test("the owner's image at other measures than its original's is not taken", () => {
-    expect(refusedImages(tree.files, tree.binaries, sizeOf).map((i) => i.path)).toEqual([
+  test("the owner's image at other measures than its original's is told", () => {
+    expect(imagesAtOtherMeasures(tree.files, tree.binaries, sizeOf).map((i) => i.path)).toEqual([
       "assets/textures/badge.png",
       "assets/glyphs/gem.png",
     ]);
-    // Without the pixels, a menu or HUD image is taken; a glyph is still measured.
-    expect(refusedImages(tree.files, tree.binaries).map((i) => i.path)).toEqual([
+    // Without the pixels, a menu or HUD image is not counted; a glyph is still measured.
+    expect(imagesAtOtherMeasures(tree.files, tree.binaries).map((i) => i.path)).toEqual([
       "assets/glyphs/gem.png",
     ]);
-    // An owner's file that is no image is not taken; an original that is none measures nothing.
+    // An owner's file that is no image counts; an original that is none measures nothing.
     const broken = (path: string) =>
       path === "assets/textures/panel.png" || path === "originals/assets/textures/badge.png"
         ? null
         : sizeOf(path);
-    expect(refusedImages(tree.files, tree.binaries, broken).map((i) => i.path)).toEqual([
+    expect(imagesAtOtherMeasures(tree.files, tree.binaries, broken).map((i) => i.path)).toEqual([
       "assets/textures/panel.png",
       "assets/glyphs/gem.png",
     ]);
   });
 
-  test("the pack's read shows the original, descriptor included, in place of an image not taken", () => {
-    const read = diskAssetsFromTree("p", tree.files, tree.binaries, { originals: true, sizeOf });
+  test("the pack's read takes the owner's image at other measures than its original's", () => {
+    const read = diskAssetsFromTree("p", tree.files, tree.binaries, { originals: true });
     const at = Object.fromEntries(read.map((a) => [`${a.row.type}/${a.row.id}`, a]));
     expect(at["texture/panel"]?.path).toBe("assets/textures/panel.png");
-    expect(at["texture/badge"]?.path).toBe("originals/assets/textures/badge.png");
+    expect(at["texture/badge"]?.path).toBe("assets/textures/badge.png");
     expect(at["texture/free"]?.path).toBe("assets/textures/free.png");
     expect(at["texture/mine"]?.path).toBe("assets/textures/mine.png");
     expect(at["glyph/coin"]?.path).toBe("assets/glyphs/coin.png");
-    expect(at["glyph/gem"]?.path).toBe("originals/assets/glyphs/gem.png");
-    expect(at["glyph/gem"]?.row.ascent).toBe(7);
+    expect(at["glyph/gem"]?.path).toBe("assets/glyphs/gem.png");
+    expect(at["glyph/gem"]?.row.ascent).toBe(9);
     expect(at["glyph/star"]?.path).toBe("assets/glyphs/star.png");
     expect(read).toHaveLength(7);
-    // The editor's own read (no pixels) and a read without originals leave the owner's files.
+    // A read without originals leaves the owner's files too.
     expect(
       diskAssetsFromTree("p", tree.files, tree.binaries).find((a) => a.row.id === "gem")?.row
         .ascent,
