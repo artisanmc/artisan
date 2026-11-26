@@ -38,6 +38,10 @@ export default {
         "Not taken: this glyph has height {{height}} and ascent {{ascent}}, the original height {{originalHeight}} and ascent {{originalAscent}}. The original shows until they match.",
     },
     ramps: {
+      allIn: "Every colour of this image is one of Artisan's: a theme repaints them all.",
+      off_one: "{{count}} colour of this image is none of Artisan's: a theme leaves it as it is.",
+      off_other:
+        "{{count}} colours of this image are none of Artisan's: a theme leaves them as they are.",
       label: "Follows the themes' colours",
       hint: "A theme in place replaces this image's colours with its own. Tick it for an image drawn in Artisan's base colours; without it the image keeps its colours, as an imported one should.",
     },

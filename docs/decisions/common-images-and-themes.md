@@ -520,8 +520,9 @@ Not there yet:
 - Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are not in the pack.
   A theme has no versions and no update: an archive is imported under a free name only.
 - Against decision 7: an image of the server that follows the ramps is repainted by its
-  colours as they are, so one drawn in other colours than the base's is not reached by a pick;
-  the editor does not say which of an image's colours are in no ramp.
+  colours as they are, so one drawn in other colours than the base's is not reached by a pick.
+  The image's panel says which of its colours are in no ramp (`offRampColors`), once the image
+  says it follows them.
 - An overlay image keeps its key on the name the add-on asks with (`OverlayApi.image` has no
   module), so two modules asking for the same name at the same rise share one picture.
 - The editor draws the base from its own build, not from the server's `originals/`: the two

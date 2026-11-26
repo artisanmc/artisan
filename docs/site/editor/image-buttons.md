@@ -146,7 +146,9 @@ own images always follow. An image of yours, common or a module's, follows when 
 themes' colours** is ticked on it in **Resources**: tick it for an image drawn in Artisan's
 base colours (the server's version of a base image, first drawn in the atelier, has it
 ticked), and leave it for an icon or an imported picture, which would otherwise lose a green
-it merely shares with the buttons. A theme may be kept to one module: with `scope: guilds` in
+it merely shares with the buttons. Once ticked, the image's panel shows which of its colours
+are none of Artisan's: a theme leaves those as drawn, so redraw them in Artisan's colours if
+the whole image is meant to change with the theme. A theme may be kept to one module: with `scope: guilds` in
 its `overrides/colors.yml`, its colours change the images of `guilds` only, so a "Christmas
 for Guilds" sits beside another theme (`scope: artisan`: the common images only). The theme's
 page says what its colours reach.

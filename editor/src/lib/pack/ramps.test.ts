@@ -3,7 +3,15 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 import { decodePng } from "./png";
-import { KIT_RAMPS, kitRamp, rampPicked, rampShade, rampTable, withRamp } from "./ramps";
+import {
+  KIT_RAMPS,
+  kitRamp,
+  offRampColors,
+  rampPicked,
+  rampShade,
+  rampTable,
+  withRamp,
+} from "./ramps";
 import { themeColors } from "./theme";
 
 const KIT_DIR = resolve(__dirname, "../../assets/kit");
@@ -85,6 +93,20 @@ describe("the base's colour ramps", () => {
     expect(again.size).toBe(next.size);
     expect([...withRamp(again, primary, primary.main)]).toEqual([...colors]);
   });
+  test("the colours of an image that are in no ramp, the most used first", () => {
+    // Two pixels of a colour no ramp has, one of another, one of the main green, one transparent.
+    const data = new Uint8Array([
+      0x12, 0x34, 0x56, 255, 0x12, 0x34, 0x56, 128, 0xab, 0xcd, 0xef, 255, 0x3c, 0x85, 0x27, 255,
+      0x99, 0x99, 0x99, 0,
+    ]);
+    expect(offRampColors({ data })).toEqual([0x123456, 0xabcdef]);
+    // An image drawn in the base's shades alone has none.
+    const base = new Uint8Array(
+      primary.shades.flatMap((c) => [c >> 16, (c >> 8) & 255, c & 255, 255]),
+    );
+    expect(offRampColors({ data: base })).toEqual([]);
+  });
+
   test("the shades are the ones the hub computes (testdata/ramp-shades-conformance.json)", () => {
     const vectors = JSON.parse(
       readFileSync(resolve(__dirname, "../../../../testdata/ramp-shades-conformance.json"), "utf8"),

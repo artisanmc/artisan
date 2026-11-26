@@ -40,6 +40,12 @@ const fr: typeof en = {
         "Non prise : ce glyphe a une hauteur de {{height}} et un ascent de {{ascent}}, l'original une hauteur de {{originalHeight}} et un ascent de {{originalAscent}}. L'original reste montré tant qu'ils diffèrent.",
     },
     ramps: {
+      allIn:
+        "Toutes les couleurs de cette image sont celles d'Artisan : un thème les repeint toutes.",
+      off_one:
+        "{{count}} couleur de cette image n'est pas une couleur d'Artisan : un thème la laisse telle quelle.",
+      off_other:
+        "{{count}} couleurs de cette image ne sont pas des couleurs d'Artisan : un thème les laisse telles quelles.",
       label: "Suit les couleurs des thèmes",
       hint: "Un thème en place remplace les couleurs de cette image par les siennes. À cocher pour une image dessinée dans les couleurs de base d'Artisan ; sans cela l'image garde ses couleurs, comme il convient à une image importée.",
     },
