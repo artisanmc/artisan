@@ -246,14 +246,14 @@ internal object BedrockMenus {
     }
 
     /** [resolve]: the id of the image a name of these files is ([ImageNames.resolve]). */
-    fun fromProject(projectId: String, files: List<PackFile>, resolve: (String) -> String = { it }): List<BedrockMenu> {
+    fun fromProject(projectId: String, files: List<PackFile>, expand: (Any?) -> Any? = { it }, resolve: (String) -> String = { it }): List<BedrockMenu> {
         val out = ArrayList<BedrockMenu>()
         // The id is the file name, wherever the menu sits (themed folders included), as the plugin reads it.
         // A variant's menu gets its own key: the plugin sends it for that variant only.
         val docs = DocumentLayout.docs(files.map { it.path }, setOf("menus"))
         for (file in files) {
             val (id, variant) = docs[file.path] ?: continue
-            val doc = runCatching { Yaml.parse(file.content) }.getOrNull() as? Map<*, *> ?: continue
+            val doc = runCatching { expand(Yaml.parse(file.content)) }.getOrNull() as? Map<*, *> ?: continue
             if (doc.containsKey("inventory_type") && doc["inventory_type"] != "chest") continue
             val size = Js.toNumber(doc["size"])
             if (size % 9.0 != 0.0 || size < 9.0 || size > 54.0) continue

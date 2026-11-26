@@ -64,6 +64,8 @@ function pushBlock(out: TextPlacement[], y: number, size: number, lineHeight: nu
  */
 export function textPlacementsFromMenus(
   files: { path: string; content: string }[],
+  /** A menu as it is drawn: its components put in (`components.ts`). */
+  expand: (menu: unknown) => unknown = (menu) => menu,
 ): TextPlacement[] {
   const out: TextPlacement[] = [];
   const menus = menuPaths(files);
@@ -71,7 +73,7 @@ export function textPlacementsFromMenus(
     if (!menus.has(file.path)) continue;
     let doc: unknown;
     try {
-      doc = parse(file.content);
+      doc = expand(parse(file.content));
     } catch {
       continue;
     }

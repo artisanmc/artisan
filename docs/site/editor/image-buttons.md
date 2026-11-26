@@ -374,6 +374,45 @@ backward. The list shows the piece in front first. Adding a piece to a button th
 image or a label keeps them: they become the first two pieces. Removing the last piece
 leaves a plain button.
 
+**Components.** A list of parts that several buttons share is written once, in a file of the
+module's `components/` folder, and each button names it. The link is kept: changing the
+component changes every button that names it.
+
+```yaml
+# components/confirm.yml
+params:
+  text: { type: text, default: OK }
+  icon: { type: image, default: icon_check }
+parts:
+  - image: button
+  - image: "{icon}"
+    anchor: left
+    offset_x: 3
+  - label: "{text}"
+```
+
+```yaml
+- id: buy
+  positions: "20-22"
+  component: { name: confirm, text: "{i18n:shop.buy}" }
+  click:
+    left: buy_item {item.id}
+```
+
+`component: confirm` alone takes every default. A `text` parameter is put where the
+component writes `{text}` in a label, and may be one text or a text per language
+(`text: { en: Buy, fr: Acheter }`); it keeps its placeholders, read per player. An `image`
+parameter is an image's name, written as is. Positions, conditions, clicks, title and lore
+stay the button's.
+
+A bare name is this module's component, else one of the server's common ones (the
+`components/` folder of the theme `artisan`); `guilds:confirm` names another module's and
+`artisan:confirm` a common one. An image the component names belongs to the component's
+module; an image the button gives is read from the button's. A button writes `component`,
+`parts`, or `image` and `label`, one of the three, and a button that repeats cannot name a
+component. A name no component answers draws nothing. The editor's canvas does not draw a
+component yet: the button shows empty there, and is right in game.
+
 **Hover area.** A button with neither image nor item (no `image`, `material` nor `item`) is
 invisible: its slots show nothing but keep its title, lore and clicks. Use it to explain a
 part of a background image on hover, or to put a label on the background.

@@ -64,11 +64,11 @@ internal object Looks {
 /** What a Project's menus ask of the pack (`menuGlyphPlacements.ts`, `imageButtons.ts`, `vanillaGui.ts`). */
 internal object MenuReaders {
     /** The module's menus and its variants' (`DocumentLayout`), in file order. */
-    private fun menus(files: List<PackFile>): Sequence<Any?> {
+    private fun menus(files: List<PackFile>, expand: (Any?) -> Any? = { it }): Sequence<Any?> {
         val paths = DocumentLayout.menuPaths(files.map { it.path })
         return files.asSequence().filter { it.path in paths }.mapNotNull { f ->
             // An unreadable menu is skipped: the plugin does not render it either.
-            runCatching { Yaml.parse(f.content) }.fold({ Holder(it) }, { null })
+            runCatching { expand(Yaml.parse(f.content)) }.fold({ Holder(it) }, { null })
         }.map { it.value }
     }
 
@@ -133,9 +133,10 @@ internal object MenuReaders {
     private const val WS = "[\\t\\n\\u000b\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]"
     private val POSITION = Regex("^$WS*([0-9]+)(?:$WS*-$WS*([0-9]+))?$WS*$")
 
-    fun imageButtons(files: List<PackFile>): List<ImageButtonPlacement> {
+    /** [expand]: a menu as it is drawn, its components put in ([Components]). */
+    fun imageButtons(files: List<PackFile>, expand: (Any?) -> Any? = { it }): List<ImageButtonPlacement> {
         val out = ArrayList<ImageButtonPlacement>()
-        for (raw in menus(files)) {
+        for (raw in menus(files, expand)) {
             val doc = raw as? Map<*, *> ?: if (raw is List<*>) emptyMap<String, Any?>() else continue
             val inventoryType = doc["inventory_type"]
             val type = if (inventoryType == "hopper" || inventoryType == "dropper") inventoryType as String else "chest"
@@ -228,9 +229,9 @@ internal object MenuReaders {
      * The (Y, size) of every text the menus may draw in a title: `text` and `textarea` layers,
      * and the labels of fixed elements (`menuTextPlacements.ts`).
      */
-    fun textPlacements(files: List<PackFile>): List<TextPlacement> {
+    fun textPlacements(files: List<PackFile>, expand: (Any?) -> Any? = { it }): List<TextPlacement> {
         val out = ArrayList<TextPlacement>()
-        for (raw in menus(files)) {
+        for (raw in menus(files, expand)) {
             val doc = raw as? Map<*, *> ?: continue
             val title = doc["title"]
             val layers = when (title) {

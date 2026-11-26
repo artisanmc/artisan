@@ -192,6 +192,14 @@ mappings:
       - "docs/architecture/testing.md"
     reason: "The Kotlin pack builder is a port of the editor's: a behaviour change goes into both, the shared vector proves they still agree"
 
+  - touches: "{docs/schema/menu/v1/components.ts,plugin/pack/src/main/kotlin/**/Components.kt,plugin/core/src/main/kotlin/**/model/MenuComponents.kt}"
+    updates:
+      - "testdata/component-expansion.json"
+      - "docs/architecture/schemas-codegen.md"
+      - "docs/decisions/element-parts-and-sliced-images.md"
+      - "docs/site/editor/image-buttons.md"
+    reason: "A look that names a component is read as the component's parts: one rule in three places (editor pack builder, hub pack builder, the game), locked by a shared vector. A change goes into the three"
+
   - touches: "{plugin/core/src/main/kotlin/**/render/ImageRefs.kt,plugin/pack/src/main/kotlin/**/ImageNames.kt,editor/src/lib/pack/imageNames.ts}"
     updates:
       - "testdata/image-ref-conformance.json"

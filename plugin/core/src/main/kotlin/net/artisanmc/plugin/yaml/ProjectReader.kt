@@ -43,6 +43,9 @@ class ProjectReader(
 
     private val mapper = ObjectMapper(Yaml12.factory()).registerKotlinModule()
 
+    /** A component's name is a file's: no folder in it. */
+    private val COMPONENT_NAME = Regex("^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+
     /** What a kind's reader needs from the project being read. */
     private class ReadContext(
         val projectId: String,
@@ -60,7 +63,7 @@ class ProjectReader(
      */
     private val coreReaders: Map<String, (File, String, ReadContext) -> RuntimeDocument> = mapOf(
         DocumentKinds.MENU.kind to { f, menuId, ctx ->
-            val menuYaml = withFileId(mapper.readValue(f, MenuYaml::class.java), menuId, f)
+            val menuYaml = withFileId(readMenu(f, ctx.projectId), menuId, f)
             requireSchema(f, menuYaml.schema, *DocumentKinds.MENU.schemaVersions.toTypedArray())
             val currentMenu =
                 if (menuYaml.schema == DocumentKinds.MENU.canonicalSchema) menuYaml
@@ -85,6 +88,37 @@ class ProjectReader(
             RuntimeDialog(dialogYaml, ctx.langMaps, defaultLang = ctx.manifest.defaultLang, projectId = ctx.projectId)
         },
     )
+
+    /**
+     * A menu's file as a [MenuYaml], each look that names a component read as that component's
+     * parts ([MenuComponents]): the module's `components/<name>.yml`, else the common one (the
+     * theme `artisan`'s, the server's own before the one Artisan ships). A file that names no
+     * component is read as before.
+     */
+    private fun readMenu(f: File, projectId: String): MenuYaml {
+        if (!f.readText().contains("component")) return mapper.readValue(f, MenuYaml::class.java)
+        val raw = mapper.readValue(f, Any::class.java)
+        val expanded = MenuComponents.expandMenu(raw) { name ->
+            MenuComponents.find(projectId, name, net.artisanmc.plugin.project.ArtisanTheme.NAME) { module, bare -> componentFile(module, bare) }
+        }
+        return if (expanded === raw) mapper.readValue(f, MenuYaml::class.java) else mapper.convertValue(expanded, MenuYaml::class.java)
+    }
+
+    /** The component [name] of the module [module] (`""`: the common ones), or null. */
+    private fun componentFile(module: String, name: String): Any? {
+        if (!COMPONENT_NAME.matches(name)) return null
+        val common = module.isEmpty()
+        val dir = roots.all()[if (common) net.artisanmc.plugin.project.ArtisanTheme.NAME else module] ?: return null
+        val folders = if (common) listOf("components", "${Originals.DIR}/components") else listOf("components")
+        for (folder in folders) for (ext in listOf("yml", "yaml")) {
+            val file = File(dir, "$folder/$name.$ext")
+            if (!file.isFile) continue
+            val doc = runCatching { mapper.readValue(file, Any::class.java) }.getOrNull()
+            if (doc is Map<*, *>) return doc
+            logger?.warning("[Artisan] ${file.path}: not a component (unreadable, or not a mapping).")
+        }
+        return null
+    }
 
     /**
      * The reader of a kind the core does not know (one a module registered):

@@ -21,6 +21,7 @@
     "image",
     "label",
     "parts",
+    "component",
     "if",
     "item",
     "extends",

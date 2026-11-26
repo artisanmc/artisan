@@ -33,6 +33,8 @@ export function imageButtonKey(button: ImageButtonPlacement): string {
 
 export function imageButtonsFromMenus(
   files: { path: string; content: string }[],
+  /** A menu as it is drawn: its components put in (`components.ts`). */
+  expand: (menu: unknown) => unknown = (menu) => menu,
 ): ImageButtonPlacement[] {
   const out: ImageButtonPlacement[] = [];
   const menus = menuPaths(files);
@@ -41,7 +43,7 @@ export function imageButtonsFromMenus(
     // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
     let doc: any;
     try {
-      doc = parse(file.content);
+      doc = expand(parse(file.content));
     } catch {
       continue;
     }

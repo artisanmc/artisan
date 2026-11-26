@@ -190,6 +190,17 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
       Reflect.deleteProperty(out, "image");
       Reflect.deleteProperty(out, "label");
     }
+    // A look that is a component: kept as written, its parts are the component's.
+    if (typeof a.component === "string" && a.component) out.component = a.component;
+    else if (a.component && typeof a.component === "object" && typeof a.component.name === "string")
+      out.component = structuredClone(a.component);
+    if (out.component !== undefined) {
+      Reflect.deleteProperty(out, "image");
+      Reflect.deleteProperty(out, "label");
+      Reflect.deleteProperty(out, "parts");
+      Reflect.deleteProperty(out, "item");
+      Reflect.deleteProperty(out, "material");
+    }
     if (a.head) out.head = a.head;
     if (a.count !== undefined) out.count = a.count;
     if (a.title !== undefined) out.title = text(a.title);
