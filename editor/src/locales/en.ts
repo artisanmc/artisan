@@ -126,9 +126,12 @@ export default {
     create: "Create",
     empty:
       "No component yet. Create one here, or save the parts of a button as a component from its properties.",
-    preview: "{{name}} in a menu",
-    previewHint:
-      "Shown on {{width}} × {{height}} slots. Change the width and height in Parts to see it at another size.",
+    back: "Components",
+    shownOn: "Shown on {{width}} × {{height}} slots",
+    drag: "Move the selected piece",
+    dragHint:
+      "Drag on the menu to move the selected piece; the arrow keys move it by one pixel. Pick the piece in the list.",
+    noPiece: "Add an image or a text in Pieces.",
     params: "Parameters",
     paramsHint:
       "What each button gives the component. Write {name} in a text, or alone as an image, to put the value there.",

@@ -455,11 +455,16 @@ Artisan changes them. To change one for the whole server, write a component of t
 in the theme `artisan`'s `components/` folder: it is read first. Since the base buttons keep
 their edges at any width, a component placed on four or five slots stays sharp.
 
-A module's **Resources** have a **Components** view: the list of its components, and the
-one selected shown as a menu draws it in a chest of six rows, on the slots picked with the width and height of its
-parts. Its **Parameters** are declared there (a name, a text or an image, a default), its
-parts are edited as a button's, and the buttons of the module that name it are listed. A
-component that buttons still name cannot be deleted.
+A module's **Resources** have a **Components** view: the list of its components. Clicking one
+opens it on the whole page, laid out as the atelier is: in the middle, the component as a
+menu draws it in a chest of six rows, on the slots picked with the width and height of its
+parts; on the right its parts, edited as a button's and listed as an image's layers are, its
+**Parameters** (a name, a text or an image, a default) and the buttons of the module that
+name it. Click a part's title in the list to take it in hand, then drag on the menu to move
+it, or use the arrow keys for one pixel at a time: its offsets from its anchor follow. A
+change is part of your draft at once, and the editor's undo takes it back, a drag as one
+step. **Components**, at the top left, goes back to the list. A component that buttons still
+name cannot be deleted.
 
 **Hover area.** A button with neither image nor item (no `image`, `material` nor `item`) is
 invisible: its slots show nothing but keep its title, lore and clicks. Use it to explain a

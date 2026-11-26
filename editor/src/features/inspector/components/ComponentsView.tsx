@@ -2,11 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { imageButtonRect } from "@/domain/imageButton";
 import type { Element, Menu, ProjectId } from "@/domain/types";
-import { cx } from "@/lib/cx";
+import { StudioFrame } from "@/features/assets/StudioFrame";
+import { TEX_SCALE } from "@/features/canvas/menuLayout";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { X } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PartsEditor } from "../element/PartsEditor";
 import { ComponentPreview } from "./ComponentPreview";
@@ -25,10 +26,20 @@ import {
 /** The rows of the chest a component is shown in: the tallest, so one of six rows fits. */
 const ROWS = 6;
 
+const SECTION = "flex flex-col gap-2 border-b border-[var(--border-soft)] px-3 py-3";
+
+/** How far a piece may be set from its anchor: an image's limit, and a text's. */
+const limitOf = (part: unknown) =>
+  typeof (part as { image?: unknown } | null)?.image === "string" ? 4096 : 256;
+
 /**
- * The Project's components (ADR `element-parts-and-sliced-images`, decision 7): their list,
- * and the one selected opened alone, as a menu draws it at a size picked here, with its
- * parameters, its pieces (the panel of a button's pieces) and the buttons that name it.
+ * The Project's components (ADR `element-parts-and-sliced-images`, decision 7). Their list
+ * first; the one opened takes the page, laid out as the atelier is (`StudioFrame`): the
+ * component in a menu in the middle, at a size picked here, and on the right its pieces (the
+ * panel of a button's pieces, in place of an image's layers), its parameters and the buttons
+ * that name it. The piece in hand is dragged on the menu, or nudged with the arrow keys. A
+ * change is written to the draft as it is made, as the rest of a Project is: the Project's
+ * undo takes it back.
  */
 export function ComponentsView({
   projectId,
@@ -43,11 +54,27 @@ export function ComponentsView({
   const lang = useUiStore((s) => s.activeLang);
   const files = projectComponents(project);
   const names = Object.keys(files).sort();
-  const [selected, setSelected] = useState<string | null>(null);
+  const [opened, setOpened] = useState<string | null>(null);
+  const [piece, setPiece] = useState<number | null>(null);
   const [created, setCreated] = useState("");
   const [positions, setPositions] = useState("0-2");
   const [error, setError] = useState("");
-  const current = selected !== null && selected in files ? selected : (names[0] ?? null);
+  const drag = useRef<{ x: number; y: number; left: number; top: number; paused: boolean } | null>(
+    null,
+  );
+  // A drag left unfinished (the page closed under the pointer) gives the history back.
+  useEffect(
+    () => () => {
+      if (drag.current?.paused) useProjectsStore.temporal.getState().resume();
+    },
+    [],
+  );
+  const current = opened !== null && opened in files ? opened : null;
+  const open = (name: string | null) => {
+    setOpened(name);
+    setPiece(null);
+    setError("");
+  };
   const perform = (action: () => void) => {
     try {
       action();
@@ -57,40 +84,29 @@ export function ComponentsView({
     }
   };
   const store = () => useProjectsStore.getState();
-  const file = current === null ? {} : readComponent(files[current]);
-  const save = (next: ComponentFile) =>
-    current !== null &&
-    perform(() =>
-      store().writeComponent({ projectId, name: current, content: writeComponentFile(next) }),
-    );
-  const menu = { rows: ROWS, inventoryType: "chest" } as Menu;
-  const element = { positions } as Element;
-  const rect = imageButtonRect(positions, "chest", ROWS);
-  const uses = current === null ? [] : componentUses(project, current);
   if (!project) return null;
 
-  return (
-    <div className="flex h-full min-h-0 gap-4 p-3" data-testid="components-view">
-      <div className="flex w-52 shrink-0 flex-col gap-2 overflow-y-auto">
-        <p className="text-xs text-[var(--text-mut)]">{t("components.hint")}</p>
-        <ul className="flex flex-col gap-1" aria-label={t("components.list")}>
-          {names.map((name) => (
-            <li key={name}>
-              <button
-                type="button"
-                aria-pressed={name === current}
-                className={cx(
-                  "chip w-full justify-start text-[12px]",
-                  name === current && "is-active",
-                )}
-                onClick={() => setSelected(name)}
-              >
-                {name}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="flex items-end gap-2">
+  if (current === null) {
+    return (
+      <div
+        className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3"
+        data-testid="components-view"
+      >
+        <p className="max-w-xl text-xs text-[var(--text-mut)]">{t("components.hint")}</p>
+        {names.length === 0 ? (
+          <p className="text-sm text-[var(--text-mut)]">{t("components.empty")}</p>
+        ) : (
+          <ul className="flex flex-wrap gap-1.5" aria-label={t("components.list")}>
+            {names.map((name) => (
+              <li key={name}>
+                <button type="button" className="chip text-[12px]" onClick={() => open(name)}>
+                  {name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex max-w-sm items-end gap-2">
           <label className="field-label !mb-0 flex-1" htmlFor={`${id}-new`}>
             {t("components.newName")}
             <Input
@@ -112,7 +128,7 @@ export function ComponentsView({
                   content: writeComponentFile({ parts: [] }),
                   create: true,
                 });
-                setSelected(created);
+                open(created);
                 setCreated("");
               })
             }
@@ -126,40 +142,149 @@ export function ComponentsView({
           </p>
         )}
       </div>
+    );
+  }
 
-      {current === null ? (
-        <p className="text-sm text-[var(--text-mut)]">{t("components.empty")}</p>
-      ) : (
-        <div className="flex min-h-0 min-w-0 flex-1 flex-wrap gap-6 overflow-y-auto">
-          <div className="flex flex-col gap-2">
-            <span className="field-label !mb-0">{t("components.preview", { name: current })}</span>
-            <ComponentPreview
-              project={project}
-              component={current}
-              positions={positions}
-              rows={ROWS}
-            />
-            <p className="text-xs text-[var(--text-mut)]">
-              {t("components.previewHint", { width: rect?.width ?? 1, height: rect?.height ?? 1 })}
-            </p>
+  const file = readComponent(files[current]);
+  const save = (next: ComponentFile) =>
+    perform(() =>
+      store().writeComponent({ projectId, name: current, content: writeComponentFile(next) }),
+    );
+  const menu = { rows: ROWS, inventoryType: "chest" } as Menu;
+  const element = { positions } as Element;
+  const rect = imageButtonRect(positions, "chest", ROWS);
+  const uses = componentUses(project, current);
+  const count = file.parts?.length ?? 0;
+  // The piece the pointer moves: the one picked in the list, else the one in front.
+  const held = count === 0 ? null : piece !== null && piece < count ? piece : count - 1;
+  const heldPart = held === null ? undefined : (file.parts?.[held] as Record<string, unknown>);
+  const offsetOf = (axis: "offset_x" | "offset_y") =>
+    typeof heldPart?.[axis] === "number" ? (heldPart[axis] as number) : 0;
+  /** Sets the piece in hand at `x`, `y` from its anchor, in the game's pixels. */
+  const place = (x: number, y: number) => {
+    if (held === null) return;
+    const limit = limitOf(heldPart);
+    const within = (value: number) => Math.max(-limit, Math.min(limit, Math.round(value)));
+    save(
+      editComponentParts(
+        file,
+        {
+          type: "patch",
+          index: held,
+          patch: { offset_x: within(x) || undefined, offset_y: within(y) || undefined },
+        },
+        lang,
+      ),
+    );
+  };
+  const release = () => {
+    if (drag.current?.paused) useProjectsStore.temporal.getState().resume();
+    drag.current = null;
+  };
+
+  return (
+    <StudioFrame
+      back={t("components.back")}
+      onBack={() => open(null)}
+      title={current}
+      subtitle={`${t("components.shownOn", { width: rect?.width ?? 1, height: rect?.height ?? 1 })} · ${t("components.uses", { count: uses.length })}`}
+      parts={{
+        rail: null,
+        controls: null,
+        actions: error ? (
+          <span role="alert" className="max-w-xs text-xs text-[var(--danger)]">
+            {error}
+          </span>
+        ) : null,
+        preview: null,
+        status: <span>{t(count === 0 ? "components.noPiece" : "components.dragHint")}</span>,
+        stage: (
+          <div
+            className="checker flex min-h-0 flex-1 overflow-auto p-4"
+            data-testid="components-view"
+          >
+            <div className="relative m-auto shrink-0">
+              <ComponentPreview
+                project={project}
+                component={current}
+                positions={positions}
+                rows={ROWS}
+              />
+              {held !== null ? (
+                <button
+                  type="button"
+                  aria-label={t("components.drag")}
+                  data-testid="component-drag"
+                  className="absolute inset-0 cursor-move touch-none border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--brand)]"
+                  onPointerDown={(event) => {
+                    if (event.button !== 0) return;
+                    event.currentTarget.focus();
+                    event.currentTarget.setPointerCapture?.(event.pointerId);
+                    drag.current = {
+                      x: event.clientX,
+                      y: event.clientY,
+                      left: offsetOf("offset_x"),
+                      top: offsetOf("offset_y"),
+                      paused: false,
+                    };
+                  }}
+                  onPointerMove={(event) => {
+                    const dragged = drag.current;
+                    if (!dragged) return;
+                    place(
+                      dragged.left + Math.round((event.clientX - dragged.x) / TEX_SCALE),
+                      dragged.top + Math.round((event.clientY - dragged.y) / TEX_SCALE),
+                    );
+                    // One drag is one step to undo: the first move is recorded, the rest is not.
+                    if (!dragged.paused) {
+                      useProjectsStore.temporal.getState().pause();
+                      dragged.paused = true;
+                    }
+                  }}
+                  onPointerUp={release}
+                  onPointerCancel={release}
+                  onKeyDown={(event) => {
+                    const by: Record<string, [number, number]> = {
+                      ArrowLeft: [-1, 0],
+                      ArrowRight: [1, 0],
+                      ArrowUp: [0, -1],
+                      ArrowDown: [0, 1],
+                    };
+                    const delta = by[event.key];
+                    if (!delta) return;
+                    event.preventDefault();
+                    place(offsetOf("offset_x") + delta[0], offsetOf("offset_y") + delta[1]);
+                  }}
+                />
+              ) : null}
+            </div>
           </div>
-
-          <div className="flex w-80 flex-col gap-5">
-            <ParamsEditor file={file} onChange={save} />
-            <PartsEditor
-              projectId={projectId}
-              menu={menu}
-              element={element}
-              appearance={partsLook(file)}
-              lang={lang}
-              textOf={(text) => partText(file, text, lang)}
-              onEdit={(op) => {
-                if (op.type === "addImage" && op.positions) setPositions(op.positions);
-                save(editComponentParts(file, op, lang));
-              }}
-              onPositions={setPositions}
-            />
-            <div className="flex flex-col gap-1">
+        ),
+        panels: (
+          <>
+            <section className={SECTION}>
+              <PartsEditor
+                projectId={projectId}
+                menu={menu}
+                element={element}
+                appearance={partsLook(file)}
+                lang={lang}
+                textOf={(text) => partText(file, text, lang)}
+                onEdit={(op) => {
+                  if (op.type === "addImage" && op.positions) setPositions(op.positions);
+                  // The list changes: the piece in hand is the one in front again.
+                  if (op.type !== "patch" && op.type !== "text") setPiece(null);
+                  save(editComponentParts(file, op, lang));
+                }}
+                onPositions={setPositions}
+                selected={held}
+                onSelect={setPiece}
+              />
+            </section>
+            <section className={SECTION}>
+              <ParamsEditor file={file} onChange={save} />
+            </section>
+            <section className={SECTION}>
               <span className="field-label !mb-0">
                 {t("components.uses", { count: uses.length })}
               </span>
@@ -180,23 +305,26 @@ export function ComponentsView({
                   ))}
                 </ul>
               )}
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="self-start"
-              disabled={uses.length > 0}
-              title={uses.length > 0 ? t("components.deleteUsed") : undefined}
-              onClick={() =>
-                perform(() => store().writeComponent({ projectId, name: current, content: null }))
-              }
-            >
-              {t("components.delete")}
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="self-start"
+                disabled={uses.length > 0}
+                title={uses.length > 0 ? t("components.deleteUsed") : undefined}
+                onClick={() =>
+                  perform(() => {
+                    store().writeComponent({ projectId, name: current, content: null });
+                    open(null);
+                  })
+                }
+              >
+                {t("components.delete")}
+              </Button>
+            </section>
+          </>
+        ),
+      }}
+    />
   );
 }
 
