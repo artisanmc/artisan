@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /** `testdata/image-ref-conformance.json`: the ids the builder gives, and the id a name reaches. */
 class ImageNamesTest {
@@ -36,8 +37,28 @@ class ImageNamesTest {
     }
 
     @Test
+    fun `a theme's own image is its theme's, once, and none for a reserved folder`() {
+        val names = names()
+        for (theme in vector["themes"]) {
+            val folder = theme["folder"].asText()
+            for (image in theme["images"]) {
+                assertEquals("$folder:${image.asText()}", names.themeOwn(folder, image.asText()))
+                // Asked twice (a glyph and a texture of one name): the first one keeps the id.
+                assertNull(names.themeOwn(folder, image.asText()))
+            }
+        }
+        // `guilds:gold` is the module's image: a theme of that folder gives none.
+        assertNull(names.themeOwn("guilds", "gold"))
+        // `artisan:<name>` and `kit:<name>` name the common images.
+        assertNull(names.themeOwn("artisan", "star"))
+        assertNull(names.themeOwn("kit", "star"))
+        assertEquals("themes/noel/star", ImageNames.themePath("noel", "star"))
+    }
+
+    @Test
     fun `a name reaches the id the shared cases say`() {
         val names = names()
+        for (theme in vector["themes"]) for (image in theme["images"]) names.themeOwn(theme["folder"].asText(), image.asText())
         for (id in vector["also"]) names.take(id.asText())
         for (c in vector["cases"]) {
             val from = c["from"].takeUnless { it.isNull }?.asText().orEmpty()

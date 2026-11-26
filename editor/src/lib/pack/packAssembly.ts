@@ -7,7 +7,7 @@ import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
 import { type PixelSize, measuredPaths, pixelSize } from "./imageFunction";
-import { ImageNames, namedImageRow } from "./imageNames";
+import { ImageNames, namedImageRow, themeImagePath } from "./imageNames";
 import {
   KIT_ASCENT,
   KIT_FILES,
@@ -298,6 +298,23 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     }
   }
 
+  // A theme's own images (`assets/` of its Project, decision 5): `<theme>:<name>` while the
+  // server holds the theme, in place or not. One enters the pack when a menu or a module names
+  // it. A theme of a module's name gives none: `<folder>:<name>` is that module's.
+  const themeOwn = new Map<string, { project: PackProject; folder: string; asset: DiskAsset }>();
+  const moduleFolders = new Set(projects.map(folderOf));
+  for (const folder of [...themeProjects.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
+    if (moduleFolders.has(folder)) continue;
+    const project = themeProjects.get(folder)!;
+    for (const asset of diskAssetsFromTree(project.id, project.files, project.binaries, {
+      originals: false,
+    })) {
+      if (asset.compose || (asset.row.type !== "glyph" && asset.row.type !== "texture")) continue;
+      const id = names.themeOwn(folder, asset.row.name);
+      if (id) themeOwn.set(id, { project, folder, asset });
+    }
+  }
+
   // A name no module holds reaches the common image of that name (`resolveImageRef`).
   for (const name of kitImages.keys()) names.take(KIT_PREFIX + name);
   for (const { path } of kitProject?.binaries ?? []) {
@@ -369,6 +386,34 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     glyphPngs.set(id, png);
   }
   if (kitGlyphs.length > 0) contribs.push({ projectId: KIT_FOLDER, glyphs: kitGlyphs });
+
+  // The themes' own images that are named, as their files are: a glyph keeps its descriptor,
+  // and its codepoint comes after the modules' and the common images'.
+  const namedOwn = new Set<string>();
+  for (const id of [
+    ...glyphPlacements.map((p) => p.assetId),
+    ...titleImages.map(({ folder, ref }) => names.resolve(folder, ref)),
+    ...imageButtons.map((b) => b.asset),
+    ...overlayImages.map((o) => o.image),
+  ])
+    if (id !== undefined && themeOwn.has(id)) namedOwn.add(id);
+  const themeGlyphs = new Map<string, GlyphContribution["glyphs"]>();
+  for (const id of [...namedOwn].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
+    const { project, folder, asset } = themeOwn.get(id)!;
+    const row = { ...asset.row, id, name: themeImagePath(folder, asset.row.name) };
+    allAssets.push(row);
+    // As a module's: a glyph without a codepoint is in the index, and no PNG of the pack.
+    if (row.type === "glyph" && row.codepoint === null) continue;
+    const bytes = await project.binary(asset.path);
+    if (!bytes) continue;
+    glyphPngs.set(id, bytes);
+    if (row.type === "glyph" && row.codepoint !== null) {
+      const glyphs = themeGlyphs.get(project.id) ?? [];
+      glyphs.push({ assetId: id, codepoint: row.codepoint });
+      themeGlyphs.set(project.id, glyphs);
+    }
+  }
+  for (const [projectId, glyphs] of themeGlyphs) contribs.push({ projectId, glyphs });
 
   const { finalCodepoints } = mergeCodepoints(contribs);
   const sources = {} as Record<GuiContainer, Uint8Array>;

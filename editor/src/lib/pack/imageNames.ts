@@ -51,6 +51,19 @@ export class ImageNames {
     return id;
   }
 
+  /**
+   * A theme's own image `name` (`themes/<theme>/assets/`, ADR `common-images-and-themes`,
+   * decision 5), told once every module's image is named: its id is `<theme>:<name>`, never
+   * the bare name. `null` when that id is taken already. The caller leaves out a theme of a
+   * module's name: `<folder>:<name>` is that module's, whatever it holds.
+   */
+  themeOwn(theme: string, name: string): string | null {
+    const id = `${theme}:${name}`;
+    if (this.ids.has(id) || reserved(theme)) return null;
+    this.ids.add(id);
+    return id;
+  }
+
   /** The id of the image `ref` names in a file of the module `folder`. */
   resolve(folder: string, ref: string): string {
     return resolveImageRef((id) => this.ids.has(id), folder, ref);
@@ -87,6 +100,11 @@ export function resolveImageRef(has: (id: string) => boolean, folder: string, re
 /** Where the files of a qualified image go in the pack (`:` cannot be in a pack's path). */
 export function moduleImagePath(folder: string, name: string): string {
   return `modules/${folder}/${name}`;
+}
+
+/** Where the files of a theme's own image go in the pack. */
+export function themeImagePath(theme: string, name: string): string {
+  return `themes/${theme}/${name}`;
 }
 
 /** `row` under `id`: itself for a bare name, else with its files under the module's folder. */

@@ -44,6 +44,19 @@ internal class ImageNames {
         return id
     }
 
+    /**
+     * A theme's own image [name] (`themes/<theme>/assets/`, ADR `common-images-and-themes`,
+     * decision 5), told once every module's image is named: its id is `<theme>:<name>`, never
+     * the bare name. Null when that id is taken already. The caller leaves out a theme of a
+     * module's name: `<folder>:<name>` is that module's, whatever it holds.
+     */
+    fun themeOwn(theme: String, name: String): String? {
+        val id = "$theme:$name"
+        if (id in ids || reserved(theme)) return null
+        ids += id
+        return id
+    }
+
     /** The id of the image [ref] names in a file of the module [folder]. */
     fun resolve(folder: String, ref: String): String = resolve(ids::contains, folder, ref)
 
@@ -75,6 +88,9 @@ internal class ImageNames {
 
         /** Where the files of a qualified image go in the pack (`:` cannot be in a pack's path). */
         fun path(folder: String, name: String) = "modules/$folder/$name"
+
+        /** Where the files of a theme's own image go in the pack. */
+        fun themePath(theme: String, name: String) = "themes/$theme/$name"
 
         /** [row] under [id]: itself for a bare name, else with its files under the module's folder. */
         fun named(row: AssetRow, id: String, folder: String): AssetRow =
