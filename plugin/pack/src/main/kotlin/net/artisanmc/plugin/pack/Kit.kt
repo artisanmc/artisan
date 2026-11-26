@@ -62,6 +62,17 @@ object Kit {
 
     fun slot(id: String): Slot? = slots.firstOrNull { it.id == id }
 
+    /**
+     * The components Artisan ships (`components.json`, `components/<name>.yml`): each file's text
+     * by its name. The server writes them as `themes/artisan/originals/components/`, where a
+     * menu's `component: confirm` finds them unless the server wrote one of that name.
+     */
+    val components: Map<String, String> by lazy {
+        ObjectMapper().readTree(resource("components.json")).associate { node ->
+            node.asText() to resource("components/${node.asText()}.yml").toString(Charsets.UTF_8)
+        }
+    }
+
     /** The name after `kit:` or `artisan:`; null when [asset] does not say it is a common image. */
     fun nameOf(asset: String): String? = sequenceOf(PREFIX, ALIAS).firstOrNull { asset.startsWith(it) }
         ?.let { asset.substring(it.length) }?.takeIf { it.isNotEmpty() }

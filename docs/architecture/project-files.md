@@ -34,7 +34,8 @@ left out of the editor's module list; ADR `common-images-and-themes`). The theme
 (`ArtisanTheme`) holds the server's common images: `originals/assets/textures/<name>.png` is the
 base Artisan ships, written by the originals sync at start (`SystemFiles`, system template
 `base`), `assets/` the server's redraws of it and the images it added, `data/ui-kit.yml` its
-notes. A former `modules/ui-kit/` moves there at the first start, when the theme holds nothing
+notes. `originals/components/<name>.yml` are the components Artisan ships (`Kit.components`,
+same sync), `components/` the server's common ones, read first. A former `modules/ui-kit/` moves there at the first start, when the theme holds nothing
 of the server's.
 
 Every other folder of `themes/` is a theme of the server (`ServerThemes.register`, decision 5):

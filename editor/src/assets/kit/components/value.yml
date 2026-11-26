@@ -1,0 +1,6 @@
+# A value shown in its frame: a balance, a count, a price.
+params:
+  text: { type: text, default: "0" }
+parts:
+  - image: value.3x1
+  - label: "{text}"

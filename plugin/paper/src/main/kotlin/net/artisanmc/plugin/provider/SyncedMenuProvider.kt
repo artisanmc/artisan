@@ -636,7 +636,7 @@ class SyncedMenuProvider(
             runCatching {
                 val theme = net.artisanmc.plugin.project.ArtisanTheme
                 val dir = roots.all()[theme.NAME]?.takeIf { roots.isTheme(theme.NAME) }
-                val written = dir?.let { theme.sync(it, net.artisanmc.plugin.hub.UiBase.images()) }.orEmpty()
+                val written = dir?.let { theme.sync(it, net.artisanmc.plugin.hub.UiBase.images(), net.artisanmc.plugin.hub.UiBase.components()) }.orEmpty()
                 if (written.isNotEmpty()) {
                     wrote = true
                     logger?.info("[Artisan] The base of the theme '${theme.NAME}' was updated: ${describeChanges(dir!!, written)}.")

@@ -48,6 +48,27 @@ class ArtisanThemeTest {
     }
 
     @Test
+    fun `the base's components are written as originals, and the server's own of a name stays`() {
+        val dir = ArtisanTheme.register(roots())
+        val confirm = "parts:\n  - image: button.3x1\n"
+        val written = ArtisanTheme.sync(dir, base, mapOf("confirm" to confirm))
+        assertTrue("originals/components/confirm.yml" in written, written.toString())
+        assertEquals(confirm, File(dir, "originals/components/confirm.yml").readText())
+        assertEquals(emptyList(), ArtisanTheme.sync(dir, base, mapOf("confirm" to confirm)))
+
+        // The server writes its own confirm: read before the original, never touched.
+        File(dir, "components").mkdirs()
+        File(dir, "components/confirm.yml").writeText("parts:\n  - image: mine\n")
+        ArtisanTheme.sync(dir, base, mapOf("confirm" to confirm))
+        assertEquals("parts:\n  - image: mine\n", File(dir, "components/confirm.yml").readText())
+
+        // A version that ships none drops the original.
+        ArtisanTheme.sync(dir, base)
+        assertFalse(File(dir, "originals/components/confirm.yml").exists())
+        assertTrue(File(dir, "components/confirm.yml").exists())
+    }
+
+    @Test
     fun `the former ui-kit module moves into the theme, its images under the same names`() {
         val roots = roots()
         val legacy = File(roots.coreRoot, "ui-kit")

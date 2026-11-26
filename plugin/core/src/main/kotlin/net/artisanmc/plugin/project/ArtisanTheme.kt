@@ -7,7 +7,9 @@ import java.util.logging.Logger
 
 /**
  * The theme `artisan` (ADR `common-images-and-themes`, decision 2): the images every menu of the
- * server may name. `themes/artisan/originals/assets/textures/` holds the base Artisan ships,
+ * server may name. `themes/artisan/originals/assets/textures/` holds the base Artisan ships, and
+ * `originals/components/` the components it ships (ADR `element-parts-and-sliced-images`, step 5:
+ * the server's `components/<name>.yml` replaces the one of that name), both
  * written here by the originals sync ([SystemFiles]: only what differs, so nothing on a start
  * where Artisan did not change); `assets/` holds the server's redraw of a base image (same name)
  * and the common images the server added. Its name is reserved: it is no module's.
@@ -62,14 +64,21 @@ object ArtisanTheme {
     private fun holdsContent(dir: File): Boolean =
         dir.list().orEmpty().any { !it.startsWith(".artisan") && it != net.artisanmc.plugin.model.Originals.DIR }
 
-    /** The base as a system template: [images] by name (`button.3x1`), each a PNG. */
-    fun template(images: Map<String, ByteArray>): TemplateDeclaration {
+    /** Where a base component is kept, before `originals/`. */
+    fun componentPath(name: String) = "components/$name.yml"
+
+    /**
+     * The base as a system template: [images] by name (`button.3x1`), each a PNG, and
+     * [components] by name (`confirm`), each a component's file.
+     */
+    fun template(images: Map<String, ByteArray>, components: Map<String, String> = emptyMap()): TemplateDeclaration {
         val builder = TemplateDeclaration.builder(TEMPLATE, 1).title("Artisan").system()
         for ((name, png) in images.toSortedMap()) builder.file(path(name), png)
+        for ((name, text) in components.toSortedMap()) builder.file(componentPath(name), text.toByteArray(Charsets.UTF_8))
         return builder.build()
     }
 
     /** Writes the base under [dir]'s `originals/`; the paths written, empty when nothing changed. */
-    fun sync(dir: File, images: Map<String, ByteArray>): List<String> =
-        if (images.isEmpty()) emptyList() else SystemFiles.sync(dir, SHIPPER, template(images))
+    fun sync(dir: File, images: Map<String, ByteArray>, components: Map<String, String> = emptyMap()): List<String> =
+        if (images.isEmpty()) emptyList() else SystemFiles.sync(dir, SHIPPER, template(images, components))
 }

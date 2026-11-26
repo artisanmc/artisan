@@ -1,0 +1,6 @@
+# The button that says no, or that warns.
+params:
+  text: { type: text, default: { en: Cancel, fr: Annuler } }
+parts:
+  - image: button.danger.3x1
+  - label: "{text}"

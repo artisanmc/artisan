@@ -19,7 +19,7 @@ tasks.processResources {
         into("net/artisanmc/plugin/pack/minecraft")
     }
     from(kitAssets) {
-        include("*.png", "slots.json", "ramps.json")
+        include("*.png", "slots.json", "ramps.json", "components.json", "components/*.yml")
         into("net/artisanmc/plugin/pack/kit")
     }
 }
