@@ -203,8 +203,10 @@ it the whole page, laid out as a drawing program. The tools are on the left: **M
 layer** (V), then pencil (B), eraser (E), pipette (I) and paint bucket (G). The image is in
 the middle, with undo, redo and zoom in the bar above it. On the right are the **Layers**, the
 settings of the selected one, the colours while you draw, the image's size, the guides and,
-for an image on slots, the image **In a menu** at the game's size. **Save** in the bar writes
-what changed, pixels and layers, into your draft.
+for an image on slots, the image **In a menu** at the game's size. Every image opens in this
+same atelier, a single drawing as well as one made of layers. Nothing is written while you
+work: **Save** in the bar writes what changed, pixels and layers together, into your draft,
+and **Discard changes** goes back to what is saved.
 
 **Layers.** Every image is one or several layers, listed from the top one down; the selected
 one is what the tools act on. Add one with **Common image**, **Module image** or **Drawing**
@@ -212,19 +214,22 @@ one is what the tools act on. Add one with **Common image**, **Module image** or
 Shift to put it on the slots' grid, wherever it started; the arrow keys move it by one pixel,
 and with Shift to the next slot that way), reorder or remove layers in the list, and repeat one with **Columns** and **Rows** (the slots of a window: a grid of
 `artisan:cell`). With a drawing tool, you draw on the selected layer among the others, the
-ones above shown through; switching layer or tool saves what you drew. **Ctrl+Z** undoes and
-**Ctrl+Y** (or **Ctrl+Shift+Z**) redoes, wherever the focus is: a stroke while you draw, a
-move, a resize or any other change of a layer otherwise. Only a drawing of the
+ones above shown through; switching layer or tool keeps what you drew in hand, shown on its
+layer, until you save. **Ctrl+Z** undoes and **Ctrl+Y** (or **Ctrl+Shift+Z**) redoes, wherever
+the focus is. The image has one history: strokes, moves, resizes, layers added or removed go
+back in the order you made them, whatever layer or tool you hold. Only a drawing of the
 module can be drawn on: a common image is placed here and redrawn among the common images. A
 common image is written `artisan:<name>` in the recipe; `kit:<name>`, the former spelling, is
 read the same and stays as written until the layer is replaced. The image is as large as its
 bottom layer reaches unless you give it a **Fixed size**; what goes past is cut.
 
-**A PNG is an image of one layer.** Adding a layer to it turns it into a composed image of the
-same name whose first layer is that drawing (kept in the module as `<image>_layer`): the menus
-that show it keep showing it. **Flatten**, under the layers, does the reverse: the layers
+**A PNG is an image of one layer.** Saved with that one layer, it stays a PNG. Saved with
+more, it becomes a composed image of the same name whose first layer is that drawing (kept in
+the module as `<image>_layer`): the menus that show it keep showing it. A **Drawing** layer
+gets its file (`<image>_layer`, numbered when taken) at that save too, so a layer added and
+undone leaves nothing in the module. **Flatten**, under the layers, does the reverse: the layers
 become one PNG of the same name, which no longer follows the common images; the layers stay in
-the module as images. An image a module ships takes layers the same way: its drawing is copied
+the module as images. It flattens the image as saved: save first. An image a module ships takes layers the same way: its drawing is copied
 into your files as the first layer, and the composed image is your version of that name.
 **Restore the original** on it gives the module's image back.
 

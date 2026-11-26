@@ -292,7 +292,7 @@ export default {
     layers_other: "{{count}} layers",
     situation: "As a player sees it: on the common window, at twice the game's pixels.",
     toLayersHint:
-      "Add a layer: this drawing stays the first, and you set common images or other drawings over it. The image keeps its name, so the menus that show it follow.",
+      "Add a layer: this drawing stays the first, and you set common images or other drawings over it. The image keeps its name, so the menus that show it follow. Nothing is written before Save.",
     save: "Save",
     discard: "Discard changes",
     move: "Move the layer",
@@ -306,7 +306,7 @@ export default {
     flatten: "Flatten",
     flattenConfirm: "Flatten into one drawing?",
     flattenHint:
-      "The layers become a single drawing of the same name. It no longer follows the common images; the layers stay in the module as images.",
+      "The layers become a single drawing of the same name. It no longer follows the common images; the layers stay in the module as images. Save first: the image as saved is what is flattened.",
     failed: "That did not work: {{detail}}",
     slice: {
       label: "Fixed edges",

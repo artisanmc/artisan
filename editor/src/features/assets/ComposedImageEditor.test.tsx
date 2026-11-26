@@ -1,7 +1,7 @@
 import type { Asset } from "@/domain/asset";
 import * as userAssetsApi from "@/lib/api/userAssets";
 import type { ComposeRecipe } from "@/lib/pack/compose";
-import { decodePng } from "@/lib/pack/png";
+import { createImage, decodePng, encodePng } from "@/lib/pack/png";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +17,16 @@ vi.mock("@/state/authStore", () => ({
 // The pictures are not fetched here: a layer is laid out from its asset's size.
 vi.mock("@/lib/useAuthenticatedImage", () => ({
   useAuthenticatedImageUrl: (url: string) => url,
+}));
+
+/** The files that can be read to be drawn on, by asset id. */
+const files: Record<string, Uint8Array | undefined> = {};
+vi.mock("./assetBytes", () => ({
+  assetBytes: async (a: Asset) => {
+    const bytes = files[a.id];
+    if (!bytes) throw new Error("image_unavailable:404");
+    return bytes;
+  },
 }));
 
 const image = (name: string, width: number, height: number, extra: Partial<Asset> = {}): Asset => ({
@@ -79,6 +89,7 @@ const px = (value: string) => Number.parseFloat(value);
 describe("ComposedImageEditor", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    for (const id of Object.keys(files)) delete files[id];
     useAssetStore.getState().reset();
     useAssetStore
       .getState()
@@ -267,7 +278,7 @@ describe("ComposedImageEditor", () => {
     const stage = screen.getByTestId("compose-stage");
     expect([px(stage.style.width), px(stage.style.height)]).toEqual([108, 72]);
   });
-  it("draws a layer: an empty PNG of the image's size on top, saved, then drawn among the others", async () => {
+  it("draws a layer: empty, of the image's size, on top, and written only when the image is saved", async () => {
     const uploaded = vi
       .spyOn(userAssetsApi, "uploadAsset")
       .mockImplementation(async (_project, input) => image(input.name, 176, 166));
@@ -282,11 +293,23 @@ describe("ComposedImageEditor", () => {
     // The new layer is selected with a pencil in hand: it is drawn among the others.
     await waitFor(() => expect(tool("Crayon")).toHaveAttribute("aria-pressed", "true"));
     expect(screen.queryByTestId("compose-stage")).toBeNull();
+    expect(screen.getByTestId("pixel-canvas")).toBeInTheDocument();
     expect(within(screen.getAllByRole("listitem")[0]!).getAllByRole("button")[0]).toHaveAttribute(
       "aria-pressed",
       "true",
     );
+    // Nothing is written yet, and one step back takes the layer away.
+    expect(uploaded).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(within(screen.getByTestId("studio-layers")).getAllByRole("listitem")).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "Rétablir" }));
+    expect(within(screen.getByTestId("studio-layers")).getAllByRole("listitem")).toHaveLength(4);
+
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(saved).toHaveBeenCalledTimes(1));
+    // The layer's file first, then the layers that name it.
     expect(uploaded.mock.calls[0]?.[1]).toMatchObject({ name: "hall_layer", type: "glyph" });
+    expect(uploaded.mock.invocationCallOrder[0]!).toBeLessThan(saved.mock.invocationCallOrder[0]!);
     const file = uploaded.mock.calls[0]?.[1].file as File;
     const { width, height } = decodePng(new Uint8Array(await file.arrayBuffer()));
     expect([width, height]).toEqual([176, 166]);
@@ -297,6 +320,7 @@ describe("ComposedImageEditor", () => {
       columns: 1,
       rows: 1,
     });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled());
   });
 
   it("reads a common image written `artisan:<name>` like the former `kit:<name>`", () => {
@@ -339,6 +363,60 @@ describe("ComposedImageEditor", () => {
     fireEvent.click(within(screen.getAllByRole("listitem")[2]!).getAllByRole("button")[0]!);
     await waitFor(() => expect(tool("Déplacer le calque")).toHaveAttribute("aria-pressed", "true"));
     expect(screen.getByTestId("compose-stage")).toBeInTheDocument();
+  });
+
+  it("keeps one history for the layers and the pixels, and writes both when the image is saved", async () => {
+    files.icon = encodePng(createImage(16, 16));
+    const uploaded = vi
+      .spyOn(userAssetsApi, "uploadAsset")
+      .mockImplementation(async (_project, input) =>
+        image(input.name, 16, 16, { contentHash: "drawn" }),
+      );
+    const saved = vi
+      .spyOn(userAssetsApi, "patchAsset")
+      .mockImplementation(async (_project, _id, patch) => ({
+        ...composed,
+        compose: patch.compose as ComposeRecipe,
+      }));
+    render(<Stand />);
+    const save = () => screen.getByRole("button", { name: "Enregistrer" });
+    fireEvent.pointerDown(layers()[2] as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "Dessiner sur ce calque" }));
+    // The stage has no size here: the image is shown at the game's pixels.
+    const canvas = await screen.findByTestId("pixel-canvas");
+    fireEvent.pointerDown(canvas, { clientX: 5, clientY: 5, button: 0, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+    expect(save()).toBeEnabled();
+
+    // Leaving the drawing writes nothing: the pixels stay in hand, shown on the layer.
+    fireEvent.click(tool("Déplacer le calque"));
+    expect(uploaded).not.toHaveBeenCalled();
+    expect(layers()[2]!.style.backgroundImage).toContain("data:image/png");
+    fireEvent.keyDown(layers()[2] as HTMLElement, { key: "ArrowRight" });
+    expect(layers()[2]!.style.left).toBe("162px");
+
+    // The steps go back in the order they were made: the move, then the stroke.
+    const undo = () => fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    undo();
+    expect(layers()[2]!.style.left).toBe("160px");
+    expect(save()).toBeEnabled();
+    undo();
+    expect(save()).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Annuler" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Rétablir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rétablir" }));
+    expect(layers()[2]!.style.left).toBe("162px");
+
+    fireEvent.click(save());
+    await waitFor(() => expect(saved).toHaveBeenCalledTimes(1));
+    expect(uploaded).toHaveBeenCalledTimes(1);
+    expect(uploaded.mock.calls[0]?.[1]).toMatchObject({ name: "icon", retouch: true });
+    const file = uploaded.mock.calls[0]?.[1].file as File;
+    const drawn = decodePng(new Uint8Array(await file.arrayBuffer()));
+    expect(drawn.data[(5 * 16 + 5) * 4 + 3]).toBe(255);
+    expect((saved.mock.calls[0]?.[2].compose as ComposeRecipe).layers[2]).toMatchObject({ x: 81 });
+    expect(uploaded.mock.invocationCallOrder[0]!).toBeLessThan(saved.mock.invocationCallOrder[0]!);
+    await waitFor(() => expect(save()).toBeDisabled());
   });
 
   it("gives a drawing tool the top drawing of the module, and none when the layers hold no drawing", () => {

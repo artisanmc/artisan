@@ -1,10 +1,7 @@
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
-import type { ProjectId } from "@/domain/types";
-import { uploadAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
-import { type RgbaImage, decodePng, encodePng } from "@/lib/pack/png";
-import { useProjectPrincipalId } from "@/lib/projectPrincipal";
+import { type RgbaImage, decodePng } from "@/lib/pack/png";
 import { type PointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -20,8 +17,6 @@ import {
   useStageZoom,
 } from "./StudioFrame";
 import { assetBytes } from "./assetBytes";
-import { useAssetStore } from "./assetStore";
-import { toDataUrl } from "./composedAssets";
 import { useKitAssets } from "./kitAssets";
 import {
   type Rgba,
@@ -35,14 +30,11 @@ import {
   paintLine,
   pixelAt,
   sameColour,
-  sameImage,
   toHex,
 } from "./pixelTools";
 
 /** From this zoom on, the pixels are outlined. */
 const GRID_FROM = 6;
-/** Strokes kept to undo. */
-const HISTORY = 50;
 const IMAGE_COLOURS = 24;
 const KIT_COLOURS = 32;
 /** Colours taken from each kit image: its body, its edges, its shade. */
@@ -123,7 +115,28 @@ function Swatches({
   );
 }
 
-/** What the pixel editor gives the atelier to place (`StudioFrame`), and to save with. */
+/**
+ * The pixels the editor draws on, held by the atelier (`imageDocument.ts`): they outlive the
+ * editor, and their history is the image's.
+ */
+export interface PixelSource {
+  /** Changed in place by the strokes; `null` while it is read. */
+  image: RgbaImage | null;
+  /** The image could not be read. */
+  failed: boolean;
+  /** The image as it is drawn now, a data URL. */
+  picture: string;
+  /** The pixels changed under the pointer. */
+  touched: () => void;
+  /** A stroke is done: `before` is what it drew over. */
+  drew: (before: RgbaImage) => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+}
+
+/** What the pixel editor gives the atelier to place (`StudioFrame`). */
 export interface PixelParts {
   rail: ReactNode;
   stage: ReactNode;
@@ -133,26 +146,17 @@ export interface PixelParts {
   /** The colour drawn with and the palettes: the content of a section. */
   colour: ReactNode;
   keys?: (event: StudioKeyEvent) => void;
-  /** The image as it is drawn now, a data URL; empty while it is read. */
-  picture: string;
-  dirty: boolean;
-  busy: boolean;
-  error: string | null;
-  /** Saves the pixels when they changed. `false` when the save failed: they are kept here. */
-  save: () => Promise<boolean>;
-  discard: () => void;
 }
 
 /**
  * An image drawn pixel by pixel in the atelier: pencil, eraser, pipette, paint bucket, a
- * palette of its own colours and the common images', zoom, undo. The image keeps its size.
- * What is saved is a PNG of the same size under the same name (`uploadAsset`'s `retouch`), so
- * the menus that show it need nothing. It renders nothing by itself: `layout` places its
- * parts, and the tool in hand is the atelier's.
+ * palette of its own colours and the common images', zoom. The image keeps its size. The
+ * pixels, their history and their saving are the atelier's (`pixels`). It renders nothing by
+ * itself: `layout` places its parts, and the tool in hand is the atelier's.
  */
 export function PixelEditor({
-  projectId,
   asset,
+  pixels,
   tool,
   onTool,
   move,
@@ -160,11 +164,11 @@ export function PixelEditor({
   around,
   layout,
 }: {
-  projectId: ProjectId;
   asset: Asset;
+  pixels: PixelSource;
   /** The tool in hand. */
   tool: DrawTool;
-  /** Another tool is asked for; `move` once the pixels are saved, since it leaves the drawing. */
+  /** Another tool is asked for. */
   onTool: (tool: StudioTool) => void;
   /** Why the image cannot be moved: it is not a layer among others. */
   move?: string;
@@ -182,73 +186,36 @@ export function PixelEditor({
   layout: (parts: PixelParts) => ReactNode;
 }) {
   const { t } = useTranslation();
-  const user = useProjectPrincipalId(projectId);
-  const upsertAsset = useAssetStore((s) => s.upsertAsset);
   const kitColours = useKitColours();
 
-  // The image is changed in place, stroke after stroke; `version` says it changed.
-  const image = useRef<RgbaImage | null>(null);
-  const saved = useRef<RgbaImage | null>(null);
-  const undone = useRef<RgbaImage[]>([]);
-  const redone = useRef<RgbaImage[]>([]);
   const stroke = useRef<{
     before: RgbaImage;
     last: { x: number; y: number };
     colour: Rgba;
     changed: boolean;
   } | null>(null);
-  /** The content this editor wrote last: the asset coming back with it is not read again. */
-  const written = useRef<string | null>(null);
-  const [version, setVersion] = useState(0);
-  const [failed, setFailed] = useState(false);
   const [colour, setColour] = useState<Rgba>(BLACK);
   const [hex, setHex] = useState(toHex(BLACK));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const bump = () => setVersion((n) => n + 1);
+  const bump = pixels.touched;
+  const failed = pixels.failed;
+  const picture = pixels.picture;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: read again when the file changes, not when the asset object does
+  const current = pixels.image;
+  // An image just read is drawn with its own first colour.
+  const ready = !!current;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per image read, not at each stroke
   useEffect(() => {
-    if (written.current === asset.contentHash) return;
-    let live = true;
-    image.current = null;
-    setFailed(false);
-    assetBytes(asset)
-      .then((bytes) => {
-        if (!live) return;
-        const read = decodePng(bytes);
-        image.current = read;
-        saved.current = copyImage(read);
-        undone.current = [];
-        redone.current = [];
-        const first = colours(read, 1)[0];
-        if (first) pick(first);
-        bump();
-      })
-      .catch(() => {
-        if (live) setFailed(true);
-      });
-    return () => {
-      live = false;
-    };
-  }, [asset.projectId, asset.id, asset.contentHash]);
-
-  const current = image.current;
+    const first = current ? colours(current, 1)[0] : undefined;
+    if (first) pick(first);
+  }, [asset.id, ready]);
   // The whole image when this one is a layer of it: moving and drawing show it at one size.
   const shown = within ?? (current ? { width: current.width, height: current.height } : null);
   const view = useStageZoom(shown, {
     fallback: shown ? 256 / Math.max(shown.width, shown.height) : 1,
     whole: true,
   });
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `version` is what says the pixels changed
-  const picture = useMemo(() => (current ? toDataUrl(encodePng(current)) : ""), [current, version]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: same
-  const own = useMemo(() => (current ? colours(current, IMAGE_COLOURS) : []), [current, version]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: same
-  const dirty = useMemo(
-    () => !!current && !!saved.current && !sameImage(current, saved.current),
-    [current, version],
-  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the picture is what says the pixels changed
+  const own = useMemo(() => (current ? colours(current, IMAGE_COLOURS) : []), [current, picture]);
 
   function pick(next: Rgba) {
     setColour(next);
@@ -265,33 +232,28 @@ export function PixelEditor({
         </StageMessage>
       ),
       status: null,
-      controls: null,
+      // The history is the whole image's: a step back stays in reach.
+      controls: (
+        <UndoControls
+          canUndo={pixels.canUndo}
+          canRedo={pixels.canRedo}
+          onUndo={pixels.undo}
+          onRedo={pixels.redo}
+        />
+      ),
+      keys: (event) => {
+        const history = undoKey(event);
+        if (history === "undo") pixels.undo();
+        else if (history === "redo") pixels.redo();
+      },
       colour: null,
-      picture: "",
-      dirty: false,
-      busy: false,
-      error: null,
-      save: async () => true,
-      discard: () => {},
     });
   }
 
   const zoom = view.zoom;
 
-  const record = (before: RgbaImage) => {
-    undone.current = [...undone.current.slice(1 - HISTORY), before];
-    redone.current = [];
-  };
-  const step = (from: typeof undone, to: typeof undone) => {
-    const back = from.current.at(-1);
-    if (!back) return;
-    from.current = from.current.slice(0, -1);
-    to.current = [...to.current, copyImage(current)];
-    current.data.set(back.data);
-    bump();
-  };
-  const undo = () => step(undone, redone);
-  const redo = () => step(redone, undone);
+  const record = pixels.drew;
+  const { undo, redo } = pixels;
 
   const at = (event: PointerEvent<HTMLButtonElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -322,10 +284,7 @@ export function PixelEditor({
     }
     if (using === "fill") {
       const before = copyImage(current);
-      if (fill(current, point.x, point.y, colour)) {
-        record(before);
-        bump();
-      }
+      if (fill(current, point.x, point.y, colour)) record(before);
       return;
     }
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -349,61 +308,23 @@ export function PixelEditor({
   const onPointerUp = () => {
     const drawing = stroke.current;
     stroke.current = null;
-    if (drawing?.changed) {
-      record(drawing.before);
-      bump();
-    }
+    if (drawing?.changed) record(drawing.before);
   };
 
   const onKeyDown = (event: StudioKeyEvent) => {
-    // The editor's own undo, not the project's.
+    // The atelier's own undo, not the project's.
     const history = undoKey(event);
     if (history === "undo") undo();
     else if (history === "redo") redo();
     if (history || event.ctrlKey || event.metaKey || event.altKey) return;
     const chosen = toolOfKey(event.key);
-    if (chosen) void choose(chosen);
+    if (chosen) choose(chosen);
   };
 
-  const save = async (): Promise<boolean> => {
-    if (!dirty) return true;
-    if (!user || busy) return false;
-    setBusy(true);
-    setError(null);
-    try {
-      const bytes = encodePng(current);
-      const next = await uploadAsset(projectId, {
-        file: new File([bytes as Uint8Array<ArrayBuffer>], `${asset.name}.png`, {
-          type: "image/png",
-        }),
-        type: asset.type,
-        name: asset.name,
-        retouch: true,
-      });
-      written.current = next.contentHash;
-      saved.current = copyImage(current);
-      upsertAsset(next);
-      bump();
-      return true;
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  };
-  /** Moving leaves the drawing: what was drawn is saved first, and kept here if that fails. */
-  const choose = async (next: StudioTool) => {
-    if (next === "move") {
-      if (move || !(await save())) return;
-    }
+  /** A lone image is not moved: the move tool stays out of reach. */
+  const choose = (next: StudioTool) => {
+    if (next === "move" && move) return;
     onTool(next);
-  };
-  const discard = () => {
-    if (!saved.current) return;
-    record(copyImage(current));
-    current.data.set(saved.current.data);
-    bump();
   };
 
   const side = { width: current.width * zoom, height: current.height * zoom };
@@ -411,16 +332,10 @@ export function PixelEditor({
   const context = around?.(zoom, picture);
   return layout({
     keys: onKeyDown,
-    picture,
-    dirty,
-    busy,
-    error,
-    save,
-    discard,
     rail: (
       <StudioTools
         value={tool}
-        onChange={(next) => void choose(next)}
+        onChange={choose}
         move={move}
         footer={
           <input
@@ -440,8 +355,8 @@ export function PixelEditor({
     controls: (
       <div className="flex items-center gap-1">
         <UndoControls
-          canUndo={undone.current.length > 0}
-          canRedo={redone.current.length > 0}
+          canUndo={pixels.canUndo}
+          canRedo={pixels.canRedo}
           onUndo={undo}
           onRedo={redo}
         />

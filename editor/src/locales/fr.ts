@@ -299,7 +299,7 @@ const fr: typeof en = {
     layers_other: "{{count}} calques",
     situation: "Comme un joueur la voit : sur la fenêtre commune, à deux fois les pixels du jeu.",
     toLayersHint:
-      "Ajoutez un calque : ce dessin reste le premier, et vous posez par-dessus des images communes ou d'autres dessins. L'image garde son nom, les menus qui la montrent suivent.",
+      "Ajoutez un calque : ce dessin reste le premier, et vous posez par-dessus des images communes ou d'autres dessins. L'image garde son nom, les menus qui la montrent suivent. Rien n'est écrit avant Enregistrer.",
     save: "Enregistrer",
     discard: "Annuler les changements",
     move: "Déplacer le calque",
@@ -314,7 +314,7 @@ const fr: typeof en = {
     flatten: "Aplatir",
     flattenConfirm: "Aplatir en un seul dessin ?",
     flattenHint:
-      "Les calques deviennent un seul dessin du même nom. Il ne suit plus les images communes ; les calques restent dans le module comme images.",
+      "Les calques deviennent un seul dessin du même nom. Il ne suit plus les images communes ; les calques restent dans le module comme images. Enregistrez d'abord : c'est l'image enregistrée qui est aplatie.",
     failed: "Ça n'a pas marché : {{detail}}",
     slice: {
       label: "Bords fixes",

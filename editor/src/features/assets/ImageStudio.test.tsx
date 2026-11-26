@@ -115,25 +115,26 @@ describe("ImageStudio", () => {
     ).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(screen.getByRole("button", { name: "Image du module" }));
     fireEvent.click(within(await screen.findByRole("dialog")).getByTitle(/^icon/));
-    await waitFor(() => expect(patched).toHaveBeenCalledTimes(1));
-    // The owner holds the PNG: it is renamed as the first layer, the picked image set over it.
-    expect(toLayers.mock.calls[0]?.slice(1)).toEqual([png, new Set(["go", "icon"]), false]);
-    expect(patched.mock.calls[0]?.slice(1)).toEqual([
-      "go",
-      {
-        compose: {
-          ...layered.compose,
-          layers: [
-            ...(layered.compose?.layers ?? []),
-            { image: "icon", x: 0, y: 0, columns: 1, rows: 1 },
-          ],
-        },
-      },
-    ]);
+    // The layer is set over the PNG here; nothing is written before the image is saved.
     await waitFor(() =>
-      expect(
-        useAssetStore.getState().assets.find((a) => a.id === "go")?.compose?.layers,
-      ).toHaveLength(2),
+      expect(within(screen.getByTestId("studio-layers")).getAllByRole("listitem")).toHaveLength(2),
+    );
+    expect(toLayers).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(toLayers).toHaveBeenCalledTimes(1));
+    // The owner holds the PNG: it is renamed as the first layer, the picked image over it.
+    expect(toLayers.mock.calls[0]?.slice(1, 4)).toEqual([png, new Set(["go", "icon"]), false]);
+    expect(toLayers.mock.calls[0]?.[4]("go_layer")).toEqual({
+      width: null,
+      height: null,
+      layers: [
+        { image: "go_layer", x: 0, y: 0, columns: 1, rows: 1 },
+        { image: "icon", x: 0, y: 0, columns: 1, rows: 1 },
+      ],
+    });
+    expect(patched).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(useAssetStore.getState().assets.find((a) => a.id === "go")?.compose).toBeDefined(),
     );
     unmount();
 
@@ -160,6 +161,7 @@ describe("ImageStudio", () => {
     render(<ImageStudio projectId={"p1" as never} asset={png} onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Image du module" }));
     fireEvent.click(within(await screen.findByRole("dialog")).getByTitle(/^icon/));
+    fireEvent.click(await screen.findByRole("button", { name: "Enregistrer" }));
     await waitFor(() => expect(toLayers).toHaveBeenCalledTimes(1));
     expect(toLayers.mock.calls[0]?.[3]).toBe(true);
   });
