@@ -356,6 +356,11 @@ function ElsewhereNotice({ elsewhere }: { elsewhere: ImportElsewhere }) {
         { folder: theme.folder, names: list(theme.images) },
       ),
     ),
+    elsewhere.fonts.length > 0 &&
+      t("importProject.elsewhere.fonts", {
+        count: elsewhere.fonts.length,
+        names: list(elsewhere.fonts),
+      }),
   ].filter((line): line is string => !!line);
   if (settled.length === 0 && lacking.length === 0) return null;
   return (

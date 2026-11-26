@@ -4,7 +4,7 @@ import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
 import { diskAssetsFromTree } from "./diskAssets";
 import { imageButtonsFromMenus } from "./imageButtons";
 import { KIT_SLOTS, assetNamesIn, kitNameOf, kitShippedName } from "./kit";
-import { titleImagesFromMenus } from "./menuGlyphPlacements";
+import { titleFontsFromMenus, titleImagesFromMenus } from "./menuGlyphPlacements";
 
 /**
  * What a module names that it does not hold, and what its archive says of it (ADR
@@ -49,6 +49,26 @@ export function menuImageRefs(files: Tree["files"]): string[] {
   const refs = new Set<string>(titleImagesFromMenus(own));
   for (const button of imageButtonsFromMenus(own)) refs.add(button.asset);
   return [...refs];
+}
+
+/**
+ * The fonts a module's menus write their titles' texts in, by their names. A font is the
+ * server's, whoever holds it: one the module does not hold is a dependency of its archive.
+ */
+export function fontRefsWritten(files: Tree["files"]): string[] {
+  return sorted(titleFontsFromMenus(files).filter(isWrittenName));
+}
+
+const FONT = /^(?:originals\/)?assets\/fonts\/([^/.]+)/;
+
+/** The names of the fonts among a Project's `paths`, what it ships included. */
+export function fontNamesIn(paths: Iterable<string>): Set<string> {
+  const names = new Set<string>();
+  for (const path of paths) {
+    const name = FONT.exec(path)?.[1];
+    if (name) names.add(name);
+  }
+  return names;
 }
 
 /** Where a module's names are read: itself, the common images, the server's other modules. */
@@ -322,6 +342,11 @@ export interface ExportNote {
     modules: Record<string, string[]>;
     /** The themes' own images (`<theme>:<name>`), by theme; absent in a note written before them. */
     themes?: Record<string, string[]>;
+    /**
+     * The fonts the module's titles write in and the module does not hold: the common
+     * fonts' or another module's. Never copied; absent in a note written before them.
+     */
+    fonts?: string[];
   };
 }
 
@@ -331,7 +356,8 @@ export const emptyNote = (note: ExportNote): boolean =>
   note.common.length === 0 &&
   note.requires.common.length === 0 &&
   Object.keys(note.requires.modules).length === 0 &&
-  Object.keys(note.requires.themes ?? {}).length === 0;
+  Object.keys(note.requires.themes ?? {}).length === 0 &&
+  (note.requires.fonts ?? []).length === 0;
 
 /** The note as the archive holds it; only what it has to say is written. */
 export function exportNoteYaml(note: ExportNote): string {
@@ -339,6 +365,7 @@ export function exportNoteYaml(note: ExportNote): string {
     ...(note.requires.common.length ? { common: note.requires.common } : {}),
     ...(Object.keys(note.requires.modules).length ? { modules: note.requires.modules } : {}),
     ...(Object.keys(note.requires.themes ?? {}).length ? { themes: note.requires.themes } : {}),
+    ...(note.requires.fonts?.length ? { fonts: note.requires.fonts } : {}),
   };
   return stringify({
     schema: EXPORT_NOTE_SCHEMA,
@@ -389,6 +416,7 @@ export function readExportNote(text: string): ExportNote | null {
     return out;
   };
   const themes = byFolder(requires.themes);
+  const fonts = names(requires.fonts);
   return {
     artisan: typeof note.artisan === "string" && note.artisan.length <= 64 ? note.artisan : null,
     base: names(note.base),
@@ -397,6 +425,7 @@ export function readExportNote(text: string): ExportNote | null {
       common: names(requires.common),
       modules: byFolder(requires.modules),
       ...(Object.keys(themes).length ? { themes } : {}),
+      ...(fonts.length ? { fonts } : {}),
     },
   };
 }

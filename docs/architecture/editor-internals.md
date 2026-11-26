@@ -1357,7 +1357,8 @@ added, another module. A module that names its own images only costs no other re
 archive is its folder, byte for byte as before. Otherwise the archive gains
 `artisan-export.yml` at its root (`schema: export/v1`: `artisan` the origin's version, `base`,
 `common` the copies made, `requires.common`, `requires.modules`, `requires.themes` for the
-themes' own images named `<theme>:<name>`), and for each common image
+themes' own images named `<theme>:<name>`, `requires.fonts` for the fonts its titles write in
+and it does not hold, `fontRefsWritten`), and for each common image
 the server added that a name alone reaches, a copy at the same path as in the theme `artisan`
 (PNG and descriptor; a glyph takes a codepoint free in the module). A common image named as
 `artisan:<name>`, or a composed one, is not answered by a copy: it goes to `requires.common`.

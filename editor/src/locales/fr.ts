@@ -665,6 +665,10 @@ const fr: typeof en = {
       themeAbsent:
         "Le thème {{folder}} n'est pas sur ce serveur. Ses images nommées : {{names}}. Importez-le depuis l'écran Thèmes (Importer un thème).",
       themeLacks: "Le thème {{folder}} n'a pas ces images propres : {{names}}.",
+      fonts_one:
+        "Une police dans laquelle les titres du module écrivent n'est pas sur ce serveur : {{names}}. Ces textes s'affichent dans la police du jeu tant qu'aucun module ni les images communes n'ont une police de ce nom.",
+      fonts_other:
+        "Des polices dans lesquelles les titres du module écrivent ne sont pas sur ce serveur : {{names}}. Ces textes s'affichent dans la police du jeu tant qu'aucun module ni les images communes n'ont des polices de ces noms.",
     },
     errors: {
       not_a_zip: "Ce fichier n'est pas un .zip lisible.",

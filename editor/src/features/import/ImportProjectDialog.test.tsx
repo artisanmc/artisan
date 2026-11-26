@@ -168,6 +168,7 @@ describe("ImportProjectDialog", () => {
             { folder: "noel", images: ["garland"], absent: true },
             { folder: "ete", images: ["sun"], absent: false },
           ],
+          fonts: ["pixel"],
         },
       },
     });
@@ -188,6 +189,7 @@ describe("ImportProjectDialog", () => {
     expect(notice.textContent).toContain("guilds");
     expect(notice.textContent).toContain("Le thème noel n'est pas sur ce serveur");
     expect(notice.textContent).toContain("Le thème ete n'a pas ces images propres : sun");
+    expect(notice.textContent).toContain("n'est pas sur ce serveur : pixel");
     expect(notice.textContent).toContain("frame");
     expect(notice.textContent).toContain("blason");
     fireEvent.click(screen.getByRole("button", { name: /appliqu|apply/i }));
@@ -208,6 +210,7 @@ describe("ImportProjectDialog", () => {
           common: [],
           modules: [],
           themes: [],
+          fonts: [],
         },
       },
     });

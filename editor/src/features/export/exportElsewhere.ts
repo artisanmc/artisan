@@ -12,6 +12,8 @@ import {
   embedNames,
   emptyNote,
   exportNoteYaml,
+  fontNamesIn,
+  fontRefsWritten,
   imageCopy,
   imageRefsWritten,
   menuImageRefs,
@@ -101,8 +103,11 @@ export async function exportElsewhere(
     listDocumentKindContributions(),
   );
   const refs = imageRefsWritten(tree, overlays);
-  // Nothing but the module's own images by their names: no other read.
-  if (refs.every((ref) => !ref.includes(":") && own.has(ref))) return null;
+  // The fonts its titles write in and it does not hold: the server's, common or another module's.
+  const ownFonts = fontNamesIn(pathsOf(disk));
+  const fonts = fontRefsWritten(tree.files).filter((font) => !ownFonts.has(font));
+  // Nothing but the module's own images and fonts by their names: no other read.
+  if (fonts.length === 0 && refs.every((ref) => !ref.includes(":") && own.has(ref))) return null;
   if (!project.serverKeyId) throw new Error("no_server");
 
   const listing = await listServerProjects(project.serverKeyId);
@@ -116,6 +121,7 @@ export async function exportElsewhere(
 
   const base = new Set(KIT_SLOTS.map((slot) => slot.id));
   const common = new Set<string>();
+  const heldFonts = new Set(kitDisk ? fontNamesIn(pathsOf(kitDisk)) : []);
   if (kitDisk) {
     for (const path of pathsOf(kitDisk)) {
       const name = kitShippedName(path);
@@ -134,7 +140,10 @@ export async function exportElsewhere(
   const others = summaries
     .filter((s) => !s.role && s.id !== project.id && s.id !== kit?.id)
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const anyone = refs.some((ref) => !ref.includes(":") && !reaches(ref));
+  const anyone =
+    refs.some((ref) => !ref.includes(":") && !reaches(ref)) ||
+    // A font no common font answers may be any module's.
+    fonts.some((font) => !heldFonts.has(font));
   const qualified = new Set(
     refs
       .filter((ref) => ref.includes(":") && kitNameOf(ref) === null)
@@ -153,6 +162,7 @@ export async function exportElsewhere(
     const read = await readDisk(summary.id);
     if (!read) continue;
     const held = new Set(assetNamesIn(pathsOf(read)));
+    for (const font of fontNamesIn(pathsOf(read))) heldFonts.add(font);
     modules.push({
       folder: folderOf(summary),
       id: summary.id,
@@ -266,6 +276,10 @@ export async function exportElsewhere(
       common: [...new Set([...named.asCommon, ...uncopied])].sort(),
       modules: named.modules,
       ...(Object.keys(named.themes).length ? { themes: named.themes } : {}),
+      // A font the server holds nowhere writes in the default one here, and the same there.
+      ...(fonts.some((font) => heldFonts.has(font))
+        ? { fonts: fonts.filter((font) => heldFonts.has(font)) }
+        : {}),
     },
   };
   if (emptyNote(note) && embedded.length === 0) return null;

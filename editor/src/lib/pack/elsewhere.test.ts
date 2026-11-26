@@ -12,6 +12,8 @@ import {
   embedNames,
   emptyNote,
   exportNoteYaml,
+  fontNamesIn,
+  fontRefsWritten,
   imageCopy,
   imageRefsWritten,
   isWrittenName,
@@ -275,6 +277,48 @@ describe("the archive's note", () => {
     const text = exportNoteYaml(note);
     expect(parse(text).schema).toBe(EXPORT_NOTE_SCHEMA);
     expect(readExportNote(text)).toEqual(note);
+  });
+
+  it("says the fonts the module does not hold, and nothing of fonts when it names none", () => {
+    const written: ExportNote = {
+      artisan: null,
+      base: [],
+      common: [],
+      requires: { common: [], modules: {}, fonts: ["pixel", "runes"] },
+    };
+    expect(emptyNote(written)).toBe(false);
+    const text = exportNoteYaml(written);
+    expect(parse(text)).toEqual({
+      schema: EXPORT_NOTE_SCHEMA,
+      requires: { fonts: ["pixel", "runes"] },
+    });
+    expect(readExportNote(text)).toEqual(written);
+    expect(readExportNote(exportNoteYaml(note))?.requires).not.toHaveProperty("fonts");
+    // Text from elsewhere: a name that is no font's name is left out.
+    expect(
+      readExportNote(`schema: ${EXPORT_NOTE_SCHEMA}\nrequires:\n  fonts: ["../x", pixel, 3]\n`)
+        ?.requires.fonts,
+    ).toEqual(["pixel"]);
+  });
+
+  it("reads the fonts a module's titles write in, and the fonts a Project holds", () => {
+    const files = [
+      { path: "artisan-module.yml", content: "schema: module/v1\n" },
+      {
+        path: "menus/a.yml",
+        content:
+          "size: 27\ntitle:\n  - { kind: text, value: A, font: pixel }\n  - { kind: textarea, value: B, font_asset_id: runes }\n  - { kind: text, value: C }\n  - { kind: glyph, asset: coin, font: nope }\n  - { kind: text, value: D, font: '{font}' }\n",
+      },
+    ];
+    expect(fontRefsWritten(files)).toEqual(["pixel", "runes"]);
+    expect([
+      ...fontNamesIn([
+        "assets/fonts/pixel/font.yml",
+        "assets/fonts/pixel/glyph_0.png",
+        "originals/assets/fonts/runes.yml",
+        "assets/textures/fonts.png",
+      ]),
+    ]).toEqual(["pixel", "runes"]);
   });
 
   it("says the themes' own images by theme, and nothing of themes when it names none", () => {

@@ -109,6 +109,11 @@ tells you, before it writes anything, which ones the server lacks (a base image 
 is older there; a module means it is not installed, or has no image of that name). You can
 still import: those images show nothing until the server has them.
 
+The same goes for a **font**: a title's text written in a font the module does not hold (a
+common font, or another module's) is noted in the archive, never copied. The import tells
+you which fonts the server lacks; those texts show in the game's font until a module or the
+common images hold a font of that name.
+
 An image of a theme (`noel:garland`) comes with its theme, never with the module: the archive
 notes it, and the import tells you when the server has no such theme, or a theme without
 that image. Export the theme from its page and import it from the Themes screen.

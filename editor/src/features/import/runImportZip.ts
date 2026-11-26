@@ -13,6 +13,7 @@ import { type ProjectSummary, createProject } from "@/lib/api/servers";
 import {
   EXPORT_NOTE,
   type ExportNote,
+  fontNamesIn,
   imagePathOf,
   readExportNote,
   themeOwnNames,
@@ -110,6 +111,8 @@ export interface ImportElsewhere {
   modules: { folder: string; images: string[]; absent: boolean }[];
   /** Themes' own images the server does not have: the theme is absent, or holds none of that name. */
   themes: { folder: string; images: string[]; absent: boolean }[];
+  /** Fonts the module's titles write in and no Project of the server holds. */
+  fonts: string[];
 }
 
 /** Whether the server lacks something the module names: said before the import is applied. */
@@ -118,7 +121,8 @@ export const lacksElsewhere = (elsewhere: ImportElsewhere | undefined): boolean 
   (elsewhere.base.length > 0 ||
     elsewhere.common.length > 0 ||
     elsewhere.modules.length > 0 ||
-    elsewhere.themes.length > 0);
+    elsewhere.themes.length > 0 ||
+    elsewhere.fonts.length > 0);
 
 export type PrepareImportResult =
   | { ok: true; preview: ImportPreview }
@@ -281,12 +285,23 @@ async function settleElsewhere(
 ): Promise<{ ok: true; elsewhere: ImportElsewhere } | { ok: false; error: ImportError }> {
   const base = new Set(KIT_SLOTS.map((slot) => slot.id));
   const hashes = new Map<string, string>();
+  // The fonts the note names that nothing read so far holds: the archive itself, then the server's Projects.
+  const inArchive = fontNamesIn([...Object.keys(input.files), ...Object.keys(input.binaries)]);
+  const fonts = new Set((note.requires.fonts ?? []).filter((font) => !inArchive.has(font)));
+  const holdsFonts = (read: { files: Record<string, string>; binaries?: { path: string }[] }) => {
+    for (const font of fontNamesIn([
+      ...Object.keys(read.files),
+      ...(read.binaries ?? []).map((b) => b.path),
+    ]))
+      fonts.delete(font);
+  };
   const kit = kitProjectAmong(summaries, folderOf);
   if (kit) {
     const read = await readProjectFiles({ serverId: target.serverId, diskId: folderOf(kit) });
     if (!read.ok) return { ok: false, error: filesError(read.error) };
     if (read.unchanged) return { ok: false, error: "read_error" };
     const binaries = new Map((read.binaries ?? []).map((b) => [b.path, b.hash]));
+    holdsFonts(read);
     for (const path of binaries.keys()) {
       const name = kitShippedName(path);
       if (name) base.add(name);
@@ -323,11 +338,23 @@ async function settleElsewhere(
     const read = await readProjectFiles({ serverId: target.serverId, diskId: folder });
     // A module that cannot be read is not said to lack anything: the import does not depend on it.
     if (!read.ok || read.unchanged) continue;
+    holdsFonts(read);
     const held = new Set(
       assetNamesIn([...Object.keys(read.files), ...(read.binaries ?? []).map((b) => b.path)]),
     );
     const lacking = images.filter((name) => !held.has(name));
     if (lacking.length > 0) modules.push({ folder, images: lacking, absent: false });
+  }
+
+  // A font is the server's, whoever holds it: the other modules are read until each is found.
+  // The module itself counts as the archive has it; a module that cannot be read holds none.
+  for (const summary of summaries) {
+    if (fonts.size === 0) break;
+    const folder = folderOf(summary);
+    if (summary.role || summary.id === kit?.id || folder === moduleId) continue;
+    if (folder in note.requires.modules) continue;
+    const read = await readProjectFiles({ serverId: target.serverId, diskId: folder });
+    if (read.ok && !read.unchanged) holdsFonts(read);
   }
 
   // A theme's own image is `<theme>:<name>` where a theme of that folder holds it.
@@ -359,6 +386,7 @@ async function settleElsewhere(
       common: note.requires.common.filter((name) => !hashes.has(name) && !base.has(name)),
       modules,
       themes,
+      fonts: [...fonts].sort(),
     },
   };
 }
