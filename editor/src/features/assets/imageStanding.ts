@@ -1,7 +1,7 @@
 import type { Asset } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { API_URL } from "@/lib/api/client";
-import { type FileOrigin, fetchProjectOrigins } from "@/lib/api/templates";
+import type { FileOrigin } from "@/lib/api/templates";
 import { assetDiskPath, assetFileName } from "@/lib/pack/assetDiskWrite";
 import { composeRecipe } from "@/lib/pack/compose";
 import {
@@ -13,11 +13,10 @@ import {
   refusedImages,
 } from "@/lib/pack/imageFunction";
 import { yamlStem } from "@/lib/yamlFiles";
-import { useKitStore } from "@/state/kitStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { originalChanged } from "@/state/projectTemplatesStore";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { parse } from "yaml";
 import { type MeasuredFile, usePixelSizes } from "./pixelSizes";
 import { useProjectOrigins } from "./useProjectOrigins";
@@ -392,108 +391,4 @@ export function useImageNotTaken(
         : null,
     [files, binaries, id, type, measured],
   );
-}
-
-/**
- * Whether the owner holds the file of `asset` in the module (`binaries`, `files`: its paths),
- * and not only what the module ships under `originals/`: an image by its PNG, a font by its
- * folder.
- */
-export function ownerHolds(paths: Iterable<string>, asset: Pick<Asset, "id" | "type">): boolean {
-  const stem = imageStem(asset);
-  for (const path of paths) {
-    if (asset.type === "font" ? path.startsWith(`${stem}/`) : path === `${stem}.png`) return true;
-  }
-  return false;
-}
-
-/**
- * Which images and fonts of the server's modules, as published (`useKitStore.modules`), are
- * their owner's own files ([ownerHolds]): the ones the server's Resources offer to copy to
- * the common images.
- */
-export function useServerOwnerHolds(): (
-  asset: Pick<Asset, "id" | "type" | "projectId">,
-) => boolean {
-  const modules = useKitStore((s) => s.modules);
-  return useMemo(() => {
-    const paths = new Map(
-      modules.map((m) => [
-        m.projectId as string,
-        [...Object.keys(m.files), ...m.binaries.map((b) => b.path)],
-      ]),
-    );
-    return (asset) => ownerHolds(paths.get(asset.projectId) ?? [], asset);
-  }, [modules]);
-}
-
-/**
- * The marks of the images of the server's modules as published (`useKitStore.modules`), for
- * the server's Resources: by Project id, then by stem. The origins of a module are asked of
- * its server once, when it holds a version of its own over an original; a module that cannot
- * be asked (its server is off) keeps its other marks.
- */
-export function useServerImageMarks(
-  projectIds: readonly string[],
-): (asset: Pick<Asset, "id" | "type" | "projectId">) => ImageMark | null {
-  const modules = useKitStore((s) => s.modules);
-  const [origins, setOrigins] = useState<Record<string, Record<string, FileOrigin>>>({});
-  const shown = useMemo(() => {
-    const ids = new Set(projectIds);
-    return modules
-      .filter((m) => ids.has(m.projectId))
-      .map((m) => ({
-        id: m.projectId,
-        read: m,
-        files: m.files,
-        binaries: Object.fromEntries(m.binaries.map((b) => [b.path, { hash: b.hash }])),
-      }));
-  }, [modules, projectIds]);
-  // Measured as published: a draft of a module is not what the server's list shows.
-  const wanted = useMemo(
-    () => shown.flatMap((m) => filesToMeasure(m.id, m.files, m.binaries, true)),
-    [shown],
-  );
-  const sizeOf = usePixelSizes(wanted);
-  const measuredIn = useMemo(
-    () => (binaries: BinaryTree) => (path: string) => {
-      const hash = binaries[path]?.hash;
-      return hash ? sizeOf(hash) : undefined;
-    },
-    [sizeOf],
-  );
-  const plain = useMemo(
-    () =>
-      new Map(
-        shown.map(
-          (m) =>
-            [m.id, imageMarks(m.files, m.binaries, undefined, measuredIn(m.binaries))] as const,
-        ),
-      ),
-    [shown, measuredIn],
-  );
-  // Asked again when the module is read again: a deploy or an update may have changed them.
-  const asked = useRef(new WeakSet<object>());
-  useEffect(() => {
-    for (const { id, read } of shown) {
-      if (!plain.get(id)?.size || asked.current.has(read)) continue;
-      asked.current.add(read);
-      void fetchProjectOrigins(id).then((answer) => {
-        if (answer.ok) setOrigins((held) => ({ ...held, [id]: answer.origins }));
-      });
-    }
-  }, [shown, plain]);
-  return useMemo(() => {
-    const marks = new Map(
-      shown.map((m) => {
-        const read = origins[m.id];
-        return [
-          m.id,
-          read ? imageMarks(m.files, m.binaries, read, measuredIn(m.binaries)) : plain.get(m.id),
-        ] as const;
-      }),
-    );
-    return (asset) =>
-      asset.type === "font" ? null : (marks.get(asset.projectId)?.get(imageStem(asset)) ?? null);
-  }, [shown, origins, plain, measuredIn]);
 }

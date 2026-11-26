@@ -1,3 +1,4 @@
+import type { PendingAttachment } from "@/lib/aiAttachments";
 import {
   type AiEvent,
   type AiLive,
@@ -6,7 +7,6 @@ import {
   readAiConversation,
   sendAiMessage,
 } from "@/lib/api/ai";
-import type { PendingAttachment } from "@/lib/aiAttachments";
 import { ApiError } from "@/lib/api/client";
 import { useCallback, useEffect, useState } from "react";
 import { create } from "zustand";

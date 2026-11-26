@@ -23,7 +23,7 @@ describe("KitThemePage", () => {
 
   it("shows what the theme changes and puts it in place", async () => {
     const onPutInPlace = vi.fn().mockResolvedValue(undefined);
-    render(<KitThemePage name="noel" onBack={() => {}} onPutInPlace={onPutInPlace} />);
+    render(<KitThemePage name="noel" onPutInPlace={onPutInPlace} />);
     // The table of colours it once held is shown nowhere: a theme changes an image by holding one.
     expect(screen.queryByTestId("kit-theme-colors")).toBeNull();
     expect(screen.queryByTestId("kit-theme-ramps")).toBeNull();
@@ -40,16 +40,14 @@ describe("KitThemePage", () => {
   it("takes off the theme in place, and says so of a theme the kit does not hold", async () => {
     useKitStore.setState({ themes: ["noel"] });
     const onPutInPlace = vi.fn().mockResolvedValue(undefined);
-    const { unmount } = render(
-      <KitThemePage name="noel" onBack={() => {}} onPutInPlace={onPutInPlace} />,
-    );
+    const { unmount } = render(<KitThemePage name="noel" onPutInPlace={onPutInPlace} />);
     expect(screen.getByText("En place")).toBeInTheDocument();
     // Alone in place: there is no order to tell.
     expect(screen.queryByTestId("kit-theme-stack")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Retirer du serveur" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ranger ce thème" }));
     await waitFor(() => expect(onPutInPlace).toHaveBeenCalledWith("noel", false));
     unmount();
-    render(<KitThemePage name="paques" onBack={() => {}} onPutInPlace={onPutInPlace} />);
+    render(<KitThemePage name="paques" onPutInPlace={onPutInPlace} />);
     expect(screen.getByText(/n'a pas de thème « paques »/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mettre en place sur le serveur" })).toBeNull();
   });
@@ -68,7 +66,7 @@ describe("KitThemePage", () => {
       },
     });
     const onOpenKit = vi.fn();
-    render(<KitThemePage name="printemps" onBack={() => {}} onOpenKit={onOpenKit} />);
+    render(<KitThemePage name="printemps" onOpenKit={onOpenKit} />);
     expect(
       within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
     ).toBeInTheDocument();
@@ -85,7 +83,7 @@ describe("KitThemePage", () => {
 
   it("tells the order of the themes in place when there are several", () => {
     useKitStore.setState({ themes: ["hiver", "noel"] });
-    render(<KitThemePage name="noel" onBack={() => {}} />);
+    render(<KitThemePage name="noel" />);
     expect(screen.getByTestId("kit-theme-stack")).toHaveTextContent("hiver, noel");
   });
   it("lists the own images of a theme of its own folder, each as a menu names it", () => {
@@ -103,7 +101,7 @@ describe("KitThemePage", () => {
         ete: { projectId: "srv.ete", files: {}, binaries: [] },
       },
     });
-    const first = render(<KitThemePage name="printemps" onBack={() => {}} />);
+    const first = render(<KitThemePage name="printemps" />);
     const list = within(screen.getByTestId("kit-theme-own-images"));
     expect(list.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
       "printemps:abeille",
@@ -111,12 +109,12 @@ describe("KitThemePage", () => {
     ]);
     first.unmount();
     // A theme with none says how one is named.
-    const second = render(<KitThemePage name="ete" onBack={() => {}} />);
+    const second = render(<KitThemePage name="ete" />);
     expect(screen.queryByTestId("kit-theme-own-images")).toBeNull();
     expect(screen.getByText(/ete:<son nom>/)).toBeInTheDocument();
     second.unmount();
     // A theme the common images keep has no folder of its own: nothing is said.
-    render(<KitThemePage name="noel" onBack={() => {}} />);
+    render(<KitThemePage name="noel" />);
     expect(screen.queryByText("Ses propres images")).toBeNull();
   });
 
@@ -131,7 +129,7 @@ describe("KitThemePage", () => {
       },
     });
     const onOpenTheme = vi.fn();
-    render(<KitThemePage name="printemps" onBack={() => {}} onOpenTheme={onOpenTheme} />);
+    render(<KitThemePage name="printemps" onOpenTheme={onOpenTheme} />);
     expect(screen.queryByTestId("kit-theme-unread")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Ouvrir le dossier du thème" }));
     expect(onOpenTheme).toHaveBeenCalled();
@@ -143,7 +141,7 @@ describe("KitThemePage", () => {
     const onRename = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     const { rerender } = render(
-      <KitThemePage name="printemps" onBack={() => {}} onRename={onRename} onDelete={onDelete} />,
+      <KitThemePage name="printemps" onRename={onRename} onDelete={onDelete} />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Renommer" }));
     const dialog = screen.getByRole("dialog");
@@ -168,11 +166,9 @@ describe("KitThemePage", () => {
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith("printemps"));
 
     // A theme the server does not move (an older server), or one the common images keep: neither is offered.
-    rerender(<KitThemePage name="ete" onBack={() => {}} onRename={onRename} onDelete={onDelete} />);
+    rerender(<KitThemePage name="ete" onRename={onRename} onDelete={onDelete} />);
     expect(screen.queryByTestId("theme-moves")).toBeNull();
-    rerender(
-      <KitThemePage name="noel" onBack={() => {}} onRename={onRename} onDelete={onDelete} />,
-    );
+    rerender(<KitThemePage name="noel" onRename={onRename} onDelete={onDelete} />);
     expect(screen.queryByTestId("theme-moves")).toBeNull();
   });
 
@@ -182,7 +178,7 @@ describe("KitThemePage", () => {
       themes: ["printemps"],
     });
     const onDelete = vi.fn().mockRejectedValue(new Error("server_offline"));
-    render(<KitThemePage name="printemps" onBack={() => {}} onDelete={onDelete} />);
+    render(<KitThemePage name="printemps" onDelete={onDelete} />);
     // Without a way to rename, renaming is not offered.
     expect(screen.queryByRole("button", { name: "Renommer" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Supprimer" }));
@@ -202,9 +198,7 @@ describe("KitThemePage", () => {
       .fn()
       .mockResolvedValueOnce(undefined)
       .mockRejectedValue(new Error("server_offline"));
-    const { rerender } = render(
-      <KitThemePage name="printemps" onBack={() => {}} onExport={onExport} />,
-    );
+    const { rerender } = render(<KitThemePage name="printemps" onExport={onExport} />);
     fireEvent.click(screen.getByRole("button", { name: "Exporter" }));
     await waitFor(() => expect(onExport).toHaveBeenCalledWith("printemps"));
     await waitFor(() => expect(screen.getByRole("button", { name: "Exporter" })).toBeEnabled());
@@ -214,7 +208,7 @@ describe("KitThemePage", () => {
       "Le serveur est hors ligne : le thème ne peut pas être exporté.",
     );
     // A theme the common images still keep has no archive of its own.
-    rerender(<KitThemePage name="noel" onBack={() => {}} onExport={onExport} />);
+    rerender(<KitThemePage name="noel" onExport={onExport} />);
     expect(screen.queryByRole("button", { name: "Exporter" })).toBeNull();
   });
 });

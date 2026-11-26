@@ -1,5 +1,5 @@
-- **Changed**: the server page's **Common images** tab becomes **Resources**: the images and
-  fonts of every module and the common images in one list, as deployed. **Show** narrows it to
-  one module or to the common images, whose page is unchanged. An image shows who provides it
-  and the menus that name it, and opens where it is changed: its module's Resources, or the
-  atelier of the common images.
+- **Changed**: the server page's **Common images** tab becomes **Resources**, one screen with a
+  module's **Resources**: on the left, always visible, the places an image lives in, in the
+  order its name is looked up (the server's themes from the highest down, the server's own
+  theme, the modules, Artisan's base); on the right the place that is open. A module and the
+  server's theme open on their own Resources, where their images are changed.

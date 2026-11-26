@@ -15,6 +15,7 @@ import { isKitModule } from "@/features/assets/localAssets";
 import { OPEN_DEPLOY_REVIEW } from "@/features/project/ProjectHistory";
 import { hasDraftChanges } from "@/features/project/draft";
 import { flushDraftEdits } from "@/features/project/draftFlush";
+import { imageWriters } from "@/features/project/imageUses";
 import {
   consumeOpenConflicts,
   discardPersistedDraft,
@@ -30,7 +31,6 @@ import {
   projectTree,
   saveProjectToDisk,
 } from "@/features/project/saveProjectToDisk";
-import { imageWriters } from "@/features/project/imageUses";
 import { imageHolders } from "@/features/serverIndex/imageHolders";
 import { serverChecksFor } from "@/features/serverIndex/serverChecks";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
