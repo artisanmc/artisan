@@ -290,8 +290,8 @@ class McpTest {
         assertEquals(listOf(2, 3), kitImages.map { it["n"].asInt() })
         assertEquals(listOf("menus/demo.yml"), facts["modules"][1]["menus_with_images"].map { it.asText() })
         assertEquals("#c6c6c6", facts["colours"][0]["colour"].asText(), "the colour most pixels have")
-        assertTrue("Vanilla bevel" in facts["kit"]["content"].asText())
-        assertEquals("u-local.artisan", facts["kit"]["project"].asText())
+        assertTrue("Vanilla bevel" in facts["common"]["content"].asText())
+        assertEquals("u-local.artisan", facts["common"]["project"].asText())
         assertEquals(listOf("text", "image", "image", "image"), survey["content"].map { it["type"].asText() }, "one sheet per module, one for the base")
 
         // A menu of the shop that names the kit's button draws it: an image is found on the whole server.
@@ -307,7 +307,7 @@ class McpTest {
 
         // A server whose Artisan is older than the theme `artisan` has no common images of its own.
         modules.remove("artisan")
-        assertTrue("older" in tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"]["how"].asText())
+        assertTrue("older" in tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["common"]["how"].asText())
         assertTrue(tool(access, "survey_ui", "server" to "nowhere")["isError"].asBoolean())
     }
 
@@ -333,10 +333,10 @@ class McpTest {
         val facts = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
         val common = facts["modules"].first { it["project"].asText() == "u-local.artisan" }
         assertEquals(listOf("ribbon"), common["images"].map { it["name"].asText() })
-        val button = facts["kit_base"]["images"].first { it["image"].asText() == "button.3x1" }
+        val button = facts["base"]["images"].first { it["image"].asText() == "button.3x1" }
         assertEquals("artisan", button["drawn_by"].asText())
         // What a menu writes: the name alone, `artisan:<name>` where the name alone is the module's own.
-        assertTrue("artisan:<name>" in facts["kit_base"]["how"].asText())
+        assertTrue("artisan:<name>" in facts["base"]["how"].asText())
 
         val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: common")["structuredContent"]["draft_id"].asText()
         val menu = "schema: menu/v1\nsize: 18\nvanilla_texture: false\nelements:\n" +
@@ -371,7 +371,7 @@ class McpTest {
         val (access, _) = tokens()
 
         // A server without a kit module has the base as Artisan ships it, numbered after its own images.
-        val base = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit_base"]
+        val base = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["base"]
         assertEquals(net.artisanmc.plugin.pack.Kit.slots.map { "kit:${it.id}" }, base["images"].map { it["image"].asText() })
         assertEquals((2..20).toList(), base["images"].map { it["n"].asInt() })
         assertEquals(setOf("artisan"), base["images"].map { it["drawn_by"].asText() }.toSet())
@@ -417,7 +417,7 @@ class McpTest {
             images = mapOf("assets/textures/button.3x1.png" to solid(54, 18, 0xcc2020), "assets/textures/window.3.png" to solid(20, 20, 0x00ff00)),
         )
         assertEquals(listOf(0xcc, 0x20, 0x20) to shipped("window.3", 3, 3), pixels())
-        val restyled = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit_base"]["images"].associateBy { it["image"].asText() }
+        val restyled = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["base"]["images"].associateBy { it["image"].asText() }
         assertEquals("this server", restyled.getValue("button.3x1")["drawn_by"].asText())
         assertEquals("artisan", restyled.getValue("window.3")["drawn_by"].asText())
         assertTrue(restyled.getValue("window.3").has("ignored"))
@@ -485,8 +485,10 @@ class McpTest {
         // Not deployed: the theme is in the kit's draft only, which render_menu reads when given.
         val absent = render("theme" to "noel")
         assertTrue(absent["isError"].asBoolean() && "No theme 'noel'" in absent["structuredContent"]["message"].asText(), absent.toString())
+        assertEquals(Triple(red, navy, "noel"), shown(render("theme" to "noel", "common_draft_id" to kitDraft)))
+        assertEquals(plain, shown(render("common_draft_id" to kitDraft)))
+        // The parameter's former name is still read.
         assertEquals(Triple(red, navy, "noel"), shown(render("theme" to "noel", "kit_draft_id" to kitDraft)))
-        assertEquals(plain, shown(render("kit_draft_id" to kitDraft)))
 
         // Deployed, and picked as the server's theme: every view of the kit is in it, unless asked without.
         modules["artisan"] = McpFixtures.Module(
@@ -498,15 +500,15 @@ class McpTest {
         assertEquals(Triple(red, navy, "noel"), shown(render()))
         assertEquals(plain, shown(render("theme" to "none")))
         val survey = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
-        assertEquals(listOf("noel"), survey["kit"]["in_place"].map { it.asText() })
-        assertEquals(1, survey["kit"]["themes"].size())
-        assertEquals(1, survey["kit"]["themes"][0]["colors"].asInt())
-        assertEquals(listOf("cell", "window.3"), survey["kit"]["themes"][0]["redraws"].map { it.asText() })
-        assertEquals(listOf("noel"), survey["kit_base"]["themes"].map { it.asText() })
+        assertEquals(listOf("noel"), survey["common"]["in_place"].map { it.asText() })
+        assertEquals(1, survey["common"]["themes"].size())
+        assertEquals(1, survey["common"]["themes"][0]["colors"].asInt())
+        assertEquals(listOf("cell", "window.3"), survey["common"]["themes"][0]["redraws"].map { it.asText() })
+        assertEquals(listOf("noel"), survey["base"]["themes"].map { it.asText() })
         assertTrue("theme.yml" in survey["themes_format"].asText())
         // The colours a table replaces are the kit's own, whatever the theme in place.
-        assertTrue("#%02x%02x%02x".format(button[0], button[1], button[2]) in survey["kit_colours"].map { it.asText() }, survey["kit_colours"].toString())
-        assertFalse("#b3261e" in survey["kit_colours"].map { it.asText() })
+        assertTrue("#%02x%02x%02x".format(button[0], button[1], button[2]) in survey["common_colours"].map { it.asText() }, survey["common_colours"].toString())
+        assertFalse("#b3261e" in survey["common_colours"].map { it.asText() })
         // No image of the theme folders is one of the kit module's own.
         assertTrue(survey["modules"].none { it["project"].asText() == "u-local.artisan" }, survey["modules"].toString())
 
@@ -521,7 +523,7 @@ class McpTest {
         assertEquals(Triple(listOf(1, 2, 3), navy, "noel,nuit"), shown(render()))
         config["resource-pack.themes"] = listOf("nuit", "noel")
         assertEquals(Triple(red, navy, "nuit,noel"), shown(render()))
-        assertEquals(listOf("nuit", "noel"), tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"]["in_place"].map { it.asText() })
+        assertEquals(listOf("nuit", "noel"), tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["common"]["in_place"].map { it.asText() })
         // Asked for one theme: that one alone, whatever is in place.
         assertEquals(Triple(red, navy, "noel"), shown(render("theme" to "noel")))
         config.remove("resource-pack.themes")
@@ -539,10 +541,10 @@ class McpTest {
         assertEquals(Triple(listOf(0x44, 0x55, 0x66), listOf(0x77, 0x88, 0x99), "noel,nuit"), shown(render()))
         assertEquals(Triple(listOf(0x44, 0x55, 0x66), listOf(0x77, 0x88, 0x99), "noel"), shown(render("theme" to "noel")))
         val own = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
-        assertEquals(listOf("noel", "nuit"), own["kit"]["themes"].map { it["name"].asText() })
-        assertEquals("u-local.noel", own["kit"]["themes"][0]["project"].asText())
-        assertEquals(listOf("cell"), own["kit"]["themes"][0]["redraws"].map { it.asText() })
-        assertFalse(own["kit"]["themes"][1].has("project"))
+        assertEquals(listOf("noel", "nuit"), own["common"]["themes"].map { it["name"].asText() })
+        assertEquals("u-local.noel", own["common"]["themes"][0]["project"].asText())
+        assertEquals(listOf("cell"), own["common"]["themes"][0]["redraws"].map { it.asText() })
+        assertFalse(own["common"]["themes"][1].has("project"))
         // The theme's folder is no module with images to list.
         assertTrue(own["modules"].none { it["project"].asText() == "u-local.noel" }, own["modules"].toString())
         modules.remove("noel")
@@ -552,7 +554,7 @@ class McpTest {
         // A theme the kit does not hold is no theme, as in the pack.
         config["resource-pack.theme"] = "gone"
         assertEquals(plain, shown(render()))
-        assertFalse(tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit"].has("in_place"))
+        assertFalse(tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["common"].has("in_place"))
     }
 
     @Test
@@ -679,7 +681,7 @@ class McpTest {
         // Deployed, the survey lists what the theme redraws in modules.
         modules["noel"] = McpFixtures.Module(images = mapOf("overrides/guilds/crest.png" to solid(18, 18, 0xaabbcc)), role = "theme")
         val survey = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
-        assertEquals(listOf("guilds:crest"), survey["kit"]["themes"].first { it["name"].asText() == "noel" }["module_redraws"].map { it.asText() })
+        assertEquals(listOf("guilds:crest"), survey["common"]["themes"].first { it["name"].asText() == "noel" }["module_redraws"].map { it.asText() })
         assertEquals(light to light, crest("theme" to "noel"))
     }
 
@@ -687,7 +689,7 @@ class McpTest {
     fun `the colours of a theme are computed from one colour per family of the base`() {
         val (access, _) = tokens()
         // The families are the base's: every colour of a button's face is in `primary`.
-        val ramps = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["kit_ramps"]
+        val ramps = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["ramps"]
         assertEquals(listOf("primary", "danger", "accent", "neutral"), ramps["ramps"].map { it["id"].asText() })
         assertEquals("#3c8527", ramps["ramps"][0]["main"].asText())
         assertTrue("theme_colours" in ramps["how"].asText())
@@ -764,7 +766,7 @@ class McpTest {
         val survey = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
         val images = survey["modules"].first { it["project"].asText() == "u-local.guilds" }["images"]
         assertEquals(mapOf("flag" to true, "plain" to false), images.associate { it["name"].asText() to it.path("ramps").asBoolean() })
-        assertEquals("shop", survey["kit"]["themes"].first { it["name"].asText() == "noel" }["scope"].asText())
+        assertEquals("shop", survey["common"]["themes"].first { it["name"].asText() == "noel" }["scope"].asText())
 
         // write_image says it, changes it, and keeps it when it is not said.
         fun write(vararg args: Pair<String, Any?>) = tool(access, "write_image", "project" to "u-local.shop", "draft_id" to draftId, *args)
