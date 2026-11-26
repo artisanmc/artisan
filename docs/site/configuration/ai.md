@@ -249,6 +249,12 @@ A theme may also redraw a module's own image, at its size
 (`overrides/guilds/banner.png` for the image `banner` of the module `guilds`): ask for it by
 the module's name ("in the theme noel, redraw the guilds banner with snow").
 
+A theme may hold images of its own too, which no module and no common image has: a garland
+for the winter look ("draw a garland in the theme noel and put it at the top of the shop").
+The assistant writes it in the theme's draft (`assets/textures/garland.png`) and names it
+with the theme in the menu, `noel:garland`. It shows as drawn while the server has the
+theme, in place or not.
+
 Ask for a theme by its colours ("a Christmas theme: red buttons, dark blue windows"): the
 assistant picks one colour per family of Artisan's images (main, danger, accent, neutral) and
 the shades of each family are computed for it, the same ones the theme's page computes when

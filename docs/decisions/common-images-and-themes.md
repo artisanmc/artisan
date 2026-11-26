@@ -522,6 +522,18 @@ a composed one left out, as in the pack.
 Not in this part: choosing one in the image picker (the name is typed); a draft of the
 theme (the images are the published ones); the MCP tools; the archive's note.
 
+**Step 4, twelfth part: the MCP tools write and draw a theme's own image** (`McpTools.kt`:
+`writeImage`, `Images.own`, `renderMenu`, `survey_ui`).
+In a draft of a theme's own Project, `write_image` with `name` as `<theme>:<image>` (the
+theme's own name before the colon) writes the theme's own image like a module's
+(`assets/textures/` or `assets/glyphs/` by `use`, with its descriptor), at any size; any other
+name stays the theme's drawing of a common image or of a module's. `compose` and `ramps` are
+refused: the pack takes one drawn PNG and shows it as drawn. `render_menu` draws
+`<theme>:<name>` as the theme's file is, deployed or as `theme_draft_id` has it, the theme in
+place or not, and no theme's redraw applies to it. `survey_ui` lists them
+(`common.themes[].own_images`, each as a menu names it) and `themes_format` says how.
+Not in this part: the archive's note.
+
 **Step 6, first part: a module's archive says what it names elsewhere** (`lib/pack/elsewhere.ts`,
 `exportElsewhere.ts`, `runImportZip.ts`; decision 10). The export reads the image names the
 module writes as the pack reads them and tells who holds each one. A common image the server
@@ -602,8 +614,8 @@ Not there yet:
   copy). A font named elsewhere is neither copied nor noted. The version of Artisan in the
   note is the origin's, shown when a base image is missing, never compared.
 - Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are in the pack when
-  named, and the editor draws one a menu names, as published. The image picker does not
-  offer one (the name is typed, read on the theme's page), the MCP tools do not write one, a
+  named, the editor draws one a menu names, as published, and the MCP tools write and draw
+  one. The image picker does not offer one (the name is typed, read on the theme's page), a
   composed one is not taken, and a module's archive does not note one. `<theme>:<name>` for
   an image the theme does not hold falls on the bare name like a module's.
   A theme has no versions and no update: an archive is imported under a free name only.
