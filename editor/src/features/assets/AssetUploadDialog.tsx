@@ -6,9 +6,8 @@ import type { Asset, AssetUsage } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { uploadAsset } from "@/lib/api/userAssets";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AssetUsageFields } from "./AssetUsageFields";
 import { useAssetStore } from "./assetStore";
 
 interface AssetUploadDialogProps {
@@ -58,10 +57,8 @@ export function AssetUploadDialog({
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [usages, setUsages] = useState<AssetUsage[]>(usage ? [usage] : []);
-  useEffect(() => {
-    if (open) setUsages(usage ? [usage] : []);
-  }, [open, usage]);
+  // Filed under the use it is imported for; from the Resources, under none: every list offers it.
+  const usages: AssetUsage[] = usage ? [usage] : [];
 
   const reset = () => {
     setName("");
@@ -128,7 +125,6 @@ export function AssetUploadDialog({
               placeholder={t("assetUpload.namePlaceholder")}
             />
           </label>
-          <AssetUsageFields value={usages} onChange={setUsages} requiredUsage={usage} />
           {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>

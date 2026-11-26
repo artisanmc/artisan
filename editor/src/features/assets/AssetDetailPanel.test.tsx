@@ -44,13 +44,12 @@ const A: Asset = {
 };
 
 describe("AssetDetailPanel", () => {
-  it("refreshes classification when the selected image gains another use elsewhere", async () => {
+  it("saves a rename alone when the selected image gained a use elsewhere", async () => {
     const patch = vi
       .spyOn(userAssetsApi, "patchAsset")
       .mockResolvedValue({ ...A, name: "renamed", usages: ["menu"] });
     render(<AssetDetailPanel projectId={"p1" as never} />);
     act(() => useAssetStore.getState().upsertAsset({ ...A, usages: ["menu"] }));
-    expect(screen.getByRole("checkbox", { name: /^Images du menu$/ })).toBeChecked();
     fireEvent.change(screen.getByLabelText(/^Nom$/), { target: { value: "renamed" } });
     fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
     await waitFor(() => expect(patch).toHaveBeenCalledWith("p1", A.id, { name: "renamed" }));
@@ -317,16 +316,9 @@ describe("AssetDetailPanel", () => {
     const { container } = render(<AssetDetailPanel projectId={"p1" as never} />);
     expect(container.firstChild).toBeNull();
   });
-  it("classifies one image for both buttons and backgrounds", async () => {
-    const patch = vi
-      .spyOn(userAssetsApi, "patchAsset")
-      .mockResolvedValue({ ...A, usages: ["button", "menu"] });
+  it("offers no use to tick: choosing an image in a menu files it", () => {
     render(<AssetDetailPanel projectId={"p1" as never} />);
-    fireEvent.click(screen.getByRole("checkbox", { name: /Images de boutons/ }));
-    fireEvent.click(screen.getByRole("checkbox", { name: /^Images du menu$/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
-    await waitFor(() =>
-      expect(patch).toHaveBeenCalledWith("p1", "asset_a", { usages: ["button", "menu"] }),
-    );
+    expect(screen.queryByRole("checkbox", { name: /Images de boutons/ })).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: /^Images du menu$/ })).toBeNull();
   });
 });

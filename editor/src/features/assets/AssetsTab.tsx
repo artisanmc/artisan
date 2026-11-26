@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AssetDetailPanel } from "./AssetDetailPanel";
-import { AssetGrid, type AssetMark, imageMarkShown } from "./AssetGrid";
+import { AssetGrid, type AssetGroup, type AssetMark, imageMarkShown } from "./AssetGrid";
 import { AssetImportFontDialog } from "./AssetImportFontDialog";
 import { AssetImportNexoDialog } from "./AssetImportNexoDialog";
 import { AssetStage } from "./AssetStage";
@@ -26,7 +26,7 @@ import { ImageNewDialog } from "./ImageNewDialog";
 import { ImageStudio } from "./ImageStudio";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
-import { useImageMarks } from "./imageStanding";
+import { useImageMarks, useShippedUntouched } from "./imageStanding";
 import { isKitBase, useCommonImageRef, useKitAssets, useKitMisfits } from "./kitAssets";
 import { sizedAsPiece } from "./kitPieces";
 import { isKitModule } from "./localAssets";
@@ -629,13 +629,39 @@ function OwnAssets({
   // The common images say who drew each one their own way (`CommonImageState`).
   const marks = useImageMarks(projectId);
   const markOf = (asset: Asset): AssetMark | null => {
-    const mark = isKitModule(projectId) ? null : marks(asset);
+    const mark = marks(asset);
     return mark ? imageMarkShown(mark, t) : null;
   };
 
   const filtered = assets.filter((asset) =>
     matchesFilter(asset, projectId, project, search, category),
   );
+  // What the module ships and the owner left alone is listed apart, folded: the owner's own
+  // images and the ones redrawn come first. A search opens both parts.
+  const isShipped = useShippedUntouched(projectId);
+  const [folded, setFolded] = useState<Record<string, boolean>>({ shipped: true });
+  const shippedOnes = filtered.filter(isShipped);
+  const groups: AssetGroup[] | undefined =
+    shippedOnes.length === 0
+      ? undefined
+      : (
+          [
+            ["own", filtered.filter((asset) => !isShipped(asset))],
+            ["shipped", shippedOnes],
+          ] as const
+        ).map(([key, list]) => ({
+          key,
+          label: t(
+            key === "own"
+              ? "resources.group.own"
+              : isKitModule(projectId)
+                ? "resources.group.shippedArtisan"
+                : "resources.group.shippedModule",
+          ),
+          assets: list,
+          open: search !== "" || !folded[key],
+          onToggle: () => setFolded((held) => ({ ...held, [key]: !held[key] })),
+        }));
 
   const list = (
     <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
@@ -679,6 +705,7 @@ function OwnAssets({
       ) : (
         <AssetGrid
           assets={filtered}
+          groups={groups}
           selectedId={selectedId}
           onSelect={setSelectedId}
           markOf={markOf}

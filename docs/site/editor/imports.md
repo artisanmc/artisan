@@ -7,14 +7,14 @@ sidebar:
 
 A module that replaces another plugin can take over its data: Artisan Auctions reads zAuctionHouse
 and AuctionHouse, Artisan Quests reads BeautyQuests. You run these imports from the **Imports**
-tab of a server's page in the editor. The tab shows with the permission `artisan.editor.config`.
+tab of a server's page in the editor (under **More**). The tab shows with the permission `artisan.editor.config`.
 
 The import runs on the server that holds the data, so that server must be online. The same imports
 exist in game as [`/artisan import`](../../configuration/commands-permissions/).
 
 ## Import
 
-1. Open the server's page, then **Imports**. Each line is a source one of your modules can read.
+1. Open the server's page, then **More → Imports**. Each line is a source one of your modules can read.
 2. Click **Dry run**. The server reads the other plugin's data and writes nothing. The report
    says what would be imported, what is left aside and why, and what you should check afterwards.
 3. Click **Import** when the report suits you. The data is written and the run gets a batch id.

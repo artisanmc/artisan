@@ -15,6 +15,11 @@ import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
+    group: {
+      own: "This server's",
+      shippedArtisan: "Shipped with Artisan",
+      shippedModule: "Shipped with the module",
+    },
     mark: {
       notTaken: "Not taken: the module's original shows",
       ownVersion: "Your version of an image the module ships",
@@ -96,8 +101,6 @@ export default {
     empty: "No resources yet.",
     noResults: "No resources match these filters.",
     name: "Name",
-    usages: "Use as",
-    usageHint: "One image can have several uses without being duplicated.",
     save: "Save",
     saving: "Saving…",
     delete: "Delete from module",
@@ -2745,6 +2748,7 @@ export default {
       updates: "Updates",
       imports: "Imports",
       settings: "Settings",
+      more: "More",
     },
     stateOnline: "Online",
     stateOffline: "Offline",

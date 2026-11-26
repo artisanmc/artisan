@@ -2,7 +2,7 @@ import type { Asset } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { API_URL } from "@/lib/api/client";
 import { type FileOrigin, fetchProjectOrigins } from "@/lib/api/templates";
-import { assetDiskPath } from "@/lib/pack/assetDiskWrite";
+import { assetDiskPath, assetFileName } from "@/lib/pack/assetDiskWrite";
 import { composeRecipe } from "@/lib/pack/compose";
 import {
   type ImageFunction,
@@ -331,6 +331,45 @@ export function useImageMarks(
       files && binaries && origins ? imageMarks(files, binaries, origins, measured) : plain;
     return (asset) => (asset.type === "font" ? null : (marks.get(imageStem(asset)) ?? null));
   }, [files, binaries, origins, plain, measured]);
+}
+
+/**
+ * The names of what a module ships and its owner has no file of, by type folder: the images
+ * and fonts shown as shipped. `assets/textures/crest` for an image, `assets/fonts/pixel` for a
+ * font (a folder). What the owner redrew or added is not among them.
+ */
+export function shippedUntouched(files: Iterable<string>, binaries: Iterable<string>): Set<string> {
+  const shipped = new Set<string>();
+  const own = new Set<string>();
+  const note = (path: string) => {
+    const original = path.startsWith(ORIGINALS);
+    const rel = original ? path.slice(ORIGINALS.length) : path;
+    if (!rel.startsWith("assets/")) return;
+    const font = /^(assets\/fonts\/[^/]+)\//.exec(rel);
+    (original ? shipped : own).add(font ? font[1]! : rel.replace(/\.[^./]+$/, ""));
+  };
+  for (const path of files) note(path);
+  for (const path of binaries) note(path);
+  for (const stem of own) shipped.delete(stem);
+  return shipped;
+}
+
+/** Whether an asset of the open module is what the module ships, untouched ([shippedUntouched]). */
+export function useShippedUntouched(
+  projectId: string,
+): (asset: Pick<Asset, "id" | "type">) => boolean {
+  const draft = useProjectDraftStore((s) => s.drafts[projectId]);
+  const publishedFiles = useProjectBaselineStore((s) => s.baselines[projectId]);
+  const publishedBinaries = useProjectBaselineStore((s) => s.binaryBaselines[projectId]);
+  const files = draft?.tree ?? publishedFiles;
+  const binaries = draft?.binaryTree ?? draft?.binaryBaseline ?? publishedBinaries;
+  return useMemo(() => {
+    const shipped = shippedUntouched(Object.keys(files ?? {}), Object.keys(binaries ?? {}));
+    return (asset) =>
+      shipped.has(
+        asset.type === "font" ? `assets/fonts/${assetFileName(asset.id)}` : imageStem(asset),
+      );
+  }, [files, binaries]);
 }
 
 /** [imageNotTaken] of an image of the open module, as its draft holds it, else as published. */

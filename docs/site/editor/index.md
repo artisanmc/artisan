@@ -139,8 +139,9 @@ Right-click an empty spot of the board and open **New** to create a menu, a comm
 or any element a module adds to the project, right where you clicked.
 Open the project's **Resources** tab to import and manage images and fonts.
 Select a resource to edit its details; **Back to resources** returns to the grid.
-Classify images as **Button images** and/or **Menu images**; one image may have both
-uses without being duplicated. Only button images appear in **Buttons → Images**.
+Images are filed as **Button images** and/or **Menu images** by where you choose them; an
+image used nowhere yet is offered everywhere. **Buttons → Images** lists the button images
+and the ones filed nowhere.
 **Open in the atelier**, under an image, gives it the whole page: a PNG is retouched with a
 pencil, an eraser, a colour picker (Alt+click) and a paint bucket, with the colours of the
 image and of the server's common images, zoom and undo. The image keeps its size, so the menus that

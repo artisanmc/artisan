@@ -2,14 +2,28 @@ import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
 import { cx } from "@/lib/cx";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ImageMark } from "./imageStanding";
 
 const TILE_SIZE = 48;
 const GAP = 6;
 
+/** A titled part of the list: its tiles show while it is open. */
+export interface AssetGroup {
+  key: string;
+  label: string;
+  assets: Asset[];
+  open: boolean;
+  onToggle: () => void;
+}
+
+const HEADER_SIZE = 28;
+
 interface AssetGridProps {
   assets: Asset[];
+  /** The list in titled parts, in place of `assets`. */
+  groups?: AssetGroup[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   /** A tile's identity, `asset.id` by default; assets of several projects need their project too. */
@@ -38,6 +52,7 @@ export function imageMarkShown(mark: ImageMark, t: (key: string) => string): Ass
 
 export function AssetGrid({
   assets,
+  groups,
   selectedId,
   onSelect,
   keyOf = (asset) => asset.id,
@@ -59,18 +74,40 @@ export function AssetGrid({
   }, []);
 
   const columns = Math.max(3, Math.floor((containerWidth + GAP) / (TILE_SIZE + GAP)));
-  const rows: Asset[][] = [];
-  for (let i = 0; i < assets.length; i += columns) {
-    rows.push(assets.slice(i, i + columns));
-  }
+  const rows: (Asset[] | AssetGroup)[] = [];
+  const tiles = (list: Asset[]) => {
+    for (let i = 0; i < list.length; i += columns) rows.push(list.slice(i, i + columns));
+  };
+  if (groups)
+    for (const group of groups) {
+      rows.push(group);
+      if (group.open) tiles(group.assets);
+    }
+  else tiles(assets);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => TILE_SIZE + GAP,
+    estimateSize: (index) => (Array.isArray(rows[index]) ? TILE_SIZE + GAP : HEADER_SIZE),
     overscan: 4,
   });
 
+  const tilesOf = (row: Asset[] | AssetGroup | undefined) => (Array.isArray(row) ? row : []);
+  const header = (row: Asset[] | AssetGroup | undefined) =>
+    row && !Array.isArray(row) ? (
+      <button
+        type="button"
+        aria-expanded={row.open}
+        onClick={row.onToggle}
+        data-testid="asset-group"
+        className="eyebrow flex w-full items-center gap-1.5 text-left hover:text-[var(--text)]"
+        style={{ height: HEADER_SIZE - GAP }}
+      >
+        <ChevronRight className={cx("size-3.5 transition-transform", row.open && "rotate-90")} />
+        {row.label}
+        <span className="opacity-60">{row.assets.length}</span>
+      </button>
+    ) : null;
   return (
     <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto pb-2">
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
@@ -88,7 +125,8 @@ export function AssetGrid({
               paddingBottom: GAP,
             }}
           >
-            {(rows[vr.index] ?? []).map((asset) => {
+            {header(rows[vr.index])}
+            {tilesOf(rows[vr.index]).map((asset) => {
               const mark = markOf?.(asset) ?? null;
               return (
                 <button

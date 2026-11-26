@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { imageMarks, imageNotTaken, imageStanding, ownerHolds } from "./imageStanding";
+import {
+  imageMarks,
+  imageNotTaken,
+  imageStanding,
+  ownerHolds,
+  shippedUntouched,
+} from "./imageStanding";
 
 const h = (hash: string) => ({ hash });
 
@@ -172,5 +178,35 @@ describe("ownerHolds", () => {
     expect(ownerHolds(paths, { id: "crest", type: "glyph" })).toBe(false);
     expect(ownerHolds(paths, { id: "title", type: "font" })).toBe(true);
     expect(ownerHolds(paths, { id: "body", type: "font" })).toBe(false);
+  });
+});
+
+describe("shippedUntouched", () => {
+  it("names what the module ships and the owner has no file of", () => {
+    const shipped = shippedUntouched(
+      [
+        "originals/assets/textures/panel.yml",
+        "originals/assets/fonts/pixel/font.yaml",
+        "originals/assets/fonts/mine/font.yaml",
+        "assets/fonts/mine/font.yaml",
+        // The owner's composed image of a shipped PNG's name: theirs.
+        "assets/textures/card.3x2.yml",
+        "menus/shop.yml",
+      ],
+      [
+        "originals/assets/textures/button.3x1.png",
+        "originals/assets/textures/panel.png",
+        "originals/assets/textures/card.3x2.png",
+        "originals/assets/textures/close.1x1.png",
+        "originals/assets/fonts/pixel/a.png",
+        "assets/textures/close.1x1.png",
+        "assets/textures/blason.png",
+      ],
+    );
+    expect([...shipped].sort()).toEqual([
+      "assets/fonts/pixel",
+      "assets/textures/button.3x1",
+      "assets/textures/panel",
+    ]);
   });
 });

@@ -17,6 +17,11 @@ import { variablesFr } from "./variables";
 const fr: typeof en = {
   onboarding: onboardingFr,
   resources: {
+    group: {
+      own: "De ce serveur",
+      shippedArtisan: "Livrées avec Artisan",
+      shippedModule: "Livrées avec le module",
+    },
     mark: {
       notTaken: "Non prise : l'original du module s'affiche",
       ownVersion: "Votre version d'une image livrée par le module",
@@ -100,8 +105,6 @@ const fr: typeof en = {
     empty: "Aucune ressource pour le moment.",
     noResults: "Aucune ressource ne correspond à ces filtres.",
     name: "Nom",
-    usages: "Utiliser comme",
-    usageHint: "Une image peut servir à plusieurs usages sans être dupliquée.",
     save: "Enregistrer",
     saving: "Enregistrement…",
     delete: "Supprimer du module",
@@ -2795,6 +2798,7 @@ const fr: typeof en = {
       updates: "Mises à jour",
       imports: "Imports",
       settings: "Réglages",
+      more: "Plus",
     },
     stateOnline: "En ligne",
     stateOffline: "Hors ligne",
