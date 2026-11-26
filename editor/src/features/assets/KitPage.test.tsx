@@ -47,14 +47,12 @@ describe("KitPage", () => {
     useKitStore.setState({ themes: ["noel"] });
     const onPiece = vi.fn();
     const onOpenKit = vi.fn();
-    const onTheme = vi.fn();
     render(
       <KitPage
         menusNaming={14}
         usesOf={(name) => (name === "button.3x1" ? 3 : name === "blason" ? 1 : 0)}
         onPiece={onPiece}
         onOpenKit={onOpenKit}
-        onTheme={onTheme}
       />,
     );
     const misfit = within(screen.getByTestId("kit-slot-back.1x1"));
@@ -81,50 +79,8 @@ describe("KitPage", () => {
     expect(onPiece).toHaveBeenLastCalledWith("card.3x2");
     fireEvent.click(screen.getByTestId("kit-trial-close.1x1"));
     expect(onPiece).toHaveBeenLastCalledWith("close.1x1");
-    // The server's own image leads to the kit module, its theme to the theme.
+    // The server's own image leads to the kit module.
     fireEvent.click(screen.getByTestId("kit-other-kit:blason"));
     expect(onOpenKit).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "noel (en place)" }));
-    expect(onTheme).toHaveBeenCalledWith("noel");
-    expect(screen.queryByTestId("kit-themes-order")).toBeNull();
-  });
-
-  it("lists the themes in place first, in their order, then the others", () => {
-    published([
-      "themes/automne/assets/textures/close.1x1.png",
-      "themes/hiver/assets/textures/close.1x1.png",
-      "themes/noel/assets/textures/close.1x1.png",
-    ]);
-    // `gone` is in place on the server and no longer among its themes: it shows nothing.
-    // `printemps` is a theme of its own folder, a Project of its name.
-    useKitStore.setState({
-      themes: ["noel", "gone", "automne"],
-      own: { printemps: { projectId: "srv.printemps", files: {}, binaries: [] } },
-    });
-    render(<KitPage menusNaming={0} onTheme={() => {}} />);
-    const themes = within(screen.getByTestId("kit-themes"));
-    expect(themes.getAllByRole("button").map((button) => button.textContent)).toEqual([
-      "1. noel (en place)",
-      "2. automne (en place)",
-      "hiver",
-      "printemps",
-    ]);
-    expect(screen.getByTestId("kit-themes-order")).toBeInTheDocument();
-  });
-
-  it("offers what creates a theme beside the themes, with the names they have", () => {
-    published(["themes/hiver/assets/textures/close.1x1.png"]);
-    useKitStore.setState({
-      own: { printemps: { projectId: "srv.printemps", files: {}, binaries: [] } },
-    });
-    render(
-      <KitPage
-        menusNaming={0}
-        newTheme={(themes) => <button type="button">new:{themes.join(",")}</button>}
-      />,
-    );
-    expect(
-      within(screen.getByTestId("kit-themes")).getByRole("button", { name: "new:hiver,printemps" }),
-    ).toBeInTheDocument();
   });
 });

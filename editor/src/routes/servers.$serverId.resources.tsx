@@ -1,20 +1,12 @@
 import { KitPage } from "@/features/assets/KitPage";
 import { KitThemePage } from "@/features/assets/KitThemePage";
-import { NewThemeDialog } from "@/features/assets/NewThemeDialog";
-import { ThemesPage } from "@/features/assets/ThemesPage";
-import { useAssetStore } from "@/features/assets/assetStore";
 import { useResourcesView } from "@/features/assets/resourcesView";
 import { runExportThemeZip } from "@/features/export/runExportZip";
-import { ImportThemeDialog } from "@/features/import/ImportThemeDialog";
-import {
-  SERVER_COMMON,
-  SERVER_THEMES,
-  ServerResources,
-  type ServerResourcesScope,
-  WHOLE_SERVER,
-} from "@/features/project/ServerResources";
+import { themeImporter } from "@/features/import/themeImporter";
+import { ResourcePlaces } from "@/features/project/ResourcePlaces";
 import { menusNamingCommon, useImageUses } from "@/features/project/imageUses";
 import { rebuildServerPackInBackground } from "@/features/project/resourcePackSync";
+import { useServerIndexRereads } from "@/features/serverIndex/serverIndexRereads";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { useServerFrame } from "@/features/serverPage/serverFrame";
 import { renameProject } from "@/lib/api/projectIdentity";
@@ -22,38 +14,31 @@ import { patchServerConfig } from "@/lib/api/serverConfig";
 import { deleteUserProject } from "@/lib/api/userProjects";
 import { commonImageKey } from "@/lib/pack/kit";
 import { THEMES_CONFIG_KEY, isThemeName, themeChange, themesRenamed } from "@/lib/pack/theme";
-import { projectDestination } from "@/lib/projectNavigation";
 import { useKitStore } from "@/state/kitStore";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/servers/$serverId/resources")({
   component: ServerResourcesTab,
-  validateSearch: (search: Record<string, unknown>): { theme?: string; show?: string } => ({
-    ...(typeof search.theme === "string" && isThemeName(search.theme)
-      ? { theme: search.theme }
-      : {}),
-    ...(typeof search.show === "string" && search.show && search.show !== WHOLE_SERVER
-      ? { show: search.show }
-      : {}),
-  }),
+  validateSearch: (search: Record<string, unknown>): { theme?: string } =>
+    typeof search.theme === "string" && isThemeName(search.theme) ? { theme: search.theme } : {},
 });
 
 /**
- * The server's Resources tab: every module's images and fonts and the common images, read as
- * published (`ServerResources`). `?show=common` is the page of the common images alone,
- * `?show=themes` the server's themes and their stack, `?show=<module>` one module's,
- * `?theme=<name>` one theme's page, which goes back to the page it was opened from.
+ * The server's Resources tab (ADR `resources-one-screen`, decision 5): the places a resource
+ * lives in on the left (`ResourcePlaces`: the server's themes, its modules, Artisan's base),
+ * the place that is open on the right. `?theme=<name>` is one theme's page; without it the
+ * base, as the server shows it. A module and the server's own theme open in their Project,
+ * which shows the same places beside its Resources.
  */
 function ServerResourcesTab() {
   const { serverId, serverKeyId } = useServerFrame();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { theme, show } = Route.useSearch();
-  // The server index reads the modules, the theme and the menus that name the images.
-  // A theme created here is read with the server's Projects again.
-  const [rereads, setRereads] = useState(0);
+  const { theme } = Route.useSearch();
+  // The server index reads the modules, the themes and the menus that name the images.
+  // A theme created, renamed or deleted is read with the server's Projects again.
+  const rereads = useServerIndexRereads((s) => s.count);
   useServerIndexLoader(serverId, serverKeyId !== null, rereads);
   const uses = useImageUses();
   const read = useKitStore((s) => s.read);
@@ -66,14 +51,11 @@ function ServerResourcesTab() {
       params: { serverId, projectId },
       search: { tab: "resources" },
     });
-  const showScope = (scope: ServerResourcesScope, name?: string) =>
+  const showTheme = (name?: string) =>
     navigate({
       to: "/servers/$serverId/resources",
       params: { serverId },
-      search: {
-        ...(scope === WHOLE_SERVER ? {} : { show: scope }),
-        ...(name ? { theme: name } : {}),
-      },
+      search: name ? { theme: name } : {},
     });
   const openCommon = kitId
     ? (name: string) => {
@@ -81,8 +63,7 @@ function ServerResourcesTab() {
         void openModule(kitId);
       }
     : undefined;
-  const fromThemes = show === SERVER_THEMES;
-  // The kit's images are shown in the server's themes from now on, and its pack rebuilt in them.
+  // The common images are shown in the server's themes from now on, and its pack rebuilt in them.
   const stackSaved = (saved: Record<string, unknown>) => {
     useKitStore.getState().readConfig(saved);
     rebuildServerPackInBackground(t, serverKeyId);
@@ -97,7 +78,7 @@ function ServerResourcesTab() {
    * a refusal then leaves the list as it was.
    */
   const stackFollows = async (names: string[] | null) => {
-    setRereads((count) => count + 1);
+    useServerIndexRereads.getState().bump();
     if (!names) return;
     let saved: Record<string, unknown>;
     try {
@@ -116,111 +97,58 @@ function ServerResourcesTab() {
     });
     if (result.status !== "complete") throw new Error("failed");
     // The page of the theme under its new name, before the list is written: a refusal there is said on it.
-    void showScope(fromThemes ? SERVER_THEMES : SERVER_COMMON, target);
+    void showTheme(target);
     await stackFollows(themesRenamed(useKitStore.getState().themes, name, target));
   };
   const deleteTheme = async (name: string) => {
     const mine = useKitStore.getState().own[name];
     if (!mine) throw new Error("unknown_project");
     await deleteUserProject(mine.projectId);
-    void showScope(SERVER_THEMES);
+    void showTheme();
     const { themes } = useKitStore.getState();
     await stackFollows(themes.includes(name) ? themes.filter((other) => other !== name) : null);
   };
-  // A theme created or imported here is read with the server's Projects again, then shown.
-  const themeArrived = (from: ServerResourcesScope) => (name: string) => {
-    setRereads((count) => count + 1);
-    void showScope(from, name);
-  };
-  const newTheme = (from: ServerResourcesScope) =>
-    kitId
-      ? (themes: readonly string[]) => (
-          <NewThemeDialog serverKeyId={serverKeyId} taken={themes} onCreated={themeArrived(from)} />
-        )
-      : undefined;
-  /** What the Themes screen offers to add a theme: one from an archive, or an empty one. */
-  const addTheme = kitId
-    ? (themes: readonly string[]) => (
-        <div className="flex flex-wrap gap-2">
-          <ImportThemeDialog
-            serverKeyId={serverKeyId}
-            taken={themes}
-            onImported={themeArrived(SERVER_THEMES)}
-          />
-          {newTheme(SERVER_THEMES)?.(themes)}
-        </div>
-      )
-    : undefined;
-  if (theme)
-    return (
-      <div className="h-full overflow-auto">
+  return (
+    <div className="flex h-full min-h-0 flex-col lg:flex-row" data-testid="server-resources">
+      <ResourcePlaces
+        serverId={serverId}
+        serverKeyId={serverKeyId}
+        selected={theme ? { kind: "theme", name: theme } : { kind: "base" }}
+        importTheme={themeImporter}
+      />
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto">
         <div className="mx-auto max-w-7xl px-6 py-6">
-          <KitThemePage
-            name={theme}
-            onBack={() => void showScope(fromThemes ? SERVER_THEMES : SERVER_COMMON)}
-            backLabel={fromThemes ? t("kit.theme.backToThemes") : undefined}
-            onOpenKit={kitId ? () => void openModule(kitId) : undefined}
-            onOpenTheme={
-              ownThemes[theme]
-                ? () => void openModule((ownThemes[theme] as { projectId: string }).projectId)
-                : undefined
-            }
-            onPutInPlace={putInPlace}
-            onRename={renameTheme}
-            onDelete={deleteTheme}
-            onExport={async (name) => {
-              const mine = useKitStore.getState().own[name];
-              if (!mine) throw new Error("transport");
-              const result = await runExportThemeZip(mine.projectId, name);
-              if (!result.ok) throw new Error(result.error ?? "transport");
-            }}
-          />
+          {theme ? (
+            <KitThemePage
+              name={theme}
+              onOpenKit={kitId ? () => void openModule(kitId) : undefined}
+              onOpenTheme={
+                ownThemes[theme]
+                  ? () => void openModule((ownThemes[theme] as { projectId: string }).projectId)
+                  : undefined
+              }
+              onPutInPlace={putInPlace}
+              onRename={renameTheme}
+              onDelete={deleteTheme}
+              onExport={async (name) => {
+                const mine = useKitStore.getState().own[name];
+                if (!mine) throw new Error("transport");
+                const result = await runExportThemeZip(mine.projectId, name);
+                if (!result.ok) throw new Error(result.error ?? "transport");
+              }}
+            />
+          ) : (
+            <KitPage
+              menusNaming={menusNamingCommon(uses)}
+              usesOf={(name) =>
+                uses.get(commonImageKey(name))?.filter((use) => !use.by).length ?? 0
+              }
+              onPiece={openCommon}
+              onOpenKit={kitId ? () => void openModule(kitId) : undefined}
+            />
+          )}
         </div>
       </div>
-    );
-  return (
-    <ServerResources
-      scope={show ?? WHOLE_SERVER}
-      onScope={(scope) => void showScope(scope)}
-      onOpenModule={(projectId, assetId) => {
-        // The module's Resources open on this image once its files are read.
-        useAssetStore.getState().setSelectedId(assetId);
-        void openModule(projectId);
-      }}
-      onOpenCommon={openCommon}
-      onShare={
-        kitId
-          ? (asset) => {
-              // The common images' Project takes the copy in its draft once it is open.
-              useResourcesView.getState().askShare(asset);
-              void openModule(kitId);
-            }
-          : undefined
-      }
-      onOpenMenu={(projectId, menuId) =>
-        void navigate(projectDestination(projectId, serverId, menuId, "menu"))
-      }
-      themes={
-        <ThemesPage
-          onTheme={(name) => void showScope(SERVER_THEMES, name)}
-          onOrder={async (names) =>
-            stackSaved(await patchServerConfig(serverKeyId, { [THEMES_CONFIG_KEY]: names }))
-          }
-          onPutInPlace={putInPlace}
-          newTheme={addTheme}
-        />
-      }
-      common={
-        <KitPage
-          onTheme={(name) => void showScope(SERVER_COMMON, name)}
-          onThemes={() => void showScope(SERVER_THEMES)}
-          menusNaming={menusNamingCommon(uses)}
-          usesOf={(name) => uses.get(commonImageKey(name))?.filter((use) => !use.by).length ?? 0}
-          onPiece={openCommon}
-          onOpenKit={kitId ? () => void openModule(kitId) : undefined}
-          newTheme={newTheme(SERVER_COMMON)}
-        />
-      }
-    />
+    </div>
   );
 }

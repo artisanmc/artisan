@@ -123,18 +123,21 @@ answers there: the module the request was made in leaves it alone, any other mod
 A module's own image or font goes the other way by the same path: `AssetDetailPanel`'s
 **Copy to the common images** (`onShare`) sets `useResourcesView.askShare(asset, from)`, and
 `useCommonCopyAsked` answers in the common images' Project with `copyAssetInto` (the copy the
-picker makes from another module), into that Project's draft. The server's list offers the
-same copy for a module's own file (`ServerResources`' `onShare`, `useServerOwnerHolds`: the
-modules as published, never what a module ships alone).
-The server page's **Resources** tab is the route `servers.$serverId.resources.tsx`, drawn by
-`ServerResources` (`features/project/ServerResources.tsx`): the Resources screen at the scale
-of the server (ADR `common-images-and-themes`, decision 12). `?show=` picks what it lists: the
-whole server by default (every module's published images and fonts, read by
-`useOtherProjectAssets`, with the common images), one module (`?show=<project id>`), or the
-common images alone (`?show=common`: `KitPage`), or the server's themes (`?show=themes`:
-`ThemesPage`, the stack in place the highest first, dragged to reorder, with the themes that
-are not in place; `themesMoved` turns a move on the screen into the server's list);
-`?theme=<name>` is one theme's `KitThemePage`, which goes back to the page named by `show`.
+picker makes from another module), into that Project's draft.
+The Resources are one screen (ADR `resources-one-screen`, decision 5): `ResourcePlaces`
+(`features/project/ResourcePlaces.tsx`) lists the places a resource lives in, in the order a
+name is looked up, beside the place that is open. It is drawn by the server page's
+**Resources** tab (the route `servers.$serverId.resources.tsx`) and by a Project's Resources
+(`ProjectCanvasPage`), with the same content: the themes in place the highest first (dragged
+to reorder: `themesMoved` turns a move on the screen into the server's list; put away or put
+in place: `themeChange`), the server's own theme (`artisan`), the themes put away, the
+modules, the base. It writes `resource-pack.themes` itself and rebuilds the pack. A click
+navigates: a theme to `?theme=<name>` of the server's route (its `KitThemePage`), a module or
+the server's theme to its Project's Resources, the base to the server's route without
+`?theme` (`KitPage`). What imports a theme is given by the route (`themeImporter`, a
+`ThemeImporter`), since `features/project` does not import `features/import`. A theme created
+or imported bumps `useServerIndexRereads`, which both pages add to their re-read of the
+server index.
 That page renames and deletes a theme of its own folder (`ThemeMoves`, offered when the
 theme's `KitRead.canMove` is set, the server's `capabilities.canRename`): the route moves the
 folder (`renameProject`, `deleteUserProject`), then writes the themes in place when the theme
@@ -157,7 +160,7 @@ its file; the open module's as published). A use that is no menu carries `ImageU
 composed image's name, a file's path) and is listed without a link (`imageUseName`). A
 reference counts by the rule a menu is read with (`imageNamedBy`): `artisan:` and `kit:` are
 the common image, a name alone the module's own image then the common one, `<folder>:<name>`
-the image of the module in that folder. `CommonAssets` and `ServerResources` list these uses
+the image of the module in that folder. `CommonAssets` lists these uses
 (`onOpenMenu` opens a menu), `KitPage` shows the number of menus per common image.
 A server's image of a base piece's name at another size than the piece's is not taken (the
 pack and `kitAssetsOf` show the base's); `kitMisfits` (`kitAssets.ts`) lists these with their

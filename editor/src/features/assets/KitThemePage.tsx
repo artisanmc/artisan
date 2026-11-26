@@ -25,8 +25,6 @@ import { serverThemeNames } from "./kitTheme";
  */
 export function KitThemePage({
   name,
-  onBack,
-  backLabel,
   onPutInPlace,
   onOpenKit,
   onOpenTheme,
@@ -35,9 +33,6 @@ export function KitThemePage({
   onExport,
 }: {
   name: string;
-  onBack: () => void;
-  /** What the way back says; absent: back to the common images. */
-  backLabel?: string;
   /** Puts the theme `name` in place on the server, above the ones that are (`put`), or takes it off. */
   onPutInPlace?: (name: string, put: boolean) => Promise<void>;
   /** Opens the common images' Project, where the files of a theme it still keeps are. */
@@ -103,9 +98,6 @@ export function KitThemePage({
   return (
     <div className="flex flex-col gap-4" data-testid="kit-theme-page">
       <header className="flex flex-wrap items-center gap-3">
-        <Button variant="outline" onClick={onBack}>
-          {backLabel ?? t("kit.theme.back")}
-        </Button>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <h2 className="text-lg font-semibold">{t("kit.theme.title", { name })}</h2>
           <p className="text-[13px] text-[var(--text-mut)]">{t("kit.theme.intro")}</p>

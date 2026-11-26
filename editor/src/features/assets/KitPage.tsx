@@ -4,14 +4,13 @@ import type { Asset } from "@/domain/asset";
 import { cx } from "@/lib/cx";
 import { KIT_PREFIX, KIT_SLOTS, type KitSlot, kitNameOf } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
 import { CommonImageBadge, CommonImageMisfit } from "./CommonImageState";
 import { KitTrialMenu } from "./KitTrialMenu";
 import { isKitBase, useKitAssets, useKitMisfits } from "./kitAssets";
 import { KIT_FAMILIES, kitPiecesOf } from "./kitPieces";
-import { serverThemeNames } from "./kitTheme";
 
 /** The room a piece's picture has on its card, in pixels. */
 const ROOM = { width: 120, height: 64 };
@@ -81,7 +80,7 @@ function Uses({ count }: { count: number }) {
 
 /**
  * The server's common images (`lib/pack/kit.ts`), a screen of the server: every piece of the base
- * by family with who drew it (Artisan, or this server), the images the server added, its themes,
+ * by family with who drew it (Artisan, or this server), the images the server added,
  * and all the pieces set on one menu, as players see them. The page reads the published theme
  * `artisan`; a piece is redrawn in its Project, which a click on it opens (`onPiece`).
  */
@@ -90,9 +89,6 @@ export function KitPage({
   usesOf,
   onPiece,
   onOpenKit,
-  onTheme,
-  onThemes,
-  newTheme,
 }: {
   /** How many of the server's menus name a common image. */
   menusNaming: number;
@@ -102,35 +98,12 @@ export function KitPage({
   onPiece?: (id: string) => void;
   /** Opens the common images' Project on its images. */
   onOpenKit?: () => void;
-  /** Opens the theme `name`. */
-  onTheme?: (name: string) => void;
-  /** Opens the server's themes: the stack in place and the others. */
-  onThemes?: () => void;
-  /** What creates a theme on the server, given the names its themes have. */
-  newTheme?: (themes: readonly string[]) => ReactNode;
 }) {
   const { t } = useTranslation();
   const read = useKitStore((s) => s.read);
-  const inPlace = useKitStore((s) => s.themes);
   const kit = useKitAssets();
   const misfits = useKitMisfits();
   const [over, setOver] = useState<string | null>(null);
-  // The themes in place first, from the lowest to the highest, then the others.
-  const own = useKitStore((s) => s.own);
-  const themes = useMemo(() => {
-    const held = serverThemeNames(read, own);
-    return [
-      ...inPlace.filter((name) => held.includes(name)),
-      ...held.filter((name) => !inPlace.includes(name)),
-    ];
-  }, [read, own, inPlace]);
-  const shownIn = themes.filter((name) => inPlace.includes(name));
-  const themeLabel = (name: string) =>
-    !shownIn.includes(name)
-      ? name
-      : shownIn.length > 1
-        ? t("kit.page.themeInStack", { name, rank: shownIn.indexOf(name) + 1 })
-        : t("kit.page.themeInPlace", { name });
   const piece = (slot: KitSlot) => kit.find((a) => a.id === KIT_PREFIX + slot.id);
   const others = kit.filter((a) => !isKitBase(a));
   const redrawn = KIT_SLOTS.filter((slot) => !!piece(slot)?.contentHash).length;
@@ -152,43 +125,6 @@ export function KitPage({
           </Button>
         ) : null}
       </header>
-
-      <div className="flex flex-wrap items-center gap-1.5" data-testid="kit-themes">
-        <span className="field-label mr-1">{t("kit.page.themes")}</span>
-        <Badge variant={shownIn.length > 0 ? "sage" : "amber"}>
-          {t(shownIn.length > 0 ? "kit.page.noTheme" : "kit.page.noThemeInPlace")}
-        </Badge>
-        {themes.map((name) =>
-          onTheme ? (
-            <button
-              key={name}
-              type="button"
-              className={cx("chip text-[12px]", shownIn.includes(name) && "is-active")}
-              onClick={() => onTheme(name)}
-            >
-              {themeLabel(name)}
-            </button>
-          ) : (
-            <Badge key={name} variant={shownIn.includes(name) ? "amber" : "sage"}>
-              {themeLabel(name)}
-            </Badge>
-          ),
-        )}
-        {themes.length === 0 ? (
-          <span className="text-[12px] text-[var(--text-faint)]">{t("kit.page.noThemes")}</span>
-        ) : null}
-        {shownIn.length > 1 ? (
-          <span className="text-[12px] text-[var(--text-faint)]" data-testid="kit-themes-order">
-            {t("kit.page.themesOrder")}
-          </span>
-        ) : null}
-        {newTheme?.(themes)}
-        {onThemes ? (
-          <Button variant="ghost" size="sm" onClick={onThemes}>
-            {t("kit.themes.manage")}
-          </Button>
-        ) : null}
-      </div>
 
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-4">

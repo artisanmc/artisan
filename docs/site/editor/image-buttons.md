@@ -77,19 +77,24 @@ images** opens the common images with a copy of it under the same name, in their
 them and every module can name it. The module keeps its own image, which its menus still
 show; delete it there afterwards and its menus take the common one, with nothing to rewrite
 since the name is the same. The button is off when the common images already have an image of
-that name, and is not offered for a composed image, whose layers are the module's. The
-server's **Resources** tab has the same button on a module's own image or font.
+that name, and is not offered for a composed image, whose layers are the module's.
 
-**Resources, a tab of the server.** The server page's **Resources** tab is the Resources screen
-for the whole server: the images and fonts of every module and the common images in one list,
-as deployed. **Show** narrows it to one module or to the common images. An image selected
-shows who provides it (its module, or the common images), its size, and the menus of the
-server that name it, each a link to that menu: a menu of its own module that writes its name,
-and a menu of another module that writes `<module>:<name>`. Nothing is changed from this
-list: **Open in** opens the module's Resources on that image, and a common image opens in the
-atelier of the common images.
+**Resources, one screen.** The server's **Resources** tab and a module's **Resources** show
+the same list of places on the left, in the order an image's name is looked up:
 
-**Show: Common images** is the page of the common images alone, as the server has them
+- **Server themes**: the themes in place, the highest first (drag one by its handle to change
+  its place, **Put away** to take it off), then **Server theme**, the server's own images,
+  always in place below the others, then the themes put away (**Put in place** sets one above
+  the others). **New theme** and **Import a theme** are under the list. Each change rebuilds
+  the server's pack.
+- **Modules**: each module's own images. A module that holds an image of a name keeps it in
+  its menus, whatever the themes hold.
+- **Base**: the images Artisan ships, looked up last, read only.
+
+A click opens the place on the right: a theme on its page, a module or the server's theme on
+its own Resources, where its images and fonts are changed.
+
+**Base** is the page of the common images, as the server has them
 deployed: every piece of the base by family (buttons; windows, panels and
 values; arrows and controls) with its size and who drew it, **Artisan** or this server
 (**Redrawn**), then the images the server added. Each image says how many deployed menus name
@@ -118,21 +123,17 @@ A server that had a `ui-kit` module keeps its images: at the first start after t
 module's folder moves to `plugins/Artisan/themes/artisan/`, and the menus that name its images
 keep working.
 
-**Themes.** The tab lists the themes, the ones in place first and numbered from the lowest to
-the highest. A theme opens on what it changes (the colours it replaces, the pieces it redraws)
+**Themes.** A theme opens on what it changes (the pieces it redraws)
 and on the same menu without it and with it. **Put in place on the server** sets the theme
 above the ones already in place and rebuilds the server's pack: players receive it at their
 next connection. Several themes stack: each changes what the ones below show, so the highest
-that redraws an image wins, and a theme of colours alone repaints what is below it (a seasonal
-palette over a drawn theme). **Take off the server** removes that theme alone; to move a theme
-to the top, take it off and put it back, or reorder the list in **Configuration**, **Themes in
-place**. A theme's
+that redraws an image wins. **Put this theme away** takes that theme alone off; the list of
+places on the left reorders the themes in place. A theme's
 files are written with the common images (see [AI](../../configuration/ai/), "Themes") and read
 here once deployed. **New theme** creates one, empty, as a folder of its own on the server
-(`plugins/Artisan/themes/<name>/`): it changes nothing until it holds colours or redrawn
+(`plugins/Artisan/themes/<name>/`): it changes nothing until it holds redrawn
 images and is put in place. Its page says where its files are; the assistant fills it when
-asked ("make the buttons red in the theme noel"). A theme changes the common images, and may
-redraw a module's own image at its size; its page lists both.
+asked ("make the buttons red in the theme noel"). A theme changes the common images only.
 
 A theme may also hold images of its own, under `assets/` of its folder (`assets/textures/`,
 `assets/glyphs/`): a garland for the winter look, say. A menu names one with its theme,
@@ -141,11 +142,6 @@ theme, in place or not, and shows as drawn: no theme repaints it. The theme's pa
 them under **Its own images**, each as a menu writes it, and **Common** (on a button's image
 or a title layer) offers them after the common images: the menu names the one you pick,
 nothing is copied.
-
-**Resources**, **Show: Themes** lists the server's themes: those in place, the highest first,
-and the others. The highest theme that redraws an image wins; drag a theme by its handle to change its place, **Take off** or **Put in
-place** to change the list. Each change rebuilds the server's pack. A click on a theme opens
-its page.
 
 A theme created as a folder of its own is renamed and deleted from its page (**Rename**,
 **Delete**, under where its files are). A renamed theme keeps its images and its
@@ -156,8 +152,7 @@ next start. The common images
 (`artisan`) are neither renamed nor deleted. Both need the server's plugin to be up to date.
 
 **Export** on that page downloads the theme as an archive (`<name>.theme.zip`): its folder as
-the server holds it, with its images. On another server, **Resources**, **Show:
-Themes**, **Import a theme** reads the archive, proposes the theme's name (change it when the
+the server holds it, with its images. On another server, **Resources**, **Import a theme** reads the archive, proposes the theme's name (change it when the
 server already has a theme of that name) and creates the theme with its files. An imported
 theme is not put in place: open it, look at the menu with it, then put it in place. A
 module's archive is not a theme's: it is imported from the server's modules.

@@ -22,11 +22,17 @@ import { ProjectHistory } from "@/features/project/ProjectHistory";
 import { ProjectLibraryWorkspace } from "@/features/project/ProjectLibrary";
 import { ProjectTopBarControls } from "@/features/project/ProjectTopBarControls";
 import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanels";
+import {
+  type ResourcePlace,
+  ResourcePlaces,
+  type ThemeImporter,
+} from "@/features/project/ResourcePlaces";
 import { useKnownVersionsFromIndex } from "@/features/project/seedProjectCache";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
+import { useServerIndexRereads } from "@/features/serverIndex/serverIndexRereads";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { projectDestination } from "@/lib/projectNavigation";
@@ -92,7 +98,14 @@ export const validateProjectSearch = (search: Record<string, unknown>): ProjectS
  * (`WorkspaceGate`), and lays out the topbar, the canvas and the secondary views
  * (`?tab=`). URL sync, drag-and-drop and the language fallback are named hooks.
  */
-export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) {
+export function ProjectCanvasPage({
+  projectRef,
+  importTheme,
+}: {
+  projectRef?: string;
+  /** What imports a theme from the Resources' places, given by the route. */
+  importTheme?: ThemeImporter;
+} = {}) {
   const { serverId, projectId, documentId, screenId, collectionDir, dataSourceId } = useParams({
     strict: false,
   }) as {
@@ -135,6 +148,13 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   }, [playerId, tourReady, pId]);
   const navigate = useNavigate();
   const commonId = useKitStore((s) => s.read?.projectId);
+  const ownThemes = useKitStore((s) => s.own);
+  /** The place the Project `id` is among the server's resources: its own theme, a theme, or a module. */
+  const placeOf = (id: string): ResourcePlace => {
+    if (id === commonId) return { kind: "server" };
+    const theme = Object.keys(ownThemes).find((name) => ownThemes[name]?.projectId === id);
+    return theme ? { kind: "theme", name: theme } : { kind: "module", id };
+  };
   const { tab, doc, kind: docKind, variant } = useSearch({ strict: false }) as ProjectSearch;
   useProjectDeepLinks({ project, urlId, projectId, serverId, documentId, doc });
   useVariantInUrl(project, variant);
@@ -152,7 +172,9 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
 
   useGlobalSearchShortcut();
   const indexRereads = useKnownVersionsFromIndex(serverId);
-  useServerIndexLoader(serverId, !!project && !loadError, indexRereads);
+  // A theme created from the Resources' places is read with the server's Projects again.
+  const placesRereads = useServerIndexRereads((state) => state.count);
+  useServerIndexLoader(serverId, !!project && !loadError, indexRereads + placesRereads);
   useWorkspaceTabShortcuts(!!runtime?.serverId);
 
   const [patternsOpen, setPatternsOpen] = useState(false);
@@ -207,12 +229,40 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           onExit={exitToCanvas}
           title={t("project.tabs.resources")}
         >
-          <AssetsTab
-            projectId={pId}
-            capturedItems={<CapturedItemsSection projectId={pId} onPick={NO_PICK} />}
-            components={
-              <ComponentsView
+          <div className="flex h-full min-h-0 flex-col lg:flex-row">
+            {serverId && runtime?.serverId ? (
+              <ResourcePlaces
+                serverId={serverId}
+                serverKeyId={runtime.serverId}
+                selected={placeOf(pId)}
+                importTheme={importTheme}
+              />
+            ) : null}
+            <div className="min-h-0 min-w-0 flex-1">
+              <AssetsTab
                 projectId={pId}
+                capturedItems={<CapturedItemsSection projectId={pId} onPick={NO_PICK} />}
+                components={
+                  <ComponentsView
+                    projectId={pId}
+                    onOpenMenu={
+                      serverId
+                        ? (owner, menuId) =>
+                            void navigate(projectDestination(owner, serverId, menuId, "menu"))
+                        : undefined
+                    }
+                  />
+                }
+                onOpenCommon={
+                  serverId && commonId
+                    ? () =>
+                        void navigate({
+                          to: "/servers/$serverId/projects/$projectId",
+                          params: { serverId, projectId: commonId },
+                          search: { tab: "resources" },
+                        })
+                    : undefined
+                }
                 onOpenMenu={
                   serverId
                     ? (owner, menuId) =>
@@ -220,24 +270,8 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
                     : undefined
                 }
               />
-            }
-            onOpenCommon={
-              serverId && commonId
-                ? () =>
-                    void navigate({
-                      to: "/servers/$serverId/projects/$projectId",
-                      params: { serverId, projectId: commonId },
-                      search: { tab: "resources" },
-                    })
-                : undefined
-            }
-            onOpenMenu={
-              serverId
-                ? (owner, menuId) =>
-                    void navigate(projectDestination(owner, serverId, menuId, "menu"))
-                : undefined
-            }
-          />
+            </div>
+          </div>
         </WorkspaceView>
         <WorkspaceView
           active={presentedTab === "translations"}

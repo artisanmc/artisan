@@ -336,18 +336,12 @@ const fr: typeof en = {
     hintThemes:
       "Les images que tout serveur possède, celles que ce serveur a rendues communes, puis les images propres des thèmes, nommées avec leur thème : une de celles-là s'affiche tant que le serveur a son thème. Le menu nomme l'image : rien n'est copié.",
     page: {
-      title: "Images communes",
+      title: "Base Artisan",
       intro:
-        "Les images que tous les menus du serveur partagent. Un menu en nomme une par son nom ; redessinez-en une, chaque menu qui la nomme suit.",
+        "Les images qu'Artisan livre à tout serveur, cherchées en dernier. Un menu en nomme une par son nom ; une image du même nom dans un thème du serveur la remplace partout où elle est nommée.",
       none: "L'Artisan de ce serveur est plus ancien que les images communes : chaque pièce est celle d'Artisan. Mettez-le à jour pour en redessiner une.",
       open: "Ouvrir les images du serveur",
-      themes: "Thèmes",
       noTheme: "Sans thème",
-      noThemeInPlace: "Sans thème (en place)",
-      themeInPlace: "{{name}} (en place)",
-      themeInStack: "{{rank}}. {{name}} (en place)",
-      themesOrder: "Du plus bas au plus haut : le plus haut qui redessine une image l'emporte.",
-      noThemes: "Aucun thème pour l'instant.",
       family: {
         buttons: "Boutons",
         frames: "Fenêtres, panneaux, valeurs",
@@ -429,46 +423,15 @@ const fr: typeof en = {
         import_failed: "Impossible d'écrire le thème sur le serveur. Réessaie.",
       },
     },
-    themes: {
-      title: "Thèmes",
-      intro:
-        "Un thème est un autre habillage des images communes du serveur, pour une saison ou un événement : certaines y sont redessinées. Les menus gardent leur mise en page.",
-      inPlace: "En place sur le serveur",
-      inPlaceHint:
-        "Ce que voient les joueurs : le thème en place par-dessus les images d'Artisan et les vôtres.",
-      orderHint:
-        "Du plus haut au plus bas. Le thème le plus haut qui redessine une image l'emporte. Faites glisser un thème pour changer sa place : le pack du serveur est reconstruit.",
-      noneInPlace:
-        "Aucun thème en place : les joueurs voient les images d'Artisan et les vôtres telles quelles.",
-      base: "Les images d'Artisan, et les vôtres",
-      baseHint: "Toujours sous tous les thèmes.",
-      installed: "Sur le serveur, pas en place",
-      none: "Le serveur n'a pas encore de thème.",
-      allInPlace: "Tous les thèmes du serveur sont en place.",
-      putHint:
-        "Mettre un thème en place le pose au-dessus des autres et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion.",
-      putInPlace: "Mettre en place",
-      takeOff: "Retirer",
-      move: "Faire glisser pour changer la place du thème",
-      drawings_one: "{{count}} image redessinée",
-      drawings_other: "{{count}} images redessinées",
-      empty: "ne change rien pour l'instant",
-      missing:
-        "Le serveur n'a pas de thème de ce nom : il ne change rien. Retirez-le, ou créez-le.",
-      missingBadge: "Introuvable",
-      manage: "Gérer les thèmes",
-    },
     theme: {
       failed: "Ça n'a pas marché : {{detail}}",
-      back: "‹ Images communes",
-      backToThemes: "‹ Thèmes",
       title: "Thème « {{name}} »",
       intro:
         "Un thème redessine des images communes. Les menus gardent leur mise en page, et l'image propre à un module reste celle du module.",
       inPlace: "En place",
       notInPlace: "Pas en place",
       putInPlace: "Mettre en place sur le serveur",
-      takeOff: "Retirer du serveur",
+      takeOff: "Ranger ce thème",
       stack:
         "Thèmes en place, du plus bas au plus haut : {{themes}}. Le plus haut qui redessine une image l'emporte.",
       missing: "Le serveur n'a pas de thème « {{name}} » déployé.",
@@ -588,16 +551,27 @@ const fr: typeof en = {
     dismiss: "Refermer la navigation",
     resize: "Redimensionner la navigation (double-clic : largeur par défaut)",
   },
-  serverResources: {
-    show: "Afficher :",
-    all: "Tout le serveur",
+  places: {
+    label: "Emplacements des ressources",
+    themes: "Thèmes du serveur",
+    themesHint:
+      "Cherchés de haut en bas : le premier qui a l'image gagne. Un module qui a sa propre image la garde.",
+    server: "Thème du serveur",
+    serverHint: "toujours en place, sous les autres",
+    away: "rangé",
+    putAway: "Ranger",
+    putInPlace: "Mettre en place",
+    move: "Faire glisser pour changer la place du thème",
+    images_one: "{{count}} image",
+    images_other: "{{count}} images",
+    emptyTheme: "vide pour l'instant",
+    missing: "introuvable sur le serveur : rangez-le, ou créez-le",
+    missingBadge: "Introuvable",
     modules: "Modules",
-    hint: "Les images et les polices du serveur, telles que déployées. Une image se modifie là où elle vit : dans son module, ou parmi les images communes.",
-    empty: "Aucune image ni police ici pour l'instant.",
-    provider: "Fournie par",
-    openIn: "Ouvrir dans {{project}}",
-    moduleHint:
-      "Cette image appartient à son module : elle se modifie dans les Ressources de ce module.",
+    modulesHint: "Leurs propres images, vues dans leurs menus seulement.",
+    noModules: "Aucun module sur ce serveur.",
+    base: "Base",
+    baseHint: "en dernier, lecture seule",
   },
   projectSource: {
     common: "Images communes",
