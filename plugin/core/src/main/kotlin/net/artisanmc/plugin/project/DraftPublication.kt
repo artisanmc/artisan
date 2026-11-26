@@ -31,7 +31,8 @@ class DraftPublication(private val root: File) {
         val blobs = message.path("blobs").fields().asSequence().associate { (hash, base64) -> hash to Base64.getDecoder().decode(base64.asText()) }
         return try {
             val (changes, error) = plan(snapshot, blobs)
-            error ?: publisher.commit(operationId, fingerprint, changes, response("ok" to true, "wrote" to changes.size))
+            // An owner's file made over an original records which one it was made against.
+            error ?: publisher.commit(operationId, fingerprint, changes + SystemFiles.madeAgainst(root, changes), response("ok" to true, "wrote" to changes.size))
         } catch (e: IllegalArgumentException) {
             fail(e.message?.takeIf { it.matches(Regex("[a-z_]+")) } ?: "invalid_draft")
         }

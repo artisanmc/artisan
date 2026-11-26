@@ -325,9 +325,13 @@ builders; `ImageRefs.kt` did not change).
   which records the current original beside the owner's file: only the server writes
   `.artisan/origins.yaml`. "Start again from the new original" is restoring it, then
   redrawing: no third action.
-- Limit: the origin of an owner's file is recorded at the first originals sync that sees it
-  (a start or a reload), not when it is deployed. An original that changes between the
-  deploy and that sync is not flagged.
+- The origin of an owner's file is recorded when it is deployed (`SystemFiles.madeAgainst`,
+  in the commit of `project_write` and of `project_draft_publish`): the original the folder
+  holds at that moment, the one the owner saw. It was recorded at the first originals sync
+  that saw the file, so a redraw deployed before a module update took the *new* original as
+  what it was made against, and the change was never said. A YAML file's base is kept in the
+  same commit, so it merges at that update. A file already there keeps its origin; one
+  restored then redrawn takes the original of now.
 
 **Step 5, third part: a module's images** (`imageStanding.ts`, `localAssets.ts`).
 
@@ -653,9 +657,8 @@ Not there yet:
   composed image over an original is not measured. The editor reads a size from the
   descriptor, the pack from the PNG: the module's list and the image's panel may call taken
   an image whose descriptor states another size than its pixels.
-- Against decision 8: the original an owner's image was made against is recorded at the first
-  originals sync that sees the image, not when it is deployed, so an original that changes
-  in between is not flagged. A menu keeps what module originals already gave it (compare with
+- Against decision 8: a file written in the folder by hand, without a deploy, takes its
+  origin at the first originals sync that sees it. A menu keeps what module originals already gave it (compare with
   the original, back to the original, a merge at each update): it has no "the original
   changed" notice of its own.
 - Against decision 10: an image of another module is embedded only where a menu of the

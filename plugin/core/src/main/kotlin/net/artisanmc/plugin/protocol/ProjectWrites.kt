@@ -8,6 +8,7 @@ import net.artisanmc.plugin.project.ProjectFolders
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import net.artisanmc.plugin.project.ProjectPublisher
 import net.artisanmc.plugin.project.ServerThemes
+import net.artisanmc.plugin.project.SystemFiles
 import net.artisanmc.plugin.protocol.EditorRequest.ConfigWrite
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectCreate
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectDelete
@@ -67,7 +68,9 @@ class ProjectWrites(
                 val renamed = request.renames.associate { it.to to ProjectPathPolicy.resolve(projectDir, it.from).readText(Charsets.UTF_8) }
                 refused(projectId, projectDir, renamed + request.writes.associate { it.path to it.content }, request.deletes.map { it.path } + request.renames.map { it.from })
                     ?.let { return@offThread reply.send(it) }
-                mutations.commit(projectDir, request.message, changes(projectDir, request, decoded))
+                val changes = changes(projectDir, request, decoded)
+                // An owner's file made over an original records which one it was made against.
+                mutations.commit(projectDir, request.message, changes + SystemFiles.madeAgainst(projectDir, changes))
                 noteAuthor(projectId, request.message)
                 workspace.reload(setOf(projectId))
                 reply.ok()
