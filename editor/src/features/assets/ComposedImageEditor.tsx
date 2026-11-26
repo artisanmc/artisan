@@ -13,6 +13,7 @@ import {
   composeSize,
 } from "@/lib/pack/compose";
 import { KIT_PREFIX, kitNameOf } from "@/lib/pack/kit";
+import { slicesAt } from "@/lib/pack/slice";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
 import {
@@ -47,6 +48,7 @@ import type { GuideName } from "./guideRules";
 import { addDrawnLayer, layerOf, layerRef } from "./imageLayers";
 import { useKitAssets } from "./kitAssets";
 import { type ImageSize, assetSize, useAssetSize, useMeasuredAssetSizes } from "./measuredSize";
+import { useSlicedUrl } from "./slicedUrl";
 
 /** One slot of a menu, in pixels: what Shift moves a layer by. */
 const SLOT = 18;
@@ -60,6 +62,26 @@ const NO_GUIDES: readonly GuideName[] = [];
 
 const sameRecipe = (a: ComposeRecipe, b: ComposeRecipe) => JSON.stringify(a) === JSON.stringify(b);
 
+/** Whether a layer may be given a size: its image is sliced (`slice.ts`), and it does not repeat. */
+const resizable = (asset: Asset | undefined, layer: ComposeLayer) =>
+  !!asset?.slice && layer.columns === 1 && layer.rows === 1;
+
+/**
+ * The rectangle a layer covers, in the image's pixels: the size it asks for when its image is
+ * sliced and holds it (`layerPicture`), else its image's own, repeated.
+ */
+function layerBox(asset: Asset, layer: ComposeLayer, size: ImageSize) {
+  const { width, height } = layer;
+  const resized =
+    resizable(asset, layer) &&
+    width !== undefined &&
+    height !== undefined &&
+    slicesAt(asset.slice!, size, width, height);
+  return resized
+    ? { width, height, resized }
+    : { width: layer.columns * size.width, height: layer.rows * size.height, resized };
+}
+
 /** One layer on the stage: its image, repeated when it is a grid, dragged by the pointer. */
 function StageLayer({
   asset,
@@ -71,12 +93,17 @@ function StageLayer({
   onPointerMove,
   onPointerUp,
   onKeyDown,
+  onResize,
+  resizeLabel,
 }: {
   asset: Asset;
   layer: ComposeLayer;
   scale: number;
   selected: boolean;
   label: string;
+  /** Asks for another size, in the image's pixels: only for a layer that can take one. */
+  onResize?: (width: number, height: number) => void;
+  resizeLabel?: string;
   onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
   onPointerMove: (event: PointerEvent<HTMLButtonElement>) => void;
   onPointerUp: (event: PointerEvent<HTMLButtonElement>) => void;
@@ -86,33 +113,81 @@ function StageLayer({
   const url = useAuthenticatedImageUrl(source);
   // Measured from the image when the descriptor gives no size: the stage waits for it.
   const size = useAssetSize(asset, url);
-  if (!size) return null;
+  const box = size ? layerBox(asset, layer, size) : null;
+  const drawn = useSlicedUrl(url, box?.resized ? asset.slice : undefined, box?.width, box?.height);
+  const grip = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  if (!size || !box) return null;
   return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={selected}
-      data-testid="compose-layer"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      onKeyDown={onKeyDown}
-      className={cx(
-        "absolute cursor-move touch-none border-0 bg-transparent p-0 outline-offset-0",
-        selected ? "outline outline-2 outline-[var(--brand)]" : "outline-none",
-      )}
-      style={{
-        left: layer.x * scale,
-        top: layer.y * scale,
-        width: layer.columns * size.width * scale,
-        height: layer.rows * size.height * scale,
-        backgroundImage: url ? `url("${url}")` : undefined,
-        backgroundSize: `${size.width * scale}px ${size.height * scale}px`,
-        backgroundRepeat: "repeat",
-        imageRendering: "pixelated",
-      }}
-    />
+    <>
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={selected}
+        data-testid="compose-layer"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onKeyDown={onKeyDown}
+        className={cx(
+          "absolute cursor-move touch-none border-0 bg-transparent p-0 outline-offset-0",
+          selected ? "outline outline-2 outline-[var(--brand)]" : "outline-none",
+        )}
+        style={{
+          left: layer.x * scale,
+          top: layer.y * scale,
+          width: box.width * scale,
+          height: box.height * scale,
+          backgroundImage: url ? `url("${drawn ?? url}")` : undefined,
+          backgroundSize: box.resized
+            ? "100% 100%"
+            : `${size.width * scale}px ${size.height * scale}px`,
+          backgroundRepeat: box.resized ? "no-repeat" : "repeat",
+          imageRendering: "pixelated",
+        }}
+      />
+      {selected && onResize ? (
+        <span
+          role="slider"
+          tabIndex={-1}
+          aria-label={resizeLabel}
+          aria-valuenow={box.width}
+          aria-valuemin={1}
+          aria-valuemax={COMPOSE_MAX_SIDE}
+          data-testid="compose-resize"
+          className="absolute z-10 size-3 cursor-nwse-resize touch-none rounded-[2px] border border-[var(--surface)] bg-[var(--brand)]"
+          style={{
+            left: (layer.x + box.width) * scale - 6,
+            top: (layer.y + box.height) * scale - 6,
+          }}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            grip.current = { x: event.clientX, y: event.clientY, ...box };
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const held = grip.current;
+            if (!held) return;
+            // Whole pixels of the game; Shift keeps the size to whole slots.
+            const side = (from: number, delta: number) => {
+              const to = from + Math.round(delta / scale);
+              return event.shiftKey ? Math.max(SLOT, Math.round(to / SLOT) * SLOT) : to;
+            };
+            onResize(
+              side(held.width, event.clientX - held.x),
+              side(held.height, event.clientY - held.y),
+            );
+          }}
+          onPointerUp={(event) => {
+            grip.current = null;
+            event.currentTarget.releasePointerCapture?.(event.pointerId);
+          }}
+          onPointerCancel={() => {
+            grip.current = null;
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -139,7 +214,9 @@ function AroundLayer({
   const fetched = useAuthenticatedImageUrl(assetPreviewUrl(asset));
   const size = useAssetSize(asset, fetched);
   const url = picture || fetched;
-  if (!size) return null;
+  const box = size ? layerBox(asset, layer, size) : null;
+  const drawn = useSlicedUrl(url, box?.resized ? asset.slice : undefined, box?.width, box?.height);
+  if (!size || !box) return null;
   return (
     <span
       aria-hidden
@@ -148,11 +225,13 @@ function AroundLayer({
       style={{
         left: (layer.x - from.x) * zoom,
         top: (layer.y - from.y) * zoom,
-        width: layer.columns * size.width * zoom,
-        height: layer.rows * size.height * zoom,
-        backgroundImage: url ? `url("${url}")` : undefined,
-        backgroundSize: `${size.width * zoom}px ${size.height * zoom}px`,
-        backgroundRepeat: "repeat",
+        width: box.width * zoom,
+        height: box.height * zoom,
+        backgroundImage: url ? `url("${drawn ?? url}")` : undefined,
+        backgroundSize: box.resized
+          ? "100% 100%"
+          : `${size.width * zoom}px ${size.height * zoom}px`,
+        backgroundRepeat: box.resized ? "no-repeat" : "repeat",
         imageRendering: "pixelated",
       }}
     />
@@ -284,6 +363,17 @@ export function ComposedImageEditor({
       ...r,
       layers: r.layers.map((layer, i) => (i === index ? { ...layer, ...patch } : layer)),
     }));
+  /** Gives the layer at `index` a size its sliced image holds, kept inside what an image may be. */
+  const resize = (index: number, width: number, height: number) => {
+    const layer = recipe.layers[index];
+    const image = layer && imageOf(layer.image);
+    const slice = image?.slice;
+    if (!layer || !slice) return;
+    update(index, {
+      width: clamp(Math.round(width), Math.max(1, slice.left + slice.right), COMPOSE_MAX_SIDE),
+      height: clamp(Math.round(height), Math.max(1, slice.top + slice.bottom), COMPOSE_MAX_SIDE),
+    });
+  };
   const place = (index: number, x: number, y: number) =>
     update(index, {
       x: clamp(Math.round(x), -COMPOSE_MAX_SIDE, COMPOSE_MAX_SIDE),
@@ -405,6 +495,12 @@ export function ComposedImageEditor({
 
   const labelOf = (layer: ComposeLayer) => kitNameOf(layer.image) ?? layer.image;
   const current = selected === null ? undefined : recipe.layers[selected];
+  const currentImage = current && imageOf(current.image);
+  const currentSize = current && sizeOf(current.image);
+  // A layer of a sliced image takes a size, in place of a count of repeats.
+  const stretches = !!current && resizable(currentImage, current);
+  const currentBox =
+    current && currentImage && currentSize ? layerBox(currentImage, current, currentSize) : null;
   const fixed = recipe.width !== null && recipe.height !== null;
   const full = recipe.layers.length >= COMPOSE_MAX_LAYERS;
 
@@ -486,21 +582,45 @@ export function ComposedImageEditor({
                 max={COMPOSE_MAX_SIDE}
                 onChange={(y) => update(selected, { y })}
               />
-              <NumberField
-                label={t("compose.columns")}
-                value={current.columns}
-                min={1}
-                max={COMPOSE_MAX_REPEAT}
-                onChange={(columns) => update(selected, { columns })}
-              />
-              <NumberField
-                label={t("compose.rows")}
-                value={current.rows}
-                min={1}
-                max={COMPOSE_MAX_REPEAT}
-                onChange={(rows) => update(selected, { rows })}
-              />
+              {stretches ? (
+                <>
+                  <NumberField
+                    label={t("compose.layerWidth")}
+                    value={currentBox?.width ?? 1}
+                    min={1}
+                    max={COMPOSE_MAX_SIDE}
+                    onChange={(width) => resize(selected, width, currentBox?.height ?? 1)}
+                  />
+                  <NumberField
+                    label={t("compose.layerHeight")}
+                    value={currentBox?.height ?? 1}
+                    min={1}
+                    max={COMPOSE_MAX_SIDE}
+                    onChange={(height) => resize(selected, currentBox?.width ?? 1, height)}
+                  />
+                </>
+              ) : (
+                <>
+                  <NumberField
+                    label={t("compose.columns")}
+                    value={current.columns}
+                    min={1}
+                    max={COMPOSE_MAX_REPEAT}
+                    onChange={(columns) => update(selected, { columns })}
+                  />
+                  <NumberField
+                    label={t("compose.rows")}
+                    value={current.rows}
+                    min={1}
+                    max={COMPOSE_MAX_REPEAT}
+                    onChange={(rows) => update(selected, { rows })}
+                  />
+                </>
+              )}
             </div>
+            {stretches ? (
+              <p className="text-[11px] text-[var(--text-faint)]">{t("compose.resizeHint")}</p>
+            ) : null}
             {held === "move" && drawingAt(selected) ? (
               <Button
                 size="sm"
@@ -693,6 +813,12 @@ export function ComposedImageEditor({
                       selected={selected === index}
                       label={t("compose.layerLabel", { name: labelOf(layer), n: index + 1 })}
                       {...handlers(index, layer)}
+                      onResize={
+                        held === "move" && resizable(image, layer)
+                          ? (width, height) => resize(index, width, height)
+                          : undefined
+                      }
+                      resizeLabel={t("compose.resize", { name: labelOf(layer) })}
                     />
                   ) : null;
                 })}

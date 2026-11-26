@@ -1,15 +1,15 @@
 // @vitest-environment node
 
-import { parse } from "yaml";
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 import {
   EXPORT_NOTE_SCHEMA,
   type ElsewhereWhere,
   type ExportNote,
+  aloneImageRefs,
   codepointsOf,
   commonCopy,
   commonHolders,
-  aloneImageRefs,
   embedNames,
   emptyNote,
   exportNoteYaml,

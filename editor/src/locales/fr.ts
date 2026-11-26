@@ -131,6 +131,11 @@ const fr: typeof en = {
     remove: "Retirer le libellé",
   },
   compose: {
+    layerWidth: "Largeur du calque",
+    layerHeight: "Hauteur du calque",
+    resize: "Redimensionner {{name}}",
+    resizeHint:
+      "Cette image a des bords fixes : le calque prend la taille voulue, ses coins restent tels que dessinés. Tirez la poignée du coin, Maj pour des cases entières.",
     new: "Composer une image",
     newTitle: "Composer une image",
     newHint:

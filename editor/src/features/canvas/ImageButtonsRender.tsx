@@ -8,7 +8,7 @@ import {
 } from "@/domain/imageButton";
 import type { Element, Menu, MenuId, ProjectId } from "@/domain/types";
 import { useImageAsset } from "@/features/assets/kitAssets";
-import { type Slice, drawSliced, slicesAt } from "@/lib/pack/slice";
+import { slicedCanvas } from "@/features/assets/slicedUrl";
 import { useCssVar } from "@/lib/themeColors";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
 import { useHoverStore } from "@/state/hoverStore";
@@ -95,7 +95,7 @@ function ImageButtonRender({
   const sliced = useMemo(
     () =>
       image && asset?.slice && columns && rows
-        ? slicedPicture(image, asset.slice, columns, rows)
+        ? slicedCanvas(image, asset.slice, columns * 18, rows * 18)
         : null,
     [image, asset?.slice, columns, rows],
   );
@@ -235,41 +235,3 @@ function ImageButtonRender({
 }
 
 const clamp = (index: number, size: number) => Math.min(Math.max(index, 0), size - 1);
-
-/**
- * `image` as the pack draws a sliced image over that many slots: corners copied, edges and middle
- * repeated. `null` when the margins do not hold there, or without a canvas to draw on.
- */
-function slicedPicture(
-  image: HTMLImageElement,
-  slice: Slice,
-  columns: number,
-  rows: number,
-): HTMLCanvasElement | null {
-  const width = columns * 18;
-  const height = rows * 18;
-  const source = { width: image.naturalWidth, height: image.naturalHeight };
-  if (!source.width || !source.height || !slicesAt(slice, source, width, height)) return null;
-  const read = document.createElement("canvas");
-  read.width = source.width;
-  read.height = source.height;
-  const from = read.getContext("2d");
-  if (!from) return null;
-  from.drawImage(image, 0, 0);
-  const pixels = from.getImageData(0, 0, source.width, source.height);
-  const drawn = drawSliced(
-    { ...source, data: new Uint8Array(pixels.data.buffer) },
-    slice,
-    width,
-    height,
-  );
-  const out = document.createElement("canvas");
-  out.width = width;
-  out.height = height;
-  const to = out.getContext("2d");
-  if (!to) return null;
-  const target = to.createImageData(width, height);
-  target.data.set(drawn.data);
-  to.putImageData(target, 0, 0);
-  return out;
-}

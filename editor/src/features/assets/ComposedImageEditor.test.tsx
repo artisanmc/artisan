@@ -152,6 +152,51 @@ describe("ComposedImageEditor", () => {
     expect(useAssetStore.getState().assets[0]!.compose?.layers[1]?.rows).toBe(4);
   });
 
+  it("gives a layer of a sliced image a size, by its fields and its corner's handle, and saves it", async () => {
+    const framed = image("framed", 176, 166, {
+      compose: {
+        layers: [{ image: "panel", x: 7, y: 17, columns: 1, rows: 1 }],
+        width: 176,
+        height: 166,
+      },
+      previewUrl: "data:,",
+    });
+    useAssetStore
+      .getState()
+      .setAssets([
+        framed,
+        image("panel", 12, 10, { slice: { left: 3, right: 4, top: 2, bottom: 3 } }),
+      ]);
+    const saved = vi
+      .spyOn(userAssetsApi, "patchAsset")
+      .mockImplementation(async (_project, _id, patch) => ({ ...framed, compose: patch.compose }));
+    render(<Stand asset={framed} />);
+    // A sliced image: a size, and no count of repeats.
+    fireEvent.pointerDown(layers()[0]!, { clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.pointerUp(layers()[0]!, { pointerId: 1 });
+    expect(screen.queryByLabelText("Lignes")).toBeNull();
+    expect(screen.getByLabelText("Largeur du calque")).toHaveValue(12);
+    fireEvent.change(screen.getByLabelText("Largeur du calque"), { target: { value: "40" } });
+    expect(layers()[0]!.style.width).toBe("80px");
+    // The handle: ten screen pixels at twice the size are five of the game's; Shift, whole slots.
+    const handle = screen.getByTestId("compose-resize");
+    fireEvent.pointerDown(handle, { clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 10, clientY: 10, pointerId: 1 });
+    expect([layers()[0]!.style.width, layers()[0]!.style.height]).toEqual(["90px", "30px"]);
+    fireEvent.pointerMove(handle, { clientX: 20, clientY: 40, pointerId: 1, shiftKey: true });
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+    expect([layers()[0]!.style.width, layers()[0]!.style.height]).toEqual(["108px", "72px"]);
+    // Never under its margins.
+    fireEvent.change(screen.getByLabelText("Hauteur du calque"), { target: { value: "1" } });
+    expect(layers()[0]!.style.height).toBe("10px");
+
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(saved).toHaveBeenCalledTimes(1));
+    expect(saved.mock.calls[0]![2].compose?.layers).toEqual([
+      { image: "panel", x: 7, y: 17, columns: 1, rows: 1, width: 54, height: 5 },
+    ]);
+  });
+
   it("reorders and removes layers, and adds a module image that is not a composed one", () => {
     render(<Stand />);
     fireEvent.click(screen.getByRole("button", { name: "Reculer icon" }));

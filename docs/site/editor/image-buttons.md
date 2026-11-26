@@ -302,6 +302,24 @@ In the atelier, **Fixed edges** (right column) sets the four margins in pixels; 
 shows each on the image. A margin is written when you leave its field, and all at 0 give
 the image back to its `fit`.
 
+**A resizable layer.** In an image made of layers, a layer whose image has fixed edges takes
+a size in place of a count of repeats: **Layer width** and **Layer height** in the layer's
+settings, or the handle at its bottom right corner (hold Shift for whole slots). A frame
+drawn once so covers 4 × 2 slots of a background, a banner the menu's width. In the file:
+
+```yaml
+compose:
+  - use: "artisan:window.6"
+  - image: panel          # panel.yml declares `slice`
+    x: 7
+    y: 17
+    width: 72
+    height: 36
+```
+
+A size on an image without margins, or smaller than its margins, is ignored: the layer is
+drawn at the image's own size.
+
 **Label.** Any button that does not repeat (no `iterates`/`places`) can carry a **Label**:
 a text drawn in the menu's title over the button's slots. It is centred in the button by
 default; **Alignment**, the text size and the offsets (in pixels) move it inside the area.

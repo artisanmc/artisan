@@ -126,6 +126,11 @@ export default {
     remove: "Remove label",
   },
   compose: {
+    layerWidth: "Layer width",
+    layerHeight: "Layer height",
+    resize: "Resize {{name}}",
+    resizeHint:
+      "This image has fixed edges: the layer takes the size you want, its corners stay as drawn. Drag the corner's handle, Shift for whole slots.",
     new: "Compose an image",
     newTitle: "Compose an image",
     newHint:
