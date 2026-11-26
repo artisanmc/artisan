@@ -54,7 +54,7 @@ and the deploy review warns about it. Both also flag a name no image answers on 
 which shows nothing in game. The review reads the same way the names an add-on's files write
 (a HUD's images), and says which file writes them. The server says it too: each time it
 rebuilds its pack, its console names, module by module, the images written that no image
-answers, once until the list changes. That is how a module's folder copied by hand from
+answers and the layers of composed images that take nothing, once until the list changes. That is how a module's folder copied by hand from
 another server tells what it lacks.
 
 **Common images in a module's Resources.** The **Module** selector of the Resources screen has

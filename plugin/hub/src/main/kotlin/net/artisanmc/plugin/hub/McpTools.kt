@@ -431,7 +431,9 @@ class McpTools(
                 "SHA-1 of the Java pack an editor last uploaded and whether it matches, the Bedrock pack's SHA-1, when, and the " +
                 "build error if it failed. mode \"server\": the hub applies both packs, players get the hub's. mode \"shadow\": " +
                 "Java players get the editor's pack, the hub's build is only compared with it. missing_images: by module, the " +
-                "image names its menus and files write that reach no image of the server (nothing is drawn for them).",
+                "image names its menus and files write that reach no image of the server (nothing is drawn for them). " +
+                "missing_layers: by module then composed image, the layers that take nothing (a layer is a PNG of the module " +
+                "or a common image).",
             schema("server" to string("A server id from artisan_overview."), required = listOf("server")),
             readOnly = true, ::packStatus,
         ),
@@ -671,6 +673,7 @@ class McpTools(
         "built_at" to status?.builtAt?.let { java.time.Instant.ofEpochMilli(it).toString() },
         "error" to status?.error,
         "missing_images" to status?.missingImages.orEmpty(),
+        "missing_layers" to status?.missingLayers.orEmpty(),
         "note" to when {
             !done -> "The build is still running: call resource_pack_status in a moment."
             status == null -> "No pack state for this server: it has not loaded its modules into the suite database yet."
