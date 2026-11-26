@@ -1,12 +1,43 @@
 import * as userAssetsApi from "@/lib/api/userAssets";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/state/authStore", () => ({
   useAuthStore: (sel: (s: { currentUser: { id: string } | null }) => unknown) =>
     sel({ currentUser: { id: "u1" } }),
 }));
+// The source menu reads the server: here a button that shows the module `guilds`.
+vi.mock("@/features/project/ProjectSource", () => ({
+  ProjectSource: ({
+    sourceId,
+    onSourceChange,
+    children,
+  }: {
+    sourceId: string | null;
+    onSourceChange: (id: string) => void;
+    children: (sources: { id: string }[] | null) => unknown;
+  }) => (
+    <>
+      <button type="button" onClick={() => onSourceChange("p_guilds")}>
+        guilds
+      </button>
+      {children(sourceId ? [{ id: sourceId }] : null)}
+    </>
+  ),
+}));
+const otherAssets = vi.hoisted(() => ({ assets: [] as unknown[] }));
+vi.mock("./useOtherProjectAssets", () => ({
+  useOtherProjectAssets: (ids: readonly string[]) => ({
+    assets: ids.length > 0 ? otherAssets.assets : [],
+    loading: false,
+    error: null,
+  }),
+}));
+const copyAssetInto = vi.hoisted(() => vi.fn());
+vi.mock("./copyAssetInto", () => ({ copyAssetInto }));
+
 import type { Asset } from "@/domain/asset";
+import { useKitStore } from "@/state/kitStore";
 import { AssetPicker } from "./AssetPicker";
 import { useAssetStore } from "./assetStore";
 
@@ -163,6 +194,61 @@ describe("AssetPicker", () => {
     );
     expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: TEX.id }));
   });
+  describe("another module's image", () => {
+    const BANNER: Asset = { ...TEX, id: "banner", name: "banner", projectId: "p_guilds" };
+    const server = (byName: boolean) => {
+      otherAssets.assets = [BANNER];
+      copyAssetInto.mockReset();
+      useAssetStore.getState().setAssets([]);
+      useKitStore.setState({
+        read: { projectId: "p_kit", files: {}, binaries: [], byName },
+        modules: [{ projectId: "p_guilds", folder: "guilds", files: {}, binaries: [] }],
+      } as never);
+    };
+    const open = (onPick: (asset: Asset) => void, named = true) => {
+      render(
+        <AssetPicker
+          projectId={"p1" as never}
+          named={named}
+          open
+          onClose={() => {}}
+          onPick={onPick}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "guilds" }));
+    };
+
+    it("is copied in by default, and named where it is on request: nothing is copied", async () => {
+      server(true);
+      const onPick = vi.fn();
+      copyAssetInto.mockResolvedValue({ ...BANNER, projectId: "p1" });
+      open(onPick);
+      // Unchecked: the copy, as before.
+      await act(async () => fireEvent.click(screen.getByTitle("banner")));
+      expect(copyAssetInto).toHaveBeenCalledTimes(1);
+      expect(onPick).toHaveBeenLastCalledWith(
+        expect.objectContaining({ id: "banner", projectId: "p1" }),
+      );
+
+      fireEvent.click(screen.getByRole("checkbox", { name: /La nommer dans son module/ }));
+      await act(async () => fireEvent.click(screen.getByTitle("banner")));
+      expect(copyAssetInto).toHaveBeenCalledTimes(1);
+      expect(onPick).toHaveBeenLastCalledWith(
+        expect.objectContaining({ id: "guilds:banner", projectId: "p_guilds", width: 256 }),
+      );
+    });
+
+    it("offers no naming where the caller writes no name, nor on a server that reads none", () => {
+      server(true);
+      open(vi.fn(), false);
+      expect(screen.queryByRole("checkbox", { name: /La nommer dans son module/ })).toBeNull();
+      cleanup();
+      server(false);
+      open(vi.fn());
+      expect(screen.queryByRole("checkbox", { name: /La nommer dans son module/ })).toBeNull();
+    });
+  });
+
   it("keeps the picker open when persisting a new use fails", async () => {
     vi.spyOn(userAssetsApi, "patchAsset").mockRejectedValue(new Error("Could not save role"));
     const onPick = vi.fn();
