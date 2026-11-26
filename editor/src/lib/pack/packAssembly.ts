@@ -20,7 +20,6 @@ import {
   kitShippedName,
   kitShippedPath,
 } from "./kit";
-import { readKitThemes } from "./theme";
 import {
   type GlyphPlacement,
   glyphPlacementsFromMenus,
@@ -31,9 +30,11 @@ import type { OverlayAsk, OverlayImageRequest } from "./overlayImages";
 import { type RgbaImage, encodePng } from "./png";
 import { type AssetRow, type BuildResult, buildResourcePackZip } from "./resourcePackBuilder";
 import { type GlyphContribution, mergeCodepoints } from "./rpCodepointMerger";
+import type { Slice } from "./slice";
 import { usedSymbols } from "./symbols";
 import { textSheets, usedTextChars } from "./textChars";
 import { usesDecorations } from "./textDecorations";
+import { readKitThemes } from "./theme";
 import {
   GUI_CONTAINERS,
   type GuiContainer,
@@ -123,6 +124,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   const kitImages = new Map<string, Uint8Array>();
   // The server's common images that say they follow the ramps; the base's always do.
   const kitRamps = new Set<string>();
+  /** The margins of the server's common images that are sliced (`slice.ts`), by name. */
+  const kitSlices = new Map<string, Slice>();
   const kitBase = new Map<string, Uint8Array | null>();
   const kitImageOf = async (name: string) => {
     let base = kitBase.get(name);
@@ -211,6 +214,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     for (const [i, a] of fromDisk.entries()) {
       const row = rows[i]!;
       if (common && (row.type === "glyph" || row.type === "texture")) {
+        if (a.row.slice) kitSlices.set(a.row.name, a.row.slice);
         if (a.compose) {
           composed.push({ row: null, project, recipe: a.compose, own, name: a.row.name });
           continue;
@@ -243,6 +247,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
         imagesByRef.push({ ref: `${project.id}:${a.row.name}`, bytes });
         own.set(a.row.name, bytes);
         if (legacyCommon) {
+          if (a.row.slice) kitSlices.set(a.row.name, a.row.slice);
           kitImages.set(a.row.name, bytes);
           if (ramps) kitRamps.add(a.row.name);
         }
@@ -379,6 +384,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
       contentWidth: null,
       fontMeta: null,
       contentHash: sha256Hex(png),
+      // The margins the server's common image declares; the base's images declare none yet.
+      ...(kitSlices.has(name) ? { slice: kitSlices.get(name)! } : {}),
       createdAt: new Date(0),
       updatedAt: new Date(0),
     });

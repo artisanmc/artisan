@@ -23,6 +23,8 @@ internal data class AssetRow(
     val contentWidth: Double?,
     /** A disk font's [FontMeta], or a binary's `font_meta` as parsed YAML. */
     val fontMeta: Any?,
+    /** The margins of a sliced image ([Slices]); null for an image drawn by its fit. */
+    val slice: Slice? = null,
 )
 
 /**
@@ -295,6 +297,7 @@ internal object DiskAssets {
                     codepoint = num(meta["codepoint"], null),
                     contentWidth = num(meta["content_width"], null),
                     fontMeta = meta["font_meta"],
+                    slice = Slices.of(meta),
                 ),
                 real,
                 ramps = ImageFunctions.ramps(meta),
@@ -319,6 +322,7 @@ internal object DiskAssets {
                     codepoint = num(meta["codepoint"], null),
                     contentWidth = num(meta["content_width"], null),
                     fontMeta = meta["font_meta"],
+                    slice = Slices.of(meta),
                 ),
                 descriptorPaths.getValue(stem),
                 recipe,

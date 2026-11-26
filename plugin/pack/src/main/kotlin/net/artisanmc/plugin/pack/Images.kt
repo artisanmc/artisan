@@ -127,6 +127,51 @@ internal object VanillaGui {
     private fun cp(codepoint: Int) = String(Character.toChars(codepoint))
 }
 
+/** The margins of a sliced image: the pixels kept as drawn at each edge (`slice.ts`). */
+internal data class Slice(val left: Int, val right: Int, val top: Int, val bottom: Int)
+
+/**
+ * Sliced images (`slice.ts`, ADR `element-parts-and-sliced-images`, decision 2): an image button
+ * draws one at its rectangle, the corners copied, the edges and the middle repeated.
+ */
+internal object Slices {
+    private val SIDES = listOf("left", "right", "top", "bottom")
+
+    /** The margins a descriptor declares; null for none, or for one that is not a whole number ≥ 0. */
+    fun of(meta: Map<*, *>?): Slice? {
+        val value = meta?.get("slice") as? Map<*, *> ?: return null
+        val sides = SIDES.map { side ->
+            val n = value[side] ?: return@map 0
+            if (n !is Number || !Js.isInteger(n) || n.toDouble() < 0) return null
+            n.toInt()
+        }
+        return if (sides.any { it > 0 }) Slice(sides[0], sides[1], sides[2], sides[3]) else null
+    }
+
+    /** Whether [source] is drawn sliced at that size: a middle to repeat, and room for the margins. */
+    fun at(slice: Slice, source: RgbaImage, width: Int, height: Int): Boolean =
+        slice.left + slice.right < source.width && slice.top + slice.bottom < source.height &&
+            slice.left + slice.right <= width && slice.top + slice.bottom <= height
+
+    private fun sourceOf(at: Int, size: Int, source: Int, before: Int, after: Int): Int = when {
+        at < before -> at
+        at >= size - after -> source - (size - at)
+        else -> before + (at - before) % (source - before - after)
+    }
+
+    fun draw(input: RgbaImage, slice: Slice, width: Int, height: Int): RgbaImage {
+        val output = RgbaImage(width, height)
+        for (y in 0 until height) {
+            val sy = sourceOf(y, height, input.height, slice.top, slice.bottom)
+            for (x in 0 until width) {
+                val sx = sourceOf(x, width, input.width, slice.left, slice.right)
+                System.arraycopy(input.data, (sy * input.width + sx) * 4, output.data, (y * width + x) * 4, 4)
+            }
+        }
+        return output
+    }
+}
+
 /** Image buttons drawn as title glyphs (`imageButtons.ts`). */
 internal object ImageButtons {
     fun key(b: ImageButtonPlacement): String {
@@ -136,9 +181,12 @@ internal object ImageButtons {
     }
 
     /** The button's image in its area (`renderImageButton`), and the width MC measures for it. */
-    fun render(input: RgbaImage, button: ImageButtonPlacement): Pair<RgbaImage, Int> {
+    fun render(source: RgbaImage, button: ImageButtonPlacement, slice: Slice? = null): Pair<RgbaImage, Int> {
         val output = RgbaImage(button.width, button.height)
-        val g = ImageButtonGeometry.geometry(button.fit, button.offsetX, button.offsetY, input.width, input.height, button.width, button.height)
+        // A sliced image fills the rectangle, edges and middle repeated, when it holds its margins.
+        val sliced = slice != null && Slices.at(slice, source, button.width, button.height)
+        val input = if (sliced) Slices.draw(source, slice!!, button.width, button.height) else source
+        val g = ImageButtonGeometry.geometry(if (sliced) "native" else button.fit, button.offsetX, button.offsetY, input.width, input.height, button.width, button.height)
         var contentWidth = 0
         for (y in maxOf(0, -g.y) until minOf(g.height, button.height - g.y)) {
             for (x in maxOf(0, -g.x) until minOf(g.width, button.width - g.x)) {
@@ -151,7 +199,15 @@ internal object ImageButtons {
         return output to contentWidth
     }
 
-    fun build(files: MutableMap<String, ByteArray>, index: AssetIndex, pngs: Map<String, ByteArray>, placements: List<ImageButtonPlacement>) {
+    /** The margins of the sliced images among [assets], by the id a menu's image resolves to. */
+    fun slices(assets: List<AssetRow>): Map<String, Slice> {
+        val out = HashMap<String, Slice>()
+        for (a in assets) if (a.slice != null) out.putIfAbsent(a.id, a.slice)
+        return out
+    }
+
+    fun build(files: MutableMap<String, ByteArray>, index: AssetIndex, pngs: Map<String, ByteArray>, placements: List<ImageButtonPlacement>, assets: List<AssetRow> = emptyList()) {
+        val slices = slices(assets)
         if (placements.isNotEmpty()) {
             files["assets/artisan/items/buttons/hit_area.json"] = Js.stringifyBytes(mapOf("model" to mapOf("type" to "minecraft:empty")))
         }
@@ -159,7 +215,7 @@ internal object ImageButtons {
             val key = key(button)
             if (index.assets.containsKey(key)) continue
             val source = pngs[button.asset] ?: continue
-            val (output, contentWidth) = render(Png.decode(source), button)
+            val (output, contentWidth) = render(Png.decode(source), button, slices[button.asset])
             files["assets/artisan/textures/$key.png"] = Png.encode(output)
             val ascent = 13 - button.y
             files["assets/artisan/font/$key.json"] = Js.stringifyBytes(

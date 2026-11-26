@@ -7,6 +7,7 @@ import { FONT_DIR, FONT_STEM, fontFromDisk } from "./fontOnDisk";
 import { type PixelSize, imageFunctionOf, refusedImages } from "./imageFunction";
 import type { AssetRow } from "./resourcePackBuilder";
 import { shippedView } from "./shippedView";
+import { sliceOf } from "./slice";
 
 /**
  * A Project's assets **read from the server's disk** (ADR
@@ -179,6 +180,7 @@ export function diskAssetsFromTree(
         name: nameOf(bin.path),
         usages: parseAssetUsages(meta.usages),
         ...(imageFunctionOf(meta) ? { function: imageFunctionOf(meta)! } : {}),
+        ...(sliceOf(meta) ? { slice: sliceOf(meta)! } : {}),
         ...(followsRamps(meta) ? { ramps: true } : {}),
         width: num(meta.width, 0) ?? 0,
         height: num(meta.height, 0) ?? 0,
@@ -214,6 +216,7 @@ export function diskAssetsFromTree(
         name,
         usages: parseAssetUsages(meta.usages),
         ...(imageFunctionOf(meta) ? { function: imageFunctionOf(meta)! } : {}),
+        ...(sliceOf(meta) ? { slice: sliceOf(meta)! } : {}),
         width: num(meta.width, 0) ?? 0,
         height: num(meta.height, 0) ?? 0,
         ascent: num(meta.ascent, null),

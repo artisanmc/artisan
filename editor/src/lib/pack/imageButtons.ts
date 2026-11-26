@@ -8,8 +8,10 @@ import {
 } from "../../../../docs/schema/menu/v1/imageButtonGeometry";
 import { sha256Hex } from "../sha256";
 import type { AssetIndex } from "./assetIndexBuilder";
+import type { AssetRow } from "./fontJsonBuilder";
 import { menuPaths } from "./menuPaths";
 import { type RgbaImage, createImage, decodePng, encodePng } from "./png";
+import { type Slice, drawSliced, slicesAt } from "./slice";
 
 export interface ImageButtonPlacement extends ImageButtonImage {
   fit: NonNullable<ImageButtonImage["fit"]>;
@@ -140,19 +142,30 @@ function pushImages(
 /**
  * The image of a button as its slots show it: the source scaled by `fit`,
  * centred then offset, clipped to the button's rectangle. Shared by the Java
- * pack (a title glyph) and the Bedrock pack (an image over the slots).
+ * pack (a title glyph) and the Bedrock pack (an image over the slots). A sliced image
+ * (`slice`, the margins its descriptor declares) fills the rectangle instead, edges and middle
+ * repeated, when the rectangle holds its margins (`slice.ts`).
  */
 export function renderImageButton(
-  input: RgbaImage,
+  source: RgbaImage,
   button: ImageButtonPlacement,
+  slice?: Slice | null,
 ): { image: RgbaImage; contentWidth: number } {
   const output = createImage(button.width, button.height);
+  const sliced = !!slice && slicesAt(slice, source, button.width, button.height);
+  const input = sliced ? drawSliced(source, slice, button.width, button.height) : source;
   const {
     width,
     height,
     x: dx,
     y: dy,
-  } = imageButtonGeometry(button, input.width, input.height, button.width, button.height);
+  } = imageButtonGeometry(
+    sliced ? { ...button, fit: "native" } : button,
+    input.width,
+    input.height,
+    button.width,
+    button.height,
+  );
   let contentWidth = 0;
   for (let y = Math.max(0, -dy); y < Math.min(height, button.height - dy); y++)
     for (let x = Math.max(0, -dx); x < Math.min(width, button.width - dx); x++) {
@@ -167,12 +180,22 @@ export function renderImageButton(
   return { image: output, contentWidth };
 }
 
+/** The margins of the sliced images among `assets`, by the id a menu's image resolves to. */
+export function imageSlices(assets: readonly AssetRow[]): Map<string, Slice> {
+  const out = new Map<string, Slice>();
+  for (const a of assets) if (a.slice && !out.has(a.id)) out.set(a.id, a.slice);
+  return out;
+}
+
 export function buildImageButtons(
   files: Record<string, Uint8Array>,
   index: AssetIndex,
   pngs: Map<string, Uint8Array>,
   placements: ImageButtonPlacement[],
+  /** The pack's assets: a sliced image is found there by its id (`imageSlices`). */
+  assets: readonly AssetRow[] = [],
 ) {
+  const slices = imageSlices(assets);
   if (placements.length) {
     files["assets/artisan/items/buttons/hit_area.json"] = strToU8(
       JSON.stringify({ model: { type: "minecraft:empty" } }),
@@ -183,7 +206,11 @@ export function buildImageButtons(
     if (index.assets[key]) continue;
     const source = pngs.get(button.asset);
     if (!source) continue;
-    const { image: output, contentWidth } = renderImageButton(decodePng(source), button);
+    const { image: output, contentWidth } = renderImageButton(
+      decodePng(source),
+      button,
+      slices.get(button.asset),
+    );
     files[`assets/artisan/textures/${key}.png`] = encodePng(output);
     const ascent = 13 - button.y;
     files[`assets/artisan/font/${key}.json`] = strToU8(

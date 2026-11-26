@@ -1,6 +1,7 @@
 import { localAssetPreviewUrl } from "@/features/assets/localAssetUrl";
 import type { ComposeRecipe } from "@/lib/pack/compose";
 import type { ImageFunction } from "@/lib/pack/imageFunction";
+import type { Slice } from "@/lib/pack/slice";
 
 export type AssetType = "texture" | "glyph" | "font";
 export type AssetId = string;
@@ -35,6 +36,8 @@ export interface Asset {
   function?: ImageFunction;
   /** The image follows the ramps: a theme's colours repaint it (`lib/pack/theme.ts`). */
   ramps?: boolean;
+  /** The margins of a sliced image (`lib/pack/slice.ts`); absent for an image drawn by its fit. */
+  slice?: Slice;
   /** A theme's own image (`<theme>:<name>`): a name alone never reaches it (`imageNamed`). */
   qualifiedOnly?: boolean;
   draftId?: string;

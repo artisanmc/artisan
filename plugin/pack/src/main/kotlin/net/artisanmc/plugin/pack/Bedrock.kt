@@ -612,6 +612,7 @@ internal object BedrockPack {
             backgrounds[menu.key] = png
             files["${BedrockUi.backgroundTexture(menu)}.png"] = Png.encode(png)
         }
+        val slices = ImageButtons.slices(assets)
         val buttonKeys = HashMap<String, String>()
         val keyOf = { menu: BedrockMenu, button: BedrockButton, state: Int ->
             buttonKeys.getOrPut("${menu.key}/${button.index}/$state") {
@@ -621,7 +622,7 @@ internal object BedrockPack {
                 val source = pngs[placed.asset]
                 if (!files.containsKey(path) && source != null) {
                     // An unreadable PNG: the Java pack skips it the same way.
-                    runCatching { Png.encode(ImageButtons.render(Png.decode(source), placed).first) }.getOrNull()?.let { files[path] = it }
+                    runCatching { Png.encode(ImageButtons.render(Png.decode(source), placed, slices[placed.asset]).first) }.getOrNull()?.let { files[path] = it }
                 }
                 key
             }

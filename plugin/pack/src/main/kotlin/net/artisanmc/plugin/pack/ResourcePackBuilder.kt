@@ -113,6 +113,8 @@ object ResourcePackBuilder {
         val kitImages = HashMap<String, ByteArray>()
         // The server's common images that say they follow the ramps; the base's always do.
         val kitRamps = HashSet<String>()
+        // The margins of the server's common images that are sliced ([Slices]), by name.
+        val kitSlices = HashMap<String, Slice>()
         val kitBase = HashMap<String, ByteArray?>()
         val kitImage = { name: String ->
             Kit.image(name, kitImages[name], kitBase.getOrPut(name) { kitProject?.takeIf { Kit.shippedPath(name) in it.binaries }?.binary(Kit.shippedPath(name)) })
@@ -167,6 +169,7 @@ object ResourcePackBuilder {
             for ((i, a) in fromDisk.withIndex()) {
                 val row = rows[i]
                 if (common && (row.type == "glyph" || row.type == "texture")) {
+                    a.row.slice?.let { kitSlices[a.row.name] = it }
                     if (a.recipe != null) composed += Composed(null, project, a.recipe, own, a.row.name)
                     else project.binary(a.path)?.let { bytes ->
                         imagesByRef += "${project.id}:${a.row.name}" to bytes
@@ -192,6 +195,7 @@ object ResourcePackBuilder {
                     imagesByRef += "${project.id}:${a.row.name}" to bytes
                     own[a.row.name] = bytes
                     if (legacyCommon) {
+                        a.row.slice?.let { kitSlices[a.row.name] = it }
                         kitImages[a.row.name] = bytes
                         if (a.ramps) kitRamps += a.row.name
                     }
@@ -277,6 +281,8 @@ object ResourcePackBuilder {
             allAssets += AssetRow(
                 id, Kit.FOLDER, if (glyph) "glyph" else "texture", Kit.FILES + name, image.width.toDouble(), image.height.toDouble(),
                 if (glyph) Kit.ASCENT else null, if (glyph) CODEPOINT_MIN.toDouble() else null, null, null,
+                // The margins the server's common image declares; the base's images declare none yet.
+                kitSlices[name],
             )
             if (glyph) kitGlyphs += id to CODEPOINT_MIN.toDouble()
             glyphPngs[id] = when {
@@ -397,7 +403,7 @@ object ResourcePackBuilder {
         val index = AssetIndex(remapped, transparent)
         VanillaGui.files(sources, transparent, files)
         if (hideInventoryLabel) InventoryLabel.files(files)
-        ImageButtons.build(files, index, glyphPngs, imageButtons)
+        ImageButtons.build(files, index, glyphPngs, imageButtons, remapped)
         OverlayImages.build(files, index, glyphPngs, overlayImages)
         files["assets/artisan/asset-index.json"] = Js.stringifyBytes(index.json(), 2)
 
