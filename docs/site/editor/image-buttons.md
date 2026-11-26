@@ -44,7 +44,9 @@ lists the open module's images and the common ones.
 only; `artisan:button.3x1` shows the common one there too. The picker writes the name alone,
 and `artisan:<name>` when the open module holds an image of that name. `kit:button.3x1`, which
 older menus hold, means the same and stays read. A name that neither the menu's module nor the
-common images hold still reaches another module's image of that name, as before.
+common images hold still reaches another module's image of that name, as before. The deploy
+review warns about it and says what to write instead (`guilds:gold`); it also warns about a
+name no image answers on the server, which shows nothing in game.
 
 **Common images in a module's Resources.** The **Module** selector of the Resources screen has
 an entry **Common images**, beside this module, all modules and the other modules. It lists

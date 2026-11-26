@@ -59,6 +59,9 @@ function issueKey(issue: ServerIssue): string {
       return `dup:${issue.docKind}:${issue.id}`;
     case "broken_link":
       return `link:${issue.from.docKind}:${issue.from.docId}:${issue.targetId}`;
+    case "image_missing":
+    case "image_elsewhere":
+      return `${issue.kind}:${issue.ref}`;
   }
 }
 
@@ -85,5 +88,18 @@ function describe(issue: ServerIssue, t: (key: string, opts?: Record<string, unk
           target: issue.targetId,
         },
       );
+    case "image_missing":
+      return t("deploy.checks.imageMissing", {
+        count: issue.menus.length,
+        ref: issue.ref,
+        menus: issue.menus.join(", "),
+      });
+    case "image_elsewhere":
+      return t("deploy.checks.imageElsewhere", {
+        count: issue.menus.length,
+        ref: issue.ref,
+        module: issue.module,
+        menus: issue.menus.join(", "),
+      });
   }
 }

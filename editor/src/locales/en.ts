@@ -2431,6 +2431,14 @@ export default {
       brokenMissing: "{{kind}} {{from}}: link to {{target}} not found on the server.",
       brokenAmbiguous:
         "{{kind}} {{from}}: link to {{target}} is ambiguous, several modules define it.",
+      imageMissing_one:
+        "Menu {{menus}} names the image {{ref}}: neither this module, nor the common images, nor another deployed module holds it. It will show nothing.",
+      imageMissing_other:
+        "Menus {{menus}} name the image {{ref}}: neither this module, nor the common images, nor another deployed module holds it. It will show nothing.",
+      imageElsewhere_one:
+        "Menu {{menus}} names {{ref}} by its name alone: it is an image of the module {{module}}. Write {{module}}:{{ref}} to say so.",
+      imageElsewhere_other:
+        "Menus {{menus}} name {{ref}} by its name alone: it is an image of the module {{module}}. Write {{module}}:{{ref}} to say so.",
       kind: { menu: "Menu", command: "Command", dialog: "Dialog" },
     },
   },

@@ -520,8 +520,11 @@ a composed image of another module is not copied.
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
-  reaches **another module's** image of that name (no rewrite to `module:name` at load, no
-  problem shown in the editor). `<module>:<name>` for an image that module does not hold falls
+  reaches **another module's** image of that name (no rewrite to `module:name` at load). The
+  editor says so in the deploy review only (`checkImageIssues`: a warning per name, with the
+  menus that write it, read against the other modules and the common images as published); the
+  menu's own screen marks nothing, and a name written in a kind's file or a composed image's
+  layer is not checked. `<module>:<name>` for an image that module does not hold falls
   on the bare name, then on the common image, instead of the visible fallback, because the
   asset index does not say who holds a bare id.
 - Against decision 1: the MCP tools keep the names `kit`, `kit_base`, `kit_format`,
@@ -555,7 +558,8 @@ Not there yet:
   module's own names it (not from a kind's file, a composed layer or a shipped menu), and a
   composed one never is. A theme's own images are not in the pack, so none is a dependency
   yet. The note lives in the archive only: a module's folder copied by hand
-  carries no dependency, and nothing at load reports an image it names and the server lacks.
+  carries no dependency, and nothing at load reports an image it names and the server lacks
+  (the editor's deploy review does, for the names its menus write: `image_missing`).
   The copies are compared by their PNG alone (a descriptor that differs does not keep a
   copy). A font named elsewhere is neither copied nor noted. The version of Artisan in the
   note is the origin's, shown when a base image is missing, never compared.

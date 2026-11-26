@@ -1,6 +1,8 @@
 import { commandsOf, dialogsOf, menusOf, parseDocKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { deriveServerGraph } from "@/features/canvas/serverGraph";
+import { type ElsewhereWhere, reachOf } from "@/lib/pack/elsewhere";
+import { imageRefsIn } from "@/lib/pack/kit";
 import { namespaceOf } from "./serverIndex";
 
 export interface IssueOwner {
@@ -20,7 +22,14 @@ export type ServerIssue =
       reason: "missing" | "ambiguous";
       targetId: string;
       from: { docId: string; docKind: "menu" | "command" | "dialog" };
-    };
+    }
+  /** Menus of the edited project name an image no one on the server holds: it shows nothing. */
+  | { kind: "image_missing"; ref: string; menus: string[] }
+  /**
+   * Menus of the edited project name by its name alone an image another module holds (ADR
+   * `common-images-and-themes`, decision 3): `<module>:<name>` says whose it is.
+   */
+  | { kind: "image_elsewhere"; ref: string; module: string; menus: string[] };
 
 export interface ServerChecks {
   /**
@@ -41,12 +50,20 @@ export function serverChecksFor(
     projects: Project[];
     failed: string[];
   },
+  /**
+   * Who holds which image on the server (`imageHolders`); absent: the images are not checked.
+   * Nor are they when a module could not be read: its images may answer a name.
+   */
+  images?: ElsewhereWhere | null,
 ): ServerChecks {
   switch (index.status) {
     case "ready":
       return {
         status: "ready",
-        issues: checkServerIssues(edited, index.projects),
+        issues: [
+          ...checkServerIssues(edited, index.projects),
+          ...(images && index.failed.length === 0 ? checkImageIssues(edited, images) : []),
+        ],
         unreadable: index.failed,
       };
     case "loading":
@@ -163,4 +180,47 @@ function brokenLinks(edited: Project, all: Project[]): ServerIssue[] {
       };
     })
     .sort((a, b) => byText(a.from.docId, b.from.docId) || byText(a.targetId, b.targetId));
+}
+
+/** A name the pack can look up as written: a placeholder is resolved in game, not here. */
+const WRITTEN_NAME = /^[A-Za-z0-9_.:-]+$/;
+
+/**
+ * The images the menus of `edited` name that no one holds (`image_missing`), and the ones a
+ * name alone finds in another module (`image_elsewhere`), by the rule the pack reads a name
+ * with (`reachOf`). One issue per name, with the menus that write it.
+ */
+export function checkImageIssues(edited: Project, where: ElsewhereWhere): ServerIssue[] {
+  const missing = new Map<string, Set<string>>();
+  const elsewhere = new Map<string, { module: string; menus: Set<string> }>();
+  for (const menu of menusOf(edited)) {
+    for (const ref of new Set(imageRefsIn(menu))) {
+      if (!WRITTEN_NAME.test(ref)) continue;
+      const reach = reachOf(ref, where);
+      if (reach.kind === "none") {
+        missing.set(ref, (missing.get(ref) ?? new Set()).add(menu.id));
+      } else if (reach.kind === "module" && !ref.includes(":")) {
+        const held = elsewhere.get(ref) ?? { module: reach.folder, menus: new Set<string>() };
+        held.menus.add(menu.id);
+        elsewhere.set(ref, held);
+      }
+    }
+  }
+  return [
+    ...[...missing.entries()]
+      .sort(([a], [b]) => byText(a, b))
+      .map(([ref, menus]) => ({
+        kind: "image_missing" as const,
+        ref,
+        menus: [...menus].sort(byText),
+      })),
+    ...[...elsewhere.entries()]
+      .sort(([a], [b]) => byText(a, b))
+      .map(([ref, held]) => ({
+        kind: "image_elsewhere" as const,
+        ref,
+        module: held.module,
+        menus: [...held.menus].sort(byText),
+      })),
+  ];
 }

@@ -1,6 +1,7 @@
 import type { Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
-import { checkServerIssues, serverChecksFor } from "./serverChecks";
+import type { ElsewhereWhere } from "@/lib/pack/elsewhere";
+import { checkImageIssues, checkServerIssues, serverChecksFor } from "./serverChecks";
 
 type Opens = { to: string; kind?: "menu" | "dialog" };
 
@@ -292,5 +293,113 @@ describe("checkServerIssues — order", () => {
       [project("a", { commands: [{ id: "d", name: "x" }], menus: [menu("main")] })],
     );
     expect(issues.map((i) => i.kind)).toEqual(["command_conflict", "duplicate_id", "broken_link"]);
+  });
+});
+
+/** A menu whose title is drawn with `title` and whose buttons show `buttons`. */
+function drawn(id: string, title: string[], buttons: string[] = []) {
+  return {
+    ...menu(id),
+    title: title.map((assetId) => ({ kind: "background", assetId })),
+    layers: [
+      {
+        id: "l",
+        name: "default",
+        elements: buttons.map((asset, i) => ({
+          id: `el_${i}`,
+          positions: String(i),
+          display: { material: "PAPER", image: { asset, width: 1, height: 1 } },
+          states: [],
+        })),
+      },
+    ],
+  } as unknown as ReturnType<typeof menu>;
+}
+
+const holders = (
+  over: Partial<Record<"own" | "base" | "common", string[]>> = {},
+): ElsewhereWhere => ({
+  folder: "core",
+  own: (name) => (over.own ?? ["logo"]).includes(name),
+  base: (name) => (over.base ?? ["panel"]).includes(name),
+  common: (name) => (over.common ?? ["ribbon"]).includes(name),
+  modules: [
+    { folder: "jobs", own: (name) => name === "anvil" || name === "shared" },
+    { folder: "warps", own: (name) => name === "shared" },
+  ],
+});
+
+describe("checkImageIssues", () => {
+  it("says nothing of the module's own images, the base's and the common ones", () => {
+    const edited = project("core", {
+      menus: [
+        drawn("main", ["logo", "panel"], ["ribbon", "kit:panel", "artisan:ribbon", "core:logo"]),
+      ],
+    });
+    expect(checkImageIssues(edited, holders())).toEqual([]);
+  });
+
+  it("flags an image no one holds, once, with the menus that name it", () => {
+    const edited = project("core", {
+      menus: [drawn("shop", ["ghost"]), drawn("main", ["logo"], ["ghost", "ghost"])],
+    });
+    expect(checkImageIssues(edited, holders())).toEqual([
+      { kind: "image_missing", ref: "ghost", menus: ["main", "shop"] },
+    ]);
+  });
+
+  it("flags a common name the common images lack, and a module's name that module lacks", () => {
+    const edited = project("core", {
+      menus: [drawn("main", ["artisan:ghost"], ["jobs:ghost"])],
+    });
+    expect(checkImageIssues(edited, holders()).map((i) => [i.kind, "ref" in i && i.ref])).toEqual([
+      ["image_missing", "artisan:ghost"],
+      ["image_missing", "jobs:ghost"],
+    ]);
+  });
+
+  it("flags a name alone that reaches another module's image, naming the first in the pack's order", () => {
+    const edited = project("core", {
+      menus: [drawn("main", ["anvil"], ["shared"]), drawn("shop", [], ["anvil"])],
+    });
+    expect(checkImageIssues(edited, holders())).toEqual([
+      { kind: "image_elsewhere", ref: "anvil", module: "jobs", menus: ["main", "shop"] },
+      { kind: "image_elsewhere", ref: "shared", module: "jobs", menus: ["main"] },
+    ]);
+  });
+
+  it("says nothing of an image named with its module", () => {
+    const edited = project("core", { menus: [drawn("main", ["jobs:anvil"], ["warps:shared"])] });
+    expect(checkImageIssues(edited, holders())).toEqual([]);
+  });
+
+  it("leaves a name the game fills in alone", () => {
+    const edited = project("core", {
+      menus: [drawn("main", [], ["{{row.icon}}", "%player_rank%", ""])],
+    });
+    expect(checkImageIssues(edited, holders())).toEqual([]);
+  });
+});
+
+describe("serverChecksFor — images", () => {
+  const edited = project("core", { menus: [drawn("main", ["ghost"])] });
+
+  it("checks the images when it is told who holds them", () => {
+    const ready = { status: "ready" as const, projects: [], failed: [] };
+    expect(serverChecksFor(edited, ready).issues).toEqual([]);
+    expect(serverChecksFor(edited, ready, null).issues).toEqual([]);
+    expect(serverChecksFor(edited, ready, holders()).issues).toEqual([
+      { kind: "image_missing", ref: "ghost", menus: ["main"] },
+    ]);
+  });
+
+  it("does not when a module could not be read: its images may answer the name", () => {
+    const checks = serverChecksFor(
+      edited,
+      { status: "ready", projects: [], failed: ["jobs"] },
+      holders(),
+    );
+    expect(checks.issues).toEqual([]);
+    expect(checks.unreadable).toEqual(["jobs"]);
   });
 });

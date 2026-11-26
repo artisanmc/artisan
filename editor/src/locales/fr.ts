@@ -2479,6 +2479,14 @@ const fr: typeof en = {
       brokenMissing: "{{kind}} {{from}} : lien vers {{target}} introuvable sur le serveur.",
       brokenAmbiguous:
         "{{kind}} {{from}} : lien vers {{target}} ambigu, plusieurs modules le définissent.",
+      imageMissing_one:
+        "Le menu {{menus}} nomme l'image {{ref}} : ni ce module, ni les images communes, ni un autre module déployé ne l'a. Elle ne s'affichera pas.",
+      imageMissing_other:
+        "Les menus {{menus}} nomment l'image {{ref}} : ni ce module, ni les images communes, ni un autre module déployé ne l'a. Elle ne s'affichera pas.",
+      imageElsewhere_one:
+        "Le menu {{menus}} nomme {{ref}} par son nom seul : c'est une image du module {{module}}. Écris {{module}}:{{ref}} pour le dire.",
+      imageElsewhere_other:
+        "Les menus {{menus}} nomment {{ref}} par son nom seul : c'est une image du module {{module}}. Écris {{module}}:{{ref}} pour le dire.",
       kind: { menu: "Menu", command: "Commande", dialog: "Dialogue" },
     },
   },
