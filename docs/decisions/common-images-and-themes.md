@@ -534,6 +534,15 @@ place or not, and no theme's redraw applies to it. `survey_ui` lists them
 (`common.themes[].own_images`, each as a menu names it) and `themes_format` says how.
 Not in this part: the archive's note (Step 6, third part).
 
+**Step 4, thirteenth part: the picker offers a theme's own images** (`KitPicker.tsx`,
+`useThemesOwnImages` in `kitAssets.ts`).
+The picker of common images (**Common** on a button's image and on a title layer) lists,
+after the common images, the own images of the server's themes, each under the name a menu
+writes (`<theme>:<name>`). Picking one names it where it is: nothing is copied, and the menu
+writes that name. One whose descriptor says no size is measured from its PNG when picked, so
+a button takes its footprint. Until then the editor had no way to write such a name but the
+menu's file or the assistant.
+
 **Step 6, first part: a module's archive says what it names elsewhere** (`lib/pack/elsewhere.ts`,
 `exportElsewhere.ts`, `runImportZip.ts`; decision 10). The export reads the image names the
 module writes as the pack reads them and tells who holds each one. A common image the server
@@ -625,8 +634,8 @@ Not there yet:
   note is the origin's, shown when a base image is missing, never compared.
 - Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are in the pack when
   named, the editor draws one a menu names, as published, and the MCP tools write and draw
-  one. The image picker does not offer one (the name is typed, read on the theme's page)
-  and a composed one is not taken. `<theme>:<name>` for
+  one, and the picker offers one. A composed one is not taken, and the editor shows a
+  theme's own images as published, not as a draft of the theme has them. `<theme>:<name>` for
   an image the theme does not hold falls on the bare name like a module's.
   A theme has no versions and no update: an archive is imported under a free name only.
 - Against decision 7: an image of the server that follows the ramps is repainted by its

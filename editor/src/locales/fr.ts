@@ -248,6 +248,8 @@ const fr: typeof en = {
     fromKit: "Communes",
     choose: "Choisir une image commune",
     hint: "Les images que tout serveur possède, et celles que ce serveur a rendues communes. Le menu nomme l'image : elle suit quand le serveur la redessine.",
+    hintThemes:
+      "Les images que tout serveur possède, celles que ce serveur a rendues communes, puis les images propres des thèmes, nommées avec leur thème : une de celles-là s'affiche tant que le serveur a son thème. Le menu nomme l'image : rien n'est copié.",
     page: {
       title: "Images communes",
       intro:

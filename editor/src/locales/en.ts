@@ -240,6 +240,8 @@ export default {
     fromKit: "Common",
     choose: "Choose a common image",
     hint: "Images every server has, and the ones this server made common. The menu names the image: it follows when the server redraws it.",
+    hintThemes:
+      "Images every server has, the ones this server made common, then the themes' own images, named with their theme: one of those shows as long as the server has its theme. The menu names the image: nothing is copied.",
     page: {
       title: "Common images",
       intro:

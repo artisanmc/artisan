@@ -129,7 +129,9 @@ A theme may also hold images of its own, under `assets/` of its folder (`assets/
 `assets/glyphs/`): a garland for the winter look, say. A menu names one with its theme,
 `noel:garland`, never by its name alone. It is in the pack as long as the server has the
 theme, in place or not, and shows as drawn: no theme repaints it. The theme's page lists
-them under **Its own images**, each as a menu writes it.
+them under **Its own images**, each as a menu writes it, and **Common** (on a button's image
+or a title layer) offers them after the common images: the menu names the one you pick,
+nothing is copied.
 
 **Resources**, **Show: Themes** lists the server's themes: those in place, the highest first,
 and the others. The highest theme that redraws an image wins, and its colours repaint what

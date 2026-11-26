@@ -1,10 +1,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Asset } from "@/domain/asset";
 import { cx } from "@/lib/cx";
+import { pixelSize } from "@/lib/pack/imageFunction";
 import { kitNameOf } from "@/lib/pack/kit";
 import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
-import { useKitAssets } from "./kitAssets";
+import { assetBytes } from "./assetBytes";
+import { useKitAssets, useThemesOwnImages } from "./kitAssets";
 
 /** A dialog of images to choose one from, each under its name and size. */
 export function ImageChoiceDialog({
@@ -74,8 +76,10 @@ export function ImageChoiceDialog({
 }
 
 /**
- * Chooses a common image: the base every server has, then the ones this server added. The
- * image stays common: the menu names it (`useCommonImageRef`), nothing is copied.
+ * Chooses a common image: the base every server has, then the ones this server added, then
+ * the themes' own images (`<theme>:<name>`). The image stays where it is: the menu names it
+ * (`useCommonImageRef`), nothing is copied. A theme's image whose descriptor says no size is
+ * measured from its PNG before it is given, so a button takes its footprint.
  */
 export function KitPicker({
   open,
@@ -90,15 +94,22 @@ export function KitPicker({
   only?: (asset: Asset) => boolean;
 }) {
   const { t } = useTranslation();
-  const assets = useKitAssets().filter((a) => a.width > 0 && a.height > 0 && (!only || only(a)));
+  const common = useKitAssets().filter((a) => a.width > 0 && a.height > 0 && (!only || only(a)));
+  const themed = useThemesOwnImages();
+  const pick = (asset: Asset) => {
+    if (asset.width > 0 && asset.height > 0) return onPick(asset);
+    void assetBytes(asset)
+      .then(pixelSize, () => null)
+      .then((size) => onPick(size ? { ...asset, ...size } : asset));
+  };
   return (
     <ImageChoiceDialog
       open={open}
       onClose={onClose}
-      onPick={onPick}
+      onPick={pick}
       title={t("kit.choose")}
-      hint={t("kit.hint")}
-      assets={assets}
+      hint={t(themed.length > 0 ? "kit.hintThemes" : "kit.hint")}
+      assets={themed.length > 0 ? [...common, ...themed] : common}
       nameOf={(asset) => kitNameOf(asset.id) ?? asset.name}
     />
   );

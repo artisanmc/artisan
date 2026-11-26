@@ -102,3 +102,51 @@ it("keeps kit: on a server older than the common images", () => {
   useKitStore.setState({ read: undefined });
   expect(pickCommon()).toHaveBeenCalledWith({ asset: "kit:button.3x1", fit: "native" }, "1-3");
 });
+
+it("takes a theme's own image by its name with the theme, measured when its descriptor says no size", async () => {
+  const { encodePng, createImage } = await import("@/lib/pack/png");
+  const fetched = vi
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValue(
+      new Response(encodePng(createImage(40, 20)) as unknown as BodyInit, { status: 200 }),
+    );
+  useKitStore.setState({
+    read: { projectId: "artisan", files: {}, binaries: [], byName: true },
+    modules: [],
+    own: {
+      noel: {
+        projectId: "srv.noel",
+        files: { "assets/textures/star.yml": "width: 54\nheight: 18\n" },
+        binaries: [
+          { path: "assets/textures/star.png", hash: "h1" },
+          { path: "assets/textures/garland.png", hash: "h2" },
+        ],
+      },
+    },
+  });
+  useAssetStore.getState().reset();
+  const onImage = vi.fn();
+  render(
+    <ImageButtonEditor
+      projectId={"p" as never}
+      menu={{ rows: 3, inventoryType: "chest" } as never}
+      element={{ positions: "1" } as never}
+      onImage={onImage}
+      onPositions={vi.fn()}
+      onItem={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Communes" }));
+  // Its size is in its descriptor: taken at once, three slots wide.
+  fireEvent.click(screen.getByTitle(/^noel:star /));
+  expect(onImage).toHaveBeenCalledWith({ asset: "noel:star", fit: "native" }, "1-3");
+  expect(fetched).not.toHaveBeenCalled();
+  // No descriptor: its PNG is read for its size.
+  fireEvent.click(screen.getByRole("button", { name: "Communes" }));
+  fireEvent.click(screen.getByTitle("noel:garland"));
+  await vi.waitFor(() =>
+    expect(onImage).toHaveBeenCalledWith({ asset: "noel:garland", fit: "native" }, "1-3,10-12"),
+  );
+  fetched.mockRestore();
+  useKitStore.setState({ own: {} });
+});

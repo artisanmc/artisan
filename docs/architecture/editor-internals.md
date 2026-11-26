@@ -109,7 +109,10 @@ alone never finds it in `imageNamed`), `reachOf` answers `{ kind: "theme" }` whe
 `ElsewhereWhere.themes` holds the name and no module has the theme's folder, `ImageReachNote`
 says which theme it is, and the deploy review does not flag it (`imageHolders` gives the
 themes' names by `themeOwnNames`). The theme's page lists them (`useThemeOwnImages`), each as
-a menu writes it. On a server older than the theme `artisan` none is drawn.
+a menu writes it, and `KitPicker` offers them after the common images (`useThemesOwnImages`):
+the menu writes `<theme>:<name>`, nothing is copied, and an image whose descriptor says no
+size is measured from its PNG when picked. On a server older than the theme `artisan` none is
+drawn or offered.
 The Resources screen's module selector (`features/project/ProjectSource.tsx`) never lists the
 common images' Project among the other modules; a library that gives it `common` (the Resources
 tab) gets an entry **Common images** (`COMMON_IMAGES`), drawn by `CommonAssets` in
