@@ -3,12 +3,12 @@ import { assetUsages } from "@/domain/assetUsage";
 import { composeAsset, deleteAsset, patchAsset, uploadAsset } from "@/lib/api/userAssets";
 import type { ComposeLayer, ComposeRecipe } from "@/lib/pack/compose";
 import { commonImageKey, kitNameOf } from "@/lib/pack/kit";
-import { createImage, encodePng } from "@/lib/pack/png";
 import { assetBytes } from "./assetBytes";
 
 /**
  * One notion of image: a PNG is an image of one layer. Giving it a second layer turns it into
- * a composed image under the same name (`toLayers`), so the menus that name it keep doing so;
+ * a composed image under the same name when it is saved (`toLayers`), so the menus that name
+ * it keep doing so;
  * `flatten` goes back to a single PNG.
  */
 
@@ -31,12 +31,20 @@ export function layerName(asset: Asset, taken: ReadonlySet<string>): string {
  * `shipped`: the PNG is the module's as shipped (`originals/`), and the owner holds no file to
  * rename. Its pixels are copied as the layer, an image of the owner's, and the composed image
  * is the owner's version of the name, over the original. A failure deletes the copy.
+ *
+ * `recipe`: the layers the image takes, given the name of the layer the PNG became; that layer
+ * alone when left out.
  */
 export async function toLayers(
   projectId: string,
   asset: Asset,
   taken: ReadonlySet<string>,
   shipped = false,
+  recipe: (layer: string) => ComposeRecipe = (layer) => ({
+    width: null,
+    height: null,
+    layers: [layerOf(layer)],
+  }),
 ): Promise<{ layer: Asset; image: Asset }> {
   const usages = assetUsages(asset);
   const ascent = asset.ascent === null ? {} : { ascent: asset.ascent };
@@ -57,11 +65,7 @@ export async function toLayers(
   try {
     const image = await composeAsset(projectId, {
       name: asset.name,
-      recipe: {
-        width: null,
-        height: null,
-        layers: [layerOf(layer.name)],
-      },
+      recipe: recipe(layer.name),
       usages,
       ...ascent,
     });
@@ -87,31 +91,6 @@ export const layerOf = (image: string): ComposeLayer => ({
   columns: 1,
   rows: 1,
 });
-
-/**
- * A layer to draw on, added on top of `recipe`, the layers of the composed image `image`: an
- * empty PNG of `size`, a file of the module. The recipe is saved with it, so the file never
- * stays without the layer that shows it.
- */
-export async function addDrawnLayer(
-  projectId: string,
-  image: Asset,
-  recipe: ComposeRecipe,
-  taken: ReadonlySet<string>,
-  size: { width: number; height: number },
-): Promise<{ layer: Asset; image: Asset }> {
-  let name = `${image.name}_layer`;
-  for (let n = 2; taken.has(name); n++) name = `${image.name}_layer_${n}`;
-  const png = encodePng(createImage(size.width, size.height));
-  const layer = await uploadAsset(projectId, {
-    file: new File([png as Uint8Array<ArrayBuffer>], `${name}.png`, { type: "image/png" }),
-    type: "glyph",
-    name,
-    usages: [],
-  });
-  const next = { ...recipe, layers: [...recipe.layers, layerOf(layer.name)] };
-  return { layer, image: await patchAsset(projectId, image.id, { compose: next }) };
-}
 
 /**
  * `asset`, a composed image, becomes one PNG of the same name: its picture as it is shown now.

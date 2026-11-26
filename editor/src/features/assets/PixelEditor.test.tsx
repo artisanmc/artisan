@@ -4,8 +4,8 @@ import { type RgbaImage, createImage, decodePng, encodePng } from "@/lib/pack/pn
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PixelEditor } from "./PixelEditor";
-import { SaveActions, type StudioTool } from "./StudioFrame";
+import { ComposedImageEditor } from "./ComposedImageEditor";
+import type { StudioTool } from "./StudioFrame";
 import { useAssetStore } from "./assetStore";
 import { type Rgba, paint, pixelAt, toHex } from "./pixelTools";
 
@@ -43,8 +43,12 @@ vi.mock("./assetBytes", () => ({
     return bytes;
   },
 }));
-vi.mock("./kitAssets", () => ({
+vi.mock("./kitAssets", async (original) => ({
+  ...(await original<typeof import("./kitAssets")>()),
   useKitAssets: () => KIT,
+}));
+vi.mock("@/lib/useAuthenticatedImage", () => ({
+  useAuthenticatedImageUrl: (url: string) => url,
 }));
 const KIT = [asset("kit:cell", { projectId: "ui-kit", contentHash: "" })];
 
@@ -72,31 +76,23 @@ const bytesOf = (file: File) =>
     reader.readAsArrayBuffer(file);
   });
 
-/** The editor's parts one under the other, the tool held as the atelier holds it. */
-function Stand({ image = icon, move }: { image?: Asset; move?: string }) {
+/** The atelier's parts one under the other, the tool held as the atelier holds it. */
+function Stand({ image = icon }: { image?: Asset }) {
   const [tool, setTool] = useState<StudioTool>("pencil");
   return (
-    <PixelEditor
+    <ComposedImageEditor
       projectId={"p1" as never}
       asset={image}
-      tool={tool === "move" ? "pencil" : tool}
+      tool={tool}
       onTool={setTool}
-      move={move}
       layout={(parts) => (
         <div onKeyDown={parts.keys}>
           {parts.rail}
           {parts.controls}
           {parts.stage}
           {parts.status}
-          {parts.colour}
-          <SaveActions
-            dirty={parts.dirty}
-            busy={parts.busy}
-            canSave
-            error={parts.error}
-            onSave={() => void parts.save()}
-            onDiscard={parts.discard}
-          />
+          {parts.panels}
+          {parts.actions}
           <output data-testid="held">{tool}</output>
         </div>
       )}
@@ -104,12 +100,12 @@ function Stand({ image = icon, move }: { image?: Asset; move?: string }) {
   );
 }
 
-async function open(move?: string) {
-  render(<Stand move={move} />);
+async function open() {
+  render(<Stand />);
   await screen.findByTestId("pixel-canvas");
 }
 
-describe("PixelEditor", () => {
+describe("a PNG drawn in the atelier", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     useAssetStore.getState().reset();
@@ -217,19 +213,8 @@ describe("PixelEditor", () => {
     expect(screen.queryByTestId("pixel-canvas")).toBeNull();
   });
 
-  it("saves what was drawn before the move tool takes over, and keeps to drawing on a lone image", async () => {
-    const upload = vi
-      .spyOn(userAssetsApi, "uploadAsset")
-      .mockImplementation(async () => asset("icon", { contentHash: "after" }));
-    await open();
-    press(1, 2);
-    fireEvent.click(tool("Déplacer le calque"));
-    await waitFor(() => expect(screen.getByTestId("held")).toHaveTextContent("move"));
-    expect(upload).toHaveBeenCalledTimes(1);
-  });
-
   it("does not offer to move an image that is not a layer among others", async () => {
-    await open("Un seul calque");
+    await open();
     expect(tool("Déplacer le calque")).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(tool("Déplacer le calque"));
     fireEvent.keyDown(screen.getByTestId("pixel-canvas"), { key: "v" });

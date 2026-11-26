@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type Asset, assetPreviewUrl } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
-import { patchAsset } from "@/lib/api/userAssets";
+import { patchAsset, uploadAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
 import {
   COMPOSE_MAX_LAYERS,
@@ -13,6 +13,7 @@ import {
   composeSize,
 } from "@/lib/pack/compose";
 import { KIT_PREFIX, kitNameOf } from "@/lib/pack/kit";
+import { createImage, encodePng } from "@/lib/pack/png";
 import { slicesAt } from "@/lib/pack/slice";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
@@ -30,7 +31,7 @@ import { useTranslation } from "react-i18next";
 import { ImageGuides } from "./ImageGuides";
 import { ImageChoiceDialog, KitPicker } from "./KitPicker";
 import { LayersPanel } from "./LayersPanel";
-import { PixelEditor } from "./PixelEditor";
+import { PixelEditor, type PixelSource } from "./PixelEditor";
 import { SITUATION_SCALE, SituationPreview } from "./SituationPreview";
 import {
   type DrawTool,
@@ -47,71 +48,19 @@ import {
 } from "./StudioFrame";
 import { useAssetStore } from "./assetStore";
 import { type GuideName, SLOT, nextSlot, slotOrigin, snapToSlot } from "./guideRules";
-import { addDrawnLayer, layerOf, layerRef } from "./imageLayers";
+import { sameRecipe, useImageDocument } from "./imageDocument";
+import { canHaveLayers, layerName, layerOf, layerRef, toLayers } from "./imageLayers";
+import { useImageStanding } from "./imageStanding";
 import { useKitAssets } from "./kitAssets";
 import { type ImageSize, assetSize, useAssetSize, useMeasuredAssetSizes } from "./measuredSize";
 import { useSlicedUrl } from "./slicedUrl";
 
-/** The recipes kept to undo. */
-const HISTORY = 100;
-
 /**
- * A recipe being edited, with what it was before each change: `set` records the recipe it
- * replaces, unless `gesture` names the same gesture as the change before (a drag, a field
- * being typed in), which is then one step to undo. `reset` starts again from a recipe.
+ * What the one layer of a PNG names in the atelier: the PNG itself. Never written: an image
+ * saved with this layer alone stays the PNG, and one given others names the file the PNG
+ * becomes (`toLayers`).
  */
-function useRecipeHistory(first: ComposeRecipe) {
-  const [state, setState] = useState<{
-    past: ComposeRecipe[];
-    now: ComposeRecipe;
-    next: ComposeRecipe[];
-  }>({ past: [], now: first, next: [] });
-  const last = useRef<string | null>(null);
-  const set = (
-    change: ComposeRecipe | ((recipe: ComposeRecipe) => ComposeRecipe),
-    gesture?: string,
-  ) => {
-    const merged = gesture !== undefined && last.current === gesture;
-    last.current = gesture ?? null;
-    setState((s) => {
-      const now = typeof change === "function" ? change(s.now) : change;
-      if (sameRecipe(now, s.now)) return s;
-      return merged && s.past.length > 0
-        ? { ...s, now, next: [] }
-        : { past: [...s.past.slice(1 - HISTORY), s.now], now, next: [] };
-    });
-  };
-  const undo = () => {
-    last.current = null;
-    setState((s) => {
-      const back = s.past.at(-1);
-      return back ? { past: s.past.slice(0, -1), now: back, next: [s.now, ...s.next] } : s;
-    });
-  };
-  const redo = () => {
-    last.current = null;
-    setState((s) => {
-      const [forth, ...next] = s.next;
-      return forth ? { past: [...s.past, s.now], now: forth, next } : s;
-    });
-  };
-  const reset = (recipe: ComposeRecipe) => {
-    last.current = null;
-    setState((s) =>
-      // The recipe just saved is the one in hand: what led to it can still be undone.
-      sameRecipe(recipe, s.now) ? s : { past: [], now: recipe, next: [] },
-    );
-  };
-  return {
-    recipe: state.now,
-    set,
-    undo,
-    redo,
-    reset,
-    canUndo: state.past.length > 0,
-    canRedo: state.next.length > 0,
-  };
-}
+const SELF = "\u0000self";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -119,8 +68,6 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 const ORIGIN: ComposeLayer = { image: "", x: 0, y: 0, columns: 1, rows: 1 };
 
 const NO_GUIDES: readonly GuideName[] = [];
-
-const sameRecipe = (a: ComposeRecipe, b: ComposeRecipe) => JSON.stringify(a) === JSON.stringify(b);
 
 /** Whether a layer may be given a size: its image is sliced (`slice.ts`), and it does not repeat. */
 const resizable = (asset: Asset | undefined, layer: ComposeLayer) =>
@@ -156,12 +103,15 @@ function StageLayer({
   onResize,
   onResizeStart,
   resizeLabel,
+  picture,
 }: {
   asset: Asset;
   layer: ComposeLayer;
   scale: number;
   selected: boolean;
   label: string;
+  /** The layer as it is drawn now, in place of its saved file. */
+  picture?: string;
   /** Asks for another size, in the image's pixels: only for a layer that can take one. */
   onResize?: (width: number, height: number) => void;
   /** The handle is taken: what follows is one gesture. */
@@ -173,9 +123,10 @@ function StageLayer({
   onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void;
 }) {
   const source = assetPreviewUrl(asset);
-  const url = useAuthenticatedImageUrl(source);
+  const fetched = useAuthenticatedImageUrl(source);
   // Measured from the image when the descriptor gives no size: the stage waits for it.
-  const size = useAssetSize(asset, url);
+  const size = useAssetSize(asset, fetched);
+  const url = picture || fetched;
   const box = size ? layerBox(asset, layer, size) : null;
   const drawn = useSlicedUrl(url, box?.resized ? asset.slice : undefined, box?.width, box?.height);
   const grip = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -335,15 +286,20 @@ function NumberField({
 }
 
 /**
- * An image of several layers in the atelier (`lib/pack/compose.ts`): its layers on a stage at a
- * whole number of times the game's pixels, and listed from the top one down. With the move
- * tool a layer is dragged (Shift: by one slot), nudged with the arrow keys, repeated as a
- * grid, reordered and removed; a new one is a common image, a PNG of the module, or one drawn
- * here, an empty PNG of the image's size added on top. With a drawing tool, the selected layer
- * is drawn pixel by pixel among the others (`PixelEditor`), when it is a PNG of the module: a
- * common image is redrawn among the common images. What is saved is the recipe itself, so what
- * an AI app composed is edited here, and the other way round. It renders nothing by itself:
- * `layout` places its parts.
+ * An image in the atelier, whatever it is made of (`lib/pack/compose.ts`): its layers on a
+ * stage at a whole number of times the game's pixels, and listed from the top one down. A PNG
+ * is an image of one layer, itself. With the move tool a layer is dragged (Shift: on the
+ * slots' grid), nudged with the arrow keys, repeated as a grid, reordered and removed; a new
+ * one is a common image, a PNG of the module, or one drawn here, empty and of the image's
+ * size. With a drawing tool, the selected layer is drawn pixel by pixel among the others
+ * (`PixelEditor`), when it is a PNG of the module: a common image is redrawn among the common
+ * images.
+ *
+ * The layers and the pixels drawn on them are one document with one history
+ * (`imageDocument.ts`), and nothing is written before Save: the layers drawn here get their
+ * files, the pixels changed are written, then the layers themselves. A PNG saved with its one
+ * layer stays a PNG; saved with more, it becomes an image of layers under the same name
+ * (`toLayers`). It renders nothing by itself: `layout` places its parts.
  */
 export function ComposedImageEditor({
   projectId,
@@ -364,8 +320,8 @@ export function ComposedImageEditor({
   guides?: readonly GuideName[];
   /** Shows the image where a player sees it (`SituationPreview`). */
   situation?: boolean;
-  /** Under the list of layers: what is done to them as a whole. */
-  footer?: ReactNode;
+  /** Under the list of layers: what is done to them as a whole; `dirty` when something is unsaved. */
+  footer?: (dirty: boolean) => ReactNode;
   layout: (parts: StudioParts) => ReactNode;
 }) {
   const { t } = useTranslation();
@@ -376,10 +332,18 @@ export function ComposedImageEditor({
   const kit = useKitAssets();
   const measured = useMeasuredAssetSizes();
 
-  const saved = asset.compose as ComposeRecipe;
-  const history = useRecipeHistory(saved);
+  const standing = useImageStanding(projectId, asset);
+  // The module's image as shipped: the owner holds no file of it, its layers are theirs.
+  const shipped = !!standing.original && !standing.own;
+  // A PNG: one layer, itself, until it is saved with more.
+  const lone = !asset.compose;
+  const saved = useMemo<ComposeRecipe>(
+    () => asset.compose ?? { width: null, height: null, layers: [layerOf(SELF)] },
+    [asset.compose],
+  );
+  const history = useImageDocument(saved);
   const recipe = history.recipe;
-  const setRecipe = history.set;
+  const setRecipe = history.setRecipe;
   const [selected, setSelected] = useState<number | null>(null);
   const [picker, setPicker] = useState<"kit" | "module" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -388,34 +352,65 @@ export function ComposedImageEditor({
   // biome-ignore lint/correctness/useExhaustiveDependencies: the saved recipe, not the history's functions
   useEffect(() => {
     history.reset(saved);
-    setSelected((held) => (held !== null && held < saved.layers.length ? held : null));
     setError(null);
   }, [saved]);
+  // A step back may take the selected layer away.
+  useEffect(() => {
+    if (selected !== null && selected >= recipe.layers.length) setSelected(null);
+  }, [selected, recipe.layers.length]);
 
   /** What a layer may be: a PNG of this module (never a composed image, nor this one). */
   const own = useMemo(
-    () => all.filter((a) => a.projectId === projectId && a.type !== "font" && !a.compose),
-    [all, projectId],
+    () =>
+      all.filter(
+        (a) => a.projectId === projectId && a.type !== "font" && !a.compose && a.id !== asset.id,
+      ),
+    [all, projectId, asset.id],
   );
   // A common image is written `artisan:<name>`; `kit:<name>` is the former spelling, still read.
   const imageOf = (name: string): Asset | undefined => {
+    if (name === SELF) return lone ? asset : undefined;
     const common = kitNameOf(name);
     return common !== null
       ? kit.find((a) => a.id === KIT_PREFIX + common)
-      : own.find((a) => a.name === name);
+      : (own.find((a) => a.name === name) ??
+          // A layer drawn here that has no file yet.
+          history.drawings().find((d) => d.draft && d.asset.name === name)?.asset);
   };
-  const sizeOf = (name: string): ImageSize | undefined => assetSize(imageOf(name), measured);
+  const sizeOf = (name: string): ImageSize | undefined => {
+    const image = imageOf(name);
+    const drawing = image && history.drawing(image.id);
+    return drawing
+      ? { width: drawing.image.width, height: drawing.image.height }
+      : assetSize(image, measured);
+  };
+  /**
+   * `image` as it is drawn here, when its pixels are in hand and are not its file's any more
+   * (or it has no file yet): what shows a layer takes it in place of the file.
+   */
+  const pictureOf = (image: Asset | undefined): string | undefined => {
+    const drawing = image && history.drawing(image.id);
+    return drawing && (drawing.draft || history.dirty(image.id))
+      ? history.picture(image.id)
+      : undefined;
+  };
   /** The PNG of the module the layer at `index` shows: what can be drawn on here. */
   const drawingAt = (index: number | null): Asset | undefined => {
     const layer = index === null ? undefined : recipe.layers[index];
-    return layer && kitNameOf(layer.image) === null ? imageOf(layer.image) : undefined;
+    if (!layer) return undefined;
+    return layer.image === SELF || kitNameOf(layer.image) === null
+      ? imageOf(layer.image)
+      : undefined;
   };
   let topDrawing = -1;
   recipe.layers.forEach((_, index) => {
     if (drawingAt(index)) topDrawing = index;
   });
   // Nothing to draw on: the drawing tools are out of reach, whatever was in hand.
-  const held: StudioTool = tool !== "move" && topDrawing < 0 ? "move" : tool;
+  // A PNG alone is not a layer among others: it is drawn, not moved.
+  const alone = lone && recipe.layers.length === 1 && recipe.layers[0]?.image === SELF;
+  const held: StudioTool =
+    tool !== "move" && topDrawing < 0 ? "move" : tool === "move" && alone ? "pencil" : tool;
   // A drawing tool acts on a drawing: the top one when none is selected.
   useEffect(() => {
     if (held !== "move" && selected === null && topDrawing >= 0) setSelected(topDrawing);
@@ -550,14 +545,61 @@ export function ComposedImageEditor({
     },
   });
 
-  const dirty = !sameRecipe(recipe, saved);
+  const usedNames = new Set(recipe.layers.map((layer) => layer.image));
+  /** The drawings this image shows: what saving it writes. */
+  const usedDrawings = history
+    .drawings()
+    .filter((d) => (lone && d.asset.id === asset.id) || usedNames.has(d.asset.name));
+  const dirty =
+    !sameRecipe(recipe, saved) || usedDrawings.some((d) => d.draft || history.dirty(d.asset.id));
+  /**
+   * Saves the whole image: the layers drawn here get their files, the pixels changed are
+   * written, then the layers. `false` when a step failed: what is not written stays in hand.
+   */
   const save = async (): Promise<boolean> => {
     if (!dirty) return true;
     if (!user || busy || recipe.layers.length === 0) return false;
     setBusy(true);
     setError(null);
     try {
-      upsertAsset(await patchAsset(projectId, asset.id, { compose: recipe }));
+      let self = asset;
+      let rewritten = false;
+      for (const drawing of usedDrawings) {
+        const id = drawing.asset.id;
+        if (!drawing.draft && !history.dirty(id)) continue;
+        const { name, type } = drawing.asset;
+        const file = new File(
+          [encodePng(drawing.image) as Uint8Array<ArrayBuffer>],
+          `${name}.png`,
+          {
+            type: "image/png",
+          },
+        );
+        const next = drawing.draft
+          ? await uploadAsset(projectId, { file, type: "glyph", name, usages: [] })
+          : await uploadAsset(projectId, { file, type, name, retouch: true });
+        history.written(id, next);
+        upsertAsset(next);
+        if (lone && id === asset.id) {
+          self = next;
+          rewritten = true;
+        }
+      }
+      if (!lone) {
+        if (!sameRecipe(recipe, saved))
+          upsertAsset(await patchAsset(projectId, asset.id, { compose: recipe }));
+      } else if (!sameRecipe(recipe, saved)) {
+        // More than its one layer: the PNG becomes the layer of an image of the same name.
+        const taken = new Set(all.filter((a) => a.projectId === projectId).map((a) => a.name));
+        const made = await toLayers(projectId, self, taken, shipped && !rewritten, (layer) => ({
+          ...recipe,
+          layers: recipe.layers.map((l) => (l.image === SELF ? { ...l, image: layer } : l)),
+        }));
+        // Its pixels go on as the layer's: the image keeps its name, and takes the layers.
+        history.written(asset.id, made.layer);
+        upsertAsset(made.layer);
+        upsertAsset(made.image);
+      }
       return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -566,32 +608,45 @@ export function ComposedImageEditor({
       setBusy(false);
     }
   };
+  const discard = () => history.discard(saved);
 
-  /** A layer to draw, on top of the others (`addDrawnLayer`): it is selected, a pencil in hand. */
-  const draw = async () => {
+  /**
+   * A layer to draw, on top of the others: empty, of the image's size, selected with a pencil
+   * in hand. Its file is written when the image is saved.
+   */
+  const draw = () => {
     if (!user || busy || recipe.layers.length >= COMPOSE_MAX_LAYERS) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const taken = new Set(all.filter((a) => a.projectId === projectId).map((a) => a.name));
-      const made = await addDrawnLayer(projectId, asset, recipe, taken, {
-        width: size?.width ?? SLOT,
-        height: size?.height ?? SLOT,
-      });
-      upsertAsset(made.layer);
-      const next = made.image.compose as ComposeRecipe;
-      setRecipe(next);
-      upsertAsset(made.image);
-      setSelected(next.layers.length - 1);
-      onTool(held === "move" ? "pencil" : held);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setBusy(false);
-    }
+    const taken = new Set([
+      ...all.filter((a) => a.projectId === projectId).map((a) => a.name),
+      ...history.drawings().map((d) => d.asset.name),
+    ]);
+    // A PNG keeps the first free name for the layer it becomes.
+    if (lone) taken.add(layerName(asset, taken));
+    const name = layerName(asset, taken);
+    const side = { width: size?.width ?? SLOT, height: size?.height ?? SLOT };
+    history.addDraft(
+      {
+        ...asset,
+        id: `draft:${name}`,
+        name,
+        type: "glyph",
+        ...side,
+        ascent: null,
+        contentHash: "",
+        previewUrl: "",
+        compose: undefined,
+        slice: undefined,
+        usages: [],
+      } as Asset,
+      createImage(side.width, side.height),
+    );
+    setRecipe((r) => ({ ...r, layers: [...r.layers, layerOf(name)] }));
+    setSelected(recipe.layers.length);
+    onTool(held === "move" ? "pencil" : held);
   };
 
-  const labelOf = (layer: ComposeLayer) => kitNameOf(layer.image) ?? layer.image;
+  const labelOf = (layer: ComposeLayer) =>
+    layer.image === SELF ? asset.name : (kitNameOf(layer.image) ?? layer.image);
   const current = selected === null ? undefined : recipe.layers[selected];
   const currentImage = current && imageOf(current.image);
   const currentSize = current && sizeOf(current.image);
@@ -605,9 +660,14 @@ export function ComposedImageEditor({
   const target = held !== "move" && drawingAt(selected) ? selected : null;
   const drawn = target === null ? undefined : recipe.layers[target];
   const drawnImage = drawingAt(target);
+  // The pixels of the layer in hand are read to be drawn on; the others show their file.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: read again when the file changes, not when the asset object does
+  useEffect(() => {
+    if (drawnImage) history.read(drawnImage);
+  }, [drawnImage?.id, drawnImage?.contentHash]);
 
   /** The layers from `from` to `to`, shown without being held (`AroundLayer`). */
-  const shown = (from: number, to: number, zoom: number, faint: boolean, picture?: string) =>
+  const shown = (from: number, to: number, zoom: number, faint: boolean) =>
     recipe.layers.slice(from, to).map((layer, i) => {
       const image = imageOf(layer.image);
       return image ? (
@@ -619,24 +679,14 @@ export function ComposedImageEditor({
           from={ORIGIN}
           zoom={zoom}
           faint={faint}
-          picture={from + i === target ? picture : undefined}
+          picture={pictureOf(image)}
         />
       ) : null;
     });
 
-  /**
-   * The right column. `before` runs ahead of what leaves the layer being drawn (another layer
-   * selected, one added or removed): its pixels are saved first, and it stays when that fails.
-   */
-  const panels = (
-    before: (() => Promise<boolean>) | null,
-    picture?: string,
-    colour?: ReactNode,
-  ) => {
-    const then = (work: () => void) => () => {
-      if (before) void before().then((ok) => ok && work());
-      else work();
-    };
+  /** The right column; `colour` is what the tool in hand draws with. */
+  const panels = (colour?: ReactNode) => {
+    const layered = !lone || canHaveLayers(asset);
     return (
       <>
         <LayersPanel
@@ -644,26 +694,30 @@ export function ComposedImageEditor({
             index,
             label: labelOf(layer),
             image: imageOf(layer.image),
-            picture: index === target ? picture : undefined,
+            picture: pictureOf(imageOf(layer.image)),
             repeat:
               layer.columns > 1 || layer.rows > 1 ? `${layer.columns} × ${layer.rows}` : undefined,
             common: kitNameOf(layer.image) !== null,
           }))}
           selected={selected}
-          onSelect={(index) => then(() => select(index))()}
+          onSelect={select}
           onMove={move}
-          onRemove={(index) => then(() => remove(index))()}
-          add={{
-            common: then(() => setPicker("kit")),
-            module: then(() => setPicker("module")),
-            drawn: then(() => void draw()),
-            disabled: !user || busy || full,
-          }}
+          onRemove={remove}
+          add={
+            layered
+              ? {
+                  common: () => setPicker("kit"),
+                  module: () => setPicker("module"),
+                  drawn: draw,
+                  disabled: !user || busy || full,
+                }
+              : undefined
+          }
         >
-          {footer}
+          {footer?.(dirty)}
         </LayersPanel>
 
-        {current && selected !== null && (
+        {current && selected !== null && !alone && (
           <StudioSection title={t("studio.layer")} testId="compose-layer-fields">
             <div className="flex flex-wrap gap-3">
               <NumberField
@@ -740,52 +794,54 @@ export function ComposedImageEditor({
 
         {colour ? <StudioSection title={t("pixel.colour")}>{colour}</StudioSection> : null}
 
-        <StudioSection title={t("studio.size")}>
-          <label className="flex items-center gap-2 text-xs" htmlFor={`${fieldId}-fixed`}>
-            <input
-              id={`${fieldId}-fixed`}
-              type="checkbox"
-              className="accent-[var(--brand)]"
-              checked={fixed}
-              onChange={(event) =>
-                setRecipe((r) => ({
-                  ...r,
-                  width: event.target.checked ? (size?.width ?? SLOT) : null,
-                  height: event.target.checked ? (size?.height ?? SLOT) : null,
-                }))
-              }
-            />
-            {t("compose.fixedSize")}
-          </label>
-          {fixed && (
-            <div className="flex gap-3">
-              <NumberField
-                label={t("compose.width")}
-                value={recipe.width ?? 1}
-                min={1}
-                max={COMPOSE_MAX_SIDE}
-                onChange={(width) => setRecipe((r) => ({ ...r, width }), "field:width")}
+        {layered ? (
+          <StudioSection title={t("studio.size")}>
+            <label className="flex items-center gap-2 text-xs" htmlFor={`${fieldId}-fixed`}>
+              <input
+                id={`${fieldId}-fixed`}
+                type="checkbox"
+                className="accent-[var(--brand)]"
+                checked={fixed}
+                onChange={(event) =>
+                  setRecipe((r) => ({
+                    ...r,
+                    width: event.target.checked ? (size?.width ?? SLOT) : null,
+                    height: event.target.checked ? (size?.height ?? SLOT) : null,
+                  }))
+                }
               />
-              <NumberField
-                label={t("compose.height")}
-                value={recipe.height ?? 1}
-                min={1}
-                max={COMPOSE_MAX_SIDE}
-                onChange={(height) => setRecipe((r) => ({ ...r, height }), "field:height")}
-              />
-            </div>
-          )}
-          <p className="text-[11px] text-[var(--text-faint)]">{t("compose.sizeHint")}</p>
-        </StudioSection>
+              {t("compose.fixedSize")}
+            </label>
+            {fixed && (
+              <div className="flex gap-3">
+                <NumberField
+                  label={t("compose.width")}
+                  value={recipe.width ?? 1}
+                  min={1}
+                  max={COMPOSE_MAX_SIDE}
+                  onChange={(width) => setRecipe((r) => ({ ...r, width }), "field:width")}
+                />
+                <NumberField
+                  label={t("compose.height")}
+                  value={recipe.height ?? 1}
+                  min={1}
+                  max={COMPOSE_MAX_SIDE}
+                  onChange={(height) => setRecipe((r) => ({ ...r, height }), "field:height")}
+                />
+              </div>
+            )}
+            <p className="text-[11px] text-[var(--text-faint)]">{t("compose.sizeHint")}</p>
+          </StudioSection>
+        ) : null}
       </>
     );
   };
 
-  const preview = (picture?: string) =>
+  const preview = () =>
     situation && size ? (
       <StudioSection title={t("studio.guides.situation")}>
         <SituationPreview width={size.width} height={size.height}>
-          {shown(0, recipe.layers.length, SITUATION_SCALE, false, picture)}
+          {shown(0, recipe.layers.length, SITUATION_SCALE, false)}
         </SituationPreview>
       </StudioSection>
     ) : null;
@@ -808,11 +864,23 @@ export function ComposedImageEditor({
   if (drawn && drawnImage && target !== null) {
     // The whole image is shown, the layers under and over the one drawn on, which alone takes
     // the pencil. The layers above are shown through, so what is drawn under them stays visible.
-    const around = (zoom: number, picture: string) => ({
+    const drawing = history.drawing(drawnImage.id);
+    const pixels: PixelSource = {
+      image: drawing?.image ?? null,
+      failed: history.failed(drawnImage.id),
+      picture: drawing ? history.picture(drawnImage.id) : "",
+      touched: () => history.touched(drawnImage.id),
+      drew: (before) => history.drew(drawnImage.id, before),
+      undo: history.undo,
+      redo: history.redo,
+      canUndo: history.canUndo,
+      canRedo: history.canRedo,
+    };
+    const around = (zoom: number) => ({
       under: (
         <>
           {shown(0, target, zoom, false)}
-          {(drawn.columns > 1 || drawn.rows > 1) && shown(target, target + 1, zoom, false, picture)}
+          {(drawn.columns > 1 || drawn.rows > 1) && shown(target, target + 1, zoom, false)}
         </>
       ),
       over: (
@@ -834,36 +902,34 @@ export function ComposedImageEditor({
       <>
         <PixelEditor
           key={drawnImage.id}
-          projectId={projectId}
           asset={drawnImage}
+          pixels={pixels}
           tool={held as DrawTool}
           onTool={onTool}
+          move={alone ? t("studio.moveSingle") : undefined}
           within={
             size ? { width: size.width, height: size.height, x: drawn.x, y: drawn.y } : undefined
           }
           around={around}
-          layout={(pixels) =>
+          layout={(parts) =>
             layout({
-              rail: pixels.rail,
-              stage: pixels.stage,
-              status: pixels.status,
-              controls: pixels.controls,
-              keys: pixels.keys,
+              rail: parts.rail,
+              stage: parts.stage,
+              status: parts.status,
+              controls: parts.controls,
+              keys: parts.keys,
               actions: (
                 <SaveActions
-                  dirty={pixels.dirty || dirty}
-                  busy={pixels.busy || busy}
+                  dirty={dirty}
+                  busy={busy}
                   canSave={!!user}
-                  error={pixels.error ?? error}
-                  onSave={() => void pixels.save().then((ok) => ok && save())}
-                  onDiscard={() => {
-                    pixels.discard();
-                    setRecipe(saved);
-                  }}
+                  error={error}
+                  onSave={() => void save()}
+                  onDiscard={discard}
                 />
               ),
-              panels: panels(pixels.save, pixels.picture, pixels.colour),
-              preview: preview(pixels.picture),
+              panels: panels(parts.colour),
+              preview: preview(),
             })
           }
         />
@@ -923,6 +989,7 @@ export function ComposedImageEditor({
                       layer={layer}
                       scale={scale}
                       selected={selected === index}
+                      picture={pictureOf(image)}
                       label={t("compose.layerLabel", { name: labelOf(layer), n: index + 1 })}
                       {...handlers(index, layer)}
                       onResize={
@@ -971,10 +1038,10 @@ export function ComposedImageEditor({
             canSave={!!user && recipe.layers.length > 0}
             error={error}
             onSave={() => void save()}
-            onDiscard={() => setRecipe(saved)}
+            onDiscard={discard}
           />
         ),
-        panels: panels(null),
+        panels: panels(),
         preview: preview(),
       })}
       {pickers}

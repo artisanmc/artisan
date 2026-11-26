@@ -246,27 +246,33 @@ An image is edited in the atelier (`ImageStudio.tsx`), a page laid out as a draw
 (`StudioFrame.tsx`): tools on the left (`StudioTools` over `components/ui/tool-rail.tsx`: move,
 pencil, eraser, pipette, paint bucket; the tool in hand is `ImageStudio`'s), the image in the
 middle, and on the right the layers (`LayersPanel.tsx`), the selected layer's fields, the
-colours, the image's size, the guides and the preview. The two editors render nothing by
-themselves: each gives its parts (`StudioParts`, `PixelParts`) to a `layout` callback, and
-shows the image at the zoom of `useStageZoom` (fitted to the room, or `useStudioView`'s
-choice). A PNG is listed as its one layer, and a layer added to it makes it a composed image
-first (`toLayers`). With a drawing tool on a composed image, the selected layer, when it is a
-PNG of the module, is drawn by `PixelEditor` inside the whole image (`within`, the other
-layers through `around`); what leaves that layer (another one selected, the move tool, a
-layer added or removed) saves its pixels first. The composer (`ComposedImageEditor.tsx`) lays the layers out: each
+colours, the image's size, the guides and the preview. Every image is edited by
+`ComposedImageEditor.tsx`, which renders nothing by itself: it gives its parts (`StudioParts`)
+to a `layout` callback, and shows the image at the zoom of `useStageZoom` (fitted to the room,
+or `useStudioView`'s choice). A PNG is an image of one layer that names the PNG itself (`SELF`,
+never written). The image open is one document (`imageDocument.ts`, `useImageDocument`): the
+recipe, and the pixels of each layer drawn on (`Drawing`: the `RgbaImage` changed in place,
+its saved copy, the content hash it was read from), with one history whose steps hold the
+recipe before and the pixels a stroke drew over (100 steps). Nothing is written before Save,
+which runs in this order: the layers drawn here (drafts, `draft:<name>` until then) get their
+files, the drawings whose pixels changed are uploaded with `retouch`, then the recipe is
+patched; a PNG whose recipe is no longer its one layer becomes a composed image of the same
+name there (`toLayers`, given the recipe to write). With a drawing tool, the selected layer,
+when it is a PNG of the module, is drawn by `PixelEditor` inside the whole image (`within`,
+the other layers through `around`) on the document's pixels (`PixelSource`); a layer whose
+pixels are unsaved is shown from them everywhere (`pictureOf`). The editor lays the layers out: each
 layer is an element laid at its place in game pixels (a grid as a repeated background, so the
 browser draws what the pack will), dragged with the pointer (Shift: steps of one slot, 18 px)
 or nudged with the arrow keys; the list beside it orders, removes and adds layers (`KitPicker`
 for a kit image, `ImageChoiceDialog` for a PNG of the module). The size shown is `composeSize`,
-the pack's rule on the layers' sizes alone. Nothing is written before **Save layers**, one patch.
+the pack's rule on the layers' sizes alone.
 `ComposeNewDialog` (Resources page, **Compose an image**) creates one from a kit window or a
 kit button.
-An image that has a PNG is retouched in the same pane (`PixelEditor.tsx`, **Retouch pixels**):
-its bytes are read once (`assetBytes.ts`) and decoded by the pack's own `decodePng`, never
+A layer's pixels are drawn by `PixelEditor.tsx`: its bytes are read once (`assetBytes.ts`) and decoded by the pack's own `decodePng`, never
 through a canvas, whose premultiplied alpha would change translucent pixels. The tools are pure
 functions on that `RgbaImage` (`pixelTools.ts`: `paint`, `paintLine` so a fast stroke leaves no
 gap, `fill` by four neighbours, `colours`); the picture shown is the PNG encoded again after
-each change, as a `data:` URL. Undo keeps one copy of the image per stroke (50 at most). The
+each change, as a `data:` URL. Undo keeps one copy of the layer per stroke, in the document's history. The
 palette is the image's colours and a few from each kit image (`useKitColours`). Saving is an
 upload under the same name with `retouch` (`localAssets.ts`): like a reimport it keeps
 codepoint, ascent and usages, and it also keeps the size the image is shown at (a glyph scaled

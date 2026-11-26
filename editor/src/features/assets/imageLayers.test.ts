@@ -68,6 +68,27 @@ describe("image layers", () => {
     expect(made.image.compose).toBeDefined();
   });
 
+  it("gives the image the layers asked for, told the name its PNG took", async () => {
+    patchAsset.mockResolvedValue(image("go_layer", { usages: [] }));
+    composeAsset.mockResolvedValue(image("go", { compose: recipe }));
+    await toLayers("p1", image("go"), new Set(["go"]), false, (layer) => ({
+      width: 54,
+      height: 18,
+      layers: [
+        { image: layer, x: 0, y: 0, columns: 1, rows: 1 },
+        { image: "artisan:cell", x: 18, y: 0, columns: 2, rows: 1 },
+      ],
+    }));
+    expect(composeAsset.mock.calls[0]?.[1].recipe).toEqual({
+      width: 54,
+      height: 18,
+      layers: [
+        { image: "go_layer", x: 0, y: 0, columns: 1, rows: 1 },
+        { image: "artisan:cell", x: 18, y: 0, columns: 2, rows: 1 },
+      ],
+    });
+  });
+
   it("copies an image the module ships as the layer, the owner holding no file to rename", async () => {
     const shipped = image("go", { previewUrl: "data:image/png;base64,AQID" });
     uploadAsset.mockResolvedValue(image("go_layer", { usages: [] }));
