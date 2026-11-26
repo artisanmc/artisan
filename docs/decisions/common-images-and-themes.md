@@ -362,6 +362,21 @@ builders; `ImageRefs.kt` did not change).
 - `list_documents` lists the images that are not taken (`images_not_taken`: the path, the
   original that shows, its function, the measures to draw at), as `read_image` says of one.
 
+**Step 5, fifth part: the lists say that an original changed, the server's too**
+(`imageMarks`' `origins`, `useProjectOrigins`, `useServerImageMarks`, `imageMarkShown`;
+decisions 8 and 12).
+
+- A third mark, `original_changed`: the owner's version stands over an original that changed
+  since (the origins the server recorded, as the image's notice reads them). The dot is the
+  warning's; an image the pack does not take says that first, in the danger colour, as its
+  panel does.
+- A module's list reads the origins when the module holds a version of its own over an
+  original, and only then (`useProjectOrigins`, which the image's notice shares).
+- The server's **Resources** mark a module's image the same way, from the modules as
+  published (`useKitStore.modules`); the origins of a module are asked of its server once per
+  read of the module, when it holds such a version. A server that does not answer leaves the
+  marks its files give. The image's panel there says the mark in words.
+
 **Step 4, first part: the themes in place are a stack** (`ThemeStack` in `Theme.kt`,
 `kitThemeStack` in `theme.ts`, `EditableConfig.kt`).
 `resource-pack.themes` of `config.yml` is the ordered list of decision 6, the lowest first, on
@@ -651,9 +666,9 @@ Not there yet:
   read-only. Both read the common images as published, so an image drawn in the theme's draft
   shows there once deployed. The uses count the menus, the composed images' layers and the
   files of the kinds that ask the pack for images, the open module's as its draft holds
-  them; a name the pack does not read (in a text) counts nowhere. The change of an original and a module's
-  original show on the image in its module only, not in the server's list (the module's
-  list marks the owner's versions, step 5, fourth part). A module's own image or
+  them; a name the pack does not read (in a text) counts nowhere. Both lists mark the owner's
+  versions, the ones whose original changed and the ones not taken (step 5, fourth and fifth
+  parts); the original itself shows beside the image in its module only. A module's own image or
   font is copied to the common images from its panel in the module (**Copy to the common
   images**: `useResourcesView.askShare`, answered in the common images' Project by
   `useCommonCopyAsked` with the copy the picker already makes, into that Project's draft); it

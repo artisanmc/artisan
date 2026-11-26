@@ -8,9 +8,14 @@ import {
   imagesOverOriginals,
   refusedImages,
 } from "@/lib/pack/imageFunction";
+import type { ProjectId } from "@/domain/types";
+import { type FileOrigin, fetchProjectOrigins } from "@/lib/api/templates";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { useMemo } from "react";
+import { useKitStore } from "@/state/kitStore";
+import { originalChanged } from "@/state/projectTemplatesStore";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useProjectOrigins } from "./useProjectOrigins";
 
 type BinaryTree = Record<string, { hash: string }>;
 
@@ -142,15 +147,26 @@ export function imageNotTaken(
 }
 
 /**
- * What a module's list marks on an image: `not_taken`, the pack leaves it out ([imageNotTaken]);
- * `own_version`, the owner's file stands over one the module ships (decision 8).
+ * What a list marks on a module's image: `not_taken`, the pack leaves it out ([imageNotTaken]);
+ * `own_version`, the owner's file stands over one the module ships (decision 8);
+ * `original_changed`, that original changed since the owner's version, which stays the one
+ * shown. An image the pack leaves out says that first.
  */
-export type ImageMark = "not_taken" | "own_version";
+export type ImageMark = "not_taken" | "original_changed" | "own_version";
 
-/** The marks of a module's images, by the stem of their file (`assets/textures/crest`). */
+/** The stem of the file of an image, which [imageMarks] keys by. */
+export const imageStem = (asset: Pick<Asset, "id" | "type">): string =>
+  assetDiskPath(asset.type, asset.id).replace(/\.png$/, "");
+
+/**
+ * The marks of a module's images, by the stem of their file (`assets/textures/crest`).
+ * `origins`: what the server recorded of the module's files (`fetchProjectOrigins`); without
+ * them no image is said to have a changed original.
+ */
 export function imageMarks(
   files: Record<string, string>,
   binaries: BinaryTree,
+  origins?: Record<string, FileOrigin>,
 ): Map<string, ImageMark> {
   const stemOf = (path: string) => path.replace(/\.[^./]+$/, "");
   const shipped = new Set(
@@ -162,7 +178,8 @@ export function imageMarks(
   if (shipped.size === 0) return marks;
   for (const path of Object.keys(binaries)) {
     const stem = stemOf(path);
-    if (!path.startsWith(ORIGINALS) && shipped.has(stem)) marks.set(stem, "own_version");
+    if (path.startsWith(ORIGINALS) || !shipped.has(stem)) continue;
+    marks.set(stem, origins && originalChanged(origins, path) ? "original_changed" : "own_version");
   }
   const { fileList, binaryList } = lists(files, binaries);
   const overs = imagesOverOriginals(fileList, binaryList);
@@ -171,7 +188,11 @@ export function imageMarks(
   return marks;
 }
 
-/** [imageMarks] of the open module, as its draft holds it, else as published: the mark of an image. */
+/**
+ * [imageMarks] of the open module, as its draft holds it, else as published: the mark of an
+ * image. The origins are read from the server when the module holds a version of its own
+ * over an original, and only then.
+ */
 export function useImageMarks(
   projectId: string,
 ): (asset: Pick<Asset, "id" | "type">) => ImageMark | null {
@@ -180,13 +201,15 @@ export function useImageMarks(
   const publishedBinaries = useProjectBaselineStore((s) => s.binaryBaselines[projectId]);
   const files = draft?.tree ?? publishedFiles;
   const binaries = draft?.binaryTree ?? draft?.binaryBaseline ?? publishedBinaries;
+  const plain = useMemo(
+    () => (files && binaries ? imageMarks(files, binaries) : new Map<string, ImageMark>()),
+    [files, binaries],
+  );
+  const origins = useProjectOrigins(projectId as ProjectId, plain.size > 0).entry?.origins;
   return useMemo(() => {
-    const marks = files && binaries ? imageMarks(files, binaries) : new Map<string, ImageMark>();
-    return (asset) =>
-      asset.type === "font"
-        ? null
-        : (marks.get(assetDiskPath(asset.type, asset.id).replace(/\.png$/, "")) ?? null);
-  }, [files, binaries]);
+    const marks = files && binaries && origins ? imageMarks(files, binaries, origins) : plain;
+    return (asset) => (asset.type === "font" ? null : (marks.get(imageStem(asset)) ?? null));
+  }, [files, binaries, origins, plain]);
 }
 
 /** [imageNotTaken] of an image of the open module, as its draft holds it, else as published. */
@@ -205,4 +228,53 @@ export function useImageNotTaken(
     () => (files && binaries && id && type ? imageNotTaken(files, binaries, { id, type }) : null),
     [files, binaries, id, type],
   );
+}
+
+/**
+ * The marks of the images of the server's modules as published (`useKitStore.modules`), for
+ * the server's Resources: by Project id, then by stem. The origins of a module are asked of
+ * its server once, when it holds a version of its own over an original; a module that cannot
+ * be asked (its server is off) keeps its other marks.
+ */
+export function useServerImageMarks(
+  projectIds: readonly string[],
+): (asset: Pick<Asset, "id" | "type" | "projectId">) => ImageMark | null {
+  const modules = useKitStore((s) => s.modules);
+  const [origins, setOrigins] = useState<Record<string, Record<string, FileOrigin>>>({});
+  const shown = useMemo(() => {
+    const ids = new Set(projectIds);
+    return modules
+      .filter((m) => ids.has(m.projectId))
+      .map((m) => ({
+        id: m.projectId,
+        read: m,
+        files: m.files,
+        binaries: Object.fromEntries(m.binaries.map((b) => [b.path, { hash: b.hash }])),
+      }));
+  }, [modules, projectIds]);
+  const plain = useMemo(
+    () => new Map(shown.map((m) => [m.id, imageMarks(m.files, m.binaries)] as const)),
+    [shown],
+  );
+  // Asked again when the module is read again: a deploy or an update may have changed them.
+  const asked = useRef(new WeakSet<object>());
+  useEffect(() => {
+    for (const { id, read } of shown) {
+      if (!plain.get(id)?.size || asked.current.has(read)) continue;
+      asked.current.add(read);
+      void fetchProjectOrigins(id).then((answer) => {
+        if (answer.ok) setOrigins((held) => ({ ...held, [id]: answer.origins }));
+      });
+    }
+  }, [shown, plain]);
+  return useMemo(() => {
+    const marks = new Map(
+      shown.map((m) => {
+        const read = origins[m.id];
+        return [m.id, read ? imageMarks(m.files, m.binaries, read) : plain.get(m.id)] as const;
+      }),
+    );
+    return (asset) =>
+      asset.type === "font" ? null : (marks.get(asset.projectId)?.get(imageStem(asset)) ?? null);
+  }, [shown, origins, plain]);
 }

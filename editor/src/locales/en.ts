@@ -18,6 +18,7 @@ export default {
     mark: {
       notTaken: "Not taken: the module's original shows",
       ownVersion: "Your version of an image the module ships",
+      originalChanged: "Your version: the module's original changed since",
     },
     original: {
       label: "The module's original",

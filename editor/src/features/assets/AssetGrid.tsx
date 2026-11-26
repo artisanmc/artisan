@@ -3,6 +3,7 @@ import { assetPreviewUrl } from "@/domain/asset";
 import { cx } from "@/lib/cx";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState } from "react";
+import type { ImageMark } from "./imageStanding";
 
 const TILE_SIZE = 48;
 const GAP = 6;
@@ -20,8 +21,19 @@ interface AssetGridProps {
 }
 
 export interface AssetMark {
-  tone: "warning" | "brand";
+  tone: "danger" | "warning" | "brand";
   label: string;
+}
+
+/**
+ * How a list shows the mark of a module's image (`imageStanding.ts`): an image the pack
+ * leaves out as the image's panel says it, a changed original as its notice does.
+ */
+export function imageMarkShown(mark: ImageMark, t: (key: string) => string): AssetMark {
+  if (mark === "not_taken") return { tone: "danger", label: t("resources.mark.notTaken") };
+  if (mark === "original_changed")
+    return { tone: "warning", label: t("resources.mark.originalChanged") };
+  return { tone: "brand", label: t("resources.mark.ownVersion") };
 }
 
 export function AssetGrid({

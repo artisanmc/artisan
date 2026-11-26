@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AssetDetailPanel } from "./AssetDetailPanel";
-import { AssetGrid, type AssetMark } from "./AssetGrid";
+import { AssetGrid, type AssetMark, imageMarkShown } from "./AssetGrid";
 import { AssetImportFontDialog } from "./AssetImportFontDialog";
 import { AssetImportNexoDialog } from "./AssetImportNexoDialog";
 import { AssetStage } from "./AssetStage";
@@ -608,9 +608,7 @@ function OwnAssets({
   const marks = useImageMarks(projectId);
   const markOf = (asset: Asset): AssetMark | null => {
     const mark = isKitModule(projectId) ? null : marks(asset);
-    if (mark === "not_taken") return { tone: "warning", label: t("resources.mark.notTaken") };
-    if (mark === "own_version") return { tone: "brand", label: t("resources.mark.ownVersion") };
-    return null;
+    return mark ? imageMarkShown(mark, t) : null;
   };
 
   const filtered = assets.filter((asset) =>
