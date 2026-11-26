@@ -4364,6 +4364,101 @@
       ],
       "textUpFonts": 129,
       "sha1": "3d57e4c1c35cd5d2461ebf360a3a9a63c20d719b"
+    },
+    {
+      "name": "base margins: a base button larger than its drawing keeps its edges and repeats its middle (button, panel, card); at its own size it is as drawn; the server's redraw of a base image declares its own margins or is drawn by its fit",
+      "projects": [
+        {
+          "id": "survival.shop",
+          "folder": "shop",
+          "files": {
+            "menus/shop.yaml": "id: shop\nsize: 54\nelements:\n  - positions: 0-3\n    image: { asset: button.3x1 }\n  - positions: 5-7\n    image: { asset: button.3x1, fit: native }\n  - positions: 9-13\n    image: { asset: 'artisan:panel.3x1', fit: native }\n  - positions: 18-21,27-30,36-39\n    image: { asset: card.3x2 }\n  - positions: 23-26\n    image: { asset: button.danger.3x1 }\n  - positions: 45-46\n    image: { asset: button.plain.3x1 }\n"
+          },
+          "binaries": {}
+        },
+        {
+          "id": "survival.artisan",
+          "folder": "artisan",
+          "files": {},
+          "binaries": {
+            "assets/textures/button.danger.3x1.png": "iVBORw0KGgoAAAANSUhEUgAAADYAAAASCAYAAAAQeC39AAAAN0lEQVR4nO3PAREAIAjAQCQJUYxuM0nBefP2CbZV+9z4UL4OmOIYjWM0jtE4RuMYjWM0jtE4RtN59wJDsvq41wAAAABJRU5ErkJggg=="
+          }
+        }
+      ],
+      "containerTextures": {},
+      "vanillaGui": false,
+      "entries": [
+        "assets/artisan/asset-index.json",
+        "assets/artisan/font/buttons/20a3c76b1d276649f7270ec3b164cc43c8244f732cf125584b5b118a42d43a86_36_18_contain_107.json",
+        "assets/artisan/font/buttons/c22b4857f5d9f39f57091d6871d6c335fec184fa093ebf305b0348750b3508ff_54_18_native_17.json",
+        "assets/artisan/font/buttons/c22b4857f5d9f39f57091d6871d6c335fec184fa093ebf305b0348750b3508ff_72_18_contain_17.json",
+        "assets/artisan/font/buttons/c933a166edd6ab9667182809bb68114d00ca292a126c20a7caf4f9d3dde9110c_72_18_contain_53.json",
+        "assets/artisan/font/buttons/d59ece59d6a7bb8d62eb5745dc7cfd35f1bd5ecc1e1b57238f7d8e96adb22509_72_54_contain_53.json",
+        "assets/artisan/font/buttons/d8fb074a654e3e71ddb07c0cb9d046b4e8efafb1dc69a5c033086a4e60640907_90_18_native_35.json",
+        "assets/artisan/font/default.json",
+        "assets/artisan/font/vanilla_gui.json",
+        "assets/artisan/items/buttons/hit_area.json",
+        "assets/artisan/textures/buttons/20a3c76b1d276649f7270ec3b164cc43c8244f732cf125584b5b118a42d43a86_36_18_contain_107.png",
+        "assets/artisan/textures/buttons/c22b4857f5d9f39f57091d6871d6c335fec184fa093ebf305b0348750b3508ff_54_18_native_17.png",
+        "assets/artisan/textures/buttons/c22b4857f5d9f39f57091d6871d6c335fec184fa093ebf305b0348750b3508ff_72_18_contain_17.png",
+        "assets/artisan/textures/buttons/c933a166edd6ab9667182809bb68114d00ca292a126c20a7caf4f9d3dde9110c_72_18_contain_53.png",
+        "assets/artisan/textures/buttons/d59ece59d6a7bb8d62eb5745dc7cfd35f1bd5ecc1e1b57238f7d8e96adb22509_72_54_contain_53.png",
+        "assets/artisan/textures/buttons/d8fb074a654e3e71ddb07c0cb9d046b4e8efafb1dc69a5c033086a4e60640907_90_18_native_35.png",
+        "assets/artisan/textures/font/accented_up.png",
+        "assets/artisan/textures/font/ascii_up.png",
+        "assets/artisan/textures/font/nonlatin_european_up.png",
+        "assets/artisan/textures/font/text_accented.png",
+        "assets/artisan/textures/font/text_ascii.png",
+        "assets/artisan/textures/font/text_nonlatin_european.png",
+        "assets/artisan/textures/gui/dispenser.png",
+        "assets/artisan/textures/gui/generic_9x1.png",
+        "assets/artisan/textures/gui/generic_9x2.png",
+        "assets/artisan/textures/gui/generic_9x3.png",
+        "assets/artisan/textures/gui/generic_9x4.png",
+        "assets/artisan/textures/gui/generic_9x5.png",
+        "assets/artisan/textures/gui/generic_9x6.png",
+        "assets/artisan/textures/gui/hopper.png",
+        "pack.mcmeta",
+        "pack.png"
+      ],
+      "entryHashes": {
+        "assets/artisan/asset-index.json": "aa17cf8699b3090addb6fbd9eda12231d0e0d19e92acae67246ef7b9b1bb48f4",
+        "assets/artisan/font/buttons/20a3c76b1d276649f7270ec3b164cc43c8244f732cf125584b5b118a42d43a86_36_18_contain_107.json": "dd4f1424c35a1bb25e038af1fe5d55d7b3596cf9407d149078e36364609f479e",
+        "assets/artisan/font/buttons/c22b4857f5d9f39f57091d6871d6c335fec184fa093ebf305b0348750b3508ff_54_18_native_17.json": "0b22a7eb0e09f6f8dc0e1b0425f5baab3c6b4ef60be5cfea9c992efa30bd06c9",
+        "assets/artisan/font/buttons/c22b4857f5d9f39f57091d6871d6c335fec184fa093ebf305b0348750b3508ff_72_18_contain_17.json": "a94ad7261d94d1b265a7de800711ddb3321c512aacb182901c57ff39c49320a5",
+        "assets/artisan/font/buttons/c933a166edd6ab9667182809bb68114d00ca292a126c20a7caf4f9d3dde9110c_72_18_contain_53.json": "5cc320dde4e4ada354b0b4cfe472b60b1e787678fa22644049d67a03694271a4",
+        "assets/artisan/font/buttons/d59ece59d6a7bb8d62eb5745dc7cfd35f1bd5ecc1e1b57238f7d8e96adb22509_72_54_contain_53.json": "d352262b9ac46776a57c6f53fe7026907453aca51e0f52754e5b48c3fe955fc1",
+        "assets/artisan/font/buttons/d8fb074a654e3e71ddb07c0cb9d046b4e8efafb1dc69a5c033086a4e60640907_90_18_native_35.json": "32b153bc2e55498b1082b214810aad466fd732bce35fe74a99b4be0145f1e70b",
+        "assets/artisan/font/default.json": "b5f2753c7c38eac17fb8d8d5e4fcd0758c1ebfaa3e3e6337dcdf491300aa1a3c",
+        "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
+        "assets/artisan/items/buttons/hit_area.json": "640b1ffd4b0f72ba22d7609e6adda9db80cef06419d273aa8ac528631a8ef135",
+        "assets/artisan/textures/buttons/20a3c76b1d276649f7270ec3b164cc43c8244f732cf125584b5b118a42d43a86_36_18_contain_107.png": "938215f8cece9f6a55691b21c397b75d20be96758cf4cccd098f0d477799bee6",
+        "assets/artisan/textures/buttons/c22b4857f5d9f39f57091d6871d6c335fec184fa093ebf305b0348750b3508ff_54_18_native_17.png": "7e812c992d9bc8d82365bcbf9ef86c75192045a5ba2085d8a45fae9a5d66f223",
+        "assets/artisan/textures/buttons/c22b4857f5d9f39f57091d6871d6c335fec184fa093ebf305b0348750b3508ff_72_18_contain_17.png": "60b8d6470d0026b49314c714f6b472264d227193dca2aef69fef4ea7d87220c4",
+        "assets/artisan/textures/buttons/c933a166edd6ab9667182809bb68114d00ca292a126c20a7caf4f9d3dde9110c_72_18_contain_53.png": "723b571d85575f8d6e0074acb0f608ec3db6e99af63b73b8ba721e2973a51436",
+        "assets/artisan/textures/buttons/d59ece59d6a7bb8d62eb5745dc7cfd35f1bd5ecc1e1b57238f7d8e96adb22509_72_54_contain_53.png": "cf00ee979224d16f34791fc8cd576a8c9513f6aef8d079cb5f683d4bee08e0cc",
+        "assets/artisan/textures/buttons/d8fb074a654e3e71ddb07c0cb9d046b4e8efafb1dc69a5c033086a4e60640907_90_18_native_35.png": "a5017cc97e1e26917ef0924f1db114871141183c12f0ab0fcc7f9d2a759d56bd",
+        "assets/artisan/textures/font/accented_up.png": "454c174ce9e1aeefde41326f571561130bfc4cf5b1c39e26554bd7e34f1e6a18",
+        "assets/artisan/textures/font/ascii_up.png": "a2ca25208d39ab01617fc5d855f6e8e3f4d00100d114f19b5f79adcceb58a238",
+        "assets/artisan/textures/font/nonlatin_european_up.png": "210a35d91ac279d37b6f2f2162926acc7a46953d80fa8133b7ea83b11631bae0",
+        "assets/artisan/textures/font/text_accented.png": "0c4946dabaaedc7198be189b99e64c17be55c2bfe08bd53d947b7ee59cb7a569",
+        "assets/artisan/textures/font/text_ascii.png": "a2861a21e3ff5edcdc9e033c14fa31773136a0d54754c9bdf11d3cd4e0e5d000",
+        "assets/artisan/textures/font/text_nonlatin_european.png": "de2955e6ac0a6d24c852bb412721a2701d00c642f6e52e1205624fcc614f1b7e",
+        "assets/artisan/textures/gui/dispenser.png": "437f4c4c7cc98af96577d01a62aba607cf999bdc6ad032fa6cdf6ad47f44b718",
+        "assets/artisan/textures/gui/generic_9x1.png": "898d282a843d306f23652f10f78e8bf765f25d5095f60e8cab8db8543b2fee02",
+        "assets/artisan/textures/gui/generic_9x2.png": "fcb46d8c1adfb5c510e2f6560a037854c580e74059a57525bfd56b81f5a21a19",
+        "assets/artisan/textures/gui/generic_9x3.png": "6a5e5e3951556e6b87c73bf26096997afe63dd6da00116c97bbb2782e0a77da0",
+        "assets/artisan/textures/gui/generic_9x4.png": "bcb32b11964ab9aac32c6b8711618b94918461a73ffee7b9dc3f0073931337ef",
+        "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
+        "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
+        "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
+        "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
+      },
+      "textYFonts": 168,
+      "textYSized": [],
+      "textUpFonts": 129,
+      "sha1": "2561c47284497f761c2e853f2e3b2fd233e8bb00"
     }
   ]
 }

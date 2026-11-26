@@ -37,7 +37,16 @@ describe("UI kit", () => {
     expect(new Set(KIT_SLOTS.map((s) => s.id)).size).toBe(KIT_SLOTS.length);
     for (const slot of KIT_SLOTS) {
       const { width, height } = decodePng(await shipped(slot.id));
-      expect({ id: slot.id, width, height }).toEqual(slot);
+      expect({ id: slot.id, width, height }).toEqual({
+        id: slot.id,
+        width: slot.width,
+        height: slot.height,
+      });
+      // Margins leave a middle to stretch, inside the image.
+      if (slot.slice) {
+        expect(slot.slice.left + slot.slice.right).toBeLessThan(width);
+        expect(slot.slice.top + slot.slice.bottom).toBeLessThan(height);
+      }
     }
   });
 

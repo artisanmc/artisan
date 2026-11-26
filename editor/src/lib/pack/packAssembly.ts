@@ -20,6 +20,7 @@ import {
   kitNameOf,
   kitShippedName,
   kitShippedPath,
+  kitSlot,
 } from "./kit";
 import {
   type GlyphPlacement,
@@ -407,8 +408,12 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
       contentWidth: null,
       fontMeta: null,
       contentHash: sha256Hex(png),
-      // The margins the server's common image declares; the base's images declare none yet.
-      ...(kitSlices.has(name) ? { slice: kitSlices.get(name)! } : {}),
+      // The margins the server's common image declares, else the ones of the base's own drawing.
+      ...(kitSlices.has(name)
+        ? { slice: kitSlices.get(name)! }
+        : !serverOwn(name, image.png) && kitSlot(name)?.slice
+          ? { slice: kitSlot(name)!.slice! }
+          : {}),
       createdAt: new Date(0),
       updatedAt: new Date(0),
     });

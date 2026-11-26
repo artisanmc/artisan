@@ -21,6 +21,7 @@ import {
   moduleImageKey,
 } from "@/lib/pack/kit";
 import { kitImageUrl } from "@/lib/pack/kitUrls";
+import { type Slice, sliceOf } from "@/lib/pack/slice";
 import type { KitTheme, ThemeLook } from "@/lib/pack/theme";
 import { type KitRead, type ModuleRead, useKitStore } from "@/state/kitStore";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -48,6 +49,8 @@ interface OwnImage {
   height: number | null;
   /** The image says it follows the ramps: the themes' colours repaint it. */
   ramps?: boolean;
+  /** The margins its descriptor declares (`slice`). */
+  slice?: Slice;
 }
 
 const size = (value: unknown): number | null =>
@@ -78,6 +81,7 @@ function ownImages(read: KitRead | undefined): Map<string, OwnImage> {
       width: size(descriptor?.width),
       height: size(descriptor?.height),
       ...(followsRamps(descriptor) ? { ramps: true } : {}),
+      ...(sliceOf(descriptor) ? { slice: sliceOf(descriptor)! } : {}),
     });
   }
   return out;
@@ -91,9 +95,12 @@ function kitAsset(
   url: string,
   hash: string,
   ramps: boolean,
+  slice?: Slice,
 ): Asset {
   return {
     ...(ramps ? { ramps: true } : {}),
+    // The margins a button larger than the image keeps: the canvas draws it as the pack does.
+    ...(slice ? { slice } : {}),
     id: KIT_PREFIX + name,
     projectId: KIT_FOLDER,
     type: "texture",
@@ -232,8 +239,24 @@ export function kitAssetsOf(
   const base = KIT_SLOTS.map((slot) => {
     const mine = own.get(slot.id);
     return mine && fits(slot, mine)
-      ? kitAsset(slot.id, slot.width, slot.height, mine.url, mine.hash, mine.ramps === true)
-      : kitAsset(slot.id, slot.width, slot.height, kitImageUrl(slot.id) ?? "", "", true);
+      ? kitAsset(
+          slot.id,
+          slot.width,
+          slot.height,
+          mine.url,
+          mine.hash,
+          mine.ramps === true,
+          mine.slice,
+        )
+      : kitAsset(
+          slot.id,
+          slot.width,
+          slot.height,
+          kitImageUrl(slot.id) ?? "",
+          "",
+          true,
+          slot.slice,
+        );
   });
   const slots = new Set(KIT_SLOTS.map((s) => s.id));
   const others = [...own]
@@ -246,6 +269,7 @@ export function kitAssetsOf(
         image.url,
         image.hash,
         image.ramps === true,
+        image.slice,
       ),
     );
   return [...base, ...others];

@@ -285,6 +285,11 @@ Choose **Item** to return to a material-based appearance.
 the margins stay as drawn (the four corners), and what is between them is repeated, never
 scaled, so a button drawn once at 20 × 18 serves on 2, 3 or 5 slots without blurring.
 
+Artisan's own buttons, panel and card (`button.3x1`, `button.danger.3x1`, `button.off.3x1`,
+`button.plain.3x1`, `panel.3x1`, `card.3x2`) are sliced: placed on more slots than their
+drawing, they fill them. Your own redraw of one is drawn by its `fit` unless its file
+declares margins.
+
 ```yaml
 # assets/textures/button.yml
 width: 20
