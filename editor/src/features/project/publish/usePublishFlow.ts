@@ -29,6 +29,7 @@ import {
   projectTree,
   saveProjectToDisk,
 } from "@/features/project/saveProjectToDisk";
+import { imageHolders } from "@/features/serverIndex/imageHolders";
 import { serverChecksFor } from "@/features/serverIndex/serverChecks";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { ApiError } from "@/lib/api/client";
@@ -198,10 +199,21 @@ export function usePublishFlow(
       binaryBefore: current?.binaryBaseline,
       binaryAfter: current?.binaryTree,
     };
+    // The module's images as the draft holds them, else as published.
+    const held =
+      current?.binaryTree ??
+      current?.binaryBaseline ??
+      useProjectBaselineStore.getState().binaryBaselines[projectId];
+    const images = held && Object.keys(held);
     dispatch({
       type: "reviewOpened",
       // Checks against the other projects' published state, read at review time.
-      checks: serverChecksFor(live ?? project, useServerIndexStore.getState()),
+      checks: serverChecksFor(
+        live ?? project,
+        useServerIndexStore.getState(),
+        // The images its menus name, against the module's own as this draft holds them.
+        imageHolders(live ?? project, { files: Object.keys(changes.after), binaries: images }),
+      ),
       changes,
     });
     // The other Projects' drafts, and this one's other drafts: listed under it.
