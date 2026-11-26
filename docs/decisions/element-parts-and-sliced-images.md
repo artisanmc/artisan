@@ -276,8 +276,20 @@ values for the parameters in the preview (it shows the defaults), the uses in ot
 modules, renaming. The view is the page's (`ProjectCanvasPage` gives it to `AssetsTab`), so
 the Resources of the common images' Project list the common components the same way.
 
+**Step 5, the base's margins (2026-11-26).** `slots.json` declares the margins of the
+base's buttons, panel and card (`slice`: 3/3/4/4 for the four `button.*.3x1`, 2 all round
+for `panel.3x1`, 3 all round for `card.3x2`, each measured on the drawing: every column and
+row between them is the same). Both pack builders give them to the base's own drawing of an
+image (`Kit.Slot.slice`, `KitSlot.slice`), never to the server's redraw of it, which
+declares its own in its descriptor or is drawn by its fit; a theme's `overrides/` PNG of a
+base image keeps the base's. The editor's canvas reads them on the common images
+(`kitAssetsOf`), and a server's own common image's too. At its own size a base image is
+drawn as before, pixel for pixel; on a larger rectangle it now fills it where it sat
+centred. `value.*` (16 px high) declares none: on its 18 px slots it would change. Shared
+case in the conformance vector.
+
 Not built: `render_menu` (it draws a sliced image by
-its fit), the base's buttons declared sliced, the rule that a redraw or a theme keeps the
+its fit), the rule that a redraw or a theme keeps the
 margins (the margins are the descriptor's of the image that is shown; a theme's
 `overrides/` PNG is drawn with the margins of the image it redraws).
 

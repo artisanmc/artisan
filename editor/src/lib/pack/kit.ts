@@ -69,6 +69,8 @@ export interface KitSlot {
   id: string;
   width: number;
   height: number;
+  /** The margins the base's drawing keeps when a button is larger than it; absent: drawn at its size. */
+  slice?: { left: number; right: number; top: number; bottom: number };
 }
 
 /** The base, in the order it is shown. */

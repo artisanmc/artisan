@@ -286,8 +286,8 @@ object ResourcePackBuilder {
             allAssets += AssetRow(
                 id, Kit.FOLDER, if (glyph) "glyph" else "texture", Kit.FILES + name, image.width.toDouble(), image.height.toDouble(),
                 if (glyph) Kit.ASCENT else null, if (glyph) CODEPOINT_MIN.toDouble() else null, null, null,
-                // The margins the server's common image declares; the base's images declare none yet.
-                kitSlices[name],
+                // The margins the server's common image declares, else the ones of the base's own drawing.
+                kitSlices[name] ?: Kit.slot(name)?.slice?.takeIf { image.shipped },
             )
             if (glyph) kitGlyphs += id to CODEPOINT_MIN.toDouble()
             glyphPngs[id] = when {

@@ -46,11 +46,18 @@ object Kit {
     const val ASCENT = 13.0
 
     /** One image of the base: its id, and the size every image under that id has. */
-    class Slot(val id: String, val width: Int, val height: Int)
+    class Slot(
+        val id: String, val width: Int, val height: Int,
+        /** The margins the base's drawing keeps when a button is larger than it (`slice`); null: drawn at its size. */
+        val slice: Slice? = null,
+    )
 
     /** The base, in the order it is shown. */
     val slots: List<Slot> by lazy {
-        ObjectMapper().readTree(resource("slots.json")).map { Slot(it["id"].asText(), it["width"].asInt(), it["height"].asInt()) }
+        ObjectMapper().readTree(resource("slots.json")).map { node ->
+            val slice = node["slice"]?.let { Slice(it["left"].asInt(), it["right"].asInt(), it["top"].asInt(), it["bottom"].asInt()) }
+            Slot(node["id"].asText(), node["width"].asInt(), node["height"].asInt(), slice)
+        }
     }
 
     fun slot(id: String): Slot? = slots.firstOrNull { it.id == id }

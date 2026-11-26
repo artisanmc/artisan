@@ -23,6 +23,14 @@ const read = (files: Record<string, string>, binaries: string[]): KitRead => ({
 describe("kit images in the editor", () => {
   test("a server without a kit module has the base, each under what a menu writes", () => {
     const assets = kitAssetsOf(undefined);
+    // The base's buttons keep their edges on a larger rectangle; a value box is drawn at its size.
+    expect(assets.find((a) => a.id === "kit:button.3x1")?.slice).toEqual({
+      left: 3,
+      right: 3,
+      top: 4,
+      bottom: 4,
+    });
+    expect(assets.find((a) => a.id === "kit:value.3x1")?.slice).toBeUndefined();
     expect(assets.map((a) => a.id)).toEqual(KIT_SLOTS.map((s) => `kit:${s.id}`));
     expect(assets.every(isKitBase)).toBe(true);
     const button = assets.find((a) => a.id === "kit:button.3x1");

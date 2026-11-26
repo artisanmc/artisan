@@ -2,12 +2,42 @@
   { "id": "window.6", "width": 176, "height": 222 },
   { "id": "window.3", "width": 176, "height": 166 },
   { "id": "cell", "width": 18, "height": 18 },
-  { "id": "button.3x1", "width": 54, "height": 18 },
-  { "id": "button.danger.3x1", "width": 54, "height": 18 },
-  { "id": "button.off.3x1", "width": 54, "height": 18 },
-  { "id": "button.plain.3x1", "width": 54, "height": 18 },
-  { "id": "panel.3x1", "width": 54, "height": 18 },
-  { "id": "card.3x2", "width": 54, "height": 36 },
+  {
+    "id": "button.3x1",
+    "width": 54,
+    "height": 18,
+    "slice": { "left": 3, "right": 3, "top": 4, "bottom": 4 }
+  },
+  {
+    "id": "button.danger.3x1",
+    "width": 54,
+    "height": 18,
+    "slice": { "left": 3, "right": 3, "top": 4, "bottom": 4 }
+  },
+  {
+    "id": "button.off.3x1",
+    "width": 54,
+    "height": 18,
+    "slice": { "left": 3, "right": 3, "top": 4, "bottom": 4 }
+  },
+  {
+    "id": "button.plain.3x1",
+    "width": 54,
+    "height": 18,
+    "slice": { "left": 3, "right": 3, "top": 4, "bottom": 4 }
+  },
+  {
+    "id": "panel.3x1",
+    "width": 54,
+    "height": 18,
+    "slice": { "left": 2, "right": 2, "top": 2, "bottom": 2 }
+  },
+  {
+    "id": "card.3x2",
+    "width": 54,
+    "height": 36,
+    "slice": { "left": 3, "right": 3, "top": 3, "bottom": 3 }
+  },
   { "id": "value.3x1", "width": 54, "height": 16 },
   { "id": "value.2x1", "width": 36, "height": 16 },
   { "id": "arrow.next.1x2", "width": 18, "height": 36 },
