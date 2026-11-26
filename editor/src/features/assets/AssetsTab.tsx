@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AssetDetailPanel } from "./AssetDetailPanel";
-import { AssetGrid } from "./AssetGrid";
+import { AssetGrid, type AssetMark } from "./AssetGrid";
 import { AssetImportFontDialog } from "./AssetImportFontDialog";
 import { AssetImportNexoDialog } from "./AssetImportNexoDialog";
 import { AssetStage } from "./AssetStage";
@@ -24,8 +24,10 @@ import { ImageNewDialog } from "./ImageNewDialog";
 import { ImageStudio } from "./ImageStudio";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
+import { useImageMarks } from "./imageStanding";
 import { CommonImageBadge, CommonImageMisfit, CommonImageOriginal } from "./CommonImageState";
 import { isKitBase, useCommonImageRef, useKitAssets, useKitMisfits } from "./kitAssets";
+import { isKitModule } from "./localAssets";
 import { type ResourcesView, useResourcesView } from "./resourcesView";
 import { useCommonCopyAsked } from "./useCommonCopyAsked";
 import { useKitPieceAsked } from "./useKitPieceAsked";
@@ -599,6 +601,14 @@ function OwnAssets({
   const [importNexoOpen, setImportNexoOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const openStudio = useResourcesView((s) => s.openStudio);
+  // The common images say who drew each one their own way (`CommonImageState`).
+  const marks = useImageMarks(projectId);
+  const markOf = (asset: Asset): AssetMark | null => {
+    const mark = isKitModule(projectId) ? null : marks(asset);
+    if (mark === "not_taken") return { tone: "warning", label: t("resources.mark.notTaken") };
+    if (mark === "own_version") return { tone: "brand", label: t("resources.mark.ownVersion") };
+    return null;
+  };
 
   const filtered = assets.filter((asset) =>
     matchesFilter(asset, projectId, project, search, category),
@@ -644,7 +654,12 @@ function OwnAssets({
           )}
         </p>
       ) : (
-        <AssetGrid assets={filtered} selectedId={selectedId} onSelect={setSelectedId} />
+        <AssetGrid
+          assets={filtered}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          markOf={markOf}
+        />
       )}
     </div>
   );

@@ -17,6 +17,10 @@ import { variablesFr } from "./variables";
 const fr: typeof en = {
   onboarding: onboardingFr,
   resources: {
+    mark: {
+      notTaken: "Non prise : l'original du module s'affiche",
+      ownVersion: "Votre version d'une image livrée par le module",
+    },
     original: {
       label: "Original du module",
       alt: "{{name}} telle que son module la livre",

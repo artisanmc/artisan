@@ -15,6 +15,10 @@ import { variablesEn } from "./variables";
 export default {
   onboarding: onboardingEn,
   resources: {
+    mark: {
+      notTaken: "Not taken: the module's original shows",
+      ownVersion: "Your version of an image the module ships",
+    },
     original: {
       label: "The module's original",
       alt: "{{name}} as its module ships it",

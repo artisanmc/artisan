@@ -197,7 +197,8 @@ which it wrote before, is still read. The base itself is on the server, in
 redraw one under the same name. When the module says what the image is for (a menu image of a
 fixed size, a glyph of a fixed height), a redraw at other measures is left out and the
 module's own shows, as for the base. The app is told so when it writes such an image, with the
-measures to draw it at, and the menus it shows you are drawn with what the game shows.
+measures to draw it at, the list of a module's files names the images left out, and the menus
+it shows you are drawn with what the game shows.
 
 **Composed images.** A window with its slots, or a card with its icon, does not have to be
 drawn pixel by pixel: the app can put it together from common images and the module's own ("a

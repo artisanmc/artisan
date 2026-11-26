@@ -1044,6 +1044,16 @@ class McpTest {
         val note = read("assets/textures/crest.png")["not_taken"].asText()
         assertTrue("54x18" in note && "originals/assets/textures/crest.png" in note, note)
         assertFalse(read("originals/assets/textures/crest.png").has("not_taken"))
+        // The list of the module's files says it too, with the original that shows and the measures to draw at.
+        fun listed(draft: String? = null) =
+            tool(access, "list_documents", *listOfNotNull("project" to "u-local.guilds", draft?.let { "draft_id" to it }).toTypedArray())["structuredContent"]["images_not_taken"]
+                ?.takeUnless { it.isNull }?.toList().orEmpty()
+        assertEquals(
+            listOf("assets/textures/crest.png" to "originals/assets/textures/crest.png"),
+            listed().map { it["path"].asText() to it["original"].asText() },
+        )
+        assertEquals("menu", listed()[0]["function"].asText())
+        assertEquals("54x18", listed()[0]["measures"].asText())
         // The survey lists what the pack shows: the original.
         val surveyed = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["modules"].first { it["project"].asText() == "u-local.guilds" }
         assertEquals(listOf("originals/assets/textures/crest.png"), surveyed["images"].map { it["path"].asText() })
@@ -1059,10 +1069,12 @@ class McpTest {
         assertTrue("54x18" in small["structuredContent"]["not_taken"].asText())
         assertEquals(listOf(0x33, 0x66, 0xcc), shown("draft_id" to draftId))
         assertTrue(read("assets/textures/crest.png", draftId).has("not_taken"))
+        assertEquals(1, listed(draftId).size)
         val sized = write(solid(54, 18, 0x20c040))
         assertFalse(sized["structuredContent"].has("not_taken"), sized.toString())
         assertEquals(listOf(0x20, 0xc0, 0x40), shown("draft_id" to draftId))
         assertFalse(read("assets/textures/crest.png", draftId).has("not_taken"))
+        assertTrue(listed(draftId).isEmpty(), "nothing left out once the image has the original's size")
     }
 
     @Test

@@ -53,6 +53,10 @@ height and ascent for a glyph), so that its menus keep their layout. Your versio
 image is taken at those measures only: at others the module's original keeps showing, in the
 editor and in the game, and the image says **Not taken** with both measures.
 
+In the list, a dot in the corner of an image marks your version of an image the module ships.
+The dot turns to the warning colour when that version is not taken; hover the image to read
+which.
+
 ## Removing a shipped document
 
 Delete a shipped example and Artisan remembers it in the module file, so it does not come back

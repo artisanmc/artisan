@@ -3,6 +3,7 @@ import { API_URL } from "@/lib/api/client";
 import { assetDiskPath } from "@/lib/pack/assetDiskWrite";
 import {
   type ImageFunction,
+  type ImageOverOriginal,
   type PixelSize,
   imagesOverOriginals,
   refusedImages,
@@ -94,11 +95,35 @@ const stated = (meta: Record<string, unknown>): StatedMeasures => {
   };
 };
 
+type FileList = readonly { path: string; content: string }[];
+
+const statedSize = (meta: Record<string, unknown>): PixelSize | null => {
+  const { width, height } = stated(meta);
+  return width > 0 && height > 0 ? { width, height } : null;
+};
+
+/**
+ * The size of a file as descriptors state it, for `refusedImages`: the pack measures a menu or
+ * HUD image by its pixels; here by what its descriptor states, an image that states no size
+ * being taken as fitting.
+ */
+function statedSizes(overs: readonly ImageOverOriginal[]): (path: string) => PixelSize | null {
+  const sizes = new Map<string, PixelSize | null>();
+  for (const over of overs) {
+    sizes.set(over.original, statedSize(over.originalMeta));
+    sizes.set(over.path, statedSize(over.meta) ?? statedSize(over.originalMeta));
+  }
+  return (path) => sizes.get(path) ?? null;
+}
+
+const lists = (files: Record<string, string>, binaries: BinaryTree) => ({
+  fileList: Object.entries(files).map(([path, content]) => ({ path, content })) as FileList,
+  binaryList: Object.keys(binaries).map((path) => ({ path })),
+});
+
 /**
  * Whether the owner's image `asset` is left out of the pack: it stands over an original that
- * declares a function, at other measures (`imageFunction.ts`). The pack measures a menu or HUD
- * image by its pixels; here by what its descriptor states, an image that states no size being
- * taken as fitting.
+ * declares a function, at other measures (`imageFunction.ts`), read as [statedSizes] says.
  */
 export function imageNotTaken(
   files: Record<string, string>,
@@ -107,23 +132,61 @@ export function imageNotTaken(
 ): ImageNotTaken | null {
   if (asset.type === "font") return null;
   const stem = assetDiskPath(asset.type, asset.id).replace(/\.png$/, "");
-  const fileList = Object.entries(files).map(([path, content]) => ({ path, content }));
-  const binaryList = Object.keys(binaries).map((path) => ({ path }));
-  const over = imagesOverOriginals(fileList, binaryList).find((image) => image.stem === stem);
+  const { fileList, binaryList } = lists(files, binaries);
+  const overs = imagesOverOriginals(fileList, binaryList);
+  const over = overs.find((image) => image.stem === stem);
   if (!over) return null;
-  const size = (meta: Record<string, unknown>): PixelSize | null => {
-    const { width, height } = stated(meta);
-    return width > 0 && height > 0 ? { width, height } : null;
-  };
-  const sizeOf = (path: string) =>
-    path === over.original
-      ? size(over.originalMeta)
-      : path === over.path
-        ? (size(over.meta) ?? size(over.originalMeta))
-        : null;
-  if (!refusedImages(fileList, binaryList, sizeOf).some((image) => image.stem === stem))
+  if (!refusedImages(fileList, binaryList, statedSizes(overs)).some((image) => image.stem === stem))
     return null;
   return { function: over.function, mine: stated(over.meta), original: stated(over.originalMeta) };
+}
+
+/**
+ * What a module's list marks on an image: `not_taken`, the pack leaves it out ([imageNotTaken]);
+ * `own_version`, the owner's file stands over one the module ships (decision 8).
+ */
+export type ImageMark = "not_taken" | "own_version";
+
+/** The marks of a module's images, by the stem of their file (`assets/textures/crest`). */
+export function imageMarks(
+  files: Record<string, string>,
+  binaries: BinaryTree,
+): Map<string, ImageMark> {
+  const stemOf = (path: string) => path.replace(/\.[^./]+$/, "");
+  const shipped = new Set(
+    Object.keys(binaries)
+      .filter((path) => path.startsWith(ORIGINALS))
+      .map((path) => stemOf(path.slice(ORIGINALS.length))),
+  );
+  const marks = new Map<string, ImageMark>();
+  if (shipped.size === 0) return marks;
+  for (const path of Object.keys(binaries)) {
+    const stem = stemOf(path);
+    if (!path.startsWith(ORIGINALS) && shipped.has(stem)) marks.set(stem, "own_version");
+  }
+  const { fileList, binaryList } = lists(files, binaries);
+  const overs = imagesOverOriginals(fileList, binaryList);
+  for (const image of refusedImages(fileList, binaryList, statedSizes(overs)))
+    marks.set(image.stem, "not_taken");
+  return marks;
+}
+
+/** [imageMarks] of the open module, as its draft holds it, else as published: the mark of an image. */
+export function useImageMarks(
+  projectId: string,
+): (asset: Pick<Asset, "id" | "type">) => ImageMark | null {
+  const draft = useProjectDraftStore((s) => s.drafts[projectId]);
+  const publishedFiles = useProjectBaselineStore((s) => s.baselines[projectId]);
+  const publishedBinaries = useProjectBaselineStore((s) => s.binaryBaselines[projectId]);
+  const files = draft?.tree ?? publishedFiles;
+  const binaries = draft?.binaryTree ?? draft?.binaryBaseline ?? publishedBinaries;
+  return useMemo(() => {
+    const marks = files && binaries ? imageMarks(files, binaries) : new Map<string, ImageMark>();
+    return (asset) =>
+      asset.type === "font"
+        ? null
+        : (marks.get(assetDiskPath(asset.type, asset.id).replace(/\.png$/, "")) ?? null);
+  }, [files, binaries]);
 }
 
 /** [imageNotTaken] of an image of the open module, as its draft holds it, else as published. */
