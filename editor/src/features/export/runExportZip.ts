@@ -1,6 +1,7 @@
 import type { Project } from "@/domain/types";
 import { projectTree } from "@/features/project/saveProjectToDisk";
 import { readDraftBlob } from "@/lib/api/projectDrafts";
+import { themeArchiveName } from "@/lib/pack/themeArchive";
 import { projectClient } from "@/lib/projectClient";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
@@ -38,9 +39,22 @@ export interface ExportZipResult {
  */
 export async function runExportZip(project: Project, hasUser: boolean): Promise<ExportZipResult> {
   if (!hasUser) return { ok: false, error: "not_signed_in" };
+  return exportDisk(project.id, archiveName(project.diskId ?? project.id));
+}
+
+/**
+ * Downloads the theme `name` as the server holds it (`<name>.theme.zip`): its folder as is,
+ * the Project `projectId`. A theme is exported alone (ADR `common-images-and-themes`,
+ * decision 10): it holds no menu and embeds nothing of a module.
+ */
+export function runExportThemeZip(projectId: string, name: string): Promise<ExportZipResult> {
+  return exportDisk(projectId, themeArchiveName(name));
+}
+
+/** The Project's files as its server's disk holds them, zipped under `fileName`. */
+async function exportDisk(projectId: string, fileName: string): Promise<ExportZipResult> {
   try {
-    const diskId = project.diskId ?? project.id;
-    const client = projectClient(project.id);
+    const client = projectClient(projectId);
     const disk = await client.read();
     if (!disk.ok) {
       return { ok: false, error: disk.error === "server_offline" ? "server_offline" : "transport" };
@@ -58,7 +72,7 @@ export async function runExportZip(project: Project, hasUser: boolean): Promise<
     for (const binary of disk.binaries ?? []) {
       canonical[binary.path] = await client.binary(binary.path);
     }
-    await download(canonical, archiveName(diskId));
+    await download(canonical, fileName);
     return { ok: true };
   } catch {
     return { ok: false, error: "transport" };

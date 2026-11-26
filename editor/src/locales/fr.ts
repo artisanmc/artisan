@@ -298,6 +298,40 @@ const fr: typeof en = {
         create_failed: "Impossible de créer le thème sur le serveur. Réessaie.",
       },
     },
+    importTheme: {
+      open: "Importer un thème",
+      title: "Importer un thème",
+      intro:
+        "Apporte un thème exporté d'un autre serveur (<nom>.theme.zip). Il arrive sur le serveur sans être mis en place : il ne change rien tant qu'il n'est pas mis en place.",
+      file: "Archive du thème",
+      drop: "Dépose l'archive d'un thème, ou clique pour en choisir une",
+      dropHint: "Un .zip exporté depuis la page d'un thème",
+      holds_one: "{{count}} image, pas de couleurs.",
+      holds_other: "{{count}} images, pas de couleurs.",
+      holdsColours_one: "Une table de couleurs et {{count}} image.",
+      holdsColours_other: "Une table de couleurs et {{count}} images.",
+      holdsColoursOnly: "Une table de couleurs, aucune image.",
+      holdsNeither: "Ni couleurs ni images : seulement des notes de dessin.",
+      submit: "Importer",
+      errors: {
+        not_a_zip: "Ce fichier n'est pas une archive .zip.",
+        not_a_theme:
+          "Cette archive ne contient pas de thème : les fichiers d'un thème sont sous overrides/, assets/ ou data/.",
+        is_module: "Cette archive est celle d'un module. Importe-la depuis les modules du serveur.",
+        too_large: "Cette archive est trop lourde pour un thème (8 Mo au plus).",
+        invalid_name:
+          "Minuscules, chiffres, « _ » et « - », en commençant par une lettre ou un chiffre. « artisan » est le nom des images communes.",
+        project_exists:
+          "Un thème ou un module porte déjà ce nom sur ce serveur. Choisis un autre nom, ou supprime d'abord ce thème.",
+        server_offline: "Le serveur est hors ligne. Connecte-le pour importer le thème.",
+        fetch_timeout:
+          "Le serveur n'a pas répondu à temps. Vérifie la liste des thèmes avant de réessayer.",
+        forbidden: "Tu n'as pas le droit d'ajouter un thème à ce serveur.",
+        plugin_update_required:
+          "Ce serveur utilise une version plus ancienne d'Artisan. Mets son plugin à jour pour importer des thèmes.",
+        import_failed: "Impossible d'écrire le thème sur le serveur. Réessaie.",
+      },
+    },
     themes: {
       title: "Thèmes",
       intro:
@@ -363,6 +397,11 @@ const fr: typeof en = {
       putHint:
         "Mettre en place pose le thème au-dessus de ceux qui y sont déjà et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
       open: "Ouvrir le dossier du thème",
+      export: "Exporter",
+      exportFailed: {
+        server_offline: "Le serveur est hors ligne : le thème ne peut pas être exporté.",
+        transport: "Le thème n'a pas pu être lu sur le serveur. Réessaie.",
+      },
       moves: {
         rename: "Renommer",
         delete: "Supprimer",

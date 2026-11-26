@@ -30,7 +30,7 @@ export function ThemesPage({
   onOrder?: (themes: string[]) => Promise<void>;
   /** Puts the theme `name` in place above the others (`put`), or takes it off. */
   onPutInPlace?: (name: string, put: boolean) => Promise<void>;
-  /** What creates a theme on the server, given the names its themes have. */
+  /** What adds a theme to the server (a new one, one from an archive), given the names its themes have. */
   newTheme?: (themes: readonly string[]) => ReactNode;
 }) {
   const { t } = useTranslation();
