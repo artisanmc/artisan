@@ -1,5 +1,17 @@
-import type { Asset } from "@/domain/asset";
+import type { AssetType, AssetUsage } from "@/domain/asset";
 import { create } from "zustand";
+
+/** An image to write in the Project `target` under `name`, asked from the Project `from`. */
+export interface SaveAsRequest {
+  /** The image as saved, a flat PNG. */
+  png: Uint8Array;
+  type: Exclude<AssetType, "font">;
+  name: string;
+  ascent?: number;
+  usages?: AssetUsage[];
+  target: string;
+  from: string;
+}
 
 /**
  * What the Resources tab shows: the module's files (images, fonts), its components or its
@@ -25,14 +37,11 @@ export const useResourcesView = create<{
   pieceFrom: string | null;
   askPiece: (id: string | null, from?: string) => void;
   /**
-   * An image or a font of a module asked to be copied into the common images: the Resources of
-   * the common images' Project copy it into their draft once their images are read
-   * (`useCommonCopyAsked`).
+   * An image saved under a name in another place (`SaveAsDialog`): the Resources of the Project
+   * `target` write it into their draft once their images are read (`useSaveAsAsked`).
    */
-  shared: Asset | null;
-  /** The module the request was made in, which leaves it for the Project it then opens. */
-  sharedFrom: string | null;
-  askShare: (asset: Asset | null, from?: string) => void;
+  saveAs: SaveAsRequest | null;
+  askSaveAs: (request: SaveAsRequest | null) => void;
 }>((set) => ({
   view: "files",
   setView: (view) => set({ view }),
@@ -41,7 +50,6 @@ export const useResourcesView = create<{
   piece: null,
   pieceFrom: null,
   askPiece: (piece, from) => set({ piece, pieceFrom: piece === null ? null : (from ?? null) }),
-  shared: null,
-  sharedFrom: null,
-  askShare: (shared, from) => set({ shared, sharedFrom: shared === null ? null : (from ?? null) }),
+  saveAs: null,
+  askSaveAs: (saveAs) => set({ saveAs }),
 }));

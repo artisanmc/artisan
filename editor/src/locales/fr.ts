@@ -51,11 +51,6 @@ const fr: typeof en = {
       notTakenGlyph:
         "Non prise : ce glyphe a une hauteur de {{height}} et un ascent de {{ascent}}, l'original une hauteur de {{originalHeight}} et un ascent de {{originalAscent}}. L'original reste montré tant qu'ils diffèrent.",
     },
-    share: {
-      button: "Copier dans les images communes",
-      hint: "Une copie part dans les images communes du serveur sous le même nom, dans leur brouillon : une fois déployée, tous les modules peuvent la nommer. Ce module garde la sienne, que ses menus montrent toujours ; supprime-la ici ensuite pour qu'ils prennent l'image commune.",
-      taken: "Les images communes ont déjà une image de ce nom.",
-    },
     originalChanged: {
       title: "L'original a changé depuis ta version.",
       hint: "Les menus continuent de montrer la tienne. Garde-la telle quelle, ou restaure l'original pour repartir du nouveau.",
@@ -70,8 +65,7 @@ const fr: typeof en = {
       added: "Ce serveur",
       written: "Un menu de ce module écrit",
       prefixed: "Ce module a une image de ce nom : artisan: désigne la commune.",
-      redraw: "Redessiner pour le serveur",
-      open: "Ouvrir dans les images communes",
+      open: "Ouvrir dans l'atelier",
       usedBy: "Ce qui la nomme",
       unused: "Rien sur le serveur ne la nomme.",
       usedIn: "{{menu}} · {{project}}",
@@ -282,6 +276,40 @@ const fr: typeof en = {
     kitHint:
       "L'image suit cette pièce quand le serveur la redessine. Vous ajoutez et dessinez des calques par-dessus.",
     create: "Créer et ouvrir l'atelier",
+  },
+  saveAs: {
+    title: "Enregistrer sous",
+    button: "Enregistrer sous…",
+    hint: "Une copie sous un nom, dans un thème ou un module. L'image de départ ne change pas.",
+    saveFirst: "Enregistre d'abord tes changements : la copie est faite de l'image enregistrée.",
+    name: "Nom",
+    place: "Où",
+    save: "Enregistrer",
+    theme: "Thème « {{name}} »",
+    themeAway: "Thème « {{name}} » (rangé)",
+    module: "Module « {{name}} »",
+    newTheme: "Nouveau thème…",
+    replaces_one: "Remplace l'image de ce nom dans {{count}} menu de {{modules}}.",
+    replaces_other: "Remplace l'image de ce nom dans {{count}} menus de {{modules}}.",
+    modules_one: "{{count}} module",
+    modules_other: "{{count}} modules",
+    replacesInModule_one:
+      "{{count}} menu de ce module montrait l'image commune de ce nom : il montrera celle-ci.",
+    replacesInModule_other:
+      "{{count}} menus de ce module montraient l'image commune de ce nom : ils montreront celle-ci.",
+    addedTheme:
+      "Aucun menu n'écrit ce nom pour l'instant : l'image est ajoutée au thème, rien d'autre ne change.",
+    addedModule:
+      "Aucun menu de ce module n'écrit ce nom pour l'instant : l'image est ajoutée au module, rien d'autre ne change.",
+    away: "Ce thème est rangé : rien ne change en jeu tant qu'il n'est pas mis en place.",
+    overwrites: "Cet endroit a déjà une image de ce nom : elle sera remplacée.",
+    saved: "« {{name}} » enregistrée ici, dans le brouillon.",
+    failed: "L'image n'a pas pu être enregistrée : {{detail}}",
+    errors: {
+      invalid_name: "Minuscules, chiffres, « _ » et « - » seulement.",
+      base_name_in_module:
+        "Un nom de la base d'Artisan ne peut être porté que par un thème. Choisis un thème, ou un autre nom.",
+    },
   },
   studio: {
     open: "Ouvrir dans l'atelier",
@@ -682,9 +710,9 @@ const fr: typeof en = {
       dropped_other:
         "{{count}} images communes du serveur d'origine sont déjà ici, à l'identique : {{names}}. Le module ne les garde pas.",
       kept_one:
-        "{{count}} image commune du serveur d'origine reste dans le module : {{names}}. Depuis ses Ressources, « Copier dans les images communes » la rend commune ici.",
+        "{{count}} image commune du serveur d'origine reste dans le module : {{names}}. Dans l'atelier, « Enregistrer sous » la met dans le thème du serveur pour la rendre commune ici.",
       kept_other:
-        "{{count}} images communes du serveur d'origine restent dans le module : {{names}}. Depuis ses Ressources, « Copier dans les images communes » les rend communes ici.",
+        "{{count}} images communes du serveur d'origine restent dans le module : {{names}}. Dans l'atelier, « Enregistrer sous » met chacune dans le thème du serveur pour la rendre commune ici.",
       base: "Images de base d'Artisan absentes de ce serveur : {{names}}. Mets Artisan à jour.",
       baseSince:
         "Images de base d'Artisan absentes de ce serveur : {{names}}. Le module vient d'Artisan {{version}} : mets Artisan à jour.",

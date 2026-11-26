@@ -95,7 +95,7 @@ the common images your server added: each one a menu reaches by its name alone i
 the archive under that name, and the archive notes it (`artisan-export.yml`, at its root). On
 the server the module arrives on, the import settles each copy without asking: left out when
 that server has the same common image under that name, kept in the module otherwise, where
-**Copy to the common images** (in its Resources) makes it common there too.
+**Save as** (in the atelier, with the server's theme as the place) makes it common there too.
 
 When the module names images of another module of your server (`guilds:crest`, or a name
 alone that only another module holds), the export asks whether to take them. **Copy and

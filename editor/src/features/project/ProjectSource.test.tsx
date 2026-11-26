@@ -271,7 +271,7 @@ describe("using another project's resources", () => {
       "Rien sur le serveur ne la nomme.",
     );
 
-    await userEvent.click(screen.getByRole("button", { name: /redessiner pour le serveur/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Ouvrir dans l'atelier" }));
     expect(onOpenCommon).toHaveBeenCalled();
     expect(useResourcesView.getState()).toMatchObject({ piece: "close.1x1", pieceFrom: EDITED });
   });

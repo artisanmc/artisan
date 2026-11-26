@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { ComposedImageEditor } from "./ComposedImageEditor";
+import { SaveAsDialog, type SaveAsServer } from "./SaveAsDialog";
 import { SlicePanel } from "./SlicePanel";
 import {
   StudioFrame,
@@ -88,10 +89,13 @@ export function ImageStudio({
   projectId,
   asset,
   onClose,
+  server,
 }: {
   projectId: ProjectId;
   asset: Asset;
   onClose: () => void;
+  /** The server the Project is on: the image can then be saved as, in another of its places. */
+  server?: SaveAsServer;
 }) {
   const { t } = useTranslation();
   const prefs = useStudioPrefs();
@@ -99,6 +103,7 @@ export function ImageStudio({
   const [tool, setTool] = useState<StudioTool>(asset.compose ? "move" : "pencil");
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [savingAs, setSavingAs] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Another image opens fitted to the room it has.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the image open, not the store's setter
@@ -199,27 +204,53 @@ export function ImageStudio({
           ),
         })
       }
-      footer={(dirty) =>
-        !asset.compose ? (
-          canHaveLayers(asset) ? (
-            <p className="text-[11px] text-[var(--text-faint)]">{t("studio.toLayersHint")}</p>
-          ) : null
-        ) : (
-          <div className="flex flex-col items-start gap-1">
-            <Button
-              variant={confirming ? "default" : "outline"}
-              size="sm"
-              // What is flattened is the image as saved.
-              disabled={!user || busy || dirty}
-              onClick={() => (confirming ? void flattenLayers() : setConfirming(true))}
-              onBlur={() => setConfirming(false)}
-            >
-              {t(confirming ? "studio.flattenConfirm" : "studio.flatten")}
-            </Button>
-            <p className="text-[11px] text-[var(--text-faint)]">{t("studio.flattenHint")}</p>
-          </div>
-        )
-      }
+      footer={(dirty) => (
+        <div className="flex flex-col items-start gap-3">
+          {server ? (
+            <div className="flex flex-col items-start gap-1" data-testid="studio-save-as">
+              {/* What is copied is the image as saved. */}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy || dirty}
+                onClick={() => setSavingAs(true)}
+              >
+                {t("saveAs.button")}
+              </Button>
+              <p className="text-[11px] text-[var(--text-faint)]">
+                {t(dirty ? "saveAs.saveFirst" : "saveAs.hint")}
+              </p>
+              {savingAs ? (
+                <SaveAsDialog
+                  projectId={projectId}
+                  asset={asset}
+                  server={server}
+                  onClose={() => setSavingAs(false)}
+                />
+              ) : null}
+            </div>
+          ) : null}
+          {!asset.compose ? (
+            canHaveLayers(asset) ? (
+              <p className="text-[11px] text-[var(--text-faint)]">{t("studio.toLayersHint")}</p>
+            ) : null
+          ) : (
+            <div className="flex flex-col items-start gap-1">
+              <Button
+                variant={confirming ? "default" : "outline"}
+                size="sm"
+                // What is flattened is the image as saved.
+                disabled={!user || busy || dirty}
+                onClick={() => (confirming ? void flattenLayers() : setConfirming(true))}
+                onBlur={() => setConfirming(false)}
+              >
+                {t(confirming ? "studio.flattenConfirm" : "studio.flatten")}
+              </Button>
+              <p className="text-[11px] text-[var(--text-faint)]">{t("studio.flattenHint")}</p>
+            </div>
+          )}
+        </div>
+      )}
     />
   );
 }

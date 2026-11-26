@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { type Asset, assetPreviewUrl } from "@/domain/asset";
+import { assetPreviewUrl } from "@/domain/asset";
 import { assetMenuReferences } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { deleteAsset, patchAsset } from "@/lib/api/userAssets";
@@ -15,7 +15,6 @@ import { CommonImageOriginal, OriginalImage } from "./CommonImageState";
 import { OriginalChanged } from "./OriginalChanged";
 import { useAssetStore } from "./assetStore";
 import { originalImageUrl, useImageNotTaken, useImageStanding } from "./imageStanding";
-import { useKitAssets } from "./kitAssets";
 import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
 
@@ -25,14 +24,8 @@ import { useResourcesView } from "./resourcesView";
  */
 export function AssetDetailPanel({
   projectId,
-  onShare,
 }: {
   projectId: ProjectId;
-  /**
-   * Copies the module's image or font `asset` into the server's common images (the page opens
-   * their Project, which takes it in its draft); absent on a server that has none.
-   */
-  onShare?: (asset: Asset) => void;
 }) {
   const inputId = useId();
   const { t } = useTranslation();
@@ -55,7 +48,6 @@ export function AssetDetailPanel({
   const openStudio = useResourcesView((s) => s.openStudio);
   const standing = useImageStanding(projectId, asset);
   const notTaken = useImageNotTaken(projectId, asset);
-  const common = useKitAssets();
 
   const savedName = asset?.name ?? "";
   const savedAscent = asset?.ascent ?? "";
@@ -81,10 +73,6 @@ export function AssetDetailPanel({
   // owner holds nothing to rename or delete; beside the owner's file, deleting theirs restores it.
   const original = standing.original;
   const asShipped = !!original && !standing.own;
-  // A module's own image or font may be made common; a recipe names the module's layers, and stays.
-  const shares = !!onShare && !isKitModule(projectId) && !asset.compose && !asShipped;
-  // The common images, as published, already have an image of that name: the copy would take another.
-  const commonHolds = shares && common.some((held) => kitNameOf(held.id) === asset.name);
   const restores = piece ? !asShipped : !!original && !!standing.own;
 
   const onSave = async () => {
@@ -282,23 +270,6 @@ export function AssetDetailPanel({
         )}
       </details>
       {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
-      {shares && (
-        <div className="flex flex-col gap-1 text-xs" data-testid="asset-share">
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={commonHolds}
-              onClick={() => onShare?.(asset)}
-            >
-              {t("resources.share.button")}
-            </Button>
-          </div>
-          <span className="text-[var(--text-mut)]">
-            {t(commonHolds ? "resources.share.taken" : "resources.share.hint")}
-          </span>
-        </div>
-      )}
       {!asShipped && (
         <div className="flex justify-between">
           <Button variant="destructive" onClick={onDelete}>

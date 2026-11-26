@@ -259,6 +259,16 @@ browser draws what the pack will), dragged with the pointer (Shift: steps of one
 or nudged with the arrow keys; the list beside it orders, removes and adds layers (`KitPicker`
 for a kit image, `ImageChoiceDialog` for a PNG of the module). The size shown is `composeSize`,
 the pack's rule on the layers' sizes alone.
+**Save as** (ADR `resources-one-screen`, decision 7) is a button of the atelier's footer,
+offered when the page gives it the server (`SaveAsServer`: its key, how to open a Project's
+Resources, how to read its themes again). `SaveAsDialog` lists the places from `useKitStore`
+(`saveAsPlaces`: themes in place from the highest, the server's theme, themes put away,
+modules), says what the copy changes (`saveAsEffect`, counted from `useImageUses`), creates
+a theme when asked, then stores a request (`useResourcesView.saveAs`: the flat PNG of
+`assetBytes`, name, type, target Project) and opens the target's Resources. There
+`useSaveAsAsked` uploads it into the draft once the images are read (again with `replace` on
+a 409; a name of the base waits for the theme to be read as one, `holdsCommonNames`) and
+opens it in the atelier. It replaced `askShare` and `useCommonCopyAsked`.
 `ComposeNewDialog` (Resources page, **Compose an image**) creates one from a kit window or a
 kit button.
 A layer's pixels are drawn by `PixelEditor.tsx`: its bytes are read once (`assetBytes.ts`) and decoded by the pack's own `decodePng`, never
