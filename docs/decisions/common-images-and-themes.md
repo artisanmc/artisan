@@ -182,7 +182,9 @@ working through a rewrite to `module:name` at load.
   `artisan`, and a folder `modules/artisan` is shadowed with a warning.
 - The base is written by the originals sync into `themes/artisan/originals/assets/textures/`
   (system template `base` of the shipper `artisan`, `SystemFiles`): only what differs is
-  written, and a server image identical to the base is removed. Both pack builders read the
+  written, and a server image identical to the base is removed. The same template carries
+  the components Artisan ships, into `originals/components/` (ADR
+  `element-parts-and-sliced-images`, step 5). Both pack builders read the
   base there, so the base a server shows is the one of its own Artisan; a builder falls on its
   own copy for a server that has none yet.
 - `modules/ui-kit/` moves to `themes/artisan/` at the first start, when the theme holds nothing

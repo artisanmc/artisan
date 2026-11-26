@@ -425,6 +425,27 @@ drops the link; **Remove** leaves the button without a look. On a button made of
 image, label or parts, **Save** moves them to a new component of the module, which the
 button then names: the next button takes it from the list.
 
+Artisan ships four common components, drawn with the base images, so a menu of any module can
+name them without writing a file:
+
+| Component | Draws | Parameters |
+|---|---|---|
+| `confirm` | the base button and a text | `text` (Confirm / Confirmer) |
+| `cancel` | the danger button and a text | `text` (Cancel / Annuler) |
+| `button` | a base button of your choice and a text | `text` (OK), `image` (`button.3x1`, else `button.plain.3x1`, `button.off.3x1` or `button.danger.3x1`) |
+| `value` | the value frame and a text | `text` (0) |
+
+```yaml
+- id: sell
+  positions: "20-23"
+  component: { name: confirm, text: { en: Sell all, fr: Tout vendre } }
+```
+
+They are written in `themes/artisan/originals/components/` and rewritten when an update of
+Artisan changes them. To change one for the whole server, write a component of the same name
+in the theme `artisan`'s `components/` folder: it is read first. Since the base buttons keep
+their edges at any width, a component placed on four or five slots stays sharp.
+
 A module's **Resources** have a **Components** view: the list of its components, and the
 one selected shown as a menu draws it, on the slots picked with the width and height of its
 parts. Its **Parameters** are declared there (a name, a text or an image, a default), its

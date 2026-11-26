@@ -20,6 +20,39 @@ class KitTest {
     }
 
     @Test
+    fun `every component of the base reads, and draws base images only`() {
+        assertEquals(setOf("button", "cancel", "confirm", "value"), Kit.components.keys)
+        for ((name, text) in Kit.components) {
+            val file = Yaml.parse(text) as Map<*, *>
+            val params = file["params"] as? Map<*, *> ?: emptyMap<Any?, Any?>()
+            val parts = file["parts"] as List<*>
+            assertTrue(parts.isNotEmpty(), name)
+            for (part in parts) {
+                val image = (part as Map<*, *>)["image"] as? String ?: continue
+                val param = Regex("^\\{([a-z][a-z0-9_]*)}$").find(image)?.groupValues?.get(1)
+                val drawn = if (param == null) image else (params[param] as Map<*, *>)["default"] as String
+                assertTrue(Kit.slot(drawn) != null, "$name draws $drawn, which the base does not ship")
+            }
+        }
+    }
+
+    @Test
+    fun `a menu names a base component, and the server's own of that name replaces it`() {
+        val shipped = Kit.components.map { (name, text) -> PackFile("originals/components/$name.yml", text) }
+        val menu = mapOf("id" to "m", "size" to 27, "elements" to listOf(mapOf("id" to "ok", "positions" to "0-2", "component" to "confirm")))
+        fun parts(theme: List<PackFile>): Any? {
+            val expanded = Components.ofProjects(listOf("shop" to emptyList(), Kit.FOLDER to theme))("shop")(menu) as Map<*, *>
+            return ((expanded["elements"] as List<*>)[0] as Map<*, *>)["parts"]
+        }
+        assertEquals(
+            listOf(mapOf("image" to "artisan:button.3x1"), mapOf("label" to mapOf("en" to "Confirm", "fr" to "Confirmer"))),
+            parts(shipped),
+        )
+        val own = PackFile("components/confirm.yml", "parts:\n  - image: my_button\n")
+        assertEquals(listOf(mapOf("image" to "artisan:my_button")), parts(shipped + own))
+    }
+
+    @Test
     fun `the kit module's image wins at the base's size, the base's stays at another`() {
         val own = png(16, 16)
         assertFalse(Kit.image("close.1x1", own)!!.shipped)

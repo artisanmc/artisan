@@ -1,0 +1,8 @@
+# A button of the base with a text. `image` picks its drawing: button.3x1 (default),
+# button.plain.3x1, button.off.3x1 or button.danger.3x1.
+params:
+  text: { type: text, default: OK }
+  image: { type: image, default: button.3x1 }
+parts:
+  - image: "{image}"
+  - label: "{text}"

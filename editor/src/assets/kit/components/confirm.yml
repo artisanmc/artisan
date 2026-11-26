@@ -1,0 +1,6 @@
+# The button that says yes.
+params:
+  text: { type: text, default: { en: Confirm, fr: Confirmer } }
+parts:
+  - image: button.3x1
+  - label: "{text}"

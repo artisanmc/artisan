@@ -288,6 +288,18 @@ drawn as before, pixel for pixel; on a larger rectangle it now fills it where it
 centred. `value.*` (16 px high) declares none: on its 18 px slots it would change. Shared
 case in the conformance vector.
 
+**Step 5, the base's components (2026-11-26).** Artisan ships four components, in
+`editor/src/assets/kit/components/` beside the images they draw (`components.json` lists
+them for the jar): `confirm` and `cancel` (the base button and the danger one, a `text` per
+language), `button` (a `text` and an `image` among the base's buttons) and `value` (the value
+frame and a `text`). `Kit.components` reads them, `ArtisanTheme.sync` writes them with the
+images as `themes/artisan/originals/components/<name>.yml`, where the three readers already
+looked after the server's own `components/` (decision 6). A server changes one by writing a
+component of that name in the theme `artisan`; a module, by one of that name in its own
+folder. Nothing is added to the editor: the common components it lists are the files the
+server publishes, these among them. A server whose Artisan predates them has none, and a
+menu that names one draws nothing there.
+
 Not built: `render_menu` (it draws a sliced image by
 its fit), the rule that a redraw or a theme keeps the
 margins (the margins are the descriptor's of the image that is shown; a theme's
