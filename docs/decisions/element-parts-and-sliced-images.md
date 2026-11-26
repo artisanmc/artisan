@@ -190,6 +190,16 @@ leave nothing to repeat are refused before any write. `ImageGuides` draws a dash
 each margin, whatever guides are shown. `slice` is accepted for any image, with or without a
 function. The lines are not dragged yet.
 
+**Sliced layers of a composed image (2026-11-26).** A `compose` layer takes `width` and
+`height` (both, never on a `grid`): when its image declares margins that fit, the layer is
+drawn at that size (`layerPicture` in `compose.ts`, `ComposedImages.picture` in
+`Compose.kt`), else at the image's own. Both builders look the margins up by the name the
+layer writes (the module's image, or the server's common one), with a shared case. In the
+atelier a layer of a sliced image shows its size in place of columns and rows and has a
+handle at its bottom right corner (Shift: whole slots); the stage draws it as the pack does
+(`useSlicedUrl`). The hub's own renders of a composed image (`read_image`, the MCP previews)
+pass no margins yet and draw such a layer at its own size.
+
 Not built: `render_menu` (it draws a sliced image by
 its fit), the base's buttons declared sliced, the rule that a redraw or a theme keeps the
 margins (the margins are the descriptor's of the image that is shown; a theme's

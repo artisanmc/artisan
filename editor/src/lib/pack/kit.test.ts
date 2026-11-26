@@ -6,19 +6,19 @@ import { describe, expect, test } from "vitest";
 import {
   KIT_SLOTS,
   assetNamesIn,
-  commonImageRef,
   commonImageKey,
+  commonImageRef,
   commonNameOf,
   imageNamed,
   imageRefsIn,
   imageUses,
   kitFolderAmong,
   kitFootprint,
-  moduleImageKey,
   kitImage,
   kitNameOf,
   kitShippedName,
   kitShippedPath,
+  moduleImageKey,
 } from "./kit";
 import { createImage, decodePng, encodePng } from "./png";
 

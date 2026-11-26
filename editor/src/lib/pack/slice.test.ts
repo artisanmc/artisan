@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { composeImage, composeRecipe, composeYaml } from "./compose";
 import { renderImageButton } from "./imageButtons";
 import { createImage } from "./png";
 import { drawSliced, sliceOf, slicesAt } from "./slice";
@@ -91,5 +92,43 @@ describe("renderImageButton with a sliced image", () => {
     const plain = renderImageButton(grid(8, 6), button);
     const refused = renderImageButton(grid(8, 6), button, { left: 4, right: 4, top: 0, bottom: 0 });
     expect(refused.image.data).toEqual(plain.image.data);
+  });
+});
+
+describe("a composed image's layer of a sliced image", () => {
+  const slice = { left: 2, right: 3, top: 1, bottom: 2 };
+  it("keeps a size with both sides, on a layer that does not repeat, and writes it back", () => {
+    const recipe = composeRecipe({
+      compose: [
+        { image: "panel", x: 1, width: 13, height: 9 },
+        { image: "panel", width: 13 },
+        { grid: "panel", columns: 2, width: 13, height: 9 },
+      ],
+    })!;
+    expect(recipe.layers).toEqual([
+      { image: "panel", x: 1, y: 0, columns: 1, rows: 1, width: 13, height: 9 },
+      { image: "panel", x: 0, y: 0, columns: 1, rows: 1 },
+      { image: "panel", x: 0, y: 0, columns: 2, rows: 1 },
+    ]);
+    expect(composeYaml(recipe)).toEqual([
+      { image: "panel", x: 1, width: 13, height: 9 },
+      { image: "panel" },
+      { grid: "panel", columns: 2, rows: 1 },
+    ]);
+  });
+  it("draws the layer at its size, and at its own when the image has no margins", () => {
+    const recipe = {
+      layers: [{ image: "panel", x: 0, y: 0, columns: 1, rows: 1, width: 13, height: 9 }],
+      width: 13,
+      height: 9,
+    };
+    const sliced = composeImage(
+      recipe,
+      () => grid(8, 6),
+      () => slice,
+    )!;
+    expect(row(sliced, 0)).toEqual([0, 1, 2, 3, 4, 2, 3, 4, 2, 3, 5, 6, 7]);
+    const plain = composeImage(recipe, () => grid(8, 6))!;
+    expect(row(plain, 0)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0]);
   });
 });

@@ -166,11 +166,13 @@ object ResourcePackBuilder {
                 .map { it.id to it.codepoint!! }
             // The module's own PNGs by name: what its composed images are made of.
             val own = HashMap<String, ByteArray>()
+            // The margins of the module's sliced images, by name.
+            val slices = fromDisk.filter { it.recipe == null && it.row.slice != null }.associate { it.row.name to it.row.slice!! }
             for ((i, a) in fromDisk.withIndex()) {
                 val row = rows[i]
                 if (common && (row.type == "glyph" || row.type == "texture")) {
                     a.row.slice?.let { kitSlices[a.row.name] = it }
-                    if (a.recipe != null) composed += Composed(null, project, a.recipe, own, a.row.name)
+                    if (a.recipe != null) composed += Composed(null, project, a.recipe, own, a.row.name, slices)
                     else project.binary(a.path)?.let { bytes ->
                         imagesByRef += "${project.id}:${a.row.name}" to bytes
                         own[a.row.name] = bytes
@@ -182,7 +184,7 @@ object ResourcePackBuilder {
                 allAssets += row
                 if ((row.type == "glyph" && row.codepoint != null) || row.type == "texture") {
                     if (a.recipe != null) {
-                        composed += Composed(allAssets.lastIndex, project, a.recipe, own, a.row.name)
+                        composed += Composed(allAssets.lastIndex, project, a.recipe, own, a.row.name, slices)
                         continue
                     }
                     val disk = project.binary(a.path) ?: continue
@@ -227,7 +229,7 @@ object ResourcePackBuilder {
                 (if (common != null) kitPng(common) else own(name)) == null
             }
             if (lacking.isNotEmpty()) missingLayers.getOrPut(c.project.folder) { TreeMap() }[c.name] = lacking
-            ComposedImages.render(c.recipe, own, kitPng)?.let { c to it }
+            ComposedImages.render(c.recipe, own, kitPng) { name -> Kit.nameOf(name).let { common -> if (common != null) kitSlices[common] else c.slices[name] } }?.let { c to it }
         }
         val kitComposed = HashSet<String>()
         for ((c, image) in made) {
@@ -355,7 +357,7 @@ object ResourcePackBuilder {
     }
 
     /** A composed image waiting for its layers: its row's place, its module, that module's PNGs and its [name] there. */
-    private class Composed(val index: Int?, val project: PackProject, val recipe: ComposedImages.Recipe, val own: Map<String, ByteArray>, val name: String)
+    private class Composed(val index: Int?, val project: PackProject, val recipe: ComposedImages.Recipe, val own: Map<String, ByteArray>, val name: String, val slices: Map<String, Slice> = emptyMap())
 
     /** First Project wins a codepoint; a later one taking it again moves to the first free one. */
     private fun mergeCodepoints(contribs: List<Pair<String, List<Pair<String, Double>>>>): Map<String, Double> {

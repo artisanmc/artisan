@@ -1,5 +1,6 @@
 import { kitNameOf } from "./kit";
 import { type RgbaImage, createImage, decodePng } from "./png";
+import { type Slice, drawSliced, slicesAt } from "./slice";
 
 /**
  * A composed image: a recipe the pack assembles, in place of a PNG (`Compose.kt` in the hub's
@@ -17,12 +18,19 @@ import { type RgbaImage, createImage, decodePng } from "./png";
  *     y: 139
  *     columns: 9
  *     rows: 4
+ *   - image: panel              # a sliced image (`slice.ts`), drawn at a size
+ *     x: 7
+ *     y: 17
+ *     width: 72
+ *     height: 36
  * ```
  *
  * `use`, `image` and `grid` name an image the same way: `kit:<name>` (`kit.ts`) or a PNG of the
  * module, never another composed image. The image is as large as `width` and `height` say, else
  * as far as its first layer reaches. It follows the kit: redraw `kit:window.6` and every image
- * composed with it changes.
+ * composed with it changes. `width` and `height` on a layer resize an image whose descriptor
+ * declares margins (`slice`): corners copied, edges and middle repeated. On another image, or
+ * at a size its margins do not fit, they are ignored and the image is drawn at its own size.
  */
 
 /** A side of a composed image, and how far a layer may sit from the origin. */
@@ -37,6 +45,9 @@ export interface ComposeLayer {
   y: number;
   columns: number;
   rows: number;
+  /** The size a sliced image is drawn at; absent for its own size. Never on a layer that repeats. */
+  width?: number;
+  height?: number;
 }
 
 export interface ComposeRecipe {
@@ -66,12 +77,15 @@ export function composeRecipe(descriptor: Record<string, unknown>): ComposeRecip
     if (!image) continue;
     // Repeated only when `grid` is what names the image.
     const repeats = use === null;
+    const [w, h] = [int(m.width, 1, COMPOSE_MAX_SIDE), int(m.height, 1, COMPOSE_MAX_SIDE)];
     layers.push({
       image,
       x: int(m.x, -COMPOSE_MAX_SIDE, COMPOSE_MAX_SIDE) ?? 0,
       y: int(m.y, -COMPOSE_MAX_SIDE, COMPOSE_MAX_SIDE) ?? 0,
       columns: repeats ? (int(m.columns, 1, COMPOSE_MAX_REPEAT) ?? 1) : 1,
       rows: repeats ? (int(m.rows, 1, COMPOSE_MAX_REPEAT) ?? 1) : 1,
+      // A size only with both sides, and never on a layer that repeats.
+      ...(!repeats && w !== null && h !== null ? { width: w, height: h } : {}),
     });
   }
   const width = int(descriptor.width, 1, COMPOSE_MAX_SIDE);
@@ -85,11 +99,14 @@ const clamp = (n: number) => Math.min(COMPOSE_MAX_SIDE, Math.max(1, n));
 
 /**
  * The image `recipe` gives, `image` reading a layer's (`undefined`: the server has none, the
- * layer is left out). `null` when no layer could be drawn.
+ * layer is left out) and `slice` its margins when it is a sliced image. `null` when no layer
+ * could be drawn. Without a size of its own, the image reaches as far as its first layer at
+ * that layer's own size.
  */
 export function composeImage(
   recipe: ComposeRecipe,
   image: (name: string) => RgbaImage | undefined,
+  slice: (name: string) => Slice | null | undefined = () => undefined,
 ): RgbaImage | null {
   const drawn: { layer: ComposeLayer; source: RgbaImage }[] = [];
   for (const layer of recipe.layers) {
@@ -102,7 +119,8 @@ export function composeImage(
     recipe.width ?? clamp(first.layer.x + first.layer.columns * first.source.width),
     recipe.height ?? clamp(first.layer.y + first.layer.rows * first.source.height),
   );
-  for (const { layer, source } of drawn) {
+  for (const { layer, source: plain } of drawn) {
+    const source = layerPicture(layer, plain, slice(layer.image));
     for (let row = 0; row < layer.rows; row++) {
       for (let column = 0; column < layer.columns; column++) {
         over(out, source, layer.x + column * source.width, layer.y + row * source.height);
@@ -110,6 +128,18 @@ export function composeImage(
     }
   }
   return out;
+}
+
+/** A layer's image as it is drawn: resized when the layer gives a size its margins fit. */
+export function layerPicture(
+  layer: ComposeLayer,
+  source: RgbaImage,
+  slice: Slice | null | undefined,
+): RgbaImage {
+  const { width, height } = layer;
+  if (!slice || width === undefined || height === undefined) return source;
+  if (width === source.width && height === source.height) return source;
+  return slicesAt(slice, source, width, height) ? drawSliced(source, slice, width, height) : source;
 }
 
 /** `source` over `target` at (`left`, `top`), clipped: plain alpha compositing on whole numbers. */
@@ -150,6 +180,8 @@ export async function renderComposed(
   recipe: ComposeRecipe,
   own: (name: string) => Png | Promise<Png>,
   kit: (name: string) => Png | Promise<Png>,
+  /** The margins of a layer's image, by the name the layer writes (`kit:<name>` or a module's). */
+  slice: (name: string) => Slice | null | undefined = () => undefined,
 ): Promise<RgbaImage | null> {
   const decoded = new Map<string, RgbaImage | undefined>();
   for (const { image: name } of recipe.layers) {
@@ -164,7 +196,7 @@ export async function renderComposed(
     }
     decoded.set(name, image);
   }
-  return composeImage(recipe, (name) => decoded.get(name));
+  return composeImage(recipe, (name) => decoded.get(name), slice);
 }
 
 /**
@@ -180,6 +212,9 @@ export function composeYaml(recipe: ComposeRecipe): Record<string, string | numb
       ...(layer.x !== 0 ? { x: layer.x } : {}),
       ...(layer.y !== 0 ? { y: layer.y } : {}),
       ...(repeats ? { columns: layer.columns, rows: layer.rows } : {}),
+      ...(!repeats && layer.width !== undefined && layer.height !== undefined
+        ? { width: layer.width, height: layer.height }
+        : {}),
     };
   });
 }

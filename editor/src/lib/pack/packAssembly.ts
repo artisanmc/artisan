@@ -146,6 +146,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     project: PackProject;
     recipe: ComposeRecipe;
     own: Map<string, Uint8Array>;
+    /** The margins of the module's sliced images, by name. */
+    slices: Map<string, Slice>;
     /** Its name in its module, which its row's is not once qualified. */
     name: string;
   }[] = [];
@@ -211,12 +213,21 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     });
     // The module's own PNGs by name: what its composed images are made of.
     const own = new Map<string, Uint8Array>();
+    const slices = new Map<string, Slice>();
+    for (const a of fromDisk) if (a.row.slice && !a.compose) slices.set(a.row.name, a.row.slice);
     for (const [i, a] of fromDisk.entries()) {
       const row = rows[i]!;
       if (common && (row.type === "glyph" || row.type === "texture")) {
         if (a.row.slice) kitSlices.set(a.row.name, a.row.slice);
         if (a.compose) {
-          composed.push({ row: null, project, recipe: a.compose, own, name: a.row.name });
+          composed.push({
+            row: null,
+            project,
+            recipe: a.compose,
+            own,
+            slices,
+            name: a.row.name,
+          });
           continue;
         }
         const bytes = await project.binary(a.path);
@@ -230,7 +241,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
       allAssets.push(row);
       if ((row.type === "glyph" && row.codepoint !== null) || row.type === "texture") {
         if (a.compose) {
-          composed.push({ row, project, recipe: a.compose, own, name: a.row.name });
+          composed.push({ row, project, recipe: a.compose, own, slices, name: a.row.name });
           continue;
         }
         const disk = await project.binary(a.path);
@@ -285,6 +296,11 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
         return png && theme && inKit(c.project) ? theme.shown(name, png, kitRamps.has(name)) : png;
       },
       kitPng,
+      (name) => {
+        const common = kitNameOf(name);
+        // In the kit module an image is a kit image under its bare name too.
+        return common !== null ? kitSlices.get(common) : c.slices.get(name);
+      },
     );
     if (image) made.push({ c, image });
   }

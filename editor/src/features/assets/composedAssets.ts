@@ -1,9 +1,10 @@
 import type { Asset } from "@/domain/asset";
 import { renderComposed } from "@/lib/pack/compose";
 import type { DiskAsset } from "@/lib/pack/diskAssets";
-import { kitImage } from "@/lib/pack/kit";
+import { kitImage, kitNameOf } from "@/lib/pack/kit";
 import { kitImageBytes } from "@/lib/pack/kitUrls";
 import { encodePng } from "@/lib/pack/png";
+import type { Slice } from "@/lib/pack/slice";
 import type { ThemeLook } from "@/lib/pack/theme";
 
 /**
@@ -43,6 +44,8 @@ export async function composedView(
   theme: ThemeLook | null = null,
   ownToo = false,
   kitRamps: (name: string) => boolean = () => false,
+  /** The margins of the server's own common image of that name, when it is sliced. */
+  kitSlice: (name: string) => Slice | undefined = () => undefined,
 ): Promise<ComposedView | null> {
   const recipe = asset.compose;
   if (!recipe) return null;
@@ -57,6 +60,12 @@ export async function composedView(
       const own = (await kitOwn(name)) ?? undefined;
       const png = (await kitImage(name, own, kitImageBytes))?.png;
       return png && theme ? theme.shown(name, png, png === own ? kitRamps(name) : true) : png;
+    },
+    (name) => {
+      const common = kitNameOf(name);
+      return common !== null
+        ? kitSlice(common)
+        : all.find((a) => isLayer(a) && a.row.name === name)?.row.slice;
     },
   );
   return image

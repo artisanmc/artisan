@@ -128,7 +128,7 @@ internal object VanillaGui {
 }
 
 /** The margins of a sliced image: the pixels kept as drawn at each edge (`slice.ts`). */
-internal data class Slice(val left: Int, val right: Int, val top: Int, val bottom: Int)
+data class Slice(val left: Int, val right: Int, val top: Int, val bottom: Int)
 
 /**
  * Sliced images (`slice.ts`, ADR `element-parts-and-sliced-images`, decision 2): an image button

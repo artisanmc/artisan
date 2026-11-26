@@ -31,7 +31,7 @@ import { isKitFolder, kitSlot } from "@/lib/pack/kit";
 import { type ParsedMcFont, parseMcFontsZip } from "@/lib/pack/mcFontsParser";
 import { readPngContentWidth, readPngDimensions } from "@/lib/pack/pngDimensions";
 import type { AssetRow } from "@/lib/pack/resourcePackBuilder";
-import { sliceOf } from "@/lib/pack/slice";
+import { type Slice, sliceOf } from "@/lib/pack/slice";
 import { sha256Hex } from "@/lib/sha256";
 import { useKitStore } from "@/state/kitStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -174,6 +174,32 @@ function kitOwnRamps(projectId: string, own: (name: string) => boolean): (name: 
   };
 }
 
+/**
+ * The margins of the server's own common image `name`, as published (`slice` in its
+ * descriptor). `own` answers for the kit module itself.
+ */
+function kitOwnSlice(
+  projectId: string,
+  own: (name: string) => Slice | undefined,
+): (name: string) => Slice | undefined {
+  const kit = useKitStore.getState().read;
+  if (!kit) return () => undefined;
+  if (kit.projectId === projectId) return own;
+  return (name) => {
+    const stem = ["assets/textures", "assets/glyphs"]
+      .map((dir) => `${dir}/${name}`)
+      .find((p) => kit.binaries.some((b) => b.path === `${p}.png`));
+    if (!stem) return undefined;
+    try {
+      return (
+        sliceOf(parse(kit.files[`${stem}.yml`] ?? kit.files[`${stem}.yaml`] ?? "")) ?? undefined
+      );
+    } catch {
+      return undefined;
+    }
+  };
+}
+
 /** The pictures of `disk`'s composed images, by asset: assembled as the pack does it. */
 async function composedViews(
   projectId: string,
@@ -199,12 +225,17 @@ async function composedViews(
       (a) => !a.compose && a.row.type !== "font" && a.row.name === name && a.row.ramps === true,
     ),
   );
+  const kitSlice = kitOwnSlice(
+    projectId,
+    (name) =>
+      disk.find((a) => !a.compose && a.row.type !== "font" && a.row.name === name)?.row.slice,
+  );
   // The server's theme: the `kit:` layers are shown in it, and the kit module's own images too.
   const theme = activeKitTheme(readPublishedBinary);
   const inKit = useKitStore.getState().read?.projectId === projectId;
   for (const asset of disk) {
     if (!asset.compose) continue;
-    const view = await composedView(asset, disk, read, kit, theme, inKit, kitRamps).catch(
+    const view = await composedView(asset, disk, read, kit, theme, inKit, kitRamps, kitSlice).catch(
       () => null,
     );
     if (view) out.set(asset, view);
@@ -707,7 +738,7 @@ function requestedRecipe(value: unknown): ComposeRecipe {
   const input = (value && typeof value === "object" ? value : {}) as Partial<ComposeRecipe>;
   const layers = Array.isArray(input.layers) ? input.layers : [];
   const invalid: () => never = () =>
-    fail(400, "Invalid compose (layers: image, x, y, columns, rows)");
+    fail(400, "Invalid compose (layers: image, x, y, columns, rows, width, height)");
   if (
     layers.some((layer) => !layer || typeof layer !== "object" || typeof layer.image !== "string")
   )
@@ -723,7 +754,9 @@ function requestedRecipe(value: unknown): ComposeRecipe {
     a.x === b.x &&
     a.y === b.y &&
     a.columns === b.columns &&
-    a.rows === b.rows;
+    a.rows === b.rows &&
+    a.width === b.width &&
+    a.height === b.height;
   if (
     !recipe ||
     recipe.layers.length === 0 ||

@@ -151,6 +151,8 @@ export async function composedKitImages(
         disk.some(
           (a) => !a.compose && a.row.type !== "font" && a.row.name === name && a.row.ramps === true,
         ),
+      (name) =>
+        disk.find((a) => !a.compose && a.row.type !== "font" && a.row.name === name)?.row.slice,
     ).catch(() => null);
     if (view?.previewUrl)
       out.set(asset.row.name, {
