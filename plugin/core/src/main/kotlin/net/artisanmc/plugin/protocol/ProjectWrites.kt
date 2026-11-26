@@ -185,12 +185,17 @@ class ProjectWrites(
             }
         }
 
+    /** A module's folder to the trash, or a theme's ([ServerThemes.delete]). */
     fun delete(request: ProjectDelete) =
-        folder(request, "project_delete", request.projectId, setOf(request.projectId)) { it.delete(request.projectId) }
+        folder(request, "project_delete", request.projectId, setOf(request.projectId)) {
+            if (roots.isTheme(request.projectId)) ServerThemes.delete(roots, request.projectId) else it.delete(request.projectId)
+        }
 
+    /** A module's folder renamed, or a theme's ([ServerThemes.rename]): a theme stays a theme. */
     fun rename(request: ProjectRename) =
         folder(request, "project_rename", request.projectId, setOf(request.projectId, request.targetId)) {
-            it.rename(request.projectId, request.targetId)
+            if (roots.isTheme(request.projectId)) ServerThemes.rename(roots, request.projectId, request.targetId)
+            else it.rename(request.projectId, request.targetId)
         }
 
     /** A Project folder created, trashed or renamed, then [touched] reloaded before the reply. */

@@ -457,6 +457,21 @@ the page it was opened from.
 Not in this part: deleting or renaming a theme (the server's folder operations reach modules
 only), and a theme's export and import.
 
+**Step 4, eighth part: a theme is renamed and deleted** (`ServerThemes.rename` and `.delete`,
+`ThemeMoves.tsx`, protocol minor 12).
+`project_rename` and `project_delete` reach a theme of its own folder: the folder moves
+within `themes/` (its drafts and history with it), or to `themes/.artisan-trash/`, never
+erased, and the theme is a Project of the server under its new name, or no more. The theme
+`artisan` is refused (`addon_immutable`), and so is a name a module, a theme or a folder of
+`themes/` has (`destination_exists`). The server leaves `resource-pack.themes` alone: the
+page of a theme, which offers **Rename** and **Delete** when the server says it moves the
+folder (`capabilities.canRename` of the Project's summary, kept as `KitRead.canMove`),
+moves the folder first, then writes the list (`themesRenamed`: a renamed theme keeps its
+place; a deleted one leaves it) and rebuilds the pack when the theme was in place. A name
+left in the list with no folder changes nothing and shows as not found on the Themes screen.
+Not in this part: a theme's export and import; putting a deleted theme back from the trash
+is done in the server's files.
+
 Not there yet:
 
 - Against decision 3: a name that neither the menu's module nor the common images hold still
@@ -486,8 +501,7 @@ Not there yet:
   in between is not flagged. A menu keeps what module originals already gave it (compare with
   the original, back to the original, a merge at each update): it has no "the original
   changed" notice of its own.
-- Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are not in the pack,
-  and a theme is not deleted or renamed from the editor.
+- Against decision 5: a theme's own images (`assets/`, `<theme>:<name>`) are not in the pack.
 - Against decision 7: an image of the server that follows the ramps is repainted by its
   colours as they are, so one drawn in other colours than the base's is not reached by a pick;
   the editor does not say which of an image's colours are in no ramp.

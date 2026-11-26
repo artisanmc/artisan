@@ -9,7 +9,9 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
 import { KitTrialMenu } from "./KitTrialMenu";
+import { ThemeMoves } from "./ThemeMoves";
 import { publishedKitTheme, useKitAssetsIn } from "./kitAssets";
+import { serverThemeNames } from "./kitTheme";
 
 const hex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
 
@@ -34,7 +36,8 @@ const sameTable = (a: ReadonlyMap<number, number>, b: ReadonlyMap<number, number
  *
  * A theme of its own folder has its colours picked here (`onColors`): one colour per ramp of
  * the base (`lib/pack/ramps.ts`), the shades computed, the menu shown with them before they
- * are written.
+ * are written. Such a theme is renamed and deleted from here too (`onRename`, `onDelete`),
+ * when the server moves a theme's folder.
  */
 export function KitThemePage({
   name,
@@ -44,6 +47,8 @@ export function KitThemePage({
   onOpenKit,
   onOpenTheme,
   onColors,
+  onRename,
+  onDelete,
 }: {
   name: string;
   onBack: () => void;
@@ -57,6 +62,10 @@ export function KitThemePage({
   onOpenTheme?: () => void;
   /** Writes the table `colors` in the file of the theme `name`, a theme of its own folder. */
   onColors?: (name: string, colors: ReadonlyMap<number, number>) => Promise<void>;
+  /** Renames the theme `name`, a theme of its own folder, to `target`. */
+  onRename?: (name: string, target: string) => Promise<void>;
+  /** Takes the theme `name`, a theme of its own folder, off the server. */
+  onDelete?: (name: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const read = useKitStore((s) => s.read);
@@ -73,6 +82,8 @@ export function KitThemePage({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const picks = !!onColors && name in own;
+  const moves = own[name]?.canMove === true;
+  const taken = useMemo(() => serverThemeNames(read, own), [read, own]);
 
   const put = async (next: boolean) => {
     if (busy || !onPutInPlace) return;
@@ -294,6 +305,15 @@ export function KitThemePage({
                     {t("kit.theme.open")}
                   </Button>
                 </div>
+              ) : null}
+              {moves ? (
+                <ThemeMoves
+                  name={name}
+                  inPlace={inPlace}
+                  taken={taken}
+                  onRename={onRename ? (target) => onRename(name, target) : undefined}
+                  onDelete={onDelete ? () => onDelete(name) : undefined}
+                />
               ) : null}
             </section>
           </div>

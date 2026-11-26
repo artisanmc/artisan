@@ -363,6 +363,36 @@ const fr: typeof en = {
       putHint:
         "Mettre en place pose le thème au-dessus de ceux qui y sont déjà et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
       open: "Ouvrir le dossier du thème",
+      moves: {
+        rename: "Renommer",
+        delete: "Supprimer",
+        renameTitle: "Renommer le thème {{name}}",
+        renameIntro:
+          "Le dossier du thème est renommé sur le serveur, avec ses brouillons et son historique. Ses couleurs et ses images restent telles quelles.",
+        renameInPlace:
+          "Le dossier du thème est renommé sur le serveur, avec ses brouillons et son historique. Le thème garde sa place parmi les thèmes en place, et le pack du serveur est reconstruit.",
+        deleteTitle: "Supprimer le thème {{name}}",
+        deleteIntro:
+          "Le dossier themes/{{name}}/ part dans la corbeille du serveur (themes/.artisan-trash/) : rien n'est effacé, et il se remet en place depuis les fichiers du serveur.",
+        deleteInPlace:
+          "Le dossier themes/{{name}}/ part dans la corbeille du serveur (themes/.artisan-trash/) : rien n'est effacé, et il se remet en place depuis les fichiers du serveur. Ce thème est en place : il est retiré, et le pack du serveur est reconstruit sans lui.",
+        errors: {
+          invalid_path:
+            "Minuscules, chiffres, « _ » et « - », en commençant par une lettre ou un chiffre. « artisan » est le nom des images communes.",
+          destination_exists: "Un thème ou un module porte déjà ce nom sur ce serveur.",
+          addon_immutable: "Ce serveur ne déplace pas le dossier de ce thème.",
+          unknown_project: "Le serveur n'a plus ce thème. Reviens à la liste des thèmes.",
+          server_offline: "Le serveur est hors ligne. Connecte-le, puis réessaie.",
+          fetch_timeout:
+            "Le serveur n'a pas répondu à temps. Vérifie la liste des thèmes avant de réessayer.",
+          forbidden: "Tu n'as pas le droit de modifier les thèmes de ce serveur.",
+          plugin_update_required:
+            "Ce serveur utilise une version plus ancienne d'Artisan. Mets son plugin à jour pour renommer ou supprimer un thème.",
+          stack_failed:
+            "Le dossier du thème a été déplacé, mais la liste des thèmes en place n'a pas pu être écrite. Corrige-la sur l'écran Thèmes.",
+          failed: "Le serveur a refusé. Réessaie.",
+        },
+      },
       ramps: {
         title: "Couleurs d'Artisan",
         hint: "Choisissez ce que devient chaque couleur des images d'Artisan dans ce thème : ses nuances suivent. Le menu à côté montre le résultat avant toute écriture.",

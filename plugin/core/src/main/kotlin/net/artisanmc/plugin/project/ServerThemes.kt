@@ -2,6 +2,11 @@ package net.artisanmc.plugin.project
 
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption.ATOMIC_MOVE
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.logging.Logger
 
 /**
@@ -34,6 +39,7 @@ object ServerThemes {
     const val FORMER_DIR = "themes"
 
     private val NAME = Regex("^[a-z0-9][a-z0-9_-]*$")
+    private val STAMP = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC)
     private val FORMER_IMAGE_DIRS = listOf("assets/textures", "assets/glyphs")
 
     fun isName(name: String): Boolean = NAME.matches(name) && name != ArtisanTheme.NAME
@@ -69,6 +75,61 @@ object ServerThemes {
         roots.theme(name)
         return if (File(roots.themesRoot, name).isDirectory) null else "write_error"
     }
+
+    /**
+     * Takes the theme [name] off the server: its folder moves to `themes/.artisan-trash/`, never
+     * erased, and it is a Project no more. The theme `artisan` holds the common images and
+     * stays. A name left in `resource-pack.themes` then changes nothing. Returns a protocol
+     * error code, or null when it happened.
+     */
+    fun delete(roots: ProjectRoots, name: String, now: () -> Instant = Instant::now): String? {
+        val dir = movable(roots, name) ?: return refusal(roots, name)
+        val trash = File(roots.themesRoot, ProjectFolders.TRASH).apply { mkdirs() }
+        val stamp = STAMP.format(now())
+        var target = File(trash, "$name-$stamp")
+        var n = 1
+        while (target.exists()) target = File(trash, "$name-$stamp-${n++}")
+        roots.forgetTheme(name)
+        try {
+            Files.move(dir.toPath(), target.toPath(), ATOMIC_MOVE)
+        } catch (e: IOException) {
+            // Nothing moved: the theme is still there, and still read.
+            roots.theme(name)
+            throw e
+        }
+        return null
+    }
+
+    /**
+     * Renames the theme [name] to [target]: the folder moves, with its drafts and history
+     * (`.artisan/`). `resource-pack.themes` is the caller's to follow. Returns a protocol error
+     * code, or null when it happened.
+     */
+    fun rename(roots: ProjectRoots, name: String, target: String): String? {
+        if (!isName(target) || target == name) return "invalid_path"
+        val dir = movable(roots, name) ?: return refusal(roots, name)
+        // A module's name, a theme's, or a folder that differs by its case alone.
+        val taken = roots.isRegistered(target) ||
+            listOf(roots.themesRoot, roots.coreRoot).any { root -> root.listFiles().orEmpty().any { it.name.equals(target, ignoreCase = true) } }
+        if (taken) return "destination_exists"
+        roots.forgetTheme(name)
+        try {
+            Files.move(dir.toPath(), File(roots.themesRoot, target).toPath(), ATOMIC_MOVE)
+        } catch (e: IOException) {
+            roots.theme(name)
+            throw e
+        }
+        roots.theme(target)
+        return null
+    }
+
+    /** The folder of the theme [name] when it may be moved: a registered theme other than `artisan`, a real directory. */
+    private fun movable(roots: ProjectRoots, name: String): File? {
+        if (name == ArtisanTheme.NAME || !roots.isTheme(name)) return null
+        return File(roots.themesRoot, name).takeIf { it.isDirectory && !Files.isSymbolicLink(it.toPath()) }
+    }
+
+    private fun refusal(roots: ProjectRoots, name: String) = if (name == ArtisanTheme.NAME && roots.isTheme(name)) "addon_immutable" else "unknown_project"
 
     /** Whether no module of the server is named [name]: a theme never hides one. */
     fun free(roots: ProjectRoots, name: String): Boolean =

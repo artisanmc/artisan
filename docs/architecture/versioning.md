@@ -288,7 +288,9 @@ The risk remains: hub and leaves are distinct jars, updated at different times.
   leaf gets 501 on the keep route. `1.11` (`THEME_FOLDERS`) adds `role: "theme"` to
   `project_create` and reads a theme from its own folder; an older leaf would create a module
   of that name, so the hub answers 501 to the creation of a theme, and the MCP tools write a
-  theme in that server's common images, where it keeps them.
+  theme in that server's common images, where it keeps them. `1.12` (`THEME_MOVES`):
+  `project_delete` and `project_rename` reach a theme's folder; an older leaf answers
+  `addon_immutable`, so the hub says a theme of that server cannot be renamed or deleted.
 - **One release = one number** for all jars; update hub and leaves together.
 
 The server that hosts the hub talks to it in process (`LocalServerLink`): never a version gap.

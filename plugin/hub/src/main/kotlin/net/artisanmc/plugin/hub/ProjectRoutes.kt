@@ -10,6 +10,7 @@ import net.artisanmc.plugin.hub.Relay.Companion.ok
 import net.artisanmc.plugin.hub.Relay.Companion.readError
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.speaksTemplates
+import net.artisanmc.plugin.project.ArtisanTheme
 import net.artisanmc.plugin.project.ProjectListing
 import net.artisanmc.plugin.project.ProjectRootInfo
 import net.artisanmc.plugin.project.ServerThemes
@@ -195,8 +196,12 @@ class ProjectRoutes(
 
     private fun folderError(call: Call, reply: Map<String, Any?>) = readError(call, reply)
 
-    private fun movable(server: EditorServer, root: ProjectRootInfo) =
-        root.identity == "folder" && ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.PROJECT_FOLDERS
+    /** Whether the server renames and trashes this folder: a module's own, or a theme's other than the common images'. */
+    private fun movable(server: EditorServer, root: ProjectRootInfo): Boolean {
+        val minor = ProtocolVersion.minor(server.protocolVersion)
+        return if (root.role == ServerThemes.ROLE) root.projectId != ArtisanTheme.NAME && minor >= ProtocolVersion.THEME_MOVES
+        else root.identity == "folder" && minor >= ProtocolVersion.PROJECT_FOLDERS
+    }
 
     /** A URL naming its content's hash never changes content: the browser keeps it for good. */
     private fun cacheFor(bytes: ByteArray, hash: String?): String =

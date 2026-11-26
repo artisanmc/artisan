@@ -354,6 +354,36 @@ export default {
       putHint:
         "Putting a theme in place sets it above the ones already there and rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
       open: "Open the theme's folder",
+      moves: {
+        rename: "Rename",
+        delete: "Delete",
+        renameTitle: "Rename the theme {{name}}",
+        renameIntro:
+          "The theme's folder is renamed on the server, with its drafts and its history. Its colours and its images stay as they are.",
+        renameInPlace:
+          "The theme's folder is renamed on the server, with its drafts and its history. The theme keeps its place among the themes in place, and the server's pack is rebuilt.",
+        deleteTitle: "Delete the theme {{name}}",
+        deleteIntro:
+          "The folder themes/{{name}}/ moves to the server's trash (themes/.artisan-trash/): nothing is erased, and it can be put back from the server's files.",
+        deleteInPlace:
+          "The folder themes/{{name}}/ moves to the server's trash (themes/.artisan-trash/): nothing is erased, and it can be put back from the server's files. This theme is in place: it is taken off, and the server's pack is rebuilt without it.",
+        errors: {
+          invalid_path:
+            "Lowercase letters, digits, “_” and “-”, starting with a letter or a digit. “artisan” is the name of the common images.",
+          destination_exists: "A theme or a module already has this name on this server.",
+          addon_immutable: "This server does not move this theme's folder.",
+          unknown_project: "The server no longer holds this theme. Go back to the list of themes.",
+          server_offline: "The server is offline. Connect it, then try again.",
+          fetch_timeout:
+            "The server did not answer in time. Check the list of themes before trying again.",
+          forbidden: "You are not allowed to change the themes of this server.",
+          plugin_update_required:
+            "This server runs an older Artisan. Update its plugin to rename or delete a theme.",
+          stack_failed:
+            "The theme's folder was moved, but the list of themes in place could not be written. Fix it on the Themes screen.",
+          failed: "The server refused. Try again.",
+        },
+      },
       ramps: {
         title: "Artisan's colours",
         hint: "Pick what each colour of Artisan's images becomes in this theme: its shades follow. The menu beside shows the result before anything is written.",
