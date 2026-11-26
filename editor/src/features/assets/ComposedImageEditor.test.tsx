@@ -4,7 +4,7 @@ import type { ComposeRecipe } from "@/lib/pack/compose";
 import { decodePng } from "@/lib/pack/png";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ComposedImageEditor } from "./ComposedImageEditor";
+import { ComposedImageEditor, layerName } from "./ComposedImageEditor";
 import { useAssetStore } from "./assetStore";
 
 vi.mock("@/state/authStore", () => ({
@@ -183,6 +183,39 @@ describe("ComposedImageEditor", () => {
       columns: 1,
       rows: 1,
     });
+  });
+
+  it("reads a common image written `artisan:<name>` like the former `kit:<name>`", () => {
+    // What the assistant's compose writes, and the editor since: the same image, the same label.
+    const written: ComposeRecipe = {
+      ...recipe,
+      layers: [
+        { ...recipe.layers[0]!, image: "artisan:window.3" },
+        { ...recipe.layers[1]!, image: "artisan:cell" },
+        recipe.layers[2]!,
+      ],
+    };
+    render(
+      <ComposedImageEditor
+        projectId={"p1" as never}
+        asset={image("hall", 176, 166, { compose: written, previewUrl: "data:," })}
+      />,
+    );
+    const stage = screen.getByTestId("compose-stage");
+    expect([px(stage.style.width), px(stage.style.height)]).toEqual([352, 332]);
+    expect(layers().map((layer) => layer.getAttribute("aria-label"))).toEqual([
+      "Calque 1 : window.3",
+      "Calque 2 : cell",
+      "Calque 3 : icon",
+    ]);
+    const [, grid] = layers();
+    expect([px(grid!.style.width), px(grid!.style.height)]).toEqual([9 * 18 * 2, 3 * 18 * 2]);
+  });
+
+  it("writes a common image as `artisan:<name>`, a PNG of the module by its name", () => {
+    expect(layerName({ name: "kit:button.3x1" })).toBe("artisan:button.3x1");
+    expect(layerName({ name: "artisan:button.3x1" })).toBe("artisan:button.3x1");
+    expect(layerName({ name: "icon" })).toBe("icon");
   });
 
   it("retouches a PNG layer of the module, never a kit piece", () => {

@@ -12,7 +12,7 @@ import {
   type ComposeRecipe,
   composeSize,
 } from "@/lib/pack/compose";
-import { KIT_PREFIX, kitNameOf } from "@/lib/pack/kit";
+import { KIT_PREFIX, commonImageKey, kitNameOf } from "@/lib/pack/kit";
 import { createImage, encodePng } from "@/lib/pack/png";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
@@ -47,6 +47,12 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 /** Where the image itself starts: what a layer is placed from when nothing else is drawn. */
 const ORIGIN: ComposeLayer = { image: "", x: 0, y: 0, columns: 1, rows: 1 };
+
+/** What a layer writes to take `picked`: `artisan:<name>` for a common image, the name of a PNG of the module. */
+export function layerName(picked: Pick<Asset, "name">): string {
+  const common = kitNameOf(picked.name);
+  return common !== null ? commonImageKey(common) : picked.name;
+}
 const NO_GUIDES: readonly GuideName[] = [];
 
 const sameRecipe = (a: ComposeRecipe, b: ComposeRecipe) => JSON.stringify(a) === JSON.stringify(b);
@@ -231,8 +237,13 @@ export function ComposedImageEditor({
     () => all.filter((a) => a.projectId === projectId && a.type !== "font" && !a.compose),
     [all, projectId],
   );
-  const imageOf = (name: string): Asset | undefined =>
-    kitNameOf(name) !== null ? kit.find((a) => a.id === name) : own.find((a) => a.name === name);
+  // A common image is written `artisan:<name>`; `kit:<name>` is the former spelling, still read.
+  const imageOf = (name: string): Asset | undefined => {
+    const common = kitNameOf(name);
+    return common !== null
+      ? kit.find((a) => a.id === KIT_PREFIX + common)
+      : own.find((a) => a.name === name);
+  };
   const sizeOf = (name: string): ImageSize | undefined => assetSize(imageOf(name), measured);
 
   const size = composeSize(recipe, sizeOf);
@@ -287,7 +298,7 @@ export function ComposedImageEditor({
     if (recipe.layers.length >= COMPOSE_MAX_LAYERS) return;
     setRecipe((r) => ({
       ...r,
-      layers: [...r.layers, { image: picked.name, x: 0, y: 0, columns: 1, rows: 1 }],
+      layers: [...r.layers, { image: layerName(picked), x: 0, y: 0, columns: 1, rows: 1 }],
     }));
     setSelected(recipe.layers.length);
   };
@@ -376,8 +387,7 @@ export function ComposedImageEditor({
     }
   };
 
-  const labelOf = (layer: ComposeLayer) =>
-    kitNameOf(layer.image) !== null ? layer.image.slice(KIT_PREFIX.length) : layer.image;
+  const labelOf = (layer: ComposeLayer) => kitNameOf(layer.image) ?? layer.image;
   const current = selected === null ? undefined : recipe.layers[selected];
   const fixed = recipe.width !== null && recipe.height !== null;
 

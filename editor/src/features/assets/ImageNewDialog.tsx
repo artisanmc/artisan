@@ -7,7 +7,14 @@ import type { ProjectId } from "@/domain/types";
 import { composeAsset, uploadAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
 import type { ComposeRecipe } from "@/lib/pack/compose";
-import { KIT_ASCENT, KIT_PREFIX, KIT_SLOTS, kitFootprint, kitSlot } from "@/lib/pack/kit";
+import {
+  KIT_ASCENT,
+  KIT_PREFIX,
+  KIT_SLOTS,
+  commonImageKey,
+  kitFootprint,
+  kitSlot,
+} from "@/lib/pack/kit";
 import { createImage, encodePng } from "@/lib/pack/png";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useId, useState } from "react";
@@ -71,10 +78,10 @@ export function startRecipe(
   rows: number,
   size: { width: number; height: number },
 ): ComposeRecipe {
-  const first = { image: KIT_PREFIX + piece, x: 0, y: 0, columns: 1, rows: 1 };
+  const first = { image: commonImageKey(piece), x: 0, y: 0, columns: 1, rows: 1 };
   if (purpose === "menu")
     return {
-      layers: [first, { image: `${KIT_PREFIX}cell`, x: 7, y: 17, columns: COLUMNS, rows }],
+      layers: [first, { image: commonImageKey("cell"), x: 7, y: 17, columns: COLUMNS, rows }],
       // As large as the kit's window, which is not always the game's height to the pixel.
       width: null,
       height: null,
@@ -300,7 +307,7 @@ export function ImageNewDialog({
                     {asset && (
                       <AssetPreview asset={asset} className="h-6 max-w-16 object-contain" />
                     )}
-                    {piece === EMPTY ? t("imageNew.empty") : KIT_PREFIX + piece}
+                    {piece === EMPTY ? t("imageNew.empty") : piece}
                   </button>
                 );
               })}

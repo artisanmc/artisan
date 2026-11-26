@@ -51,14 +51,14 @@ describe("a new image's size and start", () => {
   it("starts a window with its slots, and an image on slots at its fixed size", () => {
     expect(startRecipe("menu", "window.6", 6, { width: 176, height: 222 })).toEqual({
       layers: [
-        { image: "kit:window.6", x: 0, y: 0, columns: 1, rows: 1 },
-        { image: "kit:cell", x: 7, y: 17, columns: 9, rows: 6 },
+        { image: "artisan:window.6", x: 0, y: 0, columns: 1, rows: 1 },
+        { image: "artisan:cell", x: 7, y: 17, columns: 9, rows: 6 },
       ],
       width: null,
       height: null,
     });
     expect(startRecipe("slots", "button.3x1", 6, { width: 54, height: 18 })).toEqual({
-      layers: [{ image: "kit:button.3x1", x: 0, y: 0, columns: 1, rows: 1 }],
+      layers: [{ image: "artisan:button.3x1", x: 0, y: 0, columns: 1, rows: 1 }],
       width: 54,
       height: 18,
     });
@@ -83,7 +83,7 @@ describe("ImageNewDialog", () => {
     expect(composed.mock.calls[0]?.[1]).toMatchObject({
       name: "join",
       usages: ["button"],
-      recipe: { layers: [{ image: "kit:button.3x1" }], width: 54, height: 18 },
+      recipe: { layers: [{ image: "artisan:button.3x1" }], width: 54, height: 18 },
     });
   });
 
