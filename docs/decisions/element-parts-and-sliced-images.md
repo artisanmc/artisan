@@ -243,8 +243,10 @@ layers are step 2's, unchanged. Scopes as decided: the menu's module, then the c
 the base will ship its own); `<module>:<name>` and `artisan:<name>` name one scope. A bare
 image name in a component's file is its owner's image; an image the look gives is read as
 the menu writes it. A text parameter may be one text per language. The editor keeps
-`component` as written through a save. Not built: the visible fallback and the editor's
-problem for a name nothing answers (the look draws nothing), the canvas and `render_menu`
+`component` as written through a save, and its canvas draws a component look as its parts
+(`useComponentsFeed`, `domain/components.ts`: the open Project's `components/` as edited,
+the other modules and the theme as published). Not built: the visible fallback and the
+editor's problem for a name nothing answers (the look draws nothing), `render_menu`
 (a component look shows empty there), the picker and the parameters' fields in the Element
 panel, "Save as component", where a component is used, a theme's `overrides/` of a
 component, and the reload of the menus of other modules when a component they name

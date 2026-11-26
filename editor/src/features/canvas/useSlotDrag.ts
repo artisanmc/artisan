@@ -122,7 +122,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
           for (const el of layer.elements) {
             if (!sel.ids.has(el.id)) continue;
             const appearance = el.display;
-            if (appearance && appearanceImages(appearance).length) continue;
+            if (appearance && appearanceImages(appearance, projectId).length) continue;
             for (const p of parsePositions(el.positions)) {
               if (p === slotPosition) continue;
               siblings.push({
@@ -146,7 +146,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
         setDragState({ kind: "single", sourcePosition: slotPosition, altKey });
       }
     },
-    [menuLayers],
+    [menuLayers, projectId],
   );
 
   const onSlotDragMove = useCallback(

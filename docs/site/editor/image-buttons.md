@@ -410,8 +410,8 @@ A bare name is this module's component, else one of the server's common ones (th
 `artisan:confirm` a common one. An image the component names belongs to the component's
 module; an image the button gives is read from the button's. A button writes `component`,
 `parts`, or `image` and `label`, one of the three, and a button that repeats cannot name a
-component. A name no component answers draws nothing. The editor's canvas does not draw a
-component yet: the button shows empty there, and is right in game.
+component. A name no component answers draws nothing. The editor's canvas draws a
+button's component as the game does.
 
 **Hover area.** A button with neither image nor item (no `image`, `material` nor `item`) is
 invisible: its slots show nothing but keep its title, lore and clicks. Use it to explain a

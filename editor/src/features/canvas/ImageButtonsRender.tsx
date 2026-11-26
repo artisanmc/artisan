@@ -10,6 +10,7 @@ import {
 import type { Element, Menu, MenuId, ProjectId } from "@/domain/types";
 import { useImageAsset } from "@/features/assets/kitAssets";
 import { slicedCanvas } from "@/features/assets/slicedUrl";
+import { useComponentsFeed } from "@/features/assets/useComponentsFeed";
 import { useCssVar } from "@/lib/themeColors";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
 import { useHoverStore } from "@/state/hoverStore";
@@ -45,11 +46,13 @@ export function ImageButtonsRender({
   frame: ImageButtonDropFrame;
   onDeepSelect?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
 }) {
+  // A look that names a component is drawn as its parts: read again when the components change.
+  useComponentsFeed();
   return (
     <>
       {menu.layers
         .flatMap((layer) => layer.elements)
-        .filter((el) => appearanceImages(el.display).length > 0)
+        .filter((el) => appearanceImages(el.display, projectId).length > 0)
         .map((element) => (
           <ImageButtonRender
             key={element.id}
@@ -77,7 +80,7 @@ function ImageButtonRender({
   frame: ImageButtonDropFrame;
   onDeepSelect?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
 }) {
-  const images = appearanceImages(element.display);
+  const images = appearanceImages(element.display, projectId);
   const ids = useSelectionStore((state) => state.ids);
   const selectedMenu = useSelectionStore((state) => state.menuId);
   const brand = useCssVar("--brand");
@@ -89,7 +92,7 @@ function ImageButtonRender({
     menu.rows,
     menu.playerInventory,
   );
-  if (!rect || !hasImageButton(element)) return null;
+  if (!rect || !hasImageButton(element, projectId)) return null;
   const x = rect.x * TEX_SCALE;
   const y = rect.y * TEX_SCALE;
   const width = rect.width * 18 * TEX_SCALE;

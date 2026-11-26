@@ -7,6 +7,7 @@ import {
   imageButtonArea,
   labelFrame,
 } from "../../../docs/schema/menu/v1/imageButtonGeometry";
+import { type ComponentText, componentLook } from "./components";
 import type {
   Appearance,
   Element,
@@ -25,7 +26,10 @@ export {
  * The images a look draws, bottom to top: its image pieces (at their own size unless `fit`
  * says otherwise), else its `image`. Mirror of `lookImages`, on the domain.
  */
-export function appearanceImages(appearance: Appearance): ImageButtonImage[] {
+export function appearanceImages(appearance: Appearance, projectId?: string): ImageButtonImage[] {
+  // A component's images, when the Project the look is in is given and its components are known.
+  const component = componentLook(appearance, projectId);
+  if (component) return component.images;
   if (!appearance.parts) return appearance.image ? [appearance.image] : [];
   return appearance.parts.flatMap((part) =>
     "image" in part
@@ -43,10 +47,21 @@ export function appearanceImages(appearance: Appearance): ImageButtonImage[] {
 }
 
 /** A label as it is drawn: a text piece adds where it sits vertically. */
-export type DrawnLabel = ElementLabel<LText> & { valign?: "top" | "center" | "bottom" };
+export type DrawnLabel = ElementLabel<LText> & {
+  valign?: "top" | "center" | "bottom";
+  /** A component's text, written in the component or given by the look: shown as it is, not a key. */
+  literal?: ComponentText;
+};
 
 /** The texts a look draws: its text pieces (aligned by their anchor), else its `label`. */
-export function appearanceLabels(appearance: Appearance): DrawnLabel[] {
+export function appearanceLabels(appearance: Appearance, projectId?: string): DrawnLabel[] {
+  const component = componentLook(appearance, projectId);
+  if (component)
+    return component.labels.map(({ text, ...placement }) => ({
+      ...(placement as Omit<DrawnLabel, "text" | "literal">),
+      text: { key: "" as LText["key"] },
+      literal: text,
+    }));
   if (!appearance.parts) return appearance.label ? [appearance.label] : [];
   return appearance.parts.flatMap((part) => {
     if ("image" in part) return [];
@@ -64,9 +79,9 @@ export function appearanceLabels(appearance: Appearance): DrawnLabel[] {
   });
 }
 
-export const hasImageButton = (element: Element) =>
+export const hasImageButton = (element: Element, projectId?: string) =>
   [element.display, ...element.states].some(
-    (appearance) => appearanceImages(appearance).length > 0,
+    (appearance) => appearanceImages(appearance, projectId).length > 0,
   );
 
 /**
@@ -143,7 +158,10 @@ export function assertImageButtonPlacement(
   }
 }
 
-type LabelLayer = Extract<MenuTitleLayer, { kind: "textarea" }>;
+type LabelLayer = Extract<MenuTitleLayer, { kind: "textarea" }> & {
+  /** A component's text (`DrawnLabel.literal`): drawn as it is, `value` names no key. */
+  literal?: ComponentText;
+};
 
 /**
  * The labels of a menu's fixed elements (their display), as the title textareas the plugin
@@ -153,7 +171,7 @@ type LabelLayer = Extract<MenuTitleLayer, { kind: "textarea" }>;
 export function elementLabels(menu: Menu): { elementId: Element["id"]; layer: LabelLayer }[] {
   const out: { elementId: Element["id"]; layer: LabelLayer }[] = [];
   for (const element of menu.layers.flatMap((layer) => layer.elements)) {
-    const labels = appearanceLabels(element.display);
+    const labels = appearanceLabels(element.display, menu.projectId);
     if (!labels.length || element.iterates || element.places) continue;
     const rect = imageButtonRect(
       element.positions,
@@ -169,7 +187,15 @@ export function elementLabels(menu: Menu): { elementId: Element["id"]; layer: La
         width: rect.width * 18,
         height: rect.height * 18,
       });
-      out.push({ elementId: element.id, layer: { kind: "textarea", value: label.text, ...frame } });
+      out.push({
+        elementId: element.id,
+        layer: {
+          kind: "textarea",
+          value: label.text,
+          ...frame,
+          ...(label.literal !== undefined ? { literal: label.literal } : {}),
+        },
+      });
     }
   }
   return out;
