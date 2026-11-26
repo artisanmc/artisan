@@ -12,11 +12,20 @@ export type DocumentV1 = { id: string } & Record<string, unknown>;
 function serializeAppearance(app: Appearance, project: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (app.if && app.if.length > 0) out.if = conditionsToStructured(app.if, app.ifJoins);
-  if (app.image) out.image = app.image;
-  else if (app.item !== undefined) out.item = app.item;
-  else if (app.material) out.material = app.material;
   const t = fieldTextOf(project);
-  if (app.label) {
+  const images = !!app.parts?.some((part) => "image" in part);
+  if (app.image && !app.parts) out.image = app.image;
+  else if (images) {
+    // A look that draws images names no item: its slots hold the invisible hit item.
+  } else if (app.item !== undefined) out.item = app.item;
+  else if (app.material) out.material = app.material;
+  if (app.parts) {
+    out.parts = app.parts.map((part) => {
+      if ("image" in part) return part;
+      const { label, ...placement } = part;
+      return { label: t(label.key), ...placement };
+    });
+  } else if (app.label) {
     const { text, ...placement } = app.label;
     out.label = { text: t(text.key), ...placement };
   }

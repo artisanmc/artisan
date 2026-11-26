@@ -507,6 +507,21 @@
               "default": 0,
               "minimum": -4096,
               "maximum": 4096
+            },
+            "anchor": {
+              "enum": [
+                "center",
+                "left",
+                "right",
+                "top",
+                "bottom",
+                "top_left",
+                "top_right",
+                "bottom_left",
+                "bottom_right"
+              ],
+              "default": "center",
+              "description": "Where the piece sits in the element's rectangle, before the offsets."
             }
           },
           "description": "One image covering the element's rectangular slot area; on an element that iterates or places, one image per slot (18×18), chosen per row. Shares its conditions and click actions. A row whose image is not in the resource pack (or a Bedrock player) shows the appearance's material (or item) instead, when it names one. On a fixed image button, a look with an image names neither: its slots hold the invisible hit item."
@@ -554,6 +569,113 @@
             }
           },
           "description": "Text drawn in the title over the element's slot rectangle: centred vertically, aligned in its width (centre by default), then shifted by the offsets. Follows the element when it moves; each state has its own. Only on an element that neither iterates nor places; not drawn for Bedrock players nor over an image missing from the pack."
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "image"
+                ],
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "An image's name, written as is (no expression). A sliced image fills the element's rectangle."
+                  },
+                  "fit": {
+                    "enum": [
+                      "contain",
+                      "stretch",
+                      "native"
+                    ],
+                    "default": "native"
+                  },
+                  "anchor": {
+                    "enum": [
+                      "center",
+                      "left",
+                      "right",
+                      "top",
+                      "bottom",
+                      "top_left",
+                      "top_right",
+                      "bottom_left",
+                      "bottom_right"
+                    ],
+                    "default": "center",
+                    "description": "Where the piece sits in the element's rectangle, before the offsets."
+                  },
+                  "offset_x": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": -4096,
+                    "maximum": 4096
+                  },
+                  "offset_y": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": -4096,
+                    "maximum": 4096
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ],
+                "properties": {
+                  "label": {
+                    "$ref": "#/$defs/LText"
+                  },
+                  "anchor": {
+                    "enum": [
+                      "center",
+                      "left",
+                      "right",
+                      "top",
+                      "bottom",
+                      "top_left",
+                      "top_right",
+                      "bottom_left",
+                      "bottom_right"
+                    ],
+                    "default": "center",
+                    "description": "Where the piece sits in the element's rectangle, before the offsets."
+                  },
+                  "size": {
+                    "enum": [
+                      8,
+                      12,
+                      16,
+                      20,
+                      24,
+                      32
+                    ],
+                    "default": 8
+                  },
+                  "offset_x": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": -256,
+                    "maximum": 256
+                  },
+                  "offset_y": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": -256,
+                    "maximum": 256
+                  }
+                }
+              }
+            ]
+          },
+          "description": "The look as a list of pieces drawn bottom to top over the element's slot rectangle: images (each at its own size unless `fit` says otherwise) and texts, each placed by an anchor and offsets. Written instead of `image` and `label`, which mean a list of those two. Only on an element that neither iterates nor places. A Bedrock player sees the first image."
         },
         "if": {
           "type": "array",

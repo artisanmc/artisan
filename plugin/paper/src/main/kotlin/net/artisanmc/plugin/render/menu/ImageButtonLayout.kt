@@ -16,7 +16,8 @@ data class ImageButtonLayout(val slots: List<Int>, val x: Int, val y: Int, val w
         val hash = MessageDigest.getInstance("SHA-256").digest(asset.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
         val offsets = if (image.offsetX != 0 || image.offsetY != 0) "_${image.offsetX}_${image.offsetY}" else ""
-        return "buttons/${hash}_${width}_${height}_${image.fit}_${y}${offsets}"
+        val anchor = if (image.anchor != "center") "_${image.anchor}" else ""
+        return "buttons/${hash}_${width}_${height}_${image.fit}_${y}${offsets}${anchor}"
     }
 
     /** Mirror of `labelFrame` (docs/schema/menu/v1/imageButtonGeometry.ts): the title text of [label] in this rectangle. */
@@ -29,7 +30,12 @@ data class ImageButtonLayout(val slots: List<Int>, val x: Int, val y: Int, val w
             MenuTitleLayer.Alignment.RIGHT -> x + width - LABEL_INSET
         }
         // A line of the bitmap font is 7 px high at size 8 (its descender row stays below).
-        val top = y + (height - LABEL_CAP_HEIGHT * size / 8) / 2
+        val cap = LABEL_CAP_HEIGHT * size / 8
+        val top = when (label.valign) {
+            "top" -> y + LABEL_INSET
+            "bottom" -> y + height - cap - LABEL_INSET
+            else -> y + (height - cap) / 2
+        }
         return MenuTitleLayer.Textarea(
             value = MenuTitleParser.parseLText(label.text),
             x = left + label.offsetX, y = top + label.offsetY,

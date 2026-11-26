@@ -219,3 +219,76 @@ it("refuses a move off the grid or over another element, changing nothing", () =
   ).toThrow();
   expect(current()).toEqual(before);
 });
+
+it("turns an image and a label into parts, then edits the list", () => {
+  const store = useProjectsStore.getState();
+  const project = () =>
+    useProjectsStore.getState().openProjects.projects.find((entry) => entry.id === p)!;
+  const look = () => current().layers[0]!.elements[0]!.display;
+  store.setAppearanceImage({ ...target(), image: { asset: "panel", fit: "contain", offset_x: 2 } });
+  store.setElementPositions({ ...target(), positions: "0-2" });
+  store.setAppearanceLabelText({ ...target(), lang: "en", value: "Buy" });
+  store.setAppearanceLabel({ ...target(), patch: { align: "right", size: 12 } });
+  const labelKey = look().label!.text.key;
+
+  // Adding a piece keeps what the look drew: its image and its label become the first two.
+  store.editAppearanceParts({ ...target(), op: { type: "addImage", asset: "coin" } });
+  expect(look().image).toBeUndefined();
+  expect(look().label).toBeUndefined();
+  expect(look().parts).toEqual([
+    { image: "panel", fit: "contain", offset_x: 2 },
+    { label: { key: labelKey }, anchor: "right", size: 12 },
+    { image: "coin" },
+  ]);
+
+  store.editAppearanceParts({
+    ...target(),
+    op: { type: "patch", index: 2, patch: { anchor: "left", offset_x: 3 } },
+  });
+  store.editAppearanceParts({ ...target(), op: { type: "move", index: 2, to: 1 } });
+  store.editAppearanceParts({ ...target(), op: { type: "addLabel", lang: "en" } });
+  store.editAppearanceParts({
+    ...target(),
+    op: { type: "text", index: 3, lang: "en", value: "{price}" },
+  });
+  const parts = look().parts!;
+  expect(parts.slice(0, 3)).toEqual([
+    { image: "panel", fit: "contain", offset_x: 2 },
+    { image: "coin", anchor: "left", offset_x: 3 },
+    { label: { key: labelKey }, anchor: "right", size: 12 },
+  ]);
+  const added = parts[3] as { label: { key: string } };
+  expect(project().i18nKeys[added.label.key as never]).toEqual({ en: "{price}" });
+
+  // A removed text gives its translations back; the last piece removed, no list is left.
+  store.editAppearanceParts({ ...target(), op: { type: "remove", index: 3 } });
+  expect(project().i18nKeys[added.label.key as never]).toBeUndefined();
+  for (const _ of [0, 1, 2])
+    store.editAppearanceParts({ ...target(), op: { type: "remove", index: 0 } });
+  expect(look().parts).toBeUndefined();
+});
+
+it("a first image part needs a free rectangle, and an item drops the image parts", () => {
+  const store = useProjectsStore.getState();
+  const look = () => current().layers[0]!.elements[0]!.display;
+  expect(() =>
+    store.editAppearanceParts({
+      ...target(),
+      op: { type: "addImage", asset: "wide", positions: "6-8" },
+    }),
+  ).toThrow();
+  expect(look()).toEqual({ material: "STONE" });
+  store.editAppearanceParts({ ...target(), op: { type: "addLabel", lang: "en" } });
+  // A look of texts only keeps its item.
+  expect(look().material).toBe("STONE");
+  store.editAppearanceParts({
+    ...target(),
+    op: { type: "addImage", asset: "wide", positions: "0-2" },
+  });
+  expect(look().material).toBeUndefined();
+  expect(current().layers[0]!.elements[0]!.positions).toBe("0-2");
+  store.setAppearanceField({ ...target(), field: "material", value: "DIRT" });
+  expect(look().material).toBe("DIRT");
+  expect(look().parts).toHaveLength(1);
+  expect("label" in look().parts![0]!).toBe(true);
+});

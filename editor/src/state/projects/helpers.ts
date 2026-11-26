@@ -20,6 +20,7 @@ import type {
   Element,
   ElementId,
   I18nKey,
+  LText,
   Menu,
   MenuTitleLayer,
   Project,
@@ -82,6 +83,17 @@ export function cloneAppearanceLTextsInto(project: Project, a: Appearance): void
     a.lore = createLText(project, "", project.defaultLang);
     if (src) project.i18nKeys[a.lore.key] = { ...src };
   }
+  const own = (text: LText): LText => {
+    const src = project.i18nKeys[text.key];
+    const fresh = createLText(project, "", project.defaultLang);
+    if (src) project.i18nKeys[fresh.key] = { ...src };
+    return fresh;
+  };
+  if (a.label) a.label = { ...a.label, text: own(a.label.text) };
+  if (a.parts)
+    a.parts = a.parts.map((part) =>
+      "image" in part ? { ...part } : { ...part, label: own(part.label) },
+    );
   if (a.click) {
     for (const handler of Object.values(a.click)) {
       if (handler) duplicateStepLTexts(project, handler.steps);

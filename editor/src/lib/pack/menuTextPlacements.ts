@@ -3,6 +3,7 @@ import {
   type ImageButtonContainer,
   imageButtonArea,
   labelFrame,
+  lookLabels,
 } from "../../../../docs/schema/menu/v1/imageButtonGeometry";
 import { minYForSize } from "./fontJsonBuilder";
 import { menuPaths } from "./menuPaths";
@@ -117,7 +118,7 @@ function pushLabels(out: TextPlacement[], doc: Yaml) {
   for (const el of elements) {
     if (!isMap(el) || el.iterates || el.places) continue;
     const appearances = [el, ...(Array.isArray(el.states) ? el.states : [])];
-    const labels = appearances.map((a) => (isMap(a) ? a.label : undefined)).filter(isMap);
+    const labels = appearances.flatMap(lookLabels).filter(isMap);
     if (!labels.length) continue;
     const slots = new Set<number>();
     let valid = true;
@@ -140,7 +141,11 @@ function pushLabels(out: TextPlacement[], doc: Yaml) {
     if (!area) continue;
     for (const label of labels) {
       const frame = labelFrame(
-        { size: sizeOf(label.size) as 8, offset_y: int(label.offset_y) },
+        {
+          size: sizeOf(label.size) as 8,
+          offset_y: int(label.offset_y),
+          valign: label.valign === "top" || label.valign === "bottom" ? label.valign : "center",
+        },
         { x: 0, y: Math.trunc(area.y), width: area.width * 18, height: area.height * 18 },
       );
       pushBlock(out, frame.y, frame.size, frame.lineHeight);

@@ -5,8 +5,8 @@ import { imageButtonRect, imageButtonSize, rectanglePositions } from "@/domain/i
 import type { Appearance, Element, Menu, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { AssetPreview } from "@/features/assets/AssetPreview";
-import { KitPicker } from "@/features/assets/KitPicker";
 import { ImageReachNote } from "@/features/assets/ImageReachNote";
+import { KitPicker } from "@/features/assets/KitPicker";
 import { useCommonImageRef, useImageAsset } from "@/features/assets/kitAssets";
 import { colsFor, rowsFor } from "@/features/canvas/inventoryTypes";
 import { kitFootprint } from "@/lib/pack/kit";

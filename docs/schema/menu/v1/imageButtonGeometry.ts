@@ -1,8 +1,127 @@
+/** Where a piece sits in its element's rectangle: one of nine places, the centre by default. */
+export type PartAnchor =
+  | "center"
+  | "left"
+  | "right"
+  | "top"
+  | "bottom"
+  | "top_left"
+  | "top_right"
+  | "bottom_left"
+  | "bottom_right";
+
+export const PART_ANCHORS: readonly PartAnchor[] = [
+  "center",
+  "left",
+  "right",
+  "top",
+  "bottom",
+  "top_left",
+  "top_right",
+  "bottom_left",
+  "bottom_right",
+];
+
+/** The two axes of an anchor; a name that is not one of the nine is the centre. */
+export function anchorAxes(anchor: unknown): {
+  h: "left" | "center" | "right";
+  v: "top" | "center" | "bottom";
+} {
+  const a = typeof anchor === "string" ? anchor : "";
+  return {
+    h:
+      a === "left" || a.endsWith("_left")
+        ? "left"
+        : a === "right" || a.endsWith("_right")
+          ? "right"
+          : "center",
+    v:
+      a === "top" || a.startsWith("top_")
+        ? "top"
+        : a === "bottom" || a.startsWith("bottom_")
+          ? "bottom"
+          : "center",
+  };
+}
+
 export interface ImageButtonImage {
   asset: string;
   fit?: "contain" | "stretch" | "native";
   offset_x?: number;
   offset_y?: number;
+  anchor?: PartAnchor;
+}
+
+/** One piece of a look (`parts`): an image by its name, or a text. */
+export type LookPart<Text = string | Record<string, string>> =
+  | {
+      image: string;
+      fit?: ImageButtonImage["fit"];
+      anchor?: PartAnchor;
+      offset_x?: number;
+      offset_y?: number;
+    }
+  | {
+      label: Text;
+      anchor?: PartAnchor;
+      size?: ElementLabel["size"];
+      offset_x?: number;
+      offset_y?: number;
+    };
+
+type RawLook = Record<string, unknown> | null | undefined;
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+const defined = (o: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+
+/**
+ * The images a look draws, bottom to top, each in the shape of `image` (unchecked: the reader
+ * checks what it uses). A look with `parts` draws its image pieces, at their own size unless
+ * `fit` says otherwise; else its `image`, if any.
+ */
+export function lookImages(look: unknown): unknown[] {
+  const app = look as RawLook;
+  if (!isRecord(app)) return [];
+  if (!Array.isArray(app.parts)) return app.image ? [app.image] : [];
+  return app.parts
+    .filter(isRecord)
+    .filter((part) => typeof part.image === "string")
+    .map((part) =>
+      defined({
+        asset: part.image,
+        fit: part.fit ?? "native",
+        offset_x: part.offset_x,
+        offset_y: part.offset_y,
+        anchor: part.anchor,
+      }),
+    );
+}
+
+/**
+ * The texts a look draws, each in the shape of `label` plus `valign` (unchecked). A text piece
+ * is aligned by its anchor: `left` and `right` as `align`, `top` and `bottom` as `valign`.
+ */
+export function lookLabels(look: unknown): unknown[] {
+  const app = look as RawLook;
+  if (!isRecord(app)) return [];
+  if (!Array.isArray(app.parts)) return app.label ? [app.label] : [];
+  return app.parts
+    .filter(isRecord)
+    .filter(
+      (part) => typeof part.image !== "string" && part.label !== undefined && part.label !== null,
+    )
+    .map((part) => {
+      const { h, v } = anchorAxes(part.anchor);
+      return defined({
+        text: part.label,
+        align: h,
+        valign: v,
+        size: part.size,
+        offset_x: part.offset_x,
+        offset_y: part.offset_y,
+      });
+    });
 }
 
 /** A slot's stride in a menu, in Minecraft pixels: N slots side by side span N times this. */
@@ -20,16 +139,30 @@ export function imageButtonSize(width: number, height: number) {
 
 /** Coordinates in Minecraft pixels, shared by the canvas and resource pack. */
 export function imageButtonGeometry(
-  image: ImageButtonImage, sourceWidth: number, sourceHeight: number,
-  areaWidth: number, areaHeight: number,
+  image: ImageButtonImage,
+  sourceWidth: number,
+  sourceHeight: number,
+  areaWidth: number,
+  areaHeight: number,
 ) {
-  const ratio = image.fit === "native" ? 1 : Math.min(areaWidth / sourceWidth, areaHeight / sourceHeight);
+  const ratio =
+    image.fit === "native" ? 1 : Math.min(areaWidth / sourceWidth, areaHeight / sourceHeight);
   const width = image.fit === "stretch" ? areaWidth : Math.max(1, Math.round(sourceWidth * ratio));
-  const height = image.fit === "stretch" ? areaHeight : Math.max(1, Math.round(sourceHeight * ratio));
+  const height =
+    image.fit === "stretch" ? areaHeight : Math.max(1, Math.round(sourceHeight * ratio));
+  const { h, v } = anchorAxes(image.anchor);
   return {
-    width, height,
-    x: Math.floor((areaWidth - width) / 2) + (image.offset_x ?? 0),
-    y: Math.floor((areaHeight - height) / 2) + (image.offset_y ?? 0),
+    width,
+    height,
+    x:
+      (h === "left" ? 0 : h === "right" ? areaWidth - width : Math.floor((areaWidth - width) / 2)) +
+      (image.offset_x ?? 0),
+    y:
+      (v === "top"
+        ? 0
+        : v === "bottom"
+          ? areaHeight - height
+          : Math.floor((areaHeight - height) / 2)) + (image.offset_y ?? 0),
   };
 }
 
@@ -111,11 +244,12 @@ const LABEL_INSET = 2;
 const LABEL_CAP_HEIGHT = 7;
 
 /**
- * The title textarea of a label in an area (Minecraft pixels): centred vertically,
- * then aligned and shifted by the offsets. Mirror of `ImageButtonLayout.labelLayer`.
+ * The title textarea of a label in an area (Minecraft pixels): centred vertically (or at the
+ * top or bottom, `valign`, for a text piece), then aligned and shifted by the offsets.
+ * Mirror of `ImageButtonLayout.labelLayer`.
  */
 export function labelFrame(
-  label: Omit<ElementLabel<unknown>, "text">,
+  label: Omit<ElementLabel<unknown>, "text"> & { valign?: "top" | "center" | "bottom" },
   area: { x: number; y: number; width: number; height: number },
 ) {
   const size = (LABEL_SIZES.includes(label.size ?? 8) ? (label.size ?? 8) : 8) as NonNullable<
@@ -128,7 +262,13 @@ export function labelFrame(
       : alignment === "right"
         ? area.x + area.width - LABEL_INSET
         : area.x + Math.floor(area.width / 2);
-  const y = area.y + Math.trunc((area.height - Math.trunc((LABEL_CAP_HEIGHT * size) / 8)) / 2);
+  const cap = Math.trunc((LABEL_CAP_HEIGHT * size) / 8);
+  const y =
+    label.valign === "top"
+      ? area.y + LABEL_INSET
+      : label.valign === "bottom"
+        ? area.y + area.height - cap - LABEL_INSET
+        : area.y + Math.trunc((area.height - cap) / 2);
   return {
     x: x + (label.offset_x ?? 0),
     y: y + (label.offset_y ?? 0),

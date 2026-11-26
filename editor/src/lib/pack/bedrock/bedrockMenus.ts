@@ -2,7 +2,9 @@ import { classifyDocumentLayout } from "@/domain/documentLayout";
 import { parse } from "yaml";
 import {
   type ImageButtonImage,
+  PART_ANCHORS,
   imageButtonArea,
+  lookImages,
 } from "../../../../../docs/schema/menu/v1/imageButtonGeometry";
 import { BUTTON_MAX, STATE_MAX, TEXTAREA_FIELD, TEXT_FIELD, bedrockMenuKey } from "./bedrockTitle";
 
@@ -82,15 +84,19 @@ function inChest(el: any, size: number): boolean {
 
 // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
 function imageOf(app: any): ImageButtonImage | null {
-  if (typeof app?.image?.asset !== "string" || !app.image.asset) return null;
-  if (app.image.fit !== undefined && !["contain", "stretch", "native"].includes(app.image.fit))
-    return null;
-  if (![app.image.offset_x ?? 0, app.image.offset_y ?? 0].every(Number.isSafeInteger)) return null;
+  // A look of several pieces shows its first image here (the bottom one).
+  // biome-ignore lint/suspicious/noExplicitAny: idem
+  const image = lookImages(app)[0] as any;
+  if (typeof image?.asset !== "string" || !image.asset) return null;
+  if (image.fit !== undefined && !["contain", "stretch", "native"].includes(image.fit)) return null;
+  if (![image.offset_x ?? 0, image.offset_y ?? 0].every(Number.isSafeInteger)) return null;
+  if (image.anchor !== undefined && !PART_ANCHORS.includes(image.anchor)) return null;
   return {
-    asset: app.image.asset,
-    fit: app.image.fit ?? "contain",
-    ...(app.image.offset_x ? { offset_x: app.image.offset_x } : {}),
-    ...(app.image.offset_y ? { offset_y: app.image.offset_y } : {}),
+    asset: image.asset,
+    fit: image.fit ?? "contain",
+    ...(image.offset_x ? { offset_x: image.offset_x } : {}),
+    ...(image.offset_y ? { offset_y: image.offset_y } : {}),
+    ...(image.anchor && image.anchor !== "center" ? { anchor: image.anchor } : {}),
   };
 }
 
@@ -213,7 +219,7 @@ export function bedrockMenusFromProject(
     for (const el of elements) {
       if (!el || el.iterates || el.places) continue;
       const apps = [el, ...(Array.isArray(el.states) ? el.states : [])];
-      if (!apps.some((app) => app?.image)) continue;
+      if (!apps.some((app) => lookImages(app).length)) continue;
       const slots = slotsOf(el.positions, size);
       const area = slots && imageButtonArea(slots, "chest", size, false);
       if (!area || buttons.length >= BUTTON_MAX) continue;

@@ -179,6 +179,11 @@ export interface Appearance {
    * (fixed elements only; not drawn for Bedrock players nor over an image missing from the pack).
    */
   label?: import("./imageButtonGeometry").ElementLabel<LText>;
+  /**
+   * The look as pieces drawn bottom to top over the slot rectangle (images and texts, each with
+   * an anchor and offsets), written instead of `image` and `label` (fixed elements only).
+   */
+  parts?: import("./imageButtonGeometry").LookPart<LText>[];
   /** ANDed conditions. If absent, always matches (fallback, put it last). */
   if?: Condition[];
   asset?: string;

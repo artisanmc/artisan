@@ -160,6 +160,11 @@ data class AppearanceYaml(
     val image: ImageButtonYaml? = null,
     /** Text drawn in the title over the element's slot rectangle (fixed elements only). */
     val label: LabelYaml? = null,
+    /**
+     * The look as pieces drawn bottom to top over the slot rectangle, written instead of
+     * [image] and [label] (ADR `element-parts-and-sliced-images`). Read through [images] and [labels].
+     */
+    val parts: List<PartYaml>? = null,
     val extends: Any? = null,
     @JsonProperty("lore_mode") val loreMode: String? = null,
     val item: String? = null,
@@ -189,7 +194,41 @@ data class AppearanceYaml(
     val color: String? = null,
     /** Raw SNBT, applied last. Best-effort. */
     val nbt: String? = null,
-)
+) {
+    /** The images this look draws, bottom to top: its image pieces, else its [image]. */
+    @get:com.fasterxml.jackson.annotation.JsonIgnore
+    val images: List<ImageButtonYaml>
+        get() = parts?.mapNotNull { it.asImage() } ?: listOfNotNull(image)
+
+    /** The texts this look draws: its text pieces, else its [label]. */
+    @get:com.fasterxml.jackson.annotation.JsonIgnore
+    val labels: List<LabelYaml>
+        get() = parts?.mapNotNull { it.asLabel() } ?: listOfNotNull(label)
+}
+
+/**
+ * One piece of a look: an image by its name ([image], at its own size unless [fit] says
+ * otherwise) or a text ([label]), placed by one of nine anchors, then shifted by the offsets.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class PartYaml(
+    val image: Any? = null,
+    val label: Any? = null,
+    val fit: String = "native",
+    val anchor: String = "center",
+    val size: Int = 8,
+    @JsonProperty("offset_x") val offsetX: Int = 0,
+    @JsonProperty("offset_y") val offsetY: Int = 0,
+) {
+    fun asImage(): ImageButtonYaml? = (image as? String)?.let { ImageButtonYaml(it, fit, offsetX, offsetY, anchor) }
+
+    fun asLabel(): LabelYaml? {
+        if (image is String || label == null) return null
+        val horizontal = if (anchor == "left" || anchor.endsWith("_left")) "left" else if (anchor == "right" || anchor.endsWith("_right")) "right" else "center"
+        val vertical = if (anchor == "top" || anchor.startsWith("top_")) "top" else if (anchor == "bottom" || anchor.startsWith("bottom_")) "bottom" else "center"
+        return LabelYaml(label, horizontal, size, offsetX, offsetY, vertical)
+    }
+}
 
 /**
  * An element's label: [text] (literal, `{i18n:key}` or `{lang: text}`) placed in the
@@ -201,13 +240,21 @@ data class LabelYaml(
     val size: Int = 8,
     @JsonProperty("offset_x") val offsetX: Int = 0,
     @JsonProperty("offset_y") val offsetY: Int = 0,
+    /** `top`, `center` or `bottom`: set by a text piece's anchor, never written on a `label`. */
+    @com.fasterxml.jackson.annotation.JsonIgnore val valign: String = "center",
 )
 
 data class ImageButtonYaml(
     val asset: String = "", val fit: String = "contain",
     @JsonProperty("offset_x") val offsetX: Int = 0,
     @JsonProperty("offset_y") val offsetY: Int = 0,
-)
+    /** Where the image sits in the rectangle before the offsets: one of the nine anchors. */
+    val anchor: String = "center",
+) {
+    companion object {
+        val ANCHORS = setOf("center", "left", "right", "top", "bottom", "top_left", "top_right", "bottom_left", "bottom_right")
+    }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ClickHandlerYaml(

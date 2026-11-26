@@ -280,20 +280,25 @@ object MenuRenderer {
     ): ImageButtons {
         // Row-bound elements (iterates/places) draw their images slot by slot ([SlotFill.placeRow]).
         val imageElements = menu.yaml.allElements.filter { el ->
-            el.iterates == null && el.places == null && (listOf(el.display) + el.states).any { it.image != null } }
+            el.iterates == null && el.places == null && (listOf(el.display) + el.states).any { it.images.isNotEmpty() } }
         val choices = imageElements.associate { el -> el.id to
             menu.compiledAppearances[el.id]?.firstOrNull { evaluator.evaluateAll(it.conditions, ctx) } }
         val layouts = imageElements.associate { it.id to ImageButtonLayout.of(menu.yaml, it) }
-        val layers = imageElements.mapNotNull { el ->
-            val image = choices[el.id]?.yaml?.image ?: return@mapNotNull null
-            val layout = layouts[el.id] ?: return@mapNotNull null
-            if (image.asset.isBlank() || image.fit !in listOf("contain", "stretch", "native")) return@mapNotNull null
-            val key = named.key(layout, image)
-            if (lookupAsset(key) == null) return@mapNotNull null
-            MenuTitleLayer.Glyph(assetId = key, x = layout.x, y = layout.y)
+        // One glyph per image of the chosen look, bottom to top (a look of pieces has several).
+        val layers = imageElements.flatMap { el ->
+            val layout = layouts[el.id] ?: return@flatMap emptyList()
+            choices[el.id]?.yaml?.images.orEmpty().mapNotNull { image ->
+                if (!drawable(image)) return@mapNotNull null
+                val key = named.key(layout, image)
+                if (lookupAsset(key) == null) return@mapNotNull null
+                MenuTitleLayer.Glyph(assetId = key, x = layout.x, y = layout.y)
+            }
         }
         return ImageButtons(choices, layouts, layers, named)
     }
+
+    private fun drawable(image: ImageButtonYaml): Boolean =
+        image.asset.isNotBlank() && image.fit in listOf("contain", "stretch", "native") && image.anchor in ImageButtonYaml.ANCHORS
 
     private fun labels(menu: RuntimeMenu, ctx: ExecutionContext, images: ImageButtons, fill: SlotFill): List<MenuTitleLayer> =
         labelLayers(menu.yaml,
@@ -309,15 +314,16 @@ object MenuRenderer {
         chosen: (ElementYaml) -> AppearanceYaml?,
         drawn: (String) -> Boolean,
         key: (ImageButtonLayout, ImageButtonYaml) -> String = { layout, image -> layout.assetKey(image) },
-    ): List<MenuTitleLayer> = menu.allElements.mapNotNull { el ->
-        if (el.iterates != null || el.places != null) return@mapNotNull null
-        if ((listOf(el.display) + el.states).none { it.label != null }) return@mapNotNull null
-        val look = chosen(el) ?: return@mapNotNull null
-        val label = look.label ?: return@mapNotNull null
-        val layout = ImageButtonLayout.rectangle(menu, el) ?: return@mapNotNull null
-        val image = look.image
-        if (image != null && !drawn(key(layout, image))) return@mapNotNull null
-        layout.labelLayer(label)
+    ): List<MenuTitleLayer> = menu.allElements.flatMap { el ->
+        if (el.iterates != null || el.places != null) return@flatMap emptyList()
+        if ((listOf(el.display) + el.states).none { it.labels.isNotEmpty() }) return@flatMap emptyList()
+        val look = chosen(el) ?: return@flatMap emptyList()
+        val labels = look.labels
+        if (labels.isEmpty()) return@flatMap emptyList()
+        val layout = ImageButtonLayout.rectangle(menu, el) ?: return@flatMap emptyList()
+        val images = look.images
+        if (images.isNotEmpty() && images.none { drawn(key(layout, it)) }) return@flatMap emptyList()
+        labels.map(layout::labelLayer)
     }
 
     /**
@@ -375,7 +381,7 @@ object MenuRenderer {
             menu.allElements.mapNotNull { el -> el.refreshPeriod?.let { el.id to it } }.toMap()
         /** Elements the title draws (an image or a label in one of their appearances): a refresh keeps their appearance. */
         private val pinnedElements: Set<String> = menu.allElements
-            .filter { el -> (listOf(el.display) + el.states).any { it.image != null || it.label != null } }
+            .filter { el -> (listOf(el.display) + el.states).any { it.images.isNotEmpty() || it.labels.isNotEmpty() } }
             .mapTo(mutableSetOf()) { it.id }
         val refreshSlots = mutableListOf<RefreshSlot>()
         /** The element whose item each slot shows: a refresh never draws over a later element. */
@@ -467,7 +473,7 @@ object MenuRenderer {
         fun placeRow(elementId: String, slot: Int, rowArgs: Map<String, Any>, ctx: ExecutionContext) {
             val itemCtx = ctx.copy(args = ctx.args + rowArgs)
             val chosen = choose(elementId, itemCtx) ?: return track(elementId, listOf(slot), rowArgs, null, false)
-            val image = chosen.yaml.image
+            val image = chosen.yaml.images.firstOrNull()
             if (image == null) {
                 place(elementId, listOf(slot), chosen, build(chosen, itemCtx), rowArgs)
                 return
@@ -487,7 +493,7 @@ object MenuRenderer {
 
         private fun rowGlyph(slot: Int, image: ImageButtonYaml): MenuTitleLayer.Glyph? {
             val lookup = rowImages ?: return null
-            if (image.asset.isBlank() || image.fit !in listOf("contain", "stretch", "native")) return null
+            if (image.asset.isBlank() || image.fit !in listOf("contain", "stretch", "native") || image.anchor !in ImageButtonYaml.ANCHORS) return null
             val layout = ImageButtonLayout.slot(menu, slot) ?: return null
             val key = named.key(layout, image)
             if (lookup(key) == null) return null
@@ -503,11 +509,12 @@ object MenuRenderer {
             if (element.id in images.choices) {
                 val chosen = images.choices[element.id] ?: continue
                 val layout = images.layouts[element.id] ?: continue
-                val image = chosen.yaml.image
-                if (image != null && images.layers.none { it.assetId == images.named.key(layout, image) }) continue
-                val item = if (image == null) fill.build(chosen, ctx)
+                // A look of images is shown when the pack holds one of them at least: its slots then keep the hit item.
+                val looks = chosen.yaml.images
+                if (looks.isNotEmpty() && looks.none { image -> images.layers.any { it.assetId == images.named.key(layout, image) } }) continue
+                val item = if (looks.isEmpty()) fill.build(chosen, ctx)
                     else buildImageHitItem(chosen.yaml, ctx, fill.evaluator.deps, chosen.i18nBase)
-                fill.place(element.id, layout.slots, chosen, item, hit = image != null)
+                fill.place(element.id, layout.slots, chosen, item, hit = looks.isNotEmpty())
                 continue
             }
 

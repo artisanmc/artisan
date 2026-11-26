@@ -97,6 +97,64 @@ class MenuRendererLabelTest {
         assertEquals(1, MenuRenderer.labelLayers(yaml, chosen = { it.display }, drawn = { true }).size)
     }
 
+    @Test fun `a look of parts draws its images bottom to top and its texts by their anchor`() {
+        val yaml = menu("""
+            schema: menu/v1
+            id: parts
+            title: []
+            size: 27
+            elements:
+              - id: buy
+                positions: "0-2"
+                parts:
+                  - image: panel
+                  - image: coin
+                    anchor: left
+                    offset_x: 3
+                  - label: Buy
+                  - label: "{price}"
+                    anchor: top_right
+                    size: 12
+                    offset_x: -4
+              - id: both
+                positions: "9-11"
+                image: { asset: coin }
+                label: { text: "ignored" }
+                parts:
+                  - image: panel
+        """)
+        val buy = yaml.allElements.first { it.id == "buy" }
+        val layout = ImageButtonLayout.rectangle(yaml, buy)!!
+        val images = buy.display.images
+        assertEquals(listOf("panel", "coin"), images.map { it.asset })
+        assertEquals(listOf("native", "native"), images.map { it.fit })
+        // The key the pack builder writes (`imageButtonKey`): the anchor after the offsets, the centre unnamed.
+        assertTrue(layout.assetKey(images[0]).endsWith("_54_18_native_17"))
+        assertTrue(layout.assetKey(images[1]).endsWith("_54_18_native_17_3_0_left"))
+
+        val labels = MenuRenderer.labelLayers(yaml, chosen = { it.display }, drawn = { it == layout.assetKey(images[0]) })
+            .filterIsInstance<MenuTitleLayer.Textarea>()
+        assertEquals(2, labels.size)
+        assertEquals(MenuTitleLayer.Alignment.CENTER, labels[0].alignment)
+        assertEquals(22, labels[0].y)
+        assertEquals(MenuTitleLayer.Alignment.RIGHT, labels[1].alignment)
+        assertEquals(7 + 54 - 2 - 4, labels[1].x)
+        assertEquals(17 + 2, labels[1].y)
+        assertEquals(12, labels[1].size)
+        // No text over a look none of whose images is drawn.
+        assertTrue(MenuRenderer.labelLayers(yaml, chosen = { it.display }, drawn = { false }).isEmpty())
+
+        // Parts win over an image and a label written beside them.
+        val both = yaml.allElements.first { it.id == "both" }
+        assertEquals(listOf("panel"), both.display.images.map { it.asset })
+        assertTrue(both.display.labels.isEmpty())
+    }
+
+    @Test fun `a text piece at the bottom sits on the rectangle's last rows`() {
+        val layout = ImageButtonLayout(listOf(0), x = 7, y = 17, width = 54, height = 36)
+        assertEquals(17 + 36 - 7 - 2, layout.labelLayer(LabelYaml(text = "a", valign = "bottom")).y)
+    }
+
     @Test fun `an element with neither image nor item holds the invisible hit item`() {
         val yaml = menu("""
             schema: menu/v1

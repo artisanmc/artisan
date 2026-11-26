@@ -3,8 +3,11 @@ import { parse } from "yaml";
 import {
   type ImageButtonContainer,
   type ImageButtonImage,
+  PART_ANCHORS,
+  type PartAnchor,
   imageButtonArea,
   imageButtonGeometry,
+  lookImages,
 } from "../../../../docs/schema/menu/v1/imageButtonGeometry";
 import { sha256Hex } from "../sha256";
 import type { AssetIndex } from "./assetIndexBuilder";
@@ -24,7 +27,8 @@ export function imageButtonKey(button: ImageButtonPlacement): string {
   const hash = sha256Hex(new TextEncoder().encode(button.asset));
   const offsets =
     button.offset_x || button.offset_y ? `_${button.offset_x ?? 0}_${button.offset_y ?? 0}` : "";
-  return `buttons/${hash}_${button.width}_${button.height}_${button.fit}_${button.y}${offsets}`;
+  const anchor = button.anchor && button.anchor !== "center" ? `_${button.anchor}` : "";
+  return `buttons/${hash}_${button.width}_${button.height}_${button.fit}_${button.y}${offsets}${anchor}`;
 }
 
 export function imageButtonsFromMenus(
@@ -115,7 +119,7 @@ function rowSlots(el: any, limit: number): number[] {
   return [...slots].sort((a, b) => a - b);
 }
 
-/** One placement per image appearance of [el] over [area]. */
+/** One placement per image of each look of [el] (`lookImages`) over [area]. */
 function pushImages(
   out: ImageButtonPlacement[],
   // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
@@ -123,19 +127,26 @@ function pushImages(
   area: { width: number; height: number; y: number },
 ) {
   for (const app of [el, ...(Array.isArray(el.states) ? el.states : [])]) {
-    if (typeof app?.image?.asset !== "string" || !app.image.asset) continue;
-    if (app.image.fit !== undefined && !["contain", "stretch", "native"].includes(app.image.fit))
-      continue;
-    if (![app.image.offset_x ?? 0, app.image.offset_y ?? 0].every(Number.isSafeInteger)) continue;
-    out.push({
-      asset: app.image.asset,
-      fit: app.image.fit ?? "contain",
-      ...(app.image.offset_x ? { offset_x: app.image.offset_x } : {}),
-      ...(app.image.offset_y ? { offset_y: app.image.offset_y } : {}),
-      width: area.width * 18,
-      height: area.height * 18,
-      y: area.y,
-    });
+    // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
+    for (const image of lookImages(app) as any[]) {
+      if (typeof image?.asset !== "string" || !image.asset) continue;
+      if (image.fit !== undefined && !["contain", "stretch", "native"].includes(image.fit))
+        continue;
+      if (![image.offset_x ?? 0, image.offset_y ?? 0].every(Number.isSafeInteger)) continue;
+      if (image.anchor !== undefined && !PART_ANCHORS.includes(image.anchor)) continue;
+      out.push({
+        asset: image.asset,
+        fit: image.fit ?? "contain",
+        ...(image.offset_x ? { offset_x: image.offset_x } : {}),
+        ...(image.offset_y ? { offset_y: image.offset_y } : {}),
+        ...(image.anchor && image.anchor !== "center"
+          ? { anchor: image.anchor as PartAnchor }
+          : {}),
+        width: area.width * 18,
+        height: area.height * 18,
+        y: area.y,
+      });
+    }
   }
 }
 

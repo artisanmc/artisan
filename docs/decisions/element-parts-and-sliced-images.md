@@ -1,7 +1,7 @@
 # Element parts, sliced images and components: a button made of several pieces, at any width, drawn once for the server
 
 **Status:** direction accepted (2026-11-26: components are linked, per module and common to
-the server, edited in a menu and in the atelier); step 1 built (see *Built so far*)
+the server, edited in a menu and in the atelier); steps 1 and 2 (format) built (see *Built so far*)
 
 **Extends:** `common-images-and-themes.md` (decision 4, an image's function), `menu/v1`
 (`Appearance.image`, `Appearance.label`), `element-display-and-states.md`
@@ -87,10 +87,15 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
    those two parts; a look that writes both forms is refused with a message. A state replaces
    the whole look, parts included (`element-display-and-states`).
 
-4. **The image parts of a look are baked into one picture.** The pack draws them in order into
-   one image of the Element's rectangle, which becomes one glyph, as an image button is today.
-   The count of glyphs per menu does not grow with the number of parts, and Bedrock gets the
-   same picture. Labels stay title text, one area each.
+4. **Each image part is one glyph; baking is for Bedrock.** *(amended 2026-11-26, was: the
+   image parts of a look are baked into one picture)* On Java each image part is the glyph an
+   image button already is, keyed by its image, the rectangle, the fit, the offsets and now
+   the anchor: the pack builders and the runtime compute that key as today, and a background
+   used by twenty buttons of one width is one texture, not twenty. The title gains one glyph
+   per image part, which a menu of buttons affords. Bedrock draws one texture per button and
+   state: there the image parts are to be baked into one picture by the pack (nothing for
+   the runtime to compute); until that is built a Bedrock player sees the first image.
+   Labels stay title text, one area each.
 
 5. **An image's name is known at build time.** A part's `image` is a literal. A name computed
    per player is refused, as today (the row-bound Element and its 18 px image per slot keep
@@ -200,6 +205,29 @@ handle at its bottom right corner (Shift: whole slots); the stage draws it as th
 (`useSlicedUrl`). The hub's own renders of a composed image (`read_image`, the MCP previews)
 pass no margins yet and draw such a layer at its own size.
 
+**Step 2, the format end to end (2026-11-26).** `parts` on a look and `anchor` on `image`
+are in `menu/v1` (schema, types, `imageButtonErrors`: both forms in one look, a part that is
+neither an image nor a text, an expression as an image's name, an unknown anchor, parts on a
+row-bound element). One reader per side gives a look's images and texts whatever the form
+(`lookImages` / `lookLabels`, `Looks`, `AppearanceYaml.images` / `.labels`,
+`appearanceImages` / `appearanceLabels`); `image` + `label` are those two pieces. Both pack
+builders write one glyph per image part (shared case in the conformance vector) and the
+text fonts of the label parts; the runtime draws them in order and keeps the hit item when
+one image at least is in the pack; `render_menu` and the editor's canvas draw them; the
+editor reads and writes `parts` without loss (texts as field-local translations). A part's
+image defaults to `fit: native`. Not built in this step: the baked picture for Bedrock (first
+image shown).
+
+**Step 2, the Element panel (2026-11-26).** `PartsEditor`, a section of each state's card
+for a fixed element: add an image or a text, and per piece its place, offsets, fit or size,
+order and removal, the piece in front listed first. One store action carries every edit
+(`editAppearanceParts`): the first edit of a look that has an `image` or a `label` turns
+those two into pieces (the label's text keeps its translations), a first image asks for a
+free rectangle as an image button does, removing the last piece removes `parts`, and a
+look given an item loses its image pieces. A copied look gets its own label texts
+(`cloneAppearanceLTextsInto`, which left the label shared). Not built: moving a piece by
+dragging it on the canvas.
+
 Not built: `render_menu` (it draws a sliced image by
 its fit), the base's buttons declared sliced, the rule that a redraw or a theme keeps the
 margins (the margins are the descriptor's of the image that is shown; a theme's
@@ -217,8 +245,5 @@ margins (the margins are the descriptor's of the image that is shown; a theme's
 
 ## Still to check in the code
 
-- The key of a baked picture: today `imageButtonKey` names one image, the rectangle, the fit
-  and the offsets, and two Elements with the same ones share a glyph. A look of several image
-  parts needs a key over the whole list, computed the same way by the runtime.
-- How `labelFrame` and `ImageButtonLayout.labelLayer` take nine anchors (today: three
-  alignments, vertically centred).
+- The Bedrock texture of a look of several images: a key over the whole list, computed by
+  the pack only (the runtime sends Bedrock a button and a state, not a key).

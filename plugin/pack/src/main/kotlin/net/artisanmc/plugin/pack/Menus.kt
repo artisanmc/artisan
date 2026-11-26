@@ -21,7 +21,45 @@ internal data class ImageButtonPlacement(
     val width: Int,
     val height: Int,
     val y: Double,
+    /** Where the image sits in the rectangle (`PartAnchor`); null: the centre. */
+    val anchor: String? = null,
 )
+
+/** The pieces of a look (`lookImages`, `lookLabels` in imageButtonGeometry.ts). */
+internal object Looks {
+    val ANCHORS = listOf("center", "left", "right", "top", "bottom", "top_left", "top_right", "bottom_left", "bottom_right")
+
+    /** The horizontal axis of an anchor; a name that is not one of the nine is the centre. */
+    fun horizontal(anchor: Any?): String {
+        val a = anchor as? String ?: ""
+        return if (a == "left" || a.endsWith("_left")) "left" else if (a == "right" || a.endsWith("_right")) "right" else "center"
+    }
+
+    fun vertical(anchor: Any?): String {
+        val a = anchor as? String ?: ""
+        return if (a == "top" || a.startsWith("top_")) "top" else if (a == "bottom" || a.startsWith("bottom_")) "bottom" else "center"
+    }
+
+    private fun defined(vararg pairs: Pair<String, Any?>): Map<String, Any?> = pairs.filter { it.second != null }.toMap()
+
+    /** The images a look draws, bottom to top, each in the shape of `image` (unchecked). */
+    fun images(look: Any?): List<Any?> {
+        val app = look as? Map<*, *> ?: return emptyList()
+        val parts = app["parts"] as? List<*> ?: return if (Js.truthy(app["image"])) listOf(app["image"]) else emptyList()
+        return parts.filterIsInstance<Map<*, *>>().filter { it["image"] is String }.map { part ->
+            defined("asset" to part["image"], "fit" to (part["fit"] ?: "native"), "offset_x" to part["offset_x"], "offset_y" to part["offset_y"], "anchor" to part["anchor"])
+        }
+    }
+
+    /** The texts a look draws, each in the shape of `label` plus `valign` (unchecked). */
+    fun labels(look: Any?): List<Any?> {
+        val app = look as? Map<*, *> ?: return emptyList()
+        val parts = app["parts"] as? List<*> ?: return if (Js.truthy(app["label"])) listOf(app["label"]) else emptyList()
+        return parts.filterIsInstance<Map<*, *>>().filter { it["image"] !is String && it["label"] != null }.map { part ->
+            defined("text" to part["label"], "align" to horizontal(part["anchor"]), "valign" to vertical(part["anchor"]), "size" to part["size"], "offset_x" to part["offset_x"], "offset_y" to part["offset_y"])
+        }
+    }
+}
 
 /** What a Project's menus ask of the pack (`menuGlyphPlacements.ts`, `imageButtons.ts`, `vanillaGui.ts`). */
 internal object MenuReaders {
@@ -242,7 +280,7 @@ internal object MenuReaders {
             val el = element as? Map<*, *> ?: continue
             if (Js.truthy(el["iterates"]) || Js.truthy(el["places"])) continue
             val appearances = listOf<Any?>(el) + ((el["states"] as? List<*>) ?: emptyList())
-            val labels = appearances.mapNotNull { (it as? Map<*, *>)?.get("label") as? Map<*, *> }
+            val labels = appearances.flatMap { Looks.labels(it) }.filterIsInstance<Map<*, *>>()
             if (labels.isEmpty()) continue
             val slots = LinkedHashSet<Int>()
             var valid = true
@@ -265,7 +303,12 @@ internal object MenuReaders {
             for (label in labels) {
                 // `labelFrame` (imageButtonGeometry.ts): centred vertically on the 7 px cap height, then shifted.
                 val textSize = sizeOf(label["size"])
-                val top = area.y.toInt() + (area.height * 18 - 7 * textSize / 8) / 2 + int(label["offset_y"])
+                val cap = 7 * textSize / 8
+                val top = when (label["valign"]) {
+                    "top" -> area.y.toInt() + 2
+                    "bottom" -> area.y.toInt() + area.height * 18 - cap - 2
+                    else -> area.y.toInt() + (area.height * 18 - cap) / 2
+                } + int(label["offset_y"])
                 pushBlock(out, top, textSize, textSize + 2)
             }
         }
@@ -295,14 +338,15 @@ internal object MenuReaders {
     /** One placement per image appearance of [el] over [area]. */
     private fun pushImages(out: MutableList<ImageButtonPlacement>, el: Map<*, *>, area: ImageButtonGeometry.Area) {
         val appearances = listOf(el) + ((el["states"] as? List<*>) ?: emptyList())
-        for (app in appearances) {
-            val image = (app as? Map<*, *>)?.get("image") as? Map<*, *> ?: continue
+        for (app in appearances) for (raw in Looks.images(app)) {
+            val image = raw as? Map<*, *> ?: continue
             val asset = image["asset"] as? String
             if (asset.isNullOrEmpty()) continue
             if (image.containsKey("fit") && image["fit"] !in listOf("contain", "stretch", "native")) continue
             val ox = image["offset_x"] ?: 0
             val oy = image["offset_y"] ?: 0
             if (!Js.isSafeInteger(ox) || !Js.isSafeInteger(oy)) continue
+            if (image.containsKey("anchor") && image["anchor"] !in Looks.ANCHORS) continue
             out += ImageButtonPlacement(
                 asset = asset,
                 fit = image["fit"] as? String ?: "contain",
@@ -311,6 +355,7 @@ internal object MenuReaders {
                 width = area.width * 18,
                 height = area.height * 18,
                 y = area.y,
+                anchor = (image["anchor"] as? String)?.takeIf { it != "center" },
             )
         }
     }
@@ -358,15 +403,15 @@ internal object ImageButtonGeometry {
         return Area(slots.min(), width, height, first.x + left * 18, first.y + topRow * 18)
     }
 
-    fun geometry(fit: String, offsetX: Double?, offsetY: Double?, sourceWidth: Int, sourceHeight: Int, areaWidth: Int, areaHeight: Int): Box {
+    fun geometry(fit: String, offsetX: Double?, offsetY: Double?, sourceWidth: Int, sourceHeight: Int, areaWidth: Int, areaHeight: Int, anchor: String? = null): Box {
         val ratio = if (fit == "native") 1.0 else minOf(areaWidth.toDouble() / sourceWidth, areaHeight.toDouble() / sourceHeight)
         val width = if (fit == "stretch") areaWidth else maxOf(1, Math.round(sourceWidth * ratio).toInt())
         val height = if (fit == "stretch") areaHeight else maxOf(1, Math.round(sourceHeight * ratio).toInt())
         return Box(
             width,
             height,
-            floor((areaWidth - width) / 2.0).toInt() + (offsetX ?: 0.0).toInt(),
-            floor((areaHeight - height) / 2.0).toInt() + (offsetY ?: 0.0).toInt(),
+            when (Looks.horizontal(anchor)) { "left" -> 0; "right" -> areaWidth - width; else -> floor((areaWidth - width) / 2.0).toInt() } + (offsetX ?: 0.0).toInt(),
+            when (Looks.vertical(anchor)) { "top" -> 0; "bottom" -> areaHeight - height; else -> floor((areaHeight - height) / 2.0).toInt() } + (offsetY ?: 0.0).toInt(),
         )
     }
 }

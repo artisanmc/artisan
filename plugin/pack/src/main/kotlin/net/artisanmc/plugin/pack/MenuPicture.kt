@@ -129,7 +129,7 @@ object MenuPictures {
         fun look(el: Map<*, *>): Map<*, *> {
             val states = (el["states"] as? List<*>).orEmpty().filterIsInstance<Map<*, *>>()
             if (states.isNotEmpty()) withStates++
-            val shows = listOf("material", "image", "item", "asset", "head", "label").any { el[it] != null }
+            val shows = listOf("material", "image", "item", "asset", "head", "label", "parts").any { el[it] != null }
             return if (!shows && states.isNotEmpty()) states.first() else el
         }
         val looks = elements.associateWith(::look)
@@ -143,30 +143,38 @@ object MenuPictures {
             // A fixed element is one rectangle; a row-bound one shows its look in each slot it may fill.
             val areas = if (bound) mine.mapNotNull { ImageButtonGeometry.area(listOf(it), type, size, hidden) }
             else listOfNotNull(ImageButtonGeometry.area(slotsOf.getValue(el), type, size, hidden))
-            val picture = (look["image"] as? Map<*, *>)?.let { spec -> (spec["asset"] as? String)?.takeIf { it.isNotEmpty() }?.let { name -> image(name)?.let { spec to it } } }
+            val pictures = Looks.images(look).filterIsInstance<Map<*, *>>().mapNotNull { spec ->
+                (spec["asset"] as? String)?.takeIf { it.isNotEmpty() }?.let { name -> image(name)?.let { spec to it } }
+            }
             for (area in areas) {
-                if (picture != null) {
-                    val (spec, source) = picture
+                for ((spec, source) in pictures) {
                     val placement = ImageButtonPlacement(
                         "", spec["fit"] as? String ?: "contain", (spec["offset_x"] as? Number)?.toDouble(), (spec["offset_y"] as? Number)?.toDouble(),
-                        area.width * 18, area.height * 18, area.y,
+                        area.width * 18, area.height * 18, area.y, spec["anchor"] as? String,
                     )
                     canvas.draw(ImageButtons.render(source, placement).first, area.x.toInt(), area.y.toInt())
                 }
-                // `labelFrame` (imageButtonGeometry.ts): a text block anchored in the area, centred on the 7 px cap height.
-                val label = look["label"] as? Map<*, *> ?: continue
-                val textSize = sizeOf(label["size"])
-                val align = label["align"] as? String
-                val width = area.width * 18
-                val anchor = area.x.toInt() + when (align) { "left" -> LABEL_INSET; "right" -> width - LABEL_INSET; else -> width / 2 }
-                val top = area.y.toInt() + (area.height * 18 - 7 * textSize / 8) / 2
-                text.block(canvas, label["text"], anchor + int(label["offset_x"]), top + int(label["offset_y"]), width, textSize + 2, align ?: "center", textSize)
+                // `labelFrame` (imageButtonGeometry.ts): a text block anchored in the area, centred on the 7 px cap height
+                // (or at the top or bottom, for a text piece).
+                for (label in Looks.labels(look).filterIsInstance<Map<*, *>>()) {
+                    val textSize = sizeOf(label["size"])
+                    val align = label["align"] as? String
+                    val width = area.width * 18
+                    val anchor = area.x.toInt() + when (align) { "left" -> LABEL_INSET; "right" -> width - LABEL_INSET; else -> width / 2 }
+                    val cap = 7 * textSize / 8
+                    val top = area.y.toInt() + when (label["valign"]) {
+                        "top" -> LABEL_INSET
+                        "bottom" -> area.height * 18 - cap - LABEL_INSET
+                        else -> (area.height * 18 - cap) / 2
+                    }
+                    text.block(canvas, label["text"], anchor + int(label["offset_x"]), top + int(label["offset_y"]), width, textSize + 2, align ?: "center", textSize)
+                }
             }
         }
 
         // Items: over the title, as the game draws them.
         fun item(look: Map<*, *>, slot: Int) {
-            if (look["image"] != null) return
+            if (Looks.images(look).isNotEmpty()) return
             val area = ImageButtonGeometry.area(listOf(slot), type, size, hidden) ?: return
             val x = area.x.toInt() + 1
             val y = area.y.toInt() + 1
