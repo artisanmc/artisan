@@ -136,3 +136,23 @@ export function withRamp(
   for (const [from, to] of rampTable(ramp, picked)) out.set(from, to);
   return out;
 }
+
+/**
+ * The colours of `image` that are in no ramp, the most used first: what a theme's pick never
+ * reaches in an image that follows the ramps, since a table names the base's shades alone.
+ * Transparent pixels do not count (`recolor` leaves them too).
+ */
+export function offRampColors(image: {
+  readonly data: ArrayLike<number>;
+}): number[] {
+  const inRamp = new Set(KIT_RAMPS.flatMap((ramp) => ramp.shades));
+  const counts = new Map<number, number>();
+  const { data } = image;
+  for (let i = 0; i + 3 < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
+    const color =
+      ((data[i] as number) << 16) | ((data[i + 1] as number) << 8) | (data[i + 2] as number);
+    if (!inRamp.has(color)) counts.set(color, (counts.get(color) ?? 0) + 1);
+  }
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([color]) => color);
+}

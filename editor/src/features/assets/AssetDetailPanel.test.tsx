@@ -3,6 +3,7 @@ import * as templatesApi from "@/lib/api/templates";
 import * as userAssetsApi from "@/lib/api/userAssets";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createImage, encodePng } from "@/lib/pack/png";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { useKitStore } from "@/state/kitStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
@@ -16,6 +17,11 @@ vi.mock("@/state/authStore", () => ({
   useAuthStore: (sel: (s: { currentUser: { id: string } | null }) => unknown) =>
     sel({ currentUser: mockCurrentUser }),
 }));
+
+const assetBytes = vi.fn(async (): Promise<Uint8Array> => {
+  throw new Error("image_unavailable");
+});
+vi.mock("./assetBytes", () => ({ assetBytes: () => assetBytes() }));
 
 vi.mock("@/lib/pack/kitUrls", () => ({
   kitImageUrl: (id: string) => `/kit/${id}.png`,
@@ -250,6 +256,35 @@ describe("AssetDetailPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
     await waitFor(() => expect(patch).toHaveBeenCalledWith("p1", "frame", { ramps: true }));
     await waitFor(() => expect(box).toBeChecked());
+  });
+
+  it("tells the colours of an image that no theme repaints, once it follows the themes", async () => {
+    const image = { ...A, id: "frame", name: "frame", type: "texture" as const, ramps: true };
+    useAssetStore.getState().setAssets([image]);
+    useAssetStore.getState().setSelectedId("frame");
+    // The main green of the base, and two colours no ramp has.
+    const drawn = createImage(3, 1);
+    drawn.data.set([0x3c, 0x85, 0x27, 255, 0x12, 0x34, 0x56, 255, 0xab, 0xcd, 0xef, 255]);
+    assetBytes.mockResolvedValue(encodePng(drawn));
+    const { unmount } = render(<AssetDetailPanel projectId={"p1" as never} />);
+    const off = await screen.findByTestId("off-ramp");
+    expect(off).toHaveTextContent("2 couleurs de cette image ne sont pas des couleurs d'Artisan");
+    expect(screen.getByLabelText("#123456")).toBeInTheDocument();
+    expect(screen.getByLabelText("#abcdef")).toBeInTheDocument();
+    // Unticked, nothing is said of its colours.
+    fireEvent.click(screen.getByRole("checkbox", { name: "Suit les couleurs des thèmes" }));
+    expect(screen.queryByTestId("off-ramp")).toBeNull();
+    unmount();
+
+    // An image drawn in Artisan's colours alone is repainted whole.
+    const base = createImage(1, 1);
+    base.data.set([0x3c, 0x85, 0x27, 255]);
+    assetBytes.mockResolvedValue(encodePng(base));
+    useAssetStore.getState().setAssets([{ ...image, contentHash: "h2" }]);
+    render(<AssetDetailPanel projectId={"p1" as never} />);
+    expect(await screen.findByTestId("off-ramp-none")).toHaveTextContent(
+      "un thème les repeint toutes",
+    );
   });
 
   it("renders nothing when no asset is selected", () => {

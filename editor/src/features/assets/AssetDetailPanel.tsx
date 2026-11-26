@@ -18,7 +18,11 @@ import { OriginalChanged } from "./OriginalChanged";
 import { useAssetStore } from "./assetStore";
 import { originalImageUrl, useImageNotTaken, useImageStanding } from "./imageStanding";
 import { isKitModule } from "./localAssets";
+import { useOffRampColors } from "./offRamp";
 import { useResourcesView } from "./resourcesView";
+
+/** How many colours outside the ramps the panel shows before counting the rest. */
+const OFF_RAMP_SHOWN = 12;
 
 /**
  * The selected resource in the library's column: its picture, what it is and where it is used.
@@ -48,6 +52,11 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   const openStudio = useResourcesView((s) => s.openStudio);
   const standing = useImageStanding(projectId, asset);
   const notTaken = useImageNotTaken(projectId, asset);
+  // Asked only of an image that may follow the ramps, once it says so.
+  const offRamp = useOffRampColors(
+    asset,
+    ramps && !!asset && asset.type !== "font" && !asset.compose,
+  );
 
   const savedName = asset?.name ?? "";
   const savedAscent = asset?.ascent ?? "";
@@ -279,6 +288,34 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
               {t("resources.ramps.label")}
             </label>
             <span className="text-[var(--text-mut)]">{t("resources.ramps.hint")}</span>
+            {ramps && offRamp ? (
+              offRamp.length === 0 ? (
+                <span className="text-[var(--text-mut)]" data-testid="off-ramp-none">
+                  {t("resources.ramps.allIn")}
+                </span>
+              ) : (
+                <div className="flex flex-col gap-1" data-testid="off-ramp">
+                  <span>{t("resources.ramps.off", { count: offRamp.length })}</span>
+                  <ul className="flex flex-wrap items-center gap-1">
+                    {offRamp.slice(0, OFF_RAMP_SHOWN).map((color) => {
+                      const code = `#${color.toString(16).padStart(6, "0")}`;
+                      return (
+                        <li
+                          key={color}
+                          title={code}
+                          aria-label={code}
+                          className="size-4 rounded-[var(--r-sm)] border border-[var(--border)]"
+                          style={{ background: code }}
+                        />
+                      );
+                    })}
+                    {offRamp.length > OFF_RAMP_SHOWN ? (
+                      <li className="text-[var(--text-mut)]">+{offRamp.length - OFF_RAMP_SHOWN}</li>
+                    ) : null}
+                  </ul>
+                </div>
+              )
+            ) : null}
           </div>
         )}
         {asset.type === "glyph" && (
