@@ -435,6 +435,8 @@ export interface Appearance {
   image?: import("../../../docs/schema/menu/v1/imageButtonGeometry").ImageButtonImage;
   /** Title text over the element's slot rectangle (fixed elements only). */
   label?: import("../../../docs/schema/menu/v1/imageButtonGeometry").ElementLabel<LText>;
+  /** The look as pieces, bottom to top, instead of `image` and `label` (ADR `element-parts-and-sliced-images`). */
+  parts?: import("../../../docs/schema/menu/v1/imageButtonGeometry").LookPart<LText>[];
   /** Complete item from data; distinct from a literal material. */
   item?: string;
   if?: Condition[];

@@ -297,7 +297,7 @@ function RefreshField({
     }
     setDraft(secondsOf(written));
   };
-  const pinned = [element.display, ...element.states].some((a) => a.image || a.label);
+  const pinned = [element.display, ...element.states].some((a) => a.image || a.label || a.parts);
   return (
     <div className="mb-3">
       <FieldLabel>{t("flow.refreshLabel")}</FieldLabel>

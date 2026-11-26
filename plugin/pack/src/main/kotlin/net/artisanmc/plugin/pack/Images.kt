@@ -177,7 +177,7 @@ internal object ImageButtons {
     fun key(b: ImageButtonPlacement): String {
         val hash = sha256Hex(b.asset.toByteArray(Charsets.UTF_8))
         val offsets = if (b.offsetX != null || b.offsetY != null) "_${Js.numberString(b.offsetX ?: 0.0)}_${Js.numberString(b.offsetY ?: 0.0)}" else ""
-        return "buttons/${hash}_${b.width}_${b.height}_${b.fit}_${Js.numberString(b.y)}$offsets"
+        return "buttons/${hash}_${b.width}_${b.height}_${b.fit}_${Js.numberString(b.y)}$offsets${b.anchor?.takeIf { it != "center" }?.let { "_$it" } ?: ""}"
     }
 
     /** The button's image in its area (`renderImageButton`), and the width MC measures for it. */
@@ -186,7 +186,7 @@ internal object ImageButtons {
         // A sliced image fills the rectangle, edges and middle repeated, when it holds its margins.
         val sliced = slice != null && Slices.at(slice, source, button.width, button.height)
         val input = if (sliced) Slices.draw(source, slice!!, button.width, button.height) else source
-        val g = ImageButtonGeometry.geometry(if (sliced) "native" else button.fit, button.offsetX, button.offsetY, input.width, input.height, button.width, button.height)
+        val g = ImageButtonGeometry.geometry(if (sliced) "native" else button.fit, button.offsetX, button.offsetY, input.width, input.height, button.width, button.height, button.anchor)
         var contentWidth = 0
         for (y in maxOf(0, -g.y) until minOf(g.height, button.height - g.y)) {
             for (x in maxOf(0, -g.x) until minOf(g.width, button.width - g.x)) {

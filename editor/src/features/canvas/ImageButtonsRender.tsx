@@ -1,6 +1,7 @@
 import { assetPreviewUrl } from "@/domain/asset";
 import { menusOf } from "@/domain/documents";
 import {
+  appearanceImages,
   hasImageButton,
   imageButtonGeometry,
   imageButtonOrigin,
@@ -20,6 +21,7 @@ import type Konva from "konva";
 import { useMemo, useRef } from "react";
 import { Group, Image, Rect, Text } from "react-konva";
 import { toast } from "sonner";
+import type { ImageButtonImage } from "../../../../docs/schema/menu/v1/imageButtonGeometry";
 import { hitTestSlot } from "./hitTest";
 import { TEX_SCALE, TEX_SLOT_STRIDE } from "./menuLayout";
 
@@ -47,7 +49,7 @@ export function ImageButtonsRender({
     <>
       {menu.layers
         .flatMap((layer) => layer.elements)
-        .filter((el) => !!el.display.image)
+        .filter((el) => appearanceImages(el.display).length > 0)
         .map((element) => (
           <ImageButtonRender
             key={element.id}
@@ -75,9 +77,7 @@ function ImageButtonRender({
   frame: ImageButtonDropFrame;
   onDeepSelect?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
 }) {
-  const appearance = element.display;
-  const asset = useImageAsset(projectId, appearance.image?.asset);
-  const [image] = useAuthenticatedImage(asset ? assetPreviewUrl(asset) : "");
+  const images = appearanceImages(element.display);
   const ids = useSelectionStore((state) => state.ids);
   const selectedMenu = useSelectionStore((state) => state.menuId);
   const brand = useCssVar("--brand");
@@ -89,30 +89,12 @@ function ImageButtonRender({
     menu.rows,
     menu.playerInventory,
   );
-  // A sliced image fills the rectangle as the pack draws it (`slice.ts`).
-  const columns = rect?.width ?? 0;
-  const rows = rect?.height ?? 0;
-  const sliced = useMemo(
-    () =>
-      image && asset?.slice && columns && rows
-        ? slicedCanvas(image, asset.slice, columns * 18, rows * 18)
-        : null,
-    [image, asset?.slice, columns, rows],
-  );
   if (!rect || !hasImageButton(element)) return null;
   const x = rect.x * TEX_SCALE;
   const y = rect.y * TEX_SCALE;
   const width = rect.width * 18 * TEX_SCALE;
   const height = rect.height * 18 * TEX_SCALE;
   const selected = isElementSelected(ids, selectedMenu, element.id, menu.id);
-  const picture = sliced ?? image;
-  const draw = imageButtonGeometry(
-    sliced ? { ...appearance.image!, fit: "native" } : appearance.image!,
-    picture?.width ?? 1,
-    picture?.height ?? 1,
-    width / TEX_SCALE,
-    height / TEX_SCALE,
-  );
   const select = () => {
     useUiStore.getState().setSelectedLayerKey(null);
     useSelectionStore.getState().set([element.id], null, menu.id);
@@ -205,32 +187,81 @@ function ImageButtonRender({
     >
       <Rect width={width} height={height} fill="rgba(0,0,0,0.001)" />
       <Group clipX={0} clipY={0} clipWidth={width} clipHeight={height} listening={false}>
-        {picture ? (
-          <Image
-            image={picture}
-            imageSmoothingEnabled={false}
-            x={draw.x * TEX_SCALE}
-            y={draw.y * TEX_SCALE}
-            width={draw.width * TEX_SCALE}
-            height={draw.height * TEX_SCALE}
-            listening={false}
+        {images.map((image, index) => (
+          <ButtonImage
+            // biome-ignore lint/suspicious/noArrayIndexKey: the pieces of a look have no id, their order is their identity
+            key={index}
+            projectId={projectId}
+            image={image}
+            columns={rect.width}
+            rows={rect.height}
+            named={index === 0}
           />
-        ) : (
-          <Text
-            text={asset?.name ?? appearance.image?.asset ?? "Image"}
-            width={width}
-            height={height}
-            align="center"
-            verticalAlign="middle"
-            fill={brand}
-            listening={false}
-          />
-        )}
+        ))}
       </Group>
       {selected && (
         <Rect width={width} height={height} stroke={brand} strokeWidth={2} listening={false} />
       )}
     </Group>
+  );
+}
+
+/**
+ * One image of a look in its element's rectangle (`columns` × `rows` slots), as the pack draws
+ * it: a sliced image fills the rectangle (`slice.ts`), another sits at its anchor. `named`: its
+ * name is written while its picture is missing.
+ */
+function ButtonImage({
+  projectId,
+  image: spec,
+  columns,
+  rows,
+  named,
+}: {
+  projectId: ProjectId;
+  image: ImageButtonImage;
+  columns: number;
+  rows: number;
+  named: boolean;
+}) {
+  const asset = useImageAsset(projectId, spec.asset);
+  const [image] = useAuthenticatedImage(asset ? assetPreviewUrl(asset) : "");
+  const brand = useCssVar("--brand");
+  const sliced = useMemo(
+    () =>
+      image && asset?.slice ? slicedCanvas(image, asset.slice, columns * 18, rows * 18) : null,
+    [image, asset?.slice, columns, rows],
+  );
+  const picture = sliced ?? image;
+  if (!picture)
+    return named ? (
+      <Text
+        text={asset?.name ?? spec.asset ?? "Image"}
+        width={columns * 18 * TEX_SCALE}
+        height={rows * 18 * TEX_SCALE}
+        align="center"
+        verticalAlign="middle"
+        fill={brand}
+        listening={false}
+      />
+    ) : null;
+  const draw = imageButtonGeometry(
+    sliced ? { ...spec, fit: "native" } : spec,
+    picture.width,
+    picture.height,
+    columns * 18,
+    rows * 18,
+  );
+  return (
+    <Image
+      image={picture}
+      imageSmoothingEnabled={false}
+      x={draw.x * TEX_SCALE}
+      y={draw.y * TEX_SCALE}
+      width={draw.width * TEX_SCALE}
+      height={draw.height * TEX_SCALE}
+      listening={false}
+    />
   );
 }
 

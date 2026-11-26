@@ -1,14 +1,73 @@
 import { cellToPosition, positionToCell, slotCount } from "@/features/canvas/inventoryTypes";
 import { formatPositions, parsePositions } from "@/lib/positions";
-import { imageButtonArea, labelFrame } from "../../../docs/schema/menu/v1/imageButtonGeometry";
-import type { Element, InventoryType, Menu, MenuTitleLayer, PlayerInventoryMode } from "./types";
+import {
+  type ElementLabel,
+  type ImageButtonImage,
+  anchorAxes,
+  imageButtonArea,
+  labelFrame,
+} from "../../../docs/schema/menu/v1/imageButtonGeometry";
+import type {
+  Appearance,
+  Element,
+  InventoryType,
+  LText,
+  Menu,
+  MenuTitleLayer,
+  PlayerInventoryMode,
+} from "./types";
 export {
   imageButtonSize,
   imageButtonGeometry,
 } from "../../../docs/schema/menu/v1/imageButtonGeometry";
 
+/**
+ * The images a look draws, bottom to top: its image pieces (at their own size unless `fit`
+ * says otherwise), else its `image`. Mirror of `lookImages`, on the domain.
+ */
+export function appearanceImages(appearance: Appearance): ImageButtonImage[] {
+  if (!appearance.parts) return appearance.image ? [appearance.image] : [];
+  return appearance.parts.flatMap((part) =>
+    "image" in part
+      ? [
+          {
+            asset: part.image,
+            fit: part.fit ?? "native",
+            ...(part.offset_x ? { offset_x: part.offset_x } : {}),
+            ...(part.offset_y ? { offset_y: part.offset_y } : {}),
+            ...(part.anchor ? { anchor: part.anchor } : {}),
+          },
+        ]
+      : [],
+  );
+}
+
+/** A label as it is drawn: a text piece adds where it sits vertically. */
+export type DrawnLabel = ElementLabel<LText> & { valign?: "top" | "center" | "bottom" };
+
+/** The texts a look draws: its text pieces (aligned by their anchor), else its `label`. */
+export function appearanceLabels(appearance: Appearance): DrawnLabel[] {
+  if (!appearance.parts) return appearance.label ? [appearance.label] : [];
+  return appearance.parts.flatMap((part) => {
+    if ("image" in part) return [];
+    const { h, v } = anchorAxes(part.anchor);
+    return [
+      {
+        text: part.label,
+        align: h,
+        valign: v,
+        ...(part.size ? { size: part.size } : {}),
+        ...(part.offset_x ? { offset_x: part.offset_x } : {}),
+        ...(part.offset_y ? { offset_y: part.offset_y } : {}),
+      },
+    ];
+  });
+}
+
 export const hasImageButton = (element: Element) =>
-  [element.display, ...element.states].some((appearance) => !!appearance.image);
+  [element.display, ...element.states].some(
+    (appearance) => appearanceImages(appearance).length > 0,
+  );
 
 /**
  * Positions of a `width`×`height` rectangle whose top-left slot is `slot`.
@@ -94,8 +153,8 @@ type LabelLayer = Extract<MenuTitleLayer, { kind: "textarea" }>;
 export function elementLabels(menu: Menu): { elementId: Element["id"]; layer: LabelLayer }[] {
   const out: { elementId: Element["id"]; layer: LabelLayer }[] = [];
   for (const element of menu.layers.flatMap((layer) => layer.elements)) {
-    const label = element.display.label;
-    if (!label || element.iterates || element.places) continue;
+    const labels = appearanceLabels(element.display);
+    if (!labels.length || element.iterates || element.places) continue;
     const rect = imageButtonRect(
       element.positions,
       menu.inventoryType ?? "chest",
@@ -103,13 +162,15 @@ export function elementLabels(menu: Menu): { elementId: Element["id"]; layer: La
       menu.playerInventory,
     );
     if (!rect) continue;
-    const frame = labelFrame(label, {
-      x: rect.x,
-      y: rect.y,
-      width: rect.width * 18,
-      height: rect.height * 18,
-    });
-    out.push({ elementId: element.id, layer: { kind: "textarea", value: label.text, ...frame } });
+    for (const label of labels) {
+      const frame = labelFrame(label, {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width * 18,
+        height: rect.height * 18,
+      });
+      out.push({ elementId: element.id, layer: { kind: "textarea", value: label.text, ...frame } });
+    }
   }
   return out;
 }

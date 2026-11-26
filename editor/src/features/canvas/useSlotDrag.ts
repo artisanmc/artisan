@@ -1,4 +1,5 @@
 import { menusOf } from "@/domain/documents";
+import { appearanceImages } from "@/domain/imageButton";
 import type { ElementId, InventoryType, Layer, MenuId, ProjectId } from "@/domain/types";
 import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
@@ -121,7 +122,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
           for (const el of layer.elements) {
             if (!sel.ids.has(el.id)) continue;
             const appearance = el.display;
-            if (appearance?.image) continue;
+            if (appearance && appearanceImages(appearance).length) continue;
             for (const p of parsePositions(el.positions)) {
               if (p === slotPosition) continue;
               siblings.push({

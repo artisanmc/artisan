@@ -172,6 +172,24 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
       const { text: raw, ...placement } = a.label;
       out.label = { ...placement, text: text(raw) };
     }
+    // A look of pieces: each piece an image by its name, or a text.
+    if (Array.isArray(a.parts)) {
+      out.parts = a.parts.flatMap((part: Json): NonNullable<DomainAppearance["parts"]> => {
+        if (!part || typeof part !== "object") return [];
+        const placed = {
+          ...(part.anchor ? { anchor: part.anchor } : {}),
+          ...(part.offset_x !== undefined ? { offset_x: part.offset_x } : {}),
+          ...(part.offset_y !== undefined ? { offset_y: part.offset_y } : {}),
+        };
+        if (typeof part.image === "string")
+          return [{ image: part.image, ...(part.fit ? { fit: part.fit } : {}), ...placed }];
+        if (part.label === undefined || part.label === null) return [];
+        return [{ label: text(part.label), ...(part.size ? { size: part.size } : {}), ...placed }];
+      });
+      // The pieces are the look: `image` and `label` beside them are not read.
+      Reflect.deleteProperty(out, "image");
+      Reflect.deleteProperty(out, "label");
+    }
     if (a.head) out.head = a.head;
     if (a.count !== undefined) out.count = a.count;
     if (a.title !== undefined) out.title = text(a.title);

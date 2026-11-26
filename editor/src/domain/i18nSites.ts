@@ -229,6 +229,18 @@ export function* visitAppearanceLTexts(appearance: Appearance, base: string): Ge
       kind: "elementLabel",
     };
   }
+  if (appearance.parts) {
+    for (let i = 0; i < appearance.parts.length; i++) {
+      const part = appearance.parts[i]!;
+      if ("image" in part) continue;
+      yield {
+        lText: part.label,
+        key: `${base}.parts.${i}.label` as I18nKey,
+        path: `${base}.parts.${i}.label`,
+        kind: "elementLabel",
+      };
+    }
+  }
   if (appearance.lore) {
     // `lore` is a single LText in the current shape, but legacy-migrated projects
     // can carry an array. Tolerate both so those projects don't read as "(unused)".

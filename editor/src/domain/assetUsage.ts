@@ -1,5 +1,6 @@
 import { menusOf } from "@/domain/documents";
 import type { Asset, AssetUsage } from "./asset";
+import { appearanceImages } from "./imageButton";
 import type { Menu, Project } from "./types";
 
 export const ASSET_USAGES: AssetUsage[] = ["button", "menu"];
@@ -13,7 +14,10 @@ function menuUsages(asset: Asset, menu: Menu): AssetUsage[] {
   for (const layer of menu.layers) {
     for (const element of layer.elements) {
       for (const appearance of [element.display, ...element.states]) {
-        if (appearance.image?.asset === asset.id || appearance.assetId === asset.id)
+        if (
+          appearanceImages(appearance).some((image) => image.asset === asset.id) ||
+          appearance.assetId === asset.id
+        )
           usages.add("button");
       }
     }

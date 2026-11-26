@@ -338,6 +338,36 @@ missing from the pack.
   lore: [ "A freeze covers one missed day." ]
 ```
 
+**Parts.** A button can be made of several pieces instead of one image and one label:
+`parts`, a list drawn bottom to top over the button's slots. Each piece is an image (by its
+name) or a text, placed by an `anchor` (`center` by default, `left`, `right`, `top`, `bottom`,
+or a corner such as `top_left`) and shifted by `offset_x` / `offset_y`. An image with fixed
+edges fills the button; any other image is drawn at its own size (`fit: contain` or `stretch`
+to scale it). A text takes a `size` like a label. One background and one icon per button are
+enough for ten buttons: the icon is no longer drawn into the background.
+
+```yaml
+- id: buy
+  positions: "20-22"
+  parts:
+    - image: button            # fixed edges: drawn at 54 x 18
+    - image: icon_coin
+      anchor: left
+      offset_x: 3
+    - label: "{i18n:shop.buy}"
+    - label: "{item.price}"
+      anchor: right
+      offset_x: -4
+  click:
+    left: buy_item {item.id}
+```
+
+`image` and `label` stay valid and mean a list of those two pieces; a look writes one form
+or the other. An image's name is written as is (no placeholder), and a button that repeats
+(`iterates`/`places`) cannot be made of parts. Each state has its own list. A Bedrock player
+sees the first image of the list. For now the list is written in the file: the editor shows
+it on the canvas and keeps it, and its panel comes next.
+
 **Hover area.** A button with neither image nor item (no `image`, `material` nor `item`) is
 invisible: its slots show nothing but keep its title, lore and clicks. Use it to explain a
 part of a background image on hover, or to put a label on the background.

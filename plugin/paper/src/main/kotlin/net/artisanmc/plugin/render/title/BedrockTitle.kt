@@ -74,7 +74,7 @@ object BedrockTitle {
     fun buttons(menu: MenuYaml): List<ElementYaml> =
         menu.allElements.filter { el ->
             el.iterates == null && el.places == null &&
-                (listOf(el.display) + el.states).any { it.image != null } &&
+                (listOf(el.display) + el.states).any { it.images.isNotEmpty() } &&
                 ImageButtonLayout.rectangle(menu, el) != null
         }.take(BUTTON_MAX)
 

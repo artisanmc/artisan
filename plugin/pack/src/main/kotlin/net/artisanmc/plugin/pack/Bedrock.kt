@@ -57,6 +57,7 @@ internal class BedrockButtonImage(
     val offsetX: Double?,
     val offsetY: Double?,
     val state: Int,
+    val anchor: String? = null,
 )
 
 internal class BedrockButton(
@@ -192,17 +193,20 @@ internal object BedrockMenus {
     private val DIGITS = Regex("\\d+")
 
     private fun imageOf(app: Any?): BedrockButtonImage? {
-        val image = (app as? Map<*, *>)?.get("image") as? Map<*, *> ?: return null
+        // A look of several pieces shows its first image here (the bottom one).
+        val image = Looks.images(app).firstOrNull() as? Map<*, *> ?: return null
         val asset = image["asset"] as? String
         if (asset.isNullOrEmpty()) return null
         if (image.containsKey("fit") && image["fit"] !in FITS) return null
         if (!Js.isSafeInteger(image["offset_x"] ?: 0) || !Js.isSafeInteger(image["offset_y"] ?: 0)) return null
+        if (image.containsKey("anchor") && image["anchor"] !in Looks.ANCHORS) return null
         return BedrockButtonImage(
             asset,
             image["fit"] as? String ?: "contain",
             (image["offset_x"] as? Number)?.toDouble()?.takeIf { it != 0.0 },
             (image["offset_y"] as? Number)?.toDouble()?.takeIf { it != 0.0 },
             -1,
+            (image["anchor"] as? String)?.takeIf { it != "center" },
         )
     }
 
@@ -289,7 +293,7 @@ internal object BedrockMenus {
                 val el = element as? Map<*, *> ?: continue
                 if (Js.truthy(el["iterates"]) || Js.truthy(el["places"])) continue
                 val apps = listOf<Any?>(el) + ((el["states"] as? List<*>) ?: emptyList())
-                if (apps.none { Js.truthy((it as? Map<*, *>)?.get("image")) }) continue
+                if (apps.none { Looks.images(it).isNotEmpty() }) continue
                 val slots = slotsOf(el["positions"], sizeInt) ?: continue
                 val area = ImageButtonGeometry.area(slots, "chest", sizeInt, false) ?: continue
                 if (buttons.size >= BedrockTitle.BUTTON_MAX) continue
@@ -297,7 +301,7 @@ internal object BedrockMenus {
                 apps.forEachIndexed { state, app ->
                     val image = imageOf(app)
                     if (image != null && state < BedrockTitle.STATE_MAX) {
-                        buttonImages += BedrockButtonImage(resolve(image.asset), image.fit, image.offsetX, image.offsetY, state)
+                        buttonImages += BedrockButtonImage(resolve(image.asset), image.fit, image.offsetX, image.offsetY, state, image.anchor)
                     }
                 }
                 buttons += BedrockButton(buttons.size, area.x, area.y, area.width * 18, area.height * 18, buttonImages)
@@ -596,7 +600,7 @@ internal object BedrockPack {
 
     private fun placement(button: BedrockButton, state: Int): ImageButtonPlacement {
         val image = button.images.first { it.state == state }
-        return ImageButtonPlacement(image.asset, image.fit, image.offsetX, image.offsetY, button.width, button.height, button.y)
+        return ImageButtonPlacement(image.asset, image.fit, image.offsetX, image.offsetY, button.width, button.height, button.y, image.anchor)
     }
 
     private fun uuidOf(seed: String): String {

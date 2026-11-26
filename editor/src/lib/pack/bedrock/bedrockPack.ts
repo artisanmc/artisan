@@ -172,6 +172,7 @@ function placement(button: BedrockMenu["buttons"][number], state: number): Image
     fit: image.fit,
     ...(image.offset_x ? { offset_x: image.offset_x } : {}),
     ...(image.offset_y ? { offset_y: image.offset_y } : {}),
+    ...(image.anchor ? { anchor: image.anchor } : {}),
     width: button.width,
     height: button.height,
     y: button.y,

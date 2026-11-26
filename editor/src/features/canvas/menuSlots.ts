@@ -1,3 +1,4 @@
+import { appearanceImages } from "@/domain/imageButton";
 /**
  * What each slot of a menu shows on the board, pure: iterating elements
  * unrolled against the preview scope (paged), placement layouts resolved
@@ -233,7 +234,7 @@ export function resolveMenuSlots({
         ...(project ? previewItem(appearance, enhancedCtx, project, activeLang) : {}),
         elementId: el.id,
         multiPos: elSlots.length > 1,
-        image: !!appearance.image,
+        image: appearanceImages(appearance).length > 0,
       };
       for (const s of elSlots) {
         elementsByPosition.set(s.position, info);
