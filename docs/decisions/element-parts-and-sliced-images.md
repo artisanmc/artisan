@@ -1,7 +1,7 @@
 # Element parts, sliced images and components: a button made of several pieces, at any width, drawn once for the server
 
 **Status:** direction accepted (2026-11-26: components are linked, per module and common to
-the server, edited in a menu and in the atelier); steps 1, 2 and the format of step 3 built (see *Built so far*)
+the server, edited in a menu and in the atelier); steps 1 to 4 built (see *Built so far*)
 
 **Extends:** `common-images-and-themes.md` (decision 4, an image's function), `menu/v1`
 (`Appearance.image`, `Appearance.label`), `element-display-and-states.md`
@@ -262,6 +262,19 @@ language when it was written so; an image, picked like any image), detaches it
 texts translations of the Project) or removes it. Not built: a parameter made from a
 saved piece (a saved component takes none until its file is edited), the editing of a
 component's file in the editor (step 4), where a component is used.
+
+**Step 4, a component opened alone (2026-11-26).** The Resources of a module have a
+Components view (`ComponentsView`): the list of the Project's `components/` files, a new
+one by its name, and the one selected shown by the canvas's own renderers on an empty chest
+(`ComponentPreview`: one button that names it, at the rectangle picked with the width and
+height of its parts). Its parameters are declared, typed, defaulted and removed
+(`setComponentParam`); its parts are edited by `PartsEditor`, the panel of a button's
+pieces, over the file (`partsLook`, `editComponentParts`); the buttons of the module that
+name it are listed and open their menu (`componentUses`). The file is rewritten as YAML at
+each edit (`writeComponent`): a comment written by hand in it is lost. Not built: sample
+values for the parameters in the preview (it shows the defaults), the uses in other
+modules, renaming. The view is the page's (`ProjectCanvasPage` gives it to `AssetsTab`), so
+the Resources of the common images' Project list the common components the same way.
 
 Not built: `render_menu` (it draws a sliced image by
 its fit), the base's buttons declared sliced, the rule that a redraw or a theme keeps the

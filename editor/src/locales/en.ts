@@ -79,7 +79,7 @@ export default {
       followHint:
         "A common image is redrawn in the server's common images: every menu that names it follows.",
     },
-    view: { files: "Images and fonts", captured: "Captured items" },
+    view: { files: "Images and fonts", components: "Components", captured: "Captured items" },
     capturedHint:
       "Items captured in game. Place one on a menu from the Buttons panel of the canvas, or pick it in an item field.",
     all: "All",
@@ -115,6 +115,33 @@ export default {
     unused: "This image is not used in a menu.",
     composed:
       "Composed image: the resource pack assembles it from {{layers}}. It has no file of its own and changes when they do.",
+  },
+  components: {
+    hint: "A component is a button look written once: every button that names it draws it, and changing it changes them all.",
+    list: "Components",
+    newName: "New component",
+    create: "Create",
+    empty:
+      "No component yet. Create one here, or save the parts of a button as a component from its properties.",
+    preview: "{{name}} in a menu",
+    previewHint:
+      "Shown on {{width}} × {{height}} slots. Change the width and height in Parts to see it at another size.",
+    params: "Parameters",
+    paramsHint:
+      "What each button gives the component. Write {name} in a text, or alone as an image, to put the value there.",
+    paramType: "Kind of {{name}}",
+    paramDefault: "Default of {{name}}",
+    paramRemove: "Remove the parameter {{name}}",
+    paramNew: "New parameter",
+    paramAdd: "Add",
+    default: "By default",
+    text: "Text",
+    image: "Image",
+    uses_one: "Used by {{count}} button",
+    uses_other: "Used by {{count}} buttons",
+    unused: "No button of this module names it yet.",
+    delete: "Delete this component",
+    deleteUsed: "Buttons still name it",
   },
   component: {
     title: "Component",

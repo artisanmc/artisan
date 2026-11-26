@@ -256,6 +256,17 @@ export interface ElementsSlice {
     } & AppearanceTarget,
   ) => void;
   /**
+   * Writes the Project's component `name` (`components/<name>.yml`, its YAML as `content`),
+   * or removes it with `null`. A new one takes a name that is a file's and is not taken.
+   */
+  writeComponent: (input: {
+    projectId: ProjectId;
+    name: string;
+    content: string | null;
+    /** The component is new: refused when one of that name exists. */
+    create?: boolean;
+  }) => void;
+  /**
    * The look's pieces move to the file `components/<name>.yml` of the Project and the look
    * names it. Refused when the name is taken or is not a file's name, or the look draws nothing.
    */
@@ -806,6 +817,27 @@ export const createElementsSlice = ({
         }
         Reflect.deleteProperty(appearance, "component");
         if (parts.length) appearance.parts = parts;
+      }),
+    writeComponent: (input) =>
+      mutateProject(input.projectId, (project) => {
+        if (!/^[a-z0-9][a-z0-9_.-]*$/.test(input.name))
+          throw new Error("A component's name is lowercase letters, digits, `_`, `-` and `.`.");
+        if (!project.moduleData) project.moduleData = {};
+        const data = project.moduleData as Record<
+          string,
+          { __files?: Record<string, string> } | undefined
+        >;
+        if (!data.components) data.components = {};
+        if (!data.components.__files) data.components.__files = {};
+        const files = data.components.__files;
+        const held = [`${input.name}.yml`, `${input.name}.yaml`].find((file) => file in files);
+        if (input.content === null) {
+          if (!held) return false;
+          Reflect.deleteProperty(files, held);
+          return;
+        }
+        if (input.create && held) throw new Error(`A component "${input.name}" already exists.`);
+        files[held ?? `${input.name}.yml`] = input.content;
       }),
     saveLookAsComponent: (input) =>
       mutateElement(input.projectId, input.menuId, input.elementId, (element, _menu, project) => {

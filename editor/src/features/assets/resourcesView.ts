@@ -2,9 +2,10 @@ import type { Asset } from "@/domain/asset";
 import { create } from "zustand";
 
 /**
- * What the Resources tab shows: the module's files (images, fonts) or its captured items.
+ * What the Resources tab shows: the module's files (images, fonts), its components or its
+ * captured items.
  */
-export type ResourcesView = "files" | "captured";
+export type ResourcesView = "files" | "components" | "captured";
 
 /** The tab's view, settable from elsewhere (the module home opens it on the captured items). */
 export const useResourcesView = create<{

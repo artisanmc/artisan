@@ -83,7 +83,7 @@ const fr: typeof en = {
       followHint:
         "Une image commune se redessine dans les images communes du serveur : chaque menu qui la nomme suit.",
     },
-    view: { files: "Images et polices", captured: "Items capturés" },
+    view: { files: "Images et polices", components: "Composants", captured: "Items capturés" },
     capturedHint:
       "Items capturés en jeu. Pose-en un sur un menu depuis le panneau Boutons du canvas, ou choisis-le dans un champ item.",
     all: "Tout",
@@ -120,6 +120,33 @@ const fr: typeof en = {
     unused: "Cette image n’est utilisée dans aucun menu.",
     composed:
       "Image composée : le pack de ressources l’assemble à partir de {{layers}}. Elle n’a pas de fichier à elle et change quand ces images changent.",
+  },
+  components: {
+    hint: "Un composant est une apparence de bouton écrite une fois : chaque bouton qui le nomme le dessine, et le modifier les modifie tous.",
+    list: "Composants",
+    newName: "Nouveau composant",
+    create: "Créer",
+    empty:
+      "Aucun composant pour l’instant. Créez-en un ici, ou enregistrez les pièces d’un bouton comme composant depuis ses propriétés.",
+    preview: "{{name}} dans un menu",
+    previewHint:
+      "Montré sur {{width}} × {{height}} emplacements. Changez la largeur et la hauteur dans Pièces pour le voir à une autre taille.",
+    params: "Paramètres",
+    paramsHint:
+      "Ce que chaque bouton donne au composant. Écrivez {nom} dans un texte, ou seul comme image, pour y mettre la valeur.",
+    paramType: "Nature de {{name}}",
+    paramDefault: "Valeur par défaut de {{name}}",
+    paramRemove: "Retirer le paramètre {{name}}",
+    paramNew: "Nouveau paramètre",
+    paramAdd: "Ajouter",
+    default: "Par défaut",
+    text: "Texte",
+    image: "Image",
+    uses_one: "Utilisé par {{count}} bouton",
+    uses_other: "Utilisé par {{count}} boutons",
+    unused: "Aucun bouton de ce module ne le nomme encore.",
+    delete: "Supprimer ce composant",
+    deleteUsed: "Des boutons le nomment encore",
   },
   component: {
     title: "Composant",

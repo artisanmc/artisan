@@ -531,7 +531,8 @@ export function TitleRender({
             const moved = buttonDrag?.menuId === menuId && buttonDrag.elementId === elementId;
             return (
               <Group
-                key={elementId}
+                // biome-ignore lint/suspicious/noArrayIndexKey: an element may draw several texts, in a fixed order
+                key={`${elementId}:${idx}`}
                 name={`element-label:${menuId}:${elementId}`}
                 x={moved ? buttonDrag.dx : 0}
                 y={moved ? buttonDrag.dy : 0}
