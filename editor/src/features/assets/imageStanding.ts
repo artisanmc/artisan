@@ -316,6 +316,39 @@ export function useImageNotTaken(
 }
 
 /**
+ * Whether the owner holds the file of `asset` in the module (`binaries`, `files`: its paths),
+ * and not only what the module ships under `originals/`: an image by its PNG, a font by its
+ * folder.
+ */
+export function ownerHolds(paths: Iterable<string>, asset: Pick<Asset, "id" | "type">): boolean {
+  const stem = imageStem(asset);
+  for (const path of paths) {
+    if (asset.type === "font" ? path.startsWith(`${stem}/`) : path === `${stem}.png`) return true;
+  }
+  return false;
+}
+
+/**
+ * Which images and fonts of the server's modules, as published (`useKitStore.modules`), are
+ * their owner's own files ([ownerHolds]): the ones the server's Resources offer to copy to
+ * the common images.
+ */
+export function useServerOwnerHolds(): (
+  asset: Pick<Asset, "id" | "type" | "projectId">,
+) => boolean {
+  const modules = useKitStore((s) => s.modules);
+  return useMemo(() => {
+    const paths = new Map(
+      modules.map((m) => [
+        m.projectId as string,
+        [...Object.keys(m.files), ...m.binaries.map((b) => b.path)],
+      ]),
+    );
+    return (asset) => ownerHolds(paths.get(asset.projectId) ?? [], asset);
+  }, [modules]);
+}
+
+/**
  * The marks of the images of the server's modules as published (`useKitStore.modules`), for
  * the server's Resources: by Project id, then by stem. The origins of a module are asked of
  * its server once, when it holds a version of its own over an original; a module that cannot

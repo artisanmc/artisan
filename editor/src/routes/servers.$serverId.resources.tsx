@@ -198,6 +198,15 @@ function ServerResourcesTab() {
         void openModule(projectId);
       }}
       onOpenCommon={openCommon}
+      onShare={
+        kitId
+          ? (asset) => {
+              // The common images' Project takes the copy in its draft once it is open.
+              useResourcesView.getState().askShare(asset);
+              void openModule(kitId);
+            }
+          : undefined
+      }
       onOpenMenu={(projectId, menuId) =>
         void navigate(projectDestination(projectId, serverId, menuId, "menu"))
       }

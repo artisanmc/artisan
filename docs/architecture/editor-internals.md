@@ -123,7 +123,9 @@ answers there: the module the request was made in leaves it alone, any other mod
 A module's own image or font goes the other way by the same path: `AssetDetailPanel`'s
 **Copy to the common images** (`onShare`) sets `useResourcesView.askShare(asset, from)`, and
 `useCommonCopyAsked` answers in the common images' Project with `copyAssetInto` (the copy the
-picker makes from another module), into that Project's draft.
+picker makes from another module), into that Project's draft. The server's list offers the
+same copy for a module's own file (`ServerResources`' `onShare`, `useServerOwnerHolds`: the
+modules as published, never what a module ships alone).
 The server page's **Resources** tab is the route `servers.$serverId.resources.tsx`, drawn by
 `ServerResources` (`features/project/ServerResources.tsx`): the Resources screen at the scale
 of the server (ADR `common-images-and-themes`, decision 12). `?show=` picks what it lists: the

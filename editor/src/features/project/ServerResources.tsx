@@ -25,7 +25,7 @@ import {
   useKitAssets,
   useKitMisfits,
 } from "@/features/assets/kitAssets";
-import { useServerImageMarks } from "@/features/assets/imageStanding";
+import { useServerImageMarks, useServerOwnerHolds } from "@/features/assets/imageStanding";
 import { useOtherProjectAssets } from "@/features/assets/useOtherProjectAssets";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { type ImageUse, commonImageKey, kitNameOf, kitSlot, moduleImageKey } from "@/lib/pack/kit";
@@ -63,6 +63,7 @@ export function ServerResources({
   onOpenModule,
   onOpenCommon,
   onOpenMenu,
+  onShare,
 }: {
   scope: ServerResourcesScope;
   onScope: (scope: ServerResourcesScope) => void;
@@ -75,6 +76,11 @@ export function ServerResources({
   /** Opens the common image `name` in the atelier; absent on a server that has no theme `artisan`. */
   onOpenCommon?: (name: string) => void;
   onOpenMenu: (projectId: string, menuId: string) => void;
+  /**
+   * Copies a module's own image or font into the common images (the page opens their Project,
+   * which takes it in its draft); absent on a server that has no theme `artisan`.
+   */
+  onShare?: (asset: Asset) => void;
 }) {
   const { t } = useTranslation();
   const narrow = !useIsDesktop();
@@ -100,6 +106,7 @@ export function ServerResources({
   const misfits = useKitMisfits();
   // A module's image says what its module's list says of it; a common image has its badge.
   const marks = useServerImageMarks(shownIds);
+  const ownerHolds = useServerOwnerHolds();
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
@@ -236,6 +243,15 @@ export function ServerResources({
       owner={ownerOf(selected)}
       misfit={ownerOf(selected) ? undefined : misfits.get(nameOf(selected))}
       mark={markOf(selected)}
+      share={
+        // A module's own file, never a recipe (it names the module's layers) nor what it ships alone.
+        onShare && ownerOf(selected) && !selected.compose && ownerHolds(selected)
+          ? {
+              taken: kit.some((held) => kitNameOf(held.id) === selected.name),
+              run: () => onShare(selected),
+            }
+          : undefined
+      }
       usedBy={
         selected.type === "font"
           ? null
@@ -270,6 +286,7 @@ function ServerAssetDetail({
   owner,
   misfit,
   mark,
+  share,
   usedBy,
   onOpenModule,
   onOpenCommon,
@@ -277,6 +294,8 @@ function ServerAssetDetail({
 }: {
   asset: Asset;
   name: string;
+  /** Set for a module's own image or font: the copy to the common images, and whether they have that name already. */
+  share?: { taken: boolean; run: () => void };
   /** What its module's list says of a module's image: the owner's version, a changed original, not taken. */
   mark: AssetMark | null;
   /** Set when the server holds an image of this piece's name at another size, which is not taken. */
@@ -356,6 +375,18 @@ function ServerAssetDetail({
               })}
             </ul>
           )}
+        </div>
+      ) : null}
+      {share ? (
+        <div className="flex flex-col gap-1 text-xs" data-testid="server-asset-share">
+          <div>
+            <Button variant="outline" size="sm" disabled={share.taken} onClick={share.run}>
+              {t("resources.share.button")}
+            </Button>
+          </div>
+          <span className="text-[var(--text-mut)]">
+            {t(share.taken ? "resources.share.taken" : "resources.share.hint")}
+          </span>
         </div>
       ) : null}
       {owner ? (
