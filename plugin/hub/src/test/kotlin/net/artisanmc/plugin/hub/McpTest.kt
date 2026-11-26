@@ -686,6 +686,69 @@ class McpTest {
     }
 
     @Test
+    fun `a theme's own image is written with the theme's name, drawn where a menu names it so, and listed by the survey`() {
+        fun solid(width: Int, height: Int, rgb: Int) = net.artisanmc.plugin.pack.RgbaImage(width, height).also { image ->
+            for (i in 0 until width * height) java.nio.ByteBuffer.wrap(image.data, i * 4, 4).putInt((rgb shl 8) or 0xff)
+        }.let(net.artisanmc.plugin.pack.Png::encode)
+        fun png(width: Int, height: Int, rgb: Int) = java.util.Base64.getEncoder().encodeToString(solid(width, height, rgb))
+        modules["artisan"] = McpFixtures.Module(role = "theme")
+        modules["noel"] = McpFixtures.Module(role = "theme")
+        val (access, _) = tokens(publish = true)
+        val themeDraft = tool(access, "start_draft", "project" to "u-local.noel", "name" to "AI: noel")["structuredContent"]["draft_id"].asText()
+        val draftId = tool(access, "start_draft", "project" to "u-local.shop", "name" to "AI: garland")["structuredContent"]["draft_id"].asText()
+        fun theme(vararg args: Pair<String, Any?>) = tool(access, "write_image", "project" to "u-local.noel", "draft_id" to themeDraft, *args)
+
+        // Named with its theme, it is the theme's own: any size, one drawn PNG that follows no colours.
+        val composed = theme("name" to "noel:garland", "compose" to mapOf("layers" to listOf(mapOf("image" to "kit:cell"))))
+        assertTrue(composed["isError"].asBoolean() && "one drawn PNG" in composed["structuredContent"]["message"].asText(), composed.toString())
+        val ramps = theme("name" to "noel:garland", "png_base64" to png(18, 18, 0x224466), "ramps" to true)
+        assertTrue(ramps["isError"].asBoolean() && "as drawn" in ramps["structuredContent"]["message"].asText(), ramps.toString())
+        assertEquals("invalid_input", theme("name" to "noel:Garland", "png_base64" to png(18, 18, 0x224466))["structuredContent"]["error"].asText())
+        val written = theme("name" to "noel:garland", "png_base64" to png(18, 18, 0x224466))
+        assertFalse(written.has("isError"), written.toString())
+        assertEquals("assets/textures/garland.png", written["structuredContent"]["path"].asText())
+        assertTrue("asset: noel:garland" in written["structuredContent"]["use_it"].asText(), written.toString())
+        val title = theme("name" to "noel:frieze", "use" to "background", "png_base64" to png(40, 12, 0x224466))
+        assertEquals("assets/glyphs/frieze.png", title["structuredContent"]["path"].asText())
+        assertTrue("asset_id: noel:frieze" in title["structuredContent"]["use_it"].asText(), title.toString())
+        assertTrue(theme("name" to "noel:frieze", "delete" to true)["structuredContent"]["deleted"].asBoolean())
+        val snapshot = mapper.readTree(drafts.rows.getValue(themeDraft))["snapshot"]
+        assertEquals(listOf("assets/textures/garland.png"), snapshot["binaryTree"].fieldNames().asSequence().toList())
+
+        // A menu of a module names it with the theme; the name alone reaches nothing.
+        val menu = "schema: menu/v1\nsize: 27\nelements:\n  - positions: \"0\"\n    image: { asset: \"noel:garland\", fit: native }\n" +
+            "  - positions: \"4\"\n    image: { asset: garland, fit: native }\n"
+        assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/garland.yml", "content" to menu).has("isError"))
+        fun shown(vararg args: Pair<String, Any?>): Triple<List<Int>, List<Int>, List<Int>> {
+            val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/garland.yml", "draft_id" to draftId, "scale" to 1, *args)
+            assertFalse(rendered.has("isError"), rendered.toString())
+            val window = rendered["structuredContent"]["window"]
+            val picture = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+            fun rgb(x: Int, y: Int) = ((window["y"].asInt() + y) * picture.width + window["x"].asInt() + x).let { picture.data.slice(it * 4 until it * 4 + 3).map { b -> b.toInt() and 0xff } }
+            return Triple(rgb(7 + 9, 17 + 9), rgb(7 + 4 * 18 + 9, 17 + 9), rgb(7 + 8 * 18 + 9, 17 + 9))
+        }
+        val blue = listOf(0x22, 0x44, 0x66)
+        // Not deployed: it shows as the theme's draft has it, and nowhere else yet.
+        val drafted = shown("theme" to "noel", "theme_draft_id" to themeDraft)
+        assertEquals(blue, drafted.first)
+        assertEquals(drafted.third, drafted.second, "the name alone reaches no image: the slot is as an empty one")
+        assertEquals(drafted.third, shown().first)
+
+        // Deployed, it shows whether the theme is in place or not, as drawn: the theme's own redraw of its folder is no module's.
+        modules["noel"] = McpFixtures.Module(
+            images = mapOf("assets/textures/garland.png" to solid(18, 18, 0x224466), "overrides/noel/garland.png" to solid(18, 18, 0xff0000)),
+            role = "theme",
+        )
+        assertEquals(blue, shown().first)
+        assertEquals(blue, shown("theme" to "noel").first)
+        assertEquals(blue, shown("theme" to "none").first)
+        assertEquals(shown().third, shown().second)
+        val survey = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
+        assertEquals(listOf("noel:garland"), survey["common"]["themes"].first { it["name"].asText() == "noel" }["own_images"].map { it.asText() })
+        assertTrue("own_images" in survey["themes_format"].asText())
+    }
+
+    @Test
     fun `the colours of a theme are computed from one colour per family of the base`() {
         val (access, _) = tokens()
         // The families are the base's: every colour of a button's face is in `primary`.

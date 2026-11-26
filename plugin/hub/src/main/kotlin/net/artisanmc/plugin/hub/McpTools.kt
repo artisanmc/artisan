@@ -178,7 +178,8 @@ class McpTools(
                     "The image's name, which Documents refer to: lowercase letters, digits, `_` and `-`, e.g. `shop_button`. In the " +
                         "server's common images ($KIT_PROJECT), also a name of the base (`button.3x1`, from survey_ui's `base`): the image " +
                         "then replaces it on this server, and has to be of its size. In a draft of a theme's own Project: the common image the " +
-                        "theme redraws (`button.3x1`), or a module's image as `<module>:<image>` (`guilds:banner`), at that image's size.",
+                        "theme redraws (`button.3x1`), or a module's image as `<module>:<image>` (`guilds:banner`), at that image's size; or an " +
+                        "image of the theme's own, named with the theme (`noel:garland` in the theme `noel`), of any size, which a menu names so.",
                 ),
                 "use" to mapOf("type" to "string", "enum" to listOf("button", "background"), "description" to "button (default) or background."),
                 "pixels" to mapOf(
@@ -961,6 +962,21 @@ class McpTools(
             return KitTheme.followsRamps(descriptor(stem) ?: shipped?.let(::descriptor))
         }
 
+        /**
+         * A theme's own image [name] (`assets/` of its folder, ADR `common-images-and-themes`,
+         * decision 5), as its file is: no theme repaints or redraws it, and a composed one is not
+         * taken. Of a glyph and a texture of one name, the first read, as in the pack.
+         */
+        fun own(name: String): MenuPictureImage? {
+            val at = OWN_ROOTS.map { "$it/$name.png" }.firstOrNull { hashes[it] != null } ?: return null
+            return bytes(at)?.let { MenuPictureImage(it, descriptor(at.removeSuffix(".png"))?.let(::ascent)) }
+        }
+
+        /** The names of a theme's own images ([own]). */
+        val ownNames: List<String> get() =
+            hashes.keys.filter { it.endsWith(".png") && it.substringBeforeLast('/') in OWN_ROOTS && hashes[it] != null }
+                .map { it.substringAfterLast('/').removeSuffix(".png") }.distinct().sorted()
+
         /** The image [name], drawn when it is a composed one ([composed]). */
         fun image(name: String, kit: KitView): MenuPictureImage? = png(name)?.let { own -> redrawn(name, own.png, kit)?.let { MenuPictureImage(it, own.ascent) } ?: own }
             ?: composed(name, kit)
@@ -1357,8 +1373,9 @@ class McpTools(
         if (asked != null) kit.theme
         // An image by its name, as the pack finds it: `kit:<name>` or `artisan:<name>` is the server's common
         // image (this draft's, when the menu is the theme's own), else the base's, in the theme; another name is
-        // the module's own, then the common one, then another module's; `<module>:<name>` is that module's, else
-        // the name alone as above (ADR `common-images-and-themes`, decision 3; `ImageNames` in the pack). A
+        // the module's own, then the common one, then another module's; `<module>:<name>` is that module's and
+        // `<theme>:<name>` that theme's own image, else the name alone as above (ADR `common-images-and-themes`,
+        // decisions 3 and 5; `ImageNames` in the pack). A
         // server older than the theme `artisan` keeps its order: another module's before the common one.
         fun image(name: String): MenuPictureImage? {
             val inKit = Kit.nameOf(name)
@@ -1366,8 +1383,10 @@ class McpTools(
             val colon = name.indexOf(':')
             val folders = folders(project.server)
             val themed = KIT_FOLDER in folders
-            // The theme's images are the common ones, never a module's under the name alone; another theme holds no image a menu names.
-            val modules = folders.filter { it != KIT_FOLDER } - themeFolders(project.server)
+            // The theme's images are the common ones, never a module's under the name alone; another theme's own
+            // image is named `<theme>:<name>` only.
+            val themes = themeFolders(project.server)
+            val modules = folders.filter { it != KIT_FOLDER } - themes
             fun elsewhere(bare: String, except: String?): MenuPictureImage? {
                 val common = { kit.image(bare)?.let { MenuPictureImage(it.png, Kit.ASCENT) } }
                 val others = { modules.firstNotNullOfOrNull { if (it == except) null else module(it)?.image(bare, kit) } }
@@ -1375,7 +1394,10 @@ class McpTools(
             }
             if (colon < 0) return (if (project.folder == KIT_FOLDER) null else mine.image(name, kit)) ?: elsewhere(name, project.folder)
             val bare = name.substring(colon + 1)
-            return module(name.substring(0, colon))?.image(bare, kit) ?: elsewhere(bare, null)
+            val folder = name.substring(0, colon)
+            // A theme's own image, as its file is (as the theme's draft has it, when asked), the theme in place or not.
+            if (folder in themes) return (drafted[folder]?.invoke() ?: module(folder))?.own(bare) ?: elsewhere(bare, null)
+            return module(folder)?.image(bare, kit) ?: elsewhere(bare, null)
         }
         val picture = try {
             MenuPictures.render(MenuPictureInput(content, ::image, { id -> items?.invoke(id) }, args.get("lang")?.takeIf { it.isTextual }?.asText()))
@@ -1435,6 +1457,8 @@ class McpTools(
                             "module_redraws" to it.moduleDrawings.sorted().ifEmpty { null },
                             // A theme of its own folder is a Project of its name.
                             "project" to name.takeIf { n -> n in themes }?.let { n -> ProjectRef.id(server.id, n) },
+                            // Its own images, each as a menu names it (`<theme>:<image>`).
+                            "own_images" to themes[name]?.invoke()?.ownNames?.map { image -> "$name:$image" }?.ifEmpty { null },
                         ).filterValues { v -> v != null }
                     }
                 }.ifEmpty { null },
@@ -1527,13 +1551,23 @@ class McpTools(
         requireEdit(principal)
         val project = projects.project(text(args, "project"))
         val draftId = text(args, "draft_id")
-        val name = text(args, "name").trim()
+        val asked = text(args, "name").trim()
         val theme = args.get("theme")?.takeIf { it.isTextual && it.asText().isNotBlank() }?.asText()?.trim()
-        // In a theme's own Project, an image is its drawing of the common image of that name.
-        if (isOwnTheme(project)) {
+        // In a theme's own Project, an image is its drawing of the common image of that name, or of a module's;
+        // named with the theme (`noel:garland`), it is the theme's own image, written like a module's.
+        val ownTheme = isOwnTheme(project)
+        val ownImage = if (ownTheme) asked.removePrefix("${project.folder}:").takeIf { it != asked } else null
+        if (ownTheme) {
             if (theme != null && theme != project.folder) throw McpRefusal("invalid_input", "This draft is the theme '${project.folder}': leave `theme` out.")
-            return writeThemeImage(principal, args, attached, project, draftId, name, project.folder, own = true)
+            if (ownImage == null) return writeThemeImage(principal, args, attached, project, draftId, asked, project.folder, own = true)
+            if (args.path("compose").isObject) throw McpRefusal(
+                "invalid_input", "A theme's own image is one drawn PNG (pixels, png_base64 or from): the pack does not assemble a composed image of a theme.",
+            )
+            if (args.has("ramps")) throw McpRefusal(
+                "invalid_input", "A theme's own image shows as drawn, whatever themes are in place: `ramps` says nothing on it.",
+            )
         }
+        val name = ownImage ?: asked
         theme?.let { return writeThemeImage(principal, args, attached, project, draftId, name, it, own = false) }
         // In the kit module, an image named as a slot of the base replaces it on this server.
         val slot = if (project.folder == KIT_FOLDER) Kit.slot(name) else null
@@ -1582,8 +1616,15 @@ class McpTools(
                 "this image is ${image.width}x${image.height}. Draw it at that size, or give it another name: any image written here is common to the server.",
         )
         val background = path.startsWith(IMAGE_DIRS.getValue("background"))
+        // A theme's own image is named with its theme, never by the name alone.
+        val ref = if (ownImage != null) "${project.folder}:$name" else name
         val useIt = when {
             slot != null -> "Every menu of this server that names `$name` shows this image once the draft is deployed."
+            ownImage != null ->
+                (if (background) "In any module's menu: `title: [{kind: background, asset_id: $ref}]` and `vanilla_texture: false`."
+                else "In any module's menu element: `image: {asset: $ref, fit: native}`, with a `material` for players without the resource pack.") +
+                    " Always with the theme's name: the name alone does not reach it. It shows as drawn while the server holds the theme, " +
+                    "in place or not, once this draft is deployed."
             background -> "In a menu: `title: [{kind: background, asset_id: $name}]` and `vanilla_texture: false`."
             project.folder == KIT_FOLDER ->
                 "In any module's menu element: `image: {asset: $name, fit: native}`, with a `material` for players without the resource pack " +
@@ -2105,6 +2146,8 @@ class McpTools(
         private val MENU_PATH = Regex("(^|/)menus/.+\\.ya?ml$")
         /** Where an image named by a menu is, the module's own file first (`ShippedView`). */
         private val IMAGE_ROOTS = listOf("assets/glyphs", "assets/textures", "originals/assets/glyphs", "originals/assets/textures")
+        /** Where a theme's own images are: no original counts. */
+        private val OWN_ROOTS = listOf("assets/glyphs", "assets/textures")
         private const val RENDER_SCALE = 3
         /** A picture images are cut from, in a Project: any image under its content. */
         private val SOURCE_PATH = Regex("\\.(png|jpe?g|gif)$")
@@ -2179,7 +2222,10 @@ class McpTools(
             "and any image, common or a module's, written with `ramps: true` (write_image; survey_ui's `ramps` on an image), with what is composed from them. " +
             "Any other image keeps its colours. `scope: guilds` beside `colors` keeps the theme's colours to that one module's images (`scope: $KIT_FOLDER`: " +
             "the common images alone). A theme may redraw a module's image, at its size: write_image in that draft with `name` as " +
-            "`<module>:<image>` (survey_ui's `common.themes[].module_redraws`). A server has its themes in place as a stack (`resource-pack.themes`, the " +
+            "`<module>:<image>` (survey_ui's `common.themes[].module_redraws`). A theme may hold images of its own, which no module nor the " +
+            "common images have (a garland for a winter look): write_image in that draft with `name` as `<theme>:<image>`, and a menu names it " +
+            "the same way, never by the name alone (survey_ui's `common.themes[].own_images`); it shows as drawn while the server holds the " +
+            "theme, in place or not. A server has its themes in place as a stack (`resource-pack.themes`, the " +
             "lowest first; survey_ui's `common.in_place`): each changes what the ones below show, so the highest that redraws an image wins and its " +
             "colours repaint what is below. The player deploys the theme's draft, then puts the theme in place, above the others, from the theme's page " +
             "in the editor: you cannot. render_menu with `theme` shows a menu in one theme alone before that, and with `theme_draft_id` as its draft has it."
