@@ -38,6 +38,7 @@ import {
   removePosition,
 } from "@/lib/positions";
 import { current } from "immer";
+import type { PartAnchor } from "../../../../docs/schema/menu/v1/imageButtonGeometry";
 import {
   allocStepLTexts,
   appearanceClickPrefixFor,
@@ -54,6 +55,61 @@ import {
   returnTexts,
 } from "./helpers";
 import { type Mutation, findElement } from "./mutate";
+
+type LookParts = NonNullable<Appearance["parts"]>;
+
+/** One edit of a look's pieces (`editAppearanceParts`). */
+export type PartsEdit =
+  | { type: "start" }
+  | { type: "addImage"; asset: string; positions?: string }
+  | { type: "addLabel"; lang: string }
+  | {
+      type: "patch";
+      index: number;
+      patch: {
+        image?: string;
+        fit?: "contain" | "stretch" | "native";
+        anchor?: PartAnchor;
+        size?: 8 | 12 | 16 | 20 | 24 | 32;
+        offset_x?: number;
+        offset_y?: number;
+      };
+    }
+  | { type: "text"; index: number; lang: string; value: string }
+  | { type: "move"; index: number; to: number }
+  | { type: "remove"; index: number };
+
+/** The image and the label of a look as the two pieces they mean, the label's text kept. */
+function partsOfLook(appearance: Appearance): LookParts {
+  const out: LookParts = [];
+  const { image, label } = appearance;
+  if (image)
+    out.push({
+      image: image.asset,
+      // A piece is drawn at its own size unless it says otherwise.
+      ...((image.fit ?? "contain") !== "native" ? { fit: image.fit ?? "contain" } : {}),
+      ...(image.anchor ? { anchor: image.anchor } : {}),
+      ...(image.offset_x ? { offset_x: image.offset_x } : {}),
+      ...(image.offset_y ? { offset_y: image.offset_y } : {}),
+    });
+  if (label)
+    out.push({
+      label: label.text,
+      ...(label.align && label.align !== "center" ? { anchor: label.align } : {}),
+      ...(label.size ? { size: label.size } : {}),
+      ...(label.offset_x ? { offset_x: label.offset_x } : {}),
+      ...(label.offset_y ? { offset_y: label.offset_y } : {}),
+    });
+  return out;
+}
+
+/** A look that shows an item keeps its text pieces and loses its image pieces. */
+function dropImageParts(appearance: Appearance) {
+  if (!appearance.parts) return;
+  const texts = appearance.parts.filter((part) => !("image" in part));
+  if (texts.length) appearance.parts = texts;
+  else Reflect.deleteProperty(appearance, "parts");
+}
 import type { AppearanceTarget, ProjectsSliceContext } from "./types";
 
 /** A menu's content: elements, slots, appearances, positions, steps and click handlers. */
@@ -159,6 +215,19 @@ export interface ElementsSlice {
       patch: Partial<
         Omit<NonNullable<import("@/domain/types").Appearance["label"]>, "text">
       > | null;
+    } & AppearanceTarget,
+  ) => void;
+  /**
+   * Edit the pieces of a look (`parts`): `start` turns its image and label into pieces,
+   * the others add, change, move or remove one. Removing the last piece leaves a look
+   * without pieces. A first image makes the element an image button: its slots must form
+   * a free rectangle (`positions` gives the element its new slots with it).
+   */
+  editAppearanceParts: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex?: number;
+      op: PartsEdit;
     } & AppearanceTarget,
   ) => void;
   /** Set the lore value (multi-line string, `\n`-separated lines) for an appearance. */
@@ -586,11 +655,13 @@ export const createElementsSlice = ({
           appearance.material = value || undefined;
           appearance.item = undefined;
           appearance.image = undefined;
+          dropImageParts(appearance);
         } else if (field === "item") {
           if (typeof value !== "string") return false;
           appearance.item = value;
           appearance.material = undefined;
           appearance.image = undefined;
+          dropImageParts(appearance);
         } else if (field === "head") {
           if (typeof value !== "string") return false;
           appearance.head = value || undefined;
@@ -653,6 +724,49 @@ export const createElementsSlice = ({
         appearance.label = next;
       });
     },
+    editAppearanceParts: (input) =>
+      mutateElement(input.projectId, input.menuId, input.elementId, (element, menu, project) => {
+        const appearance = appearanceAt(element, input.appearanceIndex ?? 0);
+        if (!appearance) return false;
+        const op = input.op;
+        const parts: LookParts = appearance.parts ?? partsOfLook(appearance);
+        const at = "index" in op ? parts[op.index] : undefined;
+        if ("index" in op && !at) return false;
+        if (op.type === "addImage") {
+          if (!parts.some((part) => "image" in part))
+            assertImageButtonPlacement(menu, element, op.positions ?? element.positions);
+          if (op.positions !== undefined) element.positions = op.positions;
+          parts.push({ image: op.asset });
+        } else if (op.type === "addLabel") {
+          if (element.iterates || element.places)
+            throw new Error("A look of parts needs a fixed element.");
+          parts.push({ label: createLText(project, "", op.lang) });
+        } else if (op.type === "patch" && at) {
+          for (const [key, value] of Object.entries(op.patch)) {
+            if (value === undefined) Reflect.deleteProperty(at, key);
+            else (at as Record<string, unknown>)[key] = value;
+          }
+        } else if (op.type === "text" && at) {
+          if ("image" in at) return false;
+          setLText(project, at.label, op.lang, op.value);
+        } else if (op.type === "move" && at) {
+          const to = Math.max(0, Math.min(parts.length - 1, op.to));
+          if (to === op.index) return false;
+          parts.splice(op.index, 1);
+          parts.splice(to, 0, at);
+        } else if (op.type === "remove" && at) {
+          if (!("image" in at)) deleteLText(project, at.label);
+          parts.splice(op.index, 1);
+        }
+        Reflect.deleteProperty(appearance, "image");
+        Reflect.deleteProperty(appearance, "label");
+        if (parts.length) appearance.parts = parts;
+        else Reflect.deleteProperty(appearance, "parts");
+        // A look that draws images names no item: its slots hold the invisible hit item.
+        if (parts.some((part) => "image" in part))
+          for (const field of ["material", "item", "head"])
+            Reflect.deleteProperty(appearance, field);
+      }),
     setElementRefresh: ({ projectId: pId, menuId: mId, elementId, ticks }) =>
       mutateElement(pId, mId, elementId, (el) => {
         const clamped = clampRefreshTicks(ticks);
@@ -1171,11 +1285,6 @@ export const createElementsSlice = ({
           // The copy gets its own texts, so editing one never changes the other.
           for (const appearance of addressedAppearances(next)) {
             cloneAppearanceLTextsInto(project, appearance);
-            if (appearance.label) {
-              const src = project.i18nKeys[appearance.label.text.key];
-              appearance.label.text = createLText(project, "", project.defaultLang);
-              if (src) project.i18nKeys[appearance.label.text.key] = { ...src };
-            }
           }
         }
         for (const targetLayer of to.layers) {

@@ -215,8 +215,18 @@ builders write one glyph per image part (shared case in the conformance vector) 
 text fonts of the label parts; the runtime draws them in order and keeps the hit item when
 one image at least is in the pack; `render_menu` and the editor's canvas draw them; the
 editor reads and writes `parts` without loss (texts as field-local translations). A part's
-image defaults to `fit: native`. Not built in this step: the Element panel's list of parts
-(the list is written in the file), the baked picture for Bedrock (first image shown).
+image defaults to `fit: native`. Not built in this step: the baked picture for Bedrock (first
+image shown).
+
+**Step 2, the Element panel (2026-11-26).** `PartsEditor`, a section of each state's card
+for a fixed element: add an image or a text, and per piece its place, offsets, fit or size,
+order and removal, the piece in front listed first. One store action carries every edit
+(`editAppearanceParts`): the first edit of a look that has an `image` or a `label` turns
+those two into pieces (the label's text keeps its translations), a first image asks for a
+free rectangle as an image button does, removing the last piece removes `parts`, and a
+look given an item loses its image pieces. A copied look gets its own label texts
+(`cloneAppearanceLTextsInto`, which left the label shared). Not built: moving a piece by
+dragging it on the canvas.
 
 Not built: `render_menu` (it draws a sliced image by
 its fit), the base's buttons declared sliced, the rule that a redraw or a theme keeps the

@@ -52,6 +52,7 @@ import { FieldLabel } from "../layout";
 import { ConditionListEditor } from "../properties/ConditionListEditor";
 import { ImageButtonEditor } from "./ImageButtonEditor";
 import { LabelEditor } from "./LabelEditor";
+import { PartsEditor } from "./PartsEditor";
 
 /**
  * State cards list with drag-and-drop reordering. The order is meaningful
@@ -497,6 +498,55 @@ function StateCard({
     );
   }
 
+  const partImages = !!appearance.parts?.some((part) => "image" in part);
+  const tooltipFields = (
+    <>
+      {translations && (
+        <LocalizedField
+          label={t("flow.titleName")}
+          langs={translations.langs}
+          activeLang={translations.activeLang}
+          defaultLang={translations.defaultLang}
+          values={translations.title}
+          onChange={(lang, value) => translations.onText("title", lang, value)}
+          renderEditor={({ value, fallback, label, onChange }) => (
+            <MmEditor
+              value={value}
+              onChange={onChange}
+              aria-label={label}
+              profile={ITEM_NAME}
+              entries={placeholderEntries}
+              placeholder={fallback || t("flow.titlePlaceholder")}
+              toolbar="focus"
+              minHeight="0"
+            />
+          )}
+        />
+      )}
+      {translations && (
+        <LocalizedField
+          label={t("flow.loreName")}
+          langs={translations.langs}
+          activeLang={translations.activeLang}
+          defaultLang={translations.defaultLang}
+          values={translations.lore}
+          onChange={(lang, value) => translations.onText("lore", lang, value)}
+          renderEditor={({ value, fallback, label, onChange }) => (
+            <MmEditor
+              value={value}
+              onChange={onChange}
+              aria-label={label}
+              profile={LORE}
+              entries={placeholderEntries}
+              placeholder={fallback || t("flow.lorePlaceholder")}
+              toolbar="focus"
+            />
+          )}
+        />
+      )}
+    </>
+  );
+
   return (
     <>
       <div
@@ -534,72 +584,45 @@ function StateCard({
             ) : null}
           </div>
 
-          <ImageButtonEditor
-            projectId={projectId}
-            menu={menu}
-            element={element}
-            image={appearance.image}
-            onImage={(image, positions) =>
-              useProjectsStore.getState().setAppearanceImage({
-                projectId,
-                ...target,
-                appearanceIndex: stateIndex,
-                image,
-                positions,
-              })
-            }
-            onItem={() => {
-              if (appearance.image) update("material", "STONE");
-            }}
-            onPositions={(positions) =>
-              useProjectsStore.getState().setElementPositions({ projectId, ...target, positions })
-            }
-          >
-            {translations && (
-              <LocalizedField
-                label={t("flow.titleName")}
-                langs={translations.langs}
-                activeLang={translations.activeLang}
-                defaultLang={translations.defaultLang}
-                values={translations.title}
-                onChange={(lang, value) => translations.onText("title", lang, value)}
-                renderEditor={({ value, fallback, label, onChange }) => (
-                  <MmEditor
-                    value={value}
-                    onChange={onChange}
-                    aria-label={label}
-                    profile={ITEM_NAME}
-                    entries={placeholderEntries}
-                    placeholder={fallback || t("flow.titlePlaceholder")}
-                    toolbar="focus"
-                    minHeight="0"
-                  />
-                )}
-              />
-            )}
-            {translations && (
-              <LocalizedField
-                label={t("flow.loreName")}
-                langs={translations.langs}
-                activeLang={translations.activeLang}
-                defaultLang={translations.defaultLang}
-                values={translations.lore}
-                onChange={(lang, value) => translations.onText("lore", lang, value)}
-                renderEditor={({ value, fallback, label, onChange }) => (
-                  <MmEditor
-                    value={value}
-                    onChange={onChange}
-                    aria-label={label}
-                    profile={LORE}
-                    entries={placeholderEntries}
-                    placeholder={fallback || t("flow.lorePlaceholder")}
-                    toolbar="focus"
-                  />
-                )}
-              />
-            )}
-          </ImageButtonEditor>
-          {project && !appearance.image && (
+          {partImages ? (
+            // A look of pieces that draws images: its images are edited in the list below.
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-1" aria-label={t("imageButton.appearance")}>
+                <Button size="sm" variant="ghost" onClick={() => update("material", "STONE")}>
+                  {t("imageButton.item")}
+                </Button>
+                <Button size="sm" variant="secondary" aria-pressed>
+                  {t("parts.title")}
+                </Button>
+              </div>
+              {tooltipFields}
+            </div>
+          ) : (
+            <ImageButtonEditor
+              projectId={projectId}
+              menu={menu}
+              element={element}
+              image={appearance.image}
+              onImage={(image, positions) =>
+                useProjectsStore.getState().setAppearanceImage({
+                  projectId,
+                  ...target,
+                  appearanceIndex: stateIndex,
+                  image,
+                  positions,
+                })
+              }
+              onItem={() => {
+                if (appearance.image) update("material", "STONE");
+              }}
+              onPositions={(positions) =>
+                useProjectsStore.getState().setElementPositions({ projectId, ...target, positions })
+              }
+            >
+              {tooltipFields}
+            </ImageButtonEditor>
+          )}
+          {project && !appearance.image && !partImages && (
             <ItemEditor
               project={project}
               onHead={(value) => update("head", value)}
@@ -679,7 +702,7 @@ function StateCard({
             />
           )}
 
-          {translations && !element.iterates && !element.places && (
+          {translations && !element.iterates && !element.places && !appearance.parts && (
             <LabelEditor
               label={appearance.label}
               text={
@@ -726,6 +749,25 @@ function StateCard({
                   appearanceIndex: stateIndex,
                   patch: null,
                 })
+              }
+            />
+          )}
+
+          {translations && !element.iterates && !element.places && (
+            <PartsEditor
+              projectId={projectId}
+              menu={menu}
+              element={element}
+              appearance={appearance}
+              lang={translations.activeLang}
+              textOf={(text) => ownText(text, translations.activeLang) ?? ""}
+              onEdit={(op) =>
+                useProjectsStore
+                  .getState()
+                  .editAppearanceParts({ projectId, ...target, appearanceIndex: stateIndex, op })
+              }
+              onPositions={(positions) =>
+                useProjectsStore.getState().setElementPositions({ projectId, ...target, positions })
               }
             />
           )}

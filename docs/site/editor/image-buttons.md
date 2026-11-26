@@ -365,8 +365,14 @@ enough for ten buttons: the icon is no longer drawn into the background.
 `image` and `label` stay valid and mean a list of those two pieces; a look writes one form
 or the other. An image's name is written as is (no placeholder), and a button that repeats
 (`iterates`/`places`) cannot be made of parts. Each state has its own list. A Bedrock player
-sees the first image of the list. For now the list is written in the file: the editor shows
-it on the canvas and keeps it, and its panel comes next.
+sees the first image of the list.
+
+In the editor, the button's properties have a **Parts** section under each state: **Add an
+image** or **Add a text**, then for each piece its **Place** (the anchor), its offsets, the
+fit of an image or the size of a text, and the arrows that bring it forward or send it
+backward. The list shows the piece in front first. Adding a piece to a button that has an
+image or a label keeps them: they become the first two pieces. Removing the last piece
+leaves a plain button.
 
 **Hover area.** A button with neither image nor item (no `image`, `material` nor `item`) is
 invisible: its slots show nothing but keep its title, lore and clicks. Use it to explain a
