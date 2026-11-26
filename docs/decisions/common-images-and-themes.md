@@ -6,7 +6,9 @@ the theme `artisan` are in the code (see "Built so far"); the rest is not. Repla
 theme per server, a folder beside the common images) describes it until step 4. Nothing
 this ADR removes shipped in a release. Design note: `Images partagées, thèmes et originaux`
 (project files). Follows `addon-owned-project-roots`, `project-qualified-refs` and the design
-`originaux-modules`.
+`originaux-modules`. **Amended on 2026-11-26 by `resources-one-screen`**: decisions 4, 7 and
+12 and a theme's scope and redraws aimed at a module (decisions 5 and 6) are replaced there;
+they describe the code until its step 2.
 
 ## Context
 
