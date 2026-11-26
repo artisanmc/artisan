@@ -1,11 +1,10 @@
-# Element parts and sliced images: a button made of several pieces, at any width
+# Element parts, sliced images and components: a button made of several pieces, at any width, drawn once for the server
 
-**Status:** proposed (2026-11-26); step 1 partly built (see *Built so far*)
+**Status:** direction accepted (2026-11-26: components are linked, per module and common to
+the server, edited in a menu and in the atelier); step 1 built (see *Built so far*)
 
 **Extends:** `common-images-and-themes.md` (decision 4, an image's function), `menu/v1`
 (`Appearance.image`, `Appearance.label`), `element-display-and-states.md`
-
-**Keeps:** `item-templates-and-data-library.md`, revision of 2026-07-31 (no shared appearance)
 
 ## Context
 
@@ -19,12 +18,9 @@ What `menu/v1` already holds:
   `stretch` or `native`, with offsets (`imageButtonGeometry.ts`, `Menus.kt`).
 - `label`: one text drawn in the title over that rectangle, aligned, at a size from 8 to 32,
   with expressions evaluated per player.
-- No shared button. `template_ref` is in the format's types and is read by neither the editor
-  nor the plugin, and the Item template was removed on 2026-07-31
-  (`item-templates-and-data-library`): "an appearance belongs to the menu where it is rendered,
-  never to a shared entity".
-- The atelier composes an image from layers (`compose:`), which covers an icon that never
-  changes.
+- No shared button. `template_ref` of the format's types is read by nothing and is not about
+  this: it named how a row of data (a quest) renders, and the Item template it came with was
+  removed on 2026-07-31 (`item-templates-and-data-library`).
 
 What is missing, and nothing else:
 
@@ -41,12 +37,11 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
 
 ## Decisions
 
-1. **No new kind, no `menu/v2`.** The three gaps are closed by additive keys and an editor
-   gesture. A menu written today is read and built as today, byte for byte.
+1. **No `menu/v2`.** Sliced images and parts are additive keys; the shared button is a new
+   kind of file, the component (decision 6), which a menu names. A menu written today is read and built as today, byte for byte.
    *Rejected:* a markup tree with a layout engine (rows, columns, flex). The client measures
    nothing, so the engine would run at build time on sizes that are already fixed by the slots,
-   and give the owner a second way to say what `positions` says. *Rejected:* a `component` kind
-   that menus reference: it is the shared entity the 2026-07-31 revision removed.
+   and give the owner a second way to say what `positions` says.
 
 2. **A sliced image.** An image's `<name>.yml` may declare the margins that stay as drawn:
 
@@ -101,20 +96,57 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
    per player is refused, as today (the row-bound Element and its 18 px image per slot keep
    their own rule).
 
-6. **A saved button is copied, never linked.** The owner assembles a button in a menu, on the
-   canvas, where its slots and the menu's data are real; the atelier draws pixels and nothing
-   else. "Save as model" keeps the Element's look (its parts) in the editor's palette; placing
-   it writes a self-sufficient Element in the menu, and the editor asks for what was marked as
-   changing (a label's text, an image part). Nothing ties the copy to the model afterwards,
-   which keeps the 2026-07-31 rule. What still follows everywhere is the image: the background
-   is a module's or a common image, so redrawing it redraws every button that names it.
-   *Rejected for now:* a linked model whose changes reach every button. It reverses the
-   2026-07-31 revision and brings back what it removed (two models side by side, a button
-   whose look is not read in its menu). A copy does not prevent it later.
-   Where the models are stored (the Project's `.artisan/editor.yaml`, which the editor owns,
-   or a folder of the Project) is settled when step 3 is built.
+6. **A component is a named look, linked.** A file `components/<name>.yml` of a module or of
+   the common scope holds a list of parts and the parameters it takes:
 
-7. **A width that follows the text is not built now.** It is possible (left edge, a repeated
+   ```yaml
+   # components/confirm.yml
+   params:
+     text: { type: text, default: "{i18n:common.confirm}" }
+     icon: { type: image, default: icon.check }
+   parts:
+     - image: button.primary          # sliced
+     - image: "{icon}"
+       anchor: left
+       offset_x: 3
+     - label: "{text}"
+   ```
+
+   An Element's look names it, and gives its parameters:
+
+   ```yaml
+   - id: confirm
+     positions: 20-22
+     component: { name: confirm, text: "{i18n:shop.buy}" }
+     click:
+       left: buy_item {item.id}
+   ```
+
+   Positions, conditions, clicks, title and lore stay the Element's: a component is a look.
+   The link is kept: a component that changes changes every Element that names it, which is
+   what a shared UI needs (the server's redraw, a theme). A look writes `component`, or
+   `parts`, or `image`/`label`, one of the three.
+   **Scopes are an image's** (`common-images-and-themes`, decisions 1, 3, 6, 8): a bare name is
+   the menu's module's component, else the common one; `guilds:confirm` and `artisan:confirm`
+   as for images; Artisan's base ships components, which are originals the server redraws
+   under the same name and a theme replaces (`overrides/`). A name nothing answers shows a
+   visible fallback in game and a problem in the editor.
+   **Parameters are resolved where their part is drawn.** An `image` parameter is a literal
+   in the menu's file, known at build time (decision 5). A `text` parameter is the label's
+   text, with its expressions evaluated per player.
+   *Not the Item template again:* that one bound a look to rows of data and lived beside a
+   second, self-sufficient model. A component binds nothing to data and replaces no model:
+   an Element without `component` is as today.
+   *Accepted cost:* a button's look is no longer read in its menu's file; the editor shows
+   where a component is used before a change to it is saved.
+
+7. **One editor of parts, two ways in.** The list of parts is edited by one panel. In a menu,
+   on the canvas, the owner assembles a look on a real Element and may "Save as component"
+   (the look moves to a file, the Element names it). In the atelier, a component opens alone,
+   at a width the owner picks, with sample values for its parameters. The atelier keeps
+   drawing pixels for images; a component there is an arrangement of images and texts.
+
+8. **A width that follows the text is not built now.** It is possible (left edge, a repeated
    middle glyph, right edge, written as text, the way a conversation's HUD is composed), costs a
    font and a width computation per player, and no menu asks for it yet. The width is a count of
    slots.
@@ -127,11 +159,15 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
 2. **Parts.** Schema and types, validation (`imageButtonErrors` and its Kotlin twin), both
    builders, the editor's Element panel (a list of parts with anchor and offsets, on the
    canvas).
-3. **Models.** "Save as model" on an Element, the models in the palette, placing one as a
-   copy with its changing fields asked.
+3. **Components.** The kind and its scopes, `component` on a look, both pack builders (the
+   baked picture of a component at a rectangle) and the runtime (its labels), with shared
+   cases; "Save as component" and the parameters' fields in the Element panel.
+4. **The component in the atelier**, opened alone; where it is used.
+5. **Artisan's base components** (confirm, cancel, tab…), and a theme's replacement of one.
 
-Done when the same model, placed on 2 slots and on 4, shows its background intact, its icon
-at the left and its label centred, in game on Java and Bedrock.
+Done when the base's `confirm`, placed on 2 slots and on 4 in two menus, shows its background
+intact, its icon at the left and its label centred, in game on Java and Bedrock, and a change
+to the component shows in both menus.
 
 ## Built so far
 
@@ -163,7 +199,9 @@ margins (the margins are the descriptor's of the image that is shown; a theme's
 
 - The base can retire the per-width button drawings once its menus name the sliced one; the old
   names stay answered until then.
-- A theme redraws one button instead of one per width.
+- A theme redraws one button instead of one per width, and may replace a component.
+- The plugin reads components: one more kind in every Project root, loaded and reloaded as
+  images are named today.
 - A long label still overflows its button: the server knows the width and could shorten the
   text, which is a separate decision.
 
