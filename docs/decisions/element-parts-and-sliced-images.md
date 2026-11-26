@@ -5,6 +5,8 @@
 **Extends:** `common-images-and-themes.md` (decision 4, an image's function), `menu/v1`
 (`Appearance.image`, `Appearance.label`), `element-display-and-states.md`
 
+**Keeps:** `item-templates-and-data-library.md`, revision of 2026-07-31 (no shared appearance)
+
 ## Context
 
 The owner wants a button made of a background, an icon and a text that changes per player, the
@@ -17,7 +19,10 @@ What `menu/v1` already holds:
   `stretch` or `native`, with offsets (`imageButtonGeometry.ts`, `Menus.kt`).
 - `label`: one text drawn in the title over that rectangle, aligned, at a size from 8 to 32,
   with expressions evaluated per player.
-- `template_ref: { id, vars, overrides }`: an Element written once and placed with parameters.
+- No shared button. `template_ref` is in the format's types and is read by neither the editor
+  nor the plugin, and the Item template was removed on 2026-07-31
+  (`item-templates-and-data-library`): "an appearance belongs to the menu where it is rendered,
+  never to a shared entity".
 - The atelier composes an image from layers (`compose:`), which covers an icon that never
   changes.
 
@@ -28,7 +33,7 @@ What is missing, and nothing else:
 2. **Several pieces in one look.** One image and one label: an icon has to be baked into the
    background, so a button with ten icons is ten images, and a button with a name and a price
    cannot be written.
-3. **The icon as a parameter** of a template.
+3. **A button made once and placed again**, in another menu, with another icon and text.
 
 What the client draws sets the limits of any answer. An image is a glyph baked in the pack, the
 same for every player. An item sits in an 18 px slot. A text is drawn in the title at a height
@@ -36,12 +41,12 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
 
 ## Decisions
 
-1. **No new kind, no `menu/v2`.** The reusable button is a template; the three gaps are closed by
-   additive keys. A menu written today is read and built as today, byte for byte.
+1. **No new kind, no `menu/v2`.** The three gaps are closed by additive keys and an editor
+   gesture. A menu written today is read and built as today, byte for byte.
    *Rejected:* a markup tree with a layout engine (rows, columns, flex). The client measures
    nothing, so the engine would run at build time on sizes that are already fixed by the slots,
-   and give the owner a second way to say what `positions` says. *Rejected:* a `component` kind:
-   it would duplicate `template_ref`.
+   and give the owner a second way to say what `positions` says. *Rejected:* a `component` kind
+   that menus reference: it is the shared entity the 2026-07-31 revision removed.
 
 2. **A sliced image.** An image's `<name>.yml` may declare the margins that stay as drawn:
 
@@ -92,11 +97,24 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
    The count of glyphs per menu does not grow with the number of parts, and Bedrock gets the
    same picture. Labels stay title text, one area each.
 
-5. **An image's name is known at build time.** A part's `image` is a literal, or a template's
-   `vars` value, which is written in the menu's file. A name computed per player is refused,
-   as today (the row-bound Element and its 18 px image per slot keep their own rule).
+5. **An image's name is known at build time.** A part's `image` is a literal. A name computed
+   per player is refused, as today (the row-bound Element and its 18 px image per slot keep
+   their own rule).
 
-6. **A width that follows the text is not built now.** It is possible (left edge, a repeated
+6. **A saved button is copied, never linked.** The owner assembles a button in a menu, on the
+   canvas, where its slots and the menu's data are real; the atelier draws pixels and nothing
+   else. "Save as model" keeps the Element's look (its parts) in the editor's palette; placing
+   it writes a self-sufficient Element in the menu, and the editor asks for what was marked as
+   changing (a label's text, an image part). Nothing ties the copy to the model afterwards,
+   which keeps the 2026-07-31 rule. What still follows everywhere is the image: the background
+   is a module's or a common image, so redrawing it redraws every button that names it.
+   *Rejected for now:* a linked model whose changes reach every button. It reverses the
+   2026-07-31 revision and brings back what it removed (two models side by side, a button
+   whose look is not read in its menu). A copy does not prevent it later.
+   Where the models are stored (the Project's `.artisan/editor.yaml`, which the editor owns,
+   or a folder of the Project) is settled when step 3 is built.
+
+7. **A width that follows the text is not built now.** It is possible (left edge, a repeated
    middle glyph, right edge, written as text, the way a conversation's HUD is composed), costs a
    font and a width computation per player, and no menu asks for it yet. The width is a count of
    slots.
@@ -109,10 +127,10 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
 2. **Parts.** Schema and types, validation (`imageButtonErrors` and its Kotlin twin), both
    builders, the editor's Element panel (a list of parts with anchor and offsets, on the
    canvas).
-3. **Templates.** An image part named by a `vars` value; the base ships a button template
-   (background, icon, label).
+3. **Models.** "Save as model" on an Element, the models in the palette, placing one as a
+   copy with its changing fields asked.
 
-Done when the same template, placed on 2 slots and on 4, shows its background intact, its icon
+Done when the same model, placed on 2 slots and on 4, shows its background intact, its icon
 at the left and its label centred, in game on Java and Bedrock.
 
 ## Built so far
@@ -151,8 +169,8 @@ margins (the margins are the descriptor's of the image that is shown; a theme's
 
 ## Still to check in the code
 
-- Whether a template's `vars` are resolved when the menu is read (build time) or per player; if
-  per player, decision 5 needs a literal-only rule for image parts.
-- Whether the pack shares one glyph between two Elements that bake the same picture.
+- The key of a baked picture: today `imageButtonKey` names one image, the rectangle, the fit
+  and the offsets, and two Elements with the same ones share a glyph. A look of several image
+  parts needs a key over the whole list, computed the same way by the runtime.
 - How `labelFrame` and `ImageButtonLayout.labelLayer` take nine anchors (today: three
   alignments, vertically centred).
