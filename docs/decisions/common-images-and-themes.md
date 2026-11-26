@@ -271,6 +271,16 @@ builders; `ImageRefs.kt` did not change).
   draw from (`useKitStore.modules`).
 - An image whose descriptor states no size is measured from its PNG, as in the common picker.
 
+**Step 2, ninth part: a composed image's layer names a common image `artisan:<name>`**
+(`ComposedImageEditor`'s `layerName`, `ImageNewDialog`'s `startRecipe`; decision 1).
+
+- The composer and **New image** write `artisan:<name>` for a common image, as the MCP tool
+  `compose` does; both pack builders read it like `kit:<name>` (`Kit.nameOf`, `kitNameOf`).
+- The composer reads both spellings: a recipe the assistant wrote with `artisan:<name>` was
+  laid out without that layer, and listed it under a cut name. The image's panel and **New
+  image** show the name alone.
+- A layer already written keeps its spelling.
+
 **Decision 12, first part: the server's Resources** (`ServerResources.tsx`, `imageUses.ts`,
 `servers.$serverId.resources.tsx`).
 
@@ -635,8 +645,8 @@ Not there yet:
   module does not hold falls on the bare name, then on the common image, instead of the
   visible fallback, because the asset index does not say who holds a bare id.
 - Against decision 1: the notes file is still `data/ui-kit.yml`, and `render_menu` still reads
-  `kit_draft_id` beside `common_draft_id`. In the editor, a composed image's layers still hold
-  `kit:<name>`.
+  `kit_draft_id` beside `common_draft_id`. A composed image's layer written before step 2's
+  ninth part keeps `kit:<name>` until it is replaced: nothing rewrites a recipe.
 - Against decision 12: the server's Resources and a module's are two components, the first
   read-only. Both read the common images as published, so an image drawn in the theme's draft
   shows there once deployed. The uses count the menus, the composed images' layers and the

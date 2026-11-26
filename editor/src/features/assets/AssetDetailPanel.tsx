@@ -236,7 +236,11 @@ export function AssetDetailPanel({
       {asset.compose && (
         <p className="text-xs text-[var(--text-mut)]">
           {t("resources.composed", {
-            layers: [...new Set(asset.compose.layers.map((layer) => layer.image))].join(", "),
+            layers: [
+              ...new Set(
+                asset.compose.layers.map((layer) => kitNameOf(layer.image) ?? layer.image),
+              ),
+            ].join(", "),
           })}
         </p>
       )}
