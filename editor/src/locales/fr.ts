@@ -39,6 +39,11 @@ const fr: typeof en = {
       notTakenGlyph:
         "Non prise : ce glyphe a une hauteur de {{height}} et un ascent de {{ascent}}, l'original une hauteur de {{originalHeight}} et un ascent de {{originalAscent}}. L'original reste montré tant qu'ils diffèrent.",
     },
+    share: {
+      button: "Copier dans les images communes",
+      hint: "Une copie part dans les images communes du serveur sous le même nom, dans leur brouillon : une fois déployée, tous les modules peuvent la nommer. Ce module garde la sienne, que ses menus montrent toujours ; supprime-la ici ensuite pour qu'ils prennent l'image commune.",
+      taken: "Les images communes ont déjà une image de ce nom.",
+    },
     ramps: {
       allIn:
         "Toutes les couleurs de cette image sont celles d'Artisan : un thème les repeint toutes.",

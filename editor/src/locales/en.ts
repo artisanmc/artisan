@@ -37,6 +37,11 @@ export default {
       notTakenGlyph:
         "Not taken: this glyph has height {{height}} and ascent {{ascent}}, the original height {{originalHeight}} and ascent {{originalAscent}}. The original shows until they match.",
     },
+    share: {
+      button: "Copy to the common images",
+      hint: "A copy goes to the server's common images under the same name, in their draft: once deployed, every module can name it. This module keeps its own, which its menus still show; delete it here afterwards for them to take the common one.",
+      taken: "The common images already have an image of this name.",
+    },
     ramps: {
       allIn: "Every colour of this image is one of Artisan's: a theme repaints them all.",
       off_one: "{{count}} colour of this image is none of Artisan's: a theme leaves it as it is.",

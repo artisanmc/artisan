@@ -1,3 +1,4 @@
+import type { Asset } from "@/domain/asset";
 import { create } from "zustand";
 
 /**
@@ -22,6 +23,15 @@ export const useResourcesView = create<{
   /** The module the request was made in, which leaves it for the Project it then opens. */
   pieceFrom: string | null;
   askPiece: (id: string | null, from?: string) => void;
+  /**
+   * An image or a font of a module asked to be copied into the common images: the Resources of
+   * the common images' Project copy it into their draft once their images are read
+   * (`useCommonCopyAsked`).
+   */
+  shared: Asset | null;
+  /** The module the request was made in, which leaves it for the Project it then opens. */
+  sharedFrom: string | null;
+  askShare: (asset: Asset | null, from?: string) => void;
 }>((set) => ({
   view: "files",
   setView: (view) => set({ view }),
@@ -30,4 +40,7 @@ export const useResourcesView = create<{
   piece: null,
   pieceFrom: null,
   askPiece: (piece, from) => set({ piece, pieceFrom: piece === null ? null : (from ?? null) }),
+  shared: null,
+  sharedFrom: null,
+  askShare: (shared, from) => set({ shared, sharedFrom: shared === null ? null : (from ?? null) }),
 }));

@@ -1,12 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { type AssetUsage, assetPreviewUrl } from "@/domain/asset";
+import { type Asset, type AssetUsage, assetPreviewUrl } from "@/domain/asset";
 import { assetMenuReferences, assetUsages } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { deleteAsset, patchAsset } from "@/lib/api/userAssets";
 import { IMAGE_FUNCTIONS, type ImageFunction } from "@/lib/pack/imageFunction";
-import { kitSlot } from "@/lib/pack/kit";
+import { kitNameOf, kitSlot } from "@/lib/pack/kit";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useId, useState } from "react";
@@ -17,6 +17,7 @@ import { CommonImageOriginal, OriginalImage } from "./CommonImageState";
 import { OriginalChanged } from "./OriginalChanged";
 import { useAssetStore } from "./assetStore";
 import { originalImageUrl, useImageNotTaken, useImageStanding } from "./imageStanding";
+import { useKitAssets } from "./kitAssets";
 import { isKitModule } from "./localAssets";
 import { useOffRampColors } from "./offRamp";
 import { useResourcesView } from "./resourcesView";
@@ -28,7 +29,17 @@ const OFF_RAMP_SHOWN = 12;
  * The selected resource in the library's column: its picture, what it is and where it is used.
  * An image is edited in the atelier (`ImageStudio`), which this only opens.
  */
-export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
+export function AssetDetailPanel({
+  projectId,
+  onShare,
+}: {
+  projectId: ProjectId;
+  /**
+   * Copies the module's image or font `asset` into the server's common images (the page opens
+   * their Project, which takes it in its draft); absent on a server that has none.
+   */
+  onShare?: (asset: Asset) => void;
+}) {
   const inputId = useId();
   const { t } = useTranslation();
   const project = useProjectsStore((s) =>
@@ -52,6 +63,7 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   const openStudio = useResourcesView((s) => s.openStudio);
   const standing = useImageStanding(projectId, asset);
   const notTaken = useImageNotTaken(projectId, asset);
+  const common = useKitAssets();
   // Asked only of an image that may follow the ramps, once it says so.
   const offRamp = useOffRampColors(
     asset,
@@ -90,6 +102,10 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   // owner holds nothing to rename or delete; beside the owner's file, deleting theirs restores it.
   const original = standing.original;
   const asShipped = !!original && !standing.own;
+  // A module's own image or font may be made common; a recipe names the module's layers, and stays.
+  const shares = !!onShare && !isKitModule(projectId) && !asset.compose && !asShipped;
+  // The common images, as published, already have an image of that name: the copy would take another.
+  const commonHolds = shares && common.some((held) => kitNameOf(held.id) === asset.name);
   const restores = piece ? !asShipped : !!original && !!standing.own;
 
   const onSave = async () => {
@@ -331,6 +347,23 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
         )}
       </details>
       {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
+      {shares && (
+        <div className="flex flex-col gap-1 text-xs" data-testid="asset-share">
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={commonHolds}
+              onClick={() => onShare?.(asset)}
+            >
+              {t("resources.share.button")}
+            </Button>
+          </div>
+          <span className="text-[var(--text-mut)]">
+            {t(commonHolds ? "resources.share.taken" : "resources.share.hint")}
+          </span>
+        </div>
+      )}
       {!asShipped && (
         <div className="flex justify-between">
           <Button variant="destructive" onClick={onDelete}>
