@@ -88,4 +88,17 @@ useServerIndexStore.subscribe((state, previous) => {
         ]),
     ),
   );
+  // The modules, in the pack's order: their images are what `<folder>:<name>` names.
+  useKitStore.getState().setModules(
+    state.reads
+      .filter((r) => !r.summary.role && r !== read)
+      .sort((a, b) => (a.summary.id < b.summary.id ? -1 : a.summary.id > b.summary.id ? 1 : 0))
+      .map((r) => ({
+        projectId: r.summary.id,
+        folder: folderOf(r),
+        files: r.files,
+        binaries: r.binaries,
+      })),
+    state.failed.length > 0,
+  );
 });

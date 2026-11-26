@@ -466,6 +466,12 @@ const fr: typeof en = {
       },
     },
   },
+  imageReach: {
+    none: "Aucune image « {{name}} » : ni ce module, ni les images communes, ni un autre module déployé n'en a. Rien ne s'affichera en jeu.",
+    module: "Image du module {{module}}.",
+    elsewhere: "« {{name}} » est une image du module {{module}}, nommée par son nom seul.",
+    write: "Écrire {{ref}}",
+  },
   imageButton: {
     search: "Rechercher une image…",
     native: "Taille naturelle",

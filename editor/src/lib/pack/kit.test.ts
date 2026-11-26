@@ -99,6 +99,28 @@ describe("UI kit", () => {
     expect(imageNamed(images, "ribbon")).toBeUndefined();
   });
 
+  test("a list that holds other modules' images answers their keys, and a name alone last", () => {
+    const images = [
+      { id: "gold" },
+      { id: "kit:panel" },
+      { id: "bank:gold" },
+      { id: "bank:coin" },
+      { id: "guilds:coin" },
+      { id: "guilds:panel" },
+    ];
+    expect(imageNamed(images, "bank:gold")).toBe(images[2]);
+    expect(imageNamed(images, "guilds:coin")).toBe(images[4]);
+    // A name alone: the module's own, then the common one, then the first module holding it.
+    expect(imageNamed(images, "gold")).toBe(images[0]);
+    expect(imageNamed(images, "panel")).toBe(images[1]);
+    expect(imageNamed(images, "coin")).toBe(images[3]);
+    // A common image is never reached as another module's, nor a module's by a longer name.
+    expect(imageNamed([{ id: "kit:star" }, { id: "bank:big:star" }], "star")).toMatchObject({
+      id: "kit:star",
+    });
+    expect(imageNamed(images, "warps:coin")).toBeUndefined();
+  });
+
   test("a name ending with its slots says the area the image covers", () => {
     expect(kitFootprint("kit:button.3x1")).toEqual({ width: 3, height: 1 });
     expect(kitFootprint("kit:arrow.next.off.1x2")).toEqual({ width: 1, height: 2 });

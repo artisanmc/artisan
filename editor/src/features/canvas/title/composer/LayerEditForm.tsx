@@ -14,6 +14,7 @@ import type { AssetId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { KitPicker } from "@/features/assets/KitPicker";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { ImageReachNote } from "@/features/assets/ImageReachNote";
 import { useAssetsWithKit, useCommonImageRef } from "@/features/assets/kitAssets";
 import { imageNamed } from "@/lib/pack/kit";
 import { duplicateAsset } from "@/lib/api/userAssets";
@@ -197,6 +198,18 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
               ? `${asset.type} · ${asset.width} × ${asset.height} px`
               : t("layerEditForm.imageNotLoaded")}
           </div>
+          <ImageReachNote
+            projectId={projectId}
+            name={layer.assetId}
+            onRename={(ref) =>
+              updateLayer({
+                projectId,
+                menuId,
+                index,
+                patch: { assetId: ref as AssetId } as Partial<MenuTitleLayer>,
+              })
+            }
+          />
         </div>
       </div>
 

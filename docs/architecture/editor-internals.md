@@ -88,6 +88,20 @@ and the caller writes what `useCommonImageRef` gives: the name alone, `artisan:<
 open module holds an image of that name (its assets, deployed or not), and `kit:<name>` on a
 server older than the theme, which reads nothing else (`KitRead.byName`). The theme's files come from the
 server index through `state/kitStore`, so nothing here imports that feature.
+**Another module's image** is drawn too: `state/kitStore` holds the server's modules as published
+(`modules`, in the pack's order, fed by the server index with `modulesUnread` when one could not
+be read), and `kitAssets.ts` gives each of their PNGs as an `Asset` under its key
+(`<folder>:<name>`, the owner's file over the one the module ships, `heldBy`). `useImageAsset`
+reads a name by the pack's rule (`reachOf`, `lib/pack/elsewhere.ts`): the module's own, the
+common image, then the first other module holding it, and `<folder>:<name>` that module's;
+`useAssetsWithKit` lists those assets after the common ones, where `imageNamed` finds a key or,
+last, a name alone. They are the published files as they are: a composed image of another
+module is not assembled, and a theme's redraw of a module's image is not shown.
+`ImageReachNote` (the button editor, a title layer's form) says what a written name reaches
+(`useImageReach`): an alert when no image answers it, whose image it is when another module's,
+with a button that writes `<folder>:<name>` when the name alone found it. It says nothing where
+the rule is not known (a server older than the theme `artisan`, a module that could not be
+read, a name the game fills in).
 The Resources screen's module selector (`features/project/ProjectSource.tsx`) never lists the
 common images' Project among the other modules; a library that gives it `common` (the Resources
 tab) gets an entry **Common images** (`COMMON_IMAGES`), drawn by `CommonAssets` in

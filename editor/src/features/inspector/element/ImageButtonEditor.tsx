@@ -6,6 +6,7 @@ import type { Appearance, Element, Menu, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { AssetPreview } from "@/features/assets/AssetPreview";
 import { KitPicker } from "@/features/assets/KitPicker";
+import { ImageReachNote } from "@/features/assets/ImageReachNote";
 import { useCommonImageRef, useImageAsset } from "@/features/assets/kitAssets";
 import { colsFor, rowsFor } from "@/features/canvas/inventoryTypes";
 import { kitFootprint } from "@/lib/pack/kit";
@@ -111,6 +112,11 @@ export function ImageButtonEditor({
       {image && (
         <>
           {asset && <AssetPreview asset={asset} className="h-20 w-full object-contain" />}
+          <ImageReachNote
+            projectId={projectId}
+            name={image.asset}
+            onRename={(ref) => onImage({ ...image, asset: ref })}
+          />
           <Button size="sm" variant="outline" onClick={() => setPicking(true)}>
             {t("imageButton.choose")}
           </Button>

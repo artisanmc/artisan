@@ -3,7 +3,7 @@ import { descriptorOf, descriptorPath } from "./assetDiskWrite";
 import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
 import { diskAssetsFromTree } from "./diskAssets";
 import { imageButtonsFromMenus } from "./imageButtons";
-import { kitNameOf } from "./kit";
+import { KIT_SLOTS, assetNamesIn, kitNameOf, kitShippedName } from "./kit";
 import { titleImagesFromMenus } from "./menuGlyphPlacements";
 
 /**
@@ -64,6 +64,23 @@ export interface ElsewhereWhere {
   /** The server's other modules in the pack's order (by Project id), the first holding a name alone. */
   modules: readonly { folder: string; own: (name: string) => boolean }[];
 }
+
+/**
+ * What the common images' Project holds, from its `paths`: the base (the editor's own list and
+ * what the server ships, `originals/`) and the images the server added.
+ */
+export function commonHolders(paths: readonly string[]): Pick<ElsewhereWhere, "base" | "common"> {
+  const base = new Set(KIT_SLOTS.map((slot) => slot.id));
+  for (const path of paths) {
+    const name = kitShippedName(path);
+    if (name) base.add(name);
+  }
+  const common = new Set(assetNamesIn(paths.filter((path) => path.startsWith("assets/"))));
+  return { base: (name) => base.has(name), common: (name) => common.has(name) };
+}
+
+/** Whether `ref` is a name the pack can look up as written: a placeholder is filled in game, not here. */
+export const isWrittenName = (ref: string): boolean => /^[A-Za-z0-9_.:-]+$/.test(ref);
 
 /** The image a name written in a module reaches, and who holds it. */
 export type Reach =

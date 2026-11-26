@@ -19,6 +19,12 @@ export interface KitRead {
   canMove?: boolean;
 }
 
+/** A module of the server as published, for the images another module's menus name in it. */
+export interface ModuleRead extends KitRead {
+  /** The module's folder: what `<folder>:<name>` names its images with. */
+  folder: string;
+}
+
 interface KitState {
   /** `undefined`: the server has no kit module, or its projects are not read yet. */
   read: KitRead | undefined;
@@ -30,6 +36,15 @@ interface KitState {
    */
   own: Readonly<Record<string, KitRead>>;
   setOwn: (own: Readonly<Record<string, KitRead>>) => void;
+  /**
+   * The server's modules as published, in the pack's order (by Project id): the common images'
+   * Project and the themes are not among them. A menu may name an image of any of them
+   * (`<folder>:<name>`, `lib/pack/imageNames.ts`). Empty: none, or not read yet.
+   */
+  modules: readonly ModuleRead[];
+  /** A module of the server could not be read: `modules` is not all of them. */
+  modulesUnread: boolean;
+  setModules: (modules: readonly ModuleRead[], unread?: boolean) => void;
   /**
    * The themes in place on the server, the lowest first (`resource-pack.themes`): what its pack
    * is built in. Empty: none, or not read yet. The array changes only when the names do.
@@ -46,6 +61,7 @@ interface KitState {
 
 const NO_THEMES: readonly string[] = [];
 const NO_OWN: Readonly<Record<string, KitRead>> = {};
+const NO_MODULES: readonly ModuleRead[] = [];
 
 /**
  * What the server index knows of the kit module, held here so that whatever draws a menu can
@@ -56,6 +72,10 @@ export const useKitStore = create<KitState>((set) => ({
   setRead: (read) => set({ read }),
   own: NO_OWN,
   setOwn: (own) => set({ own: Object.keys(own).length === 0 ? NO_OWN : own }),
+  modules: NO_MODULES,
+  modulesUnread: false,
+  setModules: (modules, unread = false) =>
+    set({ modules: modules.length === 0 ? NO_MODULES : modules, modulesUnread: unread }),
   themes: NO_THEMES,
   stacks: false,
   readConfig: (config) =>

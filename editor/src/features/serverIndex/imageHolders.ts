@@ -1,5 +1,5 @@
-import type { ElsewhereWhere } from "@/lib/pack/elsewhere";
-import { KIT_SLOTS, assetNamesIn, kitShippedName } from "@/lib/pack/kit";
+import { type ElsewhereWhere, commonHolders } from "@/lib/pack/elsewhere";
+import { assetNamesIn } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
 import { useServerIndexStore } from "./serverIndexStore";
 
@@ -31,16 +31,6 @@ export function imageHolders(
     ]),
   );
 
-  const base = new Set(KIT_SLOTS.map((slot) => slot.id));
-  const common = new Set<string>();
-  const paths = pathsOf(kit);
-  for (const path of paths) {
-    const name = kitShippedName(path);
-    if (name) base.add(name);
-  }
-  for (const name of assetNamesIn(paths.filter((path) => path.startsWith("assets/"))))
-    common.add(name);
-
   const modules = reads
     .filter((r) => !r.summary.role && r.summary.id !== edited.id && r.summary.id !== kit.projectId)
     .sort((a, b) => (a.summary.id < b.summary.id ? -1 : a.summary.id > b.summary.id ? 1 : 0))
@@ -54,8 +44,7 @@ export function imageHolders(
   return {
     folder: edited.diskId ?? edited.id,
     own: (name) => own.has(name),
-    base: (name) => base.has(name),
-    common: (name) => common.has(name),
+    ...commonHolders(pathsOf(kit)),
     modules,
   };
 }
