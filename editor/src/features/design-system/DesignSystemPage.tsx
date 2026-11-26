@@ -60,6 +60,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ResetButton } from "@/components/ui/reset-button";
 import { ResizeHandle } from "@/components/ui/resize-handle";
 import { Segmented } from "@/components/ui/segmented";
+import { ToolRail } from "@/components/ui/tool-rail";
 import {
   Sheet,
   SheetBody,
@@ -87,7 +88,18 @@ import { ACTION_FAMILIES, actionAppearance, familyColors } from "@/lib/actions/a
 import { LORE } from "@/lib/mm/profiles";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useUiStore } from "@/state/uiStore";
-import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
+import {
+  Eraser,
+  Inbox,
+  LayoutGrid,
+  Move,
+  PaintBucket,
+  Pencil,
+  Plus,
+  Search,
+  Sparkles,
+  TerminalSquare,
+} from "lucide-react";
 import { type CSSProperties, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -356,6 +368,7 @@ export function DesignSystemPage() {
   const [splitSize, setSplitSize] = useState(160);
   const [tourOpen, setTourOpen] = useState(false);
   const [segValue, setSegValue] = useState<"chest" | "hopper" | "dropper">("chest");
+  const [railTool, setRailTool] = useState<"move" | "pencil" | "eraser" | "fill">("pencil");
   const tourTarget = useRef<HTMLButtonElement>(null);
 
   return (
@@ -704,6 +717,27 @@ export function DesignSystemPage() {
                 onChange={setSegValue}
               />
             </FormField>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<ToolRail>"}</span>
+            <div className="panel flex w-fit rounded-[var(--r-md)] p-1.5">
+              <ToolRail
+                label="Tools"
+                value={railTool}
+                onChange={setRailTool}
+                tools={[
+                  { value: "move", label: "Move", shortcut: "V", icon: Move },
+                  { value: "pencil", label: "Pencil", shortcut: "B", icon: Pencil },
+                  { value: "eraser", label: "Eraser", shortcut: "E", icon: Eraser },
+                  {
+                    value: "fill",
+                    label: "Paint bucket",
+                    icon: PaintBucket,
+                    disabled: "Nothing to fill here",
+                  },
+                ]}
+              />
+            </div>
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">

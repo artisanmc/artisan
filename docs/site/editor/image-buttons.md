@@ -197,32 +197,36 @@ for a button), an **icon** (16 × 16) or a **free size**. It starts empty, to be
 a common image of that size, as a composed image.
 
 **The atelier.** Selecting an image shows it in the side panel; **Open in the atelier** gives
-it the whole page. A PNG opens in the pixel editor, a composed image in the composer: drag a
-layer to move it (hold Shift to move by one slot, or use the arrow keys for one pixel), reorder
-or remove layers in the list, add a **Common image** or a **Module image**. A layer repeats with
-**Columns** and **Rows** (the slots of a window: a grid of `artisan:cell`). A common image is
-written `artisan:<name>` in the recipe; `kit:<name>`, the former spelling, is read the same and
-stays as written until the layer is replaced. The image is as large
-as its bottom layer reaches unless you give it a **Fixed size**; what goes past is cut. **Save
-layers** writes the recipe into your draft. The atelier draws guides over the image, each
-switched on or off: the **slots**, and on a menu background the **inventory** and the
-**title** line. **In a menu** shows an image on slots at the game's size, on the base's window,
-while you draw.
+it the whole page, laid out as a drawing program. The tools are on the left: **Move the
+layer** (V), then pencil (B), eraser (E), pipette (I) and paint bucket (G). The image is in
+the middle, with undo, redo and zoom in the bar above it. On the right are the **Layers**, the
+settings of the selected one, the colours while you draw, the image's size, the guides and,
+for an image on slots, the image **In a menu** at the game's size. **Save** in the bar writes
+what changed, pixels and layers, into your draft.
 
-**One image, one or several layers.** A PNG open in the atelier is an image of one layer.
-**Add layers** turns it into a composed image of the same name whose first layer is that
-drawing (kept in the module as `<image>_layer`): the menus that show it keep showing it, and
-you set common images or other drawings over it. **Flatten**, on a composed image, does the
-reverse: its layers become one PNG of the same name, which no longer follows the common images; the
-layers stay in the module as images. An image a module ships takes layers the same way: its
-drawing is copied into your files as the first layer, and the composed image is your version
-of that name. **Restore the original** on it gives the module's image back.
+**Layers.** Every image is one or several layers, listed from the top one down; the selected
+one is what the tools act on. Add one with **Common image**, **Module image** or **Drawing**
+(an empty image of the same size, on top, to draw on). With the move tool, drag a layer (hold
+Shift to move by one slot, or use the arrow keys for one pixel), reorder or remove layers in
+the list, and repeat one with **Columns** and **Rows** (the slots of a window: a grid of
+`artisan:cell`). With a drawing tool, you draw on the selected layer among the others, the
+ones above shown through; switching layer or tool saves what you drew. Only a drawing of the
+module can be drawn on: a common image is placed here and redrawn among the common images. A
+common image is written `artisan:<name>` in the recipe; `kit:<name>`, the former spelling, is
+read the same and stays as written until the layer is replaced. The image is as large as its
+bottom layer reaches unless you give it a **Fixed size**; what goes past is cut.
 
-**Draw a layer** adds an empty image of the composed image's size on top of the others, saves
-the recipe, and opens the pixel editor on it: you draw among the other layers, the ones above
-shown through. The layer is a PNG of the module (`<image>_layer`), and the image stays a
-recipe, so it still follows the common images. **Retouch this layer** does the same for any layer that is
-a PNG of the module; a common image is redrawn among the common images.
+**A PNG is an image of one layer.** Adding a layer to it turns it into a composed image of the
+same name whose first layer is that drawing (kept in the module as `<image>_layer`): the menus
+that show it keep showing it. **Flatten**, under the layers, does the reverse: the layers
+become one PNG of the same name, which no longer follows the common images; the layers stay in
+the module as images. An image a module ships takes layers the same way: its drawing is copied
+into your files as the first layer, and the composed image is your version of that name.
+**Restore the original** on it gives the module's image back.
+
+**Guides.** The atelier draws guides over the image, each switched on or off and shown in its
+own colour: the **slots**, and on a menu background the player's **inventory** and the
+**title** line.
 
 **Natural size** is the default for new buttons: an 8×8 PNG stays 8×8 and is centered.
 Use **Horizontal/Vertical offset (px)** to move it within the area, or **Center image**

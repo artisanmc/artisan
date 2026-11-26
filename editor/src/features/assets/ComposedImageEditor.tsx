@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type Asset, assetPreviewUrl } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
-import { patchAsset, uploadAsset } from "@/lib/api/userAssets";
+import { patchAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
 import {
   COMPOSE_MAX_LAYERS,
@@ -12,14 +12,13 @@ import {
   type ComposeRecipe,
   composeSize,
 } from "@/lib/pack/compose";
-import { KIT_PREFIX, commonImageKey, kitNameOf } from "@/lib/pack/kit";
-import { createImage, encodePng } from "@/lib/pack/png";
+import { KIT_PREFIX, kitNameOf } from "@/lib/pack/kit";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
-import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import {
   type KeyboardEvent,
   type PointerEvent,
+  type ReactNode,
   useEffect,
   useId,
   useMemo,
@@ -29,30 +28,34 @@ import {
 import { useTranslation } from "react-i18next";
 import { ImageGuides } from "./ImageGuides";
 import { ImageChoiceDialog, KitPicker } from "./KitPicker";
+import { LayersPanel } from "./LayersPanel";
 import { PixelEditor } from "./PixelEditor";
 import { SITUATION_SCALE, SituationPreview } from "./SituationPreview";
-import type { GuideName } from "./guideRules";
+import {
+  type DrawTool,
+  SaveActions,
+  type StudioParts,
+  StudioSection,
+  type StudioTool,
+  StudioTools,
+  ZoomControls,
+  toolOfKey,
+  useStageZoom,
+} from "./StudioFrame";
 import { useAssetStore } from "./assetStore";
+import type { GuideName } from "./guideRules";
+import { addDrawnLayer, layerOf, layerRef } from "./imageLayers";
 import { useKitAssets } from "./kitAssets";
 import { type ImageSize, assetSize, useAssetSize, useMeasuredAssetSizes } from "./measuredSize";
 
 /** One slot of a menu, in pixels: what Shift moves a layer by. */
 const SLOT = 18;
-/** How much of the window's height the stage may take. */
-const STAGE_HEIGHT = 0.6;
-/** In the atelier, where the stage has the screen. */
-const WIDE_STAGE_HEIGHT = 0.78;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 /** Where the image itself starts: what a layer is placed from when nothing else is drawn. */
 const ORIGIN: ComposeLayer = { image: "", x: 0, y: 0, columns: 1, rows: 1 };
 
-/** What a layer writes to take `picked`: `artisan:<name>` for a common image, the name of a PNG of the module. */
-export function layerName(picked: Pick<Asset, "name">): string {
-  const common = kitNameOf(picked.name);
-  return common !== null ? commonImageKey(common) : picked.name;
-}
 const NO_GUIDES: readonly GuideName[] = [];
 
 const sameRecipe = (a: ComposeRecipe, b: ComposeRecipe) => JSON.stringify(a) === JSON.stringify(b);
@@ -114,8 +117,9 @@ function StageLayer({
 }
 
 /**
- * A layer shown around the one being drawn (`PixelEditor`'s `around`): placed from that layer's
- * top left corner, at the pixel editor's zoom, and out of the pointer's way.
+ * A layer shown without being held: around the one being drawn (`PixelEditor`'s `around`), or
+ * in the preview. Placed from the corner `from` gives, at `zoom`, out of the pointer's way.
+ * `picture` shows the layer as it is drawn now, in place of its saved file.
  */
 function AroundLayer({
   asset,
@@ -123,15 +127,18 @@ function AroundLayer({
   from,
   zoom,
   faint,
+  picture,
 }: {
   asset: Asset;
   layer: ComposeLayer;
   from: ComposeLayer;
   zoom: number;
   faint: boolean;
+  picture?: string;
 }) {
-  const url = useAuthenticatedImageUrl(assetPreviewUrl(asset));
-  const size = useAssetSize(asset, url);
+  const fetched = useAuthenticatedImageUrl(assetPreviewUrl(asset));
+  const size = useAssetSize(asset, fetched);
+  const url = picture || fetched;
   if (!size) return null;
   return (
     <span
@@ -185,29 +192,38 @@ function NumberField({
 }
 
 /**
- * A composed image edited with the mouse (`lib/pack/compose.ts`): its layers on a stage at a
- * whole number of times the game's pixels, and listed from the top one down. A layer is dragged
- * (Shift: by one slot), nudged with the arrow keys, repeated as a grid, reordered and removed;
- * a new one is a kit image, a PNG of the module, or one drawn here: an empty PNG of the image's
- * size added on top and opened in the pixel editor among the other layers, as any PNG layer of
- * the module is retouched. What is saved is the recipe itself, so what an AI app composed is
- * edited here, and the other way round.
+ * An image of several layers in the atelier (`lib/pack/compose.ts`): its layers on a stage at a
+ * whole number of times the game's pixels, and listed from the top one down. With the move
+ * tool a layer is dragged (Shift: by one slot), nudged with the arrow keys, repeated as a
+ * grid, reordered and removed; a new one is a common image, a PNG of the module, or one drawn
+ * here, an empty PNG of the image's size added on top. With a drawing tool, the selected layer
+ * is drawn pixel by pixel among the others (`PixelEditor`), when it is a PNG of the module: a
+ * common image is redrawn among the common images. What is saved is the recipe itself, so what
+ * an AI app composed is edited here, and the other way round. It renders nothing by itself:
+ * `layout` places its parts.
  */
 export function ComposedImageEditor({
   projectId,
   asset,
-  wide = false,
+  tool,
+  onTool,
   guides = NO_GUIDES,
   situation = false,
+  footer,
+  layout,
 }: {
   projectId: ProjectId;
   asset: Asset;
-  /** In the atelier: the stage beside the layers, as large as the screen allows. */
-  wide?: boolean;
+  /** The tool in hand. */
+  tool: StudioTool;
+  onTool: (tool: StudioTool) => void;
   /** The guides drawn over the stage (`ImageGuides`). */
   guides?: readonly GuideName[];
-  /** Shows the image where a player sees it, under the stage (`SituationPreview`). */
+  /** Shows the image where a player sees it (`SituationPreview`). */
   situation?: boolean;
+  /** Under the list of layers: what is done to them as a whole. */
+  footer?: ReactNode;
+  layout: (parts: StudioParts) => ReactNode;
 }) {
   const { t } = useTranslation();
   const fieldId = useId();
@@ -223,12 +239,10 @@ export function ComposedImageEditor({
   const [picker, setPicker] = useState<"kit" | "module" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** The layer being drawn pixel by pixel, in place of the stage. */
-  const [drawing, setDrawing] = useState<number | null>(null);
   // Another recipe under this asset (saved, or changed by someone else): start again from it.
   useEffect(() => {
     setRecipe(saved);
-    setSelected(null);
+    setSelected((held) => (held !== null && held < saved.layers.length ? held : null));
     setError(null);
   }, [saved]);
 
@@ -245,29 +259,25 @@ export function ComposedImageEditor({
       : own.find((a) => a.name === name);
   };
   const sizeOf = (name: string): ImageSize | undefined => assetSize(imageOf(name), measured);
+  /** The PNG of the module the layer at `index` shows: what can be drawn on here. */
+  const drawingAt = (index: number | null): Asset | undefined => {
+    const layer = index === null ? undefined : recipe.layers[index];
+    return layer && kitNameOf(layer.image) === null ? imageOf(layer.image) : undefined;
+  };
+  let topDrawing = -1;
+  recipe.layers.forEach((_, index) => {
+    if (drawingAt(index)) topDrawing = index;
+  });
+  // Nothing to draw on: the drawing tools are out of reach, whatever was in hand.
+  const held: StudioTool = tool !== "move" && topDrawing < 0 ? "move" : tool;
+  // A drawing tool acts on a drawing: the top one when none is selected.
+  useEffect(() => {
+    if (held !== "move" && selected === null && topDrawing >= 0) setSelected(topDrawing);
+  }, [held, selected, topDrawing]);
 
   const size = composeSize(recipe, sizeOf);
-  const frame = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const element = frame.current;
-    if (!element || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(entry.contentRect.width);
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-  // As large as the panel is wide, a whole number of times the game's pixels, and no taller
-  // than most of the window; smaller than the game's only when the image is wider than the panel.
-  const fit =
-    size && width > 0
-      ? Math.min(
-          width / size.width,
-          (window.innerHeight * (wide ? WIDE_STAGE_HEIGHT : STAGE_HEIGHT)) / size.height,
-        )
-      : 2;
-  const scale = fit >= 1 ? Math.floor(fit) : fit;
+  const view = useStageZoom(size ?? null, { fallback: 2 });
+  const scale = view.zoom;
 
   const update = (index: number, patch: Partial<ComposeLayer>) =>
     setRecipe((r) => ({
@@ -279,6 +289,15 @@ export function ComposedImageEditor({
       x: clamp(Math.round(x), -COMPOSE_MAX_SIDE, COMPOSE_MAX_SIDE),
       y: clamp(Math.round(y), -COMPOSE_MAX_SIDE, COMPOSE_MAX_SIDE),
     });
+  /** The layer the tools act on. One that cannot be drawn on is moved: the move tool takes over. */
+  const select = (index: number) => {
+    setSelected(index);
+    if (held !== "move" && !drawingAt(index)) onTool("move");
+  };
+  const pickTool = (next: StudioTool) => {
+    if (next !== "move" && !drawingAt(selected) && topDrawing >= 0) setSelected(topDrawing);
+    onTool(next);
+  };
   const move = (index: number, to: number) => {
     if (to < 0 || to >= recipe.layers.length) return;
     setRecipe((r) => {
@@ -292,15 +311,15 @@ export function ComposedImageEditor({
   const remove = (index: number) => {
     setRecipe((r) => ({ ...r, layers: r.layers.filter((_, i) => i !== index) }));
     setSelected(null);
+    if (held !== "move") onTool("move");
   };
   const add = (picked: Asset) => {
     setPicker(null);
     if (recipe.layers.length >= COMPOSE_MAX_LAYERS) return;
-    setRecipe((r) => ({
-      ...r,
-      layers: [...r.layers, { image: layerName(picked), x: 0, y: 0, columns: 1, rows: 1 }],
-    }));
+    setRecipe((r) => ({ ...r, layers: [...r.layers, layerOf(layerRef(picked))] }));
+    // A layer just set down is placed first.
     setSelected(recipe.layers.length);
+    if (held !== "move") onTool("move");
   };
 
   const drag = useRef<{ index: number; x: number; y: number; left: number; top: number } | null>(
@@ -313,12 +332,16 @@ export function ComposedImageEditor({
       event.currentTarget.setPointerCapture?.(event.pointerId);
     },
     onPointerMove: (event: PointerEvent<HTMLButtonElement>) => {
-      const held = drag.current;
-      if (!held || held.index !== index) return;
+      const dragged = drag.current;
+      if (!dragged || dragged.index !== index) return;
       // Whole pixels of the game; Shift keeps to whole slots from where the layer was.
       const step = event.shiftKey ? SLOT : 1;
       const by = (delta: number) => Math.round(delta / scale / step) * step;
-      place(index, held.left + by(event.clientX - held.x), held.top + by(event.clientY - held.y));
+      place(
+        index,
+        dragged.left + by(event.clientX - dragged.x),
+        dragged.top + by(event.clientY - dragged.y),
+      );
     },
     onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
       drag.current = null;
@@ -340,46 +363,39 @@ export function ComposedImageEditor({
   });
 
   const dirty = !sameRecipe(recipe, saved);
-  const save = async () => {
-    if (!user || busy || recipe.layers.length === 0) return;
+  const save = async (): Promise<boolean> => {
+    if (!dirty) return true;
+    if (!user || busy || recipe.layers.length === 0) return false;
     setBusy(true);
     setError(null);
     try {
       upsertAsset(await patchAsset(projectId, asset.id, { compose: recipe }));
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+      return false;
     } finally {
       setBusy(false);
     }
   };
 
-  /**
-   * A layer to draw: an empty PNG of the image's size, a file of the module, on top of the
-   * others. The recipe is saved with it, so the file never stays without the layer that shows it.
-   */
+  /** A layer to draw, on top of the others (`addDrawnLayer`): it is selected, a pencil in hand. */
   const draw = async () => {
     if (!user || busy || recipe.layers.length >= COMPOSE_MAX_LAYERS) return;
     setBusy(true);
     setError(null);
     try {
       const taken = new Set(all.filter((a) => a.projectId === projectId).map((a) => a.name));
-      let name = `${asset.name}_layer`;
-      for (let n = 2; taken.has(name); n++) name = `${asset.name}_layer_${n}`;
-      const png = encodePng(createImage(size?.width ?? SLOT, size?.height ?? SLOT));
-      const made = await uploadAsset(projectId, {
-        file: new File([png as Uint8Array<ArrayBuffer>], `${name}.png`, { type: "image/png" }),
-        type: "glyph",
-        name,
-        usages: [],
+      const made = await addDrawnLayer(projectId, asset, recipe, taken, {
+        width: size?.width ?? SLOT,
+        height: size?.height ?? SLOT,
       });
-      upsertAsset(made);
-      const next = {
-        ...recipe,
-        layers: [...recipe.layers, { image: made.name, x: 0, y: 0, columns: 1, rows: 1 }],
-      };
+      upsertAsset(made.layer);
+      const next = made.image.compose as ComposeRecipe;
       setRecipe(next);
-      upsertAsset(await patchAsset(projectId, asset.id, { compose: next }));
-      setDrawing(next.layers.length - 1);
+      upsertAsset(made.image);
+      setSelected(next.layers.length - 1);
+      onTool(held === "move" ? "pencil" : held);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -390,271 +406,121 @@ export function ComposedImageEditor({
   const labelOf = (layer: ComposeLayer) => kitNameOf(layer.image) ?? layer.image;
   const current = selected === null ? undefined : recipe.layers[selected];
   const fixed = recipe.width !== null && recipe.height !== null;
+  const full = recipe.layers.length >= COMPOSE_MAX_LAYERS;
 
-  const drawn = drawing === null ? undefined : recipe.layers[drawing];
-  const drawnImage = drawn && kitNameOf(drawn.image) === null ? imageOf(drawn.image) : undefined;
-  if (drawn && drawnImage && drawing !== null) {
-    const around = (zoom: number) => {
-      const shown = (from: number, to: number, faint: boolean) =>
-        recipe.layers.slice(from, to).map((layer, i) => {
-          const image = imageOf(layer.image);
-          return image ? (
-            <AroundLayer
-              // biome-ignore lint/suspicious/noArrayIndexKey: layers have no identity but their place in the stack
-              key={from + i}
-              asset={image}
-              layer={layer}
-              from={drawn}
-              zoom={zoom}
-              faint={faint}
-            />
-          ) : null;
-        });
-      // The layers above are shown through, so what is drawn under them stays visible.
-      return {
-        under: shown(0, drawing, false),
-        over: (
-          <>
-            {shown(drawing + 1, recipe.layers.length, true)}
-            {size && (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute"
-                style={{
-                  left: -drawn.x * zoom,
-                  top: -drawn.y * zoom,
-                  width: size.width * zoom,
-                  height: size.height * zoom,
-                }}
-              >
-                <ImageGuides width={size.width} height={size.height} scale={zoom} shown={guides} />
-              </span>
-            )}
-          </>
-        ),
-      };
+  const target = held !== "move" && drawingAt(selected) ? selected : null;
+  const drawn = target === null ? undefined : recipe.layers[target];
+  const drawnImage = drawingAt(target);
+
+  /** The layers from `from` to `to`, shown without being held (`AroundLayer`). */
+  const shown = (from: number, to: number, zoom: number, faint: boolean, picture?: string) =>
+    recipe.layers.slice(from, to).map((layer, i) => {
+      const image = imageOf(layer.image);
+      return image ? (
+        <AroundLayer
+          // biome-ignore lint/suspicious/noArrayIndexKey: layers have no identity but their place in the stack
+          key={from + i}
+          asset={image}
+          layer={layer}
+          from={ORIGIN}
+          zoom={zoom}
+          faint={faint}
+          picture={from + i === target ? picture : undefined}
+        />
+      ) : null;
+    });
+
+  /**
+   * The right column. `before` runs ahead of what leaves the layer being drawn (another layer
+   * selected, one added or removed): its pixels are saved first, and it stays when that fails.
+   */
+  const panels = (
+    before: (() => Promise<boolean>) | null,
+    picture?: string,
+    colour?: ReactNode,
+  ) => {
+    const then = (work: () => void) => () => {
+      if (before) void before().then((ok) => ok && work());
+      else work();
     };
     return (
-      <div className="flex flex-col gap-2" data-testid="compose-drawing">
-        <p className="text-xs text-[var(--text-mut)]">
-          {t("compose.drawing", { name: drawn.image })}
-        </p>
-        <PixelEditor
-          projectId={projectId}
-          asset={drawnImage}
-          onClose={() => setDrawing(null)}
-          around={around}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={cx(
-        "flex flex-col gap-3",
-        wide && "lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-5",
-      )}
-      data-testid="compose-editor"
-    >
-      <div className="flex min-w-0 flex-col gap-3">
-        <figure className="flex flex-col gap-1">
-          <div
-            ref={frame}
-            className="checker flex min-h-32 w-full items-center justify-center overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] p-3"
-          >
-            {size ? (
-              <div
-                className="relative shrink-0 overflow-hidden outline outline-1 outline-[var(--border-strong)]"
-                data-testid="compose-stage"
-                style={{ width: size.width * scale, height: size.height * scale }}
-              >
-                {recipe.layers.map((layer, index) => {
-                  const image = imageOf(layer.image);
-                  return image ? (
-                    <StageLayer
-                      // biome-ignore lint/suspicious/noArrayIndexKey: layers have no identity but their place in the stack
-                      key={index}
-                      asset={image}
-                      layer={layer}
-                      scale={scale}
-                      selected={selected === index}
-                      label={t("compose.layerLabel", { name: labelOf(layer), n: index + 1 })}
-                      {...handlers(index, layer)}
-                    />
-                  ) : null;
-                })}
-                <ImageGuides width={size.width} height={size.height} scale={scale} shown={guides} />
-              </div>
-            ) : (
-              <p className="text-center text-xs text-[var(--text-mut)]">{t("compose.nothing")}</p>
-            )}
-          </div>
-          <figcaption className="flex justify-between gap-2 text-[11px] text-[var(--text-faint)]">
-            <span>{t("compose.dragHint")}</span>
-            {size && (
-              <span className="shrink-0">
-                {size.width} × {size.height} px
-                {scale >= 1 ? ` · ${t("resources.zoom", { scale })}` : ""}
-              </span>
-            )}
-          </figcaption>
-        </figure>
-        {situation && size && (
-          <SituationPreview width={size.width} height={size.height}>
-            {recipe.layers.map((layer, index) => {
-              const image = imageOf(layer.image);
-              return image ? (
-                <AroundLayer
-                  // biome-ignore lint/suspicious/noArrayIndexKey: layers have no identity but their place in the stack
-                  key={index}
-                  asset={image}
-                  layer={layer}
-                  from={ORIGIN}
-                  zoom={SITUATION_SCALE}
-                  faint={false}
-                />
-              ) : null;
-            })}
-          </SituationPreview>
-        )}
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between gap-2">
-            <span className="field-label">{t("compose.layers")}</span>
-            <div className="flex flex-wrap justify-end gap-1.5">
-              <Button size="sm" variant="outline" onClick={() => setPicker("kit")}>
-                {t("compose.addKit")}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setPicker("module")}>
-                {t("compose.addImage")}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!user || busy || recipe.layers.length >= COMPOSE_MAX_LAYERS}
-                onClick={() => void draw()}
-              >
-                {t("compose.addDrawn")}
-              </Button>
-            </div>
-          </div>
-          {/* The top layer first, as it is seen. */}
-          <ul className="flex flex-col gap-1">
-            {recipe.layers
-              .map((layer, index) => ({ layer, index }))
-              .reverse()
-              .map(({ layer, index }) => {
-                const image = imageOf(layer.image);
-                return (
-                  <li
-                    key={index}
-                    className={cx(
-                      "flex items-center gap-1 rounded-[8px] border px-1.5 py-1",
-                      selected === index
-                        ? "border-[var(--brand)] bg-[var(--brand-soft)]"
-                        : "border-[var(--border-soft)] bg-[var(--surface-raised)]",
-                    )}
-                  >
-                    <button
-                      type="button"
-                      className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left text-xs text-[var(--text)]"
-                      aria-pressed={selected === index}
-                      onClick={() => setSelected(selected === index ? null : index)}
-                    >
-                      <span className="truncate font-mono">{labelOf(layer)}</span>
-                      {(layer.columns > 1 || layer.rows > 1) && (
-                        <span className="badge shrink-0">
-                          {layer.columns} × {layer.rows}
-                        </span>
-                      )}
-                      {!image && (
-                        <span className="badge badge-amber shrink-0">{t("compose.missing")}</span>
-                      )}
-                    </button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-7"
-                      aria-label={t("compose.up", { name: labelOf(layer) })}
-                      disabled={index === recipe.layers.length - 1}
-                      onClick={() => move(index, index + 1)}
-                    >
-                      <ArrowUp className="size-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-7"
-                      aria-label={t("compose.down", { name: labelOf(layer) })}
-                      disabled={index === 0}
-                      onClick={() => move(index, index - 1)}
-                    >
-                      <ArrowDown className="size-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-7"
-                      aria-label={t("compose.remove", { name: labelOf(layer) })}
-                      disabled={recipe.layers.length === 1}
-                      onClick={() => remove(index)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </li>
-                );
-              })}
-          </ul>
-        </div>
+      <>
+        <LayersPanel
+          rows={recipe.layers.map((layer, index) => ({
+            index,
+            label: labelOf(layer),
+            image: imageOf(layer.image),
+            picture: index === target ? picture : undefined,
+            repeat:
+              layer.columns > 1 || layer.rows > 1 ? `${layer.columns} × ${layer.rows}` : undefined,
+            common: kitNameOf(layer.image) !== null,
+          }))}
+          selected={selected}
+          onSelect={(index) => then(() => select(index))()}
+          onMove={move}
+          onRemove={(index) => then(() => remove(index))()}
+          add={{
+            common: then(() => setPicker("kit")),
+            module: then(() => setPicker("module")),
+            drawn: then(() => void draw()),
+            disabled: !user || busy || full,
+          }}
+        >
+          {footer}
+        </LayersPanel>
 
         {current && selected !== null && (
-          <div className="flex flex-wrap gap-3" data-testid="compose-layer-fields">
-            <NumberField
-              label={t("compose.x")}
-              value={current.x}
-              min={-COMPOSE_MAX_SIDE}
-              max={COMPOSE_MAX_SIDE}
-              onChange={(x) => update(selected, { x })}
-            />
-            <NumberField
-              label={t("compose.y")}
-              value={current.y}
-              min={-COMPOSE_MAX_SIDE}
-              max={COMPOSE_MAX_SIDE}
-              onChange={(y) => update(selected, { y })}
-            />
-            <NumberField
-              label={t("compose.columns")}
-              value={current.columns}
-              min={1}
-              max={COMPOSE_MAX_REPEAT}
-              onChange={(columns) => update(selected, { columns })}
-            />
-            <NumberField
-              label={t("compose.rows")}
-              value={current.rows}
-              min={1}
-              max={COMPOSE_MAX_REPEAT}
-              onChange={(rows) => update(selected, { rows })}
-            />
-            {kitNameOf(current.image) === null && imageOf(current.image) ? (
+          <StudioSection title={t("studio.layer")} testId="compose-layer-fields">
+            <div className="flex flex-wrap gap-3">
+              <NumberField
+                label={t("compose.x")}
+                value={current.x}
+                min={-COMPOSE_MAX_SIDE}
+                max={COMPOSE_MAX_SIDE}
+                onChange={(x) => update(selected, { x })}
+              />
+              <NumberField
+                label={t("compose.y")}
+                value={current.y}
+                min={-COMPOSE_MAX_SIDE}
+                max={COMPOSE_MAX_SIDE}
+                onChange={(y) => update(selected, { y })}
+              />
+              <NumberField
+                label={t("compose.columns")}
+                value={current.columns}
+                min={1}
+                max={COMPOSE_MAX_REPEAT}
+                onChange={(columns) => update(selected, { columns })}
+              />
+              <NumberField
+                label={t("compose.rows")}
+                value={current.rows}
+                min={1}
+                max={COMPOSE_MAX_REPEAT}
+                onChange={(rows) => update(selected, { rows })}
+              />
+            </div>
+            {held === "move" && drawingAt(selected) ? (
               <Button
                 size="sm"
                 variant="outline"
-                className="self-end"
+                className="self-start"
                 disabled={!user}
-                onClick={() => setDrawing(selected)}
+                onClick={() => pickTool("pencil")}
               >
                 {t("compose.retouchLayer")}
               </Button>
             ) : null}
-          </div>
+            {kitNameOf(current.image) !== null ? (
+              <p className="text-[11px] text-[var(--text-faint)]">{t("studio.commonHint")}</p>
+            ) : null}
+          </StudioSection>
         )}
 
-        <div className="flex flex-col gap-1.5">
+        {colour ? <StudioSection title={t("pixel.colour")}>{colour}</StudioSection> : null}
+
+        <StudioSection title={t("studio.size")}>
           <label className="flex items-center gap-2 text-xs" htmlFor={`${fieldId}-fixed`}>
             <input
               id={`${fieldId}-fixed`}
@@ -690,30 +556,22 @@ export function ComposedImageEditor({
             </div>
           )}
           <p className="text-[11px] text-[var(--text-faint)]">{t("compose.sizeHint")}</p>
-        </div>
+        </StudioSection>
+      </>
+    );
+  };
 
-        {error && (
-          <p role="alert" className="text-xs text-[var(--danger)]">
-            {error}
-          </p>
-        )}
-        {dirty && (
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" disabled={busy} onClick={() => setRecipe(saved)}>
-              {t("compose.reset")}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={busy || !user}
-              onClick={() => void save()}
-            >
-              {t(busy ? "compose.saving" : "compose.save")}
-            </Button>
-          </div>
-        )}
-      </div>
+  const preview = (picture?: string) =>
+    situation && size ? (
+      <StudioSection title={t("studio.guides.situation")}>
+        <SituationPreview width={size.width} height={size.height}>
+          {shown(0, recipe.layers.length, SITUATION_SCALE, false, picture)}
+        </SituationPreview>
+      </StudioSection>
+    ) : null;
 
+  const pickers = (
+    <>
       <KitPicker open={picker === "kit"} onClose={() => setPicker(null)} onPick={add} />
       <ImageChoiceDialog
         open={picker === "module"}
@@ -724,6 +582,148 @@ export function ComposedImageEditor({
         empty={t("compose.noImage")}
         assets={own}
       />
-    </div>
+    </>
+  );
+
+  if (drawn && drawnImage && target !== null) {
+    // The whole image is shown, the layers under and over the one drawn on, which alone takes
+    // the pencil. The layers above are shown through, so what is drawn under them stays visible.
+    const around = (zoom: number, picture: string) => ({
+      under: (
+        <>
+          {shown(0, target, zoom, false)}
+          {(drawn.columns > 1 || drawn.rows > 1) && shown(target, target + 1, zoom, false, picture)}
+        </>
+      ),
+      over: (
+        <>
+          {shown(target + 1, recipe.layers.length, zoom, true)}
+          {size && (
+            <ImageGuides width={size.width} height={size.height} scale={zoom} shown={guides} />
+          )}
+        </>
+      ),
+    });
+    return (
+      <>
+        <PixelEditor
+          key={drawnImage.id}
+          projectId={projectId}
+          asset={drawnImage}
+          tool={held as DrawTool}
+          onTool={onTool}
+          within={
+            size ? { width: size.width, height: size.height, x: drawn.x, y: drawn.y } : undefined
+          }
+          around={around}
+          layout={(pixels) =>
+            layout({
+              rail: pixels.rail,
+              stage: pixels.stage,
+              status: pixels.status,
+              controls: pixels.controls,
+              keys: pixels.keys,
+              actions: (
+                <SaveActions
+                  dirty={pixels.dirty || dirty}
+                  busy={pixels.busy || busy}
+                  canSave={!!user}
+                  error={pixels.error ?? error}
+                  onSave={() => void pixels.save().then((ok) => ok && save())}
+                  onDiscard={() => {
+                    pixels.discard();
+                    setRecipe(saved);
+                  }}
+                />
+              ),
+              panels: panels(pixels.save, pixels.picture, pixels.colour),
+              preview: preview(pixels.picture),
+            })
+          }
+        />
+        {pickers}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {layout({
+        keys: (event) => {
+          if ((event.target as HTMLElement).tagName === "INPUT") return;
+          if (event.ctrlKey || event.metaKey || event.altKey) return;
+          const chosen = toolOfKey(event.key);
+          if (chosen && (chosen === "move" || topDrawing >= 0)) pickTool(chosen);
+        },
+        rail: (
+          <StudioTools
+            value={held}
+            onChange={pickTool}
+            draw={topDrawing < 0 ? t("studio.noDrawing") : undefined}
+          />
+        ),
+        controls: <ZoomControls view={view} />,
+        stage: (
+          <div
+            ref={view.ref}
+            className="checker flex min-h-0 flex-1 overflow-auto p-4"
+            data-testid="compose-editor"
+          >
+            {size ? (
+              <div
+                className="relative m-auto shrink-0 overflow-hidden outline outline-1 outline-[var(--border-strong)]"
+                data-testid="compose-stage"
+                style={{ width: size.width * scale, height: size.height * scale }}
+              >
+                {recipe.layers.map((layer, index) => {
+                  const image = imageOf(layer.image);
+                  return image ? (
+                    <StageLayer
+                      // biome-ignore lint/suspicious/noArrayIndexKey: layers have no identity but their place in the stack
+                      key={index}
+                      asset={image}
+                      layer={layer}
+                      scale={scale}
+                      selected={selected === index}
+                      label={t("compose.layerLabel", { name: labelOf(layer), n: index + 1 })}
+                      {...handlers(index, layer)}
+                    />
+                  ) : null;
+                })}
+                <ImageGuides width={size.width} height={size.height} scale={scale} shown={guides} />
+              </div>
+            ) : (
+              <p className="m-auto text-center text-xs text-[var(--text-mut)]">
+                {t("compose.nothing")}
+              </p>
+            )}
+          </div>
+        ),
+        status: (
+          <>
+            <span>{t("compose.dragHint")}</span>
+            {size && (
+              <span className="shrink-0">
+                {size.width} × {size.height} px
+                {scale >= 1 ? ` · ${t("resources.zoom", { scale })}` : ""}
+              </span>
+            )}
+          </>
+        ),
+        actions: (
+          <SaveActions
+            dirty={dirty}
+            busy={busy}
+            canSave={!!user && recipe.layers.length > 0}
+            error={error}
+            onSave={() => void save()}
+            onDiscard={() => setRecipe(saved)}
+          />
+        ),
+        panels: panels(null),
+        preview: preview(),
+      })}
+      {pickers}
+    </>
   );
 }

@@ -1,6 +1,9 @@
 import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
 import { composeAsset, deleteAsset, patchAsset, uploadAsset } from "@/lib/api/userAssets";
+import type { ComposeLayer, ComposeRecipe } from "@/lib/pack/compose";
+import { commonImageKey, kitNameOf } from "@/lib/pack/kit";
+import { createImage, encodePng } from "@/lib/pack/png";
 import { assetBytes } from "./assetBytes";
 
 /**
@@ -57,7 +60,7 @@ export async function toLayers(
       recipe: {
         width: null,
         height: null,
-        layers: [{ image: layer.name, x: 0, y: 0, columns: 1, rows: 1 }],
+        layers: [layerOf(layer.name)],
       },
       usages,
       ...ascent,
@@ -68,6 +71,46 @@ export async function toLayers(
     else await patchAsset(projectId, layer.id, { name: asset.name, usages }).catch(() => {});
     throw cause;
   }
+}
+
+/** What a layer writes to take `picked`: `artisan:<name>` for a common image, the name of a PNG of the module. */
+export function layerRef(picked: Pick<Asset, "name">): string {
+  const common = kitNameOf(picked.name);
+  return common !== null ? commonImageKey(common) : picked.name;
+}
+
+/** A layer that shows `image` once, from the image's top left corner. */
+export const layerOf = (image: string): ComposeLayer => ({
+  image,
+  x: 0,
+  y: 0,
+  columns: 1,
+  rows: 1,
+});
+
+/**
+ * A layer to draw on, added on top of `recipe`, the layers of the composed image `image`: an
+ * empty PNG of `size`, a file of the module. The recipe is saved with it, so the file never
+ * stays without the layer that shows it.
+ */
+export async function addDrawnLayer(
+  projectId: string,
+  image: Asset,
+  recipe: ComposeRecipe,
+  taken: ReadonlySet<string>,
+  size: { width: number; height: number },
+): Promise<{ layer: Asset; image: Asset }> {
+  let name = `${image.name}_layer`;
+  for (let n = 2; taken.has(name); n++) name = `${image.name}_layer_${n}`;
+  const png = encodePng(createImage(size.width, size.height));
+  const layer = await uploadAsset(projectId, {
+    file: new File([png as Uint8Array<ArrayBuffer>], `${name}.png`, { type: "image/png" }),
+    type: "glyph",
+    name,
+    usages: [],
+  });
+  const next = { ...recipe, layers: [...recipe.layers, layerOf(layer.name)] };
+  return { layer, image: await patchAsset(projectId, image.id, { compose: next }) };
 }
 
 /**
