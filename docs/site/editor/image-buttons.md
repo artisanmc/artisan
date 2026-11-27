@@ -66,6 +66,10 @@ rebuilds its pack, its console names, module by module, the images written that 
 answers and the layers of composed images that take nothing, once until the list changes. That is how a module's folder copied by hand from
 another server tells what it lacks.
 
+**An image uploaded in a module's Resources** goes to the server's library too, as one
+uploaded from a button's image chooser does, and the list turns to **Common images**, where
+it is. In the library's own Resources and in a theme's, an upload stays where it is made.
+
 **Move to the library.** An image added to a module on this server, selected in that module's
 Resources, has **Move to the library**: it leaves the module for the server's library under the
 same name, so the menus that name it keep it and every other module can name it too. Deploy the

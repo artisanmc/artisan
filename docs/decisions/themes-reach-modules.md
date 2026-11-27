@@ -6,8 +6,7 @@ uploaded from a button's image chooser or from the canvas's image list goes to t
 list shows the library first, the inspector has one image chooser that does the same, the
 menu shows the image from the draft, and Deploy picks that draft with the menu and warns when
 it is left out with an image the module names (step 5), and a module's Resources move an image added on the server to the library (**Move to
-the library**); an image added from a module's Resources and a new drawn image still go to the
-module. Step 4 needed nothing new: the
+the library**) and send an uploaded image there; a new drawn image still goes to the module. Step 4 needed nothing new: the
 export already copies the library's images a module names, and the import keeps the copies the
 server lacks (ADR `common-images-and-themes`, decision 10). Amends `resources-one-screen` (2026-11-26): replaces its decision 2 ("a
 theme no longer aims at a module") and the part of its decision 7 that offers a module as a

@@ -4,11 +4,15 @@ import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
 import type { Project, ProjectId } from "@/domain/types";
-import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectSource";
+import {
+  COMMON_IMAGES,
+  ProjectSource,
+  type ProjectSourceId,
+} from "@/features/project/ProjectSource";
 import { imageUseKey, imageUseName, useImageUses } from "@/features/project/imageUses";
 import { projectTree } from "@/features/project/saveProjectToDisk";
 import { cx } from "@/lib/cx";
-import { KIT_ALIAS, commonImageKey, kitNameOf, kitSlot } from "@/lib/pack/kit";
+import { KIT_ALIAS, KIT_FOLDER, commonImageKey, kitNameOf, kitSlot } from "@/lib/pack/kit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useProjectsStore } from "@/state/projectsStore";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -34,8 +38,8 @@ import { isKitModule } from "./localAssets";
 import { type ResourcesView, useResourcesView } from "./resourcesView";
 import { useThemePlaceMark } from "./themePlaceMark";
 import { useKitPieceAsked } from "./useKitPieceAsked";
-import { useSaveAsAsked } from "./useSaveAsAsked";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
+import { useSaveAsAsked } from "./useSaveAsAsked";
 
 export { type ResourcesView, useResourcesView } from "./resourcesView";
 
@@ -168,6 +172,8 @@ export function AssetsTab({
 }) {
   const { t } = useTranslation();
   const [sourceId, setSourceId] = useState<ProjectSourceId>(null);
+  // An image uploaded here went to the server's library: the list turns to it, selected.
+  const [addedCommon, setAddedCommon] = useState<string | null>(null);
   const view = useResourcesView((s) => s.view);
   const setView = useResourcesView((s) => s.setView);
   const captured = useProjectsStore(
@@ -255,6 +261,8 @@ export function AssetsTab({
         common={
           <div className="min-h-0 flex-1">
             <CommonAssets
+              key={addedCommon ?? ""}
+              initial={addedCommon}
               projectId={projectId}
               compact={compact}
               onOpen={onOpenCommon}
@@ -277,7 +285,14 @@ export function AssetsTab({
                 }}
               />
             ) : (
-              <OwnAssets projectId={projectId} compact={compact} />
+              <OwnAssets
+                projectId={projectId}
+                compact={compact}
+                onAddedToLibrary={(asset) => {
+                  setAddedCommon(asset.id);
+                  setSourceId(COMMON_IMAGES);
+                }}
+              />
             )}
           </div>
         )}
@@ -454,11 +469,14 @@ function OtherProjectAssets({
 function CommonAssets({
   projectId,
   compact,
+  initial = null,
   onOpen,
   onOpenMenu,
 }: {
   projectId: ProjectId;
   compact: boolean;
+  /** The image selected at first: one just added to the library from this module. */
+  initial?: string | null;
   onOpen?: () => void;
   onOpenMenu?: (projectId: string, menuId: string) => void;
 }) {
@@ -490,7 +508,7 @@ function CommonAssets({
   const uses = useImageUses(live);
   const misfits = useKitMisfits();
   const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initial);
   const nameOf = (asset: Asset) => kitNameOf(asset.id) ?? asset.name;
   const filtered = assets.filter((asset) =>
     nameOf(asset).toLowerCase().includes(search.toLowerCase()),
@@ -604,9 +622,12 @@ function CommonAssets({
 function OwnAssets({
   projectId,
   compact,
+  onAddedToLibrary,
 }: {
   projectId: ProjectId;
   compact: boolean;
+  /** An uploaded image went to the server's library, given as the common image a menu names. */
+  onAddedToLibrary?: (asset: Asset) => void;
 }) {
   const { t } = useTranslation();
   const isDesktop = useIsDesktop();
@@ -753,6 +774,12 @@ function OwnAssets({
         projectId={projectId}
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
+        // A module holds what it shipped with: an image added here goes to the library too
+        // (ADR `themes-reach-modules`, decision 1).
+        toLibrary
+        onUploaded={(asset) => {
+          if (asset.projectId === KIT_FOLDER) onAddedToLibrary?.(asset);
+        }}
       />
       <AssetImportFontDialog
         projectId={projectId}
