@@ -200,6 +200,51 @@ describe("ComposedImageEditor", () => {
     expect(useAssetStore.getState().assets[0]!.compose?.layers[1]?.rows).toBe(4);
   });
 
+  it("tints a layer with a name of the palette or a colour of its own, and saves it", async () => {
+    const saved = vi
+      .spyOn(userAssetsApi, "patchAsset")
+      .mockImplementation(async (_project, _id, patch) => ({
+        ...composed,
+        compose: patch.compose,
+      }));
+    render(<Stand />);
+    fireEvent.click(within(screen.getAllByRole("listitem")[0]!).getAllByRole("button")[0]!);
+    const tint = screen.getByLabelText("Teinte");
+    expect(tint).toHaveValue("");
+    // The names every server has are offered, then a colour of the layer's own.
+    expect(
+      within(tint)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual([
+      "Aucune",
+      "neutral",
+      "primary",
+      "success",
+      "danger",
+      "warning",
+      "Une couleur à elle…",
+    ]);
+    fireEvent.change(tint, { target: { value: "primary" } });
+    expect(screen.getByText(/Prend la couleur « primary »/)).toBeInTheDocument();
+    // A colour of its own starts from the one the name gave.
+    fireEvent.change(tint, { target: { value: "#" } });
+    expect(screen.getByLabelText("Couleur de la teinte")).toHaveValue("#3b82f6");
+    fireEvent.change(screen.getByLabelText("Couleur de la teinte"), {
+      target: { value: "#b3261e" },
+    });
+    fireEvent.click(within(screen.getAllByRole("listitem")[1]!).getAllByRole("button")[0]!);
+    fireEvent.change(screen.getByLabelText("Teinte"), { target: { value: "warning" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(saved).toHaveBeenCalledTimes(1));
+    expect(saved.mock.calls[0]?.[2].compose?.layers).toEqual([
+      recipe.layers[0],
+      { ...recipe.layers[1], tint: "warning" },
+      { ...recipe.layers[2], tint: "#b3261e" },
+    ]);
+  });
+
   it("gives a layer of a sliced image a size, by its fields and its corner's handle, and saves it", async () => {
     const framed = image("framed", 176, 166, {
       compose: {

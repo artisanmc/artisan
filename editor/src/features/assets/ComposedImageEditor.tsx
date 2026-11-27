@@ -13,10 +13,12 @@ import {
   composeSize,
 } from "@/lib/pack/compose";
 import { KIT_PREFIX, kitNameOf } from "@/lib/pack/kit";
+import { tintOf } from "@/lib/pack/palette";
 import { createImage, encodePng } from "@/lib/pack/png";
 import { slicesAt } from "@/lib/pack/slice";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
+import { useKitStore } from "@/state/kitStore";
 import {
   type KeyboardEvent,
   type PointerEvent,
@@ -30,6 +32,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { ImageGuides } from "./ImageGuides";
 import { ImageChoiceDialog, KitPicker } from "./KitPicker";
+import { LayerTint } from "./LayerTint";
 import { LayersPanel } from "./LayersPanel";
 import { PixelEditor, type PixelSource } from "./PixelEditor";
 import { SITUATION_SCALE, SituationPreview } from "./SituationPreview";
@@ -52,8 +55,10 @@ import { sameRecipe, useImageDocument } from "./imageDocument";
 import { canHaveLayers, layerName, layerOf, layerRef, toLayers } from "./imageLayers";
 import { useImageStanding } from "./imageStanding";
 import { useKitAssets } from "./kitAssets";
+import { activePalette, serverPaletteNames } from "./kitTheme";
 import { type ImageSize, assetSize, useAssetSize, useMeasuredAssetSizes } from "./measuredSize";
 import { useSlicedUrl } from "./slicedUrl";
+import { useTintedUrl } from "./tintedUrl";
 
 /**
  * What the one layer of a PNG names in the atelier: the PNG itself. Never written: an image
@@ -104,6 +109,7 @@ function StageLayer({
   onResizeStart,
   resizeLabel,
   picture,
+  tint,
 }: {
   asset: Asset;
   layer: ComposeLayer;
@@ -112,6 +118,8 @@ function StageLayer({
   label: string;
   /** The layer as it is drawn now, in place of its saved file. */
   picture?: string;
+  /** The colour the layer is tinted with, `#rrggbb`: its `tint`, looked up in the palette. */
+  tint?: string;
   /** Asks for another size, in the image's pixels: only for a layer that can take one. */
   onResize?: (width: number, height: number) => void;
   /** The handle is taken: what follows is one gesture. */
@@ -126,7 +134,8 @@ function StageLayer({
   const fetched = useAuthenticatedImageUrl(source);
   // Measured from the image when the descriptor gives no size: the stage waits for it.
   const size = useAssetSize(asset, fetched);
-  const url = picture || fetched;
+  const plain = picture || fetched;
+  const url = useTintedUrl(plain, tint) ?? plain;
   const box = size ? layerBox(asset, layer, size) : null;
   const drawn = useSlicedUrl(url, box?.resized ? asset.slice : undefined, box?.width, box?.height);
   const grip = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -218,6 +227,7 @@ function AroundLayer({
   zoom,
   faint,
   picture,
+  tint,
 }: {
   asset: Asset;
   layer: ComposeLayer;
@@ -225,10 +235,13 @@ function AroundLayer({
   zoom: number;
   faint: boolean;
   picture?: string;
+  /** The colour the layer is tinted with, `#rrggbb`. */
+  tint?: string;
 }) {
   const fetched = useAuthenticatedImageUrl(assetPreviewUrl(asset));
   const size = useAssetSize(asset, fetched);
-  const url = picture || fetched;
+  const plain = picture || fetched;
+  const url = useTintedUrl(plain, tint) ?? plain;
   const box = size ? layerBox(asset, layer, size) : null;
   const drawn = useSlicedUrl(url, box?.resized ? asset.slice : undefined, box?.width, box?.height);
   if (!size || !box) return null;
@@ -331,6 +344,13 @@ export function ComposedImageEditor({
   const all = useAssetStore((s) => s.assets);
   const kit = useKitAssets();
   const measured = useMeasuredAssetSizes();
+  // The palette of the themes in place, as published: what a layer's tint shows here, like the game.
+  const library = useKitStore((s) => s.read);
+  const themes = useKitStore((s) => s.own);
+  const stack = useKitStore((s) => s.themes);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: read again when the server's palettes are
+  const palette = useMemo(() => activePalette(), [library, themes, stack]);
+  const tintNames = useMemo(() => serverPaletteNames(library, themes), [library, themes]);
 
   const standing = useImageStanding(projectId, asset);
   // The module's image as shipped: the owner holds no file of it, its layers are theirs.
@@ -692,6 +712,7 @@ export function ComposedImageEditor({
           zoom={zoom}
           faint={faint}
           picture={pictureOf(image)}
+          tint={tintOf(layer.tint, palette)}
         />
       ) : null;
     });
@@ -787,6 +808,12 @@ export function ComposedImageEditor({
             {stretches ? (
               <p className="text-[11px] text-[var(--text-faint)]">{t("compose.resizeHint")}</p>
             ) : null}
+            <LayerTint
+              value={current.tint}
+              names={tintNames}
+              palette={palette}
+              onChange={(tint) => update(selected, { tint }, `field:${selected}:tint`)}
+            />
             {held === "move" && drawingAt(selected) ? (
               <Button
                 size="sm"
@@ -1002,6 +1029,7 @@ export function ComposedImageEditor({
                       scale={scale}
                       selected={selected === index}
                       picture={pictureOf(image)}
+                      tint={tintOf(layer.tint, palette)}
                       label={t("compose.layerLabel", { name: labelOf(layer), n: index + 1 })}
                       {...handlers(index, layer)}
                       onResize={
